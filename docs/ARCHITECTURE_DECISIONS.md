@@ -2,12 +2,12 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 42 decision(s) documented | Last updated: 2026-01-05 23:01:58
+**Summary**: 43 decision(s) documented | Last updated: 2026-01-08 09:15:52
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
-Last_Updated: 2026-01-05T23:01:58.967190Z
-Total_Decisions: 42
+Last_Updated: 2026-01-08T09:15:52.463626Z
+Total_Decisions: 43
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUILD-155
@@ -17,6 +17,7 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 
 | Timestamp | DEC-ID | Decision | Status | Impact |
 |-----------|--------|----------|--------|--------|
+| 2026-01-08 | DEC-046 | Default-Deny Governance Policy (Conservative Auto-Approval Boundaries) | ✅ Implemented | Intentionally narrow auto-approval scope ensures human oversight for all production-impacting changes |
 | 2026-01-05 | DEC-045 | Security Diff Gate Policy (Fingerprint-Based Normalization + Security-Extended Suite) | ✅ Implemented | Mechanically enforceable security gates with high signal-to-noise; prevents baseline drift on benign refactors |
 | 2026-01-05 | DEC-044 | Requirements Regeneration Policy (Linux/CI Canonical) | ✅ Implemented | Mechanical prevention of cross-platform dependency drift via PR-blocking CI check |
 | 2026-01-05 | DEC-043 | Security Baseline Refresh (CI SARIF Artifacts Canonical) | ✅ Implemented | Ensures reproducible security baselines from canonical CI environment, prevents platform drift |
@@ -61,6 +62,88 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 | 2025-12-09 | DEC-007 | Documentation Consolidation Implementation Plan | ✅ Implemented |  |
 
 ## DECISIONS (Reverse Chronological)
+
+### DEC-046 | 2026-01-08 | Default-Deny Governance Policy (Conservative Auto-Approval Boundaries)
+
+**Status**: ✅ Implemented
+**Build**: BUILD-192 (Governance Policy ADR)
+**Context**: The plan proposer (`src/autopack/planning/plan_proposer.py`) implements a default-deny governance policy where `NEVER_AUTO_APPROVE_PATTERNS` blocks auto-approval for `docs/`, `config/`, `.github/`, `src/autopack/`, and `tests/`. This makes auto-approval extremely rare. This decision documents that this is **intentional policy**, not over-restriction.
+
+**Decision**: Maintain conservative auto-approval boundaries where **all code paths** (`src/`, `tests/`) and **all infrastructure paths** (`docs/`, `config/`, `.github/`) require human approval. Auto-approval is reserved for narrow, low-risk, non-code operations only.
+
+**Chosen Approach**:
+
+- **NEVER_AUTO_APPROVE_PATTERNS** (always require human approval):
+  - `docs/` - Documentation changes affect operator understanding and SOT integrity
+  - `config/` - Configuration changes affect system behavior and security posture
+  - `.github/` - CI/workflow changes affect automation trust and supply chain security
+  - `src/autopack/` - All production code requires human oversight
+  - `tests/` - Test changes affect regression detection and quality gates
+
+- **Auto-Approval Criteria** (all must be true):
+  1. Risk score < threshold (0.3 normal, 0.2 strict safety profile)
+  2. Action type is `file_move`, `doc_update`, or `tidy_apply`
+  3. Does NOT touch any NEVER_AUTO_APPROVE_PATTERNS paths
+  4. Does NOT touch anchor-defined protected paths
+  5. OR: Matches explicit narrow auto-approval rule from anchor
+
+- **Safety Profile Integration** (BUILD-181):
+  - **Normal profile**: Block at risk >= 0.8, auto-approve at risk < 0.3
+  - **Strict profile**: Block at risk >= 0.5, auto-approve at risk < 0.2
+
+**Why Tests Require Approval**:
+- **Regression Detection**: Modifying tests can mask real bugs or allow regressions to pass
+- **Quality Gate Integrity**: Auto-approved test changes could weaken the test suite
+- **Audit Trail**: All test modifications should have human sign-off for accountability
+- **Defense in Depth**: Even "safe-looking" test changes can have unintended consequences
+
+**Why All Code Requires Approval**:
+- **Production Impact**: Any code change can affect system behavior
+- **Autonomy Safety**: Autonomous agents should not modify their own code without oversight
+- **Trust Model**: Human approval is the accountability checkpoint for all production changes
+
+**Alternatives Considered**:
+
+1. **Allow Auto-Approval for Test-Only Changes**:
+   - ❌ Rejected: Test modifications can mask bugs or weaken quality gates
+   - ❌ "Safe-looking" test changes can have subtle regression impacts
+   - ❌ No accountability trail for test suite evolution
+
+2. **Allow Auto-Approval for Low-Risk Code Changes**:
+   - ❌ Rejected: "Low-risk" is subjective and can be gamed
+   - ❌ Autonomous systems modifying their own code without oversight is risky
+   - ❌ Accountability requires human checkpoint for all production code
+
+3. **Narrow Auto-Approval for Formatting/Linting Fixes**:
+   - ⚠️ Deferred: Could be added as narrow exception if proven safe
+   - Would require: (a) deterministic tool output, (b) no semantic changes, (c) CI verification
+   - Current policy: Require approval, human can approve quickly if change is trivial
+
+4. **Remove NEVER_AUTO_APPROVE for Non-Security Paths**:
+   - ❌ Rejected: Creates "gray zones" where policy boundaries are unclear
+   - ❌ Consistency is safer than exceptions
+   - ❌ Human approval overhead is acceptable for production safety
+
+**Rationale**:
+- **Mechanically Enforceable**: Clear path-based rules, no ambiguity about what requires approval
+- **Accountability**: All production-impacting changes have human sign-off
+- **Defense in Depth**: Multiple layers (path check + risk score + protected paths) prevent auto-approval creep
+- **Intention-First**: Aligns with README principle that autonomous execution requires explicit governance gates
+- **Trust Model**: Humans remain in the loop for all code and infrastructure changes
+
+**Implementation**:
+- **Policy Module**: [src/autopack/planning/plan_proposer.py](../src/autopack/planning/plan_proposer.py) (`NEVER_AUTO_APPROVE_PATTERNS`, lines 42-48)
+- **Governance Logic**: `_apply_governance()` method (lines 377-443)
+- **Path Check**: `_touches_never_auto_approve_paths()` method (lines 445-458)
+- **Contract Tests**: [tests/planning/test_governance_policy.py](../tests/planning/test_governance_policy.py) (enforces policy boundaries)
+
+**Validation**:
+- ✅ Contract tests verify NEVER_AUTO_APPROVE_PATTERNS are enforced
+- ✅ Contract tests verify auto-approval only for narrow low-risk paths
+- ✅ Contract tests verify safety profile affects thresholds
+- ✅ Policy documented and tested as intentional design
+
+---
 
 ### DEC-045 | 2026-01-05 | Security Diff Gate Policy (Fingerprint-Based Normalization + Security-Extended Suite)
 

@@ -338,14 +338,19 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 
 ### 2.3 Governance policy surface is large and likely over-restrictive; clarify intent
 
+**Status**: RESOLVED (BUILD-192 / DEC-046)
+
 - **Evidence**: `src/autopack/planning/plan_proposer.py` `NEVER_AUTO_APPROVE_PATTERNS` includes:
   - `docs/`, `config/`, `.github/`, **`src/autopack/`**, **`tests/`**
-- **Why it matters**: This makes auto-approval extremely rare, even for low-risk refactors and test-only changes; it may be intentional, but should be explicitly stated and tested as policy.
-- **Recommended fix**:
-  - Decide whether tests are allowed for auto-approval (with strict constraints) vs always requiring approval.
-  - Encode the decision in one canonical policy module/config and reference it from docs + proposer.
-- **Acceptance criteria**:
-  - Docs + proposer agree; tests exist demonstrating the policy boundaries.
+- **Resolution**: The restrictive policy is **intentional** (see DEC-046 in `docs/ARCHITECTURE_DECISIONS.md`). This is a default-deny governance posture where:
+  - All code paths (src/, tests/) require human approval
+  - All infrastructure paths (docs/, config/, .github/) require human approval
+  - Auto-approval is narrow and explicit, not the default
+- **Contract tests**: `tests/planning/test_governance_policy.py` enforces these policy boundaries:
+  - 6 tests verify `NEVER_AUTO_APPROVE_PATTERNS` contents
+  - 5 tests verify each protected path requires approval
+  - 2 tests verify safety profile thresholds
+  - 2 tests verify default-deny and violation tracking
 
 ### 2.4 Local workspace hygiene: root contains many untracked seed DBs (spec says route them)
 

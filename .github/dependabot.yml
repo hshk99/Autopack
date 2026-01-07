@@ -47,3 +47,19 @@ updates:
       - "hshk99"
     commit-message:
       prefix: "ci"
+
+  # NPM dependencies (root frontend)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "frontend"
+    reviewers:
+      - "hshk99"
+    commit-message:
+      prefix: "npm"

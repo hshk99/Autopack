@@ -17,15 +17,39 @@ import sys
 from pathlib import Path
 
 
-PROTECTED_SOT_PATHS = [
-    "README.md",
-    "docs/BUILD_HISTORY.md",
-    "docs/DEBUG_LOG.md",
-    "docs/ARCHITECTURE_DECISIONS.md",
-    "docs/FUTURE_PLAN.md",
-    "docs/PROJECT_INDEX.json",
-    "docs/LEARNED_RULES.json",
-]
+def _load_protected_sot_paths(repo_root: Path) -> list[str]:
+    """
+    Load protected SOT paths from config so tidy + CI checks share the same source of truth.
+
+    Falls back to a hard-coded list if the registry is missing or unreadable.
+    """
+    registry_path = repo_root / "config" / "sot_registry.json"
+    if registry_path.exists():
+        try:
+            import json
+
+            data = json.loads(registry_path.read_text(encoding="utf-8"))
+            paths = data.get("protected_paths", [])
+            if isinstance(paths, list) and all(isinstance(p, str) for p in paths) and paths:
+                # Stable ordering for deterministic output + diffs
+                return sorted(set(paths))
+        except Exception:
+            # Conservative fallback below
+            pass
+
+    return [
+        "README.md",
+        "docs/BUILD_HISTORY.md",
+        "docs/DEBUG_LOG.md",
+        "docs/ARCHITECTURE_DECISIONS.md",
+        "docs/FUTURE_PLAN.md",
+        "docs/PROJECT_INDEX.json",
+        "docs/LEARNED_RULES.json",
+    ]
+
+
+# Initialized in main() to keep module import side-effects minimal/deterministic.
+PROTECTED_SOT_PATHS: list[str] = []
 
 # A small set of common write APIs we want to catch in executor code.
 # We only match when the protected path is in the same line to avoid overly broad false positives.
@@ -58,6 +82,8 @@ def _scan_file(path: Path) -> list[str]:
 
 def main() -> int:
     repo_root = Path(__file__).resolve().parent.parent
+    global PROTECTED_SOT_PATHS
+    PROTECTED_SOT_PATHS = _load_protected_sot_paths(repo_root)
 
     # Phase F: Expanded set of runtime modules to scan
     runtime_modules = [

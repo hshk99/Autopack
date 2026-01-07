@@ -1,6 +1,6 @@
 # Archive Index
 
-**Generated**: 2026-01-07T05:31:41.178661+00:00
+**Generated**: 2026-01-07T06:18:05.654519+00:00
 **Generator**: 1.0.0
 
 > This file is auto-generated from `archive/ARCHIVE_INDEX.json`.
@@ -22,10 +22,10 @@
 | `misc/` | 334 | 242.4 KB | Miscellaneous archived files |
 | `patches/` | 5 | 3.8 KB | Code patches and diffs |
 | `plans/` | 7 | 21.2 KB | Planning documents and specs |
-| `reports/` | 20 | 50.2 KB | Generated reports |
+| `reports/` | 18 | 46.4 KB | Generated reports |
 | `research/` | 3 | 1.7 KB | Research notes and analysis |
 | `runs/` | 174 | 1.4 MB | Telemetry and execution runs |
-| `schemas/` | 1 | 4.1 KB | JSON schemas and data models |
+| `schemas/` | 1 | 4.3 KB | JSON schemas and data models |
 | `second_opinion_pack_2025-12-28/` | 24 | 24.7 MB | - |
 | `superseded/` | 325 | 6.0 MB | Superseded/deprecated files |
 | `tasks/` | 1 | 2.2 KB | Task definitions and configs |
@@ -34,15 +34,15 @@
 ### Recent Files (top 25)
 
 - `ARCHIVE_INDEX.md` (2.9 KB)
-- `ARCHIVE_INDEX.json` (18.6 KB)
-- `archive_index_v1.schema.json` (4.1 KB) - JSON schema definition
-- `storage_report_C_20260107_152919.json` (1.5 KB)
-- `storage_report_C_20260107_152919.txt` (2.2 KB)
+- `ARCHIVE_INDEX.json` (18.5 KB)
+- `archive_index_v1.schema.json` (4.3 KB) - JSON schema definition
+- `.gitignore` (1.3 KB)
 - `1400973015525599419` (14.4 KB)
 - `12517110544588259728` (8.4 KB)
 - `5774736069570525491` (3.5 KB)
 - `9443958944031020263` (9.3 KB)
 - `16346157460702735206` (0.1 KB)
+- `7650601532988512126` (0.5 KB)
 - ... and 15 more in JSON
 
 ### Provenance

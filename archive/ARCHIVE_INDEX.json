@@ -1,0 +1,490 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-01-07T05:31:41.178661+00:00",
+  "generator_version": "1.0.0",
+  "archive_roots": [
+    {
+      "id": "repo",
+      "root_rel": "archive",
+      "kind": "repo_archive",
+      "bucket_stats": [
+        {
+          "bucket_rel": "archive/data",
+          "file_count": 169,
+          "total_bytes": 52158464,
+          "description": "Raw data files and databases"
+        },
+        {
+          "bucket_rel": "archive/diagnostics",
+          "file_count": 266,
+          "total_bytes": 39353273,
+          "description": "Diagnostic logs and debug outputs"
+        },
+        {
+          "bucket_rel": "archive/experiments",
+          "file_count": 32,
+          "total_bytes": 157493,
+          "description": "Experimental code and research"
+        },
+        {
+          "bucket_rel": "archive/misc",
+          "file_count": 334,
+          "total_bytes": 248210,
+          "description": "Miscellaneous archived files"
+        },
+        {
+          "bucket_rel": "archive/patches",
+          "file_count": 5,
+          "total_bytes": 3888,
+          "description": "Code patches and diffs"
+        },
+        {
+          "bucket_rel": "archive/plans",
+          "file_count": 7,
+          "total_bytes": 21732,
+          "description": "Planning documents and specs"
+        },
+        {
+          "bucket_rel": "archive/reports",
+          "file_count": 20,
+          "total_bytes": 51383,
+          "description": "Generated reports"
+        },
+        {
+          "bucket_rel": "archive/research",
+          "file_count": 3,
+          "total_bytes": 1707,
+          "description": "Research notes and analysis"
+        },
+        {
+          "bucket_rel": "archive/runs",
+          "file_count": 174,
+          "total_bytes": 1497598,
+          "description": "Telemetry and execution runs"
+        },
+        {
+          "bucket_rel": "archive/schemas",
+          "file_count": 1,
+          "total_bytes": 4245,
+          "description": "JSON schemas and data models"
+        },
+        {
+          "bucket_rel": "archive/second_opinion_pack_2025-12-28",
+          "file_count": 24,
+          "total_bytes": 25859890,
+          "description": null
+        },
+        {
+          "bucket_rel": "archive/superseded",
+          "file_count": 325,
+          "total_bytes": 6320575,
+          "description": "Superseded/deprecated files"
+        },
+        {
+          "bucket_rel": "archive/tasks",
+          "file_count": 1,
+          "total_bytes": 2221,
+          "description": "Task definitions and configs"
+        },
+        {
+          "bucket_rel": "archive/unsorted",
+          "file_count": 17,
+          "total_bytes": 31900628,
+          "description": "Files pending categorization"
+        }
+      ],
+      "recent_files": [
+        {
+          "path_rel": "archive/ARCHIVE_INDEX.md",
+          "bytes": 2977,
+          "mtime_utc": "2026-01-07T05:26:03.881859+00:00",
+          "kind": "markdown",
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/ARCHIVE_INDEX.json",
+          "bytes": 19066,
+          "mtime_utc": "2026-01-07T05:26:03.880860+00:00",
+          "kind": "json",
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/schemas/archive_index_v1.schema.json",
+          "bytes": 4245,
+          "mtime_utc": "2026-01-07T05:13:37.794465+00:00",
+          "kind": "json",
+          "summary_hint": "JSON schema definition"
+        },
+        {
+          "path_rel": "archive/reports/storage/storage_report_C_20260107_152919.json",
+          "bytes": 1556,
+          "mtime_utc": "2026-01-07T04:29:19.613040+00:00",
+          "kind": "json",
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/reports/storage/storage_report_C_20260107_152919.txt",
+          "bytes": 2304,
+          "mtime_utc": "2026-01-07T04:29:19.612043+00:00",
+          "kind": "text",
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/1400973015525599419",
+          "bytes": 14758,
+          "mtime_utc": "2026-01-06T22:54:52.858719+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/12517110544588259728",
+          "bytes": 8650,
+          "mtime_utc": "2026-01-06T22:51:46.678566+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/5774736069570525491",
+          "bytes": 3550,
+          "mtime_utc": "2026-01-06T22:51:46.678566+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/9443958944031020263",
+          "bytes": 9512,
+          "mtime_utc": "2026-01-06T22:51:33.743822+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/16346157460702735206",
+          "bytes": 144,
+          "mtime_utc": "2026-01-06T22:50:36.488709+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/7650601532988512126",
+          "bytes": 530,
+          "mtime_utc": "2026-01-06T22:50:36.488709+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/17974614668849844938",
+          "bytes": 115,
+          "mtime_utc": "2026-01-06T22:50:36.487709+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/5569429217388237320",
+          "bytes": 211,
+          "mtime_utc": "2026-01-06T22:50:36.487709+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/5813710790633904025",
+          "bytes": 218,
+          "mtime_utc": "2026-01-06T22:50:36.487709+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/5967045891566506721",
+          "bytes": 79,
+          "mtime_utc": "2026-01-06T22:50:36.487709+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/12276424054430786734",
+          "bytes": 87,
+          "mtime_utc": "2026-01-06T22:50:36.472148+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/13226374008917731668",
+          "bytes": 211,
+          "mtime_utc": "2026-01-06T22:50:36.472148+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/17547003731534513325",
+          "bytes": 1237,
+          "mtime_utc": "2026-01-06T22:50:36.472148+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/17619186261047032779",
+          "bytes": 278,
+          "mtime_utc": "2026-01-06T22:50:36.472148+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/2252606277152775309",
+          "bytes": 1138,
+          "mtime_utc": "2026-01-06T22:50:36.472148+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/4692355123864518397",
+          "bytes": 202,
+          "mtime_utc": "2026-01-06T22:50:36.472148+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/12737487206375698686",
+          "bytes": 122,
+          "mtime_utc": "2026-01-06T22:50:36.471149+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/15350915341923710565",
+          "bytes": 73,
+          "mtime_utc": "2026-01-06T22:50:36.471149+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/2445157771818191682",
+          "bytes": 273,
+          "mtime_utc": "2026-01-06T22:50:36.471149+00:00",
+          "kind": null,
+          "summary_hint": null
+        },
+        {
+          "path_rel": "archive/misc/root_directories/.ruff_cache/.ruff_cache/0.14.6/7167719644014101511",
+          "bytes": 71,
+          "mtime_utc": "2026-01-06T22:50:36.471149+00:00",
+          "kind": null,
+          "summary_hint": null
+        }
+      ],
+      "provenance": {
+        "tidy_reports_rel_glob": "archive/reports/storage/*.json",
+        "tidy_activity_logs_rel_glob": ".autonomous_runs/_ci_artifacts/tidy_*.log"
+      }
+    },
+    {
+      "id": "file-organizer-app-v1",
+      "root_rel": ".autonomous_runs/file-organizer-app-v1/archive",
+      "kind": "project_archive",
+      "bucket_stats": [
+        {
+          "bucket_rel": ".autonomous_runs/file-organizer-app-v1/archive/plans",
+          "file_count": 3,
+          "total_bytes": 17521,
+          "description": "Planning documents and specs"
+        },
+        {
+          "bucket_rel": ".autonomous_runs/file-organizer-app-v1/archive/research",
+          "file_count": 16,
+          "total_bytes": 47136,
+          "description": "Research notes and analysis"
+        },
+        {
+          "bucket_rel": ".autonomous_runs/file-organizer-app-v1/archive/runs",
+          "file_count": 5,
+          "total_bytes": 240984,
+          "description": "Telemetry and execution runs"
+        },
+        {
+          "bucket_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded",
+          "file_count": 96,
+          "total_bytes": 5880740,
+          "description": "Superseded/deprecated files"
+        }
+      ],
+      "recent_files": [
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/ARCHIVE_INDEX.md",
+          "bytes": 894,
+          "mtime_utc": "2026-01-03T04:44:00.592915+00:00",
+          "kind": "markdown",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/CONSOLIDATED_BUILD.md",
+          "bytes": 14080,
+          "mtime_utc": "2026-01-03T04:44:00.591408+00:00",
+          "kind": "markdown",
+          "summary_hint": "Consolidated documentation"
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/archive/DEBUG_LOG.md",
+          "bytes": 244,
+          "mtime_utc": "2026-01-01T13:41:02.133957+00:00",
+          "kind": "markdown",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/BUILD_HISTORY.md",
+          "bytes": 309,
+          "mtime_utc": "2026-01-01T13:41:02.131958+00:00",
+          "kind": "markdown",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/archive/ARCHITECTURE_DECISIONS.md",
+          "bytes": 282,
+          "mtime_utc": "2026-01-01T13:41:02.128850+00:00",
+          "kind": "markdown",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/archive/verify_report_autopack.md",
+          "bytes": 16272,
+          "mtime_utc": "2026-01-01T11:03:03.128726+00:00",
+          "kind": "markdown",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/archive/CONSOLIDATED_DEBUG.md",
+          "bytes": 1322453,
+          "mtime_utc": "2025-12-30T09:20:25.934541+00:00",
+          "kind": "markdown",
+          "summary_hint": "Consolidated documentation"
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/fileorg-p2/fileorg-p2-20251208d/diagnostics/api_server_localhost_55900.log",
+          "bytes": 72172,
+          "mtime_utc": "2025-12-28T11:36:23.035218+00:00",
+          "kind": "log",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/fileorg-p2/fileorg-p2-20251208b/diagnostics/api_server_localhost_62889.log",
+          "bytes": 71798,
+          "mtime_utc": "2025-12-28T11:36:18.885072+00:00",
+          "kind": "log",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/fileorg-p2/fileorg-p2-20251208f/diagnostics/api_server_localhost_54396.log",
+          "bytes": 71798,
+          "mtime_utc": "2025-12-28T11:36:03.529196+00:00",
+          "kind": "log",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/fileorg-backend-fixes-v4/fileorg-backend-fixes-v4-20251130/diagnostics/api_server_localhost_49232.log",
+          "bytes": 71985,
+          "mtime_utc": "2025-12-28T11:35:59.780532+00:00",
+          "kind": "log",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/fileorg-backend-fixes-v4/fileorg-backend-fixes-v4-20251130/diagnostics/api_server_localhost_50670.log",
+          "bytes": 72274,
+          "mtime_utc": "2025-12-28T11:35:59.486830+00:00",
+          "kind": "log",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/fileorg-p2/fileorg-p2-20251208c/diagnostics/api_server_localhost_59395.log",
+          "bytes": 72172,
+          "mtime_utc": "2025-12-28T11:35:57.008921+00:00",
+          "kind": "log",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/fileorg-p2/fileorg-p2-20251208/diagnostics/api_server_localhost_64050.log",
+          "bytes": 71986,
+          "mtime_utc": "2025-12-28T11:35:52.414551+00:00",
+          "kind": "log",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/scope-smoke/scope-smoke-20251206184302/diagnostics/api_server_localhost_64588.log",
+          "bytes": 72110,
+          "mtime_utc": "2025-12-28T11:35:47.103503+00:00",
+          "kind": "log",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/fileorg-p2/fileorg-p2-20251208/diagnostics/api_server_localhost_51513.log",
+          "bytes": 71796,
+          "mtime_utc": "2025-12-28T11:35:39.757726+00:00",
+          "kind": "log",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/fileorg-p2/fileorg-p2-20251208b/diagnostics/api_server_localhost_58412.log",
+          "bytes": 69293,
+          "mtime_utc": "2025-12-28T11:35:34.996179+00:00",
+          "kind": "log",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/fileorg-p2/fileorg-p2-20251208m/diagnostics/api_server_localhost_61493.log",
+          "bytes": 71798,
+          "mtime_utc": "2025-12-28T11:35:32.372999+00:00",
+          "kind": "log",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/fileorg-backend-fixes-v4/fileorg-backend-fixes-v4-20251130/diagnostics/api_server_localhost_57702.log",
+          "bytes": 66802,
+          "mtime_utc": "2025-12-28T11:34:32.486518+00:00",
+          "kind": "log",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/archive/CONSOLIDATED_BUILD.md",
+          "bytes": 11252,
+          "mtime_utc": "2025-12-28T09:48:17.073992+00:00",
+          "kind": "markdown",
+          "summary_hint": "Consolidated documentation"
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/fileorg-p2/fileorg-p2-20251208/run_rule_hints.json",
+          "bytes": 1613,
+          "mtime_utc": "2025-12-28T09:37:21.882254+00:00",
+          "kind": "json",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/fileorg-p2/fileorg-p2-20251208m/run_rule_hints.json",
+          "bytes": 7520,
+          "mtime_utc": "2025-12-28T07:09:05.504699+00:00",
+          "kind": "json",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/fileorg-p2/fileorg-p2-20251208f/run_rule_hints.json",
+          "bytes": 1234,
+          "mtime_utc": "2025-12-28T07:07:08.871813+00:00",
+          "kind": "json",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/fileorg-p2/fileorg-p2-20251208d/ci/pytest_fileorg-p2-frontend-build.log",
+          "bytes": 21570,
+          "mtime_utc": "2025-12-28T07:05:06.363168+00:00",
+          "kind": "log",
+          "summary_hint": null
+        },
+        {
+          "path_rel": ".autonomous_runs/file-organizer-app-v1/archive/superseded/runs/fileorg-p2/fileorg-p2-20251208d/ci/pytest_fileorg-p2-frontend-build.json",
+          "bytes": 40443,
+          "mtime_utc": "2025-12-28T07:05:06.230113+00:00",
+          "kind": "json",
+          "summary_hint": null
+        }
+      ],
+      "provenance": {
+        "tidy_reports_rel_glob": ".autonomous_runs/file-organizer-app-v1/archive/reports/*.json"
+      }
+    }
+  ]
+}

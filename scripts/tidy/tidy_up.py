@@ -108,14 +108,33 @@ ROOT_ALLOWED_DIRS = {
 }
 
 # Docs SOT 6-file structure
-DOCS_SOT_FILES = {
-    "PROJECT_INDEX.json",
-    "BUILD_HISTORY.md",
-    "DEBUG_LOG.md",
-    "ARCHITECTURE_DECISIONS.md",
-    "FUTURE_PLAN.md",
-    "LEARNED_RULES.json",
-}
+def _load_docs_sot_files_from_registry(repo_root: Path) -> Set[str]:
+    """
+    Load docs SOT files from the shared SOT registry.
+
+    This prevents "new ledger" files from being swept by tidy if the registry is updated.
+    """
+    registry_path = repo_root / "config" / "sot_registry.json"
+    if registry_path.exists():
+        try:
+            data = json.loads(registry_path.read_text(encoding="utf-8"))
+            files = data.get("docs_sot_files", [])
+            if isinstance(files, list) and all(isinstance(f, str) for f in files) and files:
+                return set(files)
+        except Exception:
+            # Fall back to defaults below.
+            pass
+    return {
+        "PROJECT_INDEX.json",
+        "BUILD_HISTORY.md",
+        "DEBUG_LOG.md",
+        "ARCHITECTURE_DECISIONS.md",
+        "FUTURE_PLAN.md",
+        "LEARNED_RULES.json",
+    }
+
+
+DOCS_SOT_FILES = _load_docs_sot_files_from_registry(REPO_ROOT)
 
 # Additional allowed files in docs/
 DOCS_ALLOWED_FILES = {
@@ -161,6 +180,28 @@ DOCS_ALLOWED_PATTERNS = {
     "CANONICAL_*.md",
     "*_SYSTEM.md",
     "TELEMETRY_*.md",  # Keep for backwards compat
+    # Build/operational reports and ledgers commonly maintained in docs/
+    "BUILD-*.md",
+    "BUILD_*.md",
+    "COMPLETION_REPORT_*.md",
+    "IMPLEMENTATION_STATUS_*.md",
+    "IMPLEMENTATION_SUMMARY_*.md",
+    "INTENTION_ANCHOR_*.md",
+    "SECURITY_*.md",
+    "STORAGE_OPTIMIZER_*.md",
+    "DOC_LINK_TRIAGE_*.md",
+    "REMAINING_IMPROVEMENTS_*.md",
+    "CONSOLIDATED_*.md",
+    "PROMPT_*.md",
+    "CHAT_HISTORY_EXTRACT_*.md",
+    "CHAT_HISTORY_EXTRACT_*.json",
+    "LEARNED_*.json",
+    "*_OPERATIONS.md",
+    "*_STANDARDS.md",
+    "*_DECISIONS.md",
+    "PROTECTION_AND_RETENTION_POLICY.md",
+    "TIDY_*.md",
+    "PRE_TIDY_GAP_ANALYSIS_*.md",
 }
 
 # Allowed subdirectories in docs/
@@ -1207,6 +1248,35 @@ def execute_moves(
     return succeeded, failed
 
 
+def _regenerate_archive_index(repo_root: Path) -> None:
+    """Regenerate archive index after tidy execution."""
+    try:
+        from scripts.archive.generate_archive_index import generate_archive_index, _generate_markdown
+        import json as json_module
+
+        print("\n[ARCHIVE-INDEX] Regenerating archive index...")
+        index, errors = generate_archive_index(repo_root)
+
+        if errors:
+            print(f"[ARCHIVE-INDEX] Validation errors: {errors}")
+            return
+
+        # Write JSON
+        json_path = repo_root / "archive" / "ARCHIVE_INDEX.json"
+        json_content = json_module.dumps(index, indent=2, ensure_ascii=False)
+        json_path.write_text(json_content, encoding="utf-8")
+
+        # Write Markdown
+        md_path = repo_root / "archive" / "ARCHIVE_INDEX.md"
+        md_content = _generate_markdown(index, repo_root)
+        md_path.write_text(md_content, encoding="utf-8")
+
+        total_buckets = sum(len(r["bucket_stats"]) for r in index["archive_roots"])
+        print(f"[ARCHIVE-INDEX] Updated: {len(index['archive_roots'])} roots, {total_buckets} buckets")
+    except Exception as e:
+        print(f"[ARCHIVE-INDEX] Warning: Failed to regenerate archive index: {e}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Unified workspace tidy - matches README expectations",
@@ -1873,6 +1943,9 @@ def main():
             print("\nChanges applied successfully")
             if move_failed > 0:
                 print(f"Note: {move_failed} files were queued for retry due to locks")
+
+            # Regenerate archive index after successful tidy execution
+            _regenerate_archive_index(repo_root)
 
         return 0 if is_valid else 1
 

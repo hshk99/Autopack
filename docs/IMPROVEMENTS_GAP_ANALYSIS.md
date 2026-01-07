@@ -323,17 +323,18 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 - **Acceptance criteria**:
   - Critical-path TODO count trends toward zero, with tests proving the closure.
 
-### 2.2 `docs/api/` and OpenAPI strategy is unresolved (spec allows it; repo doesn’t implement it)
+### 2.2 `docs/api/` and OpenAPI strategy ~~is unresolved~~ **RESOLVED (BUILD-191)**
 
-- **Evidence**:
-  - `docs/WORKSPACE_ORGANIZATION_SPEC.md` explicitly allows `docs/api/`
-  - Multiple docs reference placing OpenAPI output there
-  - No `docs/api/` directory exists and no checked-in OpenAPI artifact exists
-- **Recommended fix** (choose one):
-  - **Runtime-only**: document that OpenAPI is only served at runtime; remove doc references to checked-in specs, **or**
-  - **Checked-in**: generate and commit `docs/api/openapi.json` (and add drift check).
-- **Acceptance criteria**:
-  - The chosen approach is canonical in docs, and CI enforces it (if checked in).
+- **Status**: **RESOLVED** - Runtime-canonical strategy implemented (BUILD-191)
+- **Decision**: OpenAPI is **runtime-generated** at `/openapi.json`. NOT checked into git.
+- **Implementation**:
+  - `docs/api/OPENAPI_STRATEGY.md` - Canonical strategy documentation
+  - `tests/docs/test_openapi_strategy.py` - Contract tests verifying runtime generation
+  - CI exports OpenAPI as artifact (not committed) for external consumers
+- **Evidence of closure**:
+  - Contract test blocks checked-in `docs/api/openapi.json`
+  - `/openapi.json`, `/docs`, `/redoc` serve runtime spec
+  - CI artifact available for download
 
 ### 2.3 Governance policy surface is large and likely over-restrictive; clarify intent
 

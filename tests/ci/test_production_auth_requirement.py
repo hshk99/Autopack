@@ -50,7 +50,7 @@ class TestProductionAuthRequirement:
         """API should start successfully in production mode with API key set."""
         # This is a lighter test - just verify the check passes
         autopack_env = "production"
-        api_key = "test-api-key-12345"
+        api_key = "test-api-key-12345"  # gitleaks:allow (intentional fake key for test)
 
         # Simulate the check from lifespan
         if autopack_env.lower() == "production" and not api_key:
@@ -95,7 +95,10 @@ class TestProductionAuthRequirement:
 
         with patch.dict(
             os.environ,
-            {"AUTOPACK_API_KEY": "correct-key-12345", "TESTING": ""},
+            {
+                "AUTOPACK_API_KEY": "correct-key-12345",  # gitleaks:allow
+                "TESTING": "",
+            },
             clear=False,
         ):
             os.environ.pop("TESTING", None)
@@ -114,7 +117,7 @@ class TestProductionAuthRequirement:
         import asyncio
         from unittest.mock import patch
 
-        correct_key = "correct-key-12345"
+        correct_key = "correct-key-12345"  # gitleaks:allow (intentional fake key for test)
 
         with patch.dict(
             os.environ,

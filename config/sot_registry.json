@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "docs_sot_files": [
+    "BUILD_HISTORY.md",
+    "DEBUG_LOG.md",
+    "ARCHITECTURE_DECISIONS.md",
+    "FUTURE_PLAN.md",
+    "PROJECT_INDEX.json",
+    "LEARNED_RULES.json"
+  ],
+  "protected_paths": [
+    "README.md",
+    "docs/BUILD_HISTORY.md",
+    "docs/DEBUG_LOG.md",
+    "docs/ARCHITECTURE_DECISIONS.md",
+    "docs/FUTURE_PLAN.md",
+    "docs/PROJECT_INDEX.json",
+    "docs/LEARNED_RULES.json"
+  ]
+}
+
+

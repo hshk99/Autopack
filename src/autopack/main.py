@@ -22,6 +22,7 @@ _startup_logger.debug(
 )
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Security
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from fastapi.security import APIKeyHeader
 from sqlalchemy import text
@@ -32,6 +33,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from . import dashboard_schemas, models, schemas
+from .version import __version__
 from .builder_schemas import BuilderResult
 from .config import settings
 from .database import get_db, init_db
@@ -191,9 +193,24 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Autopack Supervisor",
     description="Supervisor/orchestrator implementing the v7 autonomous build playbook",
-    version="0.1.0",
+    version=__version__,
     lifespan=lifespan,
 )
+
+# BUILD-188 P5.3: CORS configuration
+# Default: deny all cross-origin requests. Configure CORS_ALLOWED_ORIGINS in env for frontend needs.
+_cors_origins = (
+    os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if os.getenv("CORS_ALLOWED_ORIGINS") else []
+)
+if _cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["*"],
+        max_age=600,  # Cache preflight responses for 10 minutes
+    )
 
 # Add rate limiting to app
 app.state.limiter = limiter
@@ -219,10 +236,21 @@ logger = logging.getLogger(__name__)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    """
+    Global exception handler with production-safe error responses.
+
+    BUILD-188 P5.3: In production mode, returns opaque error IDs without internal details.
+    In development/debug mode, returns full exception info for debugging.
+    """
     import traceback
+    import uuid
+
+    from .config import is_production
+
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
 
     tb = traceback.format_exc()
+    error_id = str(uuid.uuid4())[:8]  # Short unique ID for log correlation
 
     # Use error reporter to capture detailed context
     from .error_reporter import report_error
@@ -244,7 +272,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     except (ValueError, IndexError):
         pass
 
-    # Report error with full context
+    # Report error with full context (always, for server-side debugging)
     report_error(
         error=exc,
         run_id=run_id,
@@ -252,6 +280,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         component="api",
         operation=f"{request.method} {request.url.path}",
         context_data={
+            "error_id": error_id,
             "method": request.method,
             "url": str(request.url),
             "headers": dict(request.headers),
@@ -259,19 +288,33 @@ async def global_exception_handler(request: Request, exc: Exception):
         },
     )
 
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "detail": str(exc),
-            "type": type(exc).__name__,
-            "traceback": tb if os.getenv("DEBUG") == "1" else None,
-            "error_report": (
-                f"Error report saved to .autonomous_runs/{run_id or 'errors'}/errors/"
-                if run_id
-                else "Error report saved"
-            ),
-        },
-    )
+    # BUILD-188 P5.3: Production-safe error response
+    # In production: return opaque error ID, no internal details
+    # In development: return full exception info for debugging
+    if is_production():
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "detail": "Internal server error",
+                "error_id": error_id,
+                "message": "An unexpected error occurred. Reference this error_id when reporting issues.",
+            },
+        )
+    else:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "detail": str(exc),
+                "type": type(exc).__name__,
+                "error_id": error_id,
+                "traceback": tb if os.getenv("DEBUG") == "1" else None,
+                "error_report": (
+                    f"Error report saved to .autonomous_runs/{run_id or 'errors'}/errors/"
+                    if run_id
+                    else "Error report saved"
+                ),
+            },
+        )
 
 
 @app.get("/")

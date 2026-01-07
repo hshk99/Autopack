@@ -158,8 +158,8 @@ All conditions must be met:
    - No protected path touches
 
 4. **Category Safety**:
-   - Tests: Always allowed (if in `tests/`)
-   - Docs: Always allowed (if in `docs/`)
+   - Tests: Require approval (in `tests/` - modifiable but not auto-approved per NEVER_AUTO_APPROVE policy)
+   - Docs: Require approval (in `docs/` - modifiable but not auto-approved per NEVER_AUTO_APPROVE policy)
    - Implementation: Only if in allowed directories
 
 ### NEVER_AUTO_APPROVE List
@@ -484,9 +484,9 @@ unset AUTOPACK_GOVERNANCE_DISABLED
 
 ### Common Paths
 
-**Always Allowed**:
-- `tests/test_*.py`
-- `docs/*.md`
+**Allowed (but require approval per NEVER_AUTO_APPROVE policy)**:
+- `tests/test_*.py` - modifiable with approval
+- `docs/*.md` - modifiable with approval
 - `examples/*`
 
 **Always Protected**:

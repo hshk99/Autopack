@@ -56,6 +56,31 @@ jobs:
       - name: Check formatting with black
         run: |
           black --check src/ tests/
+      - name: Type check with mypy (staged adoption)
+        continue-on-error: true  # Non-blocking during staged rollout
+        run: |
+          pip install mypy types-requests types-PyYAML
+          # Start with strict subset, expand progressively
+          mypy src/autopack/version.py src/autopack/__version__.py --ignore-missing-imports --no-error-summary || echo "mypy findings (informational)"
+
+  frontend-ci:
+    name: Frontend CI (lint/typecheck/build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Type check
+        run: npm run type-check
+      - name: Build
+        run: npm run build
 
   docs-sot-integrity:
     name: Docs / SOT Integrity

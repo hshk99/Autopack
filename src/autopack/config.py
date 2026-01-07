@@ -18,6 +18,16 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
+    # Operational mode: development | staging | production
+    # - development: permissive (default) - auto-approval, lenient error handling
+    # - staging: strict logging, auth required for sensitive ops
+    # - production: full hardening - auth enforced, strict governance, no auto-approve unsafe paths
+    autopack_env: str = Field(
+        default="development",
+        validation_alias=AliasChoices("AUTOPACK_ENV", "ENVIRONMENT"),
+        description="Operational mode: development | staging | production",
+    )
+
     # Default remains Postgres for production environments; most scripts/tests override via DATABASE_URL.
     database_url: str = "postgresql://autopack:autopack@localhost:5432/autopack"
     autonomous_runs_dir: str = ".autonomous_runs"
@@ -147,6 +157,23 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def is_production() -> bool:
+    """Check if running in production mode.
+
+    Returns True if AUTOPACK_ENV is 'production'.
+    Use this to enforce stricter behavior (auth, governance, etc.).
+    """
+    return settings.autopack_env.lower() == "production"
+
+
+def is_development() -> bool:
+    """Check if running in development mode.
+
+    Returns True if AUTOPACK_ENV is 'development' (the default).
+    """
+    return settings.autopack_env.lower() == "development"
 
 
 # Configuration version constant

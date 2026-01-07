@@ -68,7 +68,7 @@ jobs:
 
       - name: Run diff gate (Trivy filesystem)
         if: always()
-        continue-on-error: true  # Rollout mode: report regressions without blocking PRs
+        continue-on-error: false  # Blocking: fail CI on new security regressions
         run: |
           python scripts/security/diff_gate.py \
             --baseline security/baselines/trivy-fs.high.json \
@@ -129,7 +129,7 @@ jobs:
 
       - name: Run diff gate (Trivy container)
         if: always()
-        continue-on-error: true  # Rollout mode: report regressions without blocking PRs
+        continue-on-error: false  # Blocking: fail CI on new security regressions
         run: |
           python scripts/security/diff_gate.py \
             --baseline security/baselines/trivy-image.high.json \
@@ -199,7 +199,7 @@ jobs:
 
       - name: Run diff gate (CodeQL)
         if: always()
-        continue-on-error: true  # Rollout mode: report regressions without blocking PRs
+        continue-on-error: false  # Blocking: fail CI on new security regressions
         run: |
           python scripts/security/diff_gate.py \
             --baseline security/baselines/codeql.python.json \
@@ -215,3 +215,47 @@ jobs:
             codeql-results/python.sarif
             codeql-current.json
           retention-days: 14
+
+  # BUILD-188 P5.8: SBOM generation for supply-chain provenance
+  sbom-generation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install CycloneDX for Python
+        run: pip install cyclonedx-bom
+
+      - name: Generate Python SBOM (CycloneDX)
+        run: |
+          # Generate SBOM from requirements.txt
+          cyclonedx-py requirements \
+            --input-file requirements.txt \
+            --output-format json \
+            --output-file sbom-python.cdx.json || true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3.12.0
+
+      - name: Build backend image for SBOM
+        run: docker build --target backend --tag autopack-backend:sbom .
+
+      - name: Generate container SBOM with Trivy
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8  # v0.33.1
+        with:
+          image-ref: 'autopack-backend:sbom'
+          format: 'cyclonedx'
+          output: 'sbom-container.cdx.json'
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-artifacts
+          path: |
+            sbom-python.cdx.json
+            sbom-container.cdx.json
+          retention-days: 90  # Keep SBOMs longer for compliance

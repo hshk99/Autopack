@@ -1,7 +1,7 @@
 # Workspace Organization Specification
 
-**Version**: 1.0
-**Date**: 2026-01-01
+**Version**: 1.1
+**Date**: 2026-01-07
 **Status**: Canonical (Single Source of Truth)
 
 ## Purpose
@@ -11,7 +11,14 @@ This document defines the **authoritative** workspace organization rules for the
 - The basis for automated tidy/cleanup validation
 - The specification that tidy scripts enforce
 
-## 1. Repository Root (c:\dev\Autopack\)
+## Path Notation Convention
+
+This document uses **portable path notation**:
+- `$REPO_ROOT/` refers to the repository root (e.g., `C:\dev\Autopack` on Windows, `/home/user/Autopack` on Linux)
+- Forward slashes (`/`) are used for all paths for cross-platform compatibility
+- Relative paths are preferred; absolute paths should use `$REPO_ROOT` prefix
+
+## 1. Repository Root ($REPO_ROOT/)
 
 ### Allowed Files at Root
 

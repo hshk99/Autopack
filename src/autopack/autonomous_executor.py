@@ -2356,11 +2356,17 @@ class AutonomousExecutor:
                     elif decision == StuckResolutionDecision.ESCALATE_MODEL:
                         # Apply model escalation via routing snapshot
                         from autopack.autonomous.executor_wiring import apply_model_escalation
+                        from autopack.executor.safety_profile import derive_safety_profile
 
                         current_tier = phase.get(
                             "_current_tier", "haiku"
                         )  # Default to haiku if not set
-                        safety_profile = "normal"  # TODO: derive from intention anchor risk profile
+                        # BUILD-188 P5.5: Derive safety profile from intention anchor (closes TODO)
+                        safety_profile = (
+                            derive_safety_profile(self._intention_anchor)
+                            if self._intention_anchor is not None
+                            else "strict"  # Fail-safe default
+                        )
                         escalated_entry = apply_model_escalation(
                             wiring=self._intention_wiring,
                             phase_id=phase_id,

@@ -1,0 +1,13 @@
+# Gitleaks baseline - fingerprints to ignore
+# These are intentional fake secrets in test fixtures for sanitizer testing
+# Format: commit:file:rule:line (fingerprint from gitleaks output)
+
+# Fake JWT token in test_sanitizer.py
+c69a1bc6b23895fde47573b5068538a838f08b44:tests/autopack/test_sanitizer.py:jwt:150
+
+# Fake Stripe-style tokens in test_sanitizer.py
+c69a1bc6b23895fde47573b5068538a838f08b44:tests/autopack/test_sanitizer.py:stripe-access-token:157
+
+# Fake API keys in test_sanitizer.py
+c69a1bc6b23895fde47573b5068538a838f08b44:tests/autopack/test_sanitizer.py:generic-api-key:78
+c69a1bc6b23895fde47573b5068538a838f08b44:tests/autopack/test_sanitizer.py:generic-api-key:283

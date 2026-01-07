@@ -1,3 +1,12 @@
+# Dockerfile for Autopack backend and frontend
+#
+# Base Image Policy:
+# - Using version tags (e.g., python:3.11-slim) instead of SHA digests
+# - Tradeoff: Security (immutable digests) vs Maintainability (auto-patches)
+# - Rationale: Dependabot monitors Docker images; digest pinning deferred to P5 hardening
+# - For production with strict supply-chain requirements, pin to digests:
+#   FROM python:3.11-slim@sha256:<digest>
+
 # Use an official Python runtime as a parent image
 FROM python:3.11-slim as backend
 

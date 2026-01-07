@@ -1,3 +1,17 @@
+# Autopack Docker Compose Configuration
+#
+# BUILD-188 P5.6: Security Warning
+# This file uses default credentials for local development ONLY.
+# For production deployment, you MUST:
+#   1. Set AUTOPACK_ENV=production
+#   2. Use docker secrets or environment variables for passwords
+#   3. Never expose database ports to public networks
+#   4. See docs/DEPLOYMENT.md for production configuration
+#
+# Example production override:
+#   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+#   Where docker-compose.prod.yml sets proper credentials via secrets
+
 version: '3.8'
 
 services:
@@ -9,6 +23,8 @@ services:
     ports:
       - "8000:8000"
     environment:
+      # WARNING: Default credentials for local dev only
+      # In production: use POSTGRES_PASSWORD_FILE with Docker secrets
       - DATABASE_URL=postgresql://autopack:autopack@db:5432/autopack
       # Vector memory (Qdrant) - reachable as 'qdrant' inside compose network
       - AUTOPACK_USE_QDRANT=true
@@ -32,6 +48,8 @@ services:
     image: postgres:15.10-alpine
     environment:
       POSTGRES_USER: autopack
+      # WARNING: Default password for local dev only
+      # In production: use POSTGRES_PASSWORD_FILE with Docker secrets
       POSTGRES_PASSWORD: autopack
       POSTGRES_DB: autopack
     volumes:

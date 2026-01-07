@@ -24,7 +24,7 @@ Autopack is designed so that high-signal information **survives** and becomes re
 
 Note: SOT→DB sync (`scripts/tidy/sot_db_sync.py`) exists as a derived index (`sot_entries`) for DB/Qdrant sync workflows; **runtime decisioning currently uses vector memory retrieval**, not DB reads from `sot_entries`.
 
-**Full historical README (preserved, no information deleted)**: `docs/README_FULL.md`
+**Full historical changelog**: `docs/CHANGELOG.md` (version history and feature announcements)
 
 ## Quickstart
 
@@ -47,10 +47,12 @@ Note: SOT→DB sync (`scripts/tidy/sot_db_sync.py`) exists as a derived index (`
 
 **Version**: 0.5.1
 
-<!-- SOT_SUMMARY_START -->
-**Last Updated**: 2026-01-07 07:58
+**Distribution intent**: Autopack is **for personal/internal use only** (not distributed). Projects built using Autopack **may be published and monetized**; treat supply-chain, release, and security practices accordingly for those downstream projects.
 
-- **Builds Completed**: 190 (includes multi-phase builds, 165 unique)
+<!-- SOT_SUMMARY_START -->
+**Last Updated**: 2026-01-07 19:11
+
+- **Builds Completed**: 193 (includes multi-phase builds, 166 unique)
 - **Latest Build**: BUILD-178: Pivot Intentions v2 + Gap Taxonomy + Autonomy Loop - Phases 0-5 [OK]
 - **Architecture Decisions**: 42
 - **Debugging Sessions**: 86

@@ -8,8 +8,18 @@ from typing import List, Optional
 
 from dotenv import load_dotenv
 
-# DIAGNOSTIC: Log DATABASE_URL before load_dotenv() to verify subprocess inheritance
-print(f"[API_SERVER_STARTUP] DATABASE_URL from environment: {os.getenv('DATABASE_URL', 'NOT SET')}")
+from .sanitizer import sanitize_url
+
+# BUILD-188: Use module-level logger (avoid basicConfig which can override uvicorn/test harness config)
+_startup_logger = logging.getLogger("autopack.startup")
+
+# BUILD-188: Diagnostic logging with credential redaction
+# Only log masked URLs to prevent secret leakage (debug level - won't show unless explicitly enabled)
+_raw_db_url = os.getenv("DATABASE_URL", "NOT SET")
+_startup_logger.debug(
+    "[API_SERVER_STARTUP] DATABASE_URL from environment: %s",
+    sanitize_url(_raw_db_url) if _raw_db_url != "NOT SET" else "NOT SET",
+)
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from contextlib import asynccontextmanager
@@ -65,15 +75,22 @@ limiter = Limiter(key_func=get_remote_address)
 # Load .env but DON'T override existing env vars (e.g., DATABASE_URL from executor)
 # This ensures subprocess API server inherits DATABASE_URL from parent process
 load_dotenv(override=False)
-print(
-    f"[API_SERVER_STARTUP] DATABASE_URL after load_dotenv(): {os.getenv('DATABASE_URL', 'NOT SET')}"
+
+# BUILD-188: Log only masked URLs to prevent secret leakage
+_db_url_after = os.getenv("DATABASE_URL", "NOT SET")
+_startup_logger.debug(
+    "[API_SERVER_STARTUP] DATABASE_URL after load_dotenv(): %s",
+    sanitize_url(_db_url_after) if _db_url_after != "NOT SET" else "NOT SET",
 )
 
-# P0 diagnostic: Log actual resolved database URL after normalization
+# P0 diagnostic: Log actual resolved database URL after normalization (masked)
 from autopack.config import get_database_url
 
 resolved_url = get_database_url()
-print(f"[API_SERVER_STARTUP] Resolved DATABASE_URL (after normalization): {resolved_url}")
+_startup_logger.debug(
+    "[API_SERVER_STARTUP] Resolved DATABASE_URL (after normalization): %s",
+    sanitize_url(resolved_url) if resolved_url else "NOT SET",
+)
 
 
 async def approval_timeout_cleanup():

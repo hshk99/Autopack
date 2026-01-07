@@ -2,6 +2,11 @@ name: Security Baseline Refresh PR
 
 on:
   workflow_dispatch:  # Manual trigger only initially (schedule can be added after validation)
+    inputs:
+      artifacts_run_id:
+        description: 'Optional: security-artifacts workflow run_id to source SARIF artifacts (default: latest on main)'
+        required: false
+        type: string
   # schedule:
   #   - cron: "0 7 * * 1"   # Weekly Monday 07:00 UTC (after security-artifacts runs)
 
@@ -9,6 +14,10 @@ permissions:
   contents: write
   pull-requests: write
   actions: read
+
+concurrency:
+  group: security-baseline-refresh-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   baseline-refresh-pr:
@@ -29,10 +38,20 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Download latest security artifacts
+        if: ${{ inputs.artifacts_run_id == '' }}
         uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11  # v6
         with:
           workflow: security-artifacts.yml
           branch: main
+          name: security-sarif-artifacts
+          path: artifacts/
+
+      - name: Download security artifacts from specified run_id
+        if: ${{ inputs.artifacts_run_id != '' }}
+        uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11  # v6
+        with:
+          workflow: security-artifacts.yml
+          run_id: ${{ inputs.artifacts_run_id }}
           name: security-sarif-artifacts
           path: artifacts/
 
@@ -128,7 +147,7 @@ jobs:
 
           Automated baseline refresh from security-artifacts workflow.
 
-          ⚠️ SECBASE entry is a STUB - requires human completion before merge.
+          [!] SECBASE entry is a STUB - requires human completion before merge.
 
           Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           Commit: ${{ github.sha }}
@@ -136,7 +155,8 @@ jobs:
 
           git commit -F /tmp/commit-msg.txt
 
-          git push -f origin "${BRANCH}"
+          # Safer than -f: only overwrite if remote head is what we expect.
+          git push --force-with-lease origin "${BRANCH}"
 
       - name: Check for existing PR
         if: steps.check-changes.outputs.changed == 'true'
@@ -167,7 +187,7 @@ jobs:
           gh pr create \
             --title "security: Refresh baselines (SECBASE-${DATESTAMP} - STUB)" \
             --body "$(cat <<'EOF'
-          ## ⚠️ SECBASE Entry is a STUB - Human Completion Required
+          ## [!] SECBASE Entry is a STUB - Human Completion Required
 
           This PR was automatically created by the security baseline refresh workflow.
 
@@ -203,7 +223,7 @@ jobs:
 
           ---
 
-          🤖 Generated with [GitHub Actions](https://github.com/features/actions)
+          Generated with [GitHub Actions](https://github.com/features/actions)
           EOF
           )" \
             --base main \
@@ -214,5 +234,5 @@ jobs:
       - name: Skip PR creation (no changes)
         if: steps.check-changes.outputs.changed != 'true'
         run: |
-          echo "✅ No baseline changes detected - skipping PR creation"
+          echo "[OK] No baseline changes detected - skipping PR creation"
           echo "Baselines are up-to-date with latest security artifacts"

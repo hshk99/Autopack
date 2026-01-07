@@ -2,21 +2,21 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 193 build entries (166 unique builds) documented | Last updated: 2026-01-07 19:11:20
+**Summary**: 194 build entries (167 unique builds) documented | Last updated: 2026-01-08 08:40:27
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
-Last_Updated: 2026-01-07T19:11:20.784311Z
-Total_Builds: 193
+Last_Updated: 2026-01-08T08:40:27.669716Z
+Total_Builds: 194
 Format_Version: 2.0
 Auto_Generated: False
 Sources: CONSOLIDATED files, archive/, manual updates, BUILD-158 Tidy Lock/Lease + Doc Link Checker
 -->
 
 ## INDEX (Chronological - Most Recent First)
-
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2026-01-08 | BUILD-191 | OpenAPI Strategy Wiring (100% COMPLETE) | **Runtime-canonical OpenAPI with CI artifact export**: Implemented OpenAPI strategy decision from IMPROVEMENTS_GAP_ANALYSIS.md section 0.3. OpenAPI is runtime-generated at `/openapi.json` (canonical), NOT checked into git. CI exports OpenAPI as artifact for external consumers. Created `docs/api/OPENAPI_STRATEGY.md` documenting the strategy, created contract tests (`tests/docs/test_openapi_strategy.py`, 10 tests) verifying runtime generation, blocking checked-in openapi.json, version consistency. Updated CI workflow to export OpenAPI artifact during docs-sot-integrity job. Marked section 2.2 in IMPROVEMENTS_GAP_ANALYSIS.md as RESOLVED. Files: docs/api/OPENAPI_STRATEGY.md (NEW), tests/docs/test_openapi_strategy.py (NEW, 10 tests), .github/workflows/ci.yml (+OpenAPI export), docs/IMPROVEMENTS_GAP_ANALYSIS.md (+RESOLVED marker) | 4 |
 | 2026-01-07 | BUILD-188.2 | Archive Index Content-Aware Updates (100% COMPLETE) | **Reduce archive index churn with content-aware updates**: Added `_content_hash()` and `_should_update_index()` functions to detect when actual content has changed vs just timestamps (generated_at_utc, mtime_utc). Skip file writes when content is identical, reducing unnecessary git churn from repeated tidy runs. Verified with 3 consecutive runs: first two update (index files are in recent_files), third skips with "[=] No content changes detected". Files: scripts/archive/generate_archive_index.py (+65 lines), scripts/tidy/tidy_up.py (+10 lines hook update) | 2 |
 | 2026-01-07 | BUILD-188.1 | Auto-Generated Archive Index with CI Contracts (100% COMPLETE) | **Archive index system with JSON as canonical source and MD as derived view**: Created comprehensive archive index generator (scripts/archive/generate_archive_index.py, ~450 lines) scanning archive roots and producing bounded rollups. Features: deterministic output (sorted buckets, no absolute paths), bounded recent_files (25 per root), JSON schema (archive/schemas/archive_index_v1.schema.json), Markdown derived view, integration with tidy --execute (auto-regenerates after successful tidy). Added config/sot_registry.json as single source of truth for protected SOT paths (used by tidy + CI checks). Created 8 CI contract tests (tests/ci/test_archive_index.py) ensuring no absolute paths, bounded lists, sorted buckets, schema compliance. Fixed SOT write protection tests with autouse fixture to initialize PROTECTED_SOT_PATHS before tests. Updated archive/.gitignore to allow index files and schemas/. PR #51 merged with all 17 CI checks passing. Files: scripts/archive/generate_archive_index.py (NEW), archive/schemas/archive_index_v1.schema.json (NEW), archive/ARCHIVE_INDEX.json (NEW), archive/ARCHIVE_INDEX.md (NEW), config/sot_registry.json (NEW), tests/ci/test_archive_index.py (NEW), tests/ci/test_sot_registry_consistency.py (NEW), tests/ci/test_check_sot_write_protection.py (+fixture), scripts/tidy/tidy_up.py (+regeneration hook), archive/.gitignore (+index exceptions), scripts/check_sot_write_protection.py (+registry loading) | 11 |
 | 2026-01-07 | BUILD-188 | Security Baseline Refresh Workflow Hardening (100% COMPLETE) | **Determinism + safety hardening for baseline refresh workflow**: Replaced `git push -f` with `git push --force-with-lease` (prevents accidental overwrites), added `workflow_dispatch.inputs.artifacts_run_id` for deterministic artifact sourcing (download from specific run instead of latest), added concurrency block (`cancel-in-progress: true`) to prevent overlapping runs. Created CI contract test (tests/ci/test_security_baseline_refresh_workflow_contract.py) enforcing these invariants. PR #47 merged. Files: .github/workflows/security-baseline-refresh.yml (+inputs +concurrency +force-with-lease), tests/ci/test_security_baseline_refresh_workflow_contract.py (NEW), docs/BUILD-188_SECURITY_BASELINE_REFRESH_WORKFLOW_HARDENING.md (NEW) | 3 |

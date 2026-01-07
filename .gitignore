@@ -86,6 +86,11 @@ dist/
 # Temporary files
 *.tmp
 *.bak
+*.bak[0-9]*
+*.backup
+*.backup[0-9]*
+*.broken
+*.broken[0-9]*
 *.swp
 *~
 

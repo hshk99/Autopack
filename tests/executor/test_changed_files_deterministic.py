@@ -9,8 +9,6 @@ These tests verify:
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -114,9 +112,7 @@ def test_format_changed_files_unknown():
     """Format displays unknown status correctly."""
     from autopack.executor.changed_files import ChangedFilesResult, format_changed_files_for_display
 
-    result = ChangedFilesResult(
-        files=None, status="unknown", evidence_flag="git_unavailable"
-    )
+    result = ChangedFilesResult(files=None, status="unknown", evidence_flag="git_unavailable")
 
     formatted = format_changed_files_for_display(result)
 

@@ -109,7 +109,7 @@ praw==7.8.1
     # via autopack (pyproject.toml)
 prawcore==2.4.0
     # via praw
-protobuf==5.29.5
+protobuf==6.33.2
     # via qdrant-client
 psycopg2-binary==2.9.11
     # via autopack (pyproject.toml)

@@ -5,10 +5,9 @@ version: '3.8'
 
 services:
   backend:
-    build:
-      target: development
+    # Reuses the 'backend' stage from Dockerfile (no separate development stage)
     environment:
-      ENVIRONMENT: development
+      AUTOPACK_ENV: development
       LOG_LEVEL: DEBUG
       RELOAD: "true"
     volumes:
@@ -19,7 +18,7 @@ services:
       - autonomous_runs:/app/.autonomous_runs
       - logs:/app/logs
     command: >
-      uvicorn src.backend.main:app
+      uvicorn autopack.main:app
       --host 0.0.0.0
       --port 8000
       --reload
@@ -28,8 +27,14 @@ services:
       - "8000:8000"
       - "5678:5678"  # debugpy port
 
-  postgres:
+  db:
     ports:
       - "5432:5432"
     environment:
       POSTGRES_PASSWORD: dev_password
+
+volumes:
+  autonomous_runs:
+    driver: local
+  logs:
+    driver: local

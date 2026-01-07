@@ -25,7 +25,7 @@
       "Edit .env and add API keys (GLM_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY)",
       "docker-compose up -d",
       "curl http://localhost:8000/health",
-      "python integrations/supervisor.py --project-id MyProject"
+      "python scripts/integrations/supervisor.py --project-id MyProject"
     ],
     "api_keys": {
       "required": "At least one: GLM_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY",
@@ -45,7 +45,7 @@
     "verify_setup": [
       "docker-compose ps",
       "curl http://localhost:8000/health",
-      "python integrations/supervisor.py --project-id TestProject"
+      "python scripts/integrations/supervisor.py --project-id TestProject"
     ]
   },
 
@@ -62,7 +62,7 @@
     "local_development": {
       "install_deps": "pip install -r requirements-dev.txt",
       "start_db": "docker-compose up -d db",
-      "run_api": "uvicorn src.autopack.main:app --reload --host 0.0.0.0 --port 8000",
+      "run_api": "PYTHONPATH=src uvicorn autopack.main:app --reload --host 0.0.0.0 --port 8000",
       "run_tests": "pytest tests/ -v",
       "run_with_coverage": "pytest tests/ -v --cov=src/autopack --cov-report=html"
     },

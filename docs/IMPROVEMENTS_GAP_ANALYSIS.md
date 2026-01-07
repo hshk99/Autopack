@@ -1,553 +1,556 @@
-# Autopack — Comprehensive Improvement / Gap Analysis (vs README "ideal state" and beyond)
+# Autopack — Comprehensive Improvement / Gap Analysis (vs README “ideal state” + WORKSPACE_ORGANIZATION_SPEC + beyond)
 
-**Last Updated**: 2026-01-07
-**Scope**: repo-wide (docs, CI, runtime, security, dashboard, packaging, hygiene)
-**Goal**: enumerate *all* meaningful gaps/enhancements in one place; prioritize; give concrete acceptance criteria.
-
----
-
-## Status Summary (BUILD-188)
-
-| Section | Status | Notes |
-|---------|--------|-------|
-| 1.1 Build artifacts | **DONE** | CI check added, `.gitignore` extended |
-| 1.2 Root DB clutter | **DONE** | Already in `.gitignore`; untracked by design |
-| 1.3 Hardcoded paths | **DONE** | Migration now schema-only; seed in `docs/examples/` |
-| 1.4 Unsafe logging | **DONE** | `sanitize_url()` applied; `print()` → `logger.debug()` |
-| 1.5 Error sanitization | **DONE** | `src/autopack/sanitizer.py` + tests added |
-| 1.9 Stray backup files | **DONE** | Removed `.bak2`; CI check extended to `*.bak*` |
+**Last Verified**: 2026-01-07  
+**Scope**: repo-wide (docs/SOT, CI, Docker/compose, runtime, security, frontend(s), workspace hygiene)  
+**Goal**: enumerate **all** meaningful gaps/enhancements in one place; prioritize; include concrete acceptance criteria.
 
 ---
 
-## 0) What's already close to "ideal"
+## 0) What’s already strong (close to “ideal”)
 
-- **SOT-ledgers + mechanical enforcement**: docs integrity tests, SOT drift checks, link checks, SECBASE enforcement, actions pinning guardrails.
-- **Safety-first posture**: run-local writes + tidy gating is a strong foundation; parallel runs have explicit isolation model documented and implemented.
-- **Security baseline system**: SARIF artifacts + baseline refresh PR workflow + burndown counting is unusually complete.
-- **Three-gate test strategy**: core/aspirational/research split is a pragmatic way to keep CI meaningful.
+- **SOT-ledgers + mechanical enforcement**: SOT registry (`config/sot_registry.json`) aligns with `docs/INDEX.md`; doc-contract tests + SOT drift checks are wired in CI.
+- **Security posture**: baseline/diff-gate system exists and is **blocking on regressions**; SHA-pinned actions policy is enforced.
+- **CI coverage**: ruff/black, core tests (Postgres), doc integrity, workspace structure verification, and a root-frontend CI job are present.
+- **Cross-OS hygiene**: `.editorconfig`, `.gitattributes`, and `.github/CODEOWNERS` exist.
 
-This doc focuses on what’s still missing, drifting, inconsistent, or can be materially improved.
-
----
-
-## 1) P0 (High-impact / correctness / “ideal state” violations)
-
-### 1.1 Repo hygiene violations: tracked build artifacts + dependency dirs
-
-- **Problem**: `src/autopack/dashboard/frontend/` currently contains `node_modules/` and `dist/`. Even if `.gitignore` ignores them, they appear present in-workspace and often end up committed; they also expand scan surface and slow CI.
-- **Why it matters**: violates determinism + mechanical enforceability goals (CI behavior changes based on local state), bloats repo, increases security scanning noise.
-- **Recommended fix**:
-  - Remove committed `node_modules/` and `dist/` from git history (at least from HEAD).
-  - Add/extend **workspace structure verification** to **hard-fail** if any `node_modules/` or `dist/` exist under tracked paths in the repo.
-- **Acceptance criteria**:
-  - `git ls-files | grep -E "(^|/)node_modules/|(^|/)dist/"` returns empty.
-  - CI contains a check that fails PRs reintroducing those directories.
-
-### 1.2 Root “telemetry_seed_*.db” violates `docs/WORKSPACE_ORGANIZATION_SPEC.md`
-
-- **Problem**: root contains multiple `telemetry_seed_*.db` files. The spec explicitly says historical/test DBs must not be at root; only active `autopack.db` is allowed.
-- **Recommended fix**:
-  - Move seed DBs into `archive/data/databases/telemetry_seeds/...` (or `tests/fixtures/` if tests require them).
-  - Add tidy + verification routing rules specifically for `telemetry_seed_*.db`.
-- **Acceptance criteria**:
-  - Only `autopack.db` may exist at root (and ideally it is **untracked**).
-  - `verify_workspace_structure.py` reports 0 root DB clutter warnings/errors.
-
-### 1.3 Portability break: hardcoded local Windows paths inside SQL seeds
-
-- **Problem**: `src/autopack/migrations/add_directory_routing_config.sql` seeds values like `C:\dev\Autopack\...`.
-- **Why it matters**: breaks determinism/portability across machines/OS; DB content becomes workstation-specific; CI/prod cannot safely apply it.
-- **Recommended fix**:
-  - Replace absolute paths with **relative** paths or env-driven values.
-  - Separate “example seed data” from “migration schema” (schema migrations should not embed developer workstation paths).
-- **Acceptance criteria**:
-  - No migrations or seeds include `C:\dev\` or other machine-specific absolute roots.
-  - Seeds are either removed, made relative, or generated at runtime.
-
-### 1.4 Potential secret leakage / unsafe logging in API startup
-
-- **Problem**: `src/autopack/main.py` prints `DATABASE_URL` from environment **before** dotenv load (and again after). This can leak credentials in logs.
-- **Recommended fix**:
-  - Replace `print(...)` with structured logging and **credential redaction** (mask user/pass).
-  - Gate verbose diagnostics behind `DEBUG_DB_IDENTITY=1` (or similar) and ensure it prints only masked values.
-- **Acceptance criteria**:
-  - No startup logs output raw DB credentials.
-  - A unit test (or static check) ensures DB URLs are redacted when logged.
-
-### 1.5 Secret/PII persistence risk in error reporting (sanitize before writing)
-
-- **Problem**: `src/autopack/main.py` global exception handler passes request `headers` and `query_params` into `report_error(...)`. Even if the API response is safe, persisted error reports can capture secrets/PII (e.g., `Authorization`, API keys, cookies, webhook tokens, email addresses).
-- **Recommended fix**:
-  - Implement a single `sanitize_context()` (or `sanitize_request_context()`) used *everywhere* before writing any error report artifact.
-  - Strip/replace known sensitive headers and query keys (allowlist preferred, otherwise robust denylist), and truncate large values.
-  - Add a contract/unit test that proves secrets are redacted in persisted error payloads.
-- **Acceptance criteria**:
-  - No stored error report contains raw values for: `Authorization`, `Cookie`, `Set-Cookie`, `X-API-Key`, `token`, `secret`, `password` (case-insensitive).
-  - Redaction behavior is mechanically enforced by tests.
-
-### 1.6 Governance rule contradictions (docs vs implementation)
-
-- **Problem**: `docs/GOVERNANCE.md` says tests/docs can be “always allowed” for low-risk; `src/autopack/planning/plan_proposer.py` includes `tests/` in `NEVER_AUTO_APPROVE_PATTERNS` (always requires approval).
-- **Recommended fix**:
-  - Choose one canonical rule set (docs should match code; code should match intended safety model).
-  - Encode the governance policy in a single module/config, then import it everywhere.
-- **Acceptance criteria**:
-  - One canonical policy source; docs and code match; governance tests cover the rule.
-
-### 1.7 Versioning mismatch: FastAPI advertises `0.1.0` while project is `0.5.1`
-
-- **Problem**: `FastAPI(... version="0.1.0")` diverges from `pyproject.toml` version and README status.
-- **Recommended fix**:
-  - Use `autopack.__version__` (or `pyproject`-derived) as the API version string.
-- **Acceptance criteria**:
-  - `/` and OpenAPI show the same version as `autopack.__version__` and `pyproject.toml`.
-
-### 1.8 Docker/frontend build path mismatch (high likelihood of breakage)
-
-- **Problem**: `Dockerfile.frontend` copies `src/frontend/`, but the repo’s frontend sources appear under `src/autopack/frontend` and/or `src/autopack/dashboard/frontend`.
-- **Recommended fix**:
-  - Decide which frontend is canonical (dashboard vs root UI), then update Dockerfile(s) accordingly.
-  - Remove dead build paths to avoid “green locally / broken in container”.
-- **Acceptance criteria**:
-  - `docker build -f Dockerfile.frontend .` succeeds deterministically from a clean clone.
-
-### 1.9 Stray backup-like file under `src/` (reliability hazard)
-
-- **Problem**: There is at least one backup-like file in source tree (example currently present: `src/autopack/governed_apply.py.bak2`).
-- **Why it matters**: violates the “one truth” expectation for runtime imports; creates ambiguity for humans/LLMs; can accidentally get imported or referenced; defeats workspace structure intent.
-- **Recommended fix**:
-  - Delete any `*.bak*` / `*.backup*` / `*.broken*` variants under `src/` (including `*.bak2`, not just `*.bak`).
-  - Expand the CI stray-file check to cover suffix variants (`*.bak1`, `*.bak2`, etc.) and common “dot variants” (`*.bak.<ext>`, `*.backup.<ext>`).
-- **Acceptance criteria**:
-  - No backup-like files exist under `src/` (`find src -type f -name "*.bak*" -o -name "*.backup*" -o -name "*.broken*"` returns empty).
-  - CI blocks reintroduction.
-
-### 1.10 Root DB clutter beyond `telemetry_seed_*.db` (spec violation)
-
-- **Problem**: In addition to `telemetry_seed_*.db`, there are other root `.db` artifacts (e.g., `autopack_telemetry_seed*.db`) which also violate the “only active `autopack.db` at root” rule.
-- **Recommended fix**:
-  - Extend routing/verification to cover *all* non-`autopack.db` root `*.db` files.
-  - Decide which DBs are true fixtures (→ `tests/fixtures/`) vs historical artifacts (→ `archive/data/databases/...`).
-- **Acceptance criteria**:
-  - Root contains **only** `autopack.db` (dev) and no other `*.db`.
+This doc focuses on what’s still missing, drifting, inconsistent, or high-value to harden next.
 
 ---
 
-## 2) P1 (Major improvements: determinism, CI coverage, operator UX, safety)
+## 0.1 Evidence snapshot (from current workspace)
 
-### 2.1 Frontend is not covered by CI (lint/typecheck/build)
+- **Frontends present**:
+  - **Root Vite frontend**: `package.json`, `vite.config.ts`, `src/frontend/…`
+  - **Dashboard frontend (legacy/alt UI)**: `src/autopack/dashboard/frontend/…` (contains local `node_modules/` + `dist/` in the workspace; not tracked in git)
+- **Missing expected scaffolding**:
+  - `.env.example` **does not exist** (but is referenced in `docs/PROJECT_INDEX.json`)
+  - `.github/dependabot.yml` **does not exist** (but multiple docs/comments imply automated updates)
+  - `docs/api/` does not exist (allowed by spec and referenced by multiple docs)
+  - `docker-compose.prod.yml` does not exist (referenced as a pattern/idea in docs/comments)
+- **TODO density (quick scan)**:
+  - `src/`: 19 TODOs (12 in `src/autopack/autonomous_executor.py`)
+  - `scripts/`: 51 TODOs
+  - `tests/`: 2 TODOs
 
-- **Problem**: CI workflows do not run `npm` lint/typecheck/build for any frontend(s).
+---
+
+## 0.2 Canonical direction decision (to remove ambiguity)
+
+Autopack currently contains **two UIs**. We must choose one as canonical so CI + docker-compose + docs converge.
+
+### Option A (canonical): Root Vite UI (`src/frontend/`)
+
+- **What it is**: single Node project at repo root (`package.json`, `vite.config.ts`) with sources under `src/frontend/`.
+- **Pros**:
+  - **Aligned with repo root tooling**: CI already has a `frontend-ci` job that runs `npm ...` at repo root.
+  - **Cleaner repo hygiene**: avoids keeping `node_modules/` under `src/` (workspace spec says `src/` is code only).
+  - **Easier to standardize**: one `npm` project, one lockfile, one build output.
+- **Cons**:
+  - Requires migrating or retiring the dashboard UI under `src/autopack/dashboard/frontend/`.
+
+### Option B (not canonical): Dashboard UI under `src/autopack/dashboard/frontend/`
+
+- **What it is**: a second React app living under `src/`, currently with local `node_modules/` + `dist/` present in-workspace.
+- **Pros**:
+  - May already have Autopack-specific dashboard features not yet ported to root UI.
+- **Cons**:
+  - **Conflicts with workspace spec intent** (build artifacts under `src/`).
+  - Requires CI/Docker/docs changes to point at a nested frontend, and risks “two truths” over time.
+
+### Decision
+
+**Canonical frontend = Option A (root Vite UI).**  
+Treat `src/autopack/dashboard/frontend/` as **legacy**: either migrate features into `src/frontend/` or move the dashboard UI to `archive/experiments/` (or delete once migrated).
+
+### Canonical “one truth” skeleton (after convergence)
+
+- **Backend API**: `PYTHONPATH=src uvicorn autopack.main:app --host 0.0.0.0 --port 8000`
+- **Frontend (dev)**: `npm run dev` (serves on port 3000; proxies `/api` → `http://localhost:8000`)
+- **Frontend (prod/container)**:
+  - Build via root `package.json` + root `package-lock.json`
+  - Serve via nginx with `nginx.conf` (enforces security headers + `/api` proxy)
+
+---
+
+## 0.3 Decision Summary (defaults — do not reopen without a new explicit decision)
+
+These decisions are chosen to match README intent (**safe, deterministic, mechanically enforceable via CI contracts**) and your stated roadmap (high automation with external side effects).
+
+### Executor TODO closure policy
+
+- **Default**: close executor TODOs that affect **determinism, governance correctness, and auditability** first.
+- **Priority order**:
+  - changed-files extraction → REDUCE_SCOPE implementation → approval flow wiring → usage accounting → quality/auditor report enrichment → coverage delta handling (real or explicit unknown; never fake placeholders).
+
+### Governance policy default
+
+- **Default**: **default-deny**, but **policy-configurable per project**.
+- **Autopack repo**: stricter (approval required for `src/autopack/`, `config/`, `.github/`, and any “external side effect” operations).
+- **Downstream projects**: may allow broader auto-approval under an explicit project policy, but still require approval for destructive actions and publish/trade/list side effects.
+
+### OpenAPI strategy
+
+- **Default**: OpenAPI is **runtime-generated** (canonical). CI may export it as an **artifact**, but it should not be checked into git by default (avoid “two truths”).
+
+### Config drift cleanup rule
+
+- **Default**: do **not** create new config files just to satisfy stale references.
+- **Rule**: either (a) wire the config as a real canonical input, or (b) remove/update references to point at the actual canonical configs.
+
+### CI enforcement posture
+
+- **Default**: drift and structure checks should be **PR-blocking** (single coherent CI contract), not spread across optional workflows.
+- **Minimum set to enforce**: docs drift checker, workspace structure verification, and the contract tests that lock in these decisions (ports/entrypoints/governance/redaction).
+
+---
+
+## 1) P0 — “Ideal state” violations / high-confidence breakages
+
+### 1.1 `docker-compose.dev.yml` is broken (wrong services + wrong command + missing build target)
+
+- **Evidence**: `docker-compose.dev.yml`
+  - References `build.target: development` (no `development` stage in `Dockerfile`)
+  - Uses `uvicorn src.backend.main:app` (backend is `autopack.main:app`)
+  - Overrides a non-existent service `postgres:` (base compose uses `db:`)
+- **Why it matters**: The repo advertises safe, deterministic operation. A broken dev compose path undermines “mechanically enforceable” + “easy local reproduction”.
 - **Recommended fix**:
-  - Add a dedicated `frontend` job that runs `npm ci`, `npm run lint`, `npm run type-check`, `npm run build`.
-  - Decide which frontend(s) are supported; if multiple, test both or consolidate.
+  - Either delete `docker-compose.dev.yml` (if not supported) or make it a valid override for `docker-compose.yml`:
+    - target correct service name (`db`) and correct uvicorn app (`autopack.main:app`)
+    - if “development image” is desired, add a `development` stage to `Dockerfile` (or remove `target:`).
 - **Acceptance criteria**:
-  - CI fails on TS/ESLint errors and build failures.
+  - `docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build` works from a clean clone.
 
-### 2.2 Python version drift across workflows (3.11 vs 3.12)
+### 1.2 `Dockerfile.frontend` will not build the root frontend output as configured
 
-- **Problem**: `ci.yml` uses Python 3.11; `intention-autonomy-ci.yml` uses Python 3.12.
+- **Evidence**:
+  - `vite.config.ts` outputs to `dist/frontend`
+  - `Dockerfile.frontend` copies `/app/dist` → nginx html
+- **Why it matters**: This is a deterministic, reproducible build contract gap.
+- **Recommended fix** (choose one):
+  - Update `vite.config.ts` back to `outDir: "dist"` (standard), **or**
+  - Update `Dockerfile.frontend` to copy `/app/dist/frontend`.
+- **Acceptance criteria**:
+  - `docker build -f Dockerfile.frontend .` succeeds from a clean clone and serves the app.
+
+### 1.3 “Two frontends” is currently an unclear product contract (and one lives under `src/`)
+
+- **Evidence**: `src/frontend/…` and `src/autopack/dashboard/frontend/…`
+- **Why it matters**:
+  - Creates “two truths” for operators and agents (“which UI is canonical?”).
+  - The dashboard frontend’s **local artifacts** (`node_modules/`, `dist/`) sitting under `src/` violate `docs/WORKSPACE_ORGANIZATION_SPEC.md` intent (“src is code only”), even if they’re untracked.
 - **Recommended fix**:
-  - Standardize to one version (likely 3.11 per `pyproject.toml`) or introduce a matrix (3.11+3.12) explicitly.
+  - Decide the canonical UI:
+    - If **root Vite** is canonical: migrate dashboard features into `src/frontend`, and remove `src/autopack/dashboard/frontend` (or move it to `archive/experiments/`).
+    - If **dashboard** is canonical: move it to repo root `frontend/` (per workspace spec), wire Docker/CI/docs to it, and delete the root Vite frontend.
 - **Acceptance criteria**:
-  - Documented policy; workflows align; failures aren’t version-accidental.
+  - Exactly one supported frontend path is documented in `docs/QUICKSTART.md` / `docs/PROJECT_INDEX.json`.
+  - CI + Docker build that same frontend deterministically.
 
-### 2.3 Type safety not enforced (mypy unused in CI)
+### 1.4 `docs/PROJECT_INDEX.json` contains multiple concrete drifts (SOT doc must be accurate)
 
-- **Problem**: `mypy` is in `dev` deps but not run in CI; large repo means regressions can slip.
+- **Evidence**: `docs/PROJECT_INDEX.json` currently references:
+  - `cp .env.example .env` but `.env.example` does not exist
+  - `python integrations/supervisor.py …` but integrations live at `scripts/integrations/…`
+  - `docker-compose logs -f api` but compose uses `backend`
+  - additional service/name mismatches (API run command uses `uvicorn src.autopack.main:app` while README uses `autopack.main:app` with `PYTHONPATH=src`)
+- **Why it matters**: This is explicitly a machine-consumable SOT entry point; drift causes agents and humans to run wrong commands.
 - **Recommended fix**:
-  - Add `mypy` to CI with an incremental adoption plan (module allowlist + baseline).
+  - Bring `docs/PROJECT_INDEX.json` into strict alignment with the repo’s actual entry points, service names, and file locations.
 - **Acceptance criteria**:
-  - `mypy` runs in CI; failures are actionable; adoption is staged if needed.
+  - `docs/PROJECT_INDEX.json` “quick_start” commands run successfully on a clean clone (with required env vars configured).
 
-### 2.4 Security “diff gates” are still non-blocking
+### 1.5 Broad docs drift: compose service names and legacy commands are still present
 
-- **Problem**: `security.yml` diff gates are `continue-on-error: true` (rollout mode).
+- **Evidence**:
+  - `docs/PARALLEL_RUNS.md` uses `docker-compose up -d postgres` but service is `db`.
+  - `docs/BUILD_HISTORY.md` contains archived instructions `docker-compose logs -f api` (service is `backend`).
+  - Some guides still reference legacy/incorrect uvicorn entrypoints (e.g. `autopack.api.server:app` or `uvicorn src.autopack.main:app`) while the canonical contract is `PYTHONPATH=src uvicorn autopack.main:app`.
+- **Why it matters**: even if CI is strong, docs are part of the “mechanically enforceable” operator contract. Wrong commands = wasted time + broken reproducibility.
 - **Recommended fix**:
-  - Move to blocking once stable, at least for PRs into `main`.
-  - Align cadence: `security.yml` is daily; `security-artifacts.yml` is weekly. Decide desired posture to reduce redundant scanning.
+  - Run a “docs drift sweep” (scripted) that replaces known-bad patterns with canonical equivalents:
+    - `postgres` → `db`
+    - `api` → `backend` (for compose service naming)
+    - `uvicorn src.autopack.main:app` → `PYTHONPATH=src uvicorn autopack.main:app`
+    - quarantine truly-legacy commands in one explicitly labeled “legacy” section (so greps don’t keep reintroducing them)
 - **Acceptance criteria**:
-  - New findings block PRs by default; baseline refresh remains explicit and reviewable.
+  - `grep -R "docker-compose up -d postgres" docs/` returns empty.
+  - `grep -R "docker-compose logs -f api" docs/` returns empty.
+  - The only references to legacy uvicorn targets are in a single “legacy” section (or removed entirely).
 
-### 2.5 “Gap scanner” is currently guaranteed to produce a baseline-policy gap
+### 1.6 Missing dependency update automation: Dependabot config is absent (but implied elsewhere)
 
-- **Problem**: `GapScanner._detect_baseline_policy_drift()` looks for `config/baseline_policy.yaml`, which does not exist (current policies are elsewhere under `config/`).
+- **Evidence**:
+  - No `.github/dependabot.yml`
+  - Comments/docs imply it exists (e.g., Dockerfile notes “Dependabot monitors Docker images”)
+- **Why it matters**: SHA pins + security baselines become manual toil; pins and deps will stale-drift.
 - **Recommended fix**:
-  - Either create `config/baseline_policy.yaml` (canonical), or update scanner to reference the real policy files.
-- **Acceptance criteria**:
-  - A clean repo state produces no “missing baseline policy” gap.
-
-### 2.6 Autonomy artifacts path consistency
-
-- **Problem**: docs/examples sometimes reference `.autonomous_runs/<run_id>/...` while the repo’s canonical layout is `.autonomous_runs/<project>/runs/<family>/<run_id>/...`.
-- **Recommended fix**:
-  - Ensure docs, CLI help, and `RunFileLayout` agree, and examples don’t teach legacy paths.
-- **Acceptance criteria**:
-  - One canonical path structure used everywhere; old paths are documented as legacy only.
-
-### 2.7 Executor ↔ API operational hardening
-
-- **Opportunities**:
-  - **Redaction**: error responses currently return `detail=str(exc)` always; consider safer error messages unless `DEBUG=1`.
-  - **Auth posture**: API key auth is bypassed if `AUTOPACK_API_KEY` is unset; consider a “prod requires key” gate (e.g., `AUTOPACK_ENV=prod`).
-  - **Background task lifecycle**: `approval_timeout_cleanup()` loops forever; ensure graceful shutdown and exception isolation (mostly present), but consider structured cancellation and backoff.
-- **Acceptance criteria**:
-  - Production config cannot accidentally run with open auth.
-  - Error payloads are safe-by-default.
-
-### 2.8 Supply-chain determinism gaps: Docker image digests + Python deps in images
-
-- **Problem**:
-  - Docker images are pinned by tag but generally **not pinned by digest** (e.g., `python:3.11-slim`, `nginx:alpine`, `postgres:15.10-alpine`, `qdrant/qdrant:v1.12.5`).
-  - Backend `Dockerfile` installs from `requirements.txt`, but requirements are not guaranteed to be hash-locked; build can drift over time.
-- **Recommended fix**:
-  - Pin Docker base images by digest (or explicitly document why tags are acceptable).
-  - Introduce a deterministic dependency strategy for container builds:
-    - either `pip-compile --generate-hashes` for a container-specific lock,
-    - or `constraints.txt` pinned for Docker builds,
-    - or build from a pinned wheelhouse artifact.
-- **Acceptance criteria**:
-  - Rebuilding containers at different times yields identical dependency sets (or drift is intentional + documented).
-  - CI detects dependency drift impacting Docker builds.
-
-### 2.9 Reduce redundant / low-signal security scanning
-
-- **Problem**: `security.yml` runs Safety + Trivy + CodeQL daily; `security-artifacts.yml` runs a weekly SARIF artifact generation used for baseline refresh. This can create redundant scans and noisy artifacts without added enforcement.
-- **Recommended fix**:
-  - Decide the canonical enforcement path (baseline diff gates) and consolidate schedules.
-  - If Safety is kept, either baseline it too or remove it (currently it’s report-only via `|| true`).
-- **Acceptance criteria**:
-  - One coherent security posture: what blocks PRs, what is scheduled, and what is baseline-driven.
-
-### 2.10 Docs absolute-path cleanup (portability + copy/paste safety)
-
-- **Problem**: There are many `C:\...` references across `docs/`. Some are legitimate Windows-only guides, but others are workstation-specific and don’t generalize (hurts “ideal state” portability and encourages copy/paste footguns).
-- **Recommended fix**:
-  - Standardize docs to use `%REPO_ROOT%` / `<repo_root>` / `$REPO_ROOT` conventions.
-  - Keep absolute paths only in explicitly labeled Windows-only sections, and prefer environment-variable based examples.
-  - Add a “docs portability” check (non-blocking at first) that flags suspicious absolute paths outside Windows-only guides.
-- **Acceptance criteria**:
-  - Non-Windows-only docs do not contain workstation-specific absolute roots.
-  - CI (or a doc contract test) flags regressions.
-
-### 2.11 SOT protection mismatch: SOT registry vs “authoritative docs” list
-
-- **Problem**: `docs/INDEX.md` treats several files as authoritative/SOT-like (e.g., `docs/SECURITY_LOG.md`, `docs/SECURITY_EXCEPTIONS.md`, `docs/SECURITY_BURNDOWN.md`, `docs/CHANGELOG.md`), but `config/sot_registry.json` only protects a smaller subset.
-- **Why it matters**: creates “two truths” for agents and for tidy/protection expectations; a doc can be “authoritative” but not protected/treated as such.
-- **Recommended fix**:
-  - Decide which of these files are truly SOT/protected and add them to `config/sot_registry.json` (and any related protection/validation tooling).
-  - Alternatively: explicitly reclassify some docs as non-SOT (and update `docs/INDEX.md` wording accordingly).
-- **Acceptance criteria**:
-  - `docs/INDEX.md`’s “authoritative/SOT” list matches the SOT registry (or clearly explains any exceptions).
-  - Protection/validation behavior matches the declared policy.
-
-### 2.12 Missing dependency automation: Dependabot configuration
-
-- **Problem**: No `.github/dependabot.yml` found.
-- **Why it matters**: Autopack invests heavily in supply-chain hardening (e.g., GitHub Actions SHA pins). Without automated update PRs, pins and dependencies will drift stale and become manual toil.
-- **Recommended fix**:
-  - Add Dependabot updates for ecosystems used here:
+  - Add `.github/dependabot.yml` for:
     - `github-actions` (workflow pins)
-    - `pip` (Python deps, including `pyproject.toml` / `requirements*.txt` strategy)
-    - `npm` (any supported frontend(s))
+    - `pip` (requirements/pyproject strategy)
+    - `npm` (root frontend, and dashboard frontend if retained)
 - **Acceptance criteria**:
-  - Dependabot runs on a documented cadence and produces reviewable PRs with deterministic diffs.
+  - Scheduled Dependabot PRs land for all 3 ecosystems with sane grouping/cadence.
 
-### 2.13 Missing ownership guardrail: CODEOWNERS
+### 1.7 Secret redaction bug: hyphenated sensitive header keys may not be redacted
 
-- **Problem**: No `CODEOWNERS` found.
-- **Why it matters**: governance-heavy repos benefit from automatic review routing, especially for sensitive surfaces (`.github/workflows/*`, `config/*`, SOT ledgers, security baselines).
+- **Evidence**: `src/autopack/sanitizer.py`
+  - `_is_sensitive_key()` normalizes keys by replacing `-` with `_`, but `SENSITIVE_HEADERS` contains many hyphenated header names (e.g., `x-api-key`, `set-cookie`).
+  - Result: keys like `X-API-Key` / `Set-Cookie` can evade the direct membership test and be persisted in error artifacts.
+- **Why it matters**: Autopack explicitly persists error artifacts to disk under `.autonomous_runs/…/errors/…`. Any redaction bug is a P0 security gap.
 - **Recommended fix**:
-  - Add a `CODEOWNERS` file that assigns owners for:
-    - `.github/`, `security/`, `config/`, `docs/` (SOT ledgers), and core runtime paths.
+  - Normalize `SENSITIVE_HEADERS`/`SENSITIVE_KEYS` into the same canonical form used by `_is_sensitive_key()` (or stop mutating the input key and compare using a consistent normalization function).
+  - Add contract tests proving redaction for `Authorization`, `Cookie`, `Set-Cookie`, `X-API-Key`, `X-GitHub-Token`, etc., including mixed case and hyphen/underscore variants.
 - **Acceptance criteria**:
-  - Sensitive changes automatically request review from appropriate owners.
+  - Unit tests demonstrate that both `"X-API-Key"` and `"x_api_key"` keys are redacted.
+  - Error reports never persist raw values for sensitive headers/keys.
+
+### 1.8 Production auth posture gap: API key auth is “open” when `AUTOPACK_API_KEY` is unset
+
+- **Evidence**: `src/autopack/main.py` `verify_api_key()` returns `None` (allows access) when `AUTOPACK_API_KEY` is not set.
+- **Why it matters**: In `AUTOPACK_ENV=production`, the API should not be accidentally runnable unauthenticated.
+- **Recommended fix**:
+  - In production mode, fail fast if `AUTOPACK_API_KEY` is not set (or require JWT auth for non-public endpoints).
+  - Ensure docs clearly state “dev can be open; prod must be authenticated”.
+- **Acceptance criteria**:
+  - With `AUTOPACK_ENV=production` and no API key configured, startup fails clearly.
+
+### 1.9 Root frontend CI is likely broken: `npm ci` runs but there is no root `package-lock.json`
+
+- **Evidence**:
+  - `.github/workflows/ci.yml` runs `npm ci` in the repo root (`frontend-ci` job).
+  - There is **no** root `package-lock.json` (the only `package-lock.json` present is under `src/autopack/dashboard/frontend/`).
+- **Why it matters**: `npm ci` requires a lockfile. If the repo’s canonical frontend is the root Vite app, CI is currently failing and builds are not deterministic.
+- **Recommended fix** (choose one):
+  - **Preferred**: generate and commit root `package-lock.json` and keep it in sync with `package.json`.
+  - **Alternative**: change CI from `npm ci` → `npm install` (less deterministic), or repoint the CI job to the dashboard frontend and treat it as canonical.
+- **Acceptance criteria**:
+  - Frontend CI passes from a clean checkout, and root frontend builds deterministically.
+
+### 1.10 Docker/compose frontend does not match the “root frontend” (and does not use `nginx.conf`)
+
+- **Evidence**:
+  - `docker-compose.yml` `frontend` builds `Dockerfile` with no target (uses the final nginx stage).
+  - `Dockerfile`’s frontend build stage uses `src/autopack/dashboard/frontend/` (dashboard UI), not `src/frontend/`.
+  - `nginx.conf` (with `/api` proxy + security headers) is only copied by `Dockerfile.frontend`, not by the nginx stage in `Dockerfile`.
+- **Why it matters**: This creates “three truths”:
+  - CI frontend job targets the root app
+  - docker-compose serves the dashboard app
+  - nginx proxy/security headers are defined in `nginx.conf` but may not be active in compose
+- **Recommended fix**:
+  - Decide canonical frontend and converge CI + Docker + docs:
+    - If root app is canonical: make compose build `Dockerfile.frontend` (or update `Dockerfile` to build root app and copy `nginx.conf`).
+    - If dashboard is canonical: update CI to lint/typecheck/build `src/autopack/dashboard/frontend` and stop treating root `package.json` as canonical.
+- **Acceptance criteria**:
+  - `docker-compose up --build` serves the same UI that CI builds, and `/api` proxy behavior matches docs.
+
+### 1.11 Port mismatch: README runs API on 8100 while Docker/compose + most docs use 8000
+
+- **Evidence**:
+  - `README.md` suggests `python -m uvicorn autopack.main:app … --port 8100`.
+  - `Dockerfile`/`docker-compose.yml` expose 8000 and most docs use `http://localhost:8000`.
+- **Why it matters**: breaks the “single canonical contract” for operators and agents.
+- **Recommended fix**:
+  - Pick one canonical port (likely 8000, since docker-compose + docs are already on 8000) and update README/examples accordingly.
+- **Acceptance criteria**:
+  - README, docs, docker-compose, and examples all use the same default API port.
+
+### 1.12 Legacy backend path references still exist in core logic (planning/scanning/prompting)
+
+- **Evidence**:
+  - `src/autopack/autonomous_executor.py` still includes default allowed paths like `src/backend/` and `src/frontend/` (FileOrganizer legacy).
+  - `src/autopack/repo_scanner.py` / `src/autopack/pattern_matcher.py` include legacy path heuristics like `backend/api`.
+  - `src/autopack/anthropic_clients.py` prompt instructions still cite `src/backend/api/health.py` as a canonical example path.
+- **Why it matters**: Autopack itself no longer has a `src/backend/` app, so these heuristics/prompt examples create noise and can cause mis-targeted patches in autonomous runs.
+- **Recommended fix**:
+  - Separate “Autopack repo defaults” from “external project templates”:
+    - Autopack should default to `src/autopack/…` (and root frontend if retained).
+    - FileOrganizer/other projects can have their own templates/allowed paths and repo scanners.
+  - Add a small contract test that ensures Autopack runs never propose edits under non-existent default roots (e.g., `src/backend/` in this repo).
+- **Acceptance criteria**:
+  - No Autopack-core prompts or default allowed-path sets reference `src/backend/` unless explicitly in a project-template context.
+
+### 1.13 `python -m autopack` entrypoint is unrelated to Autopack (Canada document classifier demo)
+
+- **Evidence**:
+  - `src/autopack/__main__.py` runs a `CanadaDocumentClassifier` demo, which is unrelated to Autopack’s build framework.
+  - The real CLI surface appears to be under `src/autopack/cli/` (and `src/autopack/cli/__main__.py` exists).
+  - `pyproject.toml` does not define `console_scripts` / `[project.scripts]` entrypoints.
+- **Why it matters**: `python -m autopack` is a natural “what is this package?” entrypoint. If it runs unrelated demo code, it undermines trust and confuses agents/operators.
+- **Recommended fix**:
+  - Replace `src/autopack/__main__.py` with a thin delegate to the canonical CLI (e.g., `autopack.cli`), and/or print help text.
+  - Add a proper console script in `pyproject.toml` (e.g., `autopack = autopack.cli.main:main`) so users can run `autopack ...` after install.
+- **Acceptance criteria**:
+  - `python -m autopack --help` shows Autopack CLI/help (not unrelated demos).
+  - `pip install -e .` provides an `autopack` command (if desired).
 
 ---
 
-## 3) P2 (Design/maintenance improvements: cleanup, consolidation, quality-of-life)
+## 2) P1 — Major hardening / determinism / completeness
 
-### 3.1 Consolidate frontends / clarify the canonical UI
+### 2.1 Executor TODO closures that affect determinism and governance correctness
 
-- **Observation**: There is a root Vite setup (`package.json`, `vite.config.ts`) and also `src/autopack/dashboard/frontend` (React app) plus `src/autopack/frontend`.
+**Hotspot**: `src/autopack/autonomous_executor.py` (12 TODOs remaining). High-value closures:
+
+- **Usage accounting**: track actual tokens/context usage in the LLM execution path (today: placeholder counters).
+- **Scope reduction**: implement `REDUCE_SCOPE` prompt generation + validation (today: fallback).
+- **Coverage delta**: wire coverage delta computation (CI produces coverage.xml; executor still returns 0.0).
+- **Model overrides propagation**: `run_context` includes overrides but TODO says “pass model_overrides”.
+- **Changed-files extraction**: executor currently sets `changes = []` (loses auditability and quality gate signal).
+- **Auditor result enrichment**: suggested patches + confidence parsing are TODO.
+- **Approval flow**: Telegram approval flow integration is TODO (currently fails to manual approval path).
+- **Quality report files list**: `files: []` TODO.
+- **Deletion “context” derivation**: hardcoded `"troubleshoot"` TODO.
+- **Automatic retry with LLM correction**: TODO.
+
+**Acceptance criteria**:
+- Each TODO closure has a contract test proving behavior and preventing regression (especially changed-files, approval flow, and scope reduction).
+
+### 2.2 TODO hotspots: remaining placeholders concentrate in executor + several operational scripts
+
+- **Evidence (quick inventory)**:
+  - `src/autopack/autonomous_executor.py`: 12 TODOs (governance, determinism, reporting)
+  - `scripts/ci/check_sot_hygiene.py`: 13 TODO/FIXME markers (mostly report-only heuristics)
+  - `scripts/pattern_expansion.py`: 9 TODO/FIXME markers (generator logic)
+  - `scripts/ci/check_security_baseline_log_entry.py`: 8 TODO/FIXME markers (policy checks)
+  - `scripts/pre_publish_checklist.py`: 4 TODO/FIXME markers (release-readiness checks)
+  - `scripts/integrations/*`: multiple TODOs (explicitly stubbed integrations)
+- **Why it matters**: Autopack’s pitch is “safe + deterministic + mechanically enforceable”. TODOs in the executor and CI policy scripts are directly on that critical path.
 - **Recommended fix**:
-  - Choose a single canonical UI (or document why multiple exist).
-  - Remove dead/unused packages or wire them explicitly into docs + Docker + CI.
+  - Convert the remaining TODOs into a tracked “closure plan” (build doc or FUTURE_PLAN entries) with:
+    - “must close” (executor determinism/governance/security)
+    - “nice to have” (dev tooling, generators)
+  - For each “must close”, add/extend tests so the behavior is enforced.
 - **Acceptance criteria**:
-  - “One true way” to run/build the UI is documented and tested.
+  - Critical-path TODO count trends toward zero, with tests proving the closure.
 
-### 3.2 Replace ad-hoc migration scripts with a single migration discipline
+### 2.2 `docs/api/` and OpenAPI strategy is unresolved (spec allows it; repo doesn’t implement it)
 
-- **Observation**: `alembic` is a dependency, but migrations exist as a mix of Python scripts and `.sql` files in multiple places.
+- **Evidence**:
+  - `docs/WORKSPACE_ORGANIZATION_SPEC.md` explicitly allows `docs/api/`
+  - Multiple docs reference placing OpenAPI output there
+  - No `docs/api/` directory exists and no checked-in OpenAPI artifact exists
+- **Recommended fix** (choose one):
+  - **Runtime-only**: document that OpenAPI is only served at runtime; remove doc references to checked-in specs, **or**
+  - **Checked-in**: generate and commit `docs/api/openapi.json` (and add drift check).
+- **Acceptance criteria**:
+  - The chosen approach is canonical in docs, and CI enforces it (if checked in).
+
+### 2.3 Governance policy surface is large and likely over-restrictive; clarify intent
+
+- **Evidence**: `src/autopack/planning/plan_proposer.py` `NEVER_AUTO_APPROVE_PATTERNS` includes:
+  - `docs/`, `config/`, `.github/`, **`src/autopack/`**, **`tests/`**
+- **Why it matters**: This makes auto-approval extremely rare, even for low-risk refactors and test-only changes; it may be intentional, but should be explicitly stated and tested as policy.
 - **Recommended fix**:
-  - Standardize on Alembic (or explicitly standardize on “SQL migrations only”), document and enforce it.
+  - Decide whether tests are allowed for auto-approval (with strict constraints) vs always requiring approval.
+  - Encode the decision in one canonical policy module/config and reference it from docs + proposer.
 - **Acceptance criteria**:
-  - One migration toolchain; reproducible DB setup; no workstation-specific seeds in schema migrations.
+  - Docs + proposer agree; tests exist demonstrating the policy boundaries.
 
-### 3.3 Strengthen workspace structure checks
+### 2.4 Local workspace hygiene: root contains many untracked seed DBs (spec says route them)
 
-- **Recommended additions**:
-  - Detect stray `*.bak2` / `*.bak*` under `src/` (current CI check catches `*.bak` but not variants).
-  - Detect committed caches (`__pycache__`, `.pyc`) under `src/` and `tests/`.
-  - Detect root DB clutter and route it per spec.
-- **Acceptance criteria**:
-  - CI blocks new hygiene regressions without relying on human review.
-
-### 3.4 Standardize “dev install” commands and docs
-
-- **Observation**: `pyproject.toml` is SOT; CI uses `pip install -e ".[dev]"`; Makefile uses `requirements-dev.txt`.
+- **Evidence**: repo root contains multiple `telemetry_seed_*.db` / `autopack_telemetry_seed*.db` files in the current workspace (untracked).
+- **Why it matters**: even untracked clutter reduces operator trust and breaks the “minimal root” ideal when cloning or sharing zip snapshots.
 - **Recommended fix**:
-  - Align Makefile/docs with the SOT approach (or formally support both, but keep them consistent).
+  - Add a documented + scripted routing rule: move these into `archive/data/databases/telemetry_seeds/…`.
+  - Add a tidy routine to optionally move them for local hygiene (CI can’t catch untracked files).
 - **Acceptance criteria**:
-  - One recommended install path; no drift between CI and local docs.
+  - Running a “workspace cleanup” command results in root containing only `autopack.db` for SQLite dev.
 
-### 3.5 Add missing community/metadata files expected by workspace spec
+### 2.5 API version drift: root endpoint returns `0.1.0` despite package being `0.5.1`
 
-- **Gaps**:
-  - `LICENSE*` missing at repo root (spec expects it).
-  - `SECURITY.md` missing at repo root (there is `security/README.md`, but GitHub expects `SECURITY.md`).
-  - `CODE_OF_CONDUCT.md` missing (optional, but helpful).
-- **Acceptance criteria**:
-  - Files exist at root and match current policies.
-
-### 3.6 Improve API versioning + OpenAPI stability
-
-- **Recommended**:
-  - Expose `X-Autopack-Version` header or `/version` endpoint.
-  - Add contract test ensuring OpenAPI metadata version matches package version.
-- **Acceptance criteria**:
-  - Version consistency is mechanically enforced.
-
-### 3.7 Observability polish
-
-- **Recommended**:
-  - Consolidate “token cap” and “usage cap” handling (dashboard has TODO for cap).
-  - Consider structured JSON logging for API/executor (esp. if integrating with a log pipeline later).
-- **Acceptance criteria**:
-  - Dashboard shows meaningful caps; telemetry fields are consistent; logs are parseable.
-
-### 3.8 Release engineering / distribution hardening (optional but “beyond README”)
-
-- **Gaps**:
-  - No standard release workflow (tag → build artifacts → changelog/release notes).
-  - No SBOM generation for releases/containers (useful if publishing images).
-  - No documented support policy for Python/Node versions (beyond `pyproject`).
+- **Evidence**: `src/autopack/main.py` uses `version=__version__` for OpenAPI, but `GET /` returns `"version": "0.1.0"`.
+- **Why it matters**: version consistency is part of the CI drift contracts and affects operators/clients.
 - **Recommended fix**:
-  - Add a release process doc and (optionally) a GitHub Actions workflow for tagged releases.
-  - Generate SBOMs for Docker images and/or Python distributions on release.
+  - Return `__version__` from the root endpoint (and/or add `/version`).
 - **Acceptance criteria**:
-  - A tagged release produces reproducible artifacts + an auditable paper trail.
+  - Root endpoint version matches `pyproject.toml` and OpenAPI.
 
-**Note (intent)**: Autopack itself is intended for **personal/internal use only** (not distributed). Release engineering for Autopack can be kept lightweight; however, the **projects built using Autopack may be published/monetized**, so downstream projects should adopt strong release/provenance/security practices.
+### 2.6 Request size limits are not explicit (API + nginx)
 
-### 3.9 Formatting determinism controls: missing `.editorconfig` and `.gitattributes`
-
-- **Problem**: No `.editorconfig` and no `.gitattributes` found.
-- **Why it matters**: Cross-OS development (Windows/Linux CI) tends to create noisy diffs and subtle tool drift (line endings, encoding, whitespace). This undercuts “deterministic, mechanically enforceable” goals.
+- **Evidence**:
+  - FastAPI uses SlowAPI for rate limiting, but there is no explicit request-body size limit.
+  - `nginx.conf` does not set `client_max_body_size`.
+- **Why it matters**: file uploads and large JSON payloads can cause resource exhaustion; “safe by default” should include hard limits.
 - **Recommended fix**:
-  - Add `.editorconfig` with canonical whitespace/EOL rules.
-  - Add `.gitattributes` to enforce LF where needed (and explicitly document any Windows exceptions).
+  - Add `client_max_body_size` in nginx (and document it).
+  - Add an API-side max body size middleware (defense-in-depth), at least in production.
 - **Acceptance criteria**:
-  - New diffs do not churn due to line endings; CI is stable across OS.
+  - Oversized requests are rejected deterministically (HTTP 413).
+
+### 2.8 Integration stubs drift: docs/scripts reference non-existent `integrations/` path
+
+- **Evidence**:
+  - `docs/PROJECT_INDEX.json` references `python integrations/supervisor.py …` but integrations are under `scripts/integrations/`.
+  - `scripts/integrations/README.md` “Testing Integration” section also uses `python integrations/*.py` (wrong path).
+- **Why it matters**: These are presented as the orchestration entry points; wrong paths break quickstart and confuse agents.
+- **Recommended fix**:
+  - Update docs to use `python scripts/integrations/supervisor.py` etc.
+  - Optional: add a small compatibility shim directory `integrations/` that imports/execs the scripts (if you want to preserve legacy paths).
+- **Acceptance criteria**:
+  - Copy/paste commands from `docs/PROJECT_INDEX.json` and `scripts/integrations/README.md` work from repo root.
+
+### 2.9 Legacy uvicorn target references remain in docs (not covered by drift checker)
+
+- **Evidence**:
+  - `docs/guides/RESEARCH_CI_FIX_CHECKLIST.md` and `docs/guides/RESEARCH_CI_IMPORT_FIX.md` reference `python -m uvicorn autopack.api.server:app ...`
+  - `scripts/check_docs_drift.py` blocks backend-main drift but does **not** currently block `autopack.api.server:app` drift.
+- **Why it matters**: these are copy/paste footguns; they reintroduce the very “two control planes” problem Autopack already closed.
+- **Recommended fix**:
+  - Extend `scripts/check_docs_drift.py` forbidden patterns to include `autopack.api.server:app` and other legacy uvicorn targets.
+  - Or consolidate legacy references into an explicitly labeled section and exclude that file from drift checks.
+- **Acceptance criteria**:
+  - CI fails if docs reintroduce legacy uvicorn targets outside of an allowlisted legacy section.
+
+### 2.10 Risk scoring config drift: `RiskScorer` references non-existent `config/*.yaml` files
+
+- **Evidence**: `src/autopack/risk_scorer.py`
+  - `PROTECTED_PATHS` includes `config/safety_profiles.yaml` and `config/governance.yaml`, but these files do not exist in `config/`.
+- **Why it matters**: risk scoring is meant to be deterministic + enforceable; referencing non-existent config files either creates dead code paths or gives a false sense of coverage.
+- **Recommended fix** (choose one):
+  - Create the missing config files (and define their schema + ownership), **or**
+  - Update `RiskScorer.PROTECTED_PATHS` to reference the real policy/config sources that exist (e.g., `config/models.yaml`, `config/protection_and_retention_policy.yaml`, `config/sot_registry.json`, `.github/workflows/*`).
+- **Acceptance criteria**:
+  - Every “protected config path” referenced by risk scoring exists and is meaningful.
+
+### 2.11 “Config surface area” drift: multiple `config/*.yaml` exist with no runtime readers
+
+- **Evidence**:
+  - No runtime references found for: `config/feature_catalog.yaml`, `config/stack_profiles.yaml`, `config/tools.yaml`.
+  - `config/project_types.yaml` appears to be used only by `scripts/launch_claude_agents.py`.
+- **Why it matters**: unused configs become stale quickly and create “two truths” for agents (“is this canonical?”).
+- **Recommended fix**:
+  - Decide for each config file: **wire it**, **archive it**, or **document it as future-only** (and keep it out of “canonical config” lists).
+  - Prefer a “config index” doc explaining which config files are consumed at runtime and by which subsystem.
+- **Acceptance criteria**:
+  - Each `config/*` file is either: (a) referenced by runtime code/tests, or (b) explicitly marked as unused/future-only, or (c) removed/archived.
+
+### 2.12 CI/contract enforcement gaps: several known drifts are not mechanically blocked
+
+- **Evidence**:
+  - `scripts/check_docs_drift.py` exists, but is **not invoked** by `.github/workflows/ci.yml` (docs integrity currently runs `pytest tests/docs/`, `check_doc_links.py`, and SOT drift checks).
+  - Workspace structure verification is enforced in a **separate workflow** (`.github/workflows/verify-workspace-structure.yml`) and is not part of the default “Autopack CI” required checks list.
+  - No tests currently assert:
+    - `GapScanner` baseline-policy drift detection matches the real repo state (`config/baseline_policy.yaml` exists, but scanner can still produce a “missing baseline policy” gap if path expectations drift).
+    - `RiskScorer` protected-config paths exist (it currently references non-existent `config/safety_profiles.yaml` and `config/governance.yaml`).
+    - `python -m autopack` exposes the Autopack CLI/help (it currently runs a Canada classifier demo).
+    - README/API port consistency (README uses 8100; docker/compose/docs use 8000).
+  - Docs drift checker does not currently block legacy `autopack.api.server:app` references (still present in some guides).
+- **Why it matters**: these are exactly the kinds of “ideal state” violations that regress unless CI blocks them.
+- **Recommended fix**:
+  - Add a new CI step (or a docs contract test) that runs `python scripts/check_docs_drift.py` and expand it to cover:
+    - legacy uvicorn targets like `autopack.api.server:app`
+    - known bad compose service names (`postgres`, `api`) if you want to enforce them
+  - Add minimal, low-flake contract tests for:
+    - GapScanner baseline-policy detection (clean repo should not emit a missing baseline policy gap).
+    - RiskScorer protected-config path existence.
+    - `python -m autopack --help` returns Autopack help.
+    - README port consistency with docker-compose defaults.
+  - Add `verify-workspace-structure` to the recommended required checks list in `scripts/ci/github_settings_self_audit.py` (and/or merge its checks into `ci.yml` if you want PR-blocking by default).
+- **Acceptance criteria**:
+  - CI fails on reintroduction of the above drifts (before merge), not after-the-fact.
 
 ---
 
-## 4) Known “paper cuts” / consistency tweaks (low risk)
+## 3) P2 — Developer experience + polish (still valuable)
 
-- **Docs example drift**: `docs/PARALLEL_RUNS.md` references `docker-compose up -d postgres` but compose service is `db`.
-- **Schema location mismatch**: some docs reference `docs/schemas/*` but schemas live in `src/autopack/schemas/*`.
-- **Security workflow duplication**: daily `security.yml` + weekly `security-artifacts.yml` might be more than needed; decide and document.
-- **Missing `docs/api/` directory and OpenAPI spec placement**: workspace spec allows `docs/api/`, and tidy/docs mention moving `openapi.json` under it, but `docs/api/` and a checked-in `openapi.json` are not present. Decide the canonical approach (checked-in spec vs runtime-generated only) and align docs/tools.
-- **Missing GitHub hygiene templates**: no issue templates and no PR template found under `.github/` (optional, but can reduce governance/triage overhead).
+### 3.1 Pre-commit hooks are absent
+
+- **Problem**: no `.pre-commit-config.yaml`
+- **Recommended fix**:
+  - Add pre-commit with `ruff`, `black`, and basic hygiene hooks (end-of-file-fixer, trailing whitespace, check-yaml).
+- **Acceptance criteria**:
+  - Contributors can run `pre-commit install` and get the same checks locally as CI.
+
+### 3.2 Fix CODEOWNERS drift: references a non-existent doc
+
+- **Evidence**: `.github/CODEOWNERS` references `docs/SECURITY_BASELINE.md` which does not exist (baseline doc is `security/README.md`).
+- **Recommended fix**:
+  - Update CODEOWNERS to point at the actual baseline doc (or create `docs/SECURITY_BASELINE.md` as a short pointer).
+- **Acceptance criteria**:
+  - All CODEOWNERS targets exist.
+
+### 3.3 Windows-only helper scripts use hardcoded `C:\\dev\\Autopack`
+
+- **Evidence**:
+  - `scripts/archive/root_scripts/RUN_EXECUTOR.bat`
+  - `scripts/telemetry_seed_quickstart.ps1`
+  - Comment in `scripts/tidy/tidy_workspace.py`
+- **Recommended fix**:
+  - Use `%~dp0` / repo-root discovery (`git rev-parse --show-toplevel`) or `$PSScriptRoot` rather than absolute paths.
+- **Acceptance criteria**:
+  - Scripts work when repo is not cloned to `C:\\dev\\Autopack`.
+
+### 3.4 nginx request-id propagation looks incorrect / non-functional
+
+- **Evidence**: `nginx.conf`:
+  - Sets `$request_id` from `$http_x_request_id`, then on empty executes `set $request_id $request_id;` (no-op).
+- **Why it matters**: request-id correlation is valuable for debugging distributed failures; incorrect config gives false confidence.
+- **Recommended fix**:
+  - Use nginx’s built-in `$request_id` if available (or generate a UUID via a known module), and only fall back to client-provided header when present.
+- **Acceptance criteria**:
+  - Every response includes an `X-Request-ID`, and it is propagated to the backend.
 
 ---
 
-## 5) Next-tier hardening backlog (extensive, beyond the “big rocks”)
+## 4) “Beyond README” hardening (optional, but aligned with the repo’s thesis)
 
-These are “second-order” hardening items: they typically don’t unlock core functionality, but materially improve **security**, **privacy**, **operability**, and **determinism** over time.
-
-### 5.1 Data protection: sanitize anything written to disk (errors, telemetry, artifacts)
-
-- **Gap**: `src/autopack/error_reporter.py` records:
-  - `context_data` verbatim
-  - `stack_frames[*].local_vars` (repr of locals) which can include tokens, headers, credentials, payloads, file contents
-- **Hardening**:
-  - Add a central sanitizer used by `ErrorReporter`:
-    - redact sensitive keys (case-insensitive): `authorization`, `cookie`, `set-cookie`, `x-api-key`, `api_key`, `token`, `secret`, `password`, `session`, `jwt`
-    - truncate values aggressively
-    - avoid persisting `local_vars` by default (or allowlist a small subset)
-  - Ensure “error report artifacts” are treated as potentially sensitive and excluded from any SOT consolidation by default.
-- **Acceptance criteria**:
-  - Tests prove redaction works for headers, query params, and stack locals.
-  - No error report contains raw credential strings even in nested structures.
-
-### 5.2 Auth hardening: tighten “dev conveniences” so they can’t reach prod
-
-- **Gap**: JWT key generation (`ensure_keys`) can generate keys when missing; this is convenient, but risky if it ever happens in production.
-- **Hardening**:
-  - Add an explicit “environment mode” flag (e.g., `AUTOPACK_ENV=dev|test|prod`) and enforce:
-    - **prod**: fail fast if JWT keys are not configured; never generate ephemeral keys
-    - **dev/test**: generation allowed
-  - Add a similar guard for API key auth “open mode” (only allowed in dev/test).
-- **Acceptance criteria**:
-  - In prod mode, startup fails if auth prerequisites are missing.
-  - CI test ensures prod mode cannot run with generated keys or open auth.
-
-### 5.3 API hardening: request limits, CORS, and safer error responses
-
-- **Hardening**:
-  - Add request-body size limits (avoid DoS / memory blowups).
-  - Define explicit CORS policy (even if default-deny).
-  - In non-DEBUG mode, avoid returning internal exception strings to clients (return opaque IDs + reference to error report).
-- **Acceptance criteria**:
-  - Oversized requests are rejected deterministically (413).
-  - CORS behavior is explicit and tested.
-  - Error responses do not leak internal paths/stack traces unless `DEBUG=1`.
-
-### 5.4 Reverse proxy hardening (nginx)
-
-- **Hardening**:
-  - Add a Content-Security-Policy (CSP) suitable for the chosen frontend.
-  - Add `Permissions-Policy`.
-  - Ensure `proxy_set_header` includes `X-Request-ID` propagation (or generate one).
-  - Consider `client_max_body_size` and upstream timeouts aligned with long-running operations.
-- **Acceptance criteria**:
-  - Security headers are present and validated by a small integration test (or curl-based script).
-
-### 5.5 Executor reliability: close known TODOs that affect determinism/safety
-
-There are several TODOs in `src/autopack/autonomous_executor.py` that map to real contract gaps (not just “nice to have”):
-
-- **Hardening targets**:
-  - Derive safety profile from intention anchor (avoid mismatched governance thresholds).
-  - Deterministic changed-files extraction and persistence for builder results.
-  - Integrate approval flows consistently (Telegram/CLI) rather than placeholder logic.
-  - Coverage computation plumbing if it’s part of quality gate decisions.
-- **Acceptance criteria**:
-  - New/updated contract tests cover each TODO closure (fail on regression).
-  - Executor output artifacts are deterministic for identical inputs.
-
-### 5.6 DB discipline hardening: migrations, seeding, and “dev password” leakage
-
-- **Hardening**:
-  - Ensure dev-only compose files don’t train users into using hardcoded weak passwords in production.
-  - Centralize migration discipline (Alembic or SQL-only) and document exactly how schema changes are applied.
-  - Add a “schema drift” check that compares expected migrations vs live DB in CI integration tests.
-- **Acceptance criteria**:
-  - No production docs/configs include default credentials.
-  - Schema drift is detected early and deterministically.
-
-### 5.7 Policy-as-code expansion: static analysis of dangerous operations
-
-- **Hardening**:
-  - Extend write-protection / hygiene scanners to additional runtime modules, not just the executor.
-  - Add static checks for:
-    - `print()` in production modules (force logging)
-    - logging of URLs that may contain credentials
-    - writing outside allowlisted directories at runtime
-- **Acceptance criteria**:
-  - CI blocks these patterns on PRs (low false positives; allowlist exceptions with rationale).
-
-### 5.8 Provenance and build integrity
-
-- **Hardening**:
-  - Generate SBOMs for containers and (if published) Python distribution artifacts.
-  - Consider signing release artifacts (Sigstore/cosign) if Autopack is distributed.
-- **Acceptance criteria**:
-  - Release artifacts include SBOM + provenance metadata and are reproducible.
+- **Supply-chain determinism**: pin Docker base images by digest; consider pip hash-locking for container builds.
+- **Release/provenance**: if you ever ship images/artifacts, add signing/provenance; note `security.yml` already generates SBOMs as artifacts.
+- **GitHub metadata**: issue templates / PR template (optional), but can reduce governance overhead.
 
 ---
 
-## 5) Suggested execution plan (if you want me to start fixing, in order)
+## 5) Foundations for your next projects (Etsy/Shopify, YouTube automation, trading bots) — optional but recommended
 
-1. **Clean committed artifacts**: remove `node_modules/`, `dist/`, move telemetry seed DBs to `archive/...`.
-2. **Fix portability**: remove/replace hardcoded `C:\dev\Autopack` seeds in DB migrations.
-3. **Harden logging**: redact DB URLs; remove raw prints; align API version.
-4. **Align governance policy**: make docs+code match (tests/ auto-approve vs never-auto-approve).
-5. **CI completeness**: add frontend build/lint, add mypy (staged), unify Python versions.
-6. **Tidy remaining drift**: align docs paths, schema locations, compose service naming in docs.
+These are not required for Autopack’s internal consistency, but they are highly aligned with your stated roadmap and help keep automation **safe**, **auditable**, and **resumable**.
 
+### 5.1 Secrets / credentials governance (3rd‑party APIs)
 
----
+- **Goal**: standardize how Autopack stores/loads/rotates credentials for Etsy/Shopify/YouTube/brokers, and ensure secrets are never persisted in logs/artifacts.
+- **Skeleton**:
+  - `src/autopack/secrets/`:
+    - `providers.py` (typed secret descriptors per provider)
+    - `store.py` (env + optional encrypted file/OS keychain backend)
+    - `redaction.py` (shared redaction helpers used by sanitizer + logs)
+  - `docs/SECRETS_AND_CREDENTIALS.md` (canonical usage + rotation)
 
-## 6) Beyond-repo audit (GitHub settings, release provenance, container hardening policy)
+### 5.2 Integration sandboxing + rate-limit safety (“integration runner”)
 
-These items require **GitHub repo settings** and/or **release infrastructure** decisions. They are not fully enforceable from code alone, but we can:
-- document an explicit policy (so there’s “one truth”)
-- add optional self-audit scripts / CI checks where feasible
+- **Goal**: safe wrapper for external side effects with timeouts, retries/backoff, idempotency keys, and rate limiting.
+- **Skeleton**:
+  - `src/autopack/integrations/runner.py`:
+    - timeout + retry policy
+    - idempotency keys
+    - per-provider rate limiter
+    - structured audit events
+  - `src/autopack/integrations/providers/{etsy,shopify,youtube,broker}/...`
 
-### 6.1 Branch protection expectations (GitHub settings)
+### 5.3 Job scheduling + resumable pipelines
 
-- **Goal**: ensure `main` stays mechanically enforceable and “safe by default.”
-- **Recommended settings** (minimum viable):
-  - **Require PRs**: no direct pushes to `main` (admins included unless explicitly exempted).
-  - **Require status checks** (must pass):
-    - `lint`
-    - `docs-sot-integrity`
-    - `test-core`
-    - (optional) `governance-approval-tests`
-  - **Require review**:
-    - ≥1 approving review (≥2 for sensitive paths like `.github/`, `config/`, `security/`, SOT ledgers)
-    - dismiss stale approvals on new commits
-  - **History / merge**:
-    - require linear history (optional, but helps determinism)
-    - restrict merge methods (e.g., squash-only) with a conventional commit/title policy
-  - **Conversation resolution**: require all PR conversations resolved before merge.
-  - **Force-push/deletion**: disallow force pushes on protected branches; disallow branch deletions (or restrict).
-- **Nice-to-have (higher assurance)**:
-  - require signed commits (or at least signed tags for releases)
-  - require CODEOWNERS reviews for sensitive paths
-- **Acceptance criteria**:
-  - A screenshot or exported settings checklist is captured in docs (so it’s auditable).
-  - “Required checks” align with the CI jobs that are intended to gate merges.
+- **Goal**: durable background jobs (queue + retry + checkpoint) so automation doesn’t rely on a single long-running process.
+- **Skeleton**:
+  - `src/autopack/jobs/`:
+    - `models.py` (Job table/state)
+    - `queue.py` (enqueue/dequeue, retry rules)
+    - `worker.py` (single worker; later expand)
+    - `checkpoints.py` (idempotent checkpoints)
 
-### 6.2 Release signing + provenance (SLSA / SBOM / artifact integrity)
+### 5.4 Browser automation harness (when APIs aren’t enough)
 
-- **Goal**: a tagged release produces **reproducible**, **verifiable**, **tamper-evident** artifacts.
-- **Recommended policy**:
-  - **Versioning**: tag releases as `vX.Y.Z` matching `pyproject.toml` and API-reported version.
-  - **Artifacts** (if publishing):
-    - Python: sdist + wheel
-    - Container images: backend + frontend (if shipped)
-  - **SBOM**:
-    - generate SBOM for each release artifact (container + Python package)
-    - store SBOM as release asset and/or attach to image as an OCI artifact
-  - **Provenance**:
-    - generate SLSA-style build provenance for each artifact (build runner identity, inputs, digests)
-  - **Signing**:
-    - sign container images with Sigstore/cosign (keyless preferred)
-    - sign release artifacts and/or tag (at minimum: signed tags)
-  - **Verification**:
-    - document how to verify: signature + digest + SBOM presence
-- **Acceptance criteria**:
-  - A release workflow produces: artifacts + checksums + SBOM + provenance + signatures.
-  - Release notes include artifact digests and verification commands.
+- **Goal**: Playwright runner with strict safety (no credential leaks, bounded actions, deterministic artifacts).
+- **Skeleton**:
+  - `src/autopack/browser/`:
+    - `playwright_runner.py`
+    - `artifacts.py` (screenshots/videos/har logs storage policy)
+    - `redaction.py` (scrub cookies/tokens)
 
-### 6.3 Container hardening policy (build + runtime)
+### 5.5 Human approval UX as a first-class gate (“approval inbox”)
 
-- **Goal**: containers are deterministic to build, minimal, and safe-by-default at runtime.
-- **Build-time policy**:
-  - pin base images by **digest** (or document why tags are acceptable)
-  - produce and store image digests in release metadata
-  - minimize layers and avoid copying unneeded files (tight `.dockerignore`)
-  - deterministic dependency strategy inside images (hash-locked or constraints)
-- **Runtime policy** (compose/k8s/production):
-  - run as **non-root** (already done in backend stage)
-  - read-only root filesystem where possible
-  - drop Linux capabilities (default-drop + allowlist)
-  - set seccomp/apparmor profiles where applicable
-  - resource limits (cpu/mem) and restart policies
-  - explicit health checks for each service
-  - explicit config for secrets (no secrets in env files committed; prefer secret stores)
-- **Acceptance criteria**:
-  - A documented “container hardening baseline” exists (what’s required vs optional).
-  - Security scanning moves from report-only → enforcement for releases (at least).
+- **Goal**: for high-risk actions (posting videos, listing products, executing trades), add a first-class approval inbox beyond Telegram.
+- **Skeleton**:
+  - `src/autopack/approvals/`:
+    - `models.py` (ApprovalRequest with payload hash + decision)
+    - `api.py` (list/approve/reject endpoints)
+  - `src/frontend/pages/Approvals.tsx` (simple review UI)
 
-### 6.4 Optional: automated “settings self-audit” (repo-visible)
-
-- **Idea**: add a script that (with a GitHub token) checks branch protections + required checks + merge rules via GitHub API and prints a drift report.
-- **Why it matters**: keeps “beyond repo” settings aligned with the repo’s mechanical expectations.
-- **Acceptance criteria**:
-  - Script runs in “manual mode” (not CI by default), outputs a deterministic checklist report, and is linked from docs.
-  - See: `docs/GITHUB_SETTINGS_SELF_AUDIT_GUIDE.md` and `scripts/ci/github_settings_self_audit.py`.
 

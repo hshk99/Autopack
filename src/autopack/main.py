@@ -171,6 +171,20 @@ async def approval_timeout_cleanup():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # P0 Security: In production mode, require AUTOPACK_API_KEY to be set
+    # This prevents accidentally running an unauthenticated API in production
+    autopack_env = os.getenv("AUTOPACK_ENV", "development").lower()
+    api_key = os.getenv("AUTOPACK_API_KEY")
+
+    if autopack_env == "production" and not api_key:
+        error_msg = (
+            "FATAL: AUTOPACK_ENV=production but AUTOPACK_API_KEY is not set. "
+            "For security, the API requires authentication in production mode. "
+            "Set AUTOPACK_API_KEY environment variable or use AUTOPACK_ENV=development."
+        )
+        logger.critical(error_msg)
+        raise RuntimeError(error_msg)
+
     # Skip DB init during testing (tests use their own DB setup)
     if os.getenv("TESTING") != "1":
         init_db()
@@ -322,7 +336,7 @@ def read_root():
     """Root endpoint"""
     return {
         "service": "Autopack Supervisor",
-        "version": "0.1.0",
+        "version": __version__,
         "description": "v7 autonomous build playbook orchestrator",
     }
 

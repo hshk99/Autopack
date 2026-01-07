@@ -94,6 +94,11 @@ FROM python:3.11-slim as backend
 
 WORKDIR /app
 
+# Runtime safety defaults
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/src
+
 # Copy source code and requirements
 COPY ./src /app/src
 COPY ./requirements.txt /app
@@ -104,14 +109,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 8000
 
 # Run uvicorn server
-CMD ["uvicorn", "src.autopack.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "autopack.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 **Key Points**:
 - Uses Python 3.11 slim image (minimal footprint)
-- Installs all dependencies from `requirements.txt`
-- Runs uvicorn ASGI server on port 8000
-- **Path Fix**: Corrected to copy `./src` (not root-level files)
+- Sets `PYTHONPATH=/app/src` for correct module imports
+- Runs uvicorn ASGI server on port 8000 with `autopack.main:app`
 
 ### Frontend Stage
 

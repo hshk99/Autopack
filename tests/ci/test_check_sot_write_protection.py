@@ -14,6 +14,22 @@ from pathlib import Path
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _init_protected_sot_paths():
+    """Initialize PROTECTED_SOT_PATHS before running tests.
+
+    The module keeps PROTECTED_SOT_PATHS empty until main() is called
+    to avoid import side-effects. Tests need it populated.
+    """
+    import scripts.check_sot_write_protection as sot_module
+
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    sot_module.PROTECTED_SOT_PATHS = sot_module._load_protected_sot_paths(repo_root)
+    yield
+    # Reset after test
+    sot_module.PROTECTED_SOT_PATHS = []
+
+
 def test_protected_sot_paths_includes_all_canonical_files():
     """Verify PROTECTED_SOT_PATHS includes all 6 canonical SOT files plus README."""
     from scripts.check_sot_write_protection import PROTECTED_SOT_PATHS

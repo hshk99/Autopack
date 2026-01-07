@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "archive_index_v1.schema.json",
+  "title": "ArchiveIndexV1",
+  "description": "Schema for archive/ARCHIVE_INDEX.json - a deterministic map of archive roots and their contents",
+  "type": "object",
+  "required": ["schema_version", "generated_at_utc", "archive_roots"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for forward compatibility"
+    },
+    "generated_at_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp of generation"
+    },
+    "generator_version": {
+      "type": "string",
+      "description": "Version of the generator script"
+    },
+    "archive_roots": {
+      "type": "array",
+      "description": "List of archive root directories",
+      "items": {
+        "$ref": "#/definitions/ArchiveRoot"
+      }
+    }
+  },
+  "definitions": {
+    "ArchiveRoot": {
+      "type": "object",
+      "required": ["id", "root_rel", "kind", "bucket_stats"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this archive root (e.g., 'repo', 'file-organizer-app-v1')"
+        },
+        "root_rel": {
+          "type": "string",
+          "description": "Relative path from repo root to this archive directory"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["repo_archive", "project_archive"],
+          "description": "Type of archive root"
+        },
+        "bucket_stats": {
+          "type": "array",
+          "description": "Statistics for each bucket (subdirectory) in this archive",
+          "items": {
+            "$ref": "#/definitions/BucketStat"
+          }
+        },
+        "recent_files": {
+          "type": "array",
+          "description": "Most recently modified files in this archive (bounded)",
+          "items": {
+            "$ref": "#/definitions/RecentFile"
+          }
+        },
+        "provenance": {
+          "$ref": "#/definitions/Provenance",
+          "description": "Where to find move/tidy history for this archive"
+        }
+      }
+    },
+    "BucketStat": {
+      "type": "object",
+      "required": ["bucket_rel", "file_count", "total_bytes"],
+      "additionalProperties": false,
+      "properties": {
+        "bucket_rel": {
+          "type": "string",
+          "description": "Relative path to this bucket from repo root"
+        },
+        "file_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of files in this bucket (recursive)"
+        },
+        "total_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total size of files in this bucket"
+        },
+        "description": {
+          "type": "string",
+          "description": "What this bucket is for"
+        }
+      }
+    },
+    "RecentFile": {
+      "type": "object",
+      "required": ["path_rel", "bytes", "mtime_utc"],
+      "additionalProperties": false,
+      "properties": {
+        "path_rel": {
+          "type": "string",
+          "description": "Relative path from repo root"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "File size in bytes"
+        },
+        "mtime_utc": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last modification time in UTC"
+        },
+        "kind": {
+          "type": "string",
+          "description": "Inferred file kind based on bucket/pattern"
+        },
+        "summary_hint": {
+          "type": "string",
+          "description": "Brief hint about file contents (deterministic, not LLM-generated)"
+        }
+      }
+    },
+    "Provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tidy_reports_rel_glob": {
+          "type": "string",
+          "description": "Glob pattern to find tidy report files"
+        },
+        "tidy_activity_logs_rel_glob": {
+          "type": "string",
+          "description": "Glob pattern to find tidy activity logs"
+        }
+      }
+    }
+  }
+}

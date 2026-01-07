@@ -3,7 +3,7 @@
 This repo contains **a lot** of documentation. This file is the **navigation hub** (especially for AI agents).
 
 - `README.md` is intentionally short (quickstart + links + project status).
-- The older long-form README is preserved at `docs/README_FULL.md`.
+- Full historical changelog is at `docs/CHANGELOG.md` (version history and feature announcements).
 
 ---
 

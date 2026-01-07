@@ -2,11 +2,14 @@
 
 BUILD-146 P12 Phase 5: Migrated from backend.core.security to consolidate
 auth under autopack namespace.
+
+BUILD-188 P5.2: Auth hardening - ephemeral key generation blocked in production.
 """
 
 import os
 import bcrypt
 import base64
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
@@ -15,7 +18,9 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from jose import jwt, JWTError
 
 # Import settings from autopack config (BUILD-146 P12 Phase 5)
-from autopack.config import settings
+from autopack.config import settings, is_production
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize_pem(pem: str) -> str:
@@ -55,6 +60,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def ensure_keys() -> None:
     """
     Ensure RSA keys are configured; generate ephemeral keys in dev/test if absent.
+
+    BUILD-188 P5.2: In production mode (AUTOPACK_ENV=production), this function
+    will fail fast if JWT keys are not properly configured. Ephemeral key generation
+    is only allowed in development/test environments.
     """
     if settings.jwt_private_key and settings.jwt_public_key:
         try:
@@ -66,11 +75,31 @@ def ensure_keys() -> None:
             settings.jwt_public_key = pub_norm
             return
         except Exception as exc:  # pragma: no cover - defensive
+            # In production, fail fast on invalid keys
+            if is_production():
+                raise RuntimeError(
+                    "Invalid JWT key configuration in production mode. "
+                    "Set valid JWT_PRIVATE_KEY and JWT_PUBLIC_KEY environment variables."
+                ) from exc
             # In tests, fall back to generated keys; otherwise fail fast.
             if os.getenv("PYTEST_CURRENT_TEST"):
                 pass
             else:
                 raise RuntimeError("Invalid JWT key configuration") from exc
+
+    # Keys are not configured - check if we're in production
+    if is_production():
+        raise RuntimeError(
+            "JWT keys not configured in production mode. "
+            "Set JWT_PRIVATE_KEY and JWT_PUBLIC_KEY environment variables. "
+            "Ephemeral key generation is disabled in production for security."
+        )
+
+    # Development/test mode: generate ephemeral keys with warning
+    logger.warning(
+        "[AUTH] Generating ephemeral JWT keys. This is only safe for development/testing. "
+        "Set AUTOPACK_ENV=production and configure JWT keys for production use."
+    )
 
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     priv_pem = key.private_bytes(

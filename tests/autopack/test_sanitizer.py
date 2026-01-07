@@ -75,7 +75,9 @@ class TestSanitizeQueryParams:
 
     def test_redacts_api_key_param(self):
         """API key parameter should be redacted."""
-        params = {"api_key": "sk_live_abc123"}  # gitleaks:allow (intentional fake key for sanitizer test)
+        params = {
+            "api_key": "sk_live_abc123"
+        }  # gitleaks:allow (intentional fake key for sanitizer test)
         result = sanitize_query_params(params)
         assert result["api_key"] == REDACTED
 
@@ -318,9 +320,15 @@ class TestHyphenatedHeaderRedaction:
     @pytest.mark.parametrize(
         "header_name,secret_value",
         [
-            ("X-API-Key", "sk_live_1234567890abcdef"),  # gitleaks:allow (intentional fake token for sanitizer test)
+            (
+                "X-API-Key",
+                "sk_live_1234567890abcdef",
+            ),  # gitleaks:allow (intentional fake token for sanitizer test)
             ("Set-Cookie", "session=abc123; HttpOnly; Secure"),
-            ("X-GitHub-Token", "ghp_abcdefghijklmnop1234567890"),  # gitleaks:allow (intentional fake token for sanitizer test)
+            (
+                "X-GitHub-Token",
+                "ghp_abcdefghijklmnop1234567890",
+            ),  # gitleaks:allow (intentional fake token for sanitizer test)
             ("Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"),
             ("Cookie", "auth_token=secret123; session_id=xyz"),
         ],
@@ -405,17 +413,47 @@ class TestNoSecretsInPersistedArtifacts:
     @pytest.mark.parametrize(
         "secret_key,secret_value",
         [
-            ("Authorization", "Bearer sk_live_abc123"),  # gitleaks:allow (intentional fake token for sanitizer test)
-            ("Cookie", "session=secret_session_id"),  # gitleaks:allow (intentional fake cookie for sanitizer test)
-            ("password", "my_super_secret_password"),  # gitleaks:allow (intentional fake password for sanitizer test)
-            ("api_key", "api_key_12345"),  # gitleaks:allow (intentional fake key for sanitizer test)
-            ("token", "jwt_token_value"),  # gitleaks:allow (intentional fake token for sanitizer test)
-            ("secret", "the_secret_value"),  # gitleaks:allow (intentional fake secret for sanitizer test)
-            ("database_url", "postgresql://user:pass@host/db"),  # gitleaks:allow (intentional fake URL for sanitizer test)
+            (
+                "Authorization",
+                "Bearer sk_live_abc123",
+            ),  # gitleaks:allow (intentional fake token for sanitizer test)
+            (
+                "Cookie",
+                "session=secret_session_id",
+            ),  # gitleaks:allow (intentional fake cookie for sanitizer test)
+            (
+                "password",
+                "my_super_secret_password",
+            ),  # gitleaks:allow (intentional fake password for sanitizer test)
+            (
+                "api_key",
+                "api_key_12345",
+            ),  # gitleaks:allow (intentional fake key for sanitizer test)
+            (
+                "token",
+                "jwt_token_value",
+            ),  # gitleaks:allow (intentional fake token for sanitizer test)
+            (
+                "secret",
+                "the_secret_value",
+            ),  # gitleaks:allow (intentional fake secret for sanitizer test)
+            (
+                "database_url",
+                "postgresql://user:pass@host/db",
+            ),  # gitleaks:allow (intentional fake URL for sanitizer test)
             # P0 Security: Add hyphenated header test cases
-            ("X-API-Key", "x_api_key_secret_value"),  # gitleaks:allow (intentional fake key for sanitizer test)
-            ("Set-Cookie", "session=leaked_session_id"),  # gitleaks:allow (intentional fake cookie for sanitizer test)
-            ("X-GitHub-Token", "ghp_leaked_github_token"),  # gitleaks:allow (intentional fake token for sanitizer test)
+            (
+                "X-API-Key",
+                "x_api_key_secret_value",
+            ),  # gitleaks:allow (intentional fake key for sanitizer test)
+            (
+                "Set-Cookie",
+                "session=leaked_session_id",
+            ),  # gitleaks:allow (intentional fake cookie for sanitizer test)
+            (
+                "X-GitHub-Token",
+                "ghp_leaked_github_token",
+            ),  # gitleaks:allow (intentional fake token for sanitizer test)
         ],
     )
     def test_secret_not_in_sanitized_output(self, secret_key, secret_value):

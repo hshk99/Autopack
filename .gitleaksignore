@@ -20,3 +20,9 @@ c69a1bc6b23895fde47573b5068538a838f08b44:tests/autopack/test_sanitizer.py:generi
 0dca1b71a4c4b0b89c189791a7c7f78cc3b83b1b:tests/ci/test_production_auth_requirement.py:generic-api-key:53
 0dca1b71a4c4b0b89c189791a7c7f78cc3b83b1b:tests/ci/test_production_auth_requirement.py:generic-api-key:98
 0dca1b71a4c4b0b89c189791a7c7f78cc3b83b1b:tests/ci/test_production_auth_requirement.py:generic-api-key:117
+
+# BUILD-192: Additional fingerprints from commit 27b166b582fd69ed98e429e912873ad666ebbeb2
+27b166b582fd69ed98e429e912873ad666ebbeb2:tests/autopack/test_sanitizer.py:generic-api-key:78
+27b166b582fd69ed98e429e912873ad666ebbeb2:tests/autopack/test_sanitizer.py:generic-api-key:283
+27b166b582fd69ed98e429e912873ad666ebbeb2:tests/autopack/test_sanitizer.py:stripe-access-token:157
+27b166b582fd69ed98e429e912873ad666ebbeb2:tests/autopack/test_sanitizer.py:jwt:150

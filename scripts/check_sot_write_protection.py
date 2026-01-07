@@ -22,6 +22,9 @@ PROTECTED_SOT_PATHS = [
     "docs/BUILD_HISTORY.md",
     "docs/DEBUG_LOG.md",
     "docs/ARCHITECTURE_DECISIONS.md",
+    "docs/FUTURE_PLAN.md",
+    "docs/PROJECT_INDEX.json",
+    "docs/LEARNED_RULES.json",
 ]
 
 # A small set of common write APIs we want to catch in executor code.
@@ -47,7 +50,9 @@ def _scan_file(path: Path) -> list[str]:
             if protected not in line:
                 continue
             if any(re.search(snippet, line) for snippet in WRITE_CALL_SNIPPETS):
-                findings.append(f"{path}:{i}: potential direct write reference to {protected}: {line.strip()}")
+                findings.append(
+                    f"{path}:{i}: potential direct write reference to {protected}: {line.strip()}"
+                )
     return findings
 
 
@@ -79,28 +84,37 @@ def main() -> int:
 
     # Report missing modules as warnings (not failures)
     if missing_modules:
-        print(f"[!] Warning: {len(missing_modules)} expected module(s) not found (may not exist yet):", file=sys.stderr)
+        print(
+            f"[!] Warning: {len(missing_modules)} expected module(s) not found (may not exist yet):",
+            file=sys.stderr,
+        )
         for m in missing_modules[:5]:
             print(f"  - {m}", file=sys.stderr)
         if len(missing_modules) > 5:
             print(f"  ... and {len(missing_modules) - 5} more", file=sys.stderr)
 
     if not all_findings:
-        print(f"[OK] SOT write protection check passed (no direct writes detected in {len(runtime_modules) - len(missing_modules)} runtime modules)")
+        print(
+            f"[OK] SOT write protection check passed (no direct writes detected in {len(runtime_modules) - len(missing_modules)} runtime modules)"
+        )
         return 0
 
     print("[X] SOT write protection check failed.", file=sys.stderr)
-    print("Runtime modules appear to reference protected SOT paths alongside write APIs:", file=sys.stderr)
+    print(
+        "Runtime modules appear to reference protected SOT paths alongside write APIs:",
+        file=sys.stderr,
+    )
     for f in all_findings[:50]:
         print(f"- {f}", file=sys.stderr)
     if len(all_findings) > 50:
         print(f"... and {len(all_findings) - 50} more", file=sys.stderr)
     print("", file=sys.stderr)
-    print("Fix: remove direct writes to SOT ledgers from runtime code; write run-local artifacts instead.", file=sys.stderr)
+    print(
+        "Fix: remove direct writes to SOT ledgers from runtime code; write run-local artifacts instead.",
+        file=sys.stderr,
+    )
     return 1
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-

@@ -83,6 +83,9 @@ ROOT_ALLOWED_FILES = {
     "index.html",
     # Database - only active development database allowed
     "autopack.db",  # Primary development database (active)
+    # Security scanning config (gitleaks)
+    ".gitleaks.toml",
+    ".gitleaksignore",
 }
 
 ROOT_ALLOWED_PATTERNS = {

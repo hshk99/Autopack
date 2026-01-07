@@ -1,0 +1,11 @@
+# Gitleaks configuration for Autopack
+# Extends default rules but excludes test fixtures with intentional fake secrets
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Test fixtures with intentional fake secrets for sanitizer testing"
+paths = [
+    '''tests/autopack/test_sanitizer\.py''',
+]

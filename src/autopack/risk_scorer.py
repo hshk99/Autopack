@@ -69,8 +69,10 @@ class RiskScorer:
         ".autonomous_runs/*",
         ".git/*",
         "autopack.db",
-        "config/safety_profiles.yaml",
-        "config/governance.yaml",
+        "config/models.yaml",
+        "config/baseline_policy.yaml",
+        "config/protection_and_retention_policy.yaml",
+        ".github/workflows/*",
     ]
 
     # High-risk categories

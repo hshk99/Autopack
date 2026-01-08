@@ -4,6 +4,8 @@ Per IMPLEMENTATION_PLAN_PR_APPROVAL_PIPELINE.md minimal test coverage:
 - PR callback parsing
 - Approval request update by approval_id
 - Idempotent callback handling
+
+NOTE: The client fixture sets TELEGRAM_BOT_TOKEN so answer_telegram_callback is called.
 """
 
 from __future__ import annotations

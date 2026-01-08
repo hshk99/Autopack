@@ -154,7 +154,7 @@ Per-run SQLite databases can't be queried together without manual merging.
 
 ```bash
 # Start Postgres (via docker-compose)
-docker-compose up -d postgres
+docker-compose up -d db
 
 # Run parallel jobs
 python scripts/autopack_supervisor.py \

@@ -3411,8 +3411,8 @@ GIT DIFF FORMAT RULES:
 - Then: --- a/PATH and +++ b/PATH
 - Then: @@ -LINE,COUNT +LINE,COUNT @@ CONTEXT
 - Then the actual changes with +/- prefixes
-- Use COMPLETE file paths from repository root (e.g., src/backend/api/health.py)
-- Do NOT use relative or partial paths (e.g., backend/api/health.py is WRONG)
+- Use COMPLETE file paths from repository root (e.g., src/autopack/main.py)
+- Do NOT use relative or partial paths (e.g., autopack/main.py is WRONG)
 
 Requirements:
 - Generate clean, production-quality code

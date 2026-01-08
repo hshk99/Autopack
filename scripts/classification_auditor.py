@@ -19,7 +19,10 @@ from pathlib import Path
 from typing import Tuple, Optional, Dict, Any
 from datetime import datetime
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Repo root detection for dynamic paths
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+sys.path.insert(0, str(REPO_ROOT / "src"))
 
 try:
     from glm_native_client import NativeGLMClient
@@ -134,9 +137,9 @@ class ClassificationAuditor:
 
                 # Build new destination path
                 if new_project == "autopack":
-                    new_dest = f"C:\\dev\\Autopack\\archive\\{new_type}s\\{file_path.name}"
+                    new_dest = str(REPO_ROOT / "archive" / f"{new_type}s" / file_path.name)
                 else:
-                    new_dest = f".autonomous_runs/{new_project}/archive/{new_type}s\\{file_path.name}"
+                    new_dest = str(REPO_ROOT / ".autonomous_runs" / new_project / "archive" / f"{new_type}s" / file_path.name)
 
                 print(f"[Auditor] OVERRIDE: {project_id}/{file_type} -> {new_project}/{new_type}")
 
@@ -277,12 +280,12 @@ KNOWN FILE TYPES FOR THIS PROJECT:
         """Fallback project context if database unavailable."""
 
         if project_id == "autopack":
-            return """
+            return f"""
 PROJECT: Autopack (Autonomous Build Orchestration System)
 - Core features: Phase execution, LLM usage, autonomous executor, tidy workspace
 - Key components: RunFileLayout, autonomous_executor, tidy_workspace, phase management
 - Typical files: Implementation plans, analysis docs, diagnostic logs, API logs, scripts
-- Location: C:\\dev\\Autopack\\
+- Location: {REPO_ROOT}
 """
         elif project_id == "file-organizer-app-v1":
             return """

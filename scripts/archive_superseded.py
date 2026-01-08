@@ -1,7 +1,12 @@
-
+#!/usr/bin/env python3
 import os
 import shutil
 from pathlib import Path
+
+# Repo root detection for dynamic paths
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+
 
 def archive_files(directory):
     directory = Path(directory)
@@ -35,7 +40,6 @@ def archive_files(directory):
             shutil.move(str(file_path), str(dest))
 
 if __name__ == "__main__":
-    base_dir = Path("c:/dev/Autopack")
-    archive_files(base_dir / "archive")
-    archive_files(base_dir / ".autonomous_runs/file-organizer-app-v1/archive")
+    archive_files(REPO_ROOT / "archive")
+    archive_files(REPO_ROOT / ".autonomous_runs/file-organizer-app-v1/archive")
 

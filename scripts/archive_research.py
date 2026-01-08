@@ -1,9 +1,14 @@
-
+#!/usr/bin/env python3
 import shutil
 from pathlib import Path
 
+# Repo root detection for dynamic paths
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+
+
 def archive_research_files():
-    base_dir = Path("c:/dev/Autopack")
+    base_dir = REPO_ROOT
     research_dir = base_dir / ".autonomous_runs/file-organizer-app-v1/docs/research"
     superseded_dir = research_dir / "superseded"
     superseded_dir.mkdir(parents=True, exist_ok=True)

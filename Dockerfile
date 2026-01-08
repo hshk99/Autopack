@@ -27,6 +27,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY ./src /app/src
 COPY ./requirements.txt /app
 
+# Copy config files required at runtime (models.yaml, pricing.yaml, etc.)
+# These are needed for deterministic model routing and policy enforcement
+COPY ./config /app/config
+
 # Install any needed packages specified in requirements.txt
 RUN python -m pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt

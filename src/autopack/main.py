@@ -53,14 +53,35 @@ API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 async def verify_api_key(api_key: str = Security(API_KEY_HEADER)):
-    """Verify API key for protected endpoints"""
+    """Verify API key for protected endpoints.
+
+    Production auth posture (BUILD-189):
+    - In production (AUTOPACK_ENV=production), API key is REQUIRED
+    - In dev/test, API key is optional for convenience
+    - In testing mode (TESTING=1), auth is skipped entirely
+    """
     expected_key = os.getenv("AUTOPACK_API_KEY")
+    env_mode = os.getenv("AUTOPACK_ENV", "development").lower()
 
     # Skip auth in testing mode
     if os.getenv("TESTING") == "1":
         return "test-key"
 
-    # Skip auth if no key configured (for initial setup)
+    # Production mode: API key is REQUIRED
+    if env_mode == "production":
+        if not expected_key:
+            raise HTTPException(
+                status_code=500,
+                detail="AUTOPACK_API_KEY must be configured in production mode. "
+                "Set AUTOPACK_API_KEY environment variable.",
+            )
+        if not api_key or api_key != expected_key:
+            raise HTTPException(
+                status_code=403, detail="Invalid or missing API key. Set X-API-Key header."
+            )
+        return api_key
+
+    # Dev mode: skip auth if no key configured (for initial setup convenience)
     if not expected_key:
         return None
 
@@ -2544,6 +2565,74 @@ def get_storage_recommendations(
         ],
         scan_statistics=scan_stats,
     )
+
+
+# ==============================================================================
+# File Upload API Endpoints (BUILD-189)
+# ==============================================================================
+
+
+@app.post("/files/upload", dependencies=[Depends(verify_api_key)])
+async def upload_file(request: Request):
+    """
+    Upload a file to the server.
+
+    This endpoint accepts multipart/form-data uploads. The file is saved
+    to the uploads directory with a unique filename.
+
+    Args:
+        request: FastAPI request object containing the file
+
+    Returns:
+        JSON with upload status and file metadata
+
+    Example:
+        ```bash
+        curl -X POST http://localhost:8000/files/upload \\
+          -F "file=@myfile.txt"
+        ```
+
+    Note:
+        - Maximum file size is controlled by nginx (50MB default)
+        - Requires API key authentication in production mode
+    """
+    import uuid
+
+    # Get form data
+    form = await request.form()
+    file = form.get("file")
+
+    if not file or not hasattr(file, "filename"):
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    # Generate unique filename to prevent collisions
+    file_ext = Path(file.filename).suffix if file.filename else ""
+    unique_filename = f"{uuid.uuid4().hex}{file_ext}"
+
+    # Ensure uploads directory exists
+    uploads_dir = Path(settings.autonomous_runs_dir) / "_uploads"
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+
+    file_path = uploads_dir / unique_filename
+
+    try:
+        # Read file content
+        content = await file.read()
+
+        # Save file synchronously (file IO is generally fast for reasonable sizes)
+        with open(file_path, "wb") as f:
+            f.write(content)
+
+        return {
+            "status": "success",
+            "filename": file.filename,
+            "stored_as": unique_filename,
+            "size": len(content),
+            "path": str(file_path),
+        }
+    except Exception as e:
+        logger.error(f"File upload failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
 @app.get("/health")

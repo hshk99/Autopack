@@ -6098,7 +6098,7 @@ Just the new description that should replace the current one while preserving th
                 run_hints=run_hints,  # Stage 0A: Within-run hints from earlier phases
                 run_id=self.run_id,
                 phase_id=phase_id,
-                run_context=self._build_run_context(),  # [Phase C3] Include model overrides if specified  # ROADMAP(P3): Pass model_overrides if specified
+                run_context=self._build_run_context(),  # [Phase C3] Include model overrides if specified (BUILD-195: P3 complete)
                 ci_result=ci_result,  # Now passing real CI results!
                 coverage_delta=self._compute_coverage_delta(
                     ci_result
@@ -9005,7 +9005,7 @@ Just the new description that should replace the current one while preserving th
                         error_detail = response.json().get("detail", "Patch validation failed")
                         logger.error(f"[{phase_id}] Patch validation failed (422): {error_detail}")
                         logger.info(
-                            f"[{phase_id}] Phase 2.3: Validation errors indicate malformed patch - LLM should regenerate"
+                            f"[{phase_id}] Phase 2.3: Validation errors indicate malformed patch - attempting LLM correction"
                         )
 
                         # Log validation failures to debug journal
@@ -9018,7 +9018,55 @@ Just the new description that should replace the current one while preserving th
                             priority="MEDIUM",
                         )
 
-                        # ROADMAP(P4): Implement automatic retry with LLM correction
+                        # BUILD-195: Automatic retry with LLM correction
+                        from autopack.executor.patch_correction import (
+                            correct_patch_once,
+                            should_attempt_patch_correction,
+                        )
+
+                        # Check if we should attempt correction (budget check)
+                        budget_remaining = 1.0 - (attempt / 3.0)  # Simplified budget
+                        error_dict = (
+                            error_detail
+                            if isinstance(error_detail, dict)
+                            else {"message": str(error_detail)}
+                        )
+
+                        if should_attempt_patch_correction(error_dict, budget_remaining):
+                            correction_result = correct_patch_once(
+                                original_patch=payload.get("patch_content", ""),
+                                validator_error_detail=error_dict,
+                                context={
+                                    "run_id": self.run_id,
+                                    "phase_id": phase_id,
+                                    "attempt": attempt,
+                                },
+                            )
+
+                            if (
+                                correction_result.correction_successful
+                                and correction_result.corrected_patch
+                            ):
+                                logger.info(
+                                    f"[{phase_id}] LLM correction successful (method: {correction_result.evidence.get('correction_method', 'unknown')}), retrying POST"
+                                )
+                                # Update payload with corrected patch and retry
+                                payload["patch_content"] = correction_result.corrected_patch
+                                # Re-parse patch stats for corrected patch
+                                files_changed, lines_added, lines_removed = (
+                                    governed_apply.parse_patch_stats(
+                                        correction_result.corrected_patch
+                                    )
+                                )
+                                payload["files_changed"] = files_changed
+                                payload["lines_added"] = lines_added
+                                payload["lines_removed"] = lines_removed
+                                continue  # Retry with corrected patch
+                            else:
+                                logger.warning(
+                                    f"[{phase_id}] LLM correction failed or no improvement, raising error"
+                                )
+
                         response.raise_for_status()
 
                     response.raise_for_status()

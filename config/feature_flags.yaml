@@ -1,0 +1,333 @@
+# Feature Flags Registry (Single Source of Truth)
+#
+# This file documents all environment variables that control runtime behavior.
+# CONTRACT: All AUTOPACK_* environment variables must be documented here.
+#
+# Categories:
+#   - environment: Core environment mode settings
+#   - security: Authentication and security enforcement
+#   - feature_toggle: Enable/disable features
+#   - tuning: Performance and behavior tuning
+#   - service_config: External service configuration
+#   - deprecated: Legacy flags (will be removed)
+#
+# Required fields for each flag:
+#   - description: What this flag does
+#   - category: One of the categories above
+#   - default: Default value when not set
+#   - values: Valid values (for discrete flags) or format description
+#   - affects: Which component(s) this affects
+#
+# PR9 (2026-01-08): Created as single source of truth for feature flags
+
+flags:
+  # ============================================================================
+  # Environment Mode Settings
+  # ============================================================================
+  AUTOPACK_ENV:
+    description: "Environment mode - controls security defaults and feature availability"
+    category: environment
+    default: "development"
+    values: ["development", "production", "test"]
+    affects: ["main.py", "telegram_webhook_security.py", "research/api/router.py"]
+    security_implications:
+      production: "Requires API key, enables strict security, disables quarantined endpoints"
+      development: "Allows unauthenticated access, enables experimental endpoints"
+
+  # ============================================================================
+  # Security & Authentication
+  # ============================================================================
+  AUTOPACK_API_KEY:
+    description: "API key for authenticating requests"
+    category: security
+    default: null
+    values: "Any non-empty string"
+    affects: ["main.py"]
+    security_implications:
+      set: "All protected endpoints require this key in X-API-Key header"
+      unset_production: "Server refuses to start in production mode"
+      unset_development: "API is open (WARNING: not for shared networks)"
+
+  TELEGRAM_WEBHOOK_SECRET:
+    description: "Secret token for verifying Telegram webhook requests"
+    category: security
+    default: null
+    values: "Any non-empty string (should match secret_token in setWebhook call)"
+    affects: ["telegram_webhook_security.py"]
+    security_implications:
+      set: "Webhook requests verified via X-Telegram-Bot-Api-Secret-Token header"
+      unset_production: "All webhook requests rejected"
+      unset_development: "Webhook requests allowed without verification (WARNING)"
+
+  # ============================================================================
+  # Feature Toggles (Enable/Disable Features)
+  # ============================================================================
+  RESEARCH_API_ENABLED:
+    description: "Enable the quarantined research API endpoints"
+    category: feature_toggle
+    default: "false (production), true (development)"
+    values: ["true", "false", "1", "0", "yes", "no", "enabled", "disabled"]
+    affects: ["research/api/router.py"]
+    notes: "Research API is experimental and may have drift - use with caution in production"
+
+  AUTOPACK_ENABLE_MEMORY:
+    description: "Enable the memory/vector search subsystem"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false", "1", "0"]
+    affects: ["memory/memory_service.py", "health_checks.py"]
+
+  AUTOPACK_USE_QDRANT:
+    description: "Use Qdrant as the vector store (vs local FAISS)"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false", "1", "0"]
+    affects: ["memory/memory_service.py", "health_checks.py"]
+    requires: ["AUTOPACK_ENABLE_MEMORY=true"]
+
+  AUTOPACK_ENABLE_FAILURE_HARDENING:
+    description: "Enable advanced failure recovery mechanisms"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["autonomous_executor.py"]
+
+  AUTOPACK_ENABLE_INTENTION_CONTEXT:
+    description: "Enable intention-based context enrichment"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["autonomous_executor.py"]
+
+  AUTOPACK_ENABLE_CONSOLIDATED_METRICS:
+    description: "Enable consolidated metrics endpoint"
+    category: feature_toggle
+    default: "false"
+    values: ["1"]  # Only checks for == "1"
+    affects: ["main.py"]
+
+  AUTOPACK_ENABLE_PHASE6_METRICS:
+    description: "Enable phase 6 metrics collection"
+    category: feature_toggle
+    default: "false"
+    values: ["1"]
+    affects: ["main.py"]
+
+  TELEMETRY_DB_ENABLED:
+    description: "Enable telemetry database persistence"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false", "1", "0"]
+    affects: ["autonomous_executor.py"]
+
+  # ============================================================================
+  # Developer/Debug Overrides
+  # ============================================================================
+  AUTOPACK_SKIP_CI:
+    description: "Skip CI checks during execution (development only)"
+    category: feature_toggle
+    default: "false"
+    values: ["1"]
+    affects: ["autonomous_executor.py"]
+    security_implications:
+      enabled: "DANGEROUS - bypasses CI safety gates"
+
+  AUTOPACK_SKIP_RUN_EXISTENCE_CHECK:
+    description: "Skip run existence verification (development only)"
+    category: feature_toggle
+    default: "false"
+    values: ["1"]
+    affects: ["autonomous_executor.py"]
+
+  # ============================================================================
+  # Tuning Parameters
+  # ============================================================================
+  AUTOPACK_PROMPT_MAX_TOKENS_MARGIN:
+    description: "Safety margin for prompt token budget"
+    category: tuning
+    default: "8000"
+    values: "Integer (tokens)"
+    affects: ["anthropic_clients.py"]
+
+  AUTOPACK_CONTEXT_BUDGET_TOKENS:
+    description: "Default context budget for LLM calls"
+    category: tuning
+    default: "120000"
+    values: "Integer (tokens)"
+    affects: ["anthropic_clients.py"]
+
+  AUTOPACK_CONTEXT_BUDGET_TOKENS_AGGRESSIVE:
+    description: "Aggressive context budget (for complex tasks)"
+    category: tuning
+    default: "80000"
+    values: "Integer (tokens)"
+    affects: ["anthropic_clients.py"]
+
+  AUTOPACK_CONTEXT_BUDGET_TOKENS_MINIMAL:
+    description: "Minimal context budget (for simple tasks)"
+    category: tuning
+    default: "50000"
+    values: "Integer (tokens)"
+    affects: ["anthropic_clients.py"]
+
+  AUTOPACK_CONTEXT_SEMANTIC_RELEVANCE:
+    description: "Semantic relevance scoring weight"
+    category: tuning
+    default: "1"
+    values: "Integer or float"
+    affects: ["anthropic_clients.py"]
+
+  AUTOPACK_API_STARTUP_TIMEOUT_SECONDS:
+    description: "Timeout for API startup health check"
+    category: tuning
+    default: "30"
+    values: "Integer (seconds)"
+    affects: ["autonomous_executor.py"]
+
+  # ============================================================================
+  # Service Configuration
+  # ============================================================================
+  AUTOPACK_API_URL:
+    description: "URL of the Autopack API server"
+    category: service_config
+    default: "http://localhost:8000"
+    values: "Valid URL"
+    affects: ["autonomous_executor.py", "main.py"]
+
+  AUTOPACK_CALLBACK_URL:
+    description: "Callback URL for async operations"
+    category: service_config
+    default: "http://localhost:8001"
+    values: "Valid URL"
+    affects: ["telegram_notifier.py"]
+
+  AUTOPACK_VERSION:
+    description: "Override version string for API responses"
+    category: service_config
+    default: "unknown (read from package)"
+    values: "Semver string"
+    affects: ["main.py"]
+
+  # ============================================================================
+  # Qdrant Configuration (when AUTOPACK_USE_QDRANT=true)
+  # ============================================================================
+  AUTOPACK_QDRANT_HOST:
+    description: "Qdrant server hostname"
+    category: service_config
+    default: "localhost"
+    values: "Hostname or IP"
+    affects: ["memory/memory_service.py", "health_checks.py"]
+    requires: ["AUTOPACK_USE_QDRANT=true"]
+
+  AUTOPACK_QDRANT_PORT:
+    description: "Qdrant server port"
+    category: service_config
+    default: "6333"
+    values: "Integer (port number)"
+    affects: ["memory/memory_service.py", "health_checks.py"]
+    requires: ["AUTOPACK_USE_QDRANT=true"]
+
+  AUTOPACK_QDRANT_API_KEY:
+    description: "Qdrant API key for authentication"
+    category: service_config
+    default: null
+    values: "API key string"
+    affects: ["memory/memory_service.py"]
+    requires: ["AUTOPACK_USE_QDRANT=true"]
+
+  AUTOPACK_QDRANT_PREFER_GRPC:
+    description: "Prefer gRPC over HTTP for Qdrant communication"
+    category: service_config
+    default: "false"
+    values: ["true", "false"]
+    affects: ["memory/memory_service.py"]
+    requires: ["AUTOPACK_USE_QDRANT=true"]
+
+  AUTOPACK_QDRANT_TIMEOUT:
+    description: "Timeout for Qdrant operations"
+    category: service_config
+    default: "60"
+    values: "Integer (seconds)"
+    affects: ["memory/memory_service.py"]
+    requires: ["AUTOPACK_USE_QDRANT=true"]
+
+  AUTOPACK_QDRANT_AUTOSTART:
+    description: "Automatically start Qdrant container if not running"
+    category: service_config
+    default: "false"
+    values: ["true", "false"]
+    affects: ["memory/memory_service.py", "health_checks.py"]
+    requires: ["AUTOPACK_USE_QDRANT=true"]
+
+  AUTOPACK_QDRANT_AUTOSTART_TIMEOUT:
+    description: "Timeout for Qdrant container startup"
+    category: service_config
+    default: "60"
+    values: "Integer (seconds)"
+    affects: ["memory/memory_service.py", "health_checks.py"]
+    requires: ["AUTOPACK_QDRANT_AUTOSTART=true"]
+
+# ============================================================================
+# Non-AUTOPACK Environment Variables (External Services)
+# ============================================================================
+external_env_vars:
+  TELEGRAM_BOT_TOKEN:
+    description: "Telegram bot token from @BotFather"
+    category: service_config
+    affects: ["telegram_notifier.py"]
+
+  TELEGRAM_CHAT_ID:
+    description: "Telegram chat ID for notifications"
+    category: service_config
+    affects: ["telegram_notifier.py"]
+
+  NGROK_URL:
+    description: "ngrok public URL for webhook callbacks"
+    category: service_config
+    affects: ["telegram_notifier.py"]
+
+  DATABASE_URL:
+    description: "PostgreSQL connection string"
+    category: service_config
+    default: "sqlite:///autopack.db (development)"
+    affects: ["database.py"]
+
+  TESTING:
+    description: "Skip DB initialization in test mode"
+    category: environment
+    values: ["1"]
+    affects: ["database.py", "main.py"]
+
+  CI_PROFILE:
+    description: "CI profile for preflight gate"
+    category: environment
+    values: ["normal", "strict"]
+    affects: ["ci workflows"]
+
+  TARGET_REPO_PATH:
+    description: "Path to target repository for builds"
+    category: service_config
+    default: "current directory"
+    affects: ["autonomous_executor.py"]
+
+  # API Keys (documented in PROJECT_INDEX.json - just reference here)
+  ANTHROPIC_API_KEY:
+    description: "Anthropic Claude API key"
+    category: security
+    documented_in: "docs/PROJECT_INDEX.json"
+
+  OPENAI_API_KEY:
+    description: "OpenAI API key"
+    category: security
+    documented_in: "docs/PROJECT_INDEX.json"
+
+  GOOGLE_API_KEY:
+    description: "Google Gemini API key"
+    category: security
+    documented_in: "docs/PROJECT_INDEX.json"
+
+  GLM_API_KEY:
+    description: "GLM API key (tooling-only)"
+    category: security
+    documented_in: "docs/PROJECT_INDEX.json"
+    notes: "Runtime GLM is disabled; only used by tidy/model-intelligence tooling"

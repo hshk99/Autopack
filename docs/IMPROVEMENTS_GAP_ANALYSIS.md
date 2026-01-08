@@ -126,16 +126,15 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 - **Acceptance criteria**:
   - `docker build -f Dockerfile.frontend .` succeeds from a clean clone and serves the app.
 
-### 1.3 “Two frontends” is currently an unclear product contract (and one lives under `src/`)
+### 1.3 "Two frontends" is currently an unclear product contract (and one lives under `src/`) (Status: FIXED)
 
-- **Evidence**: `src/frontend/…` and `src/autopack/dashboard/frontend/…`
-- **Why it matters**:
-  - Creates “two truths” for operators and agents (“which UI is canonical?”).
-  - The dashboard frontend’s **local artifacts** (`node_modules/`, `dist/`) sitting under `src/` violate `docs/WORKSPACE_ORGANIZATION_SPEC.md` intent (“src is code only”), even if they’re untracked.
-- **Recommended fix**:
-  - Decide the canonical UI:
-    - If **root Vite** is canonical: migrate dashboard features into `src/frontend`, and remove `src/autopack/dashboard/frontend` (or move it to `archive/experiments/`).
-    - If **dashboard** is canonical: move it to repo root `frontend/` (per workspace spec), wire Docker/CI/docs to it, and delete the root Vite frontend.
+- **Status**: FIXED (2026-01-08)
+- **Decision**: Root Vite frontend (`src/frontend/`) is canonical (see section 0.2)
+- **Verification**:
+  - `docker-compose.yml` uses `Dockerfile.frontend` which builds the root Vite app
+  - CI `frontend-ci` job builds/tests the root frontend via `package.json`
+  - `Dockerfile` includes comment noting canonical frontend is root Vite app
+  - Dashboard frontend under `src/autopack/dashboard/frontend/` is legacy (untracked artifacts)
 - **Acceptance criteria**:
   - Exactly one supported frontend path is documented in `docs/QUICKSTART.md` / `docs/PROJECT_INDEX.json`.
   - CI + Docker build that same frontend deterministically.
@@ -204,20 +203,14 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 - **Acceptance criteria**:
   - Frontend CI passes from a clean checkout, and root frontend builds deterministically.
 
-### 1.10 Docker/compose frontend does not match the “root frontend” (and does not use `nginx.conf`)
+### 1.10 Docker/compose frontend does not match the "root frontend" (and does not use `nginx.conf`) (Status: FIXED)
 
-- **Evidence**:
-  - `docker-compose.yml` `frontend` builds `Dockerfile` with no target (uses the final nginx stage).
-  - `Dockerfile`’s frontend build stage uses `src/autopack/dashboard/frontend/` (dashboard UI), not `src/frontend/`.
-  - `nginx.conf` (with `/api` proxy + security headers) is only copied by `Dockerfile.frontend`, not by the nginx stage in `Dockerfile`.
-- **Why it matters**: This creates “three truths”:
-  - CI frontend job targets the root app
-  - docker-compose serves the dashboard app
-  - nginx proxy/security headers are defined in `nginx.conf` but may not be active in compose
-- **Recommended fix**:
-  - Decide canonical frontend and converge CI + Docker + docs:
-    - If root app is canonical: make compose build `Dockerfile.frontend` (or update `Dockerfile` to build root app and copy `nginx.conf`).
-    - If dashboard is canonical: update CI to lint/typecheck/build `src/autopack/dashboard/frontend` and stop treating root `package.json` as canonical.
+- **Status**: FIXED (2026-01-08)
+- **Verification**:
+  - `docker-compose.yml` frontend service now uses `dockerfile: Dockerfile.frontend` (line 40)
+  - `Dockerfile.frontend` builds the root Vite app (`src/frontend/`) and copies `nginx.conf`
+  - CI and Docker now build the same frontend deterministically
+  - `nginx.conf` with `/api` proxy and security headers is active in compose
 - **Acceptance criteria**:
   - `docker-compose up --build` serves the same UI that CI builds, and `/api` proxy behavior matches docs.
 
@@ -230,18 +223,15 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 - **Acceptance criteria**:
   - README, docs, docker-compose, and examples all use the same default API port.
 
-### 1.12 Legacy backend path references still exist in core logic (planning/scanning/prompting)
+### 1.12 Legacy backend path references still exist in core logic (planning/scanning/prompting) (Status: FIXED)
 
-- **Evidence**:
-  - `src/autopack/autonomous_executor.py` still includes default allowed paths like `src/backend/` and `src/frontend/` (FileOrganizer legacy).
-  - `src/autopack/repo_scanner.py` / `src/autopack/pattern_matcher.py` include legacy path heuristics like `backend/api`.
-  - `src/autopack/anthropic_clients.py` prompt instructions still cite `src/backend/api/health.py` as a canonical example path.
-- **Why it matters**: Autopack itself no longer has a `src/backend/` app, so these heuristics/prompt examples create noise and can cause mis-targeted patches in autonomous runs.
-- **Recommended fix**:
-  - Separate “Autopack repo defaults” from “external project templates”:
-    - Autopack should default to `src/autopack/…` (and root frontend if retained).
-    - FileOrganizer/other projects can have their own templates/allowed paths and repo scanners.
-  - Add a small contract test that ensures Autopack runs never propose edits under non-existent default roots (e.g., `src/backend/` in this repo).
+- **Status**: FIXED (2026-01-08)
+- **Verification**:
+  - `src/autopack/anthropic_clients.py` no longer references `src/backend/api/health.py`
+  - `src/autopack/autonomous_executor.py` only references `src/backend/` inside FileOrganizer-specific block (`if project_slug == "file-organizer-app-v1"`)
+  - Default test path for non-FileOrganizer projects is `tests/` (correct for Autopack)
+  - `repo_scanner.py` and `pattern_matcher.py` patterns like `backend/api` are generic project structure detection heuristics (not Autopack defaults) - they only activate if the path actually exists in the scanned project
+  - All path candidate loops check `if (workdir / path).exists()` before use, preventing edits to non-existent paths
 - **Acceptance criteria**:
   - No Autopack-core prompts or default allowed-path sets reference `src/backend/` unless explicitly in a project-template context.
 

@@ -13,8 +13,8 @@ on:
         type: string
         default: 'autopack'
       family:
-        description: 'Run family (extracted from run_id prefix, e.g., build-193)'
-        required: true
+        description: 'Run family (optional - auto-derived from run_id prefix, e.g., build-193)'
+        required: false
         type: string
       integration_branch:
         description: 'Integration branch to promote from'
@@ -30,16 +30,46 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       eligible: ${{ steps.check.outputs.eligible }}
+      family: ${{ steps.derive-family.outputs.family }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.integration_branch }}
 
+      - name: Derive family from run_id
+        id: derive-family
+        run: |
+          # Extract family from run_id using same logic as RunFileLayout._extract_family()
+          # Pattern: prefix before timestamp (YYYYMMDD-HHMMSS or Unix epoch)
+          RUN_ID="${{ inputs.run_id }}"
+
+          # If family was explicitly provided, use it
+          if [ -n "${{ inputs.family }}" ]; then
+            FAMILY="${{ inputs.family }}"
+            echo "Using provided family: ${FAMILY}"
+          else
+            # Extract family using regex: prefix before -YYYYMMDD-HHMMSS or -<10+ digits>
+            # Examples: build-193-20260108-120000 -> build-193
+            #           maintenance-1704672000 -> maintenance
+            FAMILY=$(echo "${RUN_ID}" | sed -E 's/-([0-9]{8}-[0-9]{6}|[0-9]{10,}).*$//')
+
+            # If no timestamp pattern found, use full run_id as family
+            if [ "${FAMILY}" = "${RUN_ID}" ]; then
+              echo "No timestamp pattern found in run_id, using full run_id as family"
+            else
+              echo "Derived family from run_id: ${FAMILY}"
+            fi
+          fi
+
+          echo "family=${FAMILY}" >> $GITHUB_OUTPUT
+
       - name: Check run eligibility
         id: check
         run: |
+          FAMILY="${{ steps.derive-family.outputs.family }}"
+
           # Canonical path: .autonomous_runs/{project}/runs/{family}/{run_id}/
-          RUN_PATH=".autonomous_runs/${{ inputs.project_id }}/runs/${{ inputs.family }}/${{ inputs.run_id }}"
+          RUN_PATH=".autonomous_runs/${{ inputs.project_id }}/runs/${FAMILY}/${{ inputs.run_id }}"
 
           echo "Checking run at: ${RUN_PATH}"
 
@@ -96,7 +126,7 @@ jobs:
             - ✅ Passed promotion eligibility checks
 
             ### Run Summary
-            See `.autonomous_runs/${{ inputs.project_id }}/runs/${{ inputs.family }}/${{ inputs.run_id }}/run_summary.md` for details.
+            See `.autonomous_runs/${{ inputs.project_id }}/runs/${{ needs.check-eligibility.outputs.family }}/${{ inputs.run_id }}/run_summary.md` for details.
 
       - name: Comment on promotion
         run: |

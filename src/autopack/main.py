@@ -2584,7 +2584,7 @@ async def upload_file(request: Request):
         request: FastAPI request object containing the file
 
     Returns:
-        JSON with upload status and file metadata
+        JSON with upload status and file metadata (relative path only for security)
 
     Example:
         ```bash
@@ -2595,6 +2595,7 @@ async def upload_file(request: Request):
     Note:
         - Maximum file size is controlled by nginx (50MB default)
         - Requires API key authentication in production mode
+        - Uses streaming to avoid loading entire file into memory
     """
     import uuid
 
@@ -2616,22 +2617,37 @@ async def upload_file(request: Request):
     file_path = uploads_dir / unique_filename
 
     try:
-        # Read file content
-        content = await file.read()
+        # Stream file content in chunks to avoid loading entire file into memory
+        # This is critical for large uploads to prevent OOM issues
+        CHUNK_SIZE = 64 * 1024  # 64KB chunks
+        total_size = 0
 
-        # Save file synchronously (file IO is generally fast for reasonable sizes)
         with open(file_path, "wb") as f:
-            f.write(content)
+            while True:
+                chunk = await file.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                f.write(chunk)
+                total_size += len(chunk)
+
+        # Return relative path only (security: never expose absolute filesystem paths)
+        relative_path = f"_uploads/{unique_filename}"
 
         return {
             "status": "success",
             "filename": file.filename,
             "stored_as": unique_filename,
-            "size": len(content),
-            "path": str(file_path),
+            "size": total_size,
+            "relative_path": relative_path,
         }
     except Exception as e:
         logger.error(f"File upload failed: {e}")
+        # Clean up partial file on failure
+        if file_path.exists():
+            try:
+                file_path.unlink()
+            except Exception:
+                pass
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 

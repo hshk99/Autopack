@@ -143,6 +143,7 @@ def is_enabled(name: str) -> bool:
     if not flag:
         # Unregistered flag - log warning and return False
         import logging
+
         logging.getLogger(__name__).warning(
             f"Unknown feature flag: {name}. Register in feature_flags.py"
         )

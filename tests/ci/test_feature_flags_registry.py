@@ -23,9 +23,9 @@ class TestFeatureFlagRegistry:
     def test_registry_module_exists(self):
         """Feature flags registry module must exist."""
         registry_path = PROJECT_ROOT / "src" / "autopack" / "feature_flags.py"
-        assert registry_path.exists(), (
-            "feature_flags.py must exist at src/autopack/feature_flags.py"
-        )
+        assert (
+            registry_path.exists()
+        ), "feature_flags.py must exist at src/autopack/feature_flags.py"
 
     def test_registry_imports_successfully(self):
         """Feature flags registry must import without errors."""
@@ -51,9 +51,9 @@ class TestFeatureFlagRegistry:
         from autopack.feature_flags import FEATURE_FLAGS
 
         for name in FEATURE_FLAGS:
-            assert name.startswith("AUTOPACK_ENABLE_"), (
-                f"Flag {name} must start with AUTOPACK_ENABLE_"
-            )
+            assert name.startswith(
+                "AUTOPACK_ENABLE_"
+            ), f"Flag {name} must start with AUTOPACK_ENABLE_"
 
 
 class TestNoMysteryFlags:
@@ -64,11 +64,7 @@ class TestNoMysteryFlags:
         """Find all AUTOPACK_ENABLE_* references in Python code."""
         # Use grep to find all occurrences
         result = subprocess.run(
-            [
-                "git", "grep", "-h", "-o", "-E",
-                r"AUTOPACK_ENABLE_[A-Z0-9_]+",
-                "--", "*.py"
-            ],
+            ["git", "grep", "-h", "-o", "-E", r"AUTOPACK_ENABLE_[A-Z0-9_]+", "--", "*.py"],
             cwd=PROJECT_ROOT,
             capture_output=True,
             text=True,
@@ -89,6 +85,7 @@ class TestNoMysteryFlags:
     def registered_flags(self) -> set[str]:
         """Get all flags registered in feature_flags.py."""
         from autopack.feature_flags import FEATURE_FLAGS
+
         return set(FEATURE_FLAGS.keys())
 
     def test_all_code_flags_are_registered(self, flags_in_code, registered_flags):
@@ -101,7 +98,7 @@ class TestNoMysteryFlags:
         # These are intentionally not registered to test the warning behavior
         test_only_flags = {
             "AUTOPACK_ENABLE_UNKNOWN_FLAG",  # Used in tests to verify warning
-            "AUTOPACK_ENABLE_NONEXISTENT",   # Used in tests to verify warning
+            "AUTOPACK_ENABLE_NONEXISTENT",  # Used in tests to verify warning
         }
         unregistered = unregistered - test_only_flags
 
@@ -120,9 +117,7 @@ class TestNoMysteryFlags:
         # - Flags used only via environment variables
         # This test is informational, not blocking
         if orphaned:
-            pytest.skip(
-                f"Informational: orphaned flags not used in code: {orphaned}"
-            )
+            pytest.skip(f"Informational: orphaned flags not used in code: {orphaned}")
 
 
 class TestProductionPosture:
@@ -137,9 +132,7 @@ class TestProductionPosture:
             if flag.risk == RiskLevel.EXTERNAL and flag.default is True:
                 violations.append(name)
 
-        assert not violations, (
-            f"EXTERNAL risk flags must default to False: {violations}"
-        )
+        assert not violations, f"EXTERNAL risk flags must default to False: {violations}"
 
     def test_production_posture_is_conservative(self):
         """Production posture should disable external/API flags."""
@@ -150,9 +143,9 @@ class TestProductionPosture:
         for name, recommended in posture.items():
             flag = FEATURE_FLAGS[name]
             if flag.risk == RiskLevel.EXTERNAL:
-                assert recommended is False, (
-                    f"Production posture for EXTERNAL flag {name} must be False"
-                )
+                assert (
+                    recommended is False
+                ), f"Production posture for EXTERNAL flag {name} must be False"
 
 
 class TestIsEnabledBehavior:

@@ -502,7 +502,6 @@ All components maintain backward compatibility:
 
 - [README.md](../README.md) - Main Autopack documentation
 - [LEARNED_RULES.json](../docs/LEARNED_RULES.json) - Safety policies
-- [rerf5.md](c:\Users\hshk9\OneDrive\Backup\Desktop\rerf5.md) - Original parallelization requirements
 - [Git Worktree Docs](https://git-scm.com/docs/git-worktree) - Git worktree reference
 
 ---

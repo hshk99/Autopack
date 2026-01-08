@@ -14,7 +14,10 @@ import argparse
 from pathlib import Path
 from datetime import datetime, timezone
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Repo root detection for dynamic paths
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+sys.path.insert(0, str(REPO_ROOT / "src"))
 
 try:
     import psycopg2
@@ -195,9 +198,9 @@ def interactive_correction():
 
     # Determine destination
     if corrected_project == "autopack":
-        destination_path = f"C:\\dev\\Autopack\\archive\\{corrected_type}s\\{Path(file_path).name}"
+        destination_path = str(REPO_ROOT / "archive" / f"{corrected_type}s" / Path(file_path).name)
     else:
-        destination_path = f".autonomous_runs/{corrected_project}/archive/{corrected_type}s/{Path(file_path).name}"
+        destination_path = str(REPO_ROOT / ".autonomous_runs" / corrected_project / "archive" / f"{corrected_type}s" / Path(file_path).name)
 
     # Confirm
     print(f"\n--- Confirmation ---")

@@ -14,6 +14,10 @@ from pathlib import Path
 from typing import Optional, Dict, Any, Tuple
 from datetime import datetime, timezone
 
+# Repo root detection for dynamic paths
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+
 try:
     from qdrant_client import QdrantClient
     from sentence_transformers import SentenceTransformer
@@ -243,9 +247,9 @@ class ProjectMemoryClassifier:
                     print(f"[Classifier] Using user correction for similar file")
                     proj, typ = correction[0], correction[1]
                     if proj == "autopack":
-                        dest = f"C:\\dev\\Autopack\\archive\\{typ}s\\{filename}"
+                        dest = str(REPO_ROOT / "archive" / f"{typ}s" / filename)
                     else:
-                        dest = f".autonomous_runs/{proj}/archive/{typ}s\\{filename}"
+                        dest = str(REPO_ROOT / ".autonomous_runs" / proj / "archive" / f"{typ}s" / filename)
                     cursor.close()
                     return proj, typ, dest, 1.0
             except Exception:
@@ -552,13 +556,13 @@ class ProjectMemoryClassifier:
         # Build destination path
         if project_id == "autopack":
             if file_type == "script":
-                dest = f"C:\\dev\\Autopack\\scripts\\utility\\{Path(filename).name}"
+                dest = str(REPO_ROOT / "scripts" / "utility" / Path(filename).name)
             elif file_type == "unknown":
-                dest = f"C:\\dev\\Autopack\\archive\\unsorted\\{Path(filename).name}"
+                dest = str(REPO_ROOT / "archive" / "unsorted" / Path(filename).name)
             else:
-                dest = f"C:\\dev\\Autopack\\archive\\{file_type}s\\{Path(filename).name}"
+                dest = str(REPO_ROOT / "archive" / f"{file_type}s" / Path(filename).name)
         else:
-            dest = f".autonomous_runs/{project_id}/archive/{file_type}s/{Path(filename).name}"
+            dest = str(REPO_ROOT / ".autonomous_runs" / project_id / "archive" / f"{file_type}s" / Path(filename).name)
 
         return project_id, file_type, dest, confidence
 

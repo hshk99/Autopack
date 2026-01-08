@@ -148,9 +148,7 @@ async def verify_telegram_webhook(request: Request) -> bool:
                 "TELEGRAM_WEBHOOK_SECRET not configured - verification skipped"
             )
         else:
-            logger.debug(
-                "[TELEGRAM_SECURITY] Development mode - webhook verification skipped"
-            )
+            logger.debug("[TELEGRAM_SECURITY] Development mode - webhook verification skipped")
         return True
 
 

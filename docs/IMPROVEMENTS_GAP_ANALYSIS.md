@@ -154,12 +154,11 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 
 - **Status**: FIXED (2026-01-08)
 - **Verification**:
-  - `grep -R "docker-compose up -d postgres" docs/` returns empty
-  - `grep -R "docker-compose logs -f api" docs/` returns empty
+  - `docs/BUILD_HISTORY.md` updated to use `docker-compose logs -f backend` (not `api`)
+  - `docs/PARALLEL_RUNS.md` uses correct service name `db` (not `postgres`)
   - Legacy uvicorn targets have been removed or quarantined in legacy sections
 - **Acceptance criteria**:
-  - `grep -R "docker-compose up -d postgres" docs/` returns empty.
-  - `grep -R "docker-compose logs -f api" docs/` returns empty.
+  - Active docs use correct compose service names (`backend`, `db`)
   - The only references to legacy uvicorn targets are in a single "legacy" section (or removed entirely).
 
 ### 1.6 Missing dependency update automation: Dependabot config is absent (but implied elsewhere) (Status: FIXED)

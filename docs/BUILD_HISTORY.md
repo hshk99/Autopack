@@ -1872,7 +1872,7 @@ Re-run research-citation-fix plan to verify truncation recovery triggers structu
 **Phase ID**: N/A
 **Status**: ✅ Implemented
 **Category**: Feature
-**Implementation Summary**: - Docker and Docker Compose installed - Python 3.11+ (for local development) - Git (for integration branch management) ```bash docker-compose up -d docker-compose ps docker-compose logs -f api ``` The API will be available at: `http://localhost:8000` ```bash curl http://localhost:8000/health open http://localhost:8000/docs ``` --- ```bash python -m venv venv source venv/bin/activate  # On Windows: venv\Scripts\activate pip install -r requirements-dev.txt ``` ```bash export DATABASE_URL="postgres...
+**Implementation Summary**: - Docker and Docker Compose installed - Python 3.11+ (for local development) - Git (for integration branch management) ```bash docker-compose up -d docker-compose ps docker-compose logs -f backend ``` The API will be available at: `http://localhost:8000` ```bash curl http://localhost:8000/health open http://localhost:8000/docs ``` --- ```bash python -m venv venv source venv/bin/activate  # On Windows: venv\Scripts\activate pip install -r requirements-dev.txt ``` ```bash export DATABASE_URL="postgres...
 **Source**: `archive\reports\DEPLOYMENT_GUIDE.md`
 
 ### BUILD-018 | 2025-11-28T22:28 | Rigorous Market Research Template (Universal)

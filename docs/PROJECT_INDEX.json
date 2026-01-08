@@ -21,7 +21,7 @@
       "At least one LLM API key (GLM, Anthropic, or OpenAI)"
     ],
     "quick_start": [
-      "cp .env.example .env",
+      "cp .env.example .env  # Create from template",
       "Edit .env and add API keys (GLM_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY)",
       "docker-compose up -d",
       "curl http://localhost:8000/health",
@@ -55,7 +55,7 @@
       "start_db_only": "docker-compose up -d db",
       "stop": "docker-compose down",
       "restart": "docker-compose restart",
-      "logs_api": "docker-compose logs -f api",
+      "logs_api": "docker-compose logs -f backend",
       "logs_db": "docker-compose logs db",
       "rebuild": "docker-compose down && docker-compose up -d --build"
     },

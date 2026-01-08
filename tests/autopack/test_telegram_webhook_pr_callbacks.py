@@ -4,6 +4,8 @@ Per IMPLEMENTATION_PLAN_PR_APPROVAL_PIPELINE.md minimal test coverage:
 - PR callback parsing
 - Approval request update by approval_id
 - Idempotent callback handling
+
+NOTE: The client fixture sets TELEGRAM_BOT_TOKEN so answer_telegram_callback is called.
 """
 
 from __future__ import annotations
@@ -48,10 +50,21 @@ def db_session(test_db):
 
 
 @pytest.fixture
-def client(test_db, monkeypatch):
+def client(test_db):
     """Create TestClient with DB dependency overridden to use in-memory DB."""
+    import os
+
+    # Save current state for cleanup
+    old_testing = os.environ.get("TESTING")
+    old_secret = os.environ.get("TELEGRAM_WEBHOOK_SECRET")
+    old_bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+
     # Ensure app lifespan does not attempt production init_db() checks
-    monkeypatch.setenv("TESTING", "1")
+    os.environ["TESTING"] = "1"
+    # Clear any TELEGRAM_WEBHOOK_SECRET to avoid verification in tests
+    os.environ.pop("TELEGRAM_WEBHOOK_SECRET", None)
+    # Set bot token so answer_telegram_callback code path is triggered
+    os.environ["TELEGRAM_BOT_TOKEN"] = "test-bot-token"  # gitleaks:allow
 
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db)
 
@@ -63,9 +76,22 @@ def client(test_db, monkeypatch):
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        app.dependency_overrides.clear()
+        # Restore environment
+        if old_testing is not None:
+            os.environ["TESTING"] = old_testing
+        else:
+            os.environ.pop("TESTING", None)
+        if old_secret is not None:
+            os.environ["TELEGRAM_WEBHOOK_SECRET"] = old_secret
+        if old_bot_token is not None:
+            os.environ["TELEGRAM_BOT_TOKEN"] = old_bot_token
+        else:
+            os.environ.pop("TELEGRAM_BOT_TOKEN", None)
 
 
 @pytest.fixture
@@ -110,8 +136,7 @@ def test_pr_approve_callback(client, db_session, approval_request):
 
     # Mock answer_telegram_callback to avoid actual Telegram API calls
     with patch("autopack.main.answer_telegram_callback"):
-        with patch("autopack.main.os.getenv", return_value="fake-token"):
-            response = client.post("/telegram/webhook", json=callback_payload)
+        response = client.post("/telegram/webhook", json=callback_payload)
 
     # Verify response
     assert response.status_code == 200
@@ -145,8 +170,7 @@ def test_pr_reject_callback(client, db_session, approval_request):
     }
 
     with patch("autopack.main.answer_telegram_callback"):
-        with patch("autopack.main.os.getenv", return_value="fake-token"):
-            response = client.post("/telegram/webhook", json=callback_payload)
+        response = client.post("/telegram/webhook", json=callback_payload)
 
     assert response.status_code == 200
     data = response.json()
@@ -178,8 +202,7 @@ def test_pr_callback_nonexistent_approval(client, db_session):
     }
 
     with patch("autopack.main.answer_telegram_callback") as mock_answer:
-        with patch("autopack.main.os.getenv", return_value="fake-token"):
-            response = client.post("/telegram/webhook", json=callback_payload)
+        response = client.post("/telegram/webhook", json=callback_payload)
 
     assert response.status_code == 200
     data = response.json()
@@ -215,8 +238,7 @@ def test_pr_callback_already_processed(client, db_session, approval_request):
     }
 
     with patch("autopack.main.answer_telegram_callback"):
-        with patch("autopack.main.os.getenv", return_value="fake-token"):
-            response = client.post("/telegram/webhook", json=callback_payload)
+        response = client.post("/telegram/webhook", json=callback_payload)
 
     assert response.status_code == 200
     data = response.json()
@@ -269,8 +291,7 @@ def test_pr_callback_uses_approval_id_not_phase_id(client, db_session):
     }
 
     with patch("autopack.main.answer_telegram_callback"):
-        with patch("autopack.main.os.getenv", return_value="fake-token"):
-            response = client.post("/telegram/webhook", json=callback_payload)
+        response = client.post("/telegram/webhook", json=callback_payload)
 
     assert response.status_code == 200
 

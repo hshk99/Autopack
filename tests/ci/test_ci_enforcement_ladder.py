@@ -265,7 +265,7 @@ class TestEnforcementLadderIntegrity:
                 script_path.stem, script_path
             )
             try:
-                module = importlib.util.module_from_spec(spec)
+                _module = importlib.util.module_from_spec(spec)  # noqa: F841
                 # Don't execute main(), just verify it loads
             except Exception as e:
                 pytest.fail(f"Script {script_path.name} has import errors: {e}")

@@ -214,7 +214,7 @@ class TestRegistryConsistencyWithProjectIndex:
         )
 
         registry = load_feature_flags_registry()
-        documented = get_documented_flags(registry)
+        _documented = get_documented_flags(registry)  # noqa: F841
 
         # These should appear in both places
         core_vars = {

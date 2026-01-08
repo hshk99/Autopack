@@ -201,7 +201,7 @@ def get_relevant_hints_for_phase(run_id: str, phase: Dict, max_hints: int = 5) -
             if hint.task_category != task_category:
                 continue
 
-        # TODO: Could add scope_paths intersection check here
+        # ROADMAP(P5): Could add scope_paths intersection check here
 
         relevant.append(hint)
 
@@ -330,7 +330,7 @@ def get_active_rules_for_phase(
             if rule.task_category != task_category:
                 continue
 
-        # TODO: Could add scope_pattern matching here
+        # ROADMAP(P5): Could add scope_pattern matching here
 
         relevant.append(rule)
 

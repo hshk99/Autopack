@@ -1,25 +1,30 @@
 #!/usr/bin/env python3
-"""CI script to detect documentation drift back to backend server.
+"""CI script to detect documentation drift.
 
-BUILD-146 P12 API Consolidation - Phase 4:
-Prevents re-introduction of backend server references in documentation.
+BUILD-146 P12 API Consolidation - Phase 4 + BUILD-195 comprehensive sweeps:
+Prevents re-introduction of legacy patterns in documentation.
 
-This script checks that documentation does not reference the deprecated
-backend server entrypoint. It's meant to run in CI to catch drift.
+Drift categories detected:
+1. Backend server / uvicorn target drift (BUILD-146)
+2. Env template drift (.env.example vs docs/templates/env.example)
+3. Compose service-name drift (api/postgres vs backend/db)
+4. Run-layout drift (.autonomous_runs/<run_id> vs project/family/run_id)
 
 Exit codes:
     0: No drift detected
-    1: Drift detected (backend server references found)
+    1: Drift detected
 """
 
 import re
 import sys
+import subprocess
 from pathlib import Path
 from typing import List, Tuple
 
 
-# Patterns to detect (these indicate drift back to backend server or wrong auth paths)
+# Patterns to detect (these indicate drift back to legacy patterns)
 FORBIDDEN_PATTERNS = [
+    # === BUILD-146: Backend server / uvicorn drift ===
     # Direct backend server uvicorn commands
     (r"uvicorn\s+backend\.main:app", "Direct backend.main:app uvicorn command"),
     (r"uvicorn\s+src\.backend\.main:app", "Direct src.backend.main:app uvicorn command"),
@@ -58,23 +63,84 @@ FORBIDDEN_PATTERNS = [
     (r"GET\s+/me\b", "Auth endpoint at wrong path (should be /api/auth/me)"),
     (r"from\s+backend\.api\.auth", "Import from deprecated backend.api.auth (use autopack.auth)"),
     (r"import\s+backend\.api\.auth", "Import from deprecated backend.api.auth (use autopack.auth)"),
+
+    # === BUILD-195: Env template drift ===
+    # Canonical template is docs/templates/env.example, not .env.example
+    (r"cp\s+\.env\.example\s+\.env",
+     "Env template drift (should be: cp docs/templates/env.example .env)"),
+
+    # === BUILD-195: Compose service-name drift ===
+    # Services are: backend (not api), db (not postgres)
+    (r"docker-compose\s+logs\s+-f\s+api\b",
+     "Compose service-name drift (should be: docker-compose logs -f backend)"),
+    (r"docker-compose\s+up\s+.*\s+postgres\b",
+     "Compose service-name drift (should be: docker-compose up ... db)"),
+    (r"docker-compose\s+restart\s+postgres\b",
+     "Compose service-name drift (should be: docker-compose restart db)"),
+
+    # === BUILD-195: Run-layout drift ===
+    # Canonical: .autonomous_runs/<project>/runs/<family>/<run_id>/...
+    # Legacy: .autonomous_runs/<run_id>/... (missing project/family hierarchy)
+    # Note: We detect the legacy pattern in instructional contexts (not historical records)
+    (r"\.autonomous_runs/<run_id>",
+     "Run-layout drift (should be: .autonomous_runs/<project>/runs/<family>/<run_id>/ via RunFileLayout)"),
+    (r"\.autonomous_runs/\{run_id\}",
+     "Run-layout drift (should be: .autonomous_runs/<project>/runs/<family>/<run_id>/ via RunFileLayout)"),
+    (r"\.autonomous_runs/\$\{run_id\}",
+     "Run-layout drift (should be: .autonomous_runs/<project>/runs/<family>/<run_id>/ via RunFileLayout)"),
+]
+
+# Files that should be checked in "diff-only" mode:
+# - These files are legitimate historical ledgers (append-only) that may contain legacy patterns
+# - We still want to prevent *new* drift from being introduced in PRs
+DIFF_ONLY_PATHS = [
+    "docs/ARCHITECTURE_DECISIONS.md",
 ]
 
 # Files/directories to exclude from checking
 EXCLUDED_PATHS = [
-    "docs/CANONICAL_API_CONSOLIDATION_PLAN.md",  # Planning doc mentions both servers
-    "docs/API_CONSOLIDATION_COMPLETION_SUMMARY.md",  # Completion doc documents migration
-    "docs/CANONICAL_API_CONTRACT.md",  # Contract doc documents migration from old endpoint
-    "docs/BUILD_HISTORY.md",  # History doc contains P12 entry documenting migration
-    "docs/IMPROVEMENTS_GAP_ANALYSIS.md",  # Gap analysis legitimately discusses legacy patterns
-    "scripts/check_docs_drift.py",  # This file (self-reference)
-    ".git",  # Git metadata
-    "__pycache__",  # Python cache
-    ".pytest_cache",  # Pytest cache
-    "node_modules",  # Node modules
-    ".venv",  # Virtual environment
-    "venv",  # Virtual environment
-    "archive",  # Archived docs may contain historical references
+    # API consolidation migration docs (document both old and new)
+    "docs/CANONICAL_API_CONSOLIDATION_PLAN.md",
+    "docs/API_CONSOLIDATION_COMPLETION_SUMMARY.md",
+    "docs/CANONICAL_API_CONTRACT.md",
+
+    # Historical records (legitimately contain legacy patterns)
+    "docs/BUILD_HISTORY.md",
+    "docs/DEBUG_LOG.md",
+    "docs/CHANGELOG.md",
+
+    # Gap analysis and cursor prompts (discuss drift patterns)
+    "docs/IMPROVEMENTS_GAP_ANALYSIS.md",
+    "docs/IMPROVEMENTS_AUDIT.md",
+    "docs/CURSOR_PROMPT_IMPLEMENT_IMPROVEMENTS_GAP_ANALYSIS.md",
+    "docs/CURSOR_PROMPT_EXECUTE_IMPLEMENT_IMPROVEMENTS_GAP_ANALYSIS.md",
+    "docs/CURSOR_PROMPT_IMPLEMENT_P0_BROKEN.md",
+    "docs/FURTHER_IMPROVEMENTS_COMPREHENSIVE_SCAN",
+
+    # Implementation plans and completion summaries (historical, describe evolution)
+    "docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md",
+    "docs/IMPLEMENTATION_PLAN_INTENTION_FIRST_AUTONOMY_LOOP_REMAINING_IMPROVEMENTS.md",
+    "docs/INTENTION_ANCHOR_COMPLETION_SUMMARY.md",
+    "docs/P0_RELIABILITY_DECISIONS.md",
+
+    # Self-reference
+    "scripts/check_docs_drift.py",
+
+    # Build artifacts and caches
+    ".git",
+    "__pycache__",
+    ".pytest_cache",
+    "node_modules",
+    ".venv",
+    "venv",
+    "dist",
+
+    # Archives (historical content)
+    "archive",
+
+    # Runtime artifacts (generated, not canonical docs)
+    ".autonomous_runs",
+    ".autopack",
 ]
 
 
@@ -114,6 +180,93 @@ def check_file_for_drift(file_path: Path) -> List[Tuple[int, str, str]]:
     return violations
 
 
+def _git_has_origin_main(repo_root: Path) -> bool:
+    try:
+        subprocess.run(
+            ["git", "rev-parse", "--verify", "origin/main"],
+            cwd=repo_root,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True,
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _parse_unified_zero_diff_for_added_lines(diff_text: str) -> List[Tuple[int, str]]:
+    """
+    Parse `git diff --unified=0` output and return a list of (new_line_number, added_line_content).
+
+    We track the new-file line number from hunk headers (e.g., @@ -a,b +c,d @@).
+    """
+    added: List[Tuple[int, str]] = []
+    new_line_no = None
+    hunk_re = re.compile(r"@@\s+-\d+(?:,\d+)?\s+\+(\d+)(?:,(\d+))?\s+@@")
+
+    for raw in diff_text.splitlines():
+        if raw.startswith("@@"):
+            m = hunk_re.search(raw)
+            if m:
+                new_line_no = int(m.group(1))
+            continue
+
+        if raw.startswith("+++"):
+            continue
+
+        if raw.startswith("+"):
+            if new_line_no is None:
+                # If we can't determine a line number, still record with 0.
+                added.append((0, raw[1:]))
+            else:
+                added.append((new_line_no, raw[1:]))
+                new_line_no += 1
+            continue
+
+        # In unified=0 we typically won't see context lines, but handle just in case.
+        if raw.startswith(" ") and new_line_no is not None:
+            new_line_no += 1
+
+    return added
+
+
+def check_file_for_drift_diff_only(repo_root: Path, file_path: Path) -> List[Tuple[int, str, str]]:
+    """
+    Check only newly-added lines (PR diff) for forbidden patterns.
+
+    This mode is used for historical ledgers (e.g., ARCHITECTURE_DECISIONS) where legacy
+    patterns may exist in old entries, but new drift must be blocked.
+    """
+    violations: List[Tuple[int, str, str]] = []
+
+    if not _git_has_origin_main(repo_root):
+        # Fallback: no diff base available, do a full-file scan (best effort).
+        return check_file_for_drift(file_path)
+
+    try:
+        rel_path = file_path.relative_to(repo_root)
+        diff = subprocess.run(
+            ["git", "diff", "--unified=0", "origin/main...HEAD", "--", str(rel_path)],
+            cwd=repo_root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        # Git output encoding can vary by platform/locale; decode defensively.
+        diff_text = (diff.stdout or b"").decode("utf-8", errors="replace")
+        added_lines = _parse_unified_zero_diff_for_added_lines(diff_text)
+        for line_no, line_content in added_lines:
+            for pattern, description in FORBIDDEN_PATTERNS:
+                if re.search(pattern, line_content, re.IGNORECASE):
+                    violations.append((line_no, description, line_content.strip()))
+    except Exception as e:
+        print(f"WARNING: Could not diff-check {file_path}: {e}", file=sys.stderr)
+        # Fallback to full scan
+        return check_file_for_drift(file_path)
+
+    return violations
+
+
 def main():
     """Main entry point for drift detection."""
     repo_root = Path(__file__).parent.parent
@@ -131,12 +284,16 @@ def main():
     print(f"Checking {len(files_to_check)} documentation files...")
     print()
 
-    # Check each file
+    # Check each file (full scan by default; diff-only for selected historical ledgers)
     total_violations = 0
     files_with_violations = 0
 
     for file_path in files_to_check:
-        violations = check_file_for_drift(file_path)
+        normalized_path = str(file_path.relative_to(repo_root)).replace("\\", "/")
+        if normalized_path in DIFF_ONLY_PATHS:
+            violations = check_file_for_drift_diff_only(repo_root, file_path)
+        else:
+            violations = check_file_for_drift(file_path)
 
         if violations:
             files_with_violations += 1
@@ -160,6 +317,9 @@ def main():
         print("  - Canonical server: PYTHONPATH=src uvicorn autopack.main:app")
         print("  - Auth endpoints: /api/auth/* (not root paths)")
         print("  - Auth imports: autopack.auth (not backend.api.auth)")
+        print("  - Env template: cp docs/templates/env.example .env")
+        print("  - Compose services: backend, db (not api, postgres)")
+        print("  - Run layout: .autonomous_runs/<project>/runs/<family>/<run_id>/")
         return 0
     else:
         print(f"FAILURE: Documentation drift detected!")

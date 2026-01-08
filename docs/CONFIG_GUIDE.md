@@ -19,7 +19,9 @@ PYTHONUTF8="1"    # Required on Windows: UTF-8 encoding
 # API Keys (at least one required for LLM calls)
 ANTHROPIC_API_KEY="sk-ant-..."  # Claude Sonnet/Opus
 OPENAI_API_KEY="sk-..."         # GPT-4o (fallback)
-GEMINI_API_KEY="..."            # Gemini (optional)
+GOOGLE_API_KEY="..."            # Gemini (optional)
+# Deprecated alias (prefer GOOGLE_API_KEY):
+GEMINI_API_KEY="..."
 ```
 
 ### Optional Features
@@ -62,7 +64,7 @@ TARGET_REPO_PATH="/path/to/repo"  # Build target (default: current dir)
 
 ```bash
 # Copy example template
-cp .env.example .env
+cp docs/templates/env.example .env
 
 # Edit with your values
 nano .env  # or vim, code, etc.

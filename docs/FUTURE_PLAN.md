@@ -400,7 +400,7 @@ The research system citation validity improvement project implemented fixes to i
 
 **Acceptance Criteria**:
 - [ ] Backlog parser produces per-item phases with `allowed_paths` and budgets
-- [ ] Diagnostics artifacts stored under `.autonomous_runs/<run_id>/diagnostics` per item
+- [ ] Diagnostics artifacts stored under `.autonomous_runs/<project>/runs/<family>/<run_id>/diagnostics` (via `RunFileLayout`) per item
 - [ ] Propose-first output (patch + test results); apply guarded behind approval/checkpoint
 - [ ] Checkpoint/rollback in place (branch+commit per item or revert on failure)
 - [ ] DecisionLog entries and dashboard diagnostics card reflect latest maintenance run

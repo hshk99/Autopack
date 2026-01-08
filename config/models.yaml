@@ -206,6 +206,12 @@ replan:
   - wrong_tech_stack
   - schema_mismatch
   - api_contract_wrong
+# Dual-audit judge model: resolves disagreements when two auditors conflict
+# Used by llm_service._run_judge_audit() when dual_audit: true categories have
+# approval_mismatch, severity_mismatch, or category_miss between auditors
+dual_audit_judge:
+  model: claude-opus-4-5  # Top-tier model for tie-breaking
+
 doctor_models:
   # Doctor now uses Claude Sonnet 4.5 for both cheap and strong analysis
   cheap: claude-sonnet-4-5

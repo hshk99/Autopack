@@ -41,7 +41,7 @@ def find_todos_in_file(file_path: Path) -> List[Tuple[int, str]]:
     todo_pattern = re.compile(
         r"(?:\bTODO\b|\bFIXME\b)(?:\s*:|.*$)|"  # TODO: or FIXME: or TODO followed by anything
         r"#\s*XXX\b",  # XXX only when it's a comment marker (# XXX)
-        re.IGNORECASE
+        re.IGNORECASE,
     )
 
     todos = []
@@ -79,8 +79,7 @@ class TestTodoPolicyExists:
     def test_policy_file_exists(self):
         """config/todo_policy.yaml must exist."""
         assert POLICY_FILE.exists(), (
-            "config/todo_policy.yaml not found - "
-            "TODO quarantine policy must be documented"
+            "config/todo_policy.yaml not found - " "TODO quarantine policy must be documented"
         )
 
     def test_policy_is_valid_yaml(self):
@@ -110,9 +109,10 @@ class TestRuntimeCriticalTodos:
             pytest.skip("main.py not found")
 
         todos = find_todos_in_file(main_py)
-        assert not todos, (
-            f"main.py has {len(todos)} TODOs - critical runtime must be complete:\n"
-            + "\n".join(f"  Line {n}: {line}" for n, line in todos)
+        assert (
+            not todos
+        ), f"main.py has {len(todos)} TODOs - critical runtime must be complete:\n" + "\n".join(
+            f"  Line {n}: {line}" for n, line in todos
         )
 
     def test_autonomous_executor_has_no_todos(self):
@@ -155,8 +155,7 @@ class TestRuntimeCriticalTodos:
 
         assert not all_todos, (
             f"Auth modules have {len(all_todos)} TODOs - "
-            f"authentication must be complete:\n"
-            + "\n".join(f"  {todo}" for todo in all_todos)
+            f"authentication must be complete:\n" + "\n".join(f"  {todo}" for todo in all_todos)
         )
 
 
@@ -214,9 +213,10 @@ class TestSecurityTodosBlocked:
                         security_todos.append(f"{rel_path}:{line_num}: {line}")
                         break
 
-        assert not security_todos, (
-            "Security-related TODOs found (must be addressed immediately):\n"
-            + "\n".join(f"  {todo}" for todo in security_todos)
+        assert (
+            not security_todos
+        ), "Security-related TODOs found (must be addressed immediately):\n" + "\n".join(
+            f"  {todo}" for todo in security_todos
         )
 
 
@@ -257,9 +257,9 @@ class TestQuarantinedPathsRespected:
         quarantined = policy["policy"].get("quarantined_paths", [])
 
         research_path = REPO_ROOT / "src" / "autopack" / "research" / "api" / "router.py"
-        assert is_quarantined(research_path, quarantined), (
-            "Research subsystem should be quarantined (TODOs allowed)"
-        )
+        assert is_quarantined(
+            research_path, quarantined
+        ), "Research subsystem should be quarantined (TODOs allowed)"
 
     def test_archive_is_quarantined(self):
         """archive/** should be quarantined."""
@@ -267,9 +267,9 @@ class TestQuarantinedPathsRespected:
         quarantined = policy["policy"].get("quarantined_paths", [])
 
         archive_path = REPO_ROOT / "archive" / "some_file.py"
-        assert is_quarantined(archive_path, quarantined), (
-            "Archive should be quarantined (historical files)"
-        )
+        assert is_quarantined(
+            archive_path, quarantined
+        ), "Archive should be quarantined (historical files)"
 
 
 class TestClosurePlanDocumented:
@@ -294,9 +294,7 @@ class TestClosurePlanDocumented:
                 security_item = item
                 break
 
-        assert security_item is not None, (
-            "Security-related TODOs must be in the must-close plan"
-        )
-        assert security_item.get("deadline") == "Immediate", (
-            "Security TODOs must have 'Immediate' deadline"
-        )
+        assert security_item is not None, "Security-related TODOs must be in the must-close plan"
+        assert (
+            security_item.get("deadline") == "Immediate"
+        ), "Security TODOs must have 'Immediate' deadline"

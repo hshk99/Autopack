@@ -28,6 +28,10 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 
+# Repo root detection for dynamic paths
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+
 
 def generate_slug_from_name(name: str, runs_root: Path) -> str:
     """
@@ -159,7 +163,7 @@ RUN AUTOPACK END-TO-END for {project_name} now.
 
 **Or manually**:
 ```bash
-cd c:/dev/Autopack/.autonomous_runs/{project_slug}
+cd {REPO_ROOT}/.autonomous_runs/{project_slug}
 python scripts/autopack_runner.py --non-interactive
 ```
 """)
@@ -192,7 +196,7 @@ RUN AUTOPACK END-TO-END for {project_name} now.
 
 Cursor will execute:
 ```bash
-cd c:/dev/Autopack/.autonomous_runs/{project_slug}
+cd {REPO_ROOT}/.autonomous_runs/{project_slug}
 python scripts/autopack_runner.py --non-interactive
 ```
 
@@ -200,19 +204,19 @@ python scripts/autopack_runner.py --non-interactive
 
 **Non-interactive mode** (no prompts, auto-start service):
 ```bash
-cd c:/dev/Autopack/.autonomous_runs/{project_slug}
+cd {REPO_ROOT}/.autonomous_runs/{project_slug}
 python scripts/autopack_runner.py --non-interactive
 ```
 
 **Interactive mode** (asks for confirmation):
 ```bash
-cd c:/dev/Autopack/.autonomous_runs/{project_slug}
+cd {REPO_ROOT}/.autonomous_runs/{project_slug}
 python scripts/autopack_runner.py
 ```
 
 **Using wrapper script**:
 ```bash
-cd c:/dev/Autopack/.autonomous_runs/{project_slug}
+cd {REPO_ROOT}/.autonomous_runs/{project_slug}
 ./run.sh
 ```
 

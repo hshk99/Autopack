@@ -15,7 +15,9 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+sys.path.insert(0, str(REPO_ROOT / "src"))
 
 try:
     from qdrant_client import QdrantClient
@@ -88,7 +90,7 @@ Implement a comprehensive memory and context management system for Autopack that
 3. Add memory persistence layer
 """,
             "keywords": ["plan", "implementation", "design", "roadmap", "strategy", "architecture"],
-            "destination_path": "C:\\dev\\Autopack\\archive\\plans",
+            "destination_path": str(REPO_ROOT / "archive" / "plans"),
             "source_context": "cursor",
         },
 
@@ -110,7 +112,7 @@ After reviewing the system performance metrics, we found several bottlenecks:
 - Deploy Redis caching layer
 """,
             "keywords": ["analysis", "review", "findings", "retrospective", "postmortem", "assessment"],
-            "destination_path": "C:\\dev\\Autopack\\archive\\analysis",
+            "destination_path": str(REPO_ROOT / "archive" / "analysis"),
             "source_context": "cursor",
         },
 
@@ -132,7 +134,7 @@ Please implement the following feature:
 This task relates to the memory system implementation.
 """,
             "keywords": ["prompt", "delegation", "instruction", "task"],
-            "destination_path": "C:\\dev\\Autopack\\archive\\prompts",
+            "destination_path": str(REPO_ROOT / "archive" / "prompts"),
             "source_context": "cursor",
         },
 
@@ -146,7 +148,7 @@ This task relates to the memory system implementation.
 [2025-12-11 10:30:03] INFO: Server ready
 """,
             "keywords": ["log", "diagnostic", "trace", "debug", "error"],
-            "destination_path": "C:\\dev\\Autopack\\archive\\logs",
+            "destination_path": str(REPO_ROOT / "archive" / "logs"),
             "source_context": "cursor",
         },
 

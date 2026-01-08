@@ -52,6 +52,8 @@ def client(test_db, monkeypatch):
     """Create TestClient with DB dependency overridden to use in-memory DB."""
     # Ensure app lifespan does not attempt production init_db() checks
     monkeypatch.setenv("TESTING", "1")
+    # Clear any TELEGRAM_WEBHOOK_SECRET to avoid verification in tests
+    monkeypatch.delenv("TELEGRAM_WEBHOOK_SECRET", raising=False)
 
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db)
 

@@ -11,7 +11,6 @@ Security contract: Webhook cannot be abused if endpoint is reachable.
 
 import os
 import pytest
-from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
 

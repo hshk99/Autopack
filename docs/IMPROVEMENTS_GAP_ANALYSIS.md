@@ -22,16 +22,34 @@ This doc focuses on what’s still missing, drifting, inconsistent, or high-valu
 - **Frontends present**:
   - **Root Vite frontend**: `package.json`, `vite.config.ts`, `src/frontend/…`
   - **Dashboard frontend (legacy/alt UI)**: `src/autopack/dashboard/frontend/…` (contains local `node_modules/` + `dist/` in the workspace; not tracked in git)
-- **Missing expected scaffolding** (as of 2026-01-08, most resolved):
-  - `.env.example` **EXISTS** ✅
+- **Scaffolding and structure** (as of 2026-01-08, verified in repo):
+  - `.env.example` **EXISTS** ✅ (tracked). `.env` exists locally but is ignored (not tracked).
   - `.github/dependabot.yml` **EXISTS** ✅ (pip, docker, github-actions, npm ecosystems)
   - `.pre-commit-config.yaml` **EXISTS** ✅ (ruff, bandit, hygiene hooks)
-  - `docs/api/` does not exist (allowed by spec - OpenAPI is runtime-generated per BUILD-191)
+  - `docs/api/` **EXISTS** ✅ (runtime-canonical OpenAPI strategy; CI exports OpenAPI as an artifact)
   - `docker-compose.prod.yml` does not exist (referenced as a pattern/idea in docs/comments)
 - **TODO density (quick scan)**:
-  - `src/`: 19 TODOs (12 in `src/autopack/autonomous_executor.py`)
-  - `scripts/`: 51 TODOs
-  - `tests/`: 2 TODOs
+  - `src/`: **~1** TODO marker found (as of 2026-01-08 scan)
+  - `scripts/`: **~54** TODO/FIXME markers found (expected; operational tooling)
+  - `tests/`: **~34** TODO/FIXME occurrences found (mostly test text/docstrings; tracked by TODO policy tests)
+
+### 0.1.1 High-signal inconsistencies found (must reconcile)
+
+These are “two truths” risks: they directly undermine the repo’s thesis (**deterministic + mechanically enforced**).
+
+- **Env template canonical path is inconsistent**:
+  - `scripts/check_docs_drift.py` treats `docs/templates/env.example` as canonical, but that path does not exist.
+  - `docs/CONFIG_GUIDE.md` and `docs/DEPLOYMENT.md` instruct `cp docs/templates/env.example .env`.
+  - Repo root contains `.env.example` (tracked) and `docs/WORKSPACE_ORGANIZATION_SPEC.md` explicitly allows `.env.example` at root.
+- **Canonical API contract contradicts actual auth routes**:
+  - `docs/CANONICAL_API_CONTRACT.md` documents auth endpoints at `/register`, `/login`, `/me`.
+  - Runtime auth router is mounted at `/api/auth/*` (see `src/autopack/auth/router.py`).
+- **`docs/PROJECT_INDEX.json` is drifting from SOT and workspace spec**:
+  - It claims a “5-file SOT structure”, but `docs/WORKSPACE_ORGANIZATION_SPEC.md` defines a **6-file** core SOT.
+  - Several `references.*` entries point to “moved” files under `archive/` that now exist under `docs/` (creating a misleading navigation graph).
+- **Docker deployment docs conflict with the canonical frontend**:
+  - `docs/DOCKER_DEPLOYMENT_GUIDE.md` describes a multi-stage `Dockerfile` that builds a nested dashboard frontend under `src/autopack/dashboard/frontend/` and serves via **nginx defaults**.
+  - Current repo direction (and compose) treats the **root Vite frontend** as canonical and relies on `Dockerfile.frontend` + `nginx.conf` (security headers + `/api` proxy).
 
 ---
 
@@ -106,6 +124,19 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 ---
 
 ## 1) P0 — “Ideal state” violations / high-confidence breakages
+
+### 1.0 SOT/navigation truth drift: env template + PROJECT_INDEX + API contract (Status: OPEN)
+
+- **Status**: OPEN (2026-01-08)
+- **Why it’s P0**: These are the repo’s primary “LLM interface” docs; conflicting truth sources cause deterministic automation to regress.
+- **Issues**:
+  - **Env template canonical path conflict**: `.env.example` (root) vs `docs/templates/env.example` (referenced but missing).
+  - **API contract drift**: auth endpoints documented at `/register` etc vs implemented under `/api/auth/*`.
+  - **PROJECT_INDEX drift**: “5-file SOT” claims vs canonical 6-file SOT spec; stale “moved” references.
+- **Acceptance criteria**:
+  - Choose and document one canonical env template path (recommendation: keep `.env.example` at root), update drift checker + docs accordingly, and ensure CI blocks regressions.
+  - Update `docs/CANONICAL_API_CONTRACT.md` to match runtime paths (`/api/auth/*`) and remove any exclusions that allow it to drift.
+  - Update `docs/PROJECT_INDEX.json` to match `docs/WORKSPACE_ORGANIZATION_SPEC.md` + `docs/INDEX.md` (SOT list, references, quickstart commands).
 
 ### 1.1 `docker-compose.dev.yml` is broken (wrong services + wrong command + missing build target) (Status: FIXED)
 
@@ -394,30 +425,22 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 - **Acceptance criteria**:
   - Each `config/*` file is either: (a) referenced by runtime code/tests, or (b) explicitly marked as unused/future-only, or (c) removed/archived.
 
-### 2.12 CI/contract enforcement gaps: several known drifts are not mechanically blocked
+### 2.12 CI/contract enforcement gaps: remaining “two truths” that CI currently allows (Status: OPEN)
 
 - **Evidence**:
-  - `scripts/check_docs_drift.py` exists, but is **not invoked** by `.github/workflows/ci.yml` (docs integrity currently runs `pytest tests/docs/`, `check_doc_links.py`, and SOT drift checks).
-  - Workspace structure verification is enforced in a **separate workflow** (`.github/workflows/verify-workspace-structure.yml`) and is not part of the default “Autopack CI” required checks list.
-  - No tests currently assert:
-    - `GapScanner` baseline-policy drift detection matches the real repo state (`config/baseline_policy.yaml` exists, but scanner can still produce a “missing baseline policy” gap if path expectations drift).
-    - `RiskScorer` protected-config paths exist (it currently references non-existent `config/safety_profiles.yaml` and `config/governance.yaml`).
-    - `python -m autopack` exposes the Autopack CLI/help (it currently runs a Canada classifier demo).
-    - README/API port consistency (README uses 8100; docker/compose/docs use 8000).
-  - Docs drift checker does not currently block legacy `autopack.api.server:app` references (still present in some guides).
-- **Why it matters**: these are exactly the kinds of “ideal state” violations that regress unless CI blocks them.
+  - `scripts/check_docs_drift.py` **is invoked** by CI (`docs-sot-integrity` job), but it currently encodes a **non-existent canonical env template path** (`docs/templates/env.example`) and therefore “enforces” the wrong truth (see 1.0).
+  - `docs/CANONICAL_API_CONTRACT.md` is currently excluded from docs drift scanning (it is treated as a “migration doc”), but it is labeled “Canonical”. This allows the “canonical contract” to drift from runtime without CI blocking.
+  - Workspace structure verification is enforced in two places:
+    - Inside `docs-sot-integrity` in `.github/workflows/ci.yml` (PR-blocking)
+    - In a dedicated workflow (`.github/workflows/verify-workspace-structure.yml`) (redundant but useful for scheduled/manual runs)
+  - There is no explicit contract test ensuring `docs/PROJECT_INDEX.json` remains consistent with the canonical SOT structure defined in `docs/WORKSPACE_ORGANIZATION_SPEC.md` (it currently claims a 5-file SOT).
+- **Why it matters**: Autopack’s safety/determinism comes from making the “LLM surface area” mechanically consistent. CI should block contradictions in the canonical docs, not allow them.
 - **Recommended fix**:
-  - Add a new CI step (or a docs contract test) that runs `python scripts/check_docs_drift.py` and expand it to cover:
-    - legacy uvicorn targets like `autopack.api.server:app`
-    - known bad compose service names (`postgres`, `api`) if you want to enforce them
-  - Add minimal, low-flake contract tests for:
-    - GapScanner baseline-policy detection (clean repo should not emit a missing baseline policy gap).
-    - RiskScorer protected-config path existence.
-    - `python -m autopack --help` returns Autopack help.
-    - README port consistency with docker-compose defaults.
-  - Add `verify-workspace-structure` to the recommended required checks list in `scripts/ci/github_settings_self_audit.py` (and/or merge its checks into `ci.yml` if you want PR-blocking by default).
+  - Align the env template decision and update `scripts/check_docs_drift.py` + docs to enforce that truth.
+  - Once `docs/CANONICAL_API_CONTRACT.md` matches runtime, remove it from drift-check exclusions (or enforce it via a dedicated contract test).
+  - Add a doc contract test that validates `docs/PROJECT_INDEX.json` SOT file list matches `docs/WORKSPACE_ORGANIZATION_SPEC.md` (at least: “6-file SOT”, filenames, and brief descriptions).
 - **Acceptance criteria**:
-  - CI fails on reintroduction of the above drifts (before merge), not after-the-fact.
+  - CI fails if canonical docs reintroduce the above contradictions.
 
 ---
 

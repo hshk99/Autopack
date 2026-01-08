@@ -418,6 +418,11 @@ class AutonomousExecutor:
         self.MAX_HTTP_500_PER_RUN = 10  # Stop run after this many 500 errors
         self.MAX_PATCH_FAILURES_PER_RUN = 15  # Stop run after this many patch failures
 
+        # BUILD-195: Payload correction tracker for one-shot 422 handling
+        from autopack.executor.payload_correction import PayloadCorrectionTracker
+
+        self._payload_correction_tracker = PayloadCorrectionTracker()
+
         # [Phase C1] Store last builder result for Doctor diagnostics
         self._last_builder_result: Optional["BuilderResult"] = (
             None  # Last builder result (for patch/error info)
@@ -9000,71 +9005,66 @@ Just the new description that should replace the current one while preserving th
                 try:
                     response = requests.post(url, headers=headers, json=payload, timeout=10)
 
-                    # Phase 2.3: Handle 422 validation errors separately
+                    # BUILD-195: Handle 422 payload schema validation errors
+                    # These are schema errors (missing fields, wrong types, extra keys),
+                    # NOT patch format errors. Use PayloadCorrectionTracker for one-shot.
                     if response.status_code == 422:
-                        error_detail = response.json().get("detail", "Patch validation failed")
-                        logger.error(f"[{phase_id}] Patch validation failed (422): {error_detail}")
-                        logger.info(
-                            f"[{phase_id}] Phase 2.3: Validation errors indicate malformed patch - attempting LLM correction"
+                        error_detail = response.json().get("detail", [])
+                        logger.error(
+                            f"[{phase_id}] Payload schema validation failed (422): {error_detail}"
                         )
 
                         # Log validation failures to debug journal
                         log_error(
-                            error_signature="Patch validation failure (422)",
+                            error_signature="Payload schema validation failure (422)",
                             symptom=f"Phase {phase_id}: {error_detail}",
                             run_id=self.run_id,
                             phase_id=phase_id,
-                            suspected_cause="LLM generated malformed patch - needs regeneration",
+                            suspected_cause="BuilderResult payload has schema drift",
                             priority="MEDIUM",
                         )
 
-                        # BUILD-195: Automatic retry with LLM correction
-                        from autopack.executor.patch_correction import (
-                            correct_patch_once,
-                            should_attempt_patch_correction,
+                        # BUILD-195: One-shot payload correction via tracker
+                        from autopack.executor.payload_correction import (
+                            should_attempt_payload_correction,
                         )
 
-                        # Check if we should attempt correction (budget check)
-                        budget_remaining = 1.0 - (attempt / 3.0)  # Simplified budget
-                        error_dict = (
-                            error_detail
-                            if isinstance(error_detail, dict)
-                            else {"message": str(error_detail)}
-                        )
-
-                        if should_attempt_patch_correction(error_dict, budget_remaining):
-                            correction_result = correct_patch_once(
-                                original_patch=payload.get("patch_content", ""),
-                                validator_error_detail=error_dict,
+                        # Check budget and attempt correction (one-shot via tracker)
+                        budget_remaining = 1.0 - (attempt / 3.0)
+                        if should_attempt_payload_correction(error_detail, budget_remaining):
+                            # Generate stable event_id for one-shot enforcement
+                            event_id = f"{self.run_id}:{phase_id}:422:{attempt}"
+                            correction_result = self._payload_correction_tracker.attempt_correction(
+                                original_payload=payload,
+                                validator_error_detail=error_detail,
                                 context={
                                     "run_id": self.run_id,
                                     "phase_id": phase_id,
                                     "attempt": attempt,
+                                    "event_id": event_id,
                                 },
                             )
 
                             if (
                                 correction_result.correction_successful
-                                and correction_result.corrected_patch
+                                and correction_result.corrected_payload
                             ):
                                 logger.info(
-                                    f"[{phase_id}] LLM correction successful (method: {correction_result.evidence.get('correction_method', 'unknown')}), retrying POST"
+                                    f"[{phase_id}] Payload correction successful "
+                                    f"(method: {correction_result.evidence.get('correction_method', 'unknown')}, "
+                                    f"fixes: {correction_result.evidence.get('corrections_made', [])}), "
+                                    f"retrying POST"
                                 )
-                                # Update payload with corrected patch and retry
-                                payload["patch_content"] = correction_result.corrected_patch
-                                # Re-parse patch stats for corrected patch
-                                files_changed, lines_added, lines_removed = (
-                                    governed_apply.parse_patch_stats(
-                                        correction_result.corrected_patch
-                                    )
+                                # Replace payload with corrected version
+                                payload = correction_result.corrected_payload
+                                continue  # Retry with corrected payload
+                            elif correction_result.blocked_reason:
+                                logger.warning(
+                                    f"[{phase_id}] Payload correction blocked: {correction_result.blocked_reason}"
                                 )
-                                payload["files_changed"] = files_changed
-                                payload["lines_added"] = lines_added
-                                payload["lines_removed"] = lines_removed
-                                continue  # Retry with corrected patch
                             else:
                                 logger.warning(
-                                    f"[{phase_id}] LLM correction failed or no improvement, raising error"
+                                    f"[{phase_id}] Payload correction failed, raising error"
                                 )
 
                         response.raise_for_status()

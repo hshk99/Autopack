@@ -1269,7 +1269,8 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
         """
         routing_policies = self.model_router.config.get("llm_routing_policies", {})
         policy = routing_policies.get(task_category, {})
-        return policy.get("dual_audit", False)
+        # Explicitly check for True to avoid MagicMock truthiness issues in tests
+        return policy.get("dual_audit", False) is True
 
     def _get_secondary_auditor_model(self, task_category: str) -> str:
         """Get the secondary auditor model from config.
@@ -1399,12 +1400,8 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
 
         # Both rejected - check for severity mismatch
         if not primary.approved and not secondary.approved:
-            primary_major = sum(
-                1 for i in primary.issues_found if i.get("severity") == "major"
-            )
-            secondary_major = sum(
-                1 for i in secondary.issues_found if i.get("severity") == "major"
-            )
+            primary_major = sum(1 for i in primary.issues_found if i.get("severity") == "major")
+            secondary_major = sum(1 for i in secondary.issues_found if i.get("severity") == "major")
 
             # Significant severity difference (one found >2x major issues)
             if primary_major > 0 or secondary_major > 0:
@@ -1431,14 +1428,10 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
         if missed_by_primary or missed_by_secondary:
             # Only flag as disagreement if major issues were missed
             primary_major_cats = {
-                i.get("category")
-                for i in primary.issues_found
-                if i.get("severity") == "major"
+                i.get("category") for i in primary.issues_found if i.get("severity") == "major"
             }
             secondary_major_cats = {
-                i.get("category")
-                for i in secondary.issues_found
-                if i.get("severity") == "major"
+                i.get("category") for i in secondary.issues_found if i.get("severity") == "major"
             }
 
             major_missed = (secondary_major_cats - primary_major_cats) | (
@@ -1580,9 +1573,7 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
             logger.info(f"[DUAL-AUDIT] Using judge decision: approved={approved}")
         else:
             # No judge - use merged issue profile
-            has_major_issues = any(
-                issue.effective_severity == "major" for issue in merged_issues
-            )
+            has_major_issues = any(issue.effective_severity == "major" for issue in merged_issues)
             approved = not has_major_issues
 
         # Convert MergedIssue to dict

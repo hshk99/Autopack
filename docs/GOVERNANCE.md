@@ -340,7 +340,7 @@ All governance decisions logged to:
 - risk_level, approved, approved_at
 - created_at, expires_at
 
-**File System** (`.autonomous_runs/<run_id>/governance/`):
+**File System** (via `RunFileLayout`, canonical: `.autonomous_runs/<project>/runs/<family>/<run_id>/governance/`):
 - `request_{request_id}.json` - Full request details
 - `decision_{request_id}.json` - Approval decision
 
@@ -505,7 +505,7 @@ The autonomy loop (gap scan → plan → autopilot) produces typed artifacts wit
 
 Produced by: `autopack gaps scan`
 
-Location: `.autonomous_runs/<run_id>/gaps/gap_report_v1.json`
+Location: `.autonomous_runs/<project>/runs/<family>/<run_id>/gaps/gap_report_v1.json` (via `RunFileLayout`)
 
 **Governance Role**: Identifies gaps that may block autonomous execution (autopilot_blockers).
 
@@ -513,7 +513,7 @@ Location: `.autonomous_runs/<run_id>/gaps/gap_report_v1.json`
 
 Produced by: `autopack plan propose`
 
-Location: `.autonomous_runs/<run_id>/planning/plan_proposal_v1.json`
+Location: `.autonomous_runs/<project>/runs/<family>/<run_id>/planning/plan_proposal_v1.json` (via `RunFileLayout`)
 
 **Governance Role**: Maps gaps to actions with approval status:
 - `auto_approved`: Safe to execute without human review
@@ -524,7 +524,7 @@ Location: `.autonomous_runs/<run_id>/planning/plan_proposal_v1.json`
 
 Produced by: `autopack autopilot run`
 
-Location: `.autonomous_runs/<run_id>/autopilot/session_<id>.json`
+Location: `.autonomous_runs/<project>/runs/<family>/<run_id>/autopilot/session_<id>.json` (via `RunFileLayout`)
 
 **Governance Role**: Records execution results and approval requests for blocked actions.
 

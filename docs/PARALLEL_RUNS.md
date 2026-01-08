@@ -40,7 +40,7 @@ Parallel runs are made safe through four complementary mechanisms:
 - Upgraded from hardcoded `.autonomous_runs/.locks`
 
 #### 4. **Run-Scoped Artifacts** (`TestBaselineTracker`, `RunFileLayout`)
-- Test baselines, retry reports → `.autonomous_runs/{run_id}/ci/`
+- Test baselines, retry reports → `.autonomous_runs/<project>/runs/<family>/<run_id>/ci/` (via `RunFileLayout`)
 - No more global `baseline.json` / `retry.json` collisions
 - Backward-compatible (legacy mode if `run_id` not provided)
 
@@ -120,7 +120,7 @@ Each run operates in its own worktree with independent HEAD, index, and working 
 Postgres handles concurrent writes safely. Per-run SQLite uses separate DB files.
 
 ✅ **Artifact isolation**
-Each run writes to `.autonomous_runs/{run_id}/` (no collisions).
+Each run writes to `.autonomous_runs/<project>/runs/<family>/<run_id>/` via `RunFileLayout` (no collisions).
 
 ✅ **Lock file isolation**
 Locks stored in `{autonomous_runs_dir}/.locks/` and `.workspace_leases/`.
@@ -191,7 +191,7 @@ python scripts/autopack_supervisor.py \
   --per-run-sqlite
 ```
 
-Each run creates: `.autonomous_runs/{run_id}/{run_id}.db`
+Each run creates: `.autonomous_runs/<project>/runs/<family>/<run_id>/<run_id>.db` (via `RunFileLayout`)
 
 **Pros:**
 - No Postgres dependency

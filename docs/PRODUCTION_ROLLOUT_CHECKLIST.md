@@ -26,10 +26,14 @@ This checklist ensures safe, monitored rollout of Autopack's autonomous executio
 
 | Variable | Purpose | Required |
 |----------|---------|----------|
-| `GLM_API_KEY` | Zhipu AI (primary) | Yes |
+| `ANTHROPIC_API_KEY` | Claude models (primary) | Yes (at least one runtime key) |
+| `OPENAI_API_KEY` | GPT models | No (alternative to Anthropic) |
+| `GOOGLE_API_KEY` | Google Gemini | No (alternative to Anthropic) |
+| `GLM_API_KEY` | Zhipu AI (tooling-only) | No (used by tidy/model-intelligence scripts only) |
 | `GLM_API_BASE` | GLM base URL | No (defaults to `https://open.bigmodel.cn/api/paas/v4`) |
-| `ANTHROPIC_API_KEY` | Claude models | No (fallback) |
-| `OPENAI_API_KEY` | GPT models | No (fallback) |
+
+> **Note**: Runtime requires at least one of: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GOOGLE_API_KEY`.
+> `GLM_API_KEY` is tooling-only (used by `scripts/tidy/*` and model-intelligence tooling); GLM is **not** a runtime provider.
 
 ### Feature Toggles
 
@@ -225,7 +229,7 @@ ARTIFACT_HISTORY_PACK_MAX_PHASES=10
 **What to Monitor**:
 - `token_efficiency_metrics.artifact_substitutions`: Should be > 0 for phases with SOT docs
 - `token_efficiency_metrics.tokens_saved_artifacts`: Should show savings
-- History pack generation in `.autonomous_runs/{run_id}/history_pack.md`
+- History pack generation in `.autonomous_runs/<project>/runs/<family>/<run_id>/history_pack.md` (via `RunFileLayout`)
 
 **Success Criteria**:
 - SOT docs (BUILD_HISTORY, BUILD_LOG) are substituted with history pack
@@ -406,7 +410,7 @@ pytest -m "research" -v
 **Fix**:
 1. Verify `ARTIFACT_SUBSTITUTE_SOT_DOCS=true`
 2. Verify `ARTIFACT_HISTORY_PACK_ENABLED=true`
-3. Check that history pack file exists: `.autonomous_runs/{run_id}/history_pack.md`
+3. Check that history pack file exists: `.autonomous_runs/<project>/runs/<family>/<run_id>/history_pack.md` (via `RunFileLayout`)
 4. Confirm phase context includes SOT docs (BUILD_HISTORY.md, BUILD_LOG.md)
 
 ### Issue: Cap violations

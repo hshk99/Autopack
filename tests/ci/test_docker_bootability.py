@@ -47,18 +47,18 @@ class TestDockerfileConfiguration:
         dockerfile = REPO_ROOT / "Dockerfile"
         content = dockerfile.read_text(encoding="utf-8")
 
-        assert "PYTHONPATH=/app/src" in content, (
-            "Dockerfile must set PYTHONPATH=/app/src for autopack imports"
-        )
+        assert (
+            "PYTHONPATH=/app/src" in content
+        ), "Dockerfile must set PYTHONPATH=/app/src for autopack imports"
 
     def test_dockerfile_runs_correct_entrypoint(self):
         """Dockerfile CMD must run autopack.main:app."""
         dockerfile = REPO_ROOT / "Dockerfile"
         content = dockerfile.read_text(encoding="utf-8")
 
-        assert "autopack.main:app" in content, (
-            "Dockerfile entrypoint must be autopack.main:app, not legacy targets"
-        )
+        assert (
+            "autopack.main:app" in content
+        ), "Dockerfile entrypoint must be autopack.main:app, not legacy targets"
 
 
 class TestDockerComposeConfiguration:
@@ -78,7 +78,9 @@ class TestDockerComposeConfiguration:
 
         # Should NOT have legacy names as primary services
         lines = content.split("\n")
-        service_lines = [l for l in lines if l.strip().endswith(":") and not l.strip().startswith("#")]
+        service_lines = [
+            l for l in lines if l.strip().endswith(":") and not l.strip().startswith("#")
+        ]
         service_names = [l.strip().rstrip(":") for l in service_lines]
 
         assert "postgres" not in service_names, "Service should be 'db', not 'postgres'"
@@ -96,12 +98,12 @@ class TestDockerComposeConfiguration:
         assert "db:" in content, "Dev overlay must reference 'db' service"
 
         # Should NOT reference non-existent services
-        assert "postgres:" not in content, (
-            "Dev overlay must use 'db' not 'postgres' (must match base compose)"
-        )
-        assert "api:" not in content, (
-            "Dev overlay must use 'backend' not 'api' (must match base compose)"
-        )
+        assert (
+            "postgres:" not in content
+        ), "Dev overlay must use 'db' not 'postgres' (must match base compose)"
+        assert (
+            "api:" not in content
+        ), "Dev overlay must use 'backend' not 'api' (must match base compose)"
 
     def test_docker_compose_dev_uses_correct_app_target(self):
         """docker-compose.dev.yml must use autopack.main:app entrypoint."""
@@ -121,23 +123,21 @@ class TestConfigFilesExist:
     def test_models_yaml_exists(self):
         """config/models.yaml must exist for model routing."""
         models_yaml = REPO_ROOT / "config" / "models.yaml"
-        assert models_yaml.exists(), (
-            "config/models.yaml is required for deterministic model routing"
-        )
+        assert (
+            models_yaml.exists()
+        ), "config/models.yaml is required for deterministic model routing"
 
     def test_pricing_yaml_exists(self):
         """config/pricing.yaml must exist for cost estimation."""
         pricing_yaml = REPO_ROOT / "config" / "pricing.yaml"
-        assert pricing_yaml.exists(), (
-            "config/pricing.yaml is required for cost estimation"
-        )
+        assert pricing_yaml.exists(), "config/pricing.yaml is required for cost estimation"
 
     def test_baseline_policy_yaml_exists(self):
         """config/baseline_policy.yaml must exist for gap scanner."""
         baseline_policy = REPO_ROOT / "config" / "baseline_policy.yaml"
-        assert baseline_policy.exists(), (
-            "config/baseline_policy.yaml is required for baseline policy detection"
-        )
+        assert (
+            baseline_policy.exists()
+        ), "config/baseline_policy.yaml is required for baseline policy detection"
 
 
 class TestBackendImportability:
@@ -149,6 +149,7 @@ class TestBackendImportability:
         # It validates the module structure is correct
         try:
             from autopack import main
+
             assert hasattr(main, "app"), "autopack.main must export 'app'"
         except ImportError as e:
             pytest.fail(f"Failed to import autopack.main: {e}")
@@ -185,9 +186,9 @@ class TestDockerfileSecurityBestPractices:
         content = dockerfile.read_text(encoding="utf-8")
 
         assert "USER" in content, "Dockerfile should specify USER for non-root execution"
-        assert "useradd" in content or "adduser" in content, (
-            "Dockerfile should create a non-root user"
-        )
+        assert (
+            "useradd" in content or "adduser" in content
+        ), "Dockerfile should create a non-root user"
 
     def test_dockerfile_uses_slim_base(self):
         """Dockerfile should use slim base image for security."""
@@ -195,6 +196,6 @@ class TestDockerfileSecurityBestPractices:
         content = dockerfile.read_text(encoding="utf-8")
 
         # Should use slim variant, not full image
-        assert "python:3.11-slim" in content or "python:3.12-slim" in content, (
-            "Dockerfile should use slim base image (python:X.Y-slim)"
-        )
+        assert (
+            "python:3.11-slim" in content or "python:3.12-slim" in content
+        ), "Dockerfile should use slim base image (python:X.Y-slim)"

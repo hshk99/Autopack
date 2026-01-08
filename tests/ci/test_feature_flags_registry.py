@@ -20,9 +20,7 @@ CONFIG_FILE = REPO_ROOT / "config" / "feature_flags.yaml"
 
 def extract_env_vars_from_code() -> Set[str]:
     """Extract all AUTOPACK_* environment variable references from src/."""
-    env_var_pattern = re.compile(
-        r'os\.(?:environ|getenv)\s*\(\s*["\']([A-Z][A-Z0-9_]*)["\']'
-    )
+    env_var_pattern = re.compile(r'os\.(?:environ|getenv)\s*\(\s*["\']([A-Z][A-Z0-9_]*)["\']')
 
     found_vars: Set[str] = set()
 
@@ -82,9 +80,7 @@ class TestFeatureFlagsRegistryExists:
     def test_registry_has_external_section(self):
         """Registry must have an 'external_env_vars' section."""
         registry = load_feature_flags_registry()
-        assert "external_env_vars" in registry, (
-            "Registry must have an 'external_env_vars' section"
-        )
+        assert "external_env_vars" in registry, "Registry must have an 'external_env_vars' section"
 
 
 class TestAutopackFlagsDocumented:
@@ -121,9 +117,7 @@ class TestAutopackFlagsDocumented:
         }
 
         missing = required_flags - documented
-        assert not missing, (
-            f"Critical security flags missing from registry: {missing}"
-        )
+        assert not missing, f"Critical security flags missing from registry: {missing}"
 
 
 class TestFlagMetadataQuality:
@@ -140,9 +134,7 @@ class TestFlagMetadataQuality:
             if "description" not in flag_data or not flag_data["description"]:
                 missing_description.append(flag_name)
 
-        assert not missing_description, (
-            f"Flags missing description: {missing_description}"
-        )
+        assert not missing_description, f"Flags missing description: {missing_description}"
 
     def test_flags_have_category(self):
         """Each flag must have a category."""
@@ -166,13 +158,9 @@ class TestFlagMetadataQuality:
             if "category" not in flag_data:
                 missing_category.append(flag_name)
             elif flag_data["category"] not in valid_categories:
-                invalid_category.append(
-                    f"{flag_name} (has '{flag_data['category']}')"
-                )
+                invalid_category.append(f"{flag_name} (has '{flag_data['category']}')")
 
-        assert not missing_category, (
-            f"Flags missing category: {missing_category}"
-        )
+        assert not missing_category, f"Flags missing category: {missing_category}"
         assert not invalid_category, (
             f"Flags with invalid category: {invalid_category}\n"
             f"Valid categories: {valid_categories}"
@@ -240,7 +228,8 @@ class TestDeprecatedFlagsQuarantined:
         # This is a placeholder - could scan for "deprecated" comments in code
         registry = load_feature_flags_registry()
         deprecated = [
-            name for name, data in registry.get("flags", {}).items()
+            name
+            for name, data in registry.get("flags", {}).items()
             if isinstance(data, dict) and data.get("category") == "deprecated"
         ]
 

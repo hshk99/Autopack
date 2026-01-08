@@ -103,7 +103,7 @@
       "config/": "Configuration files (models.yaml, pricing.yaml, protection_and_retention_policy.yaml, etc.)",
       "archive/": "Historical files organized by category",
       ".autonomous_runs/": "Project-specific autonomous run data",
-      "integrations/": "External integrations (supervisor, etc.)"
+      "scripts/integrations/": "External integrations (supervisor, etc.)"
     },
     "archive_buckets": {
       "plans/": "Implementation plans and roadmaps",
@@ -199,7 +199,7 @@
     "consolidation": "scripts/tidy/consolidate_docs_v2.py - Consolidate archive files to SOT",
     "tidy": "scripts/tidy/autonomous_tidy.py - Autonomous file organization",
     "analysis": "scripts/analyze_learned_rules.py - Analyze learned rules and costs",
-    "supervisor": "integrations/supervisor.py - Main autonomous build entry point",
+    "supervisor": "scripts/integrations/supervisor.py - Main autonomous build entry point",
     "config_loader": "scripts/tidy/project_config.py - Multi-project configuration loader",
     "storage_scan": "scripts/storage/scan_and_report.py - Policy-aware disk space analysis"
   },
@@ -304,7 +304,7 @@
     },
     "promotion_workflow": {
       "trigger": "Manual via GitHub Actions UI or CLI",
-      "inputs": ["run_id", "integration_branch"],
+      "inputs": ["run_id", "project_id", "family", "integration_branch"],
       "eligibility_checks": ["run summary exists", "tiers clean", "no excess issues"],
       "action": "Creates PR to main if eligible, blocks if not"
     }

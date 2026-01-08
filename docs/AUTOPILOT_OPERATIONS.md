@@ -32,7 +32,7 @@ Every run requires an `IntentionAnchorV2` anchor file that defines:
 - Budget limits (tokens, time, file count)
 - Parallelism isolation settings
 
-**Example anchor** (`.autonomous_runs/<run_id>/intention_v2.json`):
+**Example anchor** (`.autonomous_runs/<project>/runs/<family>/<run_id>/intention_v2.json`):
 
 ```json
 {
@@ -61,16 +61,26 @@ Every run requires an `IntentionAnchorV2` anchor file that defines:
 
 ### 2. Run Directory Structure
 
+The canonical layout follows `RunFileLayout` from `src/autopack/file_layout.py`:
+
 ```
-.autonomous_runs/<run_id>/
+.autonomous_runs/<project>/runs/<family>/<run_id>/
 ├── intention_v2.json       # Anchor (required)
 ├── gaps/
 │   └── gap_report_v1.json  # Output from gap scan
 ├── planning/
 │   └── plan_proposal_v1.json  # Output from plan propose
-└── autopilot/
-    └── session_<id>.json   # Output from autopilot run
+├── autopilot/
+│   └── session_<id>.json   # Output from autopilot run
+├── tiers/                  # Tier summaries
+├── phases/                 # Phase summaries
+└── run_summary.md          # Overall run summary
 ```
+
+Where:
+- `<project>`: Project identifier (e.g., `autopack`, `file-organizer-app-v1`)
+- `<family>`: Run family extracted from run_id prefix (e.g., `build-193` from `build-193-fix-gaps`)
+- `<run_id>`: Full run identifier (e.g., `build-193-fix-gaps`)
 
 ---
 
@@ -98,7 +108,7 @@ python -m autopack.cli gaps scan \
 **Options**:
 - `--run-id`: Run identifier (required)
 - `--project-id`: Project identifier (required)
-- `--write`: Write gap report to `.autonomous_runs/<run_id>/gaps/`
+- `--write`: Write gap report to `.autonomous_runs/<project>/runs/<family>/<run_id>/gaps/`
 - `--workspace`: Workspace root (default: current directory)
 - `-v, --verbose`: Enable debug logging
 
@@ -124,7 +134,7 @@ python -m autopack.cli plan propose \
 **Options**:
 - `--run-id`: Run identifier (required)
 - `--project-id`: Project identifier (required)
-- `--write`: Write plan to `.autonomous_runs/<run_id>/planning/`
+- `--write`: Write plan to `.autonomous_runs/<project>/runs/<family>/<run_id>/planning/`
 - `--anchor-path`: Override anchor location
 - `--gap-report-path`: Override gap report location
 - `-v, --verbose`: Enable debug logging
@@ -153,7 +163,7 @@ python -m autopack.cli autopilot run \
 - `--run-id`: Run identifier (required)
 - `--project-id`: Project identifier (required)
 - `--enable`: **REQUIRED** to actually execute actions (default: OFF)
-- `--write`: Write session to `.autonomous_runs/<run_id>/autopilot/`
+- `--write`: Write session to `.autonomous_runs/<project>/runs/<family>/<run_id>/autopilot/`
 - `--anchor-path`: Override anchor location
 - `-v, --verbose`: Enable debug logging
 
@@ -245,7 +255,7 @@ Check:
 
 ### GapReportV1
 
-Location: `.autonomous_runs/<run_id>/gaps/gap_report_v1.json`
+Location: `.autonomous_runs/<project>/runs/<family>/<run_id>/gaps/gap_report_v1.json`
 
 Contains:
 - List of gaps with type, severity, evidence
@@ -254,7 +264,7 @@ Contains:
 
 ### PlanProposalV1
 
-Location: `.autonomous_runs/<run_id>/planning/plan_proposal_v1.json`
+Location: `.autonomous_runs/<project>/runs/<family>/<run_id>/planning/plan_proposal_v1.json`
 
 Contains:
 - List of proposed actions with target paths
@@ -263,7 +273,7 @@ Contains:
 
 ### AutopilotSessionV1
 
-Location: `.autonomous_runs/<run_id>/autopilot/session_<id>.json`
+Location: `.autonomous_runs/<project>/runs/<family>/<run_id>/autopilot/session_<id>.json`
 
 Contains:
 - Session metadata (enabled, status)
@@ -294,7 +304,9 @@ python -m autopack.cli plan propose \
   --write
 
 # 3. Review plan (check auto-approved vs requires-approval)
-cat .autonomous_runs/$RUN_ID/planning/plan_proposal_v1.json | jq '.summary'
+# Note: Full path is .autonomous_runs/$PROJECT_ID/runs/$FAMILY/$RUN_ID/...
+# The CLI automatically resolves paths using RunFileLayout
+cat .autonomous_runs/$PROJECT_ID/runs/maintenance/maintenance-$(date +%Y%m%d)/planning/plan_proposal_v1.json | jq '.summary'
 
 # 4. Execute autopilot
 python -m autopack.cli autopilot run \
@@ -343,7 +355,7 @@ python -m autopack.cli autopilot supervise \
 ```
 [Plan Proposer] ERROR: Intention anchor not found
 ```
-**Fix**: Create anchor at `.autonomous_runs/<run_id>/intention_v2.json` or specify `--anchor-path`.
+**Fix**: Create anchor at `.autonomous_runs/<project>/runs/<family>/<run_id>/intention_v2.json` or specify `--anchor-path`.
 
 ### Autopilot Disabled Warning
 

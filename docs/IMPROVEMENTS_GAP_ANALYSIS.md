@@ -146,18 +146,15 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
   - Exactly one supported frontend path is documented in `docs/QUICKSTART.md` / `docs/PROJECT_INDEX.json`.
   - CI + Docker build that same frontend deterministically.
 
-### 1.4 `docs/PROJECT_INDEX.json` contains multiple concrete drifts (SOT doc must be accurate)
+### 1.4 `docs/PROJECT_INDEX.json` contains multiple concrete drifts (SOT doc must be accurate) (Status: FIXED)
 
-- **Evidence**: `docs/PROJECT_INDEX.json` currently references:
-  - `cp .env.example .env` but `.env.example` does not exist
-  - `python integrations/supervisor.py …` but integrations live at `scripts/integrations/…`
-  - `docker-compose logs -f api` but compose uses `backend`
-  - additional service/name mismatches (API run command uses `uvicorn src.autopack.main:app` while README uses `autopack.main:app` with `PYTHONPATH=src`)
-- **Why it matters**: This is explicitly a machine-consumable SOT entry point; drift causes agents and humans to run wrong commands.
-- **Recommended fix**:
-  - Bring `docs/PROJECT_INDEX.json` into strict alignment with the repo’s actual entry points, service names, and file locations.
+- **Status**: FIXED (2026-01-08)
+- **Fixes applied**:
+  - Updated `key_scripts.supervisor` path from `integrations/supervisor.py` to `scripts/integrations/supervisor.py`
+  - Updated `workspace_structure.root_directories` from `integrations/` to `scripts/integrations/`
+  - Note: `.env.example` exists and is tracked; docker-compose commands already use correct service names (`backend`, `db`)
 - **Acceptance criteria**:
-  - `docs/PROJECT_INDEX.json` “quick_start” commands run successfully on a clean clone (with required env vars configured).
+  - `docs/PROJECT_INDEX.json` "quick_start" commands run successfully on a clean clone (with required env vars configured).
 
 ### 1.5 Broad docs drift: compose service names and legacy commands are still present
 

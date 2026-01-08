@@ -148,7 +148,7 @@ TARGET_REPO_PATH="/path/to/repo"  # Build target (default: current dir)
 
 ```bash
 # Copy example template
-cp docs/templates/env.example .env
+cp .env.example .env
 
 # Edit with your values
 nano .env  # or vim, code, etc.

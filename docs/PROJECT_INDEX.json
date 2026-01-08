@@ -86,6 +86,8 @@
       "TELEGRAM_CHAT_ID": "Your Telegram chat ID (for deletion notifications)",
       "NGROK_URL": "ngrok public URL (optional, for interactive approval buttons)",
       "AUTOPACK_CALLBACK_URL": "Backend callback URL (default: http://localhost:8001)",
+      "AUTOPACK_ENV": "Environment mode: 'production' or 'development' (affects security defaults)",
+      "RESEARCH_API_ENABLED": "Enable quarantined research API (default: false in production, true in development)",
       "TESTING": "Set to '1' to skip DB initialization in test mode",
       "CI_PROFILE": "normal or strict (for preflight gate)",
       "TARGET_REPO_PATH": "Path to build target (default: current directory)"

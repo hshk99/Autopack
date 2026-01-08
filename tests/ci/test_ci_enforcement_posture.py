@@ -12,7 +12,6 @@ import re
 from pathlib import Path
 
 import pytest
-import yaml
 
 
 REPO_ROOT = Path(__file__).parent.parent.parent
@@ -134,7 +133,7 @@ class TestCIWorkflowConsistency:
         )
         assert core_match is not None, "test-core job should exist"
 
-        core_section = core_match.group(0)
+        _core_section = core_match.group(0)  # noqa: F841 - for future assertions
         # Core tests should NOT have continue-on-error at job level
         # (Individual steps may have it, but job-level should block)
         job_level_continue = re.search(

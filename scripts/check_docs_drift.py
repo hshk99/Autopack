@@ -64,10 +64,10 @@ FORBIDDEN_PATTERNS = [
     (r"from\s+backend\.api\.auth", "Import from deprecated backend.api.auth (use autopack.auth)"),
     (r"import\s+backend\.api\.auth", "Import from deprecated backend.api.auth (use autopack.auth)"),
 
-    # === BUILD-195: Env template drift ===
-    # Canonical template is docs/templates/env.example, not .env.example
-    (r"cp\s+\.env\.example\s+\.env",
-     "Env template drift (should be: cp docs/templates/env.example .env)"),
+    # === BUILD-195 (revised): Env template drift ===
+    # Canonical template is the repo-root .env.example (see WORKSPACE_ORGANIZATION_SPEC.md).
+    (r"cp\s+docs/templates/env\.example\s+\.env",
+     "Env template drift (should be: cp .env.example .env)"),
 
     # === BUILD-195: Compose service-name drift ===
     # Services are: backend (not api), db (not postgres)
@@ -317,7 +317,7 @@ def main():
         print("  - Canonical server: PYTHONPATH=src uvicorn autopack.main:app")
         print("  - Auth endpoints: /api/auth/* (not root paths)")
         print("  - Auth imports: autopack.auth (not backend.api.auth)")
-        print("  - Env template: cp docs/templates/env.example .env")
+        print("  - Env template: cp .env.example .env")
         print("  - Compose services: backend, db (not api, postgres)")
         print("  - Run layout: .autonomous_runs/<project>/runs/<family>/<run_id>/")
         return 0

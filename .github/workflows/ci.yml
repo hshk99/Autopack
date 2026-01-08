@@ -99,6 +99,9 @@ jobs:
       - name: Run doc-contract tests
         run: |
           pytest -q tests/docs/
+      - name: Verify workspace structure (no loose files/folders)
+        run: |
+          python scripts/tidy/verify_workspace_structure.py
       - name: Check docs drift (BUILD-195 comprehensive sweeps)
         run: |
           python scripts/check_docs_drift.py

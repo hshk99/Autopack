@@ -418,6 +418,11 @@ class AutonomousExecutor:
         self.MAX_HTTP_500_PER_RUN = 10  # Stop run after this many 500 errors
         self.MAX_PATCH_FAILURES_PER_RUN = 15  # Stop run after this many patch failures
 
+        # BUILD-195: Payload correction tracker for one-shot 422 handling
+        from autopack.executor.payload_correction import PayloadCorrectionTracker
+
+        self._payload_correction_tracker = PayloadCorrectionTracker()
+
         # [Phase C1] Store last builder result for Doctor diagnostics
         self._last_builder_result: Optional["BuilderResult"] = (
             None  # Last builder result (for patch/error info)
@@ -6098,7 +6103,7 @@ Just the new description that should replace the current one while preserving th
                 run_hints=run_hints,  # Stage 0A: Within-run hints from earlier phases
                 run_id=self.run_id,
                 phase_id=phase_id,
-                run_context=self._build_run_context(),  # [Phase C3] Include model overrides if specified  # ROADMAP(P3): Pass model_overrides if specified
+                run_context=self._build_run_context(),  # [Phase C3] Include model overrides if specified (BUILD-195: P3 complete)
                 ci_result=ci_result,  # Now passing real CI results!
                 coverage_delta=self._compute_coverage_delta(
                     ci_result
@@ -9000,25 +9005,68 @@ Just the new description that should replace the current one while preserving th
                 try:
                     response = requests.post(url, headers=headers, json=payload, timeout=10)
 
-                    # Phase 2.3: Handle 422 validation errors separately
+                    # BUILD-195: Handle 422 payload schema validation errors
+                    # These are schema errors (missing fields, wrong types, extra keys),
+                    # NOT patch format errors. Use PayloadCorrectionTracker for one-shot.
                     if response.status_code == 422:
-                        error_detail = response.json().get("detail", "Patch validation failed")
-                        logger.error(f"[{phase_id}] Patch validation failed (422): {error_detail}")
-                        logger.info(
-                            f"[{phase_id}] Phase 2.3: Validation errors indicate malformed patch - LLM should regenerate"
+                        error_detail = response.json().get("detail", [])
+                        logger.error(
+                            f"[{phase_id}] Payload schema validation failed (422): {error_detail}"
                         )
 
                         # Log validation failures to debug journal
                         log_error(
-                            error_signature="Patch validation failure (422)",
+                            error_signature="Payload schema validation failure (422)",
                             symptom=f"Phase {phase_id}: {error_detail}",
                             run_id=self.run_id,
                             phase_id=phase_id,
-                            suspected_cause="LLM generated malformed patch - needs regeneration",
+                            suspected_cause="BuilderResult payload has schema drift",
                             priority="MEDIUM",
                         )
 
-                        # ROADMAP(P4): Implement automatic retry with LLM correction
+                        # BUILD-195: One-shot payload correction via tracker
+                        from autopack.executor.payload_correction import (
+                            should_attempt_payload_correction,
+                        )
+
+                        # Check budget and attempt correction (one-shot via tracker)
+                        budget_remaining = 1.0 - (attempt / 3.0)
+                        if should_attempt_payload_correction(error_detail, budget_remaining):
+                            # Generate stable event_id for one-shot enforcement
+                            event_id = f"{self.run_id}:{phase_id}:422:{attempt}"
+                            correction_result = self._payload_correction_tracker.attempt_correction(
+                                original_payload=payload,
+                                validator_error_detail=error_detail,
+                                context={
+                                    "run_id": self.run_id,
+                                    "phase_id": phase_id,
+                                    "attempt": attempt,
+                                    "event_id": event_id,
+                                },
+                            )
+
+                            if (
+                                correction_result.correction_successful
+                                and correction_result.corrected_payload
+                            ):
+                                logger.info(
+                                    f"[{phase_id}] Payload correction successful "
+                                    f"(method: {correction_result.evidence.get('correction_method', 'unknown')}, "
+                                    f"fixes: {correction_result.evidence.get('corrections_made', [])}), "
+                                    f"retrying POST"
+                                )
+                                # Replace payload with corrected version
+                                payload = correction_result.corrected_payload
+                                continue  # Retry with corrected payload
+                            elif correction_result.blocked_reason:
+                                logger.warning(
+                                    f"[{phase_id}] Payload correction blocked: {correction_result.blocked_reason}"
+                                )
+                            else:
+                                logger.warning(
+                                    f"[{phase_id}] Payload correction failed, raising error"
+                                )
+
                         response.raise_for_status()
 
                     response.raise_for_status()

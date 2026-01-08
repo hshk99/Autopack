@@ -3,10 +3,13 @@
 Implements bounded correction for HTTP 422 validation failures.
 Max 1 correction attempt per 422 event, with evidence recording.
 
+BUILD-195: Added LLM-based correction for complex validation errors.
+
 Properties:
 - Max 1 correction attempt per event
 - Evidence recorded regardless of outcome
 - Stops after one attempt (no retry loop)
+- Uses LLM for complex corrections when simple rules fail
 """
 
 from __future__ import annotations
@@ -14,8 +17,9 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Set
+from typing import Any, Callable, Dict, Optional, Set
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -132,16 +136,20 @@ def correct_patch_once(
     original_patch: str,
     validator_error_detail: Dict[str, Any],
     context: Dict[str, Any],
+    llm_caller: Optional[Callable[[str], str]] = None,
 ) -> CorrectedPatchResult:
     """Attempt to correct a patch based on validator error.
 
     This is a single-shot correction: no retries even on failure.
     Evidence is recorded regardless of outcome.
 
+    BUILD-195: Now uses LLM correction when simple rules fail.
+
     Args:
         original_patch: The original patch that failed validation
         validator_error_detail: Error details from HTTP 422 response
         context: Additional context (phase_id, run_id, etc.)
+        llm_caller: Optional callable for LLM-based correction
 
     Returns:
         CorrectedPatchResult with outcome and evidence
@@ -151,15 +159,24 @@ def correct_patch_once(
         f"run={context.get('run_id')}, phase={context.get('phase_id')}"
     )
 
-    # Attempt correction (simplified - in real implementation this would
-    # use structured prompting or rule-based fixes)
+    # Step 1: Try simple rule-based correction first (fast, no API call)
     corrected_patch = _attempt_simple_correction(original_patch, validator_error_detail)
+    correction_method = "rule_based"
+
+    # Step 2: If simple rules failed, try LLM correction (BUILD-195)
+    if corrected_patch is None or corrected_patch == original_patch:
+        logger.info("[PatchCorrection] Simple rules failed, attempting LLM correction")
+        corrected_patch = _attempt_llm_correction(
+            original_patch, validator_error_detail, llm_caller
+        )
+        correction_method = "llm" if corrected_patch else "failed"
 
     # Determine if correction was successful
     success = corrected_patch is not None and corrected_patch != original_patch
 
-    # Generate evidence
+    # Generate evidence with correction method
     evidence = _generate_evidence(original_patch, validator_error_detail, corrected_patch, success)
+    evidence["correction_method"] = correction_method
 
     return CorrectedPatchResult(
         attempted=True,
@@ -204,6 +221,120 @@ def _attempt_simple_correction(
     return None
 
 
+# BUILD-195: LLM-based patch correction
+
+PATCH_CORRECTION_PROMPT = """You are a patch correction assistant. \
+A patch failed validation with the following error.
+
+ORIGINAL PATCH:
+```
+{original_patch}
+```
+
+VALIDATION ERROR:
+{error_detail}
+
+Your task: Fix the patch to resolve the validation error. \
+Return ONLY the corrected patch content, no explanations.
+
+Rules:
+1. Preserve the original intent of the patch
+2. Fix only what's needed to pass validation
+3. Do not add unrelated changes
+4. Return the complete corrected patch
+"""
+
+
+def _attempt_llm_correction(
+    original_patch: str,
+    error_detail: Dict[str, Any],
+    llm_caller: Optional[Callable[[str], str]] = None,
+) -> Optional[str]:
+    """Attempt LLM-based correction when simple rules fail.
+
+    BUILD-195: Uses LLM to intelligently fix validation errors.
+
+    Args:
+        original_patch: The original patch that failed validation
+        error_detail: Error details from HTTP 422 response
+        llm_caller: Optional callable that takes a prompt and returns LLM response.
+                   If None, uses default Anthropic client.
+
+    Returns:
+        Corrected patch string, or None if correction failed
+    """
+    # Format error detail for prompt
+    if isinstance(error_detail, dict):
+        error_str = json.dumps(error_detail, indent=2)
+    else:
+        error_str = str(error_detail)
+
+    prompt = PATCH_CORRECTION_PROMPT.format(
+        original_patch=original_patch,
+        error_detail=error_str,
+    )
+
+    try:
+        if llm_caller:
+            # Use provided caller (for testing or custom routing)
+            corrected = llm_caller(prompt)
+        else:
+            # Use default Anthropic client
+            corrected = _call_anthropic_for_correction(prompt)
+
+        if corrected and corrected.strip():
+            # Clean up response - remove markdown code blocks if present
+            corrected = corrected.strip()
+            if corrected.startswith("```"):
+                lines = corrected.split("\n")
+                # Remove first line (```json or ```) and last line (```)
+                if lines[-1].strip() == "```":
+                    lines = lines[1:-1]
+                else:
+                    lines = lines[1:]
+                corrected = "\n".join(lines)
+
+            logger.info("[PatchCorrection] LLM correction generated successfully")
+            return corrected
+
+    except Exception as e:
+        logger.warning(f"[PatchCorrection] LLM correction failed: {e}")
+
+    return None
+
+
+def _call_anthropic_for_correction(prompt: str) -> Optional[str]:
+    """Call Anthropic API for patch correction.
+
+    Uses haiku model for fast, cheap corrections.
+    """
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        logger.debug("[PatchCorrection] No ANTHROPIC_API_KEY, skipping LLM correction")
+        return None
+
+    try:
+        from anthropic import Anthropic
+
+        client = Anthropic(api_key=api_key)
+
+        response = client.messages.create(
+            model="claude-3-5-haiku-20241022",  # Fast, cheap model for corrections
+            max_tokens=4096,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        if response.content and len(response.content) > 0:
+            return response.content[0].text
+
+    except ImportError:
+        logger.debug("[PatchCorrection] anthropic package not installed")
+    except Exception as e:
+        logger.warning(f"[PatchCorrection] Anthropic API call failed: {e}")
+
+    return None
+
+
 def _extract_field_name(path: str, message: str) -> Optional[str]:
     """Extract field name from error path or message."""
     # Try path first (e.g., "$.data.name" -> "name")
@@ -239,10 +370,12 @@ class PatchCorrectionTracker:
     """Tracks patch correction attempts to enforce one-shot limit.
 
     Ensures max 1 correction attempt per 422 event.
+    BUILD-195: Now supports LLM-based correction.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, llm_caller: Optional[Callable[[str], str]] = None) -> None:
         self._attempted_events: Set[str] = set()
+        self._llm_caller = llm_caller
 
     def attempt_correction(
         self,
@@ -277,8 +410,10 @@ class PatchCorrectionTracker:
         # Mark as attempted
         self._attempted_events.add(event_id)
 
-        # Perform correction
-        return correct_patch_once(original_patch, validator_error_detail, context)
+        # Perform correction with LLM support
+        return correct_patch_once(
+            original_patch, validator_error_detail, context, llm_caller=self._llm_caller
+        )
 
     def reset(self) -> None:
         """Reset tracking (for testing)."""

@@ -1,0 +1,91 @@
+# TODO/FIXME Closure Policy (PR10)
+#
+# This file defines the quarantine policy for residual TODOs in the codebase.
+# Contract: Runtime code must have minimal/zero TODOs; scripts can have TODOs
+# but they must trend toward closure.
+#
+# Rationale: Autopack's pitch is "safe + deterministic + mechanically enforceable".
+# TODOs in runtime code represent incomplete behavior that may affect safety.
+
+policy:
+  # Maximum allowed TODOs in each category
+  # Contract tests will fail if these limits are exceeded
+  limits:
+    runtime_critical:
+      path_patterns:
+        - "src/autopack/main.py"
+        - "src/autopack/autonomous_executor.py"
+        - "src/autopack/governed_apply.py"
+        - "src/autopack/auth/**/*.py"
+        - "src/autopack/approvals/**/*.py"
+      max_todos: 0
+      rationale: "Core runtime paths must have zero TODOs - incomplete behavior affects safety"
+
+    runtime_other:
+      path_patterns:
+        - "src/autopack/**/*.py"
+      excludes:
+        - "src/autopack/dashboard/frontend/**"  # Frontend is allowed TODOs
+        - "src/autopack/research/**"  # Research is quarantined anyway
+      max_todos: 5
+      rationale: "Other runtime code should minimize TODOs but some flexibility allowed"
+
+    scripts:
+      path_patterns:
+        - "scripts/**/*.py"
+      max_todos: 100  # Soft limit - track but don't block
+      rationale: "Scripts are operational tooling; TODOs acceptable but should trend down"
+
+    tests:
+      path_patterns:
+        - "tests/**/*.py"
+      max_todos: 20  # Allow for test improvements
+      rationale: "Test TODOs are lower priority but should be tracked"
+
+  # TODOs in these paths are explicitly allowed (not counted against limits)
+  quarantined_paths:
+    - "src/autopack/dashboard/frontend/**"  # Frontend is separate codebase
+    - "src/autopack/research/**"  # Research subsystem is quarantined (PR8)
+    - "archive/**"  # Historical files
+
+  # Patterns that indicate a TODO needs immediate attention
+  urgent_patterns:
+    - "TODO.*security"
+    - "TODO.*secret"
+    - "TODO.*auth"
+    - "TODO.*credential"
+    - "FIXME.*security"
+    - "XXX.*security"
+
+# Snapshot of current state (updated: 2026-01-08)
+# Used for tracking progress over time
+baseline:
+  date: "2026-01-08"
+  counts:
+    runtime_critical: 0  # autonomous_executor.py and main.py are clean
+    runtime_other: 1  # dashboard frontend JSX
+    scripts: 54
+    tests: 2
+  notes:
+    - "Executor TODOs cleared as part of prior work"
+    - "Scripts have operational TODOs that are acceptable for now"
+    - "Research subsystem is quarantined (PR8) so TODOs there don't count"
+
+# Closure plan for high-priority TODOs
+# These should be tracked in FUTURE_PLAN.md or similar
+closure_plan:
+  must_close:
+    - description: "Any new runtime TODO that affects determinism"
+      deadline: "Before merge"
+      owner: "PR author"
+
+    - description: "Security-related TODOs anywhere in codebase"
+      deadline: "Immediate"
+      owner: "Security reviewer"
+
+  nice_to_have:
+    - description: "Script TODOs for operational tooling"
+      notes: "Track count, aim to reduce over time"
+
+    - description: "Test TODOs for coverage improvements"
+      notes: "Lower priority, address opportunistically"

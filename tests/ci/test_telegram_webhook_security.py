@@ -10,7 +10,7 @@ Contract: Telegram webhook cannot be spoofed in production.
 """
 
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 

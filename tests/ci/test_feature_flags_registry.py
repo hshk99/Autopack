@@ -213,8 +213,8 @@ class TestRegistryConsistencyWithProjectIndex:
             index_data.get("deployment", {}).get("environment_variables", {}).keys()
         )
 
-        registry = load_feature_flags_registry()
-        documented = get_documented_flags(registry)
+        # Load registry (available via load_feature_flags_registry() if needed)
+        # Can also get documented flags via get_documented_flags(registry)
 
         # These should appear in both places
         core_vars = {

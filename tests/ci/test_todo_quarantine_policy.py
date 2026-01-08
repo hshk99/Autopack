@@ -8,7 +8,7 @@ Contract: Runtime code must be complete - no placeholder behavior.
 
 import re
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import List, Tuple
 
 import pytest
 import yaml
@@ -215,7 +215,7 @@ class TestSecurityTodosBlocked:
                         break
 
         assert not security_todos, (
-            f"Security-related TODOs found (must be addressed immediately):\n"
+            "Security-related TODOs found (must be addressed immediately):\n"
             + "\n".join(f"  {todo}" for todo in security_todos)
         )
 

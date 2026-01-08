@@ -4,7 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       run_id:
-        description: 'Run ID to promote'
+        description: 'Run ID to promote (e.g., build-193-fix-gaps)'
+        required: true
+        type: string
+      project_id:
+        description: 'Project ID (e.g., autopack)'
+        required: true
+        type: string
+        default: 'autopack'
+      family:
+        description: 'Run family (extracted from run_id prefix, e.g., build-193)'
         required: true
         type: string
       integration_branch:
@@ -29,22 +38,27 @@ jobs:
       - name: Check run eligibility
         id: check
         run: |
+          # Canonical path: .autonomous_runs/{project}/runs/{family}/{run_id}/
+          RUN_PATH=".autonomous_runs/${{ inputs.project_id }}/runs/${{ inputs.family }}/${{ inputs.run_id }}"
+
+          echo "Checking run at: ${RUN_PATH}"
+
           # Check if run_summary.md exists
-          if [ ! -f ".autonomous_runs/${{ inputs.run_id }}/run_summary.md" ]; then
-            echo "Run summary not found"
+          if [ ! -f "${RUN_PATH}/run_summary.md" ]; then
+            echo "Run summary not found at ${RUN_PATH}/run_summary.md"
             echo "eligible=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           # Check for tier cleanliness (simplified check)
-          if grep -q "not_clean" .autonomous_runs/${{ inputs.run_id }}/tiers/*.md 2>/dev/null; then
+          if grep -q "not_clean" ${RUN_PATH}/tiers/*.md 2>/dev/null; then
             echo "Found not_clean tier - promotion blocked"
             echo "eligible=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           # Check for excess minor issues
-          if grep -q "excess_minor_issues" .autonomous_runs/${{ inputs.run_id }}/run_summary.md 2>/dev/null; then
+          if grep -q "excess_minor_issues" ${RUN_PATH}/run_summary.md 2>/dev/null; then
             echo "Excess minor issues - promotion blocked"
             echo "eligible=false" >> $GITHUB_OUTPUT
             exit 0
@@ -82,7 +96,7 @@ jobs:
             - ✅ Passed promotion eligibility checks
 
             ### Run Summary
-            See `.autonomous_runs/${{ inputs.run_id }}/run_summary.md` for details.
+            See `.autonomous_runs/${{ inputs.project_id }}/runs/${{ inputs.family }}/${{ inputs.run_id }}/run_summary.md` for details.
 
       - name: Comment on promotion
         run: |

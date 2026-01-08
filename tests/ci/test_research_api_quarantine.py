@@ -10,7 +10,6 @@ Security contract: Don't ship mock state via production API.
 """
 
 import os
-import pytest
 
 
 class TestResearchApiQuarantine:
@@ -28,7 +27,6 @@ class TestResearchApiQuarantine:
             # Note: NOT setting AUTOPACK_ENABLE_RESEARCH_API
 
             # Force reimport to pick up new env vars
-            import importlib
             import sys
             # Remove cached modules
             modules_to_remove = [k for k in sys.modules.keys() if 'autopack.main' in k]
@@ -105,7 +103,6 @@ class TestResearchApiQuarantine:
             os.environ["AUTOPACK_ENABLE_RESEARCH_API"] = "true"
 
             # Force reimport to pick up new env vars
-            import importlib
             import sys
             modules_to_remove = [k for k in sys.modules.keys() if 'autopack.main' in k]
             for mod in modules_to_remove:

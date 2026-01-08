@@ -250,20 +250,23 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 
 ## 2) P1 — Major hardening / determinism / completeness
 
-### 2.1 Executor TODO closures that affect determinism and governance correctness
+### 2.1 Executor TODO closures that affect determinism and governance correctness (Status: FIXED)
 
-**Hotspot**: `src/autopack/autonomous_executor.py` (12 TODOs remaining). High-value closures:
+**Status**: FIXED (2026-01-08) - All executor TODO closures implemented
 
-- **Usage accounting**: track actual tokens/context usage in the LLM execution path (today: placeholder counters).
-- **Scope reduction**: implement `REDUCE_SCOPE` prompt generation + validation (today: fallback).
-- **Coverage delta**: wire coverage delta computation (CI produces coverage.xml; executor still returns 0.0).
-- **Model overrides propagation**: `run_context` includes overrides but TODO says “pass model_overrides”.
-- **Changed-files extraction**: executor currently sets `changes = []` (loses auditability and quality gate signal).
-- **Auditor result enrichment**: suggested patches + confidence parsing are TODO.
-- **Approval flow**: Telegram approval flow integration is TODO (currently fails to manual approval path).
-- **Quality report files list**: `files: []` TODO.
-- **Deletion “context” derivation**: hardcoded `"troubleshoot"` TODO.
-- **Automatic retry with LLM correction**: TODO.
+**Implemented in `src/autopack/executor/` module (BUILD-181 through BUILD-195)**:
+- ✅ **Usage accounting**: `usage_accounting.py` - tracks tokens/context usage with `aggregate_usage()` and `load_usage_events()`
+- ✅ **Scope reduction**: `scope_reduction_flow.py` - implements `REDUCE_SCOPE` prompt generation and validation
+- ✅ **Coverage delta**: `coverage_metrics.py` - `compute_coverage_delta()` wired to CI results
+- ✅ **Model overrides propagation**: BUILD-195 P3 - `_build_run_context()` propagates overrides to all LLM calls
+- ✅ **Changed-files extraction**: `changed_files.py` - extracts files from patch content for auditability
+- ✅ **Auditor result enrichment**: `auditor_parsing.py` - parses suggested patches and confidence scores
+- ✅ **Safety profile derivation**: `safety_profile.py` - `derive_safety_profile()` for governance decisions
+- ✅ **Patch correction**: `patch_correction.py` - rule-based and LLM-based correction for validation errors
+- ✅ **Automatic retry with LLM correction**: BUILD-195 P4 - 422 errors trigger LLM-based patch correction
+- ✅ **Approval flow**: `autonomous_executor.py` lines 10025-10251 - Telegram integration with polling and timeout
+- ✅ **Quality report files list**: `autonomous_executor.py` lines 10141-10150 - extracts files from risk_assessment metadata
+- ✅ **Deletion context derivation**: `autonomous_executor.py` lines 10162-10168 - derives context from phase metadata (no longer hardcoded)
 
 **Acceptance criteria**:
 - Each TODO closure has a contract test proving behavior and preventing regression (especially changed-files, approval flow, and scope reduction).
@@ -334,15 +337,13 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 - **Acceptance criteria**:
   - Root endpoint version matches `pyproject.toml` and OpenAPI.
 
-### 2.6 Request size limits are not explicit (API + nginx)
+### 2.6 Request size limits are not explicit (API + nginx) (Status: FIXED)
 
-- **Evidence**:
-  - FastAPI uses SlowAPI for rate limiting, but there is no explicit request-body size limit.
-  - `nginx.conf` does not set `client_max_body_size`.
-- **Why it matters**: file uploads and large JSON payloads can cause resource exhaustion; “safe by default” should include hard limits.
-- **Recommended fix**:
-  - Add `client_max_body_size` in nginx (and document it).
-  - Add an API-side max body size middleware (defense-in-depth), at least in production.
+- **Status**: FIXED (2026-01-08)
+- **Verification**:
+  - `nginx.conf` line 9: `client_max_body_size 10m;` (default for all locations)
+  - `nginx.conf` line 42: `client_max_body_size 50m;` (API uploads location)
+  - Oversized requests are rejected with HTTP 413
 - **Acceptance criteria**:
   - Oversized requests are rejected deterministically (HTTP 413).
 
@@ -451,13 +452,14 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 - **Acceptance criteria**:
   - Scripts work when repo is not cloned to `C:\\dev\\Autopack`.
 
-### 3.4 nginx request-id propagation looks incorrect / non-functional
+### 3.4 nginx request-id propagation looks incorrect / non-functional (Status: FIXED)
 
-- **Evidence**: `nginx.conf`:
-  - Sets `$request_id` from `$http_x_request_id`, then on empty executes `set $request_id $request_id;` (no-op).
-- **Why it matters**: request-id correlation is valuable for debugging distributed failures; incorrect config gives false confidence.
-- **Recommended fix**:
-  - Use nginx’s built-in `$request_id` if available (or generate a UUID via a known module), and only fall back to client-provided header when present.
+- **Status**: FIXED (2026-01-08)
+- **Verification**:
+  - `nginx.conf` lines 55-63: Uses `$trace_id` variable with proper fallback logic
+  - If client provides `X-Request-ID`, it's used; otherwise nginx's built-in `$request_id` is used
+  - `proxy_set_header X-Request-ID $trace_id;` propagates to backend
+  - Response includes `X-Request-ID` via `add_header`
 - **Acceptance criteria**:
   - Every response includes an `X-Request-ID`, and it is propagated to the backend.
 

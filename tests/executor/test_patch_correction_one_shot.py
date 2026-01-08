@@ -167,3 +167,130 @@ def test_patch_correction_no_retry_on_failure():
 
     assert result2.attempted is False
     assert result2.blocked_reason == "max_attempts_exceeded"
+
+
+# BUILD-195: LLM correction tests
+
+
+def test_llm_correction_with_custom_caller():
+    """LLM correction can use custom caller for testability."""
+    from autopack.executor.patch_correction import correct_patch_once
+
+    # Mock LLM caller that returns a fixed corrected patch
+    def mock_llm_caller(prompt: str) -> str:
+        return '{"data": {"fixed": "by_llm"}}'
+
+    # Use an error that won't trigger simple rule-based correction
+    # (simple rules only handle "required" or "missing" keywords)
+    original_patch = '{"data": {"wrong_type": 123}}'
+    validator_error = {
+        "error": "type_error",
+        "message": "Expected string, got number at $.data.wrong_type",
+        "path": "$.data.wrong_type",
+    }
+    context = {"phase_id": "phase-1", "run_id": "test-run"}
+
+    result = correct_patch_once(
+        original_patch, validator_error, context, llm_caller=mock_llm_caller
+    )
+
+    assert result.correction_successful is True
+    assert result.corrected_patch == '{"data": {"fixed": "by_llm"}}'
+    assert result.evidence["correction_method"] == "llm"
+
+
+def test_llm_correction_fallback_on_simple_rule_success():
+    """When simple rules succeed, LLM is not called."""
+    from autopack.executor.patch_correction import correct_patch_once
+
+    call_count = [0]
+
+    def mock_llm_caller(prompt: str) -> str:
+        call_count[0] += 1
+        return '{"should_not_be_used": true}'
+
+    # This error pattern triggers simple rule-based correction
+    original_patch = '{"data": {}}'
+    validator_error = {
+        "error": "validation_failed",
+        "message": "Field 'name' is required",
+        "path": "$.data.name",
+    }
+    context = {"phase_id": "phase-1", "run_id": "test-run"}
+
+    result = correct_patch_once(
+        original_patch, validator_error, context, llm_caller=mock_llm_caller
+    )
+
+    # Simple rules should have succeeded, LLM should not be called
+    assert result.correction_successful is True
+    assert result.evidence["correction_method"] == "rule_based"
+    assert call_count[0] == 0  # LLM was not called
+
+
+def test_llm_correction_records_method_in_evidence():
+    """Evidence includes which correction method was used."""
+    from autopack.executor.patch_correction import correct_patch_once
+
+    def mock_llm_caller(prompt: str) -> str:
+        return '{"fixed": true}'
+
+    # Error that simple rules won't fix
+    original_patch = '{"complex_structure": "invalid"}'
+    validator_error = {
+        "error": "schema_mismatch",
+        "message": "Expected array, got string",
+    }
+    context = {"phase_id": "phase-1", "run_id": "test-run"}
+
+    result = correct_patch_once(
+        original_patch, validator_error, context, llm_caller=mock_llm_caller
+    )
+
+    assert result.evidence is not None
+    assert "correction_method" in result.evidence
+    # Since simple rules won't match, LLM should be used
+    assert result.evidence["correction_method"] == "llm"
+
+
+def test_tracker_with_llm_caller():
+    """PatchCorrectionTracker passes LLM caller to correction function."""
+    from autopack.executor.patch_correction import PatchCorrectionTracker
+
+    def mock_llm_caller(prompt: str) -> str:
+        return '{"llm_corrected": true}'
+
+    tracker = PatchCorrectionTracker(llm_caller=mock_llm_caller)
+
+    # Error that simple rules won't fix
+    original_patch = '{"invalid": "structure"}'
+    validator_error = {"error": "type_mismatch", "message": "Expected number"}
+    context = {"phase_id": "phase-1", "run_id": "test-run", "event_id": "evt-001"}
+
+    result = tracker.attempt_correction(original_patch, validator_error, context)
+
+    assert result.attempted is True
+    # LLM should have been called since simple rules don't match
+    assert result.evidence["correction_method"] == "llm"
+
+
+def test_llm_correction_strips_markdown_code_blocks():
+    """LLM response with markdown code blocks is cleaned."""
+    from autopack.executor.patch_correction import correct_patch_once
+
+    def mock_llm_with_markdown(prompt: str) -> str:
+        return """```json
+{"cleaned": "patch"}
+```"""
+
+    original_patch = '{"invalid": true}'
+    validator_error = {"error": "syntax", "message": "Parse error"}
+    context = {"phase_id": "phase-1", "run_id": "test-run"}
+
+    result = correct_patch_once(
+        original_patch, validator_error, context, llm_caller=mock_llm_with_markdown
+    )
+
+    assert result.correction_successful is True
+    # Code block markers should be stripped
+    assert result.corrected_patch == '{"cleaned": "patch"}'

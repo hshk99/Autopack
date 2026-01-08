@@ -21,7 +21,6 @@ Usage:
         # ... handle webhook
 """
 
-import hashlib
 import hmac
 import logging
 import os

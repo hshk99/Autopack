@@ -25,6 +25,7 @@ llm_routing_policies:
     strategy: best_first
     builder_primary: claude-sonnet-4-5
     auditor_primary: claude-opus-4-5
+    secondary_auditor: claude-sonnet-4-5
     dual_audit: true
     allow_auto_apply: false
     description: Pull code from unvetted GitHub/NPM/PyPI/external sources
@@ -32,6 +33,7 @@ llm_routing_policies:
     strategy: best_first
     builder_primary: claude-sonnet-4-5
     auditor_primary: claude-opus-4-5
+    secondary_auditor: claude-sonnet-4-5
     dual_audit: true
     max_attempts: 2
     description: Drop columns/tables, change constraints, destructive migrations

@@ -589,14 +589,14 @@ class AutonomousExecutor:
 
         phases = plan.get("phases", [])
         default_allowed = allowed_paths or [
-            "src/backend/",
+            "src/autopack/",
             "src/frontend/",
             "Dockerfile",
             "docker-compose",
             "README",
             "docs/",
             "scripts/",
-            "src/",
+            "tests/",
         ]
         protected_paths = ["config/", ".autonomous_runs/", ".git/"]
 

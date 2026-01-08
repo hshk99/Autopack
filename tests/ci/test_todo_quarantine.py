@@ -45,9 +45,14 @@ class TestTodoQuarantine:
         # Use git grep to find TODOs in tracked files
         result = subprocess.run(
             [
-                "git", "grep", "-n", "-E",
+                "git",
+                "grep",
+                "-n",
+                "-E",
                 r"\bTODO\b",
-                "--", "src/autopack/*.py", "src/autopack/**/*.py"
+                "--",
+                "src/autopack/*.py",
+                "src/autopack/**/*.py",
             ],
             cwd=PROJECT_ROOT,
             capture_output=True,
@@ -85,11 +90,7 @@ class TestRoadmapTags:
     def test_roadmap_tags_have_priority(self):
         """ROADMAP tags should include priority classification."""
         result = subprocess.run(
-            [
-                "git", "grep", "-n",
-                "ROADMAP:",
-                "--", "src/autopack/*.py", "src/autopack/**/*.py"
-            ],
+            ["git", "grep", "-n", "ROADMAP:", "--", "src/autopack/*.py", "src/autopack/**/*.py"],
             cwd=PROJECT_ROOT,
             capture_output=True,
             text=True,
@@ -134,11 +135,7 @@ class TestTodoCountBaseline:
         # Check only Python files (runtime modules)
         # Frontend/JS TODOs are tracked separately
         result = subprocess.run(
-            [
-                "git", "grep", "-c",
-                r"\bTODO\b",
-                "--", "*.py"
-            ],
+            ["git", "grep", "-c", r"\bTODO\b", "--", "*.py"],
             cwd=PROJECT_ROOT / "src" / "autopack",
             capture_output=True,
             text=True,

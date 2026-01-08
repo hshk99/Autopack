@@ -88,9 +88,7 @@ async def verify_telegram_webhook(
     # In production, secret token is REQUIRED
     if env_mode == "production":
         if not expected_secret:
-            logger.error(
-                "[TELEGRAM] TELEGRAM_WEBHOOK_SECRET not configured in production mode"
-            )
+            logger.error("[TELEGRAM] TELEGRAM_WEBHOOK_SECRET not configured in production mode")
             raise HTTPException(
                 status_code=500,
                 detail="TELEGRAM_WEBHOOK_SECRET must be configured in production mode. "
@@ -99,9 +97,7 @@ async def verify_telegram_webhook(
 
         # Use constant-time comparison to prevent timing attacks
         if not secret_token or not hmac.compare_digest(secret_token, expected_secret):
-            logger.warning(
-                "[TELEGRAM] Webhook request rejected: invalid or missing secret token"
-            )
+            logger.warning("[TELEGRAM] Webhook request rejected: invalid or missing secret token")
             raise HTTPException(
                 status_code=403,
                 detail="Invalid or missing Telegram webhook secret token",
@@ -111,9 +107,7 @@ async def verify_telegram_webhook(
     elif expected_secret:
         # Use constant-time comparison to prevent timing attacks
         if not secret_token or not hmac.compare_digest(secret_token, expected_secret):
-            logger.warning(
-                "[TELEGRAM] Webhook request rejected: invalid secret token (dev mode)"
-            )
+            logger.warning("[TELEGRAM] Webhook request rejected: invalid secret token (dev mode)")
             raise HTTPException(
                 status_code=403,
                 detail="Invalid Telegram webhook secret token",
@@ -125,6 +119,7 @@ async def verify_telegram_webhook(
         try:
             body = await request.body()
             import json
+
             data = json.loads(body)
             callback_query = data.get("callback_query", {})
             message = callback_query.get("message", {})

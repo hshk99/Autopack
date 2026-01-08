@@ -22,6 +22,7 @@ class TestTelegramWebhookVerification:
         """Create test client with TESTING mode enabled."""
         os.environ["TESTING"] = "1"
         from autopack.main import app
+
         return TestClient(app, raise_server_exceptions=False)
 
     @pytest.fixture
@@ -38,6 +39,7 @@ class TestTelegramWebhookVerification:
         os.environ["TELEGRAM_CHAT_ID"] = "123456789"
 
         from autopack.main import app
+
         client = TestClient(app, raise_server_exceptions=False)
 
         yield client
@@ -65,19 +67,16 @@ class TestTelegramWebhookVerification:
             "callback_query": {
                 "id": "12345",
                 "from": {"id": 123456789, "username": "testuser"},
-                "message": {
-                    "message_id": 1,
-                    "chat": {"id": 123456789}
-                },
-                "data": "approve:test-phase-123"
+                "message": {"message_id": 1, "chat": {"id": 123456789}},
+                "data": "approve:test-phase-123",
             }
         }
 
         response = client.post("/telegram/webhook", json=payload)
         # Should not return 403 (may return other errors due to missing DB data)
-        assert response.status_code != 403, (
-            f"Webhook should be accessible in testing mode, got {response.status_code}"
-        )
+        assert (
+            response.status_code != 403
+        ), f"Webhook should be accessible in testing mode, got {response.status_code}"
 
     def test_webhook_rejects_missing_secret_in_production(self, production_client):
         """Webhook should reject requests without secret token in production."""
@@ -86,15 +85,15 @@ class TestTelegramWebhookVerification:
                 "id": "12345",
                 "from": {"id": 123456789, "username": "testuser"},
                 "message": {"message_id": 1, "chat": {"id": 123456789}},
-                "data": "approve:test-phase-123"
+                "data": "approve:test-phase-123",
             }
         }
 
         # Request without X-Telegram-Bot-Api-Secret-Token header
         response = production_client.post("/telegram/webhook", json=payload)
-        assert response.status_code == 403, (
-            f"Webhook should reject missing secret in production, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 403
+        ), f"Webhook should reject missing secret in production, got {response.status_code}"
 
     def test_webhook_rejects_invalid_secret_in_production(self, production_client):
         """Webhook should reject requests with wrong secret token."""
@@ -103,7 +102,7 @@ class TestTelegramWebhookVerification:
                 "id": "12345",
                 "from": {"id": 123456789, "username": "testuser"},
                 "message": {"message_id": 1, "chat": {"id": 123456789}},
-                "data": "approve:test-phase-123"
+                "data": "approve:test-phase-123",
             }
         }
 
@@ -111,11 +110,11 @@ class TestTelegramWebhookVerification:
         response = production_client.post(
             "/telegram/webhook",
             json=payload,
-            headers={"X-Telegram-Bot-Api-Secret-Token": "wrong-secret"}
+            headers={"X-Telegram-Bot-Api-Secret-Token": "wrong-secret"},
         )
-        assert response.status_code == 403, (
-            f"Webhook should reject invalid secret, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 403
+        ), f"Webhook should reject invalid secret, got {response.status_code}"
 
     def test_webhook_accepts_valid_secret_in_production(self, production_client):
         """Webhook should accept requests with correct secret token."""
@@ -124,7 +123,7 @@ class TestTelegramWebhookVerification:
                 "id": "12345",
                 "from": {"id": 123456789, "username": "testuser"},
                 "message": {"message_id": 1, "chat": {"id": 123456789}},
-                "data": "approve:test-phase-123"
+                "data": "approve:test-phase-123",
             }
         }
 
@@ -132,12 +131,14 @@ class TestTelegramWebhookVerification:
         response = production_client.post(
             "/telegram/webhook",
             json=payload,
-            headers={"X-Telegram-Bot-Api-Secret-Token": "test-webhook-secret-12345"}  # gitleaks:allow
+            headers={
+                "X-Telegram-Bot-Api-Secret-Token": "test-webhook-secret-12345"
+            },  # gitleaks:allow
         )
         # Should not return 403 (may return other errors due to missing DB)
-        assert response.status_code != 403, (
-            f"Webhook should accept valid secret, got {response.status_code}"
-        )
+        assert (
+            response.status_code != 403
+        ), f"Webhook should accept valid secret, got {response.status_code}"
 
     def test_webhook_rejects_unauthorized_chat(self, production_client):
         """Webhook should reject callbacks from unauthorized chat IDs."""
@@ -147,9 +148,9 @@ class TestTelegramWebhookVerification:
                 "from": {"id": 999999999, "username": "attacker"},
                 "message": {
                     "message_id": 1,
-                    "chat": {"id": 999999999}  # Different from authorized 123456789
+                    "chat": {"id": 999999999},  # Different from authorized 123456789
                 },
-                "data": "approve:test-phase-123"
+                "data": "approve:test-phase-123",
             }
         }
 
@@ -157,11 +158,13 @@ class TestTelegramWebhookVerification:
         response = production_client.post(
             "/telegram/webhook",
             json=payload,
-            headers={"X-Telegram-Bot-Api-Secret-Token": "test-webhook-secret-12345"}  # gitleaks:allow
+            headers={
+                "X-Telegram-Bot-Api-Secret-Token": "test-webhook-secret-12345"
+            },  # gitleaks:allow
         )
-        assert response.status_code == 403, (
-            f"Webhook should reject unauthorized chat, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 403
+        ), f"Webhook should reject unauthorized chat, got {response.status_code}"
 
 
 class TestTelegramWebhookProductionRequirements:
@@ -179,6 +182,7 @@ class TestTelegramWebhookProductionRequirements:
 
         try:
             from autopack.main import app
+
             client = TestClient(app, raise_server_exceptions=False)
 
             payload = {
@@ -186,15 +190,15 @@ class TestTelegramWebhookProductionRequirements:
                     "id": "12345",
                     "from": {"id": 123456789},
                     "message": {"message_id": 1, "chat": {"id": 123456789}},
-                    "data": "approve:test"
+                    "data": "approve:test",
                 }
             }
 
             response = client.post("/telegram/webhook", json=payload)
             # Should return 500 (misconfiguration) since secret is required but not set
-            assert response.status_code == 500, (
-                f"Should return 500 when secret not configured in production, got {response.status_code}"
-            )
+            assert (
+                response.status_code == 500
+            ), f"Should return 500 when secret not configured in production, got {response.status_code}"
             assert "TELEGRAM_WEBHOOK_SECRET" in response.text
 
         finally:
@@ -215,6 +219,7 @@ class TestWebhookSecurityDocumentation:
     def test_verify_telegram_webhook_exists(self):
         """verify_telegram_webhook function must exist."""
         from autopack.main import verify_telegram_webhook
+
         assert callable(verify_telegram_webhook)
 
     def test_telegram_webhook_has_security_dependency(self):
@@ -233,15 +238,15 @@ class TestWebhookSecurityDocumentation:
         # Check dependencies include our verification
         dep_names = []
         for dep in webhook_route.dependencies:
-            if hasattr(dep, 'dependency'):
+            if hasattr(dep, "dependency"):
                 dep_names.append(str(dep.dependency))
 
         for dep in webhook_route.dependant.dependencies:
-            if hasattr(dep, 'call'):
+            if hasattr(dep, "call"):
                 dep_names.append(str(dep.call))
 
         # At least one dependency should mention telegram verification
-        has_telegram_dep = any('telegram' in d.lower() for d in dep_names)
-        assert has_telegram_dep, (
-            f"Telegram webhook should have verification dependency. Found: {dep_names}"
-        )
+        has_telegram_dep = any("telegram" in d.lower() for d in dep_names)
+        assert (
+            has_telegram_dep
+        ), f"Telegram webhook should have verification dependency. Found: {dep_names}"

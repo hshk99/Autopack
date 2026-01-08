@@ -1,5 +1,6 @@
 """FastAPI application for Autopack Supervisor (Chunks A, B, C, D implementation)"""
 
+import hmac
 import logging
 import os
 from datetime import datetime, timezone
@@ -50,6 +51,109 @@ from autopack.notifications.telegram_notifier import answer_telegram_callback
 
 # Security: API Key authentication
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+# Security: Telegram Webhook Secret Token Header
+# When setting up webhook with Telegram, you can specify a secret_token
+# that Telegram will send in X-Telegram-Bot-Api-Secret-Token header
+TELEGRAM_SECRET_HEADER = APIKeyHeader(
+    name="X-Telegram-Bot-Api-Secret-Token",
+    auto_error=False,
+    description="Secret token for Telegram webhook verification",
+)
+
+
+async def verify_telegram_webhook(
+    request: Request,
+    secret_token: str = Security(TELEGRAM_SECRET_HEADER),
+) -> None:
+    """Verify Telegram webhook request authenticity.
+
+    Security contract (P1-SEC-TELEGRAM-001):
+    - In production (AUTOPACK_ENV=production), verification is REQUIRED
+    - Verification uses X-Telegram-Bot-Api-Secret-Token header
+    - Also validates that callback queries come from authorized chat IDs
+    - In dev/test, verification is optional for local testing convenience
+
+    Raises:
+        HTTPException: If verification fails in production mode
+    """
+    env_mode = os.getenv("AUTOPACK_ENV", "development").lower()
+    expected_secret = os.getenv("TELEGRAM_WEBHOOK_SECRET")
+    authorized_chat_id = os.getenv("TELEGRAM_CHAT_ID")
+
+    # Skip verification in testing mode
+    if os.getenv("TESTING") == "1":
+        return
+
+    # In production, secret token is REQUIRED
+    if env_mode == "production":
+        if not expected_secret:
+            logger.error(
+                "[TELEGRAM] TELEGRAM_WEBHOOK_SECRET not configured in production mode"
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="TELEGRAM_WEBHOOK_SECRET must be configured in production mode. "
+                "Set up webhook with secret_token parameter.",
+            )
+
+        # Use constant-time comparison to prevent timing attacks
+        if not secret_token or not hmac.compare_digest(secret_token, expected_secret):
+            logger.warning(
+                "[TELEGRAM] Webhook request rejected: invalid or missing secret token"
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Invalid or missing Telegram webhook secret token",
+            )
+
+    # In dev mode, still verify if secret is configured (defense in depth)
+    elif expected_secret:
+        # Use constant-time comparison to prevent timing attacks
+        if not secret_token or not hmac.compare_digest(secret_token, expected_secret):
+            logger.warning(
+                "[TELEGRAM] Webhook request rejected: invalid secret token (dev mode)"
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Invalid Telegram webhook secret token",
+            )
+
+    # Additional validation: verify callback comes from authorized chat
+    # This is a secondary defense even if secret token is valid
+    if authorized_chat_id:
+        try:
+            body = await request.body()
+            import json
+            data = json.loads(body)
+            callback_query = data.get("callback_query", {})
+            message = callback_query.get("message", {})
+            chat = message.get("chat", {})
+            chat_id = str(chat.get("id", ""))
+
+            # Also check from.id for callback queries
+            from_id = str(callback_query.get("from", {}).get("id", ""))
+
+            if chat_id and chat_id != authorized_chat_id:
+                logger.warning(
+                    f"[TELEGRAM] Callback from unauthorized chat: {chat_id} (expected: {authorized_chat_id})"
+                )
+                raise HTTPException(
+                    status_code=403,
+                    detail="Telegram callback from unauthorized chat",
+                )
+
+            # Log verification success
+            if from_id:
+                logger.debug(f"[TELEGRAM] Verified callback from user {from_id}")
+
+        except json.JSONDecodeError:
+            # If we can't parse the body, let the main handler deal with it
+            pass
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.debug(f"[TELEGRAM] Could not validate chat ID: {e}")
 
 
 async def verify_api_key(api_key: str = Security(API_KEY_HEADER)):
@@ -1275,11 +1379,20 @@ async def _handle_storage_callback(
 
 
 @app.post("/telegram/webhook")
-async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
+async def telegram_webhook(
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_telegram_webhook),
+):
     """Handle Telegram webhook callbacks for approval buttons.
 
     This endpoint receives callbacks when users tap Approve/Reject buttons
     in Telegram notifications.
+
+    Security (P1-SEC-TELEGRAM-001):
+    - Uses verify_telegram_webhook dependency for cryptographic verification
+    - In production, requires TELEGRAM_WEBHOOK_SECRET to be configured
+    - Also validates callbacks come from authorized TELEGRAM_CHAT_ID
 
     Callback data formats:
     - Phase approvals: "approve:{phase_id}" or "reject:{phase_id}"

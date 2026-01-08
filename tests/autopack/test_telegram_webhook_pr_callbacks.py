@@ -48,12 +48,18 @@ def db_session(test_db):
 
 
 @pytest.fixture
-def client(test_db, monkeypatch):
+def client(test_db):
     """Create TestClient with DB dependency overridden to use in-memory DB."""
+    import os
+
+    # Save current state for cleanup
+    old_testing = os.environ.get("TESTING")
+    old_secret = os.environ.get("TELEGRAM_WEBHOOK_SECRET")
+
     # Ensure app lifespan does not attempt production init_db() checks
-    monkeypatch.setenv("TESTING", "1")
+    os.environ["TESTING"] = "1"
     # Clear any TELEGRAM_WEBHOOK_SECRET to avoid verification in tests
-    monkeypatch.delenv("TELEGRAM_WEBHOOK_SECRET", raising=False)
+    os.environ.pop("TELEGRAM_WEBHOOK_SECRET", None)
 
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db)
 
@@ -65,9 +71,18 @@ def client(test_db, monkeypatch):
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        app.dependency_overrides.clear()
+        # Restore environment
+        if old_testing is not None:
+            os.environ["TESTING"] = old_testing
+        else:
+            os.environ.pop("TESTING", None)
+        if old_secret is not None:
+            os.environ["TELEGRAM_WEBHOOK_SECRET"] = old_secret
 
 
 @pytest.fixture

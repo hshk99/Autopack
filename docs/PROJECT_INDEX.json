@@ -304,7 +304,7 @@
     },
     "promotion_workflow": {
       "trigger": "Manual via GitHub Actions UI or CLI",
-      "inputs": ["run_id", "project_id", "family", "integration_branch"],
+      "inputs": ["run_id", "project_id", "family (optional, auto-derived)", "integration_branch"],
       "eligibility_checks": ["run summary exists", "tiers clean", "no excess issues"],
       "action": "Creates PR to main if eligible, blocks if not"
     }

@@ -13,7 +13,7 @@
 # - See docs/IMPROVEMENTS_GAP_ANALYSIS.md section 0.2 for the canonical direction decision
 
 # Use an official Python runtime as a parent image
-FROM python:3.11-slim as backend
+FROM python:3.14-slim as backend
 
 # Set the working directory in the container
 WORKDIR /app

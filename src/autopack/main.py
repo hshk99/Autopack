@@ -1656,7 +1656,7 @@ def get_dashboard_usage(period: str = "week", db: Session = Depends(get_db)):
             prompt_tokens=stats["prompt_tokens"],
             completion_tokens=stats["completion_tokens"],
             total_tokens=stats["total_tokens"],
-            cap_tokens=0,  # TODO: Get from config
+            cap_tokens=0,  # ROADMAP(P3): Get from config
             percent_of_cap=0.0,
         )
         for provider, stats in provider_stats.items()

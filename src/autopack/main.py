@@ -256,10 +256,34 @@ from autopack.auth import router as auth_router
 
 app.include_router(auth_router, tags=["authentication"])
 
-# Mount research router
-from autopack.research.api.router import research_router
+# Mount research router (gated by feature flag - P1-RESEARCH-API-001)
+# Research API uses in-memory mock state and is NOT production-safe.
+# Only mount if AUTOPACK_ENABLE_RESEARCH_API=true (default: false in production)
+_enable_research = os.getenv("AUTOPACK_ENABLE_RESEARCH_API", "").lower() in ("true", "1", "yes")
+_env_mode = os.getenv("AUTOPACK_ENV", "development").lower()
 
-app.include_router(research_router, prefix="/research", tags=["research"])
+if _enable_research:
+    from autopack.research.api.router import research_router
+
+    app.include_router(research_router, prefix="/research", tags=["research"])
+    logger.warning(
+        "[RESEARCH-API] Research API mounted at /research. "
+        "WARNING: Uses in-memory mock state - NOT production-safe."
+    )
+elif _env_mode != "production":
+    # In dev/test mode, mount by default with a warning
+    from autopack.research.api.router import research_router
+
+    app.include_router(research_router, prefix="/research", tags=["research"])
+    logger.info(
+        "[RESEARCH-API] Research API mounted (dev mode). "
+        "Set AUTOPACK_ENABLE_RESEARCH_API=false to disable."
+    )
+else:
+    logger.info(
+        "[RESEARCH-API] Research API NOT mounted (production mode). "
+        "Set AUTOPACK_ENABLE_RESEARCH_API=true to enable (not recommended)."
+    )
 
 # Global exception handler for debugging
 import logging

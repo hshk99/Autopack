@@ -1468,7 +1468,7 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
         run_id: Optional[str],
         phase_id: Optional[str],
     ) -> AuditorResult:
-        """Run GPT-5.2 (or top-tier model) as judge when auditors disagree.
+        """Run top-tier model as judge when auditors disagree.
 
         Args:
             patch_content: Git diff/patch to review

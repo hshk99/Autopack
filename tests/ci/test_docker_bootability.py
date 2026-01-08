@@ -9,8 +9,6 @@ These tests do NOT require Docker to be running - they validate the
 Dockerfile/compose configuration files and simulate the import behavior.
 """
 
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -79,9 +77,11 @@ class TestDockerComposeConfiguration:
         # Should NOT have legacy names as primary services
         lines = content.split("\n")
         service_lines = [
-            l for l in lines if l.strip().endswith(":") and not l.strip().startswith("#")
+            line
+            for line in lines
+            if line.strip().endswith(":") and not line.strip().startswith("#")
         ]
-        service_names = [l.strip().rstrip(":") for l in service_lines]
+        service_names = [line.strip().rstrip(":") for line in service_lines]
 
         assert "postgres" not in service_names, "Service should be 'db', not 'postgres'"
         assert "api" not in service_names, "Service should be 'backend', not 'api'"

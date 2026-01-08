@@ -1426,8 +1426,8 @@ Sources: CONSOLIDATED_STRATEGY, archive/
 **Source**: `archive\tidy_v7\IMPLEMENTATION_PLAN_CLEANUP_V2.md`
 
 ### DEC-004 | 2025-12-11T06:22 | Autopack Setup Guide
-**Status**: ✅ Implemented
-**Chosen Approach**: **Quick reference for getting Autopack up and running** --- - Python 3.11+ - Docker + docker-compose - Git - API keys for LLM providers (see Multi-Provider Setup below) --- ```bash git clone https://github.com/hshk99/Autopack.git cd Autopack cp .env.example .env ``` Edit `.env`: ```bash GLM_API_KEY=your-zhipu-api-key           # Zhipu AI (low complexity) ANTHROPIC_API_KEY=your-anthropic-key     # Anthropic Claude (medium/high complexity) OPENAI_API_KEY=your-openai-key           # OpenAI (optiona...
+**Status**: ⚠️ SUPERSEDED (2026-01-08) — Use `docs/templates/env.example` and `docs/CONFIG_GUIDE.md` for current setup
+**Chosen Approach**: **Quick reference for getting Autopack up and running** --- - Python 3.11+ - Docker + docker-compose - Git - API keys for LLM providers (see Multi-Provider Setup below) --- ```bash git clone https://github.com/hshk99/Autopack.git cd Autopack cp docs/templates/env.example .env ``` Edit `.env`: ```bash ANTHROPIC_API_KEY=your-anthropic-key     # Anthropic Claude (primary runtime) OPENAI_API_KEY=your-openai-key           # OpenAI (alternative runtime) GOOGLE_API_KEY=your-google-key           # Gemini (alternative runtime) # At least one runtime key above is required. GLM_API_KEY is tooling-only.
 **Source**: `archive\reports\SETUP_GUIDE.md`
 
 ### DEC-007 | 2025-12-09T00:00 | Documentation Consolidation Implementation Plan

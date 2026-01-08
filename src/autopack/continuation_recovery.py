@@ -174,7 +174,7 @@ class ContinuationRecovery:
 
         # Simple heuristic: count closing braces to find complete objects
         # This is fragile but works for basic cases
-        # TODO: Use proper JSON parsing with error recovery
+        # ROADMAP(P4): Use proper JSON parsing with error recovery
 
         try:
             import json

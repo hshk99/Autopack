@@ -23,21 +23,17 @@ class TestCIEnforcementPostureDocument:
     def test_posture_doc_exists(self):
         """CI_ENFORCEMENT_POSTURE.md must exist."""
         posture_doc = REPO_ROOT / "docs" / "CI_ENFORCEMENT_POSTURE.md"
-        assert posture_doc.exists(), (
-            "docs/CI_ENFORCEMENT_POSTURE.md is required for CI transparency"
-        )
+        assert (
+            posture_doc.exists()
+        ), "docs/CI_ENFORCEMENT_POSTURE.md is required for CI transparency"
 
     def test_posture_doc_has_quick_reference_table(self):
         """Posture doc should have a quick reference table."""
         posture_doc = REPO_ROOT / "docs" / "CI_ENFORCEMENT_POSTURE.md"
         content = posture_doc.read_text(encoding="utf-8")
 
-        assert "Quick Reference" in content, (
-            "Posture doc should have Quick Reference section"
-        )
-        assert "Blocks PR?" in content, (
-            "Posture doc should have blocking status column"
-        )
+        assert "Quick Reference" in content, "Posture doc should have Quick Reference section"
+        assert "Blocks PR?" in content, "Posture doc should have blocking status column"
 
     def test_posture_doc_documents_key_checks(self):
         """Posture doc should document all key CI checks."""
@@ -56,9 +52,7 @@ class TestCIEnforcementPostureDocument:
         ]
 
         for check in key_checks:
-            assert check.lower() in content.lower(), (
-                f"Posture doc should document {check}"
-            )
+            assert check.lower() in content.lower(), f"Posture doc should document {check}"
 
 
 class TestCIWorkflowConsistency:
@@ -76,19 +70,17 @@ class TestCIWorkflowConsistency:
 
         # Find mypy step and check for continue-on-error
         # The pattern should be: mypy followed by continue-on-error
-        assert "continue-on-error: true" in content, (
-            "ci.yml should have at least one continue-on-error step"
-        )
+        assert (
+            "continue-on-error: true" in content
+        ), "ci.yml should have at least one continue-on-error step"
 
         # Check that mypy section has continue-on-error
         mypy_match = re.search(
-            r"Type check with mypy.*?continue-on-error:\s*true",
-            content,
-            re.DOTALL
+            r"Type check with mypy.*?continue-on-error:\s*true", content, re.DOTALL
         )
-        assert mypy_match is not None, (
-            "mypy step should have continue-on-error: true for staged adoption"
-        )
+        assert (
+            mypy_match is not None
+        ), "mypy step should have continue-on-error: true for staged adoption"
 
     def test_aspirational_tests_non_blocking(self):
         """Aspirational tests should be non-blocking."""
@@ -97,13 +89,11 @@ class TestCIWorkflowConsistency:
 
         # Check that aspirational job has continue-on-error
         aspirational_match = re.search(
-            r"test-aspirational:.*?continue-on-error:\s*true",
-            content,
-            re.DOTALL
+            r"test-aspirational:.*?continue-on-error:\s*true", content, re.DOTALL
         )
-        assert aspirational_match is not None, (
-            "Aspirational tests job should have continue-on-error: true"
-        )
+        assert (
+            aspirational_match is not None
+        ), "Aspirational tests job should have continue-on-error: true"
 
     def test_research_tests_non_blocking(self):
         """Research tests should be non-blocking."""
@@ -112,13 +102,9 @@ class TestCIWorkflowConsistency:
 
         # Check that research job has continue-on-error
         research_match = re.search(
-            r"test-research:.*?continue-on-error:\s*true",
-            content,
-            re.DOTALL
+            r"test-research:.*?continue-on-error:\s*true", content, re.DOTALL
         )
-        assert research_match is not None, (
-            "Research tests job should have continue-on-error: true"
-        )
+        assert research_match is not None, "Research tests job should have continue-on-error: true"
 
     def test_core_tests_are_blocking(self):
         """Core tests should NOT have continue-on-error."""
@@ -126,11 +112,7 @@ class TestCIWorkflowConsistency:
         content = ci_yml.read_text(encoding="utf-8")
 
         # Find test-core section
-        core_match = re.search(
-            r"test-core:.*?(?=\n  \w+-\w+:|\n  \w+:|\Z)",
-            content,
-            re.DOTALL
-        )
+        core_match = re.search(r"test-core:.*?(?=\n  \w+-\w+:|\n  \w+:|\Z)", content, re.DOTALL)
         assert core_match is not None, "test-core job should exist"
 
         _core_section = core_match.group(0)  # noqa: F841 - for future assertions
@@ -139,11 +121,9 @@ class TestCIWorkflowConsistency:
         job_level_continue = re.search(
             r"test-core:\s+\n.*?continue-on-error:\s*true\s+\n\s+(?:runs-on|services|steps)",
             content,
-            re.DOTALL
+            re.DOTALL,
         )
-        assert job_level_continue is None, (
-            "Core tests job should NOT have continue-on-error: true"
-        )
+        assert job_level_continue is None, "Core tests job should NOT have continue-on-error: true"
 
 
 class TestSecurityWorkflowPosture:
@@ -161,9 +141,9 @@ class TestSecurityWorkflowPosture:
             pytest.skip("security-artifacts.yml not found")
 
         content = artifacts_yml.read_text(encoding="utf-8")
-        assert "continue-on-error" in content, (
-            "security-artifacts.yml should have continue-on-error for informational checks"
-        )
+        assert (
+            "continue-on-error" in content
+        ), "security-artifacts.yml should have continue-on-error for informational checks"
 
 
 class TestDocLinkScanPosture:
@@ -177,13 +157,8 @@ class TestDocLinkScanPosture:
 
         content = deep_scan_yml.read_text(encoding="utf-8")
         # Should have continue-on-error OR be a workflow_dispatch only
-        is_non_blocking = (
-            "continue-on-error" in content
-            or "workflow_dispatch" in content
-        )
-        assert is_non_blocking, (
-            "doc-link-deep-scan.yml should be non-blocking or manual-only"
-        )
+        is_non_blocking = "continue-on-error" in content or "workflow_dispatch" in content
+        assert is_non_blocking, "doc-link-deep-scan.yml should be non-blocking or manual-only"
 
 
 class TestCoveragePolicy:
@@ -194,9 +169,7 @@ class TestCoveragePolicy:
         posture_doc = REPO_ROOT / "docs" / "CI_ENFORCEMENT_POSTURE.md"
         content = posture_doc.read_text(encoding="utf-8")
 
-        assert "Coverage" in content, (
-            "Posture doc should document coverage policy"
-        )
-        assert "Codecov" in content or "coverage" in content.lower(), (
-            "Posture doc should mention coverage tooling"
-        )
+        assert "Coverage" in content, "Posture doc should document coverage policy"
+        assert (
+            "Codecov" in content or "coverage" in content.lower()
+        ), "Posture doc should mention coverage tooling"

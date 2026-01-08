@@ -17,6 +17,7 @@ Exit codes:
 
 import re
 import sys
+import subprocess
 from pathlib import Path
 from typing import List, Tuple
 
@@ -89,6 +90,13 @@ FORBIDDEN_PATTERNS = [
      "Run-layout drift (should be: .autonomous_runs/<project>/runs/<family>/<run_id>/ via RunFileLayout)"),
 ]
 
+# Files that should be checked in "diff-only" mode:
+# - These files are legitimate historical ledgers (append-only) that may contain legacy patterns
+# - We still want to prevent *new* drift from being introduced in PRs
+DIFF_ONLY_PATHS = [
+    "docs/ARCHITECTURE_DECISIONS.md",
+]
+
 # Files/directories to exclude from checking
 EXCLUDED_PATHS = [
     # API consolidation migration docs (document both old and new)
@@ -100,7 +108,6 @@ EXCLUDED_PATHS = [
     "docs/BUILD_HISTORY.md",
     "docs/DEBUG_LOG.md",
     "docs/CHANGELOG.md",
-    "docs/ARCHITECTURE_DECISIONS.md",  # Decision records document evolution
 
     # Gap analysis and cursor prompts (discuss drift patterns)
     "docs/IMPROVEMENTS_GAP_ANALYSIS.md",
@@ -173,6 +180,93 @@ def check_file_for_drift(file_path: Path) -> List[Tuple[int, str, str]]:
     return violations
 
 
+def _git_has_origin_main(repo_root: Path) -> bool:
+    try:
+        subprocess.run(
+            ["git", "rev-parse", "--verify", "origin/main"],
+            cwd=repo_root,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True,
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _parse_unified_zero_diff_for_added_lines(diff_text: str) -> List[Tuple[int, str]]:
+    """
+    Parse `git diff --unified=0` output and return a list of (new_line_number, added_line_content).
+
+    We track the new-file line number from hunk headers (e.g., @@ -a,b +c,d @@).
+    """
+    added: List[Tuple[int, str]] = []
+    new_line_no = None
+    hunk_re = re.compile(r"@@\s+-\d+(?:,\d+)?\s+\+(\d+)(?:,(\d+))?\s+@@")
+
+    for raw in diff_text.splitlines():
+        if raw.startswith("@@"):
+            m = hunk_re.search(raw)
+            if m:
+                new_line_no = int(m.group(1))
+            continue
+
+        if raw.startswith("+++"):
+            continue
+
+        if raw.startswith("+"):
+            if new_line_no is None:
+                # If we can't determine a line number, still record with 0.
+                added.append((0, raw[1:]))
+            else:
+                added.append((new_line_no, raw[1:]))
+                new_line_no += 1
+            continue
+
+        # In unified=0 we typically won't see context lines, but handle just in case.
+        if raw.startswith(" ") and new_line_no is not None:
+            new_line_no += 1
+
+    return added
+
+
+def check_file_for_drift_diff_only(repo_root: Path, file_path: Path) -> List[Tuple[int, str, str]]:
+    """
+    Check only newly-added lines (PR diff) for forbidden patterns.
+
+    This mode is used for historical ledgers (e.g., ARCHITECTURE_DECISIONS) where legacy
+    patterns may exist in old entries, but new drift must be blocked.
+    """
+    violations: List[Tuple[int, str, str]] = []
+
+    if not _git_has_origin_main(repo_root):
+        # Fallback: no diff base available, do a full-file scan (best effort).
+        return check_file_for_drift(file_path)
+
+    try:
+        rel_path = file_path.relative_to(repo_root)
+        diff = subprocess.run(
+            ["git", "diff", "--unified=0", "origin/main...HEAD", "--", str(rel_path)],
+            cwd=repo_root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        # Git output encoding can vary by platform/locale; decode defensively.
+        diff_text = (diff.stdout or b"").decode("utf-8", errors="replace")
+        added_lines = _parse_unified_zero_diff_for_added_lines(diff_text)
+        for line_no, line_content in added_lines:
+            for pattern, description in FORBIDDEN_PATTERNS:
+                if re.search(pattern, line_content, re.IGNORECASE):
+                    violations.append((line_no, description, line_content.strip()))
+    except Exception as e:
+        print(f"WARNING: Could not diff-check {file_path}: {e}", file=sys.stderr)
+        # Fallback to full scan
+        return check_file_for_drift(file_path)
+
+    return violations
+
+
 def main():
     """Main entry point for drift detection."""
     repo_root = Path(__file__).parent.parent
@@ -190,12 +284,16 @@ def main():
     print(f"Checking {len(files_to_check)} documentation files...")
     print()
 
-    # Check each file
+    # Check each file (full scan by default; diff-only for selected historical ledgers)
     total_violations = 0
     files_with_violations = 0
 
     for file_path in files_to_check:
-        violations = check_file_for_drift(file_path)
+        normalized_path = str(file_path.relative_to(repo_root)).replace("\\", "/")
+        if normalized_path in DIFF_ONLY_PATHS:
+            violations = check_file_for_drift_diff_only(repo_root, file_path)
+        else:
+            violations = check_file_for_drift(file_path)
 
         if violations:
             files_with_violations += 1

@@ -48,6 +48,7 @@ from .error_recovery import (
     choose_doctor_model,
     should_escalate_doctor_model,
 )
+from .dual_auditor import DualAuditor
 
 # Import OpenAI clients with graceful fallback
 try:
@@ -535,18 +536,76 @@ class LlmService:
             budget_warning = escalation_info["budget_warning"]
             logger.warning(f"[{budget_warning['level'].upper()}] {budget_warning['message']}")
 
-        # Resolve client and model (handling fallbacks)
-        auditor_client, resolved_model = self._resolve_client_and_model("auditor", model)
+        # Check for dual audit configuration
+        if self._should_use_dual_audit(task_category):
+            secondary_model = self._get_secondary_auditor_model(task_category)
+            logger.info(
+                f"[DUAL-AUDIT] Dual audit enabled for category={task_category}, "
+                f"primary={model}, secondary={secondary_model}"
+            )
 
-        # Execute auditor with selected model
-        result = auditor_client.review_patch(
-            patch_content=patch_content,
-            phase_spec=phase_spec,
-            max_tokens=max_tokens,
-            model=resolved_model,
-            project_rules=project_rules,
-            run_hints=run_hints,
-        )
+            # Run dual audit
+            primary_result, secondary_result = self._run_dual_audit(
+                patch_content=patch_content,
+                phase_spec=phase_spec,
+                primary_model=model,
+                secondary_model=secondary_model,
+                max_tokens=max_tokens,
+                project_rules=project_rules,
+                run_hints=run_hints,
+                run_id=run_id,
+                phase_id=phase_id,
+            )
+
+            # Detect disagreement
+            disagreement = self._detect_dual_audit_disagreement(primary_result, secondary_result)
+
+            # Escalate to judge if disagreement detected
+            judge_result = None
+            if disagreement["has_disagreement"]:
+                judge_result = self._run_judge_audit(
+                    patch_content=patch_content,
+                    phase_spec=phase_spec,
+                    primary_result=primary_result,
+                    secondary_result=secondary_result,
+                    disagreement=disagreement,
+                    max_tokens=max_tokens,
+                    project_rules=project_rules,
+                    run_hints=run_hints,
+                    run_id=run_id,
+                    phase_id=phase_id,
+                )
+
+            # Merge results
+            result = self._merge_dual_audit_results(primary_result, secondary_result, judge_result)
+            resolved_model = result.model_used
+
+            # Log telemetry
+            self._log_dual_audit_telemetry(
+                phase_id=phase_id or "unknown",
+                task_category=task_category,
+                primary_model=model,
+                secondary_model=secondary_model,
+                primary_result=primary_result,
+                secondary_result=secondary_result,
+                disagreement=disagreement,
+                judge_result=judge_result,
+                final_result=result,
+            )
+        else:
+            # Standard single-auditor path
+            # Resolve client and model (handling fallbacks)
+            auditor_client, resolved_model = self._resolve_client_and_model("auditor", model)
+
+            # Execute auditor with selected model
+            result = auditor_client.review_patch(
+                patch_content=patch_content,
+                phase_spec=phase_spec,
+                max_tokens=max_tokens,
+                model=resolved_model,
+                project_rules=project_rules,
+                run_hints=run_hints,
+            )
 
         # Classify outcome for escalation tracking
         if phase_id:
@@ -565,8 +624,8 @@ class LlmService:
                     details="Auditor did not approve patch",
                 )
 
-        # Record usage in database
-        if result.tokens_used > 0:
+        # Record usage in database (skip if dual audit - usage already recorded)
+        if not self._should_use_dual_audit(task_category) and result.tokens_used > 0:
             # BUILD-144 P0: No heuristic token splits - require exact counts or record total-only
             if result.prompt_tokens is not None and result.completion_tokens is not None:
                 # Exact counts available - use them
@@ -1194,3 +1253,430 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
             builder_hint=None,
             suggested_patch=None,
         )
+
+    # =========================================================================
+    # DUAL AUDIT WIRING (per GPT recommendation: dual_audit: true enforcement)
+    # =========================================================================
+
+    def _should_use_dual_audit(self, task_category: str) -> bool:
+        """Check if dual_audit: true is configured for this task category.
+
+        Args:
+            task_category: The task category from phase_spec
+
+        Returns:
+            True if dual_audit is enabled for this category
+        """
+        routing_policies = self.model_router.config.get("llm_routing_policies", {})
+        policy = routing_policies.get(task_category, {})
+        return policy.get("dual_audit", False)
+
+    def _get_secondary_auditor_model(self, task_category: str) -> str:
+        """Get the secondary auditor model from config.
+
+        Args:
+            task_category: The task category from phase_spec
+
+        Returns:
+            Secondary auditor model name (defaults to claude-sonnet-4-5)
+        """
+        routing_policies = self.model_router.config.get("llm_routing_policies", {})
+        policy = routing_policies.get(task_category, {})
+        return policy.get("secondary_auditor", "claude-sonnet-4-5")
+
+    def _run_dual_audit(
+        self,
+        patch_content: str,
+        phase_spec: Dict,
+        primary_model: str,
+        secondary_model: str,
+        max_tokens: Optional[int],
+        project_rules: Optional[List],
+        run_hints: Optional[List],
+        run_id: Optional[str],
+        phase_id: Optional[str],
+    ) -> Tuple[AuditorResult, AuditorResult]:
+        """Run both primary and secondary auditors.
+
+        Args:
+            patch_content: Git diff/patch to review
+            phase_spec: Phase specification
+            primary_model: Primary auditor model
+            secondary_model: Secondary auditor model
+            max_tokens: Token budget
+            project_rules: Learned rules
+            run_hints: Run hints
+            run_id: Run identifier
+            phase_id: Phase identifier
+
+        Returns:
+            Tuple of (primary_result, secondary_result)
+        """
+        logger.info(
+            f"[DUAL-AUDIT] Running dual audit: primary={primary_model}, secondary={secondary_model}"
+        )
+
+        # Run primary auditor
+        primary_client, resolved_primary = self._resolve_client_and_model("auditor", primary_model)
+        primary_result = primary_client.review_patch(
+            patch_content=patch_content,
+            phase_spec=phase_spec,
+            max_tokens=max_tokens,
+            model=resolved_primary,
+            project_rules=project_rules,
+            run_hints=run_hints,
+        )
+
+        # Run secondary auditor
+        secondary_client, resolved_secondary = self._resolve_client_and_model(
+            "auditor", secondary_model
+        )
+        secondary_result = secondary_client.review_patch(
+            patch_content=patch_content,
+            phase_spec=phase_spec,
+            max_tokens=max_tokens // 2 if max_tokens else None,
+            model=resolved_secondary,
+            project_rules=project_rules,
+            run_hints=run_hints,
+        )
+
+        # Record usage for both
+        for result, model, role_suffix in [
+            (primary_result, resolved_primary, "primary"),
+            (secondary_result, resolved_secondary, "secondary"),
+        ]:
+            if result.tokens_used > 0:
+                if result.prompt_tokens is not None and result.completion_tokens is not None:
+                    self._record_usage(
+                        provider=self._model_to_provider(model),
+                        model=model,
+                        role=f"auditor:{role_suffix}",
+                        prompt_tokens=result.prompt_tokens,
+                        completion_tokens=result.completion_tokens,
+                        run_id=run_id,
+                        phase_id=phase_id,
+                    )
+                else:
+                    self._record_usage_total_only(
+                        provider=self._model_to_provider(model),
+                        model=model,
+                        role=f"auditor:{role_suffix}",
+                        total_tokens=result.tokens_used,
+                        run_id=run_id,
+                        phase_id=phase_id,
+                    )
+
+        return primary_result, secondary_result
+
+    def _detect_dual_audit_disagreement(
+        self, primary: AuditorResult, secondary: AuditorResult
+    ) -> Dict:
+        """Detect disagreement between two auditor results.
+
+        Disagreement types:
+        - approval_mismatch: One approves, one rejects
+        - severity_mismatch: Both reject but different severity levels
+        - category_miss: One auditor finds issues the other completely missed
+
+        Args:
+            primary: Primary auditor result
+            secondary: Secondary auditor result
+
+        Returns:
+            Dict with disagreement info: {has_disagreement, type, details}
+        """
+        disagreement = {"has_disagreement": False, "type": None, "details": {}}
+
+        # Check approval mismatch
+        if primary.approved != secondary.approved:
+            disagreement["has_disagreement"] = True
+            disagreement["type"] = "approval_mismatch"
+            disagreement["details"] = {
+                "primary_approved": primary.approved,
+                "secondary_approved": secondary.approved,
+            }
+            return disagreement
+
+        # Both rejected - check for severity mismatch
+        if not primary.approved and not secondary.approved:
+            primary_major = sum(
+                1 for i in primary.issues_found if i.get("severity") == "major"
+            )
+            secondary_major = sum(
+                1 for i in secondary.issues_found if i.get("severity") == "major"
+            )
+
+            # Significant severity difference (one found >2x major issues)
+            if primary_major > 0 or secondary_major > 0:
+                ratio = max(primary_major, secondary_major) / max(
+                    min(primary_major, secondary_major), 1
+                )
+                if ratio > 2:
+                    disagreement["has_disagreement"] = True
+                    disagreement["type"] = "severity_mismatch"
+                    disagreement["details"] = {
+                        "primary_major_issues": primary_major,
+                        "secondary_major_issues": secondary_major,
+                    }
+                    return disagreement
+
+        # Check for category misses (one found issues the other completely missed)
+        primary_categories = {i.get("category") for i in primary.issues_found}
+        secondary_categories = {i.get("category") for i in secondary.issues_found}
+
+        missed_by_primary = secondary_categories - primary_categories
+        missed_by_secondary = primary_categories - secondary_categories
+
+        # If one auditor found a category the other completely missed
+        if missed_by_primary or missed_by_secondary:
+            # Only flag as disagreement if major issues were missed
+            primary_major_cats = {
+                i.get("category")
+                for i in primary.issues_found
+                if i.get("severity") == "major"
+            }
+            secondary_major_cats = {
+                i.get("category")
+                for i in secondary.issues_found
+                if i.get("severity") == "major"
+            }
+
+            major_missed = (secondary_major_cats - primary_major_cats) | (
+                primary_major_cats - secondary_major_cats
+            )
+            if major_missed:
+                disagreement["has_disagreement"] = True
+                disagreement["type"] = "category_miss"
+                disagreement["details"] = {
+                    "missed_by_primary": list(missed_by_primary),
+                    "missed_by_secondary": list(missed_by_secondary),
+                    "major_categories_missed": list(major_missed),
+                }
+
+        return disagreement
+
+    def _run_judge_audit(
+        self,
+        patch_content: str,
+        phase_spec: Dict,
+        primary_result: AuditorResult,
+        secondary_result: AuditorResult,
+        disagreement: Dict,
+        max_tokens: Optional[int],
+        project_rules: Optional[List],
+        run_hints: Optional[List],
+        run_id: Optional[str],
+        phase_id: Optional[str],
+    ) -> AuditorResult:
+        """Run GPT-5.2 (or top-tier model) as judge when auditors disagree.
+
+        Args:
+            patch_content: Git diff/patch to review
+            phase_spec: Phase specification
+            primary_result: Primary auditor result
+            secondary_result: Secondary auditor result
+            disagreement: Disagreement info from _detect_dual_audit_disagreement
+            max_tokens: Token budget
+            project_rules: Learned rules
+            run_hints: Run hints
+            run_id: Run identifier
+            phase_id: Phase identifier
+
+        Returns:
+            Judge's AuditorResult
+        """
+        # Get judge model from config (default to claude-opus-4-5 as top-tier)
+        judge_model = self.model_router.config.get("dual_audit_judge", {}).get(
+            "model", "claude-opus-4-5"
+        )
+
+        logger.info(
+            f"[DUAL-AUDIT] Disagreement detected ({disagreement['type']}), "
+            f"escalating to judge: {judge_model}"
+        )
+
+        # Build enhanced phase_spec with disagreement context
+        judge_phase_spec = phase_spec.copy()
+        judge_phase_spec["dual_audit_context"] = {
+            "disagreement_type": disagreement["type"],
+            "disagreement_details": disagreement["details"],
+            "primary_approved": primary_result.approved,
+            "primary_issues_count": len(primary_result.issues_found),
+            "secondary_approved": secondary_result.approved,
+            "secondary_issues_count": len(secondary_result.issues_found),
+        }
+
+        # Resolve judge client
+        judge_client, resolved_judge = self._resolve_client_and_model("auditor", judge_model)
+
+        judge_result = judge_client.review_patch(
+            patch_content=patch_content,
+            phase_spec=judge_phase_spec,
+            max_tokens=max_tokens,
+            model=resolved_judge,
+            project_rules=project_rules,
+            run_hints=run_hints,
+        )
+
+        # Record judge usage
+        if judge_result.tokens_used > 0:
+            if (
+                judge_result.prompt_tokens is not None
+                and judge_result.completion_tokens is not None
+            ):
+                self._record_usage(
+                    provider=self._model_to_provider(resolved_judge),
+                    model=resolved_judge,
+                    role="auditor:judge",
+                    prompt_tokens=judge_result.prompt_tokens,
+                    completion_tokens=judge_result.completion_tokens,
+                    run_id=run_id,
+                    phase_id=phase_id,
+                )
+            else:
+                self._record_usage_total_only(
+                    provider=self._model_to_provider(resolved_judge),
+                    model=resolved_judge,
+                    role="auditor:judge",
+                    total_tokens=judge_result.tokens_used,
+                    run_id=run_id,
+                    phase_id=phase_id,
+                )
+
+        return judge_result
+
+    def _merge_dual_audit_results(
+        self,
+        primary: AuditorResult,
+        secondary: AuditorResult,
+        judge: Optional[AuditorResult] = None,
+    ) -> AuditorResult:
+        """Merge dual audit results using issue-based conflict resolution.
+
+        Per GPT recommendation:
+        1. Union of issue sets
+        2. Escalate severity: any "major" → effective_severity="major"
+        3. If judge was invoked, use judge's approval decision
+        4. Gate decision based on merged profile (any major → fail)
+
+        Args:
+            primary: Primary auditor result
+            secondary: Secondary auditor result
+            judge: Optional judge result (if disagreement was escalated)
+
+        Returns:
+            Merged AuditorResult
+        """
+        # Build merged issue set using DualAuditor's merge logic
+        dual_auditor = DualAuditor(None, None)  # Stateless merge
+        merged_issues = dual_auditor._build_merged_issue_set(
+            primary.issues_found, secondary.issues_found
+        )
+
+        # Determine approval
+        if judge is not None:
+            # Judge's decision is authoritative
+            approved = judge.approved
+            logger.info(f"[DUAL-AUDIT] Using judge decision: approved={approved}")
+        else:
+            # No judge - use merged issue profile
+            has_major_issues = any(
+                issue.effective_severity == "major" for issue in merged_issues
+            )
+            approved = not has_major_issues
+
+        # Convert MergedIssue to dict
+        merged_issues_dict = [
+            {
+                "severity": issue.effective_severity,
+                "category": issue.category,
+                "description": issue.description,
+                "location": issue.location,
+                "sources": issue.sources,
+                "suggestion": "; ".join(issue.suggestions) if issue.suggestions else None,
+            }
+            for issue in merged_issues
+        ]
+
+        # Combine auditor messages
+        combined_messages = []
+        combined_messages.extend(primary.auditor_messages or [])
+        combined_messages.append("--- Secondary Auditor ---")
+        combined_messages.extend(secondary.auditor_messages or [])
+        if judge:
+            combined_messages.append("--- Judge Auditor ---")
+            combined_messages.extend(judge.auditor_messages or [])
+
+        # Calculate total tokens
+        total_tokens = primary.tokens_used + secondary.tokens_used
+        if judge:
+            total_tokens += judge.tokens_used
+
+        # Build model string
+        model_used = f"{primary.model_used}+{secondary.model_used}"
+        if judge:
+            model_used += f"+{judge.model_used}"
+
+        return AuditorResult(
+            approved=approved,
+            issues_found=merged_issues_dict,
+            auditor_messages=combined_messages,
+            tokens_used=total_tokens,
+            model_used=model_used,
+        )
+
+    def _log_dual_audit_telemetry(
+        self,
+        phase_id: str,
+        task_category: str,
+        primary_model: str,
+        secondary_model: str,
+        primary_result: AuditorResult,
+        secondary_result: AuditorResult,
+        disagreement: Dict,
+        judge_result: Optional[AuditorResult],
+        final_result: AuditorResult,
+    ):
+        """Log dual audit telemetry to JSONL file for analysis.
+
+        Args:
+            phase_id: Phase identifier
+            task_category: Task category
+            primary_model: Primary auditor model
+            secondary_model: Secondary auditor model
+            primary_result: Primary auditor result
+            secondary_result: Secondary auditor result
+            disagreement: Disagreement info
+            judge_result: Optional judge result
+            final_result: Final merged result
+        """
+        telemetry_dir = Path("logs/telemetry")
+        telemetry_dir.mkdir(parents=True, exist_ok=True)
+
+        today = datetime.now(timezone.utc).strftime("%Y%m%d")
+        telemetry_file = telemetry_dir / f"dual_audit_telemetry_{today}.jsonl"
+
+        record = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "phase_id": phase_id,
+            "task_category": task_category,
+            "primary_model": primary_model,
+            "secondary_model": secondary_model,
+            "primary_approved": primary_result.approved,
+            "primary_issues_count": len(primary_result.issues_found),
+            "secondary_approved": secondary_result.approved,
+            "secondary_issues_count": len(secondary_result.issues_found),
+            "has_disagreement": disagreement["has_disagreement"],
+            "disagreement_type": disagreement.get("type"),
+            "judge_invoked": judge_result is not None,
+            "judge_approved": judge_result.approved if judge_result else None,
+            "final_approved": final_result.approved,
+            "final_issues_count": len(final_result.issues_found),
+            "total_tokens": final_result.tokens_used,
+        }
+
+        try:
+            with open(telemetry_file, "a") as f:
+                f.write(json.dumps(record) + "\n")
+        except Exception as e:
+            logger.warning(f"[DUAL-AUDIT] Failed to write telemetry: {e}")

@@ -10,7 +10,6 @@ Contract: "no partially open API in production"
 
 import os
 from pathlib import Path
-from typing import Set
 
 import pytest
 from fastapi import FastAPI

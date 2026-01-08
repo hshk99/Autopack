@@ -2368,7 +2368,7 @@ class AutonomousExecutor:
                         current_tier = phase.get(
                             "_current_tier", "haiku"
                         )  # Default to haiku if not set
-                        # BUILD-188 P5.5: Derive safety profile from intention anchor (closes TODO)
+                        # BUILD-188 P5.5: Derive safety profile from intention anchor
                         safety_profile = (
                             derive_safety_profile(self._intention_anchor)
                             if self._intention_anchor is not None
@@ -6098,7 +6098,7 @@ Just the new description that should replace the current one while preserving th
                 run_hints=run_hints,  # Stage 0A: Within-run hints from earlier phases
                 run_id=self.run_id,
                 phase_id=phase_id,
-                run_context=self._build_run_context(),  # [Phase C3] Include model overrides if specified  # TODO: Pass model_overrides if specified
+                run_context=self._build_run_context(),  # [Phase C3] Include model overrides if specified  # ROADMAP: Pass model_overrides if specified
                 ci_result=ci_result,  # Now passing real CI results!
                 coverage_delta=self._compute_coverage_delta(
                     ci_result
@@ -9018,7 +9018,7 @@ Just the new description that should replace the current one while preserving th
                             priority="MEDIUM",
                         )
 
-                        # TODO: Implement automatic retry with LLM correction
+                        # ROADMAP: Implement automatic retry with LLM correction (P3 robustness)
                         response.raise_for_status()
 
                     response.raise_for_status()

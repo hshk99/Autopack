@@ -272,7 +272,7 @@ def generate_scope_reduction_proposal(
 
     logger.info(f"[IntentionFirstLoop] Generated scope reduction prompt ({len(prompt)} chars)")
 
-    # TODO: Call LLM to get JSON proposal (requires LlmService integration)
+    # ROADMAP: Call LLM to get JSON proposal (P2 intention loop - requires LlmService integration)
     # For now, return None (implementation deferred to executor integration)
     logger.warning("[IntentionFirstLoop] Scope reduction LLM call not yet wired (deferred)")
     return None

@@ -46,8 +46,7 @@ class ModelCatalogEntry:
 
 
 # Seed catalog: Anthropic Claude models (BUILD-161 Phase B)
-# TODO: Replace with dynamic catalog source (e.g., from DB or external API)
-# when model pricing becomes more dynamic
+# ROADMAP: Replace with dynamic catalog source when model pricing becomes more dynamic (P4 config)
 SEED_CATALOG = [
     # Haiku tier - fastest, cheapest
     ModelCatalogEntry(

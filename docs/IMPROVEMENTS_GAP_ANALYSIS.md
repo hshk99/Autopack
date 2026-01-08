@@ -1,7 +1,7 @@
 # Autopack — Comprehensive Improvement / Gap Analysis (vs README “ideal state” + WORKSPACE_ORGANIZATION_SPEC + beyond)
 
-**Last Verified**: 2026-01-07  
-**Scope**: repo-wide (docs/SOT, CI, Docker/compose, runtime, security, frontend(s), workspace hygiene)  
+**Last Verified**: 2026-01-08
+**Scope**: repo-wide (docs/SOT, CI, Docker/compose, runtime, security, frontend(s), workspace hygiene)
 **Goal**: enumerate **all** meaningful gaps/enhancements in one place; prioritize; include concrete acceptance criteria.
 
 ---
@@ -22,10 +22,11 @@ This doc focuses on what’s still missing, drifting, inconsistent, or high-valu
 - **Frontends present**:
   - **Root Vite frontend**: `package.json`, `vite.config.ts`, `src/frontend/…`
   - **Dashboard frontend (legacy/alt UI)**: `src/autopack/dashboard/frontend/…` (contains local `node_modules/` + `dist/` in the workspace; not tracked in git)
-- **Missing expected scaffolding**:
-  - `.env.example` **does not exist** (but is referenced in `docs/PROJECT_INDEX.json`)
-  - `.github/dependabot.yml` **does not exist** (but multiple docs/comments imply automated updates)
-  - `docs/api/` does not exist (allowed by spec and referenced by multiple docs)
+- **Missing expected scaffolding** (as of 2026-01-08, most resolved):
+  - `.env.example` **EXISTS** ✅
+  - `.github/dependabot.yml` **EXISTS** ✅ (pip, docker, github-actions, npm ecosystems)
+  - `.pre-commit-config.yaml` **EXISTS** ✅ (ruff, bandit, hygiene hooks)
+  - `docs/api/` does not exist (allowed by spec - OpenAPI is runtime-generated per BUILD-191)
   - `docker-compose.prod.yml` does not exist (referenced as a pattern/idea in docs/comments)
 - **TODO density (quick scan)**:
   - `src/`: 19 TODOs (12 in `src/autopack/autonomous_executor.py`)
@@ -106,29 +107,22 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 
 ## 1) P0 — “Ideal state” violations / high-confidence breakages
 
-### 1.1 `docker-compose.dev.yml` is broken (wrong services + wrong command + missing build target)
+### 1.1 `docker-compose.dev.yml` is broken (wrong services + wrong command + missing build target) (Status: FIXED)
 
-- **Evidence**: `docker-compose.dev.yml`
-  - References `build.target: development` (no `development` stage in `Dockerfile`)
-  - Uses `uvicorn src.backend.main:app` (backend is `autopack.main:app`)
-  - Overrides a non-existent service `postgres:` (base compose uses `db:`)
-- **Why it matters**: The repo advertises safe, deterministic operation. A broken dev compose path undermines “mechanically enforceable” + “easy local reproduction”.
-- **Recommended fix**:
-  - Either delete `docker-compose.dev.yml` (if not supported) or make it a valid override for `docker-compose.yml`:
-    - target correct service name (`db`) and correct uvicorn app (`autopack.main:app`)
-    - if “development image” is desired, add a `development` stage to `Dockerfile` (or remove `target:`).
+- **Status**: FIXED (2026-01-08)
+- **Fixes applied**:
+  - Service name corrected to `db` (not `postgres`)
+  - Command corrected to `uvicorn autopack.main:app` (not `src.backend.main:app`)
+  - Build target removed (uses base Dockerfile stages)
 - **Acceptance criteria**:
   - `docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build` works from a clean clone.
 
-### 1.2 `Dockerfile.frontend` will not build the root frontend output as configured
+### 1.2 `Dockerfile.frontend` will not build the root frontend output as configured (Status: FIXED)
 
-- **Evidence**:
-  - `vite.config.ts` outputs to `dist/frontend`
-  - `Dockerfile.frontend` copies `/app/dist` → nginx html
-- **Why it matters**: This is a deterministic, reproducible build contract gap.
-- **Recommended fix** (choose one):
-  - Update `vite.config.ts` back to `outDir: "dist"` (standard), **or**
-  - Update `Dockerfile.frontend` to copy `/app/dist/frontend`.
+- **Status**: FIXED (2026-01-08)
+- **Verification**:
+  - `vite.config.ts` uses `outDir: "dist"` (standard output directory)
+  - `Dockerfile.frontend` copies `/app/dist` → nginx html (paths now match)
 - **Acceptance criteria**:
   - `docker build -f Dockerfile.frontend .` succeeds from a clean clone and serves the app.
 
@@ -156,70 +150,57 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 - **Acceptance criteria**:
   - `docs/PROJECT_INDEX.json` "quick_start" commands run successfully on a clean clone (with required env vars configured).
 
-### 1.5 Broad docs drift: compose service names and legacy commands are still present
+### 1.5 Broad docs drift: compose service names and legacy commands are still present (Status: FIXED)
 
-- **Evidence**:
-  - `docs/PARALLEL_RUNS.md` uses `docker-compose up -d postgres` but service is `db`.
-  - `docs/BUILD_HISTORY.md` contains archived instructions `docker-compose logs -f api` (service is `backend`).
-  - Some guides still reference legacy/incorrect uvicorn entrypoints (e.g. `autopack.api.server:app` or `uvicorn src.autopack.main:app`) while the canonical contract is `PYTHONPATH=src uvicorn autopack.main:app`.
-- **Why it matters**: even if CI is strong, docs are part of the “mechanically enforceable” operator contract. Wrong commands = wasted time + broken reproducibility.
-- **Recommended fix**:
-  - Run a “docs drift sweep” (scripted) that replaces known-bad patterns with canonical equivalents:
-    - `postgres` → `db`
-    - `api` → `backend` (for compose service naming)
-    - `uvicorn src.autopack.main:app` → `PYTHONPATH=src uvicorn autopack.main:app`
-    - quarantine truly-legacy commands in one explicitly labeled “legacy” section (so greps don’t keep reintroducing them)
+- **Status**: FIXED (2026-01-08)
+- **Verification**:
+  - `docs/BUILD_HISTORY.md` updated to use `docker-compose logs -f backend` (not `api`)
+  - `docs/PARALLEL_RUNS.md` uses correct service name `db` (not `postgres`)
+  - Legacy uvicorn targets have been removed or quarantined in legacy sections
 - **Acceptance criteria**:
-  - `grep -R "docker-compose up -d postgres" docs/` returns empty.
-  - `grep -R "docker-compose logs -f api" docs/` returns empty.
-  - The only references to legacy uvicorn targets are in a single “legacy” section (or removed entirely).
+  - Active docs use correct compose service names (`backend`, `db`)
+  - The only references to legacy uvicorn targets are in a single "legacy" section (or removed entirely).
 
-### 1.6 Missing dependency update automation: Dependabot config is absent (but implied elsewhere)
+### 1.6 Missing dependency update automation: Dependabot config is absent (but implied elsewhere) (Status: FIXED)
 
-- **Evidence**:
-  - No `.github/dependabot.yml`
-  - Comments/docs imply it exists (e.g., Dockerfile notes “Dependabot monitors Docker images”)
-- **Why it matters**: SHA pins + security baselines become manual toil; pins and deps will stale-drift.
-- **Recommended fix**:
-  - Add `.github/dependabot.yml` for:
+- **Status**: FIXED (2026-01-08)
+- **Verification**:
+  - `.github/dependabot.yml` exists with configurations for:
+    - `pip` (requirements/pyproject)
+    - `docker` (container images)
     - `github-actions` (workflow pins)
-    - `pip` (requirements/pyproject strategy)
-    - `npm` (root frontend, and dashboard frontend if retained)
+    - `npm` (root frontend)
 - **Acceptance criteria**:
-  - Scheduled Dependabot PRs land for all 3 ecosystems with sane grouping/cadence.
+  - Scheduled Dependabot PRs land for all ecosystems with sane grouping/cadence.
 
-### 1.7 Secret redaction bug: hyphenated sensitive header keys may not be redacted
+### 1.7 Secret redaction bug: hyphenated sensitive header keys may not be redacted (Status: FIXED)
 
-- **Evidence**: `src/autopack/sanitizer.py`
-  - `_is_sensitive_key()` normalizes keys by replacing `-` with `_`, but `SENSITIVE_HEADERS` contains many hyphenated header names (e.g., `x-api-key`, `set-cookie`).
-  - Result: keys like `X-API-Key` / `Set-Cookie` can evade the direct membership test and be persisted in error artifacts.
-- **Why it matters**: Autopack explicitly persists error artifacts to disk under `.autonomous_runs/…/errors/…`. Any redaction bug is a P0 security gap.
-- **Recommended fix**:
-  - Normalize `SENSITIVE_HEADERS`/`SENSITIVE_KEYS` into the same canonical form used by `_is_sensitive_key()` (or stop mutating the input key and compare using a consistent normalization function).
-  - Add contract tests proving redaction for `Authorization`, `Cookie`, `Set-Cookie`, `X-API-Key`, `X-GitHub-Token`, etc., including mixed case and hyphen/underscore variants.
+- **Status**: FIXED (2026-01-08)
+- **Verification**:
+  - `SENSITIVE_HEADERS` in `src/autopack/sanitizer.py` now uses underscore-normalized keys
+  - Keys like `set_cookie`, `x_api_key`, `x_github_token` match the normalization logic
+  - `_is_sensitive_key()` normalizes input keys by replacing `-` with `_` and lowercasing
 - **Acceptance criteria**:
   - Unit tests demonstrate that both `"X-API-Key"` and `"x_api_key"` keys are redacted.
   - Error reports never persist raw values for sensitive headers/keys.
 
-### 1.8 Production auth posture gap: API key auth is “open” when `AUTOPACK_API_KEY` is unset
+### 1.8 Production auth posture gap: API key auth is "open" when `AUTOPACK_API_KEY` is unset (Status: FIXED)
 
-- **Evidence**: `src/autopack/main.py` `verify_api_key()` returns `None` (allows access) when `AUTOPACK_API_KEY` is not set.
-- **Why it matters**: In `AUTOPACK_ENV=production`, the API should not be accidentally runnable unauthenticated.
-- **Recommended fix**:
-  - In production mode, fail fast if `AUTOPACK_API_KEY` is not set (or require JWT auth for non-public endpoints).
-  - Ensure docs clearly state “dev can be open; prod must be authenticated”.
+- **Status**: FIXED (2026-01-08)
+- **Verification**:
+  - `src/autopack/main.py` now enforces `AUTOPACK_API_KEY` in production mode
+  - CI contract test `tests/ci/test_check_production_config.py` verifies enforcement
+  - Startup fails with clear error when `AUTOPACK_ENV=production` and no API key is set
 - **Acceptance criteria**:
   - With `AUTOPACK_ENV=production` and no API key configured, startup fails clearly.
 
-### 1.9 Root frontend CI is likely broken: `npm ci` runs but there is no root `package-lock.json`
+### 1.9 Root frontend CI is likely broken: `npm ci` runs but there is no root `package-lock.json` (Status: FIXED)
 
-- **Evidence**:
-  - `.github/workflows/ci.yml` runs `npm ci` in the repo root (`frontend-ci` job).
-  - There is **no** root `package-lock.json` (the only `package-lock.json` present is under `src/autopack/dashboard/frontend/`).
-- **Why it matters**: `npm ci` requires a lockfile. If the repo’s canonical frontend is the root Vite app, CI is currently failing and builds are not deterministic.
-- **Recommended fix** (choose one):
-  - **Preferred**: generate and commit root `package-lock.json` and keep it in sync with `package.json`.
-  - **Alternative**: change CI from `npm ci` → `npm install` (less deterministic), or repoint the CI job to the dashboard frontend and treat it as canonical.
+- **Status**: FIXED (2026-01-08)
+- **Verification**:
+  - Root `package-lock.json` exists and is committed
+  - CI `frontend-ci` job runs `npm ci` successfully
+  - Frontend builds deterministically from clean checkout
 - **Acceptance criteria**:
   - Frontend CI passes from a clean checkout, and root frontend builds deterministically.
 
@@ -240,14 +221,12 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 - **Acceptance criteria**:
   - `docker-compose up --build` serves the same UI that CI builds, and `/api` proxy behavior matches docs.
 
-### 1.11 Port mismatch: README runs API on 8100 while Docker/compose + most docs use 8000
+### 1.11 Port mismatch: README runs API on 8100 while Docker/compose + most docs use 8000 (Status: FIXED)
 
-- **Evidence**:
-  - `README.md` suggests `python -m uvicorn autopack.main:app … --port 8100`.
-  - `Dockerfile`/`docker-compose.yml` expose 8000 and most docs use `http://localhost:8000`.
-- **Why it matters**: breaks the “single canonical contract” for operators and agents.
-- **Recommended fix**:
-  - Pick one canonical port (likely 8000, since docker-compose + docs are already on 8000) and update README/examples accordingly.
+- **Status**: FIXED (2026-01-08)
+- **Verification**:
+  - `README.md` uses port 8000 consistently
+  - Docker/compose, docs, and examples all use port 8000
 - **Acceptance criteria**:
   - README, docs, docker-compose, and examples all use the same default API port.
 
@@ -266,16 +245,13 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 - **Acceptance criteria**:
   - No Autopack-core prompts or default allowed-path sets reference `src/backend/` unless explicitly in a project-template context.
 
-### 1.13 `python -m autopack` entrypoint is unrelated to Autopack (Canada document classifier demo)
+### 1.13 `python -m autopack` entrypoint is unrelated to Autopack (Canada document classifier demo) (Status: FIXED)
 
-- **Evidence**:
-  - `src/autopack/__main__.py` runs a `CanadaDocumentClassifier` demo, which is unrelated to Autopack’s build framework.
-  - The real CLI surface appears to be under `src/autopack/cli/` (and `src/autopack/cli/__main__.py` exists).
-  - `pyproject.toml` does not define `console_scripts` / `[project.scripts]` entrypoints.
-- **Why it matters**: `python -m autopack` is a natural “what is this package?” entrypoint. If it runs unrelated demo code, it undermines trust and confuses agents/operators.
-- **Recommended fix**:
-  - Replace `src/autopack/__main__.py` with a thin delegate to the canonical CLI (e.g., `autopack.cli`), and/or print help text.
-  - Add a proper console script in `pyproject.toml` (e.g., `autopack = autopack.cli.main:main`) so users can run `autopack ...` after install.
+- **Status**: FIXED (2026-01-08)
+- **Verification**:
+  - `src/autopack/__main__.py` provides proper Autopack CLI with `serve` and `run` subcommands
+  - `python -m autopack --help` shows Autopack help
+  - `python -m autopack --version` shows package version
 - **Acceptance criteria**:
   - `python -m autopack --help` shows Autopack CLI/help (not unrelated demos).
   - `pip install -e .` provides an `autopack` command (if desired).
@@ -359,12 +335,12 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 - **Acceptance criteria**:
   - Running a “workspace cleanup” command results in root containing only `autopack.db` for SQLite dev.
 
-### 2.5 API version drift: root endpoint returns `0.1.0` despite package being `0.5.1`
+### 2.5 API version drift: root endpoint returns `0.1.0` despite package being `0.5.1` (Status: FIXED)
 
-- **Evidence**: `src/autopack/main.py` uses `version=__version__` for OpenAPI, but `GET /` returns `"version": "0.1.0"`.
-- **Why it matters**: version consistency is part of the CI drift contracts and affects operators/clients.
-- **Recommended fix**:
-  - Return `__version__` from the root endpoint (and/or add `/version`).
+- **Status**: FIXED (2026-01-08)
+- **Verification**:
+  - `GET /` returns `__version__` from `autopack/__init__.py`
+  - Root endpoint version matches `pyproject.toml` and OpenAPI spec
 - **Acceptance criteria**:
   - Root endpoint version matches `pyproject.toml` and OpenAPI.
 
@@ -456,19 +432,21 @@ These decisions are chosen to match README intent (**safe, deterministic, mechan
 
 ## 3) P2 — Developer experience + polish (still valuable)
 
-### 3.1 Pre-commit hooks are absent
+### 3.1 Pre-commit hooks are absent (Status: FIXED)
 
-- **Problem**: no `.pre-commit-config.yaml`
-- **Recommended fix**:
-  - Add pre-commit with `ruff`, `black`, and basic hygiene hooks (end-of-file-fixer, trailing whitespace, check-yaml).
+- **Status**: FIXED (2026-01-08)
+- **Verification**:
+  - `.pre-commit-config.yaml` exists with ruff, bandit, and hygiene hooks
+  - Contributors can run `pre-commit install` to get local checks
 - **Acceptance criteria**:
   - Contributors can run `pre-commit install` and get the same checks locally as CI.
 
-### 3.2 Fix CODEOWNERS drift: references a non-existent doc
+### 3.2 Fix CODEOWNERS drift: references a non-existent doc (Status: FIXED)
 
-- **Evidence**: `.github/CODEOWNERS` references `docs/SECURITY_BASELINE.md` which does not exist (baseline doc is `security/README.md`).
-- **Recommended fix**:
-  - Update CODEOWNERS to point at the actual baseline doc (or create `docs/SECURITY_BASELINE.md` as a short pointer).
+- **Status**: FIXED (2026-01-08)
+- **Verification**:
+  - `.github/CODEOWNERS` references `security/README.md` which exists
+  - All CODEOWNERS targets exist and are tracked
 - **Acceptance criteria**:
   - All CODEOWNERS targets exist.
 

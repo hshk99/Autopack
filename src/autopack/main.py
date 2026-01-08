@@ -48,6 +48,11 @@ logger = logging.getLogger(__name__)
 # Telegram inline callback helper (used by /telegram/webhook handlers)
 from autopack.notifications.telegram_notifier import answer_telegram_callback
 
+# Telegram webhook security (PR7: cryptographic verification)
+from autopack.notifications.telegram_webhook_security import (
+    verify_telegram_webhook as verify_telegram_webhook_crypto,
+)
+
 # Security: API Key authentication
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 
@@ -1281,10 +1286,24 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
     This endpoint receives callbacks when users tap Approve/Reject buttons
     in Telegram notifications.
 
+    Security (PR7 - P1-SEC-TELEGRAM-001):
+    - Uses verify_telegram_webhook_crypto for cryptographic verification
+    - In production, requires TELEGRAM_WEBHOOK_SECRET to be configured
+    - Uses hmac.compare_digest for constant-time comparison (timing attack prevention)
+
     Callback data formats:
     - Phase approvals: "approve:{phase_id}" or "reject:{phase_id}"
     - Storage scans (BUILD-150): "storage_approve_all:{scan_id}", "storage_details:{scan_id}", "storage_skip:{scan_id}"
     """
+    # Verify webhook authenticity (PR7: cryptographic verification)
+    # Skip in testing mode for convenience
+    if os.getenv("TESTING") != "1":
+        if not await verify_telegram_webhook_crypto(request):
+            raise HTTPException(
+                status_code=403,
+                detail="Invalid or missing Telegram webhook secret token",
+            )
+
     try:
         from autopack.notifications.telegram_notifier import TelegramNotifier
 

@@ -55,11 +55,14 @@ def client(test_db):
     # Save current state for cleanup
     old_testing = os.environ.get("TESTING")
     old_secret = os.environ.get("TELEGRAM_WEBHOOK_SECRET")
+    old_bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
 
     # Ensure app lifespan does not attempt production init_db() checks
     os.environ["TESTING"] = "1"
     # Clear any TELEGRAM_WEBHOOK_SECRET to avoid verification in tests
     os.environ.pop("TELEGRAM_WEBHOOK_SECRET", None)
+    # Set bot token so answer_telegram_callback code path is triggered
+    os.environ["TELEGRAM_BOT_TOKEN"] = "test-bot-token"  # gitleaks:allow
 
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db)
 
@@ -83,6 +86,10 @@ def client(test_db):
             os.environ.pop("TESTING", None)
         if old_secret is not None:
             os.environ["TELEGRAM_WEBHOOK_SECRET"] = old_secret
+        if old_bot_token is not None:
+            os.environ["TELEGRAM_BOT_TOKEN"] = old_bot_token
+        else:
+            os.environ.pop("TELEGRAM_BOT_TOKEN", None)
 
 
 @pytest.fixture

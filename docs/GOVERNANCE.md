@@ -571,6 +571,47 @@ Parallel runs use the Four-Layer model (see `docs/PARALLEL_RUNS.md`):
 
 ---
 
+## 10. Canonical Operator Docs List (GAP-8.9.5)
+
+The following documents are **canonical for operators** and are safe to copy-paste from. They are maintained to match the current codebase and are covered by drift detection tests.
+
+### Canonical (Safe to Copy-Paste)
+
+| Document | Purpose | Drift Test |
+|----------|---------|------------|
+| `docs/QUICKSTART.md` | Quick setup guide | ✅ |
+| `docs/DEPLOYMENT.md` | Production deployment | ✅ |
+| `docs/CONTRIBUTING.md` | Developer onboarding | ✅ |
+| `docs/TROUBLESHOOTING.md` | Common issues & fixes | ✅ |
+| `docs/ARCHITECTURE.md` | System overview | ✅ |
+| `docs/GOVERNANCE.md` | Approval workflow (this file) | ✅ |
+| `docs/API_BASICS.md` | API endpoint reference | ✅ |
+| `docs/CANONICAL_API_CONTRACT.md` | API contract tests | ✅ |
+| `docs/AUTHENTICATION.md` | Auth implementation | ✅ (per DEC-050) |
+| `docs/AUTOPILOT_OPERATIONS.md` | Operator runbook | ✅ |
+| `docs/PARALLEL_RUNS.md` | Isolation model | ✅ |
+| `security/README.md` | Security baseline guide | ✅ |
+
+### Legacy/Historical (Not for Copy-Paste)
+
+These documents contain historical context, workstation-specific paths (e.g., `C:\dev\Autopack`), or legacy patterns (e.g., `init_db()`). They are preserved for reference but **should not be used as source of truth**. Per DEC-049, they are explicitly excluded from drift checks.
+
+- `docs/guides/*` - Historical implementation guides
+- `docs/cursor/*` - Cursor prompt templates (historical)
+- `docs/BUILD_HISTORY.md` - Build changelog (append-only)
+- `docs/DEBUG_LOG.md` - Debug history (append-only)
+
+### Verification
+
+To verify a document is canonical:
+
+```bash
+# Check if file is in drift test coverage
+grep -r "docs/FILENAME.md" tests/docs/test_copy_paste_contracts.py
+```
+
+---
+
 **Total Lines**: ~350 (updated for BUILD-179)
 
 **Coverage**: 9 sections (approval workflow, governance tiers, auto-approval rules, protected paths, human approval, audit trails, emergency procedures, autonomy artifacts, parallelism governance)

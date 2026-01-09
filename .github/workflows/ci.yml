@@ -28,7 +28,10 @@ jobs:
         run: |
           python scripts/check_ci_drift.py
           python scripts/check_version_consistency.py
-          # Temporarily disabled: cross-platform pip-compile drift (pywin32 hashes differ)
+          # GAP-8.3.2: Full pip-compile sync disabled due to Windows/Linux hash drift.
+          # Enforcement approach: requirements portability check (below) + Linux/CI-canonical
+          # regeneration policy (see security/README.md). Full drift check deferred until
+          # pip-tools supports deterministic cross-platform output.
           # python scripts/check_dependency_sync.py
       - name: Check requirements portability (Linux/CI canonical)
         run: |
@@ -60,8 +63,19 @@ jobs:
         continue-on-error: true  # Non-blocking during staged rollout
         run: |
           pip install mypy types-requests types-PyYAML
-          # Start with strict subset, expand progressively
-          mypy src/autopack/version.py src/autopack/__version__.py --ignore-missing-imports --no-error-summary || echo "mypy findings (informational)"
+          # Mypy Adoption Ladder (GAP-8.3.1):
+          # Tier 1 (blocking): Simple modules with no type errors
+          # Tier 2 (informational): Modules with minor issues being fixed
+          # See docs/CONTRIBUTING.md for full ladder status
+          #
+          # Tier 1 - Must pass (remove continue-on-error when ready)
+          mypy src/autopack/version.py \
+               src/autopack/__version__.py \
+               src/autopack/safe_print.py \
+               src/autopack/file_hashing.py \
+               src/autopack/config.py \
+               src/autopack/schemas.py \
+               --ignore-missing-imports --no-error-summary || echo "mypy findings (informational)"
 
   frontend-ci:
     name: Frontend CI (lint/typecheck/build)

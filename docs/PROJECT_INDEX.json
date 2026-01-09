@@ -69,7 +69,7 @@
     "production_checklist": [
       "Use managed Postgres service (AWS RDS, Google Cloud SQL, etc.)",
       "Set DATABASE_URL environment variable",
-      "Run database migrations: python -c 'from src.autopack.database import init_db; init_db()'",
+      "Run database migrations: follow the migration runbooks in docs/guides/ (scripts/migrations/* is the current migration surface). Do NOT use init_db() as a migration tool in production.",
       "Enable HTTPS via reverse proxy (nginx, Traefik, etc.)",
       "Add authentication to API endpoints (OAuth, API keys)",
       "Configure structured logging (JSON format)",

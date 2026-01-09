@@ -251,11 +251,14 @@ def generate_scope_reduction_proposal(
     anchor: IntentionAnchor,
     current_plan: dict[str, Any],
     budget_remaining: float,
+    llm_service: Any | None = None,
+    run_id: str | None = None,
+    phase_id: str | None = None,
 ) -> ScopeReductionProposal | None:
     """
     Generate scope reduction proposal (part of INSERTION POINT 3).
 
-    Generates prompt, parses JSON response into proposal, validates.
+    Generates prompt, calls LlmService, parses JSON response into proposal, validates.
     This is proposal-only (reversible); does NOT apply destructively.
 
     Args:
@@ -263,19 +266,57 @@ def generate_scope_reduction_proposal(
         anchor: Intention anchor
         current_plan: Current plan dict with deliverables
         budget_remaining: Budget remaining fraction
+        llm_service: Optional LlmService instance for LLM calls
+        run_id: Run identifier for usage tracking
+        phase_id: Phase identifier for logging
 
     Returns:
         Validated ScopeReductionProposal, or None if generation/validation failed
     """
+    from autopack.scope_reduction import ScopeReductionProposal, validate_scope_reduction
+
     # Generate prompt
     prompt = wiring.loop.build_scope_reduction_prompt(anchor, current_plan, budget_remaining)
 
     logger.info(f"[IntentionFirstLoop] Generated scope reduction prompt ({len(prompt)} chars)")
 
-    # TODO: Call LLM to get JSON proposal (requires LlmService integration)
-    # For now, return None (implementation deferred to executor integration)
-    logger.warning("[IntentionFirstLoop] Scope reduction LLM call not yet wired (deferred)")
-    return None
+    # GAP-8.2.1: Call LlmService to get JSON proposal
+    if llm_service is None:
+        logger.warning(
+            "[IntentionFirstLoop] Scope reduction LLM call skipped (no LlmService provided)"
+        )
+        return None
+
+    try:
+        proposal_data = llm_service.generate_scope_reduction_proposal(
+            prompt=prompt,
+            run_id=run_id,
+            phase_id=phase_id,
+        )
+
+        if proposal_data is None:
+            logger.warning("[IntentionFirstLoop] Scope reduction LLM returned no proposal")
+            return None
+
+        # Parse into Pydantic model
+        proposal = ScopeReductionProposal(**proposal_data)
+
+        # Validate against anchor constraints
+        is_valid, error_msg = validate_scope_reduction(proposal, anchor)
+        if not is_valid:
+            logger.warning(f"[IntentionFirstLoop] Scope reduction validation failed: {error_msg}")
+            return None
+
+        logger.info(
+            f"[IntentionFirstLoop] Scope reduction proposal valid: "
+            f"kept={len(proposal.diff.kept_deliverables)}, "
+            f"dropped={len(proposal.diff.dropped_deliverables)}"
+        )
+        return proposal
+
+    except Exception as e:
+        logger.error(f"[IntentionFirstLoop] Scope reduction failed: {e}")
+        return None
 
 
 def write_phase_proof(

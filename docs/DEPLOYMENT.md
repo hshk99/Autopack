@@ -41,11 +41,12 @@ curl http://localhost:8000/health
 
 ### Docker Compose Services
 
-The `docker-compose.yml` orchestrates three services:
+The `docker-compose.yml` orchestrates four services:
 
 1. **backend**: FastAPI application (port 8000)
 2. **frontend**: nginx serving React app (port 80)
 3. **db**: PostgreSQL 15 database (port 5432)
+4. **qdrant**: Vector memory database (port 6333)
 
 **Configuration**:
 
@@ -54,6 +55,7 @@ services:
   backend:
     build:
       context: .
+      dockerfile: Dockerfile
       target: backend
     ports:
       - "8000:8000"
@@ -62,30 +64,41 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     depends_on:
       - db
+      - qdrant
 
   frontend:
     build:
       context: .
+      dockerfile: Dockerfile.frontend
     ports:
       - "80:80"
+    depends_on:
+      - backend
 
   db:
-    image: postgres:15
+    image: postgres:15.10-alpine
     environment:
       - POSTGRES_USER=autopack
       - POSTGRES_PASSWORD=autopack
       - POSTGRES_DB=autopack
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.5
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
 ```
 
-### Multi-Stage Dockerfile
+### Dockerfiles (backend + frontend)
 
-The `Dockerfile` uses three stages:
+Autopack uses two Docker build surfaces:
 
-1. **Backend Stage**: Python 3.11 + FastAPI dependencies
-2. **Frontend Stage**: Node 20 + Vite build
-3. **Production Stage**: nginx serving built frontend
+1. **Backend image**: `Dockerfile` (stage `backend`)
+2. **Frontend image**: `Dockerfile.frontend` (root Vite build + nginx + repo `nginx.conf`)
 
 **Key Features**:
 - Minimal production image size
@@ -461,8 +474,10 @@ docker-compose build --no-cache
 # Start all services
 docker-compose up -d
 
-# Run database migrations
-docker-compose exec backend python -c "from autopack.database import init_db; init_db()"
+# Database schema / migrations
+# - P0 guardrail: init_db() will FAIL unless you explicitly opt in with AUTOPACK_DB_BOOTSTRAP=1
+# - For production: apply schema changes using the repo's migration workflow (see docs/guides/*MIGRATION*RUNBOOK*.md)
+# - For dev/test only (fresh DB bootstrap): set AUTOPACK_DB_BOOTSTRAP=1 once, start backend, then unset it.
 
 # Verify deployment
 curl http://localhost:8000/health

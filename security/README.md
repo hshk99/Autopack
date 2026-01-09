@@ -310,7 +310,33 @@ If CI fails with "requirements portability check failed":
 
 ## Contract Tests
 
-- Baseline format validation: `tests/security/test_baseline_format.py` (planned)
-- Normalization determinism: `tests/security/test_normalize_sarif.py` (planned)
-- Diff gate logic: `tests/security/test_diff_gate.py` (planned)
-- Requirements portability: `scripts/check_requirements_portability.py` (active)
+All security baseline contract tests are implemented and active:
+
+- **Baseline format validation**: `tests/security/test_normalize_sarif_schema.py` ✅
+  - Validates normalized findings have required fields (tool, ruleId, artifactUri, messageHash)
+  - Validates optional location fields (startLine, startColumn) are integers when present
+  - Validates no unexpected keys (schema stability)
+
+- **Normalization determinism**: `tests/security/test_normalize_sarif_determinism.py` ✅
+  - Same SARIF input → identical normalized output (multiple runs)
+  - Path normalization (Windows vs Linux forward slashes)
+  - Sorting stability (findings always in same order)
+
+- **Baseline update determinism**: `tests/security/test_update_baseline_determinism.py` ✅
+  - Same findings → identical baseline file (bit-for-bit)
+  - Sorted JSON output (stable key order, stable finding order)
+  - Trailing newline (git-friendly)
+
+- **Diff gate logic**: `tests/security/test_diff_gate_semantics.py` ✅
+  - Regression detection (new findings → exit 1)
+  - Stable baseline (no changes → exit 0)
+  - Removed findings (acceptable → exit 0)
+  - Empty baseline handling (with/without --allow-empty-baseline flag)
+
+- **Exemption classifier**: `tests/security/test_exemption_classifier.py` ✅
+  - Trivy DB metadata-only changes auto-classification
+  - CodeQL help text-only changes auto-classification
+  - Clean dependency bump detection
+  - Safety check blocking (new CVEs, severity escalations)
+
+- **Requirements portability**: `scripts/check_requirements_portability.py` ✅ (active in CI)

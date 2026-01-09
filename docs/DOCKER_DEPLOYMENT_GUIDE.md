@@ -48,7 +48,7 @@ The `docker-compose.yml` orchestrates four services:
 ### 1. Build and Start All Services
 
 ```bash
-cd c:/dev/Autopack
+cd $REPO_ROOT
 docker-compose up --build
 ```
 
@@ -281,12 +281,12 @@ GRANT ALL PRIVILEGES ON DATABASE autopack TO autopack;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO autopack;
 ```
 
-**Schema Migrations**:
-- Database schema is managed by Alembic migrations in `src/autopack/alembic/`
-- Run migrations manually after first start:
-  ```bash
-  docker exec -it autopack-backend-1 alembic upgrade head
-  ```
+**Schema / migrations**:
+
+- Autopack enforces **P0 DB safety guardrails**:
+  - By default (`AUTOPACK_DB_BOOTSTRAP` unset / `0`), `init_db()` will **fail fast** if schema is missing.
+  - For **dev/test only**, you may bootstrap a fresh database by setting `AUTOPACK_DB_BOOTSTRAP=1` once.
+- For production schema changes, use the repo’s documented migration workflow under `scripts/migrations/` (see the migration runbooks in `docs/guides/`).
 
 ---
 
@@ -332,7 +332,7 @@ docs/
 ### Backend Build Test
 
 ```bash
-cd c:/dev/Autopack
+cd $REPO_ROOT
 docker build --target backend -t autopack-backend:test .
 ```
 
@@ -344,8 +344,8 @@ docker build --target backend -t autopack-backend:test .
 ### Frontend Build Test
 
 ```bash
-cd c:/dev/Autopack
-docker build --target frontend -t autopack-frontend:test .
+cd $REPO_ROOT
+docker build -f Dockerfile.frontend -t autopack-frontend:test .
 ```
 
 **Results**:
@@ -360,8 +360,8 @@ docker build --target frontend -t autopack-frontend:test .
 ### Production Build Test
 
 ```bash
-cd c:/dev/Autopack
-docker build -t autopack-frontend:prod .
+cd $REPO_ROOT
+docker build -f Dockerfile.frontend -t autopack-frontend:prod .
 ```
 
 **Results**:
@@ -514,7 +514,7 @@ jobs:
       - name: Run tests
         run: |
           docker-compose up -d
-          docker exec autopack-backend-1 pytest src/backend/tests/
+          docker exec autopack-backend-1 pytest tests/
           docker-compose down
 
       - name: Push to registry

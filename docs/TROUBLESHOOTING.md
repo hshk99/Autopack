@@ -125,7 +125,7 @@ PYTHONPATH=src python scripts/list_run_counts.py
 
 **Fix**:
 - Check phase deliverables are clear and achievable
-- Review Builder logs for truncation: `.autonomous_runs/<project>/runs/<run-id>/run.log`
+- Review Builder logs for truncation: `.autonomous_runs/<project>/runs/<family>/<run_id>/run.log`
 - Verify scope paths exist: `ls -la <scope-path>`
 
 **Prevention**: Use specific deliverable paths (not just directory prefixes)
@@ -139,7 +139,7 @@ PYTHONPATH=src python scripts/list_run_counts.py
 **Cause**: Builder created files in wrong locations or missed deliverables
 
 **Fix**:
-- Check learning hints in logs: `grep "Learning hint" .autonomous_runs/<project>/runs/<run-id>/run.log`
+- Check learning hints in logs: `grep "Learning hint" .autonomous_runs/<project>/runs/<family>/<run_id>/run.log`
 - Review expected vs actual paths in phase summary
 - Verify scope configuration includes all deliverable roots
 
@@ -158,10 +158,10 @@ PYTHONPATH=src python scripts/list_run_counts.py
 **Fix**:
 ```bash
 # Check protected paths
-grep "protected_paths" .autonomous_runs/<project>/runs/<run-id>/run.log
+grep "protected_paths" .autonomous_runs/<project>/runs/<family>/<run_id>/run.log
 
 # Review patch content
-cat .autonomous_runs/<project>/runs/<run-id>/phases/phase_*.md
+cat .autonomous_runs/<project>/runs/<family>/<run_id>/phases/phase_*.md
 
 # Check for conflicts
 git status
@@ -207,7 +207,7 @@ export AUTOPACK_SKIP_CI=1  # Skip CI checks temporarily
 **Cause**: Output size exceeds token budget
 
 **Fix**:
-- Check token estimation logs: `grep "TokenEstimation" .autonomous_runs/<project>/runs/<run-id>/run.log`
+- Check token estimation logs: `grep "TokenEstimation" .autonomous_runs/<project>/runs/<family>/<run_id>/run.log`
 - Review phase complexity and deliverable count
 - Consider splitting large phases into smaller batches
 
@@ -319,7 +319,7 @@ python scripts/batch_drain_controller.py \
 **Cause**: Workspace root mismatch or scope path configuration issues
 
 **Fix**:
-- Check workspace root detection: `grep "Workspace root" .autonomous_runs/<project>/runs/<run-id>/run.log`
+- Check workspace root detection: `grep "Workspace root" .autonomous_runs/<project>/runs/<family>/<run_id>/run.log`
 - Verify scope paths include all deliverable roots
 - Review allowed_roots derivation in logs
 
@@ -766,8 +766,8 @@ PYTHONPATH=src python -m autopack.health_checks
 
 ### Log Locations
 
-- **Executor logs**: `.autonomous_runs/<project>/runs/<run-id>/run.log`
-- **Phase summaries**: `.autonomous_runs/<project>/runs/<run-id>/phases/phase_*.md`
+- **Executor logs**: `.autonomous_runs/<project>/runs/<family>/<run_id>/run.log`
+- **Phase summaries**: `.autonomous_runs/<project>/runs/<family>/<run_id>/phases/phase_*.md`
 - **CI reports**: `.autonomous_runs/<project>/ci/pytest_<phase-id>.json`
 - **Batch drain sessions**: `.autonomous_runs/batch_drain_sessions/batch-drain-*.json`
 

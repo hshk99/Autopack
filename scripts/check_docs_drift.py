@@ -102,7 +102,7 @@ EXCLUDED_PATHS = [
     # API consolidation migration docs (document both old and new)
     "docs/CANONICAL_API_CONSOLIDATION_PLAN.md",
     "docs/API_CONSOLIDATION_COMPLETION_SUMMARY.md",
-    "docs/CANONICAL_API_CONTRACT.md",
+    # Canonical API contract MUST be drift-checked (do not exclude).
 
     # Historical records (legitimately contain legacy patterns)
     "docs/BUILD_HISTORY.md",

@@ -73,7 +73,7 @@ PYTHONPATH=src python scripts/drain_one_phase.py --run-id telemetry-collection-v
 PYTHONPATH=src python scripts/db_identity_check.py
 
 # View logs
-tail -f .autonomous_runs/autopack/runs/telemetry-collection-v4/run.log
+tail -f .autonomous_runs/autopack/runs/telemetry/telemetry-collection-v4/run.log
 ```
 
 ### After Completion
@@ -82,10 +82,10 @@ tail -f .autonomous_runs/autopack/runs/telemetry-collection-v4/run.log
 
 ```bash
 # View phase summaries
-ls .autonomous_runs/autopack/runs/telemetry-collection-v4/phases/
+ls .autonomous_runs/autopack/runs/telemetry/telemetry-collection-v4/phases/
 
 # Check telemetry (if enabled)
-grep "\[TokenEstimationV2\]" .autonomous_runs/autopack/runs/telemetry-collection-v4/*.log
+grep "\[TokenEstimationV2\]" .autonomous_runs/autopack/runs/telemetry/telemetry-collection-v4/*.log
 ```
 
 ---

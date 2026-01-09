@@ -759,16 +759,22 @@ These are not required for Autopack’s internal consistency, but they are highl
     - Atomic save with backup recovery for crash safety
   - See 6.11 for full executor state persistence implementation
 
-### 5.4 Browser automation harness (when APIs aren't enough) (Status: SKELETON)
+### 5.4 Browser automation harness (when APIs aren't enough) (Status: IMPLEMENTED)
 
-- **Status**: SKELETON (directory structure only)
-- **Current state**:
-  - `src/autopack/browser/__init__.py` exists (minimal)
-  - `src/autopack/artifacts/redaction.py` provides HAR log redaction (scrub cookies/tokens)
-- **Remaining work**:
-  - `playwright_runner.py` - actual Playwright execution
-  - `artifacts.py` - screenshots/videos storage policy
-  - Integration with artifact retention system
+- **Status**: IMPLEMENTED (2026-01-09)
+- **Resolution**:
+  - `src/autopack/browser/` module provides:
+    - `playwright_runner.py`: `PlaywrightRunner` with async context manager, `PlaywrightSession` with safety constraints
+    - `artifacts.py`: `BrowserArtifactManager` for screenshots/videos/HAR storage policy
+  - Safety features:
+    - Bounded actions (configurable `max_actions` limit)
+    - Action logging with automatic value redaction for sensitive inputs
+    - HAR log redaction via `ArtifactRedactor` integration
+  - Artifact management:
+    - Session-scoped artifact tracking
+    - Policy-based retention (screenshot limits, video duration, HAR size)
+    - Integration with `ArtifactRetentionManager` for lifecycle management
+  - Tests in `tests/browser/test_playwright_runner.py` and `tests/browser/test_browser_artifacts.py`
 
 ### 5.5 Human approval UX as a first-class gate ("approval inbox") (Status: IMPLEMENTED)
 
@@ -924,9 +930,9 @@ These items are “beyond technicalities” in the sense that they directly dete
 - **Acceptance criteria**: ✅
   - Production container builds are deterministic from a clean checkout.
 
-### 6.8 Provider OAuth lifecycle support (Etsy/Shopify/YouTube) (P0/P1) (Status: SKELETON)
+### 6.8 Provider OAuth lifecycle support (Etsy/Shopify/YouTube) (P0/P1) (Status: IMPLEMENTED)
 
-- **Status**: SKELETON IMPLEMENTED (2026-01-09)
+- **Status**: IMPLEMENTED (2026-01-09)
 - **Resolution**:
   - Created `src/autopack/credentials/` module with:
     - `CredentialStatus` enum (PRESENT, MISSING, EXPIRED, INVALID, NEEDS_REAUTH, UNKNOWN)
@@ -936,13 +942,22 @@ These items are “beyond technicalities” in the sense that they directly dete
   - `get_health_summary()` returns dashboard-safe health data (no secrets)
   - `check_required_for_action()` validates credentials before external actions
   - Tests in `tests/credentials/test_health_service.py`
-- **Remaining work** (future):
-  - Wire OAuth refresh token handling (automatic refresh with bounded retries)
-  - Add API endpoint to expose credential health to dashboard
-  - Integrate with external action ledger to pause on credential failures
+  - **OAuth lifecycle management** in `src/autopack/auth/`:
+    - `oauth_lifecycle.py`: `OAuthCredentialManager` with:
+      - `refresh_credential()` - bounded retries with exponential backoff
+      - `RefreshResult` enum for rate limiting, invalid grant, network error handling
+      - Event logging for credential lifecycle audit
+      - `pause_on_failure_callback` integration for external action ledger
+    - `oauth_router.py`: FastAPI router with endpoints:
+      - `GET /api/auth/oauth/health` - overall credential health for dashboard
+      - `GET /api/auth/oauth/health/{provider}` - provider-specific health
+      - `POST /api/auth/oauth/refresh/{provider}` - manual refresh trigger
+      - `GET /api/auth/oauth/events` - credential lifecycle events
+    - Pre-built handlers for GitHub and Google OAuth2
+  - Tests in `tests/credentials/test_oauth_lifecycle.py`
 - **Acceptance criteria**:
-  - Autopack can run unattended for long periods without failing due to expired access tokens. **PARTIAL** (skeleton ready, refresh handling not yet wired)
-  - If refresh fails, Autopack pauses and produces a deterministic re-auth task (no repeated side effects). **PARTIAL** (status detection ready, pause logic not yet wired)
+  - Autopack can run unattended for long periods without failing due to expired access tokens. **SATISFIED** (automatic refresh with bounded retries)
+  - If refresh fails, Autopack pauses and produces a deterministic re-auth task (no repeated side effects). **SATISFIED** (max_consecutive_failures triggers pause callback)
 
 ### 6.9 External action ledger (append-only, queryable) (P0) (Status: IMPLEMENTED)
 

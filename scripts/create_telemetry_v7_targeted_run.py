@@ -13,8 +13,8 @@ PATCH-SAFE DESIGN:
 
 Total: 6 phases (3 docs/medium, 1 tests/low, 2 tests/medium)
 
-Usage:
-    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///C:/dev/Autopack/telemetry_seed_v5.db" \
+Usage (from repo root):
+    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///./telemetry_seed_v5.db" \
         python scripts/create_telemetry_v7_targeted_run.py
 """
 
@@ -27,7 +27,7 @@ if not os.environ.get("DATABASE_URL"):
     print("[telemetry_v7_seed] ERROR: DATABASE_URL must be set explicitly.", file=sys.stderr)
     print("", file=sys.stderr)
     print("Example usage (PowerShell):", file=sys.stderr)
-    print("  $env:DATABASE_URL='sqlite:///C:/dev/Autopack/telemetry_seed_v5.db'", file=sys.stderr)
+    print("  $env:DATABASE_URL='sqlite:///./telemetry_seed_v5.db'", file=sys.stderr)
     print("  python scripts/create_telemetry_v7_targeted_run.py", file=sys.stderr)
     sys.exit(1)
 

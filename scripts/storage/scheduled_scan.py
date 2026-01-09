@@ -9,11 +9,11 @@ Weekly automated scan workflow:
 4. NO automatic deletion (requires explicit approval)
 
 Usage:
-    # Manual execution
-    python scripts/storage/scheduled_scan.py --root C:/dev
+    # Manual execution (from repo root)
+    python scripts/storage/scheduled_scan.py --root .
 
-    # Windows Task Scheduler
-    schtasks /create /tn "Storage Weekly Scan" /tr "python C:/dev/Autopack/scripts/storage/scheduled_scan.py" /sc weekly /d SUN /st 02:00
+    # Windows Task Scheduler (use repo root discovery)
+    # From repo root: schtasks /create /tn "Storage Weekly Scan" /tr "cmd /c cd /d %CD% && python scripts/storage/scheduled_scan.py" /sc weekly /d SUN /st 02:00
 
     # Linux cron (every Sunday at 2am)
     0 2 * * 0 cd /path/to/autopack && python scripts/storage/scheduled_scan.py

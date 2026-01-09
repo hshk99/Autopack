@@ -177,8 +177,8 @@ def create_run(country: str) -> None:
         print(f"[SUCCESS] Run created: {run_id}")
         print(f"[INFO] Run URL: {API_URL}/runs/{run_id}")
         print(
-            "  Execute with:\n"
-            f"    cd C:\\dev\\Autopack && PYTHONPATH=src python src/autopack/autonomous_executor.py "
+            "  Execute with (from repo root):\n"
+            f"    PYTHONPATH=src python src/autopack/autonomous_executor.py "
             f"--run-id {run_id} --run-type project_build --stop-on-first-failure --verbose\n"
         )
     except requests.exceptions.ConnectionError:

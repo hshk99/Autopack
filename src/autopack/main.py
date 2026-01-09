@@ -282,14 +282,12 @@ async def global_exception_handler(request: Request, exc: Exception):
     BUILD-188 P5.3: In production mode, returns opaque error IDs without internal details.
     In development/debug mode, returns full exception info for debugging.
     """
-    import traceback
     import uuid
 
     from .config import is_production
 
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
 
-    tb = traceback.format_exc()
     error_id = str(uuid.uuid4())[:8]  # Short unique ID for log correlation
 
     # Use error reporter to capture detailed context
@@ -328,9 +326,12 @@ async def global_exception_handler(request: Request, exc: Exception):
         },
     )
 
-    # BUILD-188 P5.3: Production-safe error response
-    # In production: return opaque error ID, no internal details
-    # In development: return full exception info for debugging
+    # BUILD-188 P5.3 + Security hardening: Never expose stack traces in API responses
+    # All internal details stay server-side (logs + error reports)
+    # Client receives only error_id for correlation
+    #
+    # In production: opaque error message
+    # In development: slightly more context but still no tracebacks
     if is_production():
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -341,13 +342,15 @@ async def global_exception_handler(request: Request, exc: Exception):
             },
         )
     else:
+        # Development mode: include error type for debugging, but no traceback
+        # Traceback is logged server-side and in error report files
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
-                "detail": str(exc),
-                "type": type(exc).__name__,
+                "detail": "Internal server error",
                 "error_id": error_id,
-                "traceback": tb if os.getenv("DEBUG") == "1" else None,
+                "error_type": type(exc).__name__,
+                "message": f"Check server logs for error_id={error_id}",
                 "error_report": (
                     f"Error report saved to .autonomous_runs/{run_id or 'errors'}/errors/"
                     if run_id
@@ -913,7 +916,9 @@ def submit_builder_result(
                     # No exc_info=True - expected validation errors don't need full traceback
                 )
                 phase.state = models.PhaseState.FAILED
-                raise HTTPException(status_code=422, detail=f"Patch application failed: {str(e)}")
+                raise HTTPException(
+                    status_code=422, detail="Patch application failed - check logs for details"
+                )
             except Exception as e:
                 logger.error(
                     f"[API] [{run_id}/{phase_id}] Unexpected error applying patch: {e}",
@@ -1096,7 +1101,7 @@ async def request_approval(request: Request, db: Session = Depends(get_db)):
 
     except Exception as e:
         logger.error(f"[APPROVAL] Error processing approval request: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Approval request processing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Approval request processing failed")
 
 
 # ==============================================================================
@@ -1444,7 +1449,7 @@ async def get_approval_status(approval_id: int, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"[APPROVAL] Error fetching status for #{approval_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to fetch approval status: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch approval status")
 
 
 @app.get("/approval/pending")
@@ -1485,7 +1490,7 @@ async def get_pending_approvals(db: Session = Depends(get_db)):
 
     except Exception as e:
         logger.error(f"[APPROVAL] Error fetching pending approvals: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to fetch pending approvals: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch pending approvals")
 
 
 # =============================================================================
@@ -1509,7 +1514,7 @@ async def get_pending_governance_requests(db: Session = Depends(get_db)):
 
     except Exception as e:
         logger.error(f"[GOVERNANCE] Error fetching pending requests: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to fetch pending requests: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch pending requests")
 
 
 @app.post("/governance/approve/{request_id}")
@@ -1549,7 +1554,7 @@ async def approve_governance_request(
         raise
     except Exception as e:
         logger.error(f"[GOVERNANCE] Error updating request {request_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to update request: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to update request")
 
 
 # =============================================================================
@@ -2248,13 +2253,13 @@ def approve_cleanup_candidates(
             "approved_at": approval.approved_at,
         }
 
-    except ValueError as e:
+    except ValueError:
         db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Invalid request parameters")
     except Exception as e:
         db.rollback()
         logger.error(f"Failed to create approval decision: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to create approval decision: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to create approval decision")
 
 
 @app.post(
@@ -2354,7 +2359,7 @@ def execute_approved_cleanup(
 
     except Exception as e:
         logger.error(f"Failed to execute cleanup for scan {scan_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to execute cleanup: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to execute cleanup")
 
 
 @app.get("/storage/steam/games", response_model=schemas.SteamGamesListResponse)
@@ -2667,7 +2672,7 @@ async def upload_file(request: Request):
                 file_path.unlink()
             except Exception:
                 pass
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Upload failed")
 
 
 @app.get("/health")

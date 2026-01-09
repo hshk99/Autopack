@@ -126,8 +126,8 @@ def create_run():
         print(f"[SUCCESS] Run created: {RUN_ID}")
         print(f"[INFO] Run URL: {API_URL}/runs/{RUN_ID}")
         print()
-        print("[OK] Ready to execute autonomous run:")
-        print(f"  cd C:\\dev\\Autopack && python src/autopack/autonomous_executor.py --run-id {RUN_ID} --run-type autopack_maintenance --stop-on-first-failure --verbose")
+        print("[OK] Ready to execute autonomous run (from repo root):")
+        print(f"  python src/autopack/autonomous_executor.py --run-id {RUN_ID} --run-type autopack_maintenance --stop-on-first-failure --verbose")
         print()
         return result
 

@@ -7,7 +7,10 @@ export PYTHONPATH=src
 export TELEMETRY_DB_ENABLED=1
 export AUTOPACK_SKIP_CI=1
 export AUTOPACK_API_URL="http://127.0.0.1:8123"
-export DATABASE_URL="sqlite:///C:/dev/Autopack/telemetry_seed_fullrun.db"
+# Use relative path from repo root (run this script from repo root)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+export DATABASE_URL="sqlite:///${REPO_ROOT}/telemetry_seed_fullrun.db"
 
 PHASES=(
   "telemetry-p2-number-util"

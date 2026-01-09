@@ -14,12 +14,12 @@ Strategy:
 
 Goal: Collect ≥20 successful telemetry samples (success=True, non-truncated)
 
-Usage:
-    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///C:/dev/Autopack/telemetry_seed_v5.db" \
+Usage (from repo root):
+    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///./telemetry_seed_v5.db" \
         python scripts/create_telemetry_collection_v5.py
 
 Then drain with:
-    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///C:/dev/Autopack/telemetry_seed_v5.db" \
+    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///./telemetry_seed_v5.db" \
         TELEMETRY_DB_ENABLED=1 AUTOPACK_SKIP_CI=1 \
         python scripts/batch_drain_controller.py --run-id telemetry-collection-v5 --batch-size 25
 """
@@ -33,7 +33,7 @@ if not os.environ.get("DATABASE_URL"):
     print("[ERROR] DATABASE_URL must be set", file=sys.stderr)
     print("", file=sys.stderr)
     print("Example usage:", file=sys.stderr)
-    print("  DATABASE_URL='sqlite:///C:/dev/Autopack/telemetry_seed_v5.db' python scripts/create_telemetry_collection_v5.py", file=sys.stderr)
+    print("  DATABASE_URL='sqlite:///./telemetry_seed_v5.db' python scripts/create_telemetry_collection_v5.py", file=sys.stderr)
     print("", file=sys.stderr)
     sys.exit(1)
 
@@ -455,7 +455,7 @@ def create_run():
         if existing_run:
             print(f"[ERROR] Run {RUN_ID} already exists")
             print(f"        To recreate, first delete with:")
-            db_url = os.environ.get("DATABASE_URL", "sqlite:///C:/dev/Autopack/telemetry_seed_v5.db")
+            db_url = os.environ.get("DATABASE_URL", "sqlite:///./telemetry_seed_v5.db")
             print(f"        PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"{db_url}\" python -c \\")
             print(f"            \"from autopack.database import SessionLocal; from autopack.models import Run; \\")
             print(f"             s = SessionLocal(); s.query(Run).filter(Run.id == '{RUN_ID}').delete(); s.commit(); s.close()\"")
@@ -527,7 +527,7 @@ def create_run():
         print(f"  2 files: 1 phase")
         print(f"\nExpected telemetry samples: ≥20 successful Builder executions")
         print(f"\nTo drain all phases in batch:")
-        db_url = os.environ.get("DATABASE_URL", "sqlite:///C:/dev/Autopack/telemetry_seed_v5.db")
+        db_url = os.environ.get("DATABASE_URL", "sqlite:///./telemetry_seed_v5.db")
         print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"{db_url}\" \\")
         print(f"      TELEMETRY_DB_ENABLED=1 AUTOPACK_SKIP_CI=1 \\")
         print(f"      python scripts/batch_drain_controller.py --run-id {RUN_ID} --batch-size 25 --phase-timeout-seconds 900 --max-total-minutes 120")

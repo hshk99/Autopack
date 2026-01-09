@@ -17,8 +17,8 @@ Total: 20 phases
 - Tests/medium: 6 phases
 - Implementation/medium: 2 phases (with 2-3 deliverables)
 
-Usage:
-    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///C:/dev/Autopack/telemetry_seed_v6.db" \
+Usage (from repo root):
+    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///./telemetry_seed_v6.db" \
         python scripts/create_telemetry_v6_targeted_run.py
 """
 
@@ -30,8 +30,8 @@ from pathlib import Path
 if not os.environ.get("DATABASE_URL"):
     print("[telemetry_v6_seed] ERROR: DATABASE_URL must be set explicitly.", file=sys.stderr)
     print("", file=sys.stderr)
-    print("Example usage (PowerShell):", file=sys.stderr)
-    print("  $env:DATABASE_URL='sqlite:///C:/dev/Autopack/telemetry_seed_v6.db'", file=sys.stderr)
+    print("Example usage (PowerShell, from repo root):", file=sys.stderr)
+    print("  $env:DATABASE_URL='sqlite:///./telemetry_seed_v6.db'", file=sys.stderr)
     print("  python scripts/create_telemetry_v6_targeted_run.py", file=sys.stderr)
     print("", file=sys.stderr)
     print("Example usage (bash):", file=sys.stderr)
@@ -409,13 +409,13 @@ def create_telemetry_v6_run():
         print("  1. Drain queued phases (batch_drain_controller only works for FAILED phases):")
         print("     PowerShell:")
         print("       $env:PYTHONUTF8='1'; $env:PYTHONPATH='src'; $env:TELEMETRY_DB_ENABLED='1'")
-        print("       $env:AUTOPACK_SKIP_CI='1'; $env:DATABASE_URL='sqlite:///C:/dev/Autopack/telemetry_seed_v6.db'")
+        print("       $env:AUTOPACK_SKIP_CI='1'; $env:DATABASE_URL='sqlite:///./telemetry_seed_v6.db'")
         print("       python scripts/drain_queued_phases.py --run-id telemetry-collection-v6 `")
         print("         --batch-size 20 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
         print("")
         print("     Bash:")
         print("       PYTHONUTF8=1 PYTHONPATH=src TELEMETRY_DB_ENABLED=1 AUTOPACK_SKIP_CI=1 \\")
-        print("         DATABASE_URL='sqlite:///C:/dev/Autopack/telemetry_seed_v6.db' \\")
+        print("         DATABASE_URL='sqlite:///./telemetry_seed_v6.db' \\")
         print("         python scripts/drain_queued_phases.py --run-id telemetry-collection-v6 \\")
         print("           --batch-size 20 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
         print()

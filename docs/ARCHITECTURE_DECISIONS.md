@@ -2,12 +2,12 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 43 decision(s) documented | Last updated: 2026-01-08 09:15:52
+**Summary**: 44 decision(s) documented | Last updated: 2026-01-09
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
-Last_Updated: 2026-01-08T09:15:52.463626Z
-Total_Decisions: 43
+Last_Updated: 2026-01-09T09:20:00.000000Z
+Total_Decisions: 44
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUILD-155
@@ -17,6 +17,7 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 
 | Timestamp | DEC-ID | Decision | Status | Impact |
 |-----------|--------|----------|--------|--------|
+| 2026-01-09 | DEC-047 | OAuth Credential Operations Require Admin Role | ✅ Implemented | Credential refresh/reset are privileged operations; prevents unauthorized credential manipulation |
 | 2026-01-08 | DEC-046 | Default-Deny Governance Policy (Conservative Auto-Approval Boundaries) | ✅ Implemented | Intentionally narrow auto-approval scope ensures human oversight for all production-impacting changes |
 | 2026-01-05 | DEC-045 | Security Diff Gate Policy (Fingerprint-Based Normalization + Security-Extended Suite) | ✅ Implemented | Mechanically enforceable security gates with high signal-to-noise; prevents baseline drift on benign refactors |
 | 2026-01-05 | DEC-044 | Requirements Regeneration Policy (Linux/CI Canonical) | ✅ Implemented | Mechanical prevention of cross-platform dependency drift via PR-blocking CI check |
@@ -62,6 +63,46 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 | 2025-12-09 | DEC-007 | Documentation Consolidation Implementation Plan | ✅ Implemented |  |
 
 ## DECISIONS (Reverse Chronological)
+
+### DEC-047 | 2026-01-09 | OAuth Credential Operations Require Admin Role
+
+**Status**: ✅ Implemented
+**Build**: BUILD-189 (OAuth Credential Lifecycle)
+**Context**: OAuth credential management endpoints (`/api/auth/oauth/refresh/{provider}` and `/api/auth/oauth/reset/{provider}`) were initially available to any authenticated user. During PR review, this was identified as a security gap - credential manipulation should be a privileged operation.
+
+**Decision**: Require `is_superuser=true` for all credential mutation endpoints (refresh, reset). Read-only health endpoints remain available to any authenticated user.
+
+**Chosen Approach**:
+
+- **Admin-Only Endpoints** (require `is_superuser=true`):
+  - `POST /api/auth/oauth/refresh/{provider}` - Manual credential refresh
+  - `POST /api/auth/oauth/reset/{provider}` - Reset failure counter
+
+- **Authenticated-User Endpoints** (require valid JWT, any role):
+  - `GET /api/auth/oauth/health` - Dashboard health summary
+  - `GET /api/auth/oauth/health/{provider}` - Provider-specific health
+  - `GET /api/auth/oauth/events` - Credential lifecycle audit trail
+
+**Rationale**:
+
+1. **Least Privilege**: Credential manipulation (refresh, reset) can affect external provider integrations; only admins should trigger these
+2. **Defense in Depth**: Complements rate limiting and audit logging
+3. **Audit Trail**: Admin-only operations are easier to trace in security reviews
+4. **Consistent with OAuth 2.0 Best Practices**: Token refresh is typically a server-side operation, not user-initiated
+
+**Implementation**:
+
+```python
+# oauth_router.py
+@router.post("/refresh/{provider}")
+async def refresh_credential(..., current_user: User = Depends(get_current_user)):
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Admin privileges required...")
+```
+
+**Tests**: `tests/credentials/test_oauth_router.py` (4 tests for admin enforcement)
+
+---
 
 ### DEC-046 | 2026-01-08 | Default-Deny Governance Policy (Conservative Auto-Approval Boundaries)
 

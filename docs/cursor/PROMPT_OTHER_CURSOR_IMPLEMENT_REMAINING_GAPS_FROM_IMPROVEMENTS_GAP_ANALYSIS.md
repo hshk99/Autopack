@@ -127,20 +127,46 @@ Added Section 10 to `docs/GOVERNANCE.md` with:
 - Clear distinction between canonical vs non-canonical (historical) docs
 - Lists 9 canonical docs with drift testing references
 
-#### GAP-8.10.x: UI operator-surface upgrades (optional / P2)
+#### GAP-8.10.x: UI operator-surface upgrades ✅ IMPLEMENTED
 
-These should be implemented only after P0/P1 work is stable. Keep them UI-first and **data-consumption only** (no extra LLM calls).
+**Status**: IMPLEMENTED (2026-01-09)
 
-- **GAP-8.10.1**: Artifacts panel (read-first)
-  - Surface: plan preview, phase summaries, logs, completion report.
-  - Prefer: one new page + shared components rather than spreading changes across many files.
-- **GAP-8.10.2**: Multi-run “Inbox” view
-  - List active runs with status, current phase, last heartbeat, links to artifacts/errors.
-- **GAP-8.10.3**: Browser/Playwright artifacts viewer
-  - Show stored screenshots/HAR/video associated with a run.
-  - Do NOT implement “visual self-healing”.
-- **GAP-8.10.4**: Enhanced progress visualization + file change preview before approval
-  - Must respect redaction/sanitization and governance boundaries.
+All four UI components have been implemented:
+
+- **GAP-8.10.1**: Artifacts panel ✅
+  - `src/frontend/pages/Artifacts.tsx` - Plan preview, phase summaries, logs, errors
+  - Tabbed interface with overview, phases, logs, and errors views
+  - Uses demo data with API fallback (backend endpoints needed)
+
+- **GAP-8.10.2**: Multi-run "Inbox" view ✅
+  - `src/frontend/pages/RunsInbox.tsx` - Lists active/completed/failed runs
+  - Filter controls by status
+  - Quick links to artifacts and progress views
+
+- **GAP-8.10.3**: Browser/Playwright artifacts viewer ✅
+  - `src/frontend/pages/BrowserArtifacts.tsx` - Screenshots/HAR/video/trace display
+  - Grid display with type filtering and detail modal
+  - Download and preview actions
+  - Does NOT implement "visual self-healing" per spec
+
+- **GAP-8.10.4**: Enhanced progress visualization ✅
+  - `src/frontend/pages/ProgressView.tsx` - Real-time phase timeline
+  - Pending approval display with file change preview
+  - Redaction support for sensitive files (shows "[REDACTED]")
+  - Approve/reject/request changes action buttons
+
+Supporting infrastructure:
+- `src/frontend/types/index.ts` - TypeScript types matching backend schemas
+- `src/frontend/services/api.ts` - Centralized API client
+- `src/frontend/components/StatusBadge.tsx` - Status display component
+- `src/frontend/components/ProgressBar.tsx` - Progress visualization
+- `src/frontend/components/RunCard.tsx` - Run summary card
+
+Routes added to `src/frontend/App.tsx`:
+- `/runs` → RunsInbox
+- `/builds/:buildId/artifacts` → Artifacts
+- `/builds/:buildId/browser-artifacts` → BrowserArtifacts
+- `/builds/:buildId/progress` → ProgressView
 
 ## PR Slicing Recommendation (keep cheap + low risk)
 

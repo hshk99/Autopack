@@ -310,7 +310,9 @@ If CI fails with "requirements portability check failed":
 
 ## Contract Tests
 
-- Baseline format validation: `tests/security/test_baseline_format.py` (planned)
-- Normalization determinism: `tests/security/test_normalize_sarif.py` (planned)
-- Diff gate logic: `tests/security/test_diff_gate.py` (planned)
-- Requirements portability: `scripts/check_requirements_portability.py` (active)
+- Baseline format validation: `tests/security/test_update_baseline_determinism.py` ✅ (active)
+- Normalization determinism: `tests/security/test_normalize_sarif_determinism.py` ✅ (active)
+- SARIF schema validation: `tests/security/test_normalize_sarif_schema.py` ✅ (active)
+- Diff gate logic: `tests/security/test_diff_gate_semantics.py` ✅ (active)
+- Exemption classifier: `tests/security/test_exemption_classifier.py` ✅ (active)
+- Requirements portability: `scripts/check_requirements_portability.py` ✅ (active)

@@ -8,25 +8,35 @@ Autopack includes a comprehensive JWT-based authentication system using RS256 as
 
 ### Components
 
-1. **User Model** ([src/backend/models/user.py](src/backend/models/user.py))
+1. **User Model** ([src/autopack/auth/models.py](src/autopack/auth/models.py))
    - SQLAlchemy model for user data
    - Fields: id, username, email, hashed_password, is_active, is_superuser, created_at, updated_at
    - Automatic timestamp management with timezone-aware UTC datetimes
 
-2. **Security Module** ([src/backend/core/security.py](src/backend/core/security.py))
+2. **Security Module** ([src/autopack/auth/security.py](src/autopack/auth/security.py))
    - Password hashing/verification using bcrypt
    - JWT token creation/validation using RS256
    - RSA key management with auto-generation for dev/test environments
    - JWKS generation for external token verification
 
-3. **Authentication API** ([src/backend/api/auth.py](src/backend/api/auth.py))
+3. **Authentication API** ([src/autopack/auth/router.py](src/autopack/auth/router.py))
    - User registration endpoint
    - OAuth2 password flow login endpoint
    - Protected user profile endpoint
    - JWKS endpoint for token verification
    - Key status endpoint for configuration monitoring
 
-4. **Pydantic Schemas** ([src/backend/schemas/user.py](src/backend/schemas/user.py))
+4. **OAuth Lifecycle Management** ([src/autopack/auth/oauth_lifecycle.py](src/autopack/auth/oauth_lifecycle.py))
+   - Automatic token refresh with bounded retries
+   - Health monitoring and status tracking
+   - Pre-built handlers for GitHub and Google OAuth2
+
+5. **OAuth Router** ([src/autopack/auth/oauth_router.py](src/autopack/auth/oauth_router.py))
+   - Credential health endpoints
+   - Manual refresh/reset triggers (admin-only)
+   - Credential lifecycle audit trail
+
+6. **Pydantic Schemas** ([src/autopack/auth/schemas.py](src/autopack/auth/schemas.py))
    - Request/response validation models
    - UserCreate, UserResponse, Token, UserLogin, etc.
 
@@ -146,6 +156,23 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
 - 401: Not authenticated / Invalid token
 - 400: Inactive user
 
+### OAuth Credential Endpoints (BUILD-189)
+
+#### GET /api/auth/oauth/health
+Get overall credential health summary for dashboard. (Authenticated users)
+
+#### GET /api/auth/oauth/health/{provider}
+Get provider-specific credential health. (Authenticated users)
+
+#### POST /api/auth/oauth/refresh/{provider}
+Manually trigger credential refresh. (Admin only)
+
+#### POST /api/auth/oauth/reset/{provider}
+Reset failure counter for a provider. (Admin only)
+
+#### GET /api/auth/oauth/events
+Get credential lifecycle audit trail. (Authenticated users)
+
 ## Security Features
 
 ### Password Security
@@ -205,7 +232,7 @@ export JWT_PUBLIC_KEY="$(cat public_key.pem)"
 # Minimal development setup (SQLite + auto-generated keys)
 export DATABASE_URL="sqlite:///./autopack.db"
 export SECRET_KEY="dev-secret-key"
-python -m uvicorn autopack.main:app --reload
+PYTHONPATH=src python -m uvicorn autopack.main:app --reload
 ```
 
 ### Production Example
@@ -217,7 +244,7 @@ export JWT_PRIVATE_KEY="$(cat /path/to/private_key.pem)"
 export JWT_PUBLIC_KEY="$(cat /path/to/public_key.pem)"
 export SECRET_KEY="$(openssl rand -hex 32)"
 export ACCESS_TOKEN_EXPIRE_MINUTES="60"
-python -m uvicorn autopack.main:app --host 0.0.0.0 --port 8000
+PYTHONPATH=src python -m uvicorn autopack.main:app --host 0.0.0.0 --port 8000
 ```
 
 ## Database Setup
@@ -226,7 +253,7 @@ The authentication system requires the `users` table. Tables are created automat
 
 **Manual Initialization:**
 ```python
-from backend.database import init_db
+from autopack.database import init_db
 init_db()
 ```
 
@@ -334,25 +361,16 @@ curl -X GET http://localhost:8000/api/auth/me \
 
 ## Testing
 
-The authentication system includes comprehensive test coverage (29 tests) covering:
+The authentication system includes comprehensive test coverage:
 
-- Password hashing and verification
-- JWT token creation and validation
-- User registration (success, duplicates, validation)
-- User login (success, wrong password, missing credentials)
-- Protected endpoint access (valid token, no token, invalid token)
-- JWKS endpoint functionality
-- End-to-end authentication flows
+- `tests/test_autopack_auth.py` - Core auth flow tests
+- `tests/autopack/test_auth_algorithm_guardrail.py` - RS256 enforcement tests
+- `tests/credentials/test_oauth_lifecycle.py` - OAuth refresh logic tests
+- `tests/credentials/test_oauth_router.py` - OAuth endpoint tests
 
 **Run Authentication Tests:**
 ```bash
-cd /path/to/Autopack
-PYTHONPATH=src python -m pytest src/backend/tests/test_auth.py -v
-```
-
-**Expected Output:**
-```
-29 passed in 13.90s
+PYTHONPATH=src python -m pytest tests/test_autopack_auth.py tests/autopack/test_auth_algorithm_guardrail.py -v
 ```
 
 ## Integration with Existing Endpoints
@@ -361,7 +379,8 @@ To protect any endpoint with authentication, use the `get_current_user` dependen
 
 ```python
 from fastapi import APIRouter, Depends
-from autopack.auth import get_current_user, User
+from autopack.auth import User
+from autopack.auth.router import get_current_user
 
 router = APIRouter()
 
@@ -437,20 +456,21 @@ logging.basicConfig(level=logging.DEBUG)
 
 | File | Purpose |
 |------|---------|
-| [src/backend/models/user.py](src/backend/models/user.py) | User SQLAlchemy model |
-| [src/backend/schemas/user.py](src/backend/schemas/user.py) | Pydantic validation schemas |
-| [src/backend/api/auth.py](src/backend/api/auth.py) | Authentication API endpoints |
-| [src/backend/core/security.py](src/backend/core/security.py) | Security utilities (hashing, JWT) |
-| [src/backend/core/config.py](src/backend/core/config.py) | Configuration settings |
-| [src/backend/database.py](src/backend/database.py) | Database session management |
-| [src/backend/tests/test_auth.py](src/backend/tests/test_auth.py) | Authentication test suite |
+| [src/autopack/auth/models.py](src/autopack/auth/models.py) | User SQLAlchemy model |
+| [src/autopack/auth/schemas.py](src/autopack/auth/schemas.py) | Pydantic validation schemas |
+| [src/autopack/auth/router.py](src/autopack/auth/router.py) | Authentication API endpoints |
+| [src/autopack/auth/security.py](src/autopack/auth/security.py) | Security utilities (hashing, JWT) |
+| [src/autopack/auth/oauth_lifecycle.py](src/autopack/auth/oauth_lifecycle.py) | OAuth credential refresh logic |
+| [src/autopack/auth/oauth_router.py](src/autopack/auth/oauth_router.py) | OAuth credential API endpoints |
+| [src/autopack/config.py](src/autopack/config.py) | Configuration settings |
+| [src/autopack/database.py](src/autopack/database.py) | Database session management |
 
 ## Future Enhancements
 
 Potential improvements for future releases:
 
 1. **Token Refresh**: Add refresh token support for long-lived sessions
-2. **OAuth2 Providers**: Support Google/GitHub OAuth authentication
+2. **OAuth2 Providers**: Extend beyond GitHub/Google to other providers
 3. **2FA/MFA**: Add two-factor authentication support
 4. **Password Reset**: Email-based password reset flow
 5. **Account Verification**: Email verification for new accounts
@@ -463,6 +483,6 @@ Potential improvements for future releases:
 For questions or issues with the authentication system:
 
 1. Review this documentation
-2. Check the test suite for usage examples ([src/backend/tests/test_auth.py](src/backend/tests/test_auth.py))
-3. Review API endpoint code ([src/backend/api/auth.py](src/backend/api/auth.py))
+2. Check the test suite for usage examples
+3. Review API endpoint code ([src/autopack/auth/router.py](src/autopack/auth/router.py))
 4. Open an issue in the project repository

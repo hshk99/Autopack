@@ -2,12 +2,12 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 44 decision(s) documented | Last updated: 2026-01-09
+**Summary**: 45 decision(s) documented | Last updated: 2026-01-09
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
-Last_Updated: 2026-01-09T09:20:00.000000Z
-Total_Decisions: 44
+Last_Updated: 2026-01-09T09:30:00.000000Z
+Total_Decisions: 45
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUILD-155
@@ -17,6 +17,7 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 
 | Timestamp | DEC-ID | Decision | Status | Impact |
 |-----------|--------|----------|--------|--------|
+| 2026-01-09 | DEC-048 | AUTHENTICATION.md Rewrite to Match src/autopack/auth/ | ✅ Implemented | Eliminates stale src/backend/ references; aligns docs with canonical auth module paths (GAP-8.9.2) |
 | 2026-01-09 | DEC-047 | OAuth Credential Operations Require Admin Role | ✅ Implemented | Credential refresh/reset are privileged operations; prevents unauthorized credential manipulation |
 | 2026-01-08 | DEC-046 | Default-Deny Governance Policy (Conservative Auto-Approval Boundaries) | ✅ Implemented | Intentionally narrow auto-approval scope ensures human oversight for all production-impacting changes |
 | 2026-01-05 | DEC-045 | Security Diff Gate Policy (Fingerprint-Based Normalization + Security-Extended Suite) | ✅ Implemented | Mechanically enforceable security gates with high signal-to-noise; prevents baseline drift on benign refactors |
@@ -63,6 +64,50 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 | 2025-12-09 | DEC-007 | Documentation Consolidation Implementation Plan | ✅ Implemented |  |
 
 ## DECISIONS (Reverse Chronological)
+
+### DEC-048 | 2026-01-09 | AUTHENTICATION.md Rewrite to Match src/autopack/auth/
+
+**Status**: ✅ Implemented
+**Build**: BUILD-198 (Documentation Drift Closure)
+**GAP Reference**: GAP-8.9.2
+**Context**: `docs/AUTHENTICATION.md` references non-existent `src/backend/` paths (e.g., `src/backend/models/user.py`, `src/backend/api/auth.py`). The actual authentication code lives in `src/autopack/auth/`. This creates "two truths" where documentation doesn't match code.
+
+**Decision**: Rewrite `docs/AUTHENTICATION.md` to reference the canonical `src/autopack/auth/` module paths. Do not archive—the auth documentation is actively useful.
+
+**Chosen Approach**:
+
+- **Option A (Chosen)**: Rewrite to match `src/autopack/auth/*` and `/api/auth/*`
+  - Update all file references from `src/backend/` to `src/autopack/auth/`
+  - Update import examples to use `from autopack.auth import ...`
+  - Align API endpoint paths with actual FastAPI routes
+  - Keep comprehensive documentation structure (useful for operators and integrators)
+
+- **Option B (Rejected)**: Archive as legacy and remove from canonical surfacing
+  - Would lose valuable auth documentation
+  - Auth system is actively used; documentation should be current
+
+**Path Mappings**:
+
+| Old Path (docs) | New Path (canonical) |
+|-----------------|---------------------|
+| `src/backend/models/user.py` | `src/autopack/auth/models.py` |
+| `src/backend/schemas/user.py` | `src/autopack/auth/schemas.py` |
+| `src/backend/api/auth.py` | `src/autopack/auth/router.py` |
+| `src/backend/core/security.py` | `src/autopack/auth/security.py` |
+| `src/backend/core/config.py` | Uses `src/autopack/config.py` |
+| `src/backend/database.py` | `src/autopack/database.py` |
+| `src/backend/tests/test_auth.py` | `tests/auth/test_router.py` |
+
+**Rationale**:
+
+1. **One Truth**: Documentation must match code paths to be useful
+2. **LLM Interface**: Agents use docs to navigate the codebase; stale paths cause errors
+3. **Operator Trust**: Broken doc links undermine confidence in documentation quality
+4. **Mechanical Enforcement**: Doc drift checks can now validate path correctness
+
+**Tests**: Covered by `tests/docs/test_copy_paste_contracts.py` (path validity checks)
+
+---
 
 ### DEC-047 | 2026-01-09 | OAuth Credential Operations Require Admin Role
 

@@ -560,6 +560,29 @@ Parallel runs use the Four-Layer model (see `docs/PARALLEL_RUNS.md`):
 
 ---
 
+## 10. Canonical Operator Docs (GAP-8.9.5)
+
+These documents are actively maintained, tested for drift, and intended for operator/integrator use:
+
+| Document | Purpose | Drift Test |
+|----------|---------|------------|
+| `docs/QUICKSTART.md` | Getting started guide | `scripts/check_docs_drift.py` |
+| `docs/DEPLOYMENT.md` | Production deployment | `scripts/check_docs_drift.py` |
+| `docs/TROUBLESHOOTING.md` | Common issues | `scripts/check_docs_drift.py` |
+| `docs/GOVERNANCE.md` | Approval workflow (this doc) | `scripts/check_docs_drift.py` |
+| `docs/AUTHENTICATION.md` | Auth implementation (DEC-048) | `scripts/check_docs_drift.py` |
+| `docs/CONFIG_GUIDE.md` | Configuration reference | `scripts/check_docs_drift.py` |
+| `docs/AUTOPILOT_OPERATIONS.md` | Operator runbook | `scripts/check_docs_drift.py` |
+| `docs/PARALLEL_RUNS.md` | Parallelism isolation | `scripts/check_docs_drift.py` |
+| `security/README.md` | Security baseline system | Contract tests active |
+
+**Non-Canonical (Historical/Reference)**:
+- `docs/guides/` - Legacy cursor prompts and guides (not mechanically enforced)
+- `docs/BUILD-*.md` - Build-specific reports (append-only ledgers)
+- `archive/` - Superseded documentation
+
+---
+
 ## Documentation
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System overview
@@ -571,8 +594,8 @@ Parallel runs use the Four-Layer model (see `docs/PARALLEL_RUNS.md`):
 
 ---
 
-**Total Lines**: ~350 (updated for BUILD-179)
+**Total Lines**: ~400 (updated for BUILD-198 DEC-048)
 
-**Coverage**: 9 sections (approval workflow, governance tiers, auto-approval rules, protected paths, human approval, audit trails, emergency procedures, autonomy artifacts, parallelism governance)
+**Coverage**: 10 sections (approval workflow, governance tiers, auto-approval rules, protected paths, human approval, audit trails, emergency procedures, autonomy artifacts, parallelism governance, canonical operator docs)
 
-**Context**: Based on governance_requests.py, governed_apply.py, risk_scorer.py, quality_gate.py, autonomous_executor.py, phase_finalizer.py, approval endpoints, BUILD-127 governance implementation, and BUILD-179 autonomy CLI + supervisor consolidation
+**Context**: Based on governance_requests.py, governed_apply.py, risk_scorer.py, quality_gate.py, autonomous_executor.py, phase_finalizer.py, approval endpoints, BUILD-127 governance implementation, BUILD-179 autonomy CLI + supervisor consolidation, and BUILD-198 documentation drift closure

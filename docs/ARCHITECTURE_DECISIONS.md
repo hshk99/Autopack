@@ -2,12 +2,12 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 44 decision(s) documented | Last updated: 2026-01-09
+**Summary**: 48 decision(s) documented | Last updated: 2026-01-09
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
-Last_Updated: 2026-01-09T09:20:00.000000Z
-Total_Decisions: 44
+Last_Updated: 2026-01-09T09:30:00.000000Z
+Total_Decisions: 48
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUILD-155
@@ -17,6 +17,10 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 
 | Timestamp | DEC-ID | Decision | Status | Impact |
 |-----------|--------|----------|--------|--------|
+| 2026-01-09 | DEC-051 | Python 3.11 Canonical for CI (3.12 Local Support) | ✅ Implemented | Single canonical CI version prevents cross-version drift; local 3.12 supported |
+| 2026-01-09 | DEC-050 | AUTHENTICATION.md Rewrite to Match src/autopack/auth/* | 🧭 Planned | Aligns auth documentation with current implementation; prevents operator confusion |
+| 2026-01-09 | DEC-049 | Guides/Cursor Docs Legacy Labeling (Not Normalized) | ✅ Implemented | Keeps historical docs intact while preventing them from becoming "second truth" |
+| 2026-01-09 | DEC-048 | Scripts-First Migration Strategy (Alembic Deferred) | ✅ Implemented | One canonical migration surface; avoids "two truths" between Alembic and scripts |
 | 2026-01-09 | DEC-047 | OAuth Credential Operations Require Admin Role | ✅ Implemented | Credential refresh/reset are privileged operations; prevents unauthorized credential manipulation |
 | 2026-01-08 | DEC-046 | Default-Deny Governance Policy (Conservative Auto-Approval Boundaries) | ✅ Implemented | Intentionally narrow auto-approval scope ensures human oversight for all production-impacting changes |
 | 2026-01-05 | DEC-045 | Security Diff Gate Policy (Fingerprint-Based Normalization + Security-Extended Suite) | ✅ Implemented | Mechanically enforceable security gates with high signal-to-noise; prevents baseline drift on benign refactors |
@@ -63,6 +67,115 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 | 2025-12-09 | DEC-007 | Documentation Consolidation Implementation Plan | ✅ Implemented |  |
 
 ## DECISIONS (Reverse Chronological)
+
+### DEC-051 | 2026-01-09 | Python 3.11 Canonical for CI (3.12 Local Support)
+
+**Status**: ✅ Implemented
+**Build**: GAP-8.9.4 (IMPROVEMENTS_GAP_ANALYSIS.md)
+**Context**: CI uses Python 3.11 (`.github/workflows/ci.yml`) while local development often happens on Python 3.12. This creates potential drift in test behavior and dependency resolution.
+
+**Decision**: Python 3.11 is the **canonical CI version**. Local development on 3.12 is supported but developers should be aware that CI runs on 3.11.
+
+**Chosen Approach**:
+
+- **CI**: Single Python version (3.11) for deterministic, reproducible builds
+- **Local**: 3.12 works fine for development; use pyenv/uv/conda to match CI if needed
+- **Matrix Testing**: Deferred (not currently needed - no 3.12-specific features used)
+
+**Rationale**:
+
+1. **Simplicity**: Single CI version reduces maintenance burden and CI time
+2. **Stability**: 3.11 is well-tested; 3.12 has newer features but also newer edge cases
+3. **Determinism**: One version means one set of dependency resolutions
+4. **Documentation**: Clear guidance prevents "works on my machine" issues
+
+**Implementation**: Document in `docs/CONTRIBUTING.md` and `docs/QUICKSTART.md` that CI uses Python 3.11.
+
+---
+
+### DEC-050 | 2026-01-09 | AUTHENTICATION.md Rewrite to Match src/autopack/auth/*
+
+**Status**: 🧭 Planned
+**Build**: GAP-8.9.2 (IMPROVEMENTS_GAP_ANALYSIS.md)
+**Context**: `docs/AUTHENTICATION.md` references `src/backend/*` modules that don't exist in the current repo structure. This creates operator confusion and potential copy-paste failures.
+
+**Decision**: **Rewrite** `docs/AUTHENTICATION.md` to document the current auth system under `src/autopack/auth/*` and align with `docs/CANONICAL_API_CONTRACT.md`.
+
+**Chosen Approach**:
+
+- Update `docs/AUTHENTICATION.md` to describe:
+  - JWT-based authentication (`src/autopack/auth/jwt.py`)
+  - OAuth provider integration (`src/autopack/auth/oauth_router.py`)
+  - API endpoints under `/api/auth/*`
+- Remove all references to non-existent `src/backend/` paths
+- Add contract test to prevent `src/backend/` references in canonical docs
+
+**Rationale**:
+
+1. **Operator Correctness**: Docs must reflect actual implementation
+2. **Single Truth**: No "two truths" between code and docs
+3. **Mechanical Enforcement**: Contract tests prevent drift
+
+**Alternative Rejected**: Archive as legacy - rejected because auth docs are operator-facing and actively needed.
+
+---
+
+### DEC-049 | 2026-01-09 | Guides/Cursor Docs Legacy Labeling (Not Normalized)
+
+**Status**: ✅ Implemented
+**Build**: GAP-8.9.1 (IMPROVEMENTS_GAP_ANALYSIS.md)
+**Context**: Many files under `docs/guides/` and `docs/cursor/` contain workstation-specific paths like `C:\dev\Autopack` and legacy bootstrap snippets (including `init_db()` usage). These are copy-pasted by humans/agents even though they're not intended as canonical.
+
+**Decision**: **Label as legacy/historical** rather than normalize. Keep them out of operator-facing allowlists and drift checks.
+
+**Chosen Approach**:
+
+- Add explicit "**Legacy/Historical**" labels to guide and cursor docs
+- Do NOT include them in `tests/docs/test_copy_paste_contracts.py` allowlist
+- Do NOT scan them for forbidden patterns (to avoid false positives)
+- Create canonical operator docs list (see DEC-052) so agents know what's safe to copy
+
+**Rationale**:
+
+1. **Preserves History**: These docs capture historical context and decisions
+2. **Low Churn**: Normalizing ~20+ guide/cursor docs is high effort, low value
+3. **Clear Separation**: "Legacy" label prevents accidental use as source of truth
+4. **No False Positives**: Contract tests won't fail on historical content
+
+**Alternative Rejected**: Normalize all docs - rejected because it rewrites history and creates maintenance burden.
+
+---
+
+### DEC-048 | 2026-01-09 | Scripts-First Migration Strategy (Alembic Deferred)
+
+**Status**: ✅ Implemented
+**Build**: GAP-8.5.1 (IMPROVEMENTS_GAP_ANALYSIS.md)
+**Context**: `pyproject.toml` includes `alembic` dependency, but no `src/autopack/alembic/` directory exists. Meanwhile, `scripts/migrations/` contains actual migration scripts. This creates "two truths" ambiguity.
+
+**Decision**: **Scripts-first** is the canonical migration approach. Alembic remains as a dependency for potential future use but is not currently canonical.
+
+**Chosen Approach**:
+
+- **Canonical**: `scripts/migrations/` contains all database migrations
+- **Discipline**: Each migration script is:
+  - Idempotent (safe to re-run)
+  - Reversible where possible
+  - Documented in script header
+- **DB Bootstrap**: `AUTOPACK_DB_BOOTSTRAP=1` required for schema creation (already enforced)
+- **Alembic Status**: Dependency retained; not canonical until explicit decision to adopt
+
+**Rationale**:
+
+1. **Current State**: Scripts exist and work; Alembic directory doesn't exist
+2. **Simplicity**: Scripts are more approachable for small team
+3. **Flexibility**: Scripts can be wired to any migration runner
+4. **No Rewrite**: Avoids converting existing scripts to Alembic format
+
+**Future Work**: If Alembic is adopted, create `src/autopack/alembic/` and migrate scripts incrementally. Document in a new DEC entry when that happens.
+
+**Contract Test**: `tests/docs/test_copy_paste_contracts.py` blocks `init_db()` as "migration" guidance.
+
+---
 
 ### DEC-047 | 2026-01-09 | OAuth Credential Operations Require Admin Role
 

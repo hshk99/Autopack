@@ -497,7 +497,7 @@ python scripts/storage/scan_and_report.py --scan-id 123 --execute --dry-run=fals
 ```powershell
 # Right-click PowerShell → "Run as Administrator"
 # Then re-run execution command
-cd C:\dev\Autopack
+cd $REPO_ROOT
 python scripts/storage/scan_and_report.py --scan-id 123 --execute --dry-run=false
 ```
 

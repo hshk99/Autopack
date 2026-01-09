@@ -17,8 +17,9 @@ pip install -e .
 ### 1. Initialize Database
 
 ```bash
-# Create database schema
-PYTHONPATH=src python -c "from autopack.database import init_db; init_db()"
+# P0 DB guardrail: schema bootstrap is disabled by default.
+# For dev/test only, temporarily allow bootstrap once:
+export AUTOPACK_DB_BOOTSTRAP=1  # Windows PowerShell: $env:AUTOPACK_DB_BOOTSTRAP="1"
 ```
 
 ### 2. Start API Server
@@ -26,6 +27,12 @@ PYTHONPATH=src python -c "from autopack.database import init_db; init_db()"
 ```bash
 # Terminal 1: Start backend API
 PYTHONPATH=src uvicorn autopack.main:app --host 127.0.0.1 --port 8000
+```
+
+Once the server has started successfully, you can unset bootstrap:
+
+```bash
+unset AUTOPACK_DB_BOOTSTRAP  # Windows PowerShell: Remove-Item Env:AUTOPACK_DB_BOOTSTRAP
 ```
 
 ### 3. Create Your First Run

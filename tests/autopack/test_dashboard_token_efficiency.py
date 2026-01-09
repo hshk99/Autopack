@@ -37,6 +37,8 @@ def db_session(test_db):
 @pytest.fixture
 def client(test_db):
     """Create test client for API"""
+    import os
+
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db)
 
     def override_get_db():
@@ -46,10 +48,18 @@ def client(test_db):
         finally:
             db.close()
 
+    # Set TESTING=1 to skip init_db() in app lifespan
+    os.environ["TESTING"] = "1"
+
     app.dependency_overrides[get_db] = override_get_db
+    # Disable rate limiting in tests
+    app.state.limiter.enabled = False
+
     with TestClient(app) as test_client:
         yield test_client
+
     app.dependency_overrides.clear()
+    del os.environ["TESTING"]
 
 
 class TestDashboardTokenEfficiencyIntegration:

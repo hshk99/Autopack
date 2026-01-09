@@ -1164,10 +1164,10 @@ This is the **single authoritative checklist** for the remaining work in this do
 - **✅ GAP-8.9.2 (P1/P2)**: Decide whether to rewrite `docs/AUTHENTICATION.md` to match `src/autopack/auth/*` or archive it as legacy (see 8.9.2) - **DECIDED 2026-01-09** (DEC-050: rewrite to match current auth)
 - **✅ GAP-8.9.4 (P2)**: Decide whether CI should add Python 3.12, or document "3.11 canonical" more explicitly (see 8.9.4) - **DECIDED 2026-01-09** (DEC-051: 3.11 canonical for CI)
 - **✅ GAP-8.9.5 (P2)**: Add explicit "canonical operator docs list" (e.g., in `docs/INDEX.md` or `docs/GOVERNANCE.md`) (see 8.9.5) - **IMPLEMENTED 2026-01-09** (Section 10 added to GOVERNANCE.md)
-- **⏳ GAP-8.10.1 (P2)**: Add a UI “Artifacts” panel (plan/results/walkthrough) that surfaces existing run artifacts without new LLM calls (see 8.10.1)
-- **⏳ GAP-8.10.2 (P2)**: Add a multi-run “Inbox” view for parallel runs (status cards + links to artifacts) (see 8.10.2)
-- **⏳ GAP-8.10.3 (P2)**: Wire Playwright/browser artifacts into run artifacts + UI viewer (screenshots/HAR/video) (see 8.10.3)
-- **⏳ GAP-8.10.4 (P2)**: Enhance progress visualization and add “file change preview before approval” UX (see 8.10.4)
+- **✅ GAP-8.10.1 (P2)**: Add a UI "Artifacts" panel (plan/results/walkthrough) that surfaces existing run artifacts without new LLM calls (see 8.10.1) - **IMPLEMENTED 2026-01-10** (GET /runs/{run_id}/artifacts/index + file endpoints, RunArtifacts.tsx page)
+- **✅ GAP-8.10.2 (P2)**: Add a multi-run "Inbox" view for parallel runs (status cards + links to artifacts) (see 8.10.2) - **IMPLEMENTED 2026-01-10** (GET /runs endpoint with pagination, RunsInbox.tsx page)
+- **✅ GAP-8.10.3 (P2)**: Wire Playwright/browser artifacts into run artifacts + UI viewer (screenshots/HAR/video) (see 8.10.3) - **IMPLEMENTED 2026-01-10** (GET /runs/{run_id}/browser/artifacts endpoint, RunBrowserArtifacts.tsx page)
+- **✅ GAP-8.10.4 (P2)**: Enhance progress visualization and add "file change preview before approval" UX (see 8.10.4) - **IMPLEMENTED 2026-01-10** (GET /runs/{run_id}/progress endpoint, RunProgress.tsx page)
 
 #### 8.0.2 Implemented already (verification completed)
 

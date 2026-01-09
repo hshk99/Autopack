@@ -4,7 +4,8 @@ import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
+from urllib.parse import unquote
 
 from dotenv import load_dotenv
 
@@ -741,6 +742,271 @@ def get_run_error_summary(run_id: str):
     reporter = get_error_reporter()
     summary = reporter.generate_run_error_summary(run_id)
     return {"run_id": run_id, "summary": summary}
+
+
+# ==============================================================================
+# GAP-8.10 Operator Surface Endpoints
+# ==============================================================================
+
+
+@app.get("/runs")
+def list_runs(
+    limit: int = 20,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """List all runs with pagination (GAP-8.10.2 Runs Inbox).
+
+    Returns summary information for each run suitable for inbox display.
+    """
+    # Clamp limit to reasonable bounds
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+
+    # Get total count
+    total = db.query(models.Run).count()
+
+    # Get paginated runs ordered by created_at desc
+    runs = (
+        db.query(models.Run)
+        .order_by(models.Run.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    # Build summary response
+    run_summaries = []
+    for run in runs:
+        # Count phases for this run
+        phases = db.query(models.Phase).filter(models.Phase.run_id == run.id).all()
+        phases_total = len(phases)
+        phases_completed = sum(1 for p in phases if p.state == models.PhaseState.COMPLETE)
+
+        # Get current phase name (first non-complete phase)
+        current_phase = next(
+            (
+                p
+                for p in phases
+                if p.state not in (models.PhaseState.COMPLETE, models.PhaseState.SKIPPED)
+            ),
+            None,
+        )
+
+        run_summaries.append(
+            {
+                "id": run.id,
+                "state": run.state.value,
+                "created_at": run.created_at.isoformat() if run.created_at else None,
+                "tokens_used": run.tokens_used or 0,
+                "token_cap": run.token_cap,
+                "phases_total": phases_total,
+                "phases_completed": phases_completed,
+                "current_phase_name": current_phase.name if current_phase else None,
+            }
+        )
+
+    return {
+        "runs": run_summaries,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@app.get("/runs/{run_id}/progress")
+def get_run_progress(run_id: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Get detailed progress for a run (GAP-8.10.4 Progress View).
+
+    Returns phase-by-phase progress with timing and token information.
+    """
+    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    # Get all phases for this run
+    phases = (
+        db.query(models.Phase)
+        .filter(models.Phase.run_id == run_id)
+        .order_by(models.Phase.phase_index)
+        .all()
+    )
+
+    # Count phase states
+    phases_total = len(phases)
+    phases_completed = sum(1 for p in phases if p.state == models.PhaseState.COMPLETE)
+    phases_in_progress = sum(1 for p in phases if p.state == models.PhaseState.EXECUTING)
+    phases_pending = sum(1 for p in phases if p.state == models.PhaseState.QUEUED)
+
+    # Calculate elapsed time
+    elapsed_seconds = None
+    if run.started_at:
+        end_time = run.completed_at if run.completed_at else datetime.now(timezone.utc)
+        started_at = run.started_at
+        # Normalize timezones
+        if started_at.tzinfo is None:
+            started_at = started_at.replace(tzinfo=timezone.utc)
+        if end_time.tzinfo is None:
+            end_time = end_time.replace(tzinfo=timezone.utc)
+        elapsed_seconds = int((end_time - started_at).total_seconds())
+
+    # Build phase details
+    phase_details = []
+    for p in phases:
+        phase_details.append(
+            {
+                "phase_id": p.phase_id,
+                "name": p.name,
+                "state": p.state.value,
+                "phase_index": p.phase_index,
+                "tokens_used": p.tokens_used,
+                "builder_attempts": p.builder_attempts,
+            }
+        )
+
+    return {
+        "run_id": run_id,
+        "state": run.state.value,
+        "started_at": run.started_at.isoformat() if run.started_at else None,
+        "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+        "elapsed_seconds": elapsed_seconds,
+        "tokens_used": run.tokens_used or 0,
+        "token_cap": run.token_cap,
+        "phases_total": phases_total,
+        "phases_completed": phases_completed,
+        "phases_in_progress": phases_in_progress,
+        "phases_pending": phases_pending,
+        "phases": phase_details,
+    }
+
+
+@app.get("/runs/{run_id}/artifacts/index")
+def get_artifacts_index(run_id: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Get artifact file index for a run (GAP-8.10.1 Artifact Browser).
+
+    Returns list of artifact files with metadata.
+    """
+    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    file_layout = RunFileLayout(run_id)
+    artifacts = []
+    total_size = 0
+
+    if file_layout.base_dir.exists():
+        for file_path in file_layout.base_dir.rglob("*"):
+            if file_path.is_file():
+                rel_path = file_path.relative_to(file_layout.base_dir)
+                file_size = file_path.stat().st_size
+                total_size += file_size
+                artifacts.append(
+                    {
+                        "path": str(rel_path),
+                        "size_bytes": file_size,
+                        "modified_at": datetime.fromtimestamp(
+                            file_path.stat().st_mtime, tz=timezone.utc
+                        ).isoformat(),
+                    }
+                )
+
+    return {
+        "run_id": run_id,
+        "artifacts": artifacts,
+        "total_size_bytes": total_size,
+    }
+
+
+@app.get("/runs/{run_id}/artifacts/file")
+def get_artifact_file(
+    run_id: str,
+    path: str,
+    db: Session = Depends(get_db),
+):
+    """Get artifact file content (GAP-8.10.1 Artifact Browser).
+
+    Security: Path traversal attacks are blocked.
+    """
+    from fastapi.responses import PlainTextResponse
+
+    # URL-decode path to catch encoded traversal attempts (e.g., %2e%2e = ..)
+    decoded_path = unquote(path)
+
+    # Security checks FIRST (defense in depth) - before any DB lookup
+    if ".." in decoded_path or "\\.." in decoded_path:
+        raise HTTPException(status_code=400, detail="Path traversal not allowed")
+    if decoded_path.startswith("/"):
+        raise HTTPException(status_code=400, detail="Absolute paths not allowed")
+    if len(decoded_path) > 1 and decoded_path[1] == ":":
+        raise HTTPException(status_code=400, detail="Windows drive letters not allowed")
+
+    # Now check run exists
+    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    file_layout = RunFileLayout(run_id)
+    file_path = file_layout.base_dir / decoded_path
+
+    # Additional check: ensure resolved path is within base_dir
+    try:
+        file_path.resolve().relative_to(file_layout.base_dir.resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Path traversal not allowed")
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"File not found: {path}")
+
+    return PlainTextResponse(content=file_path.read_text(encoding="utf-8", errors="replace"))
+
+
+@app.get("/runs/{run_id}/browser/artifacts")
+def get_browser_artifacts(run_id: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Get browser-specific artifacts for a run (GAP-8.10.3 Browser Artifacts).
+
+    Returns screenshots and other browser-related artifacts.
+    """
+    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    file_layout = RunFileLayout(run_id)
+    browser_artifacts = []
+
+    # Look for browser-related files (screenshots, etc.)
+    browser_extensions = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".html"}
+    browser_patterns = ["screenshot", "browser", "page", "capture"]
+
+    if file_layout.base_dir.exists():
+        for file_path in file_layout.base_dir.rglob("*"):
+            if file_path.is_file():
+                # Check if it's a browser-related file
+                is_browser_file = file_path.suffix.lower() in browser_extensions or any(
+                    pattern in file_path.name.lower() for pattern in browser_patterns
+                )
+                if is_browser_file:
+                    rel_path = file_path.relative_to(file_layout.base_dir)
+                    browser_artifacts.append(
+                        {
+                            "path": str(rel_path),
+                            "type": (
+                                "screenshot"
+                                if file_path.suffix.lower()
+                                in {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+                                else "html"
+                            ),
+                            "size_bytes": file_path.stat().st_size,
+                            "modified_at": datetime.fromtimestamp(
+                                file_path.stat().st_mtime, tz=timezone.utc
+                            ).isoformat(),
+                        }
+                    )
+
+    return {
+        "run_id": run_id,
+        "artifacts": browser_artifacts,
+        "total_count": len(browser_artifacts),
+    }
 
 
 @app.post("/runs/{run_id}/phases/{phase_id}/builder_result")

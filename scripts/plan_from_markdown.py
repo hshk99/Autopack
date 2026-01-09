@@ -13,7 +13,6 @@ from pathlib import Path
 import json
 
 from autopack.plan_parser import parse_markdown_plan, phases_to_plan
-from autopack.validators import validate_yaml_syntax  # placeholder to mirror import style
 from autopack.plan_utils import merge_plans
 
 

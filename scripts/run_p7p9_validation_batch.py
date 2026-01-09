@@ -138,11 +138,11 @@ def select_validation_phases():
 
     for run_id, phase_ids in by_run.items():
         print(f"# {run_id} ({len(phase_ids)} phases)")
-        print(f"TELEMETRY_DB_ENABLED=1 PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" \\")
-        print(f"  timeout 600 python scripts/drain_queued_phases.py \\")
+        print("TELEMETRY_DB_ENABLED=1 PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" \\")
+        print("  timeout 600 python scripts/drain_queued_phases.py \\")
         print(f"  --run-id {run_id} \\")
         print(f"  --batch-size {len(phase_ids)} \\")
-        print(f"  --max-batches 1")
+        print("  --max-batches 1")
         print()
 
     session.close()

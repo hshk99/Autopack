@@ -47,7 +47,7 @@ class UniversalResearchAnalysisPipeline:
     def run(self) -> dict:
         """Run the complete universal analysis pipeline"""
         print(f"\n{'='*70}")
-        print(f"UNIVERSAL RESEARCH ANALYSIS PIPELINE")
+        print("UNIVERSAL RESEARCH ANALYSIS PIPELINE")
         print(f"{'='*70}")
         print(f"Project: {self.project_id}")
         print(f"Started: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -81,7 +81,7 @@ class UniversalResearchAnalysisPipeline:
 
             # Save context
             self._save_context(context)
-            print(f"\n✓ Phase 1 complete: Context assembled")
+            print("\n✓ Phase 1 complete: Context assembled")
 
         except Exception as e:
             print(f"\n✗ Phase 1 failed: {e}")
@@ -173,7 +173,7 @@ class UniversalResearchAnalysisPipeline:
                 **routing_summary
             }
 
-            print(f"\n✓ Phase 4 complete: Decisions routed")
+            print("\n✓ Phase 4 complete: Decisions routed")
 
         except Exception as e:
             print(f"\n✗ Phase 4 failed: {e}")
@@ -271,7 +271,7 @@ class UniversalResearchAnalysisPipeline:
     def _print_final_summary(self, results, analysis, report):
         """Print final summary"""
         print(f"\n{'='*70}")
-        print(f"PIPELINE COMPLETE")
+        print("PIPELINE COMPLETE")
         print(f"{'='*70}\n")
 
         print(f"Duration: {results['duration_seconds']:.1f} seconds\n")

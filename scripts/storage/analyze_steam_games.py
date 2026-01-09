@@ -225,13 +225,13 @@ def main():
             print(f"  - {folder}")
 
     # Detect games
-    print(f"\nScanning for games...")
+    print("\nScanning for games...")
 
     if args.all:
         print("  Mode: All installed games")
         games = detector.detect_installed_games()
     else:
-        print(f"  Mode: Large unplayed games")
+        print("  Mode: Large unplayed games")
         print(f"  Filters: Size >= {args.min_size} GB, Age >= {args.min_age} days")
         games = detector.find_unplayed_games(
             min_size_gb=args.min_size,
@@ -251,17 +251,17 @@ def main():
     # Recommendations
     if games and not args.all:
         total_size_gb = sum(g.size_bytes for g in games) / (1024**3)
-        print(f"\n💡 Recommendations:")
+        print("\n💡 Recommendations:")
         print(f"  - You could free up to {total_size_gb:.2f} GB by removing these games")
-        print(f"  - Games can be re-downloaded from Steam library anytime")
-        print(f"  - Consider uninstalling games you haven't played in 6+ months")
-        print(f"\n  To approve for deletion:")
+        print("  - Games can be re-downloaded from Steam library anytime")
+        print("  - Consider uninstalling games you haven't played in 6+ months")
+        print("\n  To approve for deletion:")
         if args.save_to_db:
             print(f"    1. Review candidates: GET /storage/scans/{scan_id}")
             print(f"    2. Approve: POST /storage/scans/{scan_id}/approve")
             print(f"    3. Execute: POST /storage/scans/{scan_id}/execute")
         else:
-            print(f"    Run with --save-to-db to integrate with cleanup workflow")
+            print("    Run with --save-to-db to integrate with cleanup workflow")
 
     return 0
 

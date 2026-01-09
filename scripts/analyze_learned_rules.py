@@ -12,9 +12,8 @@ Usage:
 import argparse
 import json
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict
 from collections import defaultdict
-from datetime import datetime
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -55,12 +54,12 @@ def analyze_project_rules(project_id: str) -> Dict:
     for rule in rules:
         by_category[rule.task_category].append(rule)
 
-    print(f"\n📊 Rules by Task Category:")
+    print("\n📊 Rules by Task Category:")
     for category, category_rules in sorted(by_category.items()):
         print(f"  {category}: {len(category_rules)} rules")
 
     # Find most promoted rules (highest confidence)
-    print(f"\n🏆 Top Promoted Rules (highest confidence):")
+    print("\n🏆 Top Promoted Rules (highest confidence):")
     sorted_by_promotion = sorted(rules, key=lambda r: r.promotion_count, reverse=True)
     for i, rule in enumerate(sorted_by_promotion[:10], 1):
         print(f"  {i}. {rule.rule_id}")
@@ -71,26 +70,26 @@ def analyze_project_rules(project_id: str) -> Dict:
         print()
 
     # Pattern analysis
-    print(f"\n🔍 Pattern Analysis:")
+    print("\n🔍 Pattern Analysis:")
     patterns = defaultdict(int)
     for rule in rules:
         # Extract pattern from rule_id (e.g., "feature_scaffolding.missing_type_hints" -> "missing_type_hints")
         pattern = rule.rule_id.split(".", 1)[-1] if "." in rule.rule_id else rule.rule_id
         patterns[pattern] += 1
 
-    print(f"  Most common patterns:")
+    print("  Most common patterns:")
     for pattern, count in sorted(patterns.items(), key=lambda x: x[1], reverse=True)[:10]:
         print(f"    - {pattern}: {count} rules")
 
     # Scope analysis
-    print(f"\n📂 Scope Analysis:")
+    print("\n📂 Scope Analysis:")
     global_rules = sum(1 for r in rules if r.scope_pattern is None)
     scoped_rules = sum(1 for r in rules if r.scope_pattern is not None)
     print(f"  Global rules (no scope): {global_rules}")
     print(f"  Scoped rules (specific patterns): {scoped_rules}")
 
     if scoped_rules > 0:
-        print(f"\n  Common scope patterns:")
+        print("\n  Common scope patterns:")
         scope_patterns = defaultdict(int)
         for rule in rules:
             if rule.scope_pattern:
@@ -150,12 +149,12 @@ def analyze_run_hints(run_id: str) -> Dict:
         if hint.task_category:
             by_category[hint.task_category].append(hint)
 
-    print(f"\n📊 Hints by Task Category:")
+    print("\n📊 Hints by Task Category:")
     for category, category_hints in sorted(by_category.items()):
         print(f"  {category}: {len(category_hints)} hints")
 
     # Pattern frequency (for promotion prediction)
-    print(f"\n🔮 Pattern Frequency (promotion candidates):")
+    print("\n🔮 Pattern Frequency (promotion candidates):")
     pattern_counts = defaultdict(int)
     for hint in hints:
         if hint.source_issue_keys:
@@ -180,7 +179,7 @@ def analyze_run_hints(run_id: str) -> Dict:
         print(f"    {status} {pattern}: {count} occurrences")
 
     # Hint details
-    print(f"\n📝 Hint Details:")
+    print("\n📝 Hint Details:")
     for hint in hints:
         print(f"\n  Phase {hint.phase_id} ({hint.task_category or 'unknown'}):")
         print(f"    {hint.hint_text}")
@@ -204,12 +203,12 @@ def analyze_all_projects() -> Dict:
         Dict with cross-project analysis
     """
     print(f"\n{'='*60}")
-    print(f"🌍 All Projects Analysis")
+    print("🌍 All Projects Analysis")
     print(f"{'='*60}\n")
 
     runs_dir = Path(".autonomous_runs")
     if not runs_dir.exists():
-        print(f"⚠️  No .autonomous_runs directory found")
+        print("⚠️  No .autonomous_runs directory found")
         return {"projects": []}
 
     # Find all project directories
@@ -221,7 +220,7 @@ def analyze_all_projects() -> Dict:
                 projects.append(project_dir.name)
 
     if not projects:
-        print(f"⚠️  No projects with learned rules found")
+        print("⚠️  No projects with learned rules found")
         return {"projects": []}
 
     print(f"Found {len(projects)} project(s) with learned rules:\n")
@@ -233,7 +232,7 @@ def analyze_all_projects() -> Dict:
 
     # Cross-project summary
     print(f"\n{'='*60}")
-    print(f"📈 Cross-Project Summary")
+    print("📈 Cross-Project Summary")
     print(f"{'='*60}\n")
 
     total_rules = sum(r["total_rules"] for r in all_results)
@@ -247,7 +246,7 @@ def analyze_all_projects() -> Dict:
             pattern = rule.rule_id.split(".", 1)[-1] if "." in rule.rule_id else rule.rule_id
             all_patterns[pattern] += 1
 
-    print(f"\nMost common patterns across all projects:")
+    print("\nMost common patterns across all projects:")
     for pattern, count in sorted(all_patterns.items(), key=lambda x: x[1], reverse=True)[:15]:
         print(f"  {pattern}: {count} projects")
 
@@ -271,7 +270,7 @@ def analyze_run_series(project_id: str) -> Dict:
 
     runs_dir = Path(".autonomous_runs") / "runs"
     if not runs_dir.exists():
-        print(f"⚠️  No runs directory found")
+        print("⚠️  No runs directory found")
         return {"project_id": project_id, "runs": []}
 
     # Find all runs
@@ -294,7 +293,7 @@ def analyze_run_series(project_id: str) -> Dict:
                     pass
 
     if not runs:
-        print(f"⚠️  No runs found")
+        print("⚠️  No runs found")
         return {"project_id": project_id, "runs": []}
 
     # Sort by creation time
@@ -369,7 +368,7 @@ def main():
         print(f"\n💾 Analysis saved to: {output_path}")
 
     print(f"\n{'='*60}")
-    print(f"✅ Analysis Complete")
+    print("✅ Analysis Complete")
     print(f"{'='*60}\n")
 
 

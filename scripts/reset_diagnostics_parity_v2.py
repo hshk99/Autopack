@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path.cwd() / "src"))
 
 from autopack.database import SessionLocal, init_db
-from autopack.models import Run, Phase, PhaseState, RunState
+from autopack.models import Run, PhaseState, RunState
 
 init_db()
 db = SessionLocal()

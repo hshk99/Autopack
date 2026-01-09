@@ -68,9 +68,9 @@ def main():
         session.add(phase)
         session.commit()
 
-        print(f"✅ Simple telemetry test run created!")
+        print("✅ Simple telemetry test run created!")
         print(f"Run: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {RUN_ID} 2>&1 | tee telemetry_test.log")
-        print(f"Then: grep 'TokenEstimationV2' telemetry_test.log")
+        print("Then: grep 'TokenEstimationV2' telemetry_test.log")
 
     finally:
         session.close()

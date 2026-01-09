@@ -113,7 +113,7 @@ def create_run():
     print("  - Work with external projects (not autopack/ itself)")
     print("  - Validate test suite functionality")
     print()
-    print(f"[INFO] Target: .autonomous_runs/file-organizer-app-v1/backend/")
+    print("[INFO] Target: .autonomous_runs/file-organizer-app-v1/backend/")
     print()
 
     headers = {}

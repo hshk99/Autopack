@@ -55,5 +55,5 @@ if __name__ == "__main__":
         print(f"\n[OK] Run {run_id} is now ready for execution")
         sys.exit(0)
     else:
-        print(f"\n[WARNING] No phases were reset (either no EXECUTING phases found, or run doesn't exist)")
+        print("\n[WARNING] No phases were reset (either no EXECUTING phases found, or run doesn't exist)")
         sys.exit(1)

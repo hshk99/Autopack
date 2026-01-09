@@ -8,8 +8,7 @@ Works for any project by comparing ProjectContext against research catalog.
 import json
 import os
 from pathlib import Path
-from typing import List, Dict
-from datetime import datetime
+from typing import List
 import anthropic
 
 from scripts.research.data_structures import (
@@ -67,7 +66,7 @@ class ResearchAnalyzer:
         analysis.strategic_insights = self._extract_strategic_insights(context, analysis.gaps)
 
         print(f"\n{'='*60}")
-        print(f"RESEARCH ANALYSIS COMPLETE")
+        print("RESEARCH ANALYSIS COMPLETE")
         print(f"{'='*60}\n")
         self._print_summary(analysis)
 
@@ -428,13 +427,13 @@ Return JSON array of strings:
 
     def _print_summary(self, analysis: OpportunityAnalysis):
         """Print summary of analysis"""
-        print(f"Summary:")
+        print("Summary:")
         print(f"  • Total gaps: {len(analysis.gaps)}")
         print(f"  • Critical: {len(analysis.get_by_priority(Priority.CRITICAL))}")
         print(f"  • High: {len(analysis.get_by_priority(Priority.HIGH))}")
         print(f"  • Medium: {len(analysis.get_by_priority(Priority.MEDIUM))}")
         print(f"  • Low: {len(analysis.get_by_priority(Priority.LOW))}")
-        print(f"\nGaps by type:")
+        print("\nGaps by type:")
         for gap_type in GapType:
             count = len(analysis.get_by_type(gap_type))
             if count > 0:

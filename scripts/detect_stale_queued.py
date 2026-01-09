@@ -18,7 +18,6 @@ Usage:
     PYTHONUTF8=1 DATABASE_URL="sqlite:///autopack.db" python scripts/detect_stale_queued.py \\
         --mark-failed --max-age-minutes 60
 """
-import os
 import sys
 import argparse
 from pathlib import Path

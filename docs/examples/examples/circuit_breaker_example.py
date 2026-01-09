@@ -5,13 +5,11 @@ Demonstrates various circuit breaker patterns and use cases.
 import time
 import random
 import logging
-from typing import Optional
 
 from src.autopack.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
-    CircuitBreakerOpenError,
-    CircuitState
+    CircuitBreakerOpenError
 )
 from src.autopack.circuit_breaker_registry import get_global_registry
 

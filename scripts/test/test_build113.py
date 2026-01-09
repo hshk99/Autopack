@@ -140,7 +140,7 @@ ImportError: cannot import name 'TestModule' from 'autopack.test_package'
         print(f"\nRationale:\n{decision.rationale}")
 
         if decision.alternatives_considered:
-            print(f"\nAlternatives Considered:")
+            print("\nAlternatives Considered:")
             for alt in decision.alternatives_considered:
                 print(f"  - {alt}")
 
@@ -158,7 +158,7 @@ ImportError: cannot import name 'TestModule' from 'autopack.test_package'
             print("  5. Commit or rollback")
 
             if decision.patch:
-                print(f"\nGenerated Patch Preview:")
+                print("\nGenerated Patch Preview:")
                 print("-" * 40)
                 print(decision.patch[:500] if len(decision.patch) > 500 else decision.patch)
                 if len(decision.patch) > 500:

@@ -180,9 +180,9 @@ def main():
         print(f"  Added: {diff['added']} | Removed: {diff['removed']} | Unchanged: {diff['unchanged']}")
 
         if diff["added"] > 0 or diff["removed"] > 0:
-            print(f"  [!]️  Baseline will change!")
+            print("  [!]️  Baseline will change!")
         else:
-            print(f"  [OK] No changes (baseline stable)")
+            print("  [OK] No changes (baseline stable)")
 
     print("\n" + "=" * 70)
 

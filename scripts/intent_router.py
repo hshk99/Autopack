@@ -11,7 +11,6 @@ Maps user intents to safe, predefined actions without typing raw commands:
 """
 
 import argparse
-import json
 import subprocess
 import sys
 from dataclasses import dataclass

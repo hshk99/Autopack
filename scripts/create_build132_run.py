@@ -218,10 +218,10 @@ def create_run():
         "phases": all_phases
     }
 
-    print(f"[INFO] Creating BUILD-132: Coverage Delta Integration")
+    print("[INFO] Creating BUILD-132: Coverage Delta Integration")
     print(f"[INFO] Total phases: {len(TASKS)}")
     print(f"[INFO] Total tiers: {len(tiers)}")
-    print(f"[INFO] Expected telemetry samples: 4+ successful Builder executions")
+    print("[INFO] Expected telemetry samples: 4+ successful Builder executions")
 
     response = requests.post(
         f"{API_URL}/runs/start",

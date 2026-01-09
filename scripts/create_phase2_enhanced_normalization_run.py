@@ -221,10 +221,10 @@ REFERENCE:
             return 1
         print(f"  ✅ Created phase: {phase['phase_id']}")
 
-    print(f"\n🚀 Run created successfully!")
+    print("\n🚀 Run created successfully!")
     print(f"   Run ID: {RUN_ID}")
     print(f"   Phases: {len(phases)}")
-    print(f"\nTo execute:")
+    print("\nTo execute:")
     print(f"  cd c:/dev/Autopack && PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" QDRANT_HOST=\"http://localhost:6333\" python -m autopack.autonomous_executor --run-id {RUN_ID} --poll-interval 15 --run-type autopack_maintenance")
 
     return 0

@@ -9,12 +9,10 @@ Author: Autopack
 Date: 2025-11-30
 """
 
-import os
 import re
 from pathlib import Path
 from typing import Dict, List, Tuple
 from datetime import datetime
-import shutil
 
 class ProjectDocConsolidator:
     """Consolidates documentation with strict project separation."""
@@ -276,13 +274,13 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
         # Create master index
         self.create_master_index(grouped, file_org_archive, autopack_archive)
 
-        print(f"\n[SUCCESS] Consolidation complete!")
-        print(f"\nNext steps:")
-        print(f"1. Review consolidated files in:")
+        print("\n[SUCCESS] Consolidation complete!")
+        print("\nNext steps:")
+        print("1. Review consolidated files in:")
         print(f"   - {file_org_archive}")
         print(f"   - {autopack_archive}")
-        print(f"2. Archive original files to 'superseded/' subfolder")
-        print(f"3. Update archive_consolidator.py for auto-update")
+        print("2. Archive original files to 'superseded/' subfolder")
+        print("3. Update archive_consolidator.py for auto-update")
 
     def create_master_index(self,
                            grouped: Dict[str, Dict[str, List]],
@@ -347,7 +345,7 @@ python scripts/consolidate_docs.py
         (file_org_archive / "ARCHIVE_INDEX.md").write_text(index_content, encoding='utf-8')
         (autopack_archive / "ARCHIVE_INDEX.md").write_text(index_content, encoding='utf-8')
 
-        print(f"  [OK] Created: ARCHIVE_INDEX.md in both locations")
+        print("  [OK] Created: ARCHIVE_INDEX.md in both locations")
 
 
 def main():

@@ -35,7 +35,7 @@ def create_project_if_not_exists(project_path: str) -> None:
         subprocess.run(["git", "add", "README.md"], cwd=project_path, check=True)
         subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=project_path, check=True)
 
-        print(f"[Setup] ✅ Project initialized with git")
+        print("[Setup] ✅ Project initialized with git")
     else:
         print(f"[Setup] Project already exists: {project_path}")
 

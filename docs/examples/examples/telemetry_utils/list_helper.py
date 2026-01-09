@@ -4,7 +4,7 @@ This module provides common list manipulation utilities including
 chunking, flattening, deduplication, and grouping operations.
 """
 
-from typing import Any, Callable, Dict, Iterable, List, TypeVar
+from typing import Any, Callable, Dict, List, TypeVar
 
 
 T = TypeVar('T')

@@ -20,7 +20,6 @@ import argparse
 import json
 import re
 import shutil
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
 

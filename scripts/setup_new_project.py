@@ -97,10 +97,10 @@ def create_project_structure(project_name: str, project_slug: str, base_dir: Pat
 
     if source_runner.exists():
         shutil.copy2(source_runner, dest_runner)
-        print(f"[2/5] Copied generic autopack_runner.py")
+        print("[2/5] Copied generic autopack_runner.py")
     else:
         print(f"[WARNING] Source runner not found at {source_runner}")
-        print(f"[WARNING] You'll need to create autopack_runner.py manually")
+        print("[WARNING] You'll need to create autopack_runner.py manually")
 
     # Create FUTURE_PLAN.md template
     whats_left = project_dir / "FUTURE_PLAN.md"
@@ -167,7 +167,7 @@ cd {REPO_ROOT}/.autonomous_runs/{project_slug}
 python scripts/autopack_runner.py --non-interactive
 ```
 """)
-    print(f"[3/5] Created FUTURE_PLAN.md template")
+    print("[3/5] Created FUTURE_PLAN.md template")
 
     # Create PROJECT_README.md
     readme = project_dir / "PROJECT_README.md"
@@ -284,7 +284,7 @@ To adjust, edit the run configuration in `autopack_runner.py` or create a projec
 
 See [FileOrganizer HOW_TO_RUN_PHASE2.md](../file-organizer-app-v1/HOW_TO_RUN_PHASE2.md) for common issues and solutions.
 """)
-    print(f"[4/5] Created PROJECT_README.md")
+    print("[4/5] Created PROJECT_README.md")
 
     # Create run.sh wrapper
     run_script = project_dir / "run.sh"
@@ -327,20 +327,20 @@ echo "Check the report files listed above for results."
 echo ""
 """)
     run_script.chmod(0o755)  # Make executable
-    print(f"[5/5] Created run.sh wrapper script")
+    print("[5/5] Created run.sh wrapper script")
 
     print(f"\n{'=' * 80}")
-    print(f"✅ Project setup complete!")
+    print("✅ Project setup complete!")
     print(f"{'=' * 80}")
     print(f"\nProject: {project_name}")
     print(f"Slug: {project_slug}")
     print(f"Location: {project_dir}")
-    print(f"\nNext steps:")
+    print("\nNext steps:")
     print(f"1. Edit {project_dir}/FUTURE_PLAN.md to define your tasks")
     print(f"2. Use magic phrase: 'RUN AUTOPACK END-TO-END for {project_name} now.'")
-    print(f"\nThe magic phrase will execute:")
+    print("\nThe magic phrase will execute:")
     print(f"  cd {project_dir}")
-    print(f"  python scripts/autopack_runner.py --non-interactive")
+    print("  python scripts/autopack_runner.py --non-interactive")
     print(f"\n{'=' * 80}")
 
 
@@ -413,11 +413,11 @@ After setup, the magic phrase will work:
 
     # Dry-run mode: just show what would be generated
     if args.dry_run:
-        print(f"\n[DRY RUN] Would create project:")
+        print("\n[DRY RUN] Would create project:")
         print(f"  Name: {args.name}")
         print(f"  Slug: {slug}")
         print(f"  Path: {base_dir / slug}")
-        print(f"\n[DRY RUN] No files created.")
+        print("\n[DRY RUN] No files created.")
         return
 
     # Create project structure

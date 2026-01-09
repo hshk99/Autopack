@@ -699,7 +699,7 @@ def retry_pending_moves(
         if dry_run:
             # CRITICAL: In dry-run, do NOT mutate the queue at all
             # Just report what would happen
-            print(f"    [DRY-RUN] Would retry move (queue unchanged)")
+            print("    [DRY-RUN] Would retry move (queue unchanged)")
             # Don't count as succeeded in dry-run to avoid confusion
             continue
 
@@ -716,7 +716,7 @@ def retry_pending_moves(
             # Mark succeeded (only in execute mode)
             queue.mark_succeeded(item["id"])
             succeeded += 1
-            print(f"    SUCCESS")
+            print("    SUCCESS")
         except Exception as e:
             # Re-queue with updated error info (only in execute mode)
             queue.enqueue(

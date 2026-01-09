@@ -153,12 +153,12 @@ def main():
         if estimator.estimate(dels, s["category"], s["complexity"]).estimated_tokens < s["actual"]:
             new_underestimations += 1
 
-    print(f"\nUnderestimation rate:")
+    print("\nUnderestimation rate:")
     print(f"  Old: {old_underestimations}/{len(samples)} ({old_underestimations/len(samples)*100:.1f}%)")
     print(f"  New: {new_underestimations}/{len(samples)} ({new_underestimations/len(samples)*100:.1f}%)")
 
     # Waste analysis (overestimation)
-    print(f"\nMedian waste ratio (predicted/actual):")
+    print("\nMedian waste ratio (predicted/actual):")
     old_waste_ratios = [s["old_predicted"] / s["actual"] for s in samples if s["actual"] > 0]
     new_waste_ratios = []
     for s in samples:
@@ -174,7 +174,7 @@ def main():
 
     print(f"  Old median: {old_median:.2f}x")
     print(f"  New median: {new_median:.2f}x")
-    print(f"  (1.0 = perfect, <1.0 = underestimate, >1.0 = overestimate)")
+    print("  (1.0 = perfect, <1.0 = underestimate, >1.0 = overestimate)")
 
 if __name__ == "__main__":
     main()

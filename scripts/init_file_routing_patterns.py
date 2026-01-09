@@ -331,13 +331,13 @@ def verify_collection(client: QdrantClient, collection_name: str):
 
     try:
         collection_info = client.get_collection(collection_name)
-        print(f"\n=== Collection Info ===")
+        print("\n=== Collection Info ===")
         print(f"  Name: {collection_info.config.params.vectors.size} dimensions")
         print(f"  Vectors: {collection_info.vectors_count} patterns")
         print(f"  Distance: {collection_info.config.params.vectors.distance}")
 
         # Test search
-        print(f"\n=== Test Search ===")
+        print("\n=== Test Search ===")
         model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
         test_queries = [
@@ -359,7 +359,7 @@ def verify_collection(client: QdrantClient, collection_name: str):
                 payload = result.payload
                 print(f"    [{result.score:.3f}] {payload['project_id']:25s} | {payload['file_type']:10s} | {payload['example_filename']}")
 
-        print(f"\n✓ Collection verification complete")
+        print("\n✓ Collection verification complete")
 
     except Exception as e:
         print(f"Error verifying collection: {e}")
@@ -376,7 +376,7 @@ def main():
     embedding_model = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
     collection_name = "file_routing_patterns"
 
-    print(f"Configuration:")
+    print("Configuration:")
     print(f"  Qdrant Host: {qdrant_host}")
     print(f"  Embedding Model: {embedding_model}")
     print(f"  Collection: {collection_name}")

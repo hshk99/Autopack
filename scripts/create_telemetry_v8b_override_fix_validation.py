@@ -93,7 +93,7 @@ def create_telemetry_v8b_run():
         )
         session.add(tier)
         session.flush()
-        print(f"✅ Created tier 1")
+        print("✅ Created tier 1")
 
         # === DOCS/LOW PHASES (3) ===
         docs_low_phases = [
@@ -153,11 +153,11 @@ def create_telemetry_v8b_run():
             print(f"  [{idx:02d}] {phase_def['phase_id']} ({phase_def['category']}/{phase_def['complexity']}, {len(phase_def['deliverables'])} deliverable(s))")
 
         session.commit()
-        print(f"\n✅ Successfully created telemetry-collection-v8b-override-fix with 3 phases")
-        print(f"   - docs/low: 3 phases (expect selected_budget=4096 each)")
-        print(f"\nDrain with:")
-        print(f"  python scripts/drain_queued_phases.py --run-id telemetry-collection-v8b-override-fix \\")
-        print(f"    --batch-size 10 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
+        print("\n✅ Successfully created telemetry-collection-v8b-override-fix with 3 phases")
+        print("   - docs/low: 3 phases (expect selected_budget=4096 each)")
+        print("\nDrain with:")
+        print("  python scripts/drain_queued_phases.py --run-id telemetry-collection-v8b-override-fix \\")
+        print("    --batch-size 10 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
 
     except Exception as e:
         session.rollback()

@@ -8,7 +8,7 @@ This module provides common path manipulation utilities including:
 """
 
 from pathlib import Path
-from typing import Union, Optional
+from typing import Union
 
 
 def join_paths(*paths: Union[str, Path]) -> Path:

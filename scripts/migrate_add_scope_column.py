@@ -11,7 +11,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from autopack.database import SessionLocal, engine
+from autopack.database import SessionLocal
 from sqlalchemy import text
 
 def migrate():

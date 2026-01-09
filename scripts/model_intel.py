@@ -53,7 +53,7 @@ def cmd_ingest_catalog(args):
 
     try:
         results = ingest_all()
-        print(f"\n✓ Catalog ingestion complete:")
+        print("\n✓ Catalog ingestion complete:")
         print(f"  - Models ingested: {results['catalog']}")
         print(f"  - Pricing records ingested: {results['pricing']}")
     except Exception as e:
@@ -72,7 +72,7 @@ def cmd_compute_runtime_stats(args):
     try:
         with get_model_intelligence_session() as session:
             count = compute_runtime_stats(session, window_days=args.window_days)
-            print(f"\n✓ Runtime stats computation complete:")
+            print("\n✓ Runtime stats computation complete:")
             print(f"  - Stats records created: {count}")
             print(f"  - Window: {args.window_days} days")
     except Exception as e:
@@ -114,7 +114,7 @@ def cmd_ingest_sentiment(args):
 def cmd_recommend(args):
     """Generate recommendations for a use case."""
     print("=" * 70)
-    print(f"Model Intelligence: Generate Recommendations")
+    print("Model Intelligence: Generate Recommendations")
     print(f"Use Case: {args.use_case}")
     print("=" * 70)
 
@@ -272,9 +272,9 @@ def cmd_refresh_all(args):
         sys.exit(1)
 
     print("\n✓ Refresh complete!")
-    print(f"  - Next steps:")
-    print(f"    • Review recommendations: python scripts/model_intel.py report --latest")
-    print(f"    • Generate new recommendations: python scripts/model_intel.py recommend --use-case <use_case> --current-model <model>")
+    print("  - Next steps:")
+    print("    • Review recommendations: python scripts/model_intel.py report --latest")
+    print("    • Generate new recommendations: python scripts/model_intel.py recommend --use-case <use_case> --current-model <model>")
 
 
 def main():

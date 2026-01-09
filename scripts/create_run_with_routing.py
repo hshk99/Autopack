@@ -52,7 +52,7 @@ def main():
 
     print(f"[SUCCESS] Run created: {args.run_id}")
     print(f"[INFO] Suggested local output dir: {out_dir}")
-    print(f"[INFO] Launch executor with this run-id using that output dir for artifacts/logs.")
+    print("[INFO] Launch executor with this run-id using that output dir for artifacts/logs.")
 
 
 if __name__ == "__main__":

@@ -31,7 +31,7 @@ import json
 import logging
 import re
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -44,7 +44,6 @@ from autopack.intention_anchor.artifacts import (
     get_anchor_events_path,
     get_anchor_summary_path,
     get_anchor_summary_version_path,
-    read_anchor_events,
 )
 from autopack.intention_anchor.storage import get_canonical_path, load_anchor
 

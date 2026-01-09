@@ -229,12 +229,12 @@ def main():
             print(f"[OK] Phase {idx}: {pd['id']} ({pd['category']}/{pd['complexity']}, {len(pd['deliverables'])} deliverables)")
 
         session.commit()
-        print(f"\n✅ Week 1 telemetry collection run seeded!")
+        print("\n✅ Week 1 telemetry collection run seeded!")
         print(f"Run: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {RUN_ID}")
-        print(f"\nExpected diversity:")
-        print(f"  Categories: backend(2), testing(2), database(1), frontend(1), refactoring(2), deployment(1), configuration(1), integration(1), documentation(1)")
-        print(f"  Complexity: low(3), medium(4), high(5)")
-        print(f"  Deliverables: 3 files(5), 4 files(2), 5 files(3), 6 files(2), 7 files(1)")
+        print("\nExpected diversity:")
+        print("  Categories: backend(2), testing(2), database(1), frontend(1), refactoring(2), deployment(1), configuration(1), integration(1), documentation(1)")
+        print("  Complexity: low(3), medium(4), high(5)")
+        print("  Deliverables: 3 files(5), 4 files(2), 5 files(3), 6 files(2), 7 files(1)")
     except Exception as e:
         session.rollback()
         print(f"[ERROR] {e}")

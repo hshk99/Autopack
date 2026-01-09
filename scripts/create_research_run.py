@@ -48,7 +48,7 @@ def create_research_run():
 
         chunk0_config = load_chunk_yaml(chunk0_path)
 
-        print(f"📋 Creating run: research-system-v1")
+        print("📋 Creating run: research-system-v1")
         print(f"   Phase: {chunk0_config['phase_id']}")
         print(f"   Description: {chunk0_config['description'].strip()[:100]}...")
 
@@ -114,13 +114,13 @@ def create_research_run():
         # Commit all changes
         db.commit()
 
-        print(f"\n✅ Run created successfully!")
+        print("\n✅ Run created successfully!")
         print(f"   Run ID: {run.id}")
         print(f"   Tier ID: {tier0.tier_id}")
         print(f"   Phase ID: {phase.phase_id}")
         print(f"   State: {phase.state}")
-        print(f"\n🚀 Ready to launch autonomous executor:")
-        print(f"   PYTHONPATH=src python -m autopack.autonomous_executor --run-id research-system-v1")
+        print("\n🚀 Ready to launch autonomous executor:")
+        print("   PYTHONPATH=src python -m autopack.autonomous_executor --run-id research-system-v1")
 
         return run.id
 

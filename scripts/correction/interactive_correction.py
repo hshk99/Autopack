@@ -80,7 +80,7 @@ class InteractiveCorrector:
         print("=" * 70)
         print(f"File: {os.path.basename(src_path)}")
         print(f"Source: {src_path}")
-        print(f"Classified as:")
+        print("Classified as:")
         print(f"  Project: {project_id}")
         print(f"  Type: {doc_type}")
         print(f"Moved to: {dest_path}")
@@ -142,7 +142,7 @@ class InteractiveCorrector:
               final_project, final_type, datetime.now(timezone.utc)))
 
         self.conn.commit()
-        print(f"\n[OK] Correction saved to PostgreSQL")
+        print("\n[OK] Correction saved to PostgreSQL")
 
         # Save to Qdrant as high-priority pattern
         if self.qdrant_client and self.embedding_model:
@@ -167,7 +167,7 @@ class InteractiveCorrector:
                         )
                     ]
                 )
-                print(f"[OK] Correction added to Qdrant as high-priority pattern")
+                print("[OK] Correction added to Qdrant as high-priority pattern")
             except Exception as e:
                 print(f"[WARN] Could not add to Qdrant: {e}")
 

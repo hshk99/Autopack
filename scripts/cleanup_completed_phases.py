@@ -12,7 +12,7 @@ Use failure_reason field to document manual completion while preserving failure 
 Note: Phase and Run models don't have 'notes' field. Using failure_reason instead.
 """
 from autopack.database import SessionLocal
-from autopack.models import Phase, Run, PhaseState, RunState
+from autopack.models import Run
 
 def main():
     session = SessionLocal()
@@ -61,11 +61,11 @@ def main():
             if run:
                 print(f"Run {run_id}: {run.state} (updating failure_reason)")
                 run.failure_reason = (
-                    f"[TEST/VALIDATION RUN] Created for BUILD-129 Phase 3 telemetry collection validation. "
-                    f"Purpose: Collect diverse telemetry samples to validate overhead model. "
-                    f"Outcome: Operational blockers (protected paths, telemetry persistence to stderr vs database). "
-                    f"Preserved as reproducible telemetry baseline - DO NOT DELETE. "
-                    f"See BUILD-129_PHASE3_EXECUTION_SUMMARY.md."
+                    "[TEST/VALIDATION RUN] Created for BUILD-129 Phase 3 telemetry collection validation. "
+                    "Purpose: Collect diverse telemetry samples to validate overhead model. "
+                    "Outcome: Operational blockers (protected paths, telemetry persistence to stderr vs database). "
+                    "Preserved as reproducible telemetry baseline - DO NOT DELETE. "
+                    "See BUILD-129_PHASE3_EXECUTION_SUMMARY.md."
                 )
 
         session.commit()

@@ -21,7 +21,6 @@ Usage:
 import argparse
 import subprocess
 import sys
-import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -75,7 +74,7 @@ class PreTidyAuditor:
         # Generate report
         self._generate_report()
 
-        print(f"\n✅ Pre-Tidy Audit Complete")
+        print("\n✅ Pre-Tidy Audit Complete")
         print(f"   Total files: {self.total_files}")
         print(f"   Report: {self.report_path}")
         print()
@@ -170,7 +169,7 @@ class PreTidyAuditor:
                 if ext in [".png", ".jpg", ".pdf", ".bin", ".exe"]:
                     for file_path in self.files_by_type[ext]:
                         if file_path.is_relative_to(md_dir):
-                            self.special_handling.append((file_path, f"Binary file in docs directory"))
+                            self.special_handling.append((file_path, "Binary file in docs directory"))
 
         if self.special_handling:
             print(f"      Found {len(self.special_handling)} special cases")
@@ -261,7 +260,7 @@ class PostTidyAuditor:
         if not dry_run and not self.verification_errors:
             self._auto_commit()
 
-        print(f"\n✅ Post-Tidy Verification Complete")
+        print("\n✅ Post-Tidy Verification Complete")
         print(f"   Report: {self.report_path}")
         print()
 
@@ -459,7 +458,7 @@ class AutonomousTidy:
 
         # 3. Delete all processed archive files (analysis/, plans/, reports/, etc.)
         # These have been extracted to SOT files and are no longer needed
-        print(f"\n📁 Cleaning up extracted archive files...")
+        print("\n📁 Cleaning up extracted archive files...")
 
         # Directories to clean up (exclude research, diagnostics, prompts)
         cleanup_dirs = ["analysis", "plans", "reports", "tidy_v7"]
@@ -500,7 +499,7 @@ class AutonomousTidy:
                     except:
                         pass  # Directory not empty, keep it
 
-        print(f"\n✅ Cleanup Summary:")
+        print("\n✅ Cleanup Summary:")
         print(f"   Deleted: {deleted_count} files")
         print(f"   Moved: {moved_count} files")
         print()
@@ -598,8 +597,8 @@ class AutonomousTidy:
         print("=" * 80)
         print()
         print("📊 Reports Generated:")
-        print(f"   - Pre-Tidy Audit: PRE_TIDY_AUDIT_REPORT.md")
-        print(f"   - Post-Tidy Verification: POST_TIDY_VERIFICATION_REPORT.md")
+        print("   - Pre-Tidy Audit: PRE_TIDY_AUDIT_REPORT.md")
+        print("   - Post-Tidy Verification: POST_TIDY_VERIFICATION_REPORT.md")
         print()
 
         if self.dry_run:

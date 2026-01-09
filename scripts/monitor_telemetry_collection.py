@@ -18,7 +18,7 @@ def parse_telemetry_from_logs(log_dir: Path):
             for line in content.split('\n'):
                 if '[TokenEstimationV2]' in line:
                     telemetry_samples.append(line)
-        except Exception as e:
+        except Exception:
             pass
 
     return telemetry_samples
@@ -43,7 +43,7 @@ def main():
         print(f"  Samples collected: {len(samples)}")
 
         if samples:
-            print(f"  Latest samples:")
+            print("  Latest samples:")
             for sample in samples[-3:]:  # Show last 3
                 # Extract key metrics
                 match = re.search(r'predicted_output=(\d+) actual_output=(\d+) smape=([\d.]+)%', sample)
@@ -55,7 +55,7 @@ def main():
 
     print("\n" + "=" * 80)
     print(f"Total telemetry samples collected: {total_samples}")
-    print(f"Target: 9 samples (4 from P1, 5 from P2)")
+    print("Target: 9 samples (4 from P1, 5 from P2)")
     print(f"Progress: {total_samples}/9 ({total_samples/9*100:.1f}%)")
 
 if __name__ == "__main__":

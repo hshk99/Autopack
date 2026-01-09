@@ -16,12 +16,10 @@ Usage:
 
 import argparse
 import hashlib
-import json
 import re
 import subprocess
 import sys
 import uuid
-from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -763,7 +761,7 @@ class DocumentConsolidator:
                 else:
                     # No auditor available - fall back to manual review
                     self.unsorted_entries.append((file_path, best_confidence, scores, status))
-                    print(f"    [UNSORTED] No auditor available, manual review required")
+                    print("    [UNSORTED] No auditor available, manual review required")
 
     def _is_schema_or_spec_file(self, file_path: Path, content: str) -> bool:
         """
@@ -893,7 +891,7 @@ class DocumentConsolidator:
 
         elif status == "PENDING_ACTIVE":
             # Check if already in FUTURE_PLAN
-            print(f"    [SKIP] Active task already in FUTURE_PLAN")
+            print("    [SKIP] Active task already in FUTURE_PLAN")
             return True  # Skip consolidation
 
         elif status == "REFERENCE":
@@ -905,7 +903,7 @@ class DocumentConsolidator:
         elif status == "STALE" or status == "STALE_IMPLEMENTATION":
             # Stale content → Manual review with warning
             self.unsorted_entries.append((file_path, confidence, scores, status))
-            print(f"    [UNSORTED] STALE content (age >180 days), manual review required")
+            print("    [UNSORTED] STALE content (age >180 days), manual review required")
             return True
 
         # UNKNOWN status → use confidence-based fallback
@@ -1499,22 +1497,22 @@ class DocumentConsolidator:
             content += f"## `{rel_path}`\n\n"
             content += f"**Status**: {status}\n"
             content += f"**Best Match**: {max(scores, key=scores.get)} ({confidence:.2f})\n"
-            content += f"**Confidence Scores**:\n"
+            content += "**Confidence Scores**:\n"
             content += f"- BUILD_HISTORY: {scores['build']:.2f}\n"
             content += f"- DEBUG_LOG: {scores['debug']:.2f}\n"
             content += f"- ARCHITECTURE_DECISIONS: {scores['decision']:.2f}\n\n"
 
             # Status-based recommendation
             if status == "IMPLEMENTED":
-                content += f"**Recommendation**: Move to BUILD_HISTORY (implementation confirmed)\n"
+                content += "**Recommendation**: Move to BUILD_HISTORY (implementation confirmed)\n"
             elif status == "REJECTED":
-                content += f"**Recommendation**: Move to ARCHITECTURE_DECISIONS (rejected plan)\n"
+                content += "**Recommendation**: Move to ARCHITECTURE_DECISIONS (rejected plan)\n"
             elif status == "REFERENCE":
-                content += f"**Recommendation**: Move to ARCHITECTURE_DECISIONS (permanent reference)\n"
+                content += "**Recommendation**: Move to ARCHITECTURE_DECISIONS (permanent reference)\n"
             elif status == "STALE":
-                content += f"**Recommendation**: Review for relevance - may be obsolete (age >180 days)\n"
+                content += "**Recommendation**: Review for relevance - may be obsolete (age >180 days)\n"
             else:
-                content += f"**Recommendation**: Manual review required\n"
+                content += "**Recommendation**: Manual review required\n"
             content += "\n"
 
             # Preview content

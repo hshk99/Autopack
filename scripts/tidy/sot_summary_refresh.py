@@ -32,7 +32,7 @@ import re
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 # Windows consoles can default to legacy encodings (e.g., cp1252) that can't print
 # the status glyphs/emojis used by this script. Keep output UTF-8 to avoid crashes.
@@ -239,7 +239,7 @@ def update_readme_sot_summary(
     if latest_build_title:
         summary_lines.append(f"- **Latest Build**: {latest_build_title}")
     else:
-        summary_lines.append(f"- **Latest Build**: (unknown)")
+        summary_lines.append("- **Latest Build**: (unknown)")
 
     summary_lines.append(f"- **Architecture Decisions**: {decision_count}")
     summary_lines.append(f"- **Debugging Sessions**: {debug_count}")
@@ -552,7 +552,7 @@ def refresh_sot_summaries(
                 else:
                     print(f"[{'CHECK' if check_mode else 'DRY-RUN'}] Would update BUILD_HISTORY.md summary: {total_entries} build(s)")
                 if verbose:
-                    print(f"  Preview of new summary section:")
+                    print("  Preview of new summary section:")
                     summary_match = re.search(
                         r'<!-- AUTO-GENERATED SUMMARY.*?<!-- END AUTO-GENERATED SUMMARY -->',
                         new_content,
@@ -711,7 +711,7 @@ def main():
     print(f"Project: {args.project}")
     print(f"Docs dir: {docs_dir}")
     if check_mode:
-        print(f"Mode: CHECK (drift detection for CI)")
+        print("Mode: CHECK (drift detection for CI)")
     else:
         print(f"Mode: {'DRY-RUN' if dry_run else 'EXECUTE'}")
     print("=" * 70)

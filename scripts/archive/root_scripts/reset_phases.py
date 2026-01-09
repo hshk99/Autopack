@@ -1,5 +1,4 @@
 """Reset FileOrg Phase 2 phases to QUEUED state for BUILD-047 validation."""
-import os
 import psycopg2
 
 # Connect to database

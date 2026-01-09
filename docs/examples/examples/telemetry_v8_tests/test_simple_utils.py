@@ -5,8 +5,6 @@ for utility functions like string formatting, path normalization, and
 list deduplication.
 """
 
-import os
-import pytest
 
 
 def format_phase_name(phase_id: str, category: str) -> str:

@@ -208,7 +208,7 @@ def break_stale_lock(lock_path: Path, grace_seconds: int, force: bool) -> tuple[
 
     # Check expiry
     if status.expired is None:
-        return False, f"Cannot determine if lock is expired (missing/invalid timestamp)"
+        return False, "Cannot determine if lock is expired (missing/invalid timestamp)"
 
     if not status.expired:
         return False, f"Lock is not expired (expires at: {status.expires_at}, grace: {grace_seconds}s)"
@@ -262,7 +262,7 @@ def print_lock_status(status: LockStatus, ascii_mode: bool = False) -> None:
         return
 
     if status.malformed:
-        print(f"Malformed:        YES")
+        print("Malformed:        YES")
         print(f"Error:            {status.error}")
         print("\nLock file is corrupted or unreadable.")
         print("Use --break-stale-lock --force to remove it.")
@@ -353,7 +353,7 @@ def print_all_lock_status(
         print(f"  Path: {lock_path}")
 
         if not status.exists:
-            print(f"  Status: Not found")
+            print("  Status: Not found")
         elif status.malformed:
             if ascii_mode:
                 print(f"  Status: [ERROR] Malformed - {status.error}")
@@ -565,7 +565,7 @@ class Lease:
 
             if lock_data is None:
                 # Unreadable/malformed lock - treat as stale (safe default)
-                logger.warning(f"[LEASE] Breaking unreadable/malformed lock (cannot parse lock data)")
+                logger.warning("[LEASE] Breaking unreadable/malformed lock (cannot parse lock data)")
                 self.lock_path.unlink(missing_ok=True)
                 continue
 
@@ -615,7 +615,7 @@ class Lease:
         lock_data = self._read_lock()
 
         if lock_data is None:
-            logger.error(f"[LEASE] Cannot renew - lock file is missing or unreadable")
+            logger.error("[LEASE] Cannot renew - lock file is missing or unreadable")
             return False
 
         if lock_data.get("token") != self._token:
@@ -634,7 +634,7 @@ class Lease:
             logger.info(f"[LEASE] Renewed lease: {self.lock_path} (new expiry: {new_payload['expires_at']})")
             return True
 
-        logger.warning(f"[LEASE] Failed to renew lease (write failed)")
+        logger.warning("[LEASE] Failed to renew lease (write failed)")
         return False
 
     def release(self) -> None:
@@ -645,7 +645,7 @@ class Lease:
         Does not verify ownership (for cleanup scenarios).
         """
         if not self._acquired:
-            logger.debug(f"[LEASE] Release called but lease was not acquired")
+            logger.debug("[LEASE] Release called but lease was not acquired")
             return
 
         try:

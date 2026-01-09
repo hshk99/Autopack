@@ -45,7 +45,6 @@ from src.autopack.llm_client import ModelSelector
 from src.autopack.learned_rules import (
     load_project_learned_rules,
     get_relevant_rules_for_phase,
-    load_run_rule_hints,
     get_relevant_hints_for_phase,
     record_run_rule_hint,
     promote_hints_to_rules,
@@ -98,9 +97,9 @@ class Supervisor:
         # Auxiliary agents configuration
         self.enable_aux_agents = enable_aux_agents and AGENTS_AVAILABLE
         if self.enable_aux_agents:
-            print(f"[Supervisor] Auxiliary agents: ENABLED")
+            print("[Supervisor] Auxiliary agents: ENABLED")
         else:
-            print(f"[Supervisor] Auxiliary agents: DISABLED")
+            print("[Supervisor] Auxiliary agents: DISABLED")
 
         # Load configurations
         self.models_config = self._load_models_config()
@@ -207,13 +206,13 @@ class Supervisor:
             is_high_risk=is_high_risk
         )
 
-        print(f"\n[Supervisor] 🧠 Model Selection:")
+        print("\n[Supervisor] 🧠 Model Selection:")
         print(f"[Supervisor]    Builder: {model_selection.builder_model}")
         print(f"[Supervisor]    Auditor: {model_selection.auditor_model}")
         print(f"[Supervisor]    Rationale: {model_selection.rationale}")
 
         # Stage 0A + 0B: Get relevant rules and hints for this phase
-        print(f"\n[Supervisor] 📚 Loading learned rules for phase...")
+        print("\n[Supervisor] 📚 Loading learned rules for phase...")
 
         # Stage 0B: Get persistent project rules (from snapshot)
         relevant_project_rules = get_relevant_rules_for_phase(
@@ -229,7 +228,7 @@ class Supervisor:
             print(f"[Supervisor]    Project rules: {len(relevant_project_rules)}")
             print(f"[Supervisor]    Run hints: {len(relevant_run_hints)}")
         else:
-            print(f"[Supervisor]    No relevant rules or hints found")
+            print("[Supervisor]    No relevant rules or hints found")
 
         # Step 2: Builder executes
         print(f"\n[Supervisor] → Dispatching to Builder (OpenAI {model_selection.builder_model})...")
@@ -260,12 +259,12 @@ class Supervisor:
                 "error": builder_result.error
             }
 
-        print(f"[Supervisor] ✅ Builder completed")
+        print("[Supervisor] ✅ Builder completed")
         print(f"[Supervisor]    Tokens used: {builder_result.tokens_used:,}")
         print(f"[Supervisor]    Patch size: {len(builder_result.patch_content)} chars")
 
         # Step 3: Submit builder result to API
-        print(f"\n[Supervisor] → Submitting builder result to API...")
+        print("\n[Supervisor] → Submitting builder result to API...")
 
         submit_result = self._submit_builder_result(
             run_id=run_id,
@@ -274,7 +273,7 @@ class Supervisor:
         )
 
         if not submit_result:
-            print(f"[Supervisor] ⚠️  Warning: Failed to submit builder result")
+            print("[Supervisor] ⚠️  Warning: Failed to submit builder result")
 
         # Step 4: Auditor reviews
         print(f"\n[Supervisor] → Dispatching to Auditor (OpenAI {model_selection.auditor_model})...")
@@ -298,7 +297,7 @@ class Supervisor:
         print(f"[Supervisor] Auditor tokens used: {auditor_result.tokens_used:,}")
 
         # Step 5: Submit auditor result to API
-        print(f"\n[Supervisor] → Submitting auditor result to API...")
+        print("\n[Supervisor] → Submitting auditor result to API...")
 
         audit_submit_result = self._submit_auditor_result(
             run_id=run_id,
@@ -307,7 +306,7 @@ class Supervisor:
         )
 
         if not audit_submit_result:
-            print(f"[Supervisor] ⚠️  Warning: Failed to submit auditor result")
+            print("[Supervisor] ⚠️  Warning: Failed to submit auditor result")
 
         # Step 6: Determine outcome
         total_tokens = builder_result.tokens_used + auditor_result.tokens_used
@@ -423,7 +422,7 @@ class Supervisor:
         print(f"{'='*60}\n")
 
         # Stage 0B: Load persistent project rules (before run starts)
-        print(f"[Supervisor] 📚 Loading project learned rules...")
+        print("[Supervisor] 📚 Loading project learned rules...")
         self.project_rules = load_project_learned_rules(self.project_id)
         self.run_rules_snapshot = self.project_rules.copy()  # Freeze for this run
         print(f"[Supervisor] Loaded {len(self.project_rules)} persistent rules for project '{self.project_id}'")
@@ -449,7 +448,7 @@ class Supervisor:
 
             # Check if we should stop
             if result["status"] == "builder_failed":
-                print(f"\n[Supervisor] ⚠️  Build stopped due to builder failure")
+                print("\n[Supervisor] ⚠️  Build stopped due to builder failure")
                 break
 
         # Get final summary
@@ -460,13 +459,13 @@ class Supervisor:
             summary = {}
 
         # Stage 0B: Promote run hints to persistent rules (after run completes)
-        print(f"\n[Supervisor] 🎓 Promoting run hints to persistent rules...")
+        print("\n[Supervisor] 🎓 Promoting run hints to persistent rules...")
         promoted_count = promote_hints_to_rules(run_id, self.project_id)
         if promoted_count > 0:
             print(f"[Supervisor] ✅ Promoted {promoted_count} new rules to project '{self.project_id}'")
-            print(f"[Supervisor] These rules will be available for future runs")
+            print("[Supervisor] These rules will be available for future runs")
         else:
-            print(f"[Supervisor] No new rules promoted (no recurring patterns found)")
+            print("[Supervisor] No new rules promoted (no recurring patterns found)")
 
         print(f"\n{'='*60}")
         print(f"✅ AUTONOMOUS BUILD COMPLETE: {run_id}")
@@ -478,7 +477,7 @@ class Supervisor:
 
         # Event trigger: Launch auxiliary Claude agents after run completion
         if self.enable_aux_agents:
-            print(f"\n[Supervisor] 🤖 Launching auxiliary Claude agents...")
+            print("\n[Supervisor] 🤖 Launching auxiliary Claude agents...")
             try:
                 agent_results = launch_agents(
                     event="run_complete",
@@ -496,7 +495,7 @@ class Supervisor:
                     print(f"[Supervisor]    - {agent_result['agent_role']}: {agent_result['status']}")
             except Exception as e:
                 print(f"[Supervisor] ⚠️  Warning: Agent launch failed: {e}")
-                print(f"[Supervisor]    Build completed successfully despite agent failure")
+                print("[Supervisor]    Build completed successfully despite agent failure")
 
         return {
             "run_id": run_id,
@@ -521,7 +520,7 @@ class Supervisor:
             poll_interval: Seconds between status checks
         """
         print(f"[Supervisor] Monitoring run: {run_id}")
-        print(f"[Supervisor] Press Ctrl+C to stop monitoring\n")
+        print("[Supervisor] Press Ctrl+C to stop monitoring\n")
 
         try:
             while True:
@@ -536,7 +535,7 @@ class Supervisor:
 
                 time.sleep(poll_interval)
         except KeyboardInterrupt:
-            print(f"\n[Supervisor] Monitoring stopped by user")
+            print("\n[Supervisor] Monitoring stopped by user")
 
 
 def example_build():
@@ -598,12 +597,12 @@ if __name__ == "__main__":
 
     if result:
         print(f"\n{'='*60}")
-        print(f"Final Result Summary:")
+        print("Final Result Summary:")
         print(f"{'='*60}")
         print(f"Run ID: {result['run_id']}")
         print(f"Phases: {len(result['phase_results'])}")
         print(f"Total Tokens: {result['total_tokens']:,}")
-        print(f"\nPhase Results:")
+        print("\nPhase Results:")
         for pr in result['phase_results']:
             status_icon = "✅" if pr['status'] == 'approved' else "⚠️"
             print(f"  {status_icon} {pr['phase_id']}: {pr['status']} ({pr.get('tokens_used', 0):,} tokens)")

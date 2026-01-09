@@ -32,7 +32,7 @@ def main():
         return 1
 
     print(f"\n{'='*80}")
-    print(f"DIRECTORY-SPECIFIC CONSOLIDATION")
+    print("DIRECTORY-SPECIFIC CONSOLIDATION")
     print(f"{'='*80}")
     print(f"Project: {project_dir.name}")
     print(f"Target Directory: {args.directory}")
@@ -50,7 +50,7 @@ def main():
     try:
         consolidator.consolidate()
         print(f"\n{'='*80}")
-        print(f"DIRECTORY CONSOLIDATION COMPLETE")
+        print("DIRECTORY CONSOLIDATION COMPLETE")
         print(f"{'='*80}\n")
         return 0
     except Exception as e:

@@ -22,10 +22,8 @@ import os
 import sys
 import argparse
 import yaml
-import json
 from pathlib import Path
 from typing import List, Dict, Optional
-from datetime import datetime
 
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -167,7 +165,7 @@ class AgentLauncher:
             agent_role, agent_def, result["content"], run_id
         )
 
-        print(f"[AgentLauncher] ✅ Agent completed")
+        print("[AgentLauncher] ✅ Agent completed")
         print(f"[AgentLauncher]    Tokens used: {result['tokens_used']:,}")
         print(f"[AgentLauncher]    Outputs: {len(output_files)} files")
 
@@ -256,7 +254,7 @@ class AgentLauncher:
 
         # TODO: Implement actual API call
         # For now, return stub indicating implementation needed
-        print(f"[AgentLauncher] ⚠️  Claude API call not implemented yet")
+        print("[AgentLauncher] ⚠️  Claude API call not implemented yet")
         print(f"[AgentLauncher]    Model: {model}, Max tokens: {max_tokens:,}")
         print(f"[AgentLauncher]    Prompt length: {len(prompt)} chars")
 
@@ -364,7 +362,7 @@ class AgentLauncher:
 
         # Summary
         print(f"\n{'='*60}")
-        print(f"✅ Agent Launcher Complete")
+        print("✅ Agent Launcher Complete")
         print(f"{'='*60}\n")
         print(f"Agents launched: {len(results)}")
         print(f"Total tokens: {total_tokens:,}")

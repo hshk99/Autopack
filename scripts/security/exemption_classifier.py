@@ -16,8 +16,6 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
-from typing import Optional
 
 
 class ExemptionRule(str, Enum):
@@ -543,14 +541,14 @@ def main():
     print(f"[Phase C] Parsing baseline diff from {args.baseline_path}...")
     diff = classifier.parse_git_diff(args.baseline_path)
 
-    print(f"[Phase C] Classifying changes...")
+    print("[Phase C] Classifying changes...")
     print(f"  - New CVE IDs: {len(diff.new_cve_ids)}")
     print(f"  - Finding count delta: {diff.finding_count_delta:+d}")
     print(f"  - Severity escalations: {diff.has_severity_escalations}")
 
     result = classifier.classify(diff)
 
-    print(f"\n[Phase C] Classification Result:")
+    print("\n[Phase C] Classification Result:")
     print(f"  Decision: {result.decision.value}")
     print(f"  Rationale: {result.rationale}")
     print(f"  Rules applied: {result.rules_applied}")

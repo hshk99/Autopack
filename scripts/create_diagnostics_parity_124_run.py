@@ -133,11 +133,11 @@ def create_diagnostics_parity_124_run():
         # Commit all changes
         db.commit()
 
-        print(f"\n✅ Run created successfully!")
+        print("\n✅ Run created successfully!")
         print(f"   Run ID: {run.id}")
         print(f"   Tier ID: {tier.tier_id}")
         print(f"   Phases: {len(followup_configs)}")
-        print(f"\n🚀 Ready to launch autonomous executor:")
+        print("\n🚀 Ready to launch autonomous executor:")
         print(f"   PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {run_id} --api-url http://127.0.0.1:8001 --max-iterations 100")
 
         return run.id

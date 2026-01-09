@@ -66,7 +66,7 @@ async def main():
             )
 
             # Print summary
-            print(f"\n✅ Analysis complete")
+            print("\n✅ Analysis complete")
             print(f"   Overall Feasibility: {result.overall_feasibility.value}")
             print(f"   Overall Confidence: {result.overall_confidence:.1%}")
             print(f"   Estimated Duration: {result.estimated_total_duration_days:.1f} days")
@@ -75,7 +75,7 @@ async def main():
             print(f"   ❌ MANUAL REQUIRED: {result.manual_required_count} phases")
 
             if result.critical_blockers:
-                print(f"\n⛔ CRITICAL BLOCKERS:")
+                print("\n⛔ CRITICAL BLOCKERS:")
                 for blocker in result.critical_blockers:
                     print(f"   - {blocker}")
 
@@ -85,7 +85,7 @@ async def main():
                     sys.exit(1)
 
             if result.infrastructure_requirements:
-                print(f"\n📦 INFRASTRUCTURE REQUIREMENTS:")
+                print("\n📦 INFRASTRUCTURE REQUIREMENTS:")
                 for req in result.infrastructure_requirements:
                     print(f"   - {req}")
 
@@ -150,7 +150,7 @@ async def main():
     print("STEP 2: AUTONOMOUS EXECUTION")
     print("="*80)
 
-    print(f"\n🚀 Starting autonomous execution")
+    print("\n🚀 Starting autonomous execution")
     print(f"   Run ID: {run_id}")
     print(f"   Plan: {plan_file}")
     print(f"   Max Iterations: {args.max_iterations}")

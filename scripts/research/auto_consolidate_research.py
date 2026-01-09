@@ -19,7 +19,6 @@ Usage:
 
 import argparse
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
 
@@ -95,7 +94,7 @@ class AutoConsolidateResearch:
             self.consolidated_files["implemented"] = md_files
 
             print(f"\n    ✅ Consolidated {len(md_files)} files → docs/BUILD_HISTORY.md")
-            print(f"    Status: IMPLEMENTED")
+            print("    Status: IMPLEMENTED")
 
         except Exception as e:
             print(f"    ❌ Error: {e}")
@@ -128,8 +127,8 @@ class AutoConsolidateResearch:
             self.consolidated_files["deferred"] = md_files
 
             print(f"\n    ✅ Consolidated {len(md_files)} files → docs/ARCHITECTURE_DECISIONS.md")
-            print(f"    Status: PENDING_ACTIVE (deferred plans)")
-            print(f"    Note: Consider creating docs/FUTURE_PLANS.md for dedicated deferred tracking")
+            print("    Status: PENDING_ACTIVE (deferred plans)")
+            print("    Note: Consider creating docs/FUTURE_PLANS.md for dedicated deferred tracking")
 
         except Exception as e:
             print(f"    ❌ Error: {e}")
@@ -162,8 +161,8 @@ class AutoConsolidateResearch:
             self.consolidated_files["rejected"] = md_files
 
             print(f"\n    ✅ Consolidated {len(md_files)} files → docs/ARCHITECTURE_DECISIONS.md")
-            print(f"    Status: REJECTED (to prevent re-consideration)")
-            print(f"    Note: Consider creating docs/REJECTED_IDEAS.md for dedicated rejection tracking")
+            print("    Status: REJECTED (to prevent re-consideration)")
+            print("    Note: Consider creating docs/REJECTED_IDEAS.md for dedicated rejection tracking")
 
         except Exception as e:
             print(f"    ❌ Error: {e}")

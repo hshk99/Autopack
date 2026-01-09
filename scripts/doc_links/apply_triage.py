@@ -37,10 +37,9 @@ Options:
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 import fnmatch
 from pathlib import PurePosixPath
 
@@ -239,7 +238,7 @@ class TriageApplicator:
             self.stats["nav_strict_violations"] += 1
             print(f"[NAV-STRICT VIOLATION] Cannot ignore missing_file in {source_file}:{broken_link.get('line_number')}")
             print(f"                       Target: {broken_target}")
-            print(f"                       Nav docs must have valid links (BUILD-166)")
+            print("                       Nav docs must have valid links (BUILD-166)")
             return
 
         # Check if already in ignore list
@@ -355,7 +354,7 @@ This document has been moved. See [{stub_title}]({stub_target}).
         if self.dry_run or not self.apply_fixes:
             print(f"[DRY-RUN] Would create stub: {stub_path}")
             print(f"          Target: {stub_target}")
-            print(f"          Content preview:")
+            print("          Content preview:")
             for line in stub_content.split("\n")[:5]:
                 print(f"          | {line}")
             return

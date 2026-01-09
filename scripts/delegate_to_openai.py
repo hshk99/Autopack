@@ -116,7 +116,7 @@ class OpenAIDelegator:
         4. Parse structured response
         5. Save results
         """
-        print(f"[OpenAI Delegation] Starting analysis...")
+        print("[OpenAI Delegation] Starting analysis...")
         print(f"[OpenAI Delegation] Issue: {request.issue_description}")
         print(f"[OpenAI Delegation] Files: {', '.join(request.file_paths)}")
 
@@ -142,7 +142,7 @@ class OpenAIDelegator:
         print(f"[OpenAI Delegation] Request saved: {request_file}")
 
         # Call OpenAI API
-        print(f"[OpenAI Delegation] Calling OpenAI GPT-4o API...")
+        print("[OpenAI Delegation] Calling OpenAI GPT-4o API...")
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4o",
@@ -192,12 +192,12 @@ Be precise, specific, and provide code examples where applicable."""
         print(f"[OpenAI Delegation] Result saved: {result_file}")
 
         print(f"\n{'='*80}")
-        print(f"OPENAI DELEGATION COMPLETE")
+        print("OPENAI DELEGATION COMPLETE")
         print(f"{'='*80}")
         print(f"\nRequest File: {request_file}")
         print(f"Result File: {result_file}")
         print(f"\n{'='*80}")
-        print(f"ANALYSIS SUMMARY")
+        print("ANALYSIS SUMMARY")
         print(f"{'='*80}")
         print(f"\nRoot Cause:\n{result.root_cause}\n")
         print(f"Confidence: {result.confidence}\n")
@@ -422,7 +422,7 @@ Generated: {result.timestamp}
 ---
 """
 
-        doc += f"""
+        doc += """
 ## Additional Investigation
 
 """

@@ -30,7 +30,7 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -197,9 +197,9 @@ def format_delta_report(delta: Dict, current_scan: StorageScan, previous_scan: O
     lines.append("NEXT STEPS")
     lines.append("=" * 80)
     lines.append(f"1. Review candidates: http://localhost:8000/storage/scans/{current_scan.id}")
-    lines.append(f"2. Approve via API or interactive mode:")
+    lines.append("2. Approve via API or interactive mode:")
     lines.append(f"   python scripts/storage/scan_and_report.py --scan-id {current_scan.id} --interactive")
-    lines.append(f"3. Execute approved deletions:")
+    lines.append("3. Execute approved deletions:")
     lines.append(f"   python scripts/storage/scan_and_report.py --scan-id {current_scan.id} --execute --category dev_caches")
     lines.append("")
 

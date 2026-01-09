@@ -15,7 +15,7 @@ def main():
     try:
         events = session.query(TokenEstimationV2Event).order_by(TokenEstimationV2Event.timestamp.desc()).all()
 
-        print(f"# TokenEstimationV2 Telemetry Export", file=sys.stderr)
+        print("# TokenEstimationV2 Telemetry Export", file=sys.stderr)
         print(f"# Total events: {len(events)}", file=sys.stderr)
         print(file=sys.stderr)
 

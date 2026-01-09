@@ -246,7 +246,7 @@ def generate_comparison_report(original_run_id: str, replay_run_id: str):
         replay = session.query(Run).filter(Run.id == replay_run_id).first()
 
         if not original or not replay:
-            print(f"  ⚠ Cannot generate report: runs not found")
+            print("  ⚠ Cannot generate report: runs not found")
             return
 
         # Get phase counts
@@ -471,7 +471,7 @@ async def main():
 
     print()
     print("="*80)
-    print(f"REPLAY CAMPAIGN COMPLETE")
+    print("REPLAY CAMPAIGN COMPLETE")
     print("="*80)
     print(f"Replayed: {len(replayed_runs)} / {len(run_ids)} runs")
     print()

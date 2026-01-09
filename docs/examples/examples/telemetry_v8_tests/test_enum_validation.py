@@ -4,7 +4,6 @@ This module contains minimal unit tests demonstrating enum value validation
 for PhaseState and RunState from the models module.
 """
 
-import pytest
 from enum import Enum
 
 

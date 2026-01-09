@@ -64,7 +64,7 @@ def create_test_run():
         print(f"✅ Created test run: {run_id}")
         print(f"   Tier: {tier.tier_id}")
         print(f"   Phase: {phase.phase_id}")
-        print(f"\n🧪 Test the API:")
+        print("\n🧪 Test the API:")
         print(f"   curl http://localhost:8000/runs/{run_id}")
         return 0
 

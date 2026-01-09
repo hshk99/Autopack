@@ -115,7 +115,7 @@ def check_idempotency_index() -> Tuple[bool, str]:
     """
     try:
         from autopack.database import SessionLocal
-        from sqlalchemy import inspect, text
+        from sqlalchemy import inspect
 
         db = SessionLocal()
         try:
@@ -218,7 +218,6 @@ def check_memory_backend() -> Tuple[bool, str]:
         (success, message) tuple
     """
     try:
-        from autopack.config import settings
 
         # Check if Qdrant is configured
         qdrant_host = os.getenv("QDRANT_HOST")

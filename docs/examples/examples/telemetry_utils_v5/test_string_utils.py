@@ -4,7 +4,6 @@ This module contains comprehensive tests for all string utility functions
 including capitalize_words, reverse_string, snake_to_camel, and truncate.
 """
 
-import pytest
 from examples.telemetry_utils_v5.string_utils import (
     capitalize_words,
     reverse_string,

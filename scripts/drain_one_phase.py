@@ -128,10 +128,10 @@ def main() -> int:
     # B2: Print DB/API identity for observability
     db_url = os.environ.get("DATABASE_URL", "sqlite:///autopack.db (default)")
     api_url = os.environ.get("AUTOPACK_API_URL", f"http://localhost:{port}")
-    print(f"[drain_one_phase] ===== ENVIRONMENT IDENTITY =====")
+    print("[drain_one_phase] ===== ENVIRONMENT IDENTITY =====")
     print(f"[drain_one_phase] DATABASE_URL: {db_url}")
     print(f"[drain_one_phase] AUTOPACK_API_URL: {api_url}")
-    print(f"[drain_one_phase] ================================")
+    print("[drain_one_phase] ================================")
     print(f"[drain_one_phase] Draining: {args.run_id} / {args.phase_id}")
     print()
 
@@ -167,7 +167,7 @@ def main() -> int:
                 if final_state == PhaseState.COMPLETE.value:
                     return 0
                 else:
-                    print(f"[drain_one_phase] Phase did not complete successfully")
+                    print("[drain_one_phase] Phase did not complete successfully")
                     if phase.last_failure_reason:
                         print(f"[drain_one_phase] Failure reason: {phase.last_failure_reason[:200]}")
                     return 1

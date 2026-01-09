@@ -34,7 +34,7 @@ def main():
             print()
 
         print("=" * 80)
-        print(f"\nSummary:")
+        print("\nSummary:")
         print(f"Total runs with queued phases: {len(queued_runs)}")
         print(f"Total queued phases available: {total_queued}")
 

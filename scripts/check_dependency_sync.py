@@ -75,7 +75,7 @@ def main() -> int:
         )
 
         if result.returncode != 0:
-            print(f"[X] ERROR: pip-compile failed:", file=sys.stderr)
+            print("[X] ERROR: pip-compile failed:", file=sys.stderr)
             print(result.stderr, file=sys.stderr)
             return 2
 

@@ -15,7 +15,6 @@ that it's the system (not Claude Code) generating the code.
 """
 
 import argparse
-import json
 import requests
 import sys
 from datetime import datetime
@@ -119,7 +118,7 @@ def call_builder_directly(run_id: str, phase_id: str) -> Dict:
     print("=" * 60)
     print(f"Model used: {result.get('model_used', 'unknown')}")
     print(f"Tokens: {result.get('total_tokens', 0)}")
-    print(f"\nGenerated patch:\n")
+    print("\nGenerated patch:\n")
     print(result.get('patch_content', 'No patch'))
     print("=" * 60)
 

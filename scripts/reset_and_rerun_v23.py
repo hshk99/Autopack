@@ -37,7 +37,7 @@ def main():
 
     # Reset run status to IN_PROGRESS
     dl.update_run_status(run_id, 'IN_PROGRESS')
-    print(f"Reset run status to IN_PROGRESS")
+    print("Reset run status to IN_PROGRESS")
 
     print("\nPhases have been reset. You can now re-run the autonomous_executor.")
     return 0

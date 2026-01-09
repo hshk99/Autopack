@@ -20,7 +20,7 @@ import os
 import shutil
 import json
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List
 from datetime import datetime
 
 # Configuration: Define where each type of file should go
@@ -237,33 +237,33 @@ class DocumentationOrganizer:
         rules = self.rules["delete_obsolete"]
         if self.matches_pattern(filename, rules.get("patterns", [])) or \
            self.contains_keyword(filename, rules.get("keywords", [])):
-            return ("delete_obsolete", f"Obsolete file pattern/keyword matched")
+            return ("delete_obsolete", "Obsolete file pattern/keyword matched")
 
         # Check for docs/ or docs/research/ based on available rules
         if "docs_guides" in self.rules:
             rules = self.rules["docs_guides"]
             if self.matches_pattern(filename, rules.get("patterns", [])) or \
                self.contains_keyword(filename, rules.get("keywords", [])):
-                return ("docs_guides", f"Implementation guide pattern/keyword matched")
+                return ("docs_guides", "Implementation guide pattern/keyword matched")
 
         if "docs_research" in self.rules:
             rules = self.rules["docs_research"]
             if self.matches_pattern(filename, rules.get("patterns", [])) or \
                self.contains_keyword(filename, rules.get("keywords", [])):
-                return ("docs_research", f"Research document pattern/keyword matched")
+                return ("docs_research", "Research document pattern/keyword matched")
 
         # Check for archive/ historical docs
         if "archive_historical" in self.rules:
             rules = self.rules["archive_historical"]
             if self.matches_pattern(filename, rules.get("patterns", [])) or \
                self.contains_keyword(filename, rules.get("keywords", [])):
-                return ("archive_historical", f"Historical document pattern/keyword matched")
+                return ("archive_historical", "Historical document pattern/keyword matched")
 
         if "archive_reference" in self.rules:
             rules = self.rules["archive_reference"]
             if self.matches_pattern(filename, rules.get("patterns", [])) or \
                self.contains_keyword(filename, rules.get("keywords", [])):
-                return ("archive_reference", f"Reference material pattern/keyword matched")
+                return ("archive_reference", "Reference material pattern/keyword matched")
 
         # Default: if unsure, move to archive
         return ("archive_reference" if "archive_reference" in self.rules else "archive_historical",

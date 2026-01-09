@@ -121,11 +121,11 @@ def main():
         return 1
 
     print(f"\n{'='*70}")
-    print(f"TOKEN ESTIMATION TELEMETRY COLLECTION")
+    print("TOKEN ESTIMATION TELEMETRY COLLECTION")
     print(f"{'='*70}")
     print(f"Running {len(TEST_SCENARIOS)} test scenarios")
-    print(f"Objective: Collect [TokenEstimation] telemetry for BUILD-129 validation")
-    print(f"Target: <30% mean error rate")
+    print("Objective: Collect [TokenEstimation] telemetry for BUILD-129 validation")
+    print("Target: <30% mean error rate")
     print(f"{'='*70}\n")
 
     results = []
@@ -135,16 +135,16 @@ def main():
 
     # Summary
     print(f"\n{'='*70}")
-    print(f"COLLECTION SUMMARY")
+    print("COLLECTION SUMMARY")
     print(f"{'='*70}")
     print(f"Total scenarios: {len(TEST_SCENARIOS)}")
     print(f"Successful: {sum(results)}")
     print(f"Failed: {len(results) - sum(results)}")
-    print(f"\nTelemetry data logged to backend.log and console above")
-    print(f"\nNext steps:")
-    print(f"1. Run: python scripts/analyze_token_telemetry.py --output reports/baseline_telemetry.md")
-    print(f"2. Review the baseline error rate")
-    print(f"3. Tune TokenEstimator coefficients if error rate >30%")
+    print("\nTelemetry data logged to backend.log and console above")
+    print("\nNext steps:")
+    print("1. Run: python scripts/analyze_token_telemetry.py --output reports/baseline_telemetry.md")
+    print("2. Review the baseline error rate")
+    print("3. Tune TokenEstimator coefficients if error rate >30%")
     print(f"{'='*70}\n")
 
     return 0 if all(results) else 1

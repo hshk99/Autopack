@@ -32,7 +32,6 @@ Usage:
 import os
 import sys
 import argparse
-from datetime import datetime
 from typing import Tuple, List, Optional
 from pathlib import Path
 

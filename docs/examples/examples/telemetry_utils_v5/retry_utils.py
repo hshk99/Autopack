@@ -8,7 +8,7 @@ This module provides retry logic utilities including:
 
 import time
 import functools
-from typing import Callable, Type, Tuple, Optional, Union, Any
+from typing import Callable, Type, Tuple, Optional, Any
 import random
 
 

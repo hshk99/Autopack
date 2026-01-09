@@ -81,7 +81,7 @@ def create_telemetry_v7b_run():
         )
         session.add(tier)
         session.flush()
-        print(f"✅ Created tier 1")
+        print("✅ Created tier 1")
 
         # Single docs/medium phase
         phase = Phase(
@@ -105,14 +105,14 @@ def create_telemetry_v7b_run():
             created_at=datetime.now(timezone.utc)
         )
         session.add(phase)
-        print(f"  [01] telemetry-v7b-d1-error-recovery-guide (docs/medium, 1 deliverable)")
+        print("  [01] telemetry-v7b-d1-error-recovery-guide (docs/medium, 1 deliverable)")
 
         session.commit()
-        print(f"\n✅ Successfully created telemetry-collection-v7b with 1 phase")
-        print(f"   - docs/medium: 1 phase")
-        print(f"\nDrain with:")
-        print(f"  python scripts/drain_queued_phases.py --run-id telemetry-collection-v7b \\")
-        print(f"    --batch-size 5 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
+        print("\n✅ Successfully created telemetry-collection-v7b with 1 phase")
+        print("   - docs/medium: 1 phase")
+        print("\nDrain with:")
+        print("  python scripts/drain_queued_phases.py --run-id telemetry-collection-v7b \\")
+        print("    --batch-size 5 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
 
     except Exception as e:
         session.rollback()

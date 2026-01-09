@@ -20,7 +20,7 @@ def check_phases(run_id):
             desc_len = len(p.description or "")
             print(f'  Phase {p.phase_id}: description_length={desc_len}')
             if desc_len == 0:
-                print(f'    WARNING: Empty description!')
+                print('    WARNING: Empty description!')
             elif desc_len < 50:
                 print(f'    Description: "{p.description}"')
     except Exception as e:

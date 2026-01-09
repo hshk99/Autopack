@@ -29,7 +29,7 @@ def verify_bot_token(token: str) -> bool:
     # Bot tokens should contain a colon
     if ":" not in token:
         print("⚠️  Bot token format looks incorrect (should contain ':')")
-        print(f"   Format should be: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
+        print("   Format should be: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
         print(f"   Your value: {token[:20]}..." if len(token) > 20 else f"   Your value: {token}")
 
     try:
@@ -41,14 +41,14 @@ def verify_bot_token(token: str) -> bool:
 
         if data.get("ok"):
             bot_info = data.get("result", {})
-            print(f"\n✅ Bot token is VALID!")
-            print(f"\n   Bot Details:")
+            print("\n✅ Bot token is VALID!")
+            print("\n   Bot Details:")
             print(f"   - Name: {bot_info.get('first_name')}")
             print(f"   - Username: @{bot_info.get('username')}")
             print(f"   - ID: {bot_info.get('id')}")
             return True
         else:
-            print(f"\n❌ Bot token is INVALID")
+            print("\n❌ Bot token is INVALID")
             print(f"   Error: {data.get('description', 'Unknown error')}")
             return False
 
@@ -72,7 +72,7 @@ def verify_chat_id(bot_token: str, chat_id: str) -> bool:
     # Chat IDs should be numeric only
     if not chat_id.lstrip('-').isdigit():
         print("⚠️  Chat ID format looks incorrect (should be numeric only)")
-        print(f"   Format should be: 123456789 or -123456789")
+        print("   Format should be: 123456789 or -123456789")
         print(f"   Your value: {chat_id}")
 
     try:
@@ -85,7 +85,7 @@ def verify_chat_id(bot_token: str, chat_id: str) -> bool:
         )
 
         print(f"\nTesting chat ID: {chat_id}")
-        print(f"Sending test message...")
+        print("Sending test message...")
 
         response = requests.post(url, json={
             "chat_id": chat_id,
@@ -96,12 +96,12 @@ def verify_chat_id(bot_token: str, chat_id: str) -> bool:
         data = response.json()
 
         if data.get("ok"):
-            print(f"\n✅ Chat ID is VALID!")
-            print(f"\n   Message sent successfully!")
-            print(f"   Check your Telegram - you should see the test message.")
+            print("\n✅ Chat ID is VALID!")
+            print("\n   Message sent successfully!")
+            print("   Check your Telegram - you should see the test message.")
             return True
         else:
-            print(f"\n❌ Chat ID is INVALID")
+            print("\n❌ Chat ID is INVALID")
             print(f"   Error: {data.get('description', 'Unknown error')}")
 
             if "chat not found" in data.get('description', '').lower():
@@ -231,7 +231,7 @@ def main():
     print(f"\n{'='*60}")
     print(f"TELEGRAM_BOT_TOKEN=\"{bot_token}\"")
     print(f"TELEGRAM_CHAT_ID=\"{chat_id}\"")
-    print(f"NGROK_URL=\"https://harrybot.ngrok.app\"")
+    print("NGROK_URL=\"https://harrybot.ngrok.app\"")
     print(f"{'='*60}")
 
     print("\n✅ Your Telegram bot is configured correctly!")

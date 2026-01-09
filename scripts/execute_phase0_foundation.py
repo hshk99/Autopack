@@ -14,12 +14,11 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from autopack.autonomous_executor import AutonomousExecutor
 from autopack.memory.embeddings import embed_text, get_embedding_backend
 import numpy as np
 
@@ -147,7 +146,7 @@ def check_prerequisites() -> Tuple[bool, List[str]]:
                 sim_12 = cosine_sim(emb1, emb2)
                 sim_13 = cosine_sim(emb1, emb3)
 
-                print(f"  → Semantic similarity test:")
+                print("  → Semantic similarity test:")
                 print(f"    - Related concepts: {sim_12:.3f} (expected > 0.7)")
                 print(f"    - Unrelated concepts: {sim_13:.3f} (expected < 0.5)")
 
@@ -168,14 +167,13 @@ def check_prerequisites() -> Tuple[bool, List[str]]:
     print("\n[5/6] Checking existing protected paths...")
 
     try:
-        from autopack.governed_apply import apply_governed_patch
         print("  ✓ governed_apply.py accessible")
 
         # Check if lovable/ directory already exists
         lovable_dir = Path(__file__).parent.parent / "src" / "autopack" / "lovable"
         if lovable_dir.exists():
-            print(f"  ⚠ src/autopack/lovable/ already exists")
-            print(f"  → Will preserve existing files during Phase 0.1")
+            print("  ⚠ src/autopack/lovable/ already exists")
+            print("  → Will preserve existing files during Phase 0.1")
         else:
             print("  ✓ src/autopack/lovable/ does not exist (will be created)")
 

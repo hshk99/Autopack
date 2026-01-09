@@ -20,7 +20,6 @@ Usage:
 import sys
 from pathlib import Path
 from collections import defaultdict
-from typing import Dict, List, Tuple
 import statistics
 
 # Add src to path
@@ -139,7 +138,7 @@ def analyze_truncation_segments():
         print(f"   Median lb_factor: {stat['lb_factor_median']:.2f}")
         print(f"   Max lb_factor: {stat['lb_factor_max']:.2f}")
         print()
-        print(f"   Tuning recommendation:")
+        print("   Tuning recommendation:")
         print(f"   - Increase base estimate for this segment by {(stat['lb_factor_mean'] - 1) * 100:.0f}%")
         print(f"   - OR increase buffer margin to {stat['lb_factor_mean']:.2f}x")
         print()

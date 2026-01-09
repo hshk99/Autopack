@@ -81,7 +81,7 @@ def create_verification_run():
 
         session.commit()
         print(f"\n[SUCCESS] Created test run: {run.run_id} with {len(phases)} phases")
-        print(f"\nRun autonomous executor with:")
+        print("\nRun autonomous executor with:")
         print(f"python src/autopack/autonomous_executor.py --run-id {run.run_id} --max-iterations 2")
 
     except Exception as e:

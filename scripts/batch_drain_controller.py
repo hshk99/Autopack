@@ -36,8 +36,7 @@ import re
 import subprocess
 import sys
 import os
-from collections import defaultdict
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Set
@@ -906,7 +905,7 @@ class BatchDrainController:
                 initial_state=initial_state,
                 final_state="TIMEOUT",
                 success=False,
-                error_message=f"Phase drain timed out after 30 minutes (see logs)",
+                error_message="Phase drain timed out after 30 minutes (see logs)",
                 subprocess_returncode=-1,  # Timeout
                 subprocess_duration_seconds=round(duration, 2),
                 subprocess_stdout_path=str(stdout_path) if 'stdout_path' in locals() else None,
@@ -957,14 +956,14 @@ class BatchDrainController:
         else:
             self.session = BatchDrainSession.create_new(batch_size)
 
-        print(f"\nBatch Drain Controller")
+        print("\nBatch Drain Controller")
         print(f"Session ID: {self.session.session_id}")
         print(f"Target: Process {batch_size} failed phases")
         if run_id_filter:
             print(f"Filter: run_id = {run_id_filter}")
         if self.dry_run:
             print("Mode: DRY RUN (no changes will be made)")
-        print(f"Adaptive Controls:")
+        print("Adaptive Controls:")
         print(f"  - Phase timeout: {self.phase_timeout_seconds}s ({self.phase_timeout_seconds // 60}m)")
         print(f"  - Max total time: {self.max_total_minutes}m" if self.max_total_minutes else "  - Max total time: unlimited")
         print(f"  - Max timeouts per run: {self.max_timeouts_per_run}")
@@ -1043,7 +1042,7 @@ class BatchDrainController:
 
                 # T4: Log LLM boundary detection
                 if result.reached_llm_boundary:
-                    print(f"    [LLM-BOUNDARY] Hit message/context limit during execution")
+                    print("    [LLM-BOUNDARY] Hit message/context limit during execution")
 
                 # Track failure fingerprints and check for repeats
                 if result.failure_fingerprint:
@@ -1292,7 +1291,7 @@ def main() -> int:
         print("\n\nBatch drain interrupted by user")
         if controller.session:
             controller.session.save(controller.session_dir)
-            print(f"Progress saved. Resume with: --resume")
+            print("Progress saved. Resume with: --resume")
         return 130
     except Exception as e:
         print(f"\nError: {e}", file=sys.stderr)

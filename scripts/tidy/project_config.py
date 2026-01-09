@@ -8,7 +8,6 @@ Loads project-specific configuration from database or provides defaults.
 import os
 import re
 import psycopg2
-import json
 from pathlib import Path
 from typing import Optional, Dict, Any
 

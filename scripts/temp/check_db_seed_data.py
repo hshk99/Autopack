@@ -88,7 +88,7 @@ def check_qdrant():
 
         # Get collection info
         collection_info = client.get_collection("file_routing_patterns")
-        print(f"Collection: file_routing_patterns")
+        print("Collection: file_routing_patterns")
         print(f"Vectors count: {collection_info.points_count}")
         print(f"Vector dimension: {collection_info.config.params.vectors.size}")
         print()

@@ -87,7 +87,7 @@ def create_telemetry_v8_run():
         )
         session.add(tier)
         session.flush()
-        print(f"✅ Created tier 1")
+        print("✅ Created tier 1")
 
         # === DOCS/LOW PHASES (3) ===
         docs_low_phases = [
@@ -176,12 +176,12 @@ def create_telemetry_v8_run():
             print(f"  [{idx:02d}] {phase_def['phase_id']} ({phase_def['category']}/{phase_def['complexity']}, {len(phase_def['deliverables'])} deliverable(s))")
 
         session.commit()
-        print(f"\n✅ Successfully created telemetry-collection-v8-budget-floors with 5 phases")
-        print(f"   - docs/low: 3 phases (expect base=4096 each)")
-        print(f"   - tests/low: 2 phases (expect base=6144 each)")
-        print(f"\nDrain with:")
-        print(f"  python scripts/drain_queued_phases.py --run-id telemetry-collection-v8-budget-floors \\")
-        print(f"    --batch-size 10 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
+        print("\n✅ Successfully created telemetry-collection-v8-budget-floors with 5 phases")
+        print("   - docs/low: 3 phases (expect base=4096 each)")
+        print("   - tests/low: 2 phases (expect base=6144 each)")
+        print("\nDrain with:")
+        print("  python scripts/drain_queued_phases.py --run-id telemetry-collection-v8-budget-floors \\")
+        print("    --batch-size 10 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
 
     except Exception as e:
         session.rollback()

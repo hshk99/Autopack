@@ -24,7 +24,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple, Set, Optional
+from typing import Dict, List
 
 
 class StructuralChange:
@@ -341,7 +341,7 @@ class DocUpdater:
         entry_text = "".join(entry_lines)
 
         if dry_run:
-            print(f"[DRY RUN] Would update CHANGELOG.md:")
+            print("[DRY RUN] Would update CHANGELOG.md:")
             print(entry_text)
             return True
 
@@ -420,7 +420,7 @@ class DocUpdater:
             self.check_status_badge()
 
             if self.changes_needed:
-                print(f"\n[!] Documentation changes needed:")
+                print("\n[!] Documentation changes needed:")
                 for change in self.changes_needed:
                     print(f"  - {change}")
 
@@ -443,7 +443,7 @@ class DocUpdater:
         # Gather current state
         summary = self.generate_feature_summary()
 
-        print(f"\n[Status] Current State:")
+        print("\n[Status] Current State:")
         print(f"  API Endpoints: {summary['api_endpoints']}")
         print(f"  New Modules: {len(summary['new_modules'])}")
         print(f"  Dashboard Built: {'YES' if summary['dashboard_built'] else 'NO'}")

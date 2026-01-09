@@ -20,7 +20,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from autopack.database import SessionLocal, init_db, engine
+from autopack.database import init_db, engine
 from sqlalchemy import text, inspect
 
 def add_actual_max_tokens_column():

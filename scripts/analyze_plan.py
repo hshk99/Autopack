@@ -13,7 +13,6 @@ Example:
 
 import argparse
 import asyncio
-import json
 import sys
 from pathlib import Path
 
@@ -89,7 +88,7 @@ def print_analysis_summary(result: PlanAnalysisResult):
                 print(f"               ... and {len(phase.core_files_affected) - 3} more")
 
         if phase.blockers:
-            print(f"   ⛔ Blockers:")
+            print("   ⛔ Blockers:")
             for blocker in phase.blockers:
                 print(f"      - {blocker}")
 

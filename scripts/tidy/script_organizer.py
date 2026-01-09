@@ -17,9 +17,8 @@ Leaves alone:
 - .autonomous_runs/ (sub-project workspaces)
 """
 
-import sys
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 from datetime import datetime
 
 

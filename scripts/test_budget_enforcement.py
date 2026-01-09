@@ -38,7 +38,7 @@ def test_budget_enforcement_logic():
 
     token_selected_budget = int(estimate.estimated_tokens * 1.2)
 
-    print(f"Test Case 1: SOT File (BUILD_HISTORY.md)")
+    print("Test Case 1: SOT File (BUILD_HISTORY.md)")
     print(f"  Estimated tokens: {estimate.estimated_tokens}")
     print(f"  Token selected budget (est × 1.2): {token_selected_budget}")
     print(f"  Category: {estimate.category}")
@@ -121,11 +121,11 @@ def test_old_logic_would_fail():
     print(f"Scenario: Caller passes max_tokens={input_max_tokens}")
     print(f"Token selected budget: {token_selected_budget}")
     print()
-    print(f"Old logic (if max_tokens is None):")
+    print("Old logic (if max_tokens is None):")
     print(f"  Result: {old_max_tokens}")
     print(f"  Problem: ✗ {old_max_tokens} < {token_selected_budget} (would truncate!)")
     print()
-    print(f"New logic (max(max_tokens or 0, token_selected_budget)):")
+    print("New logic (max(max_tokens or 0, token_selected_budget)):")
     print(f"  Result: {new_max_tokens}")
     print(f"  Success: ✓ {new_max_tokens} >= {token_selected_budget} (no truncation!)")
     print()

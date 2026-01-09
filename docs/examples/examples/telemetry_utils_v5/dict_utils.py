@@ -7,7 +7,7 @@ This module provides common dictionary manipulation utilities including:
 - invert: Invert a dictionary (swap keys and values)
 """
 
-from typing import Dict, Any, List, Optional, Hashable
+from typing import Dict, Any, List, Hashable
 from copy import deepcopy
 
 

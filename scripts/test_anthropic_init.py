@@ -1,5 +1,4 @@
 
-import os
 try:
     from anthropic import Anthropic
     print("Anthropic imported")

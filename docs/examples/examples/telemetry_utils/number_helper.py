@@ -4,7 +4,6 @@ This module provides common number utilities including even/odd checking,
 prime number detection, and factorial calculation.
 """
 
-from typing import Union
 
 
 def is_even(n: int) -> bool:

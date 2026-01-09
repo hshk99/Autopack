@@ -30,14 +30,13 @@ import sys
 import argparse
 import json
 from pathlib import Path
-from typing import List
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'src'))
 
 from autopack.database import SessionLocal
 from autopack.storage_optimizer import load_policy
-from autopack.storage_optimizer.approval_pattern_analyzer import ApprovalPatternAnalyzer, Pattern
+from autopack.storage_optimizer.approval_pattern_analyzer import ApprovalPatternAnalyzer
 from autopack.storage_optimizer.recommendation_engine import RecommendationEngine
 from autopack.models import LearnedRule
 
@@ -55,7 +54,7 @@ def analyze_patterns(args):
             min_confidence=args.min_confidence
         )
 
-        print(f"\nAnalyzing approval patterns...")
+        print("\nAnalyzing approval patterns...")
         if args.category:
             print(f"  Category filter: {args.category}")
 
@@ -78,14 +77,14 @@ def analyze_patterns(args):
             print(f"   Category: {pattern.category}")
             print(f"   Confidence: {pattern.confidence:.1%} ({pattern.approvals} approvals, {pattern.rejections} rejections)")
             print(f"   Pattern: {pattern.pattern_value}")
-            print(f"   Sample paths:")
+            print("   Sample paths:")
             for path in pattern.sample_paths[:3]:
                 print(f"     - {path}")
             print()
 
         # Option to create learned rules
         if not args.non_interactive:
-            create = input(f"\nCreate learned rules from these patterns? [y/N]: ").lower()
+            create = input("\nCreate learned rules from these patterns? [y/N]: ").lower()
 
             if create == 'y':
                 reviewed_by = input("Enter your name/email: ").strip()
@@ -99,7 +98,7 @@ def analyze_patterns(args):
                     print(f"✓ Created learned rule #{rule.id}: {rule.description}")
 
                 print(f"\n✓ Created {len(patterns)} learned rules")
-                print(f"  Review with: python scripts/storage/learn_patterns.py list")
+                print("  Review with: python scripts/storage/learn_patterns.py list")
 
         return 0
 
@@ -123,7 +122,7 @@ def list_rules(args):
         ).all()
 
         if not rules:
-            print(f"\n✗ No learned rules found")
+            print("\n✗ No learned rules found")
             if args.status:
                 print(f"  (status filter: {args.status})")
             return 1
@@ -219,7 +218,7 @@ def get_recommendations(args):
         policy = load_policy()
         engine = RecommendationEngine(db=session, policy=policy)
 
-        print(f"\nGenerating recommendations...")
+        print("\nGenerating recommendations...")
         print(f"  Lookback period: {args.lookback_days} days")
 
         recommendations = engine.generate_recommendations(
@@ -230,7 +229,7 @@ def get_recommendations(args):
         stats = engine.get_scan_statistics(lookback_days=args.lookback_days)
 
         print(f"\n{'='*100}")
-        print(f"Scan Statistics:")
+        print("Scan Statistics:")
         print(f"{'='*100}")
         print(f"  Scans analyzed: {stats['scan_count']}")
         print(f"  Date range: {stats.get('date_range_days', 0)} days")
@@ -238,8 +237,8 @@ def get_recommendations(args):
         print(f"  Potential savings: {stats.get('total_potential_savings_gb', 0):.2f} GB")
 
         if not recommendations:
-            print(f"\n✗ No recommendations generated")
-            print(f"  Need at least 2 scans to generate recommendations")
+            print("\n✗ No recommendations generated")
+            print("  Need at least 2 scans to generate recommendations")
             return 1
 
         print(f"\n{'='*100}")

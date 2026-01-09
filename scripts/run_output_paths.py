@@ -10,10 +10,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 # Reuse routing helpers from tidy_workspace
-from tidy_workspace import route_run_output, route_new_doc, classify_project
+from tidy_workspace import route_run_output, route_new_doc
 
 
 def main():

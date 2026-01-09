@@ -7,7 +7,6 @@ This module provides common number manipulation utilities including:
 - lcm: Calculate the least common multiple of two numbers
 """
 
-from typing import Union
 
 
 def is_even(n: int) -> bool:

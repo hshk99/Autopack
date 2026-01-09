@@ -22,7 +22,7 @@ from autopack.backlog_maintenance import (
     parse_patch_stats,
 )
 from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
-from autopack.maintenance_auditor import AuditorInput, AuditorDecision, DiffStats, TestResult, evaluate as audit_evaluate
+from autopack.maintenance_auditor import AuditorInput, AuditorDecision, TestResult, evaluate as audit_evaluate
 from autopack.memory import MemoryService
 from autopack.governed_apply import GovernedApplyPath
 from autopack.maintenance_runner import run_tests

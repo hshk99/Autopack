@@ -13,12 +13,11 @@ Usage:
 
 import argparse
 import json
-import os
 import sys
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import yaml
 
@@ -296,7 +295,7 @@ def main():
     models_yaml = load_yaml("config/models.yaml")
     pricing_yaml = load_yaml("config/pricing.yaml")
 
-    print(f"[ModelStackOptimizer] Loaded models.yaml and pricing.yaml")
+    print("[ModelStackOptimizer] Loaded models.yaml and pricing.yaml")
 
     # Load and aggregate run statistics
     log_entries = load_jsonl_logs(args.log_dir, args.days)
@@ -351,8 +350,8 @@ def main():
     print("\n[ModelStackOptimizer] Analysis complete!")
     print("Next steps:")
     print(f"  1. Review {report_path}")
-    print(f"  2. Compare proposed changes with current config/models.yaml")
-    print(f"  3. Apply changes via git after review")
+    print("  2. Compare proposed changes with current config/models.yaml")
+    print("  3. Apply changes via git after review")
 
 
 if __name__ == "__main__":

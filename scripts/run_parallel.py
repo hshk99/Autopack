@@ -18,7 +18,6 @@ import argparse
 import logging
 import sys
 import os
-import subprocess
 import tempfile
 import httpx
 from pathlib import Path

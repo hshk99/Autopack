@@ -1,6 +1,5 @@
 
 import sqlite3
-import sys
 
 DB_PATH = "autopack.db"
 RUN_ID = "fileorg-test-verification-2025-11-29"

@@ -29,7 +29,7 @@ def seed_run():
         existing = session.query(Run).filter(Run.id == RUN_ID).first()
         if existing:
             print(f"[ERROR] Run {RUN_ID} already exists")
-            print(f"[INFO] Deleting existing run and recreating...")
+            print("[INFO] Deleting existing run and recreating...")
             # Delete phases first
             session.query(Phase).filter(Phase.run_id == RUN_ID).delete()
             # Delete tiers
@@ -66,7 +66,7 @@ def seed_run():
         session.add(tier)
         session.flush()
         tier_db_id = tier.id
-        print(f"[OK] Created tier: T1")
+        print("[OK] Created tier: T1")
 
         # Create phase
         phase = Phase(
@@ -164,12 +164,12 @@ Notes:
         session.add(phase)
         session.commit()
 
-        print(f"[OK] Created phase: F1.build144-runbook-executor-rollback")
+        print("[OK] Created phase: F1.build144-runbook-executor-rollback")
         print(f"\n✅ Run {RUN_ID} seeded successfully!")
-        print(f"\nNext steps:")
-        print(f"1. Start the executor:")
+        print("\nNext steps:")
+        print("1. Start the executor:")
         print(f"   PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {RUN_ID}")
-        print(f"\n2. Monitor progress:")
+        print("\n2. Monitor progress:")
         print(f"   python scripts/monitor_run.py {RUN_ID}")
 
     except Exception as e:

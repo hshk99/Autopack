@@ -68,7 +68,7 @@ def main():
         print(f"  - Resetting {phase_id}: {name}")
         try:
             reset_phase_to_queued(phase_id)
-            print(f"    [OK] SUCCESS")
+            print("    [OK] SUCCESS")
         except Exception as e:
             print(f"    [FAIL] FAILED: {e}")
             return 1

@@ -5,7 +5,6 @@ parsing, date arithmetic, and difference calculations.
 """
 
 from datetime import datetime, timedelta
-from typing import Optional, Union
 
 
 def format_date(date: datetime, format_string: str = "%Y-%m-%d") -> str:

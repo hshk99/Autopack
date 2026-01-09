@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Test script to isolate OpenAI Auditor 400 error"""
 
-import os
 import sys
 from pathlib import Path
 

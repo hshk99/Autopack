@@ -1,5 +1,4 @@
 """Monitor execution of 4 autonomous phases"""
-import time
 from autopack.database import SessionLocal
 from autopack.models import Run, Phase, PhaseState
 

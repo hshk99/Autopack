@@ -132,7 +132,7 @@ def upgrade(engine: Engine) -> None:
                 columns_added += 1
 
         print("\n" + "=" * 80)
-        print(f"✅ Migration completed successfully!")
+        print("✅ Migration completed successfully!")
         print(f"   Columns added: {columns_added}")
         print(f"   Columns skipped (already exist): {columns_skipped}")
         print("=" * 80)
@@ -195,7 +195,7 @@ def downgrade(engine: Engine) -> None:
                 columns_removed += 1
 
     print("\n" + "=" * 80)
-    print(f"✅ Downgrade completed!")
+    print("✅ Downgrade completed!")
     print(f"   Columns removed: {columns_removed}")
     print(f"   Columns not found: {columns_not_found}")
     print("=" * 80)

@@ -41,7 +41,7 @@ def print_result_summary(result: ManifestGenerationResult):
         return
 
     # Confidence scores
-    print(f"\nConfidence Scores:")
+    print("\nConfidence Scores:")
     for phase_id, confidence in result.confidence_scores.items():
         icon = "✅" if confidence >= 0.70 else "⚠️" if confidence >= 0.30 else "❌"
         print(f"  {icon} {phase_id}: {confidence:.1%}")
@@ -70,7 +70,7 @@ def print_statistics(generator: ManifestGenerator, plan_data: dict):
     print(f"Total Directories: {stats['total_directories']}")
     print(f"Average Confidence: {stats['confidence_avg']:.1%}")
 
-    print(f"\nCategories:")
+    print("\nCategories:")
     for category, count in sorted(stats['categories'].items(), key=lambda x: x[1], reverse=True):
         print(f"  - {category}: {count} phases")
 

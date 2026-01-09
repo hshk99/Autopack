@@ -4,7 +4,7 @@ This module provides common dictionary utilities including
 deep merging, nested access, nested setting, and key filtering.
 """
 
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict
 from copy import deepcopy
 
 

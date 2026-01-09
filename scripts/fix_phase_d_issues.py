@@ -3,7 +3,6 @@
 Fix Phase D issues found in tests
 """
 
-import sys
 from pathlib import Path
 
 # Fix 1: Update PlanAnalyzer initialization in manifest_generator.py

@@ -31,12 +31,9 @@ Author: Autopack Team
 import argparse
 import sys
 from pathlib import Path
-from typing import Optional
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
-from consolidate_docs_directory import main as consolidate_docs_main
-from phase2_archive_cleanup import Phase2ArchiveCleanup
 from enhanced_file_cleanup import EnhancedFileCleanup
 
 # Add project root for Autopack imports

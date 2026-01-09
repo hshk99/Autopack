@@ -38,7 +38,6 @@ import argparse
 import json
 import os
 import sys
-import time
 import subprocess
 import hashlib
 from dataclasses import dataclass, asdict
@@ -427,7 +426,7 @@ def generate_markdown_report(pairs: List[ABPairResult], output_path: str) -> str
 
 """
 
-    md += f"""## Interpretation
+    md += """## Interpretation
 
 """
 
@@ -436,7 +435,7 @@ def generate_markdown_report(pairs: List[ABPairResult], output_path: str) -> str
     elif mean_token_delta > 0:
         md += f"⚠️ **Treatment uses more tokens:** Average {mean_token_delta:,.0f} extra tokens per run ({mean_token_delta / total_control_tokens * 100 * len(pairs):.1f}% increase)\n\n"
     else:
-        md += f"ℹ️ **No significant token difference detected**\n\n"
+        md += "ℹ️ **No significant token difference detected**\n\n"
 
     if avg_treatment_success >= avg_control_success:
         md += f"✅ **Treatment maintains or improves success rate:** {avg_treatment_success:.1%} vs {avg_control_success:.1%}\n\n"
@@ -478,7 +477,7 @@ def main():
         print("Error: Must have equal number of control and treatment runs")
         sys.exit(1)
 
-    print(f"BUILD-146 P4: A/B Testing Phase 6 Features")
+    print("BUILD-146 P4: A/B Testing Phase 6 Features")
     print(f"Pairs: {len(control_run_ids)}")
     print(f"Control runs: {control_run_ids}")
     print(f"Treatment runs: {treatment_run_ids}")
@@ -495,7 +494,7 @@ def main():
         operator=os.getenv("USER") or os.getenv("USERNAME"),  # Windows/Linux
     )
 
-    print(f"📋 Experiment Metadata:")
+    print("📋 Experiment Metadata:")
     print(f"  Commit: {experiment_metadata.commit_sha[:8]}")
     print(f"  Branch: {experiment_metadata.branch}")
     print(f"  Operator: {experiment_metadata.operator}")
@@ -515,13 +514,13 @@ def main():
             validity_checks.append(validity)
 
             if not validity.is_valid:
-                print(f"  ❌ Pair invalid:")
+                print("  ❌ Pair invalid:")
                 for error in validity.errors:
                     print(f"     - {error}")
                 continue
 
             if validity.warnings:
-                print(f"  ⚠️  Warnings:")
+                print("  ⚠️  Warnings:")
                 for warning in validity.warnings:
                     print(f"     - {warning}")
 

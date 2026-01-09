@@ -10,8 +10,7 @@ All functions operate on local files only with no network operations.
 """
 
 from pathlib import Path
-from typing import Union, List, Optional
-import os
+from typing import Union, List
 
 
 def read_file(path: Union[str, Path], encoding: str = 'utf-8', errors: str = 'strict') -> str:

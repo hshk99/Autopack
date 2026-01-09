@@ -8,7 +8,6 @@ BUILD-039 JSON repair is now active to handle malformed JSON autonomously.
 import os
 import sys
 import requests
-from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -229,10 +228,10 @@ if __name__ == "__main__":
     if create_run():
         print("\n🚀 Run created successfully!")
         print(f"\n📝 Monitor run at: {API_URL}/runs/{RUN_ID}")
-        print(f"\n▶️  Start execution with:")
-        print(f"   cd c:/dev/Autopack")
-        print(f"   PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" \\")
-        print(f"   QDRANT_HOST=\"http://localhost:6333\" python -m autopack.autonomous_executor \\")
+        print("\n▶️  Start execution with:")
+        print("   cd c:/dev/Autopack")
+        print("   PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" \\")
+        print("   QDRANT_HOST=\"http://localhost:6333\" python -m autopack.autonomous_executor \\")
         print(f"   --run-id {RUN_ID} --api-url {API_URL} --poll-interval 15 --run-type autopack_maintenance")
         sys.exit(0)
     else:

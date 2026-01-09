@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from autopack.database import SessionLocal
 from autopack.db_identity import print_db_identity
-from autopack.models import Phase, PhaseState, Run, TokenEstimationV2Event, TokenBudgetEscalationEvent
+from autopack.models import Phase, PhaseState, TokenEstimationV2Event, TokenBudgetEscalationEvent
 
 
 def print_detailed_stats(session):
@@ -55,7 +55,7 @@ def print_detailed_stats(session):
         escalation_events = session.query(TokenBudgetEscalationEvent).count()
 
         print("Telemetry Statistics:")
-        print(f"  TokenEstimationV2Event:")
+        print("  TokenEstimationV2Event:")
         print(f"    Total: {v2_events}")
         print(f"    Success: {v2_success} ({v2_success / v2_events * 100:.1f}%)" if v2_events > 0 else "    Success: 0 (0.0%)")
         print(f"    Truncated: {v2_truncated} ({v2_truncated / v2_events * 100:.1f}%)" if v2_events > 0 else "    Truncated: 0 (0.0%)")

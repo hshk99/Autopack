@@ -95,7 +95,7 @@ def execute_cleanup(args, db):
     from autopack.storage_optimizer.db import get_scan_by_id
     from autopack.storage_optimizer.executor import CleanupExecutor
     from autopack.storage_optimizer.executor import ExecutionStatus
-    from autopack.storage_optimizer.approval import ExecutionApproval, verify_approval
+    from autopack.storage_optimizer.approval import ExecutionApproval
     from autopack.storage_optimizer.reporter import StorageReporter
 
     # SAFETY GATE: Require approval artifact for non-dry-run execution (CHECK FIRST)
@@ -109,8 +109,8 @@ def execute_cleanup(args, db):
             print("")
             print("To approve this execution:")
             print(f"  1. Generate report: python scripts/storage/scan_and_report.py --scan-id {args.scan_id} --generate-report")
-            print(f"  2. Review the report and generate approval template")
-            print(f"  3. Fill out approval.json with your details")
+            print("  2. Review the report and generate approval template")
+            print("  3. Fill out approval.json with your details")
             print(f"  4. Run: python scripts/storage/scan_and_report.py --execute --scan-id {args.scan_id} --approval-file approval.json")
             print("")
             return 1
@@ -137,7 +137,7 @@ def execute_cleanup(args, db):
         reporter = StorageReporter()
         # Note: We need scan metadata to verify - for now, we'll verify the report_id exists
         # TODO: Store report alongside scan or reconstruct from scan data
-        print(f"[SAFETY] Approval artifact validated")
+        print("[SAFETY] Approval artifact validated")
         print(f"[SAFETY] Operator '{approval.operator}' authorized execution at {approval.timestamp}")
         print("")
     else:
@@ -286,7 +286,7 @@ def interactive_approval(scan_id, db, approved_by):
         candidates = get_cleanup_candidates_by_scan(db, scan_id, category=category)
 
         # Prompt user
-        decision = input(f"  Approve deletion? [y/N]: ").strip().lower()
+        decision = input("  Approve deletion? [y/N]: ").strip().lower()
 
         if decision == 'y':
             candidate_ids = [c.id for c in candidates]
@@ -302,7 +302,7 @@ def interactive_approval(scan_id, db, approved_by):
             db.commit()
             print(f"  [x] Approved {len(candidate_ids)} items ({size_gb:.2f} GB)")
         else:
-            print(f"  [X] Skipped (not approved)")
+            print("  [X] Skipped (not approved)")
 
         print("")
 
@@ -645,7 +645,7 @@ def main():
             scan_results = scanner.scan_drive(args.drive, max_depth=args.max_depth, max_items=args.max_items)
         else:
             print(f"      Drive: {args.drive}:\\")
-            print(f"      Scanning high-value directories...")
+            print("      Scanning high-value directories...")
             scan_results = scanner.scan_high_value_directories(args.drive)
         drive_letter = args.drive
 
@@ -752,12 +752,12 @@ def main():
 
     if args.save_to_db and saved_scan:
         print(f"Scan ID: {saved_scan.id}")
-        print(f"Scan saved to database for future execution/comparison")
+        print("Scan saved to database for future execution/comparison")
         print("")
         if not args.interactive:
             print("Next steps:")
             print(f"  1. Review candidates: curl http://localhost:8000/storage/scans/{saved_scan.id}")
-            print(f"  2. Approve via API or use --interactive flag")
+            print("  2. Approve via API or use --interactive flag")
             print(f"  3. Execute: python scripts/storage/scan_and_report.py --execute --scan-id {saved_scan.id}")
     else:
         print("This was a DRY-RUN analysis. No files were deleted.")

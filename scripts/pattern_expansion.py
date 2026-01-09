@@ -28,7 +28,7 @@ import sys
 import json
 import argparse
 import hashlib
-from typing import List, Dict, Optional
+from typing import List, Optional
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from collections import defaultdict

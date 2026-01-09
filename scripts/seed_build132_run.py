@@ -228,14 +228,14 @@ Files to create:
 
         session.commit()
 
-        print(f"\n[SUCCESS] BUILD-132 run seeded successfully!")
-        print(f"\nSummary:")
+        print("\n[SUCCESS] BUILD-132 run seeded successfully!")
+        print("\nSummary:")
         print(f"- Run ID: {RUN_ID}")
         print(f"- Total phases: {len(phases_data)}")
         print(f"- Total tiers: {len(tiers_data)}")
-        print(f"- Expected telemetry samples: 4+ successful Builder executions")
-        print(f"\nTo execute:")
-        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" \\")
+        print("- Expected telemetry samples: 4+ successful Builder executions")
+        print("\nTo execute:")
+        print("  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" \\")
         print(f"    python -m autopack.autonomous_executor --run-id {RUN_ID}")
 
     except Exception as e:

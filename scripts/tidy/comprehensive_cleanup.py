@@ -5,12 +5,9 @@ Comprehensive Workspace Cleanup - Implementation of PROPOSED_CLEANUP_STRUCTURE.m
 This script implements the complete reorganization plan with all specific requirements.
 """
 
-import os
 import re
 import shutil
 import subprocess
-import sys
-from collections import defaultdict
 from pathlib import Path
 from typing import List, Dict
 
@@ -58,7 +55,7 @@ def git_checkpoint(message: str):
         print(f"\n[GIT] ✓ Created checkpoint: {message}")
         return True
     except subprocess.CalledProcessError:
-        print(f"\n[GIT] No changes to commit")
+        print("\n[GIT] No changes to commit")
         return False
 
 
@@ -107,7 +104,7 @@ def phase1_root_cleanup(dry_run: bool = True):
         config_dir = REPO_ROOT / "config"
         config_dir.mkdir(exist_ok=True)
         dest = config_dir / "templates"
-        print(f"  templates/ → config/templates/")
+        print("  templates/ → config/templates/")
         if not dry_run:
             shutil.move(str(templates_dir), str(dest))
 
@@ -116,7 +113,7 @@ def phase1_root_cleanup(dry_run: bool = True):
     if integrations_dir.exists():
         scripts_dir = REPO_ROOT / "scripts"
         dest = scripts_dir / "integrations"
-        print(f"  integrations/ → scripts/integrations/")
+        print("  integrations/ → scripts/integrations/")
         if not dry_run:
             shutil.move(str(integrations_dir), str(dest))
 
@@ -125,7 +122,7 @@ def phase1_root_cleanup(dry_run: bool = True):
     if logs_dir.exists():
         diag_logs = archive / "diagnostics" / "logs"
         diag_logs.mkdir(parents=True, exist_ok=True)
-        print(f"  logs/ → archive/diagnostics/logs/")
+        print("  logs/ → archive/diagnostics/logs/")
         if not dry_run:
             for item in logs_dir.iterdir():
                 dest = diag_logs / item.name
@@ -267,7 +264,7 @@ def phase3_autopack_archive_cleanup(dry_run: bool = True):
     # 2. Merge archive/logs/ into diagnostics/logs/
     logs_folder = archive / "logs"
     if logs_folder.exists():
-        print(f"\n[LOGS] Merging archive/logs/ into diagnostics/logs/")
+        print("\n[LOGS] Merging archive/logs/ into diagnostics/logs/")
         for item in logs_folder.rglob("*"):
             if item.is_file():
                 rel_path = item.relative_to(logs_folder)
@@ -279,7 +276,7 @@ def phase3_autopack_archive_cleanup(dry_run: bool = True):
         if not dry_run:
             try:
                 shutil.rmtree(logs_folder)
-                print(f"[DELETE] Removed empty logs/ folder")
+                print("[DELETE] Removed empty logs/ folder")
             except:
                 pass
 
@@ -287,7 +284,7 @@ def phase3_autopack_archive_cleanup(dry_run: bool = True):
     delegations = archive / "delegations"
     reports = archive / "reports"
     if delegations.exists():
-        print(f"\n[DELEGATIONS] Merging into reports/")
+        print("\n[DELEGATIONS] Merging into reports/")
         reports.mkdir(parents=True, exist_ok=True)
         for item in delegations.iterdir():
             dest = reports / item.name
@@ -297,7 +294,7 @@ def phase3_autopack_archive_cleanup(dry_run: bool = True):
         if not dry_run:
             try:
                 shutil.rmtree(delegations)
-                print(f"[DELETE] Removed delegations/ folder")
+                print("[DELETE] Removed delegations/ folder")
             except:
                 pass
 
@@ -312,7 +309,7 @@ def phase3_autopack_archive_cleanup(dry_run: bool = True):
             if not dry_run:
                 shutil.rmtree(nested_path)
 
-    print(f"\n[PHASE 3] Complete")
+    print("\n[PHASE 3] Complete")
 
 
 def phase4_autonomous_runs_cleanup(dry_run: bool = True):
@@ -339,7 +336,7 @@ def phase4_autonomous_runs_cleanup(dry_run: bool = True):
     # Note: Organizing loose folders (runs/, archive/, docs/, exports/, patches/, openai_delegations/)
     # requires manual review - will be handled by tidy system
 
-    print(f"\n[PHASE 4] Complete")
+    print("\n[PHASE 4] Complete")
 
 
 def phase5_fileorganizer_reorganization(dry_run: bool = True):
@@ -357,10 +354,10 @@ def phase5_fileorganizer_reorganization(dry_run: bool = True):
     fileorganizer_dir = fileorg_root / "fileorganizer"
     src_dir = fileorg_root / "src"
     if fileorganizer_dir.exists() and not src_dir.exists():
-        print(f"\n[REORGANIZE] fileorganizer/ → src/")
+        print("\n[REORGANIZE] fileorganizer/ → src/")
         if not dry_run:
             shutil.move(str(fileorganizer_dir), str(src_dir))
-            print(f"  ✓ Renamed fileorganizer/ to src/")
+            print("  ✓ Renamed fileorganizer/ to src/")
 
         # Move deploy.sh to scripts/
         deploy_sh = src_dir / "deploy.sh"
@@ -368,7 +365,7 @@ def phase5_fileorganizer_reorganization(dry_run: bool = True):
             scripts_dir = fileorg_root / "scripts"
             scripts_dir.mkdir(exist_ok=True)
             dest = scripts_dir / "deploy.sh"
-            print(f"  deploy.sh → scripts/")
+            print("  deploy.sh → scripts/")
             if not dry_run:
                 shutil.move(str(deploy_sh), str(dest))
 
@@ -377,7 +374,7 @@ def phase5_fileorganizer_reorganization(dry_run: bool = True):
     codex_delegations = archive / "codex_delegations"
     reports = archive / "reports"
     if codex_delegations.exists():
-        print(f"\n[DELEGATIONS] Merging codex_delegations/ → reports/")
+        print("\n[DELEGATIONS] Merging codex_delegations/ → reports/")
         reports.mkdir(parents=True, exist_ok=True)
         for item in codex_delegations.iterdir():
             dest = reports / item.name
@@ -387,7 +384,7 @@ def phase5_fileorganizer_reorganization(dry_run: bool = True):
         if not dry_run:
             try:
                 shutil.rmtree(codex_delegations)
-                print(f"[DELETE] Removed codex_delegations/ folder")
+                print("[DELETE] Removed codex_delegations/ folder")
             except:
                 pass
 
@@ -404,7 +401,7 @@ def phase5_fileorganizer_reorganization(dry_run: bool = True):
     # 4. Remove archive/__pycache__
     archive_pycache = archive / "__pycache__"
     if archive_pycache.exists():
-        print(f"\n[DELETE] Removing archive/__pycache__/")
+        print("\n[DELETE] Removing archive/__pycache__/")
         if not dry_run:
             shutil.rmtree(archive_pycache)
 
@@ -420,11 +417,11 @@ def phase5_fileorganizer_reorganization(dry_run: bool = True):
     archive_docs = archive / "docs"
     parent_docs = fileorg_root / "docs"
     if archive_docs.exists() and not parent_docs.exists():
-        print(f"\n[MOVE] archive/docs/ → docs/")
+        print("\n[MOVE] archive/docs/ → docs/")
         if not dry_run:
             shutil.move(str(archive_docs), str(parent_docs))
 
-    print(f"\n[PHASE 5] Complete")
+    print("\n[PHASE 5] Complete")
 
 
 def phase6_run_family_grouping(dry_run: bool = True):

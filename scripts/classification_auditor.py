@@ -17,7 +17,6 @@ import os
 import sys
 from pathlib import Path
 from typing import Tuple, Optional, Dict, Any
-from datetime import datetime
 
 # Repo root detection for dynamic paths
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -373,7 +372,7 @@ def batch_audit_classifications(
             if show_approved:
                 print(f"[APPROVED] {file_path.name}: {reason}")
 
-    print(f"\n=== Audit Summary ===")
+    print("\n=== Audit Summary ===")
     print(f"Approved: {len(approved)}")
     print(f"Overridden: {len(overridden)}")
     print(f"Flagged for manual review: {len(flagged)}")

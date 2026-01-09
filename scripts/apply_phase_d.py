@@ -370,7 +370,7 @@ def main():
 
     print("\n✅ Phase D implementation complete!")
     print(f"   Final file: {len(lines)} lines")
-    print(f"   Added: ~233 lines")
+    print("   Added: ~233 lines")
 
 if __name__ == "__main__":
     main()

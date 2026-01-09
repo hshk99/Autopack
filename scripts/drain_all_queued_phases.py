@@ -102,7 +102,7 @@ def main():
     # Print summary
     elapsed = (datetime.now() - start_time).total_seconds()
     print(f"{'='*80}")
-    print(f"BATCH DRAIN SUMMARY")
+    print("BATCH DRAIN SUMMARY")
     print(f"{'='*80}")
     print(f"Run ID: {args.run_id}")
     print(f"Total phases: {len(phases)}")

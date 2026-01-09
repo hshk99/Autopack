@@ -97,7 +97,7 @@ def main() -> int:
     )
 
     json_path, md_path = PrProposalStorage.save(proposal, project_id=args.project_id)
-    print(f"  ✓ Proposal saved:")
+    print("  ✓ Proposal saved:")
     print(f"    - {json_path}")
     print(f"    - {md_path}")
 

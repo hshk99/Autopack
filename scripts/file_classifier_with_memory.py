@@ -11,7 +11,7 @@ This module provides project-aware file classification using:
 import os
 import hashlib
 from pathlib import Path
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Tuple
 from datetime import datetime, timezone
 
 # Repo root detection for dynamic paths
@@ -79,7 +79,7 @@ class ProjectMemoryClassifier:
                 self.pg_conn = self.pg_pool.getconn()
                 # Set autocommit to avoid transaction errors
                 self.pg_conn.autocommit = True
-                print(f"[Classifier] OK Connected to PostgreSQL with connection pool")
+                print("[Classifier] OK Connected to PostgreSQL with connection pool")
             except Exception as e:
                 print(f"[Classifier] WARN PostgreSQL unavailable: {e}")
                 self.pg_pool = None
@@ -244,7 +244,7 @@ class ProjectMemoryClassifier:
                 correction = cursor.fetchone()
                 if correction:
                     # User correction found - use it with 100% confidence
-                    print(f"[Classifier] Using user correction for similar file")
+                    print("[Classifier] Using user correction for similar file")
                     proj, typ = correction[0], correction[1]
                     if proj == "autopack":
                         dest = str(REPO_ROOT / "archive" / f"{typ}s" / filename)

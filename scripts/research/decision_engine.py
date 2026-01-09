@@ -13,8 +13,7 @@ from datetime import datetime
 import anthropic
 
 from scripts.research.data_structures import (
-    ProjectContext, ResearchGap, OpportunityAnalysis,
-    ImplementationDecision, DecisionReport, DecisionType,
+    ProjectContext, ResearchGap, ImplementationDecision, DecisionReport, DecisionType,
     Priority, Effort
 )
 
@@ -71,7 +70,7 @@ class DecisionEngine:
             report.decisions.append(decision)
 
         print(f"\n{'='*60}")
-        print(f"DECISION MAKING COMPLETE")
+        print("DECISION MAKING COMPLETE")
         print(f"{'='*60}\n")
         self._print_summary(report)
 
@@ -194,7 +193,7 @@ Return JSON:
 
     def _print_summary(self, report: DecisionReport):
         """Print summary of decisions"""
-        print(f"Summary:")
+        print("Summary:")
         print(f"  • Total decisions: {len(report.decisions)}")
         print(f"  • Implement now: {len(report.get_implement_now())}")
         print(f"  • Implement later: {len(report.get_implement_later())}")
@@ -259,9 +258,9 @@ class DecisionRouter:
             routing_summary['reject'] = len(reject)
 
         print(f"\n{'='*60}")
-        print(f"ROUTING COMPLETE")
+        print("ROUTING COMPLETE")
         print(f"{'='*60}\n")
-        print(f"Summary:")
+        print("Summary:")
         print(f"  • Active: {routing_summary['implement_now']}")
         print(f"  • Future plan: {routing_summary['implement_later']}")
         print(f"  • Review: {routing_summary['review']}")
@@ -276,7 +275,7 @@ class DecisionRouter:
 
         output_file = active_dir / f"implementation_plan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
 
-        content = f"# Implementation Plan: Active Items\n\n"
+        content = "# Implementation Plan: Active Items\n\n"
         content += f"**Generated**: {datetime.now().isoformat()}\n"
         content += f"**Project**: {self.project_id}\n\n"
 
@@ -293,7 +292,7 @@ class DecisionRouter:
             content += f"### User Impact\n{decision.user_impact}\n\n"
 
             if decision.prerequisites:
-                content += f"### Prerequisites\n"
+                content += "### Prerequisites\n"
                 for prereq in decision.prerequisites:
                     content += f"- {prereq}\n"
                 content += "\n"
@@ -329,7 +328,7 @@ class DecisionRouter:
 
         output_file = review_dir / f"for_review_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
 
-        content = f"# Items for Review\n\n"
+        content = "# Items for Review\n\n"
         content += f"**Generated**: {datetime.now().isoformat()}\n\n"
 
         for decision in decisions:
@@ -347,7 +346,7 @@ class DecisionRouter:
 
         output_file = reject_dir / f"rejected_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
 
-        content = f"# Rejected Items\n\n"
+        content = "# Rejected Items\n\n"
         content += f"**Generated**: {datetime.now().isoformat()}\n\n"
 
         for decision in decisions:

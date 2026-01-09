@@ -7,7 +7,6 @@ This module provides common string manipulation utilities including:
 - truncate: Truncate a string to a maximum length with ellipsis
 """
 
-from typing import Optional
 
 
 def capitalize_words(text: str) -> str:

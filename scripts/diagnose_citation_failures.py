@@ -14,13 +14,13 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from autopack.research.gatherers.github_gatherer import GitHubGatherer
-from autopack.research.models.validators import CitationValidator, Finding
+from autopack.research.models.validators import CitationValidator
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
@@ -76,14 +76,14 @@ def diagnose_failures() -> Dict[str, Any]:
                 readme_content = gatherer.fetch_readme(repo_name)
 
                 if not readme_content:
-                    logger.warning(f"  No README content")
+                    logger.warning("  No README content")
                     continue
 
                 # Extract findings
                 findings = gatherer.extract_findings(readme_content, topic, max_findings=3)
 
                 if not findings:
-                    logger.warning(f"  No findings extracted")
+                    logger.warning("  No findings extracted")
                     continue
 
                 logger.info(f"  Extracted {len(findings)} findings")
@@ -180,10 +180,10 @@ def generate_diagnostic_report(results: Dict[str, Any]) -> str:
             f"Reason:            {failure['reason']}",
             f"Confidence:        {failure['confidence']}",
             "",
-            f"Content (LLM interpretation):",
+            "Content (LLM interpretation):",
             f"  {failure['content']}",
             "",
-            f"Extraction Span (quote from source):",
+            "Extraction Span (quote from source):",
             f"  Length: {failure['extraction_span_length']} chars",
             f"  Has numbers: {failure['has_numbers_in_span']}",
             f"  Text: {failure['extraction_span']}",
@@ -192,7 +192,7 @@ def generate_diagnostic_report(results: Dict[str, Any]) -> str:
         if "readme_snippet" in failure and failure["readme_snippet"]:
             lines.extend([
                 "",
-                f"README Snippet (closest match):",
+                "README Snippet (closest match):",
                 f"  {failure['readme_snippet'][:300]}",
             ])
 

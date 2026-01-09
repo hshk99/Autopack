@@ -130,8 +130,8 @@ def test_metadata_structure():
     if retrieved_category == "doc_sot_update":
         print("✓ Metadata retrieval successful")
         print(f"  Retrieved category: {retrieved_category}")
-        print(f"  Expected: doc_sot_update")
-        print(f"  Telemetry will record correct category!")
+        print("  Expected: doc_sot_update")
+        print("  Telemetry will record correct category!")
         return True
     else:
         print("✗ Metadata retrieval failed")

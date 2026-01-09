@@ -186,7 +186,6 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-from pathlib import Path
 
 
 def run_evaluation() -> dict:

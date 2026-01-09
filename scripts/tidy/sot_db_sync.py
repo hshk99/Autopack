@@ -48,12 +48,11 @@ import hashlib
 import json
 import os
 import re
-import signal
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 # Add project root to path
 REPO_ROOT = Path(__file__).parent.parent.parent
@@ -871,7 +870,7 @@ class SOTDBSync:
         print(f"Mode: {self.mode}")
         print(f"Execute: {self.execute}")
         print(f"Total time: {elapsed:.2f}s")
-        print(f"\nStatistics:")
+        print("\nStatistics:")
         print(f"  Parsed entries: {self.stats['parsed_entries']}")
         print(f"  DB inserts: {self.stats['db_inserts']}")
         print(f"  DB updates: {self.stats['db_updates']}")
@@ -885,7 +884,7 @@ class SOTDBSync:
                 print(f"  ... and {len(self.stats['errors']) - 10} more")
 
         if self.timing and self.timings:
-            print(f"\nTiming breakdown:")
+            print("\nTiming breakdown:")
             for op, duration in sorted(self.timings.items(), key=lambda x: -x[1]):
                 print(f"  {op}: {duration:.2f}s")
 

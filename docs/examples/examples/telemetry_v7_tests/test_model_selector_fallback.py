@@ -9,8 +9,7 @@ Tests cover:
 """
 
 import pytest
-from typing import Optional, List
-from unittest.mock import Mock, patch, MagicMock
+from typing import Optional
 
 
 class ModelTier:

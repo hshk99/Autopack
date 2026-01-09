@@ -322,7 +322,7 @@ def main():
         print("  - Run layout: .autonomous_runs/<project>/runs/<family>/<run_id>/")
         return 0
     else:
-        print(f"FAILURE: Documentation drift detected!")
+        print("FAILURE: Documentation drift detected!")
         print()
         print(f"Found {total_violations} violations in {files_with_violations} files.")
         print()

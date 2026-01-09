@@ -4,7 +4,6 @@ This module provides comprehensive test coverage for the string_helper module,
 including tests for capitalize_words and reverse_string functions.
 """
 
-import pytest
 from examples.telemetry_utils.string_helper import capitalize_words, reverse_string
 
 

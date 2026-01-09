@@ -17,9 +17,8 @@ Usage:
 
 import os
 import sys
-from datetime import datetime, timezone
 
-from sqlalchemy import create_engine, text, inspect, Column, Integer, String, DateTime
+from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.engine import Engine
 
 
@@ -89,12 +88,12 @@ def upgrade(engine: Engine) -> None:
         result = conn.execute(text("SELECT COUNT(*) FROM phases"))
         phase_count = result.scalar()
 
-        print(f"\n✓ Migration complete!")
+        print("\n✓ Migration complete!")
         print(f"  - {phase_count} existing phases have been updated with defaults:")
-        print(f"    - attempts_used = 0")
-        print(f"    - max_attempts = 5")
-        print(f"    - last_attempt_timestamp = NULL")
-        print(f"    - last_failure_reason = NULL")
+        print("    - attempts_used = 0")
+        print("    - max_attempts = 5")
+        print("    - last_attempt_timestamp = NULL")
+        print("    - last_failure_reason = NULL")
 
     print("\n" + "=" * 60)
     print("BUILD-041 Migration: SUCCESS")

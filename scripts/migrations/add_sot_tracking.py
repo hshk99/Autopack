@@ -90,11 +90,11 @@ def upgrade(engine: Engine) -> None:
         result = conn.execute(text("SELECT COUNT(*) FROM token_estimation_v2_events"))
         event_count = result.scalar() or 0
 
-        print(f"\n✓ Migration complete!")
+        print("\n✓ Migration complete!")
         print(f"  - {event_count} existing telemetry events updated with defaults:")
-        print(f"    - is_sot_file = FALSE")
-        print(f"    - sot_file_name = NULL")
-        print(f"    - sot_entry_count_hint = NULL")
+        print("    - is_sot_file = FALSE")
+        print("    - sot_file_name = NULL")
+        print("    - sot_entry_count_hint = NULL")
 
     print("\n" + "=" * 70)
     print("BUILD-129 Phase 3 P3 Migration: SUCCESS")

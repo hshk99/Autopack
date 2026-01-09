@@ -20,11 +20,9 @@ Usage:
     python scripts/setup_scheduled_scan.py --run
 """
 
-import os
 import sys
 import subprocess
 from pathlib import Path
-from datetime import datetime, timedelta
 
 def create_scheduled_task(
     task_name: str = "Autopack_Storage_Scan",
@@ -108,7 +106,7 @@ def create_scheduled_task(
         print(f"   Working directory: {autopack_root}")
         print("")
         print("Next steps:")
-        print(f"   1. View in Task Scheduler: taskschd.msc")
+        print("   1. View in Task Scheduler: taskschd.msc")
         print(f"   2. Test run: schtasks /Run /TN {task_name}")
         print(f"   3. View history: schtasks /Query /TN {task_name} /V /FO LIST")
         print("")
@@ -116,7 +114,7 @@ def create_scheduled_task(
         return True
 
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to create scheduled task")
+        print("❌ Failed to create scheduled task")
         print(f"   Error: {e.stderr}")
         print("")
         print("Common issues:")
@@ -193,7 +191,7 @@ def delete_scheduled_task(task_name: str = "Autopack_Storage_Scan") -> bool:
         return True
 
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to delete task")
+        print("❌ Failed to delete task")
         print(f"   Error: {e.stderr}")
         print("")
         print("Possible reasons:")
@@ -219,15 +217,15 @@ def run_task(task_name: str = "Autopack_Storage_Scan") -> bool:
         print("✅ Task triggered successfully")
         print("")
         print("Monitor progress:")
-        print(f"   1. Check logs: .autopack/logs/storage_scan.log")
-        print(f"   2. View in Task Scheduler: taskschd.msc")
-        print(f"   3. Check database: SELECT * FROM storage_scans ORDER BY timestamp DESC LIMIT 1;")
+        print("   1. Check logs: .autopack/logs/storage_scan.log")
+        print("   2. View in Task Scheduler: taskschd.msc")
+        print("   3. Check database: SELECT * FROM storage_scans ORDER BY timestamp DESC LIMIT 1;")
         print("")
 
         return True
 
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to run task")
+        print("❌ Failed to run task")
         print(f"   Error: {e.stderr}")
         return False
 

@@ -5,7 +5,6 @@ when all phases reach a terminal state (COMPLETE or FAILED).
 """
 import time
 import sys
-import os
 from pathlib import Path
 
 # Add src to path
@@ -52,13 +51,13 @@ def format_completion_message(phase_statuses):
     failed = sum(1 for p in phase_statuses if p["state"] == PhaseState.FAILED)
     total_tokens = sum(p["tokens_used"] for p in phase_statuses)
 
-    message = f"🚀 *BUILD-145 P1 Phases Complete*\n\n"
-    message += f"*Summary*:\n"
+    message = "🚀 *BUILD-145 P1 Phases Complete*\n\n"
+    message += "*Summary*:\n"
     message += f"  ✅ Completed: {completed}/{len(phase_statuses)}\n"
     message += f"  ❌ Failed: {failed}/{len(phase_statuses)}\n"
     message += f"  🎯 Total Tokens: {total_tokens:,}\n\n"
 
-    message += f"*Phase Results*:\n"
+    message += "*Phase Results*:\n"
     for p in phase_statuses:
         state_emoji = "✅" if p["state"] == PhaseState.COMPLETE else "❌"
         tokens_str = f" ({p['tokens_used']:,} tokens)" if p['tokens_used'] > 0 else ""

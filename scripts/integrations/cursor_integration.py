@@ -16,9 +16,7 @@ Usage:
 """
 
 import requests
-import subprocess
 from typing import Optional, List, Dict
-from datetime import datetime
 
 
 class CursorBuilder:

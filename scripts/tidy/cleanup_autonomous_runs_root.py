@@ -24,13 +24,10 @@ Usage:
 """
 
 import argparse
-import json
-import re
 import shutil
 import sys
-from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 REPO_ROOT = Path(__file__).parent.parent.parent
 AUTONOMOUS_RUNS = REPO_ROOT / ".autonomous_runs"

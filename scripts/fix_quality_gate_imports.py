@@ -1,5 +1,4 @@
 """Fix quality_gate import issues by commenting out all references."""
-import re
 from pathlib import Path
 
 def fix_quality_gate_refs():
@@ -68,9 +67,9 @@ def fix_quality_gate_refs():
         f.writelines(modified)
 
     print(f"\n✓ Fixed quality_gate references in {file_path}")
-    print(f"  - Commented import at line 44")
-    print(f"  - Commented initialization at line 1030-1031")
-    print(f"  - Commented quality gate block at lines 4417-4472")
+    print("  - Commented import at line 44")
+    print("  - Commented initialization at line 1030-1031")
+    print("  - Commented quality gate block at lines 4417-4472")
 
 if __name__ == "__main__":
     fix_quality_gate_refs()

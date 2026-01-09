@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 from datetime import datetime
 import statistics
-from collections import Counter, defaultdict
+from collections import defaultdict
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))

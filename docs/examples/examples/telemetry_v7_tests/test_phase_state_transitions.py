@@ -9,7 +9,6 @@ Tests cover:
 
 import pytest
 from datetime import datetime
-from unittest.mock import Mock, patch
 
 
 class PhaseState:

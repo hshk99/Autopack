@@ -130,10 +130,10 @@ if __name__ == "__main__":
     success = create_run()
     if success:
         print(f"\n✅ Run {RUN_ID} created successfully!")
-        print(f"\nNext steps:")
-        print(f"1. Start the executor:")
+        print("\nNext steps:")
+        print("1. Start the executor:")
         print(f"   PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {RUN_ID}")
-        print(f"\n2. Monitor progress:")
+        print("\n2. Monitor progress:")
         print(f"   python scripts/monitor_run.py {RUN_ID}")
     else:
         print("\n❌ Failed to create run")

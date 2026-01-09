@@ -87,7 +87,7 @@ def test_sot_estimation():
     print(f"Estimated tokens: {estimate.estimated_tokens}")
     print(f"Deliverable count: {estimate.deliverable_count}")
     print(f"Confidence: {estimate.confidence:.2f}")
-    print(f"Breakdown:")
+    print("Breakdown:")
     for key, value in estimate.breakdown.items():
         print(f"  - {key}: {value}")
 

@@ -70,7 +70,7 @@ def main():
 
         # Sort by count
         sorted_runs = sorted(runs_with_failed.items(), key=lambda x: x[1], reverse=True)
-        print(f"\nFailed phases by run (top 20):")
+        print("\nFailed phases by run (top 20):")
         for run_id, count in sorted_runs[:20]:
             # Check if this run has queued phases
             has_queued = run_id in ([p.run_id for p in queued_phases] if queued_phases else [])

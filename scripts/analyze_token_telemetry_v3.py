@@ -21,9 +21,8 @@ Usage:
 import re
 import sys
 import argparse
-import json
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 from datetime import datetime
 from collections import defaultdict
 import statistics

@@ -170,12 +170,12 @@ def analyze_session(session_path: Path) -> None:
         if results:
             avg_yield = total_events / len(results)
             if avg_yield < 1.0:
-                print(f"⚠️  LOW TELEMETRY YIELD (<1 event/phase)")
+                print("⚠️  LOW TELEMETRY YIELD (<1 event/phase)")
                 print("   - Phases may be failing before Builder execution")
                 print("   - Check error messages for import/collection issues")
                 print("   - Consider fixing systematic errors before draining more")
             elif avg_yield > 5.0:
-                print(f"✓ GOOD TELEMETRY YIELD (>5 events/phase)")
+                print("✓ GOOD TELEMETRY YIELD (>5 events/phase)")
                 print("   - Phases are reaching Builder and generating samples")
                 print("   - Continue draining with current settings")
 

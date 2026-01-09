@@ -91,7 +91,7 @@ def create_telemetry_v7_run():
         )
         session.add(tier)
         session.flush()
-        print(f"✅ Created tier 1")
+        print("✅ Created tier 1")
 
         # === DOCS/MEDIUM PHASES (3) ===
         docs_medium_phases = [
@@ -203,13 +203,13 @@ def create_telemetry_v7_run():
             print(f"  [{idx:02d}] {phase_def['phase_id']} ({phase_def['category']}/{phase_def['complexity']}, {len(phase_def['deliverables'])} deliverable(s))")
 
         session.commit()
-        print(f"\n✅ Successfully created telemetry-collection-v7 with 6 phases")
-        print(f"   - docs/medium: 3 phases")
-        print(f"   - tests/low: 1 phase")
-        print(f"   - tests/medium: 2 phases")
-        print(f"\nDrain with:")
-        print(f"  python scripts/drain_queued_phases.py --run-id telemetry-collection-v7 \\")
-        print(f"    --batch-size 10 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
+        print("\n✅ Successfully created telemetry-collection-v7 with 6 phases")
+        print("   - docs/medium: 3 phases")
+        print("   - tests/low: 1 phase")
+        print("   - tests/medium: 2 phases")
+        print("\nDrain with:")
+        print("  python scripts/drain_queued_phases.py --run-id telemetry-collection-v7 \\")
+        print("    --batch-size 10 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
 
     except Exception as e:
         session.rollback()

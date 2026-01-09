@@ -50,13 +50,13 @@ def test_deletion_detection(lines_removed=426, lines_added=12):
         patch_content=None
     )
 
-    print(f"\nSimulated Change:")
-    print(f"  Files: src/autopack/diagnostics/deep_retrieval.py")
+    print("\nSimulated Change:")
+    print("  Files: src/autopack/diagnostics/deep_retrieval.py")
     print(f"  Lines Added: {lines_added}")
     print(f"  Lines Removed: {lines_removed}")
     print(f"  Net Deletion: {lines_removed - lines_added}")
 
-    print(f"\nRisk Assessment:")
+    print("\nRisk Assessment:")
     print(f"  Risk Score: {result['risk_score']}/100")
     print(f"  Risk Level: {result['risk_level'].upper()}")
     print(f"  Large Deletion Detected: {result['checks']['large_deletion']}")
@@ -64,12 +64,12 @@ def test_deletion_detection(lines_removed=426, lines_added=12):
     print(f"  Approval Required: {result['checks'].get('deletion_approval_required', False)}")
     print(f"  Net Deletion: {result['checks']['net_deletion']}")
 
-    print(f"\nRisk Reasons:")
+    print("\nRisk Reasons:")
     for reason in result['reasons']:
         print(f"  • {reason}")
 
     # Test quality gate blocking
-    print(f"\nQuality Gate Assessment:")
+    print("\nQuality Gate Assessment:")
     gate = QualityGate(repo_root=Path.cwd())
 
     quality_level = gate._determine_quality_level(
@@ -83,9 +83,9 @@ def test_deletion_detection(lines_removed=426, lines_added=12):
     print(f"  Quality Level: {quality_level.upper()}")
 
     if quality_level == "blocked":
-        print(f"  ✅ BLOCKED - Would trigger approval request")
+        print("  ✅ BLOCKED - Would trigger approval request")
     else:
-        print(f"  ❌ NOT BLOCKED - Would proceed without approval")
+        print("  ❌ NOT BLOCKED - Would proceed without approval")
 
     return result
 
@@ -106,7 +106,7 @@ def test_telegram_notification(lines_removed=426, lines_added=12):
         print("  export NGROK_URL='https://harrybot.ngrok.app'")
         return False
 
-    print(f"\n✅ Telegram configured:")
+    print("\n✅ Telegram configured:")
     print(f"  Bot Token: {notifier.bot_token[:20]}...")
     print(f"  Chat ID: {notifier.chat_id}")
     print(f"  Callback URL: {notifier.callback_url}")
@@ -121,8 +121,8 @@ def test_telegram_notification(lines_removed=426, lines_added=12):
         'risk_score': 85,
     }
 
-    print(f"\nSending test notification...")
-    print(f"  Phase: test-deletion-safeguard")
+    print("\nSending test notification...")
+    print("  Phase: test-deletion-safeguard")
     print(f"  Net Deletion: {deletion_info['net_deletion']} lines")
     print(f"  Risk Level: {deletion_info['risk_level'].upper()}")
 
@@ -134,16 +134,16 @@ def test_telegram_notification(lines_removed=426, lines_added=12):
     )
 
     if success:
-        print(f"\n✅ Notification sent successfully!")
-        print(f"\nCheck your phone - you should see:")
-        print(f"  ⚠️ Autopack Approval Needed")
-        print(f"  Phase: test-deletion-safeguard")
-        print(f"  Risk: 🚨 CRITICAL (score: 85/100)")
+        print("\n✅ Notification sent successfully!")
+        print("\nCheck your phone - you should see:")
+        print("  ⚠️ Autopack Approval Needed")
+        print("  Phase: test-deletion-safeguard")
+        print("  Risk: 🚨 CRITICAL (score: 85/100)")
         print(f"  Net Deletion: {deletion_info['net_deletion']} lines")
-        print(f"  [✅ Approve]  [❌ Reject]")
+        print("  [✅ Approve]  [❌ Reject]")
         return True
     else:
-        print(f"\n❌ Failed to send notification")
+        print("\n❌ Failed to send notification")
         return False
 
 
@@ -164,13 +164,13 @@ def test_approval_workflow():
     try:
         response = requests.get(f"{api_url}/docs", timeout=5)
         if response.status_code == 200:
-            print(f"✅ Backend is running")
+            print("✅ Backend is running")
         else:
             print(f"⚠️  Backend responded with status {response.status_code}")
     except Exception as e:
         print(f"❌ API server not accessible: {e}")
-        print(f"\nTo start canonical API server:")
-        print(f"  PYTHONPATH=src uvicorn autopack.main:app --host 0.0.0.0 --port 8000")
+        print("\nTo start canonical API server:")
+        print("  PYTHONPATH=src uvicorn autopack.main:app --host 0.0.0.0 --port 8000")
         return False
 
     # Send approval request
@@ -183,7 +183,7 @@ def test_approval_workflow():
         'risk_score': 85,
     }
 
-    print(f"\nSending approval request to backend...")
+    print("\nSending approval request to backend...")
 
     try:
         response = requests.post(
@@ -202,8 +202,8 @@ def test_approval_workflow():
             print(f"✅ Approval request sent: {result.get('status')}")
 
             if result.get('status') == 'pending':
-                print(f"\n📱 Check your phone and tap Approve or Reject")
-                print(f"\nPolling for approval decision (timeout: 60 seconds)...")
+                print("\n📱 Check your phone and tap Approve or Reject")
+                print("\nPolling for approval decision (timeout: 60 seconds)...")
 
                 # Poll for decision
                 for i in range(12):  # 12 * 5s = 60s
@@ -221,13 +221,13 @@ def test_approval_workflow():
                         print(f"  [{i*5}s] Status: {status}")
 
                         if status == 'approved':
-                            print(f"\n✅ APPROVED - Workflow would proceed")
+                            print("\n✅ APPROVED - Workflow would proceed")
                             return True
                         elif status == 'rejected':
-                            print(f"\n❌ REJECTED - Workflow would halt")
+                            print("\n❌ REJECTED - Workflow would halt")
                             return True
 
-                print(f"\n⏱️  Timeout - No decision received")
+                print("\n⏱️  Timeout - No decision received")
                 return False
         else:
             print(f"❌ Request failed: {response.status_code} {response.text}")
@@ -259,11 +259,11 @@ def test_thresholds():
         (426, 12, "The ref6.md incident (net: 414) - Should BLOCK + NOTIFY"),
     ]
 
-    print(f"\nTwo-Tier Thresholds:")
-    print(f"  NOTIFICATION_THRESHOLD: 100 lines (send Telegram notification, don't block)")
-    print(f"  BLOCKING_THRESHOLD: 200 lines (require approval, block execution)")
+    print("\nTwo-Tier Thresholds:")
+    print("  NOTIFICATION_THRESHOLD: 100 lines (send Telegram notification, don't block)")
+    print("  BLOCKING_THRESHOLD: 200 lines (require approval, block execution)")
 
-    print(f"\nTest Results:")
+    print("\nTest Results:")
     print(f"{'Removed':<10} {'Added':<10} {'Net':<10} {'Risk':<10} {'Notify?':<10} {'Block?':<10} {'Description'}")
     print("-" * 100)
 

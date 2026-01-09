@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from autopack.database import SessionLocal
-from autopack.models import Run, Phase, Tier, RunState, PhaseState, TierState
+from autopack.models import Run, Phase, Tier, RunState, PhaseState
 
 
 def create_run():
@@ -219,11 +219,11 @@ ACCEPTANCE CRITERIA:
 
         session.commit()
         print(f"✅ Created run: {run_id}")
-        print(f"   Phases: 4")
-        print(f"\n🚀 Start autonomous executor:")
-        print(f"  cd c:/dev/Autopack")
-        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" \\")
-        print(f"  QDRANT_HOST=\"http://localhost:6333\" python -m autopack.autonomous_executor \\")
+        print("   Phases: 4")
+        print("\n🚀 Start autonomous executor:")
+        print("  cd c:/dev/Autopack")
+        print("  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" \\")
+        print("  QDRANT_HOST=\"http://localhost:6333\" python -m autopack.autonomous_executor \\")
         print(f"  --run-id {run_id} --api-url http://localhost:8000 --poll-interval 15")
         return 0
 

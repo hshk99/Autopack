@@ -112,14 +112,14 @@ def upgrade(engine: Engine) -> None:
         result = conn.execute(text("SELECT COUNT(*) FROM token_estimation_v2_events"))
         event_count = result.scalar() or 0
 
-        print(f"\n✓ Migration complete!")
+        print("\n✓ Migration complete!")
         print(f"  - {event_count} existing telemetry events updated with defaults:")
-        print(f"    - is_truncated_output = FALSE")
-        print(f"    - api_reference_required = NULL")
-        print(f"    - examples_required = NULL")
-        print(f"    - research_required = NULL")
-        print(f"    - usage_guide_required = NULL")
-        print(f"    - context_quality = NULL")
+        print("    - is_truncated_output = FALSE")
+        print("    - api_reference_required = NULL")
+        print("    - examples_required = NULL")
+        print("    - research_required = NULL")
+        print("    - usage_guide_required = NULL")
+        print("    - context_quality = NULL")
 
     print("\n" + "=" * 70)
     print("BUILD-129 Phase 3 Migration: SUCCESS")

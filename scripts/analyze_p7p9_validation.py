@@ -74,7 +74,7 @@ def analyze_p7p9_validation():
     truncation_rate = len(truncated) / len(post_p7p9) * 100
 
     print(f"Truncation Rate: {truncation_rate:.1f}% ({len(truncated)}/{len(post_p7p9)})")
-    print(f"  Target: <25-30%")
+    print("  Target: <25-30%")
     print(f"  Baseline (pre-P7+P9): {len([e for e in pre_p7p9 if e.truncated])/max(len(pre_p7p9),1)*100:.1f}%")
     print()
 
@@ -97,7 +97,7 @@ def analyze_p7p9_validation():
         if len(waste_ratios) >= 2:
             waste_p90 = statistics.quantiles(waste_ratios, n=10)[8] if len(waste_ratios) >= 10 else max(waste_ratios)
             print(f"Waste Ratio P90: {waste_p90:.2f}x")
-        print(f"  Ideal: 1.0-1.5x")
+        print("  Ideal: 1.0-1.5x")
         print(f"  Mean: {statistics.mean(waste_ratios):.2f}x")
         if len(waste_ratios) >= 2:
             print(f"  Median: {statistics.median(waste_ratios):.2f}x")
@@ -115,7 +115,7 @@ def analyze_p7p9_validation():
                 smapes.append(smape)
 
         print(f"SMAPE (Non-Truncated): {statistics.mean(smapes):.1f}% mean, {statistics.median(smapes):.1f}% median")
-        print(f"  Target: <50%")
+        print("  Target: <50%")
         print(f"  Samples: {len(non_truncated)}")
         print()
 

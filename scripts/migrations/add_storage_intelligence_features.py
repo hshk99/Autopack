@@ -5,7 +5,7 @@ Adds learned_rules table and extends cleanup_candidates for auto-learning.
 """
 
 from sqlalchemy import text
-from autopack.database import SessionLocal, engine
+from autopack.database import engine
 
 
 def migrate():

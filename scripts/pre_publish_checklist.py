@@ -22,13 +22,12 @@ Date: 2025-12-09
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import List
 
 # Set UTF-8 encoding for Windows console
 if sys.platform == "win32":

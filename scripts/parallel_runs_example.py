@@ -96,7 +96,7 @@ def run_parallel_example(
     else:
         db_url = "sqlite:///per-run"  # Placeholder - supervisor will create per-run DBs
 
-    print(f"\n📊 Configuration:")
+    print("\n📊 Configuration:")
     print(f"   Workers:       {workers}")
     print(f"   Database:      {'Postgres (shared)' if use_postgres else 'SQLite (per-run)'}")
     print(f"   Runs Dir:      {runs_dir}")
@@ -121,7 +121,7 @@ def run_parallel_example(
     else:
         cmd.append("--per-run-sqlite")
 
-    print(f"\n🚀 Launching supervisor...")
+    print("\n🚀 Launching supervisor...")
     print(f"   Command: {' '.join(cmd)}")
     print()
 
@@ -139,13 +139,13 @@ def run_parallel_example(
             print(f"\n❌ Some runs failed (exit code: {result.returncode})")
 
         # Show artifacts
-        print(f"\n📁 Artifacts location:")
+        print("\n📁 Artifacts location:")
         for run_id in run_ids:
             run_dir = Path(runs_dir) / run_id
             if run_dir.exists():
                 print(f"   {run_id}/")
-                print(f"      ├── ci/         (test reports)")
-                print(f"      ├── baselines/  (test baselines)")
+                print("      ├── ci/         (test reports)")
+                print("      ├── baselines/  (test baselines)")
                 if not use_postgres:
                     print(f"      └── {run_id}.db  (SQLite database)")
 

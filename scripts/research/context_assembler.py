@@ -9,13 +9,12 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
-from datetime import datetime
+from typing import Dict, List
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import anthropic
 
-from scripts.research.data_structures import ProjectContext, ResearchType
+from scripts.research.data_structures import ProjectContext
 
 
 class ContextAssembler:
@@ -59,7 +58,7 @@ class ContextAssembler:
             except:
                 pass
 
-        raise ValueError(f"Could not extract JSON from response")
+        raise ValueError("Could not extract JSON from response")
 
     def assemble(self) -> ProjectContext:
         """Assemble complete project context"""
@@ -91,7 +90,7 @@ class ContextAssembler:
         self._extract_domain_context(context)
 
         print(f"\n{'='*60}")
-        print(f"CONTEXT ASSEMBLY COMPLETE")
+        print("CONTEXT ASSEMBLY COMPLETE")
         print(f"{'='*60}\n")
         self._print_summary(context)
 
@@ -445,7 +444,7 @@ Return JSON:
 
     def _print_summary(self, context: ProjectContext):
         """Print summary of assembled context"""
-        print(f"Summary:")
+        print("Summary:")
         print(f"  • Implemented features: {len(context.implemented_features)}")
         print(f"  • Architecture constraints: {len(context.architecture_constraints)}")
         print(f"  • Known issues: {len(context.known_issues)}")

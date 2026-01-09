@@ -20,12 +20,11 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import shutil
 import sys
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 
 def _configure_utf8_stdio() -> None:
@@ -296,7 +295,7 @@ def main():
         return 1
 
     summary = fix_plan.get('summary', {})
-    print(f"Fix plan summary:")
+    print("Fix plan summary:")
     print(f"  Total broken links: {summary.get('total_broken', 0)}")
     print(f"  Auto-fixable (high): {summary.get('by_confidence', {}).get('high', 0)}")
     print(f"  Auto-fixable (medium): {summary.get('by_confidence', {}).get('medium', 0)}")

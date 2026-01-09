@@ -24,7 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'src'))
 
 from sqlalchemy import text
-from autopack.database import SessionLocal, engine
+from autopack.database import SessionLocal
 
 def check_database_type():
     """Check if we're using SQLite or PostgreSQL."""

@@ -112,7 +112,7 @@ def upgrade(engine: Engine) -> None:
             """))
             row = result.fetchone()
             if row:
-                print(f"✓ Existing metrics breakdown:")
+                print("✓ Existing metrics breakdown:")
                 print(f"    Total rows: {row[0]}")
                 print(f"    NULL (legacy): {row[1]}")
                 print(f"    COMPLETE: {row[2]}")
@@ -152,7 +152,7 @@ def upgrade(engine: Engine) -> None:
         row = result.fetchone()
         if row:
             print(f"      Total rows: {row[0]}")
-            print(f"      All existing rows have phase_outcome=NULL (expected)")
+            print("      All existing rows have phase_outcome=NULL (expected)")
 
     print("\n" + "=" * 80)
     print("✅ Migration completed successfully!")

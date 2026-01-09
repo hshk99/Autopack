@@ -41,7 +41,7 @@ def analyze_run(run_id: str):
     if total_usage['completion_tokens'] > 0:
         print(f"  Ratio: {total_usage['prompt_tokens']/total_usage['completion_tokens']:.2f}:1\n")
     else:
-        print(f"  Ratio: N/A (no completion tokens)\n")
+        print("  Ratio: N/A (no completion tokens)\n")
     
     print("Breakdown by Model and Role:")
     print("-" * 80)

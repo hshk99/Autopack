@@ -16,7 +16,7 @@ Design:
 from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Iterable, List
 import sys
 
 # Import existing lease infrastructure

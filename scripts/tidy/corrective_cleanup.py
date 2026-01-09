@@ -12,12 +12,9 @@ This script fixes the issues found in CLEANUP_VERIFICATION_ISSUES.md by:
 7. Validating final structure matches PROPOSED_CLEANUP_STRUCTURE.md
 """
 
-import os
-import re
 import shutil
 import subprocess
 from pathlib import Path
-from typing import List, Dict, Tuple
 
 REPO_ROOT = Path(__file__).parent.parent
 
@@ -30,7 +27,7 @@ def git_checkpoint(message: str):
         print(f"\n[GIT] [OK] Created checkpoint: {message}")
         return True
     except subprocess.CalledProcessError:
-        print(f"\n[GIT] No changes to commit")
+        print("\n[GIT] No changes to commit")
         return False
 
 
@@ -193,11 +190,11 @@ def fix2_prompts_folder(dry_run: bool = True):
     archive_prompts = REPO_ROOT / "archive" / "prompts"
     archive_prompts.mkdir(parents=True, exist_ok=True)
 
-    print(f"[MERGE] prompts/ -> archive/prompts/")
+    print("[MERGE] prompts/ -> archive/prompts/")
     if not dry_run:
         safe_merge_folder(prompts_src, archive_prompts)
 
-    print(f"\n[FIX 2] Complete")
+    print("\n[FIX 2] Complete")
 
 
 def fix3_archive_diagnostics_nesting(dry_run: bool = True):
@@ -278,7 +275,7 @@ def fix3_archive_diagnostics_nesting(dry_run: bool = True):
             if not dry_run:
                 safe_move(md_file, dest)
 
-    print(f"\n[FIX 3] Complete")
+    print("\n[FIX 3] Complete")
 
 
 def fix4_autonomous_runs_root(dry_run: bool = True):
@@ -298,7 +295,7 @@ def fix4_autonomous_runs_root(dry_run: bool = True):
         reports = REPO_ROOT / "archive" / "reports"
         reports.mkdir(parents=True, exist_ok=True)
 
-        print(f"\n[DELEGATIONS] Merging openai_delegations/ -> archive/reports/")
+        print("\n[DELEGATIONS] Merging openai_delegations/ -> archive/reports/")
         if not dry_run:
             safe_merge_folder(openai_deleg, reports)
 
@@ -309,9 +306,9 @@ def fix4_autonomous_runs_root(dry_run: bool = True):
 
     if found_loose:
         print(f"\n[NOTE] Found loose folders at .autonomous_runs root: {', '.join(found_loose)}")
-        print(f"  These require project-specific review and are not automatically moved")
+        print("  These require project-specific review and are not automatically moved")
 
-    print(f"\n[FIX 4] Complete")
+    print("\n[FIX 4] Complete")
 
 
 def fix5_fileorganizer_archive(dry_run: bool = True):
@@ -333,7 +330,7 @@ def fix5_fileorganizer_archive(dry_run: bool = True):
         docs_guides = fileorg_root / "docs" / "guides"
         docs_guides.mkdir(parents=True, exist_ok=True)
         dest = docs_guides / "FUTURE_PLAN_MAINTENANCE.md"
-        print(f"\n[TRUTH] FUTURE_PLAN_MAINTENANCE.md -> docs/guides/")
+        print("\n[TRUTH] FUTURE_PLAN_MAINTENANCE.md -> docs/guides/")
         if not dry_run:
             safe_move(wltb_maint, dest)
 
@@ -343,7 +340,7 @@ def fix5_fileorganizer_archive(dry_run: bool = True):
         runs_dir = fileorg_archive / "diagnostics" / "runs"
         runs_dir.mkdir(parents=True, exist_ok=True)
         dest = runs_dir / "backend-fixes-v6-20251130"
-        print(f"\n[RUN] backend-fixes-v6-20251130/ -> diagnostics/runs/")
+        print("\n[RUN] backend-fixes-v6-20251130/ -> diagnostics/runs/")
         if not dry_run:
             safe_move(backend_fixes, dest)
 
@@ -358,7 +355,7 @@ def fix5_fileorganizer_archive(dry_run: bool = True):
         reports = fileorg_archive / "reports"
         reports.mkdir(parents=True, exist_ok=True)
         dest = reports / "plans_notes.txt"
-        print(f"\n[FILE] 'plans' file -> reports/plans_notes.txt")
+        print("\n[FILE] 'plans' file -> reports/plans_notes.txt")
         if not dry_run:
             safe_move(plans_file, dest)
             plans_is_file = False  # File moved, no longer exists
@@ -407,7 +404,7 @@ def fix5_fileorganizer_archive(dry_run: bool = True):
     if docs_research.exists():
         research = fileorg_archive / "research"
         research.mkdir(parents=True, exist_ok=True)
-        print(f"\n[RESEARCH] docs/research/ -> research/")
+        print("\n[RESEARCH] docs/research/ -> research/")
         if not dry_run:
             safe_merge_folder(docs_research, research)
 
@@ -416,25 +413,25 @@ def fix5_fileorganizer_archive(dry_run: bool = True):
             if docs_dir.exists() and not any(docs_dir.rglob("*")):
                 try:
                     docs_dir.rmdir()
-                    print(f"  [DELETE] Removed empty docs/")
+                    print("  [DELETE] Removed empty docs/")
                 except:
                     pass
 
     # 5. Remove .faiss/ (old vector DB)
     faiss_dir = fileorg_root / ".faiss"
     if faiss_dir.exists():
-        print(f"\n[DELETE] Removing .faiss/ (old vector DB)")
+        print("\n[DELETE] Removing .faiss/ (old vector DB)")
         if not dry_run:
             shutil.rmtree(faiss_dir)
 
     # 6. Remove .autonomous_runs/autopack/ nested folder
     nested_autopack = fileorg_root / ".autonomous_runs" / "autopack"
     if nested_autopack.exists():
-        print(f"\n[NESTED] Found .autonomous_runs/autopack/")
+        print("\n[NESTED] Found .autonomous_runs/autopack/")
         # This needs investigation - may contain run data
-        print(f"  [NOTE] Requires manual review - not automatically removed")
+        print("  [NOTE] Requires manual review - not automatically removed")
 
-    print(f"\n[FIX 5] Complete")
+    print("\n[FIX 5] Complete")
 
 
 def fix6_archive_runs_folder(dry_run: bool = True):
@@ -453,7 +450,7 @@ def fix6_archive_runs_folder(dry_run: bool = True):
     diag_runs = archive / "diagnostics" / "runs"
     diag_runs.mkdir(parents=True, exist_ok=True)
 
-    print(f"[MOVE] archive/runs/ -> archive/diagnostics/runs/")
+    print("[MOVE] archive/runs/ -> archive/diagnostics/runs/")
     if not dry_run:
         if runs_at_archive.is_dir():
             for item in runs_at_archive.iterdir():
@@ -465,11 +462,11 @@ def fix6_archive_runs_folder(dry_run: bool = True):
             try:
                 if not any(runs_at_archive.iterdir()):
                     runs_at_archive.rmdir()
-                    print(f"  [DELETE] Removed empty runs/")
+                    print("  [DELETE] Removed empty runs/")
             except:
                 pass
 
-    print(f"\n[FIX 6] Complete")
+    print("\n[FIX 6] Complete")
 
 
 def fix7_create_unsorted_bucket(dry_run: bool = True):
@@ -485,7 +482,7 @@ def fix7_create_unsorted_bucket(dry_run: bool = True):
         print("[SKIP] archive/unsorted/ already exists")
         return
 
-    print(f"[CREATE] archive/unsorted/ (last-resort inbox)")
+    print("[CREATE] archive/unsorted/ (last-resort inbox)")
     if not dry_run:
         unsorted.mkdir(parents=True, exist_ok=True)
         # Create README
@@ -504,9 +501,9 @@ Files placed here should be manually reviewed and moved to the appropriate bucke
 
 Tidy_up will attempt to classify and move these files to proper locations.
 """)
-        print(f"  Created unsorted/ with README.md")
+        print("  Created unsorted/ with README.md")
 
-    print(f"\n[FIX 7] Complete")
+    print("\n[FIX 7] Complete")
 
 
 def validate_final_structure():

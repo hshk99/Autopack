@@ -9,7 +9,7 @@ This module provides common date manipulation utilities including:
 """
 
 from datetime import datetime, date, timedelta
-from typing import Union, Optional
+from typing import Union
 
 
 def format_date(dt: Union[date, datetime], format_str: str = "%Y-%m-%d") -> str:

@@ -61,7 +61,7 @@ def create_diagnostics_parity_v2_run():
                 return None
             followup_configs.append(load_followup_yaml(yaml_path))
 
-        print(f"📋 Creating run: autopack-diagnostics-parity-v2")
+        print("📋 Creating run: autopack-diagnostics-parity-v2")
         print(f"   Phases: {len(followup_configs)}")
         for config in followup_configs:
             print(f"   - {config['phase_id']}: {config['description'].strip().split('.')[0]}...")
@@ -131,12 +131,12 @@ def create_diagnostics_parity_v2_run():
         # Commit all changes
         db.commit()
 
-        print(f"\n✅ Run created successfully!")
+        print("\n✅ Run created successfully!")
         print(f"   Run ID: {run.id}")
         print(f"   Tier ID: {tier.tier_id}")
         print(f"   Phases: {len(followup_configs)}")
-        print(f"\n🚀 Ready to launch autonomous executor:")
-        print(f"   PYTHONPATH=src python -m autopack.autonomous_executor --run-id autopack-diagnostics-parity-v2 --api-url http://127.0.0.1:8001 --max-iterations 200")
+        print("\n🚀 Ready to launch autonomous executor:")
+        print("   PYTHONPATH=src python -m autopack.autonomous_executor --run-id autopack-diagnostics-parity-v2 --api-url http://127.0.0.1:8001 --max-iterations 200")
 
         return run.id
 

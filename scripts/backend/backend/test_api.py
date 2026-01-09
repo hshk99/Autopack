@@ -8,12 +8,8 @@ Comprehensive test suite covering all API endpoints including:
 - Error handling
 """
 
-import pytest
 from fastapi.testclient import TestClient
-from pathlib import Path
-import json
 import io
-from datetime import datetime
 
 # Import the FastAPI app
 try:

@@ -160,7 +160,7 @@ def update_qdrant_with_correction(
         ]
     )
 
-    print(f"[OK] Qdrant pattern updated with user correction")
+    print("[OK] Qdrant pattern updated with user correction")
 
 
 def interactive_correction():
@@ -203,7 +203,7 @@ def interactive_correction():
         destination_path = str(REPO_ROOT / ".autonomous_runs" / corrected_project / "archive" / f"{corrected_type}s" / Path(file_path).name)
 
     # Confirm
-    print(f"\n--- Confirmation ---")
+    print("\n--- Confirmation ---")
     print(f"File: {file_path}")
     print(f"Original: {original_project}/{original_type} (confidence={original_confidence})")
     print(f"Correct:  {corrected_project}/{corrected_type}")

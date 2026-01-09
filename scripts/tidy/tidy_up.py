@@ -59,8 +59,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from autonomous_runs_cleaner import cleanup_autonomous_runs
 from pending_moves import PendingMovesQueue, retry_pending_moves, format_actionable_report_markdown
 from lease import Lease
-from locks import MultiLock, LOCK_ORDER
-from io_utils import atomic_write_json
+from locks import MultiLock
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 # ---------------------------------------------------------------------------
@@ -1243,7 +1242,7 @@ def execute_moves(
             print(f"    Error: {err}")
 
         if pending_queue:
-            print(f"\n[QUEUE] Failed moves have been queued for retry on next tidy run")
+            print("\n[QUEUE] Failed moves have been queued for retry on next tidy run")
 
     return succeeded, failed
 

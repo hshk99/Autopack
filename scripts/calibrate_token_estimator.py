@@ -29,10 +29,9 @@ Usage:
 
 import argparse
 import json
-import os
 import sys
 from collections import defaultdict
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -303,11 +302,11 @@ def generate_markdown_report(
                 elif result.median_ratio < 0.8:
                     f.write(f"- **Action**: Decrease coefficients by {(1 - result.proposed_multiplier) * 100:.0f}%\n")
                 else:
-                    f.write(f"- **Action**: No adjustment needed (within ±20% tolerance)\n")
+                    f.write("- **Action**: No adjustment needed (within ±20% tolerance)\n")
                 f.write("\n")
         else:
             f.write("No groups met the confidence threshold for recommendations.\n")
-            f.write(f"Increase sample size or lower confidence threshold.\n\n")
+            f.write("Increase sample size or lower confidence threshold.\n\n")
 
         # Detailed Results
         f.write("## Detailed Results\n\n")
@@ -429,7 +428,7 @@ def main():
     if args.include_run_ids:
         print(f"Run-ID filter: {', '.join(args.include_run_ids)}")
     else:
-        print(f"Run-ID filter: None (all runs)")
+        print("Run-ID filter: None (all runs)")
     print()
 
     # Collect telemetry samples
@@ -524,7 +523,7 @@ def main():
         print(f"High-confidence groups (≥{args.confidence_threshold:.0%}): {len(high_confidence)}")
 
         if below_threshold_groups:
-            print(f"\nBelow-threshold groups (need more samples for V7):")
+            print("\nBelow-threshold groups (need more samples for V7):")
             for cat, comp, count in sorted(below_threshold_groups, key=lambda x: (x[0], x[1])):
                 needed = args.min_samples - count
                 print(f"  [{cat}/{comp}] {count} samples (need {needed} more to reach {args.min_samples})")
@@ -559,7 +558,7 @@ def main():
             print("\n⚠️  IMPORTANT: Review outputs before applying changes!")
             print(f"  1. Read markdown report: {markdown_path}")
             print(f"  2. Review JSON patch: {json_path}")
-            print(f"  3. Manually update src/autopack/token_estimator.py if changes are warranted")
+            print("  3. Manually update src/autopack/token_estimator.py if changes are warranted")
         else:
             print("\nNo high-confidence recommendations.")
             print(f"  All groups below {args.confidence_threshold:.0%} confidence threshold")

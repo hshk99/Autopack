@@ -187,7 +187,7 @@ def upgrade(engine: Engine) -> None:
                 print("      ✓ Partial unique index created successfully (SQLite)")
             except Exception as e:
                 if "partial" in str(e).lower() or "WHERE" in str(e):
-                    print(f"      ⚠️  SQLite version does not support partial indexes")
+                    print("      ⚠️  SQLite version does not support partial indexes")
                     print(f"      Error: {e}")
                     print("      Upgrade to SQLite 3.8+ or use PostgreSQL for production")
                     print("      Skipping index creation (app-level guard will still work)")

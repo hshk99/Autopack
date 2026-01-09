@@ -42,13 +42,11 @@ from typing import List
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from autopack.supervisor import (
-    ParallelRunSupervisor,
     SupervisorError,
     run_parallel_supervised,
 )
 from autopack.supervisor.api import list_worktrees, cleanup_worktrees
 from autopack.autonomy.parallelism_gate import ParallelismPolicyViolation
-from autopack.config import settings
 
 logging.basicConfig(
     level=logging.INFO,

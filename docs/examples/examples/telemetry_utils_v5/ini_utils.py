@@ -9,7 +9,7 @@ This module provides common INI file manipulation utilities including:
 
 import configparser
 from pathlib import Path
-from typing import Union, Optional, Any, Dict
+from typing import Union, Optional, Any
 
 
 def read_ini(path: Union[str, Path], encoding: str = 'utf-8') -> configparser.ConfigParser:

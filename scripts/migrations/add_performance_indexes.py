@@ -202,7 +202,7 @@ def add_indexes(engine):
 
     print()
     print("="*80)
-    print(f"INDEX CREATION SUMMARY")
+    print("INDEX CREATION SUMMARY")
     print("="*80)
     print(f"Created: {created_count}")
     print(f"Skipped (already exist or table missing): {skipped_count}")

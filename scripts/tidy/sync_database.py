@@ -22,7 +22,7 @@ import sqlite3
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any
 
 REPO_ROOT = Path(__file__).parent.parent.parent
 

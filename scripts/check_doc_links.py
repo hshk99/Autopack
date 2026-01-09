@@ -33,7 +33,7 @@ import sys
 import yaml
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Set, Tuple, Optional
+from typing import Dict, List, Tuple, Optional
 from urllib.parse import unquote
 import fnmatch
 
@@ -908,7 +908,7 @@ def main():
             low_conf = sum(1 for b in missing_file_links if b['confidence'] == 'low')
 
             print()
-            print(f"Missing files auto-fix confidence:")
+            print("Missing files auto-fix confidence:")
             print(f"  Auto-fixable (high confidence): {high_conf}")
             print(f"  Auto-fixable (medium confidence): {med_conf}")
             print(f"  Manual review required: {low_conf}")

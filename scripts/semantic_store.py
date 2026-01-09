@@ -169,7 +169,6 @@ def get_store(cache_path: Path, dsn_override: Optional[str], project_id: Optiona
                         return f"{project_id or 'default'}::{path}::{model}"
 
                     def get(self, path: str, sha: str, model: str, project_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
-                        from qdrant_client.http import models as rest  # type: ignore
                         try:
                             res = self.client.retrieve(
                                 collection_name=self.collection,

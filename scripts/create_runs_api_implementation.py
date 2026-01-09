@@ -7,7 +7,6 @@ the missing /runs endpoints that are currently returning 404.
 
 GOAL: Make Autopack truly autonomous and reusable for future projects.
 """
-import os
 import sys
 import json
 from pathlib import Path
@@ -15,8 +14,7 @@ from pathlib import Path
 # Since API doesn't work, we'll create the run directly in database
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from autopack.database import SessionLocal
-from autopack.models import Run, Phase, Tier, RunState, PhaseState, TierState
+from autopack.models import Phase
 
 
 def create_run_direct():
@@ -412,11 +410,11 @@ REFERENCE:
         session.commit()
         print(f"✅ Created run directly in database: {run_id}")
         print(f"   Phases: {len(phases)}")
-        print(f"\n🚀 Run created!")
-        print(f"\nTo execute:")
-        print(f"  cd c:/dev/Autopack")
-        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" \\")
-        print(f"  QDRANT_HOST=\"http://localhost:6333\" python -m autopack.autonomous_executor \\")
+        print("\n🚀 Run created!")
+        print("\nTo execute:")
+        print("  cd c:/dev/Autopack")
+        print("  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" \\")
+        print("  QDRANT_HOST=\"http://localhost:6333\" python -m autopack.autonomous_executor \\")
         print(f"  --run-id {run_id} --poll-interval 15 --run-type autopack_core_development")
         return 0
 

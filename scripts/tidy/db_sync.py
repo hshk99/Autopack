@@ -23,7 +23,7 @@ import hashlib
 import re
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 # Add project root to path
 REPO_ROOT = Path(__file__).parent.parent.parent

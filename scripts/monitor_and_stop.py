@@ -12,7 +12,6 @@ This script:
 import sys
 import time
 import requests
-import signal
 import os
 from pathlib import Path
 
@@ -34,7 +33,7 @@ def monitor_run(run_id: str, check_interval: int = 5):
     """Monitor run and detect failures"""
     print(f"[MONITOR] Monitoring run: {run_id}")
     print(f"[MONITOR] Checking every {check_interval} seconds")
-    print(f"[MONITOR] Press Ctrl+C to stop monitoring\n")
+    print("[MONITOR] Press Ctrl+C to stop monitoring\n")
     
     last_phase_states = {}
     
@@ -71,7 +70,7 @@ def monitor_run(run_id: str, check_interval: int = 5):
                     STOP_SIGNAL_FILE.parent.mkdir(parents=True, exist_ok=True)
                     STOP_SIGNAL_FILE.write_text(f"stop:{run_id}:{phase_id}")
                     print(f"[MONITOR] Stop signal created: {STOP_SIGNAL_FILE}")
-                    print(f"[MONITOR] Executor should stop on next check")
+                    print("[MONITOR] Executor should stop on next check")
                     return True
             
             # Update last known states

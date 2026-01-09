@@ -127,7 +127,7 @@ def main():
             print(f"[OK] Phase {idx}: {pd['id']} ({len(pd['deliverables'])} deliverables, {pd['category']}/{pd['complexity']})")
 
         session.commit()
-        print(f"\n✅ BUILD-129 Phase 2 validation run seeded!")
+        print("\n✅ BUILD-129 Phase 2 validation run seeded!")
         print(f"Run: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {RUN_ID}")
     except Exception as e:
         session.rollback()

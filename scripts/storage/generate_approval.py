@@ -40,7 +40,7 @@ import json
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, Any
 
 
 def validate_report_structure(report_data: Dict[str, Any]) -> tuple[bool, str]:
@@ -197,7 +197,7 @@ def generate_approval_artifacts(
     print()
     print("Next steps:")
     print(f"  1. Review approval file: {output_path}")
-    print(f"  2. Execute cleanup:")
+    print("  2. Execute cleanup:")
     print(f"     python scripts/storage/scan_and_report.py --dir {report_data['scan_dir']} --execute --approval-file {output_path}")
     print("=" * 70)
 

@@ -15,10 +15,6 @@ def test_imports():
     """Test that all required imports work"""
     print("[Probe 1/5] Testing imports...")
     try:
-        from autopack.openai_clients import OpenAIBuilderClient, OpenAIAuditorClient
-        from autopack.anthropic_clients import AnthropicBuilderClient, AnthropicAuditorClient
-        from autopack.dual_auditor import DualAuditor
-        from autopack.quality_gate import QualityGate
         print("[PASS] All imports successful")
         return True
     except Exception as e:

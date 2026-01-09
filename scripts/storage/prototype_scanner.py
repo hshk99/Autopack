@@ -22,7 +22,7 @@ import argparse
 import csv
 import subprocess
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional
 import os
@@ -122,7 +122,7 @@ class WizTreeScanner:
             return results
 
         except subprocess.TimeoutExpired:
-            print(f"[WizTree] ERROR: Scan timed out")
+            print("[WizTree] ERROR: Scan timed out")
             raise
         except subprocess.CalledProcessError as e:
             print(f"[WizTree] ERROR: Scan failed: {e.stderr}")
@@ -154,7 +154,7 @@ class WizTreeScanner:
                             modified=modified,
                             is_folder=row['Attributes'].startswith('d')
                         ))
-                    except (ValueError, KeyError) as e:
+                    except (ValueError, KeyError):
                         # Skip malformed rows
                         continue
 

@@ -16,7 +16,7 @@ import shutil
 import time
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import List, Tuple, Set, Optional
+from typing import List, Tuple, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -567,7 +567,7 @@ def cleanup_autonomous_runs(
         print()
 
     # Step 3: Empty directories (optimized bottom-up deletion)
-    print(f"[EMPTY-DIRS] Scanning for empty directories...")
+    print("[EMPTY-DIRS] Scanning for empty directories...")
     dirs_deleted = delete_empty_dirs_bottomup(autonomous_runs, dry_run=dry_run, verbose=verbose)
     timer.mark("Step 3 (delete empty directories) done")
     if dirs_deleted > 0:

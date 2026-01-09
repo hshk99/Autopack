@@ -1671,3 +1671,146 @@ IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues shoul
                 f.write(json.dumps(record) + "\n")
         except Exception as e:
             logger.warning(f"[DUAL-AUDIT] Failed to write telemetry: {e}")
+
+    # =========================================================================
+    # SCOPE REDUCTION PROPOSAL (GAP-8.2.1)
+    # =========================================================================
+
+    def generate_scope_reduction_proposal(
+        self,
+        prompt: str,
+        run_id: Optional[str] = None,
+        phase_id: Optional[str] = None,
+    ) -> Optional[Dict]:
+        """
+        Call LLM to generate scope reduction proposal.
+
+        Per GAP-8.2.1: Wire scope reduction proposal generation to LlmService
+        for intention-grounded scope reductions when phases are stuck.
+
+        Args:
+            prompt: Scope reduction prompt (from scope_reduction.generate_scope_reduction_prompt)
+            run_id: Run identifier for usage tracking
+            phase_id: Phase identifier for logging
+
+        Returns:
+            Parsed JSON dict matching ScopeReductionProposal schema, or None on failure
+        """
+        # Use a fast/cheap model for scope reduction (not mission-critical)
+        model = "claude-sonnet-4-5"
+
+        logger.info(f"[SCOPE-REDUCTION] Generating proposal: phase={phase_id}, run={run_id}")
+
+        # Resolve client
+        client, resolved_model = self._resolve_client_and_model("builder", model)
+
+        # Build messages
+        system_prompt = """You are helping reduce scope for a stuck phase.
+
+Your task is to propose which deliverables to keep and which to drop,
+based on the Intention Anchor's success criteria and constraints.
+
+CRITICAL: Respond with ONLY a JSON object matching ScopeReductionProposal schema.
+No markdown, no explanation text. Start with { and end with }.
+
+Required JSON structure:
+{
+  "run_id": "<run identifier>",
+  "phase_id": "<phase identifier>",
+  "anchor_id": "<anchor identifier>",
+  "diff": {
+    "original_deliverables": ["<list of original deliverables>"],
+    "kept_deliverables": ["<list of deliverables to keep>"],
+    "dropped_deliverables": ["<list of deliverables to drop>"],
+    "rationale": {
+      "success_criteria_preserved": ["<which success criteria remain satisfied>"],
+      "success_criteria_deferred": ["<which success criteria are deferred>"],
+      "constraints_still_met": ["<which constraints are still satisfied>"],
+      "reason": "<why scope reduction is necessary>"
+    }
+  },
+  "estimated_budget_savings": <float 0.0-1.0>
+}"""
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ]
+
+        try:
+            # Use the client's underlying API call
+            if hasattr(client, "client") and hasattr(client.client, "chat"):
+                # OpenAI client
+                completion = client.client.chat.completions.create(
+                    model=resolved_model,
+                    messages=messages,
+                    temperature=0.3,
+                    max_tokens=2000,
+                    response_format={"type": "json_object"},
+                )
+                content = completion.choices[0].message.content
+                if completion.usage:
+                    prompt_tokens = completion.usage.prompt_tokens
+                    completion_tokens = completion.usage.completion_tokens
+                    tokens_used = completion.usage.total_tokens
+                else:
+                    prompt_tokens = None
+                    completion_tokens = None
+                    tokens_used = 0
+            elif hasattr(client, "client") and hasattr(client.client, "messages"):
+                # Anthropic client
+                completion = client.client.messages.create(
+                    model=resolved_model,
+                    max_tokens=2000,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                content = completion.content[0].text
+                if completion.usage:
+                    prompt_tokens = completion.usage.input_tokens
+                    completion_tokens = completion.usage.output_tokens
+                    tokens_used = prompt_tokens + completion_tokens
+                else:
+                    prompt_tokens = None
+                    completion_tokens = None
+                    tokens_used = 0
+            else:
+                raise RuntimeError(f"Unknown client type for model {resolved_model}")
+
+            # Record usage
+            if tokens_used > 0:
+                if prompt_tokens is not None and completion_tokens is not None:
+                    self._record_usage(
+                        provider=self._model_to_provider(resolved_model),
+                        model=resolved_model,
+                        role="scope_reduction",
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        run_id=run_id,
+                        phase_id=phase_id,
+                    )
+                else:
+                    self._record_usage_total_only(
+                        provider=self._model_to_provider(resolved_model),
+                        model=resolved_model,
+                        role="scope_reduction",
+                        total_tokens=tokens_used,
+                        run_id=run_id,
+                        phase_id=phase_id,
+                    )
+
+            # Parse JSON response
+            proposal_data = json.loads(content)
+            logger.info(
+                f"[SCOPE-REDUCTION] Proposal generated successfully: "
+                f"kept={len(proposal_data.get('diff', {}).get('kept_deliverables', []))}, "
+                f"dropped={len(proposal_data.get('diff', {}).get('dropped_deliverables', []))}"
+            )
+            return proposal_data
+
+        except json.JSONDecodeError as e:
+            logger.error(f"[SCOPE-REDUCTION] Failed to parse JSON response: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"[SCOPE-REDUCTION] LLM call failed: {e}")
+            return None

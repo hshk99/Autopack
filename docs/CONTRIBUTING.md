@@ -21,7 +21,7 @@ Thank you for your interest in contributing to Autopack! This guide will help yo
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.11+ (CI uses 3.11 canonically - see [DEC-051](ARCHITECTURE_DECISIONS.md#dec-051--2026-01-09--python-311-canonical-for-ci-312-local-support))
 - Git
 - SQLite (included with Python)
 
@@ -36,7 +36,9 @@ cd autopack
 pip install -e .
 
 # Initialize database
-PYTHONPATH=src python -c "from autopack.database import init_db; init_db()"
+# P0 DB guardrail: schema bootstrap is disabled by default.
+# For dev/test only, temporarily allow bootstrap once when starting the server:
+export AUTOPACK_DB_BOOTSTRAP=1  # Windows PowerShell: $env:AUTOPACK_DB_BOOTSTRAP="1"
 ```
 
 ### Environment Variables
@@ -145,6 +147,31 @@ We recommend using `black` for automatic formatting:
 pip install black
 black src/ tests/
 ```
+
+### Type Checking (Mypy Adoption Ladder)
+
+We are progressively adopting mypy type checking. See `.github/workflows/ci.yml` for the current allowlist.
+
+**Current Status** (GAP-8.3.1):
+
+| Tier | Status | Modules |
+|------|--------|---------|
+| Tier 1 | Informational | `version.py`, `__version__.py`, `safe_print.py`, `file_hashing.py`, `config.py`, `schemas.py` |
+| Tier 2 | Planned | `exceptions.py`, `file_layout.py` (need implicit Optional fixes) |
+| Tier 3 | Future | Core modules (after Tier 2 stabilizes) |
+
+**To run mypy locally**:
+
+```bash
+pip install mypy types-requests types-PyYAML
+mypy src/autopack/version.py src/autopack/__version__.py --ignore-missing-imports
+```
+
+**Contributing to type coverage**:
+1. Pick a module not yet in the allowlist
+2. Run mypy on it locally
+3. Fix type errors (prefer `Optional[X]` over implicit None defaults)
+4. Submit PR adding the module to CI allowlist
 
 ---
 

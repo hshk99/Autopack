@@ -517,6 +517,80 @@ def start_run(
     return run_with_relationships
 
 
+# ==============================================================================
+# GAP-8.10.2: Runs List Endpoint for UI Inbox
+# ==============================================================================
+
+
+@app.get("/runs", response_model=schemas.RunListResponse)
+def list_runs(
+    limit: int = 20,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    """List all runs with pagination (GAP-8.10.2 Runs Inbox).
+
+    Returns a lightweight summary per run for efficient list rendering.
+    """
+    try:
+        # Clamp limit to reasonable bounds
+        limit = max(1, min(limit, 100))
+        offset = max(0, offset)
+
+        # Get total count
+        total = db.query(models.Run).count()
+
+        # Get runs with ordering (newest first)
+        runs = (
+            db.query(models.Run)
+            .order_by(models.Run.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+
+        # Build lightweight summaries
+        summaries = []
+        for run in runs:
+            # Count phases
+            phases = db.query(models.Phase).filter(models.Phase.run_id == run.id).all()
+            phases_total = len(phases)
+            phases_completed = sum(1 for p in phases if p.state == models.PhaseState.COMPLETE)
+
+            # Find current phase (first executing or first queued)
+            current_phase = next(
+                (p for p in phases if p.state == models.PhaseState.EXECUTING),
+                next((p for p in phases if p.state == models.PhaseState.QUEUED), None),
+            )
+
+            summaries.append(
+                schemas.RunSummary(
+                    id=run.id,
+                    state=run.state.value if hasattr(run.state, "value") else str(run.state),
+                    created_at=run.created_at,
+                    updated_at=run.updated_at,
+                    tokens_used=run.tokens_used or 0,
+                    token_cap=run.token_cap,
+                    phases_total=phases_total,
+                    phases_completed=phases_completed,
+                    current_phase_name=current_phase.name if current_phase else None,
+                )
+            )
+
+        return schemas.RunListResponse(
+            runs=summaries,
+            total=total,
+            limit=limit,
+            offset=offset,
+        )
+    except OperationalError as e:
+        logger.error("[RUNS] Database error while listing runs: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=503,
+            detail="Database unavailable or misconfigured for Autopack API.",
+        )
+
+
 @app.get("/runs/{run_id}", response_model=schemas.RunResponse)
 def get_run(run_id: str, db: Session = Depends(get_db)):
     """Get run details including all tiers and phases."""
@@ -741,6 +815,277 @@ def get_run_error_summary(run_id: str):
     reporter = get_error_reporter()
     summary = reporter.generate_run_error_summary(run_id)
     return {"run_id": run_id, "summary": summary}
+
+
+# ==============================================================================
+# GAP-8.10.1 / GAP-8.10.3: Artifact Endpoints for UI
+# ==============================================================================
+
+
+@app.get("/runs/{run_id}/artifacts/index", response_model=schemas.ArtifactsIndexResponse)
+def get_artifacts_index(run_id: str, db: Session = Depends(get_db)):
+    """List all artifacts for a run (GAP-8.10.1 Artifacts Panel).
+
+    Returns file index for the run's artifact directory.
+    """
+    import os
+    from datetime import timezone
+
+    # Verify run exists
+    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    # Get run directory
+    file_layout = RunFileLayout(run_id)
+    base_dir = file_layout.base_dir
+
+    if not base_dir.exists():
+        return schemas.ArtifactsIndexResponse(
+            run_id=run_id,
+            artifacts=[],
+            total_size_bytes=0,
+        )
+
+    artifacts = []
+    total_size = 0
+
+    # Walk the run directory and collect artifact info
+    for root, dirs, files in os.walk(base_dir):
+        # Skip hidden directories
+        dirs[:] = [d for d in dirs if not d.startswith(".")]
+
+        for fname in files:
+            if fname.startswith("."):
+                continue
+
+            fpath = Path(root) / fname
+            try:
+                stat = fpath.stat()
+                rel_path = fpath.relative_to(base_dir).as_posix()
+                modified_at = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc)
+
+                artifacts.append(
+                    schemas.ArtifactInfo(
+                        path=rel_path,
+                        size_bytes=stat.st_size,
+                        modified_at=modified_at,
+                        is_directory=False,
+                    )
+                )
+                total_size += stat.st_size
+            except (OSError, ValueError):
+                # Skip files we can't stat
+                continue
+
+    # Sort by modification time (newest first)
+    artifacts.sort(key=lambda x: x.modified_at, reverse=True)
+
+    return schemas.ArtifactsIndexResponse(
+        run_id=run_id,
+        artifacts=artifacts,
+        total_size_bytes=total_size,
+    )
+
+
+@app.get("/runs/{run_id}/artifacts/file")
+def get_artifact_file(run_id: str, path: str, db: Session = Depends(get_db)):
+    """Fetch a single artifact file (GAP-8.10.1).
+
+    Security: Prevents path traversal and restricts to run directory.
+    Security checks happen FIRST (defense in depth) before database lookup.
+    """
+    from fastapi.responses import FileResponse
+    from urllib.parse import unquote
+    import re
+
+    # URL-decode path to catch encoded traversal attempts (e.g., %2e%2e = ..)
+    decoded_path = unquote(path)
+
+    # Security: Block path traversal attempts FIRST (defense in depth)
+    # Block: .., absolute paths, Windows drive letters
+    if ".." in decoded_path:
+        raise HTTPException(status_code=400, detail="Path traversal not allowed")
+    if decoded_path.startswith("/") or decoded_path.startswith("\\"):
+        raise HTTPException(status_code=400, detail="Absolute paths not allowed")
+    if re.match(r"^[a-zA-Z]:", decoded_path):
+        raise HTTPException(status_code=400, detail="Drive letters not allowed")
+
+    # Verify run exists
+    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    # Get run directory
+    file_layout = RunFileLayout(run_id)
+    base_dir = file_layout.base_dir
+
+    # Resolve and verify the path is within the run directory
+    try:
+        resolved = (base_dir / decoded_path).resolve()
+        # Ensure resolved path is within base_dir
+        resolved.relative_to(base_dir.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Path outside run directory")
+
+    if not resolved.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    if not resolved.is_file():
+        raise HTTPException(status_code=400, detail="Path is not a file")
+
+    # Determine content type
+    suffix = resolved.suffix.lower()
+    media_types = {
+        ".md": "text/markdown",
+        ".json": "application/json",
+        ".txt": "text/plain",
+        ".log": "text/plain",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webm": "video/webm",
+        ".har": "application/json",
+    }
+    media_type = media_types.get(suffix, "application/octet-stream")
+
+    return FileResponse(resolved, media_type=media_type)
+
+
+@app.get("/runs/{run_id}/browser/artifacts")
+def get_browser_artifacts(run_id: str, db: Session = Depends(get_db)):
+    """List browser artifacts for a run (GAP-8.10.3).
+
+    Returns screenshots, videos, and HAR logs from browser automation.
+    """
+    from .browser.artifacts import BrowserArtifactManager
+
+    # Verify run exists
+    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    try:
+        manager = BrowserArtifactManager()
+        # Get all sessions associated with this run
+        # Sessions are tagged with run_id during registration
+        report = manager.get_artifact_report()
+
+        # Filter artifacts by run_id
+        run_artifacts = []
+
+        # Check each session for run-associated artifacts
+        for session_id, artifact_count in report.get("artifacts_by_session", {}).items():
+            session_artifacts = manager.get_session_artifacts(session_id)
+            for artifact in session_artifacts:
+                if artifact.run_id == run_id:
+                    run_artifacts.append(
+                        {
+                            "artifact_id": artifact.artifact_id,
+                            "path": str(artifact.path),
+                            "artifact_class": artifact.artifact_class.value,
+                            "created_at": artifact.created_at.isoformat(),
+                            "size_bytes": artifact.size_bytes,
+                            "session_id": session_id,
+                        }
+                    )
+
+        return {
+            "run_id": run_id,
+            "artifacts": run_artifacts,
+            "total_count": len(run_artifacts),
+        }
+    except Exception as e:
+        logger.error("[BROWSER_ARTIFACTS] Error fetching artifacts for run %s: %s", run_id, e)
+        # Return empty list rather than error for runs without browser artifacts
+        return {
+            "run_id": run_id,
+            "artifacts": [],
+            "total_count": 0,
+        }
+
+
+# ==============================================================================
+# GAP-8.10.4: Run Progress Endpoint for UI
+# ==============================================================================
+
+
+@app.get("/runs/{run_id}/progress", response_model=schemas.RunProgressResponse)
+def get_run_progress(run_id: str, db: Session = Depends(get_db)):
+    """Get run progress for progress view (GAP-8.10.4).
+
+    Returns phase-by-phase progress with state counts.
+    """
+    # Verify run exists
+    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    # Get all phases for this run
+    phases = (
+        db.query(models.Phase)
+        .filter(models.Phase.run_id == run_id)
+        .order_by(models.Phase.phase_index)
+        .all()
+    )
+
+    # Count phases by state
+    phases_completed = 0
+    phases_in_progress = 0
+    phases_pending = 0
+
+    phase_infos = []
+    for phase in phases:
+        state_val = phase.state.value if hasattr(phase.state, "value") else str(phase.state)
+
+        if state_val == "COMPLETE":
+            phases_completed += 1
+        elif state_val == "EXECUTING":
+            phases_in_progress += 1
+        elif state_val in ("QUEUED", "PENDING"):
+            phases_pending += 1
+
+        # Get tier_id from tier relationship
+        tier = db.query(models.Tier).filter(models.Tier.id == phase.tier_id).first()
+        tier_id_str = tier.tier_id if tier else str(phase.tier_id)
+
+        phase_infos.append(
+            schemas.PhaseProgressInfo(
+                phase_id=phase.phase_id,
+                name=phase.name,
+                state=state_val,
+                tier_id=tier_id_str,
+                phase_index=phase.phase_index,
+                tokens_used=phase.tokens_used,
+                builder_attempts=phase.builder_attempts,
+            )
+        )
+
+    # Calculate elapsed time (handle both naive and aware datetimes)
+    elapsed_seconds = None
+    if run.started_at:
+        started_at = run.started_at
+        end_time = run.completed_at or datetime.now(timezone.utc)
+        # Normalize both to UTC-aware for comparison
+        if started_at.tzinfo is None:
+            started_at = started_at.replace(tzinfo=timezone.utc)
+        if end_time.tzinfo is None:
+            end_time = end_time.replace(tzinfo=timezone.utc)
+        elapsed_seconds = int((end_time - started_at).total_seconds())
+
+    return schemas.RunProgressResponse(
+        run_id=run_id,
+        state=run.state.value if hasattr(run.state, "value") else str(run.state),
+        tokens_used=run.tokens_used or 0,
+        token_cap=run.token_cap,
+        phases_total=len(phases),
+        phases_completed=phases_completed,
+        phases_in_progress=phases_in_progress,
+        phases_pending=phases_pending,
+        phases=phase_infos,
+        started_at=run.started_at,
+        elapsed_seconds=elapsed_seconds,
+    )
 
 
 @app.post("/runs/{run_id}/phases/{phase_id}/builder_result")

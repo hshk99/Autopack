@@ -426,3 +426,78 @@ class RecommendationsListResponse(BaseModel):
 
     recommendations: List[RecommendationResponse]
     scan_statistics: Dict[str, Any]
+
+
+# ==============================================================================
+# UI Operator Surface Schemas (GAP-8.10.x)
+# ==============================================================================
+
+
+class RunSummary(BaseModel):
+    """Lightweight run summary for list views (GAP-8.10.2 Runs Inbox)"""
+
+    id: str
+    state: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    tokens_used: int = 0
+    token_cap: Optional[int] = None
+    phases_total: int = 0
+    phases_completed: int = 0
+    current_phase_name: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RunListResponse(BaseModel):
+    """Response for GET /runs endpoint (GAP-8.10.2)"""
+
+    runs: List[RunSummary]
+    total: int
+    limit: int
+    offset: int
+
+
+class ArtifactInfo(BaseModel):
+    """Single artifact file info (GAP-8.10.1)"""
+
+    path: str  # Relative path within run directory
+    size_bytes: int
+    modified_at: datetime
+    is_directory: bool = False
+
+
+class ArtifactsIndexResponse(BaseModel):
+    """Response for GET /runs/{run_id}/artifacts/index (GAP-8.10.1)"""
+
+    run_id: str
+    artifacts: List[ArtifactInfo]
+    total_size_bytes: int
+
+
+class PhaseProgressInfo(BaseModel):
+    """Phase progress for progress view (GAP-8.10.4)"""
+
+    phase_id: str
+    name: str
+    state: str
+    tier_id: str
+    phase_index: int
+    tokens_used: Optional[int] = None
+    builder_attempts: Optional[int] = None
+
+
+class RunProgressResponse(BaseModel):
+    """Response for GET /runs/{run_id}/progress (GAP-8.10.4)"""
+
+    run_id: str
+    state: str
+    tokens_used: int
+    token_cap: Optional[int] = None
+    phases_total: int
+    phases_completed: int
+    phases_in_progress: int
+    phases_pending: int
+    phases: List[PhaseProgressInfo]
+    started_at: Optional[datetime] = None
+    elapsed_seconds: Optional[int] = None

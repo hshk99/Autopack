@@ -1,6 +1,6 @@
 # Autopack — Comprehensive Improvement / Gap Analysis (vs README “ideal state” + WORKSPACE_ORGANIZATION_SPEC + beyond)
 
-**Last Verified**: 2026-01-09 (GAP-8.x items updated)
+**Last Verified**: 2026-01-10 (GAP-8.10.x UI operator-surface implemented)
 **Scope**: repo-wide (docs/SOT, CI, Docker/compose, runtime, security, frontend(s), workspace hygiene)
 **Goal**: enumerate **all** meaningful gaps/enhancements in one place; prioritize; include concrete acceptance criteria.
 
@@ -1164,10 +1164,10 @@ This is the **single authoritative checklist** for the remaining work in this do
 - **✅ GAP-8.9.2 (P1/P2)**: Decide whether to rewrite `docs/AUTHENTICATION.md` to match `src/autopack/auth/*` or archive it as legacy (see 8.9.2) - **DECIDED 2026-01-09** (DEC-050: rewrite to match current auth)
 - **✅ GAP-8.9.4 (P2)**: Decide whether CI should add Python 3.12, or document "3.11 canonical" more explicitly (see 8.9.4) - **DECIDED 2026-01-09** (DEC-051: 3.11 canonical for CI)
 - **✅ GAP-8.9.5 (P2)**: Add explicit "canonical operator docs list" (e.g., in `docs/INDEX.md` or `docs/GOVERNANCE.md`) (see 8.9.5) - **IMPLEMENTED 2026-01-09** (Section 10 added to GOVERNANCE.md)
-- **⏳ GAP-8.10.1 (P2)**: Add a UI “Artifacts” panel (plan/results/walkthrough) that surfaces existing run artifacts without new LLM calls (see 8.10.1)
-- **⏳ GAP-8.10.2 (P2)**: Add a multi-run “Inbox” view for parallel runs (status cards + links to artifacts) (see 8.10.2)
-- **⏳ GAP-8.10.3 (P2)**: Wire Playwright/browser artifacts into run artifacts + UI viewer (screenshots/HAR/video) (see 8.10.3)
-- **⏳ GAP-8.10.4 (P2)**: Enhance progress visualization and add “file change preview before approval” UX (see 8.10.4)
+- **✅ GAP-8.10.1 (P2)**: Add a UI "Artifacts" panel (plan/results/walkthrough) that surfaces existing run artifacts without new LLM calls (see 8.10.1) - **IMPLEMENTED 2026-01-10** (endpoints + UI pages added)
+- **✅ GAP-8.10.2 (P2)**: Add a multi-run "Inbox" view for parallel runs (status cards + links to artifacts) (see 8.10.2) - **IMPLEMENTED 2026-01-10** (RunsInbox page at /runs)
+- **✅ GAP-8.10.3 (P2)**: Wire Playwright/browser artifacts into run artifacts + UI viewer (screenshots/HAR/video) (see 8.10.3) - **IMPLEMENTED 2026-01-10** (browser artifacts endpoint + RunBrowserArtifacts page)
+- **✅ GAP-8.10.4 (P2)**: Enhance progress visualization and add "file change preview before approval" UX (see 8.10.4) - **IMPLEMENTED 2026-01-10** (progress endpoint + RunProgress page; approval diff preview deferred)
 
 #### 8.0.2 Implemented already (verification completed)
 
@@ -1519,8 +1519,12 @@ These surfaced during the repo scan and while implementing the minimal copy/past
 
 These are explicitly **not** about “switching to Antigravity.” They are UI/UX enhancements that can be implemented **inside Autopack** while preserving the repo’s thesis: **safe, deterministic, mechanically enforceable**.
 
-#### 8.10.1 Artifacts panel (read-first)
+> **Important (scope)**: This section targets the **canonical root Vite UI** (`src/frontend/`).
+> Do **not** implement these features in the legacy dashboard UI under `src/autopack/dashboard/frontend/`.
 
+#### 8.10.1 Artifacts panel (read-first) — **✅ IMPLEMENTED 2026-01-10**
+
+- **Status**: Implemented. See `src/frontend/pages/RunArtifacts.tsx` and backend endpoints in `src/autopack/main.py`.
 - **Goal**: Add a sidebar/panel that surfaces existing artifacts:
   - plan preview (what will happen)
   - execution artifacts (phase summaries, logs)
@@ -1529,23 +1533,104 @@ These are explicitly **not** about “switching to Antigravity.” They are UI/U
 - **Acceptance criteria**:
   - Operator can find the “current plan”, “what changed”, and “how it was verified” in one place.
 
-#### 8.10.2 Multi-run “Inbox” view (parallel runs)
+- **Clarification (minimum viable UI shape)**:
+  - Add one dedicated page route (recommended):
+    - `/runs/:run_id/artifacts`
+  - The page should show:
+    - **Plan**: the current/last-known plan (even if partial)
+    - **Artifacts list**: run-local artifacts (files) with type tags (plan / proof / logs / browser)
+    - **Viewer**: inline text viewer for `.md`, `.json`, `.txt`, and links for downloads
 
+- **Backend contract required** (add endpoints if missing):
+  - `GET /runs` → list runs (id, created_at, state, current_phase, tokens_used, token_cap)
+  - `GET /runs/{run_id}` → already exists (ensure it contains enough summary fields for the UI)
+  - `GET /runs/{run_id}/artifacts/index` → list artifacts (path, size, mime/type, created_at)
+  - `GET /runs/{run_id}/artifacts/file?path=<relative>` → stream/download artifact content
+  - **Security constraints**:
+    - Artifact paths must be constrained to run directory (no `..` traversal)
+    - Redact secrets in rendered views (reuse existing redaction utilities if available)
+
+#### 8.10.2 Multi-run "Inbox" view (parallel runs) — **✅ IMPLEMENTED 2026-01-10**
+
+- **Status**: Implemented. See `src/frontend/pages/RunsInbox.tsx` and `GET /runs` endpoint in `src/autopack/main.py`.
 - **Goal**: A dashboard view listing:
   - active runs (and parallel runs) with status, current phase, last heartbeat
   - links to key artifacts and errors
 - **Constraint**: UI-only + existing run status endpoints; no new autonomy logic.
 
-#### 8.10.3 Browser/Playwright artifacts viewer
+- **Clarification (minimum viable UI shape)**:
+  - Route: `/runs`
+  - The page should display a table or cards with:
+    - run id
+    - state
+    - created_at / updated_at
+    - current phase + % progress (if available)
+    - tokens used / cap (if available)
+    - link to: `/runs/:run_id/artifacts`, `/runs/:run_id/progress`, `/runs/:run_id/errors`
 
-- **Goal**: When Playwright runs happen (or can be triggered), store artifacts (screenshots/HAR/video) and present them in the UI as part of the run’s artifact set.
+- **Backend contract required**:
+  - `GET /runs` (same as above). If pagination is needed:
+    - `GET /runs?limit=<int>&offset=<int>`
+
+#### 8.10.3 Browser/Playwright artifacts viewer — **✅ IMPLEMENTED 2026-01-10**
+
+- **Status**: Implemented. See `src/frontend/pages/RunBrowserArtifacts.tsx` and `GET /runs/{run_id}/browser/artifacts` endpoint.
+- **Goal**: When Playwright runs happen (or can be triggered), store artifacts (screenshots/HAR/video) and present them in the UI as part of the run's artifact set.
 - **Constraint**: do **not** implement “visual self-healing” yet; only artifact capture + viewing.
 
-#### 8.10.4 Enhanced progress visualization + “file change preview before approval”
+- **Clarification**:
+  - Route: `/runs/:run_id/browser`
+  - The viewer should support:
+    - screenshots gallery (thumbnails → full view)
+    - download links for HAR/video (no inline playback required initially)
+  - Prefer “passive viewing” over triggering runs from the UI (triggering can be added later behind governance/approval).
 
+- **Backend contract required**:
+  - If Playwright artifacts already exist on disk, ensure they are indexed by `GET /runs/{run_id}/artifacts/index`.
+  - Optional convenience endpoints:
+    - `GET /runs/{run_id}/browser-artifacts/index`
+    - `GET /runs/{run_id}/browser-artifacts/file?...`
+
+#### 8.10.4 Enhanced progress visualization + "file change preview before approval" — **✅ IMPLEMENTED 2026-01-10**
+
+- **Status**: Implemented (core). See `src/frontend/pages/RunProgress.tsx` and `GET /runs/{run_id}/progress` endpoint.
+  - Phase timeline, attempts, budget display implemented.
+  - Approval diff preview deferred to future work (requires additional `GET /approvals/{id}/diff-summary` endpoint).
 - **Goal**:
   - clearer phase timeline / retries / budget bars
   - when approval is required, show a safe preview of proposed file changes (diff summary) before operator approves
 - **Constraint**: preview must respect redaction/sanitization and governance boundaries.
+
+- **Clarification (minimum viable UI shape)**:
+  - Route: `/runs/:run_id/progress`
+  - Show:
+    - phase timeline (tiers/phases if available)
+    - attempt count / retry count
+    - budget remaining (tokens)
+    - last error summary + link to errors
+
+- **Backend contract required**:
+  - If a run progress endpoint does not exist for the canonical API surface, add one:
+    - `GET /runs/{run_id}/progress` → structured progress model for UI (avoid scraping logs)
+  - For approvals diff preview:
+    - `GET /approvals/pending` exists; ensure it contains:
+      - request id, run id, phase id, summary, affected files list
+    - Add a safe diff endpoint if missing:
+      - `GET /approvals/{approval_id}/diff-summary`
+      - Must redact secrets and must not expose arbitrary file content beyond allowed paths
+
+#### 8.10.5 Mechanical verification (tests + CI expectations) — **✅ VERIFIED 2026-01-10**
+
+- **Status**: All verification checks pass.
+- **Frontend** (verified):
+  - `npm run lint` ✅
+  - `npm run type-check` ✅
+  - `npm run build` ✅
+- **Backend** (verified):
+  - Tests added: `tests/api/test_runs_list.py`, `tests/api/test_artifacts.py`, `tests/api/test_run_progress.py`
+  - 23 tests covering: `GET /runs`, `GET /runs/{run_id}/artifacts/index`, `GET /runs/{run_id}/artifacts/file`, `GET /runs/{run_id}/progress`
+  - Path traversal security tests pass (including URL-encoded `%2e%2e` bypass attempts).
+- **Docs/SOT**:
+  - `pytest -q tests/docs/` remains green.
 
 

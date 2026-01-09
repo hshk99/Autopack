@@ -60,9 +60,7 @@ class TestLlmServiceScopeReductionWiring:
             mock_completion.content = [MagicMock(text=json.dumps(mock_response_data))]
             # Create usage as a simple object with integer attributes (not MagicMock)
             # to avoid MagicMock arithmetic issues
-            mock_completion.usage = type(
-                "Usage", (), {"input_tokens": 100, "output_tokens": 200}
-            )()
+            mock_completion.usage = type("Usage", (), {"input_tokens": 100, "output_tokens": 200})()
             mock_inner_client.messages.create.return_value = mock_completion
 
             mock_client = MagicMock()
@@ -143,9 +141,7 @@ class TestLlmServiceScopeReductionWiring:
             mock_completion.content = [MagicMock(text=json.dumps(mock_response_data))]
             # Create usage as a simple object with integer attributes (not MagicMock)
             # to avoid MagicMock arithmetic issues
-            mock_completion.usage = type(
-                "Usage", (), {"input_tokens": 150, "output_tokens": 250}
-            )()
+            mock_completion.usage = type("Usage", (), {"input_tokens": 150, "output_tokens": 250})()
             mock_inner_client.messages.create.return_value = mock_completion
 
             mock_client = MagicMock()

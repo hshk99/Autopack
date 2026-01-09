@@ -43,7 +43,7 @@ def test_copy_paste_contracts_forbidden_patterns():
 
     forbidden_literals = [
         # Non-canonical DB bootstrap/migrations (should not be recommended as migrations)
-        'from autopack.database import init_db; init_db()',
+        "from autopack.database import init_db; init_db()",
         "from src.autopack.database import init_db; init_db()",
         # Legacy backend tree (non-existent in current repo)
         "src/backend/",
@@ -87,7 +87,9 @@ def test_copy_paste_contracts_required_canonical_strings_exist():
         if "uvicorn autopack.main:app" in raw and "--port 8000" in raw:
             entrypoint_ok = True
             break
-    assert entrypoint_ok, "Canonical entrypoint missing (expected uvicorn autopack.main:app --port 8000)"
+    assert (
+        entrypoint_ok
+    ), "Canonical entrypoint missing (expected uvicorn autopack.main:app --port 8000)"
 
     # Canonical env template path must be present in CONFIG_GUIDE and PROJECT_INDEX.
     assert "cp .env.example .env" in _read_text(
@@ -99,6 +101,6 @@ def test_copy_paste_contracts_required_canonical_strings_exist():
 
     # Compose topology (if described in DEPLOYMENT) must include qdrant.
     dep_raw = _read_text(deployment)
-    assert "qdrant" in dep_raw, "DEPLOYMENT.md must mention qdrant (compose includes qdrant service)"
-
-
+    assert (
+        "qdrant" in dep_raw
+    ), "DEPLOYMENT.md must mention qdrant (compose includes qdrant service)"

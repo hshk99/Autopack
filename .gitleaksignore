@@ -38,3 +38,11 @@ cb89ae2a3d4508d1749256341804caf1742de00b:tests/autopack/test_sanitizer.py:stripe
 5357dbab46549b8fe8dd0dadb1ba0b57af76d57e:tests/artifacts/test_redaction.py:generic-api-key:134
 5357dbab46549b8fe8dd0dadb1ba0b57af76d57e:tests/artifacts/test_redaction.py:generic-api-key:280
 5357dbab46549b8fe8dd0dadb1ba0b57af76d57e:tests/artifacts/test_redaction.py:generic-api-key:445
+
+# BUILD-189: Additional fingerprints from commit f8ad99729c03793ebd74798f6c759ab2e175e38d
+f8ad99729c03793ebd74798f6c759ab2e175e38d:tests/artifacts/test_redaction.py:generic-api-key:132
+f8ad99729c03793ebd74798f6c759ab2e175e38d:tests/artifacts/test_redaction.py:generic-api-key:276
+f8ad99729c03793ebd74798f6c759ab2e175e38d:tests/artifacts/test_redaction.py:generic-api-key:445
+f8ad99729c03793ebd74798f6c759ab2e175e38d:tests/subagent/test_guardrails.py:generic-api-key:117
+f8ad99729c03793ebd74798f6c759ab2e175e38d:tests/subagent/test_guardrails.py:generic-api-key:327
+f8ad99729c03793ebd74798f6c759ab2e175e38d:tests/subagent/test_guardrails.py:generic-api-key:418

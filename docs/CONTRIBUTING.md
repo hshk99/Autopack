@@ -274,10 +274,10 @@ PYTHONPATH=src python scripts/db_identity_check.py
 
 ```bash
 # View executor logs
-tail -f .autonomous_runs/autopack/runs/<run-id>/run.log
+tail -f .autonomous_runs/autopack/runs/<family>/<run_id>/run.log
 
 # Check phase summaries
-cat .autonomous_runs/autopack/runs/<run-id>/phases/phase_*.md
+cat .autonomous_runs/autopack/runs/<family>/<run_id>/phases/phase_*.md
 ```
 
 ### Common Issues

@@ -205,26 +205,28 @@ Last updated: 2025-12-31 (BUILD-146 P12 API Consolidation)
 
 ---
 
-### 8. Authentication Endpoints (Backend Auth Router)
+### 8. Authentication Endpoints (Canonical Auth Router)
 
-#### `POST /register`
+These endpoints are served by `src/autopack/auth/router.py` and are mounted under `/api/auth/*`.
+
+#### `POST /api/auth/register`
 - **Purpose**: Register new user
 - **Auth**: None
 - **Request**: Username, email, password
 - **Response**: User created confirmation
 
-#### `POST /login`
+#### `POST /api/auth/login`
 - **Purpose**: Login and get JWT token
 - **Auth**: None (credentials in request)
 - **Request**: Username, password
 - **Response**: JWT access token
 
-#### `GET /me`
+#### `GET /api/auth/me`
 - **Purpose**: Get current user info
 - **Auth**: Requires `Bearer` token
 - **Response**: User profile
 
-#### `GET /.well-known/jwks.json`
+#### `GET /api/auth/.well-known/jwks.json`
 - **Purpose**: Get JSON Web Key Set for JWT validation
 - **Auth**: None (public)
 - **Response**: JWKS
@@ -261,12 +263,10 @@ These endpoints exist for backward compatibility but should not be used by new c
 
 ---
 
-## Migration from Backend Server
+## Migration Notes (See Consolidation Plan)
 
-**Old entrypoint** (deprecated): `uvicorn src.backend.main:app`
-**New entrypoint** (canonical): `PYTHONPATH=src uvicorn autopack.main:app`
-
-All functionality from the backend server has been consolidated into the canonical server. The backend package remains as a **library** for auth functionality until Phase 5 migration is complete.
+This canonical contract intentionally avoids documenting deprecated entrypoints or legacy paths.
+For historical context and migration notes, see `docs/CANONICAL_API_CONSOLIDATION_PLAN.md`.
 
 ---
 

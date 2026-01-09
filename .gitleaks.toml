@@ -4,8 +4,14 @@
 [extend]
 useDefault = true
 
-[[allowlists]]
-description = "Test fixtures with intentional fake secrets for sanitizer testing"
+# Override generic-api-key rule to exclude test files
+[[rules]]
+id = "generic-api-key"
+description = "Generic API Key - override to exclude test files"
+regex = '''(?i)(?:key|api|token|secret|client|passwd|password|auth|access)(?:[0-9a-z\-_\t .]{0,20})(?:[\s|']|[\s|"]){0,3}(?:=|>|:{1,3}=|\|\|:|<=|=>|:|\?=)(?:'|\"|\s|=|\x60){0,5}([0-9a-z\-_.=]{10,150})(?:['|\"|\n|\r|\s|\x60|;]|$)'''
+secretGroup = 1
+entropy = 3.5
+[rules.allowlist]
 paths = [
-    '''tests/autopack/test_sanitizer\.py''',
+    '''tests/.*\.py$''',
 ]

@@ -33,3 +33,8 @@ cb89ae2a3d4508d1749256341804caf1742de00b:tests/ci/test_production_auth_requireme
 cb89ae2a3d4508d1749256341804caf1742de00b:tests/ci/test_production_auth_requirement.py:generic-api-key:117
 cb89ae2a3d4508d1749256341804caf1742de00b:tests/autopack/test_sanitizer.py:generic-api-key:323
 cb89ae2a3d4508d1749256341804caf1742de00b:tests/autopack/test_sanitizer.py:stripe-access-token:321
+
+# BUILD-189: Fake API keys in artifact redaction tests
+5357dbab46549b8fe8dd0dadb1ba0b57af76d57e:tests/artifacts/test_redaction.py:generic-api-key:134
+5357dbab46549b8fe8dd0dadb1ba0b57af76d57e:tests/artifacts/test_redaction.py:generic-api-key:280
+5357dbab46549b8fe8dd0dadb1ba0b57af76d57e:tests/artifacts/test_redaction.py:generic-api-key:445

@@ -785,20 +785,26 @@ def list_runs(
 
         # Get current phase name (first non-complete phase)
         current_phase = next(
-            (p for p in phases if p.state not in (models.PhaseState.COMPLETE, models.PhaseState.SKIPPED)),
+            (
+                p
+                for p in phases
+                if p.state not in (models.PhaseState.COMPLETE, models.PhaseState.SKIPPED)
+            ),
             None,
         )
 
-        run_summaries.append({
-            "id": run.id,
-            "state": run.state.value,
-            "created_at": run.created_at.isoformat() if run.created_at else None,
-            "tokens_used": run.tokens_used or 0,
-            "token_cap": run.token_cap,
-            "phases_total": phases_total,
-            "phases_completed": phases_completed,
-            "current_phase_name": current_phase.name if current_phase else None,
-        })
+        run_summaries.append(
+            {
+                "id": run.id,
+                "state": run.state.value,
+                "created_at": run.created_at.isoformat() if run.created_at else None,
+                "tokens_used": run.tokens_used or 0,
+                "token_cap": run.token_cap,
+                "phases_total": phases_total,
+                "phases_completed": phases_completed,
+                "current_phase_name": current_phase.name if current_phase else None,
+            }
+        )
 
     return {
         "runs": run_summaries,
@@ -847,14 +853,16 @@ def get_run_progress(run_id: str, db: Session = Depends(get_db)) -> Dict[str, An
     # Build phase details
     phase_details = []
     for p in phases:
-        phase_details.append({
-            "phase_id": p.phase_id,
-            "name": p.name,
-            "state": p.state.value,
-            "phase_index": p.phase_index,
-            "tokens_used": p.tokens_used,
-            "builder_attempts": p.builder_attempts,
-        })
+        phase_details.append(
+            {
+                "phase_id": p.phase_id,
+                "name": p.name,
+                "state": p.state.value,
+                "phase_index": p.phase_index,
+                "tokens_used": p.tokens_used,
+                "builder_attempts": p.builder_attempts,
+            }
+        )
 
     return {
         "run_id": run_id,
@@ -892,13 +900,15 @@ def get_artifacts_index(run_id: str, db: Session = Depends(get_db)) -> Dict[str,
                 rel_path = file_path.relative_to(file_layout.base_dir)
                 file_size = file_path.stat().st_size
                 total_size += file_size
-                artifacts.append({
-                    "path": str(rel_path),
-                    "size_bytes": file_size,
-                    "modified_at": datetime.fromtimestamp(
-                        file_path.stat().st_mtime, tz=timezone.utc
-                    ).isoformat(),
-                })
+                artifacts.append(
+                    {
+                        "path": str(rel_path),
+                        "size_bytes": file_size,
+                        "modified_at": datetime.fromtimestamp(
+                            file_path.stat().st_mtime, tz=timezone.utc
+                        ).isoformat(),
+                    }
+                )
 
     return {
         "run_id": run_id,
@@ -971,20 +981,26 @@ def get_browser_artifacts(run_id: str, db: Session = Depends(get_db)) -> Dict[st
         for file_path in file_layout.base_dir.rglob("*"):
             if file_path.is_file():
                 # Check if it's a browser-related file
-                is_browser_file = (
-                    file_path.suffix.lower() in browser_extensions
-                    or any(pattern in file_path.name.lower() for pattern in browser_patterns)
+                is_browser_file = file_path.suffix.lower() in browser_extensions or any(
+                    pattern in file_path.name.lower() for pattern in browser_patterns
                 )
                 if is_browser_file:
                     rel_path = file_path.relative_to(file_layout.base_dir)
-                    browser_artifacts.append({
-                        "path": str(rel_path),
-                        "type": "screenshot" if file_path.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".webp"} else "html",
-                        "size_bytes": file_path.stat().st_size,
-                        "modified_at": datetime.fromtimestamp(
-                            file_path.stat().st_mtime, tz=timezone.utc
-                        ).isoformat(),
-                    })
+                    browser_artifacts.append(
+                        {
+                            "path": str(rel_path),
+                            "type": (
+                                "screenshot"
+                                if file_path.suffix.lower()
+                                in {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+                                else "html"
+                            ),
+                            "size_bytes": file_path.stat().st_size,
+                            "modified_at": datetime.fromtimestamp(
+                                file_path.stat().st_mtime, tz=timezone.utc
+                            ).isoformat(),
+                        }
+                    )
 
     return {
         "run_id": run_id,

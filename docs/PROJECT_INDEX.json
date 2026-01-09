@@ -126,7 +126,7 @@
         ".autonomous_runs/{project-id}/"
       ],
       "per_project_structure": {
-        "docs/": "Project SOT files (same 5-file structure)",
+        "docs/": "Project SOT files (same 6-file SOT structure)",
         "archive/": "Project archive (same bucket structure)",
         "src/": "Project source code (if separate from main repo)",
         "tests/": "Project tests",
@@ -274,9 +274,9 @@
     "storage_optimizer": "docs/STORAGE_OPTIMIZER_MVP_COMPLETION.md",
     "data_retention_policy": "docs/DATA_RETENTION_AND_STORAGE_POLICY.md",
     "consolidated_history": "docs/archive/CONSOLIDATED_HISTORY.md",
-    "full_deployment_guide": "archive/reports/DEPLOYMENT_GUIDE.md (moved)",
-    "full_setup_guide": "archive/reports/SETUP_GUIDE.md (moved)",
-    "workspace_spec": "archive/reports/WORKSPACE_ORGANIZATION_SPEC.md (moved)",
+    "full_deployment_guide": "docs/DEPLOYMENT.md - Docker deployment, env vars, and health checks",
+    "full_setup_guide": "docs/QUICKSTART.md - Quick start guide for running Autopack",
+    "workspace_spec": "docs/WORKSPACE_ORGANIZATION_SPEC.md - Canonical workspace organization rules",
     "consolidated_research": "archive/research/CONSOLIDATED_RESEARCH.md (moved)"
   },
 
@@ -316,7 +316,7 @@
     "audience": "This file is optimized for AI consumption (Cursor, Autopack, Claude Code)",
     "format_choice": "JSON chosen for fast parsing and direct property access",
     "maintenance": "Update this file when adding new features or changing structure",
-    "consolidation_date": "2025-12-13 - Consolidated from 10 SOT files to 5",
-    "same_structure_all_projects": "All projects follow this 5-file SOT structure"
+    "consolidation_date": "2025-12-13 - Consolidated to a canonical 6-file SOT core",
+    "same_structure_all_projects": "All projects follow the canonical 6-file SOT structure"
   }
 }

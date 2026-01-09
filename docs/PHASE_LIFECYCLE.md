@@ -386,7 +386,7 @@ PYTHONPATH=src python scripts/reset_run.py --run-id <run-id>
 
 **Executor Logs**:
 ```bash
-tail -f .autonomous_runs/<project>/runs/<run-id>/run.log
+tail -f .autonomous_runs/<project>/runs/<family>/<run_id>/run.log
 ```
 
 **Phase Status**:
@@ -402,7 +402,7 @@ curl http://localhost:8000/health
 ### Diagnostic Artifacts
 
 **Phase Summary**:
-- Location: `.autonomous_runs/<project>/runs/<run-id>/phases/phase_*.md`
+- Location: `.autonomous_runs/<project>/runs/<family>/<run_id>/phases/phase_*.md`
 - Contains: Attempts, errors, decisions, deliverables
 
 **CI Reports**:
@@ -410,11 +410,11 @@ curl http://localhost:8000/health
 - Contains: Test results, coverage, failures
 
 **Diagnostics Bundle**:
-- Location: `.autonomous_runs/<project>/runs/<run-id>/diagnostics/`
+- Location: `.autonomous_runs/<project>/runs/<family>/<run_id>/diagnostics/`
 - Contains: Evidence, probes, second opinion
 
 **Handoff Bundle**:
-- Location: `.autonomous_runs/<project>/runs/<run-id>/handoff/`
+- Location: `.autonomous_runs/<project>/runs/<family>/<run_id>/handoff/`
 - Contains: Index, summary, excerpts, Cursor prompt
 
 ---
@@ -628,7 +628,7 @@ curl http://localhost:8000/health
 PYTHONPATH=src python scripts/db_identity_check.py
 
 # View phase logs
-tail -f .autonomous_runs/<project>/runs/<run-id>/run.log
+tail -f .autonomous_runs/<project>/runs/<family>/<run_id>/run.log
 
 # Reset phase for retry
 PYTHONPATH=src python scripts/reset_phase.py --phase-id <phase-id>
@@ -643,10 +643,10 @@ PYTHONPATH=src python scripts/generate_handoff_bundle.py --run-id <run-id>
 ### Key Files
 
 - **Phase state**: Database (`autopack.db`)
-- **Executor logs**: `.autonomous_runs/<project>/runs/<run-id>/run.log`
-- **Phase summaries**: `.autonomous_runs/<project>/runs/<run-id>/phases/`
+- **Executor logs**: `.autonomous_runs/<project>/runs/<family>/<run_id>/run.log`
+- **Phase summaries**: `.autonomous_runs/<project>/runs/<family>/<run_id>/phases/`
 - **CI reports**: `.autonomous_runs/<project>/ci/`
-- **Diagnostics**: `.autonomous_runs/<project>/runs/<run-id>/diagnostics/`
+- **Diagnostics**: `.autonomous_runs/<project>/runs/<family>/<run_id>/diagnostics/`
 
 ### Documentation
 

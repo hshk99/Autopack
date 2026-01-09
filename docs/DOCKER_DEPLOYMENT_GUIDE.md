@@ -8,6 +8,8 @@
 
 ## Overview
 
+**Canonical note (2026-01-08)**: Autopack’s supported containerized frontend is the **root Vite frontend** built via `Dockerfile.frontend` and served with the repo `nginx.conf` (security headers + `/api` proxy). References below to a nested dashboard frontend under `src/autopack/dashboard/frontend/` and a multi-stage root `Dockerfile` frontend build are **legacy** and should not be used for new deployments.
+
 This guide documents the Docker deployment configuration for Autopack, including multi-stage builds for backend (Python), frontend (React/Vite), and production (nginx) services.
 
 ---
@@ -24,11 +26,12 @@ The `Dockerfile` uses a three-stage build process:
 
 ### Docker Compose Services
 
-The `docker-compose.yml` orchestrates three services:
+The `docker-compose.yml` orchestrates four services:
 
 1. **backend**: FastAPI application (port 8000)
 2. **frontend**: nginx serving React app (port 80)
 3. **db**: PostgreSQL 15 database (port 5432)
+4. **qdrant**: Vector memory database (port 6333)
 
 ---
 
@@ -117,32 +120,49 @@ CMD ["uvicorn", "autopack.main:app", "--host", "0.0.0.0", "--port", "8000"]
 - Sets `PYTHONPATH=/app/src` for correct module imports
 - Runs uvicorn ASGI server on port 8000 with `autopack.main:app`
 
-### Frontend Stage
+### Frontend Stage (Dockerfile.frontend)
+
+The canonical frontend is built via `Dockerfile.frontend`:
 
 ```dockerfile
-FROM node:20 as frontend
+# Multi-stage build for React frontend
+FROM node:20-alpine as builder
 
 WORKDIR /app
 
-# Copy package files from correct location
-COPY ./src/autopack/dashboard/frontend/package.json /app/
-COPY ./src/autopack/dashboard/frontend/package-lock.json* /app/
+# Copy package files
+COPY package.json package-lock.json* ./
 
 # Install dependencies
-RUN npm install
+RUN npm ci
 
-# Copy frontend source
-COPY ./src/autopack/dashboard/frontend /app
+# Copy source code
+COPY src/frontend/ ./src/frontend/
+COPY index.html .
+COPY vite.config.ts .
+COPY tsconfig.json .
+COPY tsconfig.node.json .
 
-# Build with Vite
+# Build the application
 RUN npm run build
+
+# Production stage with nginx
+FROM nginx:alpine
+
+# Copy custom nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy built assets from builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
 ```
 
 **Key Points**:
-- Uses Node 20 (Vite requires Node 20.19+ or 22.12+)
-- **Path Fix**: Corrected to copy from `src/autopack/dashboard/frontend/` (not root)
-- Builds with Vite → outputs to `/app/dist`
-- Frontend source: React 19.2.0 + Vite 7.2.4
+- Uses `Dockerfile.frontend` (not multi-stage in root Dockerfile)
+- Builds root Vite app from `src/frontend/`
+- Applies custom `nginx.conf` with security headers and `/api` proxy
 
 ### Production Stage
 
@@ -193,22 +213,23 @@ backend:
 frontend:
   build:
     context: .
-    dockerfile: Dockerfile
-    # No target specified - builds all stages and uses final (nginx) stage
+    dockerfile: Dockerfile.frontend
   ports:
     - "80:80"
+  depends_on:
+    - backend
 ```
 
 **Key Points**:
-- Builds all stages (backend → frontend → nginx)
-- Uses final nginx stage as production image
-- Serves on port 80
+- Uses `Dockerfile.frontend` to build the root Vite app
+- Applies `nginx.conf` for security headers, gzip, and `/api` proxy
+- Serves on port 80, proxies `/api/*` to `backend:8000`
 
 ### Database Service
 
 ```yaml
 db:
-  image: postgres:15
+  image: postgres:15.10-alpine
   environment:
     POSTGRES_USER: autopack
     POSTGRES_PASSWORD: autopack
@@ -221,10 +242,26 @@ db:
 ```
 
 **Key Points**:
-- Uses official PostgreSQL 15 image
+- Uses postgres:15.10-alpine (pinned to specific version for determinism)
 - Mounts persistent volume `db_data` for database storage
 - **Init Script**: Mounts `init-db.sql` for database initialization (runs once on first start)
 - Exposes port 5432 for external connections (development only)
+
+### Qdrant Service (Vector Memory)
+
+```yaml
+qdrant:
+  image: qdrant/qdrant:v1.12.5
+  ports:
+    - "6333:6333"
+  volumes:
+    - qdrant_data:/qdrant/storage
+```
+
+**Key Points**:
+- Pinned to v1.12.5 for determinism
+- Persistent volume `qdrant_data` for vector storage
+- Backend connects via `AUTOPACK_QDRANT_HOST=qdrant`
 
 ---
 

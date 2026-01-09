@@ -4,8 +4,28 @@
 [extend]
 useDefault = true
 
+# Narrow allowlist: only specific test files that contain intentional fake secrets
+# for testing sanitizer/redaction functionality
 [[allowlists]]
 description = "Test fixtures with intentional fake secrets for sanitizer testing"
 paths = [
-    '''tests/autopack/test_sanitizer\.py''',
+    '''tests/autopack/test_sanitizer\.py$''',
+]
+
+[[allowlists]]
+description = "Artifact redaction test fixtures"
+paths = [
+    '''tests/artifacts/test_redaction\.py$''',
+]
+
+[[allowlists]]
+description = "Subagent guardrails test fixtures (secret detection tests)"
+paths = [
+    '''tests/subagent/test_guardrails\.py$''',
+]
+
+[[allowlists]]
+description = "Production auth requirement test fixtures"
+paths = [
+    '''tests/ci/test_production_auth_requirement\.py$''',
 ]

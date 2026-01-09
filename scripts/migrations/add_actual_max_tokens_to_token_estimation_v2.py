@@ -8,8 +8,8 @@ BUILD-142 PARITY: Separate telemetry semantics
 This allows accurate waste calculation using actual_max_tokens / actual_output_tokens
 instead of selected_budget / actual_output_tokens.
 
-Usage:
-    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///C:/dev/Autopack/telemetry_seed_v5.db" \
+Usage (from repo root):
+    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///./telemetry_seed_v5.db" \
         python scripts/migrations/add_actual_max_tokens_to_token_estimation_v2.py
 """
 
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         print("ERROR: DATABASE_URL must be set explicitly.", file=sys.stderr)
         print("", file=sys.stderr)
         print("Example usage (PowerShell):", file=sys.stderr)
-        print("  $env:DATABASE_URL='sqlite:///C:/dev/Autopack/telemetry_seed_v5.db'", file=sys.stderr)
+        print("  $env:DATABASE_URL='sqlite:///./telemetry_seed_v5.db'", file=sys.stderr)
         print("  python scripts/migrations/add_actual_max_tokens_to_token_estimation_v2.py", file=sys.stderr)
         sys.exit(1)
 

@@ -117,6 +117,7 @@ async def refresh_credential(
     """Manually trigger credential refresh.
 
     Queues a background refresh operation for the specified provider.
+    Requires admin/superuser privileges.
 
     SOT endpoint: /api/auth/oauth/refresh/{provider}
 
@@ -127,6 +128,12 @@ async def refresh_credential(
     Returns:
         Status indicating refresh was queued
     """
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=403,
+            detail="Admin privileges required for credential refresh",
+        )
+
     manager = get_credential_manager()
 
     # Verify credential exists
@@ -170,6 +177,7 @@ async def reset_failure_count(
 
     Use this after manually resolving credential issues to
     re-enable automatic refresh attempts.
+    Requires admin/superuser privileges.
 
     SOT endpoint: /api/auth/oauth/reset/{provider}
 
@@ -179,6 +187,12 @@ async def reset_failure_count(
     Returns:
         Status indicating reset result
     """
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=403,
+            detail="Admin privileges required for failure count reset",
+        )
+
     manager = get_credential_manager()
 
     if manager.reset_failure_count(provider):

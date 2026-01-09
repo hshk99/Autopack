@@ -101,6 +101,29 @@ python_classes = "Test*"
 python_functions = "test_*"
 asyncio_mode = "auto"
 
+[tool.mypy]
+# Staged adoption: start strict on allowlisted files, expand progressively
+# See config/mypy_allowlist.txt for the list of files that must pass mypy
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true  # Until we add all stubs
+disallow_untyped_defs = false  # Enable per-file as we fix types
+no_implicit_optional = true  # Explicit Optional[T] required for T | None defaults
+strict_optional = true
+show_error_codes = true
+pretty = true
+
+# Per-module overrides for strict checking
+[[tool.mypy.overrides]]
+module = [
+    "autopack.version",
+    "autopack.__version__",
+    "autopack.exceptions",
+]
+disallow_untyped_defs = true
+warn_unreachable = true
+
 [tool.bandit]
 exclude_dirs = ["tests", "archive", ".autonomous_runs", "venv", ".venv"]
 skips = ["B101"]  # Skip assert_used (common in tests that leak into src)

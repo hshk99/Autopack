@@ -56,12 +56,11 @@ jobs:
       - name: Check formatting with black
         run: |
           black --check src/ tests/
-      - name: Type check with mypy (staged adoption)
-        continue-on-error: true  # Non-blocking during staged rollout
+      - name: Type check with mypy (allowlist-based - GAP-8.3.1)
         run: |
           pip install mypy types-requests types-PyYAML
-          # Start with strict subset, expand progressively
-          mypy src/autopack/version.py src/autopack/__version__.py --ignore-missing-imports --no-error-summary || echo "mypy findings (informational)"
+          # Allowlist-based mypy check - files in config/mypy_allowlist.txt must pass
+          python scripts/ci/check_mypy_allowlist.py
 
   frontend-ci:
     name: Frontend CI (lint/typecheck/build)

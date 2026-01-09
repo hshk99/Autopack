@@ -1,0 +1,33 @@
+# Mypy Adoption Ladder - Allowlist
+# =================================
+#
+# Files in this list are checked with strict mypy during CI.
+# To add a file:
+#   1. Ensure it passes `mypy --strict <file>` locally
+#   2. Add the file path (relative to repo root) to this list
+#   3. CI will fail if the file regresses
+#
+# Policy: Start small, expand progressively. Never remove files once added.
+#
+# Last updated: 2026-01-09
+# GAP reference: GAP-8.3.1 (Mypy adoption ladder)
+
+# === Tier 1: Foundation (small, well-typed files) ===
+src/autopack/version.py
+src/autopack/__version__.py
+src/autopack/exceptions.py
+
+# === Tier 2: Core schemas (to be added after fixing Optional types) ===
+# src/autopack/schemas.py
+# src/autopack/builder_schemas.py
+# src/autopack/strategy_schemas.py
+
+# === Tier 3: Utilities (to be added after Tier 2) ===
+# src/autopack/utils.py
+# src/autopack/file_hashing.py
+# src/autopack/text_normalization.py
+
+# === Tier 4: Core modules (future expansion) ===
+# src/autopack/config_loader.py
+# src/autopack/file_layout.py
+# src/autopack/database.py

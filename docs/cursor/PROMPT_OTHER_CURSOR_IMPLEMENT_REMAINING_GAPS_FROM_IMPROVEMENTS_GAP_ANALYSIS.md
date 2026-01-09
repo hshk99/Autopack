@@ -65,17 +65,33 @@ The contract tests referenced in `security/README.md` are now implemented:
 
 All tests are hermetic (no network access required) and use static fixtures.
 
-#### GAP-8.3.1: Mypy adoption ladder
+#### GAP-8.3.1: Mypy adoption ladder ✅ IMPLEMENTED
 
-- Add a clear allowlist and expand the mypy target set gradually.
-- Flip to blocking **only for the allowlist**, leaving other files informational until they’re ready.
-- Document the ladder (either in `docs/TESTING_GUIDE.md` or a short section in `docs/IMPROVEMENTS_GAP_ANALYSIS.md`).
+**Status**: IMPLEMENTED (2026-01-09)
 
-#### GAP-8.3.2: Re-enable dependency drift enforcement
+Implementation:
+- Created `config/mypy_allowlist.txt` - list of files that must pass mypy
+- Created `scripts/ci/check_mypy_allowlist.py` - CI script to verify allowlist
+- Added `[tool.mypy]` section to `pyproject.toml` with staged adoption config
+- Updated `.github/workflows/ci.yml` to use allowlist-based mypy (PR-blocking)
+- Fixed `src/autopack/exceptions.py` type issues (Optional types)
 
-- Make “Linux/CI canonical” the rule if that’s the intended policy.
-- Update `scripts/check_dependency_sync.py` and/or workflow wiring so it is PR-blocking again without Windows false failures.
-- Add/adjust contract tests if you have them for lock drift.
+Allowlist approach:
+- Start with small, well-typed files (version.py, __version__.py, exceptions.py)
+- Expand progressively by adding files to `config/mypy_allowlist.txt`
+- Files on allowlist must pass mypy - no regressions allowed
+
+#### GAP-8.3.2: Re-enable dependency drift enforcement ✅ ALREADY ENFORCED
+
+**Status**: ALREADY IMPLEMENTED (alternative approach)
+
+The original `check_dependency_sync.py` is intentionally disabled because pip-compile output differs between Windows/Linux (hash differences). Instead, the repo uses:
+
+- `scripts/check_requirements_portability.py` - enforces platform markers (pywin32, python-magic)
+- Policy: requirements must be generated on Linux/WSL (CI canonical)
+- CI job `check_requirements_portability.py` is PR-blocking
+
+This is the correct approach per `security/README.md` "Requirements Regeneration Policy".
 
 ### Phase 3 — Runtime TODO closure (behavioral work)
 

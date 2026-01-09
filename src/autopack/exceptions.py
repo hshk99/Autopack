@@ -40,7 +40,7 @@ class BuilderError(AutopackError):
 class NetworkError(BuilderError):
     """Exception raised for network-related errors."""
 
-    def __init__(self, message: str, status_code: int = None):
+    def __init__(self, message: str, status_code: Optional[int] = None):
         """
         Initialize network error.
 
@@ -55,7 +55,12 @@ class NetworkError(BuilderError):
 class APIError(BuilderError):
     """Exception raised for API-related errors."""
 
-    def __init__(self, message: str, status_code: int = None, response_data: dict = None):
+    def __init__(
+        self,
+        message: str,
+        status_code: Optional[int] = None,
+        response_data: Optional[Dict[str, Any]] = None,
+    ):
         """
         Initialize API error.
 

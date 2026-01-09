@@ -4,7 +4,7 @@
 
 This document defines the **required endpoints** that must be served by the canonical Autopack server (`autopack.main:app`). All first-party scripts, the autonomous executor, dashboards, and observability tooling must target only these endpoints.
 
-Last updated: 2025-12-31 (BUILD-146 P12 API Consolidation)
+Last updated: 2026-01-09 (BUILD-189 OAuth Credential Health Endpoints)
 
 ---
 
@@ -233,7 +233,39 @@ These endpoints are served by `src/autopack/auth/router.py` and are mounted unde
 
 ---
 
-### 9. Research API (Experimental)
+### 9. OAuth Credential Health (BUILD-189)
+
+These endpoints are served by `src/autopack/auth/oauth_router.py` for OAuth credential lifecycle management.
+
+#### `GET /api/auth/oauth/health`
+- **Purpose**: Get comprehensive credential health report for dashboard
+- **Auth**: Requires `Bearer` token
+- **Response**: Health report with summary and per-credential status
+
+#### `GET /api/auth/oauth/health/{provider}`
+- **Purpose**: Get health status for a specific OAuth provider
+- **Auth**: Requires `Bearer` token
+- **Response**: CredentialHealth (status, expiry, failure counts)
+
+#### `POST /api/auth/oauth/refresh/{provider}`
+- **Purpose**: Manually trigger credential refresh
+- **Auth**: Requires `Bearer` token + **Admin only** (`is_superuser=true`)
+- **Response**: Refresh queued confirmation or 403 if not admin
+
+#### `POST /api/auth/oauth/reset/{provider}`
+- **Purpose**: Reset failure count for a credential
+- **Auth**: Requires `Bearer` token + **Admin only** (`is_superuser=true`)
+- **Response**: Reset confirmation or 403 if not admin
+
+#### `GET /api/auth/oauth/events`
+- **Purpose**: Get recent credential lifecycle events (for audit)
+- **Auth**: Requires `Bearer` token
+- **Query params**: `provider` (optional), `limit` (default: 100)
+- **Response**: List of credential events (refresh attempts, failures, etc.)
+
+---
+
+### 10. Research API (Experimental)
 
 #### `POST /research/*`
 - **Purpose**: Research API endpoints (BUILD-113+)

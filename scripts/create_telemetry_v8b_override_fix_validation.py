@@ -12,8 +12,8 @@ PATCH-SAFE DESIGN:
 - ALL deliverables are NEW FILES under examples/telemetry_v8b_docs/
 - No modifications to existing directories
 
-Usage:
-    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///C:/dev/Autopack/telemetry_seed_v5.db" \
+Usage (from repo root):
+    PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///./telemetry_seed_v5.db" \
         python scripts/create_telemetry_v8b_override_fix_validation.py
 """
 
@@ -26,7 +26,7 @@ if not os.environ.get("DATABASE_URL"):
     print("[telemetry_v8b_seed] ERROR: DATABASE_URL must be set explicitly.", file=sys.stderr)
     print("", file=sys.stderr)
     print("Example usage (PowerShell):", file=sys.stderr)
-    print("  $env:DATABASE_URL='sqlite:///C:/dev/Autopack/telemetry_seed_v5.db'", file=sys.stderr)
+    print("  $env:DATABASE_URL='sqlite:///./telemetry_seed_v5.db'", file=sys.stderr)
     print("  python scripts/create_telemetry_v8b_override_fix_validation.py", file=sys.stderr)
     sys.exit(1)
 

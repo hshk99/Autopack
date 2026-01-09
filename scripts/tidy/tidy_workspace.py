@@ -610,6 +610,106 @@ def apply_self_healing(root: Path, dry_run: bool = True, verbose: bool = False) 
 
 
 # ---------------------------------------------------------------------------
+# Seed Database Cleanup
+# ---------------------------------------------------------------------------
+SEED_DB_ARCHIVE_DIR = REPO_ROOT / "archive" / "data" / "databases" / "telemetry_seeds"
+
+# Patterns for seed database files in repo root
+SEED_DB_PATTERNS = [
+    "telemetry_seed*.db",
+    "autopack_telemetry_seed*.db",
+]
+
+
+def plan_seed_db_cleanup(dry_run: bool = True, verbose: bool = False) -> List[Action]:
+    """Plan cleanup actions for seed database files in repo root.
+
+    Seed databases (telemetry_seed*.db, autopack_telemetry_seed*.db) accumulate
+    in the repo root during development/debugging. This routine moves them to
+    archive/data/databases/telemetry_seeds/ for hygiene.
+
+    Protected files (autopack.db, fileorganizer.db, test.db) are NOT moved.
+
+    Args:
+        dry_run: If True, only report what would be done
+        verbose: If True, print detailed output
+
+    Returns:
+        List of Action objects describing moves to perform
+    """
+    actions = []
+
+    for pattern in SEED_DB_PATTERNS:
+        for db_file in REPO_ROOT.glob(pattern):
+            # Skip protected databases
+            if db_file.name in PROTECTED_BASENAMES:
+                if verbose:
+                    print(f"[SEED-DB] Skipping protected: {db_file.name}")
+                continue
+
+            # Destination in archive
+            dest = SEED_DB_ARCHIVE_DIR / db_file.name
+
+            # Skip if already in archive location
+            if db_file == dest:
+                continue
+
+            actions.append(Action(
+                "move",
+                db_file,
+                dest,
+                "seed DB cleanup: move to archive/data/databases/telemetry_seeds/"
+            ))
+
+            if verbose:
+                print(f"[SEED-DB] Plan: {db_file.name} -> {dest}")
+
+    if verbose and not actions:
+        print("[SEED-DB] No seed database files found in repo root")
+
+    return actions
+
+
+def execute_seed_db_cleanup(dry_run: bool = True, verbose: bool = False) -> int:
+    """Execute seed database cleanup from repo root.
+
+    Args:
+        dry_run: If True, only report what would be done
+        verbose: If True, print detailed output
+
+    Returns:
+        Number of files moved
+    """
+    actions = plan_seed_db_cleanup(dry_run=dry_run, verbose=verbose)
+
+    if not actions:
+        if verbose:
+            print("[SEED-DB] No seed databases to clean up")
+        return 0
+
+    print(f"[SEED-DB] Found {len(actions)} seed database(s) to move")
+
+    if dry_run:
+        for action in actions:
+            print(f"[SEED-DB][DRY-RUN] Would move: {action.src.name} -> {action.dest}")
+        return 0
+
+    # Ensure destination directory exists
+    ensure_dir(SEED_DB_ARCHIVE_DIR)
+
+    moved = 0
+    for action in actions:
+        try:
+            shutil.move(str(action.src), str(action.dest))
+            print(f"[SEED-DB] Moved: {action.src.name} -> {action.dest}")
+            moved += 1
+        except Exception as e:
+            print(f"[SEED-DB][ERROR] Failed to move {action.src.name}: {e}")
+
+    return moved
+
+
+# ---------------------------------------------------------------------------
 # Non-MD scanning
 # ---------------------------------------------------------------------------
 def plan_non_md_actions(root: Path, age_days: int, prune: bool, purge: bool, verbose: bool) -> List[Action]:
@@ -1157,7 +1257,7 @@ def classify_cursor_file(file: Path, project_id: str) -> Path | None:
 
     # Step 3: Build destination path (project-first routing)
     if detected_project == "autopack":
-        # Autopack files go to C:\dev\Autopack\archive\{bucket}\
+        # Autopack files go to <repo>/archive/{bucket}/
         if bucket == "scripts" and sub_bucket:
             return REPO_ROOT / "scripts" / sub_bucket / file.name
         elif bucket == "scripts":
@@ -1240,6 +1340,7 @@ def main():
     parser.add_argument("--run-id", type=str, help="Run identifier for logging/checkpoints")
     parser.add_argument("--database-url", type=str, help="Override DATABASE_URL for this run")
     parser.add_argument("--self-heal", action="store_true", help="Run self-healing to fix malformed paths (archive/archive/, etc.)")
+    parser.add_argument("--seed-db-cleanup", action="store_true", help="Move seed databases (telemetry_seed*.db) from repo root to archive/data/databases/telemetry_seeds/")
     args = parser.parse_args()
 
     dry_run = not args.execute or args.dry_run
@@ -1265,6 +1366,13 @@ def main():
 
     if args.execute and git_before and not dry_run:
         run_git_commit(git_before, REPO_ROOT)
+
+    # Seed DB cleanup (runs before main tidy loop, affects repo root only)
+    if args.seed_db_cleanup:
+        print("[INFO] Running seed database cleanup...")
+        moved = execute_seed_db_cleanup(dry_run=dry_run, verbose=args.verbose)
+        if moved > 0:
+            print(f"[SEED-DB] Moved {moved} seed database(s) to archive")
 
     logger = TidyLogger(REPO_ROOT)
 

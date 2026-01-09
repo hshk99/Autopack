@@ -41,10 +41,10 @@ This guide covers the most common error scenarios in Autopack, their root causes
 PYTHONPATH=src python scripts/db_identity_check.py
 
 # Review phase logs
-cat .autonomous_runs/<project>/runs/<run-id>/phases/phase_*.md
+cat .autonomous_runs/<project>/runs/<family>/<run_id>/phases/phase_*.md
 
 # Inspect error details
-grep "DELIVERABLES_VALIDATION_FAILED" .autonomous_runs/<project>/runs/<run-id>/run.log
+grep "DELIVERABLES_VALIDATION_FAILED" .autonomous_runs/<project>/runs/<family>/<run_id>/run.log
 
 # Reset phase for retry (if attempts exhausted)
 PYTHONPATH=src python -c "
@@ -69,10 +69,10 @@ print(f'Reset {phase.phase_id} to QUEUED')
 **Verify scope configuration**:
 ```bash
 # Check allowed paths
-grep "allowed_paths" .autonomous_runs/<project>/runs/<run-id>/run.log
+grep "allowed_paths" .autonomous_runs/<project>/runs/<family>/<run_id>/run.log
 
 # Check protected paths
-grep "protected_paths" .autonomous_runs/<project>/runs/<run-id>/run.log
+grep "protected_paths" .autonomous_runs/<project>/runs/<family>/<run_id>/run.log
 ```
 
 **Common fixes**:
@@ -189,7 +189,7 @@ cat .autonomous_runs/<project>/ci/pytest_<phase-id>.log
 cat .autonomous_runs/<project>/ci/pytest_<phase-id>.json
 
 # Compare with baseline
-grep "T0 baseline" .autonomous_runs/<project>/runs/<run-id>/run.log
+grep "T0 baseline" .autonomous_runs/<project>/runs/<family>/<run_id>/run.log
 ```
 
 ### Debugging Tips
@@ -259,10 +259,10 @@ PYTHONPATH=src python scripts/calibrate_token_estimator.py
 **Check truncation status**:
 ```bash
 # Search for truncation warnings
-grep "TRUNCATION" .autonomous_runs/<project>/runs/<run-id>/run.log
+grep "TRUNCATION" .autonomous_runs/<project>/runs/<family>/<run_id>/run.log
 
 # Check stop_reason
-grep "stop_reason=max_tokens" .autonomous_runs/<project>/runs/<run-id>/run.log
+grep "stop_reason=max_tokens" .autonomous_runs/<project>/runs/<family>/<run_id>/run.log
 ```
 
 **Analyze token usage**:
@@ -305,19 +305,19 @@ grep "stop_reason=max_tokens" .autonomous_runs/<project>/runs/<run-id>/run.log
 # Generate handoff bundle
 PYTHONPATH=src python -c "
 from autopack.diagnostics.handoff_bundler import HandoffBundler
-bundler = HandoffBundler(run_dir='.autonomous_runs/<project>/runs/<run-id>')
+bundler = HandoffBundler(run_dir='.autonomous_runs/<project>/runs/<family>/<run_id>')
 bundler.generate_bundle()
-print('Handoff bundle: .autonomous_runs/<project>/runs/<run-id>/handoff/')
+print('Handoff bundle: .autonomous_runs/<project>/runs/<family>/<run_id>/handoff/')
 "
 
 # Generate Cursor prompt
-cat .autonomous_runs/<project>/runs/<run-id>/handoff/cursor_prompt.md
+cat .autonomous_runs/<project>/runs/<family>/<run_id>/handoff/cursor_prompt.md
 ```
 
 **Learning Hints Review**:
 ```bash
 # Check hints for current run
-grep "Learning hint" .autonomous_runs/<project>/runs/<run-id>/run.log
+grep "Learning hint" .autonomous_runs/<project>/runs/<family>/<run_id>/run.log
 
 # Review promoted rules
 PYTHONPATH=src python -c "
@@ -334,13 +334,13 @@ for rule in rules:
 **Check diagnostics agent status**:
 ```bash
 # Review diagnostics summary
-cat .autonomous_runs/<project>/runs/<run-id>/diagnostics/summary.md
+cat .autonomous_runs/<project>/runs/<family>/<run_id>/diagnostics/summary.md
 
 # Check deep retrieval results
-ls -la .autonomous_runs/<project>/runs/<run-id>/diagnostics/deep_retrieval/
+ls -la .autonomous_runs/<project>/runs/<family>/<run_id>/diagnostics/deep_retrieval/
 
 # View second opinion (if enabled)
-cat .autonomous_runs/<project>/runs/<run-id>/diagnostics/second_opinion.md
+cat .autonomous_runs/<project>/runs/<family>/<run_id>/diagnostics/second_opinion.md
 ```
 
 **Doctor re-planning interference** (DBG-014):
@@ -384,11 +384,11 @@ PYTHONPATH=src python scripts/generate_handoff_bundle.py --run-id <run-id>
 
 ### Key Files
 
-- **Logs**: `.autonomous_runs/<project>/runs/<run-id>/run.log`
-- **Phase summaries**: `.autonomous_runs/<project>/runs/<run-id>/phases/phase_*.md`
+- **Logs**: `.autonomous_runs/<project>/runs/<family>/<run_id>/run.log`
+- **Phase summaries**: `.autonomous_runs/<project>/runs/<family>/<run_id>/phases/phase_*.md`
 - **CI reports**: `.autonomous_runs/<project>/ci/pytest_<phase-id>.json`
-- **Diagnostics**: `.autonomous_runs/<project>/runs/<run-id>/diagnostics/`
-- **Handoff bundle**: `.autonomous_runs/<project>/runs/<run-id>/handoff/`
+- **Diagnostics**: `.autonomous_runs/<project>/runs/<family>/<run_id>/diagnostics/`
+- **Handoff bundle**: `.autonomous_runs/<project>/runs/<family>/<run_id>/handoff/`
 
 ### Documentation
 

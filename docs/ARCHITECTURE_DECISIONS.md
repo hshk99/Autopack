@@ -18,7 +18,7 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 | Timestamp | DEC-ID | Decision | Status | Impact |
 |-----------|--------|----------|--------|--------|
 | 2026-01-09 | DEC-051 | Python 3.11 Canonical for CI (3.12 Local Support) | ✅ Implemented | Single canonical CI version prevents cross-version drift; local 3.12 supported |
-| 2026-01-09 | DEC-050 | AUTHENTICATION.md Rewrite to Match src/autopack/auth/* | ✅ Implemented | Aligns auth documentation with current implementation; prevents operator confusion |
+| 2026-01-09 | DEC-050 | AUTHENTICATION.md Rewrite to Match src/autopack/auth/* | 🧭 Planned | Aligns auth documentation with current implementation; prevents operator confusion |
 | 2026-01-09 | DEC-049 | Guides/Cursor Docs Legacy Labeling (Not Normalized) | ✅ Implemented | Keeps historical docs intact while preventing them from becoming "second truth" |
 | 2026-01-09 | DEC-048 | Scripts-First Migration Strategy (Alembic Deferred) | ✅ Implemented | One canonical migration surface; avoids "two truths" between Alembic and scripts |
 | 2026-01-09 | DEC-047 | OAuth Credential Operations Require Admin Role | ✅ Implemented | Credential refresh/reset are privileged operations; prevents unauthorized credential manipulation |
@@ -95,7 +95,7 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 
 ### DEC-050 | 2026-01-09 | AUTHENTICATION.md Rewrite to Match src/autopack/auth/*
 
-**Status**: ✅ Implemented
+**Status**: 🧭 Planned
 **Build**: GAP-8.9.2 (IMPROVEMENTS_GAP_ANALYSIS.md)
 **Context**: `docs/AUTHENTICATION.md` references `src/backend/*` modules that don't exist in the current repo structure. This creates operator confusion and potential copy-paste failures.
 

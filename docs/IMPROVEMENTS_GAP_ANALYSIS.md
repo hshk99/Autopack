@@ -1156,8 +1156,8 @@ This is the **single authoritative checklist** for the remaining work in this do
 #### 8.0.1 UNIMPLEMENTED backlog (must-do / recommended)
 
 - **✅ GAP-8.2.1 (P0/P1)**: Wire scope reduction proposal generation to `LlmService` + add contract tests (see 8.2.1) - **IMPLEMENTED 2026-01-09**
-- **✅ GAP-8.3.1 (P1)**: Mypy adoption ladder (expand allowlist; flip subset to blocking) (see 8.3.1) - **IMPLEMENTED 2026-01-09**
-- **✅ GAP-8.3.2 (P1)**: Re-enable dependency drift enforcement with a Linux/CI-canonical strategy (see 8.3.2) - **IMPLEMENTED 2026-01-09**
+- **✅ GAP-8.3.1 (P1)**: Mypy adoption ladder (expand allowlist; flip subset to blocking) (see 8.3.1) - **STAGED 2026-01-09** (informational in CI, not yet blocking)
+- **✅ GAP-8.3.2 (P1)**: Re-enable dependency drift enforcement with a Linux/CI-canonical strategy (see 8.3.2) - **STAGED 2026-01-09** (CI step added but commented out; awaiting Linux-canonical pip-compile)
 - **✅ GAP-8.4.1 (P1)**: Implement security baseline system contract tests (format/determinism/diff-gate) (see 8.4.1) - **IMPLEMENTED 2026-01-09** (tests existed; docs updated)
 - **✅ GAP-8.5.1 (P1)**: Decide canonical DB migration surface (Alembic-first vs scripts-first) + converge docs + add CI guardrail (see 8.5.1) - **DECIDED 2026-01-09** (DEC-048: scripts-first canonical)
 - **✅ GAP-8.9.1 (P2)**: Decide whether to normalize `docs/guides/` + `docs/cursor/` workstation-path docs or label/archive as legacy (see 8.9.1) - **DECIDED 2026-01-09** (DEC-049: label as legacy)

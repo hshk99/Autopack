@@ -587,7 +587,7 @@ The following documents are **canonical for operators** and are safe to copy-pas
 | `docs/GOVERNANCE.md` | Approval workflow (this file) | ✅ |
 | `docs/API_BASICS.md` | API endpoint reference | ✅ |
 | `docs/CANONICAL_API_CONTRACT.md` | API contract tests | ✅ |
-| `docs/AUTHENTICATION.md` | Auth implementation | ✅ (per DEC-050) |
+| `docs/AUTHENTICATION.md` | Auth implementation | 🧭 Planned (DEC-050) |
 | `docs/AUTOPILOT_OPERATIONS.md` | Operator runbook | ✅ |
 | `docs/PARALLEL_RUNS.md` | Isolation model | ✅ |
 | `security/README.md` | Security baseline guide | ✅ |

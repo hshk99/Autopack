@@ -32,7 +32,7 @@ jobs:
           safety check --json -r requirements-dev.txt > safety-dev.json || true
 
       - name: Upload Safety artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: safety-scan-results
@@ -78,7 +78,7 @@ jobs:
 
       - name: Upload Trivy filesystem artifacts (SARIF + normalized)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: trivy-fs-sarif-and-normalized
           path: |
@@ -139,7 +139,7 @@ jobs:
 
       - name: Upload Trivy container artifacts (SARIF + normalized)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: trivy-container-sarif-and-normalized
           path: |
@@ -208,7 +208,7 @@ jobs:
 
       - name: Upload CodeQL artifacts (SARIF + normalized)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: codeql-sarif-and-normalized
           path: |
@@ -252,7 +252,7 @@ jobs:
           output: 'sbom-container.cdx.json'
 
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sbom-artifacts
           path: |

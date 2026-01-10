@@ -11,7 +11,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "ci"))
 from check_canonical_doc_refs import (
     CANONICAL_OPERATOR_DOCS,
     LEGACY_PATH_PATTERNS,
-    LegacyPathViolation,
     check_canonical_docs,
     check_content_for_legacy_paths,
 )

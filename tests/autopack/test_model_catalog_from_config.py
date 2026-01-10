@@ -240,7 +240,7 @@ class TestP16SeedCatalogDriftContract:
 
     def test_config_catalog_preferred_over_seed_when_available(self):
         """When config is available, it should be used instead of seed."""
-        from autopack.model_routing_refresh import load_model_catalog, SEED_CATALOG
+        from autopack.model_routing_refresh import load_model_catalog
         from autopack.model_catalog import load_model_catalog as load_from_config
 
         # Load from config

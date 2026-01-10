@@ -76,7 +76,11 @@ class TestProductionAuthRequirement:
 
         # Patch environment to simulate dev mode (no API key set)
         # Must also clear PYTEST_CURRENT_TEST to avoid test-mode bypass
-        with patch.dict(os.environ, {"AUTOPACK_API_KEY": "", "TESTING": "", "PYTEST_CURRENT_TEST": ""}, clear=False):
+        with patch.dict(
+            os.environ,
+            {"AUTOPACK_API_KEY": "", "TESTING": "", "PYTEST_CURRENT_TEST": ""},
+            clear=False,
+        ):
             os.environ.pop("AUTOPACK_API_KEY", None)
             os.environ.pop("TESTING", None)
             os.environ.pop("PYTEST_CURRENT_TEST", None)

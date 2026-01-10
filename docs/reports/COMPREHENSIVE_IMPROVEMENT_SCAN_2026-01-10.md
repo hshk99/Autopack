@@ -238,7 +238,7 @@ Score each gate from 0–2:
 | Gate | Score (0–2) | Evidence link (tests/docs) |
 |------|-------------|----------------------------|
 | G1 Auth & exposure | 2 | `tests/ci/test_production_auth_coverage.py` (0 gaps), `tests/ci/test_production_auth_requirement.py` |
-| G2 Governance & approvals | 2 | `tests/ci/test_governance_docs_contract.py` (10 tests), `docs/GOVERNANCE.md` (DEC-046 aligned) |
+| G2 Governance & approvals | 2 | `tests/ci/test_governance_docs_contract.py` (10 tests), `tests/ci/test_legacy_approval_autoapprove_default_safe.py` (9 tests), `docs/GOVERNANCE.md` (DEC-046 aligned + Section 5.1 legacy endpoint) |
 | G3 External side effects | 2 | `tests/ci/test_governance_docs_contract.py` (NEVER_AUTO_APPROVE enforcement), `src/autopack/planning/plan_proposer.py` (default-deny) |
 | G4 Secrets & persistence | 2 | `tests/ci/test_secret_file_support.py` (18 tests), `tests/ci/test_oauth_persistence_hardening.py` (11 tests), `docs/DEPLOYMENT.md` (Secret File Support + OAuth Credential Security sections) |
 | G5 Artifact boundary | 2 | `tests/ci/test_artifact_boundary_hardening.py` (17 tests), `docs/DEPLOYMENT.md` (Artifact Boundary Hardening section) |
@@ -247,6 +247,7 @@ Score each gate from 0–2:
 | G8 Documentation convergence | 2 | `docs/CANONICAL_API_CONTRACT.md` matches implementation, `scripts/check_docs_drift.py`, `tests/docs/test_openapi_strategy.py` |
 
 **Ready threshold**: 16/16 (no gate can be "1" for production use).
+**Current status**: **16/16** — All readiness gates are green (P0.3 resolved).
 
 ---
 
@@ -277,15 +278,19 @@ Score each gate from 0–2:
 
 ### P0.3 Legacy approval endpoint defaults to auto-approve (conflicts with default-deny posture)
 
-- **Problem**: `POST /approval/request` (BUILD-113/117 legacy) defaults to auto-approving requests via `AUTO_APPROVE_BUILD113=true` default, which contradicts DEC-046’s default-deny posture.
+**Status**: ✅ Resolved (PR-01 P0).
+
+- **Problem**: `POST /approval/request` (BUILD-113/117 legacy) defaults to auto-approving requests via `AUTO_APPROVE_BUILD113=true` default, which contradicts DEC-046's default-deny posture.
+- **Resolution**:
+  - `src/autopack/main.py` now defaults `AUTO_APPROVE_BUILD113` to `"false"` (safe-by-default).
+  - Production mode (`AUTOPACK_ENV=production`) blocks auto-approve entirely, even if explicitly enabled (defense-in-depth).
+  - `docs/GOVERNANCE.md` Section 5.1 documents the legacy endpoint, safe defaults, and modern alternative.
+  - `docs/CANONICAL_API_CONTRACT.md` updated to reflect `false` default and production blocking.
+  - `tests/ci/test_legacy_approval_autoapprove_default_safe.py` added (9 tests) to prevent regression.
 - **Evidence**:
-  - `src/autopack/main.py` reads `AUTO_APPROVE_BUILD113` with default `"true"` and immediately approves when enabled.
-- **Why P0**: This is a safety footgun if the legacy path is reachable in any environment where approval should be human-in-the-loop.
-- **Recommended direction**:
-  - Default `AUTO_APPROVE_BUILD113` to `"false"` (opt-in only), or gate the endpoint behind an explicit “legacy mode”.
-  - Document legacy behavior clearly (and ideally deprecate/remove if unused).
-- **Acceptance criteria**:
-  - Default posture is not silent auto-approval.
+  - `tests/ci/test_legacy_approval_autoapprove_default_safe.py::test_auto_approve_defaults_to_false`
+  - `tests/ci/test_legacy_approval_autoapprove_default_safe.py::test_production_blocks_auto_approve`
+  - `tests/ci/test_legacy_approval_autoapprove_default_safe.py::test_production_blocks_even_with_explicit_true`
 
 ### P0.4 GLM is referenced in docs, but GLM support is disabled in runtime routing
 
@@ -330,35 +335,29 @@ Score each gate from 0–2:
 - **Remaining improvement**:
   - Ensure docs/comments consistently point at `docker-compose.prod.example.yml` as the safe reference (and consider whether you want a real `docker-compose.prod.yml` tracked or not).
 
-### P1.3 Telemetry/usage “cap” is hardcoded as 0 (ROADMAP marker)
+### P1.3 Telemetry/usage cap wiring (Status: ✅ Implemented)
 
-- **Problem**: Dashboard usage response sets `cap_tokens=0` and `percent_of_cap=0.0`.
-- **Evidence**: `src/autopack/main.py` has `cap_tokens=0  # ROADMAP(P3): Get from config`.
-- **Recommended direction**:
-  - Define token cap source of truth (likely `config/pricing.yaml` or `config/models.yaml` via a new `telemetry_caps` section).
-  - Surface cap consistently in UI and health/ops docs.
-- **Acceptance criteria**:
-  - Cap tokens come from config; percent is computed correctly; unit tests cover.
+- **Status**: ✅ Implemented
+- **Evidence**:
+  - `src/autopack/main.py` uses `cap_tokens = settings.run_token_cap` and computes `percent_of_cap` (no hardcoded `0`).
+- **Remaining improvement (optional)**:
+  - Ensure docs/ops surfaces reference the same config key and default (avoid a future “two truths” if UI/ops docs ever restate the cap).
 
-### P1.4 Learned rules relevance filtering is incomplete (ROADMAP markers)
+### P1.4 Learned rules relevance filtering (Status: ✅ Implemented)
 
-- **Problem**: Learned rule selection does not currently use scope intersection / scope-pattern matching, risking noisy hint injection.
-- **Evidence**: `src/autopack/learned_rules.py` has ROADMAP markers for:
-  - scope path intersection check
-  - scope pattern matching
-- **Recommended direction**:
-  - Implement relevance filters with deterministic matching + stable ordering.
-- **Acceptance criteria**:
-  - Tests demonstrate correct inclusion/exclusion and stable ordering across runs.
+- **Status**: ✅ Implemented
+- **Evidence**:
+  - `src/autopack/learned_rules.py` filters hints via scope intersection (with directory overlap fallback) and filters rules via `scope_pattern` matching.
+- **Remaining improvement (optional)**:
+  - Add/strengthen tests asserting stable ordering and correct include/exclude behavior across typical scope patterns (to reduce noisy hint injection regressions).
 
-### P1.5 Continuation recovery for truncated JSON is heuristic (ROADMAP marker)
+### P1.5 Continuation recovery for truncated JSON (Status: ✅ Implemented)
 
-- **Problem**: Truncated “full-file JSON” parsing uses brittle heuristics.
-- **Evidence**: `src/autopack/continuation_recovery.py` has `ROADMAP(P4): Use proper JSON parsing with error recovery`.
-- **Recommended direction**:
-  - Replace with a robust incremental/partial JSON parser strategy (or enforce NDJSON format more strongly).
-- **Acceptance criteria**:
-  - Add tests for common truncation shapes; continuation prompts never re-generate already-complete files.
+- **Status**: ✅ Implemented
+- **Evidence**:
+  - `src/autopack/continuation_recovery.py` implements incremental parsing for “full-file” JSON truncation cases and supports NDJSON continuation.
+- **Remaining improvement (optional)**:
+  - Expand coverage for “path extraction from partial object” edge cases (add tests for the most common truncation shapes seen in logs).
 
 ### P1.6 Model catalog “seed fallback” still exists (clarify the true source of truth)
 
@@ -375,12 +374,9 @@ Score each gate from 0–2:
 
 ### P2.0 Commit hygiene: this report must be tracked in git
 
-- **Problem**: This report can be deleted/lost again unless it is tracked in git.
-- **Evidence**: Past deletion event (this file was previously deleted from the workspace); treat as a durability gap for the “repo memory” layer.
-- **Recommended direction**:
-  - Ensure `docs/reports/COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md` is **tracked** (committed) and referenced from `docs/INDEX.md` if you want it discoverable.
-- **Acceptance criteria**:
-  - `git status` shows the report is not untracked; PR includes this file.
+- **Status**: ✅ This report is already tracked in git (it exists in-repo).
+- **Remaining improvement (optional)**:
+  - Add a link to this report from `docs/INDEX.md` (or another canonical hub) if you want it to be discoverable as a “single-pane audit”.
 
 ### P2.1 “Two UIs” cleanup: legacy dashboard frontend under `src/autopack/dashboard/frontend/`
 
@@ -426,52 +422,152 @@ Score each gate from 0–2:
 
 ### P3.1 Docker base image digest pinning
 
-- **Problem**: Dockerfiles use tags, not immutable digests (explicitly acknowledged in `Dockerfile` comments).
-- **Recommended direction**:
-  - For high-assurance deployments: pin base images by digest and rely on automation to update digests.
-- **Acceptance criteria**:
-  - Base images are pinned by digest (or there is an explicit ADR that tags are acceptable with compensating controls).
+- **Status**: ✅ Backend + frontend Dockerfiles are already digest-pinned (`Dockerfile`, `Dockerfile.frontend`).
+- **Remaining improvement (optional)**:
+  - Consider digest-pinning `docker-compose.yml` images (`postgres:*`, `qdrant/qdrant:*`) in a production override file if you want the same supply-chain strength outside Dockerfile builds.
 
-### P3.2 API performance: `GET /runs` N+1
+### P3.2 API performance: `GET /runs` N+1 (Status: ✅ Likely resolved; keep as a regression guard)
 
-- **Problem**: Known N+1 pattern for phase counts in run listing.
-- **Evidence**: Tracked in `docs/IMPROVEMENTS_GAP_ANALYSIS.md` as GAP-8.11.1.
-- **Acceptance criteria**:
-  - Phase counts fetched in ≤2 queries for typical list sizes.
-
----
-
-## Recommended “next PRs” sequence (minimize risk, maximize convergence)
-
-1. **PR-A (P0)**: Governance “one truth” convergence (DEC-046)
-   - Update `docs/GOVERNANCE.md` to match the contract-tested default-deny posture (`NEVER_AUTO_APPROVE_PATTERNS`)
-   - Add/extend a docs contract test to block reintroducing “docs/tests are auto-approved” examples
-
-2. **PR-B (P0)**: Remove legacy auto-approval footgun
-   - Change `AUTO_APPROVE_BUILD113` default from `true` → `false` (opt-in only), or gate `/approval/request` behind an explicit “legacy mode”
-   - Document deprecation/compat posture (keep or remove) so operators know which approval path is canonical
-
-3. **PR-C (P2)**: Operator-surface security hardening
-   - Implement per-run authorization checks for artifact endpoints (GAP-8.11.2)
-   - Add optional artifact content redaction (GAP-8.11.3)
-
-4. **PR-D (P3)**: API scale polish
-   - Fix `GET /runs` N+1 query pattern (GAP-8.11.1)
-
-5. **PR-E (P1/P2)**: Telemetry caps wiring
-   - Wire token caps from config into `/dashboard/usage` (remove hardcoded `cap_tokens=0`)
-
-6. **PR-F (P3)**: Migration surface clarity
-   - Decide how to treat `alembic` dependency in `pyproject.toml` under scripts-first posture (keep as “future-only” vs move to optional extra vs remove)
+- **Status**: ✅ Likely resolved
+- **Evidence**:
+  - `src/autopack/main.py` `GET /runs` uses `joinedload(models.Run.phases)` to avoid per-run phase queries.
+- **Remaining work (optional)**:
+  - Treat as a regression guard only: add a query-count test **only if** it is stable in CI.
+  - If query-count testing is too flaky, document the expectation and keep it as “best effort”.
 
 ---
 
-## Executable PR plan (detailed file-by-file + tests)
+## Canonical PR stack (single plan; use this)
 
-**Readiness crosswalk**: This PR plan is the detailed implementation view of the balanced readiness sequence.
-See the table: **"Mapping: Readiness sequence (`R-*`) ↔ existing executable PR plan (`PR-*`)"** in the "Balanced Readiness Program" section above.
+This section is the **single canonical PR plan** for closing remaining gaps. It merges:
 
-This is a more "mechanical" version of the sequence above: each PR lists the exact files to touch and the tests that should be added/updated to prevent regressions.
+- The earlier “PR-01..PR-07” readiness plan, and
+- The “PR-A..PR-G” next-PR list, and
+- The numbered P0–P3 checklist below (P0-01, P0-03, etc.)
+
+**Rule**: If anything in this file contradicts this stack, the stack wins.
+
+**Implementation handoff**:
+- `docs/cursor/CURSOR_PROMPT_IMPLEMENT_COMPREHENSIVE_IMPROVEMENT_SCAN_FULL.md` (step-by-step Cursor execution prompt aligned to this stack)
+
+### PR-00 (P0): Governance docs “one truth” convergence (DEC-046)
+
+- **Depends on**: nothing
+- **Primary goals**:
+  - Remove any remaining “two truths” in `docs/GOVERNANCE.md` vs what CI/contract tests enforce.
+- **Scope (files)**:
+  - `docs/GOVERNANCE.md`
+  - `tests/ci/test_governance_docs_contract.py` (extend only if needed)
+- **Acceptance criteria**:
+  - Governance doc matches DEC-046 posture (default-deny; NEVER auto-approve `docs/`, `tests/`, `config/`, `.github/`, `src/autopack/`).
+  - CI blocks reintroduction of conflicting examples.
+
+### PR-01 (P0): Remove legacy auto-approval footgun (AUTO_APPROVE_BUILD113)
+
+- **Depends on**: PR-00 (so the docs describe the intended policy before/while we change defaults)
+- **Primary goals**:
+  - Make `POST /approval/request` safe-by-default.
+- **Scope (files)**:
+  - `src/autopack/main.py` (legacy approval endpoint default)
+  - Add: `tests/ci/test_legacy_approval_autoapprove_default_safe.py` (new)
+  - Optional doc note: `docs/GOVERNANCE.md` legacy section
+- **Acceptance criteria**:
+  - Default is not auto-approve (`AUTO_APPROVE_BUILD113` defaults to false), and/or production cannot auto-approve even if enabled.
+  - CI contract test enforces the safe default.
+
+### PR-02 (P0): Fix production override “one truth” (compose comments + doc-contract)
+
+- **Depends on**: none (can land anytime; low risk)
+- **Primary goals**:
+  - Remove copy/paste confusion: `docker-compose.yml` should not reference a non-existent `docker-compose.prod.yml` without also referencing the example/copy step.
+- **Scope (files)**:
+  - `docker-compose.yml` (comment block only)
+  - `tests/docs/test_copy_paste_contracts.py` (extend allowlist/forbidden patterns if needed)
+- **Acceptance criteria**:
+  - Compose comments match the repo’s shipped production override template (`docker-compose.prod.example.yml`) and/or the documented copy step.
+  - CI blocks reintroducing the drift.
+
+### PR-03 (P0): Fix nginx routing semantics for `/api/auth/*` without breaking `/api/runs*`
+
+- **Depends on**: none
+- **Primary goals**:
+  - Make canonical deployment topology consistent: `/api/runs` and `/api/auth/login` both work under nginx.
+- **Scope (files)**:
+  - `nginx.conf`
+  - `docs/DEPLOYMENT.md` and/or `docs/CANONICAL_API_CONTRACT.md` (routing invariants note)
+  - Add: `tests/ci/test_nginx_proxy_contracts.py` (new)
+- **Acceptance criteria**:
+  - `/api/auth/*` routes correctly under nginx in compose.
+  - Contract test ensures the `/api/auth/` location block exists and preserves prefix.
+
+### PR-04 (P0): Secrets injection via `*_FILE` (production template parity)
+
+- **Depends on**: none
+- **Primary goals**:
+  - Ensure the shipped production compose template works as written (secret files supported).
+- **Scope (files)**:
+  - `src/autopack/config.py`
+  - Add: `tests/autopack/test_secret_file_env_support.py` (new)
+- **Acceptance criteria**:
+  - `DATABASE_URL_FILE`, `JWT_*_KEY_FILE`, (optional `AUTOPACK_API_KEY_FILE`) are supported with deterministic precedence and safe logging.
+
+### PR-05 (P0/P1): `.credentials/` posture + containment (no plaintext-by-default)
+
+- **Depends on**: PR-04 (recommended; reduces alternative secret flows)
+- **Primary goals**:
+  - Make credential persistence safe-by-default and explicitly contained.
+- **Scope (files)**:
+  - `src/autopack/auth/oauth_lifecycle.py`
+  - `src/autopack/credentials/rotation.py`
+  - Add: `tests/credentials/test_oauth_persistence_policy.py` (new) and/or extend existing credential tests
+  - Docs: `docs/DEPLOYMENT.md` / `docs/WORKSPACE_ORGANIZATION_SPEC.md` (policy clarity)
+- **Acceptance criteria**:
+  - Production forbids plaintext persistence by default (explicit opt-in only, if allowed).
+  - `.credentials/` is treated as local-only and not surfaced/indexed by default.
+
+### PR-06 (P1/P2): Operator-surface hosted-readiness (per-run auth + artifact redaction)
+
+- **Depends on**: PR-00 (policy), PR-05 (credentials containment)
+- **Primary goals**:
+  - Make artifact viewing safe and future-proof for hosted scenarios.
+- **Scope (files)**:
+  - Run ownership + auth decisions: `src/autopack/models.py`, `src/autopack/main.py`, `src/autopack/auth/*` (if multi-tenant option chosen)
+  - Artifact endpoints: `src/autopack/main.py`
+  - Tests: extend `tests/ci/test_production_auth_coverage.py`, add route/ownership contract tests as needed
+- **Acceptance criteria**:
+  - Either explicit single-tenant stance (documented + tested), or multi-tenant ownership enforced across run/artifact endpoints.
+  - Artifact reads are safe (caps + optional redaction) in all operator UI paths.
+
+### PR-07 (P3): Migration surface clarity (Alembic dependency posture + “no fake Alembic” guards)
+
+- **Depends on**: none (but do after P0 stack unless you’re actively changing migrations)
+- **Primary goals**:
+  - Remove “two truths” around migrations: Alembic dependency vs scripts-first posture.
+- **Scope (files)**:
+  - `pyproject.toml`
+  - Docs/ADR (where the migration strategy is recorded)
+  - Add: `tests/ci/test_no_fake_alembic_assumptions.py` (if you keep Alembic patterns as generic templates)
+- **Acceptance criteria**:
+  - Dependencies + docs + heuristics do not imply Alembic is canonical unless it truly is.
+
+### PR-08 (P3): API scale polish (only if needed)
+
+- **Depends on**: none
+- **Primary goals**:
+  - Confirm whether `/runs` is N+1; if it is, fix; if it isn’t, delete/close the item.
+- **Scope (files)**:
+  - `src/autopack/main.py` (`GET /runs`)
+  - Optional query-count regression test if stable in CI
+- **Acceptance criteria**:
+  - Verified behavior: ≤2 queries for typical list sizes, or the item is closed as “already resolved.”
+
+---
+
+## Legacy PR plan (kept for history; do not use as the primary plan)
+
+This section predates the unified “Canonical PR stack” above. Keep it for historical context, but prefer the stack.
+
+**Note**: Some items below may already be implemented; the stack has the current truth.
 
 ### PR-01 (P0): Operator auth consistency + update canonical contract
 
@@ -629,16 +725,17 @@ This is a more "mechanical" version of the sequence above: each PR lists the exa
 
 ---
 
-## Contract drift audit: `docs/CANONICAL_API_CONTRACT.md` vs `src/autopack/main.py` (actionable mismatches)
+## Contract drift audit: `docs/CANONICAL_API_CONTRACT.md` vs `src/autopack/main.py` (historical; now resolved)
 
-This is the highest-signal “diff-to-action” inventory: places where the canonical contract currently states `Auth: None` (or outdated notes) but the implementation is clearly moving toward production read-gating via `verify_read_access`.
+This section is kept as historical evidence of the “two truths” problems that were found and then closed.
+The “Applied fix (doc-only)” and “Applied fix (code + CI)” sections below describe the resolution.
 
 ### Drift 1 — `GET /runs/{run_id}` auth posture
 
 - **Contract says**: `Auth: None (public read)` (Run Lifecycle section).
-- **Code does**: currently **no** `verify_read_access` dependency (unprotected), while the operator-surface model expects prod auth for run data.
+- **Code did** (prior to the fix): no `verify_read_access` dependency (unprotected), while the operator-surface model expects prod auth for run data.
 - **Resolution**:
-  - **Preferred**: update code to require `verify_read_access`, and update contract to match the operator-surface policy (prod requires `X-API-Key`, dev may allow public read).
+  - ✅ Implemented: code now gates via `verify_read_access`, and the contract reflects the prod posture (see “Applied fix” sections below).
 
 ### Drift 2 — Issue and error read endpoints auth posture
 
@@ -646,11 +743,11 @@ This is the highest-signal “diff-to-action” inventory: places where the cano
   - `GET /runs/{run_id}/issues/index`
   - `GET /runs/{run_id}/errors`
   - `GET /runs/{run_id}/errors/summary`
-- **Code does**: currently unprotected (no `verify_read_access`), despite being “operator surface” data.
+- **Code did** (prior to the fix): unprotected (no `verify_read_access`), despite being “operator surface” data.
 - **Resolution**:
-  - Protect them with `verify_read_access` and update contract accordingly.
+  - ✅ Implemented: protected with `verify_read_access` and contract updated (see “Applied fix” sections below).
 
-### Drift 3 — Operator surface notes contain an internal contradiction about dev defaults
+### Drift 3 — Operator surface notes had an internal contradiction about dev defaults (resolved)
 
 - **Contract says** (Operator Surface section):
   - “Development: Public by default, or opt-in to require auth by NOT setting `AUTOPACK_PUBLIC_READ=1`”
@@ -658,19 +755,16 @@ This is the highest-signal “diff-to-action” inventory: places where the cano
 - **Code does** (`verify_read_access`):
   - Dev **only** allows public read when `AUTOPACK_PUBLIC_READ=1`. If it is unset, behavior depends on whether `AUTOPACK_API_KEY` is configured.
 - **Resolution**:
-  - Rewrite that bullet list so it matches the actual behavior:
-    - dev + `AUTOPACK_PUBLIC_READ=1` ⇒ public
-    - dev + `AUTOPACK_PUBLIC_READ!=1` ⇒ requires API key *if configured*; otherwise permissive
+  - ✅ Implemented: contract wording now matches `verify_read_access` behavior (see “Applied fix (doc-only)” below).
 
-### Drift 4 — Nginx proxy contract is not represented in canonical API contract
+### Drift 4 — Nginx proxy contract needed explicit representation in canonical docs (partially resolved)
 
 - **Observed reality**:
   - Frontend uses `API_BASE='/api'` (calls `/api/runs`, `/api/runs/{id}/...`).
   - Nginx proxies `/api/` to backend `/` (stripping the prefix), which makes `/api/runs` work but breaks `/api/auth/*` unless special-cased.
 - **Resolution**:
-  - Add a small “Reverse proxy routing invariants” section to `docs/CANONICAL_API_CONTRACT.md` (or `docs/DEPLOYMENT.md`) documenting:
-    - which external paths exist (`/api/runs`, `/api/auth/*`)
-    - how they map to backend routes under nginx
+  - ✅ Partially implemented: routing behavior is now described in canonical docs (see “Applied fix (doc-only)”).
+  - Remaining: keep nginx contract tests + deployment docs aligned so `/api/auth/*` does not regress behind `/api/` prefix-stripping semantics.
 
 ### Applied fix (doc-only): exact lines/endpoints changed in `docs/CANONICAL_API_CONTRACT.md`
 
@@ -790,7 +884,389 @@ To avoid “two truths”, deep closure history/backlogs live in:
 
 ---
 
+## Not in scope of this scan / still drifting (explicit follow-ups)
+
+These are **real risks**, but they are either (a) outside the scope of this single report’s “ready-by-default” PR stack, or (b) represent **workspace drift** rather than repo-tracked truth. Track and resolve them explicitly so they don’t become “two truths” sources.
+
+- **Stale “IN PROGRESS” markers in SOT/living docs**:
+  - **Issue**: Several docs under `docs/` still contain “IN PROGRESS” claims (e.g., BUILD-041 items in `docs/FUTURE_PLAN.md`, some “Implementation Summary … IN PROGRESS” blocks in `docs/BUILD_HISTORY.md`) while other parts of the repo imply those items are already implemented.
+  - **Follow-up**: Reconcile these to a single truth:
+    - Either mark as **CLOSED/IMPLEMENTED** with evidence links (tests/PR/build IDs), or
+    - Explicitly label as “historical snapshot” and remove from any “current status” narrative.
+
+- **`docs/SECURITY_BURNDOWN.md` stale TODO**:
+  - **Issue**: Still says “TODO implement `scripts/ci/check_production_config.py`” even though that script exists and runs in CI.
+  - **Follow-up**: Update `docs/SECURITY_BURNDOWN.md` to “implemented” with pointers to the script + `.github/workflows/ci.yml` step.
+
+- **Local working-tree drift (non-reproducible state)**:
+  - **Issue**: The current workspace has local modifications to files outside this report (e.g., `docs/CANONICAL_API_CONTRACT.md`, `scripts/security/diff_gate.py`, and `archive/diagnostics/doc_link_fix_plan.*`).
+  - **Follow-up**: Decide whether these are intended:
+    - If intended: commit them and update relevant docs/SOT evidence.
+    - If not intended: revert/stash to ensure scans are based on a clean, reproducible repo state.
+
+- **Residual ROADMAP references that conflict with current implementation**:
+  - **Issue**: Some ROADMAP/“planned” references in `docs/IMPROVEMENTS_GAP_ANALYSIS.md` (e.g., older continuation-recovery notes and model catalog roadmap items) may be stale relative to current code.
+  - **Follow-up**: Run a targeted “stale claim” tidy pass:
+    - Mark implemented items as **implemented** (with code+test evidence) and remove outdated ROADMAP language,
+    - Or promote truly-unimplemented items into this report’s canonical PR stack.
+
+---
+
 ## Additional gaps/enhancements found during “continue” pass (still comprehensive, but higher granularity)
+
+This section is a **numbered, executable checklist** of remaining improvements. It is meant to be used as a PR queue.
+
+Legend:
+
+- **P0**: safety/“one truth”/governance blockers
+- **P1**: high-ROI hardening + determinism improvements
+- **P2**: UX/DX polish and operability (non-blocking)
+- **P3**: scale/perf/supply-chain polish (optional)
+
+Each item includes:
+
+- **Anchor(s)**: file/function(s) to touch
+- **Why**: why this still matters relative to README “ideal state”
+- **Acceptance criteria**: what “done” means (preferably CI-testable)
+
+### P0 — Safety / governance / “one truth” blockers
+
+#### P0-01 — Make legacy approval endpoint safe-by-default (AUTO_APPROVE_BUILD113)
+
+- **Anchor(s)**:
+  - `src/autopack/main.py` (`POST /approval/request`)
+  - Env var: `AUTO_APPROVE_BUILD113` (currently defaults to `"true"`)
+- **Why**:
+  - Contradicts the repo’s default-deny posture (DEC-046). “Silent auto-approve” is a production footgun even if the endpoint is “legacy”.
+- **Acceptance criteria**:
+  - Default behavior is **NOT** auto-approve (e.g., default `"false"`), or the endpoint is gated behind an explicit “legacy mode” that is OFF by default.
+  - Add a CI contract test proving the default is safe (and fails if someone reverts the default).
+
+**Proposed fix plan (report-only; do not implement here):**
+
+- **Change**: In `src/autopack/main.py`, change:
+  - `os.getenv("AUTO_APPROVE_BUILD113", "true")` → default `"false"`
+  - Optional (stronger): require **both** `AUTO_APPROVE_BUILD113=true` and `AUTOPACK_ENV!=production` (or an explicit `AUTOPACK_LEGACY_APPROVALS_ENABLED=1`) before auto-approval is allowed.
+- **Add test**: `tests/ci/test_legacy_approval_autoapprove_default_safe.py`
+  - Assert that with no env vars set, the derived default is **false** (no silent auto-approve).
+  - If you choose the “never in production” rule, assert production blocks auto-approve even if env var is set.
+- **Docs**:
+  - Add one paragraph to `docs/GOVERNANCE.md` under “Legacy approval endpoints” clarifying:
+    - endpoint is legacy
+    - safe defaults
+    - how to enable for local testing (explicit env var).
+
+#### P0-02 — Clarify and enforce “canonical approval story” (legacy vs modern governance)
+
+- **Anchor(s)**:
+  - `src/autopack/main.py` legacy approval endpoints
+  - `src/autopack/planning/plan_proposer.py`, `src/autopack/governed_apply.py` (modern governance)
+  - `docs/GOVERNANCE.md` (operator-facing truth)
+- **Why**:
+  - Two parallel approval systems increase operator confusion and increase the chance of bypass/incorrect assumptions.
+- **Acceptance criteria**:
+  - `docs/GOVERNANCE.md` explicitly labels which approval surface is canonical and which is legacy/deprecated.
+  - CI docs contract test blocks reintroducing contradictory statements (governance doc contract already exists; extend if needed).
+
+#### P0-03 — Fix docker-compose production override “one truth” (comment points to non-existent file)
+
+- **Anchor(s)**:
+  - `docker-compose.yml` comment block references `docker-compose.prod.yml` but repo ships `docker-compose.prod.example.yml`
+  - `docs/DEPLOYMENT.md` currently instructs copying example → prod override (fine), but compose comment is still drift-prone
+- **Why**:
+  - Copy/paste correctness. README ideal state is “mechanically enforceable”; operator instructions shouldn’t point to a file that doesn’t exist.
+- **Acceptance criteria**:
+  - `docker-compose.yml` comments reference `docker-compose.prod.example.yml` (or explicitly instruct copying it to `docker-compose.prod.yml`).
+  - Optional: docs contract test fails if compose comments reference missing `docker-compose.prod.yml` without the “copy from example” instruction.
+
+**Proposed fix plan (report-only; do not implement here):**
+
+- **Change**: In `docker-compose.yml`, update the “Example production override” comment to one of:
+  - Option A (most direct): `docker-compose -f docker-compose.yml -f docker-compose.prod.example.yml up -d`
+  - Option B (recommended operationally): `cp docker-compose.prod.example.yml docker-compose.prod.yml` then use `docker-compose.prod.yml` locally, with a note “do not commit secrets”
+- **Add/extend doc contract**: Extend `tests/docs/test_copy_paste_contracts.py` allowlist checks (or add a new focused test) to fail if `docker-compose.prod.yml` is referenced **without** also referencing `.prod.example.yml`/copy step.
+
+#### P0-04 — Stop referencing Alembic migration paths as canonical when the repo is scripts-first
+
+- **Anchor(s)** (runtime heuristics that mention Alembic paths):
+  - `src/autopack/manifest_generator.py` (candidates include `alembic.ini`, `alembic/env.py`)
+  - `src/autopack/pattern_matcher.py` and `src/autopack/context_selector.py` (generic “database” scope templates mention `alembic/**/*`)
+  - `src/autopack/risk_scorer.py`, `src/autopack/governance_requests.py` (protected patterns include `alembic/versions/*`)
+- **Why**:
+  - Even if “generic project detection” includes Alembic, Autopack’s own repo should avoid implying Alembic is a real migration surface unless it is.
+- **Acceptance criteria**:
+  - For Autopack itself: ensure these references are either explicitly “generic templates (only active if paths exist)” or adjusted to prefer `scripts/migrations/` for this repo.
+  - Doc and dependency posture are consistent (see P1-03).
+
+**Proposed fix plan (report-only; do not implement here):**
+
+- **Decision to record explicitly (ADR suggested)**:
+  - **Option A (recommended)**: Keep “alembic” path patterns as *generic templates* for *other repos* only, but ensure Autopack’s own code/docs do not imply Alembic exists in this repo.
+  - **Option B**: Make Alembic real in this repo (add `alembic.ini`, `alembic/env.py`, `alembic/versions/`) and document it as canonical (higher churn; likely not desired given scripts-first posture).
+- **Code adjustments (Option A)**:
+  - In `src/autopack/manifest_generator.py`, only add Alembic candidates (`alembic.ini`, `alembic/env.py`) if they exist in the target repo root; otherwise skip.
+  - In `src/autopack/pattern_matcher.py` / `src/autopack/context_selector.py`, clarify in comments that `alembic/**/*` is a generic template (activated only if present).
+  - In `src/autopack/risk_scorer.py` and `src/autopack/governance_requests.py`, keep the protected pattern `alembic/versions/*` only as a generic guard (no behavior impact unless path exists).
+- **Add test**: `tests/ci/test_no_fake_alembic_assumptions.py`
+  - Assert that running the manifest generator / candidate collection on **this repo** does not produce Alembic paths unless they exist.
+  - Assert that docs do not claim “migrations are in `alembic/`” unless the directory is present.
+
+#### P0-05 — `.credentials/` plaintext storage posture needs explicit policy + containment
+
+- **Anchor(s)**:
+  - `src/autopack/auth/oauth_lifecycle.py` (`.credentials/credentials.json`)
+  - `src/autopack/credentials/rotation.py` (`.credentials/metadata.json`)
+  - Workspace policy docs: `docs/WORKSPACE_ORGANIZATION_SPEC.md` / `docs/DEPLOYMENT.md`
+- **Why**:
+  - Even if secrets are redacted in logs, a default “plaintext credentials on disk” path is dangerous and violates the “safe by default” narrative.
+- **Acceptance criteria**:
+  - Production mode forbids plaintext persistence unless explicitly opted in (or uses a secure store).
+  - `.credentials/` is clearly treated as a **local-only** directory: ignored by git, not indexed by SOT memory, not surfaced by artifact endpoints unless explicitly allowed/redacted.
+
+**Proposed fix plan (report-only; do not implement here):**
+
+- **Change**:
+  - In `src/autopack/auth/oauth_lifecycle.py`, ensure the current “production security” posture is enforced:
+    - If plaintext persistence is allowed at all, it should require explicit opt-in and should never be the default.
+  - In `src/autopack/credentials/rotation.py`, avoid writing any credential metadata to `.credentials/` in production unless explicitly enabled (metadata still reveals operational posture).
+  - Consider routing to a safer location under `.autonomous_runs/<project>/...` for run-local, redacted artifacts (if you actually need persistence).
+- **Add tests**:
+  - `tests/credentials/test_oauth_persistence_policy.py`:
+    - In production mode, persistence to `.credentials/credentials.json` is forbidden by default.
+    - If opt-in exists, it is documented and test-verified.
+  - `tests/docs/test_copy_paste_contracts.py`:
+    - Canonical operator docs should not instruct writing to `.credentials/` unless labeled as “dev-only” and accompanied by warnings.
+
+### P1 — Hardening / determinism / correctness (high ROI)
+
+#### P1-01 — Update SECURITY_BURNDOWN.md stale TODO wording (avoid “two truths”)
+
+- **Anchor(s)**:
+  - `docs/SECURITY_BURNDOWN.md` contains: “TODO: implement `scripts/ci/check_production_config.py`”
+  - But `scripts/ci/check_production_config.py` exists and is run in CI (`.github/workflows/ci.yml`)
+- **Why**:
+  - This is exactly the kind of “stale claim” that undermines the repo’s thesis.
+- **Acceptance criteria**:
+  - Update `docs/SECURITY_BURNDOWN.md` wording to “implemented” with evidence pointer (script + CI job).
+  - Optional: add/extend a “SOT hygiene” check that flags stale “TODO implement X” claims (there is a script for this; consider whether it is CI-blocking).
+
+**Proposed fix plan (report-only; do not implement here):**
+
+- **Doc edit**: In `docs/SECURITY_BURNDOWN.md`, replace:
+  - “TODO: implement `scripts/ci/check_production_config.py`”
+  - with: “Implemented: `scripts/ci/check_production_config.py` (runs in `.github/workflows/ci.yml` lint job)”.
+
+#### P1-02 — Dependency “one truth” decision (lock strategy)
+
+- **Anchor(s)**:
+  - `pyproject.toml` vs `requirements*.txt` strategy
+  - CI: `.github/workflows/ci.yml` drift steps (`check_dependency_sync.py`, `check_requirements_portability.py`)
+  - Docs: `docs/DEPENDENCY_LOCK_POLICY.md`
+- **Why**:
+  - Current posture is functional, but the repo still has a “strategy tension”: derived requirements vs true lock surface.
+- **Acceptance criteria**:
+  - One explicit canonical lock strategy (and regeneration workflow) is documented and mechanically enforced.
+  - CI failure modes are clear for Windows developers (no false failures).
+
+**Proposed fix plan (report-only; do not implement here):**
+
+- **Decision to record** (ADR or `docs/DEPENDENCY_LOCK_POLICY.md` update):
+  - **Option A (current posture, clarify + enforce)**: `pyproject.toml` is source of truth; `requirements*.txt` are derived artifacts; Linux/CI is canonical for regeneration.
+  - **Option B (stronger determinism)**: adopt a single lock format (`uv.lock` or pip-tools hashes) and make it the canonical artifact; CI enforces it directly.
+- **Mechanical enforcement**:
+  - Add a single “lock truth” checker script (or extend existing) that outputs:
+    - canonical regeneration command
+    - canonical platform (Linux/CI)
+    - explicit error on mismatch with actionable remediation.
+- **Tests**:
+  - Add a contract test that ensures docs mention exactly one canonical regeneration workflow (no “two truths” between README/CONTRIBUTING/DEPENDENCY_LOCK_POLICY).
+
+#### P1-03 — Resolve Alembic dependency posture (core dep vs optional extra vs removed)
+
+- **Anchor(s)**:
+  - `pyproject.toml` includes `alembic>=...`
+  - Docs/ADR: scripts-first migrations posture
+- **Why**:
+  - “Two truths” risk: core dependency implies canonical usage.
+- **Acceptance criteria**:
+  - Either: move Alembic to optional extra (e.g., `[project.optional-dependencies] migrations = [...]`) + ADR, or remove until truly needed.
+
+**Proposed fix plan (report-only; do not implement here):**
+
+- **Option A (preferred if scripts-first is canonical)**:
+  - Move `alembic` out of core dependencies to an optional extra (e.g., `migrations`), and add an ADR: “Scripts-first is canonical; Alembic is optional/future.”
+- **Option B**:
+  - Keep Alembic in core deps, but add explicit ADR + docs text: “dependency exists for downstream repos; Autopack itself does not use Alembic.”
+- **Guardrail**:
+  - Add a docs contract test that blocks any canonical doc from claiming Alembic is the canonical migration mechanism unless Option B explicitly documents it.
+
+#### P1-04 — Finish operator-auth story for the frontend in production (no static-bundle secrets)
+
+- **Anchor(s)**:
+  - `src/frontend/*` (calls `/api/...` without headers)
+  - `src/autopack/main.py` read gating (`verify_read_access`)
+  - `nginx.conf` reverse proxy behavior + `docs/DEPLOYMENT.md` auth guidance
+- **Why**:
+  - Today the backend can be locked down correctly, but the UI needs a coherent production-safe auth mechanism.
+- **Acceptance criteria**:
+  - Choose and implement one canonical approach:
+    - Single-tenant: reverse proxy injection + explicit documentation, OR
+    - Multi-user: JWT login UI (Bearer) + run ownership model.
+  - No API key is ever baked into the static frontend bundle.
+
+**Proposed fix plan (report-only; do not implement here):**
+
+- **Decision required**:
+  - **Option A (single-tenant, minimal)**: UI stays “unauthenticated” and is only intended for dev/localhost; production requires an outer auth layer (reverse proxy / VPN) and/or header injection.
+    - Risk: header injection is not multi-user safe; document strongly.
+  - **Option B (recommended if UI is for humans in production)**: UI authenticates via `/api/auth/*` (JWT) and sends `Authorization: Bearer ...` to operator endpoints.
+    - Requires: operator endpoints accept JWT principal (in addition to, or instead of, `X-API-Key`).
+- **Mechanical constraints**:
+  - Add a docs contract: canonical deployment docs must state exactly one supported production UI auth method.
+  - Add a frontend build contract: fail CI if `X-API-Key` literal or `AUTOPACK_API_KEY` value is embedded in build artifacts (simple grep over `dist/` during frontend CI).
+
+#### P1-05 — Per-run authorization model (if multi-tenant is on the roadmap)
+
+- **Anchor(s)**:
+  - DB schema: `src/autopack/models.py` (`Run` ownership fields)
+  - Auth: `src/autopack/auth/*` and `verify_read_access` principal model
+  - Endpoints: `/runs`, `/runs/{run_id}`, `/runs/{run_id}/artifacts/*`, `/runs/{run_id}/errors*`, etc.
+- **Why**:
+  - Without run ownership, “per-run authorization” cannot be meaningful.
+- **Acceptance criteria**:
+  - A principal (user or API key identity) exists and is persisted as run owner.
+  - All operator read endpoints enforce ownership checks (or explicitly state single-tenant semantics).
+
+**Proposed fix plan (report-only; do not implement here):**
+
+- **Decision required**:
+  - **Option A (explicit single-tenant stance)**:
+    - Document: “`AUTOPACK_API_KEY` grants access to all runs; no per-run ownership.”
+    - Add a contract test that ensures the docs say this explicitly (reduces future confusion).
+  - **Option B (multi-tenant stance)**:
+    - Add run ownership fields (e.g., `owner_user_id` / `owner_api_key_id`) and enforce on all run/artifact endpoints.
+    - Add a migration step (scripts-first or Alembic per chosen strategy).
+- **Contract tests**:
+  - Route contract: for any endpoint under `/runs/{run_id}/*`, assert an ownership check exists when multi-tenant is enabled.
+
+#### P1-06 — “No stubs reachable in production” contract (eliminate silent stub execution)
+
+- **Anchor(s)**:
+  - `src/autopack/dual_auditor.py` (explicit stub; “should NOT be used in production”)
+  - “placeholder metrics” paths:
+    - `src/autopack/proof_metrics.py`
+    - `src/autopack/phase_proof_writer.py`
+    - `src/autopack/phase_proof.py`
+- **Why**:
+  - Stubs/placeholder execution in production undermines auditability and can create false confidence (e.g., “audit ran” but it was a stub).
+  - Placeholder metrics are sometimes acceptable, but they should be explicitly surfaced and/or gated so operators know what is real vs placeholder.
+- **Acceptance criteria**:
+  - In `AUTOPACK_ENV=production`, any “stub” implementation path is either:
+    - impossible to invoke (not wired), or
+    - fails fast with an explicit error, or
+    - is gated behind an explicit opt-in flag that defaults OFF.
+  - Placeholder metrics are **clearly labeled** in outputs (already partially modeled via `metrics_placeholder`) and operator docs explain them.
+- **Proposed fix plan (report-only; do not implement here)**:
+  - Add a CI contract test that imports the app in production mode and asserts:
+    - `dual_auditor` stub is not selected/wired as the active auditor client.
+    - Any code path that would use it raises a clear “stub not allowed in production” error.
+  - Add a docs note (likely `docs/GOVERNANCE.md` or `docs/DEPLOYMENT.md`) explaining placeholder metrics semantics and how to interpret them.
+
+### P2 — UX/DX / operability improvements (non-blocking)
+
+#### P2-01 — Link this report from the canonical docs hub (discoverability)
+
+- **Anchor(s)**:
+  - `docs/INDEX.md` (navigation hub)
+- **Why**:
+  - Reduces time-to-orientation. Avoids “the report exists but nobody can find it”.
+- **Acceptance criteria**:
+  - `docs/INDEX.md` includes a link to `docs/reports/COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md` under “Reports / audits” (or similar).
+
+**Proposed fix plan (report-only; do not implement here):**
+
+- Add one bullet under `docs/INDEX.md` (likely in a “Reports” subsection) linking this report.
+- Optional: add a doc-contract test that `docs/INDEX.md` includes the link (keeps it discoverable).
+
+#### P2-02 — `.credentials/` directory policy (docs + tooling)
+
+- **Anchor(s)**:
+  - Docs: `docs/WORKSPACE_ORGANIZATION_SPEC.md`, `docs/DEPLOYMENT.md`
+  - Tidy/memory indexing config: `config/tidy_scope.yaml`, `config/memory.yaml` (as applicable)
+- **Why**:
+  - Prevent accidental indexing/surfacing of credential artifacts.
+- **Acceptance criteria**:
+  - Clear rule: `.credentials/` is never indexed and never exposed via artifact viewer by default.
+
+#### P2-03 — Script TODO density tracking (already partially in place)
+
+- **Anchor(s)**:
+  - `config/todo_policy.yaml` + related tests
+  - Scripts with long-lived TODOs under `scripts/`
+- **Why**:
+  - Keeping runtime critical paths at 0 TODOs is great; scripts can still slowly rot without some guardrails.
+- **Acceptance criteria**:
+  - Script TODO counts are tracked against a baseline and can only grow with explicit approval (or are periodically reduced).
+
+#### P2-04 — Research CLI placeholder output (polish unfinished UX surface)
+
+- **Anchor(s)**:
+  - `src/autopack/cli/research_commands.py` (“For now, show a placeholder”)
+- **Why**:
+  - Not a safety issue, but it is an operator UX paper-cut and can confuse users (“feature exists” vs “feature is placeholder”).
+- **Acceptance criteria**:
+  - CLI prints real, minimal, deterministic output (or explicitly flags the command as “experimental” with clear next steps).
+  - If the research subsystem is intentionally quarantined, the CLI should say so consistently and link to the canonical docs for research quarantine.
+
+### P3 — Supply-chain / scale polish (optional)
+
+#### P3-01 — Digest-pin compose images (prod override)
+
+- **Anchor(s)**:
+  - `docker-compose.prod.example.yml` (preferred place to pin by digest)
+- **Why**:
+  - Dockerfiles are digest-pinned; compose runtime images are still tag-based.
+- **Acceptance criteria**:
+  - Production override pins Postgres and Qdrant to digests (or an ADR explains why tags are acceptable with compensating controls).
+
+**Proposed fix plan (report-only; do not implement here):**
+
+- Update `docker-compose.prod.example.yml` to pin:
+  - `postgres:15.10-alpine@sha256:...`
+  - `qdrant/qdrant:v1.12.5@sha256:...`
+- Add a lightweight policy doc note: “dev compose uses tags; prod override pins digests.”
+
+#### P3-02 — Rate limiting behind reverse proxy (keying correctness)
+
+- **Anchor(s)**:
+  - SlowAPI configuration (`get_remote_address`), nginx proxy headers, and any heavy read endpoints
+- **Why**:
+  - Per-IP limits can be wrong behind proxies; artifact endpoints are bandwidth-heavy.
+- **Acceptance criteria**:
+  - Document and/or implement rate-limit key strategy (per-IP vs per-api-key).
+  - Verify behavior in the canonical deployment topology (compose + nginx).
+
+**Proposed fix plan (report-only; do not implement here):**
+
+- Decide whether rate limiting should be:
+  - per-client-IP (requires correct forwarded header handling), or
+  - per-api-key/principal (often better for single-tenant operator APIs).
+- Add one deployment note in `docs/DEPLOYMENT.md`:
+  - whether nginx forwards `X-Forwarded-For` and whether the backend trusts it.
+- Add a minimal test or documented runbook verifying rate limiting is not “all traffic appears from nginx”.
+
+#### P3-03 — `GET /runs` performance at scale (keep it non-N+1)
+
+- **Anchor(s)**:
+  - `src/autopack/main.py` `GET /runs` already uses `joinedload(models.Run.phases)`
+- **Why**:
+  - This appears solved now, but deserves a regression guard if scale matters.
+- **Acceptance criteria**:
+  - Optional: a lightweight perf/behavior test ensuring no per-run phase query loop is reintroduced (or document as “best effort”).
+
+**Proposed fix plan (report-only; do not implement here):**
+
+- Add a small regression test around query count (if you already have SQLAlchemy query counting helpers), or keep as “observed optimization” with a short note in code comments and a CI guard only if query-count tests are stable.
 
 ### P0 — Safety / policy drift risks
 

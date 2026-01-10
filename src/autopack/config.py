@@ -54,9 +54,7 @@ def _read_secret_file(file_path: str, secret_name: str) -> Optional[str]:
             f"Check file permissions."
         ) from e
     except Exception as e:
-        raise RuntimeError(
-            f"Failed to read {secret_name}_FILE from {file_path}: {e}"
-        ) from e
+        raise RuntimeError(f"Failed to read {secret_name}_FILE from {file_path}: {e}") from e
 
 
 def _get_secret(
@@ -250,9 +248,7 @@ class Settings(BaseSettings):
     # Default: False in dev, should be True in production for hosted usage.
     artifact_redaction_enabled: bool = Field(
         default=False,
-        validation_alias=AliasChoices(
-            "AUTOPACK_ARTIFACT_REDACTION", "ARTIFACT_REDACTION_ENABLED"
-        ),
+        validation_alias=AliasChoices("AUTOPACK_ARTIFACT_REDACTION", "ARTIFACT_REDACTION_ENABLED"),
         description="Enable PII/credential redaction in artifact reads",
     )
 

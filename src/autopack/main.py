@@ -35,7 +35,7 @@ from slowapi.errors import RateLimitExceeded
 
 from . import dashboard_schemas, models, schemas
 from .version import __version__
-from .builder_schemas import BuilderResult
+from .builder_schemas import BuilderResult, AuditorResult
 from .config import settings
 from .database import get_db, init_db
 from .file_layout import RunFileLayout
@@ -70,7 +70,12 @@ async def verify_api_key(api_key: str = Security(API_KEY_HEADER)):
     env_mode = os.getenv("AUTOPACK_ENV", "development").lower()
 
     # Skip auth in testing mode
-    if os.getenv("TESTING") == "1":
+    # - Explicit: TESTING=1
+    # - Implicit: pytest sets PYTEST_CURRENT_TEST for each test item; treat that as test mode
+    #   in non-production to avoid forcing headers in unit/integration tests.
+    if os.getenv("TESTING") == "1" or (
+        env_mode != "production" and os.getenv("PYTEST_CURRENT_TEST") is not None
+    ):
         return "test-key"
 
     # Production mode: API key is REQUIRED
@@ -109,8 +114,10 @@ async def verify_read_access(api_key: str = Security(API_KEY_HEADER)):
     """
     env_mode = os.getenv("AUTOPACK_ENV", "development").lower()
 
-    # Skip auth in testing mode
-    if os.getenv("TESTING") == "1":
+    # Skip auth in testing mode (see verify_api_key for rationale)
+    if os.getenv("TESTING") == "1" or (
+        env_mode != "production" and os.getenv("PYTEST_CURRENT_TEST") is not None
+    ):
         return "test-key"
 
     # Dev mode: check AUTOPACK_PUBLIC_READ opt-in
@@ -543,7 +550,11 @@ def start_run(
 
 
 @app.get("/runs/{run_id}", response_model=schemas.RunResponse)
-def get_run(run_id: str, db: Session = Depends(get_db)):
+def get_run(
+    run_id: str,
+    db: Session = Depends(get_db),
+    _auth: str = Depends(verify_read_access),
+):
     """Get run details including all tiers and phases."""
     try:
         run = db.query(models.Run).filter(models.Run.id == run_id).first()
@@ -562,7 +573,7 @@ def get_run(run_id: str, db: Session = Depends(get_db)):
         )
 
 
-@app.post("/runs/{run_id}/phases/{phase_id}/update_status")
+@app.post("/runs/{run_id}/phases/{phase_id}/update_status", dependencies=[Depends(verify_api_key)])
 def update_phase_status(
     run_id: str,
     phase_id: str,
@@ -665,7 +676,7 @@ def update_phase_status(
     return {"message": f"Phase {phase_id} updated to state {phase.state.value}", "phase": phase}
 
 
-@app.post("/runs/{run_id}/phases/{phase_id}/record_issue")
+@app.post("/runs/{run_id}/phases/{phase_id}/record_issue", dependencies=[Depends(verify_api_key)])
 def record_phase_issue(
     run_id: str,
     phase_id: str,
@@ -733,7 +744,7 @@ def record_phase_issue(
 
 
 @app.get("/runs/{run_id}/issues/index")
-def get_run_issue_index(run_id: str):
+def get_run_issue_index(run_id: str, _auth: str = Depends(verify_read_access)):
     """Get run-level issue index."""
     tracker = IssueTracker(run_id=run_id)
     index = tracker.load_run_issue_index()
@@ -741,7 +752,7 @@ def get_run_issue_index(run_id: str):
 
 
 @app.get("/project/issues/backlog")
-def get_project_backlog():
+def get_project_backlog(_auth: str = Depends(verify_read_access)):
     """Get project-level issue backlog."""
     tracker = IssueTracker(run_id="dummy")
     backlog = tracker.load_project_backlog()
@@ -749,7 +760,7 @@ def get_project_backlog():
 
 
 @app.get("/runs/{run_id}/errors")
-def get_run_errors(run_id: str):
+def get_run_errors(run_id: str, _auth: str = Depends(verify_read_access)):
     """Get all error reports for a run."""
     from .error_reporter import get_error_reporter
 
@@ -759,7 +770,7 @@ def get_run_errors(run_id: str):
 
 
 @app.get("/runs/{run_id}/errors/summary")
-def get_run_error_summary(run_id: str):
+def get_run_error_summary(run_id: str, _auth: str = Depends(verify_read_access)):
     """Get error summary for a run."""
     from .error_reporter import get_error_reporter
 
@@ -1060,7 +1071,7 @@ async def get_browser_artifacts(
     }
 
 
-@app.post("/runs/{run_id}/phases/{phase_id}/builder_result")
+@app.post("/runs/{run_id}/phases/{phase_id}/builder_result", dependencies=[Depends(verify_api_key)])
 def submit_builder_result(
     run_id: str,
     phase_id: str,
@@ -1262,7 +1273,33 @@ def submit_builder_result(
         "run_id": run_id,
         "phase_state": phase.state.value if hasattr(phase.state, "value") else str(phase.state),
     }
-    phase.tokens_used = max(phase.tokens_used or 0, auditor_result.tokens_used or 0)
+
+
+@app.post("/runs/{run_id}/phases/{phase_id}/auditor_result", dependencies=[Depends(verify_api_key)])
+def submit_auditor_result(
+    run_id: str,
+    phase_id: str,
+    auditor_result: AuditorResult,
+    db: Session = Depends(get_db),
+):
+    """Submit Auditor result for a phase."""
+    if auditor_result.run_id != run_id or auditor_result.phase_id != phase_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Path parameters (run_id, phase_id) must match AuditorResult payload",
+        )
+
+    phase = (
+        db.query(models.Phase)
+        .filter(models.Phase.run_id == run_id, models.Phase.phase_id == phase_id)
+        .first()
+    )
+    if not phase:
+        raise HTTPException(status_code=404, detail=f"Phase {phase_id} not found")
+
+    # Record auditor attempt count + tokens (best-effort)
+    phase.auditor_attempts = max(int(phase.auditor_attempts or 0), int(auditor_result.auditor_attempts or 0))
+    phase.tokens_used = max(int(phase.tokens_used or 0), int(auditor_result.tokens_used or 0))
 
     logger.info(
         f"[API] auditor_result: run_id={run_id}, phase_id={phase_id}, "
@@ -1281,7 +1318,7 @@ def submit_builder_result(
     return {"message": "Auditor result submitted"}
 
 
-@app.post("/approval/request")
+@app.post("/approval/request", dependencies=[Depends(verify_api_key)])
 async def request_approval(request: Request, db: Session = Depends(get_db)):
     """Handle approval requests from BUILD-113 autonomous executor.
 
@@ -1717,7 +1754,11 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/approval/status/{approval_id}")
-async def get_approval_status(approval_id: int, db: Session = Depends(get_db)):
+async def get_approval_status(
+    approval_id: int,
+    db: Session = Depends(get_db),
+    _auth: str = Depends(verify_read_access),
+):
     """Check the status of an approval request.
 
     Used by autonomous executor to poll for approval decisions.
@@ -1770,7 +1811,10 @@ async def get_approval_status(approval_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/approval/pending")
-async def get_pending_approvals(db: Session = Depends(get_db)):
+async def get_pending_approvals(
+    db: Session = Depends(get_db),
+    _auth: str = Depends(verify_read_access),
+):
     """Get all pending approval requests (for dashboard UI).
 
     Returns:
@@ -1816,7 +1860,10 @@ async def get_pending_approvals(db: Session = Depends(get_db)):
 
 
 @app.get("/governance/pending")
-async def get_pending_governance_requests(db: Session = Depends(get_db)):
+async def get_pending_governance_requests(
+    db: Session = Depends(get_db),
+    _auth: str = Depends(verify_read_access),
+):
     """Get all pending governance requests (BUILD-127 Phase 2).
 
     Returns:
@@ -1834,7 +1881,7 @@ async def get_pending_governance_requests(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Failed to fetch pending requests")
 
 
-@app.post("/governance/approve/{request_id}")
+@app.post("/governance/approve/{request_id}", dependencies=[Depends(verify_api_key)])
 async def approve_governance_request(
     request_id: str, approved: bool = True, user_id: str = "human", db: Session = Depends(get_db)
 ):
@@ -1880,7 +1927,11 @@ async def approve_governance_request(
 
 
 @app.get("/dashboard/runs/{run_id}/status", response_model=dashboard_schemas.DashboardRunStatus)
-def get_dashboard_run_status(run_id: str, db: Session = Depends(get_db)):
+def get_dashboard_run_status(
+    run_id: str,
+    db: Session = Depends(get_db),
+    _auth: str = Depends(verify_read_access),
+):
     """Get run status for dashboard display"""
     from .run_progress import calculate_run_progress
 
@@ -1934,7 +1985,11 @@ def get_dashboard_run_status(run_id: str, db: Session = Depends(get_db)):
 
 
 @app.get("/dashboard/usage", response_model=dashboard_schemas.UsageResponse)
-def get_dashboard_usage(period: str = "week", db: Session = Depends(get_db)):
+def get_dashboard_usage(
+    period: str = "week",
+    db: Session = Depends(get_db),
+    _auth: str = Depends(verify_read_access),
+):
     """Get token usage statistics for dashboard display"""
     from datetime import timedelta
     from .usage_recorder import LlmUsageEvent
@@ -2012,7 +2067,10 @@ def get_dashboard_usage(period: str = "week", db: Session = Depends(get_db)):
 
 
 @app.get("/dashboard/models")
-def get_dashboard_models(db: Session = Depends(get_db)):
+def get_dashboard_models(
+    db: Session = Depends(get_db),
+    _auth: str = Depends(verify_read_access),
+):
     """Get current model mappings for dashboard display"""
     from .model_router import ModelRouter
 
@@ -2038,7 +2096,9 @@ def get_dashboard_models(db: Session = Depends(get_db)):
 
 @app.post("/dashboard/human-notes")
 def add_dashboard_human_note(
-    note_request: dashboard_schemas.HumanNoteRequest, db: Session = Depends(get_db)
+    note_request: dashboard_schemas.HumanNoteRequest,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key),
 ):
     """Add a human note to the notes file"""
     from .config import settings
@@ -2111,7 +2171,11 @@ def get_run_phase6_stats(
 
 @app.get("/dashboard/runs/{run_id}/consolidated-metrics")
 def get_dashboard_consolidated_metrics(
-    run_id: str, limit: int = 1000, offset: int = 0, db: Session = Depends(get_db)
+    run_id: str,
+    limit: int = 1000,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    _auth: str = Depends(verify_read_access),
 ):
     """Get consolidated token metrics for a run (no double-counting).
 
@@ -2270,7 +2334,9 @@ def get_dashboard_consolidated_metrics(
 
 @app.post("/dashboard/models/override")
 def add_dashboard_model_override(
-    override_request: dashboard_schemas.ModelOverrideRequest, db: Session = Depends(get_db)
+    override_request: dashboard_schemas.ModelOverrideRequest,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key),
 ):
     """Add a model override (global or per-run)"""
     if override_request.scope == "global":
@@ -2424,6 +2490,7 @@ def list_storage_scans(
     scan_type: Optional[str] = None,
     scan_target: Optional[str] = None,
     db: Session = Depends(get_db),
+    _auth: str = Depends(verify_read_access),
 ):
     """
     List storage scan history with pagination and optional filters.
@@ -2473,7 +2540,11 @@ def list_storage_scans(
 
 
 @app.get("/storage/scans/{scan_id}", response_model=schemas.StorageScanDetailResponse)
-def get_storage_scan_detail(scan_id: int, db: Session = Depends(get_db)):
+def get_storage_scan_detail(
+    scan_id: int,
+    db: Session = Depends(get_db),
+    _auth: str = Depends(verify_read_access),
+):
     """
     Get detailed scan results including all cleanup candidates.
 
@@ -2683,7 +2754,12 @@ def execute_approved_cleanup(
 
 
 @app.get("/storage/steam/games", response_model=schemas.SteamGamesListResponse)
-def get_steam_games(min_size_gb: float = 10.0, min_age_days: int = 180, include_all: bool = False):
+def get_steam_games(
+    min_size_gb: float = 10.0,
+    min_age_days: int = 180,
+    include_all: bool = False,
+    _auth: str = Depends(verify_read_access),
+):
     """
     Detect Steam games and find large unplayed/unused games.
 
@@ -2756,7 +2832,7 @@ def get_steam_games(min_size_gb: float = 10.0, min_age_days: int = 180, include_
     )
 
 
-@app.post("/storage/patterns/analyze", response_model=List[schemas.PatternResponse])
+@app.post("/storage/patterns/analyze", response_model=List[schemas.PatternResponse], dependencies=[Depends(verify_api_key)])
 def analyze_approval_patterns(
     category: Optional[str] = None, max_patterns: int = 10, db: Session = Depends(get_db)
 ):
@@ -2794,7 +2870,11 @@ def analyze_approval_patterns(
 
 
 @app.get("/storage/learned-rules", response_model=List[schemas.LearnedRuleResponse])
-def get_learned_rules(status: Optional[str] = None, db: Session = Depends(get_db)):
+def get_learned_rules(
+    status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    _auth: str = Depends(verify_read_access),
+):
     """
     Get learned policy rules.
 
@@ -2834,7 +2914,11 @@ def get_learned_rules(status: Optional[str] = None, db: Session = Depends(get_db
     ]
 
 
-@app.post("/storage/learned-rules/{rule_id}/approve", response_model=schemas.LearnedRuleResponse)
+@app.post(
+    "/storage/learned-rules/{rule_id}/approve",
+    response_model=schemas.LearnedRuleResponse,
+    dependencies=[Depends(verify_api_key)],
+)
 def approve_learned_rule(rule_id: int, approved_by: str, db: Session = Depends(get_db)):
     """Approve a learned rule for application to policy."""
     from .storage_optimizer.approval_pattern_analyzer import ApprovalPatternAnalyzer
@@ -2865,7 +2949,10 @@ def approve_learned_rule(rule_id: int, approved_by: str, db: Session = Depends(g
 
 @app.get("/storage/recommendations", response_model=schemas.RecommendationsListResponse)
 def get_storage_recommendations(
-    max_recommendations: int = 10, lookback_days: int = 90, db: Session = Depends(get_db)
+    max_recommendations: int = 10,
+    lookback_days: int = 90,
+    db: Session = Depends(get_db),
+    _auth: str = Depends(verify_read_access),
 ):
     """
     Get strategic storage optimization recommendations based on scan history.

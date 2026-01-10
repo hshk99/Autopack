@@ -74,9 +74,11 @@ class TestProductionAuthRequirement:
         from unittest.mock import patch
 
         # Patch environment to simulate dev mode (no API key set)
-        with patch.dict(os.environ, {"AUTOPACK_API_KEY": "", "TESTING": ""}, clear=False):
+        # Must also clear PYTEST_CURRENT_TEST to avoid test-mode bypass
+        with patch.dict(os.environ, {"AUTOPACK_API_KEY": "", "TESTING": "", "PYTEST_CURRENT_TEST": ""}, clear=False):
             os.environ.pop("AUTOPACK_API_KEY", None)
             os.environ.pop("TESTING", None)
+            os.environ.pop("PYTEST_CURRENT_TEST", None)
 
             # Import fresh to pick up patched env
             from autopack.main import verify_api_key
@@ -93,15 +95,18 @@ class TestProductionAuthRequirement:
         from fastapi import HTTPException
         from unittest.mock import patch
 
+        # Must also clear PYTEST_CURRENT_TEST to avoid test-mode bypass
         with patch.dict(
             os.environ,
             {
                 "AUTOPACK_API_KEY": "correct-key-12345",  # gitleaks:allow
                 "TESTING": "",
+                "PYTEST_CURRENT_TEST": "",
             },
             clear=False,
         ):
             os.environ.pop("TESTING", None)
+            os.environ.pop("PYTEST_CURRENT_TEST", None)
 
             from autopack.main import verify_api_key
 
@@ -119,12 +124,14 @@ class TestProductionAuthRequirement:
 
         correct_key = "correct-key-12345"  # gitleaks:allow (intentional fake key for test)
 
+        # Must also clear PYTEST_CURRENT_TEST to avoid test-mode bypass
         with patch.dict(
             os.environ,
-            {"AUTOPACK_API_KEY": correct_key, "TESTING": ""},
+            {"AUTOPACK_API_KEY": correct_key, "TESTING": "", "PYTEST_CURRENT_TEST": ""},
             clear=False,
         ):
             os.environ.pop("TESTING", None)
+            os.environ.pop("PYTEST_CURRENT_TEST", None)
 
             from autopack.main import verify_api_key
 

@@ -36,6 +36,10 @@ PRODUCTION_UNAUTHENTICATED_ALLOWLIST = {
     "/redoc": "ReDoc UI (read-only API docs)",
     # Root endpoint - basic version info only
     "/": "Root endpoint returns version only (no sensitive data)",
+    # Auth bootstrap endpoints (required for login/registration flow)
+    "/api/auth/login": "Auth bootstrap - login endpoint (by design, unauthenticated)",
+    "/api/auth/register": "Auth bootstrap - user registration (by design, unauthenticated)",
+    "/api/auth/.well-known/jwks.json": "JWKS public key endpoint for JWT verification (public by spec)",
 }
 
 # Endpoints that have SPECIAL security requirements (not API key, but other verification)
@@ -45,6 +49,16 @@ SPECIAL_SECURITY_ENDPOINTS = {
         "mechanism": "Telegram bot token verification (checks callback_query.from.id)",
         "status": "NEEDS_CRYPTO_VERIFICATION",  # PR7 will add proper HMAC verification
         "risk": "Medium - relies on Telegram's delivery guarantees",
+    },
+    "/api/auth/me": {
+        "mechanism": "JWT Bearer token (via get_current_user dependency)",
+        "status": "IMPLEMENTED",
+        "risk": "Low - requires valid JWT token",
+    },
+    "/api/auth/key-status": {
+        "mechanism": "None (diagnostic endpoint - returns only key source status)",
+        "status": "INTENTIONALLY_PUBLIC",
+        "risk": "Low - no secrets exposed, only whether keys exist and their source",
     },
 }
 
@@ -74,18 +88,21 @@ def get_all_routes(app: FastAPI) -> list[tuple[str, list[str], bool]]:
             path = route.path
             methods = list(route.methods - {"HEAD", "OPTIONS"})  # Exclude implicit methods
 
-            # Check if route has verify_api_key dependency
+            # Check if route has auth dependency
+            # Note: read endpoints may use verify_read_access (which delegates to verify_api_key in production)
             has_auth = False
             for dep in route.dependencies:
                 dep_str = str(dep.dependency)
-                if "verify_api_key" in dep_str:
+                if "verify_api_key" in dep_str or "verify_read_access" in dep_str:
                     has_auth = True
                     break
 
-            # Also check endpoint signature for Depends(verify_api_key)
+            # Also check endpoint signature for Depends(verify_api_key) / Depends(verify_read_access)
             if hasattr(route, "dependant") and route.dependant:
                 for dep in route.dependant.dependencies:
-                    if hasattr(dep, "call") and "verify_api_key" in str(dep.call):
+                    if hasattr(dep, "call") and (
+                        "verify_api_key" in str(dep.call) or "verify_read_access" in str(dep.call)
+                    ):
                         has_auth = True
                         break
 
@@ -117,6 +134,10 @@ class TestProductionAuthCoverage:
             "/docs",
             "/docs/oauth2-redirect",
             "/redoc",
+            # Auth bootstrap (by design, needed before authentication is possible)
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/auth/.well-known/jwks.json",
         }
 
         actual_allowlist = set(PRODUCTION_UNAUTHENTICATED_ALLOWLIST.keys())
@@ -213,6 +234,25 @@ class TestProductionAuthEnforcement:
                 401,
                 403,
             ], f"Protected endpoint should reject without API key, got {response.status_code}"
+
+    @pytest.mark.asyncio
+    async def test_read_access_endpoint_rejects_without_key_in_production(self):
+        """verify_read_access endpoints should reject requests without API key in production."""
+        from fastapi.testclient import TestClient
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setenv("AUTOPACK_ENV", "production")
+            mp.setenv("AUTOPACK_API_KEY", "test-key-12345")  # gitleaks:allow
+            mp.delenv("TESTING", raising=False)
+
+            client = TestClient(app, raise_server_exceptions=False)
+
+            # /runs is gated by verify_read_access
+            response = client.get("/runs")
+            assert response.status_code in [
+                401,
+                403,
+            ], f"read_access endpoint should reject without API key, got {response.status_code}"
 
     @pytest.mark.asyncio
     async def test_allowlisted_endpoint_accessible_in_production(self):

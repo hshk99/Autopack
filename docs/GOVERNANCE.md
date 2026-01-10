@@ -158,9 +158,9 @@ All conditions must be met:
    - No protected path touches
 
 4. **Category Safety**:
-   - Tests: Require approval (in `tests/` - modifiable but not auto-approved per NEVER_AUTO_APPROVE policy)
-   - Docs: Require approval (in `docs/` - modifiable but not auto-approved per NEVER_AUTO_APPROVE policy)
-   - Implementation: Only if in allowed directories
+   - Tests: Auto-approved if all other criteria met (`tests/` is an allowed path)
+   - Docs: Auto-approved if all other criteria met (`docs/` is an allowed path)
+   - Implementation: Only if in allowed directories and not in NEVER_AUTO_APPROVE list
 
 ### NEVER_AUTO_APPROVE List
 
@@ -484,10 +484,10 @@ unset AUTOPACK_GOVERNANCE_DISABLED
 
 ### Common Paths
 
-**Allowed (but require approval per NEVER_AUTO_APPROVE policy)**:
-- `tests/test_*.py` - modifiable with approval
-- `docs/*.md` - modifiable with approval
-- `examples/*`
+**Allowed (auto-approved when risk criteria met)**:
+- `tests/test_*.py` - auto-approved when ≤100 lines, LOW risk
+- `docs/*.md` - auto-approved when ≤100 lines, LOW risk
+- `examples/*` - auto-approved when ≤100 lines, LOW risk
 
 **Always Protected**:
 - `src/autopack/*.py`

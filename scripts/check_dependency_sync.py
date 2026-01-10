@@ -139,8 +139,14 @@ def main() -> int:
             normalized.append(stripped)
         return normalized
 
-    def _compile_to_temp(extra: str | None = None) -> Path:
-        """Run pip-compile and write output to a temp file."""
+    def _compile_to_temp(extra: str | None = None, reference_file: Path | None = None) -> Path:
+        """Run pip-compile and write output to a temp file.
+
+        Args:
+            extra: Extra dependencies group to include (e.g., "dev")
+            reference_file: Existing requirements file to use as version reference
+                           (prevents upgrading to newer versions)
+        """
         fd, tmp_name = tempfile.mkstemp(suffix=".txt")
         os.close(fd)
         tmp_path = Path(tmp_name)
@@ -148,6 +154,10 @@ def main() -> int:
         args = ["pip-compile", "--output-file", str(tmp_path), "pyproject.toml"]
         if extra:
             args.insert(1, f"--extra={extra}")
+        # Use existing requirements as version constraints to prevent version drift
+        # This ensures we only check structural changes, not version updates
+        if reference_file and reference_file.exists():
+            args.insert(1, f"--constraint={reference_file}")
 
         result = subprocess.run(
             args,
@@ -165,9 +175,9 @@ def main() -> int:
 
     try:
         print("[INFO] Running pip-compile on pyproject.toml (runtime)...")
-        tmp_runtime = _compile_to_temp()
+        tmp_runtime = _compile_to_temp(reference_file=requirements_path)
         print("[INFO] Running pip-compile on pyproject.toml (dev extras)...")
-        tmp_dev = _compile_to_temp(extra="dev")
+        tmp_dev = _compile_to_temp(extra="dev", reference_file=requirements_dev_path)
 
         runtime_compiled = _normalize(tmp_runtime.read_text(encoding="utf-8").splitlines())
         runtime_committed = _normalize(requirements_path.read_text(encoding="utf-8").splitlines())

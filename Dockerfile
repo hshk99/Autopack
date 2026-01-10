@@ -1,11 +1,12 @@
 # Dockerfile for Autopack backend
 #
-# Base Image Policy:
-# - Using version tags (e.g., python:3.11-slim) instead of SHA digests
-# - Tradeoff: Security (immutable digests) vs Maintainability (auto-patches)
-# - Rationale: Dependabot monitors Docker images; digest pinning deferred to P5 hardening
-# - For production with strict supply-chain requirements, pin to digests:
-#   FROM python:3.11-slim@sha256:<digest>
+# Base Image Policy (P3.1: Digest Pinning):
+# - Images are pinned to SHA256 digests for supply-chain security
+# - Digest pinning ensures reproducible builds and protects against tag hijacking
+# - Update procedure: Check Docker Hub for new digests, update here, test, commit
+#
+# Current pins (last updated: 2026-01-10):
+# - python:3.11-slim-bookworm@sha256:55a4707a91d43b6397215a57b818d2822e66c27fd973bb82eb71b7512c15a4da
 #
 # Frontend Note:
 # - The canonical frontend is built via Dockerfile.frontend (root Vite app)
@@ -13,7 +14,8 @@
 # - See docs/IMPROVEMENTS_GAP_ANALYSIS.md section 0.2 for the canonical direction decision
 
 # Use an official Python runtime as a parent image
-FROM python:3.11-slim as backend
+# P3.1: Pinned to digest for reproducible builds and supply-chain security
+FROM python:3.11-slim-bookworm@sha256:55a4707a91d43b6397215a57b818d2822e66c27fd973bb82eb71b7512c15a4da as backend
 
 # Set the working directory in the container
 WORKDIR /app

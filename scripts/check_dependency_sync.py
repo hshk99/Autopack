@@ -139,10 +139,16 @@ def main() -> int:
             normalized.append(stripped)
         return normalized
 
-    def _compile_to_temp(args: list[str]) -> Path:
+    def _compile_to_temp(extra: str | None = None) -> Path:
+        """Run pip-compile and write output to a temp file."""
         fd, tmp_name = tempfile.mkstemp(suffix=".txt")
         os.close(fd)
         tmp_path = Path(tmp_name)
+
+        args = ["pip-compile", "--output-file", str(tmp_path), "pyproject.toml"]
+        if extra:
+            args.insert(1, f"--extra={extra}")
+
         result = subprocess.run(
             args,
             capture_output=True,
@@ -159,13 +165,9 @@ def main() -> int:
 
     try:
         print("[INFO] Running pip-compile on pyproject.toml (runtime)...")
-        tmp_runtime = _compile_to_temp(
-            ["pip-compile", "--output-file", "requirements.txt", "pyproject.toml"]
-        )
+        tmp_runtime = _compile_to_temp()
         print("[INFO] Running pip-compile on pyproject.toml (dev extras)...")
-        tmp_dev = _compile_to_temp(
-            ["pip-compile", "--extra=dev", "--output-file", "requirements-dev.txt", "pyproject.toml"]
-        )
+        tmp_dev = _compile_to_temp(extra="dev")
 
         runtime_compiled = _normalize(tmp_runtime.read_text(encoding="utf-8").splitlines())
         runtime_committed = _normalize(requirements_path.read_text(encoding="utf-8").splitlines())
@@ -175,8 +177,28 @@ def main() -> int:
         drift: list[str] = []
         if runtime_compiled != runtime_committed:
             drift.append("requirements.txt")
+            # Debug: show first few differences
+            print("[DEBUG] requirements.txt differences (first 10):", file=sys.stderr)
+            compiled_set = set(runtime_compiled)
+            committed_set = set(runtime_committed)
+            only_compiled = compiled_set - committed_set
+            only_committed = committed_set - compiled_set
+            for i, line in enumerate(sorted(only_compiled)[:5]):
+                print(f"  + (compiled) {line}", file=sys.stderr)
+            for i, line in enumerate(sorted(only_committed)[:5]):
+                print(f"  - (committed) {line}", file=sys.stderr)
         if dev_compiled != dev_committed:
             drift.append("requirements-dev.txt")
+            # Debug: show first few differences
+            print("[DEBUG] requirements-dev.txt differences (first 10):", file=sys.stderr)
+            compiled_set = set(dev_compiled)
+            committed_set = set(dev_committed)
+            only_compiled = compiled_set - committed_set
+            only_committed = committed_set - compiled_set
+            for i, line in enumerate(sorted(only_compiled)[:5]):
+                print(f"  + (compiled) {line}", file=sys.stderr)
+            for i, line in enumerate(sorted(only_committed)[:5]):
+                print(f"  - (committed) {line}", file=sys.stderr)
 
         if not drift:
             print("[OK] SUCCESS: requirements files are in sync with pyproject.toml")

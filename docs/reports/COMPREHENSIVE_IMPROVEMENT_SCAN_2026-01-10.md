@@ -238,8 +238,8 @@ Score each gate from 0–2:
 | Gate | Score (0–2) | Evidence link (tests/docs) |
 |------|-------------|----------------------------|
 | G1 Auth & exposure | 2 | `tests/ci/test_production_auth_coverage.py` (0 gaps), `tests/ci/test_production_auth_requirement.py` |
-| G2 Governance & approvals | 0 |  |
-| G3 External side effects | 0 |  |
+| G2 Governance & approvals | 2 | `tests/ci/test_governance_docs_contract.py` (10 tests), `docs/GOVERNANCE.md` (DEC-046 aligned) |
+| G3 External side effects | 2 | `tests/ci/test_governance_docs_contract.py` (NEVER_AUTO_APPROVE enforcement), `src/autopack/planning/plan_proposer.py` (default-deny) |
 | G4 Secrets & persistence | 2 | `tests/ci/test_secret_file_support.py` (18 tests), `tests/ci/test_oauth_persistence_hardening.py` (11 tests), `docs/DEPLOYMENT.md` (Secret File Support + OAuth Credential Security sections) |
 | G5 Artifact boundary | 0 |  |
 | G6 Deployment invariants | 2 | `tests/ci/test_nginx_config_contract.py`, `docs/DEPLOYMENT.md` (Reverse Proxy Routing Invariants) |
@@ -261,20 +261,19 @@ Score each gate from 0–2:
 
 ### P0.2 `docs/GOVERNANCE.md` contains internal contradictions about whether docs/tests can be auto-approved
 
-**Status**: ❌ Still a “two truths” risk (doc vs contract-tested policy mismatch).
+**Status**: ✅ Resolved (PR-05 G2+G3).
 
-- **Problem**: The repo’s *contract-tested* default-deny policy (DEC-046) requires approval for changes under `docs/`, `tests/`, `config/`, `.github/`, `src/autopack/`, but `docs/GOVERNANCE.md` still describes docs/tests as auto-approvable and lists them as “Allowed Paths”.
+- **Problem**: The repo's *contract-tested* default-deny policy (DEC-046) requires approval for changes under `docs/`, `tests/`, `config/`, `.github/`, `src/autopack/`, but `docs/GOVERNANCE.md` still describes docs/tests as auto-approvable and lists them as "Allowed Paths".
+- **Resolution**:
+  - `docs/GOVERNANCE.md` updated to match DEC-046: docs/tests/config/.github/src/autopack are now documented as **NEVER auto-approved**.
+  - `tests/ci/test_governance_docs_contract.py` added (10 tests) to block reintroducing "auto-approved" examples for NEVER_AUTO_APPROVE_PATTERNS paths.
+  - Tier 1 section clarifies NEVER_AUTO_APPROVE paths.
+  - "Allowed Paths" section updated to show only `examples/` and `scripts/` as auto-approvable.
+  - "Common Paths" section updated with NEVER_AUTO_APPROVE (DEC-046) subsection.
 - **Evidence**:
-  - `src/autopack/planning/plan_proposer.py` defines:
-    - `NEVER_AUTO_APPROVE_PATTERNS = ["docs/", "config/", ".github/", "src/autopack/", "tests/"]`
-  - `tests/planning/test_governance_policy.py` asserts (DEC-046) that actions touching these paths are **not** auto-approved.
-  - `docs/GOVERNANCE.md` includes Tier 1 examples for `tests/` and `docs/`, and lists them under “Allowed Paths”.
-- **Why P0**: Governance docs are operator-facing. Drift here makes the system feel nondeterministic even if enforcement is correct.
-- **Recommended direction**:
-  - Update `docs/GOVERNANCE.md` to match DEC-046 and the contract tests (docs/tests/config/.github/src/autopack are **never auto-approved**).
-  - Add a docs contract test that blocks reintroducing “auto-approved” examples for any `NEVER_AUTO_APPROVE_PATTERNS` paths.
-- **Acceptance criteria**:
-  - `docs/GOVERNANCE.md` describes the same policy that is enforced and tested.
+  - `tests/ci/test_governance_docs_contract.py::test_docs_tests_not_auto_approved` - blocks listing docs/tests as auto-approvable
+  - `tests/ci/test_governance_docs_contract.py::test_never_auto_approve_documented` - all NEVER_AUTO_APPROVE_PATTERNS documented
+  - `docs/GOVERNANCE.md` now references DEC-046 throughout.
 
 ### P0.3 Legacy approval endpoint defaults to auto-approve (conflicts with default-deny posture)
 

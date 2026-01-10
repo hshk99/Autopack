@@ -64,18 +64,23 @@ QUEUED → EXECUTING → [Governance Check]
 
 **Criteria**:
 - Changes ≤100 lines
-- Only modifies allowed paths
+- Only modifies **explicitly allowed paths** (see NEVER_AUTO_APPROVE_PATTERNS below)
 - No protected paths touched
 - No database schema changes
 - Risk level: LOW
 
 **Examples**:
-- New test files (`tests/test_*.py`)
-- Documentation updates (`docs/*.md`)
-- Utility functions in allowed directories
-- Configuration file updates (non-sensitive)
+- Utility functions in `examples/` directory
+- Scripts in `scripts/` (non-core utilities)
 
-**Action**: Proceed immediately without human approval
+**IMPORTANT (DEC-046)**: The following paths are **NEVER auto-approved**, even if changes are small:
+- `docs/` - Documentation requires review (operator-facing)
+- `tests/` - Test changes require review (coverage impact)
+- `config/` - Configuration requires review (deployment impact)
+- `.github/` - CI/CD changes require review (security impact)
+- `src/autopack/` - Core code always requires review
+
+**Action**: Proceed immediately without human approval (only for paths NOT in NEVER_AUTO_APPROVE_PATTERNS)
 
 ### Tier 2: Notify + Proceed (Medium Risk)
 
@@ -158,9 +163,11 @@ All conditions must be met:
    - No protected path touches
 
 4. **Category Safety**:
-   - Tests: Auto-approved if all other criteria met (`tests/` is an allowed path)
-   - Docs: Auto-approved if all other criteria met (`docs/` is an allowed path)
-   - Implementation: Only if in allowed directories and not in NEVER_AUTO_APPROVE list
+   - Tests: NEVER auto-approved (`tests/` in NEVER_AUTO_APPROVE_PATTERNS per DEC-046)
+   - Docs: NEVER auto-approved (`docs/` in NEVER_AUTO_APPROVE_PATTERNS per DEC-046)
+   - Examples: Auto-approved if all other criteria met (`examples/` is allowed)
+   - Scripts: Auto-approved if all other criteria met (`scripts/` is allowed)
+   - Implementation: Only if in allowed directories and not in NEVER_AUTO_APPROVE_PATTERNS
 
 ### NEVER_AUTO_APPROVE List
 
@@ -182,20 +189,38 @@ NEVER_AUTO_APPROVE = [
 
 **✅ Auto-Approved**:
 ```python
-# New test file (50 lines)
-File: tests/test_new_feature.py
+# New utility script (50 lines)
+File: scripts/util_helper.py
 Risk: LOW
-Path: tests/ (allowed)
+Path: scripts/ (allowed)
 Decision: AUTO_APPROVED
 ```
 
 **✅ Auto-Approved**:
 ```python
-# Documentation update (30 lines)
+# Example code update (30 lines)
+File: examples/basic_usage.py
+Risk: LOW
+Path: examples/ (allowed)
+Decision: AUTO_APPROVED
+```
+
+**❌ Approval Required (DEC-046)**:
+```python
+# Test file - NEVER auto-approved per DEC-046
+File: tests/test_new_feature.py
+Risk: LOW
+Path: tests/ (NEVER_AUTO_APPROVE)
+Decision: APPROVAL_REQUIRED
+```
+
+**❌ Approval Required (DEC-046)**:
+```python
+# Documentation - NEVER auto-approved per DEC-046
 File: docs/QUICKSTART.md
 Risk: LOW
-Path: docs/ (allowed)
-Decision: AUTO_APPROVED
+Path: docs/ (NEVER_AUTO_APPROVE)
+Decision: APPROVAL_REQUIRED
 ```
 
 **❌ Approval Required**:
@@ -233,13 +258,18 @@ Decision: APPROVAL_REQUIRED
 - `alembic/` - Database migrations
 - `config/` - Configuration files
 
-### Allowed Paths
+### Allowed Paths (Auto-Approvable)
 
-Phases can modify these without special approval:
-- `tests/` - Test files
-- `docs/` - Documentation
+**DEC-046 Update**: Only the following paths are auto-approvable (when other criteria met):
 - `examples/` - Example code
 - `scripts/` - Utility scripts (non-core)
+
+**NEVER_AUTO_APPROVE Paths** (always require approval):
+- `tests/` - Test files (coverage impact)
+- `docs/` - Documentation (operator-facing)
+- `config/` - Configuration (deployment impact)
+- `.github/` - CI/CD (security impact)
+- `src/autopack/` - Core framework code
 
 ### Isolation Rules
 
@@ -485,9 +515,15 @@ unset AUTOPACK_GOVERNANCE_DISABLED
 ### Common Paths
 
 **Allowed (auto-approved when risk criteria met)**:
-- `tests/test_*.py` - auto-approved when ≤100 lines, LOW risk
-- `docs/*.md` - auto-approved when ≤100 lines, LOW risk
 - `examples/*` - auto-approved when ≤100 lines, LOW risk
+- `scripts/*` - auto-approved when ≤100 lines, LOW risk
+
+**NEVER_AUTO_APPROVE (DEC-046)** - Always require human approval:
+- `tests/*` - coverage impact
+- `docs/*` - operator-facing, drift risk
+- `config/*` - deployment impact
+- `.github/*` - CI/CD security impact
+- `src/autopack/*` - core framework code
 
 **Always Protected**:
 - `src/autopack/*.py`

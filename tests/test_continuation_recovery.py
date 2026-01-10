@@ -364,3 +364,156 @@ new file mode 100644
         assert "src/bar.py" in merged
         assert "src/baz.py" in merged
         assert merged.count("diff --git") == 3
+
+
+class TestP15IncrementalJSONParsing:
+    """P1.5: Tests for robust incremental JSON parsing."""
+
+    @pytest.fixture
+    def recovery(self):
+        """Create recovery instance."""
+        return ContinuationRecovery()
+
+    def test_incremental_parse_complete_array(self, recovery):
+        """Test parsing a complete JSON array."""
+        json_str = """[
+            {"file_path": "src/foo.py", "content": "def foo(): pass"},
+            {"file_path": "src/bar.py", "content": "def bar(): pass"}
+        ]"""
+
+        completed, partial = recovery._incremental_parse_json_array(json_str)
+
+        assert completed == ["src/foo.py", "src/bar.py"]
+        assert partial is None
+
+    def test_incremental_parse_truncated_mid_object(self, recovery):
+        """Test parsing truncated mid-object - should detect partial file."""
+        json_str = """[
+            {"file_path": "src/foo.py", "content": "def foo(): pass"},
+            {"file_path": "src/bar.py", "content": "def bar(): pass"},
+            {"file_path": "src/baz.py", "content": "def baz("""
+
+        completed, partial = recovery._incremental_parse_json_array(json_str)
+
+        assert completed == ["src/foo.py", "src/bar.py"]
+        assert partial == "src/baz.py"  # Partial file detected
+
+    def test_incremental_parse_truncated_before_content(self, recovery):
+        """Test parsing truncated before content field."""
+        json_str = """[
+            {"file_path": "src/foo.py", "content": "def foo(): pass"},
+            {"file_path": "src/bar.py","""
+
+        completed, partial = recovery._incremental_parse_json_array(json_str)
+
+        assert completed == ["src/foo.py"]
+        assert partial == "src/bar.py"
+
+    def test_incremental_parse_nested_braces(self, recovery):
+        """Test parsing with nested braces in content."""
+        json_str = """[
+            {"file_path": "src/foo.py", "content": "def foo(): return {'a': 1}"},
+            {"file_path": "src/bar.py", "content": "def bar(): return {"""
+
+        completed, partial = recovery._incremental_parse_json_array(json_str)
+
+        assert completed == ["src/foo.py"]
+        assert partial == "src/bar.py"
+
+    def test_incremental_parse_escaped_quotes(self, recovery):
+        """Test parsing with escaped quotes in content."""
+        json_str = """[
+            {"file_path": "src/foo.py", "content": "def foo(): return \\"hello\\""},
+            {"file_path": "src/bar.py", "content": "def bar()"""
+
+        completed, partial = recovery._incremental_parse_json_array(json_str)
+
+        assert completed == ["src/foo.py"]
+        assert partial == "src/bar.py"
+
+    def test_incremental_parse_path_key(self, recovery):
+        """Test parsing with 'path' key instead of 'file_path'."""
+        json_str = """[
+            {"path": "src/foo.py", "content": "def foo(): pass"},
+            {"path": "src/bar.py", "content": "def bar(): pass"}
+        ]"""
+
+        completed, partial = recovery._incremental_parse_json_array(json_str)
+
+        assert completed == ["src/foo.py", "src/bar.py"]
+        assert partial is None
+
+    def test_find_object_end_simple(self, recovery):
+        """Test finding object end for simple object."""
+        json_str = '{"key": "value"}'
+        end_pos = recovery._find_object_end(json_str, 0)
+        assert end_pos == len(json_str) - 1
+
+    def test_find_object_end_nested(self, recovery):
+        """Test finding object end with nested structures."""
+        json_str = '{"outer": {"inner": "value"}}'
+        end_pos = recovery._find_object_end(json_str, 0)
+        assert end_pos == len(json_str) - 1
+
+    def test_find_object_end_truncated(self, recovery):
+        """Test finding object end when truncated."""
+        json_str = '{"key": "value'
+        end_pos = recovery._find_object_end(json_str, 0)
+        assert end_pos == -1  # Not found
+
+    def test_find_object_end_braces_in_string(self, recovery):
+        """Test finding object end with braces inside string."""
+        json_str = '{"code": "function() { return {}; }"}'
+        end_pos = recovery._find_object_end(json_str, 0)
+        assert end_pos == len(json_str) - 1
+
+    def test_extract_path_from_partial_file_path(self, recovery):
+        """Test extracting file_path from partial object."""
+        partial = '{"file_path": "src/foo.py", "content": "def foo'
+        path = recovery._extract_path_from_partial_object(partial)
+        assert path == "src/foo.py"
+
+    def test_extract_path_from_partial_path(self, recovery):
+        """Test extracting path from partial object."""
+        partial = '{"path": "src/bar.py", "op": "create'
+        path = recovery._extract_path_from_partial_object(partial)
+        assert path == "src/bar.py"
+
+    def test_extract_path_no_path_found(self, recovery):
+        """Test extracting path when none present."""
+        partial = '{"content": "def foo'
+        path = recovery._extract_path_from_partial_object(partial)
+        assert path is None
+
+    def test_full_file_truncation_returns_partial(self, recovery):
+        """Test that _parse_full_file_truncation returns last_partial_file."""
+        output = """[
+            {"file_path": "src/foo.py", "content": "complete"},
+            {"file_path": "src/bar.py", "content": "truncated"""
+
+        deliverables = ["src/foo.py", "src/bar.py", "src/baz.py"]
+
+        context = recovery._parse_full_file_truncation(output, deliverables, 10000)
+
+        assert "src/foo.py" in context.completed_files
+        assert context.last_partial_file == "src/bar.py"
+        assert "src/baz.py" in context.remaining_deliverables
+
+    def test_continuation_prompt_excludes_completed(self, recovery):
+        """Test that continuation prompt tells LLM not to regenerate completed files."""
+        context = ContinuationContext(
+            completed_files=["src/foo.py", "src/bar.py"],
+            last_partial_file="src/baz.py",
+            remaining_deliverables=["src/baz.py", "src/qux.py"],
+            partial_output="...",
+            tokens_used=15000,
+            format_type="full_file",
+        )
+
+        prompt = recovery.build_continuation_prompt(context, "Generate all files")
+
+        # Must explicitly tell LLM not to regenerate
+        assert "Do NOT regenerate already-completed files" in prompt
+        assert "Already completed" in prompt
+        assert "src/foo.py" in prompt
+        assert "src/bar.py" in prompt

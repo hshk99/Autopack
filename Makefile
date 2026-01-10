@@ -13,7 +13,7 @@ help:
 	@echo "  make clean           - Clean up generated files"
 
 install:
-	pip install -r requirements-dev.txt
+	pip install -e ".[dev]"
 
 test:
 	pytest tests/ -v

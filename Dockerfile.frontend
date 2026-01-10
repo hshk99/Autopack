@@ -1,5 +1,16 @@
 # Multi-stage build for React frontend
-FROM node:20-alpine as builder
+#
+# Base Image Policy (P3.1: Digest Pinning):
+# - Images are pinned to SHA256 digests for supply-chain security
+# - Digest pinning ensures reproducible builds and protects against tag hijacking
+# - Update procedure: Check Docker Hub for new digests, update here, test, commit
+#
+# Current pins (last updated: 2026-01-10):
+# - node:20-alpine@sha256:cb5d5426c01df521cb19e4881bcea9e1fea3548def225e3a7749ae509cd574c8
+# - nginx:1.27-alpine@sha256:24ab515c9c7d31dd337d1646362033bcb4fc6b35adad8c92d216058c8da581e2
+
+# P3.1: Pinned to digest for reproducible builds and supply-chain security
+FROM node:20-alpine@sha256:cb5d5426c01df521cb19e4881bcea9e1fea3548def225e3a7749ae509cd574c8 as builder
 
 WORKDIR /app
 
@@ -20,7 +31,8 @@ COPY tsconfig.node.json .
 RUN npm run build
 
 # Production stage with nginx
-FROM nginx:alpine
+# P3.1: Pinned to digest for reproducible builds and supply-chain security
+FROM nginx:1.27-alpine@sha256:24ab515c9c7d31dd337d1646362033bcb4fc6b35adad8c92d216058c8da581e2
 
 # Copy custom nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf

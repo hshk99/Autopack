@@ -36,6 +36,7 @@ def test_copy_paste_contracts_forbidden_patterns():
         repo_root / "docs" / "QUICKSTART.md",
         repo_root / "docs" / "CONTRIBUTING.md",
         repo_root / "docs" / "PROJECT_INDEX.json",
+        repo_root / "docs" / "AUTHENTICATION.md",  # PR-A: auth doc truth (DEC-050)
     ]
 
     missing = [str(p) for p in allowlist if not p.exists()]

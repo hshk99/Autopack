@@ -28,11 +28,12 @@ jobs:
         run: |
           python scripts/check_ci_drift.py
           python scripts/check_version_consistency.py
-          # GAP-8.3.2: Full pip-compile sync disabled due to Windows/Linux hash drift.
-          # Enforcement approach: requirements portability check (below) + Linux/CI-canonical
-          # regeneration policy (see security/README.md). Full drift check deferred until
-          # pip-tools supports deterministic cross-platform output.
-          # python scripts/check_dependency_sync.py
+          # Dependency sync check validates requirements files match pyproject.toml structure.
+          # Uses set comparison (order-independent) and normalizes for:
+          # - Python version differences (3.10 backports vs 3.11 native)
+          # - Platform-specific packages (colorama, uvloop)
+          # See scripts/regenerate_requirements.sh for canonical regeneration.
+          python scripts/check_dependency_sync.py
       - name: Check requirements portability (Linux/CI canonical)
         run: |
           python scripts/check_requirements_portability.py
@@ -119,6 +120,9 @@ jobs:
       - name: Check docs drift (BUILD-195 comprehensive sweeps)
         run: |
           python scripts/check_docs_drift.py
+      - name: Check canonical docs for legacy path refs (P2.5)
+        run: |
+          python scripts/ci/check_canonical_doc_refs.py
       - name: Check SOT derived-state drift
         run: |
           python scripts/tidy/sot_summary_refresh.py --check

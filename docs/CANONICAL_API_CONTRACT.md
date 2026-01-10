@@ -269,35 +269,39 @@ These endpoints are served by `src/autopack/auth/oauth_router.py` for OAuth cred
 
 These endpoints provide the operator UI with run browsing, artifact viewing, and progress monitoring capabilities.
 
+**Auth Policy** (P0.4 Security Hardening):
+- **Production** (`AUTOPACK_ENV=production`): Requires `X-API-Key` header
+- **Development**: Public by default, or opt-in to require auth by NOT setting `AUTOPACK_PUBLIC_READ=1`
+- **Dev with public read** (`AUTOPACK_PUBLIC_READ=1`): No auth required (for local dashboards)
+
 #### `GET /runs`
 - **Purpose**: List all runs with pagination and summary info
-- **Auth**: None
+- **Auth**: Required in production; dev opt-in via `AUTOPACK_PUBLIC_READ=1`
 - **Query params**: `limit` (1-100, default: 20), `offset` (default: 0)
 - **Response**: `{ runs: [...], total, limit, offset }`
 - **Notes**: Returns phase counts per run; known N+1 query (tracked in GAP-8.11.1)
 
 #### `GET /runs/{run_id}/progress`
 - **Purpose**: Get phase-by-phase progress details for a run
-- **Auth**: None
+- **Auth**: Required in production; dev opt-in via `AUTOPACK_PUBLIC_READ=1`
 - **Response**: `{ run_id, state, phases_total, phases_completed, phases_in_progress, phases_pending, phases: [...], tokens_used, token_cap, started_at, elapsed_seconds }`
 
 #### `GET /runs/{run_id}/artifacts/index`
 - **Purpose**: List all artifact files for a run
-- **Auth**: None
+- **Auth**: Required in production; dev opt-in via `AUTOPACK_PUBLIC_READ=1`
 - **Response**: `{ run_id, artifacts: [{ path, size_bytes, modified_at }], total_size_bytes }`
 - **Notes**: Returns empty list if run directory doesn't exist
 
 #### `GET /runs/{run_id}/artifacts/file`
 - **Purpose**: Get content of a specific artifact file
-- **Auth**: None
+- **Auth**: Required in production; dev opt-in via `AUTOPACK_PUBLIC_READ=1`
 - **Query params**: `path` (required, relative path within run directory)
 - **Response**: Plain text file content
 - **Security**: Path traversal protection (blocks `..`, absolute paths, Windows drive letters, URL-encoded bypass attempts)
-- **Notes**: Future auth enhancement tracked in GAP-8.11.2
 
 #### `GET /runs/{run_id}/browser/artifacts`
 - **Purpose**: List browser-specific artifacts (screenshots, HTML files)
-- **Auth**: None
+- **Auth**: Required in production; dev opt-in via `AUTOPACK_PUBLIC_READ=1`
 - **Response**: `{ run_id, screenshots: [{ path, timestamp, size_bytes }], html_files: [...], total_size_bytes }`
 
 ---

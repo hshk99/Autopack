@@ -8,8 +8,9 @@
 # - requirements-dev.txt: Runtime + dev dependencies (for local development)
 #
 # WHY NO HASHES:
-# - Cross-platform hash differences cause CI drift (Windows vs Linux)
-# - Dependency sync check is disabled in CI for this reason
+# - Cross-platform hash differences cause drift (Windows vs Linux)
+# - Repo policy: requirements are Linux/WSL canonical and compared in CI via
+#   scripts/check_dependency_sync.py (without hashes)
 # - Tradeoff: simpler maintenance vs cryptographic verification
 #
 # CONTAINER SECURITY:

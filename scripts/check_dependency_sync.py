@@ -1,32 +1,39 @@
 #!/usr/bin/env python3
 """
-CI Check: Dependency Sync Validation
+CI Check: Dependency Sync Validation (Linux/CI canonical)
 
-Ensures requirements.txt stays in sync with pyproject.toml by:
-1. Running pip-compile deterministically on pyproject.toml
-2. Comparing output to committed requirements.txt
-3. Failing CI if drift detected
+Goal: ensure committed requirements files stay in sync with pyproject.toml:
+- requirements.txt (runtime)
+- requirements-dev.txt (runtime + dev extras)
+
+Important constraints:
+- This repo treats Linux/CI (or WSL) as canonical for requirements generation to avoid
+  cross-platform drift. On native Windows, this check is SKIPPED by default.
+- This check intentionally does NOT use --generate-hashes because hashes cause
+  cross-platform drift and the repo's committed requirements do not include hashes.
 
 Usage:
     python scripts/check_dependency_sync.py
 
 Exit codes:
-    0: requirements.txt is in sync with pyproject.toml
-    1: Drift detected - requirements.txt needs regeneration
-    2: Runtime error (pip-tools not installed, files missing, etc.)
+    0: In sync (or skipped on Windows)
+    1: Drift detected - requirements*.txt needs regeneration (run on Linux/WSL)
+    2: Runtime error (pip-tools missing, files missing, etc.)
 """
 
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+import os
 
 
 def main() -> int:
-    """Check if requirements.txt is in sync with pyproject.toml."""
+    """Check if requirements*.txt are in sync with pyproject.toml (CI canonical)."""
     repo_root = Path(__file__).parent.parent
     pyproject_path = repo_root / "pyproject.toml"
     requirements_path = repo_root / "requirements.txt"
+    requirements_dev_path = repo_root / "requirements-dev.txt"
 
     # Validate files exist
     if not pyproject_path.exists():
@@ -36,6 +43,18 @@ def main() -> int:
     if not requirements_path.exists():
         print(f"[X] ERROR: requirements.txt not found at {requirements_path}", file=sys.stderr)
         return 2
+
+    if not requirements_dev_path.exists():
+        print(f"[X] ERROR: requirements-dev.txt not found at {requirements_dev_path}", file=sys.stderr)
+        return 2
+
+    # Policy: skip on native Windows (use WSL/CI for canonical output)
+    if os.name == "nt" and not os.getenv("WSL_DISTRO_NAME"):
+        print(
+            "[SKIP] Dependency sync check skipped on native Windows. "
+            "Regenerate requirements on Linux/WSL/CI (see scripts/regenerate_requirements.sh)."
+        )
+        return 0
 
     # Check if pip-tools is installed
     try:
@@ -54,104 +73,150 @@ def main() -> int:
         print("  pip install pip-tools", file=sys.stderr)
         return 2
 
-    # Run pip-compile deterministically to temp file
-    with tempfile.NamedTemporaryFile(mode='w+', suffix='.txt', delete=False) as tmp_file:
-        tmp_path = Path(tmp_file.name)
+    def _normalize(lines: list[str]) -> list[str]:
+        """Normalize requirements lines for comparison.
 
-    try:
-        print("🔍 Running pip-compile on pyproject.toml...")
+        Filters out:
+        - All comment lines (pip-compile formats these differently with/without constraints)
+        - Empty lines
+        - Python version-specific backport packages (exceptiongroup, tomli, etc.)
+        - Platform-specific packages (colorama on Windows, uvloop on Linux)
+
+        Keeps only package lines with versions (the essential information).
+        """
+        # Packages that vary by Python version (backports for < 3.11)
+        PYTHON_VERSION_PACKAGES = {
+            "exceptiongroup",
+            "tomli",
+            "backports-asyncio-runner",
+        }
+        # Platform-specific packages (Windows vs Linux)
+        PLATFORM_PACKAGES = {
+            "colorama",  # Windows-only for click/uvicorn
+            "uvloop",    # Linux-only for uvicorn
+        }
+        SKIP_PACKAGES = PYTHON_VERSION_PACKAGES | PLATFORM_PACKAGES
+
+        normalized: list[str] = []
+
+        for line in lines:
+            stripped = line.strip()
+
+            # Skip empty lines
+            if not stripped:
+                continue
+
+            # Skip ALL comment lines - pip-compile formats these differently
+            # with vs without constraints, so we only compare package lines
+            if stripped.startswith("#"):
+                continue
+
+            # Skip Python version/platform-specific packages
+            # Package lines look like: package==version or package[extra]==version
+            pkg_match = stripped.split("==")[0].split("[")[0].lower() if "==" in stripped else None
+            if pkg_match and pkg_match in SKIP_PACKAGES:
+                continue
+
+            # Keep this package line
+            normalized.append(stripped)
+
+        return normalized
+
+    def _compile_to_temp(extra: str | None = None, reference_file: Path | None = None) -> Path:
+        """Run pip-compile and write output to a temp file.
+
+        Args:
+            extra: Extra dependencies group to include (e.g., "dev")
+            reference_file: Existing requirements file to use as version reference
+                           (prevents upgrading to newer versions)
+        """
+        fd, tmp_name = tempfile.mkstemp(suffix=".txt")
+        os.close(fd)
+        tmp_path = Path(tmp_name)
+
+        args = ["pip-compile", "--output-file", str(tmp_path), "pyproject.toml"]
+        if extra:
+            args.insert(1, f"--extra={extra}")
+        # Use existing requirements as version constraints to prevent version drift
+        # This ensures we only check structural changes, not version updates
+        if reference_file and reference_file.exists():
+            args.insert(1, f"--constraint={reference_file}")
+
         result = subprocess.run(
-            [
-                "pip-compile",
-                "--generate-hashes",  # Deterministic output
-                "--allow-unsafe",     # Include pip, setuptools, wheel
-                "--output-file", str(tmp_path),
-                str(pyproject_path)
-            ],
+            args,
             capture_output=True,
             text=True,
             cwd=repo_root,
-            check=False
+            check=False,
         )
-
         if result.returncode != 0:
-            print(f"[X] ERROR: pip-compile failed:", file=sys.stderr)
+            print("[X] ERROR: pip-compile failed:", file=sys.stderr)
             print(result.stderr, file=sys.stderr)
-            return 2
+            tmp_path.unlink(missing_ok=True)
+            raise RuntimeError("pip-compile failed")
+        return tmp_path
 
-        # Read both files for comparison
-        compiled_lines = tmp_path.read_text(encoding='utf-8').splitlines()
-        committed_lines = requirements_path.read_text(encoding='utf-8').splitlines()
+    try:
+        print("[INFO] Running pip-compile on pyproject.toml (runtime)...")
+        tmp_runtime = _compile_to_temp(reference_file=requirements_path)
+        print("[INFO] Running pip-compile on pyproject.toml (dev extras)...")
+        tmp_dev = _compile_to_temp(extra="dev", reference_file=requirements_dev_path)
 
-        # Normalize: strip whitespace, filter out timestamp comments and path variations
-        def normalize(lines):
-            normalized = []
-            for line in lines:
-                stripped = line.strip()
-                # Skip autogenerated timestamp comments
-                if stripped.startswith("# This file is autogenerated") or \
-                   stripped.startswith("# via https://github.com/jazzband/pip-tools"):
-                    continue
-                # Normalize pip-compile command header (paths may vary: absolute vs relative)
-                if stripped.startswith("#    pip-compile"):
-                    # Extract just the flags, ignore paths
-                    continue
-                # Normalize source comments that may have path variations
-                # e.g., "# via autopack (c:/dev/Autopack/pyproject.toml)" vs "# via autopack (pyproject.toml)"
-                if "#   autopack (" in stripped:
-                    # Normalize to just "#   autopack (pyproject.toml)"
-                    stripped = "#   autopack (pyproject.toml)"
-                if "# via autopack (" in stripped:
-                    # Normalize to just "# via autopack (pyproject.toml)"
-                    stripped = "# via autopack (pyproject.toml)"
-                normalized.append(stripped)
-            return normalized
+        runtime_compiled = _normalize(tmp_runtime.read_text(encoding="utf-8").splitlines())
+        runtime_committed = _normalize(requirements_path.read_text(encoding="utf-8").splitlines())
+        dev_compiled = _normalize(tmp_dev.read_text(encoding="utf-8").splitlines())
+        dev_committed = _normalize(requirements_dev_path.read_text(encoding="utf-8").splitlines())
 
-        compiled_normalized = normalize(compiled_lines)
-        committed_normalized = normalize(committed_lines)
+        drift: list[str] = []
 
-        # Compare
-        if compiled_normalized == committed_normalized:
-            print("[OK] SUCCESS: requirements.txt is in sync with pyproject.toml")
+        # Compare as sets since line order may vary between pip-compile runs
+        runtime_compiled_set = set(runtime_compiled)
+        runtime_committed_set = set(runtime_committed)
+        only_compiled_runtime = runtime_compiled_set - runtime_committed_set
+        only_committed_runtime = runtime_committed_set - runtime_compiled_set
+        if only_compiled_runtime or only_committed_runtime:
+            drift.append("requirements.txt")
+            # Debug: show first few differences
+            print("[DEBUG] requirements.txt differences:", file=sys.stderr)
+            for line in sorted(only_compiled_runtime)[:5]:
+                print(f"  + (compiled) {line}", file=sys.stderr)
+            for line in sorted(only_committed_runtime)[:5]:
+                print(f"  - (committed) {line}", file=sys.stderr)
+
+        dev_compiled_set = set(dev_compiled)
+        dev_committed_set = set(dev_committed)
+        only_compiled_dev = dev_compiled_set - dev_committed_set
+        only_committed_dev = dev_committed_set - dev_compiled_set
+        if only_compiled_dev or only_committed_dev:
+            drift.append("requirements-dev.txt")
+            # Debug: show first few differences
+            print("[DEBUG] requirements-dev.txt differences:", file=sys.stderr)
+            for line in sorted(only_compiled_dev)[:5]:
+                print(f"  + (compiled) {line}", file=sys.stderr)
+            for line in sorted(only_committed_dev)[:5]:
+                print(f"  - (committed) {line}", file=sys.stderr)
+
+        if not drift:
+            print("[OK] SUCCESS: requirements files are in sync with pyproject.toml")
             return 0
-        else:
-            print("[X] DRIFT DETECTED: requirements.txt does NOT match pyproject.toml", file=sys.stderr)
-            print("", file=sys.stderr)
-            print("To fix this, regenerate requirements.txt:", file=sys.stderr)
-            print("  pip-compile --generate-hashes --allow-unsafe pyproject.toml", file=sys.stderr)
-            print("", file=sys.stderr)
 
-            # Show diff for debugging
-            print("Differences found:", file=sys.stderr)
-
-            # Simple line-by-line diff
-            compiled_set = set(compiled_normalized)
-            committed_set = set(committed_normalized)
-
-            only_in_compiled = compiled_set - committed_set
-            only_in_committed = committed_set - compiled_set
-
-            if only_in_compiled:
-                print("", file=sys.stderr)
-                print("Lines in compiled output but NOT in requirements.txt:", file=sys.stderr)
-                for line in sorted(only_in_compiled)[:10]:  # Show first 10
-                    print(f"  + {line}", file=sys.stderr)
-                if len(only_in_compiled) > 10:
-                    print(f"  ... and {len(only_in_compiled) - 10} more", file=sys.stderr)
-
-            if only_in_committed:
-                print("", file=sys.stderr)
-                print("Lines in requirements.txt but NOT in compiled output:", file=sys.stderr)
-                for line in sorted(only_in_committed)[:10]:  # Show first 10
-                    print(f"  - {line}", file=sys.stderr)
-                if len(only_in_committed) > 10:
-                    print(f"  ... and {len(only_in_committed) - 10} more", file=sys.stderr)
-
-            return 1
+        print("[X] DRIFT DETECTED: requirements files do NOT match pyproject.toml", file=sys.stderr)
+        print("Out of sync:", ", ".join(drift), file=sys.stderr)
+        print("", file=sys.stderr)
+        print("To fix this, regenerate requirements on Linux/WSL:", file=sys.stderr)
+        print("  bash scripts/regenerate_requirements.sh", file=sys.stderr)
+        return 1
 
     finally:
         # Clean up temp file
-        tmp_path.unlink(missing_ok=True)
+        try:
+            tmp_runtime.unlink(missing_ok=True)  # type: ignore[name-defined]
+        except Exception:
+            pass
+        try:
+            tmp_dev.unlink(missing_ok=True)  # type: ignore[name-defined]
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

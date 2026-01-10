@@ -1,7 +1,7 @@
 # Workspace Organization Specification
 
-**Version**: 1.1
-**Date**: 2026-01-07
+**Version**: 1.2
+**Date**: 2026-01-10
 **Status**: Canonical (Single Source of Truth)
 
 ## Purpose
@@ -151,12 +151,14 @@ Files matching these patterns are allowed as canonical documentation:
 #### Historical Files (Should Be Archived)
 These patterns indicate **historical/completed documentation** that should be moved to `archive/`:
 
-- **BUILD-NNN_*.md** - Build reports (older than 30 days) → `archive/reports/`
+- **BUILD-NNN_*.md** - Build reports (after consolidation to SOT) → `archive/reports/`
 - **DBG-*.md**, **DEBUG_*.md** - Debug reports → `archive/diagnostics/`
 - **ANALYSIS_*.md**, **SUMMARY_*.md** - Analysis reports → `archive/reports/`
 - **PROMPT_*.md** - Prompts (except CURSOR_PROMPT_*) → `archive/prompts/`
 - **TASK_*.md** - Task reports → `archive/reports/`
 - Files in `archive/superseded/` - Already processed, never move back to docs/
+
+**Note**: Archival is **event-driven** (consolidation to SOT ledgers), not age-based.
 
 ### Allowed Subdirectories in docs/
 
@@ -198,12 +200,14 @@ Only these subdirectories are permitted under `docs/`:
 
 These file types should **not** remain in `docs/` and should be moved to `archive/`:
 
-- **Historical build reports** (`BUILD-NNN_*.md` older than 30 days) → `archive/reports/`
+- **Consolidated build reports** (`BUILD-NNN_*.md` after tidy consolidation) → `archive/reports/`
 - **Debug reports** (`DBG-*.md`, `DEBUG_*.md`) → `archive/diagnostics/`
-- **Old analysis reports** (`ANALYSIS_*.md`, `*_SUMMARY.md`) → `archive/reports/`
+- **Analysis reports** (`ANALYSIS_*.md`, `*_SUMMARY.md`) → `archive/reports/`
 - **Prompts** (`PROMPT_*.md`, `*_PROMPT.md`) → `archive/prompts/`
 - **Diagnostic files** (`*_DIAGNOSTIC*.md`) → `archive/diagnostics/`
 - **Superseded documentation** (old versions) → `archive/superseded/`
+
+**Archival trigger**: Files are archived **after tidy consolidation** into SOT ledgers, not based on age.
 
 ### Intent: docs/ is NOT an Inbox
 
@@ -464,6 +468,11 @@ Tidy system must:
 - **Idempotency** - Repeated runs should not cause churn
 
 ## 11. Version History
+
+- **v1.2 (2026-01-10)**: Clarify archival is event-driven, not age-based
+  - Removed "older than 30 days" language (not implemented in tidy)
+  - Archival triggered by consolidation to SOT ledgers
+  - Matches actual tidy system behavior
 
 - **v1.0 (2026-01-01)**: Initial canonical specification
   - Extracted from README.md and IMPLEMENTATION_PLAN_TIDY_GAP_CLOSURE.md

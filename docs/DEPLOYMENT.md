@@ -146,6 +146,7 @@ AUTOPACK_ENABLE_MEMORY="0"     # Disable memory entirely
 
 # API Server
 AUTOPACK_CALLBACK_URL="http://localhost:8001"  # Backend callback URL
+AUTOPACK_PUBLIC_READ="1"  # Allow public read for operator surface (dev only)
 
 # Testing & CI
 TESTING="1"  # Skip DB initialization in tests
@@ -395,11 +396,21 @@ export DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"
 ```json
 {
   "status": "healthy",
+  "timestamp": "2026-01-10T12:00:00Z",
+  "database_identity": "a1b2c3d4e5f6",
   "database": "connected",
-  "version": "1.0.0",
-  "uptime_seconds": 3600
+  "qdrant": "connected",
+  "kill_switches": {"disable_all": false, "disable_autonomous": false},
+  "version": "unknown",
+  "service": "autopack",
+  "component": "supervisor_api"
 }
 ```
+
+**Notes**:
+- `database_identity`: Hash of DATABASE_URL for drift detection (see Database Identity Check below)
+- `version`: Set via `AUTOPACK_VERSION` env var (defaults to "unknown")
+- `kill_switches`: Current state of operational kill switches
 
 **Usage**:
 
@@ -467,6 +478,33 @@ PYTHONPATH=src pytest tests/ -v
 
 ### Production Deployment
 
+**Use the production override template for secure deployments**:
+
+```bash
+# 1. Copy the production override template
+cp docker-compose.prod.example.yml docker-compose.prod.yml
+
+# 2. Configure Docker secrets (see example commands in the template)
+echo "postgresql://autopack:SECURE_PASSWORD@db:5432/autopack" | docker secret create db_url_secret -
+echo "SECURE_PASSWORD" | docker secret create db_password -
+docker secret create jwt_private_key /path/to/private_key.pem
+docker secret create jwt_public_key /path/to/public_key.pem
+
+# 3. Deploy with production override
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+# 4. Verify deployment
+curl http://localhost:8000/health
+```
+
+**Production override key features**:
+- `AUTOPACK_ENV=production`: Enables security hardening (blocks ephemeral JWT keys)
+- `*_FILE` secrets: Credentials via Docker secrets, not env vars
+- No host port exposure for `db`/`qdrant`: Internal network only
+- See `docker-compose.prod.example.yml` for full template
+
+**Without override (local dev only)**:
+
 ```bash
 # Build production images
 docker-compose build --no-cache
@@ -498,7 +536,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Build and push Docker images
         run: |

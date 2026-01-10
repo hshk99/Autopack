@@ -28,11 +28,9 @@ jobs:
         run: |
           python scripts/check_ci_drift.py
           python scripts/check_version_consistency.py
-          # GAP-8.3.2: Full pip-compile sync disabled due to Windows/Linux hash drift.
-          # Enforcement approach: requirements portability check (below) + Linux/CI-canonical
-          # regeneration policy (see security/README.md). Full drift check deferred until
-          # pip-tools supports deterministic cross-platform output.
-          # python scripts/check_dependency_sync.py
+          # Linux/CI-canonical dependency drift enforcement (skip on native Windows).
+          # See scripts/check_dependency_sync.py and scripts/regenerate_requirements.sh
+          python scripts/check_dependency_sync.py
       - name: Check requirements portability (Linux/CI canonical)
         run: |
           python scripts/check_requirements_portability.py

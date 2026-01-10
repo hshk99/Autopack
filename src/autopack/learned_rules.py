@@ -189,6 +189,9 @@ def get_relevant_hints_for_phase(run_id: str, phase: Dict, max_hints: int = 5) -
     phase_index = phase.get("phase_index", 999)
     task_category = phase.get("task_category")
 
+    # Extract phase scope_paths for intersection check
+    phase_scope_paths = set(_extract_scope_paths(phase, None))
+
     # Filter relevant hints
     relevant = []
     for hint in all_hints:
@@ -201,7 +204,16 @@ def get_relevant_hints_for_phase(run_id: str, phase: Dict, max_hints: int = 5) -
             if hint.task_category != task_category:
                 continue
 
-        # ROADMAP(P5): Could add scope_paths intersection check here
+        # P1.4: scope_paths intersection check
+        # If phase has scope paths and hint has scope paths, require intersection
+        if phase_scope_paths and hint.scope_paths:
+            hint_paths = set(hint.scope_paths)
+            if not phase_scope_paths.intersection(hint_paths):
+                # No direct path match, check for directory overlap
+                phase_dirs = {str(Path(p).parent) for p in phase_scope_paths}
+                hint_dirs = {str(Path(p).parent) for p in hint_paths}
+                if not phase_dirs.intersection(hint_dirs):
+                    continue
 
         relevant.append(hint)
 
@@ -318,6 +330,9 @@ def get_active_rules_for_phase(
 
     task_category = phase.get("task_category")
 
+    # Extract phase scope_paths for pattern matching
+    phase_scope_paths = _extract_scope_paths(phase, None)
+
     # Filter relevant rules
     relevant = []
     for rule in all_rules:
@@ -330,7 +345,10 @@ def get_active_rules_for_phase(
             if rule.task_category != task_category:
                 continue
 
-        # ROADMAP(P5): Could add scope_pattern matching here
+        # P1.4: scope_pattern matching
+        if rule.scope_pattern and phase_scope_paths:
+            if not _matches_scope_pattern(rule.scope_pattern, phase_scope_paths):
+                continue
 
         relevant.append(rule)
 
@@ -647,6 +665,52 @@ def _infer_scope_pattern(scope_paths: List[str]) -> Optional[str]:
         return f"{unique_dirs[0]}/*"
 
     return None
+
+
+def _matches_scope_pattern(scope_pattern: str, phase_scope_paths: List[str]) -> bool:
+    """Check if any phase path matches the rule's scope pattern
+
+    Supports glob-style patterns:
+    - "*.py" matches any .py file
+    - "auth/*.py" matches .py files in auth/ directory
+    - "src/autopack/*" matches anything in src/autopack/
+
+    Args:
+        scope_pattern: Glob-style pattern (e.g., "*.py", "auth/*.py")
+        phase_scope_paths: List of file paths from the phase
+
+    Returns:
+        True if any path matches the pattern
+    """
+    import fnmatch
+
+    if not scope_pattern or not phase_scope_paths:
+        return False
+
+    # Normalize pattern for cross-platform matching
+    pattern = scope_pattern.replace("\\", "/")
+
+    for path in phase_scope_paths:
+        # Normalize path for matching
+        normalized_path = str(path).replace("\\", "/")
+
+        # Try direct match
+        if fnmatch.fnmatch(normalized_path, pattern):
+            return True
+
+        # Try matching just the filename for patterns like "*.py"
+        if "/" not in pattern:
+            filename = Path(normalized_path).name
+            if fnmatch.fnmatch(filename, pattern):
+                return True
+
+        # Try matching from the end for patterns like "auth/*.py"
+        # This handles cases where phase path is "src/autopack/auth/login.py"
+        # and pattern is "auth/*.py"
+        if fnmatch.fnmatch(normalized_path, f"*/{pattern}"):
+            return True
+
+    return False
 
 
 def _generate_rule_id(hint: RunRuleHint) -> str:

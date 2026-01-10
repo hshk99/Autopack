@@ -385,6 +385,56 @@ export DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"
 
 ---
 
+## Reverse Proxy Routing Invariants (PR-02 G6)
+
+When deploying behind nginx (or another reverse proxy), these routing rules MUST be maintained:
+
+### Path Preservation Rules
+
+| Frontend Path | Backend Path | Notes |
+|---------------|--------------|-------|
+| `/api/auth/*` | `/api/auth/*` | **Preserved** - auth router mounted at `/api/auth` |
+| `/api/*` | `/*` | **Stripped** - `/api/runs` → `/runs` |
+| `/health` | `/health` | **Proxied** - full readiness check |
+| `/nginx-health` | N/A | **Static** - nginx liveness only |
+
+### Critical Configuration
+
+```nginx
+# Auth routes MUST preserve prefix (no trailing slash on proxy_pass)
+location /api/auth/ {
+    proxy_pass http://backend:8000;  # No trailing slash!
+}
+
+# Other API routes strip /api prefix (trailing slash strips prefix)
+location /api/ {
+    proxy_pass http://backend:8000/;  # Trailing slash strips /api
+}
+```
+
+**Why this matters**: The auth router is mounted at `/api/auth` in the backend. If nginx strips the `/api` prefix, requests to `/api/auth/login` become `/auth/login`, which doesn't match any route (404).
+
+### Health Check Semantics
+
+- **`/nginx-health`**: Static nginx liveness probe. Returns `200 nginx-healthy\n`. Use for container liveness checks that should pass even if backend is starting.
+- **`/health`**: Proxied to backend. Returns full readiness status including DB connectivity, Qdrant status, and kill switch states. Use for readiness checks.
+
+### Testing Proxy Routing
+
+```bash
+# Test auth endpoint routing (should return 401/422, not 404)
+curl -X POST http://localhost/api/auth/login -H "Content-Type: application/json"
+
+# Test general API routing (should return run data or 404 for missing run)
+curl http://localhost/api/runs/test-run-id
+
+# Test health endpoints
+curl http://localhost/nginx-health  # Static nginx liveness
+curl http://localhost/health        # Full backend readiness
+```
+
+---
+
 ## Health Checks
 
 ### API Health Endpoint

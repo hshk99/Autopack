@@ -218,8 +218,8 @@ Use this as the final go/no-go checklist. Autopack is "ready" only when every it
   - [ ] Optional redaction is deterministic and tested.
 
 - **G6 (Deployment invariants)**:
-  - [ ] nginx routes `/api/runs*` and `/api/auth/*` correctly.
-  - [ ] Health semantics reflect backend readiness in production topology.
+  - [x] nginx routes `/api/runs*` and `/api/auth/*` correctly. ✅ PR-02: `nginx.conf` has separate `/api/auth/` location block preserving prefix.
+  - [x] Health semantics reflect backend readiness in production topology. ✅ PR-02: `/health` proxies to backend, `/nginx-health` for nginx liveness.
 
 - **G7 (Observability correctness)**:
   - [ ] Observability endpoints are kill-switched default OFF.
@@ -242,7 +242,7 @@ Score each gate from 0–2:
 | G3 External side effects | 0 |  |
 | G4 Secrets & persistence | 0 |  |
 | G5 Artifact boundary | 0 |  |
-| G6 Deployment invariants | 0 |  |
+| G6 Deployment invariants | 2 | `tests/ci/test_nginx_config_contract.py`, `docs/DEPLOYMENT.md` (Reverse Proxy Routing Invariants) |
 | G7 Observability correctness | 0 |  |
 | G8 Documentation convergence | 2 | `docs/CANONICAL_API_CONTRACT.md` matches implementation |
 

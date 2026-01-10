@@ -4,7 +4,7 @@
 
 This document defines the **required endpoints** that must be served by the canonical Autopack server (`autopack.main:app`). All first-party scripts, the autonomous executor, dashboards, and observability tooling must target only these endpoints.
 
-Last updated: 2026-01-09 (BUILD-189 OAuth Credential Health Endpoints)
+Last updated: 2026-01-10 (GAP-8.10 Operator Surface Endpoints)
 
 ---
 
@@ -265,7 +265,97 @@ These endpoints are served by `src/autopack/auth/oauth_router.py` for OAuth cred
 
 ---
 
-### 10. Research API (Experimental)
+### 10. Operator Surface - Runs Inbox & Artifacts (GAP-8.10)
+
+These endpoints provide the operator UI with run browsing, artifact viewing, and progress monitoring capabilities.
+
+#### `GET /runs`
+- **Purpose**: List all runs with pagination and summary info
+- **Auth**: None
+- **Query params**: `limit` (1-100, default: 20), `offset` (default: 0)
+- **Response**: `{ runs: [...], total, limit, offset }`
+- **Notes**: Returns phase counts per run; known N+1 query (tracked in GAP-8.11.1)
+
+#### `GET /runs/{run_id}/progress`
+- **Purpose**: Get phase-by-phase progress details for a run
+- **Auth**: None
+- **Response**: `{ run_id, state, phases_total, phases_completed, phases_in_progress, phases_pending, phases: [...], tokens_used, token_cap, started_at, elapsed_seconds }`
+
+#### `GET /runs/{run_id}/artifacts/index`
+- **Purpose**: List all artifact files for a run
+- **Auth**: None
+- **Response**: `{ run_id, artifacts: [{ path, size_bytes, modified_at }], total_size_bytes }`
+- **Notes**: Returns empty list if run directory doesn't exist
+
+#### `GET /runs/{run_id}/artifacts/file`
+- **Purpose**: Get content of a specific artifact file
+- **Auth**: None
+- **Query params**: `path` (required, relative path within run directory)
+- **Response**: Plain text file content
+- **Security**: Path traversal protection (blocks `..`, absolute paths, Windows drive letters, URL-encoded bypass attempts)
+- **Notes**: Future auth enhancement tracked in GAP-8.11.2
+
+#### `GET /runs/{run_id}/browser/artifacts`
+- **Purpose**: List browser-specific artifacts (screenshots, HTML files)
+- **Auth**: None
+- **Response**: `{ run_id, screenshots: [{ path, timestamp, size_bytes }], html_files: [...], total_size_bytes }`
+
+---
+
+### 11. Storage Management
+
+#### `GET /storage/scans`
+- **Purpose**: List storage scans
+- **Auth**: Requires `X-API-Key`
+- **Response**: List of `StorageScanResponse`
+
+#### `GET /storage/scans/{scan_id}`
+- **Purpose**: Get storage scan details
+- **Auth**: Requires `X-API-Key`
+- **Response**: `StorageScanDetailResponse`
+
+#### `POST /storage/scans/{scan_id}/approve`
+- **Purpose**: Approve a storage scan
+- **Auth**: Requires `X-API-Key`
+- **Response**: Approval confirmation
+
+#### `GET /storage/steam/games`
+- **Purpose**: List Steam games (storage analysis)
+- **Auth**: None
+- **Response**: `SteamGamesListResponse`
+
+#### `POST /storage/patterns/analyze`
+- **Purpose**: Analyze file patterns
+- **Auth**: None
+- **Response**: List of `PatternResponse`
+
+#### `GET /storage/learned-rules`
+- **Purpose**: Get learned file organization rules
+- **Auth**: None
+- **Response**: List of `LearnedRuleResponse`
+
+#### `POST /storage/learned-rules/{rule_id}/approve`
+- **Purpose**: Approve a learned rule
+- **Auth**: None
+- **Response**: `LearnedRuleResponse`
+
+#### `GET /storage/recommendations`
+- **Purpose**: Get file organization recommendations
+- **Auth**: None
+- **Response**: `RecommendationsListResponse`
+
+---
+
+### 12. File Upload
+
+#### `POST /files/upload`
+- **Purpose**: Upload files for processing
+- **Auth**: Requires `X-API-Key`
+- **Response**: Upload confirmation with file metadata
+
+---
+
+### 13. Research API (Experimental)
 
 #### `POST /research/*`
 - **Purpose**: Research API endpoints (BUILD-113+)

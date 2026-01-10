@@ -2,35 +2,43 @@
 
 ## Overview
 
-Autopack includes a comprehensive JWT-based authentication system using RS256 asymmetric signing, OAuth2 Password Bearer flow, and bcrypt password hashing. The authentication system provides secure user registration, login, and protected endpoint access.
+Autopack includes a JWT-based authentication system using RS256 asymmetric signing, OAuth2 Password Bearer flow, and bcrypt password hashing. The authentication system provides secure user registration, login, and protected endpoint access.
 
 ## Architecture
 
 ### Components
 
-1. **User Model** ([src/backend/models/user.py](src/backend/models/user.py))
-   - SQLAlchemy model for user data
+1. **User Model** ([src/autopack/auth/models.py](src/autopack/auth/models.py))
+   - SQLAlchemy model for user data using `autopack.database.Base`
    - Fields: id, username, email, hashed_password, is_active, is_superuser, created_at, updated_at
    - Automatic timestamp management with timezone-aware UTC datetimes
 
-2. **Security Module** ([src/backend/core/security.py](src/backend/core/security.py))
+2. **Security Module** ([src/autopack/auth/security.py](src/autopack/auth/security.py))
    - Password hashing/verification using bcrypt
    - JWT token creation/validation using RS256
    - RSA key management with auto-generation for dev/test environments
    - JWKS generation for external token verification
+   - **Production hardening**: ephemeral key generation blocked when `AUTOPACK_ENV=production`
 
-3. **Authentication API** ([src/backend/api/auth.py](src/backend/api/auth.py))
+3. **Authentication API** ([src/autopack/auth/router.py](src/autopack/auth/router.py))
    - User registration endpoint
    - OAuth2 password flow login endpoint
    - Protected user profile endpoint
    - JWKS endpoint for token verification
    - Key status endpoint for configuration monitoring
 
-4. **Pydantic Schemas** ([src/backend/schemas/user.py](src/backend/schemas/user.py))
+4. **Pydantic Schemas** ([src/autopack/auth/schemas.py](src/autopack/auth/schemas.py))
    - Request/response validation models
    - UserCreate, UserResponse, Token, UserLogin, etc.
 
+5. **OAuth Credential Lifecycle** ([src/autopack/auth/oauth_lifecycle.py](src/autopack/auth/oauth_lifecycle.py))
+   - OAuth credential management and refresh handling
+   - Health monitoring for external OAuth providers
+   - External action ledger integration
+
 ## API Endpoints
+
+All authentication endpoints are mounted under `/api/auth/*` as defined in `docs/CANONICAL_API_CONTRACT.md`.
 
 ### Public Endpoints
 
@@ -115,9 +123,11 @@ Check JWT key configuration status.
 ```json
 {
   "keys_loaded": true,
-  "source": "env"  // or "generated"
+  "source": "env"
 }
 ```
+
+Note: `"source": "generated"` indicates ephemeral keys (dev/test only; blocked in production).
 
 ### Protected Endpoints
 
@@ -146,6 +156,25 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
 - 401: Not authenticated / Invalid token
 - 400: Inactive user
 
+### OAuth Credential Health Endpoints
+
+These endpoints are served by `src/autopack/auth/oauth_router.py` for OAuth credential lifecycle management.
+
+#### GET /api/auth/oauth/health
+Get comprehensive credential health report for dashboard. Requires `Bearer` token.
+
+#### GET /api/auth/oauth/health/{provider}
+Get health status for a specific OAuth provider. Requires `Bearer` token.
+
+#### POST /api/auth/oauth/refresh/{provider}
+Manually trigger credential refresh. Requires `Bearer` token + Admin (`is_superuser=true`).
+
+#### POST /api/auth/oauth/reset/{provider}
+Reset failure count for a credential. Requires `Bearer` token + Admin (`is_superuser=true`).
+
+#### GET /api/auth/oauth/events
+Get recent credential lifecycle events (for audit). Requires `Bearer` token.
+
 ## Security Features
 
 ### Password Security
@@ -163,7 +192,7 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
 
 ### Key Management
 
-**Production (Recommended):**
+**Production (Required):**
 ```bash
 # Generate RSA key pair
 openssl genrsa -out private_key.pem 2048
@@ -172,12 +201,13 @@ openssl rsa -in private_key.pem -pubout -out public_key.pem
 # Set environment variables
 export JWT_PRIVATE_KEY="$(cat private_key.pem)"
 export JWT_PUBLIC_KEY="$(cat public_key.pem)"
+export AUTOPACK_ENV="production"
 ```
 
 **Development/Testing:**
-- Keys auto-generated if not provided
-- Ephemeral keys (not persisted to disk)
-- Warning: Tokens invalid after server restart
+- Keys auto-generated if not provided (ephemeral, not persisted)
+- Warning logged: tokens invalid after server restart
+- **Important**: `AUTOPACK_ENV=production` blocks ephemeral key generation for security
 
 ## Environment Variables
 
@@ -188,7 +218,7 @@ export JWT_PUBLIC_KEY="$(cat public_key.pem)"
 | `DATABASE_URL` | Database connection string | `postgresql://user:pass@localhost:5432/autopack` |
 | `JWT_PRIVATE_KEY` | RSA private key (PEM format) | `-----BEGIN PRIVATE KEY-----\n...` |
 | `JWT_PUBLIC_KEY` | RSA public key (PEM format) | `-----BEGIN PUBLIC KEY-----\n...` |
-| `SECRET_KEY` | FastAPI secret key | `your-secret-key-here` |
+| `AUTOPACK_ENV` | Environment mode | `production` |
 
 ### Optional Configuration
 
@@ -204,8 +234,7 @@ export JWT_PUBLIC_KEY="$(cat public_key.pem)"
 ```bash
 # Minimal development setup (SQLite + auto-generated keys)
 export DATABASE_URL="sqlite:///./autopack.db"
-export SECRET_KEY="dev-secret-key"
-python -m uvicorn autopack.main:app --reload
+PYTHONPATH=src uvicorn autopack.main:app --reload
 ```
 
 ### Production Example
@@ -215,20 +244,13 @@ python -m uvicorn autopack.main:app --reload
 export DATABASE_URL="postgresql://autopack:password@localhost:5432/autopack"
 export JWT_PRIVATE_KEY="$(cat /path/to/private_key.pem)"
 export JWT_PUBLIC_KEY="$(cat /path/to/public_key.pem)"
-export SECRET_KEY="$(openssl rand -hex 32)"
-export ACCESS_TOKEN_EXPIRE_MINUTES="60"
-python -m uvicorn autopack.main:app --host 0.0.0.0 --port 8000
+export AUTOPACK_ENV="production"
+PYTHONPATH=src uvicorn autopack.main:app --host 0.0.0.0 --port 8000
 ```
 
 ## Database Setup
 
-The authentication system requires the `users` table. Tables are created automatically on first startup via the `init_db()` function.
-
-**Manual Initialization:**
-```python
-from backend.database import init_db
-init_db()
-```
+The authentication system uses the shared `autopack.database.Base` and requires the `users` table. Tables are created automatically via the standard database initialization flow.
 
 **User Table Schema:**
 ```sql
@@ -251,9 +273,11 @@ CREATE TABLE users (
 ```python
 import requests
 
+BASE_URL = "http://localhost:8000"
+
 # 1. Register a new user
 response = requests.post(
-    "http://localhost:8000/api/auth/register",
+    f"{BASE_URL}/api/auth/register",
     json={
         "username": "alice",
         "email": "alice@example.com",
@@ -264,7 +288,7 @@ print(response.json())  # User profile
 
 # 2. Login to get access token
 response = requests.post(
-    "http://localhost:8000/api/auth/login",
+    f"{BASE_URL}/api/auth/login",
     data={
         "username": "alice",
         "password": "SecurePass123!"
@@ -275,43 +299,10 @@ print(f"Token: {token}")
 
 # 3. Access protected endpoint
 response = requests.get(
-    "http://localhost:8000/api/auth/me",
+    f"{BASE_URL}/api/auth/me",
     headers={"Authorization": f"Bearer {token}"}
 )
 print(response.json())  # User profile
-```
-
-### JavaScript/TypeScript Example
-
-```typescript
-// 1. Register
-const registerResponse = await fetch('http://localhost:8000/api/auth/register', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    username: 'alice',
-    email: 'alice@example.com',
-    password: 'SecurePass123!'
-  })
-});
-const user = await registerResponse.json();
-
-// 2. Login
-const loginResponse = await fetch('http://localhost:8000/api/auth/login', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-  body: new URLSearchParams({
-    username: 'alice',
-    password: 'SecurePass123!'
-  })
-});
-const { access_token } = await loginResponse.json();
-
-// 3. Use token for authenticated requests
-const meResponse = await fetch('http://localhost:8000/api/auth/me', {
-  headers: { 'Authorization': `Bearer ${access_token}` }
-});
-const profile = await meResponse.json();
 ```
 
 ### cURL Examples
@@ -332,36 +323,14 @@ curl -X GET http://localhost:8000/api/auth/me \
   -H "Authorization: Bearer TOKEN"
 ```
 
-## Testing
-
-The authentication system includes comprehensive test coverage (29 tests) covering:
-
-- Password hashing and verification
-- JWT token creation and validation
-- User registration (success, duplicates, validation)
-- User login (success, wrong password, missing credentials)
-- Protected endpoint access (valid token, no token, invalid token)
-- JWKS endpoint functionality
-- End-to-end authentication flows
-
-**Run Authentication Tests:**
-```bash
-cd /path/to/Autopack
-PYTHONPATH=src python -m pytest src/backend/tests/test_auth.py -v
-```
-
-**Expected Output:**
-```
-29 passed in 13.90s
-```
-
 ## Integration with Existing Endpoints
 
 To protect any endpoint with authentication, use the `get_current_user` dependency:
 
 ```python
 from fastapi import APIRouter, Depends
-from autopack.auth import get_current_user, User
+from autopack.auth import User
+from autopack.auth.router import get_current_user
 
 router = APIRouter()
 
@@ -379,7 +348,7 @@ async def protected_endpoint(current_user: User = Depends(get_current_user)):
 ### Production Deployment
 
 1. **Use Environment Variables**: Never hardcode secrets in source code
-2. **Persistent Keys**: Use externally managed RSA keys (not auto-generated)
+2. **Persistent Keys**: Use externally managed RSA keys (ephemeral keys blocked in production)
 3. **HTTPS Only**: Always serve authentication endpoints over HTTPS
 4. **Database Security**: Use strong database passwords and connection encryption
 5. **Token Expiration**: Keep token TTL short (30-60 minutes recommended)
@@ -393,7 +362,7 @@ To rotate JWT signing keys:
 1. Generate new RSA key pair
 2. Add new public key to JWKS endpoint (support both keys temporarily)
 3. Update `JWT_PRIVATE_KEY` to use new private key (new tokens signed with new key)
-4. Wait for old tokens to expire (ACCESS_TOKEN_EXPIRE_MINUTES)
+4. Wait for old tokens to expire (`ACCESS_TOKEN_EXPIRE_MINUTES`)
 5. Remove old public key from JWKS endpoint
 
 ### Monitoring
@@ -409,8 +378,8 @@ Monitor these metrics in production:
 
 ### Common Issues
 
-**Problem**: "JWT keys not configured or invalid"
-- **Solution**: Ensure `JWT_PRIVATE_KEY` and `JWT_PUBLIC_KEY` are valid PEM-formatted RSA keys
+**Problem**: "JWT keys not configured in production mode"
+- **Solution**: Set `JWT_PRIVATE_KEY` and `JWT_PUBLIC_KEY` environment variables when `AUTOPACK_ENV=production`
 
 **Problem**: "Not authenticated"
 - **Solution**: Check that `Authorization` header is present with format `Bearer <token>`
@@ -424,45 +393,20 @@ Monitor these metrics in production:
 **Problem**: "Username already registered"
 - **Solution**: Choose a different username or use login if account already exists
 
-### Debug Mode
-
-Enable debug logging to troubleshoot authentication issues:
-
-```python
-import logging
-logging.basicConfig(level=logging.DEBUG)
-```
-
 ## Files Reference
 
 | File | Purpose |
 |------|---------|
-| [src/backend/models/user.py](src/backend/models/user.py) | User SQLAlchemy model |
-| [src/backend/schemas/user.py](src/backend/schemas/user.py) | Pydantic validation schemas |
-| [src/backend/api/auth.py](src/backend/api/auth.py) | Authentication API endpoints |
-| [src/backend/core/security.py](src/backend/core/security.py) | Security utilities (hashing, JWT) |
-| [src/backend/core/config.py](src/backend/core/config.py) | Configuration settings |
-| [src/backend/database.py](src/backend/database.py) | Database session management |
-| [src/backend/tests/test_auth.py](src/backend/tests/test_auth.py) | Authentication test suite |
+| [src/autopack/auth/\_\_init\_\_.py](src/autopack/auth/__init__.py) | Package exports |
+| [src/autopack/auth/models.py](src/autopack/auth/models.py) | User SQLAlchemy model |
+| [src/autopack/auth/schemas.py](src/autopack/auth/schemas.py) | Pydantic validation schemas |
+| [src/autopack/auth/router.py](src/autopack/auth/router.py) | Authentication API endpoints |
+| [src/autopack/auth/security.py](src/autopack/auth/security.py) | Security utilities (hashing, JWT) |
+| [src/autopack/auth/oauth_lifecycle.py](src/autopack/auth/oauth_lifecycle.py) | OAuth credential management |
+| [src/autopack/auth/oauth_router.py](src/autopack/auth/oauth_router.py) | OAuth health endpoints |
 
-## Future Enhancements
+## Related Documentation
 
-Potential improvements for future releases:
-
-1. **Token Refresh**: Add refresh token support for long-lived sessions
-2. **OAuth2 Providers**: Support Google/GitHub OAuth authentication
-3. **2FA/MFA**: Add two-factor authentication support
-4. **Password Reset**: Email-based password reset flow
-5. **Account Verification**: Email verification for new accounts
-6. **Session Management**: Add ability to revoke tokens/sessions
-7. **Audit Logging**: Log all authentication events for security monitoring
-8. **Role-Based Access Control (RBAC)**: Expand beyond `is_superuser` flag
-
-## Support
-
-For questions or issues with the authentication system:
-
-1. Review this documentation
-2. Check the test suite for usage examples ([src/backend/tests/test_auth.py](src/backend/tests/test_auth.py))
-3. Review API endpoint code ([src/backend/api/auth.py](src/backend/api/auth.py))
-4. Open an issue in the project repository
+- [CANONICAL_API_CONTRACT.md](CANONICAL_API_CONTRACT.md) - API contract (Section 8: Authentication Endpoints)
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Production deployment guide
+- [GOVERNANCE.md](GOVERNANCE.md) - Approval workflow and governance

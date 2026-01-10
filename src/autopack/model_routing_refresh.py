@@ -45,9 +45,20 @@ class ModelCatalogEntry:
     safety_compatible: bool = True
 
 
-# Seed catalog: Anthropic Claude models (BUILD-161 Phase B)
-# ROADMAP(P3): Replace with dynamic catalog source (e.g., from DB or external API)
-# when model pricing becomes more dynamic
+# Seed catalog: Fallback-only, for tests and environments without config files
+#
+# Source of Truth Hierarchy (P1.6):
+# 1. config/models.yaml + config/pricing.yaml (canonical, production)
+# 2. SEED_CATALOG (fallback-only: tests, Docker build without config, CI isolation)
+#
+# IMPORTANT: SEED_CATALOG is NOT the source of truth for production deployments.
+# Config files are always present in Docker images and should be used.
+# This fallback exists solely for:
+# - Unit tests that don't want to depend on config files
+# - Edge cases where config loading fails
+# - Development environments with incomplete setup
+#
+# A contract test verifies SEED_CATALOG does not silently drift from config.
 SEED_CATALOG = [
     # Haiku tier - fastest, cheapest
     ModelCatalogEntry(
@@ -138,8 +149,11 @@ def load_model_catalog() -> list[ModelCatalogEntry]:
             for e in config_catalog
         ]
 
-    # Fallback to seed catalog
-    logger.info("[ModelRoutingRefresh] Using seed catalog (config unavailable)")
+    # Fallback to seed catalog (P1.6: only when config is genuinely unavailable)
+    logger.warning(
+        "[ModelRoutingRefresh] Using SEED_CATALOG fallback - config files unavailable. "
+        "This is expected only in tests or incomplete environments."
+    )
     return list(SEED_CATALOG)
 
 

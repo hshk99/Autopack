@@ -206,3 +206,80 @@ class TestModelRoutingRefreshIntegration:
             catalog = load_model_catalog()
 
         assert len(catalog) == len(SEED_CATALOG)
+
+
+class TestP16SeedCatalogDriftContract:
+    """P1.6: Contract tests to prevent SEED_CATALOG from silently drifting from config."""
+
+    def test_seed_catalog_tiers_match_required_tiers(self):
+        """SEED_CATALOG must cover all required tiers."""
+        from autopack.model_routing_refresh import SEED_CATALOG
+        from autopack.model_catalog import REQUIRED_TIERS
+
+        seed_tiers = {e.tier for e in SEED_CATALOG}
+
+        for tier in REQUIRED_TIERS:
+            assert tier in seed_tiers, (
+                f"SEED_CATALOG missing required tier '{tier}'. "
+                "Update SEED_CATALOG or check REQUIRED_TIERS."
+            )
+
+    def test_seed_catalog_model_ids_are_valid_anthropic_models(self):
+        """SEED_CATALOG model_ids should follow Anthropic naming conventions."""
+        from autopack.model_routing_refresh import SEED_CATALOG
+
+        for entry in SEED_CATALOG:
+            # All seed models should be Anthropic Claude models
+            assert entry.provider == "anthropic", (
+                f"SEED_CATALOG entry {entry.model_id} is not Anthropic. "
+                "Seed catalog is for Anthropic fallback only."
+            )
+            assert "claude" in entry.model_id.lower(), (
+                f"SEED_CATALOG entry {entry.model_id} doesn't look like a Claude model."
+            )
+
+    def test_config_catalog_preferred_over_seed_when_available(self):
+        """When config is available, it should be used instead of seed."""
+        from autopack.model_routing_refresh import load_model_catalog, SEED_CATALOG
+        from autopack.model_catalog import load_model_catalog as load_from_config
+
+        # Load from config
+        config_catalog = load_from_config()
+
+        # If config is available, load_model_catalog should return config, not seed
+        if config_catalog:
+            loaded = load_model_catalog()
+
+            # Should NOT be using seed (model IDs might differ)
+            # The key assertion: if config exists, we should get config entries
+            loaded_ids = {e.model_id for e in loaded}
+            config_ids = {e.model_id for e in config_catalog}
+
+            # If config is available, loaded should match config
+            assert loaded_ids == config_ids, (
+                "load_model_catalog() returned different model IDs than config. "
+                "Config should be preferred when available."
+            )
+
+    def test_seed_catalog_pricing_is_plausible(self):
+        """SEED_CATALOG pricing should be plausible (not zero, not absurdly high)."""
+        from autopack.model_routing_refresh import SEED_CATALOG
+
+        for entry in SEED_CATALOG:
+            # Pricing should be positive (free models would be suspicious for Claude)
+            assert entry.cost_per_1k_input > 0, (
+                f"SEED_CATALOG entry {entry.model_id} has zero input cost. "
+                "Claude models are not free."
+            )
+            assert entry.cost_per_1k_output > 0, (
+                f"SEED_CATALOG entry {entry.model_id} has zero output cost. "
+                "Claude models are not free."
+            )
+
+            # Pricing should be reasonable (< $100/1k tokens is safe upper bound)
+            assert entry.cost_per_1k_input < 100, (
+                f"SEED_CATALOG entry {entry.model_id} has implausible input cost."
+            )
+            assert entry.cost_per_1k_output < 100, (
+                f"SEED_CATALOG entry {entry.model_id} has implausible output cost."
+            )

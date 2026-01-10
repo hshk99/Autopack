@@ -784,6 +784,10 @@ async def list_runs(
 
     Returns summary information for each run suitable for inbox display.
     Auth: Required in production; dev opt-in via AUTOPACK_PUBLIC_READ=1.
+
+    P3.2 Optimization: Uses joinedload to fetch runs and phases in a single
+    query, avoiding the N+1 query problem where each run required a separate
+    phases query.
     """
     # Clamp limit to reasonable bounds
     limit = max(1, min(limit, 100))
@@ -792,28 +796,32 @@ async def list_runs(
     # Get total count
     total = db.query(models.Run).count()
 
-    # Get paginated runs ordered by created_at desc
+    # P3.2: Use joinedload to eagerly load phases in a single query
+    # This avoids N+1 queries where each run would require a separate phases query
     runs = (
         db.query(models.Run)
+        .options(joinedload(models.Run.phases))
         .order_by(models.Run.created_at.desc())
         .offset(offset)
         .limit(limit)
         .all()
     )
 
-    # Build summary response
+    # Build summary response using prefetched phases
     run_summaries = []
     for run in runs:
-        # Count phases for this run
-        phases = db.query(models.Phase).filter(models.Phase.run_id == run.id).all()
+        # Phases are already loaded via joinedload - no extra query needed
+        phases = run.phases
         phases_total = len(phases)
         phases_completed = sum(1 for p in phases if p.state == models.PhaseState.COMPLETE)
 
         # Get current phase name (first non-complete phase)
+        # Sort phases by phase_index to ensure consistent ordering
+        sorted_phases = sorted(phases, key=lambda p: p.phase_index)
         current_phase = next(
             (
                 p
-                for p in phases
+                for p in sorted_phases
                 if p.state not in (models.PhaseState.COMPLETE, models.PhaseState.SKIPPED)
             ),
             None,

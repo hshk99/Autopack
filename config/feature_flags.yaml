@@ -150,6 +150,17 @@ flags:
     values: ["1"]
     affects: ["autonomous_executor.py"]
 
+  AUTOPACK_OAUTH_ALLOW_PLAINTEXT_PERSISTENCE:
+    description: "Allow plaintext OAuth token persistence (development only)"
+    category: security
+    default: "false"
+    values: ["1"]
+    affects: ["oauth.py", "credentials.py"]
+    security_implications:
+      enabled: "DANGEROUS - OAuth tokens stored in plaintext on disk"
+      disabled: "Tokens stored in encrypted form or refused in production"
+    notes: "PR-04 (R-03 G4) added this kill switch. Production default is secure (disabled)."
+
   # ============================================================================
   # Tuning Parameters
   # ============================================================================

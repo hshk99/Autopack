@@ -222,8 +222,8 @@ Use this as the final go/no-go checklist. Autopack is "ready" only when every it
   - [x] Health semantics reflect backend readiness in production topology. ✅ PR-02: `/health` proxies to backend, `/nginx-health` for nginx liveness.
 
 - **G7 (Observability correctness)**:
-  - [ ] Observability endpoints are kill-switched default OFF.
-  - [ ] Usage caps come from config and are consistent across UI + API.
+  - [x] Observability endpoints are kill-switched default OFF. ✅ PR-07: `AUTOPACK_ENABLE_CONSOLIDATED_METRICS` and `AUTOPACK_ENABLE_PHASE6_METRICS` default OFF, reported via `/health`, documented in `docs/DEPLOYMENT.md`
+  - [x] Usage caps come from config and are consistent across UI + API. ✅ PR-07: `settings.run_token_cap` (5M default) configurable via `RUN_TOKEN_CAP` env var, `tests/ci/test_observability_correctness.py` (16 tests)
 
 - **G8 (Documentation convergence)**:
   - [ ] Canonical API contract matches implementation (auth + response shapes), and drift is CI-blocked.
@@ -243,7 +243,7 @@ Score each gate from 0–2:
 | G4 Secrets & persistence | 2 | `tests/ci/test_secret_file_support.py` (18 tests), `tests/ci/test_oauth_persistence_hardening.py` (11 tests), `docs/DEPLOYMENT.md` (Secret File Support + OAuth Credential Security sections) |
 | G5 Artifact boundary | 2 | `tests/ci/test_artifact_boundary_hardening.py` (17 tests), `docs/DEPLOYMENT.md` (Artifact Boundary Hardening section) |
 | G6 Deployment invariants | 2 | `tests/ci/test_nginx_config_contract.py`, `docs/DEPLOYMENT.md` (Reverse Proxy Routing Invariants) |
-| G7 Observability correctness | 0 |  |
+| G7 Observability correctness | 2 | `tests/ci/test_observability_correctness.py` (16 tests), `docs/DEPLOYMENT.md` (Observability Kill Switches section) |
 | G8 Documentation convergence | 2 | `docs/CANONICAL_API_CONTRACT.md` matches implementation |
 
 **Ready threshold**: 16/16 (no gate can be "1" for production use).

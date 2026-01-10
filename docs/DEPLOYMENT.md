@@ -222,6 +222,51 @@ AUTOPACK_ARTIFACT_READ_SIZE_CAP=1048576  # 1MB
 
 ---
 
+### Observability Kill Switches (PR-07 G7)
+
+Observability endpoints that could accidentally trigger LLM costs or consume significant resources are protected by kill switches. These are **OFF by default** to prevent accidental cost exposure.
+
+**Environment Variables**:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AUTOPACK_ENABLE_CONSOLIDATED_METRICS` | `0` (off) | Enable consolidated metrics endpoint |
+| `AUTOPACK_ENABLE_PHASE6_METRICS` | `0` (off) | Enable phase6 metrics endpoint |
+| `RUN_TOKEN_CAP` | `5000000` | Token cap per run (5M tokens) |
+
+**Enabling observability endpoints**:
+
+```bash
+# Enable consolidated metrics (high-cost endpoint)
+AUTOPACK_ENABLE_CONSOLIDATED_METRICS=1
+
+# Enable phase6 metrics
+AUTOPACK_ENABLE_PHASE6_METRICS=1
+
+# Custom token cap (default: 5M)
+RUN_TOKEN_CAP=10000000
+```
+
+**Kill switch states are reported via `/health`**:
+
+```json
+{
+  "status": "healthy",
+  "kill_switches": {
+    "phase6_metrics": false,
+    "consolidated_metrics": false
+  }
+}
+```
+
+**Security notes**:
+- Kill switches default OFF to prevent accidental LLM costs
+- Dashboard endpoints only read from database (no LLM calls)
+- Usage caps come from config (`settings.run_token_cap`)
+- Token efficiency endpoints require API key auth in production
+
+---
+
 ### Required Variables
 
 ```bash

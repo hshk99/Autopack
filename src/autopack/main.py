@@ -987,15 +987,28 @@ async def get_artifacts_index(
 async def get_artifact_file(
     run_id: str,
     path: str,
+    redact: bool = False,
     db: Session = Depends(get_db),
     _auth: str = Depends(verify_read_access),
 ):
     """Get artifact file content (GAP-8.10.1 Artifact Browser).
 
+    PR-06 (R-06 G5): Artifact boundary hardening.
+
     Security: Path traversal attacks are blocked.
     Auth: Required in production; dev opt-in via AUTOPACK_PUBLIC_READ=1.
+
+    Query params:
+        redact: Enable PII/credential redaction (default: use AUTOPACK_ARTIFACT_REDACTION setting)
+
+    Response headers:
+        X-Artifact-Truncated: "true" if content was truncated due to size cap
+        X-Artifact-Redacted: "true" if content was redacted
+        X-Artifact-Original-Size: Original file size in bytes
     """
-    from fastapi.responses import PlainTextResponse
+    from fastapi.responses import Response
+    from .config import settings
+    from .artifacts.redaction import ArtifactRedactor
 
     # URL-decode path to catch encoded traversal attempts (e.g., %2e%2e = ..)
     decoded_path = unquote(path)
@@ -1025,7 +1038,44 @@ async def get_artifact_file(
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"File not found: {path}")
 
-    return PlainTextResponse(content=file_path.read_text(encoding="utf-8", errors="replace"))
+    # PR-06: Get file size for boundary enforcement
+    file_size = file_path.stat().st_size
+    size_cap = settings.artifact_read_size_cap_bytes
+    truncated = False
+    redacted = False
+    redaction_count = 0
+
+    # Read content with size cap
+    if size_cap > 0 and file_size > size_cap:
+        # Truncate at size cap
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read(size_cap)
+        content += f"\n\n[TRUNCATED: File size {file_size} bytes exceeds cap of {size_cap} bytes]"
+        truncated = True
+    else:
+        content = file_path.read_text(encoding="utf-8", errors="replace")
+
+    # PR-06: Apply redaction if enabled (via query param or config)
+    should_redact = redact or settings.artifact_redaction_enabled
+    if should_redact:
+        redactor = ArtifactRedactor()
+        content, redaction_count = redactor.redact_text(content)
+        redacted = redaction_count > 0
+
+    # Build response with metadata headers
+    headers = {
+        "X-Artifact-Original-Size": str(file_size),
+        "X-Artifact-Truncated": "true" if truncated else "false",
+        "X-Artifact-Redacted": "true" if redacted else "false",
+    }
+    if redacted:
+        headers["X-Artifact-Redaction-Count"] = str(redaction_count)
+
+    return Response(
+        content=content,
+        media_type="text/plain; charset=utf-8",
+        headers=headers,
+    )
 
 
 @app.get("/runs/{run_id}/browser/artifacts")

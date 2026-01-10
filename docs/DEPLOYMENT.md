@@ -181,6 +181,47 @@ containers:
 
 ---
 
+### Artifact Boundary Hardening (PR-06 G5)
+
+**Production Default**: Artifact file reads are **SIZE-CAPPED** (default 1MB) and optionally **REDACTED** to prevent memory exhaustion and sensitive data exposure.
+
+**Configuration**:
+
+```bash
+# Size cap for artifact file reads (bytes). 0 = unlimited (dev only).
+# Default: 1MB - prevents memory exhaustion from large artifacts.
+AUTOPACK_ARTIFACT_READ_SIZE_CAP=1048576
+
+# Enable PII/credential redaction in artifact reads.
+# Default: false in dev, should be true in production for hosted usage.
+AUTOPACK_ARTIFACT_REDACTION=true
+```
+
+**Response headers**:
+- `X-Artifact-Original-Size`: Original file size in bytes
+- `X-Artifact-Truncated`: "true" if content was truncated due to size cap
+- `X-Artifact-Redacted`: "true" if content was redacted
+- `X-Artifact-Redaction-Count`: Number of redactions applied (if redacted)
+
+**Query parameters**:
+- `redact=true`: Enable redaction for this request (overrides config default)
+
+**What gets redacted** (when enabled):
+- API keys, Bearer tokens, OAuth tokens
+- Passwords, secrets, credentials
+- Email addresses, phone numbers, SSNs
+- Credit card numbers, bank accounts
+- Cookies, session IDs
+- IP addresses, URLs with auth
+
+**Recommended for hosted/operator usage**:
+```bash
+AUTOPACK_ARTIFACT_REDACTION=true
+AUTOPACK_ARTIFACT_READ_SIZE_CAP=1048576  # 1MB
+```
+
+---
+
 ### Required Variables
 
 ```bash

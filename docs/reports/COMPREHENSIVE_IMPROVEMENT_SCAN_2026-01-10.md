@@ -214,8 +214,8 @@ Use this as the final go/no-go checklist. Autopack is "ready" only when every it
   - [x] No plaintext credential persistence in production by default. ✅ PR-04: `OAuthCredentialManager._save()` raises `OAuthProductionSecurityError` in production unless `AUTOPACK_OAUTH_ALLOW_PLAINTEXT_PERSISTENCE=1`
 
 - **G5 (Artifact boundary)**:
-  - [ ] Artifact endpoints enforce size caps and safe response semantics.
-  - [ ] Optional redaction is deterministic and tested.
+  - [x] Artifact endpoints enforce size caps and safe response semantics. ✅ PR-06: `main.py` artifact file endpoint enforces `AUTOPACK_ARTIFACT_READ_SIZE_CAP` (default 1MB), returns `X-Artifact-Truncated` header
+  - [x] Optional redaction is deterministic and tested. ✅ PR-06: `ArtifactRedactor` integration via `AUTOPACK_ARTIFACT_REDACTION` or `?redact=true` query param, `tests/ci/test_artifact_boundary_hardening.py` (17 tests)
 
 - **G6 (Deployment invariants)**:
   - [x] nginx routes `/api/runs*` and `/api/auth/*` correctly. ✅ PR-02: `nginx.conf` has separate `/api/auth/` location block preserving prefix.
@@ -241,7 +241,7 @@ Score each gate from 0–2:
 | G2 Governance & approvals | 2 | `tests/ci/test_governance_docs_contract.py` (10 tests), `docs/GOVERNANCE.md` (DEC-046 aligned) |
 | G3 External side effects | 2 | `tests/ci/test_governance_docs_contract.py` (NEVER_AUTO_APPROVE enforcement), `src/autopack/planning/plan_proposer.py` (default-deny) |
 | G4 Secrets & persistence | 2 | `tests/ci/test_secret_file_support.py` (18 tests), `tests/ci/test_oauth_persistence_hardening.py` (11 tests), `docs/DEPLOYMENT.md` (Secret File Support + OAuth Credential Security sections) |
-| G5 Artifact boundary | 0 |  |
+| G5 Artifact boundary | 2 | `tests/ci/test_artifact_boundary_hardening.py` (17 tests), `docs/DEPLOYMENT.md` (Artifact Boundary Hardening section) |
 | G6 Deployment invariants | 2 | `tests/ci/test_nginx_config_contract.py`, `docs/DEPLOYMENT.md` (Reverse Proxy Routing Invariants) |
 | G7 Observability correctness | 0 |  |
 | G8 Documentation convergence | 2 | `docs/CANONICAL_API_CONTRACT.md` matches implementation |

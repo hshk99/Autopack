@@ -235,6 +235,27 @@ class Settings(BaseSettings):
     jwt_audience: str = "autopack-api"  # Token audience
     access_token_expire_minutes: int = 1440  # Token expiration (24 hours)
 
+    # PR-06 (R-06 G5): Artifact boundary hardening
+    # Size cap for artifact file reads (bytes). 0 = unlimited (dev only).
+    # Default: 1MB - prevents memory exhaustion from large artifacts.
+    artifact_read_size_cap_bytes: int = Field(
+        default=1_048_576,  # 1MB
+        validation_alias=AliasChoices(
+            "AUTOPACK_ARTIFACT_READ_SIZE_CAP", "ARTIFACT_READ_SIZE_CAP_BYTES"
+        ),
+        description="Max bytes to read from artifact files (0=unlimited, dev only)",
+    )
+
+    # Enable redaction of sensitive data in artifact reads (PII, credentials).
+    # Default: False in dev, should be True in production for hosted usage.
+    artifact_redaction_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "AUTOPACK_ARTIFACT_REDACTION", "ARTIFACT_REDACTION_ENABLED"
+        ),
+        description="Enable PII/credential redaction in artifact reads",
+    )
+
     @model_validator(mode="after")
     def validate_jwt_algorithm(self) -> "Settings":
         """

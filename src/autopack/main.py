@@ -1981,6 +1981,9 @@ def get_dashboard_usage(period: str = "week", db: Session = Depends(get_db)):
         model_stats[key]["prompt_tokens"] += event.prompt_tokens or 0
         model_stats[key]["completion_tokens"] += event.completion_tokens or 0
 
+    # Get token cap from canonical config (P1.3: remove hardcoded 0)
+    cap_tokens = settings.run_token_cap  # Default: 5_000_000
+
     # Convert to response models
     providers = [
         dashboard_schemas.ProviderUsage(
@@ -1989,8 +1992,8 @@ def get_dashboard_usage(period: str = "week", db: Session = Depends(get_db)):
             prompt_tokens=stats["prompt_tokens"],
             completion_tokens=stats["completion_tokens"],
             total_tokens=stats["total_tokens"],
-            cap_tokens=0,  # ROADMAP(P3): Get from config
-            percent_of_cap=0.0,
+            cap_tokens=cap_tokens,
+            percent_of_cap=(stats["total_tokens"] / cap_tokens * 100) if cap_tokens > 0 else 0.0,
         )
         for provider, stats in provider_stats.items()
     ]

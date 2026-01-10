@@ -244,7 +244,7 @@ Score each gate from 0–2:
 | G5 Artifact boundary | 2 | `tests/ci/test_artifact_boundary_hardening.py` (17 tests), `docs/DEPLOYMENT.md` (Artifact Boundary Hardening section) |
 | G6 Deployment invariants | 2 | `tests/ci/test_nginx_config_contract.py`, `docs/DEPLOYMENT.md` (Reverse Proxy Routing Invariants) |
 | G7 Observability correctness | 2 | `tests/ci/test_observability_correctness.py` (16 tests), `docs/DEPLOYMENT.md` (Observability Kill Switches section) |
-| G8 Documentation convergence | 2 | `docs/CANONICAL_API_CONTRACT.md` matches implementation |
+| G8 Documentation convergence | 2 | `docs/CANONICAL_API_CONTRACT.md` matches implementation, `scripts/check_docs_drift.py`, `tests/docs/test_openapi_strategy.py` |
 
 **Ready threshold**: 16/16 (no gate can be "1" for production use).
 

@@ -467,6 +467,33 @@ PYTHONPATH=src pytest tests/ -v
 
 ### Production Deployment
 
+**Use the production override template for secure deployments**:
+
+```bash
+# 1. Copy the production override template
+cp docker-compose.prod.example.yml docker-compose.prod.yml
+
+# 2. Configure Docker secrets (see example commands in the template)
+echo "postgresql://autopack:SECURE_PASSWORD@db:5432/autopack" | docker secret create db_url_secret -
+echo "SECURE_PASSWORD" | docker secret create db_password -
+docker secret create jwt_private_key /path/to/private_key.pem
+docker secret create jwt_public_key /path/to/public_key.pem
+
+# 3. Deploy with production override
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+# 4. Verify deployment
+curl http://localhost:8000/health
+```
+
+**Production override key features**:
+- `AUTOPACK_ENV=production`: Enables security hardening (blocks ephemeral JWT keys)
+- `*_FILE` secrets: Credentials via Docker secrets, not env vars
+- No host port exposure for `db`/`qdrant`: Internal network only
+- See `docker-compose.prod.example.yml` for full template
+
+**Without override (local dev only)**:
+
 ```bash
 # Build production images
 docker-compose build --no-cache

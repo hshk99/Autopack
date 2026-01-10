@@ -1,0 +1,75 @@
+# Production Override Template for Autopack
+#
+# Usage:
+#   1. Copy to docker-compose.prod.yml (DO NOT commit actual secrets)
+#   2. Configure secrets via Docker secrets or external secret manager
+#   3. Deploy with: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Security Principles:
+#   - No host port exposure for db/qdrant (internal network only)
+#   - Secrets provided via *_FILE environment variables + Docker secrets
+#   - AUTOPACK_ENV=production enables security hardening (e.g., blocks ephemeral JWT keys)
+#   - Image versions pinned for determinism (match docker-compose.yml)
+
+version: '3.8'
+
+services:
+  backend:
+    environment:
+      # Production mode enables security hardening
+      - AUTOPACK_ENV=production
+      # Use Docker secrets for DATABASE_URL
+      # Requires: docker secret create db_url_secret <url>
+      - DATABASE_URL_FILE=/run/secrets/db_url_secret
+      # JWT keys (required in production - ephemeral generation blocked)
+      - JWT_PRIVATE_KEY_FILE=/run/secrets/jwt_private_key
+      - JWT_PUBLIC_KEY_FILE=/run/secrets/jwt_public_key
+      # Vector memory (Qdrant) - internal network
+      - AUTOPACK_USE_QDRANT=true
+      - AUTOPACK_QDRANT_HOST=qdrant
+      - AUTOPACK_QDRANT_PORT=6333
+    secrets:
+      - db_url_secret
+      - jwt_private_key
+      - jwt_public_key
+    # Remove host port exposure if behind reverse proxy (nginx, Traefik)
+    # ports:
+    #   - "8000:8000"
+
+  frontend:
+    # Remove host port 80 if using reverse proxy with HTTPS termination
+    # ports:
+    #   - "80:80"
+    depends_on:
+      - backend
+
+  db:
+    environment:
+      POSTGRES_USER: autopack
+      # Use Docker secrets for password
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: autopack
+    secrets:
+      - db_password
+    # CRITICAL: Do not expose db to host in production
+    ports: []
+
+  qdrant:
+    # CRITICAL: Do not expose qdrant to host in production
+    ports: []
+
+# Docker secrets (create before deployment)
+# Example commands:
+#   echo "postgresql://autopack:SECURE_PASSWORD@db:5432/autopack" | docker secret create db_url_secret -
+#   echo "SECURE_PASSWORD" | docker secret create db_password -
+#   docker secret create jwt_private_key /path/to/private_key.pem
+#   docker secret create jwt_public_key /path/to/public_key.pem
+secrets:
+  db_url_secret:
+    external: true
+  db_password:
+    external: true
+  jwt_private_key:
+    external: true
+  jwt_public_key:
+    external: true

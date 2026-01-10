@@ -1,6 +1,6 @@
 # Autopack — Comprehensive Improvement / Gap Analysis (vs README “ideal state” + WORKSPACE_ORGANIZATION_SPEC + beyond)
 
-**Last Verified**: 2026-01-09 (GAP-8.x items updated)
+**Last Verified**: 2026-01-10 (GAP-8.x + P0-P3 improvement scan completed)
 **Scope**: repo-wide (docs/SOT, CI, Docker/compose, runtime, security, frontend(s), workspace hygiene)
 **Goal**: enumerate **all** meaningful gaps/enhancements in one place; prioritize; include concrete acceptance criteria.
 

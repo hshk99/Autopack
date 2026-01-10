@@ -22,84 +22,60 @@ The remaining work is mostly **convergence (“one truth”)** and **hardening f
 
 ### P0.1 `docs/AUTHENTICATION.md` is legacy but currently treated as canonical
 
-- **Problem**: `docs/AUTHENTICATION.md` references a non-existent `src/backend/*` structure and recommends `init_db()` usage in ways that contradict current code + DB bootstrap guardrails.
-- **Evidence**:
-  - `docs/AUTHENTICATION.md` references `src/backend/models/user.py`, `src/backend/api/auth.py`, etc. (these paths do not exist in this repo).
-  - Real auth code lives under `src/autopack/auth/*` and is mounted at `/api/auth/*` (see `src/autopack/auth/router.py`, `src/autopack/auth/security.py`).
-  - `docs/WORKSPACE_ORGANIZATION_SPEC.md` lists `docs/AUTHENTICATION.md` under “Canonical Guides (Truth Sources)”.
-- **Why P0**: Operators/agents will copy-paste this doc and get a false model of the system, which breaks the repo’s core thesis (deterministic + mechanically enforceable).
-- **Fix options (pick one, enforce via CI)**:
-  - **Option A (preferred)**: Rewrite `docs/AUTHENTICATION.md` to match `src/autopack/auth/*` + `docs/CANONICAL_API_CONTRACT.md` (already documents `/api/auth/*`).
-  - **Option B**: Mark as legacy/historical and move to `archive/` (then remove from canonical docs lists).
-- **Acceptance criteria**:
-  - `docs/AUTHENTICATION.md` contains **no** `src/backend/` references.
-  - The documented endpoints match `docs/CANONICAL_API_CONTRACT.md` Authentication section and the code in `src/autopack/auth/router.py`.
-  - A **doc contract test** blocks regressions (forbid `src/backend/` strings in canonical operator docs allowlist).
+**Status**: ✅ Appears resolved (auth docs now match `src/autopack/auth/*`).
+
+- **What to improve (still useful)**:
+  - Update `docs/ARCHITECTURE_DECISIONS.md` entry **DEC-050** from “🧭 Planned” → “✅ Implemented” if the rewrite is considered complete (avoid “two truths” in the decisions ledger).
 
 ### P0.2 `docs/GOVERNANCE.md` contains internal contradictions about whether docs/tests can be auto-approved
 
-- **Problem**: The governance doc simultaneously claims:
-  - Tier 1 includes “new test files” and “documentation updates” as auto-approved examples, and
-  - Category safety says tests/docs require approval (not auto-approved) per NEVER_AUTO_APPROVE policy.
-- **Evidence**: `docs/GOVERNANCE.md`:
-  - Tier 1 examples include `tests/test_*.py` and `docs/*.md`
-  - Category Safety says: “Tests: Require approval … Docs: Require approval …”
-  - Auto-approval examples show tests/docs “AUTO_APPROVED”
-- **Why P0**: Governance policy is the safety envelope; ambiguity here undermines deterministic approval behavior and operator trust.
+**Status**: ❌ Still a “two truths” risk (doc vs contract-tested policy mismatch).
+
+- **Problem**: The repo’s *contract-tested* default-deny policy (DEC-046) requires approval for changes under `docs/`, `tests/`, `config/`, `.github/`, `src/autopack/`, but `docs/GOVERNANCE.md` still describes docs/tests as auto-approvable and lists them as “Allowed Paths”.
+- **Evidence**:
+  - `src/autopack/planning/plan_proposer.py` defines:
+    - `NEVER_AUTO_APPROVE_PATTERNS = ["docs/", "config/", ".github/", "src/autopack/", "tests/"]`
+  - `tests/planning/test_governance_policy.py` asserts (DEC-046) that actions touching these paths are **not** auto-approved.
+  - `docs/GOVERNANCE.md` includes Tier 1 examples for `tests/` and `docs/`, and lists them under “Allowed Paths”.
+- **Why P0**: Governance docs are operator-facing. Drift here makes the system feel nondeterministic even if enforcement is correct.
 - **Recommended direction**:
-  - Make one policy canonical and delete the conflicting examples.
-  - If current implementation is default-deny for docs/tests, update Tier 1 examples and “Auto-Approved” examples accordingly.
+  - Update `docs/GOVERNANCE.md` to match DEC-046 and the contract tests (docs/tests/config/.github/src/autopack are **never auto-approved**).
+  - Add a docs contract test that blocks reintroducing “auto-approved” examples for any `NEVER_AUTO_APPROVE_PATTERNS` paths.
 - **Acceptance criteria**:
-  - `docs/GOVERNANCE.md` is internally consistent and matches the actual policy in code (and/or has contract tests verifying the documented policy).
+  - `docs/GOVERNANCE.md` describes the same policy that is enforced and tested.
 
-### P0.3 GLM is referenced as a required API key in docs, but GLM support is disabled in runtime routing
+### P0.3 Legacy approval endpoint defaults to auto-approve (conflicts with default-deny posture)
 
-- **Problem**: Canonical onboarding surfaces still mention GLM as a viable/required provider, while runtime code says GLM is disabled and will error if selected.
+- **Problem**: `POST /approval/request` (BUILD-113/117 legacy) defaults to auto-approving requests via `AUTO_APPROVE_BUILD113=true` default, which contradicts DEC-046’s default-deny posture.
 - **Evidence**:
-  - `docs/PROJECT_INDEX.json` references `GLM_API_KEY` as an option in setup.
-  - `src/autopack/llm_service.py` explicitly states GLM support is disabled (`GLM_AVAILABLE = False`) and treats `glm-*` as misconfiguration.
-- **Why P0**: This creates a “false affordance” for operators and will cause confusing failures during setup.
+  - `src/autopack/main.py` reads `AUTO_APPROVE_BUILD113` with default `"true"` and immediately approves when enabled.
+- **Why P0**: This is a safety footgun if the legacy path is reachable in any environment where approval should be human-in-the-loop.
 - **Recommended direction**:
-  - Remove GLM from canonical onboarding docs (or clearly label it “legacy/disabled”) and ensure `docs/PROJECT_INDEX.json` matches `config/models.yaml` and `src/autopack/llm_service.py` behavior.
+  - Default `AUTO_APPROVE_BUILD113` to `"false"` (opt-in only), or gate the endpoint behind an explicit “legacy mode”.
+  - Document legacy behavior clearly (and ideally deprecate/remove if unused).
 - **Acceptance criteria**:
-  - Canonical docs do not present GLM as a supported provider unless code/config truly support it end-to-end.
-  - A doc-contract test blocks reintroducing GLM as “required/normal” if it remains disabled.
+  - Default posture is not silent auto-approval.
 
-### P0.4 Auth/authorization inconsistencies on “operator surface” endpoints (artifact/read endpoints are unauthenticated)
+### P0.4 GLM is referenced in docs, but GLM support is disabled in runtime routing
 
-- **Problem**: The canonical contract currently allows many endpoints as **public read** (including run listing and artifact file read). This is convenient for local single-user operation, but it is a **multi-tenant / shared-host risk**.
-- **Evidence**:
-  - `docs/CANONICAL_API_CONTRACT.md` lists `GET /runs` and artifact endpoints as `Auth: None` and tracks “future auth enhancement”.
-- **Why P0 (for your intended future use)**: Once Autopack is used beyond a single local machine, unauthenticated artifact reads can leak secrets/PII in run logs/artifacts.
-- **Decision (chosen)**: **Auth required in production/hosted mode** for run listing and artifact reads.
-  - Default posture: **secure-by-default** (matches “safe autonomy” thesis and your intended external-side-effect usage).
-  - Developer convenience: allow an explicit **dev-only opt-in** for public read (e.g., `AUTOPACK_PUBLIC_READ=1`) and default it to OFF.
-- **Implementation direction**:
-  - Apply `verify_api_key` (or a single auth dependency) consistently to:
-    - `GET /runs`
-    - `GET /runs/{run_id}/progress`
-    - `GET /runs/{run_id}/artifacts/index`
-    - `GET /runs/{run_id}/artifacts/file`
-    - `GET /runs/{run_id}/browser/artifacts`
-  - Keep “executor trust boundary” endpoints as-is if desired, but document the boundary explicitly in `docs/CANONICAL_API_CONTRACT.md`.
-- **Acceptance criteria**:
-  - In production/hosted mode: all run listing and artifact reads return 401/403 without auth.
-  - In development mode: public read is available only when explicitly enabled and is clearly documented as local-only.
+**Status**: ✅ Canonical onboarding largely labels GLM as tooling-only / disabled for runtime.
 
-### P0.5 `docs/WORKSPACE_ORGANIZATION_SPEC.md` vs reality drift risk (archival policy vs docs contents)
+- **Remaining improvement (optional)**:
+  - Ensure any remaining GLM mentions in canonical “getting started” docs are consistently labeled “tooling-only (not runtime)”.
 
-- **Problem**: The spec states historical `BUILD-NNN_*.md` older than 30 days “should be archived”, but the repo keeps many build reports in `docs/` and `docs/INDEX.md` links to them. This creates ambiguity: is `docs/` “truth sources only” or also “historical reports repository”?
-- **Evidence**:
-  - `docs/WORKSPACE_ORGANIZATION_SPEC.md` “Historical Files (Should Be Archived)” section.
-  - `docs/INDEX.md` includes many `BUILD-*` references and build reports exist under `docs/`.
-- **Decision (chosen)**: **Option A** — update the spec to match reality and reduce churn.
-  - Rationale: The repo already treats `docs/INDEX.md` as a navigation hub and retains many build reports under `docs/`. Forcing age-based archival would be a large, noisy migration and risks breaking links.
-  - Guardrail: Make the distinction explicit:
-    - **Canonical operator docs**: small allowlist, drift-tested, copy/paste safe.
-    - **Historical build reports**: allowed in `docs/` (or `docs/reports/`) but clearly labeled “historical”, excluded from copy/paste allowlists and drift checks.
-- **Acceptance criteria**:
-  - `docs/WORKSPACE_ORGANIZATION_SPEC.md` no longer claims age-based archival as a requirement.
-  - Canonical operator docs list remains small and mechanically enforced; historical docs are explicitly labeled/excluded.
+### P0.5 Auth posture for operator “read” endpoints (prod auth required; dev opt-in public read)
+
+**Status**: ✅ Implemented.
+
+- **Current state**:
+  - Production: auth required.
+  - Development: public read only when `AUTOPACK_PUBLIC_READ=1`.
+- **Still worth doing**:
+  - Per-run authorization + artifact redaction (tracked in `docs/IMPROVEMENTS_GAP_ANALYSIS.md` as GAP-8.11.2 / GAP-8.11.3).
+
+### P0.6 `docs/WORKSPACE_ORGANIZATION_SPEC.md` vs reality drift risk (archival policy vs docs contents)
+
+**Status**: ✅ Already updated (event-driven archival, not age-based).
 
 ---
 
@@ -107,28 +83,21 @@ The remaining work is mostly **convergence (“one truth”)** and **hardening f
 
 ### P1.1 Dependency drift enforcement is partially disabled (known, but still a gap)
 
-- **Problem**: `.github/workflows/ci.yml` disables full pip-compile drift checking (`scripts/check_dependency_sync.py`) due to cross-platform output drift.
-- **Evidence**: `.github/workflows/ci.yml` comments explain the disabled check and the current portability guard.
+**Status**: ✅ CI runs dependency drift checks, but “single deterministic lock surface” is still a decision.
+
+- **Current state**: CI runs `scripts/check_dependency_sync.py` plus `scripts/check_requirements_portability.py` (Linux/CI canonical) to prevent drift.
+- **Gap**: This does not yet establish a single deterministic lock output (pip-compile/uv lock) unless you adopt one explicitly.
 - **Recommended direction**:
-  - Keep Linux-canonical policy (already documented) but add a *stronger* mechanical contract for “pyproject → requirements” sync, e.g.:
-    - Run pip-compile in CI and compare output (CI is canonical), or
-    - Switch to a tool with stable cross-platform lock outputs (decision).
+  - Decide whether requirements files remain the derived artifact (current posture) or become the true lock surface (pip-compile/uv).
 - **Acceptance criteria**:
-  - CI blocks PRs where `pyproject.toml` deps differ from `requirements*.txt` without a corresponding regeneration.
+  - CI has one unambiguous “dependency truth” and blocks drift against it.
 
 ### P1.2 Production compose posture is implied but not concretely provided (prod override template missing)
 
-- **Problem**: `docker-compose.yml` includes explicit warnings and references a `docker-compose.prod.yml` pattern, but the repo does not provide a concrete production override template.
-- **Evidence**:
-  - `docker-compose.yml` comments reference `docker-compose.prod.yml`.
-  - The compose file exposes `db:5432` and `qdrant:6333` ports on the host by default (appropriate for local dev, risky for production if reused).
-- **Recommended direction**:
-  - Add a **non-secret** `docker-compose.prod.example.yml` that:
-    - removes host port exposure for `db`/`qdrant` (internal network only),
-    - uses Docker secrets / `*_FILE` envs for credentials,
-    - pins images the same way (or by digest if you choose).
-- **Acceptance criteria**:
-  - There is a clear, copy/paste-safe “production override” template that matches docs (`docs/DEPLOYMENT.md`) and does not encourage unsafe defaults.
+**Status**: ✅ `docker-compose.prod.example.yml` exists.
+
+- **Remaining improvement**:
+  - Ensure docs/comments consistently point at `docker-compose.prod.example.yml` as the safe reference (and consider whether you want a real `docker-compose.prod.yml` tracked or not).
 
 ### P1.3 Telemetry/usage “cap” is hardcoded as 0 (ROADMAP marker)
 
@@ -184,40 +153,22 @@ The remaining work is mostly **convergence (“one truth”)** and **hardening f
 
 ### P2.1 “Two UIs” cleanup: legacy dashboard frontend under `src/autopack/dashboard/frontend/`
 
-- **Problem**: A legacy UI exists under `src/` and contains TODOs/hardcoded URLs. This conflicts with the workspace spec principle “`src/` is code only” and creates “two truths” for UI.
-- **Evidence**:
-  - `src/autopack/dashboard/frontend/src/components/ModelMapping.jsx` includes a TODO for model override API call.
-  - Root UI is the canonical Vite app (`package.json`, `src/frontend/`, `Dockerfile.frontend`).
-- **Recommended direction**:
-  - Either fully retire/move the legacy dashboard UI to `archive/experiments/` OR migrate any missing features into the root UI.
-- **Acceptance criteria**:
-  - Only one supported UI path is documented and built in CI and docker.
+**Status**: ✅ No nested dashboard frontend under `src/autopack/dashboard/frontend/` in current repo state.
+
+- **Remaining improvement (still relevant)**:
+  - Keep converging docs/compose/CI around the single canonical UI (root Vite frontend).
 
 ### P2.2 Makefile/DX mismatch: `make install` uses requirements files, CI uses editable extras
 
-- **Problem**: `Makefile` installs from `requirements-dev.txt`, while CI uses `pip install -e ".[dev]"` (pyproject is SOT). This is a small but real “two truths” for contributors.
-- **Recommended direction**:
-  - Align `make install` with CI (`pip install -e ".[dev]"`) and keep requirements files as derived artifacts only.
-- **Acceptance criteria**:
-  - `make install` and CI install the same dependency set.
+**Status**: ✅ `make install` uses `pip install -e ".[dev]"` (aligned with CI).
 
 ### P2.3 Canonical docs contain stale response examples (health response version mismatch)
 
-- **Problem**: `docs/DEPLOYMENT.md` includes a `/health` response example with `"version": "1.0.0"`, which does not match current project versioning (`pyproject.toml` is `0.5.1`) and can confuse operators.
-- **Evidence**: `docs/DEPLOYMENT.md` contains `"version": "1.0.0"` in the health response example.
-- **Recommended direction**:
-  - Change the example to match current semantics (or remove fixed version strings from examples).
-- **Acceptance criteria**:
-  - Canonical docs do not contain obviously stale version literals for contract endpoints.
+**Status**: ✅ No obvious `"version": "1.0.0"` example found in `docs/DEPLOYMENT.md` (appears already corrected).
 
 ### P2.4 Contributor onboarding still uses derived requirements as the primary install surface in some docs
 
-- **Problem**: Some onboarding surfaces still instruct installing via `requirements-dev.txt` rather than the canonical pyproject extras.
-- **Evidence**: `docs/PROJECT_INDEX.json` has `"install_deps": "pip install -r requirements-dev.txt"`.
-- **Recommended direction**:
-  - Prefer `pip install -e ".[dev]"` in canonical onboarding docs (keep requirements as derived artifacts for pip compatibility).
-- **Acceptance criteria**:
-  - The canonical onboarding path (PROJECT_INDEX + CONTRIBUTING) uses the same install method as CI.
+**Status**: ✅ No `requirements-dev.txt` install instruction found in `docs/PROJECT_INDEX.json` in current state.
 
 ### P2.5 Legacy-doc containment: canonical docs must not reference `src/backend/`
 
@@ -261,24 +212,26 @@ The remaining work is mostly **convergence (“one truth”)** and **hardening f
 
 ## Recommended “next PRs” sequence (minimize risk, maximize convergence)
 
-1. **PR-A (P0)**: Fix doc truth for auth
-   - Rewrite or archive `docs/AUTHENTICATION.md`
-   - Add/extend doc-contract tests to prevent `src/backend/` references in canonical docs
+1. **PR-A (P0)**: Governance “one truth” convergence (DEC-046)
+   - Update `docs/GOVERNANCE.md` to match the contract-tested default-deny posture (`NEVER_AUTO_APPROVE_PATTERNS`)
+   - Add/extend a docs contract test to block reintroducing “docs/tests are auto-approved” examples
 
-2. **PR-B (P0)**: Fix governance doc contradictions
-   - Make `docs/GOVERNANCE.md` match real enforcement (docs/tests approval posture)
-   - Add a small contract test if needed (“governance doc must not contradict NEVER_AUTO_APPROVE policy”)
+2. **PR-B (P0)**: Remove legacy auto-approval footgun
+   - Change `AUTO_APPROVE_BUILD113` default from `true` → `false` (opt-in only), or gate `/approval/request` behind an explicit “legacy mode”
+   - Document deprecation/compat posture (keep or remove) so operators know which approval path is canonical
 
-3. **PR-C (P0/P1)**: Resolve GLM drift
-   - Remove GLM from canonical onboarding surfaces (or re-enable GLM end-to-end—likely not desired)
-   - Align `docs/PROJECT_INDEX.json` + `docs/CONFIG_GUIDE.md` with actual supported providers
+3. **PR-C (P2)**: Operator-surface security hardening
+   - Implement per-run authorization checks for artifact endpoints (GAP-8.11.2)
+   - Add optional artifact content redaction (GAP-8.11.3)
 
-4. **PR-D (P1)**: Production compose safety template
-   - Add `docker-compose.prod.example.yml` and update `docs/DEPLOYMENT.md` to reference it
+4. **PR-D (P3)**: API scale polish
+   - Fix `GET /runs` N+1 query pattern (GAP-8.11.1)
 
-5. **PR-E (P1/P2)**: Telemetry caps + polish
-   - Wire token caps from config into `/dashboard/usage`
-   - Fix stale `/health` example in docs
+5. **PR-E (P1/P2)**: Telemetry caps wiring
+   - Wire token caps from config into `/dashboard/usage` (remove hardcoded `cap_tokens=0`)
+
+6. **PR-F (P3)**: Migration surface clarity
+   - Decide how to treat `alembic` dependency in `pyproject.toml` under scripts-first posture (keep as “future-only” vs move to optional extra vs remove)
 
 ---
 

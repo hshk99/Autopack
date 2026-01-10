@@ -71,12 +71,20 @@ The remaining work is mostly **convergence (“one truth”)** and **hardening f
 - **Evidence**:
   - `docs/CANONICAL_API_CONTRACT.md` lists `GET /runs` and artifact endpoints as `Auth: None` and tracks “future auth enhancement”.
 - **Why P0 (for your intended future use)**: Once Autopack is used beyond a single local machine, unauthenticated artifact reads can leak secrets/PII in run logs/artifacts.
-- **Recommended direction**:
-  - Define a **single, explicit policy** for read endpoints: either “local-only public read” (documented with a hard boundary) or “auth required” (recommended for any hosted usage).
-  - If “auth required”: apply `X-API-Key` and/or `Bearer` gating consistently to `/runs`, `/runs/*/artifacts/*`, and browser artifact endpoints.
+- **Decision (chosen)**: **Auth required in production/hosted mode** for run listing and artifact reads.
+  - Default posture: **secure-by-default** (matches “safe autonomy” thesis and your intended external-side-effect usage).
+  - Developer convenience: allow an explicit **dev-only opt-in** for public read (e.g., `AUTOPACK_PUBLIC_READ=1`) and default it to OFF.
+- **Implementation direction**:
+  - Apply `verify_api_key` (or a single auth dependency) consistently to:
+    - `GET /runs`
+    - `GET /runs/{run_id}/progress`
+    - `GET /runs/{run_id}/artifacts/index`
+    - `GET /runs/{run_id}/artifacts/file`
+    - `GET /runs/{run_id}/browser/artifacts`
+  - Keep “executor trust boundary” endpoints as-is if desired, but document the boundary explicitly in `docs/CANONICAL_API_CONTRACT.md`.
 - **Acceptance criteria**:
-  - For hosted mode: all run listing and artifact reads return 401/403 without auth.
-  - Explicit “local-dev exception” is gated behind env flag (e.g., `AUTOPACK_PUBLIC_READ=1`) and defaults to OFF.
+  - In production/hosted mode: all run listing and artifact reads return 401/403 without auth.
+  - In development mode: public read is available only when explicitly enabled and is clearly documented as local-only.
 
 ### P0.5 `docs/WORKSPACE_ORGANIZATION_SPEC.md` vs reality drift risk (archival policy vs docs contents)
 
@@ -84,11 +92,14 @@ The remaining work is mostly **convergence (“one truth”)** and **hardening f
 - **Evidence**:
   - `docs/WORKSPACE_ORGANIZATION_SPEC.md` “Historical Files (Should Be Archived)” section.
   - `docs/INDEX.md` includes many `BUILD-*` references and build reports exist under `docs/`.
-- **Recommended direction** (decision required):
-  - **Option A**: Update the spec to reflect actual intended practice (build reports may live in `docs/` indefinitely, but SOT ledgers remain canonical).
-  - **Option B**: Move old `BUILD-*` docs to `archive/reports/` and keep only recent ones under `docs/reports/` with explicit retention.
+- **Decision (chosen)**: **Option A** — update the spec to match reality and reduce churn.
+  - Rationale: The repo already treats `docs/INDEX.md` as a navigation hub and retains many build reports under `docs/`. Forcing age-based archival would be a large, noisy migration and risks breaking links.
+  - Guardrail: Make the distinction explicit:
+    - **Canonical operator docs**: small allowlist, drift-tested, copy/paste safe.
+    - **Historical build reports**: allowed in `docs/` (or `docs/reports/`) but clearly labeled “historical”, excluded from copy/paste allowlists and drift checks.
 - **Acceptance criteria**:
-  - Either the spec is updated to match actual repo behavior, or tidy/CI enforces the archival rule (no ambiguous “should”).
+  - `docs/WORKSPACE_ORGANIZATION_SPEC.md` no longer claims age-based archival as a requirement.
+  - Canonical operator docs list remains small and mechanically enforced; historical docs are explicitly labeled/excluded.
 
 ---
 

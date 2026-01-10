@@ -146,6 +146,7 @@ AUTOPACK_ENABLE_MEMORY="0"     # Disable memory entirely
 
 # API Server
 AUTOPACK_CALLBACK_URL="http://localhost:8001"  # Backend callback URL
+AUTOPACK_PUBLIC_READ="1"  # Allow public read for operator surface (dev only)
 
 # Testing & CI
 TESTING="1"  # Skip DB initialization in tests
@@ -395,11 +396,21 @@ export DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"
 ```json
 {
   "status": "healthy",
+  "timestamp": "2026-01-10T12:00:00Z",
+  "database_identity": "a1b2c3d4e5f6",
   "database": "connected",
-  "version": "1.0.0",
-  "uptime_seconds": 3600
+  "qdrant": "connected",
+  "kill_switches": {"disable_all": false, "disable_autonomous": false},
+  "version": "unknown",
+  "service": "autopack",
+  "component": "supervisor_api"
 }
 ```
+
+**Notes**:
+- `database_identity`: Hash of DATABASE_URL for drift detection (see Database Identity Check below)
+- `version`: Set via `AUTOPACK_VERSION` env var (defaults to "unknown")
+- `kill_switches`: Current state of operational kill switches
 
 **Usage**:
 

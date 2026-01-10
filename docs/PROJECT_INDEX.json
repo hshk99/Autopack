@@ -62,7 +62,7 @@
       "rebuild": "docker-compose down && docker-compose up -d --build"
     },
     "local_development": {
-      "install_deps": "pip install -r requirements-dev.txt",
+      "install_deps": "pip install -e .[dev]",
       "start_db": "docker-compose up -d db",
       "run_api": "PYTHONPATH=src uvicorn autopack.main:app --reload --host 0.0.0.0 --port 8000",
       "run_tests": "pytest tests/ -v",

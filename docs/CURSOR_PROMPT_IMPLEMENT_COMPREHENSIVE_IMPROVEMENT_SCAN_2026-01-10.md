@@ -8,6 +8,16 @@
 
 ---
 
+## Decisions Already Made (Do Not Re-litigate)
+
+These were chosen to match Autopack’s README thesis (safe/deterministic/mechanically enforced) and the intended use (automation with irreversible external side effects):
+
+- **P0.4 (Auth on read endpoints)**: **Require auth for run listing + artifact reads in production/hosted mode**.
+  - Allow a dev-only escape hatch: `AUTOPACK_PUBLIC_READ=1` (default OFF).
+- **P0.5 (Docs archival policy)**: Choose **Option A** — update `docs/WORKSPACE_ORGANIZATION_SPEC.md` to reflect reality:
+  - Build reports may remain in `docs/` / `docs/reports/` as historical docs.
+  - Canonical operator docs remain a small drift-tested allowlist; historical docs must be labeled and excluded.
+
 ## Ground Rules / Watch-outs (read first)
 
 - **Do not rewrite history by default**:
@@ -73,7 +83,20 @@
 2. Optional enforcement:
    - Add a doc-contract check that canonical docs do not advertise GLM unless explicitly marked “disabled/legacy”.
 
-### PR-D (P1): Production compose override template
+### PR-D (P0/P1): Require auth for operator read endpoints (production/hosted)
+
+**Goal**: Implement the chosen P0.4 decision (secure-by-default read endpoints).
+
+1. Add a single policy gate in API code (recommended pattern):
+   - In production/hosted mode: apply `Depends(verify_api_key)` to run listing + artifact read endpoints.
+   - In development mode: allow unauthenticated reads only when `AUTOPACK_PUBLIC_READ=1`.
+2. Update `docs/CANONICAL_API_CONTRACT.md` to reflect the new auth requirements for these endpoints.
+3. Add tests (minimal but mechanical):
+   - Without API key: endpoints return 401/403 in production/hosted mode.
+   - With API key: endpoints return 200.
+   - In dev with `AUTOPACK_PUBLIC_READ=1`: endpoints return 200 without auth (only if you keep this escape hatch).
+
+### PR-E (P1): Production compose override template
 
 **Goal**: Provide a safe “production override” example and align docs to it.
 
@@ -84,7 +107,18 @@
 
 2. Update `docs/DEPLOYMENT.md` to reference this example.
 
-### PR-E (P2/P3): Cleanup polish + migration ambiguity decision
+### PR-F (P0/P1): Update workspace spec for archival policy + legacy-doc containment
+
+**Goal**: Implement the chosen P0.5 decision and prevent `src/backend/` from resurfacing in canonical docs.
+
+1. Update `docs/WORKSPACE_ORGANIZATION_SPEC.md`:
+   - Remove/soften the “BUILD-NNN older than 30 days must be archived” requirement.
+   - Clarify: canonical operator docs allowlist vs historical build reports.
+2. Add/extend doc-contract tests:
+   - Canonical operator docs must not contain `src/backend/`.
+3. Add “LEGACY/HISTORICAL — do not copy/paste” banner to documents that intentionally preserve legacy paths, and ensure they are excluded from canonical allowlists.
+
+### PR-G (P2/P3): Cleanup polish + migration ambiguity decision
 
 1. Fix “stale actions/checkout@v3” snippets in canonical docs (if they are canonical).
 2. Address migration ambiguity:

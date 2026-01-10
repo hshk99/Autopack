@@ -123,6 +123,17 @@ flags:
   # ============================================================================
   # Developer/Debug Overrides
   # ============================================================================
+  AUTOPACK_PUBLIC_READ:
+    description: "Make read endpoints public in development mode (no API key required)"
+    category: security
+    default: "false"
+    values: ["1"]
+    affects: ["main.py"]
+    security_implications:
+      enabled: "Read endpoints (/runs, /artifacts, /progress) accessible without API key in dev mode"
+      disabled: "API key required for all endpoints when AUTOPACK_API_KEY is set"
+    notes: "Only effective in development mode (AUTOPACK_ENV != production)"
+
   AUTOPACK_SKIP_CI:
     description: "Skip CI checks during execution (development only)"
     category: feature_toggle

@@ -117,6 +117,9 @@ jobs:
       - name: Check docs drift (BUILD-195 comprehensive sweeps)
         run: |
           python scripts/check_docs_drift.py
+      - name: Check canonical docs for legacy path refs (P2.5)
+        run: |
+          python scripts/ci/check_canonical_doc_refs.py
       - name: Check SOT derived-state drift
         run: |
           python scripts/tidy/sot_summary_refresh.py --check

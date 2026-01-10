@@ -18,22 +18,24 @@
       "Python 3.11+",
       "Docker + docker-compose",
       "Git",
-      "At least one LLM API key (GLM, Anthropic, or OpenAI)"
+      "ANTHROPIC_API_KEY (required - Claude is the primary LLM provider)"
     ],
     "quick_start": [
       "cp .env.example .env  # Create from template",
-      "Edit .env and add API keys (GLM_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY)",
+      "Edit .env and add ANTHROPIC_API_KEY (required)",
       "docker-compose up -d",
       "curl http://localhost:8000/health",
       "python scripts/integrations/supervisor.py --project-id MyProject"
     ],
     "api_keys": {
-      "required": "At least one: GLM_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY",
+      "required": "ANTHROPIC_API_KEY (Claude is the primary/only active LLM provider)",
       "config_location": ".env file at project root",
       "get_keys": {
-        "glm": "https://open.bigmodel.cn/",
-        "anthropic": "https://console.anthropic.com/",
-        "openai": "https://platform.openai.com/api-keys"
+        "anthropic": "https://console.anthropic.com/ (required)",
+        "openai": "https://platform.openai.com/api-keys (optional fallback)"
+      },
+      "legacy_disabled": {
+        "glm": "GLM support is disabled in runtime (GLM_AVAILABLE=False in llm_service.py)"
       }
     },
     "services": {
@@ -79,7 +81,7 @@
     "environment_variables": {
       "DATABASE_URL": "postgresql://user:pass@host:5432/dbname (default: postgres@localhost)",
       "AUTONOMOUS_RUNS_DIR": ".autonomous_runs (default)",
-      "GLM_API_KEY": "Zhipu AI API key (for low complexity tasks)",
+      "GLM_API_KEY": "LEGACY/DISABLED - Zhipu AI API key (GLM support disabled in runtime)",
       "ANTHROPIC_API_KEY": "Anthropic Claude API key (for medium/high complexity)",
       "OPENAI_API_KEY": "OpenAI API key (optional fallback)",
       "TELEGRAM_BOT_TOKEN": "Telegram bot token from @BotFather (for deletion notifications)",
@@ -241,18 +243,19 @@
   "cost_estimates": {
     "per_run_mixed_complexity": {
       "total_tokens": "~5M tokens",
-      "total_cost": "$18-30 (with GLM optimization)",
+      "total_cost": "$25-45 (Claude Sonnet/Opus routing)",
       "breakdown": {
-        "low_complexity": "GLM-4.7 @ $1.05 per 1.5M tokens",
+        "low_complexity": "Claude Sonnet 4.5 @ $11.25 per 2.5M tokens",
         "medium_complexity": "Claude Sonnet 4.5 @ $11.25 per 2.5M tokens",
-        "high_complexity": "Claude Sonnet 4.5 @ $18.00 per 1.0M tokens"
+        "high_complexity": "Claude Sonnet 4.5/Opus 4.5 @ $18.00 per 1.0M tokens"
       }
     },
     "per_phase": {
-      "low": "~$0.0035/phase (GLM-4.7)",
+      "low": "~$0.045/phase (Claude Sonnet 4.5)",
       "medium": "~$0.084/phase (Claude Sonnet 4.5)",
-      "high": "~$0.16/phase (Claude Sonnet 4.5)"
-    }
+      "high": "~$0.16/phase (Claude Sonnet 4.5/Opus 4.5)"
+    },
+    "note": "GLM routing removed - see config/models.yaml for current model selection"
   },
 
   "troubleshooting": {

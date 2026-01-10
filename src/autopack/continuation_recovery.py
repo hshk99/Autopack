@@ -8,7 +8,7 @@ GPT-5.2 Priority: HIGHEST - recovers 95% of truncation failures.
 """
 
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional, List, Tuple
 import re
 import logging
 
@@ -167,35 +167,32 @@ class ContinuationRecovery:
         Parse truncated full-file format output.
 
         Looks for complete JSON objects with file_path/path keys.
+        Uses incremental parsing to handle truncation gracefully (P1.5).
         """
-        # Try to find all complete file operations
-        # Pattern: {"file_path": "...", ...} or {"path": "...", ...}
         completed_files = []
-
-        # Simple heuristic: count closing braces to find complete objects
-        # This is fragile but works for basic cases
-        # ROADMAP(P4): Use proper JSON parsing with error recovery
+        last_partial_file = None
 
         try:
             import json
 
-            # Try to parse as JSON array
-            if output.strip().startswith("["):
-                # Attempt to find complete objects before truncation
-                # Find last complete object
-                last_complete_idx = output.rfind("},")
-                if last_complete_idx != -1:
-                    # Try parsing up to last complete object
-                    partial_array = output[: last_complete_idx + 1] + "]"
-                    try:
-                        parsed = json.loads(partial_array)
-                        completed_files = [
-                            op.get("file_path") or op.get("path")
-                            for op in parsed
-                            if isinstance(op, dict) and (op.get("file_path") or op.get("path"))
-                        ]
-                    except json.JSONDecodeError:
-                        pass
+            stripped = output.strip()
+
+            # Try to parse as JSON array using incremental approach
+            if stripped.startswith("["):
+                completed_files, last_partial_file = self._incremental_parse_json_array(
+                    stripped
+                )
+            # Handle single object case
+            elif stripped.startswith("{"):
+                try:
+                    obj = json.loads(stripped)
+                    path = obj.get("file_path") or obj.get("path")
+                    if path:
+                        completed_files.append(path)
+                except json.JSONDecodeError:
+                    # Try to extract path from partial object
+                    last_partial_file = self._extract_path_from_partial_object(stripped)
+
         except Exception as e:
             logger.warning(f"[ContinuationRecovery:FullFile] JSON parsing failed: {e}")
 
@@ -205,12 +202,12 @@ class ContinuationRecovery:
 
         logger.info(
             f"[ContinuationRecovery:FullFile] Completed {len(completed_files)} files, "
-            f"remaining={len(remaining)}"
+            f"partial={last_partial_file}, remaining={len(remaining)}"
         )
 
         return ContinuationContext(
             completed_files=completed_files,
-            last_partial_file=None,  # Hard to detect in JSON format
+            last_partial_file=last_partial_file,
             remaining_deliverables=remaining,
             partial_output=output,
             tokens_used=tokens_used,
@@ -437,3 +434,159 @@ Continue from where the previous attempt was truncated. Generate ONLY the remain
         # Merge
         merged = complete_partial + "\n" + continuation.strip()
         return merged
+
+    # =========================================================================
+    # P1.5: Robust incremental JSON parsing helpers
+    # =========================================================================
+
+    def _incremental_parse_json_array(
+        self, json_str: str
+    ) -> Tuple[List[str], Optional[str]]:
+        """
+        Incrementally parse a JSON array, extracting complete objects.
+
+        Uses bracket/brace counting to find complete objects without requiring
+        the entire array to be valid JSON. This handles truncation gracefully.
+
+        Args:
+            json_str: Potentially truncated JSON array string
+
+        Returns:
+            Tuple of (completed_file_paths, last_partial_file_path)
+        """
+        import json
+
+        completed_files: List[str] = []
+        last_partial_file: Optional[str] = None
+
+        # Skip the opening bracket
+        if not json_str.startswith("["):
+            return completed_files, last_partial_file
+
+        pos = 1  # Start after '['
+        length = len(json_str)
+
+        while pos < length:
+            # Skip whitespace and commas
+            while pos < length and json_str[pos] in " \t\n\r,":
+                pos += 1
+
+            if pos >= length:
+                break
+
+            # Check for array end
+            if json_str[pos] == "]":
+                break
+
+            # Find start of object
+            if json_str[pos] != "{":
+                pos += 1
+                continue
+
+            # Find the end of this object using bracket counting
+            obj_start = pos
+            obj_end = self._find_object_end(json_str, pos)
+
+            if obj_end == -1:
+                # Object is incomplete (truncated)
+                # Try to extract path from partial object
+                partial_obj = json_str[obj_start:]
+                last_partial_file = self._extract_path_from_partial_object(partial_obj)
+                break
+
+            # Extract and parse the complete object
+            obj_str = json_str[obj_start : obj_end + 1]
+            try:
+                obj = json.loads(obj_str)
+                path = obj.get("file_path") or obj.get("path")
+                if path:
+                    completed_files.append(path)
+            except json.JSONDecodeError:
+                # Shouldn't happen if bracket counting is correct, but be safe
+                logger.debug(f"[ContinuationRecovery] Failed to parse object: {obj_str[:50]}...")
+
+            pos = obj_end + 1
+
+        return completed_files, last_partial_file
+
+    def _find_object_end(self, json_str: str, start: int) -> int:
+        """
+        Find the position of the closing brace for an object.
+
+        Uses bracket/brace counting to handle nested structures and strings.
+
+        Args:
+            json_str: The JSON string
+            start: Position of the opening brace '{'
+
+        Returns:
+            Position of matching closing brace '}', or -1 if not found (truncated)
+        """
+        depth = 0
+        in_string = False
+        escape_next = False
+        pos = start
+        length = len(json_str)
+
+        while pos < length:
+            char = json_str[pos]
+
+            if escape_next:
+                escape_next = False
+                pos += 1
+                continue
+
+            if char == "\\":
+                escape_next = True
+                pos += 1
+                continue
+
+            if char == '"':
+                in_string = not in_string
+                pos += 1
+                continue
+
+            if in_string:
+                pos += 1
+                continue
+
+            # Not in string, count braces
+            if char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 0:
+                    return pos
+
+            pos += 1
+
+        # Reached end without finding closing brace
+        return -1
+
+    def _extract_path_from_partial_object(self, partial_obj: str) -> Optional[str]:
+        """
+        Extract file_path or path from a partial/truncated JSON object.
+
+        Uses regex to find the path even if the object is incomplete.
+
+        Args:
+            partial_obj: Potentially truncated JSON object string
+
+        Returns:
+            The extracted path, or None if not found
+        """
+        # Try to find "file_path": "..." or "path": "..."
+        # Handle escaped quotes in values
+
+        # Pattern for file_path
+        match = re.search(r'"file_path"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"', partial_obj)
+        if match:
+            # Unescape the path
+            return match.group(1).encode().decode("unicode_escape")
+
+        # Pattern for path
+        match = re.search(r'"path"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"', partial_obj)
+        if match:
+            return match.group(1).encode().decode("unicode_escape")
+
+        return None

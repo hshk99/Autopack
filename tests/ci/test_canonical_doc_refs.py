@@ -133,8 +133,7 @@ class TestCurrentCanonicalDocsClean:
         if result.violations:
             # Build helpful error message
             violation_summary = "\n".join(
-                f"  {v.file_path}:{v.line_number} - {v.pattern}"
-                for v in result.violations
+                f"  {v.file_path}:{v.line_number} - {v.pattern}" for v in result.violations
             )
             pytest.fail(
                 f"Found {len(result.violations)} legacy path reference(s) in canonical docs:\n"

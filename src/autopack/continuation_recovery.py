@@ -179,9 +179,7 @@ class ContinuationRecovery:
 
             # Try to parse as JSON array using incremental approach
             if stripped.startswith("["):
-                completed_files, last_partial_file = self._incremental_parse_json_array(
-                    stripped
-                )
+                completed_files, last_partial_file = self._incremental_parse_json_array(stripped)
             # Handle single object case
             elif stripped.startswith("{"):
                 try:
@@ -439,9 +437,7 @@ Continue from where the previous attempt was truncated. Generate ONLY the remain
     # P1.5: Robust incremental JSON parsing helpers
     # =========================================================================
 
-    def _incremental_parse_json_array(
-        self, json_str: str
-    ) -> Tuple[List[str], Optional[str]]:
+    def _incremental_parse_json_array(self, json_str: str) -> Tuple[List[str], Optional[str]]:
         """
         Incrementally parse a JSON array, extracting complete objects.
 

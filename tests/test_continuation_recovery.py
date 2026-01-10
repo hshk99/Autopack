@@ -376,10 +376,10 @@ class TestP15IncrementalJSONParsing:
 
     def test_incremental_parse_complete_array(self, recovery):
         """Test parsing a complete JSON array."""
-        json_str = '''[
+        json_str = """[
             {"file_path": "src/foo.py", "content": "def foo(): pass"},
             {"file_path": "src/bar.py", "content": "def bar(): pass"}
-        ]'''
+        ]"""
 
         completed, partial = recovery._incremental_parse_json_array(json_str)
 
@@ -388,10 +388,10 @@ class TestP15IncrementalJSONParsing:
 
     def test_incremental_parse_truncated_mid_object(self, recovery):
         """Test parsing truncated mid-object - should detect partial file."""
-        json_str = '''[
+        json_str = """[
             {"file_path": "src/foo.py", "content": "def foo(): pass"},
             {"file_path": "src/bar.py", "content": "def bar(): pass"},
-            {"file_path": "src/baz.py", "content": "def baz('''
+            {"file_path": "src/baz.py", "content": "def baz("""
 
         completed, partial = recovery._incremental_parse_json_array(json_str)
 
@@ -400,9 +400,9 @@ class TestP15IncrementalJSONParsing:
 
     def test_incremental_parse_truncated_before_content(self, recovery):
         """Test parsing truncated before content field."""
-        json_str = '''[
+        json_str = """[
             {"file_path": "src/foo.py", "content": "def foo(): pass"},
-            {"file_path": "src/bar.py",'''
+            {"file_path": "src/bar.py","""
 
         completed, partial = recovery._incremental_parse_json_array(json_str)
 
@@ -411,9 +411,9 @@ class TestP15IncrementalJSONParsing:
 
     def test_incremental_parse_nested_braces(self, recovery):
         """Test parsing with nested braces in content."""
-        json_str = '''[
+        json_str = """[
             {"file_path": "src/foo.py", "content": "def foo(): return {'a': 1}"},
-            {"file_path": "src/bar.py", "content": "def bar(): return {'''
+            {"file_path": "src/bar.py", "content": "def bar(): return {"""
 
         completed, partial = recovery._incremental_parse_json_array(json_str)
 
@@ -422,9 +422,9 @@ class TestP15IncrementalJSONParsing:
 
     def test_incremental_parse_escaped_quotes(self, recovery):
         """Test parsing with escaped quotes in content."""
-        json_str = '''[
+        json_str = """[
             {"file_path": "src/foo.py", "content": "def foo(): return \\"hello\\""},
-            {"file_path": "src/bar.py", "content": "def bar()'''
+            {"file_path": "src/bar.py", "content": "def bar()"""
 
         completed, partial = recovery._incremental_parse_json_array(json_str)
 
@@ -433,10 +433,10 @@ class TestP15IncrementalJSONParsing:
 
     def test_incremental_parse_path_key(self, recovery):
         """Test parsing with 'path' key instead of 'file_path'."""
-        json_str = '''[
+        json_str = """[
             {"path": "src/foo.py", "content": "def foo(): pass"},
             {"path": "src/bar.py", "content": "def bar(): pass"}
-        ]'''
+        ]"""
 
         completed, partial = recovery._incremental_parse_json_array(json_str)
 
@@ -487,9 +487,9 @@ class TestP15IncrementalJSONParsing:
 
     def test_full_file_truncation_returns_partial(self, recovery):
         """Test that _parse_full_file_truncation returns last_partial_file."""
-        output = '''[
+        output = """[
             {"file_path": "src/foo.py", "content": "complete"},
-            {"file_path": "src/bar.py", "content": "truncated'''
+            {"file_path": "src/bar.py", "content": "truncated"""
 
         deliverables = ["src/foo.py", "src/bar.py", "src/baz.py"]
 

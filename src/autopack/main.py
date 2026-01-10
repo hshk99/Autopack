@@ -1359,7 +1359,9 @@ def submit_auditor_result(
         raise HTTPException(status_code=404, detail=f"Phase {phase_id} not found")
 
     # Record auditor attempt count + tokens (best-effort)
-    phase.auditor_attempts = max(int(phase.auditor_attempts or 0), int(auditor_result.auditor_attempts or 0))
+    phase.auditor_attempts = max(
+        int(phase.auditor_attempts or 0), int(auditor_result.auditor_attempts or 0)
+    )
     phase.tokens_used = max(int(phase.tokens_used or 0), int(auditor_result.tokens_used or 0))
 
     logger.info(
@@ -1422,7 +1424,11 @@ async def request_approval(request: Request, db: Session = Depends(get_db)):
         )
 
         # Configuration
-        auto_approve = os.getenv("AUTO_APPROVE_BUILD113", "true").lower() == "true"
+        # PR-01 (P0): Safe-by-default - AUTO_APPROVE_BUILD113 defaults to "false" (DEC-046 compliance)
+        # Production never allows auto-approve to prevent governance bypass
+        env_mode = os.getenv("AUTOPACK_ENV", "development").lower()
+        auto_approve_env = os.getenv("AUTO_APPROVE_BUILD113", "false").lower() == "true"
+        auto_approve = auto_approve_env and env_mode != "production"
         timeout_minutes = int(os.getenv("APPROVAL_TIMEOUT_MINUTES", "15"))
         default_on_timeout = os.getenv(
             "APPROVAL_DEFAULT_ON_TIMEOUT", "reject"
@@ -1448,19 +1454,23 @@ async def request_approval(request: Request, db: Session = Depends(get_db)):
         logger.info(f"[APPROVAL] Stored request #{approval_request.id} in database")
 
         # Auto-approve mode: immediate approval without notification
+        # PR-01 (P0): Only allowed when AUTO_APPROVE_BUILD113=true AND not in production
         if auto_approve:
             approval_request.status = "approved"
             approval_request.response_method = "auto"
-            approval_request.approval_reason = "Auto-approved (AUTO_APPROVE_BUILD113=true)"
+            approval_request.approval_reason = (
+                f"Auto-approved (AUTO_APPROVE_BUILD113=true, env={env_mode})"
+            )
             approval_request.responded_at = datetime.now(timezone.utc)
             db.commit()
 
             logger.warning(
-                f"[APPROVAL] AUTO-APPROVING request #{approval_request.id} for {phase_id}"
+                f"[APPROVAL] AUTO-APPROVING request #{approval_request.id} for {phase_id} "
+                f"(env={env_mode}, AUTO_APPROVE_BUILD113=true)"
             )
             return {
                 "status": "approved",
-                "reason": "Auto-approved (BUILD-117 - auto-approve mode enabled)",
+                "reason": f"Auto-approved (BUILD-117 legacy, env={env_mode})",
                 "approval_id": approval_request.id,
             }
 
@@ -2893,7 +2903,11 @@ def get_steam_games(
     )
 
 
-@app.post("/storage/patterns/analyze", response_model=List[schemas.PatternResponse], dependencies=[Depends(verify_api_key)])
+@app.post(
+    "/storage/patterns/analyze",
+    response_model=List[schemas.PatternResponse],
+    dependencies=[Depends(verify_api_key)],
+)
 def analyze_approval_patterns(
     category: Optional[str] = None, max_patterns: int = 10, db: Session = Depends(get_db)
 ):

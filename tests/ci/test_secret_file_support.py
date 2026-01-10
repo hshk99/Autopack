@@ -6,7 +6,6 @@ This enables Docker secrets and Kubernetes secret mounts.
 """
 
 import os
-import tempfile
 import pytest
 from pathlib import Path
 from unittest.mock import patch
@@ -93,9 +92,7 @@ class TestGetSecret:
             },
             clear=False,
         ):
-            result = _get_secret(
-                "MY_SECRET", file_env_var="MY_SECRET_FILE", default="default"
-            )
+            result = _get_secret("MY_SECRET", file_env_var="MY_SECRET_FILE", default="default")
             assert result == "file-value"
 
     def test_get_secret_default_when_not_set(self):
@@ -207,7 +204,9 @@ class TestJwtKeyFiles:
         from autopack import config as config_module
 
         key_file = tmp_path / "private_key.pem"
-        key_file.write_text("-----BEGIN RSA PRIVATE KEY-----\nFILE_KEY\n-----END RSA PRIVATE KEY-----")
+        key_file.write_text(
+            "-----BEGIN RSA PRIVATE KEY-----\nFILE_KEY\n-----END RSA PRIVATE KEY-----"
+        )
 
         with patch.dict(
             os.environ,
@@ -226,7 +225,9 @@ class TestJwtKeyFiles:
         from autopack import config as config_module
 
         key_file = tmp_path / "public_key.pem"
-        key_file.write_text("-----BEGIN RSA PUBLIC KEY-----\nFILE_KEY\n-----END RSA PUBLIC KEY-----")
+        key_file.write_text(
+            "-----BEGIN RSA PUBLIC KEY-----\nFILE_KEY\n-----END RSA PUBLIC KEY-----"
+        )
 
         with patch.dict(
             os.environ,
@@ -312,6 +313,4 @@ class TestSecretFileDocumentation:
             content = f.read()
 
         # Check for *_FILE documentation
-        assert "_FILE" in content, (
-            "DEPLOYMENT.md should document *_FILE secret file support"
-        )
+        assert "_FILE" in content, "DEPLOYMENT.md should document *_FILE secret file support"

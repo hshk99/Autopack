@@ -8,8 +8,7 @@ and return safe metadata for UI/operator consumption.
 import os
 import pytest
 from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 class TestArtifactSizeCaps:
@@ -61,9 +60,7 @@ class TestArtifactSizeCaps:
                 mock_settings.artifact_read_size_cap_bytes = 100
                 mock_settings.artifact_redaction_enabled = False
 
-                response = client.get(
-                    f"/runs/{run_id}/artifacts/file?path=large_artifact.txt"
-                )
+                response = client.get(f"/runs/{run_id}/artifacts/file?path=large_artifact.txt")
                 assert response.status_code == 200
 
                 # Check truncation header
@@ -85,9 +82,7 @@ class TestArtifactSizeCaps:
                 mock_settings.artifact_read_size_cap_bytes = 1_048_576  # 1MB
                 mock_settings.artifact_redaction_enabled = False
 
-                response = client.get(
-                    f"/runs/{run_id}/artifacts/file?path=small_artifact.txt"
-                )
+                response = client.get(f"/runs/{run_id}/artifacts/file?path=small_artifact.txt")
                 assert response.status_code == 200
 
                 # Check not truncated
@@ -105,15 +100,14 @@ class TestArtifactSizeCaps:
 
             # Patch the settings module's settings object directly
             from autopack import config
+
             original_cap = config.settings.artifact_read_size_cap_bytes
             original_redact = config.settings.artifact_redaction_enabled
             try:
                 config.settings.artifact_read_size_cap_bytes = 0  # Unlimited
                 config.settings.artifact_redaction_enabled = False
 
-                response = client.get(
-                    f"/runs/{run_id}/artifacts/file?path=large_artifact.txt"
-                )
+                response = client.get(f"/runs/{run_id}/artifacts/file?path=large_artifact.txt")
                 assert response.status_code == 200
 
                 # Should not be truncated
@@ -200,15 +194,14 @@ class TestArtifactRedaction:
 
             # Patch the settings module's settings object directly
             from autopack import config
+
             original_cap = config.settings.artifact_read_size_cap_bytes
             original_redact = config.settings.artifact_redaction_enabled
             try:
                 config.settings.artifact_read_size_cap_bytes = 0  # Unlimited
                 config.settings.artifact_redaction_enabled = True  # On by default
 
-                response = client.get(
-                    f"/runs/{run_id}/artifacts/file?path=config_dump.txt"
-                )
+                response = client.get(f"/runs/{run_id}/artifacts/file?path=config_dump.txt")
                 assert response.status_code == 200
 
                 # Should be redacted
@@ -230,9 +223,7 @@ class TestArtifactRedaction:
                 mock_settings.artifact_read_size_cap_bytes = 0  # Unlimited
                 mock_settings.artifact_redaction_enabled = False
 
-                response = client.get(
-                    f"/runs/{run_id}/artifacts/file?path=config_dump.txt"
-                )
+                response = client.get(f"/runs/{run_id}/artifacts/file?path=config_dump.txt")
                 assert response.status_code == 200
 
                 # Should not be redacted
@@ -283,9 +274,7 @@ class TestArtifactResponseMetadata:
                 mock_settings.artifact_read_size_cap_bytes = 0
                 mock_settings.artifact_redaction_enabled = False
 
-                response = client.get(
-                    f"/runs/{run_id}/artifacts/file?path=test_artifact.txt"
-                )
+                response = client.get(f"/runs/{run_id}/artifacts/file?path=test_artifact.txt")
                 assert response.status_code == 200
 
                 # Check size header exists and is valid
@@ -305,9 +294,7 @@ class TestArtifactResponseMetadata:
                 mock_settings.artifact_read_size_cap_bytes = 0
                 mock_settings.artifact_redaction_enabled = False
 
-                response = client.get(
-                    f"/runs/{run_id}/artifacts/file?path=test_artifact.txt"
-                )
+                response = client.get(f"/runs/{run_id}/artifacts/file?path=test_artifact.txt")
                 assert response.status_code == 200
 
                 # Check truncated header
@@ -326,9 +313,7 @@ class TestArtifactResponseMetadata:
                 mock_settings.artifact_read_size_cap_bytes = 0
                 mock_settings.artifact_redaction_enabled = False
 
-                response = client.get(
-                    f"/runs/{run_id}/artifacts/file?path=test_artifact.txt"
-                )
+                response = client.get(f"/runs/{run_id}/artifacts/file?path=test_artifact.txt")
                 assert response.status_code == 200
 
                 # Check redacted header
@@ -374,6 +359,7 @@ class TestArtifactBoundaryConfigContract:
         """Size cap can be configured via environment variable."""
         with patch.dict(os.environ, {"AUTOPACK_ARTIFACT_READ_SIZE_CAP": "500000"}):
             from autopack.config import Settings
+
             settings = Settings()
             assert settings.artifact_read_size_cap_bytes == 500000
 
@@ -381,6 +367,7 @@ class TestArtifactBoundaryConfigContract:
         """Redaction can be enabled via environment variable."""
         with patch.dict(os.environ, {"AUTOPACK_ARTIFACT_REDACTION": "true"}):
             from autopack.config import Settings
+
             settings = Settings()
             assert settings.artifact_redaction_enabled is True
 

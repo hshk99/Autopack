@@ -112,6 +112,7 @@ class TestObservabilityCapsFromConfig:
         """run_token_cap can be configured via environment variable."""
         with patch.dict(os.environ, {"RUN_TOKEN_CAP": "1000000"}):
             from autopack.config import Settings
+
             settings = Settings()
             assert settings.run_token_cap == 1_000_000
 
@@ -218,9 +219,9 @@ class TestObservabilityDocumentation:
             content = f.read()
 
         # Check for observability-related documentation
-        assert "AUTOPACK_ENABLE_CONSOLIDATED_METRICS" in content or "observability" in content.lower(), (
-            "DEPLOYMENT.md should document observability kill switches"
-        )
+        assert (
+            "AUTOPACK_ENABLE_CONSOLIDATED_METRICS" in content or "observability" in content.lower()
+        ), "DEPLOYMENT.md should document observability kill switches"
 
     def test_config_has_observability_settings(self):
         """Config should have observability-related settings."""
@@ -238,7 +239,6 @@ class TestLegacyApprovalPathDocumentation:
     def test_auto_approve_build113_documented(self):
         """AUTO_APPROVE_BUILD113 legacy behavior should be documented."""
         # This is a contract test - verify the env var is used
-        from autopack.main import app
 
         # The legacy auto-approve flag exists in the codebase
         # It should be documented somewhere
@@ -246,6 +246,6 @@ class TestLegacyApprovalPathDocumentation:
         with open(main_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        assert "AUTO_APPROVE_BUILD113" in content, (
-            "AUTO_APPROVE_BUILD113 legacy flag should exist in main.py"
-        )
+        assert (
+            "AUTO_APPROVE_BUILD113" in content
+        ), "AUTO_APPROVE_BUILD113 legacy flag should exist in main.py"

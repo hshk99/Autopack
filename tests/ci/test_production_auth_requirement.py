@@ -39,8 +39,9 @@ class TestProductionAuthRequirement:
             with pytest.raises(RuntimeError) as excinfo:
                 asyncio.get_event_loop().run_until_complete(check_lifespan_fails())
 
-            assert "AUTOPACK_ENV=production" in str(excinfo.value)
+            # PR-03: Error message now comes from get_api_key() which mentions *_FILE support
             assert "AUTOPACK_API_KEY" in str(excinfo.value)
+            assert "production" in str(excinfo.value).lower()
 
             # Restore environment
             os.environ.clear()

@@ -109,6 +109,60 @@ Autopack uses two Docker build surfaces:
 
 ## Environment Variables
 
+### Secret File Support (PR-03 G4)
+
+For production deployments, secrets can be loaded from files via `*_FILE` environment variables. This enables Docker secrets and Kubernetes secret mounts without exposing credentials in environment variables.
+
+**Precedence**: `*_FILE` > direct env var > defaults
+
+| Secret | Direct Env Var | File Env Var | Required in Production |
+|--------|---------------|--------------|------------------------|
+| Database URL | `DATABASE_URL` | `DATABASE_URL_FILE` | Yes |
+| API Key | `AUTOPACK_API_KEY` | `AUTOPACK_API_KEY_FILE` | Yes |
+| JWT Private Key | `JWT_PRIVATE_KEY` | `JWT_PRIVATE_KEY_FILE` | No (optional auth) |
+| JWT Public Key | `JWT_PUBLIC_KEY` | `JWT_PUBLIC_KEY_FILE` | No (optional auth) |
+
+**Docker Secrets Example**:
+
+```bash
+# Create Docker secrets
+echo "postgresql://autopack:SECURE_PASSWORD@db:5432/autopack" | docker secret create db_url_secret -
+echo "your-api-key-here" | docker secret create api_key_secret -
+
+# In docker-compose.yml, mount as files
+services:
+  backend:
+    secrets:
+      - db_url_secret
+      - api_key_secret
+    environment:
+      - DATABASE_URL_FILE=/run/secrets/db_url_secret
+      - AUTOPACK_API_KEY_FILE=/run/secrets/api_key_secret
+```
+
+**Kubernetes Secrets Example**:
+
+```yaml
+# Mount secret as file
+volumes:
+  - name: db-secret
+    secret:
+      secretName: autopack-db-url
+containers:
+  - name: backend
+    volumeMounts:
+      - name: db-secret
+        mountPath: /secrets/db
+        readOnly: true
+    env:
+      - name: DATABASE_URL_FILE
+        value: /secrets/db/url
+```
+
+**Fail-Fast Behavior**: In production (`AUTOPACK_ENV=production`), required secrets that are not set will cause immediate startup failure with a clear error message.
+
+---
+
 ### Required Variables
 
 ```bash
@@ -116,6 +170,7 @@ Autopack uses two Docker build surfaces:
 DATABASE_URL="sqlite:///autopack.db"  # Default: SQLite
 # Or for PostgreSQL:
 # DATABASE_URL="postgresql://user:pass@host:5432/dbname"
+# Or via file: DATABASE_URL_FILE="/run/secrets/db_url"
 
 # Python Environment
 PYTHONPATH="src"  # Required: Module resolution

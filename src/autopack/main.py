@@ -36,7 +36,7 @@ from slowapi.errors import RateLimitExceeded
 from . import dashboard_schemas, models, schemas
 from .version import __version__
 from .builder_schemas import BuilderResult, AuditorResult
-from .config import settings
+from .config import get_api_key, settings
 from .database import get_db, init_db
 from .file_layout import RunFileLayout
 from .governed_apply import GovernedApplyPath, PatchApplyError
@@ -65,8 +65,11 @@ async def verify_api_key(api_key: str = Security(API_KEY_HEADER)):
     - In production (AUTOPACK_ENV=production), API key is REQUIRED
     - In dev/test, API key is optional for convenience
     - In testing mode (TESTING=1), auth is skipped entirely
+
+    PR-03 (R-03 G4): Supports AUTOPACK_API_KEY_FILE for Docker secrets.
     """
-    expected_key = os.getenv("AUTOPACK_API_KEY")
+    # Use get_api_key() which supports *_FILE precedence
+    expected_key = get_api_key()
     env_mode = os.getenv("AUTOPACK_ENV", "development").lower()
 
     # Skip auth in testing mode
@@ -231,14 +234,22 @@ async def approval_timeout_cleanup():
 async def lifespan(app: FastAPI):
     # P0 Security: In production mode, require AUTOPACK_API_KEY to be set
     # This prevents accidentally running an unauthenticated API in production
+    # PR-03 (R-03 G4): get_api_key() supports AUTOPACK_API_KEY_FILE for Docker secrets
     autopack_env = os.getenv("AUTOPACK_ENV", "development").lower()
-    api_key = os.getenv("AUTOPACK_API_KEY")
+
+    # get_api_key() will raise RuntimeError if required in production and not set
+    try:
+        api_key = get_api_key()
+    except RuntimeError as e:
+        logger.critical(str(e))
+        raise
 
     if autopack_env == "production" and not api_key:
         error_msg = (
             "FATAL: AUTOPACK_ENV=production but AUTOPACK_API_KEY is not set. "
             "For security, the API requires authentication in production mode. "
-            "Set AUTOPACK_API_KEY environment variable or use AUTOPACK_ENV=development."
+            "Set AUTOPACK_API_KEY or AUTOPACK_API_KEY_FILE environment variable, "
+            "or use AUTOPACK_ENV=development."
         )
         logger.critical(error_msg)
         raise RuntimeError(error_msg)

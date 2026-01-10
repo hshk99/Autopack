@@ -210,8 +210,8 @@ Use this as the final go/no-go checklist. Autopack is "ready" only when every it
   - [ ] Audit logs contain the minimum fields (who/what/when/inputs/outputs).
 
 - **G4 (Secrets & persistence)**:
-  - [ ] `*_FILE` secrets are supported for production templates.
-  - [ ] No plaintext credential persistence in production by default.
+  - [x] `*_FILE` secrets are supported for production templates. ✅ PR-03: `config.py` supports `DATABASE_URL_FILE`, `JWT_*_KEY_FILE`, `AUTOPACK_API_KEY_FILE`
+  - [ ] No plaintext credential persistence in production by default. (PR-04 pending)
 
 - **G5 (Artifact boundary)**:
   - [ ] Artifact endpoints enforce size caps and safe response semantics.
@@ -240,7 +240,7 @@ Score each gate from 0–2:
 | G1 Auth & exposure | 2 | `tests/ci/test_production_auth_coverage.py` (0 gaps), `tests/ci/test_production_auth_requirement.py` |
 | G2 Governance & approvals | 0 |  |
 | G3 External side effects | 0 |  |
-| G4 Secrets & persistence | 0 |  |
+| G4 Secrets & persistence | 1 | `tests/ci/test_secret_file_support.py` (18 tests), `docs/DEPLOYMENT.md` (Secret File Support section). PR-04 pending for OAuth hardening. |
 | G5 Artifact boundary | 0 |  |
 | G6 Deployment invariants | 2 | `tests/ci/test_nginx_config_contract.py`, `docs/DEPLOYMENT.md` (Reverse Proxy Routing Invariants) |
 | G7 Observability correctness | 0 |  |

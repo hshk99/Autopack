@@ -244,4 +244,83 @@ To avoid “two truths”, deep closure history/backlogs live in:
 - `docs/SECURITY_BASELINE_AUTOMATION_STATUS.md`, `security/README.md` (security program)
 - `docs/INDEX.md` (navigation + recent build/decision references)
 
+---
+
+## Additional gaps/enhancements found during “continue” pass (still comprehensive, but higher granularity)
+
+### P0 — Safety / policy drift risks
+
+#### P0.X Governance enforcement surfaces are fragmented (legacy vs modern)
+
+- **Problem**: There are (at least) two approval/governance “stories” in the repo:
+  - **Modern**: gap → plan proposer (`PlanProposer`) with DEC-046 default-deny contract tests
+  - **Legacy**: `/approval/request` endpoint logic (BUILD-113/117) with `AUTO_APPROVE_BUILD113` defaulting to `"true"`
+- **Why P0**: If both remain reachable, operators cannot form a reliable model of “what requires approval” and “what defaults are safe”.
+- **Recommended direction**:
+  - Decide and document which surface is canonical (and explicitly deprecate the other).
+  - Make legacy defaults safe-by-default if legacy must remain.
+
+### P1 — SOT/spec consistency and mechanical enforcement alignment
+
+#### P1.X “SOT registry vs docs index vs verifier” needs explicit convergence rules
+
+- **Observation**: There are multiple “canonical lists” of SOT/truth docs:
+  - `config/sot_registry.json` defines a broader `docs_sot_files` set (includes security ledgers + FUTURE_PLAN + PROJECT_INDEX + LEARNED_RULES, etc.)
+  - `scripts/tidy/verify_workspace_structure.py` treats the “6-file SOT” as: `PROJECT_INDEX.json`, `BUILD_HISTORY.md`, `DEBUG_LOG.md`, `ARCHITECTURE_DECISIONS.md`, `FUTURE_PLAN.md`, `LEARNED_RULES.json`
+  - `docs/INDEX.md` lists “Primary SOT ledgers” and additional security ledgers
+  - `docs/WORKSPACE_ORGANIZATION_SPEC.md` states the “6-file SOT structure” includes `FUTURE_PLAN.md`
+- **Why it matters**: The system is designed around “one truth” and mechanical enforcement; multiple overlapping lists are fine only if their relationships are explicit.
+- **Recommended direction**:
+  - Define *one canonical* SOT registry and treat others as derived projections:
+    - `config/sot_registry.json` as the canonical list of protected SOT docs (already used by CI/tests in places)
+    - `verify_workspace_structure.py` should reference `config/sot_registry.json` (or auto-generate its SOT list from it) to avoid drift
+  - Add/extend a contract test that ensures:
+    - `docs/INDEX.md` “SOT docs” section ⟷ `config/sot_registry.json` stay consistent (or explicitly enumerates allowed differences)
+- **Acceptance criteria**:
+  - A single source of truth for “what is SOT”, and mechanical drift prevention across the three surfaces.
+
+#### P1.Y Workspace DB artifact routing is specified but may not be “self-healing” locally
+
+- **Observation**: Workspace spec explicitly routes telemetry seed DBs to `archive/data/databases/telemetry_seeds/`, and `verify_workspace_structure.py` allows only `autopack.db` at root.
+- **Gap**: In a typical local workspace, it’s easy to accumulate many `*.db` files at root (e.g., telemetry seeds). CI won’t see this (since these are ignored), so the only enforcement is “local discipline” + running tidy/verify manually.
+- **Recommended direction**:
+  - Add an explicit “local hygiene” command (or make `scripts/tidy/tidy_up.py` include a safe “route root DB artifacts” mode) that:
+    - moves non-`autopack.db` SQLite DBs into the spec’d archive buckets
+    - is safe under Windows file locks (queue/retry)
+- **Acceptance criteria**:
+  - One command can make a messy local workspace comply with WORKSPACE_ORGANIZATION_SPEC for DB artifacts.
+
+### P2 — Developer experience and release posture (beyond README, still high ROI)
+
+#### P2.X SBOM generation is present; dependency vulnerability scanning is partially “informational”
+
+- **Current state**:
+  - Trivy + CodeQL are baseline/diff-gated (blocking regressions) in `.github/workflows/security.yml`
+  - SBOM generation exists (CycloneDX) in `security.yml`
+  - “Security SARIF Artifacts” workflow exists to generate canonical SARIF artifacts for baseline refresh
+  - Safety runs in CI but is not diff-gated and is uploaded only as artifacts
+- **Opportunity**:
+  - Decide whether Safety results are meant to be actionable/enforced:
+    - If yes: normalize + diff-gate (like Trivy/CodeQL) or switch to `pip-audit` / OSV-based scanning with stable keys
+    - If no: document it as informational-only and keep it out of “security regression-only blocking” narrative to avoid false expectations
+
+#### P2.Y Migration surface clarity: `alembic` dependency remains in `pyproject.toml`
+
+- **Current state**:
+  - DEC-048 declares scripts-first migrations canonical, but `pyproject.toml` still includes `alembic>=1.13.0`.
+- **Recommended direction** (decision required):
+  - Move Alembic to an optional extra (e.g., `[project.optional-dependencies] migrations = ["alembic>=..."]`) or remove until it becomes canonical.
+- **Acceptance criteria**:
+  - Dependencies and docs/ADRs do not imply two migration systems are canonical at once.
+
+### P3 — Performance/scale and future hardening
+
+#### P3.X API query consolidation and pagination limits
+
+- **Already tracked**:
+  - `GET /runs` N+1 query optimization (GAP-8.11.1)
+- **Additional suggestions**:
+  - Add explicit server-side caps for “artifact index” size, and return deterministic truncation markers (prevents accidental huge payloads)
+  - Add ETag/If-None-Match support for artifact index responses (cheap caching for the UI)
+
 

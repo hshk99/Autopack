@@ -1541,11 +1541,37 @@ These are explicitly **not** about “switching to Antigravity.” They are UI/U
 - **Goal**: When Playwright runs happen (or can be triggered), store artifacts (screenshots/HAR/video) and present them in the UI as part of the run’s artifact set.
 - **Constraint**: do **not** implement “visual self-healing” yet; only artifact capture + viewing.
 
-#### 8.10.4 Enhanced progress visualization + “file change preview before approval”
+#### 8.10.4 Enhanced progress visualization + "file change preview before approval"
 
 - **Goal**:
   - clearer phase timeline / retries / budget bars
   - when approval is required, show a safe preview of proposed file changes (diff summary) before operator approves
 - **Constraint**: preview must respect redaction/sanitization and governance boundaries.
 
+---
+
+### 8.11 P3 — Future polish and optimization opportunities
+
+These are tracked opportunities for future improvement, identified during GAP-8.10 implementation (2026-01-10).
+
+#### 8.11.1 GET /runs N+1 query optimization
+
+- **Evidence**: Current `GET /runs` endpoint issues separate queries per run to count phases.
+- **Enhancement**: Use SQLAlchemy subquery or window function to fetch phase counts in a single query.
+- **Priority**: P3 (only matters at scale; current load is minimal)
+- **Acceptance criteria**: `GET /runs?limit=100` issues ≤2 queries (runs + phase counts).
+
+#### 8.11.2 Artifact endpoint auth consistency
+
+- **Evidence**: `GET /runs/{run_id}/artifacts/*` endpoints perform security checks (path traversal) but don't verify API key ownership of the run.
+- **Enhancement**: Add `verify_api_key` check that validates the requesting key has access to the specific run_id.
+- **Priority**: P2 (security hardening for multi-tenant scenarios)
+- **Acceptance criteria**: Artifact requests return 403 if API key doesn't own the run.
+
+#### 8.11.3 Artifact content redaction
+
+- **Evidence**: `GET /runs/{run_id}/artifacts/file` returns raw file content without PII/secret scanning.
+- **Enhancement**: Integrate with existing `pii_detector` to optionally redact sensitive content in artifact responses.
+- **Priority**: P2 (compliance for shared artifact viewing)
+- **Acceptance criteria**: Artifact responses have redaction applied when governance policy requires it.
 

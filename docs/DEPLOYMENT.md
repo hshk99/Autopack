@@ -161,6 +161,24 @@ containers:
 
 **Fail-Fast Behavior**: In production (`AUTOPACK_ENV=production`), required secrets that are not set will cause immediate startup failure with a clear error message.
 
+### OAuth Credential Security (PR-04 G4)
+
+**Production Default**: Plaintext OAuth credential persistence is **DISABLED** in production mode. This prevents accidental exposure of OAuth tokens to the filesystem.
+
+**What this means**:
+- In production, calling `OAuthCredentialManager.register_credential()` or any operation that triggers `_save()` will raise `OAuthProductionSecurityError`
+- OAuth tokens should be injected via environment variables or secret files, not persisted to disk
+
+**If you need persistent OAuth credentials in production** (NOT RECOMMENDED):
+1. Set `AUTOPACK_OAUTH_ALLOW_PLAINTEXT_PERSISTENCE=1`
+2. Ensure the `.credentials/` directory has restricted permissions (chmod 700)
+3. Consider encrypted storage or OS keychain instead
+
+**Recommended approach for production**:
+- Use OAuth flows that provide tokens at runtime (e.g., service accounts with environment variables)
+- Store refresh tokens in encrypted secret managers (AWS Secrets Manager, HashiCorp Vault)
+- Use `*_FILE` environment variables to inject credentials from mounted secrets
+
 ---
 
 ### Required Variables

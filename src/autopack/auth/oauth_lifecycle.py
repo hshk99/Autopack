@@ -5,6 +5,12 @@ Implements gap analysis item 6.8:
 - Credential health monitoring and API endpoint
 - Integration with external action ledger for pause-on-failure
 
+PR-04 (R-03 G4): Production OAuth hardening
+In production mode (AUTOPACK_ENV=production), plaintext credential persistence
+is DISABLED by default to prevent accidental secret exposure. Operators must
+explicitly enable via AUTOPACK_OAUTH_ALLOW_PLAINTEXT_PERSISTENCE=1 and accept
+the documented security implications.
+
 Usage:
     manager = OAuthCredentialManager()
 
@@ -25,6 +31,7 @@ Usage:
 import asyncio
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -32,6 +39,30 @@ from pathlib import Path
 from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
+
+
+def _is_production() -> bool:
+    """Check if running in production mode."""
+    return os.getenv("AUTOPACK_ENV", "development").lower() == "production"
+
+
+def _is_plaintext_persistence_allowed() -> bool:
+    """Check if plaintext credential persistence is explicitly allowed.
+
+    PR-04 (R-03 G4): In production, plaintext persistence requires explicit opt-in.
+    """
+    if not _is_production():
+        # Development mode: allowed by default
+        return True
+
+    # Production mode: must explicitly opt in
+    return os.getenv("AUTOPACK_OAUTH_ALLOW_PLAINTEXT_PERSISTENCE", "0") == "1"
+
+
+class OAuthProductionSecurityError(RuntimeError):
+    """Raised when OAuth operations violate production security constraints."""
+
+    pass
 
 
 def _sanitize_log_input(value: Optional[str]) -> str:
@@ -258,7 +289,24 @@ class OAuthCredentialManager:
                 logger.warning(f"Failed to load credentials: {e}")
 
     def _save(self) -> None:
-        """Save credentials to storage."""
+        """Save credentials to storage.
+
+        PR-04 (R-03 G4): Production security check
+        In production, plaintext persistence is forbidden unless explicitly enabled.
+
+        Raises:
+            OAuthProductionSecurityError: If plaintext persistence is not allowed in production.
+        """
+        if not _is_plaintext_persistence_allowed():
+            raise OAuthProductionSecurityError(
+                "FATAL: Plaintext OAuth credential persistence is disabled in production. "
+                "This prevents accidental secret exposure to the filesystem. "
+                "Options: (1) Use *_FILE env vars for OAuth credentials, "
+                "(2) Set AUTOPACK_OAUTH_ALLOW_PLAINTEXT_PERSISTENCE=1 to explicitly allow "
+                "(NOT RECOMMENDED for production). "
+                "See docs/DEPLOYMENT.md for secure credential management."
+            )
+
         self._storage_dir.mkdir(parents=True, exist_ok=True)
         creds_file = self._storage_dir / "credentials.json"
         data = {

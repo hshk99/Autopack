@@ -185,29 +185,32 @@ def main() -> int:
         dev_committed = _normalize(requirements_dev_path.read_text(encoding="utf-8").splitlines())
 
         drift: list[str] = []
-        if runtime_compiled != runtime_committed:
+
+        # Compare as sets since line order may vary between pip-compile runs
+        runtime_compiled_set = set(runtime_compiled)
+        runtime_committed_set = set(runtime_committed)
+        if runtime_compiled_set != runtime_committed_set:
             drift.append("requirements.txt")
             # Debug: show first few differences
             print("[DEBUG] requirements.txt differences (first 10):", file=sys.stderr)
-            compiled_set = set(runtime_compiled)
-            committed_set = set(runtime_committed)
-            only_compiled = compiled_set - committed_set
-            only_committed = committed_set - compiled_set
-            for i, line in enumerate(sorted(only_compiled)[:5]):
+            only_compiled = runtime_compiled_set - runtime_committed_set
+            only_committed = runtime_committed_set - runtime_compiled_set
+            for line in sorted(only_compiled)[:5]:
                 print(f"  + (compiled) {line}", file=sys.stderr)
-            for i, line in enumerate(sorted(only_committed)[:5]):
+            for line in sorted(only_committed)[:5]:
                 print(f"  - (committed) {line}", file=sys.stderr)
-        if dev_compiled != dev_committed:
+
+        dev_compiled_set = set(dev_compiled)
+        dev_committed_set = set(dev_committed)
+        if dev_compiled_set != dev_committed_set:
             drift.append("requirements-dev.txt")
             # Debug: show first few differences
             print("[DEBUG] requirements-dev.txt differences (first 10):", file=sys.stderr)
-            compiled_set = set(dev_compiled)
-            committed_set = set(dev_committed)
-            only_compiled = compiled_set - committed_set
-            only_committed = committed_set - compiled_set
-            for i, line in enumerate(sorted(only_compiled)[:5]):
+            only_compiled = dev_compiled_set - dev_committed_set
+            only_committed = dev_committed_set - dev_compiled_set
+            for line in sorted(only_compiled)[:5]:
                 print(f"  + (compiled) {line}", file=sys.stderr)
-            for i, line in enumerate(sorted(only_committed)[:5]):
+            for line in sorted(only_committed)[:5]:
                 print(f"  - (committed) {line}", file=sys.stderr)
 
         if not drift:

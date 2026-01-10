@@ -28,12 +28,12 @@ jobs:
         run: |
           python scripts/check_ci_drift.py
           python scripts/check_version_consistency.py
-          # Dependency sync check is INFORMATIONAL ONLY due to cross-environment differences:
+          # Dependency sync check validates requirements files match pyproject.toml structure.
+          # Uses set comparison (order-independent) and normalizes for:
           # - Python version differences (3.10 backports vs 3.11 native)
-          # - pip-compile output format variations with constraints
-          # The essential check (package names present) is done by check_ci_drift.py above.
+          # - Platform-specific packages (colorama, uvloop)
           # See scripts/regenerate_requirements.sh for canonical regeneration.
-          python scripts/check_dependency_sync.py || echo "[INFO] Dependency sync check found differences (informational)"
+          python scripts/check_dependency_sync.py
       - name: Check requirements portability (Linux/CI canonical)
         run: |
           python scripts/check_requirements_portability.py

@@ -238,7 +238,7 @@ Score each gate from 0–2:
 | Gate | Score (0–2) | Evidence link (tests/docs) |
 |------|-------------|----------------------------|
 | G1 Auth & exposure | 2 | `tests/ci/test_production_auth_coverage.py` (0 gaps), `tests/ci/test_production_auth_requirement.py` |
-| G2 Governance & approvals | 2 | `tests/ci/test_governance_docs_contract.py` (10 tests), `tests/ci/test_legacy_approval_autoapprove_default_safe.py` (9 tests), `docs/GOVERNANCE.md` (DEC-046 aligned + Section 5.1 legacy endpoint) |
+| G2 Governance & approvals | 2 | `tests/ci/test_governance_docs_contract.py` (10 tests), `tests/ci/test_legacy_approval_autoapprove_default_safe.py` (8 tests), `docs/GOVERNANCE.md` (DEC-046 aligned + Section 5.1 legacy endpoint) |
 | G3 External side effects | 2 | `tests/ci/test_governance_docs_contract.py` (NEVER_AUTO_APPROVE enforcement), `src/autopack/planning/plan_proposer.py` (default-deny) |
 | G4 Secrets & persistence | 2 | `tests/ci/test_secret_file_support.py` (18 tests), `tests/ci/test_oauth_persistence_hardening.py` (11 tests), `docs/DEPLOYMENT.md` (Secret File Support + OAuth Credential Security sections) |
 | G5 Artifact boundary | 2 | `tests/ci/test_artifact_boundary_hardening.py` (17 tests), `docs/DEPLOYMENT.md` (Artifact Boundary Hardening section) |
@@ -286,7 +286,7 @@ Score each gate from 0–2:
   - Production mode (`AUTOPACK_ENV=production`) blocks auto-approve entirely, even if explicitly enabled (defense-in-depth).
   - `docs/GOVERNANCE.md` Section 5.1 documents the legacy endpoint, safe defaults, and modern alternative.
   - `docs/CANONICAL_API_CONTRACT.md` updated to reflect `false` default and production blocking.
-  - `tests/ci/test_legacy_approval_autoapprove_default_safe.py` added (9 tests) to prevent regression.
+  - `tests/ci/test_legacy_approval_autoapprove_default_safe.py` added (8 tests) to prevent regression.
 - **Evidence**:
   - `tests/ci/test_legacy_approval_autoapprove_default_safe.py::test_auto_approve_defaults_to_false`
   - `tests/ci/test_legacy_approval_autoapprove_default_safe.py::test_production_blocks_auto_approve`

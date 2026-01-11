@@ -118,22 +118,6 @@ MAX_EXECUTE_FIX_PER_PHASE = 1  # Maximum execute_fix attempts per phase
 # BUILD-050 Phase 2: Maximum retry attempts per phase
 MAX_RETRY_ATTEMPTS = 5  # Maximum Builder retry attempts before phase fails
 
-# PR-B: Import retry policy for pure decision functions
-from autopack.executor.retry_policy import (
-    AttemptContext,
-    next_attempt_state,
-    should_run_diagnostics,
-)
-
-# PR-C: Import attempt runner for single-attempt execution wrapper
-from autopack.executor.attempt_runner import run_single_attempt_with_recovery
-
-# PR-D: Import db_events for best-effort DB/telemetry operations
-from autopack.executor.db_events import (
-    maybe_apply_retry_max_tokens_from_db,
-    try_record_token_budget_escalation_event,
-)
-
 # Allowed fix types (v1: git, file, python; later: docker, shell)
 ALLOWED_FIX_TYPES = {"git", "file", "python"}
 
@@ -1989,6 +1973,11 @@ class AutonomousExecutor:
             Tuple of (success: bool, status: str)
             status can be: "COMPLETE", "FAILED", "BLOCKED"
         """
+        # PR-B/C/D: Local imports to reduce import-time weight and avoid E402
+        from autopack.executor.attempt_runner import run_single_attempt_with_recovery
+        from autopack.executor.db_events import maybe_apply_retry_max_tokens_from_db
+        from autopack.executor.retry_policy import AttemptContext, next_attempt_state
+
         phase_id = phase.get("phase_id")
 
         # INSERTION POINT 2: Track phase state for intention-first loop (BUILD-161 Phase A)
@@ -4573,6 +4562,9 @@ Just the new description that should replace the current one while preserving th
         self, phase: Dict, attempt_index: int = 0, allowed_paths: Optional[List[str]] = None
     ) -> Tuple[bool, str]:
         """Inner phase execution with error handling and model escalation support"""
+        # PR-D: Local import to reduce import-time weight and avoid E402
+        from autopack.executor.db_events import try_record_token_budget_escalation_event
+
         phase_id = phase.get("phase_id")
 
         try:
@@ -5224,9 +5216,7 @@ Just the new description that should replace the current one while preserving th
                             base_value=int(current_max_tokens),
                             base_source=str(base_source),
                             retry_max_tokens=int(escalated_tokens),
-                            selected_budget=(
-                                int(selected_budget) if selected_budget else None
-                            ),
+                            selected_budget=(int(selected_budget) if selected_budget else None),
                             actual_max_tokens=(
                                 int(actual_max_tokens) if actual_max_tokens else None
                             ),
@@ -5471,9 +5461,7 @@ Just the new description that should replace the current one while preserving th
                                 base_value=int(current_max_tokens),
                                 base_source=str(base_source),
                                 retry_max_tokens=int(escalated_tokens),
-                                selected_budget=(
-                                    int(selected_budget) if selected_budget else None
-                                ),
+                                selected_budget=(int(selected_budget) if selected_budget else None),
                                 actual_max_tokens=(
                                     int(actual_max_tokens) if actual_max_tokens else None
                                 ),

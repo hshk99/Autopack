@@ -1,3 +1,14 @@
+# Makefile Portability Notice (Delta 1.8)
+# This Makefile requires Bash/Unix tools (rm, find, sleep, bash).
+# On Windows, use one of:
+#   - Git Bash: comes with Git for Windows
+#   - WSL: Windows Subsystem for Linux
+#   - MSYS2/MinGW: Unix-like environment
+# Alternatively, run the equivalent commands directly:
+#   - pip install -e ".[dev]"
+#   - pytest tests/ -v
+#   - docker-compose up -d / down / logs
+
 .PHONY: help install test test-verbose docker-up docker-down docker-logs probe clean
 
 help:

@@ -81,11 +81,6 @@ target-version = "py311"
 # Storage optimizer - allow bare except for cleanup
 "src/autopack/storage_optimizer/**/*.py" = ["E722"]
 "tests/storage_optimizer/**/*.py" = ["E402"]
-# Anthropic clients and executor - F821/F823 for undefined names in some code paths
-# These are genuine issues that need fixing (GovernedApplyPath, batches, etc.)
-# TODO: Fix the underlying import/scope issues
-"src/autopack/anthropic_clients.py" = ["F821", "F823"]
-"src/autopack/autonomous_executor.py" = ["F821"]
 "src/autopack/cli/research_commands.py" = ["F401"]  # Import availability check
 "src/autopack/memory/qdrant_store.py" = ["F401"]  # Import availability check
 "tests/autopack/memory/test_memory_service_extended.py" = ["F401"]  # Import availability check

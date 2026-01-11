@@ -63,51 +63,98 @@ class HealthChecker:
 
     def check_api_keys(self) -> tuple[str, bool, str]:
         """
-        Verify required API keys are present.
+        Verify at least one supported provider API key is present.
+
+        PR-05: Changed from requiring ALL keys to requiring at least one.
+        Supported providers: ANTHROPIC, OPENAI, GOOGLE (GLM is tooling-only).
 
         Returns:
             Tuple of (check_name, passed, message)
         """
-        required_keys = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY"]
-        missing_keys = []
+        # Supported provider keys (GLM excluded - tooling only, not runtime)
+        provider_keys = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY"]
+        present_keys = [key for key in provider_keys if os.environ.get(key)]
 
-        for key in required_keys:
-            if not os.environ.get(key):
-                missing_keys.append(key)
-
-        if missing_keys:
+        if not present_keys:
             return (
                 "API Keys",
                 False,
-                f"Missing API keys: {', '.join(missing_keys)}",
+                f"No provider API keys found. Set at least one of: {', '.join(provider_keys)}",
             )
 
-        return ("API Keys", True, "All required API keys present")
+        return ("API Keys", True, f"Provider API key(s) present: {', '.join(present_keys)}")
 
     def check_database(self) -> tuple[str, bool, str]:
         """
-        Verify SQLite database file exists and is writable.
+        Verify database connectivity based on configured backend.
+
+        PR-05: Now checks Postgres connectivity when DATABASE_URL starts with
+        'postgresql://', and SQLite file existence otherwise.
 
         Returns:
             Tuple of (check_name, passed, message)
         """
+        db_url = os.environ.get("DATABASE_URL", "")
+
+        # Postgres backend
+        if db_url.startswith("postgresql://") or db_url.startswith("postgres://"):
+            return self._check_postgres_connectivity(db_url)
+
+        # SQLite backend (default)
+        return self._check_sqlite_file()
+
+    def _check_postgres_connectivity(self, db_url: str) -> tuple[str, bool, str]:
+        """Check Postgres connectivity via socket probe."""
+        import re
+
+        # Parse host and port from DATABASE_URL
+        # Format: postgresql://user:pass@host:port/dbname
+        match = re.search(r"@([^:/]+)(?::(\d+))?/", db_url)
+        if not match:
+            return (
+                "Database",
+                False,
+                f"Cannot parse Postgres host from DATABASE_URL: {db_url[:50]}...",
+            )
+
+        host = match.group(1)
+        port = int(match.group(2)) if match.group(2) else 5432
+
+        try:
+            with socket.create_connection((host, port), timeout=2.0):
+                return ("Database", True, f"Postgres reachable at {host}:{port}")
+        except socket.timeout:
+            return (
+                "Database",
+                False,
+                f"Postgres connection timed out: {host}:{port}",
+            )
+        except OSError as e:
+            return (
+                "Database",
+                False,
+                f"Postgres unreachable at {host}:{port}: {e}",
+            )
+
+    def _check_sqlite_file(self) -> tuple[str, bool, str]:
+        """Check SQLite database file exists and is writable."""
         db_path = self.workspace_path / "autopack.db"
 
         if not db_path.exists():
             return (
                 "Database",
                 False,
-                f"Database file not found: {db_path}",
+                f"SQLite database file not found: {db_path}",
             )
 
         if not os.access(db_path, os.W_OK):
             return (
                 "Database",
                 False,
-                f"Database file not writable: {db_path}",
+                f"SQLite database file not writable: {db_path}",
             )
 
-        return ("Database", True, f"Database accessible: {db_path}")
+        return ("Database", True, f"SQLite database accessible: {db_path}")
 
     def check_workspace(self) -> tuple[str, bool, str]:
         """

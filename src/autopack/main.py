@@ -30,7 +30,6 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, joinedload
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from . import dashboard_schemas, models, schemas
@@ -132,8 +131,74 @@ async def verify_read_access(api_key: str = Security(API_KEY_HEADER)):
     return await verify_api_key(api_key)
 
 
-# Rate limiting
-limiter = Limiter(key_func=get_remote_address)
+# Rate limiting - PR-06: Use X-Forwarded-For when behind nginx/proxy
+# Trusted proxy IPs - only trust forwarded headers from these sources
+# Default: localhost (127.0.0.1, ::1) and Docker bridge networks (172.16-31.x.x)
+# Override via AUTOPACK_TRUSTED_PROXIES env var (comma-separated IPs/CIDRs)
+_DEFAULT_TRUSTED_PROXIES = {"127.0.0.1", "::1"}
+
+
+def _is_trusted_proxy(client_ip: str | None) -> bool:
+    """Check if the direct client IP is from a trusted proxy."""
+    if not client_ip:
+        return False
+
+    # Check explicit trusted list
+    trusted = os.getenv("AUTOPACK_TRUSTED_PROXIES", "").strip()
+    if trusted:
+        trusted_set = {ip.strip() for ip in trusted.split(",") if ip.strip()}
+    else:
+        trusted_set = _DEFAULT_TRUSTED_PROXIES
+
+    # Exact match for now (CIDR support can be added later if needed)
+    if client_ip in trusted_set:
+        return True
+
+    # Trust Docker bridge networks (172.16.0.0/12) when running in compose
+    # This covers 172.16.x.x through 172.31.x.x
+    if client_ip.startswith("172.") and 16 <= int(client_ip.split(".")[1]) <= 31:
+        return True
+
+    return False
+
+
+def get_client_ip(request: Request) -> str:
+    """
+    Extract real client IP, respecting X-Forwarded-For only from trusted proxies.
+
+    Security model:
+    - Only trust X-Forwarded-For/X-Real-IP headers if the direct connection
+      is from a trusted proxy (localhost, Docker bridge, or AUTOPACK_TRUSTED_PROXIES)
+    - If direct connection is untrusted, ignore forwarded headers (spoofing defense)
+
+    Priority (when from trusted proxy):
+    1. X-Forwarded-For header (first IP in chain = original client)
+    2. X-Real-IP header (nginx convention)
+    3. request.client.host (direct connection fallback)
+    """
+    direct_ip = request.client.host if request.client else None
+
+    # Only trust forwarded headers if connection is from trusted proxy
+    if _is_trusted_proxy(direct_ip):
+        # X-Forwarded-For: client, proxy1, proxy2, ...
+        forwarded_for = request.headers.get("x-forwarded-for")
+        if forwarded_for:
+            # Take the first IP (original client), strip whitespace
+            return forwarded_for.split(",")[0].strip()
+
+        # X-Real-IP (nginx convention - single IP)
+        real_ip = request.headers.get("x-real-ip")
+        if real_ip:
+            return real_ip.strip()
+
+    # Use direct connection IP (untrusted proxy or no forwarded headers)
+    if direct_ip:
+        return direct_ip
+
+    return "127.0.0.1"
+
+
+limiter = Limiter(key_func=get_client_ip)
 
 # Load .env but DON'T override existing env vars (e.g., DATABASE_URL from executor)
 # This ensures subprocess API server inherits DATABASE_URL from parent process

@@ -372,6 +372,20 @@ flags:
     affects: ["autonomous_executor.py"]
 
   # ============================================================================
+  # Rate Limiting (PR-06)
+  # ============================================================================
+  AUTOPACK_TRUSTED_PROXIES:
+    description: "Comma-separated list of trusted proxy IPs for X-Forwarded-For"
+    category: security
+    default: "127.0.0.1,::1 (plus Docker bridge 172.16-31.x.x)"
+    values: "Comma-separated IP addresses"
+    affects: ["main.py"]
+    security_implications:
+      set: "Only trust X-Forwarded-For headers from these IPs"
+      unset: "Trust localhost and Docker bridge networks by default"
+    notes: "PR-06: Prevents rate limit bypass via spoofed X-Forwarded-For headers"
+
+  # ============================================================================
   # Service Configuration
   # ============================================================================
   AUTOPACK_API_URL:

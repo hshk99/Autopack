@@ -119,6 +119,114 @@ class TestCanonicalDocsCheck:
             assert result.violations == []
 
 
+class TestFencedCodeBlockHandling:
+    """Tests for fenced code block handling (PR-04 fix)."""
+
+    def test_fenced_block_scanned_by_default(self):
+        """Code blocks without HISTORICAL marker should be scanned."""
+        content = """
+Normal text.
+
+```bash
+cd src/backend/
+```
+
+More text.
+"""
+        violations = check_content_for_legacy_paths(content, "docs/test.md")
+        assert len(violations) == 1
+        assert violations[0].line_number == 5
+
+    def test_fenced_block_with_historical_marker_skipped(self):
+        """Code blocks with HISTORICAL marker should be skipped."""
+        content = """
+Normal text.
+
+HISTORICAL: This shows the old directory structure:
+```bash
+cd src/backend/
+ls backend/files/
+```
+
+Current structure uses src/autopack/.
+"""
+        violations = check_content_for_legacy_paths(content, "docs/test.md")
+        assert len(violations) == 0
+
+    def test_historical_marker_within_3_lines(self):
+        """HISTORICAL marker should work within 3 lines of fence."""
+        content = """
+This was the old structure:
+
+HISTORICAL EXAMPLE:
+
+```bash
+src/backend/api.py
+```
+"""
+        violations = check_content_for_legacy_paths(content, "docs/test.md")
+        assert len(violations) == 0
+
+    def test_historical_marker_too_far_away(self):
+        """HISTORICAL marker more than 3 lines away should not apply."""
+        content = """
+HISTORICAL: This was old
+
+Line 2
+Line 3
+Line 4
+Line 5
+
+```bash
+src/backend/api.py
+```
+"""
+        violations = check_content_for_legacy_paths(content, "docs/test.md")
+        assert len(violations) == 1
+
+    def test_multiple_fenced_blocks_independent(self):
+        """Each fenced block should be checked independently."""
+        content = """
+HISTORICAL:
+```bash
+src/backend/  # This should be skipped
+```
+
+```bash
+src/backend/  # This should be flagged
+```
+"""
+        violations = check_content_for_legacy_paths(content, "docs/test.md")
+        assert len(violations) == 1
+
+    def test_nested_looking_fences_handled(self):
+        """Consecutive fences should be handled correctly."""
+        content = """
+```json
+{"path": "src/backend/"}
+```
+
+Normal text with src/backend/ reference.
+"""
+        violations = check_content_for_legacy_paths(content, "docs/test.md")
+        # Both the JSON content and normal text should be flagged
+        assert len(violations) == 2
+
+    def test_text_outside_fence_always_scanned(self):
+        """Text outside fences should always be scanned."""
+        content = """
+HISTORICAL:
+```bash
+src/backend/  # skipped
+```
+
+But src/backend/ outside the fence is still flagged.
+"""
+        violations = check_content_for_legacy_paths(content, "docs/test.md")
+        assert len(violations) == 1
+        assert "outside the fence" in violations[0].line_content
+
+
 class TestCurrentCanonicalDocsClean:
     """Tests that current canonical docs are clean of legacy refs.
 

@@ -7993,12 +7993,14 @@ Just the new description that should replace the current one while preserving th
             Dict with 'existing_files' key containing {path: content} dict
         """
         from autopack.executor.context_loading import load_repository_context
+
         return load_repository_context(self, phase)
 
     def _load_repository_context_heuristic(self, phase: Dict) -> Dict:
         """Legacy heuristic loader (moved from _load_repository_context in PR2)."""
         import subprocess
         import re
+
         workspace = Path(self.workspace)
         loaded_paths = set()  # Track loaded paths to avoid duplicates
         existing_files = {}  # Final output format

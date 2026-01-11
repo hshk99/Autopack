@@ -1427,10 +1427,11 @@ async def request_approval(request: Request, db: Session = Depends(get_db)):
         safe_phase_id = _sanitize_for_log(phase_id)
         safe_run_id = _sanitize_for_log(run_id)
         safe_context = _sanitize_for_log(context)
+        safe_decision_type = _sanitize_for_log(decision_info.get("type"))
 
         logger.info(
             f"[APPROVAL] Request received: run={safe_run_id}, phase={safe_phase_id}, "
-            f"context={safe_context}, decision_type={decision_info.get('type', 'N/A')}"
+            f"context={safe_context}, decision_type={safe_decision_type}"
         )
 
         # Configuration

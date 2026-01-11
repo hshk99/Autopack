@@ -128,6 +128,12 @@ from autopack.executor.retry_policy import (
 # PR-C: Import attempt runner for single-attempt execution wrapper
 from autopack.executor.attempt_runner import run_single_attempt_with_recovery
 
+# PR-D: Import db_events for best-effort DB/telemetry operations
+from autopack.executor.db_events import (
+    maybe_apply_retry_max_tokens_from_db,
+    try_record_token_budget_escalation_event,
+)
+
 # Allowed fix types (v1: git, file, python; later: docker, shell)
 ALLOWED_FIX_TYPES = {"git", "file", "python"}
 
@@ -2087,35 +2093,12 @@ class AutonomousExecutor:
         )
 
         # BUILD-129 Phase 3 P10: Apply persisted escalate-once budget on the *next* attempt.
-        # We persist P10 decisions into token_budget_escalation_events with attempt_index=1-based attempt that triggered.
-        # When retry_attempt increments from 0->1, we should apply the retry budget for that next attempt.
-        try:
-            from autopack.database import SessionLocal
-            from autopack.models import TokenBudgetEscalationEvent
-
-            db = SessionLocal()
-            try:
-                evt = (
-                    db.query(TokenBudgetEscalationEvent)
-                    .filter(
-                        TokenBudgetEscalationEvent.run_id == self.run_id,
-                        TokenBudgetEscalationEvent.phase_id == phase_id,
-                    )
-                    .order_by(TokenBudgetEscalationEvent.timestamp.desc())
-                    .first()
-                )
-            finally:
-                try:
-                    db.close()
-                except Exception:
-                    pass
-
-            if evt and (attempt_index == int(evt.attempt_index or 0)) and evt.retry_max_tokens:
-                # Attach a transient override used by execute_builder_phase(max_tokens=...)
-                phase["_escalated_tokens"] = int(evt.retry_max_tokens)
-        except Exception:
-            # Best-effort only; do not block execution if DB telemetry isn't available.
-            pass
+        # PR-D: Use db_events module for best-effort DB read
+        maybe_apply_retry_max_tokens_from_db(
+            run_id=self.run_id,
+            phase=phase,
+            attempt_index=attempt_index,
+        )
 
         # Reload project rules mid-run if rules_updated.json advanced
         self._refresh_project_rules_if_updated()
@@ -5220,51 +5203,34 @@ Just the new description that should replace the current one while preserving th
                     )
 
                     # BUILD-129 Phase 3: Persist P10 decision to DB (deterministic validation).
-                    # This avoids relying on reproducing truncation events or scraping logs.
-                    try:
-                        if os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in [
-                            "1",
-                            "true",
-                            "yes",
-                        ]:
-                            from autopack.database import SessionLocal
-                            from autopack.models import TokenBudgetEscalationEvent
-
-                            session = SessionLocal()
-                            try:
-                                evt = TokenBudgetEscalationEvent(
-                                    run_id=self.run_id,
-                                    phase_id=phase_id,
-                                    attempt_index=attempt_index + 1,
-                                    reason="truncation" if was_truncated else "utilization",
-                                    was_truncated=bool(was_truncated),
-                                    output_utilization=(
-                                        float(output_utilization)
-                                        if output_utilization is not None
-                                        else None
-                                    ),
-                                    escalation_factor=float(escalation_factor),
-                                    base_value=int(current_max_tokens),
-                                    base_source=str(base_source),
-                                    retry_max_tokens=int(escalated_tokens),
-                                    selected_budget=(
-                                        int(selected_budget) if selected_budget else None
-                                    ),
-                                    actual_max_tokens=(
-                                        int(actual_max_tokens) if actual_max_tokens else None
-                                    ),
-                                    tokens_used=int(tokens_used) if tokens_used else None,
-                                )
-                                session.add(evt)
-                                session.commit()
-                            finally:
-                                try:
-                                    session.close()
-                                except Exception:
-                                    pass
-                    except Exception as e:
-                        logger.warning(
-                            f"[BUILD-129:P10] Failed to write DB escalation telemetry: {e}"
+                    # PR-D: Use db_events module for best-effort DB write
+                    if os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in [
+                        "1",
+                        "true",
+                        "yes",
+                    ]:
+                        try_record_token_budget_escalation_event(
+                            run_id=self.run_id,
+                            phase_id=phase_id,
+                            attempt_index=attempt_index + 1,
+                            reason="truncation" if was_truncated else "utilization",
+                            was_truncated=bool(was_truncated),
+                            output_utilization=(
+                                float(output_utilization)
+                                if output_utilization is not None
+                                else None
+                            ),
+                            escalation_factor=float(escalation_factor),
+                            base_value=int(current_max_tokens),
+                            base_source=str(base_source),
+                            retry_max_tokens=int(escalated_tokens),
+                            selected_budget=(
+                                int(selected_budget) if selected_budget else None
+                            ),
+                            actual_max_tokens=(
+                                int(actual_max_tokens) if actual_max_tokens else None
+                            ),
+                            tokens_used=int(tokens_used) if tokens_used else None,
                         )
 
                     # Skip Doctor invocation for truncation/high-util - just retry with more tokens
@@ -5484,50 +5450,34 @@ Just the new description that should replace the current one while preserving th
                         )
 
                         # Persist P10 decision to DB (deterministic validation).
-                        try:
-                            if os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in [
-                                "1",
-                                "true",
-                                "yes",
-                            ]:
-                                from autopack.database import SessionLocal
-                                from autopack.models import TokenBudgetEscalationEvent
-
-                                session = SessionLocal()
-                                try:
-                                    evt = TokenBudgetEscalationEvent(
-                                        run_id=self.run_id,
-                                        phase_id=phase_id,
-                                        attempt_index=attempt_index + 1,
-                                        reason="truncation" if was_truncated else "utilization",
-                                        was_truncated=bool(was_truncated),
-                                        output_utilization=(
-                                            float(output_utilization)
-                                            if output_utilization is not None
-                                            else None
-                                        ),
-                                        escalation_factor=float(escalation_factor),
-                                        base_value=int(current_max_tokens),
-                                        base_source=str(base_source),
-                                        retry_max_tokens=int(escalated_tokens),
-                                        selected_budget=(
-                                            int(selected_budget) if selected_budget else None
-                                        ),
-                                        actual_max_tokens=(
-                                            int(actual_max_tokens) if actual_max_tokens else None
-                                        ),
-                                        tokens_used=int(tokens_used) if tokens_used else None,
-                                    )
-                                    session.add(evt)
-                                    session.commit()
-                                finally:
-                                    try:
-                                        session.close()
-                                    except Exception:
-                                        pass
-                        except Exception as e:
-                            logger.warning(
-                                f"[BUILD-129:P10] Failed to write DB escalation telemetry: {e}"
+                        # PR-D: Use db_events module for best-effort DB write
+                        if os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in [
+                            "1",
+                            "true",
+                            "yes",
+                        ]:
+                            try_record_token_budget_escalation_event(
+                                run_id=self.run_id,
+                                phase_id=phase_id,
+                                attempt_index=attempt_index + 1,
+                                reason="truncation" if was_truncated else "utilization",
+                                was_truncated=bool(was_truncated),
+                                output_utilization=(
+                                    float(output_utilization)
+                                    if output_utilization is not None
+                                    else None
+                                ),
+                                escalation_factor=float(escalation_factor),
+                                base_value=int(current_max_tokens),
+                                base_source=str(base_source),
+                                retry_max_tokens=int(escalated_tokens),
+                                selected_budget=(
+                                    int(selected_budget) if selected_budget else None
+                                ),
+                                actual_max_tokens=(
+                                    int(actual_max_tokens) if actual_max_tokens else None
+                                ),
+                                tokens_used=int(tokens_used) if tokens_used else None,
                             )
 
                         return False, "TOKEN_ESCALATION"

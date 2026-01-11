@@ -173,6 +173,27 @@ mypy src/autopack/version.py src/autopack/__version__.py --ignore-missing-import
 3. Fix type errors (prefer `Optional[X]` over implicit None defaults)
 4. Submit PR adding the module to CI allowlist
 
+### CI Enforcement Ladder (Blocking vs Informational)
+
+Our CI pipeline has both blocking (PR must pass) and informational (tracking only) checks.
+
+**Blocking (PR-gating):**
+- `lint` job - ruff/black + policy drift checks
+- `docs-sot-integrity` job - doc contracts, workspace structure, docs drift, canonical doc refs, SOT drift
+- `test-core` job - core test suite
+- `frontend-ci` job - npm lint/typecheck/build
+- `security.yml` diff gates - Trivy fs/image + CodeQL
+
+**Informational (tracking only):**
+- mypy step in `lint` (`continue-on-error: true`)
+- `test-aspirational` and `test-research` jobs (`continue-on-error: true`)
+- Safety scan artifacts in `security.yml` (`|| true`, artifact upload only)
+
+**Promotion criteria:**
+- **Mypy**: graduates to blocking when Tier 1 expands and stays clean for 10+ PRs
+- **Safety**: graduates only once normalized + diff-gated (or replaced with deterministic scanner)
+- **Aspirational tests**: graduate by removing xfail markers and moving into core selection
+
 ---
 
 ## Pull Request Process

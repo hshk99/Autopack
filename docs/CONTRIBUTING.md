@@ -24,6 +24,7 @@ Thank you for your interest in contributing to Autopack! This guide will help yo
 - Python 3.11+ (CI uses 3.11 canonically - see [DEC-051](ARCHITECTURE_DECISIONS.md#dec-051--2026-01-09--python-311-canonical-for-ci-312-local-support))
 - Git
 - SQLite (included with Python)
+- **For Makefile targets**: Bash/Unix environment (Git Bash, WSL, or MSYS2 on Windows)
 
 ### Installation
 
@@ -187,11 +188,14 @@ Our CI pipeline has both blocking (PR must pass) and informational (tracking onl
 **Informational (tracking only):**
 - mypy step in `lint` (`continue-on-error: true`)
 - `test-aspirational` and `test-research` jobs (`continue-on-error: true`)
-- Safety scan artifacts in `security.yml` (`|| true`, artifact upload only)
+- Safety scan in `security.yml` - intentionally informational (`|| true`, artifact upload only)
+
+**Why Safety is informational (Delta 1.5 posture):**
+Safety's output is non-deterministic across runs (vuln database updates, transitive dep churn). Making it blocking without normalization would cause spurious failures. Current posture: artifacts uploaded for human review; Trivy/CodeQL provide the blocking diff gates.
 
 **Promotion criteria:**
 - **Mypy**: graduates to blocking when Tier 1 expands and stays clean for 10+ PRs
-- **Safety**: graduates only once normalized + diff-gated (or replaced with deterministic scanner)
+- **Safety**: graduates to blocking only once normalized + diff-gated (stable baseline + delta comparison), or replaced with a deterministic scanner
 - **Aspirational tests**: graduate by removing xfail markers and moving into core selection
 
 ---

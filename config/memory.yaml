@@ -14,6 +14,9 @@ qdrant:
   api_key: ""  # Optional API key for Qdrant Cloud
   prefer_grpc: false  # Use HTTP by default
   timeout: 60  # Request timeout in seconds
+  # Pinned Qdrant image for autostart fallback (determinism).
+  # Must match docker-compose.yml; use AUTOPACK_QDRANT_IMAGE env to override.
+  image: "qdrant/qdrant:v1.12.5"
   # Operational policy:
   # - require=false: Qdrant is optional; Autopack should still run (FAISS fallback)
   # - fallback_to_faiss=true: if Qdrant is unreachable, use FAISS automatically

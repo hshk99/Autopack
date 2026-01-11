@@ -293,6 +293,10 @@ class HealthChecker:
         fallback_to_faiss = bool(q.get("fallback_to_faiss", True))
         autostart_default = bool(q.get("autostart", False))
         autostart_timeout = int(q.get("autostart_timeout_seconds", 15))
+        # Pinned image for autostart fallback (determinism). Env override supported.
+        qdrant_image = os.environ.get("AUTOPACK_QDRANT_IMAGE") or q.get(
+            "image", "qdrant/qdrant:v1.12.5"
+        )
 
         host = os.getenv("AUTOPACK_QDRANT_HOST") or str(q.get("host", "localhost"))
         port = int(os.getenv("AUTOPACK_QDRANT_PORT") or q.get("port", 6333))
@@ -420,7 +424,7 @@ class HealthChecker:
                                     container_name,
                                     "-p",
                                     f"{port}:6333",
-                                    "qdrant/qdrant:latest",
+                                    qdrant_image,
                                 ],
                                 capture_output=True,
                                 text=True,

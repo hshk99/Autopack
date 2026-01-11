@@ -169,12 +169,17 @@ def _docker_compose_cmd() -> Optional[List[str]]:
     return None
 
 
+# Default pinned Qdrant image (determinism; must match docker-compose.yml)
+DEFAULT_QDRANT_IMAGE = "qdrant/qdrant:v1.12.5"
+
+
 def _autostart_qdrant_if_needed(
     *,
     host: str,
     port: int,
     timeout_seconds: int,
     enabled: bool,
+    qdrant_image: str = DEFAULT_QDRANT_IMAGE,
 ) -> bool:
     """
     Attempt to start Qdrant automatically (docker compose preferred) and wait for readiness.
@@ -243,7 +248,7 @@ def _autostart_qdrant_if_needed(
                         container_name,
                         "-p",
                         f"{port}:6333",
-                        "qdrant/qdrant:latest",
+                        qdrant_image,
                     ],
                     capture_output=True,
                     text=True,
@@ -353,6 +358,11 @@ class MemoryService:
         except Exception:
             autostart_timeout_seconds = autostart_timeout_seconds
 
+        # Pinned image for autostart fallback (determinism). Env override supported.
+        qdrant_image = os.getenv("AUTOPACK_QDRANT_IMAGE") or qdrant_config.get(
+            "image", DEFAULT_QDRANT_IMAGE
+        )
+
         if use_qdrant and QDRANT_AVAILABLE:
             try:
                 self.store = QdrantStore(
@@ -371,6 +381,7 @@ class MemoryService:
                     port=int(qdrant_port),
                     timeout_seconds=autostart_timeout_seconds,
                     enabled=autostart_enabled,
+                    qdrant_image=qdrant_image,
                 ):
                     try:
                         self.store = QdrantStore(

@@ -468,6 +468,15 @@ flags:
     affects: ["memory/memory_service.py", "health_checks.py"]
     requires: ["AUTOPACK_QDRANT_AUTOSTART=true"]
 
+  AUTOPACK_QDRANT_IMAGE:
+    description: "Docker image to use for Qdrant autostart fallback"
+    category: service_config
+    default: "qdrant/qdrant:v1.12.5 (from config/memory.yaml)"
+    values: "Docker image tag (e.g., qdrant/qdrant:v1.12.5)"
+    affects: ["memory/memory_service.py", "health_checks.py"]
+    requires: ["AUTOPACK_QDRANT_AUTOSTART=true"]
+    notes: "Overrides the pinned image in config/memory.yaml. Use for testing newer versions."
+
 # ============================================================================
 # Non-AUTOPACK Environment Variables (External Services)
 # ============================================================================

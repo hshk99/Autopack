@@ -2,12 +2,12 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 207 build entries (180 unique builds) documented | Last updated: 2026-01-10 17:53:40
+**Summary**: 208 build entries (181 unique builds) documented | Last updated: 2026-01-11 12:44:49
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
-Last_Updated: 2026-01-10T17:53:40.994765Z
-Total_Builds: 207
+Last_Updated: 2026-01-11T12:44:49.720022Z
+Total_Builds: 208
 Format_Version: 2.0
 Auto_Generated: False
 Sources: CONSOLIDATED files, archive/, manual updates, BUILD-158 Tidy Lock/Lease + Doc Link Checker
@@ -16,6 +16,7 @@ Sources: CONSOLIDATED files, archive/, manual updates, BUILD-158 Tidy Lock/Lease
 ## INDEX (Chronological - Most Recent First)
 | Timestamp | BUILD-ID | Phase | Summary | Files Changed |
 |-----------|----------|-------|---------|---------------|
+| 2026-01-11 | BUILD-203 | Legacy Approval Safe Default + CodeQL Fix (100% COMPLETE) | **PR-01 P0: Legacy approval safe-by-default (DEC-046 compliance)**: Changed AUTO_APPROVE_BUILD113 default from "true" to "false" (silent auto-approval is governance bypass). Added production mode blocking (AUTOPACK_ENV=production blocks auto-approve even if explicitly enabled). Fixed CodeQL log injection by sanitizing all user-controlled request values (phase_id, run_id, context, decision_type) via _sanitize_for_log(). Added 8 CI contract tests (test_legacy_approval_autoapprove_default_safe.py) verifying safe defaults, production blocking, and runtime behavior. Updated GOVERNANCE.md Section 5.1 documenting legacy endpoint safe defaults. Housekeeping: diff_gate.py Windows encoding fix, cursor implementation prompt tracked, doc link diagnostics refreshed. PR #97, #98, #99, #100 merged. Files: src/autopack/main.py (+safe default +sanitize), docs/GOVERNANCE.md (+Section 5.1), tests/ci/test_legacy_approval_autoapprove_default_safe.py (NEW, 8 tests), scripts/security/diff_gate.py (+encoding fix), docs/cursor/CURSOR_PROMPT_IMPLEMENT_COMPREHENSIVE_IMPROVEMENT_SCAN_FULL.md (NEW), docs/INDEX.md (+scan report link), docs/SECURITY_BURNDOWN.md (+stale TODO fix) | 8 |
 | 2026-01-10 | BUILD-202 | Comprehensive Improvement Scan P0-P3 (100% COMPLETE) | **Implement all improvement scan items from COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md**: P0 Critical (auth docs rewrite, governance auto-approval fix, GLM drift removal, operator surface auth gating, workspace spec update), P1 High (dependency drift enforcement, prod compose template, telemetry cap fix, scope-based learned rules, incremental JSON parsing, SEED_CATALOG fallback clarification), P2 Medium (legacy dashboard archive, Makefile alignment, DEPLOYMENT.md version fix, PROJECT_INDEX install update, canonical doc refs CI enforcement), P3 Low (Docker digest pinning for supply-chain security, N+1 query fix in /runs endpoint). PR #96 merged. Files: Dockerfile, Dockerfile.frontend, docker-compose.prod.example.yml, config/feature_flags.yaml, scripts/check_dependency_sync.py, scripts/ci/check_canonical_doc_refs.py, src/autopack/main.py, src/autopack/continuation_recovery.py, src/autopack/learned_rules.py, docs/AUTHENTICATION.md, docs/GOVERNANCE.md, docs/DEPLOYMENT.md, docs/WORKSPACE_ORGANIZATION_SPEC.md, Makefile, archive/experiments/legacy-dashboard-frontend/ | 47 |
 | 2026-01-09 | BUILD-201 | GAP-8.10 Operator Surface UI (100% COMPLETE) | **Implement operator surface (runs inbox + artifacts + progress)**: Backend endpoints (GET /runs paginated inbox, /runs/{run_id}/progress, /runs/{run_id}/artifacts/index, /runs/{run_id}/artifacts/file, /runs/{run_id}/browser/artifacts), Frontend pages (RunsInbox.tsx, RunArtifacts.tsx, RunBrowserArtifacts.tsx, RunProgress.tsx), Security (path traversal protection including URL-encoded bypass prevention %2e%2e), 23 API tests covering all endpoints. Implements GAP-8.10.1, GAP-8.10.2, GAP-8.10.3, GAP-8.10.4. PR #95 merged. Files: src/autopack/main.py (+operator endpoints), src/frontend/pages/ (+4 pages), tests/autopack/test_operator_surface.py | 15 |
 | 2026-01-09 | BUILD-200 | Security Stack Trace Exposure Fix (100% COMPLETE) | **Remove stack trace and exception details from API error responses**: Global exception handler no longer returns str(exc) or traceback in dev mode, HTTPException calls use generic messages instead of f"... {str(e)}" patterns. Tracebacks remain server-side only (logs + error report files), client receives only error_id for correlation/debugging. Fixes CodeQL py/stack-trace-exposure findings. Production mode unchanged (already safe), development mode now also safe. PR #93 merged. Files: src/autopack/main.py | 1 |

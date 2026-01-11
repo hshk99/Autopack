@@ -72,6 +72,7 @@ from autopack.maintenance_auditor import (
     evaluate as audit_evaluate,
 )
 from autopack.backlog_maintenance import parse_patch_stats, create_git_checkpoint
+from autopack.governed_apply import GovernedApplyPath
 from autopack.deliverables_validator import (
     validate_deliverables,
     format_validation_feedback_for_builder,
@@ -584,8 +585,6 @@ class AutonomousExecutor:
             * checkpoint creation succeeded
             * patch is present
         """
-        from autopack.governed_apply import GovernedApplyPath
-
         try:
             import json as _json
 
@@ -4982,8 +4981,6 @@ Just the new description that should replace the current one while preserving th
             self._run_tokens_used += getattr(builder_result, "tokens_used", 0) or 0
 
             # [Phase C2] Extract and store patch statistics for quality gate
-            from autopack.governed_apply import GovernedApplyPath
-
             is_maintenance_run = self.run_type in [
                 "autopack_maintenance",
                 "autopack_upgrade",
@@ -5053,8 +5050,6 @@ Just the new description that should replace the current one while preserving th
                 self._run_tokens_used += getattr(builder_result, "tokens_used", 0) or 0
 
                 # [Phase C2] Extract and store patch statistics for quality gate (fallback path)
-                from autopack.governed_apply import GovernedApplyPath
-
                 is_maintenance_run = self.run_type in [
                     "autopack_maintenance",
                     "autopack_upgrade",
@@ -5929,8 +5924,6 @@ Just the new description that should replace the current one while preserving th
                 error_msg = None
             else:
                 # Regular patch mode (full-file or diff)
-                from autopack.governed_apply import GovernedApplyPath
-
                 # NEW: Pre-apply YAML/compose validation (per IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md)
                 # Check if patch contains YAML/compose files and validate them before apply
                 patch_content = builder_result.patch_content or ""
@@ -6703,8 +6696,6 @@ Just the new description that should replace the current one while preserving th
                 return False, "DELIVERABLES_VALIDATION_FAILED"
 
             # Apply patch for this batch
-            from autopack.governed_apply import GovernedApplyPath
-
             scope_paths = batch_scope.get("paths", []) if isinstance(batch_scope, dict) else []
             derived_allowed: List[str] = []
             for r in apply_allowed_roots:
@@ -7509,8 +7500,6 @@ Just the new description that should replace the current one while preserving th
                 )
 
             # Apply patch for this batch
-            from autopack.governed_apply import GovernedApplyPath
-
             # Derive scope_paths and allowed_paths for governed apply from this batch scope
             scope_paths = batch_scope.get("paths", []) if isinstance(batch_scope, dict) else []
             derived_allowed: List[str] = []
@@ -7923,8 +7912,6 @@ Just the new description that should replace the current one while preserving th
                 return False, "DELIVERABLES_VALIDATION_FAILED"
 
             # Apply patch for this batch
-            from autopack.governed_apply import GovernedApplyPath
-
             # Derive scope_paths and allowed_paths for governed apply from this batch scope
             scope_paths = batch_scope.get("paths", []) if isinstance(batch_scope, dict) else []
             derived_allowed: List[str] = []
@@ -8958,9 +8945,6 @@ Just the new description that should replace the current one while preserving th
 
         # Map llm_client.BuilderResult to builder_schemas.BuilderResult
         # Parse patch statistics using GovernedApplyPath
-        from pathlib import Path
-        from autopack.governed_apply import GovernedApplyPath
-
         # Enable internal mode for maintenance run types (for consistency)
         is_maintenance_run = self.run_type in [
             "autopack_maintenance",
@@ -10084,8 +10068,6 @@ Just the new description that should replace the current one while preserving th
         Returns:
             True if retry succeeded, False otherwise
         """
-        from autopack.governed_apply import GovernedApplyPath
-
         logger.info(f"[Governance:{phase_id}] Retrying with allowance: {len(allowed_paths)} paths")
 
         # Create permissive governed_apply instance

@@ -4,8 +4,15 @@ Ensures all AUTOPACK_* environment variables are documented in
 config/feature_flags.yaml (single source of truth).
 
 Contract: No undocumented feature flags in production code.
+
+Enhancement (Delta 1.10.3):
+- AST-based extraction for Settings fields + AliasChoices
+- Detects env vars from Pydantic BaseSettings field names
+- Detects env vars from AliasChoices(...) string literals
+- Direct os.environ/os.getenv usage detection
 """
 
+import ast
 import re
 from pathlib import Path
 from typing import Set
@@ -16,10 +23,14 @@ import yaml
 REPO_ROOT = Path(__file__).parent.parent.parent
 SRC_DIR = REPO_ROOT / "src"
 CONFIG_FILE = REPO_ROOT / "config" / "feature_flags.yaml"
+CONFIG_PY = REPO_ROOT / "src" / "autopack" / "config.py"
 
 
 def extract_env_vars_from_code() -> Set[str]:
-    """Extract all AUTOPACK_* environment variable references from src/."""
+    """Extract all environment variable references from src/.
+
+    Uses regex-based scanning for os.environ/os.getenv patterns.
+    """
     env_var_pattern = re.compile(r'os\.(?:environ|getenv)\s*\(\s*["\']([A-Z][A-Z0-9_]*)["\']')
 
     found_vars: Set[str] = set()
@@ -33,6 +44,62 @@ def extract_env_vars_from_code() -> Set[str]:
             continue
 
     return found_vars
+
+
+def extract_settings_env_vars() -> Set[str]:
+    """Extract env vars from Pydantic Settings fields in config.py.
+
+    Detects:
+    - Field names with autopack_ prefix -> AUTOPACK_* env vars (Pydantic default)
+    - AliasChoices(...) string literals -> explicit env var aliases
+    """
+    found_vars: Set[str] = set()
+
+    if not CONFIG_PY.exists():
+        return found_vars
+
+    try:
+        content = CONFIG_PY.read_text(encoding="utf-8")
+        tree = ast.parse(content)
+    except (OSError, SyntaxError):
+        return found_vars
+
+    for node in ast.walk(tree):
+        # Look for class definitions that inherit from BaseSettings
+        if isinstance(node, ast.ClassDef):
+            # Check if this is a Settings class (inherits BaseSettings)
+            is_settings_class = any(
+                (isinstance(base, ast.Name) and base.id == "BaseSettings")
+                or (isinstance(base, ast.Attribute) and base.attr == "BaseSettings")
+                for base in node.bases
+            )
+            if not is_settings_class:
+                continue
+
+            # Extract field names that start with autopack_
+            for item in node.body:
+                if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
+                    field_name = item.target.id
+                    if field_name.startswith("autopack_"):
+                        # Pydantic converts snake_case to UPPER_SNAKE_CASE
+                        env_var = field_name.upper()
+                        found_vars.add(env_var)
+
+        # Look for AliasChoices(...) calls anywhere in the tree
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name) and node.func.id == "AliasChoices":
+                for arg in node.args:
+                    if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                        found_vars.add(arg.value)
+
+    return found_vars
+
+
+def extract_all_env_vars() -> Set[str]:
+    """Extract all env vars from both os.environ usage and Settings fields."""
+    all_vars = extract_env_vars_from_code()
+    all_vars.update(extract_settings_env_vars())
+    return all_vars
 
 
 def load_feature_flags_registry() -> dict:
@@ -87,10 +154,22 @@ class TestAutopackFlagsDocumented:
     """Verify all AUTOPACK_* env vars are documented."""
 
     def test_all_autopack_vars_documented(self):
-        """All AUTOPACK_* environment variables must be in the registry."""
-        code_vars = extract_env_vars_from_code()
+        """All AUTOPACK_* environment variables must be in the registry.
+
+        Uses enhanced extraction that detects:
+        - os.environ/os.getenv patterns (regex-based)
+        - Pydantic Settings field names (AST-based)
+        - AliasChoices(...) string literals (AST-based)
+        """
+        # Use combined extraction (regex + AST)
+        code_vars = extract_all_env_vars()
         registry = load_feature_flags_registry()
         documented = get_documented_flags(registry)
+
+        # Also include aliases from registry entries
+        for flag_name, flag_data in registry.get("flags", {}).items():
+            if isinstance(flag_data, dict) and "aliases" in flag_data:
+                documented.update(flag_data["aliases"])
 
         # Filter to only AUTOPACK_* variables
         autopack_vars = {v for v in code_vars if v.startswith("AUTOPACK_")}
@@ -101,6 +180,32 @@ class TestAutopackFlagsDocumented:
             f"Undocumented AUTOPACK_* environment variables found in code:\n"
             f"  {sorted(undocumented)}\n\n"
             f"Add these to config/feature_flags.yaml to maintain single source of truth."
+        )
+
+    def test_settings_env_vars_documented(self):
+        """Pydantic Settings env vars should be documented (from config.py)."""
+        settings_vars = extract_settings_env_vars()
+        registry = load_feature_flags_registry()
+        documented = get_documented_flags(registry)
+
+        # Also include aliases
+        for flag_name, flag_data in registry.get("flags", {}).items():
+            if isinstance(flag_data, dict) and "aliases" in flag_data:
+                documented.update(flag_data["aliases"])
+
+        # Filter to AUTOPACK_* and aliased vars (from AliasChoices)
+        autopack_settings_vars = {v for v in settings_vars if v.startswith("AUTOPACK_") or "_" in v}
+
+        undocumented = autopack_settings_vars - documented
+
+        # Filter out non-AUTOPACK vars that are external (like ENVIRONMENT)
+        external_vars = {"ENVIRONMENT"}
+        undocumented = undocumented - external_vars
+
+        assert not undocumented, (
+            f"Undocumented Settings env vars found in config.py:\n"
+            f"  {sorted(undocumented)}\n\n"
+            f"Add these to config/feature_flags.yaml (flags or external_env_vars section)."
         )
 
     def test_critical_security_flags_documented(self):

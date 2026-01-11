@@ -1,6 +1,6 @@
 # Autopack Architecture
 
-**Last Updated**: 2025-12-29  
+**Last Updated**: 2026-01-11 (refreshed for path correctness)
 **Purpose**: High-level system overview for developers and contributors
 
 ---
@@ -122,7 +122,7 @@ Autopack is an **autonomous build system** that executes multi-phase implementat
 - `src/autopack/*.py` → backend
 - `tests/*.py` → tests
 - `docs/*.md` → docs
-- `alembic/versions/*.py` → database
+- `scripts/migrations/*.py` → database (scripts-first canonical; see DEC-048)
 
 ---
 

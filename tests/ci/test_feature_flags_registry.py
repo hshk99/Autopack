@@ -1,9 +1,14 @@
-"""Feature flags registry contract tests (PR9).
+"""Feature flags registry contract tests (PR9, enhanced PR-03).
 
 Ensures all AUTOPACK_* environment variables are documented in
 config/feature_flags.yaml (single source of truth).
 
 Contract: No undocumented feature flags in production code.
+
+Boundary decision (PR-03):
+- Registry covers ALL AUTOPACK_* environment variables
+- Non-AUTOPACK vars (TELEGRAM_*, DATABASE_URL, API keys) are in external_env_vars
+- Aliases between AUTOPACK_* and legacy names must be explicitly documented
 
 Enhancement (Delta 1.10.3):
 - AST-based extraction for Settings fields + AliasChoices
@@ -340,3 +345,56 @@ class TestDeprecatedFlagsQuarantined:
 
         # Just verify the section works (no assertions for now)
         assert isinstance(deprecated, list)
+
+
+class TestBoundaryEnforcement:
+    """Verify registry boundary is enforced correctly (PR-03).
+
+    Boundary decision:
+    - All AUTOPACK_* vars must be in flags section
+    - Non-AUTOPACK vars (external services) must be in external_env_vars section
+    - Aliases must be explicitly documented with the 'aliases' field
+    """
+
+    def test_autopack_vars_not_in_external_section(self):
+        """AUTOPACK_* vars should not be in external_env_vars."""
+        registry = load_feature_flags_registry()
+        external = registry.get("external_env_vars", {})
+
+        autopack_in_external = [k for k in external.keys() if k.startswith("AUTOPACK_")]
+        assert not autopack_in_external, (
+            f"AUTOPACK_* vars should be in 'flags' section, not 'external_env_vars': "
+            f"{autopack_in_external}"
+        )
+
+    def test_non_autopack_vars_in_external_section(self):
+        """Non-AUTOPACK vars should be in external_env_vars (not flags)."""
+        registry = load_feature_flags_registry()
+        flags = registry.get("flags", {})
+
+        # These specific vars should NOT be in flags (they're external service config)
+        external_expected = {"TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "DATABASE_URL", "NGROK_URL"}
+        in_flags = external_expected & set(flags.keys())
+
+        assert (
+            not in_flags
+        ), f"External service vars should be in 'external_env_vars', not 'flags': {in_flags}"
+
+    def test_aliases_documented_bidirectionally(self):
+        """Flags with aliases should have them documented."""
+        registry = load_feature_flags_registry()
+        flags = registry.get("flags", {})
+
+        # Check that known alias patterns are documented
+        known_alias_patterns = [
+            ("AUTOPACK_TELEGRAM_BOT_TOKEN", ["TELEGRAM_BOT_TOKEN"]),
+            ("AUTOPACK_TELEGRAM_CHAT_ID", ["TELEGRAM_CHAT_ID"]),
+        ]
+
+        for flag_name, expected_aliases in known_alias_patterns:
+            if flag_name in flags:
+                flag_data = flags[flag_name]
+                if isinstance(flag_data, dict):
+                    documented_aliases = flag_data.get("aliases", [])
+                    missing = set(expected_aliases) - set(documented_aliases)
+                    assert not missing, f"{flag_name} should document aliases: {missing}"

@@ -4577,63 +4577,18 @@ Just the new description that should replace the current one while preserving th
         phase_id = phase.get("phase_id")
 
         try:
-            # Chunk 0 batching (research-tracer-bullet) is handled by a specialized executor path
-            # to reduce patch size and avoid incomplete/truncated patches.
-            if phase_id == "research-tracer-bullet":
-                return self._execute_research_tracer_bullet_batched(
-                    phase=phase,
-                    attempt_index=attempt_index,
-                    allowed_paths=allowed_paths,
-                )
+            # Special-case phase handlers (in-phase batching) are routed via a tiny registry
+            # to reduce merge conflicts in this file.
+            from autopack.executor.phase_dispatch import resolve_special_phase_method
 
-            # Chunk 2B batching (research-gatherers-web-compilation) is handled by a specialized executor path
-            # to reduce patch size and avoid incomplete/truncated patches (common for tests/docs).
-            if phase_id == "research-gatherers-web-compilation":
-                return self._execute_research_gatherers_web_compilation_batched(
-                    phase=phase,
-                    attempt_index=attempt_index,
-                    allowed_paths=allowed_paths,
-                )
-
-            # Diagnostics parity followups create multiple files (code + tests + docs) and
-            # commonly hit truncation/malformed-diff convergence failures when generated as one patch.
-            # Use in-phase batching (like Chunk 0 / Chunk 2B) to reduce patch size and tighten manifest gates.
-
-            # Followup-1: handoff-bundle (4 files: 2 code + 1 test + 1 doc)
-            if phase_id == "diagnostics-handoff-bundle":
-                return self._execute_diagnostics_handoff_bundle_batched(
-                    phase=phase,
-                    attempt_index=attempt_index,
-                    allowed_paths=allowed_paths,
-                )
-
-            # Followup-2: cursor-prompt (4 files: 2 code + 1 test + 1 doc)
-            if phase_id == "diagnostics-cursor-prompt":
-                return self._execute_diagnostics_cursor_prompt_batched(
-                    phase=phase,
-                    attempt_index=attempt_index,
-                    allowed_paths=allowed_paths,
-                )
-
-            # Followup-3: second-opinion (3 files: 1 code + 1 test + 1 doc)
-            if phase_id == "diagnostics-second-opinion-triage":
-                return self._execute_diagnostics_second_opinion_batched(
-                    phase=phase,
-                    attempt_index=attempt_index,
-                    allowed_paths=allowed_paths,
-                )
-
-            # Followup-7: deep-retrieval (5 files: 2 code + 2 tests + 1 doc)
-            if phase_id == "diagnostics-deep-retrieval":
-                return self._execute_diagnostics_deep_retrieval_batched(
-                    phase=phase,
-                    attempt_index=attempt_index,
-                    allowed_paths=allowed_paths,
-                )
-
-            # Followup-8: iteration-loop (5 files: 2 code + 2 tests + 1 doc)
-            if phase_id == "diagnostics-iteration-loop":
-                return self._execute_diagnostics_iteration_loop_batched(
+            special_method_name = resolve_special_phase_method(phase_id)
+            if special_method_name:
+                handler = getattr(self, special_method_name, None)
+                if handler is None:
+                    raise RuntimeError(
+                        f"Phase '{phase_id}' mapped to missing handler '{special_method_name}'"
+                    )
+                return handler(
                     phase=phase,
                     attempt_index=attempt_index,
                     allowed_paths=allowed_paths,

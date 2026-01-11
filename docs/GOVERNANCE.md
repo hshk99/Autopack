@@ -358,6 +358,52 @@ POST /approval/reject/{approval_id}
 
 ---
 
+## 5.1 Legacy Approval Endpoint (BUILD-113/117)
+
+### Overview
+
+The `/approval/request` endpoint is a legacy approval mechanism from BUILD-113/117. It provides a simple approval workflow with Telegram notifications.
+
+**Important (PR-01 P0, DEC-046)**: This endpoint has safe defaults:
+- `AUTO_APPROVE_BUILD113` defaults to `false` (requires explicit opt-in)
+- Production mode (`AUTOPACK_ENV=production`) **blocks auto-approve entirely**, even if `AUTO_APPROVE_BUILD113=true`
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AUTO_APPROVE_BUILD113` | `false` | Enable auto-approval (only works in non-production) |
+| `APPROVAL_TIMEOUT_MINUTES` | `15` | Timeout before default action |
+| `APPROVAL_DEFAULT_ON_TIMEOUT` | `reject` | Action on timeout: `approve` or `reject` |
+
+### Safe Defaults Rationale
+
+Per DEC-046 (default-deny governance policy), silent auto-approval is a governance bypass risk. The safe defaults ensure:
+
+1. **Development**: Auto-approval requires explicit `AUTO_APPROVE_BUILD113=true`
+2. **Production**: Auto-approval is **never** allowed (defense-in-depth)
+3. **Testing**: No silent surprises; explicit opt-in for auto-approve testing
+
+### Enabling Auto-Approve (Development Only)
+
+For local development and testing, you can enable auto-approve:
+
+```bash
+# Development with auto-approve (for testing)
+export AUTO_APPROVE_BUILD113=true
+export AUTOPACK_ENV=development  # (default)
+
+# Production ALWAYS blocks auto-approve
+export AUTOPACK_ENV=production
+# AUTO_APPROVE_BUILD113=true has NO EFFECT in production
+```
+
+### Modern Governance Alternative
+
+The modern governance system (`src/autopack/planning/plan_proposer.py`, `src/autopack/governed_apply.py`) is the recommended approach for new implementations. The legacy endpoint is maintained for backward compatibility but should be considered deprecated for new use cases.
+
+---
+
 ## 6. Audit Trails
 
 ### Decision Logging

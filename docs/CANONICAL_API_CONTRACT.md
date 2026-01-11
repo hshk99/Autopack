@@ -11,7 +11,8 @@ Last updated: 2026-01-10 (GAP-8.10 Operator Surface Endpoints)
 ## Authentication
 
 **Canonical header**: `X-API-Key`
-**Compatibility**: `Bearer` tokens supported for auth endpoints
+**Bearer tokens**: used only for `/api/auth/*` endpoints (JWT)
+**Production posture**: default-deny — all non-allowlisted, non-auth endpoints require `X-API-Key`
 **Configuration**: `AUTOPACK_API_KEY` environment variable
 
 ---
@@ -29,30 +30,30 @@ Last updated: 2026-01-10 (GAP-8.10 Operator Surface Endpoints)
 
 #### `GET /runs/{run_id}`
 - **Purpose**: Get run details with all tiers and phases
-- **Auth**: None (public read)
+- **Auth**: Requires `X-API-Key` in production (dev may allow public read)
 - **Response**: `RunResponse` (200)
 
 #### `POST /runs/{run_id}/phases/{phase_id}/update_status`
 - **Purpose**: Update phase status and metrics
-- **Auth**: None (executor trust boundary)
+- **Auth**: Requires `X-API-Key` in production (executor trust boundary)
 - **Request**: `PhaseStatusUpdate`
 - **Response**: Status update confirmation
 
 #### `POST /runs/{run_id}/phases/{phase_id}/builder_result`
 - **Purpose**: Submit Builder results and apply patches
-- **Auth**: None (executor trust boundary)
+- **Auth**: Requires `X-API-Key` in production (executor trust boundary)
 - **Request**: `BuilderResult`
 - **Response**: Builder result confirmation
 
 #### `POST /runs/{run_id}/phases/{phase_id}/auditor_result`
 - **Purpose**: Submit Auditor results
-- **Auth**: None (executor trust boundary)
+- **Auth**: Requires `X-API-Key` in production (executor trust boundary)
 - **Request**: `AuditorResult`
 - **Response**: Auditor result confirmation
 
 #### `POST /runs/{run_id}/phases/{phase_id}/record_issue`
 - **Purpose**: Record an issue for a phase
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production (executor trust boundary)
 - **Response**: Issue tracking confirmation
 
 ---
@@ -77,18 +78,18 @@ Last updated: 2026-01-10 (GAP-8.10 Operator Surface Endpoints)
 
 #### `GET /dashboard/runs/{run_id}/status`
 - **Purpose**: Get run status for dashboard display
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Response**: `DashboardRunStatus`
 
 #### `GET /dashboard/usage`
 - **Purpose**: Get token usage statistics
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Query params**: `period` (day/week/month)
 - **Response**: `UsageResponse` (providers, models)
 
 #### `GET /dashboard/models`
 - **Purpose**: Get current model mappings
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Response**: List of `ModelMapping`
 
 #### `GET /dashboard/runs/{run_id}/token-efficiency`
@@ -105,7 +106,7 @@ Last updated: 2026-01-10 (GAP-8.10 Operator Surface Endpoints)
 
 #### `GET /dashboard/runs/{run_id}/consolidated-metrics`
 - **Purpose**: **PRIMARY** - Get consolidated token metrics (no double-counting)
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Kill switch**: `AUTOPACK_ENABLE_CONSOLIDATED_METRICS=1` (default: OFF)
 - **Query params**: `limit` (max: 10000, default: 1000), `offset` (default: 0)
 - **Response**: `ConsolidatedTokenMetrics` with 4 independent categories:
@@ -117,19 +118,19 @@ Last updated: 2026-01-10 (GAP-8.10 Operator Surface Endpoints)
 
 #### `GET /dashboard/ab-results`
 - **Purpose**: Get A/B test results
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Query params**: `test_id`, `valid_only` (default: true), `limit` (max: 1000, default: 100)
 - **Response**: List of A/B test comparison results
 
 #### `POST /dashboard/human-notes`
 - **Purpose**: Add human notes to notes file
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Request**: `HumanNoteRequest`
 - **Response**: Confirmation with timestamp
 
 #### `POST /dashboard/models/override`
 - **Purpose**: Add model override (global or per-run)
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Request**: `ModelOverrideRequest`
 - **Response**: Override confirmation
 
@@ -139,12 +140,12 @@ Last updated: 2026-01-10 (GAP-8.10 Operator Surface Endpoints)
 
 #### `GET /runs/{run_id}/issues/index`
 - **Purpose**: Get run-level issue index
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Response**: Run issue index
 
 #### `GET /project/issues/backlog`
 - **Purpose**: Get project-level issue backlog
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Response**: Project backlog
 
 ---
@@ -153,12 +154,12 @@ Last updated: 2026-01-10 (GAP-8.10 Operator Surface Endpoints)
 
 #### `GET /runs/{run_id}/errors`
 - **Purpose**: Get all error reports for a run
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Response**: Error report list
 
 #### `GET /runs/{run_id}/errors/summary`
 - **Purpose**: Get error summary for a run
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Response**: Error summary
 
 ---
@@ -167,19 +168,19 @@ Last updated: 2026-01-10 (GAP-8.10 Operator Surface Endpoints)
 
 #### `POST /approval/request`
 - **Purpose**: Request human approval for risky decisions
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Request**: Approval context (phase_id, run_id, decision_info, deletion_info)
 - **Response**: Approval status (approved/rejected/pending)
 - **Features**: Telegram notifications, timeout handling, audit trail
 
 #### `GET /approval/status/{approval_id}`
 - **Purpose**: Check approval request status (for executor polling)
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Response**: Approval status details
 
 #### `GET /approval/pending`
 - **Purpose**: Get all pending approvals (for dashboard)
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Response**: List of pending approval requests
 
 #### `POST /telegram/webhook`
@@ -194,12 +195,12 @@ Last updated: 2026-01-10 (GAP-8.10 Operator Surface Endpoints)
 
 #### `GET /governance/pending`
 - **Purpose**: Get all pending governance requests
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Response**: List of pending governance requests
 
 #### `POST /governance/approve/{request_id}`
 - **Purpose**: Approve or deny a governance request
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Query params**: `approved` (bool), `user_id` (string)
 - **Response**: Approval status
 
@@ -271,15 +272,14 @@ These endpoints provide the operator UI with run browsing, artifact viewing, and
 
 **Auth Policy** (P0.4 Security Hardening):
 - **Production** (`AUTOPACK_ENV=production`): Requires `X-API-Key` header
-- **Development**: Public by default, or opt-in to require auth by NOT setting `AUTOPACK_PUBLIC_READ=1`
-- **Dev with public read** (`AUTOPACK_PUBLIC_READ=1`): No auth required (for local dashboards)
+- **Development**: Public read is enabled only when `AUTOPACK_PUBLIC_READ=1`; otherwise requests require `X-API-Key` if configured
 
 #### `GET /runs`
 - **Purpose**: List all runs with pagination and summary info
 - **Auth**: Required in production; dev opt-in via `AUTOPACK_PUBLIC_READ=1`
 - **Query params**: `limit` (1-100, default: 20), `offset` (default: 0)
 - **Response**: `{ runs: [...], total, limit, offset }`
-- **Notes**: Returns phase counts per run; known N+1 query (tracked in GAP-8.11.1)
+- **Notes**: Returns phase counts per run; implementation uses eager loading to avoid N+1 queries
 
 #### `GET /runs/{run_id}/progress`
 - **Purpose**: Get phase-by-phase progress details for a run
@@ -302,7 +302,7 @@ These endpoints provide the operator UI with run browsing, artifact viewing, and
 #### `GET /runs/{run_id}/browser/artifacts`
 - **Purpose**: List browser-specific artifacts (screenshots, HTML files)
 - **Auth**: Required in production; dev opt-in via `AUTOPACK_PUBLIC_READ=1`
-- **Response**: `{ run_id, screenshots: [{ path, timestamp, size_bytes }], html_files: [...], total_size_bytes }`
+- **Response**: `{ run_id, artifacts: [{ path, type, size_bytes, modified_at }], total_count }`
 
 ---
 
@@ -325,27 +325,27 @@ These endpoints provide the operator UI with run browsing, artifact viewing, and
 
 #### `GET /storage/steam/games`
 - **Purpose**: List Steam games (storage analysis)
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Response**: `SteamGamesListResponse`
 
 #### `POST /storage/patterns/analyze`
 - **Purpose**: Analyze file patterns
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Response**: List of `PatternResponse`
 
 #### `GET /storage/learned-rules`
 - **Purpose**: Get learned file organization rules
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Response**: List of `LearnedRuleResponse`
 
 #### `POST /storage/learned-rules/{rule_id}/approve`
 - **Purpose**: Approve a learned rule
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Response**: `LearnedRuleResponse`
 
 #### `GET /storage/recommendations`
 - **Purpose**: Get file organization recommendations
-- **Auth**: None
+- **Auth**: Requires `X-API-Key` in production
 - **Response**: `RecommendationsListResponse`
 
 ---
@@ -374,9 +374,11 @@ These endpoints provide the operator UI with run browsing, artifact viewing, and
 |--------|---------------------|---------|---------|
 | Phase 6 Metrics | `AUTOPACK_ENABLE_PHASE6_METRICS` | `0` | Enable Phase 6 telemetry collection |
 | Consolidated Metrics | `AUTOPACK_ENABLE_CONSOLIDATED_METRICS` | `0` | Enable consolidated metrics endpoint |
-| Auto-Approve | `AUTO_APPROVE_BUILD113` | `true` | Auto-approve risky decisions (disable for human-in-loop) |
+| Auto-Approve (Legacy) | `AUTO_APPROVE_BUILD113` | `false` | Legacy auto-approve for `/approval/request` (PR-01 P0: safe default) |
 
 **Important**: All observability kill switches default to **OFF** to prevent accidental LLM calls or performance overhead in production.
+
+**Legacy Auto-Approve Note (PR-01 P0)**: `AUTO_APPROVE_BUILD113` defaults to `false` per DEC-046 (default-deny). Production mode (`AUTOPACK_ENV=production`) blocks auto-approve entirely, even if explicitly set to `true`.
 
 ---
 

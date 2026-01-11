@@ -568,14 +568,14 @@ The research system citation validity improvement project implemented fixes to i
 **Task: YAML Schema Warnings**
 - **Phase ID**: `oi-fo-yaml-schema`
 - **Description**: Resolve YAML schema warnings across packs.
-- **Allowed Paths**: `packs/`, `src/backend/packs/`, `tests/`
+- **Allowed Paths (FileOrganizer repo, NOT Autopack)**: `packs/`, `src/backend/packs/`, `tests/`
 - **Tests**: `pytest -q tests/test_pack_routes.py`
 - **Apply**: allowed (auditor+checkpoint)
 
 **Task: Patch Apply Mismatch**
 - **Phase ID**: `oi-fo-patch-mismatch`
 - **Description**: Address patch apply mismatches on structured edits.
-- **Allowed Paths**: `src/backend/`, `src/frontend/`, `tests/`
+- **Allowed Paths (FileOrganizer repo, NOT Autopack)**: `src/backend/`, `src/frontend/`, `tests/`
 - **Tests**: `pytest -q tests/test_autonomous_executor.py`
 - **Apply**: allowed (auditor+checkpoint)
 
@@ -695,7 +695,7 @@ Implementation split into 8 autonomous chunks with human review gates. Each chun
 
 **Launch Command**:
 ```bash
-cd c:/dev/Autopack
+# Run from repository root
 autopack execute-phase \
   --requirements .autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk0-tracer-bullet.yaml \
   --ci-enabled \
@@ -878,7 +878,7 @@ Implementation of 12 high-value architectural patterns from Lovable's code gener
 **For Autonomous Executor:**
 
 ```bash
-cd c:/dev/Autopack
+# Run from repository root
 
 # Run all phases
 PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \

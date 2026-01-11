@@ -118,6 +118,13 @@ MAX_EXECUTE_FIX_PER_PHASE = 1  # Maximum execute_fix attempts per phase
 # BUILD-050 Phase 2: Maximum retry attempts per phase
 MAX_RETRY_ATTEMPTS = 5  # Maximum Builder retry attempts before phase fails
 
+# PR-B: Import retry policy for pure decision functions
+from autopack.executor.retry_policy import (
+    AttemptContext,
+    next_attempt_state,
+    should_run_diagnostics,
+)
+
 # Allowed fix types (v1: git, file, python; later: docker, shell)
 ALLOWED_FIX_TYPES = {"git", "file", "python"}
 
@@ -2069,6 +2076,13 @@ class AutonomousExecutor:
         attempt_index = phase_db.retry_attempt
         max_attempts = MAX_RETRY_ATTEMPTS
 
+        # PR-B: Build attempt context for retry policy decisions
+        attempt_ctx = AttemptContext(
+            attempt_index=attempt_index,
+            max_attempts=max_attempts,
+            escalation_level=phase_db.escalation_level,
+        )
+
         # BUILD-129 Phase 3 P10: Apply persisted escalate-once budget on the *next* attempt.
         # We persist P10 decisions into token_budget_escalation_events with attempt_index=1-based attempt that triggered.
         # When retry_attempt increments from 0->1, we should apply the retry budget for that next attempt.
@@ -2141,19 +2155,22 @@ class AutonomousExecutor:
             # [BUILD-041] Attempt failed - update database and check if exhausted
             failure_outcome = self._status_to_outcome(status)
 
+            # PR-B: Use retry_policy to compute next state decision
+            decision = next_attempt_state(attempt_ctx, status)
+
             # BUILD-129/P10 convergence: TOKEN_ESCALATION is not a diagnosable "approach flaw".
             # It's an intentional control-flow signal: retry with a larger completion budget.
             # Do NOT run diagnostics/Doctor/replan here; doing so resets state and prevents
             # the stateful retry budget from being applied across drain batches.
-            if status == "TOKEN_ESCALATION":
-                new_attempts = attempt_index + 1
+            if not decision.should_run_diagnostics and decision.next_retry_attempt is not None:
+                # TOKEN_ESCALATION or similar: advance retry_attempt without diagnostics
                 self._update_phase_attempts_in_db(
                     phase_id,
-                    retry_attempt=new_attempts,
+                    retry_attempt=decision.next_retry_attempt,
                     last_failure_reason=status,
                 )
                 logger.info(
-                    f"[{phase_id}] TOKEN_ESCALATION recorded; advancing retry_attempt to {new_attempts} "
+                    f"[{phase_id}] {status} recorded; advancing retry_attempt to {decision.next_retry_attempt} "
                     f"and deferring diagnosis so the next attempt can use the escalated max_tokens."
                 )
                 return False, status

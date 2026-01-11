@@ -24,7 +24,9 @@ Thank you for your interest in contributing to Autopack! This guide will help yo
 - Python 3.11+ (CI uses 3.11 canonically - see [DEC-051](ARCHITECTURE_DECISIONS.md#dec-051--2026-01-09--python-311-canonical-for-ci-312-local-support))
 - Git
 - SQLite (included with Python)
-- **For Makefile targets**: Bash/Unix environment (Git Bash, WSL, or MSYS2 on Windows)
+- **Task runner options**:
+  - **PowerShell** (native on Windows): `.\scripts\tasks.ps1 <task>`
+  - **Make** (Unix/Git Bash/WSL): `make <task>`
 
 ### Installation
 
@@ -281,6 +283,34 @@ autopack/
 ---
 
 ## Common Tasks
+
+### Task Runners (Make vs PowerShell)
+
+The project provides two equivalent task runners for development workflows:
+
+**PowerShell (Windows-first, recommended on Windows):**
+```powershell
+.\scripts\tasks.ps1 help       # Show available tasks
+.\scripts\tasks.ps1 install    # Install dependencies
+.\scripts\tasks.ps1 lint       # Run linting checks
+.\scripts\tasks.ps1 format     # Format code
+.\scripts\tasks.ps1 test       # Run unit tests
+.\scripts\tasks.ps1 docker-up  # Start Docker services
+.\scripts\tasks.ps1 docker-down # Stop Docker services
+.\scripts\tasks.ps1 clean      # Clean generated files
+```
+
+**Makefile (Unix/Git Bash/WSL):**
+```bash
+make help         # Show available tasks
+make install      # Install dependencies
+make test         # Run unit tests
+make docker-up    # Start Docker services
+make docker-down  # Stop Docker services
+make clean        # Clean generated files
+```
+
+Both task runners provide equivalent functionality. Use whichever is native to your environment.
 
 ### Add a New Feature
 

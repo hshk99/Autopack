@@ -46,6 +46,9 @@ jobs:
       - name: Enforce no qdrant:latest in autostart paths (determinism)
         run: |
           python scripts/ci/check_no_qdrant_latest_in_autostart.py
+      - name: Enforce no CONSOLIDATED_*.md in docs (second-truth prevention)
+        run: |
+          python scripts/ci/check_no_tracked_docs_consolidated_md.py
       - name: Production config guard (block DEBUG enabled)
         run: |
           python scripts/ci/check_production_config.py

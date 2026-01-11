@@ -100,19 +100,33 @@ class TestRollbackSmoke:
         for method_name in required_methods:
             assert hasattr(RollbackManager, method_name)
 
-    def test_rollback_env_var_override(self, monkeypatch):
-        """executor_rollback_enabled should be overridable via env var"""
+    def test_rollback_env_var_override_autopack(self, monkeypatch):
+        """executor_rollback_enabled should be overridable via AUTOPACK_ROLLBACK_ENABLED"""
         monkeypatch.setenv("AUTOPACK_ROLLBACK_ENABLED", "true")
 
-        # Reload settings to pick up env var
+        # Create new Settings instance to pick up env var
         from autopack.config import Settings
 
-        Settings()
+        settings = Settings()
 
-        # Pydantic should parse "true" string as boolean
-        # Note: Pydantic accepts "true", "1", "yes", "on" as truthy values
-        # If env var set, it should override default
-        # (Actual parsing depends on pydantic_settings behavior)
+        # Verify the env var override works
+        assert settings.executor_rollback_enabled is True, (
+            "AUTOPACK_ROLLBACK_ENABLED=true should enable executor_rollback_enabled"
+        )
+
+    def test_rollback_env_var_override_legacy(self, monkeypatch):
+        """executor_rollback_enabled should also accept EXECUTOR_ROLLBACK_ENABLED (legacy alias)"""
+        monkeypatch.setenv("EXECUTOR_ROLLBACK_ENABLED", "true")
+
+        # Create new Settings instance to pick up env var
+        from autopack.config import Settings
+
+        settings = Settings()
+
+        # Verify the legacy env var alias works
+        assert settings.executor_rollback_enabled is True, (
+            "EXECUTOR_ROLLBACK_ENABLED=true should enable executor_rollback_enabled (legacy alias)"
+        )
 
     def test_build144_runbook_file_exists(self):
         """BUILD-144 migration runbook should exist"""

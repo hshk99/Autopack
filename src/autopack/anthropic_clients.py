@@ -2059,8 +2059,6 @@ class AnthropicBuilderClient:
                 # Check if all attempted files exist on disk
                 # If Builder tried to modify files that already match the generated content,
                 # this is a successful no-op (idempotent phase)
-                from pathlib import Path
-
                 repo_root = Path.cwd()  # Workspace root where autonomous executor runs
 
                 all_files_exist = False

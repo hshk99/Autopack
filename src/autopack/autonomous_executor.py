@@ -584,6 +584,8 @@ class AutonomousExecutor:
             * checkpoint creation succeeded
             * patch is present
         """
+        from autopack.governed_apply import GovernedApplyPath
+
         try:
             import json as _json
 
@@ -6380,6 +6382,7 @@ Just the new description that should replace the current one while preserving th
         phase: Dict,
         attempt_index: int,
         allowed_paths: Optional[List[str]],
+        batches: List[List[str]],
         batching_label: str,
         manifest_allowed_roots: Tuple[str, ...],
         apply_allowed_roots: Tuple[str, ...],
@@ -8886,7 +8889,7 @@ Just the new description that should replace the current one while preserving th
 
         if outside_scope:
             readonly_context = scope_config.get("read_only_context", [])
-            readonly_exact: Set[str] = set()
+            readonly_exact: set[str] = set()
             readonly_prefixes: List[str] = []
 
             for entry in readonly_context:
@@ -10675,34 +10678,8 @@ Just the new description that should replace the current one while preserving th
         Returns:
             bool: True if successfully updated, False otherwise
         """
-        # Try direct database update first (more reliable than API)
-        try:
-            # BUILD-115: from autopack.models import Phase, PhaseState, Tier
-            return None  # BUILD-115: Database query disabled
-
-            # Expire all cached objects to get fresh data
-            self.db_session.expire_all()
-
-            phase = (
-                self.db_session.query(Phase)
-                .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
-                .first()
-            )
-
-            if phase:
-                phase.state = PhaseState.FAILED
-                self.db_session.commit()
-                # Force flush to ensure write is complete
-                self.db_session.flush()
-                logger.info(
-                    f"[Self-Troubleshoot] Force-marked phase {phase_id} as FAILED in database"
-                )
-                return True
-            else:
-                logger.warning(f"[Self-Troubleshoot] Phase {phase_id} not found in database")
-        except Exception as e:
-            logger.error(f"[Self-Troubleshoot] Failed to force-mark phase in database: {e}")
-            self.db_session.rollback()
+        # BUILD-115: Direct database update disabled (models.py removed)
+        # Fall through to API-based status update below
 
         # Try API as fallback (with retries)
         for attempt in range(3):

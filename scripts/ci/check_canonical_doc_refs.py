@@ -79,6 +79,13 @@ def check_content_for_legacy_paths(
 ) -> List[LegacyPathViolation]:
     """Check file content for legacy path references.
 
+    Properly handles fenced code blocks (``` delimited sections).
+
+    Policy:
+    - Lines outside code blocks are always scanned for legacy paths
+    - Lines inside code blocks are scanned UNLESS preceded by a
+      "HISTORICAL:" marker comment within the 3 lines before the fence
+
     Args:
         content: File content
         file_path: Path for reporting
@@ -87,10 +94,34 @@ def check_content_for_legacy_paths(
         List of violations found
     """
     violations = []
+    lines = content.split("\n")
 
-    for line_num, line in enumerate(content.split("\n"), 1):
-        # Skip code blocks that might be showing historical examples
-        if line.strip().startswith("#") and "HISTORICAL" in line.upper():
+    in_fence = False
+    fence_is_historical = False
+    fence_start_line = 0
+
+    for line_num, line in enumerate(lines, 1):
+        stripped = line.strip()
+
+        # Track fenced code block state
+        if stripped.startswith("```"):
+            if not in_fence:
+                # Opening fence - check if there's a HISTORICAL marker nearby
+                in_fence = True
+                fence_start_line = line_num
+                fence_is_historical = _has_historical_marker_before(lines, line_num - 1)
+            else:
+                # Closing fence
+                in_fence = False
+                fence_is_historical = False
+            continue
+
+        # Skip content inside historical fenced blocks
+        if in_fence and fence_is_historical:
+            continue
+
+        # Skip lines that are comments with HISTORICAL marker
+        if stripped.startswith("#") and "HISTORICAL" in stripped.upper():
             continue
 
         # Check for legacy path patterns
@@ -108,12 +139,34 @@ def check_content_for_legacy_paths(
                         file_path=file_path,
                         line_number=line_num,
                         pattern=description,
-                        line_content=line.strip()[:100],
+                        line_content=stripped[:100],
                     )
                 )
                 break  # Only report first match per line
 
     return violations
+
+
+def _has_historical_marker_before(lines: List[str], fence_line_index: int) -> bool:
+    """Check if there's a HISTORICAL marker in the 3 lines before a fence.
+
+    This allows documentation to include historical examples in code blocks
+    when they are explicitly marked as such.
+
+    Args:
+        lines: List of all lines (0-indexed)
+        fence_line_index: Index of the fence opening line (0-indexed)
+
+    Returns:
+        True if a HISTORICAL marker was found in the preceding context
+    """
+    # Look at up to 3 lines before the fence
+    start = max(0, fence_line_index - 3)
+    for i in range(start, fence_line_index):
+        line = lines[i].upper()
+        if "HISTORICAL:" in line or "HISTORICAL EXAMPLE" in line:
+            return True
+    return False
 
 
 def check_file_for_legacy_paths(file_path: Path) -> List[LegacyPathViolation]:

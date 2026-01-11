@@ -7992,41 +7992,13 @@ Just the new description that should replace the current one while preserving th
         Returns:
             Dict with 'existing_files' key containing {path: content} dict
         """
+        from autopack.executor.context_loading import load_repository_context
+        return load_repository_context(self, phase)
+
+    def _load_repository_context_heuristic(self, phase: Dict) -> Dict:
+        """Legacy heuristic loader (moved from _load_repository_context in PR2)."""
         import subprocess
         import re
-
-        # NEW: Phase 2 - Smart context reduction for known phase patterns
-        # This reduces input token usage and gives more room for output tokens
-        phase_id = phase.get("phase_id", "")
-        phase_name = phase.get("name", "").lower()
-        phase_desc = phase.get("description", "").lower()
-        task_category = phase.get("task_category", "")
-
-        # Scope MUST take precedence over targeted context.
-        # Otherwise targeted loaders can pull in root-level files (package.json, vite.config.ts, etc.)
-        # while scope expects a subproject prefix (e.g., fileorganizer/frontend/*), causing immediate
-        # scope validation failures before Builder runs.
-        scope_config = phase.get("scope")
-        if scope_config and scope_config.get("paths"):
-            logger.info(f"[{phase_id}] Using scope-aware context (overrides targeted context)")
-            return self._load_scoped_context(phase, scope_config)
-
-        # Pattern 1: Country template phases (UK, CA, AU templates)
-        if "template" in phase_name and ("country" in phase_desc or "template" in phase_id):
-            logger.info(f"[{phase_id}] Using targeted context for country template phase")
-            return self._load_targeted_context_for_templates(phase)
-
-        # Pattern 2: Frontend-only phases
-        if task_category == "frontend" or "frontend" in phase_name:
-            logger.info(f"[{phase_id}] Using targeted context for frontend phase")
-            return self._load_targeted_context_for_frontend(phase)
-
-        # Pattern 3: Docker/deployment phases
-        if "docker" in phase_name or task_category == "deployment":
-            logger.info(f"[{phase_id}] Using targeted context for docker/deployment phase")
-            return self._load_targeted_context_for_docker(phase)
-
-        # Fallback: Original heuristic-based loading for backward compatibility
         workspace = Path(self.workspace)
         loaded_paths = set()  # Track loaded paths to avoid duplicates
         existing_files = {}  # Final output format

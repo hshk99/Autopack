@@ -57,7 +57,21 @@ def _supports_utf8_output() -> bool:
 
 
 def _sym(ok: str, ascii_fallback: str) -> str:
-    return ok if _supports_utf8_output() else ascii_fallback
+    """
+    Return a symbol that is safe to print to the current stdout encoding.
+
+    Important: Some Windows terminals (cp1252) can "look" okay for ASCII tests
+    but still crash on emoji / variation selectors. Always validate the exact
+    symbol string, not just a generic probe.
+    """
+    if not _supports_utf8_output():
+        return ascii_fallback
+    enc = (getattr(sys.stdout, "encoding", None) or "utf-8")
+    try:
+        ok.encode(enc, errors="strict")
+        return ok
+    except Exception:
+        return ascii_fallback
 
 
 def load_findings(json_path: Path) -> List[Dict[str, Any]]:

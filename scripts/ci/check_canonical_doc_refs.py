@@ -59,15 +59,18 @@ CANONICAL_OPERATOR_DOCS = [
     "docs/AUTHENTICATION.md",
     "docs/AUTOPILOT_OPERATIONS.md",
     "docs/PARALLEL_RUNS.md",
-    "docs/security/README.md",
+    "security/README.md",
 ]
 
 # Legacy paths that should NOT appear in canonical docs
 # These paths don't exist in the current codebase structure
 LEGACY_PATH_PATTERNS = [
     (r"src/backend/", "src/backend/ (legacy path - use src/autopack/)"),
-    (r"src/frontend/", "src/frontend/ (legacy path - frontend in src/autopack/dashboard/)"),
     (r"backend/", "backend/ (legacy path - use src/autopack/)"),
+    # Note: src/frontend/ is CANONICAL in this repo (root Vite app), not legacy
+    # Workstation-specific absolute paths (do not allow in canonical docs)
+    (r"[A-Za-z]:\\\\dev\\\\Autopack", "C:\\dev\\Autopack (workstation path - use $REPO_ROOT/)"),
+    (r"(?i)c:/dev/Autopack", "c:/dev/Autopack (workstation path - use $REPO_ROOT/)"),
 ]
 
 
@@ -155,17 +158,21 @@ def check_canonical_docs(repo_root: Path) -> CheckResult:
 REMEDIATION REQUIRED:
 
 Canonical operator docs must not contain references to legacy paths
-that don't exist in the current codebase structure.
+that don't exist in the current codebase structure, or workstation-specific
+absolute paths.
 
 Legacy path mappings:
 - src/backend/ -> src/autopack/
-- src/frontend/ -> src/autopack/dashboard/
 - backend/ -> src/autopack/
+
+Workstation path policy:
+- Use $REPO_ROOT/ or relative paths instead of C:\\dev\\Autopack or c:/dev/Autopack
 
 To fix:
 1. Update path references to use current codebase structure
 2. If documenting historical context, prefix with "LEGACY:" or "HISTORICAL:"
 3. For migration guides, clearly mark which paths are old vs new
+4. Replace workstation paths with $REPO_ROOT/ notation
 
 See docs/GOVERNANCE.md Section 10 for canonical doc policy.
 """

@@ -26,12 +26,12 @@ class TestP25LegacyPathDetection:
         assert len(violations) == 1
         assert "src/backend/" in violations[0].pattern
 
-    def test_detects_src_frontend_reference(self):
-        """Should detect src/frontend/ reference."""
+    def test_allows_src_frontend_reference(self):
+        """Should allow src/frontend/ reference (canonical root Vite app path)."""
         content = "See src/frontend/components/ for UI"
         violations = check_content_for_legacy_paths(content, "docs/test.md")
-        assert len(violations) == 1
-        assert "src/frontend/" in violations[0].pattern
+        # src/frontend/ is CANONICAL in this repo (root Vite app), not legacy
+        assert len(violations) == 0
 
     def test_detects_backend_reference(self):
         """Should detect backend/ reference."""
@@ -81,10 +81,11 @@ Line 4
 
     def test_one_violation_per_line(self):
         """Should report only one violation per line (first match)."""
-        content = "See src/backend/ and src/frontend/ together"
+        content = "See src/backend/ and backend/api/ together"
         violations = check_content_for_legacy_paths(content, "docs/test.md")
-        # Only first match reported
+        # Only first match reported (src/backend/ is first)
         assert len(violations) == 1
+        assert "src/backend/" in violations[0].pattern
 
 
 class TestCanonicalDocsCheck:

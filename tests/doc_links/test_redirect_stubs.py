@@ -16,9 +16,9 @@ def test_redirect_stubs_point_to_existing_files():
     # Known redirect stubs (BUILD-167)
     # Note: Root stubs removed in BUILD-182 to satisfy workspace structure compliance.
     # Redirect stubs now live only under docs/ per WORKSPACE_ORGANIZATION_SPEC.md.
+    # CONSOLIDATED_DEBUG.md archived in PR-115 (no longer tracked in docs/).
     redirect_stubs = [
         repo_root / "docs" / "SOT_BUNDLE.md",
-        repo_root / "docs" / "CONSOLIDATED_DEBUG.md",
     ]
 
     # Pattern to extract markdown links: [text](path)
@@ -68,9 +68,9 @@ def test_redirect_stub_format():
 
     # Note: Root stubs removed in BUILD-182 to satisfy workspace structure compliance.
     # Redirect stubs now live only under docs/ per WORKSPACE_ORGANIZATION_SPEC.md.
+    # CONSOLIDATED_DEBUG.md archived in PR-115 (no longer tracked in docs/).
     redirect_stubs = [
         repo_root / "docs" / "SOT_BUNDLE.md",
-        repo_root / "docs" / "CONSOLIDATED_DEBUG.md",
     ]
 
     failures = []

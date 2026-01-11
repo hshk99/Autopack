@@ -141,8 +141,12 @@ class Settings(BaseSettings):
 
     # BUILD-145: Git-based executor rollback (opt-in, disabled by default)
     # When enabled, creates git savepoints before applying patches and rolls back on failure
-    # Set via environment variable: AUTOPACK_ROLLBACK_ENABLED=true
-    executor_rollback_enabled: bool = False
+    # Set via environment variable: AUTOPACK_ROLLBACK_ENABLED=true or EXECUTOR_ROLLBACK_ENABLED=true
+    executor_rollback_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("AUTOPACK_ROLLBACK_ENABLED", "EXECUTOR_ROLLBACK_ENABLED"),
+        description="Enable git-based rollback on patch application failure",
+    )
 
     # BUILD-145 P2: Extended artifact-first substitution (opt-in, disabled by default)
     # When enabled, automatically pins run/tier/phase summaries as 'history pack' in context

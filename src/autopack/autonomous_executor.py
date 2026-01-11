@@ -125,6 +125,9 @@ from autopack.executor.retry_policy import (
     should_run_diagnostics,
 )
 
+# PR-C: Import attempt runner for single-attempt execution wrapper
+from autopack.executor.attempt_runner import run_single_attempt_with_recovery
+
 # Allowed fix types (v1: git, file, python; later: docker, shell)
 ALLOWED_FIX_TYPES = {"git", "file", "python"}
 
@@ -2118,19 +2121,15 @@ class AutonomousExecutor:
         self._refresh_project_rules_if_updated()
 
         # [BUILD-041] Execute single attempt with error recovery
-        def _execute_phase_inner():
-            return self._execute_phase_with_recovery(
-                phase,
+        # PR-C: Use attempt_runner module for the execution wrapper
+        try:
+            result = run_single_attempt_with_recovery(
+                executor=self,
+                phase=phase,
                 attempt_index=attempt_index,
                 allowed_paths=allowed_scope_paths,
             )
-
-        try:
-            success, status = self.error_recovery.execute_with_retry(
-                func=_execute_phase_inner,
-                operation_name=f"Phase execution: {phase_id}",
-                max_retries=1,  # Only 1 retry for transient errors within an attempt
-            )
+            success, status = result.success, result.status
 
             if success:
                 # [BUILD-041] Mark phase COMPLETE in database

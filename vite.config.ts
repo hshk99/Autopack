@@ -4,13 +4,17 @@ import path from 'path';
 
 /**
  * Vite configuration for Autopack frontend
- * 
+ *
  * Features:
  * - React with Fast Refresh
  * - TypeScript support
  * - Path aliases for clean imports
  * - Proxy to backend API during development
  * - Optimized production builds
+ *
+ * Security (PR-07):
+ * - Sourcemaps disabled in production to prevent source code exposure
+ * - Use 'hidden' if you need sourcemaps for error tracking (uploaded separately)
  */
 export default defineConfig({
   plugins: [react()],
@@ -38,7 +42,9 @@ export default defineConfig({
 
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    // Security: No sourcemaps in production builds (prevents source code exposure)
+    // For error tracking, use 'hidden' and upload maps to error tracking service
+    sourcemap: process.env.NODE_ENV === 'development',
     rollupOptions: {
       output: {
         manualChunks: {

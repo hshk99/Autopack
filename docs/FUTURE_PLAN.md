@@ -201,20 +201,21 @@ The research system citation validity improvement project implemented fixes to i
 - ✅ Validation: v2.3 run successfully created all 3 files
 - ✅ Completes 4-layer auto-recovery: BUILD-037 → 038 → 039 → 040
 
-**BUILD-041** (2025-12-17T02:00) - 🔄 IN PROGRESS: Executor State Persistence Fix
-- **Status**: Phases 1-2 Complete, Phase 3 In Progress
+**BUILD-041** (2025-12-17T02:00) - ✅ COMPLETE: Executor State Persistence Fix
+- **Status**: Complete (see docs/IMPROVEMENTS_GAP_ANALYSIS.md section "6.11 Executor state persistence" + BUILD_HISTORY.md)
 - **Problem**: Executor enters infinite loop when execute_phase() returns early before exhausting max_attempts
 - **Root Cause**: State split between instance attributes (attempt counter) and database (phase state)
 - **Solution**: Database-backed state persistence - move attempt tracking to database columns
 - **Progress**:
   - ✅ Phase 1: Database schema migration (4 columns added: attempts_used, max_attempts, last_attempt_timestamp, last_failure_reason)
   - ✅ Phase 2: Database helper methods (4 methods: _get_phase_from_db, _update_phase_attempts_in_db, _mark_phase_complete_in_db, _mark_phase_failed_in_db)
-  - 🔄 Phase 3: Refactor execute_phase() to use database state (IN PROGRESS)
+  - ✅ Phase 3: Refactor execute_phase() to use database state (implemented via BUILD-050 decoupled counters)
+  - *Historical plan (superseded by BUILD-050):*
   - ⏳ Phase 4: Update get_next_executable_phase() method
   - ⏳ Phase 5: Feature flag and testing
   - ⏳ Phase 6: Rollout and monitoring
 - **Reference**: [BUILD-041_EXECUTOR_STATE_PERSISTENCE.md](archive/superseded/reports/BUILD-041_EXECUTOR_STATE_PERSISTENCE.md)
-- **Blocked**: FileOrganizer Phase 2 Beta Release (infinite loop prevents execution)
+- **Evidence**: BUILD-050 implemented decoupled counters (retry_attempt, revision_epoch, escalation_level) resolving the state persistence issue
 
 **BUILD-049** (2025-12-18T04:00) - ✅ COMPLETE: Deliverables Validation & Self-Correction
 - **Status**: Complete - 3 critical bugs fixed

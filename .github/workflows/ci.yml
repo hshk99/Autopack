@@ -40,6 +40,9 @@ jobs:
       - name: Enforce GitHub Actions pinning policy
         run: |
           python scripts/ci/check_github_actions_pinning.py
+      - name: Enforce canonical build surface uniqueness (no two frontends)
+        run: |
+          python scripts/ci/check_canonical_build_surfaces.py
       - name: Production config guard (block DEBUG enabled)
         run: |
           python scripts/ci/check_production_config.py

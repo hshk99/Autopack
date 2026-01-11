@@ -110,7 +110,7 @@ QUEUED → EXECUTING → [Governance Check]
 
 **Examples**:
 - Changes to `src/autopack/autonomous_executor.py`
-- Database migrations (`alembic/versions/*`)
+- Database migrations (`scripts/migrations/*` canonical; `alembic/versions/*` protected as generic guard)
 - Governance system modifications
 - API authentication changes
 - Large deletions (>200 lines removed)
@@ -174,7 +174,8 @@ All conditions must be met:
 ```python
 NEVER_AUTO_APPROVE = [
     "src/autopack/models.py",           # Database schema
-    "alembic/versions/*",                # Migrations
+    "scripts/migrations/*",              # Migrations (canonical per DEC-048)
+    "alembic/versions/*",                # Migrations (generic guard)
     "src/autopack/main.py",              # API routes
     "src/autopack/governed_apply.py",    # Governance itself
     "src/autopack/autonomous_executor.py", # Executor logic

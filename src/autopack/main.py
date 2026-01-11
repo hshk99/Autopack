@@ -1418,9 +1418,19 @@ async def request_approval(request: Request, db: Session = Depends(get_db)):
         decision_info = data.get("decision_info", {})
         deletion_info = data.get("deletion_info")
 
+        # Sanitize user-controlled values for logging (prevent log injection)
+        def _sanitize_for_log(val: str | None) -> str:
+            if val is None:
+                return "None"
+            return str(val).replace("\r", "").replace("\n", "")[:200]
+
+        safe_phase_id = _sanitize_for_log(phase_id)
+        safe_run_id = _sanitize_for_log(run_id)
+        safe_context = _sanitize_for_log(context)
+
         logger.info(
-            f"[APPROVAL] Request received: run={run_id}, phase={phase_id}, "
-            f"context={context}, decision_type={decision_info.get('type', 'N/A')}"
+            f"[APPROVAL] Request received: run={safe_run_id}, phase={safe_phase_id}, "
+            f"context={safe_context}, decision_type={decision_info.get('type', 'N/A')}"
         )
 
         # Configuration
@@ -1465,7 +1475,7 @@ async def request_approval(request: Request, db: Session = Depends(get_db)):
             db.commit()
 
             logger.warning(
-                f"[APPROVAL] AUTO-APPROVING request #{approval_request.id} for {phase_id} "
+                f"[APPROVAL] AUTO-APPROVING request #{approval_request.id} for {safe_phase_id} "
                 f"(env={env_mode}, AUTO_APPROVE_BUILD113=true)"
             )
             return {

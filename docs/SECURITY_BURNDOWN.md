@@ -78,7 +78,7 @@ _(None currently)_
 
 **Compensating Controls**:
 - **Required**: Production config MUST NOT contain `DEBUG=1`
-- **Validation**: CI check added to block PRs setting DEBUG in production configs (TODO: implement `scripts/ci/check_production_config.py`)
+- **Validation**: CI check added to block PRs setting DEBUG in production configs (implemented: `scripts/ci/check_production_config.py`, executed in `.github/workflows/ci.yml`)
 
 **Watchlist Trigger**: Any change to DEBUG flag logic or error response formatting
 

@@ -117,15 +117,15 @@ class TestNoGuessingTokenSplits:
             suggested_patch=None,
         )
 
-        # Patch _call_doctor_llm to verify it's called but return our mock response
-        with patch.object(
-            llm_service, "_call_doctor_llm", return_value=mock_response
+        # Patch _call_doctor_llm in the doctor module where it now lives
+        with patch(
+            "autopack.llm.doctor._call_doctor_llm", return_value=mock_response
         ) as mock_call_doctor:
             with patch(
-                "autopack.llm_service.choose_doctor_model",
+                "autopack.llm.doctor.choose_doctor_model",
                 return_value=("claude-sonnet-4-5", False),
             ):
-                with patch("autopack.llm_service.should_escalate_doctor_model", return_value=False):
+                with patch("autopack.llm.doctor.should_escalate_doctor_model", return_value=False):
                     request = DoctorRequest(
                         phase_id="test-phase",
                         error_category="patch_apply_error",

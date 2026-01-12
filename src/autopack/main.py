@@ -162,3 +162,9 @@ app.include_router(runs_router)
 # PR-API-3h: phases.py - phase status and result endpoints
 # PR-API-3i: runs.py - run management endpoints
 # ==============================================================================
+
+# Backwards compatibility re-exports for tests (PR-API-1/PR-API-3f compatibility layer)
+# These allow existing tests to continue importing from autopack.main
+from .api.deps import get_client_ip, verify_api_key, verify_read_access, _is_trusted_proxy  # noqa: F401
+from .database import get_db  # noqa: F401
+from .notifications.telegram_notifier import answer_telegram_callback  # noqa: F401

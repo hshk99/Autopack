@@ -102,6 +102,12 @@ from autopack.executor.approval_flow import (
     request_build113_clarification,
 )
 
+# PR-EXE-6: Heuristic context loader extraction
+from autopack.executor.context_loading_heuristic import (
+    HeuristicContextLoader,
+    get_default_priority_files,
+)
+
 
 # Configure logging
 from dotenv import load_dotenv
@@ -342,6 +348,14 @@ class AutonomousExecutor:
             f"[PR-EXE-5] Retrieval injection initialized (enabled={self.retrieval_injection.enabled}, "
             f"sot_budget_limit={self.retrieval_injection.sot_budget_limit})"
         )
+
+        # PR-EXE-6: Initialize heuristic context loader (extracted module)
+        self.heuristic_loader = HeuristicContextLoader(
+            max_files=40,
+            target_tokens=20000,
+            max_chars_per_file=15000
+        )
+        logger.info("[PR-EXE-6] Heuristic context loader initialized")
 
         # Run file layout + diagnostics directories
         # Project ID is auto-detected from run_id prefix by RunFileLayout
@@ -6820,185 +6834,31 @@ Just the new description that should replace the current one while preserving th
         return load_repository_context(self, phase)
 
     def _load_repository_context_heuristic(self, phase: Dict) -> Dict:
-        """Legacy heuristic loader (moved from _load_repository_context in PR2)."""
-        import subprocess
-        import re
+        """Legacy heuristic loader - delegates to HeuristicContextLoader.
 
+        Extracted to dedicated module in PR-EXE-6 as part of god file refactoring.
+        """
         workspace = Path(self.workspace)
-        loaded_paths = set()  # Track loaded paths to avoid duplicates
-        existing_files = {}  # Final output format
-        max_files = 40  # Increased limit to accommodate recently modified files
 
-        # BUILD-043: Token-aware context loading
-        # Target: Keep input context under 20K tokens to leave room for output
-        TARGET_INPUT_TOKENS = 20000
-        current_token_estimate = 0
+        # Get git status files
+        git_files = self.heuristic_loader.extract_git_status_files(workspace)
 
-        def _estimate_file_tokens(content: str) -> int:
-            """Estimate token count for file content (~4 chars per token)"""
-            return len(content) // 4
-
-        def _load_file(filepath: Path) -> bool:
-            """Load a single file if not already loaded. Returns True if loaded."""
-            nonlocal current_token_estimate
-
-            if len(existing_files) >= max_files:
-                return False
-
-            # BUILD-043: Check token budget before loading
-            rel_path = str(filepath.relative_to(workspace))
-            if rel_path in loaded_paths:
-                return False
-            if not filepath.exists() or not filepath.is_file():
-                return False
-            if "__pycache__" in rel_path or ".pyc" in rel_path:
-                return False
-
-            try:
-                content = filepath.read_text(encoding="utf-8", errors="ignore")
-                content_trimmed = content[:15000]  # Increased limit for important files
-
-                # BUILD-043: Check if adding this file would exceed token budget
-                file_tokens = _estimate_file_tokens(content_trimmed)
-                if current_token_estimate + file_tokens > TARGET_INPUT_TOKENS:
-                    logger.debug(
-                        f"[Context] Skipping {rel_path} - would exceed token budget ({current_token_estimate + file_tokens} > {TARGET_INPUT_TOKENS})"
-                    )
-                    return False
-
-                existing_files[rel_path] = content_trimmed
-                loaded_paths.add(rel_path)
-                current_token_estimate += file_tokens
-                return True
-            except Exception as e:
-                logger.warning(f"Failed to read {filepath}: {e}")
-                return False
-
-        # Priority 0: Recently modified files from git status (ALWAYS FRESH)
-        # This ensures Builder sees the latest state after earlier phases applied patches
-        recently_modified = []
-        try:
-            result = subprocess.run(
-                ["git", "status", "--porcelain"],
-                cwd=str(workspace),
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            if result.returncode == 0:
-                for line in result.stdout.strip().split("\n"):
-                    if line and len(line) > 3:
-                        # Parse git status format: "XY filename" or "XY old -> new"
-                        file_part = line[3:].strip()
-                        if " -> " in file_part:
-                            file_part = file_part.split(" -> ")[1]
-                        if file_part:
-                            recently_modified.append(file_part)
-        except Exception as e:
-            logger.debug(f"Could not get git status for fresh context: {e}")
-
-        # Load recently modified files first (highest priority for freshness)
-        modified_count = 0
-        for rel_path in recently_modified[:15]:  # Limit to 15 recently modified files
-            # Defensive check: ensure rel_path is a string
-            if not isinstance(rel_path, str):
-                logger.warning(
-                    f"[Context] Skipping non-string rel_path: {rel_path} (type: {type(rel_path)})"
-                )
-                continue
-            if not rel_path or not rel_path.strip():
-                continue
-            try:
-                filepath = workspace / rel_path
-                if _load_file(filepath):
-                    modified_count += 1
-            except (TypeError, ValueError) as e:
-                logger.warning(f"[Context] Error processing rel_path '{rel_path}': {e}")
-                continue
-
-        if modified_count > 0:
-            logger.info(
-                f"[Context] Loaded {modified_count} recently modified files for fresh context"
-            )
-
-        # Priority 1: Files mentioned in phase description
-        # Extract file paths from description using regex
+        # Extract mentioned files from description
         phase_description = phase.get("description", "")
-        phase_criteria = " ".join(phase.get("acceptance_criteria", []))
-        combined_text = f"{phase_description} {phase_criteria}"
-
-        # Match patterns like: src/autopack/file.py, config/models.yaml, etc.
-        # Use non-capturing group (?:...) to get full match, not just extension
-        file_patterns = re.findall(
-            r"[a-zA-Z_][a-zA-Z0-9_/\\.-]*\.(?:py|yaml|json|ts|js|md)", combined_text
+        acceptance_criteria = phase.get("acceptance_criteria", [])
+        mentioned_files = self.heuristic_loader.extract_mentioned_files(
+            phase_description, acceptance_criteria
         )
-        mentioned_count = 0
-        for pattern in file_patterns[:10]:  # Limit to 10 mentioned files
-            # Defensive check: ensure pattern is a string
-            if not isinstance(pattern, str):
-                logger.warning(
-                    f"[Context] Skipping non-string pattern: {pattern} (type: {type(pattern)})"
-                )
-                continue
-            # Additional safety: ensure pattern is not empty and doesn't contain path separators that would break
-            if not pattern or not pattern.strip():
-                continue
-            try:
-                # Try exact match first
-                filepath = workspace / pattern
-                if _load_file(filepath):
-                    mentioned_count += 1
-                    continue
-                # Try finding in src/ or config/ directories
-                for prefix in ["src/autopack/", "config/", "src/", ""]:
-                    # Ensure prefix is a string (defensive)
-                    if not isinstance(prefix, str):
-                        continue
-                    filepath = workspace / prefix / pattern
-                    if _load_file(filepath):
-                        mentioned_count += 1
-                        break
-            except (TypeError, ValueError) as e:
-                logger.warning(f"[Context] Error processing pattern '{pattern}': {e}")
-                continue
 
-        if mentioned_count > 0:
-            logger.info(f"[Context] Loaded {mentioned_count} files mentioned in phase description")
+        # Get priority files from default config
+        priority_files = get_default_priority_files()
 
-        # Priority 2: Key config files (always include if they exist)
-        priority_files = [
-            "package.json",
-            "setup.py",
-            "requirements.txt",
-            "pyproject.toml",
-            "README.md",
-            ".gitignore",
-        ]
-
-        for filename in priority_files:
-            _load_file(workspace / filename)
-
-        # Priority 3: Source files from common directories
-        source_dirs = ["src", "backend", "app", "lib"]
-        for source_dir in source_dirs:
-            dir_path = workspace / source_dir
-            if not dir_path.exists():
-                continue
-
-            # Load Python files
-            for py_file in dir_path.rglob("*.py"):
-                if len(existing_files) >= max_files:
-                    break
-                _load_file(py_file)
-
-        # BUILD-043: Log token budget usage
-        logger.info(
-            f"[Context] Total: {len(existing_files)} files loaded for Builder context "
-            f"(modified={modified_count}, mentioned={mentioned_count})"
-        )
-        logger.info(
-            f"[TOKEN_BUDGET] Context loading: ~{current_token_estimate} tokens "
-            f"({current_token_estimate * 100 // TARGET_INPUT_TOKENS}% of {TARGET_INPUT_TOKENS} budget)"
+        # Load using heuristic context loader
+        existing_files = self.heuristic_loader.load_context_files(
+            workspace=workspace,
+            git_status_files=git_files,
+            mentioned_files=mentioned_files,
+            priority_files=priority_files,
         )
 
         return {"existing_files": existing_files}

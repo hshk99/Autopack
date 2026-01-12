@@ -202,28 +202,28 @@ class TestTimingAttackPrevention:
 
 
 class TestMainIntegration:
-    """Verify webhook verification is integrated into main.py."""
+    """Verify webhook verification is integrated into approvals router (refactored from main.py)."""
 
     def test_webhook_handler_calls_verification(self):
         """Webhook handler must call verify_telegram_webhook."""
-        main_py = REPO_ROOT / "src" / "autopack" / "main.py"
-        content = main_py.read_text(encoding="utf-8")
+        approvals_py = REPO_ROOT / "src" / "autopack" / "api" / "routes" / "approvals.py"
+        content = approvals_py.read_text(encoding="utf-8")
 
         # Must import and call verification
         assert (
             "verify_telegram_webhook" in content
-        ), "main.py telegram_webhook handler must call verify_telegram_webhook"
+        ), "approvals.py telegram_webhook handler must call verify_telegram_webhook"
         assert (
             "telegram_webhook_security" in content
-        ), "main.py must import from telegram_webhook_security module"
+        ), "approvals.py must import from telegram_webhook_security module"
 
     def test_webhook_handler_rejects_on_failure(self):
         """Webhook handler must raise HTTPException on verification failure."""
-        main_py = REPO_ROOT / "src" / "autopack" / "main.py"
-        content = main_py.read_text(encoding="utf-8")
+        approvals_py = REPO_ROOT / "src" / "autopack" / "api" / "routes" / "approvals.py"
+        content = approvals_py.read_text(encoding="utf-8")
 
         # Find the webhook handler section
-        webhook_start = content.find('@app.post("/telegram/webhook")')
+        webhook_start = content.find('@router.post("/telegram/webhook")')
         assert webhook_start > 0, "Telegram webhook handler not found"
 
         webhook_section = content[webhook_start : webhook_start + 1500]

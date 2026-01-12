@@ -38,7 +38,10 @@ def test_phase_status():
     runner = CliRunner()
     result = runner.invoke(cli, ["phase-status", "--phase-id", "1"])
     assert result.exit_code == 0
-    assert "Status of phase with ID 1: In Progress." in result.output
+    assert "Mock status for phase ID 1: In Progress (test data only)" in result.output
+    # Verify deprecation guidance is shown
+    assert "This is a test shim" in result.output
+    assert "Supervisor REST API" in result.output
 
 
 def test_create_phase_missing_argument():
@@ -67,3 +70,33 @@ def test_phase_status_invalid_id():
     result = runner.invoke(cli, ["phase-status", "--phase-id", "abc"])
     assert result.exit_code != 0
     assert "Error: Invalid value for '--phase-id': 'abc' is not a valid integer." in result.output
+
+
+def test_deprecation_messages_shown():
+    """Verify that all commands show clear deprecation and migration guidance."""
+    runner = CliRunner()
+
+    # Test create-phase shows migration message
+    result = runner.invoke(
+        cli,
+        ["create-phase", "--name", "Test", "--description", "Test", "--complexity", "low"],
+    )
+    assert result.exit_code == 0
+    assert "This is a test shim" in result.output
+    assert "Supervisor REST API" in result.output
+
+    # Test execute-phase shows migration message
+    result = runner.invoke(cli, ["execute-phase", "--phase-id", "1"])
+    assert result.exit_code == 0
+    assert "This is a test shim" in result.output
+
+    # Test review-phase shows migration message
+    result = runner.invoke(cli, ["review-phase", "--phase-id", "1"])
+    assert result.exit_code == 0
+    assert "This is a test shim" in result.output
+
+    # Test phase-status shows migration message
+    result = runner.invoke(cli, ["phase-status", "--phase-id", "1"])
+    assert result.exit_code == 0
+    assert "This is a test shim" in result.output
+    assert "Mock status" in result.output  # Verify it's clear this is mock data

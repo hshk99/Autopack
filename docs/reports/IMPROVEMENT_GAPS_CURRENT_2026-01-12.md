@@ -65,8 +65,12 @@ Current top Python files by LOC (mechanical scan):
 
 **Aspirational tests** are non-blocking by design.
 
-**Remaining work**:
-- **Aspirational → core promotions**: establish a small cadence ("each week, promote N tests from aspirational to core once stable") to prevent permanent limbo.
+**Aspirational → Core Promotion Cadence** ✅ IMPLEMENTED (2026-01-12)
+- **Created**: `scripts/ci/aspirational_test_promotion.py` - tracker tool for identifying xpass tests
+- **Policy**: Weekly review, monthly quota (2-3 tests/month), quarterly target (<20 tests by Q2 2026)
+- **Process**: Documented in [CONTRIBUTING.md](../CONTRIBUTING.md#aspirational-test-promotion-cadence-item-12-follow-up)
+- **Impact**: Prevents permanent limbo by establishing clear promotion path
+- **Tracking**: Run `python scripts/ci/aspirational_test_promotion.py --report` for status
 
 ### 1.3 Prevent "gaps reappearing" by codifying recurring drift vectors (P1)
 
@@ -130,9 +134,20 @@ This catches the “integration drift” class of issues that keeps reappearing 
 
 ## 2) Small, concrete nits worth closing (P3)
 
-These are low priority, but they remove lingering “toy” or “shim” surfaces:
+These are low priority, but they remove lingering "toy" or "shim" surfaces:
 
-- `src/autopack/cli/commands/phases.py` prints `"In Progress"` in a couple of shim functions; either wire to real phase status or quarantine/remove to avoid misleading operator output.
+**CLI phases.py shim messages** ✅ IMPLEMENTED (2026-01-12)
+- **Status**: Complete
+- **Changed**: `src/autopack/cli/commands/phases.py`
+  - Removed duplicate code (113 lines → 97 lines)
+  - Added clear deprecation notices in module docstring
+  - Added migration guidance message pointing to Supervisor REST API and Web UI
+  - Updated mock output to clearly indicate "test data only"
+  - All commands now show deprecation warnings with specific API endpoints
+- **Tests updated**: `tests/autopack/cli/test_phase_commands.py`
+  - Updated test expectations for new messaging
+  - Added `test_deprecation_messages_shown()` to verify guidance is displayed
+- **Impact**: Users now receive clear guidance to use production APIs instead of test shim
 
 ---
 

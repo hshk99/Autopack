@@ -96,7 +96,9 @@ def execute_git_apply(
 
             if apply_result.returncode == 0:
                 files_changed = _extract_files_from_patch(patch_content)
-                logger.info(f"Patch applied successfully (strict) - {len(files_changed)} files modified")
+                logger.info(
+                    f"Patch applied successfully (strict) - {len(files_changed)} files modified"
+                )
                 return ApplyResult(
                     success=True,
                     method="git_apply",
@@ -119,7 +121,14 @@ def execute_git_apply(
         logger.warning(f"Strict patch check failed: {error_msg}")
         logger.info("Retrying with lenient mode (--ignore-whitespace -C1)...")
 
-        lenient_check_cmd = ["git", "apply", "--check", "--ignore-whitespace", "-C1", "temp_patch.diff"]
+        lenient_check_cmd = [
+            "git",
+            "apply",
+            "--check",
+            "--ignore-whitespace",
+            "-C1",
+            "temp_patch.diff",
+        ]
         lenient_check = subprocess.run(
             lenient_check_cmd,
             cwd=workspace,
@@ -146,7 +155,9 @@ def execute_git_apply(
 
             if apply_result.returncode == 0:
                 files_changed = _extract_files_from_patch(patch_content)
-                logger.info(f"Patch applied successfully (lenient) - {len(files_changed)} files modified")
+                logger.info(
+                    f"Patch applied successfully (lenient) - {len(files_changed)} files modified"
+                )
                 return ApplyResult(
                     success=True,
                     method="git_apply_lenient",
@@ -195,7 +206,9 @@ def execute_git_apply(
 
             if apply_result.returncode == 0:
                 files_changed = _extract_files_from_patch(patch_content)
-                logger.info(f"Patch applied successfully (3-way) - {len(files_changed)} files modified")
+                logger.info(
+                    f"Patch applied successfully (3-way) - {len(files_changed)} files modified"
+                )
                 return ApplyResult(
                     success=True,
                     method="git_apply_3way",

@@ -703,19 +703,43 @@ This section turns Section 5 into a **do-this-next** queue. Each item is intende
 - 9 domain routers created with 106 contract tests
 - All route shapes preserved (test_route_contract.py passing)
 
+**PR #132 (refactor/api-router-split-20260112)** ✅ MERGED
+- **Merged**: 2026-01-12 at 07:34:50Z
+- **Impact**: Consolidated all API router refactoring work (PR-API-1, PR-API-2, PR-API-3a-3i)
+- **Baseline Update**: CodeQL findings reduced from 57 to 31 (-46% improvement)
+  - SECBASE-20260112 entry added to SECURITY_LOG.md
+  - security/baselines/codeql.python.json updated
+  - docs/SECURITY_BURNDOWN.md regenerated
+- **Verification**: All required CI checks passed (Core Tests, Docs/SOT Integrity, codeql-analysis diff gate)
+- **Note**: GitHub Advanced Security "CodeQL" check failing (non-blocking, informational only)
+
 ### 6.2 Executor shrink: `src/autopack/autonomous_executor.py`
 
-**PR-EXE-1: Supervisor API client**
-- **Create**: `src/autopack/supervisor/api_client.py`
-  - pure HTTP wrapper around the Autopack API
-- **Replace** direct `requests.*` calls in executor with `SupervisorApiClient`
-- **Add tests**:
-  - **New** `tests/unit/test_supervisor_api_client_contract.py`
-    - URL joining / path correctness
-    - header propagation (`X-API-Key`)
-    - typed error mapping (timeout/network/4xx/5xx → stable outcomes)
-- **Done when**:
-  - Executor still runs loop without behavior changes (unit-level; integration tests remain green)
+**PR-EXE-1: Supervisor API client** ✅ IMPLEMENTED (Part 1: Client + Enforcement Test)
+- **Created**: `src/autopack/supervisor/api_client.py`
+  - Pure HTTP wrapper around the Autopack API
+  - Methods: `check_health()`, `get_run()`, `update_phase_status()`, `submit_builder_result()`, `submit_auditor_result()`, `request_approval()`, `poll_approval_status()`, `request_clarification()`, `poll_clarification_status()`
+  - Typed exceptions: `SupervisorApiTimeoutError`, `SupervisorApiNetworkError`, `SupervisorApiHttpError`
+  - API key support via `X-API-Key` header
+  - Configurable timeouts (default 10s)
+- **Added tests**:
+  - **New** `tests/unit/test_supervisor_api_client_contract.py` — 28 contract tests:
+    - URL construction and joining
+    - Header propagation (Content-Type, X-API-Key)
+    - Typed error mapping (timeout → SupervisorApiTimeoutError, network → SupervisorApiNetworkError, HTTP → SupervisorApiHttpError)
+    - All API methods (health, runs, phases, approvals, clarifications)
+    - Default timeout behavior
+  - **New** `tests/unit/test_executor_http_enforcement.py` — BUILD-135 enforcement:
+    - Grep-based test detecting raw `requests.*` calls in autonomous_executor.py
+    - Currently detects 16 violations (expected before migration)
+    - Prevents future drift where developers bypass the client abstraction
+    - Addresses IMPROVEMENT_GAPS_CURRENT_2026-01-12.md Section 1.3 (prevent gaps reappearing)
+- **Verification**:
+  - All 28 client contract tests pass
+  - HTTP enforcement test correctly detects current violations
+  - Addresses item 1.3 (P1): "Prevent gaps reappearing by codifying recurring drift vectors"
+- **Next**: PR-EXE-1 Part 2 will migrate autonomous_executor.py to use SupervisorApiClient (separate PR to keep changes focused)
+- **Completed**: 2026-01-12
 
 **PR-EXE-2: Approval flow consolidation**
 - **Create**: `src/autopack/executor/approval_flow.py`

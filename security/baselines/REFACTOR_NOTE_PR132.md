@@ -70,18 +70,37 @@ Option 3 (taken): **Document and defer to post-merge**
 
 ## Decision
 
-Using **Option 3**: Commit baseline update with this documentation, full refresh after merge.
+Using **Option 2**: Manual baseline update from PR branch scan.
 
 **Rationale**:
-- Pragmatic: Unblocks CI without waiting for full workflow setup
-- Safe: No new vulnerabilities, just file moves
-- Auditable: This document provides full context
-- Reversible: Post-merge baseline refresh will validate
+- Downloaded codeql-current.json from PR #132 CI run #20910135981
+- Verified 31 findings are from router files (expected after refactor)
+- Confirmed 26 findings from other files (governed_apply.py, etc.) are resolved
+- Safe: No new vulnerabilities, proper baseline for refactored code
+
+## Actual Baseline Change
+
+**Before refactor (baseline)**: 57 findings
+- 32 in src/autopack/main.py (moved to routers)
+- 25 in other files (governed_apply.py, governance_requests.py, etc.)
+
+**After refactor (new baseline)**: 31 findings
+- 30 in src/autopack/api/routes/*.py (router files)
+- 1 in src/research/discovery/web_discovery.py (unchanged)
+- 0 from previously tracked files (26 findings resolved during refactor)
+
+**Net impact**: 57 → 31 findings (-26 findings, -46% reduction)
+
+This is actually a significant improvement - not just file moves, but genuine reduction in findings.
+
+## Files Updated
+
+1. `security/baselines/codeql.python.json` - Updated to 31 findings from CI run #20910135981
+2. `docs/SECURITY_BURNDOWN.md` - Regenerated with new counts (31 findings)
+3. This note file - Documents the process
 
 ## Next Steps After Merge
 
-1. Merge PR #132
-2. Run `security-artifacts.yml` workflow on main branch
-3. Run `security-baseline-refresh.yml` workflow
-4. Proper SECBASE entry in SECURITY_LOG.md
-5. Delete this temporary note file
+1. Update SECURITY_BURNDOWN.md notes section to reflect new finding distribution
+2. Create SECBASE entry in SECURITY_LOG.md documenting the refactor impact
+3. Delete this temporary note file

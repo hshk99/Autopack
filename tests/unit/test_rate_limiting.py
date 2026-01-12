@@ -10,7 +10,7 @@ Validates:
 import os
 from unittest.mock import MagicMock, patch
 
-from autopack.main import get_client_ip, _is_trusted_proxy
+from autopack.api.deps import get_client_ip, _is_trusted_proxy
 
 
 class TestIsTrustedProxy:

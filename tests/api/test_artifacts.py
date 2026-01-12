@@ -76,7 +76,7 @@ class TestArtifactsIndex:
         run_id, run_dir = run_with_artifacts
 
         # Patch the RunFileLayout to use our temp directory
-        with patch("autopack.main.RunFileLayout") as MockLayout:
+        with patch("autopack.api.routes.artifacts.RunFileLayout") as MockLayout:
             mock_instance = MockLayout.return_value
             mock_instance.base_dir = run_dir
 
@@ -130,7 +130,7 @@ class TestArtifactFile:
         """Returns file content for valid path."""
         run_id, run_dir = run_with_artifacts
 
-        with patch("autopack.main.RunFileLayout") as MockLayout:
+        with patch("autopack.api.routes.artifacts.RunFileLayout") as MockLayout:
             mock_instance = MockLayout.return_value
             mock_instance.base_dir = run_dir
 
@@ -142,7 +142,7 @@ class TestArtifactFile:
         """Returns 404 for non-existent file."""
         run_id, run_dir = run_with_artifacts
 
-        with patch("autopack.main.RunFileLayout") as MockLayout:
+        with patch("autopack.api.routes.artifacts.RunFileLayout") as MockLayout:
             mock_instance = MockLayout.return_value
             mock_instance.base_dir = run_dir
 

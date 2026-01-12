@@ -106,9 +106,9 @@ def validate_patch_quality(
             else:
                 # Validate line counts make sense
                 groups = match.groups()
-                old_start = int(groups[0])
+                _old_start = int(groups[0])
                 old_count = int(groups[1]) if groups[1] else 1
-                new_start = int(groups[2])
+                _new_start = int(groups[2])
                 new_count = int(groups[3]) if groups[3] else 1
 
                 if old_count == 0 and new_count == 0:

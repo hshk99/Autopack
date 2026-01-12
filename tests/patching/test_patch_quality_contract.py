@@ -3,13 +3,7 @@
 Tests the patch_quality module extracted from governed_apply.py (PR-APPLY-3).
 """
 
-import pytest
-
-from autopack.patching.patch_quality import (
-    QualityIssue,
-    QualityValidationResult,
-    validate_patch_quality,
-)
+from autopack.patching.patch_quality import validate_patch_quality
 
 
 class TestValidPatchValidation:

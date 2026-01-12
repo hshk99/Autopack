@@ -307,7 +307,7 @@ class TestInv001LogInjection:
         run_id = str(uuid.uuid4())
 
         # Simulate logging statement
-        log_message = f"Request {run_id} started"
+        _log_message = f"Request {run_id} started"
 
         # UUID should be valid format
         assert len(run_id) == 36
@@ -323,7 +323,7 @@ class TestInv001LogInjection:
         phase_id = 123
 
         # Simulate logging statement
-        log_message = f"Phase {phase_id} completed"
+        _log_message = f"Phase {phase_id} completed"
 
         # Should be integer type
         assert isinstance(phase_id, int)
@@ -344,7 +344,7 @@ class TestInv001LogInjection:
 
         # These are safe to log
         for key, value in internal_ids.items():
-            log_message = f"{key}={value}"
+            _log_message = f"{key}={value}"
             assert isinstance(value, (str, int))
 
         # Contrast: user input should NOT be logged

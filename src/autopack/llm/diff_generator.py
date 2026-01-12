@@ -126,17 +126,13 @@ class DiffGenerator:
                     is_new_file = False
                     is_deleted_file = False
             except Exception as e:
-                logger.warning(
-                    f"[DiffGenerator] Could not read existing file {file_path}: {e}"
-                )
+                logger.warning(f"[DiffGenerator] Could not read existing file {file_path}: {e}")
 
         # Construct git-format diff header
         git_header = self._build_git_header(file_path, is_new_file, is_deleted_file)
 
         # Generate diff body
-        diff_body, lines_added, lines_removed = self._generate_diff_body(
-            old_content, new_content
-        )
+        diff_body, lines_added, lines_removed = self._generate_diff_body(old_content, new_content)
 
         if not diff_body:
             return DiffResult(

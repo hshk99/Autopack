@@ -248,7 +248,9 @@ class PromptBuilder:
         parts = []
         scope_config = phase_spec.get("scope") or {}
         scope_paths = scope_config.get("paths", []) if isinstance(scope_config, dict) else []
-        readonly_entries = scope_config.get("read_only_context", []) if isinstance(scope_config, dict) else []
+        readonly_entries = (
+            scope_config.get("read_only_context", []) if isinstance(scope_config, dict) else []
+        )
 
         if scope_paths:
             parts.append("\n## File Modification Constraints")
@@ -493,8 +495,7 @@ class PromptBuilder:
 
         # Show read-only files with truncated content
         readonly_combined = readonly_files + [
-            (path, content, line_count, {})
-            for path, content, line_count in fallback_readonly
+            (path, content, line_count, {}) for path, content, line_count in fallback_readonly
         ]
         if readonly_combined:
             parts.append("\n# Read-Only Context Files (DO NOT MODIFY):")
@@ -565,9 +566,7 @@ Only the last incomplete line is lost."""
 
         return base_prompt
 
-    def _build_structured_edit_system_prompt(
-        self, phase_spec: Optional[Dict[str, Any]]
-    ) -> str:
+    def _build_structured_edit_system_prompt(self, phase_spec: Optional[Dict[str, Any]]) -> str:
         """Build system prompt for structured edit mode."""
         base_prompt = """You are a code modification assistant. Generate targeted edit operations for large files.
 

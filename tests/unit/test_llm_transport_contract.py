@@ -224,44 +224,59 @@ class TestUtilizationCalculations:
         """is_high_utilization returns True when above threshold."""
         from autopack.llm.transport import AnthropicTransport
 
-        assert AnthropicTransport.is_high_utilization(
-            output_tokens=960,
-            max_tokens=1000,
-            threshold=95.0,
-        ) is True
+        assert (
+            AnthropicTransport.is_high_utilization(
+                output_tokens=960,
+                max_tokens=1000,
+                threshold=95.0,
+            )
+            is True
+        )
 
     def test_is_high_utilization_false(self):
         """is_high_utilization returns False when below threshold."""
         from autopack.llm.transport import AnthropicTransport
 
-        assert AnthropicTransport.is_high_utilization(
-            output_tokens=900,
-            max_tokens=1000,
-            threshold=95.0,
-        ) is False
+        assert (
+            AnthropicTransport.is_high_utilization(
+                output_tokens=900,
+                max_tokens=1000,
+                threshold=95.0,
+            )
+            is False
+        )
 
     def test_is_high_utilization_exact_threshold(self):
         """is_high_utilization returns True at exact threshold."""
         from autopack.llm.transport import AnthropicTransport
 
-        assert AnthropicTransport.is_high_utilization(
-            output_tokens=950,
-            max_tokens=1000,
-            threshold=95.0,
-        ) is True
+        assert (
+            AnthropicTransport.is_high_utilization(
+                output_tokens=950,
+                max_tokens=1000,
+                threshold=95.0,
+            )
+            is True
+        )
 
     def test_is_high_utilization_default_threshold(self):
         """is_high_utilization uses 95% as default threshold."""
         from autopack.llm.transport import AnthropicTransport
 
         # 94% should be below default threshold
-        assert AnthropicTransport.is_high_utilization(
-            output_tokens=940,
-            max_tokens=1000,
-        ) is False
+        assert (
+            AnthropicTransport.is_high_utilization(
+                output_tokens=940,
+                max_tokens=1000,
+            )
+            is False
+        )
 
         # 95% should be at default threshold
-        assert AnthropicTransport.is_high_utilization(
-            output_tokens=950,
-            max_tokens=1000,
-        ) is True
+        assert (
+            AnthropicTransport.is_high_utilization(
+                output_tokens=950,
+                max_tokens=1000,
+            )
+            is True
+        )

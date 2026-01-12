@@ -6,7 +6,6 @@ These tests verify the prompt builder's public API and output format.
 from __future__ import annotations
 
 
-
 class TestPromptConfig:
     """Tests for PromptConfig dataclass."""
 

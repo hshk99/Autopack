@@ -6,7 +6,6 @@ These tests verify the parser's public API and behavior.
 from __future__ import annotations
 
 
-
 class TestJSONRepair:
     """Tests for JSONRepair utilities."""
 

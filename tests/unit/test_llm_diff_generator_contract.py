@@ -194,10 +194,12 @@ class TestDiffGenerator:
                 stderr=b"",
             )
 
-            result = generator.generate_multiple([
-                ("file1.py", "line1\n", "line1\nline2\n"),
-                ("file2.py", "a\n", "a\nb\n"),
-            ])
+            result = generator.generate_multiple(
+                [
+                    ("file1.py", "line1\n", "line1\nline2\n"),
+                    ("file2.py", "a\n", "a\nb\n"),
+                ]
+            )
 
             assert "file1.py" in result
             assert "file2.py" in result

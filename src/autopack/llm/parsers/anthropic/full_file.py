@@ -255,9 +255,7 @@ class FullFileParser:
             content = file_entry.get("new_content")
             if isinstance(content, str) and content in placeholder_map:
                 raw_segment = placeholder_map[content]
-                file_entry["new_content"] = FullFileParser._decode_placeholder_string(
-                    raw_segment
-                )
+                file_entry["new_content"] = FullFileParser._decode_placeholder_string(raw_segment)
 
     @staticmethod
     def _extract_code_fence(raw_text: str, fence: str) -> Optional[str]:

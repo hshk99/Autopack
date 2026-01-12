@@ -131,7 +131,9 @@ class TestNoGuessingTokenSplits:
             ):
                 with patch("autopack.llm.doctor.should_escalate_doctor_model", return_value=False):
                     with patch.object(
-                        llm_service, "_resolve_client_and_model", return_value=(mock_client, "claude-sonnet-4-5")
+                        llm_service,
+                        "_resolve_client_and_model",
+                        return_value=(mock_client, "claude-sonnet-4-5"),
                     ):
                         request = DoctorRequest(
                             phase_id="test-phase",

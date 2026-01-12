@@ -16,9 +16,17 @@ def test_doctor_returns_json_only():
     # Create mock client
     mock_client = Mock()
     mock_completion = Mock()
-    mock_completion.choices = [Mock(message=Mock(content='{"action": "retry_with_fix", "confidence": 0.85, "rationale": "Simple fix needed"}'))]
+    mock_completion.choices = [
+        Mock(
+            message=Mock(
+                content='{"action": "retry_with_fix", "confidence": 0.85, "rationale": "Simple fix needed"}'
+            )
+        )
+    ]
     mock_completion.usage = Mock(prompt_tokens=100, completion_tokens=50, total_tokens=150)
-    mock_client.client = Mock(chat=Mock(completions=Mock(create=Mock(return_value=mock_completion))))
+    mock_client.client = Mock(
+        chat=Mock(completions=Mock(create=Mock(return_value=mock_completion)))
+    )
 
     # Create doctor request
     request = DoctorRequest(
@@ -52,9 +60,17 @@ def test_doctor_response_structure():
     # Create mock client
     mock_client = Mock()
     mock_completion = Mock()
-    mock_completion.choices = [Mock(message=Mock(content='{"action": "replan", "confidence": 0.7, "rationale": "Phase needs redesign", "builder_hint": "Try different approach"}'))]
+    mock_completion.choices = [
+        Mock(
+            message=Mock(
+                content='{"action": "replan", "confidence": 0.7, "rationale": "Phase needs redesign", "builder_hint": "Try different approach"}'
+            )
+        )
+    ]
     mock_completion.usage = Mock(prompt_tokens=120, completion_tokens=60, total_tokens=180)
-    mock_client.client = Mock(chat=Mock(completions=Mock(create=Mock(return_value=mock_completion))))
+    mock_client.client = Mock(
+        chat=Mock(completions=Mock(create=Mock(return_value=mock_completion)))
+    )
 
     request = DoctorRequest(
         phase_id="test-phase-2",
@@ -90,9 +106,13 @@ def test_doctor_handles_missing_diagnosis():
     # Create mock client that returns minimal response
     mock_client = Mock()
     mock_completion = Mock()
-    mock_completion.choices = [Mock(message=Mock(content='{"action": "replan", "confidence": 0.5}'))]
+    mock_completion.choices = [
+        Mock(message=Mock(content='{"action": "replan", "confidence": 0.5}'))
+    ]
     mock_completion.usage = Mock(prompt_tokens=100, completion_tokens=30, total_tokens=130)
-    mock_client.client = Mock(chat=Mock(completions=Mock(create=Mock(return_value=mock_completion))))
+    mock_client.client = Mock(
+        chat=Mock(completions=Mock(create=Mock(return_value=mock_completion)))
+    )
 
     request = DoctorRequest(
         phase_id="test-phase-3",
@@ -134,7 +154,9 @@ def test_doctor_error_handling():
     """Doctor should handle client errors gracefully."""
     # Create mock client that raises an exception
     mock_client = Mock()
-    mock_client.client = Mock(chat=Mock(completions=Mock(create=Mock(side_effect=Exception("API error")))))
+    mock_client.client = Mock(
+        chat=Mock(completions=Mock(create=Mock(side_effect=Exception("API error"))))
+    )
 
     request = DoctorRequest(
         phase_id="test-phase-4",
@@ -231,9 +253,17 @@ def test_doctor_returns_no_markdown_in_rationale():
     mock_client = Mock()
     mock_completion = Mock()
     # Simulate a response with clean rationale (no markdown)
-    mock_completion.choices = [Mock(message=Mock(content='{"action": "retry_with_fix", "confidence": 0.8, "rationale": "Patch line 42 mismatch. File was modified by previous phase."}'))]
+    mock_completion.choices = [
+        Mock(
+            message=Mock(
+                content='{"action": "retry_with_fix", "confidence": 0.8, "rationale": "Patch line 42 mismatch. File was modified by previous phase."}'
+            )
+        )
+    ]
     mock_completion.usage = Mock(prompt_tokens=100, completion_tokens=50, total_tokens=150)
-    mock_client.client = Mock(chat=Mock(completions=Mock(create=Mock(return_value=mock_completion))))
+    mock_client.client = Mock(
+        chat=Mock(completions=Mock(create=Mock(return_value=mock_completion)))
+    )
 
     request = DoctorRequest(
         phase_id="test-phase-5",

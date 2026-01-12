@@ -124,9 +124,7 @@ def resolve_client_and_model(
             f"Falling back to Anthropic (claude-sonnet-4-5)."
         )
         return anthropic_client, "claude-sonnet-4-5"
-    raise RuntimeError(
-        f"OpenAI model {requested_model} selected but no LLM clients are available"
-    )
+    raise RuntimeError(f"OpenAI model {requested_model} selected but no LLM clients are available")
 
 
 def resolve_builder_client(

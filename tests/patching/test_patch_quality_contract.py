@@ -93,8 +93,10 @@ index 1234567..89abcdef 100644
         result = validate_patch_quality(patch)
         assert not result.valid
         assert len(result.issues) >= 1
-        assert any("truncation" in issue.message.lower() or "ellipsis" in issue.message.lower()
-                   for issue in result.issues)
+        assert any(
+            "truncation" in issue.message.lower() or "ellipsis" in issue.message.lower()
+            for issue in result.issues
+        )
 
     def test_malformed_hunk_header_rejected(self):
         """Patch with malformed hunk header should be rejected."""
@@ -169,8 +171,10 @@ index 0000000..1234567
 """
         result = validate_patch_quality(patch)
         assert not result.valid
-        assert any("yaml" in issue.message.lower() and "empty list marker" in issue.message.lower()
-                   for issue in result.issues)
+        assert any(
+            "yaml" in issue.message.lower() and "empty list marker" in issue.message.lower()
+            for issue in result.issues
+        )
 
     def test_yaml_with_incomplete_multiline_string_detected(self):
         """YAML file with incomplete multi-line string should be detected."""
@@ -184,8 +188,10 @@ index 0000000..1234567
 """
         result = validate_patch_quality(patch)
         assert not result.valid
-        assert any("yaml" in issue.message.lower() and "multi-line" in issue.message.lower()
-                   for issue in result.issues)
+        assert any(
+            "yaml" in issue.message.lower() and "multi-line" in issue.message.lower()
+            for issue in result.issues
+        )
 
 
 class TestStrictMode:
@@ -310,10 +316,12 @@ index 1234567..89abcdef 100644
         # Create a large but valid patch
         hunks = []
         for i in range(50):
-            hunks.append(f"""@@ -{i},1 +{i},1 @@
+            hunks.append(
+                f"""@@ -{i},1 +{i},1 @@
 -old_line_{i}
 +new_line_{i}
-""")
+"""
+            )
 
         patch = f"""diff --git a/test.py b/test.py
 index 1234567..89abcdef 100644

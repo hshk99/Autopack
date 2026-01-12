@@ -60,9 +60,7 @@ def record_usage(
         else:
             # Fallback: should not happen in practice
             total_tokens = 0
-            logger.warning(
-                f"[TOKEN-ACCOUNTING] Usage dict missing token counts: {usage}"
-            )
+            logger.warning(f"[TOKEN-ACCOUNTING] Usage dict missing token counts: {usage}")
 
         usage_event = LlmUsageEvent(
             provider=provider,

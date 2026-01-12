@@ -316,7 +316,9 @@ def _check_yaml_truncation(file_path: str, content_lines: List[str]) -> List[Qua
         if line.rstrip().endswith("|") or line.rstrip().endswith(">"):
             # Multi-line string started but file ends soon after
             remaining = len(content_lines) - i - 1
-            if remaining <= 1:  # Changed from < 2 to <= 1 to catch cases with only 1 or 0 lines after
+            if (
+                remaining <= 1
+            ):  # Changed from < 2 to <= 1 to catch cases with only 1 or 0 lines after
                 issues.append(
                     QualityIssue(
                         severity="error",

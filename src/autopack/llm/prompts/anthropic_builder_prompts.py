@@ -43,9 +43,7 @@ def build_system_prompt(
 
         # Simple file creation phases don't need complex instructions
         if complexity == "low" and task_category in ("feature", "bugfix"):
-            return build_minimal_system_prompt(
-                use_structured_edit, use_ndjson_format, phase_spec
-            )
+            return build_minimal_system_prompt(use_structured_edit, use_ndjson_format, phase_spec)
 
     if use_ndjson_format:
         # BUILD-129 Phase 3: NDJSON format for truncation tolerance
@@ -111,9 +109,7 @@ Only the last incomplete line is lost."""
                     str(p).strip() for p in manifest if isinstance(p, str) and str(p).strip()
                 ]
                 preview = manifest_strs[:60]
-                base_prompt += (
-                    "\n\n**FILE PATH CONSTRAINT (DELIVERABLES MANIFEST - STRICT)**:\n"
-                )
+                base_prompt += "\n\n**FILE PATH CONSTRAINT (DELIVERABLES MANIFEST - STRICT)**:\n"
                 base_prompt += "- For EVERY operation line, `file_path` MUST be exactly one of the approved paths below.\n"
                 base_prompt += "- If an approved entry ends with `/`, it is a directory prefix; then `file_path` MUST be under that prefix.\n"
                 base_prompt += "- DO NOT create/modify/delete any file outside this manifest.\n"
@@ -526,9 +522,7 @@ def build_user_prompt(
         prompt_parts.append(
             "- For YAML/JSON/TOML, include required top-level keys/sections; do not omit document starts when applicable."
         )
-        prompt_parts.append(
-            "- Do not emit patches that reference files outside the allowed scope."
-        )
+        prompt_parts.append("- Do not emit patches that reference files outside the allowed scope.")
         prompt_parts.append(
             "- If unsure or lacking context, leave the file unchanged rather than emitting partial output."
         )
@@ -703,9 +697,7 @@ def build_user_prompt(
         if config:
             # Get explicit scope paths from phase_spec
             scope_config = phase_spec.get("scope") or {}
-            scope_paths = (
-                scope_config.get("paths", []) if isinstance(scope_config, dict) else []
-            )
+            scope_paths = scope_config.get("paths", []) if isinstance(scope_config, dict) else []
             if not isinstance(scope_paths, list):
                 scope_paths = []
             scope_paths = [sp for sp in scope_paths if isinstance(sp, str)]
@@ -816,8 +808,7 @@ def build_user_prompt(
 
             # Show read-only files with truncated content (Bucket B+C: >500 lines)
             readonly_combined = readonly_files + [
-                (path, content, line_count, {})
-                for path, content, line_count in fallback_readonly
+                (path, content, line_count, {}) for path, content, line_count in fallback_readonly
             ]
             if readonly_combined:
                 prompt_parts.append("\n# Read-Only Context Files (DO NOT MODIFY):")

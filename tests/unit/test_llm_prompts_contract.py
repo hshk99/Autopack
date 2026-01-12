@@ -5,7 +5,6 @@ These tests verify the prompt builder's public API and output format.
 
 from __future__ import annotations
 
-import pytest
 
 
 class TestPromptConfig:
@@ -130,10 +129,9 @@ class TestSystemPromptModes:
 
     def test_full_file_mode_prompt(self):
         """Full-file mode includes JSON structure instructions."""
-        from autopack.llm.prompts import PromptBuilder, PromptConfig
+        from autopack.llm.prompts import PromptBuilder
 
         builder = PromptBuilder()
-        config = PromptConfig(use_full_file_mode=True)
 
         prompt = builder.build_system_prompt(
             use_full_file_mode=True,

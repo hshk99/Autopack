@@ -73,7 +73,6 @@ class TestAnthropicTransport:
         """AnthropicTransport raises ImportError when anthropic not installed."""
         with patch.dict("sys.modules", {"anthropic": None}):
             # Need to reload the module to pick up the patched import
-            import importlib
             import autopack.llm.transport as transport_module
 
             # Save original Anthropic reference

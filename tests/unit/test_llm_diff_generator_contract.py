@@ -5,7 +5,6 @@ These tests verify the diff generator's public API and behavior.
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import patch, MagicMock
 
 

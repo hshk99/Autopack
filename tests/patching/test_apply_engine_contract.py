@@ -24,6 +24,7 @@ def test_git_apply_success_strict_mode():
     """Git apply should succeed for valid patch in strict mode."""
     # Skip: Complex git setup test, will be covered by integration tests
     import pytest
+
     pytest.skip("Complex git setup test - covered by integration tests")
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -427,8 +428,11 @@ index abc123..0000000
         assert not result.success
         assert result.method == "manual"
         # Deleted files are classified as existing, so the message will say "existing files"
-        assert ("no new files" in result.message.lower() or "no matching" in result.message.lower()
-                or "existing" in result.message.lower())
+        assert (
+            "no new files" in result.message.lower()
+            or "no matching" in result.message.lower()
+            or "existing" in result.message.lower()
+        )
 
 
 def test_manual_apply_target_files_filter():

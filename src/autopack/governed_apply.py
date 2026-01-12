@@ -30,6 +30,7 @@ from .patching.patch_sanitize import (
     fix_empty_file_diffs,
     repair_hunk_headers,
 )
+from .patching.patch_quality import validate_patch_quality
 
 logger = logging.getLogger(__name__)
 
@@ -810,69 +811,13 @@ class GovernedApplyPath:
         """
         Validate patch quality to detect LLM truncation/abbreviation issues.
 
+        Delegates to patch_quality module.
+
         Returns:
             List of validation error messages (empty if valid)
         """
-        import re
-
-        errors = []
-        lines = patch_content.split("\n")
-
-        # Check for ellipsis/truncation markers (CRITICAL: LLMs use these when hitting token limits)
-        # Be careful NOT to flag legitimate code like logger.info("...") or f-strings
-        truncation_patterns = [
-            r"^\+\s*\.\.\.\s*$",  # Line that is ONLY "..."
-            r"^\+\s*#\s*\.\.\.\s*$",  # Comment line that is only "# ..."
-            r"^\+.*\.\.\.\s*more\s+code",  # "... more code" pattern
-            r"^\+.*\.\.\.\s*rest\s+of",  # "... rest of" pattern
-            r"^\+.*\.\.\.\s*continues",  # "... continues" pattern
-            r"^\+.*\.\.\.\s*etc",  # "... etc" pattern
-            r"^\+.*code\s+omitted\s*\.\.\.",  # "code omitted..." pattern
-        ]
-
-        for i, line in enumerate(lines, 1):
-            # Skip comment lines, docstrings, and strings (... is ok there)
-            stripped = line.strip()
-            if stripped.startswith(("#", '"""', "'''")):
-                continue
-            # Skip lines with ... inside strings (legitimate code)
-            if '("' in line or "('" in line or 'f"' in line or "f'" in line:
-                continue
-
-            for pattern in truncation_patterns:
-                if re.search(pattern, line, re.IGNORECASE):
-                    errors.append(f"Line {i} contains truncation/ellipsis '...': {line[:80]}")
-                    break
-
-        # Check for malformed hunk headers (common LLM error)
-        # Valid unified diff allows omitted counts when they are 1: @@ -1 +1 @@
-        hunk_header_pattern = re.compile(r"^@@\s+-(\d+)(?:,(\d+))?\s+\+(\d+)(?:,(\d+))?\s+@@")
-        for i, line in enumerate(lines, 1):
-            if line.startswith("@@"):
-                match = hunk_header_pattern.match(line)
-                if not match:
-                    errors.append(f"Line {i} has malformed hunk header: {line[:80]}")
-                else:
-                    # Validate line counts make sense
-                    old_start, old_count, new_start, new_count = map(int, match.groups())
-                    if old_count == 0 and new_count == 0:
-                        errors.append(f"Line {i} has zero-length hunk (invalid): {line[:80]}")
-
-        # Check for incomplete diff structure
-        if "diff --git" in patch_content:
-            has_index = "index " in patch_content
-            has_minus = "---" in patch_content
-            has_plus = "+++" in patch_content
-
-            if not (has_index and has_minus and has_plus):
-                errors.append("Incomplete diff structure (missing index/---/+++ lines)")
-
-        # Check for truncated file content (common LLM issue - output cut off mid-file)
-        # This detects files that end abruptly with unclosed strings or incomplete YAML
-        truncation_errors = self._detect_truncated_content(patch_content)
-        errors.extend(truncation_errors)
-
-        return errors
+        result = validate_patch_quality(patch_content, strict_mode=False)
+        return [issue.message for issue in result.issues]
 
     def _validate_patch_context(self, patch_content: str) -> List[str]:
         """
@@ -1142,138 +1087,6 @@ class GovernedApplyPath:
             errors.append(
                 f"Pack schema: 'official_sources' must be a non-empty list in {file_path}"
             )
-
-        return errors
-
-    def _detect_truncated_content(self, patch_content: str) -> List[str]:
-        """
-        Detect truncated file content in patches - catches LLM output that was cut off.
-
-        Common patterns:
-        - File ends with unclosed quote (started " or ' but never closed)
-        - YAML file ends mid-list without proper structure
-        - File ends with "No newline at end of file" after incomplete content
-
-        Returns:
-            List of truncation error messages
-        """
-        errors = []
-        lines = patch_content.split("\n")
-
-        # Track files being patched and their new content (only meaningful for NEW files)
-        current_file = None
-        new_file_lines = []
-        in_new_file = False
-
-        for i, line in enumerate(lines):
-            if line.startswith("diff --git"):
-                # Check previous file for truncation before moving to next
-                if current_file and new_file_lines:
-                    file_errors = self._check_file_truncation(current_file, new_file_lines)
-                    errors.extend(file_errors)
-
-                # Extract new file path
-                match = re.search(r"diff --git a/.+ b/(.+)", line)
-                if match:
-                    current_file = match.group(1)
-                new_file_lines = []
-                in_new_file = False
-
-            elif line.startswith("--- /dev/null"):
-                in_new_file = True
-
-            elif in_new_file and line.startswith("+") and not line.startswith("+++"):
-                # Collect added lines ONLY for new files.
-                # For modified files, diff hunks do not represent full file content, so truncation
-                # heuristics (like "file ends with unclosed quote") would create false positives.
-                new_file_lines.append(line[1:])  # Remove + prefix
-
-            elif line.startswith("\\ No newline at end of file"):
-                # This marker after minimal content is suspicious. For JSON/package files we tolerate short bodies.
-                if len(new_file_lines) < 5 and not (current_file or "").endswith("package.json"):
-                    errors.append(
-                        f"File '{current_file}' appears truncated (only {len(new_file_lines)} lines before 'No newline')"
-                    )
-
-        # Check last file
-        if current_file and new_file_lines:
-            file_errors = self._check_file_truncation(current_file, new_file_lines)
-            errors.extend(file_errors)
-
-        return errors
-
-    def _check_file_truncation(self, file_path: str, content_lines: List[str]) -> List[str]:
-        """Check a single file's content for truncation indicators."""
-        errors = []
-        "\n".join(content_lines)
-
-        # Check for unclosed quotes at end of file
-        last_lines = content_lines[-3:] if len(content_lines) >= 3 else content_lines
-        "\n".join(last_lines)
-
-        # Pattern: line ending with unclosed quote (started " but not closed)
-        re.compile(r'^\s*-?\s*"[^"]*$', re.MULTILINE)
-        if content_lines:
-            last_line = content_lines[-1].rstrip()
-            # Check if last line has unclosed double quote
-            if last_line.count('"') % 2 == 1:
-                errors.append(f"File '{file_path}' ends with unclosed quote: '{last_line[-50:]}'")
-            # Check if last line has unclosed single quote (but not apostrophes)
-            if "'" in last_line and last_line.count("'") % 2 == 1:
-                # Filter out common apostrophe usage
-                if not re.search(r"\w'\w", last_line):  # e.g., "don't", "it's"
-                    errors.append(
-                        f"File '{file_path}' may end with unclosed quote: '{last_line[-50:]}'"
-                    )
-
-        # For YAML files, check for incomplete structure
-        if file_path.endswith((".yaml", ".yml")):
-            yaml_errors = self._check_yaml_truncation(file_path, content_lines)
-            errors.extend(yaml_errors)
-
-        return errors
-
-    def _check_yaml_truncation(self, file_path: str, content_lines: List[str]) -> List[str]:
-        """Check YAML content for truncation indicators."""
-        errors = []
-
-        if not content_lines:
-            return errors
-
-        # Check if file ends abruptly mid-list item
-        last_line = content_lines[-1].rstrip()
-        if last_line.strip().startswith("-") and last_line.strip() == "-":
-            errors.append(f"YAML file '{file_path}' ends with empty list marker")
-
-        # Check for incomplete list item (just "- " with nothing after)
-        if re.match(r"^\s*-\s*$", last_line):
-            errors.append(f"YAML file '{file_path}' ends with incomplete list item")
-
-        # Check for unclosed multi-line string indicator
-        for i, line in enumerate(content_lines[-5:], len(content_lines) - 4):
-            if line.rstrip().endswith("|") or line.rstrip().endswith(">"):
-                # Multi-line string started but file ends soon after
-                remaining = len(content_lines) - i - 1
-                if remaining < 2:
-                    errors.append(
-                        f"YAML file '{file_path}' ends shortly after multi-line string indicator"
-                    )
-
-        # Try to parse as YAML to catch structural issues
-        try:
-            import yaml
-
-            content = "\n".join(content_lines)
-            # Lenient handling: if YAML starts with comments and no document marker, prepend '---'
-            stripped = content.lstrip()
-            if stripped.startswith("#") and not stripped.startswith("---"):
-                content = "---\n" + content
-            yaml.safe_load(content)
-        except yaml.YAMLError as e:
-            # Only report if it looks like truncation (not just any YAML error)
-            error_str = str(e).lower()
-            if "end of stream" in error_str or "expected" in error_str:
-                errors.append(f"YAML file '{file_path}' has incomplete structure: {str(e)[:100]}")
 
         return errors
 

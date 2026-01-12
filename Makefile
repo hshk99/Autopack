@@ -9,14 +9,24 @@
 #   - pytest tests/ -v
 #   - docker-compose up -d / down / logs
 
-.PHONY: help install test test-verbose docker-up docker-down docker-logs probe clean
+.PHONY: help install test test-verbose test-docs test-api test-llm test-fast docker-up docker-down docker-logs probe clean
 
 help:
 	@echo "Autopack Supervisor - Development Commands"
 	@echo ""
 	@echo "  make install         - Install dependencies"
+	@echo ""
+	@echo "Fast local gates (5.3.5 - run before PR):"
+	@echo "  make test-docs       - Docs/SOT gate (fast, always run first)"
+	@echo "  make test-api        - API fast gate (no Postgres required)"
+	@echo "  make test-llm        - LLM wiring fast gate"
+	@echo "  make test-fast       - All fast gates combined (docs + api + llm)"
+	@echo ""
+	@echo "Full test runs:"
 	@echo "  make test            - Run unit tests"
 	@echo "  make test-verbose    - Run unit tests with verbose output"
+	@echo ""
+	@echo "Docker:"
 	@echo "  make docker-up       - Start Docker services"
 	@echo "  make docker-down     - Stop Docker services"
 	@echo "  make docker-logs     - View Docker logs"
@@ -31,6 +41,22 @@ test:
 
 test-verbose:
 	pytest tests/ -vv -s
+
+# Fast local gates (5.3.5) - run before PR to get quick signal
+test-docs:
+	@echo "Running docs/SOT gate (fast, always run first)..."
+	python -m pytest -q tests/docs/
+
+test-api:
+	@echo "Running API fast gate (no Postgres)..."
+	python -m pytest -q tests/api/
+
+test-llm:
+	@echo "Running LLM wiring fast gate..."
+	python -m pytest -q tests/llm_service/
+
+test-fast: test-docs test-api test-llm
+	@echo "All fast gates passed!"
 
 docker-up:
 	docker-compose up -d

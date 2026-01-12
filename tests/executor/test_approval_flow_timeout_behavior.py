@@ -9,7 +9,7 @@ Uses table-driven tests for different timeout scenarios.
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 from autopack.executor.approval_flow import (
     request_human_approval,
     request_build113_approval,

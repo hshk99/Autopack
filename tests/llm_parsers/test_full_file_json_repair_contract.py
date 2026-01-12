@@ -12,7 +12,7 @@ Each test is table-driven to ensure comprehensive coverage.
 """
 
 import pytest
-from autopack.llm.parsers.anthropic.full_file import FullFileParser, FullFileParseResult
+from autopack.llm.parsers.anthropic.full_file import FullFileParser
 
 
 class TestFullFileJsonRepairContract:

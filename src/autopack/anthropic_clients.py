@@ -15,7 +15,7 @@ import logging
 import yaml
 import copy
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 
 try:
     from anthropic import Anthropic
@@ -27,9 +27,6 @@ except ImportError:
 from .llm.providers.anthropic_transport import (
     AnthropicTransport,
     AnthropicTransportError,
-    AnthropicTransportTimeout,
-    AnthropicTransportNetworkError,
-    AnthropicTransportApiError,
 )
 
 from .llm_client import BuilderResult, AuditorResult
@@ -47,9 +44,6 @@ from .token_estimator import TokenEstimator
 
 # BUILD-129 Phase 2: Continuation-based recovery
 from .continuation_recovery import ContinuationRecovery
-
-# PR-LLM-4: Import diff generator for reusable diff generation
-from .patching.diff_generator import generate_unified_diff
 
 # BUILD-129 Phase 3: NDJSON truncation-tolerant format
 from .ndjson_format import NDJSONParser, NDJSONApplier
@@ -3262,21 +3256,6 @@ class AnthropicBuilderClient:
             retrieved_context=retrieved_context,
             context_budget_tokens=context_budget_tokens,
         )
-
-    def __init__(self, api_key: Optional[str] = None):
-        """Initialize Anthropic client
-
-        Args:
-            api_key: Anthropic API key (defaults to ANTHROPIC_API_KEY env var)
-        """
-        # PR-LLM-1: Use transport wrapper for clean separation
-        try:
-            self.transport = AnthropicTransport(api_key=api_key, timeout=60.0)
-        except AnthropicTransportError as e:
-            # Maintain backwards compatibility with ImportError for missing package
-            if "not installed" in str(e):
-                raise ImportError(str(e))
-            raise
 
     def review_patch(
         self,

@@ -12,7 +12,6 @@ import pytest
 
 
 from autopack.intention_anchor import IntentionConstraints, create_anchor, save_anchor
-from autopack.llm_service import LlmService
 from autopack.error_recovery import DoctorRequest
 
 

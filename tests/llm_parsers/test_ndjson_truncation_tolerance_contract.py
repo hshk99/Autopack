@@ -16,7 +16,6 @@ import pytest
 import json
 from autopack.llm.parsers.anthropic.ndjson import (
     NDJSONResponseParser,
-    NDJSONResponseParseResult,
 )
 
 

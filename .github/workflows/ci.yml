@@ -111,23 +111,22 @@ jobs:
       - name: Check formatting with black
         run: |
           black --check src/ tests/
-      - name: Type check with mypy (staged adoption)
-        continue-on-error: true  # Non-blocking during staged rollout
+      - name: Type check with mypy (Tier-1 blocking)
         run: |
           pip install mypy types-requests types-PyYAML
-          # Mypy Adoption Ladder (GAP-8.3.1):
-          # Tier 1 (blocking): Simple modules with no type errors
+          # Mypy Adoption Ladder (GAP-8.3.1 → Item 1.2):
+          # Tier 1 (BLOCKING as of 2026-01-12): Simple modules with no type errors
           # Tier 2 (informational): Modules with minor issues being fixed
           # See docs/CONTRIBUTING.md for full ladder status
           #
-          # Tier 1 - Must pass (remove continue-on-error when ready)
+          # Tier 1 - Must pass (blocking gate as of PR #144)
           mypy src/autopack/version.py \
                src/autopack/__version__.py \
                src/autopack/safe_print.py \
                src/autopack/file_hashing.py \
                src/autopack/config.py \
                src/autopack/schemas.py \
-               --ignore-missing-imports --no-error-summary || echo "mypy findings (informational)"
+               --ignore-missing-imports --no-error-summary
 
   frontend-ci:
     name: Frontend CI (lint/typecheck/build)

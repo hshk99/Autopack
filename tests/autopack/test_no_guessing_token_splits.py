@@ -147,7 +147,8 @@ class TestNoGuessingTokenSplits:
 
                         # Verify _call_doctor_llm was called with correct model
                         mock_call_doctor.assert_called_once()
-                        assert mock_call_doctor.call_args[0][0] == "claude-sonnet-4-5"
+                        # First arg is client (Mock), second arg is model name
+                        assert mock_call_doctor.call_args[0][1] == "claude-sonnet-4-5"
                         assert result.action == "retry_with_fix"
 
         # Note: This test validates the execute_doctor flow. The actual token recording

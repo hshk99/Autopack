@@ -35,11 +35,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
-import requests
 import yaml
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from autopack.supervisor import SupervisorApiClient
 from autopack.quality_gate import QualityGate
 from autopack.config import settings
 from autopack.llm_client import BuilderResult, AuditorResult
@@ -273,6 +273,12 @@ class AutonomousExecutor:
         # This creates runs, phases, tiers, llm_usage_events, token_estimation_v2_events, etc.
         init_db()
         logger.info("Database tables initialized")
+
+        # Initialize SupervisorApiClient for all HTTP communication (BUILD-135)
+        self.api_client = SupervisorApiClient(
+            base_url=self.api_url, api_key=self.api_key, default_timeout=10.0
+        )
+        logger.info("SupervisorApiClient initialized")
 
         # Initialize LlmService (replaces direct client instantiation)
         self.llm_service = None  # Will be set in _init_infrastructure
@@ -1248,20 +1254,17 @@ class AutonomousExecutor:
         from autopack.error_classifier import ErrorClassifier
 
         classifier = ErrorClassifier()
-        url = f"{self.api_url}/runs/{self.run_id}"
-        headers = {}
-        if self.api_key:
-            headers["X-API-Key"] = self.api_key
-
         # Try to fetch status with circuit breaker logic
+        from autopack.supervisor.api_client import (
+            SupervisorApiHttpError,
+        )
+
         try:
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.HTTPError as e:
+            return self.api_client.get_run(self.run_id, timeout=10)
+        except SupervisorApiHttpError as e:
             # Classify error to determine retry strategy
-            status_code = e.response.status_code if e.response else 0
-            response_body = e.response.text if e.response else str(e)
+            status_code = e.status_code
+            response_body = e.response_body or str(e)
 
             error_class, remediation = classifier.classify_api_error(
                 status_code=status_code, response_body=response_body
@@ -1293,11 +1296,10 @@ class AutonomousExecutor:
                 time.sleep(backoff)
 
                 try:
-                    response = requests.get(url, headers=headers, timeout=10)
-                    response.raise_for_status()
+                    result = self.api_client.get_run(self.run_id, timeout=10)
                     logger.info(f"[CircuitBreaker] Retry successful on attempt {attempt+1}")
-                    return response.json()
-                except requests.exceptions.HTTPError:
+                    return result
+                except SupervisorApiHttpError:
                     if attempt == max_retries - 1:
                         # Last retry failed
                         logger.error("[CircuitBreaker] All retries exhausted for transient error")
@@ -7795,10 +7797,7 @@ Just the new description that should replace the current one while preserving th
             phase_id: Phase ID
             result: Builder result from llm_client.BuilderResult dataclass
         """
-        url = f"{self.api_url}/runs/{self.run_id}/phases/{phase_id}/builder_result"
-        headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["X-API-Key"] = self.api_key
+        from autopack.supervisor.api_client import SupervisorApiHttpError
 
         # Map llm_client.BuilderResult to builder_schemas.BuilderResult
         # Parse patch statistics using GovernedApplyPath
@@ -7847,13 +7846,24 @@ Just the new description that should replace the current one while preserving th
         try:
             for attempt in range(3):
                 try:
-                    response = requests.post(url, headers=headers, json=payload, timeout=10)
-
+                    self.api_client.submit_builder_result(
+                        self.run_id, phase_id, payload, timeout=10
+                    )
+                    logger.debug(f"Posted builder result for phase {phase_id}")
+                    break
+                except SupervisorApiHttpError as e:
                     # BUILD-195: Handle 422 payload schema validation errors
                     # These are schema errors (missing fields, wrong types, extra keys),
                     # NOT patch format errors. Use PayloadCorrectionTracker for one-shot.
-                    if response.status_code == 422:
-                        error_detail = response.json().get("detail", [])
+                    if e.status_code == 422:
+                        import json
+
+                        error_detail = []
+                        if e.response_body:
+                            try:
+                                error_detail = json.loads(e.response_body).get("detail", [])
+                            except Exception:
+                                pass
                         logger.error(
                             f"[{phase_id}] Payload schema validation failed (422): {error_detail}"
                         )
@@ -7911,13 +7921,12 @@ Just the new description that should replace the current one while preserving th
                                     f"[{phase_id}] Payload correction failed, raising error"
                                 )
 
-                        response.raise_for_status()
+                        raise  # Re-raise the 422 error
 
-                    response.raise_for_status()
-                    logger.debug(f"Posted builder result for phase {phase_id}")
-                    break
-                except requests.exceptions.RequestException as e_inner:
-                    status_code = getattr(getattr(e_inner, "response", None), "status_code", None)
+                    # For non-422 errors, handle below
+                    raise
+                except SupervisorApiHttpError as e_inner:
+                    status_code = e_inner.status_code
                     if status_code and status_code >= 500:
                         self._run_http_500_count += 1
                         logger.warning(
@@ -7936,8 +7945,8 @@ Just the new description that should replace the current one while preserving th
                             )
                     # Non-retryable or retries exhausted
                     raise
-        except requests.exceptions.RequestException as e:
-            status_code = getattr(getattr(e, "response", None), "status_code", None)
+        except SupervisorApiHttpError as e:
+            status_code = e.status_code
             if status_code and status_code >= 500:
                 self._run_http_500_count += 1
                 logger.warning(
@@ -7970,10 +7979,7 @@ Just the new description that should replace the current one while preserving th
             phase_id: Phase ID
             result: Auditor result from llm_client.AuditorResult dataclass
         """
-        url = f"{self.api_url}/runs/{self.run_id}/phases/{phase_id}/auditor_result"
-        headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["X-API-Key"] = self.api_key
+        from autopack.supervisor.api_client import SupervisorApiHttpError
 
         # Map llm_client.AuditorResult to builder_schemas.AuditorResult
         # Convert issues_found from List[Dict] to List[BuilderSuggestedIssue]
@@ -8019,16 +8025,23 @@ Just the new description that should replace the current one while preserving th
         }
 
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=10)
-            if response.status_code == 422:
+            self.api_client.submit_auditor_result(self.run_id, phase_id, payload, timeout=10)
+            logger.debug(f"Posted auditor result for phase {phase_id}")
+        except SupervisorApiHttpError as e:
+            if e.status_code == 422:
                 # Backwards compatibility: some backend deployments still (incorrectly) expect BuilderResultRequest
                 # at the auditor_result endpoint, requiring a "success" field.
                 #
                 # If we see this schema-mismatch signature, retry with a minimal BuilderResultRequest wrapper.
-                try:
-                    detail = response.json().get("detail")
-                except Exception:
-                    detail = None
+                import json
+
+                detail = None
+                if e.response_body:
+                    try:
+                        detail = json.loads(e.response_body).get("detail")
+                    except Exception:
+                        pass
+
                 is_missing_success = False
                 if isinstance(detail, list):
                     for item in detail:
@@ -8048,14 +8061,15 @@ Just the new description that should replace the current one while preserving th
                         f"[{phase_id}] auditor_result POST returned 422 missing success; retrying with "
                         f"BuilderResultRequest-compatible payload for backwards compatibility."
                     )
-                    response2 = requests.post(url, headers=headers, json=fallback, timeout=10)
-                    response2.raise_for_status()
+                    self.api_client.submit_auditor_result(
+                        self.run_id, phase_id, fallback, timeout=10
+                    )
                     logger.debug(f"Posted auditor result for phase {phase_id} (compat retry)")
                     return
 
-            response.raise_for_status()
-            logger.debug(f"Posted auditor result for phase {phase_id}")
-        except requests.exceptions.RequestException as e:
+            # Re-raise if not handled
+            raise
+        except Exception as e:
             logger.warning(f"Failed to post auditor result: {e}")
 
             # Log API failures to debug journal
@@ -8792,24 +8806,18 @@ Just the new description that should replace the current one while preserving th
             status: New status (QUEUED, EXECUTING, GATE, CI_RUNNING, COMPLETE, FAILED, SKIPPED)
         """
         try:
-            url = f"{self.api_url}/runs/{self.run_id}/phases/{phase_id}/update_status"
-            headers = {"Content-Type": "application/json"}
-            if self.api_key:
-                headers["X-API-Key"] = self.api_key
-
             # The API only accepts models.PhaseState values; "BLOCKED" is a quality-gate outcome,
             # not a phase state. Represent blocked states as FAILED (with quality_blocked set elsewhere)
             # or as GATE where appropriate.
             if status == "BLOCKED":
                 status = "FAILED"
 
-            response = requests.post(url, json={"state": status}, headers=headers, timeout=30)
-            response.raise_for_status()
+            self.api_client.update_phase_status(self.run_id, phase_id, status, timeout=30)
             logger.info(f"Updated phase {phase_id} status to {status}")
             # Best-effort run_summary rewrite when a phase reaches a terminal state
             if status in ("COMPLETE", "FAILED", "SKIPPED"):
                 self._best_effort_write_run_summary()
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             logger.warning(f"Failed to update phase {phase_id} status: {e}")
 
     def _try_handle_governance_request(
@@ -8970,7 +8978,6 @@ Just the new description that should replace the current one while preserving th
             True if approved, False if rejected or timed out
         """
         import time
-        import requests
 
         logger.info(f"[{phase_id}] Requesting human approval via Telegram...")
 
@@ -9005,11 +9012,6 @@ Just the new description that should replace the current one while preserving th
 
         # Send approval request to backend API
         try:
-            url = f"{self.api_url}/approval/request"
-            headers = {"Content-Type": "application/json"}
-            if self.api_key:
-                headers["X-API-Key"] = self.api_key
-
             # BUILD-190: Derive context from phase metadata or quality report
             # Context helps operators understand the nature of the approval request
             phase_context = "general"
@@ -9018,19 +9020,15 @@ Just the new description that should replace the current one while preserving th
             elif risk_assessment and risk_assessment.get("metadata", {}).get("task_category"):
                 phase_context = risk_assessment["metadata"]["task_category"]
 
-            response = requests.post(
-                url,
-                json={
+            result = self.api_client.request_approval(
+                {
                     "phase_id": phase_id,
                     "deletion_info": deletion_info,
                     "run_id": self.run_id,
                     "context": phase_context,
                 },
-                headers=headers,
                 timeout=30,
             )
-            response.raise_for_status()
-            result = response.json()
 
             if result.get("status") == "rejected":
                 logger.error(
@@ -9064,14 +9062,7 @@ Just the new description that should replace the current one while preserving th
 
         while elapsed < timeout_seconds:
             try:
-                url = f"{self.api_url}/approval/status/{approval_id}"
-                headers = {}
-                if self.api_key:
-                    headers["X-API-Key"] = self.api_key
-
-                response = requests.get(url, headers=headers, timeout=10)
-                response.raise_for_status()
-                status_data = response.json()
+                status_data = self.api_client.poll_approval_status(approval_id, timeout=10)
 
                 status = status_data.get("status")
 
@@ -9120,23 +9111,16 @@ Just the new description that should replace the current one while preserving th
             True if approved, False if rejected or timed out
         """
         import time
-        import requests
 
         logger.info(f"[BUILD-113] Requesting human approval for RISKY decision on {phase_id}...")
 
         # Build approval request with BUILD-113 decision details
         try:
-            url = f"{self.api_url}/approval/request"
-            headers = {"Content-Type": "application/json"}
-            if self.api_key:
-                headers["X-API-Key"] = self.api_key
-
             # Extract patch preview (first 500 chars)
             patch_preview = patch_content[:500] + ("..." if len(patch_content) > 500 else "")
 
-            response = requests.post(
-                url,
-                json={
+            result = self.api_client.request_approval(
+                {
                     "phase_id": phase_id,
                     "run_id": self.run_id,
                     "context": "build113_risky_decision",
@@ -9153,11 +9137,8 @@ Just the new description that should replace the current one while preserving th
                     },
                     "patch_preview": patch_preview,
                 },
-                headers=headers,
                 timeout=30,
             )
-            response.raise_for_status()
-            result = response.json()
 
             if result.get("status") == "rejected":
                 logger.error(
@@ -9194,14 +9175,7 @@ Just the new description that should replace the current one while preserving th
 
         while elapsed < timeout_seconds:
             try:
-                url = f"{self.api_url}/approval/status/{approval_id}"
-                headers = {}
-                if self.api_key:
-                    headers["X-API-Key"] = self.api_key
-
-                response = requests.get(url, headers=headers, timeout=10)
-                response.raise_for_status()
-                status_data = response.json()
+                status_data = self.api_client.poll_approval_status(approval_id, timeout=10)
 
                 status = status_data.get("status")
 
@@ -9251,7 +9225,6 @@ Just the new description that should replace the current one while preserving th
             Human response text if provided, None if timed out
         """
         import time
-        import requests
 
         logger.info(
             f"[BUILD-113] Requesting human clarification for AMBIGUOUS decision on {phase_id}..."
@@ -9259,14 +9232,8 @@ Just the new description that should replace the current one while preserving th
 
         # Build clarification request with BUILD-113 decision details
         try:
-            url = f"{self.api_url}/clarification/request"
-            headers = {"Content-Type": "application/json"}
-            if self.api_key:
-                headers["X-API-Key"] = self.api_key
-
-            response = requests.post(
-                url,
-                json={
+            result = self.api_client.request_clarification(
+                {
                     "phase_id": phase_id,
                     "run_id": self.run_id,
                     "context": "build113_ambiguous_decision",
@@ -9279,11 +9246,8 @@ Just the new description that should replace the current one while preserving th
                         "alternatives": decision.alternatives_considered,
                     },
                 },
-                headers=headers,
                 timeout=30,
             )
-            response.raise_for_status()
-            result = response.json()
 
             if result.get("status") == "rejected":
                 logger.error(
@@ -9307,14 +9271,7 @@ Just the new description that should replace the current one while preserving th
 
         while elapsed < timeout_seconds:
             try:
-                url = f"{self.api_url}/clarification/status/{phase_id}"
-                headers = {}
-                if self.api_key:
-                    headers["X-API-Key"] = self.api_key
-
-                response = requests.get(url, headers=headers, timeout=10)
-                response.raise_for_status()
-                status_data = response.json()
+                status_data = self.api_client.poll_clarification_status(phase_id, timeout=10)
 
                 status = status_data.get("status")
 
@@ -9553,39 +9510,29 @@ Just the new description that should replace the current one while preserving th
 
         # Check if server is already running
         try:
-            response = requests.get(f"{self.api_url}/health", timeout=2)
-            if response.status_code == 200:
-                # BUILD-129 Phase 3: /health should reflect DB readiness too (see src/autopack/main.py).
-                # If DB is unhealthy, treat API as not usable for executor.
-                try:
-                    payload = response.json()
-                    # Require that the service identify itself as the Autopack Supervisor API.
-                    # This prevents false positives when another service is listening on the same port
-                    # (e.g., src/backend FastAPI which has /health but not the supervisor API contract).
-                    if payload.get("service") != "autopack":
-                        logger.error(
-                            "A service responded on /health but did not identify as the Autopack Supervisor API "
-                            f"(service={payload.get('service')!r}). Refusing to use it."
-                        )
-                        return False
+            payload = self.api_client.check_health(timeout=2.0)
+            # BUILD-129 Phase 3: /health should reflect DB readiness too (see src/autopack/main.py).
+            # Require that the service identify itself as the Autopack Supervisor API.
+            # This prevents false positives when another service is listening on the same port
+            # (e.g., src/backend FastAPI which has /health but not the supervisor API contract).
+            if payload.get("service") != "autopack":
+                logger.error(
+                    "A service responded on /health but did not identify as the Autopack Supervisor API "
+                    f"(service={payload.get('service')!r}). Refusing to use it."
+                )
+                return False
 
-                    if payload.get("db_ok") is False or payload.get("status") not in (
-                        None,
-                        "healthy",
-                    ):
-                        logger.warning(
-                            "API server responded to /health but reported unhealthy DB. "
-                            "Executor requires a healthy API+DB; will attempt to start a local API server."
-                        )
-                    else:
-                        logger.info("API server is already running")
-                        return True
-                except Exception:
-                    # If health isn't JSON, treat as incompatible to avoid using the wrong service.
-                    logger.error(
-                        "Service responded 200 on /health but did not return JSON. Refusing to use it."
-                    )
-                    return False
+            if payload.get("db_ok") is False or payload.get("status") not in (
+                None,
+                "healthy",
+            ):
+                logger.warning(
+                    "API server responded to /health but reported unhealthy DB. "
+                    "Executor requires a healthy API+DB; will attempt to start a local API server."
+                )
+            else:
+                logger.info("API server is already running")
+                return True
         except Exception:
             pass  # Server not responding, continue to start it
 
@@ -9700,30 +9647,30 @@ Just the new description that should replace the current one while preserving th
                 except Exception:
                     pass
                 try:
-                    response = requests.get(f"{self.api_url}/health", timeout=1)
-                    if response.status_code == 200:
-                        logger.info("✅ API server started successfully")
-                        # Optional: fail fast if the API is healthy but the run is missing (common DB drift symptom).
-                        if os.getenv("AUTOPACK_SKIP_RUN_EXISTENCE_CHECK") != "1":
-                            try:
-                                run_resp = requests.get(
-                                    f"{self.api_url}/runs/{self.run_id}", timeout=2
+                    self.api_client.check_health(timeout=1)
+                    logger.info("✅ API server started successfully")
+                    # Optional: fail fast if the API is healthy but the run is missing (common DB drift symptom).
+                    if os.getenv("AUTOPACK_SKIP_RUN_EXISTENCE_CHECK") != "1":
+                        from autopack.supervisor.api_client import SupervisorApiHttpError
+
+                        try:
+                            self.api_client.get_run(self.run_id, timeout=2)
+                        except SupervisorApiHttpError as e:
+                            if e.status_code == 404:
+                                logger.error(
+                                    "[DB_MISMATCH] API is healthy but run was not found. "
+                                    f"run_id={self.run_id!r}. This usually means the API and executor are "
+                                    "pointed at different SQLite files (cwd/relative path drift) or the run was not seeded "
+                                    "into this DATABASE_URL."
                                 )
-                                if run_resp.status_code == 404:
-                                    logger.error(
-                                        "[DB_MISMATCH] API is healthy but run was not found. "
-                                        f"run_id={self.run_id!r}. This usually means the API and executor are "
-                                        "pointed at different SQLite files (cwd/relative path drift) or the run was not seeded "
-                                        "into this DATABASE_URL."
-                                    )
-                                    # Hint: enable DEBUG_DB_IDENTITY=1 and re-check /health payload.
-                                    logger.error(
-                                        "Hint: set DEBUG_DB_IDENTITY=1 and re-check /health for sqlite_file + run counts."
-                                    )
-                                    return False
-                            except Exception as _e:
-                                logger.warning(f"Run existence check skipped due to error: {_e}")
-                        return True
+                                # Hint: enable DEBUG_DB_IDENTITY=1 and re-check /health payload.
+                                logger.error(
+                                    "Hint: set DEBUG_DB_IDENTITY=1 and re-check /health for sqlite_file + run counts."
+                                )
+                                return False
+                        except Exception as _e:
+                            logger.warning(f"Run existence check skipped due to error: {_e}")
+                    return True
                 except Exception:
                     pass
                 if i < startup_timeout_s - 1:
@@ -9767,15 +9714,13 @@ Just the new description that should replace the current one while preserving th
 
         # P0: Sanity check - verify run exists in API database before proceeding
         # This detects DB identity mismatch (API using different DB than expected)
-        try:
-            import requests
+        from autopack.supervisor.api_client import SupervisorApiHttpError
 
-            url = f"{self.api_url}/runs/{self.run_id}"
-            headers = {}
-            if self.api_key:
-                headers["X-API-Key"] = self.api_key
-            response = requests.get(url, headers=headers, timeout=10)
-            if response.status_code == 404:
+        try:
+            self.api_client.get_run(self.run_id, timeout=10)
+            logger.info(f"✅ Run '{self.run_id}' verified in API database")
+        except SupervisorApiHttpError as e:
+            if e.status_code == 404:
                 logger.error("=" * 70)
                 logger.error("[DB_MISMATCH] RUN NOT FOUND IN API DATABASE")
                 logger.error("=" * 70)
@@ -9797,13 +9742,10 @@ Just the new description that should replace the current one while preserving th
                     f"Database identity mismatch detected. "
                     f"Cannot proceed - would cause 404 errors on every API call."
                 )
-            response.raise_for_status()
-            logger.info(f"✅ Run '{self.run_id}' verified in API database")
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 404:
-                raise  # Re-raise 404 as RuntimeError handled above
-            logger.warning(f"Could not verify run existence (non-404 error): {e}")
-            # Continue anyway - might be transient API error
+            else:
+                # Non-404 error
+                logger.warning(f"Could not verify run existence (non-404 error): {e}")
+                # Continue anyway - might be transient API error
         except Exception as e:
             logger.warning(f"Could not verify run existence: {e}")
             # Continue anyway - don't block execution on sanity check failure

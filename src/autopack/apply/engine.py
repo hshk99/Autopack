@@ -181,10 +181,7 @@ def _validate_file_hunks(workspace: Path, file_path: str, hunks: List[Dict]) -> 
                 # Compare normalized lines (ignore trailing whitespace)
                 if context_line_normalized != actual_line_normalized:
                     # Allow minor differences (e.g., tabs vs spaces) for first line
-                    if (
-                        i == 0
-                        and context_line_normalized.strip() == actual_line_normalized.strip()
-                    ):
+                    if i == 0 and context_line_normalized.strip() == actual_line_normalized.strip():
                         continue
 
                     errors.append(

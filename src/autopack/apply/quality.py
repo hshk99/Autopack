@@ -440,9 +440,7 @@ def validate_yaml_syntax(file_path: Path) -> Tuple[bool, Optional[str]]:
         return False, str(e)
 
 
-def validate_applied_files(
-    workspace: Path, files_modified: List[str]
-) -> Tuple[bool, List[str]]:
+def validate_applied_files(workspace: Path, files_modified: List[str]) -> Tuple[bool, List[str]]:
     """
     Verify files are syntactically valid after patch application.
 
@@ -500,9 +498,7 @@ def validate_applied_files(
                 logger.debug(f"[Validation] OK: {rel_path}")
 
     if corrupted_files:
-        logger.error(
-            f"[Validation] {len(corrupted_files)} files corrupted after patch application"
-        )
+        logger.error(f"[Validation] {len(corrupted_files)} files corrupted after patch application")
         return False, corrupted_files
 
     logger.info(f"[Validation] All {len(files_modified)} modified files validated successfully")
@@ -586,9 +582,7 @@ def validate_content_changes(
 
         # Check 1: Symbol preservation for Python files
         if symbol_enabled and full_path.suffix == ".py":
-            is_valid, error = check_symbol_preservation(
-                old_content, new_content, max_lost_ratio
-            )
+            is_valid, error = check_symbol_preservation(old_content, new_content, max_lost_ratio)
             if not is_valid:
                 logger.warning(f"[Validation] SYMBOL_LOSS: {rel_path} - {error}")
                 problem_files.append(rel_path)
@@ -772,8 +766,6 @@ def validate_pack_schema(file_path: str, content: str) -> List[str]:
 
     sources = data.get("official_sources", [])
     if not isinstance(sources, list) or not sources:
-        errors.append(
-            f"Pack schema: 'official_sources' must be a non-empty list in {file_path}"
-        )
+        errors.append(f"Pack schema: 'official_sources' must be a non-empty list in {file_path}")
 
     return errors

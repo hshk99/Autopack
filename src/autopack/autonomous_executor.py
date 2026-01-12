@@ -323,6 +323,26 @@ class AutonomousExecutor:
         # Optional: Index SOT docs at startup if enabled
         self._maybe_index_sot_docs()
 
+        # PR-EXE-5: Initialize context preflight and retrieval injection (extracted modules)
+        from autopack.executor.context_preflight import ContextPreflight
+        from autopack.executor.retrieval_injection import RetrievalInjection
+        from autopack.config import settings
+
+        self.context_preflight = ContextPreflight(
+            max_files=40,
+            max_total_size_mb=5.0,
+            read_only_threshold_mb=2.0,
+            max_lines_hard_limit=self.builder_output_config.max_lines_hard_limit
+        )
+        self.retrieval_injection = RetrievalInjection.from_settings(settings)
+        logger.info(
+            f"[PR-EXE-5] Context preflight initialized (max_lines_hard_limit={self.builder_output_config.max_lines_hard_limit})"
+        )
+        logger.info(
+            f"[PR-EXE-5] Retrieval injection initialized (enabled={self.retrieval_injection.enabled}, "
+            f"sot_budget_limit={self.retrieval_injection.sot_budget_limit})"
+        )
+
         # Run file layout + diagnostics directories
         # Project ID is auto-detected from run_id prefix by RunFileLayout
         self.project_id = self._detect_project_id(self.run_id)
@@ -4514,30 +4534,19 @@ Just the new description that should replace the current one while preserving th
                 config = self.builder_output_config
                 files = file_context.get("existing_files", {})
 
+                # PR-EXE-5: Delegated to ContextPreflight module
                 # Per GPT_RESPONSE15: Simplified 2-bucket policy
                 # Bucket A: ≤1000 lines → full-file mode
-                # Bucket B: >1000 lines → fail fast (read-only context)
-                too_large = []  # Files >1000 lines - read-only context
+                # Bucket B: >1000 lines → read-only context
+                decision = self.context_preflight.decide_read_only(files)
 
-                for file_path, content in files.items():
-                    if not isinstance(content, str):
-                        continue
-                    line_count = content.count("\n") + 1
-
-                    # Bucket B: >1000 lines - mark as read-only context
-                    if line_count > config.max_lines_hard_limit:
-                        too_large.append((file_path, line_count))
-
-                # For files >1000 lines: Mark as read-only context
-                # These files can be READ but NOT modified
-                # Per GPT_RESPONSE15: Fail fast with clear error until structured edit mode is implemented
-                if too_large:
+                if decision.read_only:
                     logger.warning(
                         f"[{phase_id}] Large files in context (read-only, >{config.max_lines_hard_limit} lines): "
-                        f"{', '.join(p for p, _ in too_large)}"
+                        f"{', '.join(p for p, _ in decision.oversized_files)}"
                     )
                     # Record telemetry for each large file
-                    for file_path, line_count in too_large:
+                    for file_path, line_count in decision.oversized_files:
                         self.file_size_telemetry.record_preflight_reject(
                             run_id=self.run_id,
                             phase_id=phase_id,
@@ -7991,39 +8000,18 @@ Just the new description that should replace the current one while preserving th
             True if SOT retrieval should be included based on budget availability
 
         Notes:
+            - Delegated to RetrievalInjection module (PR-EXE-5)
             - SOT retrieval is only included if globally enabled AND budget allows
             - Budget check: max_context_chars >= (sot_budget + 2000)
             - The 2000-char reserve ensures room for other context sections
             - See docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md for integration pattern
         """
-        from autopack.config import settings
-
-        phase_prefix = f"[{phase_id}] " if phase_id else ""
-
-        # Global kill switch
-        if not settings.autopack_sot_retrieval_enabled:
-            logger.info(
-                f"{phase_prefix}[SOT] Retrieval disabled by config (autopack_sot_retrieval_enabled=false)"
-            )
-            return False
-
-        # Budget gating: ensure we have enough headroom for SOT + other context
-        sot_budget = settings.autopack_sot_retrieval_max_chars  # Default: 4000
-        min_required_budget = sot_budget + 2000  # Reserve 2K for non-SOT context
-
-        if max_context_chars < min_required_budget:
-            logger.info(
-                f"{phase_prefix}[SOT] Skipping retrieval - insufficient budget "
-                f"(available: {max_context_chars}, needs: {min_required_budget}, "
-                f"sot_cap={sot_budget}, reserve=2000)"
-            )
-            return False
-
-        logger.info(
-            f"{phase_prefix}[SOT] Including retrieval (budget: {max_context_chars}, "
-            f"sot_cap={sot_budget}, top_k={settings.autopack_sot_retrieval_top_k})"
+        # PR-EXE-5: Delegate to extracted RetrievalInjection module
+        gate = self.retrieval_injection.gate_sot_retrieval(
+            max_context_chars=max_context_chars,
+            phase_id=phase_id
         )
-        return True
+        return gate.allowed
 
     def _record_sot_retrieval_telemetry(
         self,

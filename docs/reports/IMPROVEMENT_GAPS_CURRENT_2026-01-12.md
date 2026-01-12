@@ -90,10 +90,22 @@ Current root Vite UI is clean and CI’d (lint/typecheck/build), but remaining i
 
 ### 1.5 Health checks correctness and operator trust (P2)
 
-Health checks are part of the operator interface; remaining improvements typically look like:
+**Health Check Correctness** ✅ ALREADY COMPLETE (Verified 2026-01-12)
 
-- Ensure health checks reflect the **configured DB backend** (Postgres connectivity checks vs SQLite file checks) and don’t create “false unhealthy” states.
-- Ensure “provider keys present” checks match the actual runtime behavior (e.g., “at least one configured provider” rather than “all providers required”).
+**Status**: Investigation confirmed both requirements are already implemented:
+
+1. **Backend-aware DB checks**: ✅ Implemented
+   - `HealthChecker.check_database()` detects Postgres vs SQLite via `DATABASE_URL`
+   - Postgres: TCP socket probe to host:port
+   - SQLite: File existence check
+   - **Verified in**: [test_health_checks.py](tests/unit/test_health_checks.py) lines 23-71
+
+2. **"At least one provider" semantics**: ✅ Implemented (PR-05)
+   - `HealthChecker.check_api_keys()` checks for ANY valid provider key
+   - Does NOT require all providers (Anthropic, OpenAI, Google)
+   - **Verified in**: [test_health_checks.py](tests/unit/test_health_checks.py) lines 85-129
+
+**Enforcement tests**: Existing unit tests in `tests/unit/test_health_checks.py` already validate both correctness requirements. Created additional enforcement test file [test_health_check_correctness_enforcement.py](tests/unit/test_health_check_correctness_enforcement.py) documenting the requirements explicitly for future maintainers.
 
 ### 1.6 Security “beyond README”: reduce accepted-debt surface area over time (P2/P3)
 

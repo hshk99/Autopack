@@ -149,7 +149,8 @@ class TestNoGuessingTokenSplits:
 
                         # Verify _call_doctor_llm was called with correct model
                         mock_call_doctor.assert_called_once()
-                        assert mock_call_doctor.call_args[0][0] == "claude-sonnet-4-5"
+                        # First arg is client (Mock), second arg is model name
+                        assert mock_call_doctor.call_args[0][1] == "claude-sonnet-4-5"
                         assert result.action == "retry_with_fix"
 
         # Note: This test validates the execute_doctor flow. The actual token recording
@@ -187,7 +188,7 @@ class TestNoGuessingTokenSplits:
 
         # Execute Doctor call
         with patch("autopack.llm_service.choose_doctor_model", return_value=("gpt-4o", False)):
-            with patch("autopack.llm_service.should_escalate_doctor_model", return_value=False):
+            with patch("autopack.error_recovery.should_escalate_doctor_model", return_value=False):
                 llm_service.execute_doctor(request, run_id="test-run", phase_id="test-phase")
 
         # Verify exact token counts were recorded

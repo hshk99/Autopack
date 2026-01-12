@@ -139,14 +139,45 @@ Current top Python files by LOC (mechanical scan):
 
 **Enforcement tests**: Existing unit tests in `tests/unit/test_health_checks.py` already validate both correctness requirements. Created additional enforcement test file [test_health_check_correctness_enforcement.py](tests/unit/test_health_check_correctness_enforcement.py) documenting the requirements explicitly for future maintainers.
 
-### 1.6 Security “beyond README”: reduce accepted-debt surface area over time (P2/P3)
+### 1.6 Security "beyond README": reduce accepted-debt surface area over time (P2/P3)
 
-Security baseline + diff gates are strong; remaining work is mostly “hardening maturity”:
+**Security Baseline Refresh** ✅ COMPLETE (2026-01-12)
 
-- Turn recurring accepted findings into either:
-  - **proved-safe invariants** (tests + docs), or
-  - **targeted remediations** where cheap (especially around artifact exposure/redaction and debug-mode constraints).
-- Decide whether any security workflows should move from “regression-only, informational” to “blocking” (only after stable baselines + low noise).
+**Status**: Security baseline is mature with strong compensating controls:
+
+**Achievements**:
+1. **Proved-Safe Invariants Documented**: Created [docs/SECURITY_INVARIANTS.md](docs/SECURITY_INVARIANTS.md) cataloging all 31 CodeQL findings with:
+   - INV-001: Log injection (26 findings) - proved safe via internal IDs only
+   - INV-002: Stack trace exposure (3 findings) - gated by DEBUG=1, CI enforced
+   - INV-003: Path injection (1 finding) - false positive, settings-based paths
+   - INV-005: Artifact redaction infrastructure - comprehensive patterns implemented
+
+2. **Test Coverage Added**: Created [tests/unit/test_security_invariants.py](tests/unit/test_security_invariants.py) (19 tests) proving:
+   - DEBUG mode safety (6 tests)
+   - Path injection protection (3 tests)
+   - Artifact redaction (5 tests)
+   - Log injection safety (3 tests)
+   - Documentation compliance (2 tests)
+
+3. **Workflow Maturity**: All security diff gates are BLOCKING (not informational):
+   - ✅ Trivy filesystem: `continue-on-error: false` (line 71 in [.github/workflows/security.yml](.github/workflows/security.yml))
+   - ✅ Trivy container: `continue-on-error: false` (line 132)
+   - ✅ CodeQL: `continue-on-error: false` (line 202)
+
+4. **Artifact Exposure Protection**: [src/autopack/artifacts/redaction.py](src/autopack/artifacts/redaction.py) provides:
+   - 15+ patterns covering credentials, PII, financial, session, network data
+   - HAR-specific redaction for browser artifacts
+   - Ready for production use (manual opt-in currently)
+
+**Baseline Health**:
+- Trivy: 0 CRITICAL/HIGH findings (clean state ✅)
+- CodeQL: 31 findings (all assessed as non-exploitable with compensating controls)
+- All findings documented in [SECURITY_BURNDOWN.md](docs/SECURITY_BURNDOWN.md)
+
+**Remaining Work** (Future enhancements, P3):
+- Auto-apply artifact redaction to all stored artifacts (currently manual opt-in)
+- Add artifact scanning to CI to verify redaction coverage
+- Quarterly review of security invariants per [SECURITY_INVARIANTS.md](docs/SECURITY_INVARIANTS.md) maintenance section
 
 ### 1.7 Compose/ops end-to-end smoke validation (P2) ✅ COMPLETE
 

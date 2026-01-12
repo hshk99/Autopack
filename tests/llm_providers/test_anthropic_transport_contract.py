@@ -107,7 +107,7 @@ def transport(mock_anthropic_client):
 def test_init_with_api_key():
     """Test initialization with explicit API key"""
     with patch("autopack.llm.providers.anthropic_transport.Anthropic") as mock_anthropic:
-        transport = AnthropicTransport(api_key="explicit-key")
+        _transport = AnthropicTransport(api_key="explicit-key")
         mock_anthropic.assert_called_once_with(
             api_key="explicit-key", timeout=AnthropicTransport.DEFAULT_TIMEOUT
         )
@@ -117,7 +117,7 @@ def test_init_with_env_api_key():
     """Test initialization with API key from environment"""
     with patch("autopack.llm.providers.anthropic_transport.Anthropic") as mock_anthropic:
         with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "env-key"}):
-            transport = AnthropicTransport()
+            _transport = AnthropicTransport()
             mock_anthropic.assert_called_once_with(
                 api_key="env-key", timeout=AnthropicTransport.DEFAULT_TIMEOUT
             )
@@ -136,7 +136,7 @@ def test_init_custom_timeout():
     """Test initialization with custom timeout"""
     with patch("autopack.llm.providers.anthropic_transport.Anthropic") as mock_anthropic:
         with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
-            transport = AnthropicTransport(timeout=120.0)
+            _transport = AnthropicTransport(timeout=120.0)
             mock_anthropic.assert_called_once_with(api_key="test-key", timeout=120.0)
 
 
@@ -193,7 +193,7 @@ def test_non_streaming_request_without_system_prompt(transport, mock_anthropic_c
     )
     mock_anthropic_client.messages.create.return_value = mock_response
 
-    response = transport.send_request(
+    _response = transport.send_request(
         messages=[{"role": "user", "content": "Test"}],
         model="claude-sonnet-4-5",
         max_tokens=500,
@@ -574,7 +574,7 @@ def test_multiple_messages_in_conversation(transport, mock_anthropic_client):
         {"role": "user", "content": "Second message"},
     ]
 
-    response = transport.send_request(
+    _response = transport.send_request(
         messages=messages, model="claude-sonnet-4-5", max_tokens=1000
     )
 

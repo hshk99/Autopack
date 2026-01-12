@@ -23,21 +23,25 @@ logger = logging.getLogger(__name__)
 
 class SupervisorApiError(Exception):
     """Base exception for Supervisor API client errors."""
+
     pass
 
 
 class SupervisorApiTimeoutError(SupervisorApiError):
     """Raised when API request times out."""
+
     pass
 
 
 class SupervisorApiNetworkError(SupervisorApiError):
     """Raised when network-level error occurs (connection refused, etc)."""
+
     pass
 
 
 class SupervisorApiHttpError(SupervisorApiError):
     """Raised when API returns non-2xx HTTP status."""
+
     def __init__(self, status_code: int, message: str, response_body: Optional[str] = None):
         super().__init__(message)
         self.status_code = status_code
@@ -58,12 +62,7 @@ class SupervisorApiClient:
     No raw requests.* calls should escape the executor.
     """
 
-    def __init__(
-        self,
-        base_url: str,
-        api_key: Optional[str] = None,
-        default_timeout: float = 10.0
-    ):
+    def __init__(self, base_url: str, api_key: Optional[str] = None, default_timeout: float = 10.0):
         """
         Initialize Supervisor API client.
 
@@ -103,7 +102,7 @@ class SupervisorApiClient:
         method: str,
         path: str,
         json: Optional[Dict[str, Any]] = None,
-        timeout: Optional[float] = None
+        timeout: Optional[float] = None,
     ) -> requests.Response:
         """
         Execute HTTP request with error mapping.
@@ -128,11 +127,7 @@ class SupervisorApiClient:
 
         try:
             response = requests.request(
-                method=method,
-                url=url,
-                headers=headers,
-                json=json,
-                timeout=timeout_val
+                method=method, url=url, headers=headers, json=json, timeout=timeout_val
             )
             response.raise_for_status()
             return response
@@ -143,9 +138,7 @@ class SupervisorApiClient:
             ) from e
 
         except requests.ConnectionError as e:
-            raise SupervisorApiNetworkError(
-                f"{method} {path} failed: {e}"
-            ) from e
+            raise SupervisorApiNetworkError(f"{method} {path} failed: {e}") from e
 
         except requests.HTTPError as e:
             # Extract response body for debugging
@@ -159,7 +152,7 @@ class SupervisorApiClient:
             raise SupervisorApiHttpError(
                 status_code=e.response.status_code if e.response else 0,
                 message=f"{method} {path} returned {e.response.status_code if e.response else 'unknown'}",
-                response_body=body
+                response_body=body,
             ) from e
 
     def check_health(self, timeout: float = 2.0) -> Dict[str, Any]:
@@ -198,11 +191,7 @@ class SupervisorApiClient:
         return response.json()
 
     def update_phase_status(
-        self,
-        run_id: str,
-        phase_id: str,
-        status: str,
-        timeout: float = 30.0
+        self, run_id: str, phase_id: str, status: str, timeout: float = 30.0
     ) -> Dict[str, Any]:
         """
         Update phase status.
@@ -223,16 +212,12 @@ class SupervisorApiClient:
             "POST",
             f"/runs/{run_id}/phases/{phase_id}/update_status",
             json={"state": status},
-            timeout=timeout
+            timeout=timeout,
         )
         return response.json()
 
     def submit_builder_result(
-        self,
-        run_id: str,
-        phase_id: str,
-        payload: Dict[str, Any],
-        timeout: Optional[float] = None
+        self, run_id: str, phase_id: str, payload: Dict[str, Any], timeout: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Submit builder phase result.
@@ -253,16 +238,12 @@ class SupervisorApiClient:
             "POST",
             f"/runs/{run_id}/phases/{phase_id}/builder_result",
             json=payload,
-            timeout=timeout
+            timeout=timeout,
         )
         return response.json()
 
     def submit_auditor_result(
-        self,
-        run_id: str,
-        phase_id: str,
-        payload: Dict[str, Any],
-        timeout: Optional[float] = None
+        self, run_id: str, phase_id: str, payload: Dict[str, Any], timeout: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Submit auditor review result.
@@ -283,14 +264,12 @@ class SupervisorApiClient:
             "POST",
             f"/runs/{run_id}/phases/{phase_id}/auditor_result",
             json=payload,
-            timeout=timeout
+            timeout=timeout,
         )
         return response.json()
 
     def request_approval(
-        self,
-        payload: Dict[str, Any],
-        timeout: Optional[float] = None
+        self, payload: Dict[str, Any], timeout: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Request human approval.
@@ -305,18 +284,11 @@ class SupervisorApiClient:
         Raises:
             SupervisorApiHttpError: On error
         """
-        response = self._request(
-            "POST",
-            "/approval/request",
-            json=payload,
-            timeout=timeout
-        )
+        response = self._request("POST", "/approval/request", json=payload, timeout=timeout)
         return response.json()
 
     def poll_approval_status(
-        self,
-        approval_id: str,
-        timeout: Optional[float] = None
+        self, approval_id: str, timeout: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Poll approval status.
@@ -331,17 +303,11 @@ class SupervisorApiClient:
         Raises:
             SupervisorApiHttpError: On 404 (approval not found) or other errors
         """
-        response = self._request(
-            "GET",
-            f"/approval/status/{approval_id}",
-            timeout=timeout
-        )
+        response = self._request("GET", f"/approval/status/{approval_id}", timeout=timeout)
         return response.json()
 
     def request_clarification(
-        self,
-        payload: Dict[str, Any],
-        timeout: Optional[float] = None
+        self, payload: Dict[str, Any], timeout: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Request clarification for Build-113 scenarios.
@@ -356,18 +322,11 @@ class SupervisorApiClient:
         Raises:
             SupervisorApiHttpError: On error
         """
-        response = self._request(
-            "POST",
-            "/clarification/request",
-            json=payload,
-            timeout=timeout
-        )
+        response = self._request("POST", "/clarification/request", json=payload, timeout=timeout)
         return response.json()
 
     def poll_clarification_status(
-        self,
-        phase_id: str,
-        timeout: Optional[float] = None
+        self, phase_id: str, timeout: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Poll clarification status.
@@ -382,9 +341,5 @@ class SupervisorApiClient:
         Raises:
             SupervisorApiHttpError: On 404 or other errors
         """
-        response = self._request(
-            "GET",
-            f"/clarification/status/{phase_id}",
-            timeout=timeout
-        )
+        response = self._request("GET", f"/clarification/status/{phase_id}", timeout=timeout)
         return response.json()

@@ -276,9 +276,7 @@ class AutonomousExecutor:
 
         # Initialize SupervisorApiClient for all HTTP communication (BUILD-135)
         self.api_client = SupervisorApiClient(
-            base_url=self.api_url,
-            api_key=self.api_key,
-            default_timeout=10.0
+            base_url=self.api_url, api_key=self.api_key, default_timeout=10.0
         )
         logger.info("SupervisorApiClient initialized")
 

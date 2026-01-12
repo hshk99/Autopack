@@ -10,7 +10,6 @@ ensuring correct enforcement of:
 - Path normalization (Windows/POSIX)
 """
 
-import pytest
 
 from autopack.patching.policy import PatchPolicy, ValidationResult
 

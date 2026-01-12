@@ -102,6 +102,14 @@ from autopack.executor.approval_flow import (
     request_build113_clarification,
 )
 
+# PR-EXE-4: Run checkpoint and rollback extraction
+from autopack.executor.run_checkpoint import (
+    create_run_checkpoint,
+    rollback_to_run_checkpoint,
+    create_deletion_savepoint,
+    create_execute_fix_checkpoint,
+)
+
 
 # Configure logging
 from dotenv import load_dotenv

@@ -11,7 +11,6 @@ Coverage:
 """
 
 import pytest
-from pathlib import Path
 from autopack.executor.ci_runner import (
     parse_pytest_counts,
     trim_ci_output,

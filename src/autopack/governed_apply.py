@@ -24,7 +24,7 @@ from typing import List, Tuple, Optional, Dict, Set
 from .repair_helpers import YamlRepairHelper, save_repair_debug
 from .rollback_manager import RollbackManager
 from .config import settings
-from .patching.policy import PatchPolicy, ValidationResult
+from .patching.policy import PatchPolicy
 from .patching.patch_sanitize import (
     sanitize_patch,
     fix_empty_file_diffs,
@@ -375,7 +375,6 @@ class GovernedApplyPath:
                     )
 
             # Log summary
-            protected_count = len([v for v in result.violations if v.startswith("Protected")])
             scope_count = len([v for v in result.violations if v.startswith("Outside")])
 
             if scope_count > 0:

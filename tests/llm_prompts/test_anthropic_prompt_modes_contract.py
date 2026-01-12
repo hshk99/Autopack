@@ -15,7 +15,6 @@ Test Coverage:
 8. Prompt construction is deterministic (same inputs → same output)
 """
 
-import pytest
 from src.autopack.llm.prompts.anthropic_builder_prompts import (
     build_system_prompt,
     build_minimal_system_prompt,

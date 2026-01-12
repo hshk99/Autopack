@@ -6,8 +6,7 @@ or explanatory text, and that the response structure is validated correctly.
 Part of PR-SVC-3 (Item 1.1 god file refactoring).
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 from autopack.llm.doctor import execute_doctor, _parse_doctor_json
 from autopack.error_recovery import DoctorRequest, DoctorResponse
 

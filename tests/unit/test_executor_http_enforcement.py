@@ -11,6 +11,12 @@ Why this is useful:
 - Prevents the raw-HTTP pattern from spreading to any executor code
 - All HTTP communication flows through the typed SupervisorApiClient
 - HTTP concerns are isolated to a single, testable boundary
+
+Allowed raw HTTP zones:
+- `src/autopack/supervisor/api_client.py` — The ONLY place `requests.*` should exist
+  for executor-to-supervisor communication. All other executor code must use this client.
+- Future contributors: If you need to add HTTP transport, extend SupervisorApiClient
+  rather than adding raw `requests.*` calls elsewhere.
 """
 
 import re

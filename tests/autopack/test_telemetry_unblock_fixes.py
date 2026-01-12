@@ -25,7 +25,7 @@ class TestT1PromptFixes:
         """Test that paths ending with / are annotated as directory prefixes."""
         from autopack.anthropic_clients import AnthropicBuilderClient
 
-        client = AnthropicBuilderClient()
+        client = AnthropicBuilderClient(api_key="test-key")
 
         phase_spec = {
             "description": "Create utility module",
@@ -62,7 +62,7 @@ class TestT1PromptFixes:
         """Test that REQUIRED DELIVERABLES section is added when deliverables exist."""
         from autopack.anthropic_clients import AnthropicBuilderClient
 
-        client = AnthropicBuilderClient()
+        client = AnthropicBuilderClient(api_key="test-key")
 
         phase_spec = {
             "description": "Create utility module",

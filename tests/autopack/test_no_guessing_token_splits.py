@@ -117,31 +117,38 @@ class TestNoGuessingTokenSplits:
             suggested_patch=None,
         )
 
-        # Patch _call_doctor_llm to verify it's called but return our mock response
-        with patch.object(
-            llm_service, "_call_doctor_llm", return_value=mock_response
+        # Mock a client object for doctor execution
+        mock_client = Mock()
+        mock_client.client = Mock()
+
+        # Patch _call_doctor_llm in the doctor module where it now lives
+        with patch(
+            "autopack.llm.doctor._call_doctor_llm", return_value=mock_response
         ) as mock_call_doctor:
             with patch(
-                "autopack.llm_service.choose_doctor_model",
+                "autopack.llm.doctor.choose_doctor_model",
                 return_value=("claude-sonnet-4-5", False),
             ):
-                with patch("autopack.llm_service.should_escalate_doctor_model", return_value=False):
-                    request = DoctorRequest(
-                        phase_id="test-phase",
-                        error_category="patch_apply_error",
-                        builder_attempts=2,
-                        health_budget={"total_failures": 5, "total_cap": 25},
-                        run_id="test-run",
-                    )
+                with patch("autopack.llm.doctor.should_escalate_doctor_model", return_value=False):
+                    with patch.object(
+                        llm_service, "_resolve_client_and_model", return_value=(mock_client, "claude-sonnet-4-5")
+                    ):
+                        request = DoctorRequest(
+                            phase_id="test-phase",
+                            error_category="patch_apply_error",
+                            builder_attempts=2,
+                            health_budget={"total_failures": 5, "total_cap": 25},
+                            run_id="test-run",
+                        )
 
-                    result = llm_service.execute_doctor(
-                        request, run_id="test-run", phase_id="test-phase"
-                    )
+                        result = llm_service.execute_doctor(
+                            request, run_id="test-run", phase_id="test-phase"
+                        )
 
-                    # Verify _call_doctor_llm was called with correct model
-                    mock_call_doctor.assert_called_once()
-                    assert mock_call_doctor.call_args[0][0] == "claude-sonnet-4-5"
-                    assert result.action == "retry_with_fix"
+                        # Verify _call_doctor_llm was called with correct model
+                        mock_call_doctor.assert_called_once()
+                        assert mock_call_doctor.call_args[0][0] == "claude-sonnet-4-5"
+                        assert result.action == "retry_with_fix"
 
         # Note: This test validates the execute_doctor flow. The actual token recording
         # is tested in test_doctor_no_guessing_openai which validates _call_doctor_llm behavior

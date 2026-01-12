@@ -214,7 +214,7 @@ gh run watch <run-id>
 2. **Changes Path** (baselines drifted):
    - PR created: `security/baseline-refresh-YYYYMMDD-<run-id>`
    - Label: `security-baseline-update`
-   - SECBASE entry: **STUB with TODO markers** (not ready to merge)
+   - SECBASE entry: **STUB with PLACEHOLDER markers** (not ready to merge)
    - CI blocks merge until SECBASE entry completed
 
 **Completing SECBASE Entry** (changes path only):
@@ -230,8 +230,8 @@ gh run watch <run-id>
    ```
 
 3. **Complete SECBASE entry in docs/SECURITY_LOG.md**:
-   - Replace `## SECBASE-TODO-REPLACE-WITH-REAL-CONTENT` with `## SECBASE-YYYYMMDD: <descriptive title>`
-   - Replace all `TODO` markers with actual content:
+   - Replace `## SECBASE-PLACEHOLDER-REPLACE-WITH-REAL-CONTENT` with `## SECBASE-YYYYMMDD: <descriptive title>`
+   - Replace all `PLACEHOLDER` markers with actual content:
      - Before/after finding counts (extract from workflow logs or run `diff_gate.py --report`)
      - Rationale for baseline changes (e.g., "dependency upgrade: requests 2.28→2.31", "CVE-2024-XXXX remediation")
      - Security team reviewer name
@@ -263,7 +263,7 @@ gh run watch <run-id>
 
 - **PR created despite no changes**: Check SECURITY_BURNDOWN.md timestamp (should be SECBASE-anchored, not git date). See PR #34 fix.
 - **Workflow fails with "artifacts not found"**: Phase A (security-artifacts.yml) must run successfully first. Trigger manually if needed.
-- **CI blocks merge despite completed SECBASE entry**: Check for lingering `TODO` markers in SECBASE section via `grep -A20 "## SECBASE-YYYYMMDD" docs/SECURITY_LOG.md`
+- **CI blocks merge despite completed SECBASE entry**: Check for lingering `PLACEHOLDER` markers in SECBASE section via `grep -A20 "## SECBASE-YYYYMMDD" docs/SECURITY_LOG.md`
 
 ---
 

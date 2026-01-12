@@ -16,7 +16,6 @@ Rationale (from IMPROVEMENT_GAPS_CURRENT_2026-01-12.md Section 1.3):
 This test will FAIL if someone adds direct HTTP calls to the executor.
 """
 
-import os
 import re
 from pathlib import Path
 
@@ -47,14 +46,13 @@ def test_executor_never_uses_raw_http_requests():
     # This catches direct HTTP calls but not imports or comments
     # Negative lookbehind (?<!#) ensures we don't match lines that start with # (after optional whitespace)
     raw_http_pattern = re.compile(
-        r"^\s*(?!#).*\brequests\.(get|post|put|patch|delete|request)\s*\(",
-        re.MULTILINE
+        r"^\s*(?!#).*\brequests\.(get|post|put|patch|delete|request)\s*\(", re.MULTILINE
     )
 
     violations = []
     for match in raw_http_pattern.finditer(content):
         # Extract line number and context
-        line_number = content[:match.start()].count("\n") + 1
+        line_number = content[: match.start()].count("\n") + 1
         line_start = content.rfind("\n", 0, match.start()) + 1
         line_end = content.find("\n", match.start())
         if line_end == -1:
@@ -67,26 +65,28 @@ def test_executor_never_uses_raw_http_requests():
     if violations:
         error_lines = [
             "\n",
-            "="*80,
+            "=" * 80,
             "BUILD-135 VIOLATION: Executor uses raw HTTP calls instead of SupervisorApiClient",
-            "="*80,
+            "=" * 80,
             "",
             "The following lines in autonomous_executor.py make direct requests.* calls:",
-            ""
+            "",
         ]
         for line_num, line_text in violations:
             error_lines.append(f"  Line {line_num}: {line_text[:100]}")
 
-        error_lines.extend([
-            "",
-            "Fix: Replace with SupervisorApiClient methods:",
-            "  - requests.get(f\"{self.api_url}/health\") → self.api_client.check_health()",
-            "  - requests.post(..., json=payload) → self.api_client.update_phase_status(...)",
-            "",
-            "See: src/autopack/supervisor/api_client.py for available methods",
-            "See: IMPROVEMENT_GAPS_CURRENT_2026-01-12.md Section 1.3 for rationale",
-            "="*80
-        ])
+        error_lines.extend(
+            [
+                "",
+                "Fix: Replace with SupervisorApiClient methods:",
+                '  - requests.get(f"{self.api_url}/health") → self.api_client.check_health()',
+                "  - requests.post(..., json=payload) → self.api_client.update_phase_status(...)",
+                "",
+                "See: src/autopack/supervisor/api_client.py for available methods",
+                "See: IMPROVEMENT_GAPS_CURRENT_2026-01-12.md Section 1.3 for rationale",
+                "=" * 80,
+            ]
+        )
 
         assert False, "\n".join(error_lines)
 
@@ -100,14 +100,13 @@ def test_executor_http_enforcement_test_is_comprehensive():
     """
     # Pattern from the main test
     raw_http_pattern = re.compile(
-        r"^\s*(?!#).*\brequests\.(get|post|put|patch|delete|request)\s*\(",
-        re.MULTILINE
+        r"^\s*(?!#).*\brequests\.(get|post|put|patch|delete|request)\s*\(", re.MULTILINE
     )
 
     # Should match (violations)
     violations = [
         "response = requests.get(url, headers=headers)",
-        "    requests.post(f\"{api_url}/runs\", json=data)",
+        '    requests.post(f"{api_url}/runs", json=data)',
         "result = requests.put(endpoint, timeout=30)",
         "  resp = requests.delete(url)",
         "    response = requests.request('GET', url)",

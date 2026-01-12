@@ -10,7 +10,6 @@ These tests verify that the executor's HTTP client:
 This enforces the "executor never talks raw HTTP" contract (BUILD-135).
 """
 
-import json
 from unittest.mock import Mock, patch
 
 import pytest
@@ -18,7 +17,6 @@ import requests
 
 from autopack.supervisor import (
     SupervisorApiClient,
-    SupervisorApiError,
     SupervisorApiHttpError,
     SupervisorApiNetworkError,
     SupervisorApiTimeoutError,
@@ -154,7 +152,9 @@ class TestSupervisorApiClientErrorMapping:
 
         with patch("requests.request", return_value=mock_response):
             with pytest.raises(SupervisorApiHttpError) as exc_info:
-                client._request("POST", "/runs/123/phases/456/builder_result", json={"test": "data"})
+                client._request(
+                    "POST", "/runs/123/phases/456/builder_result", json={"test": "data"}
+                )
 
             assert exc_info.value.status_code == 500
             assert "Internal server error" in exc_info.value.response_body
@@ -169,7 +169,11 @@ class TestSupervisorApiClientHealthCheck:
 
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {"service": "autopack", "status": "healthy", "db_ok": True}
+        mock_response.json.return_value = {
+            "service": "autopack",
+            "status": "healthy",
+            "db_ok": True,
+        }
         mock_response.raise_for_status = Mock()
 
         with patch("requests.request", return_value=mock_response) as mock_request:
@@ -181,7 +185,7 @@ class TestSupervisorApiClientHealthCheck:
                 url="http://localhost:8000/health",
                 headers={"Content-Type": "application/json"},
                 json=None,
-                timeout=2.0
+                timeout=2.0,
             )
 
     def test_check_health_uses_custom_timeout(self):
@@ -258,7 +262,10 @@ class TestSupervisorApiClientBuilderResults:
 
             assert mock_request.call_args.kwargs["method"] == "POST"
             assert mock_request.call_args.kwargs["json"] == payload
-            assert "runs/run-123/phases/phase-456/builder_result" in mock_request.call_args.kwargs["url"]
+            assert (
+                "runs/run-123/phases/phase-456/builder_result"
+                in mock_request.call_args.kwargs["url"]
+            )
 
 
 class TestSupervisorApiClientAuditorResults:
@@ -280,7 +287,10 @@ class TestSupervisorApiClientAuditorResults:
 
             assert mock_request.call_args.kwargs["method"] == "POST"
             assert mock_request.call_args.kwargs["json"] == payload
-            assert "runs/run-123/phases/phase-456/auditor_result" in mock_request.call_args.kwargs["url"]
+            assert (
+                "runs/run-123/phases/phase-456/auditor_result"
+                in mock_request.call_args.kwargs["url"]
+            )
 
 
 class TestSupervisorApiClientApprovals:
@@ -341,7 +351,10 @@ class TestSupervisorApiClientClarifications:
 
             assert result["phase_id"] == "phase-456"
             assert mock_request.call_args.kwargs["method"] == "POST"
-            assert mock_request.call_args.kwargs["url"] == "http://localhost:8000/clarification/request"
+            assert (
+                mock_request.call_args.kwargs["url"]
+                == "http://localhost:8000/clarification/request"
+            )
 
     def test_poll_clarification_status_gets_status_by_phase_id(self):
         """poll_clarification_status() should GET clarification status by phase_id."""

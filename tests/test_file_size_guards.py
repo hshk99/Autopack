@@ -178,7 +178,7 @@ class TestParserGuards:
 
     def test_readonly_enforcement_rejects_large_file_modification(self, config, mock_response):
         """Parser should reject JSON that tries to modify read-only files"""
-        client = AnthropicBuilderClient()
+        client = AnthropicBuilderClient(api_key="test-key")
 
         # Simulate LLM trying to modify a 1200-line file (read-only)
         file_path = "large_file.py"
@@ -207,7 +207,7 @@ class TestParserGuards:
 
     def test_shrinkage_detection_rejects_80_percent_reduction(self, config, mock_response):
         """Parser should reject >60% shrinkage without explicit opt-in"""
-        client = AnthropicBuilderClient()
+        client = AnthropicBuilderClient(api_key="test-key")
 
         file_path = "test.py"
         # Use 400 lines (within read-only limit of 500) to test shrinkage detection
@@ -235,7 +235,7 @@ class TestParserGuards:
 
     def test_shrinkage_allowed_with_opt_in(self, config, mock_response):
         """Parser should allow >60% shrinkage with allow_mass_deletion: true"""
-        client = AnthropicBuilderClient()
+        client = AnthropicBuilderClient(api_key="test-key")
 
         file_path = "test.py"
         old_content = "\n".join(["line"] * 1000)  # 1000 lines
@@ -265,7 +265,7 @@ class TestParserGuards:
 
     def test_growth_detection_rejects_5x_increase(self, config, mock_response):
         """Parser should reject >3x growth without explicit opt-in"""
-        client = AnthropicBuilderClient()
+        client = AnthropicBuilderClient(api_key="test-key")
 
         file_path = "test.py"
         old_content = "\n".join(["line"] * 200)  # 200 lines
@@ -292,7 +292,7 @@ class TestParserGuards:
 
     def test_growth_allowed_with_opt_in(self, config, mock_response):
         """Parser should allow >3x growth with allow_mass_addition: true"""
-        client = AnthropicBuilderClient()
+        client = AnthropicBuilderClient(api_key="test-key")
 
         file_path = "test.py"
         old_content = "\n".join(["line"] * 200)  # 200 lines

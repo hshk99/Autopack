@@ -153,14 +153,14 @@ class TestInv003PathInjection:
 
             # Check for path traversal indicators
             has_traversal = ".." in str(path)
-            # On Windows, /etc/passwd is NOT absolute (it's relative)
-            # But it would be rejected by artifact endpoint for other reasons
-            is_absolute = path.is_absolute()
+            # Check for Windows drive letters (cross-platform compatible, aligns with router logic)
+            is_windows_drive = len(path_str) > 1 and path_str[1] == ":"
+            # Check for Unix absolute paths
             is_unix_absolute = path_str.startswith("/") and not path_str.startswith("//")
 
             # At least one safety check should trigger
             assert (
-                has_traversal or is_absolute or is_unix_absolute
+                has_traversal or is_windows_drive or is_unix_absolute
             ), f"Path {path_str} should be rejected"
 
 

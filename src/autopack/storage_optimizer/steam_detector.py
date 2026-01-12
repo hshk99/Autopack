@@ -5,11 +5,17 @@ Detects installed Steam games and identifies cleanup opportunities.
 Addresses user's original request: "detect and suggest moving large uninstalled games"
 """
 
-import winreg
+import sys
 from typing import List, Dict, Optional
 from pathlib import Path
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+
+# Platform-guarded import: winreg is Windows-only
+if sys.platform == "win32":
+    import winreg  # type: ignore[import-not-found]
+else:
+    winreg = None  # type: ignore[assignment]
 
 
 @dataclass
@@ -56,6 +62,10 @@ class SteamGameDetector:
 
     def _find_steam_installation(self) -> Optional[Path]:
         """Find Steam installation via Windows registry."""
+        # Only available on Windows
+        if winreg is None:
+            return None
+
         try:
             # Try HKEY_CURRENT_USER first (most common)
             key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam")

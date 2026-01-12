@@ -240,12 +240,12 @@ class TestLegacyApprovalPathDocumentation:
         """AUTO_APPROVE_BUILD113 legacy behavior should be documented."""
         # This is a contract test - verify the env var is used
 
-        # The legacy auto-approve flag exists in the codebase
+        # The legacy auto-approve flag exists in the codebase (refactored to approvals router)
         # It should be documented somewhere
-        main_path = "src/autopack/main.py"
-        with open(main_path, "r", encoding="utf-8") as f:
+        approvals_path = "src/autopack/api/routes/approvals.py"
+        with open(approvals_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         assert (
             "AUTO_APPROVE_BUILD113" in content
-        ), "AUTO_APPROVE_BUILD113 legacy flag should exist in main.py"
+        ), "AUTO_APPROVE_BUILD113 legacy flag should exist in approvals.py"

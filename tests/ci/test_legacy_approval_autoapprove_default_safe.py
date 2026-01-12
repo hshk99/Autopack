@@ -18,11 +18,11 @@ class TestLegacyApprovalSafeDefault:
 
     @pytest.fixture
     def main_py_content(self):
-        """Read src/autopack/main.py content."""
-        main_path = Path("src/autopack/main.py")
-        if not main_path.exists():
-            pytest.skip("main.py not found")
-        return main_path.read_text(encoding="utf-8")
+        """Read src/autopack/api/routes/approvals.py content (refactored from approvals.py)."""
+        approvals_path = Path("src/autopack/api/routes/approvals.py")
+        if not approvals_path.exists():
+            pytest.skip("approvals.py not found")
+        return approvals_path.read_text(encoding="utf-8")
 
     def test_auto_approve_defaults_to_false(self, main_py_content):
         """AUTO_APPROVE_BUILD113 must default to 'false', not 'true'.
@@ -37,7 +37,7 @@ class TestLegacyApprovalSafeDefault:
         matches = re.findall(pattern, main_py_content)
 
         assert matches, (
-            "AUTO_APPROVE_BUILD113 env var default not found in main.py. "
+            "AUTO_APPROVE_BUILD113 env var default not found in approvals.py. "
             "Expected: os.getenv('AUTO_APPROVE_BUILD113', 'false')"
         )
 
@@ -58,7 +58,7 @@ class TestLegacyApprovalSafeDefault:
         # Pattern should show: production check AND env var check
         assert (
             "env_mode" in main_py_content or "AUTOPACK_ENV" in main_py_content
-        ), "main.py should check AUTOPACK_ENV for production mode protection"
+        ), "approvals.py should check AUTOPACK_ENV for production mode protection"
 
         # Check for production blocking pattern
         # Looking for: env_mode != "production" or similar
@@ -74,7 +74,7 @@ class TestLegacyApprovalSafeDefault:
         )
 
         assert has_production_check, (
-            "main.py must block auto-approve in production mode. "
+            "approvals.py must block auto-approve in production mode. "
             "Expected pattern: auto_approve = auto_approve_env and env_mode != 'production'"
         )
 

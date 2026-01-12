@@ -108,6 +108,14 @@ from autopack.executor.context_loading_heuristic import (
     get_default_priority_files,
 )
 
+# PR-EXE-4: Run checkpoint and rollback extraction
+from autopack.executor.run_checkpoint import (
+    create_run_checkpoint,
+    rollback_to_run_checkpoint,
+    create_deletion_savepoint,
+    create_execute_fix_checkpoint,
+)
+
 
 # Configure logging
 from dotenv import load_dotenv

@@ -7,7 +7,7 @@ BUILD-144 P0: Tests ensure correct handling of exact token counts vs total-only 
 """
 
 import pytest
-from datetime import datetime, timezone
+from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 

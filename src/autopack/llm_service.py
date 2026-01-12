@@ -46,15 +46,9 @@ from .error_recovery import (
     DoctorResponse,
     DoctorContextSummary,
     choose_doctor_model,
-    should_escalate_doctor_model,
 )
 from .dual_auditor import DualAuditor
 from .llm.client_resolution import resolve_client_and_model
-from .llm.usage import (
-    record_usage as record_usage_impl,
-    record_usage_total_only as record_usage_total_only_impl,
-    model_to_provider,
-)
 from .llm import doctor
 
 # Import OpenAI clients with graceful fallback

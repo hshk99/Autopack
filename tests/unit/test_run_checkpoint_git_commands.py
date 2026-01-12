@@ -7,9 +7,8 @@ No real git operations are performed.
 
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, call, patch
+from unittest.mock import MagicMock, Mock, patch
 
-import pytest
 
 from autopack.executor.run_checkpoint import (
     create_checkpoint,

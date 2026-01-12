@@ -12,7 +12,7 @@ Related:
 import os
 import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 class TestInv002DebugModeStackTraces:

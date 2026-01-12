@@ -93,11 +93,7 @@ def trim_ci_output(output: str, limit: int = 10000) -> str:
 
 
 def persist_ci_log(
-    log_name: str,
-    content: str,
-    phase_id: str,
-    workspace: Path,
-    run_id: str
+    log_name: str, content: str, phase_id: str, workspace: Path, run_id: str
 ) -> Optional[Path]:
     """Persist CI log to disk for downstream components.
 
@@ -166,9 +162,7 @@ def run_pytest_ci(
 
     workdir = workspace / ci_spec.get("workdir", ".")
     if not workdir.exists():
-        logger.warning(
-            f"[{phase_id}] CI workdir {workdir} missing, defaulting to workspace root"
-        )
+        logger.warning(f"[{phase_id}] CI workdir {workdir} missing, defaulting to workspace root")
         workdir = workspace
 
     # Determine pytest paths
@@ -385,9 +379,7 @@ def run_custom_ci(
 
     workdir = workspace / ci_spec.get("workdir", ".")
     if not workdir.exists():
-        logger.warning(
-            f"[{phase_id}] CI workdir {workdir} missing, defaulting to workspace root"
-        )
+        logger.warning(f"[{phase_id}] CI workdir {workdir} missing, defaulting to workspace root")
         workdir = workspace
 
     # Setup command execution
@@ -444,9 +436,7 @@ def run_custom_ci(
     message = ci_spec.get("success_message") if passed else ci_spec.get("failure_message")
     if not message:
         message = (
-            "CI command succeeded"
-            if passed
-            else f"CI command failed (exit {result.returncode})"
+            "CI command succeeded" if passed else f"CI command failed (exit {result.returncode})"
         )
 
     if passed:
@@ -498,9 +488,7 @@ def run_ci_checks(
     if os.getenv("AUTOPACK_SKIP_CI") == "1":
         is_telemetry_run = run_id.startswith("telemetry-collection-")
         if is_telemetry_run:
-            logger.info(
-                f"[{phase_id}] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)"
-            )
+            logger.info(f"[{phase_id}] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)")
             return None
         else:
             logger.warning(
@@ -540,6 +528,4 @@ def run_ci_checks(
     if ci_type == "custom":
         return run_custom_ci(phase_id, ci_spec, workspace, run_id)
     else:
-        return run_pytest_ci(
-            phase_id, ci_spec, workspace, run_id, project_slug, phase_finalizer
-        )
+        return run_pytest_ci(phase_id, ci_spec, workspace, run_id, project_slug, phase_finalizer)

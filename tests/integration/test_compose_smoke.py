@@ -101,9 +101,9 @@ class TestAuthPrefixPreservation:
             # Connection refused = routing broken (will raise exception)
 
             acceptable_codes = [200, 401, 404, 405, 422, 500]
-            assert response.status_code in acceptable_codes, (
-                f"Unexpected status {response.status_code} suggests routing issue"
-            )
+            assert (
+                response.status_code in acceptable_codes
+            ), f"Unexpected status {response.status_code} suggests routing issue"
 
         except requests.exceptions.ConnectionError:
             pytest.fail(
@@ -134,9 +134,10 @@ class TestBackendReadiness:
         db_status = health_data.get("database_status", "unknown")
 
         # Database should be healthy or connected
-        assert db_status in ["healthy", "connected"], (
-            f"Database status '{db_status}' indicates backend cannot reach db"
-        )
+        assert db_status in [
+            "healthy",
+            "connected",
+        ], f"Database status '{db_status}' indicates backend cannot reach db"
 
     def test_backend_qdrant_connectivity_or_disabled(self, compose_stack):
         """Backend should report Qdrant as connected or explicitly disabled."""
@@ -150,9 +151,9 @@ class TestBackendReadiness:
         # Qdrant should be either connected or disabled (both are valid states)
         # If status is "error" or "unknown", that suggests a configuration issue
         acceptable_states = ["connected", "disabled", "error"]  # error is warning-level
-        assert qdrant_status in acceptable_states, (
-            f"Qdrant status '{qdrant_status}' suggests unexpected state"
-        )
+        assert (
+            qdrant_status in acceptable_states
+        ), f"Qdrant status '{qdrant_status}' suggests unexpected state"
 
 
 class TestDatabaseContainer:
@@ -167,9 +168,7 @@ class TestDatabaseContainer:
             timeout=10,
         )
 
-        assert result.returncode == 0, (
-            f"pg_isready failed: {result.stderr}"
-        )
+        assert result.returncode == 0, f"pg_isready failed: {result.stderr}"
 
 
 class TestQdrantContainer:
@@ -195,9 +194,10 @@ class TestQdrantContainer:
         try:
             response = requests.get("http://localhost:6333/", timeout=5)
             # Any response means port is exposed and reachable
-            assert response.status_code in [200, 404], (
-                f"Unexpected Qdrant response: {response.status_code}"
-            )
+            assert response.status_code in [
+                200,
+                404,
+            ], f"Unexpected Qdrant response: {response.status_code}"
         except requests.exceptions.ConnectionError:
             # Port might not be exposed externally, check via backend health instead
             pytest.skip("Qdrant port not exposed externally (this is OK)")
@@ -227,9 +227,7 @@ class TestEndToEndSmoke:
 
         # 3. Database connectivity
         db_status = health_data.get("database_status", "unknown")
-        assert db_status in ["healthy", "connected"], (
-            f"database not reachable: {db_status}"
-        )
+        assert db_status in ["healthy", "connected"], f"database not reachable: {db_status}"
 
         # 4. Qdrant connectivity (soft check)
         qdrant_status = health_data.get("qdrant_status", "unknown")
@@ -240,6 +238,4 @@ class TestEndToEndSmoke:
         # 5. Auth routing works
         auth_resp = requests.get(f"{NGINX_BASE}/api/auth/login", timeout=TIMEOUT)
         # Any response (including 401) means routing works
-        assert auth_resp.status_code in [200, 401, 404, 405, 422], (
-            "auth routing may be broken"
-        )
+        assert auth_resp.status_code in [200, 401, 404, 405, 422], "auth routing may be broken"

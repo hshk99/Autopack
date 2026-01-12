@@ -192,9 +192,7 @@ class HeuristicContextLoader:
                 continue
 
         if mentioned_count > 0:
-            logger.info(
-                f"[Context] Loaded {mentioned_count} files mentioned in phase description"
-            )
+            logger.info(f"[Context] Loaded {mentioned_count} files mentioned in phase description")
 
         # Priority 2: Key config files (always include if they exist)
         for filename in priority_files:
@@ -256,7 +254,9 @@ class HeuristicContextLoader:
 
         return recently_modified
 
-    def extract_mentioned_files(self, phase_description: str, acceptance_criteria: Optional[List[str]] = None) -> List[str]:
+    def extract_mentioned_files(
+        self, phase_description: str, acceptance_criteria: Optional[List[str]] = None
+    ) -> List[str]:
         """Extract file paths mentioned in phase description.
 
         Args:
@@ -285,9 +285,7 @@ class HeuristicContextLoader:
     def _is_valid_path_string(path: str) -> bool:
         """Validate that path is a non-empty string."""
         if not isinstance(path, str):
-            logger.warning(
-                f"[Context] Skipping non-string path: {path} (type: {type(path)})"
-            )
+            logger.warning(f"[Context] Skipping non-string path: {path} (type: {type(path)})")
             return False
         if not path or not path.strip():
             return False

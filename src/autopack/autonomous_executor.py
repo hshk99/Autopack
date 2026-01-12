@@ -346,7 +346,7 @@ class AutonomousExecutor:
             max_files=40,
             max_total_size_mb=5.0,
             read_only_threshold_mb=2.0,
-            max_lines_hard_limit=self.builder_output_config.max_lines_hard_limit
+            max_lines_hard_limit=self.builder_output_config.max_lines_hard_limit,
         )
         self.retrieval_injection = RetrievalInjection.from_settings(settings)
         logger.info(
@@ -359,9 +359,7 @@ class AutonomousExecutor:
 
         # PR-EXE-6: Initialize heuristic context loader (extracted module)
         self.heuristic_loader = HeuristicContextLoader(
-            max_files=40,
-            target_tokens=20000,
-            max_chars_per_file=15000
+            max_files=40, target_tokens=20000, max_chars_per_file=15000
         )
         logger.info("[PR-EXE-6] Heuristic context loader initialized")
 
@@ -7876,8 +7874,7 @@ Just the new description that should replace the current one while preserving th
         """
         # PR-EXE-5: Delegate to extracted RetrievalInjection module
         gate = self.retrieval_injection.gate_sot_retrieval(
-            max_context_chars=max_context_chars,
-            phase_id=phase_id
+            max_context_chars=max_context_chars, phase_id=phase_id
         )
         return gate.allowed
 
@@ -8725,7 +8722,6 @@ Just the new description that should replace the current one while preserving th
             timeout_seconds=timeout_seconds,
         )
 
-
     def _request_build113_approval(
         self, phase_id: str, decision, patch_content: str, timeout_seconds: int = 3600
     ) -> bool:
@@ -8752,7 +8748,6 @@ Just the new description that should replace the current one while preserving th
             timeout_seconds=timeout_seconds,
         )
 
-
     def _request_build113_clarification(
         self, phase_id: str, decision, timeout_seconds: int = 3600
     ) -> Optional[str]:
@@ -8777,7 +8772,6 @@ Just the new description that should replace the current one while preserving th
             timeout_seconds=timeout_seconds,
         )
 
-
     def _create_deletion_save_point(self, phase_id: str, net_deletion: int) -> Optional[str]:
         """
         Create a git tag save point before applying large deletions.
@@ -8797,6 +8791,7 @@ Just the new description that should replace the current one while preserving th
             run_id=self.run_id,
             net_deletion=net_deletion,
         )
+
     def _send_deletion_notification(self, phase_id: str, quality_report) -> None:
         """
         Send informational Telegram notification for large deletions (100-200 lines).

@@ -107,7 +107,7 @@ def transport(mock_anthropic_client):
 def test_init_with_api_key():
     """Test initialization with explicit API key"""
     with patch("autopack.llm.providers.anthropic_transport.Anthropic") as mock_anthropic:
-        transport = AnthropicTransport(api_key="explicit-key")
+        _transport = AnthropicTransport(api_key="explicit-key")
         mock_anthropic.assert_called_once_with(
             api_key="explicit-key", timeout=AnthropicTransport.DEFAULT_TIMEOUT
         )
@@ -117,7 +117,7 @@ def test_init_with_env_api_key():
     """Test initialization with API key from environment"""
     with patch("autopack.llm.providers.anthropic_transport.Anthropic") as mock_anthropic:
         with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "env-key"}):
-            transport = AnthropicTransport()
+            _transport = AnthropicTransport()
             mock_anthropic.assert_called_once_with(
                 api_key="env-key", timeout=AnthropicTransport.DEFAULT_TIMEOUT
             )
@@ -136,7 +136,7 @@ def test_init_custom_timeout():
     """Test initialization with custom timeout"""
     with patch("autopack.llm.providers.anthropic_transport.Anthropic") as mock_anthropic:
         with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
-            transport = AnthropicTransport(timeout=120.0)
+            _transport = AnthropicTransport(timeout=120.0)
             mock_anthropic.assert_called_once_with(api_key="test-key", timeout=120.0)
 
 
@@ -188,12 +188,10 @@ def test_successful_non_streaming_request(transport, mock_anthropic_client):
 
 def test_non_streaming_request_without_system_prompt(transport, mock_anthropic_client):
     """Test non-streaming request without system prompt"""
-    mock_response = MockMessage(
-        content_text="Response", input_tokens=50, output_tokens=25
-    )
+    mock_response = MockMessage(content_text="Response", input_tokens=50, output_tokens=25)
     mock_anthropic_client.messages.create.return_value = mock_response
 
-    response = transport.send_request(
+    _response = transport.send_request(
         messages=[{"role": "user", "content": "Test"}],
         model="claude-sonnet-4-5",
         max_tokens=500,
@@ -263,9 +261,7 @@ def test_successful_streaming_request(transport, mock_anthropic_client):
 def test_usage_extraction_is_stable(transport, mock_anthropic_client):
     """Test that usage extraction handles various response formats"""
     # Test with normal usage
-    mock_response = MockMessage(
-        content_text="Test", input_tokens=100, output_tokens=50
-    )
+    mock_response = MockMessage(content_text="Test", input_tokens=100, output_tokens=50)
     mock_anthropic_client.messages.create.return_value = mock_response
 
     response = transport.send_request(
@@ -280,9 +276,7 @@ def test_usage_extraction_is_stable(transport, mock_anthropic_client):
 
 def test_usage_total_tokens_calculation(transport, mock_anthropic_client):
     """Test that total_tokens property calculates correctly"""
-    mock_response = MockMessage(
-        content_text="Test", input_tokens=250, output_tokens=750
-    )
+    mock_response = MockMessage(content_text="Test", input_tokens=250, output_tokens=750)
     mock_anthropic_client.messages.create.return_value = mock_response
 
     response = transport.send_request(
@@ -339,9 +333,7 @@ def test_timeout_keyword_variations(transport, mock_anthropic_client):
 
 def test_connection_error_raises_network_error(transport, mock_anthropic_client):
     """Test that connection errors raise AnthropicTransportNetworkError"""
-    mock_anthropic_client.messages.create.side_effect = Exception(
-        "Connection refused by server"
-    )
+    mock_anthropic_client.messages.create.side_effect = Exception("Connection refused by server")
 
     with pytest.raises(AnthropicTransportNetworkError) as exc_info:
         transport.send_request(
@@ -452,9 +444,7 @@ def test_api_error_with_status_code_attribute(transport, mock_anthropic_client):
 def test_stream_mode_yields_chunks_correctly(transport, mock_anthropic_client):
     """Test that streaming mode correctly collects and concatenates chunks"""
     # Setup stream with multiple chunks
-    final_message = MockMessage(
-        content_text="Full response", input_tokens=100, output_tokens=50
-    )
+    final_message = MockMessage(content_text="Full response", input_tokens=100, output_tokens=50)
     mock_stream = MockStream(
         content_chunks=["Chunk 1", " Chunk 2", " Chunk 3"], final_message=final_message
     )
@@ -473,9 +463,7 @@ def test_stream_mode_yields_chunks_correctly(transport, mock_anthropic_client):
 
 def test_stream_empty_chunks_handled(transport, mock_anthropic_client):
     """Test that empty chunks in stream are handled correctly"""
-    final_message = MockMessage(
-        content_text="Response", input_tokens=50, output_tokens=25
-    )
+    final_message = MockMessage(content_text="Response", input_tokens=50, output_tokens=25)
     mock_stream = MockStream(
         content_chunks=["Hello", "", " ", "world"], final_message=final_message
     )
@@ -563,9 +551,7 @@ def test_empty_content_handled(transport, mock_anthropic_client):
 
 def test_multiple_messages_in_conversation(transport, mock_anthropic_client):
     """Test that multi-turn conversations are handled correctly"""
-    mock_response = MockMessage(
-        content_text="Response", input_tokens=200, output_tokens=100
-    )
+    mock_response = MockMessage(content_text="Response", input_tokens=200, output_tokens=100)
     mock_anthropic_client.messages.create.return_value = mock_response
 
     messages = [
@@ -574,7 +560,7 @@ def test_multiple_messages_in_conversation(transport, mock_anthropic_client):
         {"role": "user", "content": "Second message"},
     ]
 
-    response = transport.send_request(
+    _response = transport.send_request(
         messages=messages, model="claude-sonnet-4-5", max_tokens=1000
     )
 
@@ -590,9 +576,7 @@ def test_multiple_messages_in_conversation(transport, mock_anthropic_client):
 
 def test_generic_api_error_without_status_code(transport, mock_anthropic_client):
     """Test generic API errors without status codes"""
-    mock_anthropic_client.messages.create.side_effect = Exception(
-        "API authentication failed"
-    )
+    mock_anthropic_client.messages.create.side_effect = Exception("API authentication failed")
 
     with pytest.raises(AnthropicTransportApiError) as exc_info:
         transport.send_request(
@@ -602,18 +586,12 @@ def test_generic_api_error_without_status_code(transport, mock_anthropic_client)
         )
 
     # Should still be API error, but status_code may be None
-    assert exc_info.value.status_code is None or isinstance(
-        exc_info.value.status_code, int
-    )
+    assert exc_info.value.status_code is None or isinstance(exc_info.value.status_code, int)
 
 
-def test_unknown_error_wrapped_as_generic_transport_error(
-    transport, mock_anthropic_client
-):
+def test_unknown_error_wrapped_as_generic_transport_error(transport, mock_anthropic_client):
     """Test that unknown errors are wrapped as generic AnthropicTransportError"""
-    mock_anthropic_client.messages.create.side_effect = ValueError(
-        "Unexpected internal error"
-    )
+    mock_anthropic_client.messages.create.side_effect = ValueError("Unexpected internal error")
 
     with pytest.raises(AnthropicTransportError):
         transport.send_request(

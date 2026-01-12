@@ -356,9 +356,7 @@ def request_build113_clarification(
 
             if status == "answered":
                 clarification_text = status_data.get("response", "")
-                logger.info(
-                    f"[BUILD-113] ✅ Clarification received: {clarification_text[:100]}..."
-                )
+                logger.info(f"[BUILD-113] ✅ Clarification received: {clarification_text[:100]}...")
                 return clarification_text
 
             if status == "rejected":

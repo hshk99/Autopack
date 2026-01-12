@@ -116,10 +116,9 @@ class TestGenerateUnifiedDiff:
     def test_multiple_hunks_for_distant_changes(self):
         """Changes far apart should generate multiple hunks."""
         old_content = "\n".join([f"line{i}" for i in range(1, 101)])
-        new_content = "\n".join([
-            "CHANGE1" if i == 10 else "CHANGE2" if i == 90 else f"line{i}"
-            for i in range(1, 101)
-        ])
+        new_content = "\n".join(
+            ["CHANGE1" if i == 10 else "CHANGE2" if i == 90 else f"line{i}" for i in range(1, 101)]
+        )
 
         diff = generate_unified_diff(old_content, new_content, "test.txt", context_lines=3)
 
@@ -368,22 +367,25 @@ diff --git a/file2.txt b/file2.txt
 
 
 # Table-driven test scenarios
-@pytest.mark.parametrize("scenario,old,new,expected_markers", [
-    ("simple_addition", "a\nb\n", "a\nb\nc\n", ["+c"]),
-    ("simple_deletion", "a\nb\nc\n", "a\nb\n", ["-c"]),
-    ("simple_modification", "a\nb\n", "a\nX\n", ["-b", "+X"]),
-    ("multiple_additions", "a\n", "a\nb\nc\n", ["+b", "+c"]),
-    ("multiple_deletions", "a\nb\nc\n", "a\n", ["-b", "-c"]),
-    ("mixed_changes", "a\nb\nc\n", "X\nb\nY\n", ["-a", "+X", "-c", "+Y"]),
-    ("add_at_start", "b\n", "a\nb\n", ["+a"]),
-    ("add_at_end", "a\n", "a\nb\n", ["+b"]),
-    ("delete_at_start", "a\nb\n", "b\n", ["-a"]),
-    ("delete_at_end", "a\nb\n", "a\n", ["-b"]),
-    ("replace_all", "a\nb\n", "X\nY\n", ["-a", "-b", "+X", "+Y"]),
-    ("add_middle", "a\nc\n", "a\nb\nc\n", ["+b"]),
-    ("delete_middle", "a\nb\nc\n", "a\nc\n", ["-b"]),
-    ("no_trailing_newline", "a\nb", "a\nX", ["-b", "+X"]),
-])
+@pytest.mark.parametrize(
+    "scenario,old,new,expected_markers",
+    [
+        ("simple_addition", "a\nb\n", "a\nb\nc\n", ["+c"]),
+        ("simple_deletion", "a\nb\nc\n", "a\nb\n", ["-c"]),
+        ("simple_modification", "a\nb\n", "a\nX\n", ["-b", "+X"]),
+        ("multiple_additions", "a\n", "a\nb\nc\n", ["+b", "+c"]),
+        ("multiple_deletions", "a\nb\nc\n", "a\n", ["-b", "-c"]),
+        ("mixed_changes", "a\nb\nc\n", "X\nb\nY\n", ["-a", "+X", "-c", "+Y"]),
+        ("add_at_start", "b\n", "a\nb\n", ["+a"]),
+        ("add_at_end", "a\n", "a\nb\n", ["+b"]),
+        ("delete_at_start", "a\nb\n", "b\n", ["-a"]),
+        ("delete_at_end", "a\nb\n", "a\n", ["-b"]),
+        ("replace_all", "a\nb\n", "X\nY\n", ["-a", "-b", "+X", "+Y"]),
+        ("add_middle", "a\nc\n", "a\nb\nc\n", ["+b"]),
+        ("delete_middle", "a\nb\nc\n", "a\nc\n", ["-b"]),
+        ("no_trailing_newline", "a\nb", "a\nX", ["-b", "+X"]),
+    ],
+)
 def test_diff_scenarios(scenario, old, new, expected_markers):
     """Test various diff scenarios with expected markers."""
     diff = generate_unified_diff(old, new, "test.txt")

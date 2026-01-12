@@ -153,13 +153,15 @@ class TestInv003PathInjection:
 
             # Check for path traversal indicators
             has_traversal = ".." in str(path)
-            # On Windows, /etc/passwd is NOT absolute (it's relative)
-            # But it would be rejected by artifact endpoint for other reasons
-            is_absolute = path.is_absolute()
+            # Check for Windows drive letters (cross-platform compatible, aligns with router logic)
+            is_windows_drive = len(path_str) > 1 and path_str[1] == ":"
+            # Check for Unix absolute paths
             is_unix_absolute = path_str.startswith("/") and not path_str.startswith("//")
 
             # At least one safety check should trigger
-            assert has_traversal or is_absolute or is_unix_absolute, f"Path {path_str} should be rejected"
+            assert (
+                has_traversal or is_windows_drive or is_unix_absolute
+            ), f"Path {path_str} should be rejected"
 
 
 class TestInv005ArtifactRedaction:
@@ -239,17 +241,11 @@ class TestInv005ArtifactRedaction:
                                 {"name": "Authorization", "value": "Bearer secret-token"},
                                 {"name": "Cookie", "value": "session=abc123"},
                             ],
-                            "cookies": [
-                                {"name": "session_id", "value": "abc123def456"}
-                            ],
+                            "cookies": [{"name": "session_id", "value": "abc123def456"}],
                         },
                         "response": {
-                            "headers": [
-                                {"name": "Set-Cookie", "value": "session=xyz789"}
-                            ],
-                            "content": {
-                                "text": '{"api_key": "sk-secret123"}'
-                            },
+                            "headers": [{"name": "Set-Cookie", "value": "session=xyz789"}],
+                            "content": {"text": '{"api_key": "sk-secret123"}'},
                         },
                     }
                 ]
@@ -307,7 +303,7 @@ class TestInv001LogInjection:
         run_id = str(uuid.uuid4())
 
         # Simulate logging statement
-        log_message = f"Request {run_id} started"
+        _log_message = f"Request {run_id} started"
 
         # UUID should be valid format
         assert len(run_id) == 36
@@ -323,7 +319,7 @@ class TestInv001LogInjection:
         phase_id = 123
 
         # Simulate logging statement
-        log_message = f"Phase {phase_id} completed"
+        _log_message = f"Phase {phase_id} completed"
 
         # Should be integer type
         assert isinstance(phase_id, int)
@@ -344,7 +340,7 @@ class TestInv001LogInjection:
 
         # These are safe to log
         for key, value in internal_ids.items():
-            log_message = f"{key}={value}"
+            _log_message = f"{key}={value}"
             assert isinstance(value, (str, int))
 
         # Contrast: user input should NOT be logged

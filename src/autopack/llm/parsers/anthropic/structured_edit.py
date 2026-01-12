@@ -176,7 +176,9 @@ class StructuredEditParser:
                     from autopack.repair_helpers import JsonRepairHelper
 
                     json_repair = JsonRepairHelper()
-                    error_msg = initial_parse_error or "Failed to parse JSON with 'operations' array"
+                    error_msg = (
+                        initial_parse_error or "Failed to parse JSON with 'operations' array"
+                    )
                     repaired_json, repair_method_name = json_repair.attempt_repair(
                         content, error_msg
                     )
@@ -218,7 +220,9 @@ class StructuredEditParser:
                         f"[StructuredEditParser] Format conversion successful: {len(operations_json)} operations generated"
                     )
                 else:
-                    logger.warning("[StructuredEditParser] Format conversion produced no operations")
+                    logger.warning(
+                        "[StructuredEditParser] Format conversion produced no operations"
+                    )
 
             # Empty operations is treated as a no-op, not a failure
             if not operations_json:

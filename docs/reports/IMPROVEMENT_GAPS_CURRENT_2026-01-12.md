@@ -116,15 +116,37 @@ Security baseline + diff gates are strong; remaining work is mostly “hardening
   - **targeted remediations** where cheap (especially around artifact exposure/redaction and debug-mode constraints).
 - Decide whether any security workflows should move from “regression-only, informational” to “blocking” (only after stable baselines + low noise).
 
-### 1.7 Compose/ops end-to-end smoke validation (P2)
+### 1.7 Compose/ops end-to-end smoke validation (P2) ✅ COMPLETE
 
-You already have strong unit/contract tests; remaining ROI is a small **compose topology smoke** (manual/scheduled or PR-nonblocking) that proves:
+**Status**: Implemented 2026-01-12
 
-- nginx `/nginx-health` and proxied `/health`
-- `/api/auth/*` prefix preservation
-- basic API readiness with `db` + `qdrant` online
+**What was delivered**:
+- **Created**: `scripts/smoke_test_compose.py` - Comprehensive Python-based smoke test suite
+  - nginx health endpoint validation (`/nginx-health`)
+  - Proxied backend health validation (`/health`)
+  - `/api/auth/*` prefix preservation check
+  - Database connectivity (pg_isready)
+  - Qdrant connectivity (with graceful degradation)
+  - Backend readiness checks (DB + Qdrant status)
+- **Created**: `scripts/smoke_test_compose.sh` - Shell wrapper for easy execution
+  - Manages compose lifecycle (start, test, cleanup)
+  - Supports `--no-cleanup` flag for debugging
+- **Created**: `tests/integration/test_compose_smoke.py` - Pytest integration tests
+  - 15+ test cases covering all topology validation points
+  - Structured test classes by domain (routing, auth, readiness)
+  - End-to-end smoke test combining all validations
+- **Created**: `tests/integration/README_SMOKE_TESTS.md` - Documentation
+- **Updated**: `.github/workflows/compose-smoke.yml` - Enhanced CI workflow
+  - Uses new comprehensive smoke test script
+  - Runs weekly (Sunday 06:00 UTC) + manual trigger
+  - Non-blocking (continue-on-error)
 
-This catches the “integration drift” class of issues that keeps reappearing even in heavily tested repos.
+**Verification**:
+- All smoke test scripts pass syntax/lint checks (ruff)
+- Shell script syntax validated (bash -n)
+- Python scripts compile cleanly (py_compile)
+
+**Impact**: Catches "integration drift" issues - services that work in isolation but fail when composed together, nginx routing breaks, prefix preservation failures, and connectivity issues.
 
 ---
 

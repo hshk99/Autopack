@@ -50,6 +50,11 @@ from .error_recovery import (
 )
 from .dual_auditor import DualAuditor
 from .llm.client_resolution import resolve_client_and_model
+from .llm.usage import (
+    record_usage as record_usage_impl,
+    record_usage_total_only as record_usage_total_only_impl,
+    model_to_provider,
+)
 
 # Import OpenAI clients with graceful fallback
 try:

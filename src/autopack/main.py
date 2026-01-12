@@ -172,6 +172,7 @@ from .api.deps import (  # noqa: F401
     verify_read_access,
 )
 from .api.routes.phases import submit_builder_result  # noqa: F401
+from .config import settings  # noqa: F401
 from .database import get_db  # noqa: F401
 from .file_layout import RunFileLayout  # noqa: F401
 from .notifications.telegram_notifier import answer_telegram_callback  # noqa: F401

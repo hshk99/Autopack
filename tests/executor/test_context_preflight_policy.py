@@ -21,24 +21,27 @@ from autopack.executor.context_preflight import (
 class TestFileSizeBucket:
     """Tests for file size bucket classification."""
 
-    @pytest.mark.parametrize("line_count,expected_bucket", [
-        # SMALL bucket: ≤100 lines
-        (1, FileSizeBucket.SMALL),
-        (50, FileSizeBucket.SMALL),
-        (100, FileSizeBucket.SMALL),
-        # MEDIUM bucket: 101-500 lines
-        (101, FileSizeBucket.MEDIUM),
-        (250, FileSizeBucket.MEDIUM),
-        (500, FileSizeBucket.MEDIUM),
-        # LARGE bucket: 501-1000 lines
-        (501, FileSizeBucket.LARGE),
-        (750, FileSizeBucket.LARGE),
-        (1000, FileSizeBucket.LARGE),
-        # HUGE bucket: >1000 lines
-        (1001, FileSizeBucket.HUGE),
-        (5000, FileSizeBucket.HUGE),
-        (50000, FileSizeBucket.HUGE),
-    ])
+    @pytest.mark.parametrize(
+        "line_count,expected_bucket",
+        [
+            # SMALL bucket: ≤100 lines
+            (1, FileSizeBucket.SMALL),
+            (50, FileSizeBucket.SMALL),
+            (100, FileSizeBucket.SMALL),
+            # MEDIUM bucket: 101-500 lines
+            (101, FileSizeBucket.MEDIUM),
+            (250, FileSizeBucket.MEDIUM),
+            (500, FileSizeBucket.MEDIUM),
+            # LARGE bucket: 501-1000 lines
+            (501, FileSizeBucket.LARGE),
+            (750, FileSizeBucket.LARGE),
+            (1000, FileSizeBucket.LARGE),
+            # HUGE bucket: >1000 lines
+            (1001, FileSizeBucket.HUGE),
+            (5000, FileSizeBucket.HUGE),
+            (50000, FileSizeBucket.HUGE),
+        ],
+    )
     def test_bucket_classification(self, line_count, expected_bucket):
         """Test file size bucket classification with table-driven cases.
 
@@ -328,11 +331,7 @@ class TestContextValidation:
 
     def test_validate_success(self):
         """Test validation passes for good context."""
-        preflight = ContextPreflight(
-            max_files=40,
-            max_total_size_mb=5.0,
-            max_lines_hard_limit=1000
-        )
+        preflight = ContextPreflight(max_files=40, max_total_size_mb=5.0, max_lines_hard_limit=1000)
         files = {
             "file1.py": "\n" * 500,
             "file2.py": "\n" * 300,
@@ -412,10 +411,7 @@ class TestCustomConfiguration:
 
     def test_custom_size_limits(self):
         """Test custom size limits."""
-        preflight = ContextPreflight(
-            max_total_size_mb=10.0,
-            read_only_threshold_mb=5.0
-        )
+        preflight = ContextPreflight(max_total_size_mb=10.0, read_only_threshold_mb=5.0)
 
         assert preflight.max_total_size_mb == 10.0
         assert preflight.read_only_threshold_mb == 5.0

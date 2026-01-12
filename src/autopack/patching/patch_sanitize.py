@@ -210,9 +210,7 @@ def fix_empty_file_diffs(patch_content: str) -> str:
     return "\n".join(result)
 
 
-def repair_hunk_headers(
-    patch_content: str, workspace_path: Optional[str] = None
-) -> str:
+def repair_hunk_headers(patch_content: str, workspace_path: Optional[str] = None) -> str:
     """Repair hunk headers with incorrect line numbers.
 
     LLMs sometimes generate incorrect @@ -X,Y +A,B @@ headers.

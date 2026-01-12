@@ -31,16 +31,19 @@ logger = logging.getLogger(__name__)
 
 class AnthropicTransportError(Exception):
     """Base exception for transport layer errors"""
+
     pass
 
 
 class AnthropicTransportTimeout(AnthropicTransportError):
     """Raised when request times out"""
+
     pass
 
 
 class AnthropicTransportNetworkError(AnthropicTransportError):
     """Raised when network/connection errors occur"""
+
     pass
 
 
@@ -60,6 +63,7 @@ class AnthropicTransportApiError(AnthropicTransportError):
 @dataclass
 class TransportUsage:
     """Token usage information from API response"""
+
     input_tokens: int
     output_tokens: int
 
@@ -71,6 +75,7 @@ class TransportUsage:
 @dataclass
 class TransportResponse:
     """Normalized response from Anthropic API"""
+
     content: str
     usage: TransportUsage
     stop_reason: Optional[str]
@@ -267,8 +272,7 @@ class AnthropicTransport:
 
         # Network/connection errors
         if any(
-            keyword in error_msg
-            for keyword in ["connection", "network", "unreachable", "refused"]
+            keyword in error_msg for keyword in ["connection", "network", "unreachable", "refused"]
         ):
             raise AnthropicTransportNetworkError(f"Network error: {e}") from e
 
@@ -276,9 +280,7 @@ class AnthropicTransport:
         # Check if exception has status_code attribute (from anthropic SDK)
         if hasattr(e, "status_code"):
             status_code = getattr(e, "status_code")
-            raise AnthropicTransportApiError(
-                f"API error: {e}", status_code=status_code
-            ) from e
+            raise AnthropicTransportApiError(f"API error: {e}", status_code=status_code) from e
 
         # Parse status code from error message if present
         import re
@@ -286,18 +288,14 @@ class AnthropicTransport:
         status_match = re.search(r"status[_\s]code[:\s]+(\d+)", error_msg)
         if status_match:
             status_code = int(status_match.group(1))
-            raise AnthropicTransportApiError(
-                f"API error: {e}", status_code=status_code
-            ) from e
+            raise AnthropicTransportApiError(f"API error: {e}", status_code=status_code) from e
 
         # Check for common HTTP status indicators in message
         if any(code in error_msg for code in ["400", "429", "500", "502", "503"]):
             # Try to extract status code
             for code in [400, 429, 500, 502, 503]:
                 if str(code) in error_msg:
-                    raise AnthropicTransportApiError(
-                        f"API error: {e}", status_code=code
-                    ) from e
+                    raise AnthropicTransportApiError(f"API error: {e}", status_code=code) from e
 
         # Generic API error
         if "api" in error_msg or "rate limit" in error_msg:

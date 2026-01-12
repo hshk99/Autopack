@@ -114,7 +114,9 @@ class TestDeliverableManifestPreview:
         assert "DELIVERABLES MANIFEST" in prompt
 
         # Count how many file entries are shown (should be 60 + 1 "more" line)
-        lines_with_file_paths = [line for line in prompt.split("\n") if line.strip().startswith("- path/to/file_")]
+        lines_with_file_paths = [
+            line for line in prompt.split("\n") if line.strip().startswith("- path/to/file_")
+        ]
         assert len(lines_with_file_paths) == 60
 
         # Check for "more" indicator
@@ -139,7 +141,9 @@ class TestDeliverableManifestPreview:
         )
 
         # All 30 entries should be shown
-        lines_with_file_paths = [line for line in prompt.split("\n") if line.strip().startswith("- path/to/file_")]
+        lines_with_file_paths = [
+            line for line in prompt.split("\n") if line.strip().startswith("- path/to/file_")
+        ]
         assert len(lines_with_file_paths) == 30
 
         # Should not have "more" indicator

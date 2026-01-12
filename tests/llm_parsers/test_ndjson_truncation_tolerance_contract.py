@@ -185,9 +185,7 @@ not valid json
     def test_large_number_of_operations(self, parser):
         """Test parsing large number of NDJSON operations."""
         lines = [
-            json.dumps(
-                {"type": "create", "file_path": f"file_{i}.py", "content": f"content_{i}"}
-            )
+            json.dumps({"type": "create", "file_path": f"file_{i}.py", "content": f"content_{i}"})
             for i in range(100)
         ]
         content = "\n".join(lines)

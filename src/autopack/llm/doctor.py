@@ -174,7 +174,14 @@ def execute_doctor(
 
     # 3. Invoke LLM
     response = _call_doctor_llm(
-        client, model, user_message, run_id, phase_id, model_to_provider_fn, record_usage_fn, record_usage_total_only_fn
+        client,
+        model,
+        user_message,
+        run_id,
+        phase_id,
+        model_to_provider_fn,
+        record_usage_fn,
+        record_usage_total_only_fn,
     )
     escalated = False
 
@@ -443,9 +450,7 @@ def _parse_doctor_json(content: str) -> DoctorResponse:
     if action_match:
         action = action_match.group(1)
         confidence = float(confidence_match.group(1)) if confidence_match else 0.5
-        rationale = (
-            rationale_match.group(1) if rationale_match else "Extracted from partial JSON"
-        )
+        rationale = rationale_match.group(1) if rationale_match else "Extracted from partial JSON"
 
         logger.debug(
             f"[Doctor] Extracted fields via regex: action={action}, confidence={confidence}"

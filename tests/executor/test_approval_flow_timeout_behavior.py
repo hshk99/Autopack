@@ -57,11 +57,35 @@ class MockDecision:
 # So timeout=30 allows polls at 0s, 10s, 20s (3 polls total, not 4)
 TIMEOUT_TEST_CASES = [
     # (timeout_seconds, poll_responses, expected_result, expected_poll_count, description)
-    (40, ["pending", "pending", "pending", "approved"], True, 4, "approval_after_3_polls"),  # polls at 0, 10, 20, 30
-    (30, ["pending", "pending", "rejected"], False, 3, "rejection_after_2_polls"),  # polls at 0, 10, 20
-    (35, ["pending"] * 10, False, 4, "timeout_after_35_seconds"),  # polls at 0, 10, 20, 30; timeout before 40
+    (
+        40,
+        ["pending", "pending", "pending", "approved"],
+        True,
+        4,
+        "approval_after_3_polls",
+    ),  # polls at 0, 10, 20, 30
+    (
+        30,
+        ["pending", "pending", "rejected"],
+        False,
+        3,
+        "rejection_after_2_polls",
+    ),  # polls at 0, 10, 20
+    (
+        35,
+        ["pending"] * 10,
+        False,
+        4,
+        "timeout_after_35_seconds",
+    ),  # polls at 0, 10, 20, 30; timeout before 40
     (20, ["pending", "approved"], True, 2, "quick_approval_within_timeout"),  # polls at 0, 10
-    (15, ["pending"], False, 2, "immediate_timeout_after_second_poll"),  # polls at 0, 10; timeout before 20
+    (
+        15,
+        ["pending"],
+        False,
+        2,
+        "immediate_timeout_after_second_poll",
+    ),  # polls at 0, 10; timeout before 20
 ]
 
 
@@ -128,9 +152,15 @@ class TestRequestHumanApprovalTimeout:
         if expected_result is False and "timeout" in description:
             expected_sleep_calls = expected_poll_count  # All pending responses cause sleep
         else:
-            expected_sleep_calls = expected_poll_count - 1  # Last poll returns terminal status, no sleep
-        assert len(sleep_calls) == expected_sleep_calls, f"Expected {expected_sleep_calls} sleep calls, got {len(sleep_calls)}"
-        assert all(s == 10 for s in sleep_calls), "All sleep calls should be 10 seconds (poll_interval)"
+            expected_sleep_calls = (
+                expected_poll_count - 1
+            )  # Last poll returns terminal status, no sleep
+        assert (
+            len(sleep_calls) == expected_sleep_calls
+        ), f"Expected {expected_sleep_calls} sleep calls, got {len(sleep_calls)}"
+        assert all(
+            s == 10 for s in sleep_calls
+        ), "All sleep calls should be 10 seconds (poll_interval)"
 
     def test_immediate_approval_no_polling(self):
         """Test auto-approve mode - no polling occurs."""
@@ -156,7 +186,9 @@ class TestRequestHumanApprovalTimeout:
         )
 
         assert result is True
-        assert api_client.poll_approval_status.call_count == 0, "Should not poll on immediate approval"
+        assert (
+            api_client.poll_approval_status.call_count == 0
+        ), "Should not poll on immediate approval"
         assert len(sleep_calls) == 0, "Should not sleep on immediate approval"
 
     def test_request_approval_failure(self):
@@ -244,7 +276,9 @@ class TestRequestHumanApprovalTimeout:
         assert result is True, "Should succeed after exception"
         assert api_client.poll_approval_status.call_count == 2
         # Exception causes sleep, then approved poll (no sleep after terminal status)
-        assert len(sleep_calls) == 1, f"Expected 1 sleep call (after exception), got {len(sleep_calls)}"
+        assert (
+            len(sleep_calls) == 1
+        ), f"Expected 1 sleep call (after exception), got {len(sleep_calls)}"
 
 
 class TestRequestBuild113ApprovalTimeout:
@@ -294,7 +328,9 @@ class TestRequestBuild113ApprovalTimeout:
             expected_sleep_calls = expected_poll_count
         else:
             expected_sleep_calls = expected_poll_count - 1
-        assert len(sleep_calls) == expected_sleep_calls, f"Expected {expected_sleep_calls} sleep calls, got {len(sleep_calls)}"
+        assert (
+            len(sleep_calls) == expected_sleep_calls
+        ), f"Expected {expected_sleep_calls} sleep calls, got {len(sleep_calls)}"
 
     def test_build113_immediate_approval(self):
         """Test BUILD-113 auto-approve mode."""
@@ -356,11 +392,35 @@ class TestRequestBuild113ClarificationTimeout:
     # Adjusted test cases for clarification (returns string or None)
     # polls happen at elapsed=0, 10, 20, ... until elapsed >= timeout_seconds
     CLARIFICATION_TEST_CASES = [
-        (30, ["pending", "pending", "answered"], "Clarification text", 3, "answered_after_2_polls"),  # polls at 0, 10, 20
+        (
+            30,
+            ["pending", "pending", "answered"],
+            "Clarification text",
+            3,
+            "answered_after_2_polls",
+        ),  # polls at 0, 10, 20
         (30, ["pending", "rejected"], None, 2, "rejected_after_1_poll"),  # polls at 0, 10
-        (35, ["pending"] * 10, None, 4, "timeout_after_35_seconds"),  # polls at 0, 10, 20, 30; timeout before 40
-        (20, ["pending", "answered"], "Quick answer", 2, "quick_answer_within_timeout"),  # polls at 0, 10
-        (15, ["pending"], None, 2, "immediate_timeout_after_second_poll"),  # polls at 0, 10; timeout before 20
+        (
+            35,
+            ["pending"] * 10,
+            None,
+            4,
+            "timeout_after_35_seconds",
+        ),  # polls at 0, 10, 20, 30; timeout before 40
+        (
+            20,
+            ["pending", "answered"],
+            "Quick answer",
+            2,
+            "quick_answer_within_timeout",
+        ),  # polls at 0, 10
+        (
+            15,
+            ["pending"],
+            None,
+            2,
+            "immediate_timeout_after_second_poll",
+        ),  # polls at 0, 10; timeout before 20
     ]
 
     @pytest.mark.parametrize(
@@ -379,7 +439,9 @@ class TestRequestBuild113ClarificationTimeout:
         poll_side_effects = []
         for status in poll_responses:
             if status == "answered":
-                poll_side_effects.append({"status": status, "response": expected_result or "Response"})
+                poll_side_effects.append(
+                    {"status": status, "response": expected_result or "Response"}
+                )
             else:
                 poll_side_effects.append({"status": status})
 
@@ -409,7 +471,9 @@ class TestRequestBuild113ClarificationTimeout:
             expected_sleep_calls = expected_poll_count
         else:
             expected_sleep_calls = expected_poll_count - 1
-        assert len(sleep_calls) == expected_sleep_calls, f"Expected {expected_sleep_calls} sleep calls, got {len(sleep_calls)}"
+        assert (
+            len(sleep_calls) == expected_sleep_calls
+        ), f"Expected {expected_sleep_calls} sleep calls, got {len(sleep_calls)}"
 
     def test_clarification_request_failure(self):
         """Test clarification request API failure."""
@@ -465,7 +529,9 @@ class TestRequestBuild113ClarificationTimeout:
         assert result == "Final answer"
         assert api_client.poll_clarification_status.call_count == 2
         # Exception on first poll causes sleep, then second poll succeeds (no sleep after terminal status)
-        assert len(sleep_calls) == 1, f"Expected 1 sleep call (after exception), got {len(sleep_calls)}"
+        assert (
+            len(sleep_calls) == 1
+        ), f"Expected 1 sleep call (after exception), got {len(sleep_calls)}"
 
 
 class TestPollingIntervalBehavior:
@@ -533,4 +599,6 @@ class TestPollingIntervalBehavior:
         # With 25s timeout and 10s interval: poll at 0s, sleep 10s -> elapsed=10s,
         # poll at 10s, sleep 10s -> elapsed=20s, poll at 20s, sleep 10s -> elapsed=30s > 25s timeout
         # So we expect 3 polls (at 0s, 10s, 20s) but timeout before 4th poll at 30s
-        assert len(sleep_calls) == 3, f"Expected 3 sleep calls for 25s timeout, got {len(sleep_calls)}"
+        assert (
+            len(sleep_calls) == 3
+        ), f"Expected 3 sleep calls for 25s timeout, got {len(sleep_calls)}"

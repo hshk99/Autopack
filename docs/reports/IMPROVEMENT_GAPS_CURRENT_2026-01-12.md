@@ -116,23 +116,56 @@ Security baseline + diff gates are strong; remaining work is mostly “hardening
   - **targeted remediations** where cheap (especially around artifact exposure/redaction and debug-mode constraints).
 - Decide whether any security workflows should move from “regression-only, informational” to “blocking” (only after stable baselines + low noise).
 
-### 1.7 Compose/ops end-to-end smoke validation (P2)
+### 1.7 Compose/ops end-to-end smoke validation (P2) ✅ COMPLETE
 
-You already have strong unit/contract tests; remaining ROI is a small **compose topology smoke** (manual/scheduled or PR-nonblocking) that proves:
+**Status**: Implemented 2026-01-12
 
-- nginx `/nginx-health` and proxied `/health`
-- `/api/auth/*` prefix preservation
-- basic API readiness with `db` + `qdrant` online
+**What was delivered**:
+- **Created**: `scripts/smoke_test_compose.py` - Comprehensive Python-based smoke test suite
+  - nginx health endpoint validation (`/nginx-health`)
+  - Proxied backend health validation (`/health`)
+  - `/api/auth/*` prefix preservation check
+  - Database connectivity (pg_isready)
+  - Qdrant connectivity (with graceful degradation)
+  - Backend readiness checks (DB + Qdrant status)
+- **Created**: `scripts/smoke_test_compose.sh` - Shell wrapper for easy execution
+  - Manages compose lifecycle (start, test, cleanup)
+  - Supports `--no-cleanup` flag for debugging
+- **Created**: `tests/integration/test_compose_smoke.py` - Pytest integration tests
+  - 15+ test cases covering all topology validation points
+  - Structured test classes by domain (routing, auth, readiness)
+  - End-to-end smoke test combining all validations
+- **Created**: `tests/integration/README_SMOKE_TESTS.md` - Documentation
+- **Updated**: `.github/workflows/compose-smoke.yml` - Enhanced CI workflow
+  - Uses new comprehensive smoke test script
+  - Runs weekly (Sunday 06:00 UTC) + manual trigger
+  - Non-blocking (continue-on-error)
 
-This catches the “integration drift” class of issues that keeps reappearing even in heavily tested repos.
+**Verification**:
+- All smoke test scripts pass syntax/lint checks (ruff)
+- Shell script syntax validated (bash -n)
+- Python scripts compile cleanly (py_compile)
+
+**Impact**: Catches "integration drift" issues - services that work in isolation but fail when composed together, nginx routing breaks, prefix preservation failures, and connectivity issues.
 
 ---
 
 ## 2) Small, concrete nits worth closing (P3)
 
-These are low priority, but they remove lingering “toy” or “shim” surfaces:
+These are low priority, but they remove lingering "toy" or "shim" surfaces:
 
-- `src/autopack/cli/commands/phases.py` prints `"In Progress"` in a couple of shim functions; either wire to real phase status or quarantine/remove to avoid misleading operator output.
+**CLI phases.py shim messages** ✅ IMPLEMENTED (2026-01-12)
+- **Status**: Complete
+- **Changed**: `src/autopack/cli/commands/phases.py`
+  - Removed duplicate code (113 lines → 97 lines)
+  - Added clear deprecation notices in module docstring
+  - Added migration guidance message pointing to Supervisor REST API and Web UI
+  - Updated mock output to clearly indicate "test data only"
+  - All commands now show deprecation warnings with specific API endpoints
+- **Tests updated**: `tests/autopack/cli/test_phase_commands.py`
+  - Updated test expectations for new messaging
+  - Added `test_deprecation_messages_shown()` to verify guidance is displayed
+- **Impact**: Users now receive clear guidance to use production APIs instead of test shim
 
 ---
 

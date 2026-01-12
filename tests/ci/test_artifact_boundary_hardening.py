@@ -51,12 +51,12 @@ class TestArtifactSizeCaps:
         """Large files are truncated at size cap."""
         run_id, run_dir = run_with_large_artifact
 
-        with patch("autopack.main.RunFileLayout") as MockLayout:
+        with patch("autopack.api.routes.artifacts.RunFileLayout") as MockLayout:
             mock_instance = MockLayout.return_value
             mock_instance.base_dir = run_dir
 
             # Set a small cap for testing (100 bytes)
-            with patch("autopack.main.settings") as mock_settings:
+            with patch("autopack.api.routes.artifacts.settings") as mock_settings:
                 mock_settings.artifact_read_size_cap_bytes = 100
                 mock_settings.artifact_redaction_enabled = False
 
@@ -74,11 +74,11 @@ class TestArtifactSizeCaps:
         """Small files are returned in full."""
         run_id, run_dir = run_with_large_artifact
 
-        with patch("autopack.main.RunFileLayout") as MockLayout:
+        with patch("autopack.api.routes.artifacts.RunFileLayout") as MockLayout:
             mock_instance = MockLayout.return_value
             mock_instance.base_dir = run_dir
 
-            with patch("autopack.main.settings") as mock_settings:
+            with patch("autopack.api.routes.artifacts.settings") as mock_settings:
                 mock_settings.artifact_read_size_cap_bytes = 1_048_576  # 1MB
                 mock_settings.artifact_redaction_enabled = False
 
@@ -94,7 +94,7 @@ class TestArtifactSizeCaps:
         """Size cap of 0 disables truncation (dev mode)."""
         run_id, run_dir = run_with_large_artifact
 
-        with patch("autopack.main.RunFileLayout") as MockLayout:
+        with patch("autopack.api.routes.artifacts.RunFileLayout") as MockLayout:
             mock_instance = MockLayout.return_value
             mock_instance.base_dir = run_dir
 
@@ -161,11 +161,11 @@ class TestArtifactRedaction:
         """Redaction can be enabled via query parameter."""
         run_id, run_dir = run_with_sensitive_artifact
 
-        with patch("autopack.main.RunFileLayout") as MockLayout:
+        with patch("autopack.api.routes.artifacts.RunFileLayout") as MockLayout:
             mock_instance = MockLayout.return_value
             mock_instance.base_dir = run_dir
 
-            with patch("autopack.main.settings") as mock_settings:
+            with patch("autopack.api.routes.artifacts.settings") as mock_settings:
                 mock_settings.artifact_read_size_cap_bytes = 0  # Unlimited
                 mock_settings.artifact_redaction_enabled = False  # Off by default
 
@@ -188,7 +188,7 @@ class TestArtifactRedaction:
         """Redaction can be enabled via config setting."""
         run_id, run_dir = run_with_sensitive_artifact
 
-        with patch("autopack.main.RunFileLayout") as MockLayout:
+        with patch("autopack.api.routes.artifacts.RunFileLayout") as MockLayout:
             mock_instance = MockLayout.return_value
             mock_instance.base_dir = run_dir
 
@@ -215,11 +215,11 @@ class TestArtifactRedaction:
         """With redaction disabled, original content is returned."""
         run_id, run_dir = run_with_sensitive_artifact
 
-        with patch("autopack.main.RunFileLayout") as MockLayout:
+        with patch("autopack.api.routes.artifacts.RunFileLayout") as MockLayout:
             mock_instance = MockLayout.return_value
             mock_instance.base_dir = run_dir
 
-            with patch("autopack.main.settings") as mock_settings:
+            with patch("autopack.api.routes.artifacts.settings") as mock_settings:
                 mock_settings.artifact_read_size_cap_bytes = 0  # Unlimited
                 mock_settings.artifact_redaction_enabled = False
 
@@ -266,11 +266,11 @@ class TestArtifactResponseMetadata:
         """Response includes X-Artifact-Original-Size header."""
         run_id, run_dir = run_with_artifact
 
-        with patch("autopack.main.RunFileLayout") as MockLayout:
+        with patch("autopack.api.routes.artifacts.RunFileLayout") as MockLayout:
             mock_instance = MockLayout.return_value
             mock_instance.base_dir = run_dir
 
-            with patch("autopack.main.settings") as mock_settings:
+            with patch("autopack.api.routes.artifacts.settings") as mock_settings:
                 mock_settings.artifact_read_size_cap_bytes = 0
                 mock_settings.artifact_redaction_enabled = False
 
@@ -286,11 +286,11 @@ class TestArtifactResponseMetadata:
         """Response includes X-Artifact-Truncated header."""
         run_id, run_dir = run_with_artifact
 
-        with patch("autopack.main.RunFileLayout") as MockLayout:
+        with patch("autopack.api.routes.artifacts.RunFileLayout") as MockLayout:
             mock_instance = MockLayout.return_value
             mock_instance.base_dir = run_dir
 
-            with patch("autopack.main.settings") as mock_settings:
+            with patch("autopack.api.routes.artifacts.settings") as mock_settings:
                 mock_settings.artifact_read_size_cap_bytes = 0
                 mock_settings.artifact_redaction_enabled = False
 
@@ -305,11 +305,11 @@ class TestArtifactResponseMetadata:
         """Response includes X-Artifact-Redacted header."""
         run_id, run_dir = run_with_artifact
 
-        with patch("autopack.main.RunFileLayout") as MockLayout:
+        with patch("autopack.api.routes.artifacts.RunFileLayout") as MockLayout:
             mock_instance = MockLayout.return_value
             mock_instance.base_dir = run_dir
 
-            with patch("autopack.main.settings") as mock_settings:
+            with patch("autopack.api.routes.artifacts.settings") as mock_settings:
                 mock_settings.artifact_read_size_cap_bytes = 0
                 mock_settings.artifact_redaction_enabled = False
 

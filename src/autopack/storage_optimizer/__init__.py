@@ -54,8 +54,11 @@ from .scanner import StorageScanner
 from .classifier import FileClassifier
 from .reporter import StorageReporter
 
-# Make submodules accessible for patching in tests
-from . import steam_detector  # noqa: F401
+# Make submodules accessible for patching in tests (platform-gated to avoid winreg on Linux)
+import sys
+
+if sys.platform == "win32":
+    from . import steam_detector  # noqa: F401
 
 __all__ = [
     # Policy

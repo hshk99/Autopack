@@ -11,6 +11,7 @@ from pathlib import Path
 
 # Direct import using importlib to avoid recursion
 import importlib.util
+
 _parsers_file = Path(__file__).parent.parent / "parsers.py"
 _spec = importlib.util.spec_from_file_location("autopack.llm._parsers_impl", _parsers_file)
 _parsers_impl = importlib.util.module_from_spec(_spec)

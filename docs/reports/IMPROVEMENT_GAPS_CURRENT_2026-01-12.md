@@ -1003,11 +1003,11 @@ These rules are the "why" behind the seam map; they keep future refactors from r
 | PR-EXE-2 | ✅ COMPLETE | Cursor 5 | Approval flow consolidation (PR #153) |
 | PR-EXE-3 | ✅ COMPLETE | Cursor 9 | CI runner extraction (PR #151) |
 | PR-EXE-4 | ✅ COMPLETE | Cursor 11 | Run checkpoint + rollback (PR #158) |
-| PR-EXE-5 | ⚠️ FAILED | Cursor 16 | Context preflight - files lost during git operations, NEEDS REDOING |
+| PR-EXE-5 | ✅ COMPLETE | Cursor 16 | Context preflight + retrieval injection (PR #162) |
 | PR-EXE-6 | 🔄 NOT STARTED | - | Heuristic context loader (awaits EXE-4, EXE-5) |
 | PR-EXE-7 | 🔄 NOT STARTED | - | Delete dead blocks (awaits ALL executor PRs) |
 
-**File reductions**: `autonomous_executor.py`: 10,401 → ~9,700 lines (-6.7%)
+**File reductions**: `autonomous_executor.py`: 10,401 → 9,910 lines (-4.7%)
 
 #### Section 6.3: Governed Apply Refactoring (`governed_apply.py`)
 
@@ -1027,9 +1027,9 @@ These rules are the "why" behind the seam map; they keep future refactors from r
 | PR-LLM-1 | ✅ COMPLETE | Cursor 6 | Transport wrapper (PR #152) |
 | PR-LLM-2 | ✅ COMPLETE | Cursor 10 | Prompt builders (PR #154) |
 | PR-LLM-3 | ✅ COMPLETE | Cursor 12 | Parser package split (PR #159) |
-| PR-LLM-4 | ⚠️ FAILED | Cursor 15 | Diff generator - files lost during git operations, NEEDS REDOING |
+| PR-LLM-4 | ✅ COMPLETE | Cursor 15 | Diff generator module (PR #161) |
 
-**File reductions**: `anthropic_clients.py`: 4,182 → ~2,700 lines (-35.4%)
+**File reductions**: `anthropic_clients.py`: 4,182 → 3,449 lines (-17.5%)
 
 #### Section 6.5: LlmService Refactoring (`llm_service.py`)
 
@@ -1037,33 +1037,37 @@ These rules are the "why" behind the seam map; they keep future refactors from r
 |----|--------|--------------|-------|
 | PR-SVC-1 | ✅ COMPLETE | Cursor 8 | Client resolution (PR #150) |
 | PR-SVC-2 | ✅ COMPLETE | Cursor 14 | Usage recording module (PR #157) |
-| PR-SVC-3 | 🚧 IN PROGRESS | Cursor 17 | Doctor extraction (delegated 2026-01-12) |
+| PR-SVC-3 | ✅ COMPLETE | Cursor 17 | Doctor extraction (PR #160) |
 
-**File reductions**: `llm_service.py`: 1,816 → ~1,500 lines (-17.4%)
+**File reductions**: `llm_service.py`: 1,816 → 1,375 lines (-24.3%)
 
 ### 8.2 Remaining Work Summary
 
-**Recently Merged (2026-01-12 PM)**:
+**Recently Merged (2026-01-12)**:
+
+**Batch 1 (Morning)**:
 - ✅ PR #156 (PR-APPLY-2): Patch policy extraction - 235 lines, 16 tests
 - ✅ PR #157 (PR-SVC-2): Usage recording module - 244 lines, 18 tests
 - ✅ PR #158 (PR-EXE-4): Run checkpoint extraction - 465 lines, 28 tests
 - ✅ PR #159 (PR-LLM-3): Parser package split - ~900 lines, 54 tests
 
-**Currently In Progress**: 1 PR
-- PR-SVC-3 (Cursor 17): Doctor extraction (delegated 2026-01-12)
+**Batch 2 (Afternoon)**:
+- ✅ PR #160 (PR-SVC-3): Doctor extraction - 471 lines, 11 tests
+- ✅ PR #161 (PR-LLM-4): Diff generator module - 301 lines, 42 tests
+- ✅ PR #162 (PR-EXE-5): Context preflight + retrieval injection - 615 lines, 75 tests
 
-**Failed - Needs Redoing**: 3 PRs
+**Failed - Needs Redoing**: 1 PR
 - PR-APPLY-1 (Cursor 7): Patch sanitize helpers - PR #155 closed, needs redo
-- PR-LLM-4 (Cursor 15): Diff generator - files lost during git operations
-- PR-EXE-5 (Cursor 16): Context preflight - files lost during git operations
+
+**Can Start Now (Dependencies Met)**: 1 PR
+- PR-EXE-6: Heuristic context loader (EXE-5 now complete)
 
 **Sequencing Required (Has Dependencies)**: 3 PRs
-- PR-EXE-6: Heuristic context loader (awaits PR-EXE-5)
-- PR-EXE-7: Delete dead blocks (awaits ALL executor PRs)
-- PR-APPLY-3: Patch quality validation (awaits PR-APPLY-1, PR-APPLY-2)
-- PR-APPLY-4: Apply engine (awaits ALL governed apply PRs)
+- PR-EXE-7: Delete dead blocks (awaits PR-EXE-6)
+- PR-APPLY-3: Patch quality validation (awaits PR-APPLY-1)
+- PR-APPLY-4: Apply engine (awaits PR-APPLY-1, PR-APPLY-3)
 
-**Total Remaining God File PRs**: 7 (1 in progress, 3 failed, 3 sequenced)
+**Total Remaining God File PRs**: 4 (1 failed, 1 ready, 2 sequenced)
 
 ### 8.3 Deferred Infrastructure Improvements (P3)
 

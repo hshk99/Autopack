@@ -15,7 +15,7 @@
 
 # Use an official Python runtime as a parent image
 # P3.1: Pinned to digest for reproducible builds and supply-chain security
-FROM python:3.11-slim-bookworm@sha256:55a4707a91d43b6397215a57b818d2822e66c27fd973bb82eb71b7512c15a4da as backend
+FROM python:3.14-slim-bookworm@sha256:e8a1ad81a9fef9dc56372fb49b50818cac71f5fae238b21d7738d73ccae8f803 as backend
 
 # Set the working directory in the container
 WORKDIR /app

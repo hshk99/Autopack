@@ -176,3 +176,6 @@ from .config import settings  # noqa: F401
 from .database import get_db  # noqa: F401
 from .file_layout import RunFileLayout  # noqa: F401
 from .notifications.telegram_notifier import answer_telegram_callback  # noqa: F401
+from .notifications.telegram_webhook_security import (  # noqa: F401
+    verify_telegram_webhook as verify_telegram_webhook_crypto,
+)

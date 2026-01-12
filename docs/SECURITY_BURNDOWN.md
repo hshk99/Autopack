@@ -16,7 +16,7 @@
 | **CodeQL** | 0 | 31 | - | - | 31 |
 | **Total** | **0** | **31** | **-** | **-** | **31** |
 
-_Last Updated: 2026-01-06 (auto-generated from security/baselines/)_
+_Last Updated: 2026-01-12 (auto-generated from security/baselines/)_
 <!-- AUTO_COUNTS_END -->
 
 **Notes**:

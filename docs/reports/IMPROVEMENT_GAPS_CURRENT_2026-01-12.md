@@ -1002,8 +1002,8 @@ These rules are the "why" behind the seam map; they keep future refactors from r
 | PR-EXE-1 | ✅ COMPLETE | PR #141-142 | SupervisorApiClient extraction, BUILD-135 enforcement |
 | PR-EXE-2 | ✅ COMPLETE | Cursor 5 | Approval flow consolidation (PR #153) |
 | PR-EXE-3 | ✅ COMPLETE | Cursor 9 | CI runner extraction (PR #151) |
-| PR-EXE-4 | 🚧 IN PROGRESS | Cursor 11 | Run checkpoint + rollback |
-| PR-EXE-5 | 🚧 IN PROGRESS | Cursor 16 | Context preflight + injection |
+| PR-EXE-4 | ✅ COMPLETE | Cursor 11 | Run checkpoint + rollback (PR #158) |
+| PR-EXE-5 | ⚠️ FAILED | Cursor 16 | Context preflight - files lost during git operations, NEEDS REDOING |
 | PR-EXE-6 | 🔄 NOT STARTED | - | Heuristic context loader (awaits EXE-4, EXE-5) |
 | PR-EXE-7 | 🔄 NOT STARTED | - | Delete dead blocks (awaits ALL executor PRs) |
 
@@ -1014,11 +1014,11 @@ These rules are the "why" behind the seam map; they keep future refactors from r
 | PR | Status | Delegated To | Notes |
 |----|--------|--------------|-------|
 | PR-APPLY-1 | ⚠️ FAILED | Cursor 7 | Patch sanitize helpers - PR #155 closed, NEEDS REDOING |
-| PR-APPLY-2 | 🚧 IN PROGRESS | Cursor 13 | Patch policy object |
+| PR-APPLY-2 | ✅ COMPLETE | Cursor 13 | Patch policy object (PR #156) |
 | PR-APPLY-3 | 🔄 NOT STARTED | - | Patch quality validation (awaits APPLY-1, APPLY-2) |
 | PR-APPLY-4 | 🔄 NOT STARTED | - | Apply engine (awaits ALL governed apply PRs) |
 
-**File reductions**: `governed_apply.py`: ~2,397 lines (no reduction yet)
+**File reductions**: `governed_apply.py`: ~2,397 → ~2,357 lines (-1.7%)
 
 #### Section 6.4: Anthropic Client Refactoring (`anthropic_clients.py`)
 
@@ -1026,40 +1026,44 @@ These rules are the "why" behind the seam map; they keep future refactors from r
 |----|--------|--------------|-------|
 | PR-LLM-1 | ✅ COMPLETE | Cursor 6 | Transport wrapper (PR #152) |
 | PR-LLM-2 | ✅ COMPLETE | Cursor 10 | Prompt builders (PR #154) |
-| PR-LLM-3 | 🚧 IN PROGRESS | Cursor 12 | Parser package split |
-| PR-LLM-4 | 🚧 IN PROGRESS | Cursor 15 | Diff generator helper |
+| PR-LLM-3 | ✅ COMPLETE | Cursor 12 | Parser package split (PR #159) |
+| PR-LLM-4 | ⚠️ FAILED | Cursor 15 | Diff generator - files lost during git operations, NEEDS REDOING |
 
-**File reductions**: `anthropic_clients.py`: 4,182 → 3,451 lines (-17.5%)
+**File reductions**: `anthropic_clients.py`: 4,182 → ~2,700 lines (-35.4%)
 
 #### Section 6.5: LlmService Refactoring (`llm_service.py`)
 
 | PR | Status | Delegated To | Notes |
 |----|--------|--------------|-------|
 | PR-SVC-1 | ✅ COMPLETE | Cursor 8 | Client resolution (PR #150) |
-| PR-SVC-2 | 🚧 IN PROGRESS | Cursor 14 | Usage recording module |
-| PR-SVC-3 | ❌ NOT STARTED | - | Doctor extraction (independent, can start anytime) |
+| PR-SVC-2 | ✅ COMPLETE | Cursor 14 | Usage recording module (PR #157) |
+| PR-SVC-3 | 🚧 IN PROGRESS | Cursor 17 | Doctor extraction (delegated 2026-01-12) |
 
-**File reductions**: `llm_service.py`: 1,816 → 1,751 lines (-3.6%)
+**File reductions**: `llm_service.py`: 1,816 → ~1,500 lines (-17.4%)
 
 ### 8.2 Remaining Work Summary
 
-**Currently In Progress (Cursors 11-16)**: 6 PRs
-- PR-EXE-4 (Cursor 11), PR-EXE-5 (Cursor 16)
-- PR-APPLY-2 (Cursor 13)
-- PR-LLM-3 (Cursor 12), PR-LLM-4 (Cursor 15)
-- PR-SVC-2 (Cursor 14)
+**Recently Merged (2026-01-12 PM)**:
+- ✅ PR #156 (PR-APPLY-2): Patch policy extraction - 235 lines, 16 tests
+- ✅ PR #157 (PR-SVC-2): Usage recording module - 244 lines, 18 tests
+- ✅ PR #158 (PR-EXE-4): Run checkpoint extraction - 465 lines, 28 tests
+- ✅ PR #159 (PR-LLM-3): Parser package split - ~900 lines, 54 tests
 
-**Can Start Immediately (No Dependencies)**: 1 PR
-- PR-SVC-3: Doctor extraction (touches only `llm_service.py`, independent)
+**Currently In Progress**: 1 PR
+- PR-SVC-3 (Cursor 17): Doctor extraction (delegated 2026-01-12)
 
-**Sequencing Required (Has Dependencies)**: 5 PRs
-- PR-EXE-6: Awaits PR-EXE-4, PR-EXE-5
-- PR-EXE-7: Awaits ALL executor PRs (EXE-4, EXE-5, EXE-6)
-- PR-APPLY-1: FAILED, needs redoing (independent but touches `governed_apply.py`)
-- PR-APPLY-3: Awaits PR-APPLY-1, PR-APPLY-2
-- PR-APPLY-4: Awaits ALL governed apply PRs (APPLY-1, APPLY-2, APPLY-3)
+**Failed - Needs Redoing**: 3 PRs
+- PR-APPLY-1 (Cursor 7): Patch sanitize helpers - PR #155 closed, needs redo
+- PR-LLM-4 (Cursor 15): Diff generator - files lost during git operations
+- PR-EXE-5 (Cursor 16): Context preflight - files lost during git operations
 
-**Total Remaining God File PRs**: 6 (1 independent, 1 failed, 4 sequenced)
+**Sequencing Required (Has Dependencies)**: 3 PRs
+- PR-EXE-6: Heuristic context loader (awaits PR-EXE-5)
+- PR-EXE-7: Delete dead blocks (awaits ALL executor PRs)
+- PR-APPLY-3: Patch quality validation (awaits PR-APPLY-1, PR-APPLY-2)
+- PR-APPLY-4: Apply engine (awaits ALL governed apply PRs)
+
+**Total Remaining God File PRs**: 7 (1 in progress, 3 failed, 3 sequenced)
 
 ### 8.3 Deferred Infrastructure Improvements (P3)
 

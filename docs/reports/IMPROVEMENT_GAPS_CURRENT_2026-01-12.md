@@ -49,24 +49,37 @@ Current top Python files by LOC (mechanical scan):
 - **`governed_apply.py`**:
   - keep it “micro-kernel style”: maximize pure helpers + table-driven tests around enforcement boundaries.
 
-### 1.2 Tighten the “staged” enforcement ladder: types + aspirational checks (P1/P2)
+### 1.2 Tighten the "staged" enforcement ladder: types + aspirational checks (P1/P2)
 
-Current CI intentionally uses non-blocking lanes:
+**Mypy Tier-1 Blocking** ✅ IMPLEMENTED (PR #144, merged 2026-01-12)
+- **Changed**: Removed `continue-on-error: true` from mypy CI step
+- **Impact**: Mypy Tier-1 failures now BLOCK PR merges
+- **Scope**: 6 modules must remain type-clean:
+  - `src/autopack/version.py`
+  - `src/autopack/__version__.py`
+  - `src/autopack/safe_print.py`
+  - `src/autopack/file_hashing.py`
+  - `src/autopack/config.py`
+  - `src/autopack/schemas.py`
+- **Verification**: All Tier-1 modules pass mypy with 0 errors
 
-- **Mypy is staged** (`continue-on-error: true` in `ci.yml`).
-- **Aspirational tests** are non-blocking by design.
+**Aspirational tests** are non-blocking by design.
 
-Remaining improvement is *not* “turn everything blocking”, but: **make the ladder explicit and advance it**:
+**Remaining work**:
+- **Aspirational → core promotions**: establish a small cadence ("each week, promote N tests from aspirational to core once stable") to prevent permanent limbo.
 
-- **Mypy Tier-1**: pick a small Tier-1 set that must be clean and flip just that subset to blocking (remove `continue-on-error` once the subset is stable).
-- **Aspirational → core promotions**: establish a small cadence (“each week, promote N tests from aspirational to core once stable”) to prevent permanent limbo.
+### 1.3 Prevent "gaps reappearing" by codifying recurring drift vectors (P1)
 
-### 1.3 Prevent “gaps reappearing” by codifying recurring drift vectors (P1)
+**BUILD-135: Executor HTTP Enforcement** ✅ IMPLEMENTED (PRs #141-143, merged 2026-01-12)
+- **Created**: `test_executor_http_enforcement.py` - grep-based test preventing raw `requests.*` usage
+- **Phase 1** (PR #141): Enforced on `src/autopack/executor/` package
+- **Phase 2** (PR #143): Extended to include `src/autopack/autonomous_executor.py`
+- **Impact**: Prevents "executor never talks raw HTTP" contract from drifting
+- **Architectural guidance**: Added docstring clarifying SupervisorApiClient is the only allowed HTTP zone
 
-The repo already has strong drift/contract posture; remaining meta-improvements are about **closing the last remaining holes** where drift can re-enter:
+**SOT portability discipline**: `docs/FUTURE_PLAN.md` currently contains legacy path references, but they are already **scoped** as "FileOrganizer repo, NOT Autopack" — keep enforcing that scoping pattern if more legacy paths are referenced in SOT docs.
 
-- **SOT portability discipline**: `docs/FUTURE_PLAN.md` currently contains legacy path references, but they are already **scoped** as “FileOrganizer repo, NOT Autopack” — keep enforcing that scoping pattern if more legacy paths are referenced in SOT docs.
-- **“One truth” by construction**: prefer generating operator-facing snippets (compose commands, ports, env template path, auth path prefixes) from one canonical source where feasible (or keep them guarded by narrow doc-contract tests).
+**"One truth" by construction**: prefer generating operator-facing snippets (compose commands, ports, env template path, auth path prefixes) from one canonical source where feasible (or keep them guarded by narrow doc-contract tests).
 
 ### 1.4 Frontend maturity: tests + auth story + operator UX (P2)
 

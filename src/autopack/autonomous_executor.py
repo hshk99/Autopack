@@ -4270,35 +4270,8 @@ Just the new description that should replace the current one while preserving th
             return "execute_fix_invalid", True
 
         # Create git checkpoint (commit) before executing
-        logger.info("[Doctor] Creating git checkpoint before execute_fix...")
-        try:
-            checkpoint_result = subprocess.run(
-                ["git", "add", "-A"],
-                cwd=str(self.workspace),
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-            if checkpoint_result.returncode == 0:
-                checkpoint_result = subprocess.run(
-                    [
-                        "git",
-                        "commit",
-                        "-m",
-                        f"[Autopack] Pre-execute_fix checkpoint for {phase_id}",
-                    ],
-                    cwd=str(self.workspace),
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                )
-                if checkpoint_result.returncode == 0:
-                    logger.info("[Doctor] Git checkpoint created successfully")
-                else:
-                    # No changes to commit - that's OK
-                    logger.info("[Doctor] No changes to checkpoint (clean state)")
-        except Exception as e:
-            logger.warning(f"[Doctor] Failed to create git checkpoint: {e}")
+        # PR-EXE-4: Delegated to run_checkpoint module
+        create_execute_fix_checkpoint(workspace=Path(self.workspace), phase_id=phase_id)
 
         # Execute fix commands
         logger.info(f"[Doctor] Executing {len(fix_commands)} fix commands (type: {fix_type})...")
@@ -4420,56 +4393,16 @@ Just the new description that should replace the current one while preserving th
         Returns:
             Tuple of (success: bool, error_message: Optional[str])
         """
-        import subprocess
+        # PR-EXE-4: Delegated to run_checkpoint module
+        success, branch, commit, error = create_run_checkpoint(Path(self.workspace))
 
-        try:
-            # Get current branch name
-            branch_result = subprocess.run(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                cwd=self.workspace,
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-
-            if branch_result.returncode != 0:
-                error_msg = branch_result.stderr.strip()
-                logger.warning(f"[RunCheckpoint] Failed to get current branch: {error_msg}")
-                return False, f"git_branch_failed: {error_msg}"
-
-            current_branch = branch_result.stdout.strip()
-
-            # Get current commit SHA
-            commit_result = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                cwd=self.workspace,
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-
-            if commit_result.returncode != 0:
-                error_msg = commit_result.stderr.strip()
-                logger.warning(f"[RunCheckpoint] Failed to get current commit: {error_msg}")
-                return False, f"git_commit_failed: {error_msg}"
-
-            current_commit = commit_result.stdout.strip()
-
-            # Store checkpoint info
-            self._run_checkpoint_branch = current_branch
-            self._run_checkpoint_commit = current_commit
-
-            logger.info(
-                f"[RunCheckpoint] Created run checkpoint: branch={current_branch}, commit={current_commit[:8]}"
-            )
+        if success:
+            # Store checkpoint info in instance variables
+            self._run_checkpoint_branch = branch
+            self._run_checkpoint_commit = commit
             return True, None
-
-        except subprocess.TimeoutExpired:
-            logger.warning("[RunCheckpoint] Timeout creating run checkpoint")
-            return False, "git_timeout"
-        except Exception as e:
-            logger.warning(f"[RunCheckpoint] Exception creating run checkpoint: {e}")
-            return False, f"exception: {str(e)}"
+        else:
+            return False, error
 
     def _rollback_to_run_checkpoint(self, reason: str) -> Tuple[bool, Optional[str]]:
         """Rollback entire run to pre-run checkpoint.
@@ -4485,75 +4418,19 @@ Just the new description that should replace the current one while preserving th
         Returns:
             Tuple of (success: bool, error_message: Optional[str])
         """
-        import subprocess
+        # PR-EXE-4: Delegated to run_checkpoint module
+        success, error = rollback_to_run_checkpoint(
+            workspace=Path(self.workspace),
+            checkpoint_branch=self._run_checkpoint_branch,
+            checkpoint_commit=self._run_checkpoint_commit,
+            reason=reason,
+        )
 
-        if not self._run_checkpoint_commit:
-            logger.error("[RunCheckpoint] No checkpoint commit set - cannot rollback run")
-            return False, "no_checkpoint_commit"
-
-        try:
-            logger.warning(
-                f"[RunCheckpoint] Rolling back entire run to checkpoint: {self._run_checkpoint_commit[:8]}"
-            )
-            logger.warning(f"[RunCheckpoint] Reason: {reason}")
-
-            # Reset to checkpoint commit (hard reset discards all changes)
-            reset_result = subprocess.run(
-                ["git", "reset", "--hard", self._run_checkpoint_commit],
-                cwd=self.workspace,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-
-            if reset_result.returncode != 0:
-                error_msg = reset_result.stderr.strip()
-                logger.error(f"[RunCheckpoint] Failed to reset to checkpoint: {error_msg}")
-                return False, f"git_reset_failed: {error_msg}"
-
-            # Clean untracked files (same as RollbackManager safe clean logic)
-            clean_result = subprocess.run(
-                ["git", "clean", "-fd"],
-                cwd=self.workspace,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-
-            if clean_result.returncode != 0:
-                error_msg = clean_result.stderr.strip()
-                logger.warning(f"[RunCheckpoint] Failed to clean untracked files: {error_msg}")
-                # Non-fatal - reset succeeded
-
-            # If we were on a named branch, try to return to it
-            if self._run_checkpoint_branch and self._run_checkpoint_branch != "HEAD":
-                checkout_result = subprocess.run(
-                    ["git", "checkout", self._run_checkpoint_branch],
-                    cwd=self.workspace,
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                )
-
-                if checkout_result.returncode != 0:
-                    logger.warning(
-                        f"[RunCheckpoint] Could not return to branch {self._run_checkpoint_branch}"
-                    )
-                    # Non-fatal - we're at the right commit
-
-            logger.info("[RunCheckpoint] Successfully rolled back run to pre-run state")
-
+        if success:
             # Log rollback action for audit trail
             self._log_run_rollback_action(reason)
 
-            return True, None
-
-        except subprocess.TimeoutExpired:
-            logger.error("[RunCheckpoint] Timeout rolling back to run checkpoint")
-            return False, "git_timeout"
-        except Exception as e:
-            logger.error(f"[RunCheckpoint] Exception during run rollback: {e}")
-            return False, f"exception: {str(e)}"
+        return success, error
 
     def _log_run_rollback_action(self, reason: str) -> None:
         """Log run rollback action to audit file.
@@ -9045,52 +8922,13 @@ Just the new description that should replace the current one while preserving th
         Returns:
             Tag name if successful, None otherwise
         """
-        try:
-            import subprocess
-            from datetime import datetime
-
-            # Generate tag name
-            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            tag_name = f"save-before-deletion-{phase_id}-{timestamp}"
-
-            # Check if there are uncommitted changes
-            result = subprocess.run(["git", "diff", "--quiet"], cwd=self.root, capture_output=True)
-
-            if result.returncode != 0:
-                # There are uncommitted changes - create a temporary commit first
-                subprocess.run(["git", "add", "-A"], cwd=self.root, check=True, capture_output=True)
-
-                commit_msg = (
-                    f"[SAVE POINT] Before {phase_id} deletion ({net_deletion} lines)\n\n"
-                    f"Automatic save point created by Autopack before large deletion.\n"
-                    f"Phase: {phase_id}\n"
-                    f"Net deletion: {net_deletion} lines\n"
-                    f"Run: {self.run_id}\n\n"
-                    f"To restore:\n"
-                    f"  git reset --hard {tag_name}\n"
-                    f"  # or\n"
-                    f"  git checkout {tag_name} -- <file>\n"
-                )
-
-                subprocess.run(
-                    ["git", "commit", "-m", commit_msg],
-                    cwd=self.root,
-                    check=True,
-                    capture_output=True,
-                )
-
-            # Create lightweight tag at current HEAD
-            subprocess.run(["git", "tag", tag_name], cwd=self.root, check=True, capture_output=True)
-
-            logger.info(f"[{phase_id}] Created save point tag: {tag_name}")
-            logger.info(f"[{phase_id}] To restore: git reset --hard {tag_name}")
-
-            return tag_name
-
-        except Exception as e:
-            logger.warning(f"[{phase_id}] Failed to create save point: {e}")
-            return None
-
+        # PR-EXE-4: Delegated to run_checkpoint module
+        return create_deletion_savepoint(
+            workspace=Path(self.root),
+            phase_id=phase_id,
+            run_id=self.run_id,
+            net_deletion=net_deletion,
+        )
     def _send_deletion_notification(self, phase_id: str, quality_report) -> None:
         """
         Send informational Telegram notification for large deletions (100-200 lines).

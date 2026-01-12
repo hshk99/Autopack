@@ -14,13 +14,13 @@ Usage:
 """
 
 from autopack.llm.transport import AnthropicTransport
-from autopack.llm.prompts import PromptBuilder
+# from autopack.llm.prompts import PromptBuilder  # TODO: Will be added in future PR
 from autopack.llm.parsers import ResponseParser
 from autopack.llm.diff_generator import DiffGenerator
 
 __all__ = [
     "AnthropicTransport",
-    "PromptBuilder",
+    # "PromptBuilder",  # TODO: Will be added in future PR
     "ResponseParser",
     "DiffGenerator",
 ]

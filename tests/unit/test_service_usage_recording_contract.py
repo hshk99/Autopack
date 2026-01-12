@@ -7,7 +7,7 @@ of the full LlmService, using mock database sessions.
 from __future__ import annotations
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from autopack.service.usage_recording import (
     estimate_tokens,

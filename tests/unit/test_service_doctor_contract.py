@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import pytest
-from unittest.mock import MagicMock, patch
 
 from autopack.service.doctor import (
     DOCTOR_SYSTEM_PROMPT,

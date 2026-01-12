@@ -186,7 +186,7 @@ class TestNoGuessingTokenSplits:
 
         # Execute Doctor call
         with patch("autopack.llm_service.choose_doctor_model", return_value=("gpt-4o", False)):
-            with patch("autopack.llm_service.should_escalate_doctor_model", return_value=False):
+            with patch("autopack.error_recovery.should_escalate_doctor_model", return_value=False):
                 llm_service.execute_doctor(request, run_id="test-run", phase_id="test-phase")
 
         # Verify exact token counts were recorded

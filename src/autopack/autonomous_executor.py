@@ -44,6 +44,7 @@ from autopack.quality_gate import QualityGate
 from autopack.config import settings
 from autopack.llm_client import BuilderResult, AuditorResult
 from autopack.executor_lock import ExecutorLockManager  # BUILD-048-T1
+from autopack.executor import ci_runner  # PR-EXE-3: CI runner extraction
 from autopack.error_recovery import (
     ErrorRecoverySystem,
     DoctorRequest,
@@ -94,6 +95,13 @@ from autopack.manifest_generator import ManifestGenerator
 from autopack.phase_finalizer import PhaseFinalizer
 from autopack.test_baseline_tracker import TestBaselineTracker
 from autopack.phase_auto_fixer import auto_fix_phase_scope
+
+# PR-EXE-2: Approval flow consolidation
+from autopack.executor.approval_flow import (
+    request_human_approval,
+    request_build113_approval,
+    request_build113_clarification,
+)
 
 
 # Configure logging
@@ -8420,381 +8428,18 @@ Just the new description that should replace the current one while preserving th
                 logger.warning(f"[AutoFix] Failed to commit phase auto-fixes (non-blocking): {e}")
 
     def _run_ci_checks(self, phase_id: str, phase: Dict) -> Dict[str, Any]:
-        """Run CI checks based on the phase's CI specification (default: pytest)."""
-        # BUILD-141 Part 8: Support AUTOPACK_SKIP_CI=1 for telemetry seeding runs
-        # (avoids blocking on unrelated test import errors during telemetry collection)
-        # GUARDRAIL: Only honor AUTOPACK_SKIP_CI for telemetry runs to prevent weakening production runs
-        if os.getenv("AUTOPACK_SKIP_CI") == "1":
-            is_telemetry_run = self.run_id.startswith("telemetry-collection-")
-            if is_telemetry_run:
-                logger.info(
-                    f"[{phase_id}] CI skipped (AUTOPACK_SKIP_CI=1 - telemetry seeding mode)"
-                )
-                return None  # Return None so PhaseFinalizer doesn't run collection error detection
-            else:
-                logger.warning(
-                    f"[{phase_id}] AUTOPACK_SKIP_CI=1 set but run_id '{self.run_id}' is not a telemetry run - ignoring flag and running CI normally"
-                )
+        """Run CI checks based on the phase's CI specification (default: pytest).
 
-        # Phase dict from API does not typically include a top-level "ci". Persisted CI hints live under scope.
-        scope = phase.get("scope") or {}
-        ci_spec = phase.get("ci") or scope.get("ci") or {}
-
-        if ci_spec.get("skip"):
-            reason = ci_spec.get("reason", "CI skipped per phase configuration")
-            logger.info(f"[{phase_id}] CI skipped: {reason}")
-            return {
-                "status": "skipped",
-                "message": reason,
-                "passed": True,
-                "tests_run": 0,
-                "tests_passed": 0,
-                "tests_failed": 0,
-                "tests_error": 0,
-                "duration_seconds": 0.0,
-                "output": "",
-                "error": None,
-                "skipped": True,
-                "suspicious_zero_tests": False,
-            }
-
-        ci_type = ci_spec.get("type")
-        if ci_spec.get("command") and not ci_type:
-            ci_type = "custom"
-        if not ci_type:
-            ci_type = "pytest"
-
-        if ci_type == "custom":
-            return self._run_custom_ci(phase_id, ci_spec)
-        else:
-            return self._run_pytest_ci(phase_id, ci_spec)
-
-    def _run_pytest_ci(self, phase_id: str, ci_spec: Dict[str, Any]) -> Dict[str, Any]:
-        logger.info(f"[{phase_id}] Running CI checks (pytest)...")
-
-        workdir = Path(self.workspace) / ci_spec.get("workdir", ".")
-        if not workdir.exists():
-            logger.warning(
-                f"[{phase_id}] CI workdir {workdir} missing, defaulting to workspace root"
-            )
-            workdir = Path(self.workspace)
-
-        pytest_paths = ci_spec.get("paths")
-        if not pytest_paths:
-            project_slug = self._get_project_slug()
-            if project_slug == "file-organizer-app-v1":
-                candidate_paths = [
-                    "fileorganizer/backend/tests/",
-                    "src/backend/tests/",
-                    "tests/backend/",
-                ]
-            else:
-                candidate_paths = ["tests/"]
-
-            for path in candidate_paths:
-                if (workdir / path).exists():
-                    pytest_paths = [path]
-                    break
-
-        if not pytest_paths:
-            logger.warning(f"[{phase_id}] No pytest paths found, skipping CI checks")
-            return {
-                "status": "skipped",
-                "message": "No pytest paths found",
-                "passed": True,
-                "tests_run": 0,
-                "tests_passed": 0,
-                "tests_failed": 0,
-                "tests_error": 0,
-                "duration_seconds": 0.0,
-                "output": "",
-                "error": None,
-                "skipped": True,
-                "suspicious_zero_tests": False,
-            }
-
-        per_test_timeout = ci_spec.get("per_test_timeout", 60)
-        default_args = [
-            "-v",
-            "--tb=line",
-            "-q",
-            "--no-header",
-            f"--timeout={per_test_timeout}",
-        ]
-        pytest_args = ci_spec.get("args", [])
-        # BUILD-127: Emit a structured pytest JSON report so PhaseFinalizer/TestBaselineTracker can
-        # compute regressions safely. We still persist a full text log for humans.
-        ci_dir = Path(self.workspace) / ".autonomous_runs" / self.run_id / "ci"
-        ci_dir.mkdir(parents=True, exist_ok=True)
-        json_report_path = ci_dir / ci_spec.get("json_report_name", f"pytest_{phase_id}.json")
-
-        cmd = [sys.executable, "-m", "pytest", *pytest_paths, *default_args, *pytest_args]
-        if "--json-report" not in cmd:
-            cmd.append("--json-report")
-        if not any(str(a).startswith("--json-report-file=") for a in cmd):
-            cmd.append(f"--json-report-file={json_report_path}")
-
-        env = os.environ.copy()
-        env.setdefault("PYTHONPATH", str(workdir / "src"))
-        env["TESTING"] = "1"
-        env["PYTHONUTF8"] = "1"
-        env.update(ci_spec.get("env", {}))
-
-        timeout_seconds = ci_spec.get("timeout_seconds") or ci_spec.get("timeout") or 300
-        start_time = time.time()
-        try:
-            result = subprocess.run(
-                cmd,
-                cwd=str(workdir),
-                capture_output=True,
-                text=True,
-                timeout=timeout_seconds,
-                env=env,
-            )
-        except subprocess.TimeoutExpired:
-            duration = time.time() - start_time
-            logger.error(f"[{phase_id}] Pytest timeout after {duration:.1f}s")
-            return {
-                "status": "failed",
-                "message": f"pytest timed out after {timeout_seconds}s",
-                "passed": False,
-                "tests_run": 0,
-                "tests_passed": 0,
-                "tests_failed": 0,
-                "tests_error": 0,
-                "duration_seconds": round(duration, 2),
-                "output": "",
-                "error": f"pytest timed out after {timeout_seconds}s",
-                "skipped": False,
-                "suspicious_zero_tests": False,
-            }
-
-        duration = time.time() - start_time
-        output = self._trim_ci_output(result.stdout + result.stderr)
-        tests_passed, tests_failed, tests_error = self._parse_pytest_counts(output)
-        tests_run = tests_passed + tests_failed + tests_error
-        passed = result.returncode == 0
-        no_tests_detected = tests_run == 0
-
-        error_msg = None
-        if no_tests_detected and not passed:
-            error_msg = "Possible collection error - no tests detected"
-        elif no_tests_detected and passed:
-            error_msg = "Warning: pytest reported success but no tests executed"
-
-        # Always persist a CI log so downstream components (dashboard/humans) have a stable artifact.
-        full_output = result.stdout + "\n\n--- STDERR ---\n\n" + result.stderr
-        log_name = ci_spec.get("log_name", f"pytest_{phase_id}.log")
-        log_path = self._persist_ci_log(log_name, full_output, phase_id)
-
-        # Prefer structured JSON report for automated delta computation. Fall back to the log if missing.
-        report_path: Optional[Path] = None
-        try:
-            if json_report_path.exists() and json_report_path.stat().st_size > 0:
-                report_path = json_report_path
-        except Exception:
-            report_path = None
-        if report_path is None:
-            report_path = log_path
-
-        if not passed and not error_msg:
-            error_msg = f"pytest exited with code {result.returncode}"
-
-        message = ci_spec.get("success_message") if passed else ci_spec.get("failure_message")
-        if not message:
-            if passed:
-                message = f"Pytest passed ({tests_passed}/{max(tests_run,1)} tests)"
-            else:
-                message = error_msg or "Pytest failed"
-
-        if passed:
-            logger.info(
-                f"[{phase_id}] CI checks PASSED: {tests_passed}/{max(tests_run,1)} tests passed in {duration:.1f}s"
-            )
-        else:
-            logger.warning(f"[{phase_id}] CI checks FAILED: return code {result.returncode}")
-
-        # Extract collector error digest for phase summary and downstream components
-        collector_digest = None
-        if result.returncode == 2 or (no_tests_detected and not passed):
-            # Exitcode 2 typically indicates collection/import errors
-            # Extract digest using PhaseFinalizer's helper
-            try:
-                workspace_path = Path(self.workspace)
-                collector_digest = self.phase_finalizer._extract_collection_error_digest(
-                    {"report_path": str(report_path) if report_path else None},
-                    workspace_path,
-                    max_errors=5,
-                )
-                if collector_digest:
-                    logger.warning(
-                        f"[{phase_id}] Collection errors detected: {len(collector_digest)} failures"
-                    )
-            except Exception as e:
-                logger.warning(f"[{phase_id}] Failed to extract collector digest: {e}")
-
-        return {
-            "status": "passed" if passed else "failed",
-            "message": message,
-            "passed": passed,
-            "tests_run": tests_run,
-            "tests_passed": tests_passed,
-            "tests_failed": tests_failed,
-            "tests_error": tests_error,
-            "duration_seconds": round(duration, 2),
-            "output": output,
-            "error": error_msg,
-            "report_path": str(report_path) if report_path else None,
-            "log_path": str(log_path) if log_path else None,
-            "skipped": False,
-            "suspicious_zero_tests": no_tests_detected,
-            "collector_error_digest": collector_digest,  # NEW: Collector error digest
-        }
-
-    def _run_custom_ci(self, phase_id: str, ci_spec: Dict[str, Any]) -> Dict[str, Any]:
-        command = ci_spec.get("command")
-        if not command:
-            logger.warning(f"[{phase_id}] CI spec missing 'command'; skipping")
-            return {
-                "status": "skipped",
-                "message": "CI command not configured",
-                "passed": True,
-                "tests_run": 0,
-                "tests_passed": 0,
-                "tests_failed": 0,
-                "tests_error": 0,
-                "duration_seconds": 0.0,
-                "output": "",
-                "error": None,
-                "skipped": True,
-                "suspicious_zero_tests": False,
-            }
-
-        workdir = Path(self.workspace) / ci_spec.get("workdir", ".")
-        if not workdir.exists():
-            logger.warning(
-                f"[{phase_id}] CI workdir {workdir} missing, defaulting to workspace root"
-            )
-            workdir = Path(self.workspace)
-
-        timeout_seconds = ci_spec.get("timeout_seconds") or ci_spec.get("timeout") or 600
-        env = os.environ.copy()
-        env.update(ci_spec.get("env", {}))
-
-        shell = ci_spec.get("shell", isinstance(command, str))
-        cmd = command
-        if isinstance(command, str) and not shell:
-            cmd = shlex.split(command)
-
-        logger.info(f"[{phase_id}] Running custom CI command: {command}")
-        start_time = time.time()
-        try:
-            result = subprocess.run(
-                cmd,
-                cwd=str(workdir),
-                capture_output=True,
-                text=True,
-                timeout=timeout_seconds,
-                env=env,
-                shell=shell,
-            )
-        except subprocess.TimeoutExpired:
-            duration = time.time() - start_time
-            logger.error(f"[{phase_id}] CI command timeout after {duration:.1f}s")
-            return {
-                "status": "failed",
-                "message": f"CI command timed out after {timeout_seconds}s",
-                "passed": False,
-                "tests_run": 0,
-                "tests_passed": 0,
-                "tests_failed": 0,
-                "tests_error": 0,
-                "duration_seconds": round(duration, 2),
-                "output": "",
-                "error": f"Command timed out after {timeout_seconds}s",
-                "skipped": False,
-                "suspicious_zero_tests": False,
-            }
-
-        duration = time.time() - start_time
-        output = self._trim_ci_output(result.stdout + result.stderr)
-        passed = result.returncode == 0
-
-        # Always persist a CI log so downstream components have a stable report_path.
-        full_output = result.stdout + "\n\n--- STDERR ---\n\n" + result.stderr
-        log_name = ci_spec.get("log_name", f"ci_{phase_id}.log")
-        report_path = self._persist_ci_log(log_name, full_output, phase_id)
-
-        message = ci_spec.get("success_message") if passed else ci_spec.get("failure_message")
-        if not message:
-            message = (
-                "CI command succeeded"
-                if passed
-                else f"CI command failed (exit {result.returncode})"
-            )
-
-        if passed:
-            logger.info(f"[{phase_id}] Custom CI command passed in {duration:.1f}s")
-        else:
-            logger.warning(f"[{phase_id}] Custom CI command failed (exit {result.returncode})")
-
-        return {
-            "status": "passed" if passed else "failed",
-            "message": message,
-            "passed": passed,
-            "tests_run": 0,
-            "tests_passed": 0,
-            "tests_failed": 0,
-            "tests_error": 0,
-            "duration_seconds": round(duration, 2),
-            "output": output,
-            "error": None if passed else f"Exit code {result.returncode}",
-            "report_path": str(report_path) if report_path else None,
-            "skipped": False,
-            "suspicious_zero_tests": False,
-        }
-
-    def _trim_ci_output(self, output: str, limit: int = 10000) -> str:
-        if len(output) <= limit:
-            return output
-        return output[: limit // 2] + "\n\n... (truncated) ...\n\n" + output[-limit // 2 :]
-
-    def _persist_ci_log(self, log_name: str, content: str, phase_id: str) -> Optional[Path]:
-        ci_log_dir = Path(self.workspace) / ".autonomous_runs" / self.run_id / "ci"
-        ci_log_dir.mkdir(parents=True, exist_ok=True)
-        log_path = ci_log_dir / log_name
-        try:
-            log_path.write_text(content, encoding="utf-8")
-            logger.info(f"[{phase_id}] CI output written to: {log_path}")
-            return log_path
-        except Exception as log_err:
-            logger.warning(f"[{phase_id}] Failed to write CI log ({log_name}): {log_err}")
-            return None
-
-    def _parse_pytest_counts(self, output: str) -> tuple[int, int, int]:
-        import re
-
-        tests_passed = tests_failed = tests_error = 0
-        for line in output.split("\n"):
-            line_lower = line.lower()
-            collection_error = re.search(r"(\d+)\s+errors?\s+during\s+collection", line_lower)
-            if collection_error:
-                tests_error = int(collection_error.group(1))
-                continue
-
-            passed_match = re.search(r"(\d+)\s+passed", line_lower)
-            if passed_match:
-                tests_passed = int(passed_match.group(1))
-
-            failed_match = re.search(r"(\d+)\s+failed", line_lower)
-            if failed_match:
-                tests_failed = int(failed_match.group(1))
-
-            error_match = re.search(r"(\d+)\s+errors?(?!\s+during)", line_lower)
-            if error_match:
-                tests_error = int(error_match.group(1))
-
-        return tests_passed, tests_failed, tests_error
+        PR-EXE-3: Delegated to ci_runner module for testability.
+        """
+        return ci_runner.run_ci_checks(
+            phase_id=phase_id,
+            phase=phase,
+            workspace=Path(self.workspace),
+            run_id=self.run_id,
+            project_slug=self._get_project_slug(),
+            phase_finalizer=self.phase_finalizer,
+        )
 
     def _update_phase_status(self, phase_id: str, status: str):
         """Update phase status via API
@@ -8966,8 +8611,7 @@ Just the new description that should replace the current one while preserving th
         """
         Request human approval via Telegram for blocked phases.
 
-        Sends approval request to backend API, which triggers Telegram notification.
-        Polls for approval decision until timeout.
+        Delegates to approval_flow.request_human_approval for testability.
 
         Args:
             phase_id: Phase identifier
@@ -8977,120 +8621,14 @@ Just the new description that should replace the current one while preserving th
         Returns:
             True if approved, False if rejected or timed out
         """
-        import time
-
-        logger.info(f"[{phase_id}] Requesting human approval via Telegram...")
-
-        # Extract risk assessment from quality report
-        risk_assessment = getattr(quality_report, "risk_assessment", None)
-        if not risk_assessment:
-            logger.warning(f"[{phase_id}] No risk assessment found in quality report")
-            deletion_info = {
-                "net_deletion": 0,
-                "loc_removed": 0,
-                "loc_added": 0,
-                "files": [],
-                "risk_level": "unknown",
-                "risk_score": 0,
-            }
-        else:
-            metadata = risk_assessment.get("metadata", {})
-            # BUILD-190: Extract files from risk_assessment metadata or executor state
-            changed_files = (
-                metadata.get("files_changed", [])
-                or metadata.get("files", [])
-                or list(self._last_files_changed or [])
-            )
-            deletion_info = {
-                "net_deletion": metadata.get("loc_removed", 0) - metadata.get("loc_added", 0),
-                "loc_removed": metadata.get("loc_removed", 0),
-                "loc_added": metadata.get("loc_added", 0),
-                "files": changed_files[:10],  # Limit to 10 files for display
-                "risk_level": risk_assessment.get("risk_level", "unknown"),
-                "risk_score": risk_assessment.get("risk_score", 0),
-            }
-
-        # Send approval request to backend API
-        try:
-            # BUILD-190: Derive context from phase metadata or quality report
-            # Context helps operators understand the nature of the approval request
-            phase_context = "general"
-            if hasattr(quality_report, "phase_category"):
-                phase_context = quality_report.phase_category
-            elif risk_assessment and risk_assessment.get("metadata", {}).get("task_category"):
-                phase_context = risk_assessment["metadata"]["task_category"]
-
-            result = self.api_client.request_approval(
-                {
-                    "phase_id": phase_id,
-                    "deletion_info": deletion_info,
-                    "run_id": self.run_id,
-                    "context": phase_context,
-                },
-                timeout=30,
-            )
-
-            if result.get("status") == "rejected":
-                logger.error(
-                    f"[{phase_id}] Approval request rejected: {result.get('reason', 'Unknown')}"
-                )
-                return False
-
-            # Check if immediately approved (auto-approve mode)
-            if result.get("status") == "approved":
-                logger.info(f"[{phase_id}] ✅ Approval GRANTED (auto-approved)")
-                return True
-
-            # Extract approval_id for polling
-            approval_id = result.get("approval_id")
-            if not approval_id:
-                logger.error(f"[{phase_id}] No approval_id in response - cannot poll for status")
-                return False
-
-            logger.info(
-                f"[{phase_id}] Approval request sent (approval_id={approval_id}), waiting for user decision..."
-            )
-
-        except Exception as e:
-            logger.error(f"[{phase_id}] Failed to send approval request: {e}")
-            # If Telegram is not configured, auto-reject
-            return False
-
-        # Poll for approval status
-        elapsed = 0
-        poll_interval = 10  # seconds
-
-        while elapsed < timeout_seconds:
-            try:
-                status_data = self.api_client.poll_approval_status(approval_id, timeout=10)
-
-                status = status_data.get("status")
-
-                if status == "approved":
-                    logger.info(f"[{phase_id}] ✅ Approval GRANTED by user")
-                    return True
-
-                if status == "rejected":
-                    logger.warning(f"[{phase_id}] ❌ Approval REJECTED by user")
-                    return False
-
-                # Still pending, wait and check again
-                time.sleep(poll_interval)
-                elapsed += poll_interval
-
-                if elapsed % 60 == 0:  # Log every minute
-                    logger.info(
-                        f"[{phase_id}] Still waiting for approval... ({elapsed}s / {timeout_seconds}s)"
-                    )
-
-            except Exception as e:
-                logger.warning(f"[{phase_id}] Error checking approval status: {e}")
-                time.sleep(poll_interval)
-                elapsed += poll_interval
-
-        # Timeout reached
-        logger.warning(f"[{phase_id}] ⏱️  Approval timeout after {timeout_seconds}s")
-        return False
+        return request_human_approval(
+            api_client=self.api_client,
+            phase_id=phase_id,
+            quality_report=quality_report,
+            run_id=self.run_id,
+            last_files_changed=self._last_files_changed,
+            timeout_seconds=timeout_seconds,
+        )
 
     def _request_build113_approval(
         self, phase_id: str, decision, patch_content: str, timeout_seconds: int = 3600
@@ -9098,8 +8636,7 @@ Just the new description that should replace the current one while preserving th
         """
         Request human approval for BUILD-113 RISKY decisions via Telegram.
 
-        Sends approval request with decision details, risk assessment, and patch preview.
-        Polls for approval decision until timeout.
+        Delegates to approval_flow.request_build113_approval for testability.
 
         Args:
             phase_id: Phase identifier
@@ -9110,102 +8647,14 @@ Just the new description that should replace the current one while preserving th
         Returns:
             True if approved, False if rejected or timed out
         """
-        import time
-
-        logger.info(f"[BUILD-113] Requesting human approval for RISKY decision on {phase_id}...")
-
-        # Build approval request with BUILD-113 decision details
-        try:
-            # Extract patch preview (first 500 chars)
-            patch_preview = patch_content[:500] + ("..." if len(patch_content) > 500 else "")
-
-            result = self.api_client.request_approval(
-                {
-                    "phase_id": phase_id,
-                    "run_id": self.run_id,
-                    "context": "build113_risky_decision",
-                    "decision_info": {
-                        "type": decision.type.value,
-                        "risk_level": decision.risk_level,
-                        "confidence": f"{decision.confidence:.0%}",
-                        "rationale": decision.rationale,
-                        "files_modified": decision.files_modified[:5],  # First 5 files
-                        "files_count": len(decision.files_modified),
-                        "deliverables_met": decision.deliverables_met,
-                        "net_deletion": decision.net_deletion,
-                        "questions": decision.questions_for_human,
-                    },
-                    "patch_preview": patch_preview,
-                },
-                timeout=30,
-            )
-
-            if result.get("status") == "rejected":
-                logger.error(
-                    f"[BUILD-113] Approval request rejected: {result.get('reason', 'Unknown')}"
-                )
-                return False
-
-            # Check if immediately approved (auto-approve mode)
-            if result.get("status") == "approved":
-                logger.info("[BUILD-113] ✅ RISKY patch APPROVED (auto-approved)")
-                return True
-
-            # Extract approval_id for polling
-            approval_id = result.get("approval_id")
-            if not approval_id:
-                logger.error("[BUILD-113] No approval_id in response - cannot poll for status")
-                return False
-
-            logger.info(
-                f"[BUILD-113] Approval request sent (approval_id={approval_id}), waiting for user decision..."
-            )
-
-        except Exception as e:
-            logger.error(f"[BUILD-113] Failed to send approval request: {e}")
-            # If Telegram is not configured, auto-reject high-risk patches
-            logger.warning(
-                "[BUILD-113] Defaulting to REJECT for RISKY decision without approval system"
-            )
-            return False
-
-        # Poll for approval status (reuse same polling logic as regular approval)
-        elapsed = 0
-        poll_interval = 10  # seconds
-
-        while elapsed < timeout_seconds:
-            try:
-                status_data = self.api_client.poll_approval_status(approval_id, timeout=10)
-
-                status = status_data.get("status")
-
-                if status == "approved":
-                    logger.info("[BUILD-113] ✅ RISKY patch APPROVED by user")
-                    return True
-
-                if status == "rejected":
-                    logger.warning("[BUILD-113] ❌ RISKY patch REJECTED by user")
-                    return False
-
-                # Still pending, wait and check again
-                time.sleep(poll_interval)
-                elapsed += poll_interval
-
-                if elapsed % 60 == 0:  # Log every minute
-                    logger.info(
-                        f"[BUILD-113] Still waiting for approval... ({elapsed}s / {timeout_seconds}s)"
-                    )
-
-            except Exception as e:
-                logger.warning(f"[BUILD-113] Error checking approval status: {e}")
-                time.sleep(poll_interval)
-                elapsed += poll_interval
-
-        # Timeout reached
-        logger.warning(
-            f"[BUILD-113] ⏱️  Approval timeout after {timeout_seconds}s - defaulting to REJECT"
+        return request_build113_approval(
+            api_client=self.api_client,
+            phase_id=phase_id,
+            decision=decision,
+            patch_content=patch_content,
+            run_id=self.run_id,
+            timeout_seconds=timeout_seconds,
         )
-        return False
 
     def _request_build113_clarification(
         self, phase_id: str, decision, timeout_seconds: int = 3600
@@ -9213,8 +8662,7 @@ Just the new description that should replace the current one while preserving th
         """
         Request human clarification for BUILD-113 AMBIGUOUS decisions via Telegram.
 
-        Sends clarification request with decision details and questions.
-        Polls for human response until timeout.
+        Delegates to approval_flow.request_build113_clarification for testability.
 
         Args:
             phase_id: Phase identifier
@@ -9224,85 +8672,13 @@ Just the new description that should replace the current one while preserving th
         Returns:
             Human response text if provided, None if timed out
         """
-        import time
-
-        logger.info(
-            f"[BUILD-113] Requesting human clarification for AMBIGUOUS decision on {phase_id}..."
+        return request_build113_clarification(
+            api_client=self.api_client,
+            phase_id=phase_id,
+            decision=decision,
+            run_id=self.run_id,
+            timeout_seconds=timeout_seconds,
         )
-
-        # Build clarification request with BUILD-113 decision details
-        try:
-            result = self.api_client.request_clarification(
-                {
-                    "phase_id": phase_id,
-                    "run_id": self.run_id,
-                    "context": "build113_ambiguous_decision",
-                    "decision_info": {
-                        "type": decision.type.value,
-                        "risk_level": decision.risk_level,
-                        "confidence": f"{decision.confidence:.0%}",
-                        "rationale": decision.rationale,
-                        "questions": decision.questions_for_human,
-                        "alternatives": decision.alternatives_considered,
-                    },
-                },
-                timeout=30,
-            )
-
-            if result.get("status") == "rejected":
-                logger.error(
-                    f"[BUILD-113] Clarification request rejected: {result.get('reason', 'Unknown')}"
-                )
-                return None
-
-            logger.info("[BUILD-113] Clarification request sent, waiting for user response...")
-
-        except Exception as e:
-            logger.error(f"[BUILD-113] Failed to send clarification request: {e}")
-            # If Telegram is not configured, cannot get clarification
-            logger.warning(
-                "[BUILD-113] No clarification system available - cannot resolve AMBIGUOUS decision"
-            )
-            return None
-
-        # Poll for clarification response
-        elapsed = 0
-        poll_interval = 10  # seconds
-
-        while elapsed < timeout_seconds:
-            try:
-                status_data = self.api_client.poll_clarification_status(phase_id, timeout=10)
-
-                status = status_data.get("status")
-
-                if status == "answered":
-                    clarification_text = status_data.get("response", "")
-                    logger.info(
-                        f"[BUILD-113] ✅ Clarification received: {clarification_text[:100]}..."
-                    )
-                    return clarification_text
-
-                if status == "rejected":
-                    logger.warning("[BUILD-113] ❌ Clarification request rejected by user")
-                    return None
-
-                # Still pending, wait and check again
-                time.sleep(poll_interval)
-                elapsed += poll_interval
-
-                if elapsed % 60 == 0:  # Log every minute
-                    logger.info(
-                        f"[BUILD-113] Still waiting for clarification... ({elapsed}s / {timeout_seconds}s)"
-                    )
-
-            except Exception as e:
-                logger.warning(f"[BUILD-113] Error checking clarification status: {e}")
-                time.sleep(poll_interval)
-                elapsed += poll_interval
-
-        # Timeout reached
-        logger.warning(f"[BUILD-113] ⏱️  Clarification timeout after {timeout_seconds}s")
-        return None
 
     def _create_deletion_save_point(self, phase_id: str, net_deletion: int) -> Optional[str]:
         """

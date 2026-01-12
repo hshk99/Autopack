@@ -23,6 +23,15 @@ except ImportError:
     # Graceful degradation if anthropic package not installed
     Anthropic = None
 
+# PR-LLM-1: Import transport wrapper for clean separation of transport layer
+from .llm.providers.anthropic_transport import (
+    AnthropicTransport,
+    AnthropicTransportError,
+    AnthropicTransportTimeout,
+    AnthropicTransportNetworkError,
+    AnthropicTransportApiError,
+)
+
 from .llm_client import BuilderResult, AuditorResult
 from .journal_reader import get_prevention_prompt_injection
 from .llm_service import estimate_tokens
@@ -267,12 +276,14 @@ class AnthropicBuilderClient:
         Args:
             api_key: Anthropic API key (defaults to ANTHROPIC_API_KEY env var)
         """
-        if Anthropic is None:
-            raise ImportError(
-                "anthropic package not installed. " "Install with: pip install anthropic"
-            )
-
-        self.client = Anthropic(api_key=api_key or os.getenv("ANTHROPIC_API_KEY"))
+        # PR-LLM-1: Use transport wrapper for clean separation
+        try:
+            self.transport = AnthropicTransport(api_key=api_key, timeout=120.0)
+        except AnthropicTransportError as e:
+            # Maintain backwards compatibility with ImportError for missing package
+            if "not installed" in str(e):
+                raise ImportError(str(e))
+            raise
 
     def execute_phase(
         self,
@@ -795,39 +806,36 @@ class AnthropicBuilderClient:
                     f"[BUILD-129:P4] Final max_tokens enforcement: {max_tokens} (token_selected_budget={token_selected_budget})"
                 )
 
-            # Call Anthropic API with streaming for long operations
+            # PR-LLM-1: Call Anthropic API via transport wrapper with streaming for long operations
             # Use Claude's max output capacity (64K) to avoid truncation of large patches
             # Enable streaming to avoid 10-minute timeout for complex generations
-            with self.client.messages.stream(
+            response = self.transport.send_request(
+                messages=[{"role": "user", "content": user_prompt}],
                 model=model,
                 max_tokens=min(max_tokens or 64000, 64000),
                 system=system_prompt,
-                messages=[{"role": "user", "content": user_prompt}],
                 temperature=0.2,
-            ) as stream:
-                # Collect streaming response
-                content = ""
-                for text in stream.text_stream:
-                    content += text
+                stream=True,
+            )
 
-                # Get final message for token usage
-                response = stream.get_final_message()
+            # Extract content and metadata from transport response
+            content = response.content
 
             # BUILD-043: Comprehensive token budget logging
             actual_input_tokens = response.usage.input_tokens
             actual_output_tokens = response.usage.output_tokens
-            total_tokens_used = actual_input_tokens + actual_output_tokens
+            total_tokens_used = response.usage.total_tokens
             output_utilization = (actual_output_tokens / max_tokens * 100) if max_tokens else 0
 
             logger.info(
                 f"[TOKEN_BUDGET] phase={phase_id} complexity={complexity} "
                 f"input={actual_input_tokens} output={actual_output_tokens}/{max_tokens} "
                 f"total={total_tokens_used} utilization={output_utilization:.1f}% "
-                f"model={model}"
+                f"model={response.model}"
             )
 
             # Track truncation (stop_reason from Anthropic API)
-            stop_reason = getattr(response, "stop_reason", None)
+            stop_reason = response.stop_reason
             was_truncated = stop_reason == "max_tokens"
 
             # BUILD-129 Phase 3 P10: Store utilization and actual tokens for escalate-once logic
@@ -936,18 +944,17 @@ class AnthropicBuilderClient:
                         logger.info(
                             f"[BUILD-129] Executing continuation request for {len(continuation_context.remaining_deliverables)} remaining deliverables..."
                         )
-                        with self.client.messages.stream(
+                        # PR-LLM-1: Call continuation via transport wrapper
+                        continuation_response = self.transport.send_request(
+                            messages=[{"role": "user", "content": continuation_prompt}],
                             model=model,
                             max_tokens=min(max_tokens or 64000, 64000),
                             system=system_prompt,
-                            messages=[{"role": "user", "content": continuation_prompt}],
                             temperature=0.2,
-                        ) as cont_stream:
-                            continuation_content = ""
-                            for text in cont_stream.text_stream:
-                                continuation_content += text
+                            stream=True,
+                        )
 
-                            continuation_response = cont_stream.get_final_message()
+                        continuation_content = continuation_response.content
 
                         # Log continuation token usage
                         cont_input_tokens = continuation_response.usage.input_tokens
@@ -3259,12 +3266,14 @@ class AnthropicBuilderClient:
         Args:
             api_key: Anthropic API key (defaults to ANTHROPIC_API_KEY env var)
         """
-        if Anthropic is None:
-            raise ImportError(
-                "anthropic package not installed. " "Install with: pip install anthropic"
-            )
-
-        self.client = Anthropic(api_key=api_key or os.getenv("ANTHROPIC_API_KEY"))
+        # PR-LLM-1: Use transport wrapper for clean separation
+        try:
+            self.transport = AnthropicTransport(api_key=api_key, timeout=60.0)
+        except AnthropicTransportError as e:
+            # Maintain backwards compatibility with ImportError for missing package
+            if "not installed" in str(e):
+                raise ImportError(str(e))
+            raise
 
     def review_patch(
         self,
@@ -3299,19 +3308,20 @@ class AnthropicBuilderClient:
                 patch_content, phase_spec, file_context, project_rules, run_hints
             )
 
-            # Call Anthropic API
+            # PR-LLM-1: Call Anthropic API via transport wrapper
             # Use higher token limit to avoid truncation on complex reviews
             # Actual usage is typically ~500 tokens for JSON response
-            response = self.client.messages.create(
+            response = self.transport.send_request(
+                messages=[{"role": "user", "content": user_prompt}],
                 model=model,
                 max_tokens=min(max_tokens or 8192, 8192),
                 system=system_prompt,
-                messages=[{"role": "user", "content": user_prompt}],
                 temperature=0.1,  # Low temperature for consistent auditing
+                stream=False,
             )
 
             # Extract content
-            content = response.content[0].text
+            content = response.content
 
             # Parse JSON response
             try:
@@ -3328,10 +3338,10 @@ class AnthropicBuilderClient:
                 approved=result_json.get("approved", False),
                 issues_found=result_json.get("issues", []),
                 auditor_messages=[result_json.get("summary", "")],
-                tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                tokens_used=response.usage.total_tokens,
                 prompt_tokens=response.usage.input_tokens,
                 completion_tokens=response.usage.output_tokens,
-                model_used=model,
+                model_used=response.model,
             )
 
         except Exception as e:

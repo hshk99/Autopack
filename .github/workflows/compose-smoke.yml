@@ -1,7 +1,14 @@
-# Compose Topology Smoke Test (PR-04)
+# Compose Topology Smoke Test (Item 1.7)
 #
 # Purpose: Validate that docker-compose setup works correctly and services are healthy.
 # This catches "works in compose, fails in CI" drift by testing the actual compose topology.
+#
+# Tests include:
+# - nginx routing (/nginx-health, proxied /health)
+# - /api/auth/* prefix preservation
+# - backend API readiness
+# - database connectivity (pg_isready)
+# - Qdrant vector DB connectivity
 #
 # Runs: Manual trigger only (workflow_dispatch) or weekly schedule.
 # Blocking: No (continue-on-error allows main CI to proceed)
@@ -27,55 +34,21 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
-      - name: Start compose services
-        run: |
-          # Start all services in detached mode
-          docker compose up -d --wait --wait-timeout 120
+      - name: Set up Python 3.12
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0
+        with:
+          python-version: '3.12'
 
-      - name: Wait for services to be healthy
+      - name: Install test dependencies
         run: |
-          # Give services time to fully initialize
-          sleep 10
+          python -m pip install --upgrade pip
+          pip install requests
 
-      - name: Check nginx health
+      - name: Run comprehensive smoke tests
         run: |
-          # nginx-health should return 200
-          curl -f http://localhost:80/nginx-health || {
-            echo "::warning::nginx health check failed"
-            docker compose logs nginx
-            exit 1
-          }
-          echo "nginx health: OK"
-
-      - name: Check backend health (via nginx proxy)
-        run: |
-          # /health proxied through nginx should return 200
-          curl -f http://localhost:80/health || {
-            echo "::warning::backend health check failed (via nginx)"
-            docker compose logs backend
-            exit 1
-          }
-          echo "backend health (via nginx): OK"
-
-      - name: Check backend direct health
-        run: |
-          # Direct backend health on port 8000
-          curl -f http://localhost:8000/health || {
-            echo "::warning::backend direct health check failed"
-            docker compose logs backend
-            exit 1
-          }
-          echo "backend direct health: OK"
-
-      - name: Check database connectivity
-        run: |
-          # Verify db container is healthy
-          docker compose exec -T db pg_isready -U autopack || {
-            echo "::warning::database health check failed"
-            docker compose logs db
-            exit 1
-          }
-          echo "database health: OK"
+          # Run the comprehensive smoke test script
+          # This script handles compose startup, testing, and cleanup
+          bash scripts/smoke_test_compose.sh
 
       - name: Collect service logs on failure
         if: failure()

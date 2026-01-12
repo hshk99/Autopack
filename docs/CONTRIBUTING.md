@@ -200,6 +200,45 @@ Safety's output is non-deterministic across runs (vuln database updates, transit
 - **Safety**: graduates to blocking only once normalized + diff-gated (stable baseline + delta comparison), or replaced with a deterministic scanner
 - **Aspirational tests**: graduate by removing xfail markers and moving into core selection
 
+### Aspirational Test Promotion Cadence (Item 1.2 Follow-up)
+
+**Goal**: Prevent permanent limbo by establishing a regular cadence for promoting stable aspirational tests to the core gate.
+
+**Policy**:
+- **Weekly review**: Run promotion tracker to identify xpass tests (passing but still marked xfail)
+- **Monthly quota**: Promote 2-3 stable tests per month to core gate
+- **Quarterly target**: Reduce aspirational backlog to <20 tests by Q2 2026
+
+**Promotion Process**:
+
+1. **Identify candidates**:
+   ```bash
+   # Find xpass tests (ready for promotion)
+   python scripts/ci/aspirational_test_promotion.py --find-xpass
+
+   # Or generate full report
+   python scripts/ci/aspirational_test_promotion.py --report
+   ```
+
+2. **Verify stability**: Test has passed consistently for 2+ weeks (check CI history)
+
+3. **Promote to core**:
+   - Remove `@pytest.mark.xfail` decorator
+   - Remove `@pytest.mark.aspirational` decorator (if present)
+   - Verify test passes in core gate: `pytest tests/ -m 'not research and not aspirational' -v`
+
+4. **Commit and PR**:
+   ```bash
+   git commit -m "test: promote test_foo to core gate (stable for N weeks)"
+   ```
+
+**Why this matters**: Tests marked xfail but passing (xpass) indicate stable functionality that's no longer aspirational. Promoting them to core:
+- Increases coverage confidence
+- Prevents regression (core gate blocks PRs on failure)
+- Reduces technical debt (aspirational backlog)
+
+**Tracking**: Use `scripts/ci/aspirational_test_promotion.py --list` to inventory all aspirational tests and monitor promotion progress.
+
 ---
 
 ## Pull Request Process

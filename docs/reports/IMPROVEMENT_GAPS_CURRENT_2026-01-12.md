@@ -973,14 +973,109 @@ This section turns Section 5 into a **do-this-next** queue. Each item is intende
 
 ---
 
-## 7) “Gap reappearance” prevention rules (what to enforce as you refactor)
+## 7) "Gap reappearance" prevention rules (what to enforce as you refactor)
 
-These rules are the “why” behind the seam map; they keep future refactors from reintroducing drift:
+These rules are the "why" behind the seam map; they keep future refactors from reintroducing drift:
 
 - **Routes never disappear silently**: keep `tests/api/test_route_contract.py` strict (update the minimum deliberately).
 - **Special phase dispatch stays registry-based**: keep `tests/unit/test_executor_phase_dispatch_contract.py` as a blocker.
 - **Executor never talks raw HTTP**: enforce that `autonomous_executor.py` only uses `SupervisorApiClient` (one grep-based test can enforce this if desired).
-- **No dead logic in runtime files**: avoid “obsolete code below” blocks in `src/` (keep history in `archive/` instead).
+- **No dead logic in runtime files**: avoid "obsolete code below" blocks in `src/` (keep history in `archive/` instead).
+
+---
+
+## 8) Implementation Status Summary (Updated 2026-01-12)
+
+### 8.1 God File Refactoring Progress
+
+**Status Legend**:
+- ✅ **COMPLETE** - Merged to main
+- 🚧 **IN PROGRESS** - Delegated to Cursor, being implemented
+- ⚠️ **FAILED** - Implementation attempted but failed, needs redoing
+- ❌ **NOT IMPLEMENTED** - Not started, awaiting delegation
+- 🔄 **SEQUENCING REQUIRED** - Cannot start until dependencies complete
+
+#### Section 6.2: Executor Refactoring (`autonomous_executor.py`)
+
+| PR | Status | Delegated To | Notes |
+|----|--------|--------------|-------|
+| PR-EXE-1 | ✅ COMPLETE | PR #141-142 | SupervisorApiClient extraction, BUILD-135 enforcement |
+| PR-EXE-2 | ✅ COMPLETE | Cursor 5 | Approval flow consolidation (PR #153) |
+| PR-EXE-3 | ✅ COMPLETE | Cursor 9 | CI runner extraction (PR #151) |
+| PR-EXE-4 | 🚧 IN PROGRESS | Cursor 11 | Run checkpoint + rollback |
+| PR-EXE-5 | 🚧 IN PROGRESS | Cursor 16 | Context preflight + injection |
+| PR-EXE-6 | 🔄 NOT STARTED | - | Heuristic context loader (awaits EXE-4, EXE-5) |
+| PR-EXE-7 | 🔄 NOT STARTED | - | Delete dead blocks (awaits ALL executor PRs) |
+
+**File reductions**: `autonomous_executor.py`: 10,401 → ~9,700 lines (-6.7%)
+
+#### Section 6.3: Governed Apply Refactoring (`governed_apply.py`)
+
+| PR | Status | Delegated To | Notes |
+|----|--------|--------------|-------|
+| PR-APPLY-1 | ⚠️ FAILED | Cursor 7 | Patch sanitize helpers - PR #155 closed, NEEDS REDOING |
+| PR-APPLY-2 | 🚧 IN PROGRESS | Cursor 13 | Patch policy object |
+| PR-APPLY-3 | 🔄 NOT STARTED | - | Patch quality validation (awaits APPLY-1, APPLY-2) |
+| PR-APPLY-4 | 🔄 NOT STARTED | - | Apply engine (awaits ALL governed apply PRs) |
+
+**File reductions**: `governed_apply.py`: ~2,397 lines (no reduction yet)
+
+#### Section 6.4: Anthropic Client Refactoring (`anthropic_clients.py`)
+
+| PR | Status | Delegated To | Notes |
+|----|--------|--------------|-------|
+| PR-LLM-1 | ✅ COMPLETE | Cursor 6 | Transport wrapper (PR #152) |
+| PR-LLM-2 | ✅ COMPLETE | Cursor 10 | Prompt builders (PR #154) |
+| PR-LLM-3 | 🚧 IN PROGRESS | Cursor 12 | Parser package split |
+| PR-LLM-4 | 🚧 IN PROGRESS | Cursor 15 | Diff generator helper |
+
+**File reductions**: `anthropic_clients.py`: 4,182 → 3,451 lines (-17.5%)
+
+#### Section 6.5: LlmService Refactoring (`llm_service.py`)
+
+| PR | Status | Delegated To | Notes |
+|----|--------|--------------|-------|
+| PR-SVC-1 | ✅ COMPLETE | Cursor 8 | Client resolution (PR #150) |
+| PR-SVC-2 | 🚧 IN PROGRESS | Cursor 14 | Usage recording module |
+| PR-SVC-3 | ❌ NOT STARTED | - | Doctor extraction (independent, can start anytime) |
+
+**File reductions**: `llm_service.py`: 1,816 → 1,751 lines (-3.6%)
+
+### 8.2 Remaining Work Summary
+
+**Currently In Progress (Cursors 11-16)**: 6 PRs
+- PR-EXE-4 (Cursor 11), PR-EXE-5 (Cursor 16)
+- PR-APPLY-2 (Cursor 13)
+- PR-LLM-3 (Cursor 12), PR-LLM-4 (Cursor 15)
+- PR-SVC-2 (Cursor 14)
+
+**Can Start Immediately (No Dependencies)**: 1 PR
+- PR-SVC-3: Doctor extraction (touches only `llm_service.py`, independent)
+
+**Sequencing Required (Has Dependencies)**: 5 PRs
+- PR-EXE-6: Awaits PR-EXE-4, PR-EXE-5
+- PR-EXE-7: Awaits ALL executor PRs (EXE-4, EXE-5, EXE-6)
+- PR-APPLY-1: FAILED, needs redoing (independent but touches `governed_apply.py`)
+- PR-APPLY-3: Awaits PR-APPLY-1, PR-APPLY-2
+- PR-APPLY-4: Awaits ALL governed apply PRs (APPLY-1, APPLY-2, APPLY-3)
+
+**Total Remaining God File PRs**: 6 (1 independent, 1 failed, 4 sequenced)
+
+### 8.3 Deferred Infrastructure Improvements (P3)
+
+These are **NOT** god file refactoring tasks. They are infrastructure/tooling improvements deferred to future work:
+
+| Item | Priority | Status | Notes |
+|------|----------|--------|-------|
+| Black formatting CI workflow | P3 | Deferred | Manual workaround currently |
+| Scripts/ lint cleanup (952 errors) | P3 | Deferred | Doesn't block `src/tests/` CI |
+| Workspace structure warnings | P3 | Deferred | Environmental, non-blocking |
+| Security baseline refresh tooling | P3 | Deferred | Create `scripts/security/refresh_baselines.py` |
+| CodeQL diff gate improvement | P3 | Deferred | Better moved-finding detection |
+| SECBASE checker schema | P3 | Deferred | Machine-friendly format |
+| HTTP enforcement test docstring | P3 | Deferred | Add "allowed zones" documentation |
+
+**These items are tracked here for completeness but are NOT part of the god file refactoring work (Section 6).**
 
 
 

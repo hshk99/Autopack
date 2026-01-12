@@ -101,7 +101,9 @@ class NDJSONResponseParser:
                 obj = json.loads(sanitized)
                 if isinstance(obj, list) and obj and all(isinstance(x, dict) for x in obj):
                     # Check if these look like NDJSON operations
-                    has_type = any(x.get("type") in ("create", "modify", "delete", "meta") for x in obj)
+                    has_type = any(
+                        x.get("type") in ("create", "modify", "delete", "meta") for x in obj
+                    )
                     if not has_type:
                         return "json_array"
                     # Otherwise, treat as convertible to NDJSON (handled later)

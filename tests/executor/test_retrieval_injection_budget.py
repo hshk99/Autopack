@@ -22,16 +22,9 @@ class TestSOTBudgetGating:
 
     def test_gate_allows_with_sufficient_budget(self):
         """Test gate allows retrieval when budget is sufficient."""
-        injection = RetrievalInjection(
-            sot_budget_limit=4000,
-            reserve_budget=2000,
-            enabled=True
-        )
+        injection = RetrievalInjection(sot_budget_limit=4000, reserve_budget=2000, enabled=True)
 
-        gate = injection.gate_sot_retrieval(
-            max_context_chars=10000,
-            phase_id="test_phase"
-        )
+        gate = injection.gate_sot_retrieval(max_context_chars=10000, phase_id="test_phase")
 
         assert gate.allowed is True
         assert gate.sot_budget == 4000
@@ -40,17 +33,10 @@ class TestSOTBudgetGating:
 
     def test_gate_denies_with_insufficient_budget(self):
         """Test gate denies retrieval when budget is insufficient."""
-        injection = RetrievalInjection(
-            sot_budget_limit=4000,
-            reserve_budget=2000,
-            enabled=True
-        )
+        injection = RetrievalInjection(sot_budget_limit=4000, reserve_budget=2000, enabled=True)
 
         # Need 6000 (4000 + 2000), but only have 5000
-        gate = injection.gate_sot_retrieval(
-            max_context_chars=5000,
-            phase_id="test_phase"
-        )
+        gate = injection.gate_sot_retrieval(max_context_chars=5000, phase_id="test_phase")
 
         assert gate.allowed is False
         assert "insufficient budget" in gate.reason.lower()
@@ -58,43 +44,26 @@ class TestSOTBudgetGating:
 
     def test_gate_exactly_at_minimum(self):
         """Test gate behavior when budget exactly meets minimum."""
-        injection = RetrievalInjection(
-            sot_budget_limit=4000,
-            reserve_budget=2000,
-            enabled=True
-        )
+        injection = RetrievalInjection(sot_budget_limit=4000, reserve_budget=2000, enabled=True)
 
         # Exactly 6000 (4000 + 2000)
-        gate = injection.gate_sot_retrieval(
-            max_context_chars=6000,
-            phase_id="test_phase"
-        )
+        gate = injection.gate_sot_retrieval(max_context_chars=6000, phase_id="test_phase")
 
         assert gate.allowed is True
         assert gate.budget_remaining == 2000
 
     def test_gate_one_char_below_minimum(self):
         """Test gate denies when one char below minimum."""
-        injection = RetrievalInjection(
-            sot_budget_limit=4000,
-            reserve_budget=2000,
-            enabled=True
-        )
+        injection = RetrievalInjection(sot_budget_limit=4000, reserve_budget=2000, enabled=True)
 
         # One char below minimum
-        gate = injection.gate_sot_retrieval(
-            max_context_chars=5999,
-            phase_id="test_phase"
-        )
+        gate = injection.gate_sot_retrieval(max_context_chars=5999, phase_id="test_phase")
 
         assert gate.allowed is False
 
     def test_gate_with_zero_budget(self):
         """Test gate behavior with zero budget."""
-        injection = RetrievalInjection(
-            sot_budget_limit=4000,
-            enabled=True
-        )
+        injection = RetrievalInjection(sot_budget_limit=4000, enabled=True)
 
         gate = injection.gate_sot_retrieval(max_context_chars=0)
 
@@ -102,11 +71,7 @@ class TestSOTBudgetGating:
 
     def test_gate_with_large_budget(self):
         """Test gate allows retrieval with very large budget."""
-        injection = RetrievalInjection(
-            sot_budget_limit=4000,
-            reserve_budget=2000,
-            enabled=True
-        )
+        injection = RetrievalInjection(sot_budget_limit=4000, reserve_budget=2000, enabled=True)
 
         gate = injection.gate_sot_retrieval(max_context_chars=100_000)
 
@@ -119,10 +84,7 @@ class TestGlobalKillSwitch:
 
     def test_disabled_denies_even_with_budget(self):
         """Test that disabled state denies retrieval regardless of budget."""
-        injection = RetrievalInjection(
-            sot_budget_limit=4000,
-            enabled=False  # Disabled
-        )
+        injection = RetrievalInjection(sot_budget_limit=4000, enabled=False)  # Disabled
 
         gate = injection.gate_sot_retrieval(max_context_chars=100_000)
 
@@ -132,9 +94,7 @@ class TestGlobalKillSwitch:
     def test_enabled_allows_with_budget(self):
         """Test that enabled state allows retrieval with sufficient budget."""
         injection = RetrievalInjection(
-            sot_budget_limit=4000,
-            reserve_budget=2000,
-            enabled=True  # Enabled
+            sot_budget_limit=4000, reserve_budget=2000, enabled=True  # Enabled
         )
 
         gate = injection.gate_sot_retrieval(max_context_chars=10_000)
@@ -160,11 +120,7 @@ class TestTelemetryRecording:
 
         # Should not raise
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_1",
-            entries=3,
-            success=True,
-            chars_retrieved=2500
+            run_id="run_123", phase_id="phase_1", entries=3, success=True, chars_retrieved=2500
         )
 
         # Check cumulative usage was updated
@@ -181,7 +137,7 @@ class TestTelemetryRecording:
             entries=0,
             success=False,
             chars_retrieved=0,
-            error="Database connection failed"
+            error="Database connection failed",
         )
 
         # Failed retrieval should not update usage
@@ -193,11 +149,7 @@ class TestTelemetryRecording:
 
         # Should not raise or update usage
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_1",
-            entries=3,
-            success=True,
-            chars_retrieved=2500
+            run_id="run_123", phase_id="phase_1", entries=3, success=True, chars_retrieved=2500
         )
 
         # Usage should not be tracked when telemetry disabled
@@ -208,19 +160,11 @@ class TestTelemetryRecording:
         injection = RetrievalInjection(telemetry_enabled=True)
 
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_1",
-            entries=2,
-            success=True,
-            chars_retrieved=1000
+            run_id="run_123", phase_id="phase_1", entries=2, success=True, chars_retrieved=1000
         )
 
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_2",
-            entries=3,
-            success=True,
-            chars_retrieved=1500
+            run_id="run_123", phase_id="phase_2", entries=3, success=True, chars_retrieved=1500
         )
 
         assert injection._run_usage["run_123"] == 2500
@@ -230,19 +174,11 @@ class TestTelemetryRecording:
         injection = RetrievalInjection(telemetry_enabled=True)
 
         injection.record_retrieval_telemetry(
-            run_id="run_1",
-            phase_id="phase_1",
-            entries=2,
-            success=True,
-            chars_retrieved=1000
+            run_id="run_1", phase_id="phase_1", entries=2, success=True, chars_retrieved=1000
         )
 
         injection.record_retrieval_telemetry(
-            run_id="run_2",
-            phase_id="phase_1",
-            entries=3,
-            success=True,
-            chars_retrieved=2000
+            run_id="run_2", phase_id="phase_1", entries=3, success=True, chars_retrieved=2000
         )
 
         assert injection._run_usage["run_1"] == 1000
@@ -265,11 +201,7 @@ class TestBudgetCalculation:
         injection = RetrievalInjection(telemetry_enabled=True)
 
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_1",
-            entries=3,
-            success=True,
-            chars_retrieved=10_000
+            run_id="run_123", phase_id="phase_1", entries=3, success=True, chars_retrieved=10_000
         )
 
         remaining = injection.get_remaining_budget("run_123", total_budget=50_000)
@@ -281,11 +213,7 @@ class TestBudgetCalculation:
         injection = RetrievalInjection(telemetry_enabled=True)
 
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_1",
-            entries=10,
-            success=True,
-            chars_retrieved=60_000
+            run_id="run_123", phase_id="phase_1", entries=10, success=True, chars_retrieved=60_000
         )
 
         remaining = injection.get_remaining_budget("run_123", total_budget=50_000)
@@ -298,11 +226,7 @@ class TestBudgetCalculation:
         injection = RetrievalInjection(telemetry_enabled=True)
 
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_1",
-            entries=5,
-            success=True,
-            chars_retrieved=50_000
+            run_id="run_123", phase_id="phase_1", entries=5, success=True, chars_retrieved=50_000
         )
 
         remaining = injection.get_remaining_budget("run_123", total_budget=50_000)
@@ -314,11 +238,7 @@ class TestBudgetCalculation:
         injection = RetrievalInjection(telemetry_enabled=True)
 
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_1",
-            entries=3,
-            success=True,
-            chars_retrieved=10_000
+            run_id="run_123", phase_id="phase_1", entries=3, success=True, chars_retrieved=10_000
         )
 
         injection.reset_run_budget("run_123")
@@ -350,11 +270,7 @@ class TestBudgetUtilization:
         injection = RetrievalInjection(telemetry_enabled=True)
 
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_1",
-            entries=3,
-            success=True,
-            chars_retrieved=25_000
+            run_id="run_123", phase_id="phase_1", entries=3, success=True, chars_retrieved=25_000
         )
 
         utilization = injection.get_budget_utilization("run_123", total_budget=50_000)
@@ -366,11 +282,7 @@ class TestBudgetUtilization:
         injection = RetrievalInjection(telemetry_enabled=True)
 
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_1",
-            entries=5,
-            success=True,
-            chars_retrieved=50_000
+            run_id="run_123", phase_id="phase_1", entries=5, success=True, chars_retrieved=50_000
         )
 
         utilization = injection.get_budget_utilization("run_123", total_budget=50_000)
@@ -382,11 +294,7 @@ class TestBudgetUtilization:
         injection = RetrievalInjection(telemetry_enabled=True)
 
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_1",
-            entries=10,
-            success=True,
-            chars_retrieved=75_000
+            run_id="run_123", phase_id="phase_1", entries=10, success=True, chars_retrieved=75_000
         )
 
         utilization = injection.get_budget_utilization("run_123", total_budget=50_000)
@@ -398,17 +306,11 @@ class TestBudgetUtilization:
         injection = RetrievalInjection(telemetry_enabled=True)
 
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_1",
-            entries=2,
-            success=True,
-            chars_retrieved=30_000
+            run_id="run_123", phase_id="phase_1", entries=2, success=True, chars_retrieved=30_000
         )
 
         should_warn = injection.should_warn_budget(
-            run_id="run_123",
-            total_budget=50_000,
-            warning_threshold=80.0
+            run_id="run_123", total_budget=50_000, warning_threshold=80.0
         )
 
         assert should_warn is False  # 60% < 80%
@@ -418,17 +320,11 @@ class TestBudgetUtilization:
         injection = RetrievalInjection(telemetry_enabled=True)
 
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_1",
-            entries=4,
-            success=True,
-            chars_retrieved=40_000
+            run_id="run_123", phase_id="phase_1", entries=4, success=True, chars_retrieved=40_000
         )
 
         should_warn = injection.should_warn_budget(
-            run_id="run_123",
-            total_budget=50_000,
-            warning_threshold=80.0
+            run_id="run_123", total_budget=50_000, warning_threshold=80.0
         )
 
         assert should_warn is True  # 80% >= 80%
@@ -438,17 +334,11 @@ class TestBudgetUtilization:
         injection = RetrievalInjection(telemetry_enabled=True)
 
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_1",
-            entries=5,
-            success=True,
-            chars_retrieved=45_000
+            run_id="run_123", phase_id="phase_1", entries=5, success=True, chars_retrieved=45_000
         )
 
         should_warn = injection.should_warn_budget(
-            run_id="run_123",
-            total_budget=50_000,
-            warning_threshold=80.0
+            run_id="run_123", total_budget=50_000, warning_threshold=80.0
         )
 
         assert should_warn is True  # 90% >= 80%
@@ -459,6 +349,7 @@ class TestFromSettings:
 
     def test_from_settings_with_mock(self):
         """Test creating instance from settings object."""
+
         class MockSettings:
             autopack_sot_retrieval_max_chars = 5000
             TELEMETRY_DB_ENABLED = True
@@ -473,6 +364,7 @@ class TestFromSettings:
 
     def test_from_settings_defaults(self):
         """Test from_settings with missing attributes uses defaults."""
+
         class MinimalSettings:
             pass
 
@@ -496,11 +388,7 @@ class TestEdgeCases:
 
     def test_zero_sot_budget_limit(self):
         """Test with zero SOT budget limit."""
-        injection = RetrievalInjection(
-            sot_budget_limit=0,
-            reserve_budget=2000,
-            enabled=True
-        )
+        injection = RetrievalInjection(sot_budget_limit=0, reserve_budget=2000, enabled=True)
 
         # Should need 2000 for reserve
         gate = injection.gate_sot_retrieval(max_context_chars=2000)
@@ -511,9 +399,7 @@ class TestEdgeCases:
     def test_custom_reserve_budget(self):
         """Test with custom reserve budget."""
         injection = RetrievalInjection(
-            sot_budget_limit=4000,
-            reserve_budget=5000,  # Custom reserve
-            enabled=True
+            sot_budget_limit=4000, reserve_budget=5000, enabled=True  # Custom reserve
         )
 
         gate = injection.gate_sot_retrieval(max_context_chars=8000)
@@ -536,28 +422,16 @@ class TestMultiPhaseScenario:
 
     def test_multi_phase_budget_tracking(self):
         """Test budget tracking across multiple phases."""
-        injection = RetrievalInjection(
-            sot_budget_limit=4000,
-            telemetry_enabled=True,
-            enabled=True
-        )
+        injection = RetrievalInjection(sot_budget_limit=4000, telemetry_enabled=True, enabled=True)
 
         # Phase 1: Use 3000 chars
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_1",
-            entries=2,
-            success=True,
-            chars_retrieved=3000
+            run_id="run_123", phase_id="phase_1", entries=2, success=True, chars_retrieved=3000
         )
 
         # Phase 2: Use 2000 chars
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_2",
-            entries=2,
-            success=True,
-            chars_retrieved=2000
+            run_id="run_123", phase_id="phase_2", entries=2, success=True, chars_retrieved=2000
         )
 
         # Total usage should be 5000
@@ -569,19 +443,11 @@ class TestMultiPhaseScenario:
 
     def test_budget_warning_after_multiple_phases(self):
         """Test warning triggers after cumulative usage."""
-        injection = RetrievalInjection(
-            sot_budget_limit=4000,
-            telemetry_enabled=True,
-            enabled=True
-        )
+        injection = RetrievalInjection(sot_budget_limit=4000, telemetry_enabled=True, enabled=True)
 
         # Phase 1: 30% usage
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_1",
-            entries=2,
-            success=True,
-            chars_retrieved=15_000
+            run_id="run_123", phase_id="phase_1", entries=2, success=True, chars_retrieved=15_000
         )
 
         # No warning yet
@@ -589,11 +455,7 @@ class TestMultiPhaseScenario:
 
         # Phase 2: Another 30% usage (total 60%)
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_2",
-            entries=2,
-            success=True,
-            chars_retrieved=15_000
+            run_id="run_123", phase_id="phase_2", entries=2, success=True, chars_retrieved=15_000
         )
 
         # Still no warning
@@ -601,11 +463,7 @@ class TestMultiPhaseScenario:
 
         # Phase 3: Another 25% usage (total 85%)
         injection.record_retrieval_telemetry(
-            run_id="run_123",
-            phase_id="phase_3",
-            entries=2,
-            success=True,
-            chars_retrieved=12_500
+            run_id="run_123", phase_id="phase_3", entries=2, success=True, chars_retrieved=12_500
         )
 
         # Now should warn

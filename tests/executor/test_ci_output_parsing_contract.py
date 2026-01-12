@@ -28,69 +28,52 @@ class TestPytestOutputParsing:
         ("===== 5 passed in 0.01s =====", (5, 0, 0)),
         ("===== 1 passed in 0.02s =====", (1, 0, 0)),
         ("===== 100 passed in 5.23s =====", (100, 0, 0)),
-
         # Simple failing cases
         ("===== 3 failed in 1.2s =====", (0, 3, 0)),
         ("===== 1 failed in 0.5s =====", (0, 1, 0)),
-
         # Mixed passed and failed
         ("===== 3 failed, 2 passed in 1.2s =====", (2, 3, 0)),
         ("===== 2 passed, 3 failed in 1.2s =====", (2, 3, 0)),
         ("===== 1 passed, 1 failed in 0.8s =====", (1, 1, 0)),
-
         # Error cases
         ("===== 1 error, 1 passed =====", (1, 0, 1)),
         ("===== 2 errors in 0.5s =====", (0, 0, 2)),
         ("===== 1 error =====", (0, 0, 1)),
-
         # Collection errors (special handling)
         ("ERROR: 3 errors during collection", (0, 0, 3)),
         ("2 errors during collection", (0, 0, 2)),
         ("1 error during collection", (0, 0, 1)),
-
         # Complex combinations
         ("===== 5 passed, 2 failed, 1 error in 3.5s =====", (5, 2, 1)),
         ("===== 10 passed, 5 failed, 2 errors in 8.2s =====", (10, 5, 2)),
-
         # Real-world pytest output snippets
         (
             "test_foo.py::test_bar PASSED\ntest_foo.py::test_baz FAILED\n===== 1 failed, 1 passed in 0.5s =====",
-            (1, 1, 0)
+            (1, 1, 0),
         ),
         (
             "collected 5 items\n\ntest_foo.py ..... [100%]\n\n===== 5 passed in 0.12s =====",
-            (5, 0, 0)
+            (5, 0, 0),
         ),
-        (
-            "test_foo.py F\ntest_bar.py .\n===== 1 failed, 1 passed in 0.23s =====",
-            (1, 1, 0)
-        ),
-
+        ("test_foo.py F\ntest_bar.py .\n===== 1 failed, 1 passed in 0.23s =====", (1, 1, 0)),
         # Multiline with collection errors
         (
             "ImportError: cannot import name 'foo'\nERROR: 2 errors during collection\n===== 2 errors in 0.1s =====",
-            (0, 0, 2)
+            (0, 0, 2),
         ),
-
         # Edge case: no summary line (should return zeros)
         ("test_foo.py::test_bar PASSED", (0, 0, 0)),
-
         # Edge case: empty output
         ("", (0, 0, 0)),
-
         # Case variations (pytest uses lowercase)
         ("===== 3 PASSED in 0.5s =====", (3, 0, 0)),
         ("===== 2 Failed, 1 Passed =====", (1, 2, 0)),
-
         # With warnings
         ("===== 5 passed, 2 warnings in 0.5s =====", (5, 0, 0)),
-
         # Skipped tests (not counted in our tuple)
         ("===== 3 passed, 2 skipped in 0.3s =====", (3, 0, 0)),
-
         # XFail and XPass (treated as passed/failed by our parser)
         ("===== 2 passed, 1 xfailed in 0.5s =====", (2, 0, 0)),
-
         # Deselected tests
         ("===== 5 passed, 3 deselected in 0.4s =====", (5, 0, 0)),
     ]
@@ -100,9 +83,7 @@ class TestPytestOutputParsing:
         """Test pytest output parsing with table-driven data."""
         result = parse_pytest_counts(output)
         assert result == expected, (
-            f"Failed to parse: {output!r}\n"
-            f"Expected: {expected}\n"
-            f"Got: {result}"
+            f"Failed to parse: {output!r}\n" f"Expected: {expected}\n" f"Got: {result}"
         )
 
     def test_parse_pytest_counts_multiline_with_multiple_matches(self):
@@ -158,7 +139,7 @@ class TestCIOutputTrimming:
         assert len(result) <= 10100  # Allow for truncation marker
         assert "... (truncated) ..." in result
         assert result.startswith("A" * 5000)  # First half preserved
-        assert result.endswith("A" * 5000)   # Last half preserved
+        assert result.endswith("A" * 5000)  # Last half preserved
 
     def test_trim_ci_output_custom_limit(self):
         """Test trimming with custom limit."""
@@ -190,7 +171,7 @@ class TestCILogPersistence:
             content="test content",
             phase_id=phase_id,
             workspace=workspace,
-            run_id=run_id
+            run_id=run_id,
         )
 
         assert log_path is not None
@@ -209,7 +190,7 @@ class TestCILogPersistence:
             content=content,
             phase_id="phase2",
             workspace=workspace,
-            run_id=run_id
+            run_id=run_id,
         )
 
         assert log_path.read_text() == content
@@ -225,7 +206,7 @@ class TestCILogPersistence:
             content=content,
             phase_id="phase3",
             workspace=workspace,
-            run_id=run_id
+            run_id=run_id,
         )
 
         assert log_path.read_text(encoding="utf-8") == content
@@ -242,7 +223,7 @@ class TestCILogPersistence:
             content="first content",
             phase_id="phase4",
             workspace=workspace,
-            run_id=run_id
+            run_id=run_id,
         )
 
         # Write second log with same name
@@ -251,7 +232,7 @@ class TestCILogPersistence:
             content="second content",
             phase_id="phase4",
             workspace=workspace,
-            run_id=run_id
+            run_id=run_id,
         )
 
         assert log_path1 == log_path2

@@ -40,6 +40,7 @@ class GateDecision:
         sot_budget: Configured SOT budget limit
         reserve_budget: Reserved budget for non-SOT context
     """
+
     allowed: bool
     reason: str
     budget_remaining: int
@@ -134,10 +135,7 @@ class RetrievalInjection:
 
         # Global kill switch
         if not self.enabled:
-            logger.info(
-                f"{prefix}[SOT] Retrieval disabled by config "
-                f"(enabled={self.enabled})"
-            )
+            logger.info(f"{prefix}[SOT] Retrieval disabled by config " f"(enabled={self.enabled})")
             return GateDecision(
                 allowed=False,
                 reason="SOT retrieval disabled by configuration",
@@ -239,9 +237,7 @@ class RetrievalInjection:
         used = self._run_usage.get(run_id, 0)
         remaining = max(0, total_budget - used)
 
-        logger.debug(
-            f"[{run_id}] Budget: used={used}, remaining={remaining}/{total_budget}"
-        )
+        logger.debug(f"[{run_id}] Budget: used={used}, remaining={remaining}/{total_budget}")
 
         return remaining
 
@@ -273,10 +269,7 @@ class RetrievalInjection:
         return (used / total_budget) * 100
 
     def should_warn_budget(
-        self,
-        run_id: str,
-        total_budget: int = 50000,
-        warning_threshold: float = 80.0
+        self, run_id: str, total_budget: int = 50000, warning_threshold: float = 80.0
     ) -> bool:
         """Check if budget utilization warrants a warning.
 
@@ -302,8 +295,8 @@ class RetrievalInjection:
             Configured RetrievalInjection instance
         """
         return cls(
-            sot_budget_limit=getattr(settings, 'autopack_sot_retrieval_max_chars', 4000),
-            telemetry_enabled=getattr(settings, 'TELEMETRY_DB_ENABLED', False),
+            sot_budget_limit=getattr(settings, "autopack_sot_retrieval_max_chars", 4000),
+            telemetry_enabled=getattr(settings, "TELEMETRY_DB_ENABLED", False),
             reserve_budget=2000,
-            enabled=getattr(settings, 'autopack_sot_retrieval_enabled', False),
+            enabled=getattr(settings, "autopack_sot_retrieval_enabled", False),
         )

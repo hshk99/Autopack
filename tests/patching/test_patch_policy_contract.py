@@ -10,7 +10,6 @@ ensuring correct enforcement of:
 - Path normalization (Windows/POSIX)
 """
 
-
 from autopack.patching.policy import PatchPolicy, ValidationResult
 
 
@@ -244,11 +243,13 @@ def test_multiple_violations():
         internal_mode=False,
     )
 
-    result = policy.validate_paths([
-        "src/autopack/main.py",  # Protected AND outside scope
-        "src/other/file.py",      # Outside scope
-        "src/project/ok.py",      # OK
-    ])
+    result = policy.validate_paths(
+        [
+            "src/autopack/main.py",  # Protected AND outside scope
+            "src/other/file.py",  # Outside scope
+            "src/project/ok.py",  # OK
+        ]
+    )
 
     assert not result.valid
     # src/autopack/main.py violates both protected path and scope

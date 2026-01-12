@@ -36,10 +36,11 @@ class FileSizeBucket(Enum):
     Note: The SMALL/MEDIUM/LARGE/HUGE classification is for observability.
     The actual policy decision is binary: ≤1000 (allowed) vs >1000 (read-only).
     """
-    SMALL = "small"      # ≤100 lines
-    MEDIUM = "medium"    # 101-500 lines
-    LARGE = "large"      # 501-1000 lines
-    HUGE = "huge"        # >1000 lines (read-only)
+
+    SMALL = "small"  # ≤100 lines
+    MEDIUM = "medium"  # 101-500 lines
+    LARGE = "large"  # 501-1000 lines
+    HUGE = "huge"  # >1000 lines (read-only)
 
 
 @dataclass
@@ -52,6 +53,7 @@ class ReadOnlyDecision:
         total_size_mb: Total size of all files in MB
         oversized_files: List of (file_path, line_count) tuples for files exceeding limit
     """
+
     read_only: bool
     reason: str
     total_size_mb: float
@@ -132,13 +134,13 @@ class ContextPreflight:
         """
         if content is None:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
             except FileNotFoundError:
                 logger.warning(f"File not found: {file_path}")
                 raise
 
-        line_count = content.count('\n') + 1
+        line_count = content.count("\n") + 1
 
         # Classify into buckets
         if line_count <= 100:
@@ -171,7 +173,7 @@ class ContextPreflight:
             if not isinstance(content, str):
                 continue
 
-            line_count = content.count('\n') + 1
+            line_count = content.count("\n") + 1
             total_chars += len(content)
 
             # Check if file exceeds hard limit
@@ -183,26 +185,24 @@ class ContextPreflight:
 
         # Make decision
         if oversized_files:
-            file_list = ', '.join(f"{path} ({lines} lines)" for path, lines in oversized_files)
+            file_list = ", ".join(f"{path} ({lines} lines)" for path, lines in oversized_files)
             reason = f"Large files exceed {self.max_lines_hard_limit} line limit: {file_list}"
             return ReadOnlyDecision(
                 read_only=True,
                 reason=reason,
                 total_size_mb=total_size_mb,
-                oversized_files=oversized_files
+                oversized_files=oversized_files,
             )
 
         return ReadOnlyDecision(
             read_only=False,
             reason="All files within size limits",
             total_size_mb=total_size_mb,
-            oversized_files=[]
+            oversized_files=[],
         )
 
     def filter_files_by_size(
-        self,
-        files: Dict[str, str],
-        max_size_mb: float = None
+        self, files: Dict[str, str], max_size_mb: float = None
     ) -> Dict[str, str]:
         """Filter out files that exceed a size threshold.
 
@@ -256,9 +256,7 @@ class ContextPreflight:
         return None
 
     def validate_context_size(
-        self,
-        files: Dict[str, str],
-        phase_id: str = None
+        self, files: Dict[str, str], phase_id: str = None
     ) -> Tuple[bool, str]:
         """Validate entire context size and provide actionable feedback.
 
@@ -297,9 +295,6 @@ class ContextPreflight:
             return False, message
 
         # All checks passed
-        message = (
-            f"Context validated: {file_count} files, "
-            f"{decision.total_size_mb:.2f}MB total"
-        )
+        message = f"Context validated: {file_count} files, " f"{decision.total_size_mb:.2f}MB total"
         logger.info(f"{prefix}{message}")
         return True, message

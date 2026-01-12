@@ -194,7 +194,9 @@ def list_checkpoints(run_id: str, workspace: Path) -> List[str]:
         return []
 
 
-def create_run_checkpoint(workspace: Path) -> Tuple[bool, Optional[str], Optional[str], Optional[str]]:
+def create_run_checkpoint(
+    workspace: Path,
+) -> Tuple[bool, Optional[str], Optional[str], Optional[str]]:
     """
     Create a run-level checkpoint before execution starts.
 
@@ -332,9 +334,7 @@ def rollback_to_run_checkpoint(
             )
 
             if checkout_result.returncode != 0:
-                logger.warning(
-                    f"[RunCheckpoint] Could not return to branch {checkpoint_branch}"
-                )
+                logger.warning(f"[RunCheckpoint] Could not return to branch {checkpoint_branch}")
                 # Non-fatal - we're at the right commit
 
         logger.info("[RunCheckpoint] Successfully rolled back run to pre-run state")

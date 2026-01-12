@@ -159,7 +159,9 @@ class TestInv003PathInjection:
             is_unix_absolute = path_str.startswith("/") and not path_str.startswith("//")
 
             # At least one safety check should trigger
-            assert has_traversal or is_absolute or is_unix_absolute, f"Path {path_str} should be rejected"
+            assert (
+                has_traversal or is_absolute or is_unix_absolute
+            ), f"Path {path_str} should be rejected"
 
 
 class TestInv005ArtifactRedaction:
@@ -239,17 +241,11 @@ class TestInv005ArtifactRedaction:
                                 {"name": "Authorization", "value": "Bearer secret-token"},
                                 {"name": "Cookie", "value": "session=abc123"},
                             ],
-                            "cookies": [
-                                {"name": "session_id", "value": "abc123def456"}
-                            ],
+                            "cookies": [{"name": "session_id", "value": "abc123def456"}],
                         },
                         "response": {
-                            "headers": [
-                                {"name": "Set-Cookie", "value": "session=xyz789"}
-                            ],
-                            "content": {
-                                "text": '{"api_key": "sk-secret123"}'
-                            },
+                            "headers": [{"name": "Set-Cookie", "value": "session=xyz789"}],
+                            "content": {"text": '{"api_key": "sk-secret123"}'},
                         },
                     }
                 ]

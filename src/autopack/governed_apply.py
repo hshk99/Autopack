@@ -24,6 +24,7 @@ from typing import List, Tuple, Optional, Dict, Set
 from .repair_helpers import YamlRepairHelper, save_repair_debug
 from .rollback_manager import RollbackManager
 from .config import settings
+from .patching.policy import PatchPolicy, ValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -282,6 +283,14 @@ class GovernedApplyPath:
                         target += "/"
                 self.allowed_paths.append(target)
 
+        # Create PatchPolicy instance for path validation
+        self.policy = PatchPolicy(
+            protected_paths=self.protected_paths,
+            allowed_paths=self.allowed_paths,
+            scope_paths=self.scope_paths,
+            internal_mode=autopack_internal_mode,
+        )
+
     # =========================================================================
     # WORKSPACE ISOLATION METHODS
     # =========================================================================
@@ -296,20 +305,8 @@ class GovernedApplyPath:
         Returns:
             True if path is protected, False otherwise
         """
-        # Normalize path separators
-        normalized_path = file_path.replace("\\", "/")
-
-        # Check if path is explicitly allowed (overrides protection)
-        for allowed in self.allowed_paths:
-            if normalized_path.startswith(allowed.replace("\\", "/")):
-                return False
-
-        # Check if path matches any protected prefix
-        for protected in self.protected_paths:
-            if normalized_path.startswith(protected.replace("\\", "/")):
-                return True
-
-        return False
+        # Delegate to PatchPolicy
+        return self.policy.is_path_protected(file_path)
 
     def _extract_justification_from_patch(self, patch_content: str) -> str:
         """
@@ -355,72 +352,35 @@ class GovernedApplyPath:
         Returns:
             Tuple of (is_valid, list of violations)
         """
-        violations = []
+        # Use PatchPolicy for validation
+        result = self.policy.validate_paths(files)
 
-        def _norm_relpath(p: object) -> str:
-            """
-            Normalize relative paths for scope comparison.
-
-            Important for Windows drains where scope paths may come from `Path` stringification
-            (backslashes) while patch paths are POSIX-style.
-            """
-            s = str(p or "").strip()
-            s = s.replace("\\", "/")
-            # Strip common leading prefixes
-            while s.startswith("./"):
-                s = s[2:]
-            s = s.lstrip("/")  # keep relative
-            # Collapse duplicate separators
-            s = re.sub(r"/{2,}", "/", s)
-            return s
-
-        # Check 1: Protected paths (existing)
-        for file_path in files:
-            if self._is_path_protected(file_path):
-                violations.append(f"Protected path: {file_path}")
-                logger.warning(
-                    f"[Isolation] BLOCKED: Patch attempts to modify protected path: {file_path}"
-                )
-
-        # Check 2: Scope enforcement (NEW - Option C Layer 2)
-        if self.scope_paths:
-            # Normalize scope paths for comparison, supporting directory prefixes
-            normalized_scope = set()
-            scope_prefixes: List[str] = []
-            for path in self.scope_paths:
-                raw = str(path or "")
-                norm = _norm_relpath(raw)
-                if not norm:
-                    continue
-                is_prefix = raw.strip().endswith(("/", "\\"))
-                if is_prefix:
-                    # Keep prefixes in canonical "dir/" form
-                    scope_prefixes.append(norm.rstrip("/") + "/")
-                else:
-                    normalized_scope.add(norm.rstrip("/"))
-
-            for file_path in files:
-                normalized_file = _norm_relpath(file_path).rstrip("/")
-                in_exact = normalized_file in normalized_scope
-                in_prefix = any(normalized_file.startswith(prefix) for prefix in scope_prefixes)
-                if not in_exact and not in_prefix:
-                    violations.append(f"Outside scope: {file_path}")
+        # Log violations for observability
+        if not result.valid:
+            for violation in result.violations:
+                if violation.startswith("Protected path:"):
+                    file_path = violation.replace("Protected path: ", "")
+                    logger.warning(
+                        f"[Isolation] BLOCKED: Patch attempts to modify protected path: {file_path}"
+                    )
+                elif violation.startswith("Outside scope:"):
+                    file_path = violation.replace("Outside scope: ", "")
                     logger.warning(
                         f"[Scope] BLOCKED: Patch attempts to modify file outside scope: {file_path}"
                     )
 
-            if len(violations) > len([v for v in violations if v.startswith("Protected")]):
-                logger.error(
-                    f"[Scope] Patch rejected - {len([v for v in violations if v.startswith('Outside')])} files outside scope"
-                )
+            # Log summary
+            protected_count = len([v for v in result.violations if v.startswith("Protected")])
+            scope_count = len([v for v in result.violations if v.startswith("Outside")])
 
-        if violations:
+            if scope_count > 0:
+                logger.error(f"[Scope] Patch rejected - {scope_count} files outside scope")
+
             logger.error(
-                f"[Isolation] Patch rejected - {len(violations)} violations (protected paths + scope)"
+                f"[Isolation] Patch rejected - {len(result.violations)} violations (protected paths + scope)"
             )
-            return False, violations
 
-        return True, []
+        return result.valid, result.violations
 
     # =========================================================================
     # FILE VALIDATION AND INTEGRITY METHODS (Self-Troubleshoot Enhancement)

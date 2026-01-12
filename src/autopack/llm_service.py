@@ -49,6 +49,7 @@ from .error_recovery import (
     should_escalate_doctor_model,
 )
 from .dual_auditor import DualAuditor
+from .llm.client_resolution import resolve_client_and_model
 
 # Import OpenAI clients with graceful fallback
 try:
@@ -187,6 +188,8 @@ class LlmService:
     def _resolve_client_and_model(self, role: str, requested_model: str):
         """Resolve client and fallback model if needed.
 
+        This method delegates to client_resolution.resolve_client_and_model.
+
         Routing priority (current stack):
         1. Gemini models (gemini-*) -> Gemini client (uses GOOGLE_API_KEY)
         2. Claude models (claude-*) -> Anthropic client
@@ -207,76 +210,13 @@ class LlmService:
             anthropic_client = self.anthropic_auditor
             gemini_client = self.gemini_auditor
 
-        # Route Gemini models to Gemini client
-        if requested_model.lower().startswith("gemini-"):
-            if gemini_client is not None:
-                return gemini_client, requested_model
-            # Gemini not available, try fallbacks
-            if anthropic_client is not None:
-                print(
-                    f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to Anthropic (claude-sonnet-4-5)."
-                )
-                return anthropic_client, "claude-sonnet-4-5"
-            if openai_client is not None:
-                print(
-                    f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to OpenAI (gpt-4o)."
-                )
-                return openai_client, "gpt-4o"
-            if glm_client is not None:
-                # Keep GLM fallback model configurable (avoid hardcoding model bumps).
-                from autopack.model_registry import resolve_model_alias
-
-                glm_fallback = resolve_model_alias("glm-tidy")
-                print(
-                    f"Warning: Gemini model {requested_model} selected but GOOGLE_API_KEY not set. Falling back to GLM ({glm_fallback})."
-                )
-                return glm_client, glm_fallback
-            raise RuntimeError(
-                f"Gemini model {requested_model} selected but no LLM clients are available. Set GOOGLE_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, or GLM_API_KEY."
-            )
-
-        # Legacy GLM models: treated as misconfiguration
-        if requested_model.lower().startswith("glm-"):
-            raise RuntimeError(
-                f"GLM model {requested_model} selected but GLM support is disabled in current routing. "
-                f"Update config/models.yaml to use claude-sonnet-4-5/claude-opus-4-5 instead."
-            )
-
-        # Route Claude models to Anthropic client
-        if "claude" in requested_model.lower():
-            if anthropic_client is not None:
-                return anthropic_client, requested_model
-            # Anthropic not available, try fallbacks
-            if gemini_client is not None:
-                print(
-                    f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to Gemini (gemini-2.5-pro)."
-                )
-                return gemini_client, "gemini-2.5-pro"
-            if openai_client is not None:
-                print(
-                    f"Warning: Claude model {requested_model} selected but Anthropic not available. Falling back to OpenAI (gpt-4o)."
-                )
-                return openai_client, "gpt-4o"
-            raise RuntimeError(
-                f"Claude model {requested_model} selected but no LLM clients are available"
-            )
-
-        # Route OpenAI models (gpt-*, o1-*, etc.) to OpenAI client
-        if openai_client is not None:
-            return openai_client, requested_model
-        # OpenAI not available, try fallbacks
-        if gemini_client is not None:
-            print(
-                f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Gemini (gemini-2.5-pro)."
-            )
-            return gemini_client, "gemini-2.5-pro"
-        if anthropic_client is not None:
-            print(
-                f"Warning: OpenAI model {requested_model} selected but OpenAI not available. Falling back to Anthropic (claude-sonnet-4-5)."
-            )
-            return anthropic_client, "claude-sonnet-4-5"
-        raise RuntimeError(
-            f"OpenAI model {requested_model} selected but no LLM clients are available"
+        return resolve_client_and_model(
+            role,
+            requested_model,
+            gemini_client=gemini_client,
+            anthropic_client=anthropic_client,
+            openai_client=openai_client,
+            glm_client=glm_client,
         )
 
     def generate_deliverables_manifest(

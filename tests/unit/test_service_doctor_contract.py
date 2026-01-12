@@ -124,9 +124,7 @@ class TestBuildDoctorUserMessage:
         assert "Patch Validation Errors" in message
         assert "context_mismatch" in message
 
-    def test_includes_last_patch_truncated(
-        self, sample_doctor_request: DoctorRequest
-    ) -> None:
+    def test_includes_last_patch_truncated(self, sample_doctor_request: DoctorRequest) -> None:
         message = build_doctor_user_message(sample_doctor_request)
         assert "Last Patch (truncated)" in message
         assert "foo.py" in message
@@ -154,12 +152,14 @@ class TestParseDoctorJson:
     """Tests for parse_doctor_json function."""
 
     def test_parses_clean_json(self) -> None:
-        content = json.dumps({
-            "action": "retry_with_fix",
-            "confidence": 0.85,
-            "rationale": "Simple patch error",
-            "builder_hint": "Re-read the file",
-        })
+        content = json.dumps(
+            {
+                "action": "retry_with_fix",
+                "confidence": 0.85,
+                "rationale": "Simple patch error",
+                "builder_hint": "Re-read the file",
+            }
+        )
         response = parse_doctor_json(content)
 
         assert response.action == "retry_with_fix"

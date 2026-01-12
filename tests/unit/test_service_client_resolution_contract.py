@@ -72,9 +72,7 @@ class TestResolveClientAndModel:
 
     # --- Gemini model routing ---
 
-    def test_gemini_model_routes_to_gemini_client(
-        self, mock_gemini_client: MagicMock
-    ) -> None:
+    def test_gemini_model_routes_to_gemini_client(self, mock_gemini_client: MagicMock) -> None:
         registry = ClientRegistry(gemini_builder=mock_gemini_client)
         result = resolve_client_and_model("builder", "gemini-2.5-pro", registry)
 
@@ -83,9 +81,7 @@ class TestResolveClientAndModel:
         assert result.fallback_used is False
         assert result.error is None
 
-    def test_gemini_model_falls_back_to_anthropic(
-        self, mock_anthropic_client: MagicMock
-    ) -> None:
+    def test_gemini_model_falls_back_to_anthropic(self, mock_anthropic_client: MagicMock) -> None:
         registry = ClientRegistry(anthropic_builder=mock_anthropic_client)
         result = resolve_client_and_model("builder", "gemini-2.5-pro", registry)
 
@@ -94,9 +90,7 @@ class TestResolveClientAndModel:
         assert result.fallback_used is True
         assert "Falling back to Anthropic" in (result.fallback_reason or "")
 
-    def test_gemini_model_falls_back_to_openai(
-        self, mock_openai_client: MagicMock
-    ) -> None:
+    def test_gemini_model_falls_back_to_openai(self, mock_openai_client: MagicMock) -> None:
         registry = ClientRegistry(openai_builder=mock_openai_client)
         result = resolve_client_and_model("builder", "gemini-2.5-pro", registry)
 
@@ -126,9 +120,7 @@ class TestResolveClientAndModel:
         assert result.fallback_used is False
         assert result.error is None
 
-    def test_claude_model_falls_back_to_gemini(
-        self, mock_gemini_client: MagicMock
-    ) -> None:
+    def test_claude_model_falls_back_to_gemini(self, mock_gemini_client: MagicMock) -> None:
         registry = ClientRegistry(gemini_auditor=mock_gemini_client)
         result = resolve_client_and_model("auditor", "claude-sonnet-4-5", registry)
 
@@ -137,9 +129,7 @@ class TestResolveClientAndModel:
         assert result.fallback_used is True
         assert "Falling back to Gemini" in (result.fallback_reason or "")
 
-    def test_claude_model_falls_back_to_openai(
-        self, mock_openai_client: MagicMock
-    ) -> None:
+    def test_claude_model_falls_back_to_openai(self, mock_openai_client: MagicMock) -> None:
         registry = ClientRegistry(openai_auditor=mock_openai_client)
         result = resolve_client_and_model("auditor", "claude-opus-4-5", registry)
 
@@ -158,9 +148,7 @@ class TestResolveClientAndModel:
 
     # --- OpenAI model routing ---
 
-    def test_openai_model_routes_to_openai_client(
-        self, mock_openai_client: MagicMock
-    ) -> None:
+    def test_openai_model_routes_to_openai_client(self, mock_openai_client: MagicMock) -> None:
         registry = ClientRegistry(openai_builder=mock_openai_client)
         result = resolve_client_and_model("builder", "gpt-4o", registry)
 
@@ -169,9 +157,7 @@ class TestResolveClientAndModel:
         assert result.fallback_used is False
         assert result.error is None
 
-    def test_openai_model_falls_back_to_gemini(
-        self, mock_gemini_client: MagicMock
-    ) -> None:
+    def test_openai_model_falls_back_to_gemini(self, mock_gemini_client: MagicMock) -> None:
         registry = ClientRegistry(gemini_builder=mock_gemini_client)
         result = resolve_client_and_model("builder", "gpt-4o", registry)
 
@@ -180,9 +166,7 @@ class TestResolveClientAndModel:
         assert result.fallback_used is True
         assert "Falling back to Gemini" in (result.fallback_reason or "")
 
-    def test_openai_model_falls_back_to_anthropic(
-        self, mock_anthropic_client: MagicMock
-    ) -> None:
+    def test_openai_model_falls_back_to_anthropic(self, mock_anthropic_client: MagicMock) -> None:
         registry = ClientRegistry(anthropic_builder=mock_anthropic_client)
         result = resolve_client_and_model("builder", "gpt-4o", registry)
 

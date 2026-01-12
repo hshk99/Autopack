@@ -265,9 +265,7 @@ def parse_doctor_json(content: str) -> DoctorResponse:
     if action_match:
         action = action_match.group(1)
         confidence = float(confidence_match.group(1)) if confidence_match else 0.5
-        rationale = (
-            rationale_match.group(1) if rationale_match else "Extracted from partial JSON"
-        )
+        rationale = rationale_match.group(1) if rationale_match else "Extracted from partial JSON"
 
         logger.debug(
             f"[Doctor] Extracted fields via regex: action={action}, confidence={confidence}"

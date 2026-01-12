@@ -328,9 +328,7 @@ class TestUsageRecordingResult:
         assert result.error is None
 
     def test_failure_result(self) -> None:
-        result = UsageRecordingResult(
-            success=False, event_id=None, error="Database error"
-        )
+        result = UsageRecordingResult(success=False, event_id=None, error="Database error")
         assert result.success is False
         assert result.event_id is None
         assert result.error == "Database error"

@@ -48,6 +48,9 @@ from .token_estimator import TokenEstimator
 # BUILD-129 Phase 2: Continuation-based recovery
 from .continuation_recovery import ContinuationRecovery
 
+# PR-LLM-4: Import diff generator for reusable diff generation
+from .patching.diff_generator import generate_unified_diff
+
 # BUILD-129 Phase 3: NDJSON truncation-tolerant format
 from .ndjson_format import NDJSONParser, NDJSONApplier
 

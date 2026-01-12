@@ -79,16 +79,12 @@ from autopack.deliverables_validator import (
 )
 
 # Memory and validation imports
-# BUILD-115: models.py removed - database write code disabled below
-# from autopack import models
 from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
 from autopack.memory import MemoryService, should_block_on_drift, extract_goal_from_description
 from autopack.validators import validate_yaml_syntax, validate_docker_compose
 
 # BUILD-123v2: Manifest Generator imports
 from autopack.manifest_generator import ManifestGenerator
-
-# from autopack.scope_expander import ScopeExpander  # BUILD-126: Temporarily disabled
 
 # BUILD-127 Phase 1: Completion authority with baseline tracking
 from autopack.phase_finalizer import PhaseFinalizer
@@ -502,12 +498,6 @@ class AutonomousExecutor:
             autopack_internal_mode=autopack_internal_mode,
             run_type=self.run_type,
         )
-        #         self.scope_expander = ScopeExpander(
-        #             workspace=self.workspace,
-        #             repo_scanner=self.manifest_generator.scanner,
-        #             autopack_internal_mode=autopack_internal_mode,
-        #             run_type=self.run_type,
-        #         )
         logger.info("[BUILD-123v2] Manifest generator initialized (deterministic scope generation)")
 
         # T0 Health Checks: quick environment validation before executing phases
@@ -6925,188 +6915,11 @@ Just the new description that should replace the current one while preserving th
         return load_repository_context(self, phase)
 
     def _load_repository_context_heuristic(self, phase: Dict) -> Dict:
-        """Legacy heuristic loader (moved from _load_repository_context in PR2)."""
-        import subprocess
-        import re
+        """Legacy heuristic loader - delegates to extracted context_heuristics module."""
+        from autopack.executor.context_heuristics import load_repository_context_heuristic
 
-        workspace = Path(self.workspace)
-        loaded_paths = set()  # Track loaded paths to avoid duplicates
-        existing_files = {}  # Final output format
-        max_files = 40  # Increased limit to accommodate recently modified files
-
-        # BUILD-043: Token-aware context loading
-        # Target: Keep input context under 20K tokens to leave room for output
-        TARGET_INPUT_TOKENS = 20000
-        current_token_estimate = 0
-
-        def _estimate_file_tokens(content: str) -> int:
-            """Estimate token count for file content (~4 chars per token)"""
-            return len(content) // 4
-
-        def _load_file(filepath: Path) -> bool:
-            """Load a single file if not already loaded. Returns True if loaded."""
-            nonlocal current_token_estimate
-
-            if len(existing_files) >= max_files:
-                return False
-
-            # BUILD-043: Check token budget before loading
-            rel_path = str(filepath.relative_to(workspace))
-            if rel_path in loaded_paths:
-                return False
-            if not filepath.exists() or not filepath.is_file():
-                return False
-            if "__pycache__" in rel_path or ".pyc" in rel_path:
-                return False
-
-            try:
-                content = filepath.read_text(encoding="utf-8", errors="ignore")
-                content_trimmed = content[:15000]  # Increased limit for important files
-
-                # BUILD-043: Check if adding this file would exceed token budget
-                file_tokens = _estimate_file_tokens(content_trimmed)
-                if current_token_estimate + file_tokens > TARGET_INPUT_TOKENS:
-                    logger.debug(
-                        f"[Context] Skipping {rel_path} - would exceed token budget ({current_token_estimate + file_tokens} > {TARGET_INPUT_TOKENS})"
-                    )
-                    return False
-
-                existing_files[rel_path] = content_trimmed
-                loaded_paths.add(rel_path)
-                current_token_estimate += file_tokens
-                return True
-            except Exception as e:
-                logger.warning(f"Failed to read {filepath}: {e}")
-                return False
-
-        # Priority 0: Recently modified files from git status (ALWAYS FRESH)
-        # This ensures Builder sees the latest state after earlier phases applied patches
-        recently_modified = []
-        try:
-            result = subprocess.run(
-                ["git", "status", "--porcelain"],
-                cwd=str(workspace),
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            if result.returncode == 0:
-                for line in result.stdout.strip().split("\n"):
-                    if line and len(line) > 3:
-                        # Parse git status format: "XY filename" or "XY old -> new"
-                        file_part = line[3:].strip()
-                        if " -> " in file_part:
-                            file_part = file_part.split(" -> ")[1]
-                        if file_part:
-                            recently_modified.append(file_part)
-        except Exception as e:
-            logger.debug(f"Could not get git status for fresh context: {e}")
-
-        # Load recently modified files first (highest priority for freshness)
-        modified_count = 0
-        for rel_path in recently_modified[:15]:  # Limit to 15 recently modified files
-            # Defensive check: ensure rel_path is a string
-            if not isinstance(rel_path, str):
-                logger.warning(
-                    f"[Context] Skipping non-string rel_path: {rel_path} (type: {type(rel_path)})"
-                )
-                continue
-            if not rel_path or not rel_path.strip():
-                continue
-            try:
-                filepath = workspace / rel_path
-                if _load_file(filepath):
-                    modified_count += 1
-            except (TypeError, ValueError) as e:
-                logger.warning(f"[Context] Error processing rel_path '{rel_path}': {e}")
-                continue
-
-        if modified_count > 0:
-            logger.info(
-                f"[Context] Loaded {modified_count} recently modified files for fresh context"
-            )
-
-        # Priority 1: Files mentioned in phase description
-        # Extract file paths from description using regex
-        phase_description = phase.get("description", "")
-        phase_criteria = " ".join(phase.get("acceptance_criteria", []))
-        combined_text = f"{phase_description} {phase_criteria}"
-
-        # Match patterns like: src/autopack/file.py, config/models.yaml, etc.
-        # Use non-capturing group (?:...) to get full match, not just extension
-        file_patterns = re.findall(
-            r"[a-zA-Z_][a-zA-Z0-9_/\\.-]*\.(?:py|yaml|json|ts|js|md)", combined_text
-        )
-        mentioned_count = 0
-        for pattern in file_patterns[:10]:  # Limit to 10 mentioned files
-            # Defensive check: ensure pattern is a string
-            if not isinstance(pattern, str):
-                logger.warning(
-                    f"[Context] Skipping non-string pattern: {pattern} (type: {type(pattern)})"
-                )
-                continue
-            # Additional safety: ensure pattern is not empty and doesn't contain path separators that would break
-            if not pattern or not pattern.strip():
-                continue
-            try:
-                # Try exact match first
-                filepath = workspace / pattern
-                if _load_file(filepath):
-                    mentioned_count += 1
-                    continue
-                # Try finding in src/ or config/ directories
-                for prefix in ["src/autopack/", "config/", "src/", ""]:
-                    # Ensure prefix is a string (defensive)
-                    if not isinstance(prefix, str):
-                        continue
-                    filepath = workspace / prefix / pattern
-                    if _load_file(filepath):
-                        mentioned_count += 1
-                        break
-            except (TypeError, ValueError) as e:
-                logger.warning(f"[Context] Error processing pattern '{pattern}': {e}")
-                continue
-
-        if mentioned_count > 0:
-            logger.info(f"[Context] Loaded {mentioned_count} files mentioned in phase description")
-
-        # Priority 2: Key config files (always include if they exist)
-        priority_files = [
-            "package.json",
-            "setup.py",
-            "requirements.txt",
-            "pyproject.toml",
-            "README.md",
-            ".gitignore",
-        ]
-
-        for filename in priority_files:
-            _load_file(workspace / filename)
-
-        # Priority 3: Source files from common directories
-        source_dirs = ["src", "backend", "app", "lib"]
-        for source_dir in source_dirs:
-            dir_path = workspace / source_dir
-            if not dir_path.exists():
-                continue
-
-            # Load Python files
-            for py_file in dir_path.rglob("*.py"):
-                if len(existing_files) >= max_files:
-                    break
-                _load_file(py_file)
-
-        # BUILD-043: Log token budget usage
-        logger.info(
-            f"[Context] Total: {len(existing_files)} files loaded for Builder context "
-            f"(modified={modified_count}, mentioned={mentioned_count})"
-        )
-        logger.info(
-            f"[TOKEN_BUDGET] Context loading: ~{current_token_estimate} tokens "
-            f"({current_token_estimate * 100 // TARGET_INPUT_TOKENS}% of {TARGET_INPUT_TOKENS} budget)"
-        )
-
-        return {"existing_files": existing_files}
+        result = load_repository_context_heuristic(Path(self.workspace), phase)
+        return {"existing_files": result.existing_files}
 
     def _determine_workspace_root(self, scope_config: Dict) -> Path:
         """Determine workspace root based on scope configuration.
@@ -7250,104 +7063,31 @@ Just the new description that should replace the current one while preserving th
     def _load_targeted_context_for_templates(self, phase: Dict) -> Dict:
         """Load minimal context for country template phases (UK, CA, AU)
 
-        These phases typically create:
-        - templates/countries/{country}/template.yaml
-        - src/autopack/document_categories.py (or similar)
-
-        We only need to load template-related files, not the entire codebase.
+        Delegates to extracted context_heuristics module.
         """
-        workspace = Path(self.workspace)
-        existing_files = {}
+        from autopack.executor.context_heuristics import load_template_context
 
-        # Load only template-related files
-        patterns = [
-            "templates/**/*.yaml",
-            "src/autopack/document_categories.py",
-            "src/autopack/validation.py",
-            "src/autopack/models.py",
-            "config/**/*.yaml",
-        ]
-
-        for pattern in patterns:
-            for filepath in workspace.glob(pattern):
-                if filepath.is_file() and "__pycache__" not in str(filepath):
-                    try:
-                        rel_path = str(filepath.relative_to(workspace))
-                        content = filepath.read_text(encoding="utf-8", errors="ignore")
-                        existing_files[rel_path] = content[:15000]
-                    except Exception as e:
-                        logger.debug(f"Could not load {filepath}: {e}")
-
-        logger.info(f"[Context] Loaded {len(existing_files)} template-related files (targeted)")
+        existing_files = load_template_context(Path(self.workspace))
         return {"existing_files": existing_files}
 
     def _load_targeted_context_for_frontend(self, phase: Dict) -> Dict:
-        """Load minimal context for frontend phases
+        """Load minimal context for frontend phases.
 
-        Frontend phases only need:
-        - frontend/ directory contents
-        - package.json, vite.config.ts, tsconfig.json
+        Delegates to extracted context_heuristics module.
         """
-        workspace = Path(self.workspace)
-        existing_files = {}
+        from autopack.executor.context_heuristics import load_frontend_context
 
-        patterns = [
-            "frontend/**/*.ts",
-            "frontend/**/*.tsx",
-            "frontend/**/*.css",
-            "frontend/**/*.json",
-            "package.json",
-            "vite.config.ts",
-            "tsconfig.json",
-            "tailwind.config.js",
-        ]
-
-        for pattern in patterns:
-            for filepath in workspace.glob(pattern):
-                if filepath.is_file() and "node_modules" not in str(filepath):
-                    try:
-                        rel_path = str(filepath.relative_to(workspace))
-                        content = filepath.read_text(encoding="utf-8", errors="ignore")
-                        existing_files[rel_path] = content[:15000]
-                    except Exception as e:
-                        logger.debug(f"Could not load {filepath}: {e}")
-
-        logger.info(f"[Context] Loaded {len(existing_files)} frontend files (targeted)")
+        existing_files = load_frontend_context(Path(self.workspace))
         return {"existing_files": existing_files}
 
     def _load_targeted_context_for_docker(self, phase: Dict) -> Dict:
-        """Load minimal context for Docker/deployment phases
+        """Load minimal context for Docker/deployment phases.
 
-        Docker phases only need:
-        - Dockerfile, docker-compose.yml, .dockerignore
-        - Database initialization scripts
-        - Configuration files
+        Delegates to extracted context_heuristics module.
         """
-        workspace = Path(self.workspace)
-        existing_files = {}
+        from autopack.executor.context_heuristics import load_docker_context
 
-        patterns = [
-            "Dockerfile",
-            "docker-compose.yml",
-            ".dockerignore",
-            "scripts/init-db.sql",
-            "scripts/**/*.sh",
-            "config/**/*.yaml",
-            "requirements.txt",
-            "package.json",
-        ]
-
-        for pattern in patterns:
-            for filepath in workspace.glob(pattern):
-                if filepath.is_file():
-                    try:
-                        rel_path = str(filepath.relative_to(workspace))
-                        content = filepath.read_text(encoding="utf-8", errors="ignore")
-                        existing_files[rel_path] = content[:15000]
-                    except Exception as e:
-                        logger.debug(f"Could not load {filepath}: {e}")
-
-        logger.info(f"[Context] Loaded {len(existing_files)} docker/deployment files (targeted)")
+        existing_files = load_docker_context(Path(self.workspace))
         return {"existing_files": existing_files}
 
     def _load_scoped_context(self, phase: Dict, scope_config: Dict) -> Dict:

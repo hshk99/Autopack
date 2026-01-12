@@ -1,17 +1,16 @@
 """
 Enforcement test: "executor never talks raw HTTP" (BUILD-135).
 
-This repo is mid-migration: `autonomous_executor.py` still contains legacy
-`requests.*` calls, but new code should not add *more* raw HTTP surface.
+Phase 2: Full enforcement across all executor code.
 
-This test is the Phase 1 guardrail:
-- FAIL if any module under `src/autopack/executor/` makes direct `requests.*` calls.
-- (Legacy allowance) Do not enforce on `src/autopack/autonomous_executor.py` until
-  the follow-up PR migrates it to `SupervisorApiClient`.
+This test ensures:
+- NO module under `src/autopack/executor/` makes direct `requests.*` calls
+- `src/autopack/autonomous_executor.py` also uses `SupervisorApiClient` (migrated in PR #142)
 
-Why this is useful long-term:
-- Prevents the raw-HTTP pattern from spreading to newly extracted seams.
-- Makes the "Part 2" migration a clean, mechanical delete of the final legacy island.
+Why this is useful:
+- Prevents the raw-HTTP pattern from spreading to any executor code
+- All HTTP communication flows through the typed SupervisorApiClient
+- HTTP concerns are isolated to a single, testable boundary
 """
 
 import re
@@ -39,18 +38,27 @@ def _find_raw_http_violations(path: Path) -> list[tuple[int, str]]:
 
 def test_executor_package_never_uses_raw_http_requests():
     """
-    BUILD-135 (Phase 1): no raw `requests.*` calls in extracted executor seams.
+    BUILD-135 (Phase 2): no raw `requests.*` calls in any executor code.
 
-    Legacy note:
-    - `src/autopack/autonomous_executor.py` is excluded for now (it is migrated in Part 2).
+    Enforces on:
+    - `src/autopack/executor/` package (all modules)
+    - `src/autopack/autonomous_executor.py` (migrated in PR #142)
     """
     executor_pkg = Path("src/autopack/executor")
     assert executor_pkg.exists(), f"Executor package not found at {executor_pkg}"
 
     all_violations: list[tuple[Path, int, str]] = []
+
+    # Check executor package
     for py_file in sorted(executor_pkg.rglob("*.py")):
         for line_no, line in _find_raw_http_violations(py_file):
             all_violations.append((py_file, line_no, line))
+
+    # Check autonomous_executor.py (Phase 2: now included)
+    autonomous_executor = Path("src/autopack/autonomous_executor.py")
+    if autonomous_executor.exists():
+        for line_no, line in _find_raw_http_violations(autonomous_executor):
+            all_violations.append((autonomous_executor, line_no, line))
 
     if all_violations:
         lines = [

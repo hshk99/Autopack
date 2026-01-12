@@ -703,19 +703,35 @@ This section turns Section 5 into a **do-this-next** queue. Each item is intende
 - 9 domain routers created with 106 contract tests
 - All route shapes preserved (test_route_contract.py passing)
 
+**PR #132 (refactor/api-router-split-20260112)** ✅ MERGED
+- **Merged**: 2026-01-12
+- **Impact**: Consolidated all API router refactoring work (PR-API-1, PR-API-2, PR-API-3a-3i)
+- **Baseline Update**: CodeQL findings reduced from 57 to 31 (-46% improvement)
+- **Verification**: All required CI checks passed
+
 ### 6.2 Executor shrink: `src/autopack/autonomous_executor.py`
 
-**PR-EXE-1: Supervisor API client**
-- **Create**: `src/autopack/supervisor/api_client.py`
-  - pure HTTP wrapper around the Autopack API
-- **Replace** direct `requests.*` calls in executor with `SupervisorApiClient`
-- **Add tests**:
-  - **New** `tests/unit/test_supervisor_api_client_contract.py`
-    - URL joining / path correctness
-    - header propagation (`X-API-Key`)
-    - typed error mapping (timeout/network/4xx/5xx → stable outcomes)
-- **Done when**:
-  - Executor still runs loop without behavior changes (unit-level; integration tests remain green)
+**PR-EXE-1: Supervisor API client** ✅ COMPLETE
+- **Part 1 - PR #141** ✅ MERGED (2026-01-12)
+  - **Created**: `src/autopack/supervisor/api_client.py`
+    - Pure HTTP wrapper with 9 typed methods: `check_health()`, `get_run()`, `update_phase_status()`, `submit_builder_result()`, `submit_auditor_result()`, `request_approval()`, `poll_approval_status()`, `request_clarification()`, `poll_clarification_status()`
+    - Typed exceptions: `SupervisorApiTimeoutError`, `SupervisorApiNetworkError`, `SupervisorApiHttpError`
+    - API key support via `X-API-Key` header
+    - Configurable timeouts (default 10s)
+  - **Added tests**:
+    - **New** `tests/unit/test_supervisor_api_client_contract.py` — 28 contract tests
+    - **New** `tests/unit/test_executor_http_enforcement.py` — BUILD-135 enforcement (Phase 1: excludes autonomous_executor.py)
+  - **Verification**: All 28 client contract tests pass
+
+- **Part 2 - PR #142** ✅ MERGED (2026-01-12)
+  - **Migrated**: `src/autopack/autonomous_executor.py` to use SupervisorApiClient
+  - **Replaced**: All 15 raw `requests.*` calls with typed client methods
+  - **Updated**: Error handling to use typed exceptions
+  - **Impact**: -58 lines (net reduction: 127 insertions, 185 deletions)
+  - **Verification**: All Core Tests pass, lint clean (after Black formatting)
+
+**BUILD-135 Status**: Phase 1 complete (executor package clean, autonomous_executor.py migrated)
+**Next**: Phase 2 - Update enforcement test to include autonomous_executor.py
 
 **PR-EXE-2: Approval flow consolidation**
 - **Create**: `src/autopack/executor/approval_flow.py`

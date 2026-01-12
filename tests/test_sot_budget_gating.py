@@ -9,7 +9,7 @@ Tests that SOT retrieval is correctly gated based on available budget:
 """
 
 import pytest
-from unittest.mock import patch, Mock
+from unittest.mock import Mock
 
 
 class TestSOTBudgetGating:

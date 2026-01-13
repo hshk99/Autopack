@@ -414,9 +414,7 @@ class BuilderOrchestrator:
 
         return phase_with_constraints, use_full_file_mode
 
-    def _validate_file_sizes(
-        self, phase_id: str, phase: Dict, file_context: Dict
-    ) -> bool:
+    def _validate_file_sizes(self, phase_id: str, phase: Dict, file_context: Dict) -> bool:
         """Pre-flight file size validation.
 
         Checks if files exceed max line limits and decides on full-file vs structured mode.
@@ -704,9 +702,11 @@ class BuilderOrchestrator:
             run_type=self.run_type,
             autopack_internal_mode=is_maintenance_run,
         )
-        self.executor._last_files_changed, self.executor._last_lines_added, self.executor._last_lines_removed = (
-            governed_apply.parse_patch_stats(builder_result.patch_content or "")
-        )
+        (
+            self.executor._last_files_changed,
+            self.executor._last_lines_added,
+            self.executor._last_lines_removed,
+        ) = governed_apply.parse_patch_stats(builder_result.patch_content or "")
 
     def _validate_output(self, phase_id: str, builder_result: BuilderResult) -> BuilderResult:
         """Validate Builder output for empty patches.
@@ -730,9 +730,7 @@ class BuilderOrchestrator:
 
         if builder_result.success and not has_patch and not has_edit_plan:
             messages = builder_result.builder_messages or []
-            no_op_structured = any(
-                "Structured edit produced no operations" in m for m in messages
-            )
+            no_op_structured = any("Structured edit produced no operations" in m for m in messages)
             no_op_fullfile = any("Full-file produced no diffs" in m for m in messages)
 
             if not no_op_structured and not no_op_fullfile:
@@ -773,7 +771,9 @@ class BuilderOrchestrator:
             return True, "SUCCESS"  # No retry needed
 
         # 1L: Empty files array retry
-        retry_result = self._handle_empty_files_retry(phase_id, phase, builder_result, attempt_index)
+        retry_result = self._handle_empty_files_retry(
+            phase_id, phase, builder_result, attempt_index
+        )
         if retry_result:
             return retry_result
 
@@ -1230,9 +1230,7 @@ class BuilderOrchestrator:
                     "p10_actual_max_tokens": actual_max_tokens,
                     "p10_tokens_used": tokens_used,
                 }
-                phase.setdefault("metadata", {}).setdefault("token_budget", {}).update(
-                    p10_metadata
-                )
+                phase.setdefault("metadata", {}).setdefault("token_budget", {}).update(p10_metadata)
 
                 reason = "truncation" if was_truncated else f"{output_utilization:.1f}% utilization"
                 logger.info(
@@ -1519,7 +1517,9 @@ class BuilderOrchestrator:
                     return False, json_errors2, json_details2
 
         except Exception as e:
-            logger.warning(f"[{phase_id}] Auto-repair for JSON deliverables skipped due to error: {e}")
+            logger.warning(
+                f"[{phase_id}] Auto-repair for JSON deliverables skipped due to error: {e}"
+            )
 
         # Return original validation state if repair failed or was skipped
         return False, [], json_details

@@ -31,7 +31,7 @@ def test_execute_ci_checks_routes_to_pytest(tmp_path: Path):
     ci_flow = make_ci_flow(tmp_path)
     phase = {"phase_id": "phase-1", "ci": {"mode": "pytest"}}
 
-    with patch.object(ci_flow, '_run_pytest_ci', return_value={"passed": 10, "failed": 0}):
+    with patch.object(ci_flow, "_run_pytest_ci", return_value={"passed": 10, "failed": 0}):
         result = ci_flow.execute_ci_checks("phase-1", phase)
 
     assert result is not None
@@ -44,7 +44,7 @@ def test_execute_ci_checks_routes_to_custom(tmp_path: Path):
     ci_flow = make_ci_flow(tmp_path)
     phase = {"phase_id": "phase-1", "ci": {"mode": "custom", "command": "npm test"}}
 
-    with patch.object(ci_flow, '_run_custom_ci', return_value={"exit_code": 0}):
+    with patch.object(ci_flow, "_run_custom_ci", return_value={"exit_code": 0}):
         result = ci_flow.execute_ci_checks("phase-1", phase)
 
     assert result is not None
@@ -98,12 +98,8 @@ def test_run_pytest_ci_parses_json_report(tmp_path: Path):
     tests_dir = tmp_path / "tests"
     tests_dir.mkdir(exist_ok=True)
 
-    with patch('subprocess.run') as mock_run:
-        mock_run.return_value = Mock(
-            returncode=1,
-            stdout="2 passed, 1 failed in 1.5s",
-            stderr=""
-        )
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = Mock(returncode=1, stdout="2 passed, 1 failed in 1.5s", stderr="")
         result = ci_flow._run_pytest_ci("phase-1", {"paths": ["tests/"]})
 
     assert result is not None
@@ -120,8 +116,10 @@ def test_run_pytest_ci_handles_collection_error(tmp_path: Path):
     tests_dir = tmp_path / "tests"
     tests_dir.mkdir(exist_ok=True)
 
-    with patch('subprocess.run') as mock_run:
-        mock_run.return_value = Mock(returncode=2, stdout="", stderr="ERROR collecting tests\n1 error during collection")
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = Mock(
+            returncode=2, stdout="", stderr="ERROR collecting tests\n1 error during collection"
+        )
         result = ci_flow._run_pytest_ci("phase-1", {"paths": ["tests/"]})
 
     assert result is not None
@@ -132,13 +130,14 @@ def test_run_pytest_ci_handles_collection_error(tmp_path: Path):
 def test_run_pytest_ci_handles_timeout(tmp_path: Path):
     """Test that _run_pytest_ci handles subprocess timeout."""
     import subprocess
+
     ci_flow = make_ci_flow(tmp_path)
 
     # Create tests directory
     tests_dir = tmp_path / "tests"
     tests_dir.mkdir(exist_ok=True)
 
-    with patch('subprocess.run', side_effect=subprocess.TimeoutExpired("pytest", 5)):
+    with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("pytest", 5)):
         result = ci_flow._run_pytest_ci("phase-1", {"paths": ["tests/"], "timeout_seconds": 5})
 
     assert result is not None
@@ -150,7 +149,7 @@ def test_run_custom_ci_executes_command(tmp_path: Path):
     """Test that _run_custom_ci executes custom command."""
     ci_flow = make_ci_flow(tmp_path)
 
-    with patch('subprocess.run') as mock_run:
+    with patch("subprocess.run") as mock_run:
         mock_run.return_value = Mock(returncode=0, stdout="Tests passed", stderr="")
         result = ci_flow._run_custom_ci("phase-1", {"command": "npm test"})
 
@@ -164,7 +163,7 @@ def test_run_custom_ci_uses_shell_for_string_commands(tmp_path: Path):
     """Test that _run_custom_ci uses shell=True for string commands by default."""
     ci_flow = make_ci_flow(tmp_path)
 
-    with patch('subprocess.run') as mock_run:
+    with patch("subprocess.run") as mock_run:
         mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
         ci_flow._run_custom_ci("phase-1", {"command": "npm test && npm run lint"})
 
@@ -256,7 +255,7 @@ def test_run_pytest_ci_includes_json_report_path(tmp_path: Path):
     tests_dir = tmp_path / "tests"
     tests_dir.mkdir(exist_ok=True)
 
-    with patch('subprocess.run') as mock_run:
+    with patch("subprocess.run") as mock_run:
         mock_run.return_value = Mock(returncode=0, stdout="100 passed", stderr="")
         result = ci_flow._run_pytest_ci("phase-1", {"paths": ["tests/"]})
 
@@ -270,7 +269,7 @@ def test_execute_ci_checks_handles_phase_without_phase_id(tmp_path: Path):
     ci_flow = make_ci_flow(tmp_path)
     phase = {"ci": {"mode": "pytest"}}
 
-    with patch.object(ci_flow, '_run_pytest_ci', return_value={"passed": 5}):
+    with patch.object(ci_flow, "_run_pytest_ci", return_value={"passed": 5}):
         result = ci_flow.execute_ci_checks("derived-phase-id", phase)
 
     assert result is not None
@@ -280,7 +279,7 @@ def test_run_custom_ci_handles_nonzero_exit_code(tmp_path: Path):
     """Test that _run_custom_ci properly reports non-zero exit codes."""
     ci_flow = make_ci_flow(tmp_path)
 
-    with patch('subprocess.run') as mock_run:
+    with patch("subprocess.run") as mock_run:
         mock_run.return_value = Mock(returncode=1, stdout="", stderr="Tests failed")
         result = ci_flow._run_custom_ci("phase-1", {"command": "npm test"})
 
@@ -298,7 +297,7 @@ def test_run_pytest_ci_uses_correct_timeout(tmp_path: Path):
     tests_dir = tmp_path / "tests"
     tests_dir.mkdir(exist_ok=True)
 
-    with patch('subprocess.run') as mock_run:
+    with patch("subprocess.run") as mock_run:
         mock_run.return_value = Mock(returncode=0, stdout="10 passed", stderr="")
         ci_flow._run_pytest_ci("phase-1", {"paths": ["tests/"], "timeout_seconds": 120})
 

@@ -39,7 +39,9 @@ def test_apply_patch_routes_to_structured_edits(tmp_path: Path):
     builder_result.edit_plan.operations = []
     builder_result.patch_content = None
 
-    with patch.object(patch_flow, '_apply_structured_edits', return_value=(True, "", {"mode": "structured_edit"})):
+    with patch.object(
+        patch_flow, "_apply_structured_edits", return_value=(True, "", {"mode": "structured_edit"})
+    ):
         success, error, stats = patch_flow.apply_patch_with_validation(
             "phase-1", {}, builder_result, None
         )
@@ -56,7 +58,9 @@ def test_apply_patch_routes_to_regular_patch(tmp_path: Path):
     builder_result.edit_plan = None
     builder_result.patch_content = "diff --git a/file.txt"
 
-    with patch.object(patch_flow, '_apply_regular_patch', return_value=(True, "", {"mode": "patch"})):
+    with patch.object(
+        patch_flow, "_apply_regular_patch", return_value=(True, "", {"mode": "patch"})
+    ):
         success, error, stats = patch_flow.apply_patch_with_validation(
             "phase-1", {}, builder_result, None
         )
@@ -79,7 +83,7 @@ def test_apply_structured_edits_applies_operations(tmp_path: Path):
     builder_result = Mock()
     builder_result.edit_plan = edit_plan
 
-    with patch('autopack.structured_edits.StructuredEditApplicator') as mock_applicator_class:
+    with patch("autopack.structured_edits.StructuredEditApplicator") as mock_applicator_class:
         mock_applicator = Mock()
         mock_result = Mock()
         mock_result.success = True
@@ -107,7 +111,7 @@ def test_apply_structured_edits_handles_failure(tmp_path: Path):
     builder_result = Mock()
     builder_result.edit_plan = edit_plan
 
-    with patch('autopack.structured_edits.StructuredEditApplicator') as mock_applicator_class:
+    with patch("autopack.structured_edits.StructuredEditApplicator") as mock_applicator_class:
         mock_applicator = Mock()
         mock_result = Mock()
         mock_result.success = False
@@ -131,10 +135,8 @@ def test_apply_regular_patch_validates_yaml(tmp_path: Path):
     builder_result = Mock()
     builder_result.patch_content = "--- a/docker-compose.yml\n+++ b/docker-compose.yml"
 
-    with patch.object(patch_flow, '_validate_yaml_in_patch', return_value=(False, "YAML invalid")):
-        success, error, stats = patch_flow._apply_regular_patch(
-            "phase-1", {}, builder_result, None
-        )
+    with patch.object(patch_flow, "_validate_yaml_in_patch", return_value=(False, "YAML invalid")):
+        success, error, stats = patch_flow._apply_regular_patch("phase-1", {}, builder_result, None)
 
     assert success is False
     assert error == "YAML invalid"
@@ -148,8 +150,10 @@ def test_apply_regular_patch_checks_goal_drift(tmp_path: Path):
     builder_result = Mock()
     builder_result.patch_content = "diff --git a/file.txt"
 
-    with patch.object(patch_flow, '_validate_yaml_in_patch', return_value=(True, None)):
-        with patch.object(patch_flow, '_check_goal_drift', return_value=(True, "Goal drift detected")):
+    with patch.object(patch_flow, "_validate_yaml_in_patch", return_value=(True, None)):
+        with patch.object(
+            patch_flow, "_check_goal_drift", return_value=(True, "Goal drift detected")
+        ):
             success, error, stats = patch_flow._apply_regular_patch(
                 "phase-1", {"description": "Add logging"}, builder_result, None
             )
@@ -165,9 +169,11 @@ def test_apply_regular_patch_applies_with_governance(tmp_path: Path):
     builder_result = Mock()
     builder_result.patch_content = "diff --git a/src/test.py"
 
-    with patch.object(patch_flow, '_validate_yaml_in_patch', return_value=(True, None)):
-        with patch.object(patch_flow, '_check_goal_drift', return_value=(False, None)):
-            with patch('autopack.executor.patch_application_flow.GovernedApplyPath') as mock_governed:
+    with patch.object(patch_flow, "_validate_yaml_in_patch", return_value=(True, None)):
+        with patch.object(patch_flow, "_check_goal_drift", return_value=(False, None)):
+            with patch(
+                "autopack.executor.patch_application_flow.GovernedApplyPath"
+            ) as mock_governed:
                 mock_instance = Mock()
                 mock_instance.apply_patch.return_value = (True, "")
                 mock_governed.return_value = mock_instance
@@ -189,9 +195,11 @@ def test_apply_regular_patch_handles_governance_request(tmp_path: Path):
     builder_result = Mock()
     builder_result.patch_content = "diff --git a/src/autopack/internal.py"
 
-    with patch.object(patch_flow, '_validate_yaml_in_patch', return_value=(True, None)):
-        with patch.object(patch_flow, '_check_goal_drift', return_value=(False, None)):
-            with patch('autopack.executor.patch_application_flow.GovernedApplyPath') as mock_governed:
+    with patch.object(patch_flow, "_validate_yaml_in_patch", return_value=(True, None)):
+        with patch.object(patch_flow, "_check_goal_drift", return_value=(False, None)):
+            with patch(
+                "autopack.executor.patch_application_flow.GovernedApplyPath"
+            ) as mock_governed:
                 mock_instance = Mock()
                 mock_instance.apply_patch.return_value = (False, "Protected path")
                 mock_governed.return_value = mock_instance
@@ -208,16 +216,18 @@ def test_validate_yaml_in_patch_validates_docker_compose(tmp_path: Path):
     """Test that _validate_yaml_in_patch validates Docker Compose files."""
     patch_flow = make_patch_flow(tmp_path)
 
-    patch_content = json.dumps({
-        "files": [
-            {
-                "path": "docker-compose.yml",
-                "content": "version: '3'\nservices:\n  web:\n    image: nginx"
-            }
-        ]
-    })
+    patch_content = json.dumps(
+        {
+            "files": [
+                {
+                    "path": "docker-compose.yml",
+                    "content": "version: '3'\nservices:\n  web:\n    image: nginx",
+                }
+            ]
+        }
+    )
 
-    with patch('autopack.executor.patch_application_flow.validate_docker_compose') as mock_validate:
+    with patch("autopack.executor.patch_application_flow.validate_docker_compose") as mock_validate:
         mock_result = Mock()
         mock_result.valid = True
         mock_result.warnings = []
@@ -233,16 +243,11 @@ def test_validate_yaml_in_patch_validates_generic_yaml(tmp_path: Path):
     """Test that _validate_yaml_in_patch validates generic YAML files."""
     patch_flow = make_patch_flow(tmp_path)
 
-    patch_content = json.dumps({
-        "files": [
-            {
-                "path": "config.yaml",
-                "content": "key: value\nlist:\n  - item1\n  - item2"
-            }
-        ]
-    })
+    patch_content = json.dumps(
+        {"files": [{"path": "config.yaml", "content": "key: value\nlist:\n  - item1\n  - item2"}]}
+    )
 
-    with patch('autopack.executor.patch_application_flow.validate_yaml_syntax') as mock_validate:
+    with patch("autopack.executor.patch_application_flow.validate_yaml_syntax") as mock_validate:
         mock_result = Mock()
         mock_result.valid = True
         mock_result.warnings = []
@@ -258,16 +263,11 @@ def test_validate_yaml_in_patch_returns_error_on_invalid(tmp_path: Path):
     """Test that _validate_yaml_in_patch returns error when YAML is invalid."""
     patch_flow = make_patch_flow(tmp_path)
 
-    patch_content = json.dumps({
-        "files": [
-            {
-                "path": "config.yaml",
-                "content": "invalid: yaml: content: ["
-            }
-        ]
-    })
+    patch_content = json.dumps(
+        {"files": [{"path": "config.yaml", "content": "invalid: yaml: content: ["}]}
+    )
 
-    with patch('autopack.executor.patch_application_flow.validate_yaml_syntax') as mock_validate:
+    with patch("autopack.executor.patch_application_flow.validate_yaml_syntax") as mock_validate:
         mock_result = Mock()
         mock_result.valid = False
         mock_result.errors = ["Invalid YAML syntax"]
@@ -298,7 +298,10 @@ def test_check_goal_drift_blocks_when_drift_detected(tmp_path: Path):
 
     phase = {"description": "Add logging to unrelated module"}
 
-    with patch('autopack.executor.patch_application_flow.should_block_on_drift', return_value=(True, "BLOCKED: Goal drift")):
+    with patch(
+        "autopack.executor.patch_application_flow.should_block_on_drift",
+        return_value=(True, "BLOCKED: Goal drift"),
+    ):
         should_block, message = patch_flow._check_goal_drift("phase-1", phase)
 
     assert should_block is True
@@ -312,7 +315,9 @@ def test_check_goal_drift_allows_when_no_drift(tmp_path: Path):
 
     phase = {"description": "Add login form validation"}
 
-    with patch('autopack.executor.patch_application_flow.should_block_on_drift', return_value=(False, "OK")):
+    with patch(
+        "autopack.executor.patch_application_flow.should_block_on_drift", return_value=(False, "OK")
+    ):
         should_block, message = patch_flow._check_goal_drift("phase-1", phase)
 
     assert should_block is False
@@ -336,18 +341,16 @@ def test_derive_allowed_paths_from_deliverables_for_research(tmp_path: Path):
 
     patch_flow = make_patch_flow(tmp_path)
 
-    phase = {
-        "scope": {
-            "deliverables": ["src/autopack/research/analysis.md"]
-        }
-    }
+    phase = {"scope": {"deliverables": ["src/autopack/research/analysis.md"]}}
 
     # Create a mock module for the import
     mock_module = MagicMock()
-    mock_module.extract_deliverables_from_scope = Mock(return_value=["src/autopack/research/analysis.md"])
+    mock_module.extract_deliverables_from_scope = Mock(
+        return_value=["src/autopack/research/analysis.md"]
+    )
 
     # Patch sys.modules so the local import finds our mock
-    with patch.dict('sys.modules', {'autopack.executor.deliverables_validator': mock_module}):
+    with patch.dict("sys.modules", {"autopack.executor.deliverables_validator": mock_module}):
         allowed = patch_flow._derive_allowed_paths_from_deliverables("phase-1", phase)
 
     assert allowed is not None
@@ -360,7 +363,7 @@ def test_derive_allowed_paths_handles_no_scope(tmp_path: Path):
 
     phase = {}
 
-    with patch('autopack.deliverables_validator.extract_deliverables_from_scope', return_value=[]):
+    with patch("autopack.deliverables_validator.extract_deliverables_from_scope", return_value=[]):
         allowed = patch_flow._derive_allowed_paths_from_deliverables("phase-1", phase)
 
     assert allowed is None
@@ -398,9 +401,11 @@ def test_apply_regular_patch_uses_maintenance_mode_for_self_repair(tmp_path: Pat
     builder_result = Mock()
     builder_result.patch_content = "diff --git a/src/autopack/internal.py"
 
-    with patch.object(patch_flow, '_validate_yaml_in_patch', return_value=(True, None)):
-        with patch.object(patch_flow, '_check_goal_drift', return_value=(False, None)):
-            with patch('autopack.executor.patch_application_flow.GovernedApplyPath') as mock_governed:
+    with patch.object(patch_flow, "_validate_yaml_in_patch", return_value=(True, None)):
+        with patch.object(patch_flow, "_check_goal_drift", return_value=(False, None)):
+            with patch(
+                "autopack.executor.patch_application_flow.GovernedApplyPath"
+            ) as mock_governed:
                 mock_instance = Mock()
                 mock_instance.apply_patch.return_value = (True, "")
                 mock_governed.return_value = mock_instance
@@ -425,7 +430,7 @@ def test_apply_structured_edits_caps_touched_paths_at_50(tmp_path: Path):
     builder_result = Mock()
     builder_result.edit_plan = edit_plan
 
-    with patch('autopack.structured_edits.StructuredEditApplicator') as mock_applicator_class:
+    with patch("autopack.structured_edits.StructuredEditApplicator") as mock_applicator_class:
         mock_applicator = Mock()
         mock_result = Mock()
         mock_result.success = True
@@ -448,16 +453,18 @@ def test_apply_regular_patch_derives_allowed_paths_when_not_provided(tmp_path: P
     builder_result = Mock()
     builder_result.patch_content = "diff --git a/src/autopack/research/test.md"
 
-    phase = {
-        "scope": {
-            "deliverables": ["src/autopack/research/test.md"]
-        }
-    }
+    phase = {"scope": {"deliverables": ["src/autopack/research/test.md"]}}
 
-    with patch.object(patch_flow, '_validate_yaml_in_patch', return_value=(True, None)):
-        with patch.object(patch_flow, '_check_goal_drift', return_value=(False, None)):
-            with patch.object(patch_flow, '_derive_allowed_paths_from_deliverables', return_value=["src/autopack/research/"]):
-                with patch('autopack.executor.patch_application_flow.GovernedApplyPath') as mock_governed:
+    with patch.object(patch_flow, "_validate_yaml_in_patch", return_value=(True, None)):
+        with patch.object(patch_flow, "_check_goal_drift", return_value=(False, None)):
+            with patch.object(
+                patch_flow,
+                "_derive_allowed_paths_from_deliverables",
+                return_value=["src/autopack/research/"],
+            ):
+                with patch(
+                    "autopack.executor.patch_application_flow.GovernedApplyPath"
+                ) as mock_governed:
                     mock_instance = Mock()
                     mock_instance.apply_patch.return_value = (True, "")
                     mock_governed.return_value = mock_instance

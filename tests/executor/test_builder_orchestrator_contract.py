@@ -47,7 +47,9 @@ def make_builder_orchestrator(tmp_path: Path) -> BuilderOrchestrator:
     executor._build_run_context = Mock(return_value={})
     executor._load_repository_context = Mock(return_value={"existing_files": {}})
     executor._validate_scope_context = Mock()
-    executor._get_learning_context_for_phase = Mock(return_value={"project_rules": [], "run_hints": []})
+    executor._get_learning_context_for_phase = Mock(
+        return_value={"project_rules": [], "run_hints": []}
+    )
     executor._build_deliverables_contract = Mock(return_value={})
     executor._record_phase_error = Mock()
     executor._record_learning_hint = Mock()
@@ -62,7 +64,9 @@ def make_builder_orchestrator(tmp_path: Path) -> BuilderOrchestrator:
     return BuilderOrchestrator(executor)
 
 
-def make_builder_result(success: bool = True, patch_content: str = "diff --git a/test.py") -> BuilderResult:
+def make_builder_result(
+    success: bool = True, patch_content: str = "diff --git a/test.py"
+) -> BuilderResult:
     """Create a BuilderResult for testing."""
     return BuilderResult(
         success=success,
@@ -85,13 +89,17 @@ class TestExecuteBuilderWithValidation:
         # Mock the deliverables contract builder to return empty dict
         orchestrator.executor._build_deliverables_contract.return_value = {}
 
-        with patch.object(orchestrator, '_load_context', return_value={
-            "file_context": {"existing_files": {}},
-            "project_rules": ["rule1"],
-            "run_hints": ["hint1"],
-            "retrieved_context": "context",
-        }) as mock_load_context:
-            with patch.object(orchestrator.context_preflight, 'decide_read_only') as mock_decide:
+        with patch.object(
+            orchestrator,
+            "_load_context",
+            return_value={
+                "file_context": {"existing_files": {}},
+                "project_rules": ["rule1"],
+                "run_hints": ["hint1"],
+                "retrieved_context": "context",
+            },
+        ) as mock_load_context:
+            with patch.object(orchestrator.context_preflight, "decide_read_only") as mock_decide:
                 mock_decide.return_value = Mock(read_only=False, oversized_files=[])
                 orchestrator.execute_builder_with_validation(
                     phase_id="phase-1",
@@ -113,8 +121,10 @@ class TestExecuteBuilderWithValidation:
             "retrieved_context": "",
         }
 
-        with patch.object(orchestrator, '_load_context', return_value=context_info):
-            with patch.object(orchestrator, '_prepare_phase_spec', return_value=({}, False)) as mock_prepare:
+        with patch.object(orchestrator, "_load_context", return_value=context_info):
+            with patch.object(
+                orchestrator, "_prepare_phase_spec", return_value=({}, False)
+            ) as mock_prepare:
                 orchestrator.execute_builder_with_validation(
                     phase_id="phase-1",
                     phase={"description": "Test phase"},
@@ -131,7 +141,7 @@ class TestExecuteBuilderWithValidation:
         builder_result = make_builder_result()
         orchestrator.llm_service.execute_builder_phase.return_value = builder_result
 
-        with patch.object(orchestrator.context_preflight, 'decide_read_only') as mock_decide:
+        with patch.object(orchestrator.context_preflight, "decide_read_only") as mock_decide:
             mock_decide.return_value = Mock(read_only=False, oversized_files=[])
             result, context = orchestrator.execute_builder_with_validation(
                 phase_id="phase-1",
@@ -149,7 +159,7 @@ class TestExecuteBuilderWithValidation:
         builder_result.tokens_used = 5000
         orchestrator.llm_service.execute_builder_phase.return_value = builder_result
 
-        with patch.object(orchestrator.context_preflight, 'decide_read_only') as mock_decide:
+        with patch.object(orchestrator.context_preflight, "decide_read_only") as mock_decide:
             mock_decide.return_value = Mock(read_only=False, oversized_files=[])
             initial_tokens = orchestrator.executor._run_tokens_used
             orchestrator.execute_builder_with_validation(
@@ -166,7 +176,7 @@ class TestExecuteBuilderWithValidation:
         builder_result = make_builder_result()
         orchestrator.llm_service.execute_builder_phase.return_value = builder_result
 
-        with patch.object(orchestrator.context_preflight, 'decide_read_only') as mock_decide:
+        with patch.object(orchestrator.context_preflight, "decide_read_only") as mock_decide:
             mock_decide.return_value = Mock(read_only=False, oversized_files=[])
             orchestrator.execute_builder_with_validation(
                 phase_id="phase-1",
@@ -195,10 +205,7 @@ class TestLoadContext:
     def test_load_context_validates_scope(self, tmp_path: Path):
         """Test that _load_context validates scope if configured."""
         orchestrator = make_builder_orchestrator(tmp_path)
-        phase = {
-            "description": "Test",
-            "scope": {"paths": ["src/"]}
-        }
+        phase = {"description": "Test", "scope": {"paths": ["src/"]}}
 
         orchestrator._load_context("phase-1", phase)
 
@@ -209,7 +216,7 @@ class TestLoadContext:
         orchestrator = make_builder_orchestrator(tmp_path)
         orchestrator.executor._get_learning_context_for_phase.return_value = {
             "project_rules": ["rule1", "rule2"],
-            "run_hints": ["hint1"]
+            "run_hints": ["hint1"],
         }
 
         context_info = orchestrator._load_context("phase-1", {"description": "Test"})
@@ -266,7 +273,7 @@ class TestLoadContext:
         orchestrator.memory_service = Mock()  # Enable memory service for intention context
 
         with patch.dict(os.environ, {"AUTOPACK_ENABLE_INTENTION_CONTEXT": "true"}):
-            with patch('autopack.intention_wiring.IntentionContextInjector') as mock_injector:
+            with patch("autopack.intention_wiring.IntentionContextInjector") as mock_injector:
                 mock_instance = Mock()
                 mock_instance.get_intention_context.return_value = "intention context"
                 mock_injector.return_value = mock_instance
@@ -293,7 +300,7 @@ class TestPreparePhaseSpec:
             "retrieved_context": "",
         }
 
-        with patch.object(orchestrator, '_validate_file_sizes', return_value=True) as mock_validate:
+        with patch.object(orchestrator, "_validate_file_sizes", return_value=True) as mock_validate:
             orchestrator._prepare_phase_spec("phase-1", {}, context_info)
 
         mock_validate.assert_called_once()
@@ -308,9 +315,9 @@ class TestPreparePhaseSpec:
             "retrieved_context": "",
         }
 
-        with patch.object(orchestrator.context_preflight, 'decide_read_only') as mock_decide:
+        with patch.object(orchestrator.context_preflight, "decide_read_only") as mock_decide:
             mock_decide.return_value = Mock(read_only=False, oversized_files=[])
-            with patch.object(orchestrator, '_run_deliverables_manifest_gate') as mock_gate:
+            with patch.object(orchestrator, "_run_deliverables_manifest_gate") as mock_gate:
                 orchestrator._prepare_phase_spec("phase-1", {}, context_info)
 
         mock_gate.assert_called_once()
@@ -325,9 +332,11 @@ class TestPreparePhaseSpec:
             "retrieved_context": "",
         }
 
-        with patch.object(orchestrator.context_preflight, 'decide_read_only') as mock_decide:
+        with patch.object(orchestrator.context_preflight, "decide_read_only") as mock_decide:
             mock_decide.return_value = Mock(read_only=False, oversized_files=[])
-            phase_with_constraints, _ = orchestrator._prepare_phase_spec("phase-1", {}, context_info)
+            phase_with_constraints, _ = orchestrator._prepare_phase_spec(
+                "phase-1", {}, context_info
+            )
 
         assert "protected_paths" in phase_with_constraints
         assert ".autonomous_runs/" in phase_with_constraints["protected_paths"]
@@ -378,7 +387,9 @@ class TestPreparePhaseSpec:
         """Test that _run_deliverables_manifest_gate skips when no expected paths."""
         orchestrator = make_builder_orchestrator(tmp_path)
 
-        with patch('autopack.deliverables_validator.extract_deliverables_from_scope', return_value=[]):
+        with patch(
+            "autopack.deliverables_validator.extract_deliverables_from_scope", return_value=[]
+        ):
             orchestrator._run_deliverables_manifest_gate("phase-1", {}, {})
 
         # Should not call llm_service
@@ -388,13 +399,22 @@ class TestPreparePhaseSpec:
         """Test that _run_deliverables_manifest_gate generates manifest."""
         orchestrator = make_builder_orchestrator(tmp_path)
         orchestrator.llm_service.generate_deliverables_manifest.return_value = (
-            True, ["src/autopack/research/test.py"], None, "raw"
+            True,
+            ["src/autopack/research/test.py"],
+            None,
+            "raw",
         )
 
         phase = {"scope": {"paths": ["src/autopack/research/"]}}
-        phase_with_constraints = {"scope": {"paths": ["src/autopack/research/"]}, "deliverables_contract": {"required": []}}
+        phase_with_constraints = {
+            "scope": {"paths": ["src/autopack/research/"]},
+            "deliverables_contract": {"required": []},
+        }
 
-        with patch('autopack.deliverables_validator.extract_deliverables_from_scope', return_value=["src/autopack/research/test.py"]):
+        with patch(
+            "autopack.deliverables_validator.extract_deliverables_from_scope",
+            return_value=["src/autopack/research/test.py"],
+        ):
             orchestrator._run_deliverables_manifest_gate("phase-1", phase, phase_with_constraints)
 
         assert "deliverables_manifest" in phase_with_constraints
@@ -417,12 +437,7 @@ class TestInvokeBuilder:
         }
 
         orchestrator._invoke_builder(
-            "phase-1",
-            {"description": "Test"},
-            {"description": "Test"},
-            context_info,
-            True,
-            0
+            "phase-1", {"description": "Test"}, {"description": "Test"}, context_info, True, 0
         )
 
         call_kwargs = orchestrator.llm_service.execute_builder_phase.call_args[1]
@@ -451,12 +466,7 @@ class TestInvokeBuilder:
         }
 
         result = orchestrator._invoke_builder(
-            "phase-1",
-            {"description": "Test"},
-            {"description": "Test"},
-            context_info,
-            True,
-            0
+            "phase-1", {"description": "Test"}, {"description": "Test"}, context_info, True, 0
         )
 
         # Should have called execute_builder_phase twice
@@ -482,17 +492,14 @@ class TestInvokeBuilder:
         }
 
         _result = orchestrator._invoke_builder(
-            "phase-1",
-            {"description": "Test"},
-            {"description": "Test"},
-            context_info,
-            True,
-            0
+            "phase-1", {"description": "Test"}, {"description": "Test"}, context_info, True, 0
         )
 
         assert orchestrator.llm_service.execute_builder_phase.call_count == 2
         # Verify second call used structured_edit mode
-        second_call_phase = orchestrator.llm_service.execute_builder_phase.call_args_list[1][1]["phase_spec"]
+        second_call_phase = orchestrator.llm_service.execute_builder_phase.call_args_list[1][1][
+            "phase_spec"
+        ]
         assert second_call_phase["builder_mode"] == "structured_edit"
 
 
@@ -548,9 +555,7 @@ class TestHandleRetryScenarios:
         orchestrator = make_builder_orchestrator(tmp_path)
         builder_result = make_builder_result()
 
-        should_retry, reason = orchestrator.handle_retry_scenarios(
-            "phase-1", {}, builder_result, 0
-        )
+        should_retry, reason = orchestrator.handle_retry_scenarios("phase-1", {}, builder_result, 0)
 
         assert should_retry is True
         assert reason == "SUCCESS"
@@ -585,7 +590,7 @@ class TestHandleRetryScenarios:
         builder_result = make_builder_result(success=False)
         builder_result.error = "connection error"
 
-        with patch('time.sleep') as mock_sleep:
+        with patch("time.sleep") as mock_sleep:
             result = orchestrator._handle_infra_errors("phase-1", {}, builder_result, 0)
 
         assert result is not None
@@ -601,7 +606,7 @@ class TestHandleRetryScenarios:
         builder_result.model_used = "gpt-4"
 
         # Trigger twice to disable provider
-        with patch('time.sleep'):
+        with patch("time.sleep"):
             orchestrator._handle_infra_errors("phase-1", {}, builder_result, 0)
             orchestrator._handle_infra_errors("phase-1", {}, builder_result, 1)
 
@@ -617,8 +622,8 @@ class TestHandleRetryScenarios:
             "max_builder_attempts": 5,
             "metadata": {
                 "token_budget": {"output_utilization": 0},
-                "token_prediction": {"selected_budget": 8000, "actual_max_tokens": 8000}
-            }
+                "token_prediction": {"selected_budget": 8000, "actual_max_tokens": 8000},
+            },
         }
 
         result = orchestrator._handle_token_escalation("phase-1", phase, builder_result, 0)
@@ -639,8 +644,8 @@ class TestHandleRetryScenarios:
             "_escalated_once": True,
             "metadata": {
                 "token_budget": {"output_utilization": 0},
-                "token_prediction": {"selected_budget": 8000}
-            }
+                "token_prediction": {"selected_budget": 8000},
+            },
         }
 
         result = orchestrator._handle_token_escalation("phase-1", phase, builder_result, 0)
@@ -703,7 +708,7 @@ class TestHandleBuilderFailure:
         builder_result = make_builder_result(success=False)
         builder_result.error = "churn_limit_exceeded"
 
-        with patch('autopack.issue_tracker.IssueTracker') as mock_tracker:
+        with patch("autopack.issue_tracker.IssueTracker") as mock_tracker:
             mock_instance = Mock()
             mock_tracker.return_value = mock_instance
 
@@ -720,9 +725,16 @@ class TestValidateDeliverables:
         orchestrator = make_builder_orchestrator(tmp_path)
         builder_result = make_builder_result()
 
-        with patch('autopack.deliverables_validator.validate_deliverables', return_value=(True, [], {})):
-            with patch('autopack.deliverables_validator.extract_deliverables_from_scope', return_value=[]):
-                with patch('autopack.deliverables_validator.validate_new_json_deliverables_in_patch', return_value=(True, [], {})):
+        with patch(
+            "autopack.deliverables_validator.validate_deliverables", return_value=(True, [], {})
+        ):
+            with patch(
+                "autopack.deliverables_validator.extract_deliverables_from_scope", return_value=[]
+            ):
+                with patch(
+                    "autopack.deliverables_validator.validate_new_json_deliverables_in_patch",
+                    return_value=(True, [], {}),
+                ):
                     is_valid, reason = orchestrator.validate_deliverables(
                         "phase-1", {}, builder_result, 0
                     )
@@ -740,13 +752,11 @@ class TestValidateDeliverables:
             "max_builder_attempts": 5,
             "metadata": {
                 "token_budget": {"output_utilization": 0},
-                "token_prediction": {"selected_budget": 8000}
-            }
+                "token_prediction": {"selected_budget": 8000},
+            },
         }
 
-        is_valid, reason = orchestrator.validate_deliverables(
-            "phase-1", phase, builder_result, 0
-        )
+        is_valid, reason = orchestrator.validate_deliverables("phase-1", phase, builder_result, 0)
 
         assert is_valid is False
         assert reason == "TOKEN_ESCALATION"
@@ -781,10 +791,14 @@ index 0000000..1234567
         orchestrator = make_builder_orchestrator(tmp_path)
         builder_result = make_builder_result()
 
-        with patch('autopack.deliverables_validator.validate_deliverables', return_value=(
-            False, ["Error 1"], {"missing_paths": ["src/test.py"]}
-        )):
-            with patch('autopack.deliverables_validator.format_validation_feedback_for_builder', return_value="Error feedback"):
+        with patch(
+            "autopack.deliverables_validator.validate_deliverables",
+            return_value=(False, ["Error 1"], {"missing_paths": ["src/test.py"]}),
+        ):
+            with patch(
+                "autopack.deliverables_validator.format_validation_feedback_for_builder",
+                return_value="Error feedback",
+            ):
                 is_valid, reason = orchestrator._validate_patch_deliverables(
                     "phase-1", {"scope": {"paths": ["src/"]}}, builder_result, 0
                 )
@@ -797,8 +811,13 @@ index 0000000..1234567
         orchestrator = make_builder_orchestrator(tmp_path)
         builder_result = make_builder_result()
 
-        with patch('autopack.deliverables_validator.extract_deliverables_from_scope', return_value=[]):
-            with patch('autopack.deliverables_validator.validate_new_json_deliverables_in_patch', return_value=(True, [], {})):
+        with patch(
+            "autopack.deliverables_validator.extract_deliverables_from_scope", return_value=[]
+        ):
+            with patch(
+                "autopack.deliverables_validator.validate_new_json_deliverables_in_patch",
+                return_value=(True, [], {}),
+            ):
                 is_valid, reason = orchestrator._validate_json_deliverables(
                     "phase-1", {}, builder_result, 0
                 )
@@ -811,9 +830,17 @@ index 0000000..1234567
         orchestrator = make_builder_orchestrator(tmp_path)
         builder_result = make_builder_result()
 
-        with patch('autopack.deliverables_validator.extract_deliverables_from_scope', return_value=["test.json"]):
-            with patch('autopack.deliverables_validator.validate_new_json_deliverables_in_patch', return_value=(False, ["Error"], {})):
-                with patch.object(orchestrator, '_auto_repair_json_deliverables', return_value=(True, [], {})):
+        with patch(
+            "autopack.deliverables_validator.extract_deliverables_from_scope",
+            return_value=["test.json"],
+        ):
+            with patch(
+                "autopack.deliverables_validator.validate_new_json_deliverables_in_patch",
+                return_value=(False, ["Error"], {}),
+            ):
+                with patch.object(
+                    orchestrator, "_auto_repair_json_deliverables", return_value=(True, [], {})
+                ):
                     is_valid, reason = orchestrator._validate_json_deliverables(
                         "phase-1", {"scope": {"paths": ["test.json"]}}, builder_result, 0
                     )
@@ -829,10 +856,18 @@ class TestAutoRepairJsonDeliverables:
         orchestrator = make_builder_orchestrator(tmp_path)
         builder_result = make_builder_result()
 
-        with patch('autopack.deliverables_validator.repair_empty_required_json_deliverables_in_patch', return_value=(
-            True, "repaired patch", [{"path": "test.json", "reason": "empty", "applied": "[]"}]
-        )):
-            with patch('autopack.deliverables_validator.validate_new_json_deliverables_in_patch', return_value=(True, [], {})):
+        with patch(
+            "autopack.deliverables_validator.repair_empty_required_json_deliverables_in_patch",
+            return_value=(
+                True,
+                "repaired patch",
+                [{"path": "test.json", "reason": "empty", "applied": "[]"}],
+            ),
+        ):
+            with patch(
+                "autopack.deliverables_validator.validate_new_json_deliverables_in_patch",
+                return_value=(True, [], {}),
+            ):
                 ok, errors, details = orchestrator._auto_repair_json_deliverables(
                     "phase-1", {}, builder_result, ["test.json"], {}
                 )
@@ -846,10 +881,14 @@ class TestAutoRepairJsonDeliverables:
         builder_result = make_builder_result()
         phase = {}
 
-        with patch('autopack.deliverables_validator.repair_empty_required_json_deliverables_in_patch', return_value=(
-            True, "repaired", [{"path": "test.json"}]
-        )):
-            with patch('autopack.deliverables_validator.validate_new_json_deliverables_in_patch', return_value=(True, [], {})):
+        with patch(
+            "autopack.deliverables_validator.repair_empty_required_json_deliverables_in_patch",
+            return_value=(True, "repaired", [{"path": "test.json"}]),
+        ):
+            with patch(
+                "autopack.deliverables_validator.validate_new_json_deliverables_in_patch",
+                return_value=(True, [], {}),
+            ):
                 orchestrator._auto_repair_json_deliverables(
                     "phase-1", phase, builder_result, ["test.json"], {}
                 )
@@ -861,9 +900,10 @@ class TestAutoRepairJsonDeliverables:
         orchestrator = make_builder_orchestrator(tmp_path)
         builder_result = make_builder_result()
 
-        with patch('autopack.deliverables_validator.repair_empty_required_json_deliverables_in_patch', return_value=(
-            False, "original", []
-        )):
+        with patch(
+            "autopack.deliverables_validator.repair_empty_required_json_deliverables_in_patch",
+            return_value=(False, "original", []),
+        ):
             ok, errors, details = orchestrator._auto_repair_json_deliverables(
                 "phase-1", {}, builder_result, ["test.json"], {}
             )
@@ -906,7 +946,7 @@ class TestExtractPatchStats:
         builder_result = make_builder_result()
         builder_result.patch_content = "diff --git a/test.py\n+++ test"
 
-        with patch('autopack.executor.builder_orchestrator.GovernedApplyPath') as mock_apply:
+        with patch("autopack.executor.builder_orchestrator.GovernedApplyPath") as mock_apply:
             mock_instance = Mock()
             mock_instance.parse_patch_stats.return_value = (1, 10, 5)
             mock_apply.return_value = mock_instance
@@ -926,7 +966,7 @@ class TestIntegrationScenarios:
         orchestrator = make_builder_orchestrator(tmp_path)
         orchestrator.llm_service.execute_builder_phase.return_value = make_builder_result()
 
-        with patch.object(orchestrator.context_preflight, 'decide_read_only') as mock_decide:
+        with patch.object(orchestrator.context_preflight, "decide_read_only") as mock_decide:
             mock_decide.return_value = Mock(read_only=False, oversized_files=[])
             builder_result, context = orchestrator.execute_builder_with_validation(
                 phase_id="phase-1",
@@ -949,7 +989,7 @@ class TestIntegrationScenarios:
 
         orchestrator.llm_service.execute_builder_phase.side_effect = [failed_result, success_result]
 
-        with patch.object(orchestrator.context_preflight, 'decide_read_only') as mock_decide:
+        with patch.object(orchestrator.context_preflight, "decide_read_only") as mock_decide:
             mock_decide.return_value = Mock(read_only=False, oversized_files=[])
             builder_result, context = orchestrator.execute_builder_with_validation(
                 phase_id="phase-1",
@@ -972,11 +1012,11 @@ class TestIntegrationScenarios:
             "max_builder_attempts": 5,
             "metadata": {
                 "token_budget": {"output_utilization": 96.0},
-                "token_prediction": {"selected_budget": 8000}
-            }
+                "token_prediction": {"selected_budget": 8000},
+            },
         }
 
-        with patch.object(orchestrator.context_preflight, 'decide_read_only') as mock_decide:
+        with patch.object(orchestrator.context_preflight, "decide_read_only") as mock_decide:
             mock_decide.return_value = Mock(read_only=False, oversized_files=[])
             builder_result, context = orchestrator.execute_builder_with_validation(
                 phase_id="phase-1",

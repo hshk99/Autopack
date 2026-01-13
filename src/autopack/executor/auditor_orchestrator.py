@@ -70,9 +70,7 @@ class AuditorOrchestrator:
         Returns:
             AuditorResult with approval status, issues, and suggested patches
         """
-        logger.info(
-            f"[{phase_id}] Step 4/5: Reviewing patch with Auditor (via LlmService)..."
-        )
+        logger.info(f"[{phase_id}] Step 4/5: Reviewing patch with Auditor (via LlmService)...")
 
         # Compute coverage delta from CI results
         coverage_delta = self._compute_coverage_delta(ci_result)

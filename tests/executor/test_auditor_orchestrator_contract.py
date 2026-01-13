@@ -44,7 +44,7 @@ def test_execute_auditor_review_invokes_llm_service(tmp_path: Path):
 
     orchestrator.llm_service.execute_auditor_review.return_value = auditor_result
 
-    with patch.object(orchestrator, 'post_auditor_result'):
+    with patch.object(orchestrator, "post_auditor_result"):
         result = orchestrator.execute_auditor_review(
             phase_id="phase-1",
             phase={"description": "Test phase"},
@@ -70,12 +70,7 @@ def test_execute_auditor_review_computes_coverage_delta(tmp_path: Path):
     builder_result = Mock()
     builder_result.patch_content = "diff --git a/test.py"
 
-    ci_result = {
-        "coverage": {
-            "before": 80.0,
-            "after": 85.0
-        }
-    }
+    ci_result = {"coverage": {"before": 80.0, "after": 85.0}}
 
     auditor_result = Mock()
     auditor_result.approved = True
@@ -85,8 +80,8 @@ def test_execute_auditor_review_computes_coverage_delta(tmp_path: Path):
 
     orchestrator.llm_service.execute_auditor_review.return_value = auditor_result
 
-    with patch.object(orchestrator, '_compute_coverage_delta', return_value=5.0) as mock_compute:
-        with patch.object(orchestrator, 'post_auditor_result'):
+    with patch.object(orchestrator, "_compute_coverage_delta", return_value=5.0) as mock_compute:
+        with patch.object(orchestrator, "post_auditor_result"):
             orchestrator.execute_auditor_review(
                 phase_id="phase-1",
                 phase={},
@@ -115,7 +110,7 @@ def test_execute_auditor_review_includes_run_context(tmp_path: Path):
 
     orchestrator.llm_service.execute_auditor_review.return_value = auditor_result
 
-    with patch.object(orchestrator, 'post_auditor_result'):
+    with patch.object(orchestrator, "post_auditor_result"):
         orchestrator.execute_auditor_review(
             phase_id="phase-1",
             phase={},
@@ -144,7 +139,7 @@ def test_execute_auditor_review_posts_result(tmp_path: Path):
 
     orchestrator.llm_service.execute_auditor_review.return_value = auditor_result
 
-    with patch.object(orchestrator, 'post_auditor_result') as mock_post:
+    with patch.object(orchestrator, "post_auditor_result") as mock_post:
         orchestrator.execute_auditor_review(
             phase_id="phase-1",
             phase={},
@@ -177,7 +172,7 @@ def test_post_auditor_result_formats_issues(tmp_path: Path):
     auditor_result.tokens_used = 1000
     auditor_result.error = None
 
-    with patch('autopack.executor.auditor_parsing.parse_auditor_result') as mock_parse:
+    with patch("autopack.executor.auditor_parsing.parse_auditor_result") as mock_parse:
         mock_parsed = Mock()
         mock_parsed.recommendation = "APPROVE"
         mock_parsed.confidence_overall = 0.9
@@ -206,7 +201,7 @@ def test_post_auditor_result_parses_structured_fields(tmp_path: Path):
     auditor_result.tokens_used = 1000
     auditor_result.error = None
 
-    with patch('autopack.executor.auditor_parsing.parse_auditor_result') as mock_parse:
+    with patch("autopack.executor.auditor_parsing.parse_auditor_result") as mock_parse:
         mock_parsed = Mock()
         mock_parsed.recommendation = "APPROVE"
         mock_parsed.confidence_overall = 0.95
@@ -236,7 +231,7 @@ def test_post_auditor_result_includes_suggested_patches(tmp_path: Path):
     mock_patch = Mock()
     mock_patch.to_dict = Mock(return_value={"patch_content": "diff --git a/test.py"})
 
-    with patch('autopack.executor.auditor_parsing.parse_auditor_result') as mock_parse:
+    with patch("autopack.executor.auditor_parsing.parse_auditor_result") as mock_parse:
         mock_parsed = Mock()
         mock_parsed.recommendation = "REQUEST_CHANGES"
         mock_parsed.confidence_overall = 0.8
@@ -262,7 +257,7 @@ def test_post_auditor_result_handles_api_success(tmp_path: Path):
     auditor_result.tokens_used = 1000
     auditor_result.error = None
 
-    with patch('autopack.executor.auditor_parsing.parse_auditor_result') as mock_parse:
+    with patch("autopack.executor.auditor_parsing.parse_auditor_result") as mock_parse:
         mock_parsed = Mock()
         mock_parsed.recommendation = "APPROVE"
         mock_parsed.confidence_overall = 0.9
@@ -291,12 +286,12 @@ def test_post_auditor_result_handles_backwards_compatibility(tmp_path: Path):
     error = SupervisorApiHttpError(
         status_code=422,
         response_body=json.dumps({"detail": error_detail}),
-        message="Validation error"
+        message="Validation error",
     )
 
     orchestrator.api_client.submit_auditor_result.side_effect = [error, None]
 
-    with patch('autopack.executor.auditor_parsing.parse_auditor_result') as mock_parse:
+    with patch("autopack.executor.auditor_parsing.parse_auditor_result") as mock_parse:
         mock_parsed = Mock()
         mock_parsed.recommendation = "APPROVE"
         mock_parsed.confidence_overall = 0.9
@@ -329,7 +324,7 @@ def test_post_auditor_result_logs_non_http_errors(tmp_path: Path):
 
     orchestrator.api_client.submit_auditor_result.side_effect = error
 
-    with patch('autopack.executor.auditor_parsing.parse_auditor_result') as mock_parse:
+    with patch("autopack.executor.auditor_parsing.parse_auditor_result") as mock_parse:
         mock_parsed = Mock()
         mock_parsed.recommendation = "APPROVE"
         mock_parsed.confidence_overall = 0.9
@@ -337,7 +332,7 @@ def test_post_auditor_result_logs_non_http_errors(tmp_path: Path):
         mock_parse.return_value = mock_parsed
 
         # Capture logger warnings instead since that's what's actually visible
-        with patch('autopack.executor.auditor_orchestrator.logger') as mock_logger:
+        with patch("autopack.executor.auditor_orchestrator.logger") as mock_logger:
             # Should not raise, just log
             orchestrator.post_auditor_result("phase-1", auditor_result)
 
@@ -358,7 +353,7 @@ def test_post_auditor_result_uses_error_when_no_messages(tmp_path: Path):
     auditor_result.tokens_used = 1000
     auditor_result.error = "LLM timeout error"
 
-    with patch('autopack.executor.auditor_parsing.parse_auditor_result') as mock_parse:
+    with patch("autopack.executor.auditor_parsing.parse_auditor_result") as mock_parse:
         mock_parsed = Mock()
         mock_parsed.recommendation = "REJECT"
         mock_parsed.confidence_overall = 0.5
@@ -377,14 +372,11 @@ def test_compute_coverage_delta_delegates_to_coverage_metrics(tmp_path: Path):
     """Test that _compute_coverage_delta delegates to coverage_metrics module."""
     orchestrator = make_auditor_orchestrator(tmp_path)
 
-    ci_result = {
-        "coverage": {
-            "before": 80.0,
-            "after": 85.0
-        }
-    }
+    ci_result = {"coverage": {"before": 80.0, "after": 85.0}}
 
-    with patch('autopack.executor.coverage_metrics.compute_coverage_delta', return_value=5.0) as mock_compute:
+    with patch(
+        "autopack.executor.coverage_metrics.compute_coverage_delta", return_value=5.0
+    ) as mock_compute:
         delta = orchestrator._compute_coverage_delta(ci_result)
 
     assert delta == 5.0
@@ -397,7 +389,7 @@ def test_compute_coverage_delta_returns_none_when_unavailable(tmp_path: Path):
 
     ci_result = {"passed": 10, "failed": 0}
 
-    with patch('autopack.executor.coverage_metrics.compute_coverage_delta', return_value=None):
+    with patch("autopack.executor.coverage_metrics.compute_coverage_delta", return_value=None):
         delta = orchestrator._compute_coverage_delta(ci_result)
 
     assert delta is None
@@ -429,7 +421,7 @@ def test_execute_auditor_review_passes_attempt_index(tmp_path: Path):
 
     orchestrator.llm_service.execute_auditor_review.return_value = auditor_result
 
-    with patch.object(orchestrator, 'post_auditor_result'):
+    with patch.object(orchestrator, "post_auditor_result"):
         orchestrator.execute_auditor_review(
             phase_id="phase-1",
             phase={},
@@ -455,7 +447,7 @@ def test_post_auditor_result_includes_tokens_used(tmp_path: Path):
     auditor_result.tokens_used = 5000
     auditor_result.error = None
 
-    with patch('autopack.executor.auditor_parsing.parse_auditor_result') as mock_parse:
+    with patch("autopack.executor.auditor_parsing.parse_auditor_result") as mock_parse:
         mock_parsed = Mock()
         mock_parsed.recommendation = "APPROVE"
         mock_parsed.confidence_overall = 0.9
@@ -480,7 +472,7 @@ def test_post_auditor_result_sets_auditor_attempts_to_1(tmp_path: Path):
     auditor_result.tokens_used = 1000
     auditor_result.error = None
 
-    with patch('autopack.executor.auditor_parsing.parse_auditor_result') as mock_parse:
+    with patch("autopack.executor.auditor_parsing.parse_auditor_result") as mock_parse:
         mock_parsed = Mock()
         mock_parsed.recommendation = "APPROVE"
         mock_parsed.confidence_overall = 0.9
@@ -510,7 +502,7 @@ def test_post_auditor_result_handles_missing_issue_fields(tmp_path: Path):
     auditor_result.tokens_used = 1000
     auditor_result.error = None
 
-    with patch('autopack.executor.auditor_parsing.parse_auditor_result') as mock_parse:
+    with patch("autopack.executor.auditor_parsing.parse_auditor_result") as mock_parse:
         mock_parsed = Mock()
         mock_parsed.recommendation = "REQUEST_CHANGES"
         mock_parsed.confidence_overall = 0.8

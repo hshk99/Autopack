@@ -3499,11 +3499,13 @@ Just the new description that should replace the current one while preserving th
             logger.info(f"[{phase_id}] Step 1/5: Generating code with Builder...")
 
             # Execute Builder with full validation pipeline
-            builder_result, context_info = self.builder_orchestrator.execute_builder_with_validation(
-                phase_id=phase_id,
-                phase=phase,
-                attempt_index=attempt_index,
-                allowed_paths=allowed_paths,
+            builder_result, context_info = (
+                self.builder_orchestrator.execute_builder_with_validation(
+                    phase_id=phase_id,
+                    phase=phase,
+                    attempt_index=attempt_index,
+                    allowed_paths=allowed_paths,
+                )
             )
 
             # Extract context for downstream use

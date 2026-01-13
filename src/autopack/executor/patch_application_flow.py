@@ -77,13 +77,9 @@ class PatchApplicationFlow:
 
         # Check if this is a structured edit (Stage 2) or regular patch
         if builder_result.edit_plan:
-            return self._apply_structured_edits(
-                phase_id, phase, builder_result, file_context
-            )
+            return self._apply_structured_edits(phase_id, phase, builder_result, file_context)
         else:
-            return self._apply_regular_patch(
-                phase_id, phase, builder_result, allowed_paths
-            )
+            return self._apply_regular_patch(phase_id, phase, builder_result, allowed_paths)
 
     def _apply_structured_edits(
         self,
@@ -113,9 +109,7 @@ class PatchApplicationFlow:
                 if getattr(op, "file_path", "")
             }
         )
-        logger.info(
-            f"[{phase_id}] Applying structured edit plan with {ops_planned} operations"
-        )
+        logger.info(f"[{phase_id}] Applying structured edit plan with {ops_planned} operations")
 
         # Get file contents from context
         file_contents = {}
@@ -130,8 +124,7 @@ class PatchApplicationFlow:
 
         if not edit_result.success:
             error_msg = (
-                edit_result.error_message
-                or f"{edit_result.operations_failed} operations failed"
+                edit_result.error_message or f"{edit_result.operations_failed} operations failed"
             )
             logger.error(f"[{phase_id}] Failed to apply structured edits: {error_msg}")
             self.executor._update_phase_status(phase_id, "FAILED")
@@ -197,9 +190,7 @@ class PatchApplicationFlow:
 
         # Derive allowed_paths from deliverables if not provided
         if not allowed_paths:
-            allowed_paths = self._derive_allowed_paths_from_deliverables(
-                phase_id, phase
-            )
+            allowed_paths = self._derive_allowed_paths_from_deliverables(phase_id, phase)
 
         # Extract scope paths
         scope_config = phase.get("scope")
@@ -221,9 +212,7 @@ class PatchApplicationFlow:
             allowed_paths=allowed_paths or None,
         )
 
-        patch_success, error_msg = governed_apply.apply_patch(
-            patch_content, full_file_mode=True
-        )
+        patch_success, error_msg = governed_apply.apply_patch(patch_content, full_file_mode=True)
 
         patch_len = len(patch_content)
         apply_stats = {
@@ -249,9 +238,7 @@ class PatchApplicationFlow:
                 logger.info(f"[{phase_id}] Governance request approved, patch applied")
             else:
                 # Regular patch failure or governance denied
-                logger.error(
-                    f"[{phase_id}] Failed to apply patch to filesystem: {error_msg}"
-                )
+                logger.error(f"[{phase_id}] Failed to apply patch to filesystem: {error_msg}")
                 self.executor._update_phase_status(phase_id, "FAILED")
                 return False, "PATCH_FAILED", apply_stats
         else:
@@ -274,10 +261,7 @@ class PatchApplicationFlow:
         Returns:
             Tuple of (valid: bool, error_msg: Optional[str])
         """
-        if not any(
-            keyword in patch_content.lower()
-            for keyword in [".yaml", ".yml", "compose"]
-        ):
+        if not any(keyword in patch_content.lower() for keyword in [".yaml", ".yml", "compose"]):
             return True, None
 
         try:
@@ -313,9 +297,7 @@ class PatchApplicationFlow:
 
         return True, None
 
-    def _check_goal_drift(
-        self, phase_id: str, phase: Dict
-    ) -> Tuple[bool, Optional[str]]:
+    def _check_goal_drift(self, phase_id: str, phase: Dict) -> Tuple[bool, Optional[str]]:
         """Check if change drifts from run's goal anchor.
 
         Args:
@@ -375,9 +357,7 @@ class PatchApplicationFlow:
             if derived_allowed:
                 return derived_allowed
         except Exception as e:
-            logger.debug(
-                f"[{phase_id}] Failed to derive allowed_paths from deliverables: {e}"
-            )
+            logger.debug(f"[{phase_id}] Failed to derive allowed_paths from deliverables: {e}")
 
         return None
 

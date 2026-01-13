@@ -434,10 +434,10 @@ class CIExecutionFlow:
         Returns:
             Path to persisted log, or None if failed
         """
-        ci_log_dir = Path(self.workspace) / ".autonomous_runs" / self.run_id / "ci"
-        ci_log_dir.mkdir(parents=True, exist_ok=True)
-        log_path = ci_log_dir / log_name
         try:
+            ci_log_dir = Path(self.workspace) / ".autonomous_runs" / self.run_id / "ci"
+            ci_log_dir.mkdir(parents=True, exist_ok=True)
+            log_path = ci_log_dir / log_name
             log_path.write_text(content, encoding="utf-8")
             logger.info(f"[{phase_id}] CI output written to: {log_path}")
             return log_path

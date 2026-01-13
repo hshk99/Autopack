@@ -201,15 +201,17 @@ def test_persist_ci_log_writes_to_ci_dir(tmp_path: Path):
 
 def test_persist_ci_log_handles_errors_gracefully(tmp_path: Path):
     """Test that _persist_ci_log handles write errors gracefully."""
+    from unittest.mock import patch
+
     ci_flow = make_ci_flow(tmp_path)
-    # Use an invalid workspace path
-    ci_flow.workspace = "/invalid/path/that/does/not/exist"
 
-    # Should not raise exception, returns None on error
-    result = ci_flow._persist_ci_log("test.log", "output", "phase-1")
+    # Mock mkdir to raise PermissionError to simulate write failure
+    with patch.object(Path, "mkdir", side_effect=PermissionError("Permission denied")):
+        # Should not raise exception, returns None on error
+        result = ci_flow._persist_ci_log("test.log", "output", "phase-1")
 
-    # May return None on error (non-blocking)
-    assert result is None or result is not None
+    # Should return None when write fails (non-blocking error handling)
+    assert result is None
 
 
 def test_parse_pytest_counts_extracts_counts(tmp_path: Path):

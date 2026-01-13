@@ -33,6 +33,7 @@ class APIServerLifecycle:
     def __init__(self, executor: "AutonomousExecutor"):
         self.executor = executor
         self.server_process: Optional[subprocess.Popen] = None
+        self.log_file_handle: Optional[object] = None
 
     def ensure_server_running(self) -> bool:
         """Ensure API server is running.
@@ -79,7 +80,6 @@ class APIServerLifecycle:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             result = sock.connect_ex((host, port))
-            sock.close()
             if result == 0:
                 # Port is open but /health failed - likely a different service or a broken API.
                 # Do NOT assume it's usable; this causes opaque 500s later.
@@ -91,6 +91,8 @@ class APIServerLifecycle:
                 return False
         except Exception:
             pass
+        finally:
+            sock.close()
 
         # Server not running - try to start it
         return self.start_server(host, port)
@@ -140,47 +142,73 @@ class APIServerLifecycle:
             log_fp = None
             try:
                 log_fp = open(api_log_path, "ab")
+                # Store the file handle so it can be closed later
+                self.log_file_handle = log_fp
             except Exception:
                 log_fp = None
-            api_cmd = [
-                sys.executable,
-                "-m",
-                "uvicorn",
-                # IMPORTANT: module path is relative to PYTHONPATH=src; 'src.autopack...' is not importable
-                # because 'src/' is not a Python package (no src/__init__.py).
-                "autopack.main:app",
-                "--host",
-                host,
-                "--port",
-                str(port),
-            ]
 
-            # Start process in background (detached on Windows)
-            if sys.platform == "win32":
-                # Windows: use CREATE_NEW_PROCESS_GROUP and DETACHED_PROCESS
-                process = subprocess.Popen(
-                    api_cmd,
-                    stdout=log_fp or subprocess.DEVNULL,
-                    stderr=log_fp or subprocess.DEVNULL,
-                    env=env,
-                    cwd=str(Path(self.executor.workspace).resolve()),
-                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
+            try:
+                api_cmd = [
+                    sys.executable,
+                    "-m",
+                    "uvicorn",
+                    # IMPORTANT: module path is relative to PYTHONPATH=src; 'src.autopack...' is not importable
+                    # because 'src/' is not a Python package (no src/__init__.py).
+                    "autopack.main:app",
+                    "--host",
+                    host,
+                    "--port",
+                    str(port),
+                ]
+
+                # Start process in background (detached on Windows)
+                if sys.platform == "win32":
+                    # Windows: use CREATE_NEW_PROCESS_GROUP and DETACHED_PROCESS
+                    process = subprocess.Popen(
+                        api_cmd,
+                        stdout=log_fp or subprocess.DEVNULL,
+                        stderr=log_fp or subprocess.DEVNULL,
+                        env=env,
+                        cwd=str(Path(self.executor.workspace).resolve()),
+                        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
+                        | subprocess.DETACHED_PROCESS,
+                    )
+                else:
+                    # Unix: use nohup-like behavior
+                    process = subprocess.Popen(
+                        api_cmd,
+                        stdout=log_fp or subprocess.DEVNULL,
+                        stderr=log_fp or subprocess.DEVNULL,
+                        env=env,
+                        cwd=str(Path(self.executor.workspace).resolve()),
+                        start_new_session=True,
+                    )
+
+                self.server_process = process
+
+                # Close the parent's copy of the file handle after subprocess inherits it
+                # The subprocess maintains its own reference to the file descriptor
+                if log_fp is not None:
+                    try:
+                        log_fp.close()
+                        self.log_file_handle = None
+                    except Exception:
+                        pass
+
+                # Wait a bit for server to start
+                return self.check_server_health(
+                    host, port, startup_timeout_s, api_log_path, process
                 )
-            else:
-                # Unix: use nohup-like behavior
-                process = subprocess.Popen(
-                    api_cmd,
-                    stdout=log_fp or subprocess.DEVNULL,
-                    stderr=log_fp or subprocess.DEVNULL,
-                    env=env,
-                    cwd=str(Path(self.executor.workspace).resolve()),
-                    start_new_session=True,
-                )
 
-            self.server_process = process
-
-            # Wait a bit for server to start
-            return self.check_server_health(host, port, startup_timeout_s, api_log_path, process)
+            except Exception:
+                # Ensure file handle is closed if subprocess creation fails
+                if log_fp is not None:
+                    try:
+                        log_fp.close()
+                        self.log_file_handle = None
+                    except Exception:
+                        pass
+                raise
 
         except Exception as e:
             logger.error(f"Failed to start API server: {e}")
@@ -267,3 +295,12 @@ class APIServerLifecycle:
                 logger.warning(f"Failed to stop API server: {e}")
             finally:
                 self.server_process = None
+
+        # Close any remaining log file handle
+        if self.log_file_handle is not None:
+            try:
+                self.log_file_handle.close()
+            except Exception as e:
+                logger.warning(f"Failed to close log file handle: {e}")
+            finally:
+                self.log_file_handle = None

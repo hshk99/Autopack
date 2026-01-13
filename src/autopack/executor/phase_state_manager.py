@@ -181,29 +181,24 @@ class PhaseStateManager:
             from autopack.database import SessionLocal
             from autopack.models import Phase
 
-            db = SessionLocal()
-            try:
+            # Use session as context manager to ensure proper cleanup
+            with SessionLocal() as db:
                 phase = (
                     db.query(Phase)
                     .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
                     .first()
                 )
-            finally:
-                try:
-                    db.close()
-                except Exception:
-                    pass
 
-            if phase:
-                logger.debug(
-                    f"[{phase_id}] Loaded from DB: retry_attempt={phase.retry_attempt}, "
-                    f"revision_epoch={phase.revision_epoch}, escalation_level={phase.escalation_level}, "
-                    f"state={phase.state}"
-                )
-            else:
-                logger.warning(f"[{phase_id}] Not found in database")
+                if phase:
+                    logger.debug(
+                        f"[{phase_id}] Loaded from DB: retry_attempt={phase.retry_attempt}, "
+                        f"revision_epoch={phase.revision_epoch}, escalation_level={phase.escalation_level}, "
+                        f"state={phase.state}"
+                    )
+                else:
+                    logger.warning(f"[{phase_id}] Not found in database")
 
-            return phase
+                return phase
 
         except Exception as e:
             logger.error(f"[{phase_id}] Failed to fetch from database: {e}")
@@ -237,8 +232,8 @@ class PhaseStateManager:
             from autopack.database import SessionLocal
             from autopack.models import Phase
 
-            db = SessionLocal()
-            try:
+            # Use session as context manager to ensure proper cleanup and transaction boundaries
+            with SessionLocal() as db:
                 phase = (
                     db.query(Phase)
                     .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
@@ -287,12 +282,8 @@ class PhaseStateManager:
                         f"(reason: {last_failure_reason or 'N/A'})"
                     )
 
+                # Explicit commit for transaction boundary
                 db.commit()
-            finally:
-                try:
-                    db.close()
-                except Exception:
-                    pass
 
             return True
 
@@ -313,8 +304,8 @@ class PhaseStateManager:
             from autopack.database import SessionLocal
             from autopack.models import Phase, PhaseState as PhaseStateEnum
 
-            db = SessionLocal()
-            try:
+            # Use session as context manager to ensure proper cleanup and transaction boundaries
+            with SessionLocal() as db:
                 phase = (
                     db.query(Phase)
                     .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
@@ -329,16 +320,11 @@ class PhaseStateManager:
                 phase.state = PhaseStateEnum.COMPLETE
                 phase.completed_at = datetime.now(timezone.utc)
 
+                # Explicit commit for transaction boundary
                 db.commit()
 
                 # Note: Phase proof writing handled by caller (autonomous_executor)
                 # to avoid circular dependencies with _intention_wiring
-
-            finally:
-                try:
-                    db.close()
-                except Exception:
-                    pass
 
             logger.info(f"[{phase_id}] Marked COMPLETE in database")
             return True
@@ -361,8 +347,8 @@ class PhaseStateManager:
             from autopack.database import SessionLocal
             from autopack.models import Phase, PhaseState as PhaseStateEnum
 
-            db = SessionLocal()
-            try:
+            # Use session as context manager to ensure proper cleanup and transaction boundaries
+            with SessionLocal() as db:
                 phase = (
                     db.query(Phase)
                     .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
@@ -378,16 +364,11 @@ class PhaseStateManager:
                 phase.last_failure_reason = reason
                 phase.completed_at = datetime.now(timezone.utc)
 
+                # Explicit commit for transaction boundary
                 db.commit()
 
                 # Note: Phase proof writing and telemetry handled by caller
                 # (autonomous_executor) to avoid circular dependencies
-
-            finally:
-                try:
-                    db.close()
-                except Exception:
-                    pass
 
             logger.info(f"[{phase_id}] Marked FAILED in database (reason: {reason})")
 

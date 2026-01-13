@@ -153,18 +153,5 @@ def test_revise_phase_approach_no_llm_service():
     assert result is None
 
 
-def test_fatal_error_types():
-    """Test that fatal error types trigger immediately"""
-    from autopack.executor.replan_trigger import ReplanTrigger, ReplanConfig
-
-    config = ReplanConfig(trigger_threshold=3, fatal_error_types=["fatal_error", "unrecoverable"])
-    trigger = ReplanTrigger(config=config)
-
-    # Only 1 error, but it's fatal
-    error_history = [
-        {"attempt": 0, "error_type": "fatal_error", "error_details": "Critical failure"}
-    ]
-
-    flaw_type = trigger.detect_approach_flaw({"phase_id": "test-phase"}, error_history)
-
-    assert flaw_type == "fatal_error"
+# NOTE: test_fatal_error_types has been moved to test_error_analysis_contract.py
+# since fatal error detection is now handled by ErrorAnalyzer class

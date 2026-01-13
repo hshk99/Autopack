@@ -153,6 +153,10 @@ pywin32==311 ; sys_platform == "win32"
     # via autopack (pyproject.toml)
 python-multipart==0.0.21
     # via autopack (pyproject.toml)
+pywin32==311 ; sys_platform == "win32"
+    # via
+    #   autopack (pyproject.toml)
+    #   portalocker
 pyyaml==6.0.3
     # via
     #   autopack (pyproject.toml)

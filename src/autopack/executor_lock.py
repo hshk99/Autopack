@@ -188,9 +188,7 @@ class ExecutorLockManager:
             except Exception as e:
                 logger.warning(f"[LOCK] Could not delete lock file: {e}")
 
-            logger.info(
-                f"[LOCK] Released executor lock for run_id={self.run_id} " f"(PID={self.pid})"
-            )
+            logger.info(f"[LOCK] Released executor lock for run_id={self.run_id} (PID={self.pid})")
 
         except Exception as e:
             logger.warning(f"[LOCK] Error releasing lock: {e}")
@@ -233,7 +231,7 @@ class ExecutorLockManager:
             try:
                 self.lock_file_path.unlink()
                 logger.warning(
-                    f"[LOCK] Force-unlocked run_id={self.run_id} " f"(removed stale lock file)"
+                    f"[LOCK] Force-unlocked run_id={self.run_id} (removed stale lock file)"
                 )
                 return True
             except Exception as e:

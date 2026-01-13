@@ -16,7 +16,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Iterable, Optional, Set
+from typing import Optional, Set
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -118,6 +118,9 @@ def _read_pyproject_deps(pyproject_path: Path) -> tuple[str, Set[str], Set[str]]
                 # Add both variants so either satisfies the check
                 deps.add("python-magic")
                 deps.add("python-magic-bin")
+            # pywin32 is Windows-only, mark as optional for cross-platform check
+            elif name == "pywin32":
+                deps.add(name)  # Add but will be filtered out on Linux CI (see filter below)
             else:
                 deps.add(name)
 
@@ -184,7 +187,9 @@ def _check_unified_policy_schema(policy_path: Path) -> None:
         if "patterns" not in cat_data:
             _fail(f"Category '{cat_name}' missing patterns")
         if "allowed_actions" not in cat_data:
-            _fail(f"Category '{cat_name}' missing allowed_actions (required for Storage Optimizer compatibility)")
+            _fail(
+                f"Category '{cat_name}' missing allowed_actions (required for Storage Optimizer compatibility)"
+            )
 
 
 def main() -> int:
@@ -201,11 +206,17 @@ def main() -> int:
     readme_v = _read_readme_version(readme)
 
     if py_v != idx_v or py_v != readme_v:
-        _fail(f"Version drift: pyproject={py_v}, docs/PROJECT_INDEX.json={idx_v}, README={readme_v}")
+        _fail(
+            f"Version drift: pyproject={py_v}, docs/PROJECT_INDEX.json={idx_v}, README={readme_v}"
+        )
     _info(f"Version consistent: {py_v}")
 
     # Dependency drift (pyproject -> requirements)
-    req_names = _read_requirements_recursive(req_dev) if req_dev.exists() else _read_requirements_recursive(req)
+    req_names = (
+        _read_requirements_recursive(req_dev)
+        if req_dev.exists()
+        else _read_requirements_recursive(req)
+    )
     missing_core = sorted(py_deps - req_names)
     missing_dev = sorted(py_dev_deps - req_names)
 
@@ -215,6 +226,9 @@ def main() -> int:
         missing_core.remove("python-magic")
     if "python-magic-bin" in missing_core and "python-magic" in req_names:
         missing_core.remove("python-magic-bin")
+    # pywin32 is Windows-only (sys_platform == 'win32'), so it won't be in Linux CI requirements
+    if "pywin32" in missing_core:
+        missing_core.remove("pywin32")
 
     if missing_core:
         _fail(f"requirements missing core deps from pyproject: {missing_core}")
@@ -233,5 +247,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-
-

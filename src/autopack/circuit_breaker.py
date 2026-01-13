@@ -174,9 +174,7 @@ class CircuitBreaker:
                 # Reset to CLOSED if we've been stable
                 if self.failure_count == 0:
                     self._transition_to(CircuitState.CLOSED)
-                    logger.info(
-                        f"Circuit breaker '{self.name}' recovered, " f"transitioning to CLOSED"
-                    )
+                    logger.info(f"Circuit breaker '{self.name}' recovered, transitioning to CLOSED")
 
     def _on_success(self):
         """Handle successful call."""
@@ -214,14 +212,12 @@ class CircuitBreaker:
             # Any failure in HALF_OPEN immediately opens circuit
             self._transition_to(CircuitState.OPEN)
             logger.error(
-                f"Circuit breaker '{self.name}' failed in HALF_OPEN, " f"transitioning to OPEN"
+                f"Circuit breaker '{self.name}' failed in HALF_OPEN, transitioning to OPEN"
             )
         elif self.failure_count >= self.config.failure_threshold:
             # Too many failures in CLOSED state
             self._transition_to(CircuitState.OPEN)
-            logger.error(
-                f"Circuit breaker '{self.name}' threshold exceeded, " f"transitioning to OPEN"
-            )
+            logger.error(f"Circuit breaker '{self.name}' threshold exceeded, transitioning to OPEN")
 
     def _transition_to(self, new_state: CircuitState):
         """Transition to a new state."""

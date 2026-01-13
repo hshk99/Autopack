@@ -237,7 +237,8 @@ class GeminiBuilderClient:
                 model_name=model,
                 system_instruction=system_prompt,
                 generation_config=genai.GenerationConfig(
-                    max_output_tokens=max_tokens, temperature=0.2  # Use category-aware budget
+                    max_output_tokens=max_tokens,
+                    temperature=0.2,  # Use category-aware budget
                 ),
             )
 

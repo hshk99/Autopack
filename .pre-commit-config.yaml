@@ -15,9 +15,13 @@ repos:
       - id: check-yaml
         args: [--unsafe]  # Allow custom tags
       - id: check-json
+        exclude: ^(archive/|\.autonomous_runs/)
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ['--maxkb=500']
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+        exclude: \.bat$
       # Note: mixed-line-endings removed in v4.6.0+, functionality covered by trailing-whitespace
 
   # Python linting with Ruff (fast, replaces flake8/isort/pyupgrade)
@@ -44,9 +48,9 @@ repos:
     rev: 1.7.7
     hooks:
       - id: bandit
-        args: [-c, pyproject.toml, --quiet]
+        args: [-c, pyproject.toml, --quiet, --format, json]
         additional_dependencies: ["bandit[toml]"]
-        exclude: ^(tests/|archive/|\.autonomous_runs/)
+        exclude: ^(tests/|archive/|\.autonomous_runs/|scripts/|docs/)
 
 # CI note: These hooks mirror the checks in .github/workflows/ci.yml
 # Keep them in sync to ensure local == CI behavior

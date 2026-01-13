@@ -178,7 +178,7 @@ Files to categorize:
 {i + 1}. Path: {item.path}
    Size: {item.size_bytes / (1024**2):.2f} MB
    Age: {item.age_days} days
-   Type: {'Directory' if item.is_directory else 'File'}
+   Type: {"Directory" if item.is_directory else "File"}
 """
 
         prompt += """

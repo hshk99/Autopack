@@ -132,8 +132,7 @@ class RiskScorer:
         factors["scope_size"] = scope_risk
         if scope_risk > 0.2:
             reasons.append(
-                f"Large scope: {len(file_changes)} files "
-                f"(threshold: {self.LARGE_SCOPE_THRESHOLD})"
+                f"Large scope: {len(file_changes)} files (threshold: {self.LARGE_SCOPE_THRESHOLD})"
             )
 
         # Factor 2: Protected paths (0.0 - 0.5)
@@ -433,7 +432,7 @@ class ApprovalGate:
             reason: Reason for pause
         """
         logger.warning(
-            f"[ApprovalGate] Execution paused: run={run_id}, phase={phase_id}, " f"reason={reason}"
+            f"[ApprovalGate] Execution paused: run={run_id}, phase={phase_id}, reason={reason}"
         )
         # Pause mechanism: Set phase state to PAUSED in database
         # (Implementation depends on database schema)

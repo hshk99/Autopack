@@ -114,8 +114,7 @@ class ExecutorContext:
         self._replan_attempted: bool = False
 
         logger.debug(
-            f"[ExecutorContext] Initialized for project={anchor.project_id}, "
-            f"run={layout.run_id}"
+            f"[ExecutorContext] Initialized for project={anchor.project_id}, run={layout.run_id}"
         )
 
     # === Safety Profile ===

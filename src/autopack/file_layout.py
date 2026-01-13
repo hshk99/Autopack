@@ -230,8 +230,8 @@ class RunFileLayout:
 - **Index:** {phase_index}
 
 ## Classification
-- **Task Category:** {task_category or 'N/A'}
-- **Complexity:** {complexity or 'N/A'}
+- **Task Category:** {task_category or "N/A"}
+- **Complexity:** {complexity or "N/A"}
 
 ## Execution
 {execution_section}

@@ -761,7 +761,7 @@ def validate_pack_schema(file_path: str, content: str) -> List[str]:
             reqs = cl.get("required_documents", [])
             if not isinstance(reqs, list) or not reqs:
                 errors.append(
-                    f"Pack schema: checklist '{cl.get('name','?')}' missing required_documents list in {file_path}"
+                    f"Pack schema: checklist '{cl.get('name', '?')}' missing required_documents list in {file_path}"
                 )
 
     sources = data.get("official_sources", [])

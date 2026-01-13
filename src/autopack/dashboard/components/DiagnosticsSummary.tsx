@@ -81,4 +81,3 @@ export const DiagnosticsSummary: React.FC = () => {
     </div>
   );
 };
-

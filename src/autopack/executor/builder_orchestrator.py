@@ -819,7 +819,7 @@ class BuilderOrchestrator:
         if empty_files_retry_count == 0 and attempt_index < (max_builder_attempts - 1):
             logger.warning(
                 f"[{phase_id}] Empty files array detected - retrying ONCE with stronger deliverables emphasis "
-                f"(attempt {attempt_index+1}/{max_builder_attempts})"
+                f"(attempt {attempt_index + 1}/{max_builder_attempts})"
             )
             phase["_empty_files_retry_count"] = 1
             return False, "EMPTY_FILES_RETRY"
@@ -964,7 +964,7 @@ class BuilderOrchestrator:
 
         reason = "truncation" if was_truncated else f"{output_utilization:.1f}% utilization"
         logger.info(
-            f"[BUILD-129:P10] ESCALATE-ONCE: phase={phase_id} attempt={attempt_index+1} "
+            f"[BUILD-129:P10] ESCALATE-ONCE: phase={phase_id} attempt={attempt_index + 1} "
             f"base={current_max_tokens} (from {base_source}) → retry={escalated_tokens} (1.25x, {reason})"
         )
 
@@ -1234,7 +1234,7 @@ class BuilderOrchestrator:
 
                 reason = "truncation" if was_truncated else f"{output_utilization:.1f}% utilization"
                 logger.info(
-                    f"[BUILD-129:P10] ESCALATE-ONCE: phase={phase_id} attempt={attempt_index+1} "
+                    f"[BUILD-129:P10] ESCALATE-ONCE: phase={phase_id} attempt={attempt_index + 1} "
                     f"base={current_max_tokens} (from {base_source}) → retry={escalated_tokens} (1.25x, {reason})"
                 )
 

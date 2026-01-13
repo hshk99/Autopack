@@ -147,7 +147,7 @@ def _format_proposal_md(proposal: PrProposal) -> str:
 - **Run ID**: `{proposal.run_id}`
 - **Branch**: `{proposal.branch}`
 - **Base**: `{proposal.base_branch}`
-- **Phases**: {', '.join(f'`{p}`' for p in proposal.phase_set)}
+- **Phases**: {", ".join(f"`{p}`" for p in proposal.phase_set)}
 
 {_format_metadata_section(proposal.metadata)}
 

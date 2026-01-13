@@ -75,8 +75,7 @@ class QdrantStore:
         """
         if not QDRANT_AVAILABLE:
             raise ImportError(
-                "qdrant-client is required for QdrantStore. "
-                "Install with: pip install qdrant-client"
+                "qdrant-client is required for QdrantStore. Install with: pip install qdrant-client"
             )
 
         self._unavailable_logged = False

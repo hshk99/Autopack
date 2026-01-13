@@ -23,26 +23,26 @@ function updateDashboard(data) {
     document.getElementById('totalCalls').textContent = data.total_calls || 0;
     document.getElementById('cheapCalls').textContent = data.cheap_vs_strong?.cheap || 0;
     document.getElementById('strongCalls').textContent = data.cheap_vs_strong?.strong || 0;
-    document.getElementById('escalationRate').textContent = 
+    document.getElementById('escalationRate').textContent =
         (data.escalation_frequency || 0).toFixed(1) + '%';
-    
+
     // Update action distribution chart
     updateActionChart(data.action_distribution || {});
-    
+
     // Update model usage chart
     updateModelChart(data.cheap_vs_strong || {});
 }
 
 function updateActionChart(actions) {
     const ctx = document.getElementById('actionChart').getContext('2d');
-    
+
     if (actionChart) {
         actionChart.destroy();
     }
-    
+
     const labels = Object.keys(actions);
     const values = Object.values(actions);
-    
+
     actionChart = new Chart(ctx, {
         type: 'pie',
         data: {
@@ -67,11 +67,11 @@ function updateActionChart(actions) {
 
 function updateModelChart(modelData) {
     const ctx = document.getElementById('modelChart').getContext('2d');
-    
+
     if (modelChart) {
         modelChart.destroy();
     }
-    
+
     modelChart = new Chart(ctx, {
         type: 'doughnut',
         data: {

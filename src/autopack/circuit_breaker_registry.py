@@ -92,7 +92,7 @@ class CircuitBreakerRegistry:
         with self._registry_lock:
             if name in self._breakers and not force:
                 raise ValueError(
-                    f"Circuit breaker '{name}' already registered. " f"Use force=True to replace."
+                    f"Circuit breaker '{name}' already registered. Use force=True to replace."
                 )
 
             breaker = CircuitBreaker(name=name, config=config)

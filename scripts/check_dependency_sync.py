@@ -93,6 +93,9 @@ def main() -> int:
         PLATFORM_PACKAGES = {
             "colorama",  # Windows-only for click/uvicorn
             "uvloop",  # Linux-only for uvicorn
+            "pywin32",  # Windows-only from portalocker (transitive via qdrant-client)
+            "python-magic",  # Linux-only (alternative to python-magic-bin)
+            "python-magic-bin",  # Windows-only (alternative to python-magic)
             "python-magic",  # Linux-only for file type detection
             "python-magic-bin",  # Windows-only for file type detection
             "pywin32",  # Windows-only for portalocker (via qdrant-client)

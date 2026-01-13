@@ -305,8 +305,7 @@ def create_from_inputs(
     )
 
     logger.info(
-        f"[IntentionAnchorV2] Created anchor for project={project_id}, "
-        f"digest={raw_input_digest}"
+        f"[IntentionAnchorV2] Created anchor for project={project_id}, digest={raw_input_digest}"
     )
 
     return anchor

@@ -65,8 +65,7 @@ class DeepRetrieval:
             Deep retrieval bundle with categorized snippets
         """
         self.logger.info(
-            f"[DeepRetrieval] Starting bounded retrieval for phase {phase_id} "
-            f"(priority={priority})"
+            f"[DeepRetrieval] Starting bounded retrieval for phase {phase_id} (priority={priority})"
         )
 
         retrieval_bundle = {

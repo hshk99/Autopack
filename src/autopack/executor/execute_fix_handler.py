@@ -233,7 +233,7 @@ class ExecuteFixHandler:
 
         all_succeeded = True
         for i, cmd in enumerate(fix_commands):
-            logger.info(f"[Doctor] Executing [{i+1}/{len(fix_commands)}]: {cmd}")
+            logger.info(f"[Doctor] Executing [{i + 1}/{len(fix_commands)}]: {cmd}")
             try:
                 # Execute in workspace directory
                 result = subprocess.run(

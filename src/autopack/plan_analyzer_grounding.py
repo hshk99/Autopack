@@ -348,7 +348,7 @@ class GroundedContextBuilder:
                 file_count = len(match_result.scope_paths)
 
                 lines.append(
-                    f"   Category: {category} ({confidence:.0%} confidence, " f"{file_count} files)"
+                    f"   Category: {category} ({confidence:.0%} confidence, {file_count} files)"
                 )
             except Exception as e:
                 logger.debug(f"Pattern match failed for {phase_id}: {e}")

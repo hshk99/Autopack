@@ -903,8 +903,7 @@ class ManifestGenerator:
 
         except asyncio.TimeoutError:
             logger.warning(
-                f"PlanAnalyzer timeout for phase {phase.get('phase_id', 'unknown')} "
-                f"(exceeded 30s)"
+                f"PlanAnalyzer timeout for phase {phase.get('phase_id', 'unknown')} (exceeded 30s)"
             )
             return None
 

@@ -424,16 +424,14 @@ class GoalAwareDecisionMaker:
                 f"Strategy: {strategy.description}"
             )
         elif reason == "HIGH_RISK":
-            parts.append(f"High-risk fix requiring approval. " f"Strategy: {strategy.description}")
+            parts.append(f"High-risk fix requiring approval. Strategy: {strategy.description}")
         elif reason == "LOW_CONFIDENCE":
             parts.append(
                 f"Low confidence ({strategy.confidence:.0%}) in fix strategy. "
                 f"Strategy: {strategy.description}"
             )
         elif reason == "MISSING_DELIVERABLES":
-            parts.append(
-                f"Fix does not meet all deliverables. " f"Strategy: {strategy.description}"
-            )
+            parts.append(f"Fix does not meet all deliverables. Strategy: {strategy.description}")
 
         # Add goal alignment
         if goal_alignment["meets_deliverables"]:

@@ -70,7 +70,7 @@ export const MultiFileUpload: React.FC<MultiFileUploadProps> = ({
   const addFiles = useCallback((newFiles: FileList | File[]) => {
     const fileArray = Array.from(newFiles);
     const currentCount = files.length;
-    
+
     if (currentCount + fileArray.length > maxFiles) {
       onUploadError?.(`Maximum ${maxFiles} files allowed`);
       return;
@@ -176,8 +176,8 @@ export const MultiFileUpload: React.FC<MultiFileUploadProps> = ({
     const results: FileUploadProgress[] = [];
 
     for (const fileProgress of pendingFiles) {
-      setFiles(prev => prev.map(f => 
-        f.id === fileProgress.id 
+      setFiles(prev => prev.map(f =>
+        f.id === fileProgress.id
           ? { ...f, status: 'uploading' as const }
           : f
       ));
@@ -185,16 +185,16 @@ export const MultiFileUpload: React.FC<MultiFileUploadProps> = ({
       try {
         const result = await uploadFile(fileProgress);
         results.push(result);
-        setFiles(prev => prev.map(f => 
-          f.id === fileProgress.id 
+        setFiles(prev => prev.map(f =>
+          f.id === fileProgress.id
             ? { ...f, progress: 100, status: 'completed' as const }
             : f
         ));
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Upload failed';
         results.push({ ...fileProgress, status: 'error', error: errorMessage });
-        setFiles(prev => prev.map(f => 
-          f.id === fileProgress.id 
+        setFiles(prev => prev.map(f =>
+          f.id === fileProgress.id
             ? { ...f, status: 'error' as const, error: errorMessage }
             : f
         ));
@@ -208,8 +208,8 @@ export const MultiFileUpload: React.FC<MultiFileUploadProps> = ({
   const cancelAll = useCallback(() => {
     abortControllersRef.current.forEach(controller => controller.abort());
     abortControllersRef.current.clear();
-    setFiles(prev => prev.map(f => 
-      f.status === 'uploading' 
+    setFiles(prev => prev.map(f =>
+      f.status === 'uploading'
         ? { ...f, status: 'error' as const, error: 'Cancelled' }
         : f
     ));
@@ -241,7 +241,7 @@ export const MultiFileUpload: React.FC<MultiFileUploadProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       addFiles(e.dataTransfer.files);
     }
@@ -463,4 +463,4 @@ export const MultiFileUpload: React.FC<MultiFileUploadProps> = ({
   );
 };
 
-export default MultiFileUpload;
+export default MultiFileUpload;

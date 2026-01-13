@@ -909,7 +909,8 @@ class AutonomousExecutor:
         # Get project_id first (it's a string, not a list)
         project_id = self._get_project_slug()
         relevant_rules = get_active_rules_for_phase(
-            project_id, phase  # Pass project_id string, not self.project_rules list
+            project_id,
+            phase,  # Pass project_id string, not self.project_rules list
         )
 
         # Get run-local hints from earlier phases (Stage 0A - within-run hints)
@@ -1206,7 +1207,7 @@ class AutonomousExecutor:
             for attempt in range(max_retries):
                 backoff = classifier.get_backoff_seconds(error_class, attempt)
                 logger.warning(
-                    f"[CircuitBreaker] Retrying after {backoff}s (attempt {attempt+1}/{max_retries})"
+                    f"[CircuitBreaker] Retrying after {backoff}s (attempt {attempt + 1}/{max_retries})"
                 )
                 import time
 
@@ -1214,7 +1215,7 @@ class AutonomousExecutor:
 
                 try:
                     result = self.api_client.get_run(self.run_id, timeout=10)
-                    logger.info(f"[CircuitBreaker] Retry successful on attempt {attempt+1}")
+                    logger.info(f"[CircuitBreaker] Retry successful on attempt {attempt + 1}")
                     return result
                 except SupervisorApiHttpError:
                     if attempt == max_retries - 1:

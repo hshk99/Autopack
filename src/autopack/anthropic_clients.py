@@ -32,12 +32,6 @@ from .llm.providers.anthropic_transport import (
 from .llm_client import BuilderResult, AuditorResult
 from .journal_reader import get_prevention_prompt_injection
 from .llm_service import estimate_tokens
-from .repair_helpers import JsonRepairHelper, save_repair_debug
-from .llm.prompts.anthropic_builder_prompts import (
-    build_system_prompt as build_system_prompt_impl,
-    build_minimal_system_prompt as build_minimal_system_prompt_impl,
-    build_user_prompt as build_user_prompt_impl,
-)
 
 # BUILD-129 Phase 1: Deliverable-based token estimation
 from .token_estimator import TokenEstimator
@@ -46,7 +40,12 @@ from .token_estimator import TokenEstimator
 from .continuation_recovery import ContinuationRecovery
 
 # BUILD-129 Phase 3: NDJSON truncation-tolerant format
-from .ndjson_format import NDJSONParser, NDJSONApplier
+
+# PR-CLIENT-2: Import parser modules for output format handling
+from .llm.anthropic.parsers import (
+    FullFileParser,
+    NDJSONParserWrapper,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1342,7 +1341,9 @@ class AnthropicBuilderClient:
         return BuilderResult(
             success=result.success,
             patch_content=result.patch_content,
-            builder_messages=[result.summary] if result.success else ([result.error] if result.error else []),
+            builder_messages=(
+                [result.summary] if result.success else ([result.error] if result.error else [])
+            ),
             tokens_used=result.tokens_used,
             prompt_tokens=result.prompt_tokens,
             completion_tokens=result.completion_tokens,

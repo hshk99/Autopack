@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FullFileParseResult:
     """Result of full file parsing."""
+
     success: bool
     patch_content: str
     summary: str

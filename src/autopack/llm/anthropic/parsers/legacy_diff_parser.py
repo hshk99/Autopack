@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class LegacyDiffParseResult:
     """Result of legacy diff parsing."""
+
     success: bool
     patch_content: str
     summary: str

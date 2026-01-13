@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class StructuredEditParseResult:
     """Result of structured edit parsing."""
+
     success: bool
     edit_plan: Optional[Any]  # EditPlan type
     summary: str

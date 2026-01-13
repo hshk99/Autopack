@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class NDJSONParseContext:
     """Context for NDJSON parsing."""
+
     content: str
     file_context: Optional[Dict]
     response: Any
@@ -240,9 +241,7 @@ class NDJSONParserWrapper:
         except Exception:
             output_utilization = 0.0
 
-        return bool(
-            was_truncated or (parse_result.was_truncated and output_utilization >= 95.0)
-        )
+        return bool(was_truncated or (parse_result.was_truncated and output_utilization >= 95.0))
 
     def _handle_no_operations(
         self,
@@ -376,9 +375,7 @@ class NDJSONParserWrapper:
                 "delete",
                 "meta",
             ):
-                logger.warning(
-                    "[BUILD-129:NDJSON] Detected single JSON op; converting to NDJSON"
-                )
+                logger.warning("[BUILD-129:NDJSON] Detected single JSON op; converting to NDJSON")
                 converted = json.dumps(obj, ensure_ascii=False)
                 return parser.parse(converted)
         except Exception:
@@ -497,7 +494,12 @@ class NDJSONParserWrapper:
         return messages
 
     def _write_debug_sample(
-        self, sanitized: str, phase_spec: Dict, model: str, stop_reason: str, effective_truncation: bool
+        self,
+        sanitized: str,
+        phase_spec: Dict,
+        model: str,
+        stop_reason: str,
+        effective_truncation: bool,
     ):
         """Write debug sample for failed NDJSON parsing."""
         try:

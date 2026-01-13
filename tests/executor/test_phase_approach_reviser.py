@@ -274,7 +274,9 @@ class TestPhaseApproachReviser:
         assert "Hint 1" in prompt
         assert "Hint 2" in prompt
 
-    @pytest.mark.skip(reason="Flaky with pytest-xdist parallel execution - mock state race condition")
+    @pytest.mark.skip(
+        reason="Flaky with pytest-xdist parallel execution - mock state race condition"
+    )
     def test_telemetry_recording(self, reviser, mock_executor):
         """Test telemetry is recorded for replanning."""
         phase = {
@@ -306,7 +308,9 @@ class TestPhaseApproachReviser:
         assert call_args.kwargs["original_description"] == "Original description"
         assert call_args.kwargs["revised_description"] == "Revised approach"
 
-    @pytest.mark.skip(reason="Flaky with pytest-xdist parallel execution - mock state race condition")
+    @pytest.mark.skip(
+        reason="Flaky with pytest-xdist parallel execution - mock state race condition"
+    )
     def test_phase_error_history_cleared_after_revision(self, reviser, mock_executor):
         """Test error history is cleared after successful revision."""
         phase = {

@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import text
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from autopack import dashboard_schemas, models
@@ -101,44 +101,60 @@ def get_dashboard_usage(
     else:
         start_time = now - timedelta(weeks=1)  # Default to week
 
-    # Query usage events in time range
-    usage_events = db.query(LlmUsageEvent).filter(LlmUsageEvent.created_at >= start_time).all()
+    # Aggregate by provider using SQL GROUP BY (IMP-P04)
+    # BUILD-144 P0.4: Use total_tokens for totals, COALESCE NULL->0 for splits
+    provider_results = (
+        db.query(
+            LlmUsageEvent.provider,
+            func.sum(LlmUsageEvent.total_tokens).label("total_tokens"),
+            func.sum(func.coalesce(LlmUsageEvent.prompt_tokens, 0)).label("prompt_tokens"),
+            func.sum(func.coalesce(LlmUsageEvent.completion_tokens, 0)).label("completion_tokens"),
+        )
+        .filter(LlmUsageEvent.created_at >= start_time)
+        .group_by(LlmUsageEvent.provider)
+        .all()
+    )
 
-    if not usage_events:
+    # Aggregate by model using SQL GROUP BY (IMP-P04)
+    # BUILD-144 P0.4: Use total_tokens for totals, COALESCE NULL->0 for splits
+    model_results = (
+        db.query(
+            LlmUsageEvent.provider,
+            LlmUsageEvent.model,
+            func.sum(LlmUsageEvent.total_tokens).label("total_tokens"),
+            func.sum(func.coalesce(LlmUsageEvent.prompt_tokens, 0)).label("prompt_tokens"),
+            func.sum(func.coalesce(LlmUsageEvent.completion_tokens, 0)).label("completion_tokens"),
+        )
+        .filter(LlmUsageEvent.created_at >= start_time)
+        .group_by(LlmUsageEvent.provider, LlmUsageEvent.model)
+        .all()
+    )
+
+    # Early return if no results
+    if not provider_results and not model_results:
         return dashboard_schemas.UsageResponse(providers=[], models=[])
 
-    # Aggregate by provider
-    # BUILD-144 P0.4: Use total_tokens for totals, COALESCE NULL->0 for splits
-    provider_stats = {}
-    for event in usage_events:
-        if event.provider not in provider_stats:
-            provider_stats[event.provider] = {
-                "prompt_tokens": 0,
-                "completion_tokens": 0,
-                "total_tokens": 0,
-            }
-        # Use total_tokens for totals (always populated), COALESCE NULL->0 for split subtotals
-        provider_stats[event.provider]["total_tokens"] += event.total_tokens
-        provider_stats[event.provider]["prompt_tokens"] += event.prompt_tokens or 0
-        provider_stats[event.provider]["completion_tokens"] += event.completion_tokens or 0
+    # Convert provider results to dict for serialization
+    provider_stats = {
+        row.provider: {
+            "prompt_tokens": row.prompt_tokens,
+            "completion_tokens": row.completion_tokens,
+            "total_tokens": row.total_tokens,
+        }
+        for row in provider_results
+    }
 
-    # Aggregate by model
-    # BUILD-144 P0.4: Use total_tokens for totals, COALESCE NULL->0 for splits
-    model_stats = {}
-    for event in usage_events:
-        key = f"{event.provider}:{event.model}"
-        if key not in model_stats:
-            model_stats[key] = {
-                "provider": event.provider,
-                "model": event.model,
-                "prompt_tokens": 0,
-                "completion_tokens": 0,
-                "total_tokens": 0,
-            }
-        # Use total_tokens for totals (always populated), COALESCE NULL->0 for split subtotals
-        model_stats[key]["total_tokens"] += event.total_tokens
-        model_stats[key]["prompt_tokens"] += event.prompt_tokens or 0
-        model_stats[key]["completion_tokens"] += event.completion_tokens or 0
+    # Convert model results to dict for serialization
+    model_stats = {
+        f"{row.provider}:{row.model}": {
+            "provider": row.provider,
+            "model": row.model,
+            "prompt_tokens": row.prompt_tokens,
+            "completion_tokens": row.completion_tokens,
+            "total_tokens": row.total_tokens,
+        }
+        for row in model_results
+    }
 
     # Get token cap from canonical config (P1.3: remove hardcoded 0)
     cap_tokens = settings.run_token_cap  # Default: 5_000_000

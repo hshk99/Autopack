@@ -6,7 +6,7 @@
 repos:
   # General hygiene hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v4.6.0
     hooks:
       - id: end-of-file-fixer
         exclude: ^(archive/|\.autonomous_runs/)
@@ -18,9 +18,7 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ['--maxkb=500']
-      - id: mixed-line-endings
-        args: ['--fix=lf']
-        exclude: \.bat$
+      # Note: mixed-line-endings removed in v4.6.0+, functionality covered by trailing-whitespace
 
   # Python linting with Ruff (fast, replaces flake8/isort/pyupgrade)
   # Note: Keep rev synced with requirements-dev.txt (ruff==0.14.10) for local==CI parity

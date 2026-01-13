@@ -45,7 +45,9 @@ def main() -> int:
         return 2
 
     if not requirements_dev_path.exists():
-        print(f"[X] ERROR: requirements-dev.txt not found at {requirements_dev_path}", file=sys.stderr)
+        print(
+            f"[X] ERROR: requirements-dev.txt not found at {requirements_dev_path}", file=sys.stderr
+        )
         return 2
 
     # Policy: skip on native Windows (use WSL/CI for canonical output)
@@ -59,10 +61,7 @@ def main() -> int:
     # Check if pip-tools is installed
     try:
         result = subprocess.run(
-            ["pip-compile", "--version"],
-            capture_output=True,
-            text=True,
-            check=False
+            ["pip-compile", "--version"], capture_output=True, text=True, check=False
         )
         if result.returncode != 0:
             print("[X] ERROR: pip-compile not found. Install pip-tools:", file=sys.stderr)
@@ -93,7 +92,10 @@ def main() -> int:
         # Platform-specific packages (Windows vs Linux)
         PLATFORM_PACKAGES = {
             "colorama",  # Windows-only for click/uvicorn
-            "uvloop",    # Linux-only for uvicorn
+            "uvloop",  # Linux-only for uvicorn
+            "python-magic",  # Linux-only for file type detection
+            "python-magic-bin",  # Windows-only for file type detection
+            "pywin32",  # Windows-only for portalocker (via qdrant-client)
         }
         SKIP_PACKAGES = PYTHON_VERSION_PACKAGES | PLATFORM_PACKAGES
 

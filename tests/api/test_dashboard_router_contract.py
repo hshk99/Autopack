@@ -105,7 +105,8 @@ class TestGetDashboardUsageContract:
 
         mock_db = MagicMock()
         mock_query = MagicMock()
-        mock_query.filter.return_value.all.return_value = []
+        # IMP-P04: Updated for SQL GROUP BY query structure
+        mock_query.filter.return_value.group_by.return_value.all.return_value = []
         mock_db.query.return_value = mock_query
 
         result = get_dashboard_usage(period="week", db=mock_db, _auth="test")
@@ -121,7 +122,8 @@ class TestGetDashboardUsageContract:
 
         mock_db = MagicMock()
         mock_query = MagicMock()
-        mock_query.filter.return_value.all.return_value = []
+        # IMP-P04: Updated for SQL GROUP BY query structure
+        mock_query.filter.return_value.group_by.return_value.all.return_value = []
         mock_db.query.return_value = mock_query
 
         for period in ["day", "week", "month"]:

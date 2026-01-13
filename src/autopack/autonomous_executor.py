@@ -54,7 +54,6 @@ from autopack.error_recovery import (
 )
 from autopack.llm_service import LlmService
 from autopack.debug_journal import log_error, log_fix
-from autopack.error_reporter import report_error
 from autopack.archive_consolidator import log_build_event
 from autopack.learned_rules import (
     load_project_rules,
@@ -1896,7 +1895,9 @@ class AutonomousExecutor:
             return None
 
     def execute_phase(self, phase: Dict) -> Tuple[bool, str]:
-        """Execute Builder -> Auditor -> QualityGate pipeline for a phase with database-backed state persistence
+        """Execute Builder -> Auditor -> QualityGate pipeline for a phase
+
+        Delegates to PhaseOrchestrator for execution flow (PR-EXE-8).
 
         BUILD-041: This method now executes ONE attempt per call, relying on the database for retry state.
         - Database tracks: retry_attempt, revision_epoch, escalation_level, last_attempt_timestamp, last_failure_reason
@@ -1910,76 +1911,15 @@ class AutonomousExecutor:
             Tuple of (success: bool, status: str)
             status can be: "COMPLETE", "FAILED", "BLOCKED"
         """
-        # PR-B/C/D: Local imports to reduce import-time weight and avoid E402
-        from autopack.executor.attempt_runner import run_single_attempt_with_recovery
-        from autopack.executor.db_events import maybe_apply_retry_max_tokens_from_db
-        from autopack.executor.retry_policy import AttemptContext, next_attempt_state
+        from autopack.executor.phase_orchestrator import (
+            PhaseOrchestrator,
+            ExecutionContext,
+            PhaseResult,
+        )
 
         phase_id = phase.get("phase_id")
 
-        # INSERTION POINT 2: Track phase state for intention-first loop (BUILD-161 Phase A)
-        if hasattr(self, "_intention_wiring") and self._intention_wiring is not None:
-            from autopack.autonomous.executor_wiring import get_or_create_phase_state
-
-            phase_state = get_or_create_phase_state(self._intention_wiring, phase_id)
-            # Increment iterations_used at phase start
-            phase_state.iterations_used += 1
-            logger.debug(
-                f"[IntentionFirst] Phase {phase_id}: iteration {phase_state.iterations_used}"
-            )
-        else:
-            phase_state = None
-
-        # BUILD-123v2: Generate scope manifest if missing or incomplete
-        scope_config = phase.get("scope") or {}
-        if not scope_config.get("paths"):
-            logger.info(f"[BUILD-123v2] Phase '{phase_id}' has no scope - generating manifest...")
-            try:
-                # Create minimal plan for this phase
-                minimal_plan = {"run_id": self.run_id, "phases": [phase]}
-
-                # Generate manifest
-                result = self.manifest_generator.generate_manifest(
-                    plan_data=minimal_plan, skip_validation=False  # Run preflight validation
-                )
-
-                if result.success and result.enhanced_plan["phases"]:
-                    enhanced_phase = result.enhanced_plan["phases"][0]
-                    scope_config = enhanced_phase.get("scope", {})
-
-                    # Update phase with generated scope
-                    phase["scope"] = scope_config
-
-                    # Log confidence
-                    confidence = result.confidence_scores.get(phase_id, 0.0)
-                    category = enhanced_phase.get("metadata", {}).get("category", "unknown")
-                    logger.info(
-                        f"[BUILD-123v2] Generated scope for '{phase_id}': "
-                        f"category={category}, confidence={confidence:.1%}, "
-                        f"files={len(scope_config.get('paths', []))}"
-                    )
-
-                    # Warn if low confidence
-                    if confidence < 0.30:
-                        logger.warning(
-                            f"[BUILD-123v2] Low confidence ({confidence:.1%}) for phase '{phase_id}' - "
-                            f"scope may be incomplete. Builder may need to request expansion."
-                        )
-                else:
-                    logger.warning(
-                        f"[BUILD-123v2] Manifest generation failed for '{phase_id}': {result.error}"
-                    )
-                    # Continue with empty scope - Builder will handle
-            except Exception as e:
-                logger.error(f"[BUILD-123v2] Failed to generate manifest for '{phase_id}': {e}")
-                import traceback
-
-                traceback.print_exc()
-                # Continue with empty scope
-
-        allowed_scope_paths = self._derive_allowed_paths_from_scope(scope_config)
-
-        # BUILD-115: Database queries disabled - use API phase data with defaults
+        # Get DB state
         phase_db = self._get_phase_from_db(phase_id)
         if not phase_db:
             logger.debug(
@@ -1994,618 +1934,70 @@ class AutonomousExecutor:
 
             phase_db = PhaseDefaults()
 
-        # Check if already exhausted attempts
-        if phase_db.retry_attempt >= MAX_RETRY_ATTEMPTS:
-            logger.warning(
-                f"[{phase_id}] Phase has already exhausted all attempts "
-                f"({phase_db.retry_attempt}/{MAX_RETRY_ATTEMPTS}). Marking as FAILED."
-            )
-            self._mark_phase_failed_in_db(phase_id, "MAX_ATTEMPTS_EXHAUSTED")
-            return False, "FAILED"
+        # Derive allowed paths from scope
+        scope_config = phase.get("scope") or {}
+        allowed_scope_paths = self._derive_allowed_paths_from_scope(scope_config)
 
         # [Goal Anchoring] Initialize goal anchor for this phase on first execution
         # Per GPT_RESPONSE27: Store original intent before any re-planning occurs
         self._initialize_phase_goal_anchor(phase)
 
-        # Current attempt index from database
-        attempt_index = phase_db.retry_attempt
-        max_attempts = MAX_RETRY_ATTEMPTS
-
-        # PR-B: Build attempt context for retry policy decisions
-        attempt_ctx = AttemptContext(
-            attempt_index=attempt_index,
-            max_attempts=max_attempts,
-            escalation_level=phase_db.escalation_level,
-        )
-
-        # BUILD-129 Phase 3 P10: Apply persisted escalate-once budget on the *next* attempt.
-        # PR-D: Use db_events module for best-effort DB read
-        maybe_apply_retry_max_tokens_from_db(
-            run_id=self.run_id,
+        # Build execution context
+        context = ExecutionContext(
             phase=phase,
-            attempt_index=attempt_index,
+            attempt_index=phase_db.retry_attempt,
+            max_attempts=MAX_RETRY_ATTEMPTS,
+            escalation_level=phase_db.escalation_level,
+            allowed_paths=allowed_scope_paths,
+            run_id=self.run_id,
+            llm_service=self.llm_service,
+            diagnostics_agent=getattr(self, "diagnostics_agent", None),
+            iterative_investigator=getattr(self, "iterative_investigator", None),
+            intention_wiring=getattr(self, "_intention_wiring", None),
+            intention_anchor=getattr(self, "_intention_anchor", None),
+            manifest_generator=getattr(self, "manifest_generator", None),
+            run_total_failures=self._run_total_failures,
+            run_http_500_count=self._run_http_500_count,
+            run_patch_failure_count=self._run_patch_failure_count,
+            run_doctor_calls=self._run_doctor_calls,
+            run_replan_count=self._run_replan_count,
+            run_tokens_used=getattr(self, "_run_tokens_used", 0),
+            run_context_chars_used=getattr(self, "_run_context_chars_used", 0),
+            run_sot_chars_used=getattr(self, "_run_sot_chars_used", 0),
+            # Pass executor methods as callables
+            get_phase_from_db=self._get_phase_from_db,
+            mark_phase_complete_in_db=self._mark_phase_complete_in_db,
+            mark_phase_failed_in_db=self._mark_phase_failed_in_db,
+            update_phase_attempts_in_db=self._update_phase_attempts_in_db,
+            record_learning_hint=self._record_learning_hint,
+            record_phase_error=self._record_phase_error,
+            run_diagnostics_for_failure=self._run_diagnostics_for_failure,
+            record_token_efficiency_telemetry=self._record_token_efficiency_telemetry,
+            status_to_outcome=self._status_to_outcome,
+            refresh_project_rules_if_updated=self._refresh_project_rules_if_updated,
+            phase_error_history=self._phase_error_history,
+            last_builder_result=getattr(self, "_last_builder_result", None),
+            workspace_root=getattr(self, "workspace_root", None),
+            run_budget_tokens=getattr(self, "run_budget_tokens", 0),
         )
 
-        # Reload project rules mid-run if rules_updated.json advanced
-        self._refresh_project_rules_if_updated()
-
-        # [BUILD-041] Execute single attempt with error recovery
-        # PR-C: Use attempt_runner module for the execution wrapper
-        try:
-            result = run_single_attempt_with_recovery(
-                executor=self,
-                phase=phase,
-                attempt_index=attempt_index,
-                allowed_paths=allowed_scope_paths,
-            )
-            success, status = result.success, result.status
-
-            if success:
-                # [BUILD-041] Mark phase COMPLETE in database
-                self._mark_phase_complete_in_db(phase_id)
-
-                # Learning Pipeline: Record hint if succeeded after retries
-                if attempt_index > 0:
-                    self._record_learning_hint(
-                        phase=phase,
-                        hint_type="success_after_retry",
-                        details=f"Succeeded on attempt {attempt_index + 1} after {attempt_index} failed attempts",
-                    )
-
-                # BUILD-145 P1.1: Record token efficiency telemetry
-                self._record_token_efficiency_telemetry(phase_id, "COMPLETE")
-
-                logger.info(
-                    f"[{phase_id}] Phase completed successfully on attempt {attempt_index + 1}"
-                )
-                return True, "COMPLETE"
-
-            # [BUILD-041] Attempt failed - update database and check if exhausted
-            failure_outcome = self._status_to_outcome(status)
-
-            # PR-B: Use retry_policy to compute next state decision
-            decision = next_attempt_state(attempt_ctx, status)
-
-            # BUILD-129/P10 convergence: TOKEN_ESCALATION is not a diagnosable "approach flaw".
-            # It's an intentional control-flow signal: retry with a larger completion budget.
-            # Do NOT run diagnostics/Doctor/replan here; doing so resets state and prevents
-            # the stateful retry budget from being applied across drain batches.
-            if not decision.should_run_diagnostics and decision.next_retry_attempt is not None:
-                # TOKEN_ESCALATION or similar: advance retry_attempt without diagnostics
-                self._update_phase_attempts_in_db(
-                    phase_id,
-                    retry_attempt=decision.next_retry_attempt,
-                    last_failure_reason=status,
-                )
-                logger.info(
-                    f"[{phase_id}] {status} recorded; advancing retry_attempt to {decision.next_retry_attempt} "
-                    f"and deferring diagnosis so the next attempt can use the escalated max_tokens."
-                )
-                return False, status
-
-            # Update health budget tracking
-            self._run_total_failures += 1
-            if status == "PATCH_FAILED":
-                self._run_patch_failure_count += 1
-
-            # Learning Pipeline: Record hint about what went wrong
-            self._record_learning_hint(
-                phase=phase,
-                hint_type=failure_outcome,
-                details=f"Failed with {status} on attempt {attempt_index + 1}",
-            )
-
-            # Mid-Run Re-Planning: Record error for approach flaw detection
-            self._record_phase_error(
-                phase=phase,
-                error_type=failure_outcome,
-                error_details=f"Status: {status}",
-                attempt_index=attempt_index,
-            )
-
-            # [BUILD-146 P6.3] Deterministic Failure Hardening (before expensive diagnostics/Doctor)
-            # Try deterministic mitigation FIRST to avoid token costs
-            if os.getenv("AUTOPACK_ENABLE_FAILURE_HARDENING", "false").lower() == "true":
-                from autopack.failure_hardening import detect_and_mitigate_failure
-
-                error_text = f"Status: {status}, Attempt: {attempt_index + 1}"
-                hardening_context = {
-                    "workspace": (
-                        Path(self.workspace_root) if hasattr(self, "workspace_root") else Path.cwd()
-                    ),
-                    "phase_id": phase_id,
-                    "status": status,
-                    "scope_paths": phase.get("scope", {}).get("paths", []),
-                }
-
-                mitigation_result = detect_and_mitigate_failure(error_text, hardening_context)
-
-                if mitigation_result:
-                    logger.info(
-                        f"[{phase_id}] Failure hardening detected pattern: {mitigation_result.pattern_id} "
-                        f"(success={mitigation_result.success}, fixed={mitigation_result.fixed})"
-                    )
-                    logger.info(f"[{phase_id}] Actions taken: {mitigation_result.actions_taken}")
-                    logger.info(f"[{phase_id}] Suggestions: {mitigation_result.suggestions}")
-
-                    # Record mitigation in learning hints
-                    self._record_learning_hint(
-                        phase=phase,
-                        hint_type="failure_hardening_applied",
-                        details=f"Pattern: {mitigation_result.pattern_id}, Fixed: {mitigation_result.fixed}",
-                    )
-
-                    # If mitigation claims it's fixed, skip diagnostics/Doctor and retry immediately
-                    if mitigation_result.fixed:
-                        logger.info(
-                            f"[{phase_id}] Failure hardening claims fix applied, skipping diagnostics/Doctor"
-                        )
-
-                        # [BUILD-146 P2] Record Phase 6 telemetry for failure hardening
-                        if os.getenv("TELEMETRY_DB_ENABLED", "false").lower() == "true":
-                            try:
-                                from autopack.usage_recorder import (
-                                    record_phase6_metrics,
-                                    estimate_doctor_tokens_avoided,
-                                )
-                                from autopack.database import SessionLocal
-
-                                db = SessionLocal()
-                                try:
-                                    # BUILD-146 P3: Use median-based estimation with coverage tracking
-                                    estimate, coverage_n, source = estimate_doctor_tokens_avoided(
-                                        db=db,
-                                        run_id=self.run_id,
-                                        doctor_model=None,  # Could enhance to track expected model
-                                    )
-
-                                    record_phase6_metrics(
-                                        db=db,
-                                        run_id=self.run_id,
-                                        phase_id=phase_id,
-                                        failure_hardening_triggered=True,
-                                        failure_pattern_detected=mitigation_result.pattern_id,
-                                        failure_hardening_mitigated=True,
-                                        doctor_call_skipped=True,
-                                        doctor_tokens_avoided_estimate=estimate,
-                                        estimate_coverage_n=coverage_n,
-                                        estimate_source=source,
-                                    )
-                                finally:
-                                    db.close()
-                            except Exception as e:
-                                logger.warning(
-                                    f"[{phase_id}] Failed to record Phase 6 telemetry: {e}"
-                                )
-
-                        # Increment attempts and return for immediate retry (caller handles retry loop)
-                        new_attempts = attempt_index + 1
-                        self._update_phase_attempts_in_db(
-                            phase_id,
-                            retry_attempt=new_attempts,
-                            last_failure_reason=f"HARDENING_MITIGATED: {mitigation_result.pattern_id}",
-                        )
-                        # Return FAILED status so caller can retry immediately with mitigation applied
-                        return (False, "FAILED")
-
-            # Run governed diagnostics to gather evidence before mutations
-            self._run_diagnostics_for_failure(
-                failure_class=failure_outcome,
-                phase=phase,
-                context={
-                    "status": status,
-                    "attempt_index": attempt_index,
-                    "logs_excerpt": f"Status: {status}, Attempt: {attempt_index + 1}",
-                },
-            )
-
-            # [Doctor Integration] Invoke Doctor for diagnosis after sufficient failures
-            # [Phase C1] Extract patch and error info from last builder result
-            last_patch = None
-            patch_errors = []
-            if self._last_builder_result:
-                last_patch = self._last_builder_result.patch_content
-                if self._last_builder_result.error:
-                    patch_errors = [{"error": self._last_builder_result.error}]
-                # Include builder messages as additional error context
-                if self._last_builder_result.builder_messages:
-                    for msg in self._last_builder_result.builder_messages:
-                        if msg and "error" in msg.lower() or "failed" in msg.lower():
-                            patch_errors.append({"message": msg})
-
-            doctor_response = self._invoke_doctor(
-                phase=phase,
-                error_category=failure_outcome,
-                builder_attempts=attempt_index + 1,
-                last_patch=last_patch,
-                patch_errors=patch_errors,
-                logs_excerpt=f"Status: {status}, Attempt: {attempt_index + 1}",
-            )
-
-            if doctor_response:
-                # Handle Doctor's recommended action
-                action_taken, should_continue = self._handle_doctor_action(
-                    phase=phase,
-                    response=doctor_response,
-                    attempt_index=attempt_index,
-                )
-
-                if not should_continue:
-                    # [BUILD-041] Doctor recommended skipping - mark phase FAILED
-                    self._mark_phase_failed_in_db(phase_id, f"DOCTOR_SKIP: {status}")
-                    logger.warning(f"[{phase_id}] Doctor recommended skipping, marking FAILED")
-                    return False, status
-
-                if action_taken == "replan":
-                    # BUILD-050 Phase 2: Non-destructive replanning - increment epoch, preserve retry progress
-                    phase_db = self._get_phase_from_db(phase_id)
-                    if phase_db:
-                        new_epoch = phase_db.revision_epoch + 1
-                        logger.info(
-                            f"[{phase_id}] Doctor triggered re-planning (epoch {phase_db.revision_epoch} → {new_epoch}), "
-                            f"preserving retry progress (retry_attempt={phase_db.retry_attempt}, escalation={phase_db.escalation_level})"
-                        )
-                        self._update_phase_attempts_in_db(
-                            phase_id, revision_epoch=new_epoch, last_failure_reason="DOCTOR_REPLAN"
-                        )
-                    return False, "REPLAN_REQUESTED"
-
-            # INSERTION POINT 3: Intention-first stuck handling dispatch (BUILD-161 Phase A)
-            if (
-                hasattr(self, "_intention_wiring")
-                and self._intention_wiring is not None
-                and self._intention_anchor is not None
-            ):
-                from autopack.autonomous.executor_wiring import decide_stuck_action
-                from autopack.stuck_handling import StuckReason
-
-                # Map failure status to stuck reason
-                stuck_reason = StuckReason.REPEATED_FAILURES  # Default
-                if "BUDGET" in status.upper():
-                    stuck_reason = StuckReason.BUDGET_EXCEEDED
-                elif "TRUNCAT" in status.upper():
-                    stuck_reason = StuckReason.OUTPUT_TRUNCATION
-
-                # BUILD-190: Use run-level accumulated token usage for budget decisions
-                tokens_used = self._run_tokens_used
-                context_chars_used = self._run_context_chars_used
-                sot_chars_used = self._run_sot_chars_used
-
-                try:
-                    decision, decision_msg = decide_stuck_action(
-                        wiring=self._intention_wiring,
-                        phase_id=phase_id,
-                        phase_spec=phase,
-                        anchor=self._intention_anchor,
-                        reason=stuck_reason,
-                        tokens_used=tokens_used,
-                        context_chars_used=context_chars_used,
-                        sot_chars_used=sot_chars_used,
-                    )
-                    logger.info(f"[IntentionFirst] {decision_msg}")
-
-                    # Dispatch based on decision
-                    from autopack.stuck_handling import StuckResolutionDecision
-
-                    if decision == StuckResolutionDecision.REPLAN:
-                        # Use existing replan logic
-                        logger.info(f"[IntentionFirst] Policy decided REPLAN for {phase_id}")
-                        # Fall through to existing replan code below
-                    elif decision == StuckResolutionDecision.ESCALATE_MODEL:
-                        # Apply model escalation via routing snapshot
-                        from autopack.autonomous.executor_wiring import apply_model_escalation
-                        from autopack.executor.safety_profile import derive_safety_profile
-
-                        current_tier = phase.get(
-                            "_current_tier", "haiku"
-                        )  # Default to haiku if not set
-                        # BUILD-188 P5.5: Derive safety profile from intention anchor
-                        safety_profile = (
-                            derive_safety_profile(self._intention_anchor)
-                            if self._intention_anchor is not None
-                            else "strict"  # Fail-safe default
-                        )
-                        escalated_entry = apply_model_escalation(
-                            wiring=self._intention_wiring,
-                            phase_id=phase_id,
-                            phase_spec=phase,
-                            current_tier=current_tier,
-                            safety_profile=safety_profile,
-                        )
-                        if escalated_entry:
-                            logger.info(
-                                f"[IntentionFirst] Escalated {phase_id} to tier {escalated_entry.tier} (model: {escalated_entry.model_id})"
-                            )
-                            phase["_current_tier"] = escalated_entry.tier
-                            # The run_context overrides are now set, llm_service will use them
-                        else:
-                            logger.warning(
-                                f"[IntentionFirst] Escalation failed for {phase_id}, falling back to existing logic"
-                            )
-                        # Don't return - let existing retry logic continue
-                    elif decision == StuckResolutionDecision.REDUCE_SCOPE:
-                        # BUILD-190: Implement scope reduction with proposal generation
-                        from autopack.executor.scope_reduction_flow import (
-                            generate_scope_reduction_proposal as gen_scope_proposal,
-                            write_scope_reduction_proposal,
-                        )
-                        from autopack.run_file_layout import RunFileLayout
-
-                        logger.info(f"[IntentionFirst] Policy decided REDUCE_SCOPE for {phase_id}")
-
-                        # Extract current scope from phase
-                        current_tasks = phase.get("tasks", [])
-                        if not current_tasks:
-                            # Fallback: use deliverables as scope proxy
-                            current_tasks = phase.get("deliverables", [])
-
-                        if current_tasks:
-                            # Compute budget remaining
-                            budget_remaining = 1.0 - (tokens_used / max(self.run_budget_tokens, 1))
-                            budget_remaining = max(0.0, min(1.0, budget_remaining))
-
-                            # Generate scope reduction proposal
-                            proposal = gen_scope_proposal(
-                                run_id=self.run_id,
-                                phase_id=phase_id,
-                                anchor=self._intention_anchor,
-                                current_scope=current_tasks,
-                                budget_remaining=budget_remaining,
-                            )
-
-                            if proposal and proposal.proposed_scope:
-                                # Write proposal as artifact
-                                try:
-                                    layout = RunFileLayout(
-                                        self.run_id, project_id=self._get_project_slug()
-                                    )
-                                    write_scope_reduction_proposal(layout, proposal)
-                                except Exception as write_err:
-                                    logger.warning(
-                                        f"[IntentionFirst] Failed to write scope proposal: {write_err}"
-                                    )
-
-                                # Apply reduced scope to phase
-                                phase["tasks"] = proposal.proposed_scope
-                                phase["_scope_reduced"] = True
-                                phase["_dropped_tasks"] = proposal.dropped_items
-
-                                logger.info(
-                                    f"[IntentionFirst] Reduced scope from {len(current_tasks)} to "
-                                    f"{len(proposal.proposed_scope)} tasks (dropped: {proposal.dropped_items})"
-                                )
-                            else:
-                                logger.warning(
-                                    "[IntentionFirst] Scope reduction proposal was empty, falling back"
-                                )
-                        else:
-                            logger.warning(
-                                "[IntentionFirst] No tasks to reduce scope from, falling back"
-                            )
-                    elif decision == StuckResolutionDecision.NEEDS_HUMAN:
-                        logger.critical(
-                            f"[IntentionFirst] Policy decided NEEDS_HUMAN for {phase_id} - blocking"
-                        )
-                        return False, "BLOCKED_NEEDS_HUMAN"
-                    elif decision == StuckResolutionDecision.STOP:
-                        logger.critical(
-                            f"[IntentionFirst] Policy decided STOP for {phase_id} - budget exhausted or max retries"
-                        )
-                        return False, "FAILED"
-                except Exception as e:
-                    logger.warning(
-                        f"[IntentionFirst] Stuck decision failed: {e}, falling back to existing logic"
-                    )
-
-            # Check if we should trigger re-planning before next retry
-            should_replan, flaw_type = self._should_trigger_replan(phase)
-            if should_replan:
-                logger.info(f"[{phase_id}] Triggering mid-run re-planning due to {flaw_type}")
-
-                # Get error history for context
-                error_history = self._phase_error_history.get(phase_id, [])
-
-                # Invoke re-planner
-                revised_phase = self._revise_phase_approach(phase, flaw_type, error_history)
-
-                if revised_phase:
-                    # BUILD-050 Phase 2: Non-destructive replanning
-                    self._run_replan_count += 1
-                    phase_db = self._get_phase_from_db(phase_id)
-                    if phase_db:
-                        new_epoch = phase_db.revision_epoch + 1
-                        logger.info(
-                            f"[{phase_id}] Re-planning successful (run total: {self._run_replan_count}/{self.MAX_REPLANS_PER_RUN}, "
-                            f"epoch {phase_db.revision_epoch} → {new_epoch}), preserving retry progress"
-                        )
-                        self._update_phase_attempts_in_db(
-                            phase_id, revision_epoch=new_epoch, last_failure_reason="REPLANNED"
-                        )
-                    return False, "REPLAN_REQUESTED"
-                else:
-                    logger.warning(
-                        f"[{phase_id}] Re-planning failed, continuing with original approach"
-                    )
-
-            # [BUILD-041] Increment attempts_used in database
-            new_attempts = attempt_index + 1
-            self._update_phase_attempts_in_db(
-                phase_id, retry_attempt=new_attempts, last_failure_reason=status
-            )
-
-            # Token-efficiency guard: CI collection/import errors are deterministic environment/test failures.
-            # Retrying (and escalating models / triggering deep retrieval) wastes tokens and can further dirty the workspace.
-            status_lower = (status or "").lower()
-            if (
-                "ci collection/import error" in status_lower
-                or "collection errors detected" in status_lower
-            ):
-                logger.error(
-                    f"[{phase_id}] Deterministic CI collection/import failure. "
-                    f"Skipping escalation/retry to avoid token waste."
-                )
-                return False, status
-
-            # Check if attempts exhausted
-            if new_attempts >= max_attempts:
-                logger.error(
-                    f"[{phase_id}] All {max_attempts} attempts exhausted. Marking phase as FAILED."
-                )
-
-                # Log to debug journal for persistent tracking
-                log_error(
-                    error_signature=f"Phase {phase_id} max attempts exhausted",
-                    symptom=f"Phase failed after {max_attempts} attempts with model escalation",
-                    run_id=self.run_id,
-                    phase_id=phase_id,
-                    suspected_cause="Task complexity exceeds model capabilities or task is impossible",
-                    priority="HIGH",
-                )
-
-                self._mark_phase_failed_in_db(phase_id, "MAX_ATTEMPTS_EXHAUSTED")
-                return False, "FAILED"
-
-            logger.warning(
-                f"[{phase_id}] Attempt {new_attempts}/{max_attempts} failed, will escalate model for next retry"
-            )
-            return False, status
-
-        except Exception as e:
-            # [BUILD-041] Handle exceptions with database state updates
-            logger.error(f"[{phase_id}] Attempt {attempt_index + 1} raised exception: {e}")
-
-            # Report detailed error context for debugging
-            report_error(
-                error=e,
-                run_id=self.run_id,
-                phase_id=phase_id,
-                component="executor",
-                operation="execute_phase",
-                context_data={
-                    "attempt_index": attempt_index,
-                    "max_retry_attempts": MAX_RETRY_ATTEMPTS,
-                    "phase_description": phase.get("description", "")[:200],
-                    "phase_complexity": phase.get("complexity"),
-                    "phase_task_category": phase.get("task_category"),
-                },
-            )
-
-            # Update health budget tracking
-            self._run_total_failures += 1
-            error_str = str(e).lower()
-            if "500" in error_str or "internal server error" in error_str:
-                self._run_http_500_count += 1
-
-            # Mid-Run Re-Planning: Record error for approach flaw detection
-            self._record_phase_error(
-                phase=phase,
-                error_type="infra_error",
-                error_details=str(e),
-                attempt_index=attempt_index,
-            )
-
-            # Diagnostics: gather evidence for infra errors before any mutations
-            self._run_diagnostics_for_failure(
-                failure_class="infra_error",
-                phase=phase,
-                context={
-                    "exception": str(e)[:300],
-                    "attempt_index": attempt_index,
-                },
-            )
-
-            # [Doctor Integration] Invoke Doctor for diagnosis on exceptions
-            doctor_response = self._invoke_doctor(
-                phase=phase,
-                error_category="infra_error",
-                builder_attempts=attempt_index + 1,
-                logs_excerpt=f"Exception: {type(e).__name__}: {str(e)[:500]}",
-            )
-
-            if doctor_response:
-                action_taken, should_continue = self._handle_doctor_action(
-                    phase=phase,
-                    response=doctor_response,
-                    attempt_index=attempt_index,
-                )
-
-                if not should_continue:
-                    # [BUILD-041] Doctor recommended skipping - mark phase FAILED
-                    self._mark_phase_failed_in_db(phase_id, f"DOCTOR_SKIP: {type(e).__name__}")
-                    return False, "FAILED"
-
-                if action_taken == "replan":
-                    # BUILD-050 Phase 2: Non-destructive replanning after exception
-                    phase_db = self._get_phase_from_db(phase_id)
-                    if phase_db:
-                        new_epoch = phase_db.revision_epoch + 1
-                        logger.info(
-                            f"[{phase_id}] Doctor triggered re-planning after exception (epoch {phase_db.revision_epoch} → {new_epoch}), "
-                            f"preserving retry progress"
-                        )
-                        self._update_phase_attempts_in_db(
-                            phase_id,
-                            revision_epoch=new_epoch,
-                            last_failure_reason="DOCTOR_REPLAN_AFTER_EXCEPTION",
-                        )
-                    return False, "REPLAN_REQUESTED"
-
-            # Check if we should trigger re-planning before next retry
-            should_replan, flaw_type = self._should_trigger_replan(phase)
-            if should_replan:
-                logger.info(f"[{phase_id}] Triggering mid-run re-planning due to {flaw_type}")
-                error_history = self._phase_error_history.get(phase_id, [])
-                revised_phase = self._revise_phase_approach(phase, flaw_type, error_history)
-                if revised_phase:
-                    # BUILD-050 Phase 2: Non-destructive replanning after exception
-                    self._run_replan_count += 1
-                    phase_db = self._get_phase_from_db(phase_id)
-                    if phase_db:
-                        new_epoch = phase_db.revision_epoch + 1
-                        logger.info(
-                            f"[{phase_id}] Re-planning successful (run total: {self._run_replan_count}/{self.MAX_REPLANS_PER_RUN}, "
-                            f"epoch {phase_db.revision_epoch} → {new_epoch}), preserving retry progress"
-                        )
-                        self._update_phase_attempts_in_db(
-                            phase_id,
-                            revision_epoch=new_epoch,
-                            last_failure_reason="REPLANNED_AFTER_EXCEPTION",
-                        )
-                    return False, "REPLAN_REQUESTED"
-
-            # [BUILD-041] Increment attempts_used in database after exception
-            new_attempts = attempt_index + 1
-            self._update_phase_attempts_in_db(
-                phase_id,
-                retry_attempt=new_attempts,
-                last_failure_reason=f"EXCEPTION: {type(e).__name__}",
-            )
-
-            # Check if attempts exhausted
-            if new_attempts >= max_attempts:
-                logger.error(
-                    f"[{phase_id}] All {max_attempts} attempts exhausted after exception. Marking phase as FAILED."
-                )
-
-                # Log to debug journal for persistent tracking
-                log_error(
-                    error_signature=f"Phase {phase_id} max attempts exhausted (exception)",
-                    symptom=f"Phase failed after {max_attempts} attempts with final exception: {type(e).__name__}",
-                    run_id=self.run_id,
-                    phase_id=phase_id,
-                    suspected_cause=str(e)[:200],
-                    priority="HIGH",
-                )
-
-                self._mark_phase_failed_in_db(
-                    phase_id, f"MAX_ATTEMPTS_EXHAUSTED: {type(e).__name__}"
-                )
-                return False, "FAILED"
-
-            logger.warning(
-                f"[{phase_id}] Attempt {new_attempts}/{max_attempts} raised exception, will retry"
-            )
-            return False, "EXCEPTION_OCCURRED"
+        # Execute phase via orchestrator
+        orchestrator = PhaseOrchestrator(max_retry_attempts=MAX_RETRY_ATTEMPTS)
+        result = orchestrator.execute_phase_attempt(context)
+
+        # Update counters from orchestrator result
+        for key, value in result.updated_counters.items():
+            setattr(self, f"_run_{key}", value)
+
+        # Return result based on phase result
+        if result.phase_result == PhaseResult.COMPLETE:
+            return True, "COMPLETE"
+        elif result.phase_result == PhaseResult.REPLAN_REQUESTED:
+            return False, "REPLAN_REQUESTED"
+        elif result.phase_result == PhaseResult.BLOCKED:
+            return False, result.status
+        else:
+            return False, result.status
 
     def _status_to_outcome(self, status: str) -> str:
         """Map phase status to outcome for escalation tracking."""

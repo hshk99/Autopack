@@ -107,8 +107,7 @@ KNOWN_RULES: Dict[str, Rule] = {
         rule_id="rule-http422-invalid-type",
         description="HTTP 422 validation failure due to incorrect field type",
         prevention_action=(
-            "Add type coercion layer before API calls. "
-            "Validate field types match expected schema."
+            "Add type coercion layer before API calls. Validate field types match expected schema."
         ),
         applies_to_signatures=["http_422_validation_failed:invalid_type"],
         severity="medium",
@@ -137,7 +136,7 @@ KNOWN_RULES: Dict[str, Rule] = {
         rule_id="rule-build-syntax",
         description="Build failure due to syntax error",
         prevention_action=(
-            "Run linter/formatter before commits. " "Enable pre-commit hooks for syntax validation."
+            "Run linter/formatter before commits. Enable pre-commit hooks for syntax validation."
         ),
         applies_to_signatures=["build_failure:syntax_error"],
         severity="high",
@@ -146,8 +145,7 @@ KNOWN_RULES: Dict[str, Rule] = {
         rule_id="rule-build-import",
         description="Build failure due to import error",
         prevention_action=(
-            "Verify all imports exist and are correctly spelled. "
-            "Check for circular import issues."
+            "Verify all imports exist and are correctly spelled. Check for circular import issues."
         ),
         applies_to_signatures=["build_failure:import_error"],
         severity="high",
@@ -156,7 +154,7 @@ KNOWN_RULES: Dict[str, Rule] = {
         rule_id="rule-runtime-attr",
         description="Runtime AttributeError (accessing non-existent attribute)",
         prevention_action=(
-            "Add null checks before attribute access. " "Use Optional types and hasattr() guards."
+            "Add null checks before attribute access. Use Optional types and hasattr() guards."
         ),
         applies_to_signatures=["runtime_error:attribute_error"],
         severity="medium",

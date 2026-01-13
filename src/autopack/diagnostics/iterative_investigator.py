@@ -159,7 +159,7 @@ class IterativeInvestigator:
                 decision = Decision(
                     type=DecisionType.AMBIGUOUS,
                     fix_strategy="",
-                    rationale=f"After {round_num-1} investigation rounds, root cause remains unclear. "
+                    rationale=f"After {round_num - 1} investigation rounds, root cause remains unclear. "
                     f"All standard evidence collected but no clear fix identified.",
                     alternatives_considered=[
                         "Continue investigation (rejected: no more obvious evidence to collect)",

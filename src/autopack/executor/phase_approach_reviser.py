@@ -105,8 +105,8 @@ class PhaseApproachReviser:
 ## Original Phase Specification
 **Phase**: {phase_name}
 **Description**: {current_description}
-**Category**: {phase.get('task_category', 'general')}
-**Complexity**: {phase.get('complexity', 'medium')}
+**Category**: {phase.get("task_category", "general")}
+**Complexity**: {phase.get("complexity", "medium")}
 
 ## Error Pattern Detected
 **Flaw Type**: {flaw_type}

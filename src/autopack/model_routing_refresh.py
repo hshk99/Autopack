@@ -248,8 +248,7 @@ def create_catalog_backed_snapshot(
             entry = select_best_model_for_tier(catalog, tier, safety_profile)
             if entry is None:
                 logger.warning(
-                    f"[ModelRoutingRefresh] No model found for tier {tier}, "
-                    f"falling back to default"
+                    f"[ModelRoutingRefresh] No model found for tier {tier}, falling back to default"
                 )
                 return None
             entries.append(entry)
@@ -266,7 +265,7 @@ def create_catalog_backed_snapshot(
 
     except Exception as e:
         logger.error(
-            f"[ModelRoutingRefresh] Catalog source unavailable: {e}, " f"falling back to default"
+            f"[ModelRoutingRefresh] Catalog source unavailable: {e}, falling back to default"
         )
         return None
 

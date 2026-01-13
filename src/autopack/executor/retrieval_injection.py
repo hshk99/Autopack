@@ -135,7 +135,7 @@ class RetrievalInjection:
 
         # Global kill switch
         if not self.enabled:
-            logger.info(f"{prefix}[SOT] Retrieval disabled by config " f"(enabled={self.enabled})")
+            logger.info(f"{prefix}[SOT] Retrieval disabled by config (enabled={self.enabled})")
             return GateDecision(
                 allowed=False,
                 reason="SOT retrieval disabled by configuration",

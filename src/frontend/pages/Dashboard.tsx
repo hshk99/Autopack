@@ -1,6 +1,6 @@
 /**
  * Dashboard page component
- * 
+ *
  * Main landing page showing build overview and system status
  */
 import React from 'react';

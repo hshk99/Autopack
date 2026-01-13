@@ -295,6 +295,6 @@ class ContextPreflight:
             return False, message
 
         # All checks passed
-        message = f"Context validated: {file_count} files, " f"{decision.total_size_mb:.2f}MB total"
+        message = f"Context validated: {file_count} files, {decision.total_size_mb:.2f}MB total"
         logger.info(f"{prefix}{message}")
         return True, message

@@ -108,7 +108,10 @@ class TelegramNotifier:
             return False
 
     def send_completion_notice(
-        self, phase_id: str, status: str, message: str = ""  # "approved", "rejected", "timeout"
+        self,
+        phase_id: str,
+        status: str,
+        message: str = "",  # "approved", "rejected", "timeout"
     ) -> bool:
         """Send completion notice after approval decision."""
         if not self.is_configured():
@@ -116,9 +119,7 @@ class TelegramNotifier:
 
         emoji = {"approved": "✅", "rejected": "❌", "timeout": "⏱️"}.get(status, "ℹ️")
 
-        text = (
-            f"{emoji} *Autopack Update*\n\n" f"Phase: `{phase_id}`\n" f"Status: {status.upper()}\n"
-        )
+        text = f"{emoji} *Autopack Update*\n\nPhase: `{phase_id}`\nStatus: {status.upper()}\n"
 
         if message:
             text += f"\n{message}"

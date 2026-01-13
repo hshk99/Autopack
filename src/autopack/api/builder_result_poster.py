@@ -185,7 +185,7 @@ class BuilderResultPoster:
                         if attempt < 2:
                             backoff = 1 * (2**attempt)
                             logger.info(
-                                f"[{phase_id}] Retrying builder_result POST after {backoff}s (attempt {attempt+2}/3)"
+                                f"[{phase_id}] Retrying builder_result POST after {backoff}s (attempt {attempt + 2}/3)"
                             )
                             time.sleep(backoff)
                             continue

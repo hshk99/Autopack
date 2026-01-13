@@ -45,7 +45,7 @@ export const DoctorMetrics: React.FC = () => {
   return (
     <div className="doctor-metrics">
       <h2>Doctor Agent Metrics</h2>
-      
+
       <div className="metrics-grid">
         <div className="metric-card">
           <h3>Total Calls</h3>

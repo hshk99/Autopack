@@ -58,8 +58,7 @@ class LinkedInGatherer:
             # Note: This is simplified - real OAuth flow requires authorization code
             # For production, implement full OAuth 2.0 flow
             raise NotImplementedError(
-                "OAuth token refresh not implemented. "
-                "Please provide valid LINKEDIN_ACCESS_TOKEN."
+                "OAuth token refresh not implemented. Please provide valid LINKEDIN_ACCESS_TOKEN."
             )
 
         return self.access_token

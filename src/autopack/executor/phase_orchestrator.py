@@ -188,7 +188,8 @@ class PhaseOrchestrator:
 
                 # Generate manifest
                 result = context.manifest_generator.generate_manifest(
-                    plan_data=minimal_plan, skip_validation=False  # Run preflight validation
+                    plan_data=minimal_plan,
+                    skip_validation=False,  # Run preflight validation
                 )
 
                 if result.success and result.enhanced_plan["phases"]:

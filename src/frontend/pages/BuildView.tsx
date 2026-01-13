@@ -1,6 +1,6 @@
 /**
  * Build view page component
- * 
+ *
  * Displays detailed information about a specific build
  */
 import React from 'react';

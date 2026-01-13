@@ -222,7 +222,7 @@ class ArchiveConsolidator:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         entry = f"""
-### {event_type.replace('_', ' ').title()} - {timestamp}
+### {event_type.replace("_", " ").title()} - {timestamp}
 {description}
 """
 

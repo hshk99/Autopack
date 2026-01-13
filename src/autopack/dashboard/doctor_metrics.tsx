@@ -83,7 +83,7 @@ export const DoctorMetrics: React.FC<DoctorMetricsProps> = ({
   return (
     <div className="doctor-metrics">
       <h2>🩺 Doctor Usage Metrics</h2>
-      
+
       <div className="metrics-section">
         <h3>Current Run</h3>
         <div className="metrics-grid">

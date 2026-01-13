@@ -88,7 +88,7 @@ class ParserFactory:
 
         if format_type not in parsers:
             raise ValueError(
-                f"Unknown format type: {format_type}. " f"Valid types: {', '.join(parsers.keys())}"
+                f"Unknown format type: {format_type}. Valid types: {', '.join(parsers.keys())}"
             )
 
         return parsers[format_type]()

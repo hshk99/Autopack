@@ -217,7 +217,7 @@ class PublishPreflightGate:
                 f for f in packet.compliance_flags if f.severity == ComplianceFlagSeverity.BLOCKING
             ]
             raise ValueError(
-                f"Cannot approve packet with blocking issues: " f"{[f.message for f in blocking]}"
+                f"Cannot approve packet with blocking issues: {[f.message for f in blocking]}"
             )
 
         packet.status = PublishPacketStatus.APPROVED

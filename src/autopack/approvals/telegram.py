@@ -159,7 +159,7 @@ class TelegramApprovalService(ApprovalService):
 
         message = f"""🔐 Approval Required
 
-{emoji} Reason: {request.trigger_reason.value.replace('_', ' ').title()}
+{emoji} Reason: {request.trigger_reason.value.replace("_", " ").title()}
 
 📌 Request ID: {request.request_id}
 🏃 Run: {request.run_id}
@@ -170,7 +170,7 @@ class TelegramApprovalService(ApprovalService):
 {request.description}
 {diff_section}
 
-⏰ {request.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}
+⏰ {request.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")}
 
 Reply with /approve {request.request_id} or /deny {request.request_id}"""
 

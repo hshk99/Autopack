@@ -249,13 +249,13 @@ class CIExecutionFlow:
         message = ci_spec.get("success_message") if passed else ci_spec.get("failure_message")
         if not message:
             if passed:
-                message = f"Pytest passed ({tests_passed}/{max(tests_run,1)} tests)"
+                message = f"Pytest passed ({tests_passed}/{max(tests_run, 1)} tests)"
             else:
                 message = error_msg or "Pytest failed"
 
         if passed:
             logger.info(
-                f"[{phase_id}] CI checks PASSED: {tests_passed}/{max(tests_run,1)} tests passed in {duration:.1f}s"
+                f"[{phase_id}] CI checks PASSED: {tests_passed}/{max(tests_run, 1)} tests passed in {duration:.1f}s"
             )
         else:
             logger.warning(f"[{phase_id}] CI checks FAILED: return code {result.returncode}")

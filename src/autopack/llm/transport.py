@@ -86,7 +86,7 @@ class AnthropicTransport:
         """
         if Anthropic is None:
             raise ImportError(
-                "anthropic package not installed. " "Install with: pip install anthropic"
+                "anthropic package not installed. Install with: pip install anthropic"
             )
 
         self._api_key = api_key or os.getenv("ANTHROPIC_API_KEY")

@@ -1,6 +1,6 @@
 /**
  * Frontend application entry point
- * 
+ *
  * Initializes React application with routing and global providers
  */
 import React from 'react';

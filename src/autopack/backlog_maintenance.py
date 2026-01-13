@@ -66,7 +66,7 @@ def parse_backlog_markdown(path: Path, max_items: int = 10) -> List[BacklogItem]
             items.append(
                 BacklogItem(
                     id=f"backlog-{slug}",
-                    title=title or f"Backlog item {idx+1}",
+                    title=title or f"Backlog item {idx + 1}",
                     summary=summary,
                 )
             )

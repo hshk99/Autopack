@@ -495,8 +495,7 @@ class ArtifactRetentionManager:
         self._save()
 
         logger.info(
-            f"Deleted artifact: {artifact_id} ({metadata.artifact_class.value}) "
-            f"reason: {reason}"
+            f"Deleted artifact: {artifact_id} ({metadata.artifact_class.value}) reason: {reason}"
         )
 
         return True

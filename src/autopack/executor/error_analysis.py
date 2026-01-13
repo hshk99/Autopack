@@ -169,7 +169,7 @@ class ErrorAnalyzer:
         for i in range(len(messages) - 1):
             similarity = self._calculate_message_similarity(messages[i], messages[i + 1])
             min_similarity = min(min_similarity, similarity)
-            logger.debug(f"[ErrorAnalysis] Message similarity [{i}]->[{i+1}]: {similarity:.2f}")
+            logger.debug(f"[ErrorAnalysis] Message similarity [{i}]->[{i + 1}]: {similarity:.2f}")
 
             if similarity < self.similarity_threshold:
                 all_similar = False

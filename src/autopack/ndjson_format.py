@@ -197,7 +197,7 @@ class NDJSONParser:
                 if i == len(lines) - 1:
                     was_truncated = True
                     logger.warning(
-                        f"[NDJSON:Parse] Last line (#{i+1}) truncated mid-JSON: {e}. "
+                        f"[NDJSON:Parse] Last line (#{i + 1}) truncated mid-JSON: {e}. "
                         f"Successfully parsed {len(operations)} operations."
                     )
                 else:

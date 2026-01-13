@@ -327,7 +327,7 @@ class PreflightValidator:
 
         for i, criterion in enumerate(criteria):
             if not criterion or not criterion.strip():
-                warnings.append(f"Empty success criterion #{i+1} in phase '{phase_id}'")
+                warnings.append(f"Empty success criterion #{i + 1} in phase '{phase_id}'")
                 continue
 
             # Check for vague criteria

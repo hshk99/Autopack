@@ -133,7 +133,10 @@ class WizTreeScanner:
 
             # Run WizTree CLI
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=600  # 10 minute timeout
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=600,  # 10 minute timeout
             )
 
             # Check if CSV was created (WizTree sometimes returns 0 even on failure)
@@ -306,7 +309,10 @@ class WizTreeScanner:
             start_time = datetime.now()
 
             subprocess.run(
-                cmd, capture_output=True, text=True, timeout=300  # 5 minute timeout for directories
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,  # 5 minute timeout for directories
             )
 
             if not csv_path.exists():

@@ -160,7 +160,9 @@ class LocalGitCliAdapter:
                 # Tag commit
                 tag_name = f"{run_id}_{phase_id}"
                 self._run_git(
-                    ["tag", "-f", tag_name], cwd=repo_path, check=False  # Don't fail if tag exists
+                    ["tag", "-f", tag_name],
+                    cwd=repo_path,
+                    check=False,  # Don't fail if tag exists
                 )
 
                 return (True, commit_sha)

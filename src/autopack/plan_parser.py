@@ -82,7 +82,7 @@ def parse_markdown_plan(
                     if text:
                         acc.append(text)
                 i += 1
-            pid = _slug(title_clean or f"phase-{len(phases)+1}")
+            pid = _slug(title_clean or f"phase-{len(phases) + 1}")
             phases.append(
                 ParsedPhase(
                     id=pid,

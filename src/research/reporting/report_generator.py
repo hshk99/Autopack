@@ -92,7 +92,7 @@ class ReportGenerator:
         return f"""# Strategic Research Analysis Report
 
 **Generated:** {timestamp}
-**Confidence Level:** {self.synthesis.get('confidence_level', 'Unknown')}
+**Confidence Level:** {self.synthesis.get("confidence_level", "Unknown")}
 """
 
     def _generate_executive_summary(self) -> str:

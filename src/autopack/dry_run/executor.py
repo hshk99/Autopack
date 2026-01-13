@@ -252,7 +252,7 @@ class DryRunExecutor:
         self._approvals[approval.approval_id] = approval
         self._save_state()
 
-        logger.info(f"Approved dry-run: {dry_run_id} by {approved_by} " f"(expires in {hours}h)")
+        logger.info(f"Approved dry-run: {dry_run_id} by {approved_by} (expires in {hours}h)")
 
         return approval
 
@@ -368,7 +368,7 @@ class DryRunExecutor:
             self._executions[execution.execution_id] = execution
             self._save_state()
 
-            logger.info(f"Executed dry-run: {dry_run_id} " f"(duration={duration:.2f}s)")
+            logger.info(f"Executed dry-run: {dry_run_id} (duration={duration:.2f}s)")
 
             return execution
 

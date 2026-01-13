@@ -252,7 +252,7 @@ class APIServerLifecycle:
             except Exception:
                 pass
             if i < timeout_s - 1:
-                logger.info(f"  Still waiting... ({i+1}/{timeout_s})")
+                logger.info(f"  Still waiting... ({i + 1}/{timeout_s})")
 
         logger.error(f"API server failed to start within {timeout_s} seconds (log: {log_path})")
         return False

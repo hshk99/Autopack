@@ -54,7 +54,6 @@ from autopack.error_recovery import (
 )
 from autopack.llm_service import LlmService
 from autopack.debug_journal import log_error, log_fix
-from autopack.error_reporter import report_error
 from autopack.archive_consolidator import log_build_event
 from autopack.learned_rules import (
     load_project_rules,

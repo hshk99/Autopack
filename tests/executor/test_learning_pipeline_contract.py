@@ -4,8 +4,7 @@ Contract tests for Learning Pipeline Module (PR-EXE-10)
 Tests the LearningPipeline class that records lessons learned during troubleshooting.
 """
 
-import pytest
-from autopack.executor.learning_pipeline import LearningPipeline, LearningHint
+from autopack.executor.learning_pipeline import LearningPipeline
 
 
 class TestHintRecording:

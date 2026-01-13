@@ -4,8 +4,7 @@ Contract tests for Error Analysis Module (PR-EXE-10)
 Tests the ErrorAnalyzer class that detects approach flaws during phase execution.
 """
 
-import pytest
-from autopack.executor.error_analysis import ErrorAnalyzer, ErrorRecord, ErrorPattern
+from autopack.executor.error_analysis import ErrorAnalyzer
 
 
 class TestErrorRecording:
@@ -272,6 +271,7 @@ class TestConfiguration:
         # Should not trigger with 0.9 threshold
         pattern = analyzer.detect_approach_flaw("test-phase")
         # This might be None if similarity is below 0.9
+        assert pattern is None or pattern.similarity_score < 0.9
 
     def test_similarity_disabled_mode(self):
         """Test type-only checking when similarity disabled"""

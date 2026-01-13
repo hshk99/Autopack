@@ -43,6 +43,10 @@ Note: SOT→DB sync (`scripts/tidy/sot_db_sync.py`) exists as a derived index (`
 - **Reliability track (P0 + P1)**: `docs/P0_RELIABILITY_DECISIONS.md`
 - **Next major roadmap (universal autonomy + safe parallelism)**: `docs/IMPLEMENTATION_PLAN_PIVOT_INTENTIONS_AUTONOMY_PARALLELISM.md`
 
+## Operator Guides
+
+- **Memory Service Production Guide**: [docs/MEMORY_SERVICE_OPERATOR_GUIDE.md](docs/MEMORY_SERVICE_OPERATOR_GUIDE.md) - Comprehensive guide for operating the vector memory service (Qdrant/FAISS, setup, troubleshooting, performance tuning)
+
 ## Project Status
 
 **Version**: 0.5.1

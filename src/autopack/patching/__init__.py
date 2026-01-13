@@ -1,5 +1,11 @@
 """Patching utilities for Autopack."""
 
+from .apply_engine import (
+    ApplyResult,
+    execute_git_apply,
+    execute_manual_apply,
+    recover_from_failed_apply,
+)
 from .diff_generator import (
     DiffStats,
     extract_diff_stats,
@@ -20,6 +26,10 @@ from .patch_sanitize import (
 )
 
 __all__ = [
+    "ApplyResult",
+    "execute_git_apply",
+    "execute_manual_apply",
+    "recover_from_failed_apply",
     "DiffStats",
     "extract_diff_stats",
     "generate_diff_from_full_file",

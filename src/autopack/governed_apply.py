@@ -12,7 +12,6 @@ Enhanced with self-troubleshoot capabilities:
 Per GPT_RESPONSE18: Added symbol preservation and structural similarity validation.
 """
 
-import subprocess
 import logging
 import re
 import hashlib
@@ -31,6 +30,10 @@ from .patching.patch_sanitize import (
     repair_hunk_headers,
 )
 from .patching.patch_quality import validate_patch_quality
+from .patching.apply_engine import (
+    execute_git_apply,
+    execute_manual_apply,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -729,37 +732,6 @@ class GovernedApplyPath:
         """Fix empty file diffs (delegates to patch_sanitize module)."""
         return fix_empty_file_diffs(patch_content)
 
-    def _classify_patch_files(self, patch_content: str) -> Tuple[Set[str], Set[str]]:
-        """
-        Identify which files in a patch are new vs. existing.
-
-        Returns:
-            Tuple of (new_files, existing_files) as relative paths
-        """
-        new_files: Set[str] = set()
-        existing_files: Set[str] = set()
-        current_file = None
-
-        lines = patch_content.split("\n")
-        for i, line in enumerate(lines):
-            if line.startswith("diff --git"):
-                parts = line.split()
-                if len(parts) >= 4:
-                    current_file = parts[3][2:]  # b/path -> path
-                continue
-
-            if current_file is None:
-                continue
-
-            if line.startswith("new file mode") or line.startswith("--- /dev/null"):
-                new_files.add(current_file)
-            elif line.startswith("deleted file mode") or line.startswith("+++ /dev/null"):
-                existing_files.add(current_file)
-            elif line.startswith("--- a/") and "/dev/null" not in line:
-                existing_files.add(current_file)
-
-        return new_files, existing_files
-
     def _remove_existing_files_for_new_patches(self, patch_content: str) -> str:
         """
         Handle existing files that patches try to create as 'new file'.
@@ -1454,172 +1426,72 @@ class GovernedApplyPath:
                     "[BUILD-045] Proceeding with git apply - 3-way merge may resolve context differences"
                 )
 
-            # First, try strict apply (dry run)
-            logger.info("Checking if patch can be applied (dry run)...")
-            check_result = subprocess.run(
-                ["git", "apply", "--check", "temp_patch.diff"],
-                cwd=self.workspace,
-                capture_output=True,
-                text=True,
+            # Delegate to apply engine for git apply execution
+            apply_result = execute_git_apply(
+                patch_content=patch_content,
+                workspace=Path(self.workspace),
+                check_only=False,
+                reverse=False,
             )
 
-            use_lenient_mode = False
-            use_three_way = False
-            if check_result.returncode != 0:
-                error_msg = check_result.stderr.strip()
-                logger.warning(f"Strict patch check failed: {error_msg}")
-
-                # Try with lenient options that handle common LLM issues
-                logger.info("Retrying with lenient mode (--ignore-whitespace -C1)...")
-                lenient_check = subprocess.run(
-                    ["git", "apply", "--check", "--ignore-whitespace", "-C1", "temp_patch.diff"],
-                    cwd=self.workspace,
-                    capture_output=True,
-                    text=True,
-                )
-                if lenient_check.returncode == 0:
-                    use_lenient_mode = True
-                    logger.info("Lenient mode check passed")
-                else:
-                    # Try 3-way merge which handles line number mismatches
-                    logger.warning(f"Lenient mode also failed: {lenient_check.stderr.strip()}")
-                    logger.info("Retrying with 3-way merge mode (-3)...")
-                    three_way_check = subprocess.run(
-                        ["git", "apply", "--check", "-3", "temp_patch.diff"],
-                        cwd=self.workspace,
-                        capture_output=True,
-                        text=True,
+            if not apply_result.success:
+                # Git apply failed - try manual apply fallback if in full_file_mode
+                if not full_file_mode:
+                    logger.error(
+                        "Git apply failed for diff-mode patch. Direct write fallback skipped (only works for full-file mode)."
                     )
-                    if three_way_check.returncode == 0:
-                        use_three_way = True
-                        logger.info("3-way merge mode check passed")
-                    else:
-                        # All git apply modes failed
-                        # Per GPT_RESPONSE15: Only use direct write fallback for full-file mode
-                        if not full_file_mode:
-                            logger.error(
-                                "All git apply modes failed for diff-mode patch. Direct write fallback skipped (only works for full-file mode)."
-                            )
-                            if patch_file.exists():
-                                patch_file.unlink()
-                            return (
-                                False,
-                                "diff_mode_patch_failed: All git apply modes failed and direct write is not available for diff patches",
-                            )
-
-                        new_files, existing_files = self._classify_patch_files(patch_content)
-                        if existing_files:
-                            logger.error(
-                                "[Integrity] Patch modifies existing files. Skipping direct-write fallback to avoid partial apply."
-                            )
-                            if patch_file.exists():
-                                patch_file.unlink()
-                            return False, "git_apply_failed_existing_files_no_fallback"
-
-                        if not new_files:
-                            logger.error(
-                                "[Integrity] Git apply failed and no new files detected for direct-write fallback."
-                            )
-                            if patch_file.exists():
-                                patch_file.unlink()
-                            return False, "git_apply_failed_no_new_files_for_fallback"
-
-                        # Try direct file write as last resort (only for full-file mode)
-                        logger.warning(
-                            "All git apply modes failed, attempting direct file write fallback (new-file patch only)..."
-                        )
-                        success, files_written = self._apply_patch_directly(patch_content)
-                        if success and len(files_written) == len(new_files):
-                            logger.info(
-                                f"Direct file write succeeded - {len(files_written)} files written"
-                            )
-                            for f in files_written:
-                                logger.info(f"  - {f}")
-
-                            # [Self-Troubleshoot] Validate files after direct write
-                            all_valid, corrupted = self._validate_applied_files(files_written)
-                            if not all_valid:
-                                logger.error(
-                                    f"[Integrity] Direct write corrupted {len(corrupted)} files - restoring"
-                                )
-                                restored, failed = self._restore_corrupted_files(corrupted, backups)
-                                if patch_file.exists():
-                                    patch_file.unlink()
-                                return (
-                                    False,
-                                    f"Direct file write corrupted {len(corrupted)} files (restored {restored})",
-                                )
-
-                            # [GPT_RESPONSE18] Validate content changes (symbol preservation, structural similarity)
-                            # Note: For new files, backups will be empty, so validation will skip them (expected)
-                            content_valid, problem_files = self._validate_content_changes(
-                                files_written, backups
-                            )
-                            if not content_valid:
-                                logger.warning(
-                                    f"[Validation] Content validation issues in {len(problem_files)} files. "
-                                    "Patch applied but may have unintended changes."
-                                )
-
-                            if patch_file.exists():
-                                patch_file.unlink()
-                            return True, None
-                        else:
-                            logger.error(
-                                f"Direct file write failed or incomplete "
-                                f"(expected {len(new_files)}, wrote {len(files_written)})"
-                            )
-                            logger.error(f"Patch content:\n{patch_content[:500]}...")
-                            if patch_file.exists():
-                                patch_file.unlink()
-                            return False, error_msg
-
-            # Apply patch using git
-            logger.info("Applying patch to filesystem...")
-            if use_three_way:
-                result = subprocess.run(
-                    ["git", "apply", "-3", "temp_patch.diff"],
-                    cwd=self.workspace,
-                    capture_output=True,
-                    text=True,
-                )
-            elif use_lenient_mode:
-                result = subprocess.run(
-                    ["git", "apply", "--ignore-whitespace", "-C1", "temp_patch.diff"],
-                    cwd=self.workspace,
-                    capture_output=True,
-                    text=True,
-                )
-            else:
-                result = subprocess.run(
-                    ["git", "apply", "temp_patch.diff"],
-                    cwd=self.workspace,
-                    capture_output=True,
-                    text=True,
-                )
-
-            # Clean up temp file
-            if patch_file.exists():
-                patch_file.unlink()
-
-            if result.returncode != 0:
-                error_msg = result.stderr.strip()
-                logger.error(f"Failed to apply patch: {error_msg}")
-
-                # BUILD-145: Rollback to savepoint on apply failure
-                if savepoint_created and self.rollback_manager:
-                    rollback_success, rollback_error = self.rollback_manager.rollback_to_savepoint(
-                        f"Git apply failed: {error_msg}"
+                    return (
+                        False,
+                        f"diff_mode_patch_failed: {apply_result.message}",
                     )
-                    if rollback_success:
-                        logger.info("[Rollback] Successfully rolled back to pre-patch state")
-                    else:
-                        logger.error(f"[Rollback] Rollback failed: {rollback_error}")
 
-                return False, error_msg
+                # Try manual apply (only works for new files)
+                logger.warning(
+                    "Git apply failed, attempting manual apply fallback (new-file patches only)..."
+                )
+                manual_result = execute_manual_apply(
+                    patch_content=patch_content,
+                    workspace=Path(self.workspace),
+                    target_files=None,
+                )
 
-            # Extract files that were modified
-            files_changed = self._extract_files_from_patch(patch_content)
+                if not manual_result.success:
+                    logger.error(f"Manual apply also failed: {manual_result.message}")
+                    return False, f"git_apply_and_manual_apply_failed: {manual_result.message}"
+
+                # Manual apply succeeded
+                files_changed = manual_result.files_modified
+                logger.info(f"Manual apply succeeded - {len(files_changed)} files written")
+                for f in files_changed:
+                    logger.info(f"  - {f}")
+
+                # Validate files after manual apply
+                all_valid, corrupted = self._validate_applied_files(files_changed)
+                if not all_valid:
+                    logger.error(
+                        f"[Integrity] Manual apply corrupted {len(corrupted)} files - restoring"
+                    )
+                    restored, failed = self._restore_corrupted_files(corrupted, backups)
+                    return (
+                        False,
+                        f"Manual apply corrupted {len(corrupted)} files (restored {restored})",
+                    )
+
+                # Validate content changes (symbol preservation, structural similarity)
+                # Note: For new files, backups will be empty, so validation will skip them (expected)
+                content_valid, problem_files = self._validate_content_changes(
+                    files_changed, backups
+                )
+                if not content_valid:
+                    logger.warning(
+                        f"[Validation] Content validation issues in {len(problem_files)} files. "
+                        "Patch applied but may have unintended changes."
+                    )
+
+                return True, None
+
+            # Git apply succeeded
+            files_changed = apply_result.files_modified
             logger.info(f"Patch applied successfully - {len(files_changed)} files modified")
             for file_path in files_changed:
                 logger.info(f"  - {file_path}")
@@ -1688,97 +1560,6 @@ class GovernedApplyPath:
             if patch_file.exists():
                 patch_file.unlink()
             return False, error_msg
-
-    def _apply_patch_directly(self, patch_content: str) -> Tuple[bool, List[str]]:
-        """
-        Apply patch by directly writing files - fallback when git apply fails.
-
-        This extracts new file content from patches and writes them directly.
-        ONLY works for new files (where --- /dev/null) - partial patches for
-        existing files cannot be safely applied this way.
-
-        Args:
-            patch_content: Patch content
-
-        Returns:
-            Tuple of (success, list of files written)
-        """
-        files_written = []
-        lines = patch_content.split("\n")
-        i = 0
-
-        while i < len(lines):
-            line = lines[i]
-
-            # Look for new file diffs
-            if line.startswith("diff --git"):
-                parts = line.split()
-                if len(parts) >= 4:
-                    file_path = parts[3][2:]  # Remove 'b/' prefix
-
-                    # Check if this is a new file (has '--- /dev/null')
-                    is_new_file = False
-                    hunk_start = -1
-                    j = i + 1
-                    while j < len(lines) and not lines[j].startswith("diff --git"):
-                        if lines[j].startswith("new file mode") or lines[j] == "--- /dev/null":
-                            is_new_file = True
-                        if lines[j].startswith("@@"):
-                            hunk_start = j
-                            break
-                        j += 1
-
-                    # Only process new files - for existing files, we can't safely
-                    # apply partial patches without the original file content
-                    if is_new_file and hunk_start >= 0:
-                        content_lines = []
-
-                        # Handle malformed hunk header where content is on same line
-                        hunk_line = lines[hunk_start]
-                        hunk_header_end = hunk_line.rfind("@@")
-                        if hunk_header_end > 2:
-                            after_header = hunk_line[hunk_header_end + 2 :].lstrip()
-                            if after_header:
-                                content_lines.append(after_header)
-
-                        k = hunk_start + 1
-                        while k < len(lines) and not lines[k].startswith("diff --git"):
-                            line_k = lines[k]
-                            # Skip additional hunk headers
-                            if line_k.startswith("@@"):
-                                # Handle inline content after @@
-                                hunk_end = line_k.rfind("@@")
-                                if hunk_end > 2:
-                                    after_hunk = line_k[hunk_end + 2 :].lstrip()
-                                    if after_hunk:
-                                        content_lines.append(after_hunk)
-                                k += 1
-                                continue
-                            # Extract added lines (for new files, everything after + is content)
-                            if line_k.startswith("+") and not line_k.startswith("+++"):
-                                content_lines.append(line_k[1:])
-                            k += 1
-
-                        if content_lines:
-                            full_path = self.workspace / file_path
-                            try:
-                                full_path.parent.mkdir(parents=True, exist_ok=True)
-                                with open(full_path, "w", encoding="utf-8") as f:
-                                    f.write("\n".join(content_lines))
-                                    if not content_lines[-1] == "":
-                                        f.write("\n")
-                                files_written.append(file_path)
-                                logger.info(f"Directly wrote file: {file_path}")
-                            except Exception as e:
-                                logger.error(f"Failed to write {file_path}: {e}")
-                    elif not is_new_file:
-                        logger.warning(
-                            f"Skipping {file_path} - cannot apply partial patch to existing file via direct write"
-                        )
-
-            i += 1
-
-        return len(files_written) > 0, files_written
 
     def _extract_files_from_patch(self, patch_content: str) -> List[str]:
         """

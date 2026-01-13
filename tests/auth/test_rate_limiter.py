@@ -6,8 +6,8 @@ Verifies that rate limiting prevents brute force attacks on login endpoints.
 
 import os
 import pytest
-from time import time, sleep
-from unittest.mock import MagicMock, patch
+from time import sleep
+from unittest.mock import MagicMock
 
 # Set testing mode before imports
 os.environ.setdefault("TESTING", "1")

@@ -9,6 +9,7 @@ from pathlib import Path
 
 
 from autopack.autonomous_executor import AutonomousExecutor
+from autopack.executor.error_analysis import ErrorAnalyzer
 
 
 def make_executor(tmp_path: Path) -> AutonomousExecutor:
@@ -17,6 +18,8 @@ def make_executor(tmp_path: Path) -> AutonomousExecutor:
     executor.workspace = tmp_path
     executor.run_type = "project_build"
     executor._phase_error_history = {}
+    # PR-EXE-10: Initialize error analyzer for _record_phase_error tests
+    executor.error_analyzer = ErrorAnalyzer()
     return executor
 
 

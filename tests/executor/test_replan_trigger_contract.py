@@ -132,79 +132,8 @@ def test_should_trigger_replan_max_run_replans():
     assert flaw_type is None
 
 
-def test_detect_approach_flaw_mixed_errors():
-    """Test that approach flaw is not detected for mixed error types"""
-    from autopack.executor.replan_trigger import ReplanTrigger, ReplanConfig
-
-    config = ReplanConfig(trigger_threshold=3)
-    trigger = ReplanTrigger(config=config)
-
-    # Mixed error types - not a pattern
-    error_history = [
-        {"attempt": 0, "error_type": "auditor_reject", "error_details": "Error 1"},
-        {"attempt": 1, "error_type": "patch_error", "error_details": "Error 2"},
-        {"attempt": 2, "error_type": "ci_fail", "error_details": "Error 3"},
-    ]
-
-    flaw_type = trigger.detect_approach_flaw({"phase_id": "test-phase"}, error_history)
-
-    assert flaw_type is None
-
-
-def test_normalize_error_message():
-    """Test error message normalization"""
-    from autopack.executor.replan_trigger import ReplanTrigger
-
-    trigger = ReplanTrigger()
-
-    message = "Error in /path/to/file.py:42 at 2024-01-15T10:30:00"
-    normalized = trigger._normalize_error_message(message)
-
-    # Should replace paths, line numbers, timestamps
-    assert "/path/to/file.py" not in normalized
-    assert ":42" not in normalized
-    assert "2024-01-15" not in normalized
-    assert "[path]" in normalized.lower() or "[n]" in normalized
-
-
-def test_calculate_message_similarity_identical():
-    """Test message similarity for identical messages"""
-    from autopack.executor.replan_trigger import ReplanTrigger
-
-    trigger = ReplanTrigger()
-
-    msg1 = "Error: Module not found"
-    msg2 = "Error: Module not found"
-
-    similarity = trigger._calculate_message_similarity(msg1, msg2)
-    assert similarity == 1.0
-
-
-def test_calculate_message_similarity_different():
-    """Test message similarity for completely different messages"""
-    from autopack.executor.replan_trigger import ReplanTrigger
-
-    trigger = ReplanTrigger()
-
-    msg1 = "Error: Module not found"
-    msg2 = "Success: Everything works fine"
-
-    similarity = trigger._calculate_message_similarity(msg1, msg2)
-    assert similarity < 0.5
-
-
-def test_calculate_message_similarity_similar():
-    """Test message similarity for similar messages"""
-    from autopack.executor.replan_trigger import ReplanTrigger
-
-    trigger = ReplanTrigger()
-
-    msg1 = "Error at line 10: Variable x is undefined"
-    msg2 = "Error at line 25: Variable y is undefined"
-
-    similarity = trigger._calculate_message_similarity(msg1, msg2)
-    # Should be similar after normalization (line numbers removed)
-    assert similarity > 0.7
+# NOTE: Tests for detect_approach_flaw, normalize_error_message, and calculate_message_similarity
+# have been moved to test_error_analysis_contract.py since these methods are now in ErrorAnalyzer class
 
 
 def test_revise_phase_approach_no_llm_service():
@@ -224,18 +153,5 @@ def test_revise_phase_approach_no_llm_service():
     assert result is None
 
 
-def test_fatal_error_types():
-    """Test that fatal error types trigger immediately"""
-    from autopack.executor.replan_trigger import ReplanTrigger, ReplanConfig
-
-    config = ReplanConfig(trigger_threshold=3, fatal_error_types=["fatal_error", "unrecoverable"])
-    trigger = ReplanTrigger(config=config)
-
-    # Only 1 error, but it's fatal
-    error_history = [
-        {"attempt": 0, "error_type": "fatal_error", "error_details": "Critical failure"}
-    ]
-
-    flaw_type = trigger.detect_approach_flaw({"phase_id": "test-phase"}, error_history)
-
-    assert flaw_type == "fatal_error"
+# NOTE: test_fatal_error_types has been moved to test_error_analysis_contract.py
+# since fatal error detection is now handled by ErrorAnalyzer class

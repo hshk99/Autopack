@@ -341,12 +341,12 @@ def test_imp_p02_model_indexes():
     index_columns = set()
     for idx in indexes:
         # Each index has a 'column_names' list
-        for col in idx['column_names']:
+        for col in idx["column_names"]:
             index_columns.add(col)
 
     # Verify IMP-P02 required indexes exist
-    assert 'run_id' in index_columns, "Phase.run_id should have index (IMP-P02)"
-    assert 'state' in index_columns, "Phase.state should have index (IMP-P02)"
+    assert "run_id" in index_columns, "Phase.run_id should have index (IMP-P02)"
+    assert "state" in index_columns, "Phase.state should have index (IMP-P02)"
 
     engine.dispose()
 
@@ -374,11 +374,11 @@ def test_imp_p02_llm_usage_events_created_at_index():
     # Extract index column names
     index_columns = set()
     for idx in indexes:
-        for col in idx['column_names']:
+        for col in idx["column_names"]:
             index_columns.add(col)
 
     # Verify created_at has index (IMP-P02 requirement)
-    assert 'created_at' in index_columns, "LlmUsageEvent.created_at should have index (IMP-P02)"
+    assert "created_at" in index_columns, "LlmUsageEvent.created_at should have index (IMP-P02)"
 
     engine.dispose()
 

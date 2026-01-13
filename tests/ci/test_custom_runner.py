@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 import subprocess
 import pytest
 
-from autopack.ci.custom_runner import CustomRunner, CustomCIResult
+from autopack.ci.custom_runner import CustomRunner
 
 
 class TestCustomRunner:

@@ -5,11 +5,11 @@ handles timeouts, and persists CI logs.
 """
 
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 import subprocess
 import pytest
 
-from autopack.ci.pytest_runner import PytestRunner, PytestRunResult
+from autopack.ci.pytest_runner import PytestRunner
 
 
 class TestPytestRunner:

@@ -72,6 +72,11 @@ def mock_executor(tmp_path, temp_run_dir):
     executor._record_token_efficiency_telemetry = Mock()
     executor._send_phase_failure_notification = Mock()
 
+    # PR-EXE-9: Mock phase_state_mgr (new dependency)
+    executor.phase_state_mgr = Mock()
+    executor.phase_state_mgr.mark_complete = Mock(return_value=True)
+    executor.phase_state_mgr.mark_failed = Mock(return_value=True)
+
     return executor
 
 
@@ -98,6 +103,9 @@ def test_phase_proof_written_on_success_when_wiring_active(
     # Set up intention wiring (active)
     mock_executor._intention_wiring = Mock()
     mock_executor.project_id = "test-project"
+
+    # PR-EXE-9: Mock _get_phase_from_db to return the mock_phase
+    mock_executor._get_phase_from_db = Mock(return_value=mock_phase)
 
     with patch("autopack.database.SessionLocal", return_value=mock_db):
         # Call the method under test
@@ -143,6 +151,9 @@ def test_phase_proof_written_on_failure_when_wiring_active(mock_executor, temp_r
     mock_executor._intention_wiring = Mock()
     mock_executor.project_id = "test-project"
 
+    # PR-EXE-9: Mock _get_phase_from_db to return the mock_phase
+    mock_executor._get_phase_from_db = Mock(return_value=mock_phase)
+
     with (
         patch("autopack.database.SessionLocal", return_value=mock_db),
         patch.object(mock_executor, "_record_token_efficiency_telemetry"),
@@ -186,6 +197,9 @@ def test_no_phase_proof_when_wiring_inactive(mock_executor, temp_run_dir):
     mock_executor._intention_wiring = None
     mock_executor.project_id = "test-project"
 
+    # PR-EXE-9: Mock _get_phase_from_db to return the mock_phase
+    mock_executor._get_phase_from_db = Mock(return_value=mock_phase)
+
     with patch("autopack.database.SessionLocal", return_value=mock_db):
         # Call the method under test
         result = mock_executor._mark_phase_complete_in_db(phase_id)
@@ -218,6 +232,9 @@ def test_phase_proof_idempotence_on_completion(mock_executor, temp_run_dir):
     # Set up intention wiring (active)
     mock_executor._intention_wiring = Mock()
     mock_executor.project_id = "test-project"
+
+    # PR-EXE-9: Mock _get_phase_from_db to return the mock_phase
+    mock_executor._get_phase_from_db = Mock(return_value=mock_phase)
 
     with patch("autopack.database.SessionLocal", return_value=mock_db):
         # Call the method under test TWICE
@@ -269,6 +286,9 @@ def test_phase_proof_failure_is_non_fatal(mock_executor, temp_run_dir, caplog):
     mock_executor._intention_wiring = Mock()
     mock_executor.project_id = "test-project"
 
+    # PR-EXE-9: Mock _get_phase_from_db to return the mock_phase
+    mock_executor._get_phase_from_db = Mock(return_value=mock_phase)
+
     # Patch write_minimal_phase_proof to raise an exception
     with (
         patch("autopack.database.SessionLocal", return_value=mock_db),
@@ -311,6 +331,9 @@ def test_phase_proof_error_summary_truncation(mock_executor, temp_run_dir):
     # Set up intention wiring (active)
     mock_executor._intention_wiring = Mock()
     mock_executor.project_id = "test-project"
+
+    # PR-EXE-9: Mock _get_phase_from_db to return the mock_phase
+    mock_executor._get_phase_from_db = Mock(return_value=mock_phase)
 
     with (
         patch("autopack.database.SessionLocal", return_value=mock_db),

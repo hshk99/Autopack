@@ -112,6 +112,9 @@ from autopack.executor.run_checkpoint import (
     create_execute_fix_checkpoint,
 )
 
+# PR-EXE-9: Phase state persistence manager
+from autopack.executor.phase_state_manager import PhaseStateManager
+
 
 # Configure logging
 from dotenv import load_dotenv
@@ -450,6 +453,7 @@ class AutonomousExecutor:
 
         # [Goal Anchoring] Per GPT_RESPONSE27: Prevent context drift during re-planning
         # PhaseGoal-lite implementation - lightweight anchor + telemetry (Phase 1)
+        # Note: These are still used for goal anchoring (not moved to PhaseStateManager)
         self._phase_original_intent: Dict[str, str] = (
             {}
         )  # phase_id -> one-line intent extracted from description
@@ -460,6 +464,12 @@ class AutonomousExecutor:
             {}
         )  # phase_id -> list of {attempt, description, reason, alignment}
         self._run_replan_telemetry: List[Dict] = []  # All replans in this run for telemetry
+
+        # PR-EXE-9: Initialize phase state manager for database state persistence
+        self.phase_state_mgr = PhaseStateManager(
+            run_id=self.run_id, workspace=Path(self.workspace), project_id=self.project_id
+        )
+        logger.info("[PR-EXE-9] Phase state manager initialized")
 
         # [Run-Level Health Budget] Prevent infinite retry loops (GPT_RESPONSE5 recommendation)
         self._run_http_500_count: int = 0  # Count of HTTP 500 errors in this run
@@ -1456,44 +1466,11 @@ class AutonomousExecutor:
     # =========================================================================
 
     def _get_phase_from_db(self, phase_id: str) -> Optional[Any]:
-        """Fetch phase from database with attempt tracking state
+        """Fetch phase from database with attempt tracking state.
 
-        Args:
-            phase_id: Phase identifier (e.g., "fileorg-p2-test-fixes")
-
-        Returns:
-            Phase model instance with current attempt state, or None if not found
+        PR-EXE-9: Delegates to PhaseStateManager.
         """
-        try:
-            from autopack.database import SessionLocal
-            from autopack.models import Phase
-
-            db = SessionLocal()
-            try:
-                phase = (
-                    db.query(Phase)
-                    .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
-                    .first()
-                )
-            finally:
-                try:
-                    db.close()
-                except Exception:
-                    pass
-
-            if phase:
-                logger.debug(
-                    f"[{phase_id}] Loaded from DB: retry_attempt={phase.retry_attempt}, revision_epoch={phase.revision_epoch}, escalation_level={phase.escalation_level}, "
-                    f"state={phase.state}"
-                )
-            else:
-                logger.warning(f"[{phase_id}] Not found in database")
-
-            return phase
-
-        except Exception as e:
-            logger.error(f"[{phase_id}] Failed to fetch from database: {e}")
-            return None
+        return self.phase_state_mgr._get_phase_from_db(phase_id)
 
     def _update_phase_attempts_in_db(
         self,
@@ -1501,159 +1478,65 @@ class AutonomousExecutor:
         attempts_used: int = None,
         last_failure_reason: Optional[str] = None,
         timestamp: Optional[Any] = None,
-        # BUILD-050 Phase 2: Support decoupled counters
         retry_attempt: Optional[int] = None,
         revision_epoch: Optional[int] = None,
         escalation_level: Optional[int] = None,
     ) -> bool:
-        """Update phase attempt tracking in database
+        """Update phase attempt tracking in database.
 
-        Args:
-            phase_id: Phase identifier
-            attempts_used: DEPRECATED - use retry_attempt instead (kept for backwards compatibility)
-            last_failure_reason: Failure status from most recent attempt
-            timestamp: Timestamp of last attempt (defaults to now)
-            retry_attempt: BUILD-050 - Monotonic retry counter (for hints and escalation)
-            revision_epoch: BUILD-050 - Replan counter (increments on Doctor replan)
-            escalation_level: BUILD-050 - Model escalation level (0=base, 1=escalated, etc.)
-
-        Returns:
-            True if update successful, False otherwise
+        PR-EXE-9: Delegates to PhaseStateManager.
         """
-        try:
-            from datetime import datetime, timezone
-            from autopack.database import SessionLocal
-            from autopack.models import Phase
-
-            db = SessionLocal()
-            try:
-                phase = (
-                    db.query(Phase)
-                    .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
-                    .first()
-                )
-
-                if not phase:
-                    logger.error(
-                        f"[{phase_id}] Cannot update attempts: phase not found in database"
-                    )
-                    return False
-
-                # Update attempt tracking (backwards compatibility)
-                if attempts_used is not None and hasattr(phase, "attempts_used"):
-                    phase.attempts_used = attempts_used
-
-                # BUILD-050 Phase 2: Update decoupled counters
-                if retry_attempt is not None:
-                    phase.retry_attempt = retry_attempt
-                if revision_epoch is not None:
-                    phase.revision_epoch = revision_epoch
-                if escalation_level is not None:
-                    phase.escalation_level = escalation_level
-
-                if last_failure_reason:
-                    phase.last_failure_reason = last_failure_reason
-                if hasattr(phase, "last_attempt_timestamp"):
-                    phase.last_attempt_timestamp = timestamp or datetime.now(timezone.utc)
-
-                # Log while the instance is still bound to a live Session.
-                if (
-                    retry_attempt is not None
-                    or revision_epoch is not None
-                    or escalation_level is not None
-                ):
-                    logger.info(
-                        f"[{phase_id}] Updated counters in DB: "
-                        f"retry={phase.retry_attempt}, epoch={phase.revision_epoch}, "
-                        f"escalation={phase.escalation_level} "
-                        f"(reason: {last_failure_reason or 'N/A'})"
-                    )
-                else:
-                    logger.info(
-                        f"[{phase_id}] Updated attempts in DB: retry={retry_attempt}, epoch={revision_epoch}, escalation={escalation_level} "
-                        f"(reason: {last_failure_reason or 'N/A'})"
-                    )
-
-                db.commit()
-            finally:
-                try:
-                    db.close()
-                except Exception:
-                    pass
-
-            return True
-
-        except Exception as e:
-            logger.error(f"[{phase_id}] Failed to update attempts in database: {e}")
-            return False
+        return self.phase_state_mgr._update_phase_attempts_in_db(
+            phase_id=phase_id,
+            attempts_used=attempts_used,
+            last_failure_reason=last_failure_reason,
+            timestamp=timestamp,
+            retry_attempt=retry_attempt,
+            revision_epoch=revision_epoch,
+            escalation_level=escalation_level,
+        )
 
     def _mark_phase_complete_in_db(self, phase_id: str) -> bool:
-        """Mark phase as COMPLETE in database
+        """Mark phase as COMPLETE in database.
 
-        Args:
-            phase_id: Phase identifier
-
-        Returns:
-            True if update successful, False otherwise
+        PR-EXE-9: Core database logic delegated to PhaseStateManager,
+        but phase proof writing remains here (requires _intention_wiring access).
         """
-        try:
-            from datetime import datetime, timezone
-            from autopack.database import SessionLocal
-            from autopack.models import Phase, PhaseState
-
-            db = SessionLocal()
-            try:
-                phase = (
-                    db.query(Phase)
-                    .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
-                    .first()
-                )
-
-                if not phase:
-                    logger.error(f"[{phase_id}] Cannot mark complete: phase not found in database")
-                    return False
-
-                # Update to COMPLETE state
-                phase.state = PhaseState.COMPLETE
-                phase.completed_at = datetime.now(timezone.utc)
-
-                # Capture timestamps for phase proof
-                phase_created_at = phase.created_at or datetime.now(timezone.utc)
-                phase_completed_at = phase.completed_at
-
-                db.commit()
-
-                # INSERTION POINT 4: Write phase proof on success (BUILD-161 Phase A)
-                if hasattr(self, "_intention_wiring") and self._intention_wiring is not None:
-                    try:
-                        from autopack.phase_proof_writer import write_minimal_phase_proof
-
-                        write_minimal_phase_proof(
-                            run_id=self.run_id,
-                            project_id=self.project_id,
-                            phase_id=phase_id,
-                            success=True,
-                            created_at=phase_created_at,
-                            completed_at=phase_completed_at,
-                            error_summary=None,
-                        )
-                    except Exception as proof_err:
-                        logger.warning(
-                            f"[{phase_id}] Failed to write phase proof (non-fatal): {proof_err}"
-                        )
-
-            finally:
-                try:
-                    db.close()
-                except Exception:
-                    pass
-
-            logger.info(f"[{phase_id}] Marked COMPLETE in database")
-            return True
-
-        except Exception as e:
-            logger.error(f"[{phase_id}] Failed to mark complete in database: {e}")
+        # Get phase for timestamps before marking complete
+        phase_db = self._get_phase_from_db(phase_id)
+        if not phase_db:
+            logger.error(f"[{phase_id}] Cannot mark complete: phase not found")
             return False
+
+        from datetime import datetime, timezone
+
+        phase_created_at = getattr(phase_db, "created_at", None) or datetime.now(timezone.utc)
+        phase_completed_at = datetime.now(timezone.utc)
+
+        # Delegate database update to PhaseStateManager
+        success = self.phase_state_mgr.mark_complete(phase_id)
+
+        if success:
+            # INSERTION POINT 4: Write phase proof on success (BUILD-161 Phase A)
+            if hasattr(self, "_intention_wiring") and self._intention_wiring is not None:
+                try:
+                    from autopack.phase_proof_writer import write_minimal_phase_proof
+
+                    write_minimal_phase_proof(
+                        run_id=self.run_id,
+                        project_id=self.project_id,
+                        phase_id=phase_id,
+                        success=True,
+                        created_at=phase_created_at,
+                        completed_at=phase_completed_at,
+                        error_summary=None,
+                    )
+                except Exception as proof_err:
+                    logger.warning(
+                        f"[{phase_id}] Failed to write phase proof (non-fatal): {proof_err}"
+                    )
+
+        return success
 
     def _record_token_efficiency_telemetry(self, phase_id: str, phase_outcome: str) -> None:
         """Record token efficiency telemetry for a phase (BUILD-145 P1 hardening).
@@ -1733,70 +1616,44 @@ class AutonomousExecutor:
             logger.warning(f"[{phase_id}] Failed to record token efficiency telemetry: {e}")
 
     def _mark_phase_failed_in_db(self, phase_id: str, reason: str) -> bool:
-        """Mark phase as FAILED in database
+        """Mark phase as FAILED in database.
 
-        Args:
-            phase_id: Phase identifier
-            reason: Failure reason (e.g., "MAX_ATTEMPTS_EXHAUSTED", "BUILDER_FAILED")
-
-        Returns:
-            True if update successful, False otherwise
+        PR-EXE-9: Core database logic delegated to PhaseStateManager,
+        but phase proof writing and telemetry remain here (require executor context).
         """
-        try:
-            from datetime import datetime, timezone
-            from autopack.database import SessionLocal
-            from autopack.models import Phase, PhaseState
+        # Get phase for timestamps before marking failed
+        phase_db = self._get_phase_from_db(phase_id)
+        if not phase_db:
+            logger.error(f"[{phase_id}] Cannot mark failed: phase not found")
+            return False
 
-            db = SessionLocal()
-            try:
-                phase = (
-                    db.query(Phase)
-                    .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
-                    .first()
-                )
+        from datetime import datetime, timezone
 
-                if not phase:
-                    logger.error(f"[{phase_id}] Cannot mark failed: phase not found in database")
-                    return False
+        phase_created_at = getattr(phase_db, "created_at", None) or datetime.now(timezone.utc)
+        phase_completed_at = datetime.now(timezone.utc)
 
-                # Update to FAILED state
-                phase.state = PhaseState.FAILED
-                phase.last_failure_reason = reason
-                phase.completed_at = datetime.now(timezone.utc)
+        # Delegate database update to PhaseStateManager
+        success = self.phase_state_mgr.mark_failed(phase_id, reason)
 
-                # Capture timestamps and error for phase proof
-                phase_created_at = phase.created_at or datetime.now(timezone.utc)
-                phase_completed_at = phase.completed_at
-                error_summary = reason
-
-                db.commit()
-
-                # INSERTION POINT 4: Write phase proof on failure (BUILD-161 Phase A)
-                if hasattr(self, "_intention_wiring") and self._intention_wiring is not None:
-                    try:
-                        from autopack.phase_proof_writer import write_minimal_phase_proof
-
-                        write_minimal_phase_proof(
-                            run_id=self.run_id,
-                            project_id=self.project_id,
-                            phase_id=phase_id,
-                            success=False,
-                            created_at=phase_created_at,
-                            completed_at=phase_completed_at,
-                            error_summary=error_summary,
-                        )
-                    except Exception as proof_err:
-                        logger.warning(
-                            f"[{phase_id}] Failed to write phase proof (non-fatal): {proof_err}"
-                        )
-
-            finally:
+        if success:
+            # INSERTION POINT 4: Write phase proof on failure (BUILD-161 Phase A)
+            if hasattr(self, "_intention_wiring") and self._intention_wiring is not None:
                 try:
-                    db.close()
-                except Exception:
-                    pass
+                    from autopack.phase_proof_writer import write_minimal_phase_proof
 
-            logger.info(f"[{phase_id}] Marked FAILED in database (reason: {reason})")
+                    write_minimal_phase_proof(
+                        run_id=self.run_id,
+                        project_id=self.project_id,
+                        phase_id=phase_id,
+                        success=False,
+                        created_at=phase_created_at,
+                        completed_at=phase_completed_at,
+                        error_summary=reason,
+                    )
+                except Exception as proof_err:
+                    logger.warning(
+                        f"[{phase_id}] Failed to write phase proof (non-fatal): {proof_err}"
+                    )
 
             # BUILD-145 P1: Record token efficiency telemetry for failed phases
             self._record_token_efficiency_telemetry(phase_id, "FAILED")
@@ -1804,11 +1661,7 @@ class AutonomousExecutor:
             # Send Telegram notification for phase failure
             self._send_phase_failure_notification(phase_id, reason)
 
-            return True
-
-        except Exception as e:
-            logger.error(f"[{phase_id}] Failed to mark failed in database: {e}")
-            return False
+        return success
 
     # =========================================================================
     # End of BUILD-041 Database Helper Methods

@@ -6,9 +6,13 @@ Handles Auditor LLM invocation, result parsing, and API posting.
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from autopack.debug_journal import log_error
+
+if TYPE_CHECKING:
+    from autopack.autonomous_executor import AutonomousExecutor
+    from autopack.llm_client import AuditorResult, BuilderResult
 
 logger = logging.getLogger(__name__)
 

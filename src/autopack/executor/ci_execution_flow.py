@@ -12,7 +12,10 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
+
+if TYPE_CHECKING:
+    from autopack.autonomous_executor import AutonomousExecutor
 
 logger = logging.getLogger(__name__)
 

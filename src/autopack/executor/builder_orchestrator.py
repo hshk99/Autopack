@@ -8,9 +8,12 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from autopack.llm_client import BuilderResult
+
+if TYPE_CHECKING:
+    from autopack.autonomous_executor import AutonomousExecutor
 from autopack.deliverables_validator import (
     validate_deliverables,
     format_validation_feedback_for_builder,

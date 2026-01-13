@@ -8,7 +8,11 @@ YAML validation, goal drift checks, and governance requests.
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+
+if TYPE_CHECKING:
+    from autopack.autonomous_executor import AutonomousExecutor
+    from autopack.llm_client import BuilderResult
 
 from autopack.governed_apply import GovernedApplyPath
 from autopack.memory import should_block_on_drift

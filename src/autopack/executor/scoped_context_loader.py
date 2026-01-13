@@ -5,6 +5,7 @@ Handles context loading with scope restrictions and token budget management.
 """
 
 import logging
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any, TYPE_CHECKING
 
@@ -12,6 +13,55 @@ if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
 
 logger = logging.getLogger(__name__)
+
+
+# File content cache with modification time tracking
+# Key: (file_path, mtime) -> content
+@lru_cache(maxsize=128)
+def _cached_read_file(file_path: str, mtime: float) -> str:
+    """Cache file content keyed by path and modification time.
+
+    Args:
+        file_path: Absolute path to file
+        mtime: File modification timestamp (from stat().st_mtime)
+
+    Returns:
+        File content as string
+
+    Note:
+        The mtime parameter ensures cache invalidation when file changes.
+        When mtime changes, it's a new cache key, so we read from disk.
+    """
+    try:
+        return Path(file_path).read_text(encoding="utf-8", errors="ignore")
+    except Exception as exc:
+        logger.warning(f"[FileCache] Failed to read {file_path}: {exc}")
+        return ""
+
+
+def clear_file_cache() -> None:
+    """Clear the file content cache.
+
+    Useful for testing or when you need to force fresh reads.
+    """
+    _cached_read_file.cache_clear()
+    logger.debug("[FileCache] Cache cleared")
+
+
+def get_file_cache_info() -> Dict[str, Any]:
+    """Get file cache statistics.
+
+    Returns:
+        Dict with cache hits, misses, size, and maxsize
+    """
+    info = _cached_read_file.cache_info()
+    return {
+        "hits": info.hits,
+        "misses": info.misses,
+        "size": info.currsize,
+        "maxsize": info.maxsize,
+        "hit_rate": info.hits / (info.hits + info.misses) if (info.hits + info.misses) > 0 else 0.0,
+    }
 
 
 class ScopedContextLoader:
@@ -67,7 +117,9 @@ class ScopedContextLoader:
 
         def _add_file(abs_path: Path, rel_key: str) -> None:
             try:
-                content = abs_path.read_text(encoding="utf-8", errors="ignore")
+                # Use cached read with mtime-based invalidation
+                stat_info = abs_path.stat()
+                content = _cached_read_file(str(abs_path.resolve()), stat_info.st_mtime)
                 existing_files[rel_key] = content
             except Exception as exc:
                 logger.warning(f"[Scope] Failed to read {abs_path}: {exc}")
@@ -212,7 +264,9 @@ class ScopedContextLoader:
                     # BUILD-145 P1: Try artifact-first loading for read-only context
                     if artifact_loader:
                         try:
-                            full_content = abs_path.read_text(encoding="utf-8", errors="ignore")
+                            # Use cached read with mtime-based invalidation
+                            stat_info = abs_path.stat()
+                            full_content = _cached_read_file(str(abs_path.resolve()), stat_info.st_mtime)
                             content, tokens_saved, source_type = (
                                 artifact_loader.load_with_artifacts(
                                     rel_key, full_content, prefer_artifacts=True
@@ -306,6 +360,14 @@ class ScopedContextLoader:
             logger.info(
                 f"[Scope] Artifact-first loading: {artifact_substitutions} files substituted, "
                 f"~{total_tokens_saved:,} tokens saved"
+            )
+
+        # IMP-P03: Report file cache statistics
+        cache_info = get_file_cache_info()
+        if cache_info["hits"] + cache_info["misses"] > 0:
+            logger.info(
+                f"[FileCache] Hits: {cache_info['hits']}, Misses: {cache_info['misses']}, "
+                f"Hit rate: {cache_info['hit_rate']:.1%}, Cache size: {cache_info['size']}/{cache_info['maxsize']}"
             )
 
         # BUILD-145 P1.1: Apply context budgeting to loaded files

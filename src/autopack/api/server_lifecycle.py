@@ -105,7 +105,9 @@ class APIServerLifecycle:
         Returns:
             True if server started successfully
         """
-        logger.info(f"API server not detected at {self.executor.api_url}, attempting to start it...")
+        logger.info(
+            f"API server not detected at {self.executor.api_url}, attempting to start it..."
+        )
 
         try:
             # Configurable startup wait (Windows + cold start can exceed 10s).

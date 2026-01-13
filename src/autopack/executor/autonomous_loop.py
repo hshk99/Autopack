@@ -88,9 +88,7 @@ class AutonomousLoop:
                 logger.error("=" * 70)
                 logger.error("[DB_MISMATCH] RUN NOT FOUND IN API DATABASE")
                 logger.error("=" * 70)
-                logger.error(
-                    f"API server is healthy but run '{self.executor.run_id}' not found"
-                )
+                logger.error(f"API server is healthy but run '{self.executor.run_id}' not found")
                 logger.error("This indicates database identity mismatch:")
                 logger.error(
                     f"  - Executor DATABASE_URL: {os.environ.get('DATABASE_URL', 'NOT SET')}"
@@ -278,7 +276,9 @@ class AutonomousLoop:
                         f"[STOP_ON_FAILURE] Phase {phase_id} failed with status: {status}. "
                         f"Stopping execution to save token usage."
                     )
-                    logger.info(f"Total phases executed: {phases_executed}, failed: {phases_failed}")
+                    logger.info(
+                        f"Total phases executed: {phases_executed}, failed: {phases_failed}"
+                    )
                     stop_reason = "stop_on_first_failure"
                     break
 

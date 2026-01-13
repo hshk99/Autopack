@@ -6,8 +6,7 @@ When a phase repeatedly fails with the same error pattern, this module detects t
 invokes the LLM to revise the implementation approach.
 
 Key responsibilities:
-- Detect approach flaws through error pattern analysis
-- Normalize error messages for similarity comparison
+- Trigger replanning based on error analysis
 - Invoke LLM to revise phase approaches
 - Maintain goal anchoring during replanning (per GPT_RESPONSE27)
 - Track replan attempts and budgets
@@ -15,14 +14,16 @@ Key responsibilities:
 Related modules:
 - phase_orchestrator.py: Uses replan triggers during failure handling
 - doctor_integration.py: Doctor can also trigger replanning
+- error_analysis.py: Provides error pattern detection
 """
 
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple, List, Any
 import logging
 import time
-import re
 import os
+
+from autopack.executor.error_analysis import ErrorAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,7 @@ class ReplanTrigger:
         max_replans_per_phase: int = 2,
         max_replans_per_run: int = 5,
         config: Optional[ReplanConfig] = None,
+        error_analyzer: Optional[ErrorAnalyzer] = None,
     ):
         """
         Initialize replan trigger.
@@ -63,6 +65,7 @@ class ReplanTrigger:
             max_replans_per_phase: Maximum replans per phase
             max_replans_per_run: Maximum total replans for the run
             config: Replan configuration
+            error_analyzer: Optional error analyzer (will create one if not provided)
         """
         self.max_replans_per_phase = max_replans_per_phase
         self.max_replans_per_run = max_replans_per_run
@@ -72,6 +75,18 @@ class ReplanTrigger:
         # Load config from models.yaml only if no custom config was provided
         if not self._config_provided:
             self._load_config_from_yaml()
+
+        # Create or use provided error analyzer
+        if error_analyzer:
+            self.error_analyzer = error_analyzer
+        else:
+            self.error_analyzer = ErrorAnalyzer(
+                trigger_threshold=self.config.trigger_threshold,
+                similarity_threshold=self.config.similarity_threshold,
+                min_message_length=self.config.min_message_length,
+                fatal_error_types=self.config.fatal_error_types,
+                similarity_enabled=self.config.similarity_enabled,
+            )
 
     def _load_config_from_yaml(self):
         """Load replan configuration from config/models.yaml."""
@@ -139,9 +154,21 @@ class ReplanTrigger:
             )
             return False, None
 
-        # Detect approach flaw
-        flaw_type = self.detect_approach_flaw(phase, error_history)
-        if flaw_type:
+        # Detect approach flaw using ErrorAnalyzer
+        # First, populate error analyzer with error history
+        phase_id = phase.get("phase_id")
+        for error_record in error_history:
+            self.error_analyzer.record_error(
+                phase_id=phase_id,
+                attempt=error_record.get("attempt", 0),
+                error_type=error_record.get("error_type", "unknown"),
+                error_details=error_record.get("error_details", ""),
+            )
+
+        error_pattern = self.error_analyzer.detect_approach_flaw(phase_id)
+        if error_pattern:
+            flaw_type = error_pattern.error_type
+
             # DBG-014 / BUILD-049 coordination: deliverables path failures should be handled
             # by the deliverables validator + learning hints loop, not mid-run replanning.
             if flaw_type == "deliverables_validation_failed":
@@ -154,161 +181,6 @@ class ReplanTrigger:
             return True, flaw_type
 
         return False, None
-
-    def detect_approach_flaw(self, phase: Dict, error_history: List[Dict]) -> Optional[str]:
-        """
-        Analyze error history to detect fundamental approach flaws.
-
-        Enhanced with message similarity checking:
-        - Checks consecutive same-type failures (not just total count)
-        - Verifies message similarity >= threshold
-        - Supports fatal error types that trigger immediately
-
-        Args:
-            phase: Phase specification
-            error_history: History of errors for this phase
-
-        Returns:
-            Error type if approach flaw detected, None otherwise
-        """
-        phase_id = phase.get("phase_id")
-
-        if len(error_history) == 0:
-            return None
-
-        # Check for fatal error types (immediate trigger on first occurrence)
-        latest_error = error_history[-1]
-        if latest_error["error_type"] in self.config.fatal_error_types:
-            # Structured REPLAN-TRIGGER logging
-            logger.info(
-                f"[REPLAN-TRIGGER] reason=fatal_error type={latest_error['error_type']} "
-                f"phase={phase_id} attempt={len(error_history)}"
-            )
-            return latest_error["error_type"]
-
-        if len(error_history) < self.config.trigger_threshold:
-            return None
-
-        # Check consecutive same-type failures with message similarity
-        # Look at the last N errors (where N = trigger_threshold)
-        recent_errors = error_history[-self.config.trigger_threshold :]
-
-        # Group by error type
-        error_types = [e["error_type"] for e in recent_errors]
-        if len(set(error_types)) != 1:
-            # Different error types in recent errors - not a repeated pattern
-            return None
-
-        error_type = error_types[0]
-
-        # If similarity checking is disabled, trigger on same type alone
-        if not self.config.similarity_enabled:
-            logger.info(
-                f"[REPLAN-TRIGGER] reason=repeated_error type={error_type} "
-                f"phase={phase_id} attempt={len(error_history)} count={self.config.trigger_threshold}"
-            )
-            return error_type
-
-        # Check message similarity between consecutive errors
-        messages = [e.get("error_details", "") for e in recent_errors]
-
-        # Skip if messages are too short
-        if all(len(m) < self.config.min_message_length for m in messages):
-            logger.debug(f"[Re-Plan] Messages too short for similarity check ({phase_id})")
-            # Fall back to type-only check
-            logger.info(
-                f"[REPLAN-TRIGGER] reason=repeated_error_short_msg type={error_type} "
-                f"phase={phase_id} attempt={len(error_history)} count={self.config.trigger_threshold}"
-            )
-            return error_type
-
-        # Check pairwise similarity between consecutive errors
-        all_similar = True
-        for i in range(len(messages) - 1):
-            similarity = self._calculate_message_similarity(messages[i], messages[i + 1])
-            logger.debug(f"[Re-Plan] Message similarity [{i}]->[{i+1}]: {similarity:.2f}")
-            if similarity < self.config.similarity_threshold:
-                all_similar = False
-                break
-
-        if all_similar:
-            logger.info(
-                f"[REPLAN-TRIGGER] reason=similar_errors type={error_type} "
-                f"phase={phase_id} attempt={len(error_history)} count={self.config.trigger_threshold} "
-                f"similarity_threshold={self.config.similarity_threshold}"
-            )
-            return error_type
-
-        logger.debug(f"[Re-Plan] No approach flaw for {phase_id}: messages not similar enough")
-        return None
-
-    def _normalize_error_message(self, message: str) -> str:
-        """
-        Normalize error message for similarity comparison.
-
-        Strips:
-        - Absolute/relative paths
-        - Line numbers
-        - Run IDs / UUIDs
-        - Timestamps
-        - Stack trace lines
-        - Collapses whitespace
-        """
-        if not message:
-            return ""
-
-        normalized = message.lower()
-
-        # Strip file paths (Unix and Windows)
-        normalized = re.sub(r"[/\\][\w\-./\\]+\.(py|js|ts|json|yaml|yml|md)", "[PATH]", normalized)
-        normalized = re.sub(r"[a-z]:\\[\w\-\\]+", "[PATH]", normalized, flags=re.IGNORECASE)
-
-        # Strip line numbers (e.g., "line 42", ":42:", ":42", "L42")
-        normalized = re.sub(r"\bline\s*\d+\b", "line [N]", normalized)
-
-        # Strip timestamps first (before line number colons) to avoid conflicts
-        # Note: message is already lowercased, so match 't' not 'T'
-        normalized = re.sub(r"\d{4}-\d{2}-\d{2}[t ]\d{2}:\d{2}:\d{2}", "[TIMESTAMP]", normalized)
-        normalized = re.sub(r"\d{2}:\d{2}:\d{2}", "[TIME]", normalized)
-
-        # Now safe to strip line number colons (timestamps already handled)
-        normalized = re.sub(r":\d+:", ":[N]:", normalized)
-        normalized = re.sub(r":\d+\b", ":[N]", normalized)  # Also match :42 at end
-        normalized = re.sub(r"\bL\d+\b", "L[N]", normalized)
-
-        # Strip UUIDs
-        normalized = re.sub(
-            r"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}", "[UUID]", normalized
-        )
-
-        # Strip run IDs (common patterns)
-        normalized = re.sub(r"\b[a-z]+-\d{8}(-\d+)?\b", "[RUN_ID]", normalized)
-
-        # Strip stack trace lines
-        normalized = re.sub(r'file "[^"]+", line \[n\]', "file [PATH], line [N]", normalized)
-        normalized = re.sub(r"traceback \(most recent call last\):", "[TRACEBACK]", normalized)
-
-        # Collapse whitespace
-        normalized = re.sub(r"\s+", " ", normalized).strip()
-
-        return normalized
-
-    def _calculate_message_similarity(self, msg1: str, msg2: str) -> float:
-        """
-        Calculate similarity between two error messages using difflib.
-
-        Returns:
-            Float between 0.0 and 1.0 (1.0 = identical)
-        """
-        from difflib import SequenceMatcher
-
-        if not msg1 or not msg2:
-            return 0.0
-
-        norm1 = self._normalize_error_message(msg1)
-        norm2 = self._normalize_error_message(msg2)
-
-        return SequenceMatcher(None, norm1, norm2).ratio()
 
     def revise_phase_approach(
         self,

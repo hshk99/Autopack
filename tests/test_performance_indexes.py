@@ -324,7 +324,7 @@ def test_imp_p02_model_indexes():
     are correctly created when tables are initialized.
     """
     from autopack.database import Base
-    from autopack.models import Phase
+    from autopack.models import Phase  # noqa: F401
     from sqlalchemy import create_engine, inspect
 
     # Create in-memory database
@@ -358,7 +358,7 @@ def test_imp_p02_llm_usage_events_created_at_index():
     as required by dashboard queries (dashboard.py:113).
     """
     from autopack.database import Base
-    from autopack.usage_recorder import LlmUsageEvent
+    from autopack.usage_recorder import LlmUsageEvent  # noqa: F401
     from sqlalchemy import create_engine, inspect
 
     # Create in-memory database

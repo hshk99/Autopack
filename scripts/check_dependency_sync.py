@@ -96,6 +96,9 @@ def main() -> int:
             "pywin32",  # Windows-only from portalocker (transitive via qdrant-client)
             "python-magic",  # Linux-only (alternative to python-magic-bin)
             "python-magic-bin",  # Windows-only (alternative to python-magic)
+            "python-magic",  # Linux-only for file type detection
+            "python-magic-bin",  # Windows-only for file type detection
+            "pywin32",  # Windows-only for portalocker (via qdrant-client)
         }
         SKIP_PACKAGES = PYTHON_VERSION_PACKAGES | PLATFORM_PACKAGES
 

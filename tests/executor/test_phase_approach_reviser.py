@@ -4,8 +4,7 @@ Validates that the phase approach reviser correctly revises phase approaches
 when stuck, implements goal anchoring, and classifies alignment.
 """
 
-from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 import pytest
 
 from autopack.executor.phase_approach_reviser import PhaseApproachReviser
@@ -233,7 +232,7 @@ class TestPhaseApproachReviser:
 
         with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
             with patch("anthropic.Anthropic", return_value=mock_client):
-                revised = reviser.revise_approach(phase, "repeated_error", error_history)
+                _ = reviser.revise_approach(phase, "repeated_error", error_history)
 
         # Verify prompt includes error history
         call_args = mock_client.messages.create.call_args
@@ -265,7 +264,7 @@ class TestPhaseApproachReviser:
 
         with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
             with patch("anthropic.Anthropic", return_value=mock_client):
-                revised = reviser.revise_approach(phase, "flaw", error_history)
+                _ = reviser.revise_approach(phase, "flaw", error_history)
 
         # Verify prompt includes hints
         call_args = mock_client.messages.create.call_args
@@ -295,7 +294,7 @@ class TestPhaseApproachReviser:
 
         with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
             with patch("anthropic.Anthropic", return_value=mock_client):
-                revised = reviser.revise_approach(phase, "flaw", error_history)
+                _ = reviser.revise_approach(phase, "flaw", error_history)
 
         mock_executor._record_replan_telemetry.assert_called_once()
         call_args = mock_executor._record_replan_telemetry.call_args

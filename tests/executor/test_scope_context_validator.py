@@ -5,8 +5,7 @@ against scope configuration, handling directory scopes, path normalization,
 and read-only context.
 """
 
-from pathlib import Path
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 import pytest
 
 from autopack.executor.scope_context_validator import ScopeContextValidator

@@ -4,8 +4,7 @@ Validates that the execute fix handler correctly executes automated fixes,
 validates commands, and handles security constraints.
 """
 
-from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 import pytest
 import sys
 
@@ -15,7 +14,7 @@ import autopack.executor.run_checkpoint
 sys.modules['autopack.checkpoint'] = type(sys)('autopack.checkpoint')
 sys.modules['autopack.checkpoint.run_checkpoint'] = autopack.executor.run_checkpoint
 
-from autopack.executor.execute_fix_handler import ExecuteFixHandler, FixExecutionResult
+from autopack.executor.execute_fix_handler import ExecuteFixHandler  # noqa: E402
 
 
 class MockDoctorResponse:

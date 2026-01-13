@@ -193,7 +193,9 @@ Just the new description that should replace the current one while preserving th
                 return None
 
             # [Goal Anchoring] Classify alignment of revision vs original intent
-            alignment = self.executor._classify_replan_alignment(original_intent, revised_description)
+            alignment = self.executor._classify_replan_alignment(
+                original_intent, revised_description
+            )
 
             # Log alignment classification
             logger.info(

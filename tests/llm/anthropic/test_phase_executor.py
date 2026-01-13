@@ -26,34 +26,42 @@ def mock_client():
     # Mock helper methods that phase_executor delegates to
     client._build_system_prompt = Mock(return_value="System prompt")
     client._build_user_prompt = Mock(return_value="User prompt")
-    client._parse_full_file_output = Mock(return_value=BuilderResult(
-        success=True,
-        patch_content="diff content",
-        builder_messages=[],
-        tokens_used=1000,
-        model_used="claude-sonnet-4-5"
-    ))
-    client._parse_ndjson_output = Mock(return_value=BuilderResult(
-        success=True,
-        patch_content="diff content",
-        builder_messages=[],
-        tokens_used=1000,
-        model_used="claude-sonnet-4-5"
-    ))
-    client._parse_structured_edit_output = Mock(return_value=BuilderResult(
-        success=True,
-        patch_content="diff content",
-        builder_messages=[],
-        tokens_used=1000,
-        model_used="claude-sonnet-4-5"
-    ))
-    client._parse_legacy_diff_output = Mock(return_value=BuilderResult(
-        success=True,
-        patch_content="diff content",
-        builder_messages=[],
-        tokens_used=1000,
-        model_used="claude-sonnet-4-5"
-    ))
+    client._parse_full_file_output = Mock(
+        return_value=BuilderResult(
+            success=True,
+            patch_content="diff content",
+            builder_messages=[],
+            tokens_used=1000,
+            model_used="claude-sonnet-4-5",
+        )
+    )
+    client._parse_ndjson_output = Mock(
+        return_value=BuilderResult(
+            success=True,
+            patch_content="diff content",
+            builder_messages=[],
+            tokens_used=1000,
+            model_used="claude-sonnet-4-5",
+        )
+    )
+    client._parse_structured_edit_output = Mock(
+        return_value=BuilderResult(
+            success=True,
+            patch_content="diff content",
+            builder_messages=[],
+            tokens_used=1000,
+            model_used="claude-sonnet-4-5",
+        )
+    )
+    client._parse_legacy_diff_output = Mock(
+        return_value=BuilderResult(
+            success=True,
+            patch_content="diff content",
+            builder_messages=[],
+            tokens_used=1000,
+            model_used="claude-sonnet-4-5",
+        )
+    )
 
     return client
 
@@ -78,16 +86,14 @@ class TestPhaseExecutorInitialization:
 class TestPhaseExecutionBasics:
     """Test basic phase execution."""
 
-    def test_execute_phase_delegates_to_client_helpers(self, phase_executor, mock_transport, mock_client):
+    def test_execute_phase_delegates_to_client_helpers(
+        self, phase_executor, mock_transport, mock_client
+    ):
         """Test that execute_phase delegates to client helper methods."""
         # Mock transport response
         mock_response = Mock()
         mock_response.content = "Test output"
-        mock_response.usage = Mock(
-            input_tokens=500,
-            output_tokens=500,
-            total_tokens=1000
-        )
+        mock_response.usage = Mock(input_tokens=500, output_tokens=500, total_tokens=1000)
         mock_response.stop_reason = "end_turn"
         mock_response.model = "claude-sonnet-4-5"
         mock_transport.send_request = Mock(return_value=mock_response)
@@ -97,14 +103,14 @@ class TestPhaseExecutionBasics:
             "phase_id": "test_phase",
             "run_id": "test_run",
             "description": "Test phase",
-            "complexity": "medium"
+            "complexity": "medium",
         }
 
         result = phase_executor.execute_phase(
             phase_spec=phase_spec,
             file_context={"existing_files": {}},
             max_tokens=4096,
-            model="claude-sonnet-4-5"
+            model="claude-sonnet-4-5",
         )
 
         # Verify client helpers were called
@@ -123,7 +129,7 @@ class TestPhaseExecutionBasics:
 class TestTokenEstimation:
     """Test token estimation integration."""
 
-    @patch('autopack.llm.anthropic.phase_executor.TokenEstimator')
+    @patch("autopack.llm.anthropic.phase_executor.TokenEstimator")
     def test_uses_token_estimator_when_deliverables_present(
         self, mock_estimator_class, phase_executor, mock_transport, mock_client
     ):
@@ -147,20 +153,20 @@ class TestTokenEstimation:
         mock_estimator.select_budget = Mock(return_value=8192)
         mock_estimator._all_doc_deliverables = Mock(return_value=False)
         mock_estimator_class.return_value = mock_estimator
-        mock_estimator_class.normalize_deliverables = Mock(return_value=["file1.py", "file2.py", "file3.py"])
+        mock_estimator_class.normalize_deliverables = Mock(
+            return_value=["file1.py", "file2.py", "file3.py"]
+        )
 
         # Execute with deliverables
         phase_spec = {
             "phase_id": "test_phase",
             "run_id": "test_run",
             "complexity": "medium",
-            "deliverables": ["file1.py", "file2.py", "file3.py"]
+            "deliverables": ["file1.py", "file2.py", "file3.py"],
         }
 
         _ = phase_executor.execute_phase(
-            phase_spec=phase_spec,
-            file_context={"existing_files": {}},
-            model="claude-sonnet-4-5"
+            phase_spec=phase_spec, file_context={"existing_files": {}}, model="claude-sonnet-4-5"
         )
 
         # Verify token estimator was used
@@ -176,16 +182,10 @@ class TestErrorHandling:
         # Make transport raise an exception
         mock_transport.send_request = Mock(side_effect=Exception("Test error"))
 
-        phase_spec = {
-            "phase_id": "test_phase",
-            "run_id": "test_run",
-            "complexity": "medium"
-        }
+        phase_spec = {"phase_id": "test_phase", "run_id": "test_run", "complexity": "medium"}
 
         result = phase_executor.execute_phase(
-            phase_spec=phase_spec,
-            file_context={"existing_files": {}},
-            model="claude-sonnet-4-5"
+            phase_spec=phase_spec, file_context={"existing_files": {}}, model="claude-sonnet-4-5"
         )
 
         # Verify error result
@@ -198,7 +198,9 @@ class TestErrorHandling:
 class TestFormatSelection:
     """Test output format selection logic."""
 
-    def test_ndjson_format_for_multi_deliverables(self, phase_executor, mock_transport, mock_client):
+    def test_ndjson_format_for_multi_deliverables(
+        self, phase_executor, mock_transport, mock_client
+    ):
         """Test that NDJSON format is selected for 5+ deliverables."""
         # Mock transport response
         mock_response = Mock()
@@ -213,13 +215,11 @@ class TestFormatSelection:
             "phase_id": "test_phase",
             "run_id": "test_run",
             "complexity": "medium",
-            "deliverables": ["f1.py", "f2.py", "f3.py", "f4.py", "f5.py"]
+            "deliverables": ["f1.py", "f2.py", "f3.py", "f4.py", "f5.py"],
         }
 
         _ = phase_executor.execute_phase(
-            phase_spec=phase_spec,
-            file_context={"existing_files": {}},
-            model="claude-sonnet-4-5"
+            phase_spec=phase_spec, file_context={"existing_files": {}}, model="claude-sonnet-4-5"
         )
 
         # Verify NDJSON parser was called

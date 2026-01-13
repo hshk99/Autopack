@@ -26,10 +26,9 @@ class TestPhaseApproachReviser:
         executor._phase_revised_specs = {}
         executor._phase_error_history = {}
         executor._initialize_phase_goal_anchor = Mock()
-        executor._classify_replan_alignment = Mock(return_value={
-            "alignment": "aligned",
-            "notes": "Revision maintains original scope"
-        })
+        executor._classify_replan_alignment = Mock(
+            return_value={"alignment": "aligned", "notes": "Revision maintains original scope"}
+        )
         executor._get_learning_context_for_phase = Mock(return_value={})
         executor._record_replan_telemetry = Mock()
         executor._get_project_slug = Mock(return_value="test-project")
@@ -50,7 +49,7 @@ class TestPhaseApproachReviser:
             "name": "Implement feature X",
             "description": "Add feature X using approach A",
             "task_category": "feature",
-            "complexity": "medium"
+            "complexity": "medium",
         }
         error_history = [
             {"attempt": 0, "error_type": "ImportError", "error_details": "Module not found"},
@@ -62,7 +61,9 @@ class TestPhaseApproachReviser:
         # Mock Anthropic client
         mock_response = Mock()
         mock_content_block = Mock()
-        mock_content_block.text = "Revised approach: Add feature X using approach B with proper imports"
+        mock_content_block.text = (
+            "Revised approach: Add feature X using approach B with proper imports"
+        )
         mock_response.content = [mock_content_block]
 
         mock_client = Mock()
@@ -74,7 +75,10 @@ class TestPhaseApproachReviser:
 
         assert revised is not None
         assert revised["phase_id"] == "phase-1"
-        assert revised["description"] == "Revised approach: Add feature X using approach B with proper imports"
+        assert (
+            revised["description"]
+            == "Revised approach: Add feature X using approach B with proper imports"
+        )
         assert revised["_original_intent"] == "Add feature X"
         assert revised["_revision_reason"] == "Approach flaw: repeated_error"
         assert "_revision_timestamp" in revised
@@ -141,10 +145,9 @@ class TestPhaseApproachReviser:
         error_history = []
 
         mock_executor._phase_original_intent["phase-1"] = "Original goal"
-        mock_executor._classify_replan_alignment = Mock(return_value={
-            "alignment": "aligned",
-            "notes": "Maintains scope"
-        })
+        mock_executor._classify_replan_alignment = Mock(
+            return_value={"alignment": "aligned", "notes": "Maintains scope"}
+        )
 
         mock_response = Mock()
         mock_content_block = Mock()
@@ -171,10 +174,9 @@ class TestPhaseApproachReviser:
         error_history = []
 
         mock_executor._phase_original_intent["phase-1"] = "Original broad goal"
-        mock_executor._classify_replan_alignment = Mock(return_value={
-            "alignment": "narrower",
-            "notes": "Scope reduced"
-        })
+        mock_executor._classify_replan_alignment = Mock(
+            return_value={"alignment": "narrower", "notes": "Scope reduced"}
+        )
 
         mock_response = Mock()
         mock_content_block = Mock()
@@ -250,9 +252,9 @@ class TestPhaseApproachReviser:
         error_history = []
 
         mock_executor._phase_original_intent["phase-1"] = "Original goal"
-        mock_executor._get_learning_context_for_phase = Mock(return_value={
-            "run_hints": ["Hint 1: Use approach B", "Hint 2: Avoid pattern X"]
-        })
+        mock_executor._get_learning_context_for_phase = Mock(
+            return_value={"run_hints": ["Hint 1: Use approach B", "Hint 2: Avoid pattern X"]}
+        )
 
         mock_response = Mock()
         mock_content_block = Mock()
@@ -310,9 +312,7 @@ class TestPhaseApproachReviser:
             "name": "Test phase",
             "description": "Original description",
         }
-        error_history = [
-            {"attempt": 0, "error_type": "Error", "error_details": "Details"}
-        ]
+        error_history = [{"attempt": 0, "error_type": "Error", "error_details": "Details"}]
 
         mock_executor._phase_original_intent["phase-1"] = "Original goal"
         mock_executor._phase_error_history["phase-1"] = error_history.copy()

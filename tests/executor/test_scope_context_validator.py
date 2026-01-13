@@ -48,14 +48,14 @@ class TestScopeContextValidator:
                 "src/utils.py": "content",
             }
         }
-        scope_config = {
-            "paths": ["src/main.py", "src/utils.py"]
-        }
+        scope_config = {"paths": ["src/main.py", "src/utils.py"]}
 
         # Should not raise
         validator.validate(phase, file_context, scope_config)
 
-    def test_validation_fails_with_files_outside_scope(self, validator, mock_executor, tmp_path, caplog):
+    def test_validation_fails_with_files_outside_scope(
+        self, validator, mock_executor, tmp_path, caplog
+    ):
         """Test validation fails when files are outside scope."""
         phase = {"phase_id": "test-phase"}
         file_context = {
@@ -64,9 +64,7 @@ class TestScopeContextValidator:
                 "tests/test_main.py": "content",  # Outside scope
             }
         }
-        scope_config = {
-            "paths": ["src/main.py"]
-        }
+        scope_config = {"paths": ["src/main.py"]}
 
         with pytest.raises(RuntimeError, match="Scope validation failed"):
             validator.validate(phase, file_context, scope_config)
@@ -80,10 +78,7 @@ class TestScopeContextValidator:
                 "tests/test_main.py": "content",  # Outside scope but in read_only
             }
         }
-        scope_config = {
-            "paths": ["src/main.py"],
-            "read_only_context": ["tests/test_main.py"]
-        }
+        scope_config = {"paths": ["src/main.py"], "read_only_context": ["tests/test_main.py"]}
 
         # Should not raise
         validator.validate(phase, file_context, scope_config)
@@ -98,9 +93,7 @@ class TestScopeContextValidator:
                 "src/models/user.py": "content",
             }
         }
-        scope_config = {
-            "paths": ["src/"]  # Directory scope
-        }
+        scope_config = {"paths": ["src/"]}  # Directory scope
 
         # Mock _resolve_scope_target to return directory
         def resolve_with_dir(path_str, workspace_root, must_exist=False):
@@ -123,9 +116,7 @@ class TestScopeContextValidator:
                 "src/main.py": "content",
             }
         }
-        scope_config = {
-            "paths": ["src\\main.py"]  # Windows-style path
-        }
+        scope_config = {"paths": ["src\\main.py"]}  # Windows-style path
 
         # Should normalize and pass
         validator.validate(phase, file_context, scope_config)
@@ -141,9 +132,7 @@ class TestScopeContextValidator:
         }
         scope_config = {
             "paths": ["src/main.py"],
-            "read_only_context": [
-                {"path": "README.md"}  # Dict format
-            ]
+            "read_only_context": [{"path": "README.md"}],  # Dict format
         }
 
         # Should not raise
@@ -161,7 +150,7 @@ class TestScopeContextValidator:
         }
         scope_config = {
             "paths": ["src/main.py"],
-            "read_only_context": ["docs/"]  # Directory prefix
+            "read_only_context": ["docs/"],  # Directory prefix
         }
 
         # Mock _resolve_scope_target to handle directory resolution
@@ -178,12 +167,8 @@ class TestScopeContextValidator:
     def test_empty_file_context_passes(self, validator, mock_executor, tmp_path):
         """Test validation passes with empty file context."""
         phase = {"phase_id": "test-phase"}
-        file_context = {
-            "existing_files": {}
-        }
-        scope_config = {
-            "paths": ["src/main.py"]
-        }
+        file_context = {"existing_files": {}}
+        scope_config = {"paths": ["src/main.py"]}
 
         # Should not raise - no files to validate
         validator.validate(phase, file_context, scope_config)

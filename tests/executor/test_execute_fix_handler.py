@@ -11,8 +11,9 @@ import sys
 # Patch the incorrect import in execute_fix_handler.py before importing it
 # The source file incorrectly imports from autopack.checkpoint instead of autopack.executor
 import autopack.executor.run_checkpoint
-sys.modules['autopack.checkpoint'] = type(sys)('autopack.checkpoint')
-sys.modules['autopack.checkpoint.run_checkpoint'] = autopack.executor.run_checkpoint
+
+sys.modules["autopack.checkpoint"] = type(sys)("autopack.checkpoint")
+sys.modules["autopack.checkpoint.run_checkpoint"] = autopack.executor.run_checkpoint
 
 from autopack.executor.execute_fix_handler import ExecuteFixHandler  # noqa: E402
 
@@ -51,10 +52,7 @@ class TestExecuteFixHandler:
     def test_successful_fix_execution(self, handler, mock_executor):
         """Test successful fix execution."""
         phase = {"phase_id": "phase-1"}
-        response = MockDoctorResponse(
-            fix_commands=["rm -f temp.txt"],
-            fix_type="file"
-        )
+        response = MockDoctorResponse(fix_commands=["rm -f temp.txt"], fix_type="file")
 
         mock_subprocess_result = Mock()
         mock_subprocess_result.returncode = 0
@@ -72,10 +70,7 @@ class TestExecuteFixHandler:
     def test_failed_fix_execution(self, handler, mock_executor):
         """Test failed fix execution."""
         phase = {"phase_id": "phase-1"}
-        response = MockDoctorResponse(
-            fix_commands=["rm -f temp2.txt"],
-            fix_type="file"
-        )
+        response = MockDoctorResponse(fix_commands=["rm -f temp2.txt"], fix_type="file")
 
         mock_subprocess_result = Mock()
         mock_subprocess_result.returncode = 1
@@ -94,10 +89,7 @@ class TestExecuteFixHandler:
         """Test behavior when execute_fix is disabled."""
         mock_executor._allow_execute_fix = False
         phase = {"phase_id": "phase-1"}
-        response = MockDoctorResponse(
-            fix_commands=["rm -f temp3.txt"],
-            fix_type="file"
-        )
+        response = MockDoctorResponse(fix_commands=["rm -f temp3.txt"], fix_type="file")
 
         result = handler.execute_fix(phase, response)
 
@@ -148,10 +140,7 @@ class TestExecuteFixHandler:
         """Test git execute_fix is blocked for project_build runs."""
         mock_executor.run_type = "project_build"
         phase = {"phase_id": "phase-1"}
-        response = MockDoctorResponse(
-            fix_commands=["git reset --hard HEAD"],
-            fix_type="git"
-        )
+        response = MockDoctorResponse(fix_commands=["git reset --hard HEAD"], fix_type="git")
 
         result = handler.execute_fix(phase, response)
 
@@ -162,9 +151,7 @@ class TestExecuteFixHandler:
         """Test successful verify command execution."""
         phase = {"phase_id": "phase-1"}
         response = MockDoctorResponse(
-            fix_commands=["rm -f verify.txt"],
-            fix_type="file",
-            verify_command="rm -f verify2.txt"
+            fix_commands=["rm -f verify.txt"], fix_type="file", verify_command="rm -f verify2.txt"
         )
 
         mock_subprocess_result = Mock()
@@ -184,10 +171,7 @@ class TestExecuteFixHandler:
         mock_executor._execute_fix_by_phase["phase-1"] = 1  # Already at limit
 
         phase = {"phase_id": "phase-1"}
-        response = MockDoctorResponse(
-            fix_commands=["rm -f limit.txt"],
-            fix_type="file"
-        )
+        response = MockDoctorResponse(fix_commands=["rm -f limit.txt"], fix_type="file")
 
         result = handler.execute_fix(phase, response)
 

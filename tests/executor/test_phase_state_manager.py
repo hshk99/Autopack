@@ -14,7 +14,7 @@ Test coverage (25 tests):
 import pytest
 from pathlib import Path
 from datetime import datetime, timezone
-from unittest.mock import Mock, MagicMock, patch, call
+from unittest.mock import Mock, patch
 
 from autopack.executor.phase_state_manager import (
     PhaseStateManager,
@@ -88,7 +88,9 @@ class TestStateUpdates:
         current_state = PhaseState(retry_attempt=2, revision_epoch=0, escalation_level=0)
 
         with patch.object(mgr, "load_or_create_default", return_value=current_state):
-            with patch.object(mgr, "_update_phase_attempts_in_db", return_value=True) as mock_update:
+            with patch.object(
+                mgr, "_update_phase_attempts_in_db", return_value=True
+            ) as mock_update:
                 request = StateUpdateRequest(increment_retry=True)
                 result = mgr.update("phase-123", request)
 
@@ -102,7 +104,9 @@ class TestStateUpdates:
         current_state = PhaseState(retry_attempt=0, revision_epoch=1, escalation_level=0)
 
         with patch.object(mgr, "load_or_create_default", return_value=current_state):
-            with patch.object(mgr, "_update_phase_attempts_in_db", return_value=True) as mock_update:
+            with patch.object(
+                mgr, "_update_phase_attempts_in_db", return_value=True
+            ) as mock_update:
                 request = StateUpdateRequest(increment_epoch=True)
                 result = mgr.update("phase-123", request)
 
@@ -116,7 +120,9 @@ class TestStateUpdates:
         current_state = PhaseState(retry_attempt=0, revision_epoch=0, escalation_level=0)
 
         with patch.object(mgr, "load_or_create_default", return_value=current_state):
-            with patch.object(mgr, "_update_phase_attempts_in_db", return_value=True) as mock_update:
+            with patch.object(
+                mgr, "_update_phase_attempts_in_db", return_value=True
+            ) as mock_update:
                 request = StateUpdateRequest(increment_escalation=True)
                 result = mgr.update("phase-123", request)
 
@@ -130,7 +136,9 @@ class TestStateUpdates:
         current_state = PhaseState(retry_attempt=5, revision_epoch=2, escalation_level=1)
 
         with patch.object(mgr, "load_or_create_default", return_value=current_state):
-            with patch.object(mgr, "_update_phase_attempts_in_db", return_value=True) as mock_update:
+            with patch.object(
+                mgr, "_update_phase_attempts_in_db", return_value=True
+            ) as mock_update:
                 request = StateUpdateRequest(set_retry=10, set_epoch=5, set_escalation=3)
                 result = mgr.update("phase-123", request)
 
@@ -147,7 +155,9 @@ class TestStateUpdates:
         current_state = PhaseState(retry_attempt=1, revision_epoch=0, escalation_level=0)
 
         with patch.object(mgr, "load_or_create_default", return_value=current_state):
-            with patch.object(mgr, "_update_phase_attempts_in_db", return_value=True) as mock_update:
+            with patch.object(
+                mgr, "_update_phase_attempts_in_db", return_value=True
+            ) as mock_update:
                 request = StateUpdateRequest(
                     increment_retry=True, failure_reason="PATCH_APPLY_FAILED"
                 )
@@ -165,14 +175,14 @@ class TestStateUpdates:
         current_state = PhaseState(retry_attempt=2, revision_epoch=1, escalation_level=0)
 
         with patch.object(mgr, "load_or_create_default", return_value=current_state):
-            with patch.object(mgr, "_update_phase_attempts_in_db", return_value=True) as mock_update:
+            with patch.object(
+                mgr, "_update_phase_attempts_in_db", return_value=True
+            ) as mock_update:
                 request = StateUpdateRequest(increment_retry=True, increment_escalation=True)
                 result = mgr.update("phase-123", request)
 
         assert result is True
-        mock_update.assert_called_once_with(
-            "phase-123", retry_attempt=3, escalation_level=1
-        )
+        mock_update.assert_called_once_with("phase-123", retry_attempt=3, escalation_level=1)
 
     def test_update_no_changes_returns_true_without_db_call(self):
         """Test that update with no changes doesn't call database."""
@@ -336,7 +346,7 @@ class TestDatabaseIntegration:
         mock_db.query.return_value = mock_query
 
         # Mock PhaseState enum
-        with patch("autopack.models.PhaseState") as mock_state_enum:
+        with patch("autopack.models.PhaseState"):
             result = mgr._mark_phase_complete_in_db("phase-123")
 
         assert result is True

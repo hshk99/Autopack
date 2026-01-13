@@ -113,7 +113,7 @@ from autopack.executor.run_checkpoint import (
 )
 
 # PR-EXE-9: Phase state persistence manager
-from autopack.executor.phase_state_manager import PhaseStateManager, PhaseState, StateUpdateRequest
+from autopack.executor.phase_state_manager import PhaseStateManager
 
 
 # Configure logging

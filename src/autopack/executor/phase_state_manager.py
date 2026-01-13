@@ -246,7 +246,9 @@ class PhaseStateManager:
                 )
 
                 if not phase:
-                    logger.error(f"[{phase_id}] Cannot update attempts: phase not found in database")
+                    logger.error(
+                        f"[{phase_id}] Cannot update attempts: phase not found in database"
+                    )
                     return False
 
                 # Update attempt tracking (backwards compatibility)

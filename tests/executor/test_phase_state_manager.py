@@ -250,7 +250,8 @@ class TestDatabaseIntegration:
         mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
 
         mock_db = Mock()
-        mock_session_local.return_value = mock_db
+        mock_session_local.return_value.__enter__ = Mock(return_value=mock_db)
+        mock_session_local.return_value.__exit__ = Mock(return_value=False)
 
         mock_phase = Mock()
         mock_phase.retry_attempt = 2
@@ -265,7 +266,7 @@ class TestDatabaseIntegration:
         result = mgr._get_phase_from_db("phase-123")
 
         assert result == mock_phase
-        mock_db.close.assert_called_once()
+        mock_session_local.return_value.__exit__.assert_called_once()
 
     @patch("autopack.database.SessionLocal")
     def test_get_phase_from_db_returns_none_when_not_found(self, mock_session_local):
@@ -289,7 +290,8 @@ class TestDatabaseIntegration:
         mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
 
         mock_db = Mock()
-        mock_session_local.return_value = mock_db
+        mock_session_local.return_value.__enter__ = Mock(return_value=mock_db)
+        mock_session_local.return_value.__exit__ = Mock(return_value=False)
 
         mock_phase = Mock()
         mock_phase.retry_attempt = 0
@@ -309,7 +311,7 @@ class TestDatabaseIntegration:
         assert mock_phase.revision_epoch == 1
         assert mock_phase.escalation_level == 0
         mock_db.commit.assert_called_once()
-        mock_db.close.assert_called_once()
+        mock_session_local.return_value.__exit__.assert_called_once()
 
     @patch("autopack.database.SessionLocal")
     def test_update_phase_attempts_in_db_returns_false_when_phase_not_found(
@@ -336,7 +338,8 @@ class TestDatabaseIntegration:
         mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
 
         mock_db = Mock()
-        mock_session_local.return_value = mock_db
+        mock_session_local.return_value.__enter__ = Mock(return_value=mock_db)
+        mock_session_local.return_value.__exit__ = Mock(return_value=False)
 
         mock_phase = Mock()
         mock_phase.created_at = datetime.now(timezone.utc)
@@ -359,7 +362,8 @@ class TestDatabaseIntegration:
         mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
 
         mock_db = Mock()
-        mock_session_local.return_value = mock_db
+        mock_session_local.return_value.__enter__ = Mock(return_value=mock_db)
+        mock_session_local.return_value.__exit__ = Mock(return_value=False)
 
         mock_phase = Mock()
         mock_phase.created_at = datetime.now(timezone.utc)
@@ -411,22 +415,92 @@ class TestErrorHandling:
         assert result is False
 
     @patch("autopack.database.SessionLocal")
-    def test_database_close_failure_is_silenced(self, mock_session_local):
-        """Test that db.close() failures don't propagate."""
+    def test_session_context_manager_closes_on_exception(self, mock_session_local):
+        """Test that session context manager ensures cleanup even on exceptions."""
         mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
 
         mock_db = Mock()
-        mock_session_local.return_value = mock_db
-        mock_db.close.side_effect = Exception("Close failed")
+        mock_session_local.return_value.__enter__ = Mock(return_value=mock_db)
+        mock_session_local.return_value.__exit__ = Mock(return_value=False)
 
         mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = None
+        mock_query.filter.return_value.first.side_effect = Exception("Query failed")
         mock_db.query.return_value = mock_query
 
-        # Should not raise despite close() failing
         result = mgr._get_phase_from_db("phase-123")
 
-        assert result is None  # Query succeeded, close failure ignored
+        assert result is None  # Returns None on error
+        # Context manager __exit__ should be called (automatic cleanup)
+        mock_session_local.return_value.__exit__.assert_called_once()
+
+    @patch("autopack.database.SessionLocal")
+    def test_update_ensures_commit_called_before_context_exit(self, mock_session_local):
+        """Test that commit is called within the context manager before session closes."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
+
+        mock_db = Mock()
+        mock_session_local.return_value.__enter__ = Mock(return_value=mock_db)
+        mock_session_local.return_value.__exit__ = Mock(return_value=False)
+
+        mock_phase = Mock()
+        mock_phase.retry_attempt = 0
+        mock_query = Mock()
+        mock_query.filter.return_value.first.return_value = mock_phase
+        mock_db.query.return_value = mock_query
+
+        # Track call order
+        call_order = []
+        mock_db.commit.side_effect = lambda: call_order.append("commit")
+        mock_session_local.return_value.__exit__.side_effect = lambda *args: call_order.append(
+            "exit"
+        )
+
+        result = mgr._update_phase_attempts_in_db("phase-123", retry_attempt=3)
+
+        assert result is True
+        assert call_order == ["commit", "exit"]  # Commit before context exit
+
+    @patch("autopack.database.SessionLocal")
+    def test_mark_complete_ensures_transaction_boundaries(self, mock_session_local):
+        """Test that mark_complete properly commits within transaction boundaries."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
+
+        mock_db = Mock()
+        mock_session_local.return_value.__enter__ = Mock(return_value=mock_db)
+        mock_session_local.return_value.__exit__ = Mock(return_value=False)
+
+        mock_phase = Mock()
+        mock_query = Mock()
+        mock_query.filter.return_value.first.return_value = mock_phase
+        mock_db.query.return_value = mock_query
+
+        with patch("autopack.models.PhaseState"):
+            result = mgr._mark_phase_complete_in_db("phase-123")
+
+        assert result is True
+        mock_db.commit.assert_called_once()
+        mock_session_local.return_value.__exit__.assert_called_once()
+
+    @patch("autopack.database.SessionLocal")
+    def test_mark_failed_ensures_transaction_boundaries(self, mock_session_local):
+        """Test that mark_failed properly commits within transaction boundaries."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
+
+        mock_db = Mock()
+        mock_session_local.return_value.__enter__ = Mock(return_value=mock_db)
+        mock_session_local.return_value.__exit__ = Mock(return_value=False)
+
+        mock_phase = Mock()
+        mock_query = Mock()
+        mock_query.filter.return_value.first.return_value = mock_phase
+        mock_db.query.return_value = mock_query
+
+        with patch("autopack.models.PhaseState"):
+            result = mgr._mark_phase_failed_in_db("phase-123", "MAX_ATTEMPTS_EXHAUSTED")
+
+        assert result is True
+        mock_db.commit.assert_called_once()
+        mock_session_local.return_value.__exit__.assert_called_once()
 
 
 class TestStateUpdateRequestBuilder:

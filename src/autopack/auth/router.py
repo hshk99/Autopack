@@ -15,7 +15,7 @@ import hashlib
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Header, status
+from fastapi import APIRouter, Depends, HTTPException, Header, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -29,6 +29,7 @@ from .security import (
 )
 from .models import User
 from .schemas import Token, UserCreate, UserResponse
+from .rate_limiter import login_rate_limiter
 from autopack.database import get_db
 from autopack.config import settings  # BUILD-146 P12 Phase 5
 
@@ -124,14 +125,25 @@ async def register(
     response_model=Token,
 )
 async def login(
+    request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Session = Depends(get_db),
 ):
     """
     Validate credentials and issue an access token.
 
+    Rate limited to prevent brute force attacks (5 attempts per 60 seconds per IP).
+
     SOT endpoint: /api/auth/login
     """
+    # Apply rate limiting
+    client_ip = request.client.host if request.client else "unknown"
+    if not login_rate_limiter.check_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts. Please try again later.",
+        )
+
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(

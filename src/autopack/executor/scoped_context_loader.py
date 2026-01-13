@@ -266,7 +266,9 @@ class ScopedContextLoader:
                         try:
                             # Use cached read with mtime-based invalidation
                             stat_info = abs_path.stat()
-                            full_content = _cached_read_file(str(abs_path.resolve()), stat_info.st_mtime)
+                            full_content = _cached_read_file(
+                                str(abs_path.resolve()), stat_info.st_mtime
+                            )
                             content, tokens_saved, source_type = (
                                 artifact_loader.load_with_artifacts(
                                     rel_key, full_content, prefer_artifacts=True

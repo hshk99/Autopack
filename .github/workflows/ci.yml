@@ -245,7 +245,7 @@ jobs:
           print(f'Generated OpenAPI {schema[\"info\"][\"version\"]} with {len(schema[\"paths\"])} paths')
           "
       - name: Upload OpenAPI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: openapi-spec
           path: openapi.json

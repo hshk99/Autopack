@@ -5,7 +5,6 @@ to reduce disk I/O during phase execution.
 """
 
 import time
-from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -229,7 +228,7 @@ class TestScopedContextLoaderCaching:
 
         # First load
         clear_file_cache()
-        result1 = loader.load_context(phase, scope_config)
+        loader.load_context(phase, scope_config)
 
         # Second load
         result2 = loader.load_context(phase, scope_config)

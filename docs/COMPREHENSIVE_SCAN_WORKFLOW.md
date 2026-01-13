@@ -1,0 +1,390 @@
+# Comprehensive Scan Strategy - CI-Efficient Workflow
+
+**Problem**: Comprehensive improvement scans trigger all 4,901 core tests, resulting in 30-45 minute CI runs.
+
+**Solution**: Multi-phase scanning strategy that categorizes improvements by CI impact, enabling parallel execution and selective testing.
+
+---
+
+## Phase 1: Comprehensive Scan with CI Impact Classification
+
+### Prompt 1A: Scan and Categorize by CI Impact
+
+```
+Given the current state of Autopack (based on recent PRs and README.md ideal state):
+
+Perform a COMPREHENSIVE scan for improvement opportunities and categorize each by CI IMPACT:
+
+**Category A - Docs Only (No CI tests)**
+- Changes to: docs/*, README.md, *.md files
+- CI Impact: ~5-10 min (only docs-sot-integrity job)
+- Examples: Documentation updates, SOT improvements, architecture decisions
+
+**Category B - Frontend Only (No backend tests)**
+- Changes to: *.tsx, *.ts (frontend), *.css, vite.config.ts
+- CI Impact: ~10-15 min (only frontend-ci job)
+- Examples: UI improvements, TypeScript refactoring, frontend tooling
+
+**Category C - Backend Non-Critical (Partial tests)**
+- Changes to: Non-core modules, research subsystem, storage optimizer
+- CI Impact: ~15-25 min (subset of core tests + lint)
+- Examples: Research subsystem, storage optimizer, diagnostics improvements
+
+**Category D - Backend Core (Full test suite)**
+- Changes to: autonomous_executor.py, llm_service.py, core modules
+- CI Impact: ~30-45 min (all 4,901 core tests)
+- Examples: Executor refactoring, LLM client improvements, core logic changes
+
+**Category E - Infrastructure/Tooling (Parallel-safe)**
+- Changes to: scripts/*, .github/workflows/*, pyproject.toml
+- CI Impact: Variable (can run in parallel with other work)
+- Examples: CI improvements, testing infrastructure, build tooling
+
+For EACH opportunity identified:
+1. Brief description (1-2 sentences)
+2. Category (A/B/C/D/E)
+3. Estimated effort (S/M/L/XL)
+4. Priority (Critical/High/Medium/Low)
+5. Dependencies (if any)
+6. Parallel execution potential (Yes/No)
+
+Output format: JSON or structured markdown table for easy parsing.
+
+If context limits are reached, output what you have and I'll request "continue".
+```
+
+---
+
+## Phase 2: Parallel Execution Strategy
+
+### Prompt 1B: Generate Parallel Execution Plan
+
+```
+Based on the categorized improvements from the comprehensive scan:
+
+Generate a PARALLEL EXECUTION PLAN that minimizes total CI time:
+
+**Wave 1 - Zero Backend Impact (Parallel)**
+- All Category A (Docs) improvements
+- All Category B (Frontend) improvements
+- All Category E (Infrastructure) improvements that don't affect testing
+
+**Wave 2 - Low Backend Impact (Parallel)**
+- All Category C (Backend Non-Critical) improvements
+- Category E testing improvements (pytest-xdist setup, marker configs)
+
+**Wave 3 - High Backend Impact (Sequential, batched)**
+- Group Category D improvements by module
+- Batch: autonomous_executor.py improvements (PR-EXE series)
+- Batch: llm_service.py / anthropic_clients.py improvements (PR-CLIENT series)
+- Batch: Other core module improvements
+
+For each wave:
+1. List specific improvements to include
+2. Estimated parallel CI time (not sequential sum)
+3. PRs that can be created simultaneously
+4. Merge strategy (all-at-once vs. sequential)
+
+Goal: Execute Waves 1 & 2 in ~10-15 min total (parallel), then batch Wave 3.
+```
+
+---
+
+## Phase 3: Smart PR Batching by Test Markers
+
+### Prompt 1C: Organize by Test Impact
+
+```
+For the Category D (Backend Core) improvements from the scan:
+
+Analyze which TESTS each improvement would trigger and batch accordingly:
+
+**Batch Strategy**:
+
+1. **Aspirational-Heavy Improvements** (mark tests as aspirational during development)
+   - New experimental features
+   - Roadmap items
+   - Can use `@pytest.mark.aspirational` to make non-blocking
+   - Fast iteration: only 110 aspirational tests run
+
+2. **Isolated Module Improvements** (targeted test execution)
+   - Changes to single modules with isolated tests
+   - Can use `pytest tests/path/to/module_tests.py` for local pre-flight
+   - CI runs full suite but local iteration is fast
+
+3. **Core Integration Improvements** (full test suite required)
+   - Changes affecting multiple modules
+   - Must run all 4,901 core tests
+   - Batch multiple improvements into single PR to amortize CI cost
+
+For each Category D improvement:
+- Which test files would be most affected?
+- Can it be marked aspirational initially? (Yes/No)
+- Can it be developed in isolation? (Yes/No)
+- Should it be batched with other improvements? (Yes/No + which ones)
+
+Output: Batching recommendation with PR structure.
+```
+
+---
+
+## Phase 4: Infrastructure Improvements for Future Scans
+
+### Prompt 2A: Set Up Parallel Test Execution
+
+```
+Implement pytest-xdist for parallel test execution:
+
+1. Add pytest-xdist to requirements-dev.txt
+2. Update .github/workflows/ci.yml to use `pytest -n auto`
+3. Ensure tests are thread-safe (check for shared state issues)
+4. Add pytest.ini config for optimal worker count
+
+Expected CI time reduction: 30-45 min → 15-20 min for Category D changes
+
+This is a Category E (Infrastructure) improvement - can run in parallel with other work.
+```
+
+### Prompt 2B: Create Smart Pre-flight Test Script
+
+```
+Create scripts/preflight_smart.py that analyzes git diff and runs only affected tests:
+
+Features:
+1. Analyze `git diff main...HEAD` to find changed files
+2. Map changed files to related test files using imports/dependencies
+3. Run targeted test subset for fast local validation
+4. If core modules changed: warn that full CI suite will run
+5. If only docs/frontend changed: skip backend tests entirely
+
+Usage:
+```bash
+python scripts/preflight_smart.py  # Run before git push
+```
+
+Expected local pre-flight time: 30-45 min → 2-5 min for targeted testing
+
+This is a Category E (Infrastructure) improvement.
+```
+
+### Prompt 2C: Create Comprehensive Scan Configuration
+
+```
+Create docs/COMPREHENSIVE_SCAN_WORKFLOW.md that documents:
+
+1. The multi-phase scan strategy (this document's approach)
+2. CI impact categories (A/B/C/D/E)
+3. Parallel execution guidelines
+4. Smart batching strategies
+5. When to use aspirational markers
+6. Local pre-flight testing commands
+
+Also create scripts/comprehensive_scan.py that:
+1. Runs the categorized scan prompt automatically
+2. Parses the JSON/markdown output
+3. Generates PR structure recommendations
+4. Estimates total CI time for each wave
+5. Outputs Wave 1/2/3 execution plans
+
+This becomes the "universal prompt" infrastructure for future scans.
+```
+
+---
+
+## Phase 5: README Update - Smart CI Strategy
+
+### Prompt 3: Update README with CI-Efficient Development Workflow
+
+```
+Update README.md to add a new section: "## CI-Efficient Development Workflow"
+
+Document:
+1. The 5 CI impact categories (A/B/C/D/E)
+2. Parallel execution strategy (Waves 1/2/3)
+3. Smart batching guidelines
+4. Local pre-flight testing commands
+5. Aspirational marker usage for experimental features
+6. Link to docs/COMPREHENSIVE_SCAN_WORKFLOW.md
+
+Also update the "Contributing" section to reference this workflow.
+
+This is a Category A (Docs) improvement - ~5 min CI time.
+```
+
+---
+
+## Execution Plan: How to Use This Strategy
+
+### Week 1: Infrastructure Setup (Category E - Parallel-safe)
+
+**Create 3 PRs in parallel** (all can merge independently):
+
+1. **PR-INFRA-1**: Add pytest-xdist for parallel test execution
+   - CI time: ~30-45 min (one-time cost)
+   - Future benefit: 50% CI time reduction
+
+2. **PR-INFRA-2**: Create scripts/preflight_smart.py
+   - CI time: ~30-45 min (tests the script itself)
+   - Future benefit: Fast local pre-flight
+
+3. **PR-INFRA-3**: Create comprehensive scan infrastructure
+   - CI time: ~5-10 min (docs + script, no backend tests)
+   - Future benefit: Automated scan categorization
+
+**Total Week 1 wall-clock time**: ~45 min (parallel execution)
+
+---
+
+### Week 2: Run First CI-Efficient Comprehensive Scan
+
+**Use the new workflow**:
+
+```bash
+# Run automated comprehensive scan
+python scripts/comprehensive_scan.py
+
+# Review categorized improvements
+cat docs/reports/COMPREHENSIVE_SCAN_$(date +%Y-%m-%d).json
+
+# Execute Wave 1 (Docs + Frontend + Infrastructure)
+# Create multiple PRs in parallel - all merge independently
+git checkout -b docs/improvements-wave1-docs
+git checkout -b frontend/improvements-wave1-ui
+git checkout -b infra/improvements-wave1-tooling
+
+# Execute Wave 2 (Backend Non-Critical)
+# Create multiple PRs in parallel
+git checkout -b backend/non-critical-wave2-research
+git checkout -b backend/non-critical-wave2-storage
+
+# Execute Wave 3 (Backend Core - batched)
+# Create batched PRs sequentially
+git checkout -b backend/core-wave3-executor-batch1
+git checkout -b backend/core-wave3-llm-batch1
+```
+
+**Total CI time**:
+- Wave 1: ~15 min (parallel across 3-5 PRs)
+- Wave 2: ~25 min (parallel across 2-3 PRs)
+- Wave 3: ~45 min × 2 batches = ~90 min (sequential, but amortized)
+
+**Total wall-clock time**: ~90 min (vs. 300+ min without batching)
+
+---
+
+## Key Insights: Why This Works
+
+### 1. **Path Filtering Leverage**
+The CI already has path filtering - we just need to exploit it:
+```yaml
+backend: ['src/**', 'tests/**']  # Triggers full test suite
+frontend: ['*.tsx', '*.ts', '*.css']  # Only frontend tests
+docs: ['docs/**', 'README.md']  # Only docs tests
+```
+
+### 2. **Parallel Execution**
+Independent improvements can run in parallel:
+- 5 PRs × 10 min each = 10 min wall-clock (not 50 min)
+- GitHub Actions supports parallel jobs
+- Multiple PRs can be open simultaneously
+
+### 3. **Smart Batching**
+Group related backend improvements to amortize CI cost:
+- 10 small improvements × 45 min each = 450 min (bad)
+- 1 batched PR with 10 improvements × 45 min = 45 min (good)
+
+### 4. **Aspirational Markers**
+Mark experimental features as aspirational during development:
+- Fast iteration: only 110 tests run instead of 4,901
+- Promote to core tests once stable
+- Script exists: `scripts/ci/aspirational_test_promotion.py`
+
+### 5. **Local Pre-flight**
+Run targeted tests locally before pushing:
+```bash
+# Instead of waiting 45 min for CI:
+python scripts/preflight_smart.py  # 2-5 min local
+
+# Or manually run affected tests:
+pytest tests/executor/ -v  # Only executor tests
+```
+
+---
+
+## Universal Prompt Template
+
+### Template: CI-Efficient Comprehensive Scan
+
+```
+Given current state of Autopack:
+
+PHASE 1: Scan and categorize improvements by CI IMPACT (A/B/C/D/E)
+PHASE 2: Generate parallel execution plan (Waves 1/2/3)
+PHASE 3: Organize Category D by test impact and batching potential
+PHASE 4: Output JSON structure for automated processing
+
+Categories:
+- A (Docs): docs/*, *.md → ~5-10 min CI
+- B (Frontend): *.tsx, *.ts, *.css → ~10-15 min CI
+- C (Backend Non-Critical): research, storage, diagnostics → ~15-25 min CI
+- D (Backend Core): executor, llm_service, core modules → ~30-45 min CI
+- E (Infrastructure): scripts/*, .github/*, tooling → Variable CI
+
+Output format (JSON):
+{
+  "scan_date": "2026-01-13",
+  "total_opportunities": 42,
+  "by_category": {
+    "A": [...],
+    "B": [...],
+    "C": [...],
+    "D": [...],
+    "E": [...]
+  },
+  "execution_plan": {
+    "wave_1": {
+      "improvements": [...],
+      "estimated_ci_time": "15 min",
+      "parallel_prs": 5
+    },
+    "wave_2": {...},
+    "wave_3": {...}
+  },
+  "total_estimated_time": "90 min wall-clock (vs 300+ min sequential)"
+}
+
+If context limits reached, output partial results and I'll request "continue".
+```
+
+---
+
+## Expected Outcomes
+
+### Before This Strategy:
+- Comprehensive scan → 1 large PR → 45 min CI × 10 iterations = **450 min**
+- Or: 10 separate PRs × 45 min each = **450 min** (sequential merges)
+
+### After This Strategy:
+- Wave 1 (Docs/Frontend/Infra): 5 parallel PRs × 10 min = **10 min wall-clock**
+- Wave 2 (Non-Critical Backend): 3 parallel PRs × 25 min = **25 min wall-clock**
+- Wave 3 (Core Backend): 2 batched PRs × 45 min = **90 min** (sequential)
+
+**Total: ~125 min wall-clock** (72% reduction)
+
+### With pytest-xdist (after PR-INFRA-1):
+- Wave 3 time: 45 min → ~20 min (50% reduction)
+- **Total: ~60 min wall-clock** (87% reduction)
+
+---
+
+## Next Steps
+
+Would you like me to:
+
+1. **Implement the infrastructure** (PR-INFRA-1, PR-INFRA-2, PR-INFRA-3)?
+2. **Run the first CI-efficient comprehensive scan** using this strategy?
+3. **Create the universal prompt script** (scripts/comprehensive_scan.py)?
+4. **Update README.md** with the CI-efficient workflow documentation?
+5. **All of the above** in parallel waves?
+
+Choose your adventure! 🚀

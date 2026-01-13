@@ -449,3 +449,4 @@ jobs:
           # Full integration tests use PostgreSQL in the "test" job above
         run: |
           bash scripts/preflight_gate.sh
+test

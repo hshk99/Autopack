@@ -39,7 +39,8 @@ class RateLimiter:
 
         # Remove old requests outside window
         self.requests[client_ip] = [
-            req_time for req_time in self.requests[client_ip]
+            req_time
+            for req_time in self.requests[client_ip]
             if now - req_time < self.window_seconds
         ]
 
@@ -64,6 +65,7 @@ def rate_limit(limiter: RateLimiter) -> Callable:
     Returns:
         Decorator function that enforces rate limiting
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -82,5 +84,7 @@ def rate_limit(limiter: RateLimiter) -> Callable:
                 )
 
             return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator

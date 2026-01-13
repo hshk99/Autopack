@@ -170,7 +170,8 @@ class APIServerLifecycle:
                         stderr=log_fp or subprocess.DEVNULL,
                         env=env,
                         cwd=str(Path(self.executor.workspace).resolve()),
-                        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
+                        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
+                        | subprocess.DETACHED_PROCESS,
                     )
                 else:
                     # Unix: use nohup-like behavior
@@ -195,7 +196,9 @@ class APIServerLifecycle:
                         pass
 
                 # Wait a bit for server to start
-                return self.check_server_health(host, port, startup_timeout_s, api_log_path, process)
+                return self.check_server_health(
+                    host, port, startup_timeout_s, api_log_path, process
+                )
 
             except Exception:
                 # Ensure file handle is closed if subprocess creation fails

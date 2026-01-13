@@ -68,9 +68,7 @@ class LearningPipeline:
                 "builder_guardrail": f"Phase '{phase_name}' blocked by builder guardrail - check output size",
             }
 
-            hint_text = hint_templates.get(
-                hint_type, f"Phase '{phase_name}': {hint_type}"
-            )
+            hint_text = hint_templates.get(hint_type, f"Phase '{phase_name}': {hint_type}")
             hint_text = f"{hint_text}. Details: {details}"
 
             # Create hint
@@ -94,9 +92,7 @@ class LearningPipeline:
             # Don't let hint recording break phase execution
             logger.warning(f"[Learning] Failed to record hint: {e}")
 
-    def get_hints_for_phase(
-        self, phase: Dict, task_category: Optional[str] = None
-    ) -> List[str]:
+    def get_hints_for_phase(self, phase: Dict, task_category: Optional[str] = None) -> List[str]:
         """
         Get relevant hints for a phase.
 

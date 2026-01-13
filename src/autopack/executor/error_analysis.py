@@ -71,9 +71,7 @@ class ErrorAnalyzer:
         # Phase-level error history
         self._error_history: Dict[str, List[ErrorRecord]] = {}
 
-    def record_error(
-        self, phase_id: str, attempt: int, error_type: str, error_details: str
-    ):
+    def record_error(self, phase_id: str, attempt: int, error_type: str, error_details: str):
         """Record an error for approach flaw detection"""
         if phase_id not in self._error_history:
             self._error_history[phase_id] = []
@@ -151,9 +149,7 @@ class ErrorAnalyzer:
 
         # Skip if messages are too short
         if all(len(m) < self.min_message_length for m in messages):
-            logger.debug(
-                f"[ErrorAnalysis] Messages too short for similarity check ({phase_id})"
-            )
+            logger.debug(f"[ErrorAnalysis] Messages too short for similarity check ({phase_id})")
             # Fall back to type-only check
             logger.info(
                 f"[REPLAN-TRIGGER] reason=repeated_error_short_msg type={error_type} "
@@ -171,13 +167,9 @@ class ErrorAnalyzer:
         min_similarity = 1.0
 
         for i in range(len(messages) - 1):
-            similarity = self._calculate_message_similarity(
-                messages[i], messages[i + 1]
-            )
+            similarity = self._calculate_message_similarity(messages[i], messages[i + 1])
             min_similarity = min(min_similarity, similarity)
-            logger.debug(
-                f"[ErrorAnalysis] Message similarity [{i}]->[{i+1}]: {similarity:.2f}"
-            )
+            logger.debug(f"[ErrorAnalysis] Message similarity [{i}]->[{i+1}]: {similarity:.2f}")
 
             if similarity < self.similarity_threshold:
                 all_similar = False
@@ -229,12 +221,8 @@ class ErrorAnalyzer:
         normalized = message.lower()
 
         # Strip file paths (Unix and Windows)
-        normalized = re.sub(
-            r"[/\\][\w\-./\\]+\.(py|js|ts|json|yaml|yml|md)", "[PATH]", normalized
-        )
-        normalized = re.sub(
-            r"[a-z]:\\[\w\-\\]+", "[PATH]", normalized, flags=re.IGNORECASE
-        )
+        normalized = re.sub(r"[/\\][\w\-./\\]+\.(py|js|ts|json|yaml|yml|md)", "[PATH]", normalized)
+        normalized = re.sub(r"[a-z]:\\[\w\-\\]+", "[PATH]", normalized, flags=re.IGNORECASE)
 
         # Strip line numbers (e.g., "line 42", ":42:", "L42")
         normalized = re.sub(r"\bline\s*\d+\b", "line [N]", normalized)
@@ -252,18 +240,12 @@ class ErrorAnalyzer:
         normalized = re.sub(r"\b[a-z]+-\d{8}(-\d+)?\b", "[RUN_ID]", normalized)
 
         # Strip timestamps (ISO format and common patterns)
-        normalized = re.sub(
-            r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}", "[TIMESTAMP]", normalized
-        )
+        normalized = re.sub(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}", "[TIMESTAMP]", normalized)
         normalized = re.sub(r"\d{2}:\d{2}:\d{2}", "[TIME]", normalized)
 
         # Strip stack trace lines
-        normalized = re.sub(
-            r'file "[^"]+", line \[n\]', "file [PATH], line [N]", normalized
-        )
-        normalized = re.sub(
-            r"traceback \(most recent call last\):", "[TRACEBACK]", normalized
-        )
+        normalized = re.sub(r'file "[^"]+", line \[n\]', "file [PATH], line [N]", normalized)
+        normalized = re.sub(r"traceback \(most recent call last\):", "[TRACEBACK]", normalized)
 
         # Collapse whitespace
         normalized = re.sub(r"\s+", " ", normalized).strip()

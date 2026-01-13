@@ -80,8 +80,7 @@ from autopack.deliverables_validator import (
 # Memory and validation imports
 # BUILD-115: models.py removed - database write code disabled below
 from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
-from autopack.memory import MemoryService, should_block_on_drift, extract_goal_from_description
-from autopack.validators import validate_yaml_syntax, validate_docker_compose
+from autopack.memory import MemoryService, extract_goal_from_description
 
 # BUILD-123v2: Manifest Generator imports
 from autopack.manifest_generator import ManifestGenerator
@@ -3473,7 +3472,6 @@ Just the new description that should replace the current one while preserving th
     ) -> Tuple[bool, str]:
         """Inner phase execution with error handling and model escalation support"""
         # PR-D: Local import to reduce import-time weight and avoid E402
-        from autopack.executor.db_events import try_record_token_budget_escalation_event
 
         phase_id = phase.get("phase_id")
 

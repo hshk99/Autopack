@@ -9,12 +9,9 @@ Validates that CIExecutionFlow correctly:
 6. Handles errors (timeouts, collection errors)
 """
 
-import json
 from pathlib import Path
-from typing import Dict, Any, Optional
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
-import pytest
 
 from autopack.executor.ci_execution_flow import CIExecutionFlow
 

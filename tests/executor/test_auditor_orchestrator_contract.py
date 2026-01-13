@@ -12,10 +12,8 @@ Validates that AuditorOrchestrator correctly:
 
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
-import pytest
 
 from autopack.executor.auditor_orchestrator import AuditorOrchestrator
 
@@ -316,7 +314,6 @@ def test_post_auditor_result_handles_backwards_compatibility(tmp_path: Path):
 
 def test_post_auditor_result_logs_non_http_errors(tmp_path: Path):
     """Test that post_auditor_result logs non-HTTP API errors gracefully."""
-    import logging
 
     orchestrator = make_auditor_orchestrator(tmp_path)
 

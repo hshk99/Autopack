@@ -13,13 +13,10 @@ Validates that BuilderOrchestrator correctly:
 10. Auto-repair for JSON deliverables
 """
 
-import json
 import os
 from pathlib import Path
-from typing import Dict, Any, Optional
-from unittest.mock import Mock, patch, MagicMock, call
+from unittest.mock import Mock, patch
 
-import pytest
 
 from autopack.executor.builder_orchestrator import BuilderOrchestrator
 from autopack.llm_client import BuilderResult
@@ -484,7 +481,7 @@ class TestInvokeBuilder:
             "retrieved_context": "",
         }
 
-        result = orchestrator._invoke_builder(
+        _result = orchestrator._invoke_builder(
             "phase-1",
             {"description": "Test"},
             {"description": "Test"},

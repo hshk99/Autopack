@@ -12,10 +12,8 @@ Validates that PatchApplicationFlow correctly:
 
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
 from unittest.mock import Mock, patch, MagicMock
 
-import pytest
 
 from autopack.executor.patch_application_flow import PatchApplicationFlow
 
@@ -335,8 +333,6 @@ def test_check_goal_drift_returns_false_when_no_anchor(tmp_path: Path):
 
 def test_derive_allowed_paths_from_deliverables_for_research(tmp_path: Path):
     """Test that _derive_allowed_paths_from_deliverables derives research paths."""
-    import sys
-    from unittest.mock import MagicMock
 
     patch_flow = make_patch_flow(tmp_path)
 

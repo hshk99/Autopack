@@ -59,7 +59,6 @@ class FullFileParser:
         self.content_sanitizer = ContentSanitizer()
         self.pack_validator = PackValidator()
 
-
     def _classify_change_type(self, phase_spec: Optional[Dict]) -> str:
         """Classify whether a phase is a small fix or large refactor.
 
@@ -374,8 +373,12 @@ class FullFileParser:
                 candidates.append(extracted)
 
             for candidate in candidates:
-                sanitized_candidate, placeholders = self.content_sanitizer.sanitize_full_file_output(candidate)
-                balanced_candidate = self.content_sanitizer.balance_json_brackets(sanitized_candidate)
+                sanitized_candidate, placeholders = (
+                    self.content_sanitizer.sanitize_full_file_output(candidate)
+                )
+                balanced_candidate = self.content_sanitizer.balance_json_brackets(
+                    sanitized_candidate
+                )
                 result_json = self.content_sanitizer.attempt_json_parse(balanced_candidate)
                 if result_json:
                     placeholder_map = placeholders
@@ -521,7 +524,9 @@ class FullFileParser:
                 new_line_count = new_content.count("\n") + 1 if new_content else 0
 
                 # Pack YAML preflight validation (per ref2.md - pack quality improvements)
-                pack_validation_error = self.pack_validator.validate_pack_fullfile(file_path, new_content)
+                pack_validation_error = self.pack_validator.validate_pack_fullfile(
+                    file_path, new_content
+                )
                 if pack_validation_error:
                     logger.error(f"[Builder] {pack_validation_error}")
                     return FullFileParseResult(

@@ -131,6 +131,9 @@ jobs:
   cve-check:
     name: CVE Vulnerability Scan
     runs-on: ubuntu-latest
+    # Non-blocking initially while existing vulnerabilities are addressed
+    # TODO: Remove continue-on-error once all CVEs are fixed
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python

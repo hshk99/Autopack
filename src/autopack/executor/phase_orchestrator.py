@@ -181,9 +181,7 @@ class PhaseOrchestrator:
         scope_config = context.phase.get("scope") or {}
 
         if not scope_config.get("paths") and context.manifest_generator:
-            logger.info(
-                f"[BUILD-123v2] Phase '{phase_id}' has no scope - generating manifest..."
-            )
+            logger.info(f"[BUILD-123v2] Phase '{phase_id}' has no scope - generating manifest...")
             try:
                 # Create minimal plan for this phase
                 minimal_plan = {"run_id": context.run_id, "phases": [context.phase]}
@@ -576,9 +574,7 @@ class PhaseOrchestrator:
 
         error_text = f"Status: {status}, Attempt: {context.attempt_index + 1}"
         hardening_context = {
-            "workspace": (
-                Path(context.workspace_root) if context.workspace_root else Path.cwd()
-            ),
+            "workspace": (Path(context.workspace_root) if context.workspace_root else Path.cwd()),
             "phase_id": phase_id,
             "status": status,
             "scope_paths": context.phase.get("scope", {}).get("paths", []),
@@ -689,9 +685,7 @@ class PhaseOrchestrator:
 
         Returns ExecutionResult if stuck handling was triggered, None otherwise.
         """
-        if not (
-            context.intention_wiring is not None and context.intention_anchor is not None
-        ):
+        if not (context.intention_wiring is not None and context.intention_anchor is not None):
             return None
 
         from autopack.executor.intention_stuck_handler import IntentionStuckHandler
@@ -848,9 +842,7 @@ class PhaseOrchestrator:
             logger.warning(f"[{phase_id}] Re-planning failed, continuing with original approach")
             return None
 
-    def _handle_doctor_replan(
-        self, context: ExecutionContext, phase_id: str
-    ) -> ExecutionResult:
+    def _handle_doctor_replan(self, context: ExecutionContext, phase_id: str) -> ExecutionResult:
         """Handle Doctor-triggered replanning (BUILD-050 Phase 2)."""
         if context.get_phase_from_db and context.update_phase_attempts_in_db:
             phase_db = context.get_phase_from_db(phase_id)

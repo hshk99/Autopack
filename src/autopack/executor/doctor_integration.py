@@ -310,9 +310,7 @@ class DoctorIntegration:
                 if intention_injector:
                     intention_reminder = intention_injector.get_intention_context(max_chars=512)
                     if intention_reminder:
-                        doctor_logs_excerpt = (
-                            f"[Project Intention]\n{intention_reminder}\n\n[Error Context]\n{logs_excerpt}"
-                        )
+                        doctor_logs_excerpt = f"[Project Intention]\n{intention_reminder}\n\n[Error Context]\n{logs_excerpt}"
                         logger.debug(f"[{phase_id}] Added intention reminder to Doctor context")
             except Exception as e:
                 logger.warning(f"[{phase_id}] Failed to add intention to Doctor logs: {e}")

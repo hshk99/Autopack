@@ -5,7 +5,6 @@ These tests verify the approach flaw detection and replanning logic.
 """
 
 
-
 def test_replan_trigger_imports():
     """Verify replan trigger can be imported"""
     from autopack.executor.replan_trigger import ReplanTrigger, ReplanConfig
@@ -229,9 +228,7 @@ def test_fatal_error_types():
     """Test that fatal error types trigger immediately"""
     from autopack.executor.replan_trigger import ReplanTrigger, ReplanConfig
 
-    config = ReplanConfig(
-        trigger_threshold=3, fatal_error_types=["fatal_error", "unrecoverable"]
-    )
+    config = ReplanConfig(trigger_threshold=3, fatal_error_types=["fatal_error", "unrecoverable"])
     trigger = ReplanTrigger(config=config)
 
     # Only 1 error, but it's fatal

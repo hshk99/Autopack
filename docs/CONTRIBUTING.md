@@ -15,6 +15,8 @@ Thank you for your interest in contributing to Autopack! This guide will help yo
 7. [Debugging Tips](#debugging-tips)
 8. [Getting Help](#getting-help)
 
+**🚀 CI-Efficient Development**: See [CI_EFFICIENT_DEVELOPMENT.md](CI_EFFICIENT_DEVELOPMENT.md) for workflows that minimize CI time (parallel execution, smart pre-flight testing, comprehensive scan strategies).
+
 ---
 
 ## Development Setup

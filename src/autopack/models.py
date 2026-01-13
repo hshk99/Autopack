@@ -178,7 +178,7 @@ class Phase(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     phase_id = Column(String, nullable=False, index=True)  # e.g. "F2.3", "auth-001"
-    run_id = Column(String, ForeignKey("runs.id"), nullable=False)
+    run_id = Column(String, ForeignKey("runs.id"), nullable=False, index=True)
     tier_id = Column(Integer, ForeignKey("tiers.id"), nullable=False)
 
     # Ordering
@@ -187,7 +187,7 @@ class Phase(Base):
     # Metadata
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    state = Column(SQLEnum(PhaseState), nullable=False, default=PhaseState.QUEUED)
+    state = Column(SQLEnum(PhaseState), nullable=False, default=PhaseState.QUEUED, index=True)
 
     # Classification (per §4.1 of v7 playbook)
     task_category = Column(String, nullable=True)  # e.g. schema_change, cross_cutting_refactor

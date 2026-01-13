@@ -317,5 +317,71 @@ def test_migration_script_syntax():
         pytest.skip("Migration script not importable (expected in test environment)")
 
 
+def test_imp_p02_model_indexes():
+    """Test IMP-P02: Verify Phase model has indexes on run_id and state.
+
+    This test verifies that the model-level indexes defined in models.py
+    are correctly created when tables are initialized.
+    """
+    from autopack.database import Base
+    from autopack.models import Phase
+    from sqlalchemy import create_engine, inspect
+
+    # Create in-memory database
+    engine = create_engine("sqlite:///:memory:")
+
+    # Create all tables from models
+    Base.metadata.create_all(engine)
+
+    # Inspect indexes on phases table
+    inspector = inspect(engine)
+    indexes = inspector.get_indexes("phases")
+
+    # Extract index column names
+    index_columns = set()
+    for idx in indexes:
+        # Each index has a 'column_names' list
+        for col in idx['column_names']:
+            index_columns.add(col)
+
+    # Verify IMP-P02 required indexes exist
+    assert 'run_id' in index_columns, "Phase.run_id should have index (IMP-P02)"
+    assert 'state' in index_columns, "Phase.state should have index (IMP-P02)"
+
+    engine.dispose()
+
+
+def test_imp_p02_llm_usage_events_created_at_index():
+    """Test IMP-P02: Verify LlmUsageEvent has index on created_at.
+
+    This test verifies that llm_usage_events.created_at has an index
+    as required by dashboard queries (dashboard.py:113).
+    """
+    from autopack.database import Base
+    from autopack.usage_recorder import LlmUsageEvent
+    from sqlalchemy import create_engine, inspect
+
+    # Create in-memory database
+    engine = create_engine("sqlite:///:memory:")
+
+    # Create all tables from models
+    Base.metadata.create_all(engine)
+
+    # Inspect indexes on llm_usage_events table
+    inspector = inspect(engine)
+    indexes = inspector.get_indexes("llm_usage_events")
+
+    # Extract index column names
+    index_columns = set()
+    for idx in indexes:
+        for col in idx['column_names']:
+            index_columns.add(col)
+
+    # Verify created_at has index (IMP-P02 requirement)
+    assert 'created_at' in index_columns, "LlmUsageEvent.created_at should have index (IMP-P02)"
+
+    engine.dispose()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

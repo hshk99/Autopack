@@ -24,7 +24,6 @@ Environment Variables:
 
 import os
 import sys
-import shlex
 import time
 import json
 import argparse
@@ -53,7 +52,7 @@ from autopack.error_recovery import (
     DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
 )
 from autopack.llm_service import LlmService
-from autopack.debug_journal import log_error, log_fix
+from autopack.debug_journal import log_error
 from autopack.archive_consolidator import log_build_event
 from autopack.learned_rules import (
     load_project_rules,
@@ -100,7 +99,6 @@ from autopack.executor.run_checkpoint import (
     create_run_checkpoint,
     rollback_to_run_checkpoint,
     create_deletion_savepoint,
-    create_execute_fix_checkpoint,
 )
 
 # PR-EXE-9: Phase state persistence manager
@@ -117,6 +115,13 @@ from autopack.api.builder_result_poster import BuilderResultPoster
 from autopack.api.auditor_result_poster import AuditorResultPoster
 from autopack.executor.autonomous_loop import AutonomousLoop
 from autopack.api.server_lifecycle import APIServerLifecycle
+
+# PR-EXE-13: Final helper extraction - reach 5,000 lines!
+from autopack.executor.scope_context_validator import ScopeContextValidator
+from autopack.ci.pytest_runner import PytestRunner
+from autopack.ci.custom_runner import CustomRunner
+from autopack.executor.execute_fix_handler import ExecuteFixHandler
+from autopack.executor.phase_approach_reviser import PhaseApproachReviser
 
 
 # Configure logging
@@ -648,6 +653,16 @@ class AutonomousExecutor:
         except Exception as e:
             logger.warning(f"[BUILD-127] T0 baseline capture failed (non-blocking): {e}")
             self.t0_baseline = None
+
+        # PR-EXE-13: Initialize final helper modules - reach 5,000 lines!
+        self.scope_context_validator = ScopeContextValidator(self)
+        self.pytest_runner = PytestRunner(
+            workspace=Path(self.workspace), run_id=self.run_id, phase_finalizer=self.phase_finalizer
+        )
+        self.custom_runner = CustomRunner(workspace=Path(self.workspace), run_id=self.run_id)
+        self.execute_fix_handler = ExecuteFixHandler(self)
+        self.phase_approach_reviser = PhaseApproachReviser(self)
+        logger.info("[PR-EXE-13] Final helper modules initialized - 5,000 line target reached!")
 
     # =========================================================================
     # BACKLOG MAINTENANCE (propose-first apply with auditor gating)
@@ -2157,245 +2172,11 @@ class AutonomousExecutor:
     def _revise_phase_approach(
         self, phase: Dict, flaw_type: str, error_history: List[Dict]
     ) -> Optional[Dict]:
+        """Revise phase approach based on failure context.
+
+        Extracted to PhaseApproachReviser in PR-EXE-13.
         """
-        Invoke LLM to revise the phase approach based on failure context.
-
-        This is the core of mid-run re-planning: we ask the LLM to analyze
-        what went wrong and provide a revised implementation approach.
-
-        Per GPT_RESPONSE27: Now includes Goal Anchoring to prevent context drift:
-        - Stores and references original_intent
-        - Includes hard constraint in prompt
-        - Classifies alignment of revision
-        - Records telemetry for monitoring
-
-        Args:
-            phase: Original phase specification
-            flaw_type: Detected flaw type
-            error_history: History of errors for this phase
-
-        Returns:
-            Revised phase specification dict, or None if revision failed
-        """
-        phase_id = phase.get("phase_id")
-        phase_name = phase.get("name", phase_id)
-        current_description = phase.get("description", "")
-
-        # [Goal Anchoring] Initialize if this is the first replan for this phase
-        self._initialize_phase_goal_anchor(phase)
-
-        # Get the true original intent (before any replanning)
-        original_intent = self._phase_original_intent.get(phase_id, "")
-        original_description = self._phase_original_description.get(phase_id, current_description)
-        replan_attempt = len(self._phase_replan_history.get(phase_id, [])) + 1
-
-        logger.info(
-            f"[Re-Plan] Revising approach for {phase_id} due to {flaw_type} (attempt {replan_attempt})"
-        )
-        logger.info(f"[GoalAnchor] Original intent: {original_intent[:100]}...")
-
-        # Build context from error history
-        error_summary = "\n".join(
-            [
-                f"- Attempt {e['attempt'] + 1}: {e['error_type']} - {e['error_details'][:200]}"
-                for e in error_history[-5:]  # Last 5 errors
-            ]
-        )
-
-        # Get any run hints that might help
-        learning_context = self._get_learning_context_for_phase(phase) or {}
-        hints_summary = "\n".join(
-            [f"- {hint}" for hint in learning_context.get("run_hints", [])[:3]]
-        )
-
-        # [Goal Anchoring] Per GPT_RESPONSE27: Include original_intent with HARD CONSTRAINT
-        replan_prompt = f"""You are a senior software architect. A phase in our automated build system has failed repeatedly with the same error pattern. Your task is to analyze the failures and provide a revised implementation approach.
-
-## Original Phase Specification
-**Phase**: {phase_name}
-**Description**: {current_description}
-**Category**: {phase.get('task_category', 'general')}
-**Complexity**: {phase.get('complexity', 'medium')}
-
-## Error Pattern Detected
-**Flaw Type**: {flaw_type}
-**Recent Errors**:
-{error_summary}
-
-## Learning Hints from Earlier Phases
-{hints_summary if hints_summary else "(No hints available)"}
-
-## CRITICAL CONSTRAINT - GOAL ANCHORING
-The revised approach MUST still achieve this core goal:
-**Original Intent**: {original_intent}
-
-Do NOT reduce scope, skip functionality, or change what the phase achieves.
-Only change HOW it achieves the goal, not WHAT it achieves.
-
-## Your Task
-Analyze why the current approach kept failing and provide a REVISED description that:
-1. MAINTAINS the original intent and scope (CRITICAL - no scope reduction)
-2. Addresses the root cause of the repeated failures
-3. Uses a different implementation strategy if needed
-4. Includes specific guidance to avoid the detected error pattern
-
-## Output Format
-Provide ONLY the revised description text. Do not include JSON, markdown headers, or explanations.
-Just the new description that should replace the current one while preserving the original goal.
-"""
-
-        try:
-            # Use LlmService to invoke planner (use strongest model for replanning)
-            if not self.llm_service:
-                logger.error("[Re-Plan] LlmService not initialized")
-                return None
-
-            # NOTE: Re-planning is best-effort. If Anthropic is disabled/unavailable (e.g., credits exhausted),
-            # skip replanning rather than spamming repeated 400s.
-            try:
-                if hasattr(self.llm_service, "model_router") and "anthropic" in getattr(
-                    self.llm_service.model_router, "disabled_providers", set()
-                ):
-                    logger.info(
-                        "[Re-Plan] Skipping re-planning because provider 'anthropic' is disabled for this run/process"
-                    )
-                    return None
-            except Exception:
-                pass
-
-            # Current implementation uses Anthropic directly for replanning; require key.
-            import os
-
-            api_key = os.environ.get("ANTHROPIC_API_KEY")
-            if not api_key:
-                logger.info("[Re-Plan] Skipping re-planning because ANTHROPIC_API_KEY is not set")
-                return None
-
-            # Use Claude for re-planning (strongest model)
-            import anthropic
-
-            client = anthropic.Anthropic(api_key=api_key)
-
-            response = client.messages.create(
-                model="claude-sonnet-4-20250514",  # Use strong model for re-planning
-                max_tokens=2000,
-                messages=[{"role": "user", "content": replan_prompt}],
-            )
-
-            # Defensive: ensure response has text content
-            content_blocks = getattr(response, "content", None) or []
-            first_block = content_blocks[0] if content_blocks else None
-            revised_description = (getattr(first_block, "text", "") or "").strip()
-
-            if not revised_description or len(revised_description) < 20:
-                logger.error("[Re-Plan] LLM returned empty or too-short revision")
-                # Record failed replan telemetry
-                self._record_replan_telemetry(
-                    phase_id=phase_id,
-                    attempt=replan_attempt,
-                    original_description=original_description,
-                    revised_description="",
-                    reason=flaw_type,
-                    alignment={"alignment": "failed", "notes": "LLM returned empty revision"},
-                    success=False,
-                )
-                return None
-
-            # [Goal Anchoring] Classify alignment of revision vs original intent
-            alignment = self._classify_replan_alignment(original_intent, revised_description)
-
-            # Log alignment classification
-            logger.info(
-                f"[GoalAnchor] Alignment classification: {alignment.get('alignment')} - {alignment.get('notes')}"
-            )
-
-            # [Goal Anchoring] Warn if scope appears narrowed (but don't block in Phase 1)
-            if alignment.get("alignment") == "narrower":
-                logger.warning(
-                    f"[GoalAnchor] WARNING: Revision appears to narrow scope for {phase_id}. "
-                    f"Original intent: '{original_intent[:50]}...' "
-                    f"This may indicate goal drift."
-                )
-
-            # Create revised phase spec
-            revised_phase = phase.copy()
-            revised_phase["description"] = revised_description
-            revised_phase["_original_description"] = original_description
-            revised_phase["_original_intent"] = original_intent  # [Goal Anchoring]
-            revised_phase["_revision_reason"] = f"Approach flaw: {flaw_type}"
-            revised_phase["_revision_timestamp"] = time.time()
-            revised_phase["_revision_alignment"] = alignment  # [Goal Anchoring]
-
-            logger.info(f"[Re-Plan] Successfully revised phase {phase_id}")
-            logger.info(f"[Re-Plan] Original: {original_description[:100]}...")
-            logger.info(f"[Re-Plan] Revised: {revised_description[:100]}...")
-
-            # Store and track
-            self._phase_revised_specs[phase_id] = revised_phase
-            self._phase_revised_specs[f"_replan_count_{phase_id}"] = (
-                self._get_replan_count(phase_id) + 1
-            )
-
-            # Clear error history for fresh start with new approach
-            self._phase_error_history[phase_id] = []
-
-            # [Goal Anchoring] Record telemetry (success will be updated later if phase succeeds)
-            self._record_replan_telemetry(
-                phase_id=phase_id,
-                attempt=replan_attempt,
-                original_description=original_description,
-                revised_description=revised_description,
-                reason=flaw_type,
-                alignment=alignment,
-                success=False,  # Will be updated if phase eventually succeeds
-            )
-
-            # Record this re-planning event
-            log_build_event(
-                event_type="PHASE_REPLANNED",
-                description=f"Phase {phase_id} replanned due to {flaw_type}. Alignment: {alignment.get('alignment')}. Original: '{original_description[:50]}...' -> Revised approach applied.",
-                deliverables=[
-                    f"Run: {self.run_id}",
-                    f"Phase: {phase_id}",
-                    f"Flaw: {flaw_type}",
-                    f"Alignment: {alignment.get('alignment')}",
-                ],
-                project_slug=self._get_project_slug(),
-            )
-
-            # Record plan change + decision log for memory/DB
-            try:
-                self._record_plan_change_entry(
-                    summary=f"{phase_id} replanned (attempt {replan_attempt})",
-                    rationale=f"flaw={flaw_type}; alignment={alignment.get('alignment')}",
-                    phase_id=phase_id,
-                    replaces_version=replan_attempt - 1 if replan_attempt > 1 else None,
-                )
-                self._record_decision_entry(
-                    trigger=f"replan:{flaw_type}",
-                    choice="replan",
-                    rationale=f"Replanned to address {flaw_type}",
-                    phase_id=phase_id,
-                    alternatives="retry_with_fix,replan,skip,rollback",
-                )
-            except Exception as log_exc:
-                logger.warning(f"[Re-Plan] Telemetry write failed: {log_exc}")
-
-            return revised_phase
-
-        except Exception as e:
-            logger.error(f"[Re-Plan] Failed to revise phase: {e}")
-            # Record failed replan telemetry
-            self._record_replan_telemetry(
-                phase_id=phase_id,
-                attempt=replan_attempt,
-                original_description=original_description,
-                revised_description="",
-                reason=flaw_type,
-                alignment={"alignment": "error", "notes": str(e)},
-                success=False,
-            )
-            return None
+        return self.phase_approach_reviser.revise_approach(phase, flaw_type, error_history)
 
     def _get_phase_spec_for_execution(self, phase: Dict) -> Dict:
         """
@@ -2926,252 +2707,15 @@ Just the new description that should replace the current one while preserving th
     # EXECUTE_FIX IMPLEMENTATION (Phase 3 - GPT_RESPONSE9)
     # =========================================================================
 
-    def _validate_fix_commands(self, commands: List[str], fix_type: str) -> Tuple[bool, List[str]]:
-        """
-        Validate fix commands against whitelist and security rules.
-
-        Per GPT_RESPONSE9: Use shlex + regex + banned metacharacters.
-
-        Args:
-            commands: List of shell commands to validate
-            fix_type: Type of fix ("git", "file", "python")
-
-        Returns:
-            Tuple of (is_valid: bool, errors: List[str])
-        """
-        errors = []
-
-        # Check fix_type is allowed
-        if fix_type not in ALLOWED_FIX_TYPES:
-            errors.append(f"fix_type '{fix_type}' not in allowed types: {ALLOWED_FIX_TYPES}")
-            return False, errors
-
-        # Get whitelist patterns for this fix_type
-        whitelist_patterns = ALLOWED_FIX_COMMANDS.get(fix_type, [])
-        if not whitelist_patterns:
-            errors.append(f"No whitelist patterns defined for fix_type '{fix_type}'")
-            return False, errors
-
-        for cmd in commands:
-            # Check for banned command prefixes
-            for banned in BANNED_COMMAND_PREFIXES:
-                if cmd.strip().startswith(banned):
-                    errors.append(f"Command '{cmd}' uses banned prefix '{banned}'")
-                    continue
-
-            # Check for banned metacharacters
-            for char in BANNED_METACHARACTERS:
-                if char in cmd:
-                    errors.append(f"Command '{cmd}' contains banned metacharacter '{char}'")
-                    continue
-
-            # Validate against whitelist using shlex + regex
-            try:
-                # Use shlex to properly tokenize (handles quoted arguments)
-                shlex.split(cmd)
-            except ValueError as e:
-                errors.append(f"Command '{cmd}' failed shlex parsing: {e}")
-                continue
-
-            # Check if command matches any whitelist pattern
-            matched = False
-            for pattern in whitelist_patterns:
-                if re.match(pattern, cmd):
-                    matched = True
-                    break
-
-            if not matched:
-                errors.append(
-                    f"Command '{cmd}' does not match any whitelist pattern for type '{fix_type}'"
-                )
-
-        return len(errors) == 0, errors
-
     def _handle_execute_fix(
         self, phase: Dict, response: DoctorResponse
     ) -> Tuple[Optional[str], bool]:
+        """Handle Doctor's execute_fix action.
+
+        Extracted to ExecuteFixHandler in PR-EXE-13.
         """
-        Handle Doctor's execute_fix action - direct infrastructure fixes.
-
-        Per GPT_RESPONSE9:
-        - One execute_fix attempt per phase
-        - Validate commands against whitelist
-        - Create git checkpoint before execution
-        - Execute commands via subprocess
-        - Run verify_command if provided
-
-        Args:
-            phase: Phase specification
-            response: Doctor's response with fix_commands, fix_type, verify_command
-
-        Returns:
-            Tuple of (action_taken: str or None, should_continue_retry: bool)
-        """
-        phase_id = phase.get("phase_id")
-
-        # Check if execute_fix is enabled (user opt-in)
-        if not self._allow_execute_fix:
-            logger.warning(
-                "[Doctor] execute_fix requested but disabled. "
-                "Enable via models.yaml: doctor.allow_execute_fix_global: true"
-            )
-            log_error(
-                error_signature=f"execute_fix disabled: {phase_id}",
-                symptom="execute_fix action requested but feature is disabled",
-                run_id=self.run_id,
-                phase_id=phase_id,
-                suspected_cause="User opt-in required via models.yaml",
-                priority="HIGH",
-            )
-            # Fall back to retry_with_fix behavior
-            hint = response.builder_hint or "Infrastructure fix needed but execute_fix disabled"
-            self._builder_hint_by_phase[phase_id] = hint
-            return "execute_fix_disabled", True
-
-        # Check per-phase limit
-        current_count = self._execute_fix_by_phase.get(phase_id, 0)
-        if current_count >= MAX_EXECUTE_FIX_PER_PHASE:
-            logger.warning(
-                f"[Doctor] execute_fix limit reached for phase {phase_id} "
-                f"({current_count}/{MAX_EXECUTE_FIX_PER_PHASE})"
-            )
-            # Fall back to mark_fatal since we can't fix it
-            self._update_phase_status(phase_id, "FAILED")
-            return "execute_fix_limit", False
-
-        # Validate fix_commands and fix_type
-        fix_commands = response.fix_commands or []
-        fix_type = response.fix_type or ""
-        verify_command = response.verify_command
-
-        # Safety: In project_build runs, do not allow Doctor to execute git-based fixes.
-        # The git fix recipes commonly include `git reset --hard` / `git clean -fd` which will:
-        # - wipe partially-generated deliverables needed for convergence
-        # - create noisy checkpoint commits
-        # - potentially discard unrelated local work in the repo
-        #
-        # For Autopack self-maintenance runs, git execute_fix is acceptable (controlled, intentional).
-        if self.run_type == "project_build" and fix_type == "git":
-            logger.warning(
-                f"[Doctor] Blocking execute_fix of type 'git' for project_build run (phase={phase_id}). "
-                f"Falling back to normal retry loop."
-            )
-            try:
-                log_fix(
-                    error_signature=f"execute_fix blocked (git) for {phase_id}",
-                    fix_description=(
-                        "Blocked Doctor execute_fix with fix_type='git' for project_build run to prevent "
-                        "destructive repo operations (e.g., git reset --hard / git clean -fd) from wiping "
-                        "partially-generated deliverables and obscuring debugging history."
-                    ),
-                    files_changed=[],
-                    run_id=self.run_id,
-                    phase_id=phase_id,
-                    outcome="BLOCKED_GIT_EXECUTE_FIX",
-                )
-            except Exception:
-                pass
-            hint = (
-                response.builder_hint
-                or "Fix attempt blocked: git execute_fix is disabled for project_build runs"
-            )
-            self._builder_hint_by_phase[phase_id] = hint
-            return "execute_fix_blocked_git_project_build", True
-
-        if not fix_commands:
-            logger.warning("[Doctor] execute_fix requested but no fix_commands provided")
-            return "execute_fix_no_commands", True
-
-        # Validate commands
-        is_valid, validation_errors = self._validate_fix_commands(fix_commands, fix_type)
-        if not is_valid:
-            logger.error(f"[Doctor] execute_fix command validation failed: {validation_errors}")
-            log_error(
-                error_signature=f"execute_fix validation failed: {phase_id}",
-                symptom=f"Commands failed validation: {validation_errors}",
-                run_id=self.run_id,
-                phase_id=phase_id,
-                suspected_cause="Doctor suggested invalid/unsafe commands",
-                priority="HIGH",
-            )
-            # Fall back to retry_with_fix
-            hint = f"execute_fix validation failed: {validation_errors[0]}"
-            self._builder_hint_by_phase[phase_id] = hint
-            return "execute_fix_invalid", True
-
-        # Create git checkpoint (commit) before executing
-        # PR-EXE-4: Delegated to run_checkpoint module
-        create_execute_fix_checkpoint(workspace=Path(self.workspace), phase_id=phase_id)
-
-        # Execute fix commands
-        logger.info(f"[Doctor] Executing {len(fix_commands)} fix commands (type: {fix_type})...")
-        self._execute_fix_by_phase[phase_id] = current_count + 1
-
-        all_succeeded = True
-        for i, cmd in enumerate(fix_commands):
-            logger.info(f"[Doctor] Executing [{i+1}/{len(fix_commands)}]: {cmd}")
-            try:
-                # Execute in workspace directory
-                result = subprocess.run(
-                    cmd,
-                    shell=True,  # Required for complex commands
-                    cwd=str(self.workspace),
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                )
-                if result.returncode != 0:
-                    logger.error(
-                        f"[Doctor] Command failed (exit {result.returncode}): {result.stderr}"
-                    )
-                    all_succeeded = False
-                    break
-                else:
-                    logger.info(f"[Doctor] Command succeeded: {result.stdout[:200]}")
-            except subprocess.TimeoutExpired:
-                logger.error(f"[Doctor] Command timed out: {cmd}")
-                all_succeeded = False
-                break
-            except Exception as e:
-                logger.error(f"[Doctor] Command execution error: {e}")
-                all_succeeded = False
-                break
-
-        # Run verify_command if provided
-        if all_succeeded and verify_command:
-            logger.info(f"[Doctor] Running verify command: {verify_command}")
-            try:
-                verify_result = subprocess.run(
-                    verify_command,
-                    shell=True,
-                    cwd=str(self.workspace),
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                )
-                if verify_result.returncode != 0:
-                    logger.warning(f"[Doctor] Verify command failed: {verify_result.stderr}")
-                    all_succeeded = False
-                else:
-                    logger.info("[Doctor] Verify command passed")
-            except Exception as e:
-                logger.warning(f"[Doctor] Verify command error: {e}")
-                all_succeeded = False
-
-        if all_succeeded:
-            logger.info("[Doctor] execute_fix succeeded - continuing retry loop")
-            log_fix(
-                error_signature=f"execute_fix success: {phase_id}",
-                fix_description=f"Executed {len(fix_commands)} commands: {fix_commands}",
-                run_id=self.run_id,
-                phase_id=phase_id,
-                outcome="RESOLVED_BY_EXECUTE_FIX",
-            )
-            return "execute_fix_success", True  # Continue retry loop
-        else:
-            logger.warning("[Doctor] execute_fix failed - marking phase as failed")
-            self._update_phase_status(phase_id, "FAILED")
-            return "execute_fix_failed", False
+        result = self.execute_fix_handler.execute_fix(phase, response)
+        return result.action_taken, result.should_continue_retry
 
     def _build_run_context(self) -> Dict[str, Any]:
         """Build run context with model overrides if specified.
@@ -4696,106 +4240,9 @@ Just the new description that should replace the current one while preserving th
     def _validate_scope_context(self, phase: Dict, file_context: Dict, scope_config: Dict):
         """Validate that loaded context matches scope configuration (Option C - Layer 1).
 
-        This is the first validation layer (pre-Builder).
-        Second layer is in GovernedApplyPath (patch application).
-
-        Args:
-            phase: Phase specification
-            file_context: Loaded file context from _load_repository_context
-            scope_config: Scope configuration dict
-
-        Raises:
-            RuntimeError: If validation fails
+        Extracted to ScopeContextValidator in PR-EXE-13.
         """
-        phase.get("phase_id")
-        scope_paths = scope_config.get("paths", [])
-        loaded_files = set(file_context.get("existing_files", {}).keys())
-
-        workspace_root = self._determine_workspace_root(scope_config)
-        normalized_scope: List[str] = []
-        scope_dir_prefixes: List[str] = []
-        for path_str in scope_paths:
-            resolved = self._resolve_scope_target(path_str, workspace_root, must_exist=False)
-            if resolved:
-                abs_path, rel_key = resolved
-                normalized_scope.append(rel_key)
-                # If scope entry is a directory, treat all children as in-scope
-                if abs_path.exists() and abs_path.is_dir():
-                    prefix = rel_key if rel_key.endswith("/") else f"{rel_key}/"
-                    scope_dir_prefixes.append(prefix)
-            else:
-                norm = path_str.replace("\\", "/")
-                normalized_scope.append(norm)
-                if norm.endswith("/"):
-                    scope_dir_prefixes.append(norm)
-
-        # Check for files outside scope (indicating scope loading bug)
-        scope_set = set(normalized_scope)
-
-        def _is_in_scope(file_path: str) -> bool:
-            if file_path in scope_set:
-                return True
-            # Allow directory scope entries as prefixes
-            if any(file_path.startswith(prefix) for prefix in scope_dir_prefixes):
-                return True
-            return False
-
-        outside_scope = {f for f in loaded_files if not _is_in_scope(f)}
-
-        if outside_scope:
-            readonly_context = scope_config.get("read_only_context", [])
-            readonly_exact: set[str] = set()
-            readonly_prefixes: List[str] = []
-
-            for entry in readonly_context:
-                # BUILD-145 P0: Handle both dict and legacy string format
-                if isinstance(entry, dict):
-                    path_str = entry.get("path", "")
-                else:
-                    path_str = entry
-
-                if not path_str:
-                    continue
-
-                resolved = self._resolve_scope_target(path_str, workspace_root, must_exist=False)
-                if resolved:
-                    _, rel_key = resolved
-                    if rel_key.endswith("/"):
-                        readonly_prefixes.append(rel_key)
-                    elif Path(rel_key).suffix:
-                        readonly_exact.add(rel_key)
-                    else:
-                        readonly_prefixes.append(rel_key + "/")
-                else:
-                    normalized = path_str.replace("\\", "/")
-                    if normalized.endswith("/"):
-                        readonly_prefixes.append(normalized)
-                    else:
-                        readonly_exact.add(normalized)
-
-            def _is_readonly_allowed(file_path: str) -> bool:
-                if file_path in readonly_exact:
-                    return True
-                for prefix in readonly_prefixes:
-                    if file_path.startswith(prefix):
-                        return True
-                return False
-
-            truly_outside = {path for path in outside_scope if not _is_readonly_allowed(path)}
-
-            if truly_outside:
-                error_msg = (
-                    f"[Scope] VALIDATION FAILED: {len(truly_outside)} files loaded outside scope:\n"
-                    f"  Scope paths: {normalized_scope}\n"
-                    f"  Read-only context prefixes: {readonly_prefixes or readonly_exact}\n"
-                    f"  Files outside scope: {list(truly_outside)[:10]}"
-                )
-                logger.error(error_msg)
-                raise RuntimeError("Scope validation failed: loaded files outside scope.paths")
-
-        logger.info(
-            f"[Scope] Validation passed: {len(loaded_files)} files match scope configuration"
-        )
+        return self.scope_context_validator.validate(phase, file_context, scope_config)
 
     def _post_builder_result(
         self, phase_id: str, result: BuilderResult, allowed_paths: Optional[List[str]] = None
@@ -5173,331 +4620,20 @@ Just the new description that should replace the current one while preserving th
             return self._run_pytest_ci(phase_id, ci_spec)
 
     def _run_pytest_ci(self, phase_id: str, ci_spec: Dict[str, Any]) -> Dict[str, Any]:
-        logger.info(f"[{phase_id}] Running CI checks (pytest)...")
+        """Run pytest CI checks.
 
-        workdir = Path(self.workspace) / ci_spec.get("workdir", ".")
-        if not workdir.exists():
-            logger.warning(
-                f"[{phase_id}] CI workdir {workdir} missing, defaulting to workspace root"
-            )
-            workdir = Path(self.workspace)
-
-        pytest_paths = ci_spec.get("paths")
-        if not pytest_paths:
-            project_slug = self._get_project_slug()
-            if project_slug == "file-organizer-app-v1":
-                candidate_paths = [
-                    "fileorganizer/backend/tests/",
-                    "src/backend/tests/",
-                    "tests/backend/",
-                ]
-            else:
-                candidate_paths = ["tests/"]
-
-            for path in candidate_paths:
-                if (workdir / path).exists():
-                    pytest_paths = [path]
-                    break
-
-        if not pytest_paths:
-            logger.warning(f"[{phase_id}] No pytest paths found, skipping CI checks")
-            return {
-                "status": "skipped",
-                "message": "No pytest paths found",
-                "passed": True,
-                "tests_run": 0,
-                "tests_passed": 0,
-                "tests_failed": 0,
-                "tests_error": 0,
-                "duration_seconds": 0.0,
-                "output": "",
-                "error": None,
-                "skipped": True,
-                "suspicious_zero_tests": False,
-            }
-
-        per_test_timeout = ci_spec.get("per_test_timeout", 60)
-        default_args = [
-            "-v",
-            "--tb=line",
-            "-q",
-            "--no-header",
-            f"--timeout={per_test_timeout}",
-        ]
-        pytest_args = ci_spec.get("args", [])
-        # BUILD-127: Emit a structured pytest JSON report so PhaseFinalizer/TestBaselineTracker can
-        # compute regressions safely. We still persist a full text log for humans.
-        ci_dir = Path(self.workspace) / ".autonomous_runs" / self.run_id / "ci"
-        ci_dir.mkdir(parents=True, exist_ok=True)
-        json_report_path = ci_dir / ci_spec.get("json_report_name", f"pytest_{phase_id}.json")
-
-        cmd = [sys.executable, "-m", "pytest", *pytest_paths, *default_args, *pytest_args]
-        if "--json-report" not in cmd:
-            cmd.append("--json-report")
-        if not any(str(a).startswith("--json-report-file=") for a in cmd):
-            cmd.append(f"--json-report-file={json_report_path}")
-
-        env = os.environ.copy()
-        env.setdefault("PYTHONPATH", str(workdir / "src"))
-        env["TESTING"] = "1"
-        env["PYTHONUTF8"] = "1"
-        env.update(ci_spec.get("env", {}))
-
-        timeout_seconds = ci_spec.get("timeout_seconds") or ci_spec.get("timeout") or 300
-        start_time = time.time()
-        try:
-            result = subprocess.run(
-                cmd,
-                cwd=str(workdir),
-                capture_output=True,
-                text=True,
-                timeout=timeout_seconds,
-                env=env,
-            )
-        except subprocess.TimeoutExpired:
-            duration = time.time() - start_time
-            logger.error(f"[{phase_id}] Pytest timeout after {duration:.1f}s")
-            return {
-                "status": "failed",
-                "message": f"pytest timed out after {timeout_seconds}s",
-                "passed": False,
-                "tests_run": 0,
-                "tests_passed": 0,
-                "tests_failed": 0,
-                "tests_error": 0,
-                "duration_seconds": round(duration, 2),
-                "output": "",
-                "error": f"pytest timed out after {timeout_seconds}s",
-                "skipped": False,
-                "suspicious_zero_tests": False,
-            }
-
-        duration = time.time() - start_time
-        output = self._trim_ci_output(result.stdout + result.stderr)
-        tests_passed, tests_failed, tests_error = self._parse_pytest_counts(output)
-        tests_run = tests_passed + tests_failed + tests_error
-        passed = result.returncode == 0
-        no_tests_detected = tests_run == 0
-
-        error_msg = None
-        if no_tests_detected and not passed:
-            error_msg = "Possible collection error - no tests detected"
-        elif no_tests_detected and passed:
-            error_msg = "Warning: pytest reported success but no tests executed"
-
-        # Always persist a CI log so downstream components (dashboard/humans) have a stable artifact.
-        full_output = result.stdout + "\n\n--- STDERR ---\n\n" + result.stderr
-        log_name = ci_spec.get("log_name", f"pytest_{phase_id}.log")
-        log_path = self._persist_ci_log(log_name, full_output, phase_id)
-
-        # Prefer structured JSON report for automated delta computation. Fall back to the log if missing.
-        report_path: Optional[Path] = None
-        try:
-            if json_report_path.exists() and json_report_path.stat().st_size > 0:
-                report_path = json_report_path
-        except Exception:
-            report_path = None
-        if report_path is None:
-            report_path = log_path
-
-        if not passed and not error_msg:
-            error_msg = f"pytest exited with code {result.returncode}"
-
-        message = ci_spec.get("success_message") if passed else ci_spec.get("failure_message")
-        if not message:
-            if passed:
-                message = f"Pytest passed ({tests_passed}/{max(tests_run,1)} tests)"
-            else:
-                message = error_msg or "Pytest failed"
-
-        if passed:
-            logger.info(
-                f"[{phase_id}] CI checks PASSED: {tests_passed}/{max(tests_run,1)} tests passed in {duration:.1f}s"
-            )
-        else:
-            logger.warning(f"[{phase_id}] CI checks FAILED: return code {result.returncode}")
-
-        # Extract collector error digest for phase summary and downstream components
-        collector_digest = None
-        if result.returncode == 2 or (no_tests_detected and not passed):
-            # Exitcode 2 typically indicates collection/import errors
-            # Extract digest using PhaseFinalizer's helper
-            try:
-                workspace_path = Path(self.workspace)
-                collector_digest = self.phase_finalizer._extract_collection_error_digest(
-                    {"report_path": str(report_path) if report_path else None},
-                    workspace_path,
-                    max_errors=5,
-                )
-                if collector_digest:
-                    logger.warning(
-                        f"[{phase_id}] Collection errors detected: {len(collector_digest)} failures"
-                    )
-            except Exception as e:
-                logger.warning(f"[{phase_id}] Failed to extract collector digest: {e}")
-
-        return {
-            "status": "passed" if passed else "failed",
-            "message": message,
-            "passed": passed,
-            "tests_run": tests_run,
-            "tests_passed": tests_passed,
-            "tests_failed": tests_failed,
-            "tests_error": tests_error,
-            "duration_seconds": round(duration, 2),
-            "output": output,
-            "error": error_msg,
-            "report_path": str(report_path) if report_path else None,
-            "log_path": str(log_path) if log_path else None,
-            "skipped": False,
-            "suspicious_zero_tests": no_tests_detected,
-            "collector_error_digest": collector_digest,  # NEW: Collector error digest
-        }
+        Extracted to PytestRunner in PR-EXE-13.
+        """
+        result = self.pytest_runner.run(phase_id, ci_spec, project_slug=self._get_project_slug())
+        return result.__dict__
 
     def _run_custom_ci(self, phase_id: str, ci_spec: Dict[str, Any]) -> Dict[str, Any]:
-        command = ci_spec.get("command")
-        if not command:
-            logger.warning(f"[{phase_id}] CI spec missing 'command'; skipping")
-            return {
-                "status": "skipped",
-                "message": "CI command not configured",
-                "passed": True,
-                "tests_run": 0,
-                "tests_passed": 0,
-                "tests_failed": 0,
-                "tests_error": 0,
-                "duration_seconds": 0.0,
-                "output": "",
-                "error": None,
-                "skipped": True,
-                "suspicious_zero_tests": False,
-            }
+        """Run custom CI command.
 
-        workdir = Path(self.workspace) / ci_spec.get("workdir", ".")
-        if not workdir.exists():
-            logger.warning(
-                f"[{phase_id}] CI workdir {workdir} missing, defaulting to workspace root"
-            )
-            workdir = Path(self.workspace)
-
-        timeout_seconds = ci_spec.get("timeout_seconds") or ci_spec.get("timeout") or 600
-        env = os.environ.copy()
-        env.update(ci_spec.get("env", {}))
-
-        shell = ci_spec.get("shell", isinstance(command, str))
-        cmd = command
-        if isinstance(command, str) and not shell:
-            cmd = shlex.split(command)
-
-        logger.info(f"[{phase_id}] Running custom CI command: {command}")
-        start_time = time.time()
-        try:
-            result = subprocess.run(
-                cmd,
-                cwd=str(workdir),
-                capture_output=True,
-                text=True,
-                timeout=timeout_seconds,
-                env=env,
-                shell=shell,
-            )
-        except subprocess.TimeoutExpired:
-            duration = time.time() - start_time
-            logger.error(f"[{phase_id}] CI command timeout after {duration:.1f}s")
-            return {
-                "status": "failed",
-                "message": f"CI command timed out after {timeout_seconds}s",
-                "passed": False,
-                "tests_run": 0,
-                "tests_passed": 0,
-                "tests_failed": 0,
-                "tests_error": 0,
-                "duration_seconds": round(duration, 2),
-                "output": "",
-                "error": f"Command timed out after {timeout_seconds}s",
-                "skipped": False,
-                "suspicious_zero_tests": False,
-            }
-
-        duration = time.time() - start_time
-        output = self._trim_ci_output(result.stdout + result.stderr)
-        passed = result.returncode == 0
-
-        # Always persist a CI log so downstream components have a stable report_path.
-        full_output = result.stdout + "\n\n--- STDERR ---\n\n" + result.stderr
-        log_name = ci_spec.get("log_name", f"ci_{phase_id}.log")
-        report_path = self._persist_ci_log(log_name, full_output, phase_id)
-
-        message = ci_spec.get("success_message") if passed else ci_spec.get("failure_message")
-        if not message:
-            message = (
-                "CI command succeeded"
-                if passed
-                else f"CI command failed (exit {result.returncode})"
-            )
-
-        if passed:
-            logger.info(f"[{phase_id}] Custom CI command passed in {duration:.1f}s")
-        else:
-            logger.warning(f"[{phase_id}] Custom CI command failed (exit {result.returncode})")
-
-        return {
-            "status": "passed" if passed else "failed",
-            "message": message,
-            "passed": passed,
-            "tests_run": 0,
-            "tests_passed": 0,
-            "tests_failed": 0,
-            "tests_error": 0,
-            "duration_seconds": round(duration, 2),
-            "output": output,
-            "error": None if passed else f"Exit code {result.returncode}",
-            "report_path": str(report_path) if report_path else None,
-            "skipped": False,
-            "suspicious_zero_tests": False,
-        }
-
-    def _trim_ci_output(self, output: str, limit: int = 10000) -> str:
-        if len(output) <= limit:
-            return output
-        return output[: limit // 2] + "\n\n... (truncated) ...\n\n" + output[-limit // 2 :]
-
-    def _persist_ci_log(self, log_name: str, content: str, phase_id: str) -> Optional[Path]:
-        ci_log_dir = Path(self.workspace) / ".autonomous_runs" / self.run_id / "ci"
-        ci_log_dir.mkdir(parents=True, exist_ok=True)
-        log_path = ci_log_dir / log_name
-        try:
-            log_path.write_text(content, encoding="utf-8")
-            logger.info(f"[{phase_id}] CI output written to: {log_path}")
-            return log_path
-        except Exception as log_err:
-            logger.warning(f"[{phase_id}] Failed to write CI log ({log_name}): {log_err}")
-            return None
-
-    def _parse_pytest_counts(self, output: str) -> tuple[int, int, int]:
-        import re
-
-        tests_passed = tests_failed = tests_error = 0
-        for line in output.split("\n"):
-            line_lower = line.lower()
-            collection_error = re.search(r"(\d+)\s+errors?\s+during\s+collection", line_lower)
-            if collection_error:
-                tests_error = int(collection_error.group(1))
-                continue
-
-            passed_match = re.search(r"(\d+)\s+passed", line_lower)
-            if passed_match:
-                tests_passed = int(passed_match.group(1))
-
-            failed_match = re.search(r"(\d+)\s+failed", line_lower)
-            if failed_match:
-                tests_failed = int(failed_match.group(1))
-
-            error_match = re.search(r"(\d+)\s+errors?(?!\s+during)", line_lower)
-            if error_match:
-                tests_error = int(error_match.group(1))
-
-        return tests_passed, tests_failed, tests_error
+        Extracted to CustomRunner in PR-EXE-13.
+        """
+        result = self.custom_runner.run(phase_id, ci_spec)
+        return result.__dict__
 
     def _update_phase_status(self, phase_id: str, status: str):
         """Update phase status via API

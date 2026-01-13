@@ -9,20 +9,16 @@ This module provides a unified interface for parsing different Builder output fo
 Created as part of PR-CLIENT-2 to extract ~1,551 lines from anthropic_clients.py.
 """
 
-from .ndjson_parser import NDJSONParserWrapper, NDJSONParseResult
-from .structured_edit_parser import StructuredEditParser, StructuredEditParseResult
-from .full_file_parser import FullFileParser, FullFileParseResult
-from .legacy_diff_parser import LegacyDiffParser, LegacyDiffParseResult
+from .ndjson_parser import NDJSONParserWrapper
+from .structured_edit_parser import StructuredEditParser
+from .full_file_parser import FullFileParser
+from .legacy_diff_parser import LegacyDiffParser
 
 __all__ = [
     "NDJSONParserWrapper",
-    "NDJSONParseResult",
     "StructuredEditParser",
-    "StructuredEditParseResult",
     "FullFileParser",
-    "FullFileParseResult",
     "LegacyDiffParser",
-    "LegacyDiffParseResult",
     "ParserFactory",
 ]
 

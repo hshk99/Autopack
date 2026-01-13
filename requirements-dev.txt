@@ -68,6 +68,8 @@ ecdsa==0.19.1
     # via python-jose
 email-validator==2.3.0
     # via pydantic
+execnet==2.1.2
+    # via pytest-xdist
 exceptiongroup==1.3.1
     # via
     #   anyio
@@ -240,9 +242,12 @@ pytest==9.0.2
     #   autopack (pyproject.toml)
     #   pytest-asyncio
     #   pytest-cov
+    #   pytest-xdist
 pytest-asyncio==1.3.0
     # via autopack (pyproject.toml)
 pytest-cov==7.0.0
+    # via autopack (pyproject.toml)
+pytest-xdist==3.8.0
     # via autopack (pyproject.toml)
 python-dotenv==1.2.1
     # via

@@ -115,6 +115,10 @@ from autopack.executor.run_checkpoint import (
 # PR-EXE-9: Phase state persistence manager
 from autopack.executor.phase_state_manager import PhaseStateManager
 
+# PR-EXE-10: Error analysis and learning pipeline
+from autopack.executor.error_analysis import ErrorAnalyzer
+from autopack.executor.learning_pipeline import LearningPipeline
+
 
 # Configure logging
 from dotenv import load_dotenv
@@ -470,6 +474,17 @@ class AutonomousExecutor:
             run_id=self.run_id, workspace=Path(self.workspace), project_id=self.project_id
         )
         logger.info("[PR-EXE-9] Phase state manager initialized")
+
+        # PR-EXE-10: Initialize error analyzer and learning pipeline
+        self.error_analyzer = ErrorAnalyzer(
+            trigger_threshold=self.REPLAN_TRIGGER_THRESHOLD,
+            similarity_threshold=0.8,
+            min_message_length=30,
+            fatal_error_types=[],
+            similarity_enabled=True,
+        )
+        self.learning_pipeline = LearningPipeline(run_id=self.run_id)
+        logger.info("[PR-EXE-10] Error analyzer and learning pipeline initialized")
 
         # [Run-Level Health Budget] Prevent infinite retry loops (GPT_RESPONSE5 recommendation)
         self._run_http_500_count: int = 0  # Count of HTTP 500 errors in this run
@@ -1866,11 +1881,10 @@ class AutonomousExecutor:
 
     def _record_learning_hint(self, phase: Dict, hint_type: str, details: str):
         """
-        Learning Pipeline: Record a hint for this run.
+        Learning Pipeline: Record a hint for this run (PR-EXE-10).
 
-        Hints are lessons learned during troubleshooting that can help:
-        1. Later phases in the same run (Stage 0A)
-        2. Future runs after promotion (Stage 0B)
+        Delegates to LearningPipeline module for hint recording.
+        Also saves to database for persistence (backward compatibility).
 
         Args:
             phase: Phase specification dict
@@ -1878,8 +1892,11 @@ class AutonomousExecutor:
             details: Human-readable details about what was learned
         """
         try:
+            # PR-EXE-10: Use learning pipeline module
+            self.learning_pipeline.record_hint(phase, hint_type, details)
+
+            # Backward compatibility: Also save to database
             phase_id = phase.get("phase_id", "unknown")
-            phase.get("task_category", "general")
             phase_name = phase.get("name", phase_id)
 
             # Generate descriptive hint text based on type
@@ -1896,15 +1913,13 @@ class AutonomousExecutor:
             hint_text = hint_templates.get(hint_type, f"Phase '{phase_name}': {hint_type}")
             hint_text = f"{hint_text}. Details: {details}"
 
-            # Save the hint
+            # Save the hint to database
             save_run_hint(
                 run_id=self.run_id,
                 phase=phase,
                 hint_text=hint_text,
                 source_issue_keys=[f"{hint_type}_{phase_id}"],
             )
-
-            logger.debug(f"[Learning] Recorded hint for {phase_id}: {hint_type}")
 
         except Exception as e:
             # Don't let hint recording break phase execution
@@ -1918,11 +1933,9 @@ class AutonomousExecutor:
         self, phase: Dict, error_type: str, error_details: str, attempt_index: int
     ):
         """
-        Record an error for approach flaw detection.
+        Record an error for approach flaw detection (PR-EXE-10).
 
-        Tracks error patterns to distinguish 'approach flaw' from 'transient failure'.
-        An approach flaw is detected when the same error type occurs repeatedly,
-        indicating the underlying implementation approach is wrong.
+        Delegates to ErrorAnalyzer module for error pattern tracking.
 
         Args:
             phase: Phase specification
@@ -1932,6 +1945,15 @@ class AutonomousExecutor:
         """
         phase_id = phase.get("phase_id")
 
+        # PR-EXE-10: Use error analyzer module
+        self.error_analyzer.record_error(
+            phase_id=phase_id,
+            attempt=attempt_index,
+            error_type=error_type,
+            error_details=error_details,
+        )
+
+        # Backward compatibility: Also store in local dict for phase_orchestrator
         if phase_id not in self._phase_error_history:
             self._phase_error_history[phase_id] = []
 
@@ -1943,171 +1965,23 @@ class AutonomousExecutor:
         }
 
         self._phase_error_history[phase_id].append(error_record)
-        logger.debug(f"[Re-Plan] Recorded error for {phase_id}: {error_type}")
-
-    def _normalize_error_message(self, message: str) -> str:
-        """
-        Normalize error message for similarity comparison.
-
-        Strips:
-        - Absolute/relative paths
-        - Line numbers
-        - Run IDs / UUIDs
-        - Timestamps
-        - Stack trace lines
-        - Collapses whitespace
-        """
-        import re
-
-        if not message:
-            return ""
-
-        normalized = message.lower()
-
-        # Strip file paths (Unix and Windows)
-        normalized = re.sub(r"[/\\][\w\-./\\]+\.(py|js|ts|json|yaml|yml|md)", "[PATH]", normalized)
-        normalized = re.sub(r"[a-z]:\\[\w\-\\]+", "[PATH]", normalized, flags=re.IGNORECASE)
-
-        # Strip line numbers (e.g., "line 42", ":42:", "L42")
-        normalized = re.sub(r"\bline\s*\d+\b", "line [N]", normalized)
-        normalized = re.sub(r":\d+:", ":[N]:", normalized)
-        normalized = re.sub(r"\bL\d+\b", "L[N]", normalized)
-
-        # Strip UUIDs
-        normalized = re.sub(
-            r"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}", "[UUID]", normalized
-        )
-
-        # Strip run IDs (common patterns)
-        normalized = re.sub(r"\b[a-z]+-\d{8}(-\d+)?\b", "[RUN_ID]", normalized)
-
-        # Strip timestamps (ISO format and common patterns)
-        normalized = re.sub(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}", "[TIMESTAMP]", normalized)
-        normalized = re.sub(r"\d{2}:\d{2}:\d{2}", "[TIME]", normalized)
-
-        # Strip stack trace lines
-        normalized = re.sub(r'file "[^"]+", line \[n\]', "file [PATH], line [N]", normalized)
-        normalized = re.sub(r"traceback \(most recent call last\):", "[TRACEBACK]", normalized)
-
-        # Collapse whitespace
-        normalized = re.sub(r"\s+", " ", normalized).strip()
-
-        return normalized
-
-    def _calculate_message_similarity(self, msg1: str, msg2: str) -> float:
-        """
-        Calculate similarity between two error messages using difflib.
-
-        Returns:
-            Float between 0.0 and 1.0 (1.0 = identical)
-        """
-        from difflib import SequenceMatcher
-
-        if not msg1 or not msg2:
-            return 0.0
-
-        norm1 = self._normalize_error_message(msg1)
-        norm2 = self._normalize_error_message(msg2)
-
-        return SequenceMatcher(None, norm1, norm2).ratio()
 
     def _detect_approach_flaw(self, phase: Dict) -> Optional[str]:
         """
-        Analyze error history to detect fundamental approach flaws.
+        Analyze error history to detect fundamental approach flaws (PR-EXE-10).
 
-        Enhanced with message similarity checking per GPT recommendation:
-        - Checks consecutive same-type failures (not just total count)
-        - Verifies message similarity >= threshold
-        - Supports fatal error types that trigger immediately
+        Delegates to ErrorAnalyzer module for approach flaw detection.
 
         Returns:
             Error type if approach flaw detected, None otherwise
         """
         phase_id = phase.get("phase_id")
-        errors = self._phase_error_history.get(phase_id, [])
 
-        # Load replan config from models.yaml
-        import yaml
+        # PR-EXE-10: Use error analyzer module
+        error_pattern = self.error_analyzer.detect_approach_flaw(phase_id)
+        if error_pattern:
+            return error_pattern.error_type
 
-        try:
-            with open("config/models.yaml") as f:
-                config = yaml.safe_load(f)
-            replan_config = config.get("replan", {})
-        except Exception:
-            replan_config = {}
-
-        trigger_threshold = replan_config.get("trigger_threshold", self.REPLAN_TRIGGER_THRESHOLD)
-        similarity_enabled = replan_config.get("message_similarity_enabled", True)
-        similarity_threshold = replan_config.get("similarity_threshold", 0.8)
-        min_message_length = replan_config.get("min_message_length", 30)
-        fatal_error_types = replan_config.get("fatal_error_types", [])
-
-        if len(errors) == 0:
-            return None
-
-        # Check for fatal error types (immediate trigger on first occurrence)
-        latest_error = errors[-1]
-        if latest_error["error_type"] in fatal_error_types:
-            # Structured REPLAN-TRIGGER logging per GPT recommendation
-            logger.info(
-                f"[REPLAN-TRIGGER] reason=fatal_error type={latest_error['error_type']} "
-                f"phase={phase_id} attempt={len(errors)}"
-            )
-            return latest_error["error_type"]
-
-        if len(errors) < trigger_threshold:
-            return None
-
-        # Check consecutive same-type failures with message similarity
-        # Look at the last N errors (where N = trigger_threshold)
-        recent_errors = errors[-trigger_threshold:]
-
-        # Group by error type
-        error_types = [e["error_type"] for e in recent_errors]
-        if len(set(error_types)) != 1:
-            # Different error types in recent errors - not a repeated pattern
-            return None
-
-        error_type = error_types[0]
-
-        # If similarity checking is disabled, trigger on same type alone
-        if not similarity_enabled:
-            logger.info(
-                f"[REPLAN-TRIGGER] reason=repeated_error type={error_type} "
-                f"phase={phase_id} attempt={len(errors)} count={trigger_threshold}"
-            )
-            return error_type
-
-        # Check message similarity between consecutive errors
-        messages = [e.get("error_details", "") for e in recent_errors]
-
-        # Skip if messages are too short
-        if all(len(m) < min_message_length for m in messages):
-            logger.debug(f"[Re-Plan] Messages too short for similarity check ({phase_id})")
-            # Fall back to type-only check
-            logger.info(
-                f"[REPLAN-TRIGGER] reason=repeated_error_short_msg type={error_type} "
-                f"phase={phase_id} attempt={len(errors)} count={trigger_threshold}"
-            )
-            return error_type
-
-        # Check pairwise similarity between consecutive errors
-        all_similar = True
-        for i in range(len(messages) - 1):
-            similarity = self._calculate_message_similarity(messages[i], messages[i + 1])
-            logger.debug(f"[Re-Plan] Message similarity [{i}]->[{i+1}]: {similarity:.2f}")
-            if similarity < similarity_threshold:
-                all_similar = False
-                break
-
-        if all_similar:
-            logger.info(
-                f"[REPLAN-TRIGGER] reason=similar_errors type={error_type} "
-                f"phase={phase_id} attempt={len(errors)} count={trigger_threshold} similarity_threshold={similarity_threshold}"
-            )
-            return error_type
-
-        logger.debug(f"[Re-Plan] No approach flaw for {phase_id}: messages not similar enough")
         return None
 
     def _get_replan_count(self, phase_id: str) -> int:

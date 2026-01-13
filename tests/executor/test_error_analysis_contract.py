@@ -69,9 +69,7 @@ class TestApproachFlawDetection:
         """Test approach flaw when 3+ same-type errors"""
         analyzer = ErrorAnalyzer(trigger_threshold=3, similarity_enabled=False)
         for i in range(3):
-            analyzer.record_error(
-                "test-phase", i, "auditor_reject", f"Different error {i}"
-            )
+            analyzer.record_error("test-phase", i, "auditor_reject", f"Different error {i}")
 
         pattern = analyzer.detect_approach_flaw("test-phase")
         assert pattern is not None
@@ -90,9 +88,7 @@ class TestApproachFlawDetection:
 
     def test_fatal_error_triggers_immediately(self):
         """Test fatal errors trigger on first occurrence"""
-        analyzer = ErrorAnalyzer(
-            trigger_threshold=3, fatal_error_types=["critical_error"]
-        )
+        analyzer = ErrorAnalyzer(trigger_threshold=3, fatal_error_types=["critical_error"])
         analyzer.record_error("test-phase", 0, "critical_error", "Fatal error")
 
         pattern = analyzer.detect_approach_flaw("test-phase")
@@ -128,12 +124,8 @@ class TestApproachFlawDetection:
 
         # Record 3 same-type but dissimilar errors
         analyzer.record_error("test-phase", 0, "auditor_reject", "Error in module A")
-        analyzer.record_error(
-            "test-phase", 1, "auditor_reject", "Complete different failure in B"
-        )
-        analyzer.record_error(
-            "test-phase", 2, "auditor_reject", "Yet another unrelated problem"
-        )
+        analyzer.record_error("test-phase", 1, "auditor_reject", "Complete different failure in B")
+        analyzer.record_error("test-phase", 2, "auditor_reject", "Yet another unrelated problem")
 
         pattern = analyzer.detect_approach_flaw("test-phase")
         assert pattern is None

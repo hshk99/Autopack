@@ -100,7 +100,11 @@ def main() -> int:
             "python-magic-bin",  # Windows-only for file type detection
             "pywin32",  # Windows-only for portalocker (via qdrant-client)
         }
-        SKIP_PACKAGES = PYTHON_VERSION_PACKAGES | PLATFORM_PACKAGES
+        # Transitive dependencies that should be excluded from drift checks
+        TRANSITIVE_PACKAGES = {
+            "cachetools",  # Transitive via google-auth
+        }
+        SKIP_PACKAGES = PYTHON_VERSION_PACKAGES | PLATFORM_PACKAGES | TRANSITIVE_PACKAGES
 
         normalized: list[str] = []
 

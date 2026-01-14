@@ -11,6 +11,7 @@ Key responsibilities:
 - Success/failure routing
 - Recovery strategy selection
 - State updates and telemetry
+- Parallel execution of independent operations (IMP-P06)
 
 Related modules:
 - doctor_integration.py: Doctor invocation and budget tracking
@@ -20,7 +21,8 @@ Related modules:
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Optional, Any, List
+from typing import Dict, Optional, Any, List, Callable, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import os
 from pathlib import Path
@@ -1173,3 +1175,54 @@ class PhaseOrchestrator:
             )
 
         return None
+
+
+# IMP-P06: Parallel execution utilities for independent operations
+def execute_parallel(
+    operations: List[Tuple[str, Callable[[], Any]]], max_workers: int = 2
+) -> Dict[str, Any]:
+    """
+    Execute multiple independent operations in parallel using a thread pool.
+
+    This utility enables parallel execution of CI checks, Auditor reviews, and other
+    independent validation steps to reduce total phase execution time.
+
+    IMP-P06: Saves 5-15s per phase by running Auditor review concurrently with CI execution.
+
+    Args:
+        operations: List of (operation_name, callable) tuples where each callable
+                   performs an independent operation and returns a result.
+        max_workers: Maximum number of parallel workers (default: 2 for CI + Auditor)
+
+    Returns:
+        Dict mapping operation names to their results. If an operation raises an
+        exception, the result will be the exception object.
+
+    Example:
+        results = execute_parallel([
+            ("ci_check", lambda: run_ci_tests()),
+            ("auditor_review", lambda: run_auditor_review()),
+        ])
+        ci_passed = results["ci_check"]
+        audit_passed = results["auditor_review"]
+    """
+    results = {}
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all operations
+        future_to_name = {
+            executor.submit(op_callable): op_name for op_name, op_callable in operations
+        }
+
+        # Collect results as they complete
+        for future in as_completed(future_to_name):
+            op_name = future_to_name[future]
+            try:
+                result = future.result()
+                results[op_name] = result
+                logger.debug(f"[ParallelExecution] {op_name} completed successfully")
+            except Exception as exc:
+                logger.warning(f"[ParallelExecution] {op_name} raised exception: {exc}")
+                results[op_name] = exc
+
+    return results

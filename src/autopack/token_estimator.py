@@ -6,8 +6,9 @@ Per TOKEN_BUDGET_ANALYSIS_REVISED.md (GPT-5.2 reviewed).
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 from pathlib import Path
+from functools import lru_cache
 import re
 import logging
 
@@ -501,6 +502,51 @@ class TokenEstimator:
             confidence=0.75,  # Higher confidence with explicit phase model
         )
 
+    @staticmethod
+    @lru_cache(maxsize=256)
+    def _estimate_cached(
+        deliverables_tuple: Tuple[str, ...],
+        category: str,
+        complexity: str,
+        scope_paths_tuple: Optional[Tuple[str, ...]] = None,
+        task_description: str = "",
+        workspace_str: str = ".",
+    ) -> TokenEstimate:
+        """
+        Cached version of estimation logic.
+
+        IMP-P05: Cache token estimation results to avoid repeated workspace analysis.
+        Converts mutable arguments to hashable tuples for caching.
+
+        Args:
+            deliverables_tuple: Tuple of deliverable paths/descriptions
+            category: Phase category
+            complexity: Phase complexity (low, medium, high)
+            scope_paths_tuple: Optional tuple of scope paths
+            task_description: Task description for feature extraction
+            workspace_str: Workspace path as string
+
+        Returns:
+            TokenEstimate with predicted tokens and breakdown
+        """
+        # Convert back to mutable types for internal processing
+        deliverables = list(deliverables_tuple)
+        scope_paths = list(scope_paths_tuple) if scope_paths_tuple else None
+        workspace = Path(workspace_str)
+
+        # Create temporary instance for processing
+        # Note: This is safe because all state-dependent methods are static or use passed args
+        temp_estimator = TokenEstimator(workspace=workspace)
+
+        # Delegate to internal estimation logic
+        return temp_estimator._estimate_internal(
+            deliverables=deliverables,
+            category=category,
+            complexity=complexity,
+            scope_paths=scope_paths,
+            task_description=task_description,
+        )
+
     def estimate(
         self,
         deliverables: Any,
@@ -523,6 +569,43 @@ class TokenEstimator:
             TokenEstimate with predicted tokens and breakdown
         """
         deliverables = self.normalize_deliverables(deliverables)
+
+        # IMP-P05: Use cached estimation when possible
+        # Convert mutable arguments to hashable tuples
+        deliverables_tuple = tuple(deliverables)
+        scope_paths_tuple = tuple(scope_paths) if scope_paths else None
+        workspace_str = str(self.workspace)
+
+        return self._estimate_cached(
+            deliverables_tuple=deliverables_tuple,
+            category=category,
+            complexity=complexity,
+            scope_paths_tuple=scope_paths_tuple,
+            task_description=task_description,
+            workspace_str=workspace_str,
+        )
+
+    def _estimate_internal(
+        self,
+        deliverables: List[str],
+        category: str,
+        complexity: str,
+        scope_paths: Optional[List[str]] = None,
+        task_description: str = "",
+    ) -> TokenEstimate:
+        """
+        Internal estimation logic (extracted from estimate() for caching).
+
+        Args:
+            deliverables: Normalized list of deliverables
+            category: Phase category
+            complexity: Phase complexity
+            scope_paths: Optional scope paths
+            task_description: Task description
+
+        Returns:
+            TokenEstimate with predicted tokens and breakdown
+        """
 
         if not deliverables:
             # No deliverables → use complexity default

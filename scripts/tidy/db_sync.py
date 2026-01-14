@@ -109,7 +109,8 @@ class DatabaseSync:
         cur = self.pg_conn.cursor()
 
         # SOT entries table
-        cur.execute("""
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS sot_entries (
                 id SERIAL PRIMARY KEY,
                 project_id TEXT NOT NULL,
@@ -123,10 +124,12 @@ class DatabaseSync:
                 content_hash TEXT,
                 UNIQUE(project_id, file_type, entry_id)
             );
-        """)
+        """
+        )
 
         # README sync status
-        cur.execute("""
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS readme_sync (
                 id SERIAL PRIMARY KEY,
                 project_id TEXT NOT NULL UNIQUE,
@@ -134,10 +137,12 @@ class DatabaseSync:
                 last_update_summary TEXT,
                 content_hash TEXT
             );
-        """)
+        """
+        )
 
         # Sync activity log
-        cur.execute("""
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS sync_activity (
                 id SERIAL PRIMARY KEY,
                 project_id TEXT NOT NULL,
@@ -146,7 +151,8 @@ class DatabaseSync:
                 details JSONB,
                 synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
-        """)
+        """
+        )
 
         self.pg_conn.commit()
         cur.close()

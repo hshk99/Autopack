@@ -98,15 +98,17 @@ def create_build113_run():
             scope = {
                 "deliverables": deliverables if isinstance(deliverables, list) else [deliverables],
                 "goals": goals if isinstance(goals, list) else [goals],
-                "acceptance_criteria": acceptance_criteria
-                if isinstance(acceptance_criteria, list)
-                else [acceptance_criteria],
-                "allowed_paths": allowed_paths
-                if isinstance(allowed_paths, list)
-                else [allowed_paths],
-                "protected_paths": protected_paths
-                if isinstance(protected_paths, list)
-                else [protected_paths],
+                "acceptance_criteria": (
+                    acceptance_criteria
+                    if isinstance(acceptance_criteria, list)
+                    else [acceptance_criteria]
+                ),
+                "allowed_paths": (
+                    allowed_paths if isinstance(allowed_paths, list) else [allowed_paths]
+                ),
+                "protected_paths": (
+                    protected_paths if isinstance(protected_paths, list) else [protected_paths]
+                ),
             }
 
             # Add features if present

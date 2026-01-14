@@ -27,9 +27,9 @@ class TestWebhookSecurityModule:
         security_module = (
             REPO_ROOT / "src" / "autopack" / "notifications" / "telegram_webhook_security.py"
         )
-        assert security_module.exists(), (
-            "telegram_webhook_security.py not found - PR7 requires webhook signature verification"
-        )
+        assert (
+            security_module.exists()
+        ), "telegram_webhook_security.py not found - PR7 requires webhook signature verification"
 
     def test_module_is_importable(self):
         """Module must be importable without errors."""
@@ -209,12 +209,12 @@ class TestMainIntegration:
         content = approvals_py.read_text(encoding="utf-8")
 
         # Must import and call verification
-        assert "verify_telegram_webhook" in content, (
-            "approvals.py telegram_webhook handler must call verify_telegram_webhook"
-        )
-        assert "telegram_webhook_security" in content, (
-            "approvals.py must import from telegram_webhook_security module"
-        )
+        assert (
+            "verify_telegram_webhook" in content
+        ), "approvals.py telegram_webhook handler must call verify_telegram_webhook"
+        assert (
+            "telegram_webhook_security" in content
+        ), "approvals.py must import from telegram_webhook_security module"
 
     def test_webhook_handler_rejects_on_failure(self):
         """Webhook handler must raise HTTPException on verification failure."""
@@ -228,12 +228,12 @@ class TestMainIntegration:
         webhook_section = content[webhook_start : webhook_start + 1500]
 
         # Must raise HTTPException on failure
-        assert "HTTPException" in webhook_section, (
-            "Webhook handler must raise HTTPException on verification failure"
-        )
-        assert "403" in webhook_section, (
-            "Webhook handler must return 403 status on verification failure"
-        )
+        assert (
+            "HTTPException" in webhook_section
+        ), "Webhook handler must raise HTTPException on verification failure"
+        assert (
+            "403" in webhook_section
+        ), "Webhook handler must return 403 status on verification failure"
 
 
 class TestVerificationStatus:

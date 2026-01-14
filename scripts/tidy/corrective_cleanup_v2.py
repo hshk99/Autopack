@@ -583,7 +583,8 @@ def phase3_autonomous_runs_cleanup(dry_run: bool = True) -> None:
         if not project_readme_quickstart.exists():
             print("  Creating quick-start README.md at project root")
             if not dry_run:
-                project_readme_quickstart.write_text("""# FileOrganizer
+                project_readme_quickstart.write_text(
+                    """# FileOrganizer
 
 AI-powered document organization system for immigration visa packs.
 
@@ -608,7 +609,8 @@ For comprehensive documentation, see [docs/README.md](docs/README.md).
 ## Development
 
 See [docs/README.md](docs/README.md) for development setup and contributing guidelines.
-""")
+"""
+                )
 
         # Move all SOT files from project root to docs/
         fileorg_sot_files = {
@@ -705,7 +707,8 @@ This is a subproject within the Autopack framework workspace.
         if not arch.exists():
             print("  Creating ARCHITECTURE.md stub")
             if not dry_run:
-                arch.write_text("""# FileOrganizer Architecture
+                arch.write_text(
+                    """# FileOrganizer Architecture
 
 ## Overview
 
@@ -725,7 +728,8 @@ FileOrganizer is an AI-powered document organization system for immigration visa
 ## Data Flow
 
 [To be documented]
-""")
+"""
+                )
     else:
         print("  [SKIP] file-organizer-app-v1 project not found")
 
@@ -752,7 +756,8 @@ FileOrganizer is an AI-powered document organization system for immigration visa
             print("  Autopack/ has active content - adding README.md")
             readme = autopack_folder / "README.md"
             if not readme.exists() and not dry_run:
-                readme.write_text("""# Autopack Autonomous Runs
+                readme.write_text(
+                    """# Autopack Autonomous Runs
 
 This folder contains autonomous execution runs for Autopack self-improvement.
 
@@ -763,7 +768,8 @@ Autopack uses this folder for self-directed development and improvements.
 ## Structure
 
 - `archive/` - Historical runs and outputs
-""")
+"""
+                )
 
     print("\n[PHASE 3] Complete")
 
@@ -1186,11 +1192,13 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
 
             schema_info = {
                 "database": "autopack.db",
-                "exported_at": subprocess.run(
-                    ["date", "+%Y-%m-%d %H:%M:%S"], capture_output=True, text=True, timeout=5
-                ).stdout.strip()
-                if subprocess.run(["date"], capture_output=True).returncode == 0
-                else "unknown",
+                "exported_at": (
+                    subprocess.run(
+                        ["date", "+%Y-%m-%d %H:%M:%S"], capture_output=True, text=True, timeout=5
+                    ).stdout.strip()
+                    if subprocess.run(["date"], capture_output=True).returncode == 0
+                    else "unknown"
+                ),
                 "tables": {},
             }
 
@@ -1230,11 +1238,16 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
                 schema_info = {
                     "database": "autopack.db",
                     "project": "file-organizer-app-v1",
-                    "exported_at": subprocess.run(
-                        ["date", "+%Y-%m-%d %H:%M:%S"], capture_output=True, text=True, timeout=5
-                    ).stdout.strip()
-                    if subprocess.run(["date"], capture_output=True).returncode == 0
-                    else "unknown",
+                    "exported_at": (
+                        subprocess.run(
+                            ["date", "+%Y-%m-%d %H:%M:%S"],
+                            capture_output=True,
+                            text=True,
+                            timeout=5,
+                        ).stdout.strip()
+                        if subprocess.run(["date"], capture_output=True).returncode == 0
+                        else "unknown"
+                    ),
                     "tables": {},
                 }
 

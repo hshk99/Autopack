@@ -262,6 +262,6 @@ def test_mitigation_no_sot_writes():
 
         for prefix in forbidden_prefixes:
             # Only check if it's a root path write, not if prefix appears in temp dir
-            assert not artifact_str.endswith(prefix), (
-                f"Artifact written to SOT path: {artifact_path}"
-            )
+            assert not artifact_str.endswith(
+                prefix
+            ), f"Artifact written to SOT path: {artifact_path}"

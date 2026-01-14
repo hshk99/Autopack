@@ -137,10 +137,12 @@ def upgrade(engine: Engine) -> None:
                 print(f"\n[{columns_added + 1}] Adding column: {col_name} ({col_type})")
                 print(f"    Purpose: {col_desc}")
                 conn.execute(
-                    text(f"""
+                    text(
+                        f"""
                     ALTER TABLE token_efficiency_metrics
                     ADD COLUMN {col_name} {col_type}
-                """)
+                """
+                    )
                 )
                 print(f"    ✓ Column '{col_name}' added")
                 columns_added += 1
@@ -202,10 +204,12 @@ def downgrade(engine: Engine) -> None:
             else:
                 # PostgreSQL and other databases support DROP COLUMN
                 conn.execute(
-                    text(f"""
+                    text(
+                        f"""
                     ALTER TABLE token_efficiency_metrics
                     DROP COLUMN {col_name}
-                """)
+                """
+                    )
                 )
                 print(f"      ✓ Column '{col_name}' dropped")
                 columns_removed += 1

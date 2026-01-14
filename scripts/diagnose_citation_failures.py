@@ -101,12 +101,16 @@ def diagnose_failures() -> Dict[str, Any]:
                             "category": finding.category,
                             "reason": verification.reason,
                             "confidence": verification.confidence,
-                            "content": finding.content[:200] + "..."
-                            if len(finding.content) > 200
-                            else finding.content,
-                            "extraction_span": finding.extraction_span[:300] + "..."
-                            if len(finding.extraction_span) > 300
-                            else finding.extraction_span,
+                            "content": (
+                                finding.content[:200] + "..."
+                                if len(finding.content) > 200
+                                else finding.content
+                            ),
+                            "extraction_span": (
+                                finding.extraction_span[:300] + "..."
+                                if len(finding.extraction_span) > 300
+                                else finding.extraction_span
+                            ),
                             "extraction_span_length": len(finding.extraction_span),
                             "has_numbers_in_span": bool(
                                 re.findall(r"\d+(?:\.\d+)?", finding.extraction_span)

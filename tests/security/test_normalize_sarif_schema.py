@@ -52,12 +52,12 @@ def test_normalized_findings_have_required_fields():
         assert isinstance(finding["messageHash"], str), "messageHash must be string"
 
         # messageHash should be 16-char hex (SHA256 prefix)
-        assert len(finding["messageHash"]) == 16, (
-            f"messageHash should be 16 chars, got {len(finding['messageHash'])}"
-        )
-        assert all(c in "0123456789abcdef" for c in finding["messageHash"]), (
-            "messageHash should be hex string"
-        )
+        assert (
+            len(finding["messageHash"]) == 16
+        ), f"messageHash should be 16 chars, got {len(finding['messageHash'])}"
+        assert all(
+            c in "0123456789abcdef" for c in finding["messageHash"]
+        ), "messageHash should be hex string"
 
 
 def test_normalized_findings_optional_location_fields():
@@ -76,15 +76,15 @@ def test_normalized_findings_optional_location_fields():
     for finding in findings:
         # If startLine present, must be int
         if "startLine" in finding:
-            assert isinstance(finding["startLine"], int), (
-                f"startLine must be int, got {type(finding['startLine'])}"
-            )
+            assert isinstance(
+                finding["startLine"], int
+            ), f"startLine must be int, got {type(finding['startLine'])}"
 
         # If startColumn present, must be int
         if "startColumn" in finding:
-            assert isinstance(finding["startColumn"], int), (
-                f"startColumn must be int, got {type(finding['startColumn'])}"
-            )
+            assert isinstance(
+                finding["startColumn"], int
+            ), f"startColumn must be int, got {type(finding['startColumn'])}"
 
 
 def test_normalized_findings_no_unexpected_keys():

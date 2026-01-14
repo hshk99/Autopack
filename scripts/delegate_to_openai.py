@@ -348,21 +348,25 @@ Format your response clearly with these sections.
         return OpenAIDelegationResult(
             analysis=raw_response,  # Full response as analysis
             root_cause=root_cause,
-            recommended_fixes=recommended_fixes
-            if recommended_fixes
-            else [
-                {
-                    "priority": 1,
-                    "description": "See full analysis for recommendations",
-                    "file": "Multiple files",
-                    "changes": "",
-                    "rationale": "Detailed in analysis",
-                }
-            ],
+            recommended_fixes=(
+                recommended_fixes
+                if recommended_fixes
+                else [
+                    {
+                        "priority": 1,
+                        "description": "See full analysis for recommendations",
+                        "file": "Multiple files",
+                        "changes": "",
+                        "rationale": "Detailed in analysis",
+                    }
+                ]
+            ),
             confidence=confidence,
-            additional_investigation=additional_investigation
-            if additional_investigation
-            else ["Review full analysis for investigation steps"],
+            additional_investigation=(
+                additional_investigation
+                if additional_investigation
+                else ["Review full analysis for investigation steps"]
+            ),
             raw_response=raw_response,
         )
 

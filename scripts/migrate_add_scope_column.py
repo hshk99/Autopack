@@ -24,11 +24,13 @@ def migrate():
     try:
         # Check if column already exists (PostgreSQL)
         result = db.execute(
-            text("""
+            text(
+                """
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name='phases' AND column_name='scope'
-        """)
+        """
+            )
         )
 
         if result.fetchone():

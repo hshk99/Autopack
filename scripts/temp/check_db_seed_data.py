@@ -27,12 +27,14 @@ def check_postgresql():
     print()
 
     # Check routing rules
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT project_id, file_type, content_keywords, destination_path, priority
         FROM directory_routing_rules
         WHERE source_context = 'cursor'
         ORDER BY project_id, priority DESC
-    """)
+    """
+    )
 
     rows = cursor.fetchall()
     print(f"Total rules: {len(rows)}")
@@ -56,11 +58,13 @@ def check_postgresql():
     print("=" * 70)
     print()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT project_id, base_path, runs_path, archive_path
         FROM project_directory_config
         ORDER BY project_id
-    """)
+    """
+    )
 
     configs = cursor.fetchall()
     for proj, base, runs, archive in configs:

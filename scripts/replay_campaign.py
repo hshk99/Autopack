@@ -266,9 +266,9 @@ def generate_comparison_report(original_run_id: str, replay_run_id: str):
                 "phases_failed": replay_failed,
             },
             "deltas": {
-                "token_delta": replay.tokens_used - original.tokens_used
-                if replay.tokens_used
-                else None,
+                "token_delta": (
+                    replay.tokens_used - original.tokens_used if replay.tokens_used else None
+                ),
                 "phase_complete_delta": replay_complete - original_complete,
                 "phase_failed_delta": replay_failed - original_failed,
             },

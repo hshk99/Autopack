@@ -104,7 +104,8 @@ def create_project_structure(project_name: str, project_slug: str, base_dir: Pat
 
     # Create FUTURE_PLAN.md template
     whats_left = project_dir / "FUTURE_PLAN.md"
-    whats_left.write_text(f"""# {project_name} - Tasks for Autopack
+    whats_left.write_text(
+        f"""# {project_name} - Tasks for Autopack
 
 **Project**: {project_name}
 **Slug**: {project_slug}
@@ -166,12 +167,14 @@ RUN AUTOPACK END-TO-END for {project_name} now.
 cd {REPO_ROOT}/.autonomous_runs/{project_slug}
 python scripts/autopack_runner.py --non-interactive
 ```
-""")
+"""
+    )
     print("[3/5] Created FUTURE_PLAN.md template")
 
     # Create PROJECT_README.md
     readme = project_dir / "PROJECT_README.md"
-    readme.write_text(f"""# {project_name}
+    readme.write_text(
+        f"""# {project_name}
 
 **Project Slug**: `{project_slug}`
 **Created**: {datetime.now().strftime("%Y-%m-%d")}
@@ -283,12 +286,14 @@ To adjust, edit the run configuration in `autopack_runner.py` or create a projec
 ## Troubleshooting
 
 See [FileOrganizer HOW_TO_RUN_PHASE2.md](../file-organizer-app-v1/HOW_TO_RUN_PHASE2.md) for common issues and solutions.
-""")
+"""
+    )
     print("[4/5] Created PROJECT_README.md")
 
     # Create run.sh wrapper
     run_script = project_dir / "run.sh"
-    run_script.write_text(f"""#!/bin/bash
+    run_script.write_text(
+        f"""#!/bin/bash
 # {project_name} - Fully Autonomous Build Runner
 #
 # This script triggers the autonomous build defined in FUTURE_PLAN.md
@@ -325,7 +330,8 @@ echo "==========================================================================
 echo ""
 echo "Check the report files listed above for results."
 echo ""
-""")
+"""
+    )
     run_script.chmod(0o755)  # Make executable
     print("[5/5] Created run.sh wrapper script")
 

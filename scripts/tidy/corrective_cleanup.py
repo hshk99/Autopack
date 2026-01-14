@@ -515,7 +515,8 @@ def fix7_create_unsorted_bucket(dry_run: bool = True):
         unsorted.mkdir(parents=True, exist_ok=True)
         # Create README
         readme = unsorted / "README.md"
-        readme.write_text("""# Unsorted Inbox
+        readme.write_text(
+            """# Unsorted Inbox
 
 This folder serves as a last-resort inbox for files that couldn't be automatically classified.
 
@@ -528,7 +529,8 @@ Files placed here should be manually reviewed and moved to the appropriate bucke
 - **diagnostics/runs/** - Run directories
 
 Tidy_up will attempt to classify and move these files to proper locations.
-""")
+"""
+        )
         print("  Created unsorted/ with README.md")
 
     print("\n[FIX 7] Complete")

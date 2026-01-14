@@ -144,13 +144,15 @@ def upgrade(engine: Engine) -> None:
         # Verify index is working (check for duplicates)
         with engine.connect() as conn:
             result = conn.execute(
-                text("""
+                text(
+                    """
                 SELECT run_id, phase_id, phase_outcome, COUNT(*) as count
                 FROM token_efficiency_metrics
                 WHERE phase_outcome IS NOT NULL
                 GROUP BY run_id, phase_id, phase_outcome
                 HAVING COUNT(*) > 1
-            """)
+            """
+                )
             )
             duplicates = result.fetchall()
             if duplicates:
@@ -179,11 +181,13 @@ def upgrade(engine: Engine) -> None:
             # Set autocommit mode (no transaction)
             conn = conn.execution_options(isolation_level="AUTOCOMMIT")
             conn.execute(
-                text("""
+                text(
+                    """
                 CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS ux_token_eff_metrics_run_phase_outcome
                 ON token_efficiency_metrics (run_id, phase_id, phase_outcome)
                 WHERE phase_outcome IS NOT NULL
-            """)
+            """
+                )
             )
         print("      ✓ Partial unique index created successfully (PostgreSQL)")
 
@@ -198,11 +202,13 @@ def upgrade(engine: Engine) -> None:
         with engine.begin() as conn:
             try:
                 conn.execute(
-                    text("""
+                    text(
+                        """
                     CREATE UNIQUE INDEX IF NOT EXISTS ux_token_eff_metrics_run_phase_outcome
                     ON token_efficiency_metrics (run_id, phase_id, phase_outcome)
                     WHERE phase_outcome IS NOT NULL
-                """)
+                """
+                    )
                 )
                 print("      ✓ Partial unique index created successfully (SQLite)")
             except Exception as e:

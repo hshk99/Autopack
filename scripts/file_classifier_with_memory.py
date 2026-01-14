@@ -286,12 +286,14 @@ class ProjectMemoryClassifier:
                 pass
 
             # SECOND: Query routing rules with keywords
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT project_id, file_type, destination_path, content_keywords, priority
                 FROM directory_routing_rules
                 WHERE source_context = 'cursor' AND content_keywords IS NOT NULL
                 ORDER BY priority DESC
-            """)
+            """
+            )
 
             rows = cursor.fetchall()
             best_match = None

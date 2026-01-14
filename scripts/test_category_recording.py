@@ -56,9 +56,9 @@ def test_category_metadata():
             deliverables=tc["deliverables"],
             category=tc["category"],
             complexity="medium",
-            scope_paths=["src/main.py"] * 10
-            if "API" in str(tc["deliverables"])
-            else ["src/main.py"],
+            scope_paths=(
+                ["src/main.py"] * 10 if "API" in str(tc["deliverables"]) else ["src/main.py"]
+            ),
             task_description=f"Test case: {tc['name']}",
         )
 

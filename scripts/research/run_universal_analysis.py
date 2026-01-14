@@ -142,16 +142,16 @@ class UniversalResearchAnalysisPipeline:
                 "total_decisions": len(report.decisions),
                 "implement_now": len(report.get_implement_now()),
                 "implement_later": len(report.get_implement_later()),
-                "review": len(
-                    report.get_by_decision_type(report.decisions[0].decision.__class__.REVIEW)
-                )
-                if report.decisions
-                else 0,
-                "reject": len(
-                    report.get_by_decision_type(report.decisions[0].decision.__class__.REJECT)
-                )
-                if report.decisions
-                else 0,
+                "review": (
+                    len(report.get_by_decision_type(report.decisions[0].decision.__class__.REVIEW))
+                    if report.decisions
+                    else 0
+                ),
+                "reject": (
+                    len(report.get_by_decision_type(report.decisions[0].decision.__class__.REJECT))
+                    if report.decisions
+                    else 0
+                ),
             }
 
             # Save decisions

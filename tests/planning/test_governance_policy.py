@@ -204,9 +204,9 @@ class TestGovernancePolicyEnforcement:
         # All actions touching docs/ should require approval
         for action in proposal.actions:
             if any(p.startswith("docs/") for p in action.target_paths):
-                assert action.approval_status != "auto_approved", (
-                    f"Action {action.action_id} touching docs/ should NOT be auto-approved"
-                )
+                assert (
+                    action.approval_status != "auto_approved"
+                ), f"Action {action.action_id} touching docs/ should NOT be auto-approved"
 
     def test_src_autopack_path_requires_approval(self, minimal_anchor, gap_report_with_code_gap):
         """Actions targeting src/autopack/ require approval (DEC-046)."""
@@ -215,9 +215,9 @@ class TestGovernancePolicyEnforcement:
         # All actions touching src/autopack/ should require approval
         for action in proposal.actions:
             if any(p.startswith("src/autopack/") for p in action.target_paths):
-                assert action.approval_status != "auto_approved", (
-                    f"Action {action.action_id} touching src/autopack/ should NOT be auto-approved"
-                )
+                assert (
+                    action.approval_status != "auto_approved"
+                ), f"Action {action.action_id} touching src/autopack/ should NOT be auto-approved"
 
     def test_tests_path_requires_approval(self, minimal_anchor, gap_report_with_test_gap):
         """Actions targeting tests/ require approval (DEC-046)."""
@@ -226,9 +226,9 @@ class TestGovernancePolicyEnforcement:
         # All actions touching tests/ should require approval
         for action in proposal.actions:
             if any(p.startswith("tests/") for p in action.target_paths):
-                assert action.approval_status != "auto_approved", (
-                    f"Action {action.action_id} touching tests/ should NOT be auto-approved"
-                )
+                assert (
+                    action.approval_status != "auto_approved"
+                ), f"Action {action.action_id} touching tests/ should NOT be auto-approved"
 
     def test_github_path_requires_approval(self, minimal_anchor, gap_report_with_github_gap):
         """Actions targeting .github/ require approval (DEC-046)."""
@@ -237,9 +237,9 @@ class TestGovernancePolicyEnforcement:
         # All actions touching .github/ should require approval
         for action in proposal.actions:
             if any(p.startswith(".github/") for p in action.target_paths):
-                assert action.approval_status != "auto_approved", (
-                    f"Action {action.action_id} touching .github/ should NOT be auto-approved"
-                )
+                assert (
+                    action.approval_status != "auto_approved"
+                ), f"Action {action.action_id} touching .github/ should NOT be auto-approved"
 
     def test_config_path_requires_approval(self, minimal_anchor, gap_report_with_config_gap):
         """Actions targeting config/ require approval (DEC-046)."""
@@ -248,9 +248,9 @@ class TestGovernancePolicyEnforcement:
         # All actions touching config/ should require approval
         for action in proposal.actions:
             if any(p.startswith("config/") for p in action.target_paths):
-                assert action.approval_status != "auto_approved", (
-                    f"Action {action.action_id} touching config/ should NOT be auto-approved"
-                )
+                assert (
+                    action.approval_status != "auto_approved"
+                ), f"Action {action.action_id} touching config/ should NOT be auto-approved"
 
 
 # =============================================================================
@@ -349,9 +349,9 @@ class TestSafetyProfileThresholds:
         # git_state_corruption has risk 0.9, should be blocked in strict mode
         high_risk_actions = [a for a in proposal.actions if a.risk_score >= 0.5]
         for action in high_risk_actions:
-            assert action.approval_status == "blocked", (
-                f"Action with risk {action.risk_score} should be blocked in strict mode"
-            )
+            assert (
+                action.approval_status == "blocked"
+            ), f"Action with risk {action.risk_score} should be blocked in strict mode"
 
     def test_normal_profile_blocks_at_higher_risk(self, normal_anchor, gap_report_high_risk):
         """Normal safety profile blocks at risk >= 0.8 (DEC-046)."""
@@ -360,9 +360,9 @@ class TestSafetyProfileThresholds:
         # git_state_corruption has risk 0.9, should be blocked in normal mode too
         very_high_risk_actions = [a for a in proposal.actions if a.risk_score >= 0.8]
         for action in very_high_risk_actions:
-            assert action.approval_status == "blocked", (
-                f"Action with risk {action.risk_score} should be blocked in normal mode"
-            )
+            assert (
+                action.approval_status == "blocked"
+            ), f"Action with risk {action.risk_score} should be blocked in normal mode"
 
 
 # =============================================================================
@@ -400,9 +400,9 @@ class TestNeverAutoApproveViolations:
         proposal = propose_plan(minimal_anchor, gap_report_with_protected_path)
 
         # Should have no violations (all protected paths should require approval)
-        assert proposal.governance_checks.never_auto_approve_violations == [], (
-            "Should have no violations - protected paths should require approval"
-        )
+        assert (
+            proposal.governance_checks.never_auto_approve_violations == []
+        ), "Should have no violations - protected paths should require approval"
 
 
 if __name__ == "__main__":

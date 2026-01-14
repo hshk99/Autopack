@@ -34,7 +34,8 @@ def create_correction_table(dsn: str):
     conn = psycopg2.connect(dsn)
     cursor = conn.cursor()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS classification_corrections (
             id SERIAL PRIMARY KEY,
             file_path TEXT NOT NULL,
@@ -63,7 +64,8 @@ def create_correction_table(dsn: str):
 
         CREATE INDEX IF NOT EXISTS idx_corrections_corrected
             ON classification_corrections(corrected_project, corrected_type);
-    """)
+    """
+    )
 
     conn.commit()
     cursor.close()

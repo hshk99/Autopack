@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from autopack import models
-from autopack.api.deps import verify_api_key, verify_read_access
+from autopack.api.deps import verify_api_key, verify_read_access, limiter
 from autopack.database import get_db
 from autopack.notifications.telegram_notifier import answer_telegram_callback
 from autopack.notifications.telegram_webhook_security import (
@@ -29,8 +29,11 @@ router = APIRouter(tags=["approvals"])
 
 
 @router.post("/approval/request", dependencies=[Depends(verify_api_key)])
+@limiter.limit("10/minute")
 async def request_approval(request: Request, db: Session = Depends(get_db)):
     """Handle approval requests from BUILD-113 autonomous executor.
+
+    Rate limited to 10 requests/minute to prevent approval spam and DoS attacks.
 
     BUILD-117 Enhanced Implementation with:
     - Telegram notifications with approve/reject buttons
@@ -367,8 +370,12 @@ async def _handle_storage_callback(
 
 
 @router.post("/telegram/webhook")
+@limiter.limit("30/minute")
 async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
     """Handle Telegram webhook callbacks for approval buttons.
+
+    Rate limited to 30 requests/minute to prevent webhook abuse while allowing
+    legitimate rapid button presses.
 
     This endpoint receives callbacks when users tap Approve/Reject buttons
     in Telegram notifications.

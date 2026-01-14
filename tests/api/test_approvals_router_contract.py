@@ -26,6 +26,9 @@ class TestRequestApprovalContract:
         import os
         from unittest.mock import AsyncMock, MagicMock, patch
 
+        from starlette.datastructures import Headers
+        from starlette.requests import Request
+
         from autopack.api.routes.approvals import request_approval
 
         mock_db = MagicMock()
@@ -33,8 +36,17 @@ class TestRequestApprovalContract:
         mock_db.commit = MagicMock()
         mock_db.refresh = MagicMock()
 
-        mock_request = AsyncMock()
-        mock_request.json = AsyncMock(
+        # Create a proper Request object for rate limiting compatibility
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/approval/request",
+            "headers": Headers({"host": "testserver"}).raw,
+            "client": ("127.0.0.1", 8000),
+        }
+        mock_request = Request(scope)
+        # Mock the json() method to return test data
+        mock_request._json = AsyncMock(
             return_value={
                 "phase_id": "test-phase",
                 "run_id": "test-run",
@@ -42,6 +54,7 @@ class TestRequestApprovalContract:
                 "decision_info": {},
             }
         )
+        mock_request.json = mock_request._json
 
         with patch.dict(os.environ, {"AUTO_APPROVE_BUILD113": "false"}, clear=False):
             with patch(
@@ -62,19 +75,30 @@ class TestRequestApprovalContract:
         from unittest.mock import AsyncMock, MagicMock
 
         from fastapi import HTTPException
+        from starlette.datastructures import Headers
+        from starlette.requests import Request
 
         from autopack.api.routes.approvals import request_approval
 
         mock_db = MagicMock()
         mock_db.add.side_effect = Exception("Database error")
 
-        mock_request = AsyncMock()
-        mock_request.json = AsyncMock(
+        # Create a proper Request object for rate limiting compatibility
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/approval/request",
+            "headers": Headers({"host": "testserver"}).raw,
+            "client": ("127.0.0.1", 8000),
+        }
+        mock_request = Request(scope)
+        mock_request._json = AsyncMock(
             return_value={
                 "phase_id": "test-phase",
                 "run_id": "test-run",
             }
         )
+        mock_request.json = mock_request._json
 
         with pytest.raises(HTTPException) as exc_info:
             await request_approval(request=mock_request, db=mock_db)
@@ -190,11 +214,24 @@ class TestTelegramWebhookContract:
         import os
         from unittest.mock import AsyncMock, MagicMock, patch
 
+        from starlette.datastructures import Headers
+        from starlette.requests import Request
+
         from autopack.api.routes.approvals import telegram_webhook
 
         mock_db = MagicMock()
-        mock_request = AsyncMock()
-        mock_request.json = AsyncMock(return_value={})
+
+        # Create a proper Request object for rate limiting compatibility
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/telegram/webhook",
+            "headers": Headers({"host": "testserver"}).raw,
+            "client": ("127.0.0.1", 8000),
+        }
+        mock_request = Request(scope)
+        mock_request._json = AsyncMock(return_value={})
+        mock_request.json = mock_request._json
 
         with patch.dict(os.environ, {"TESTING": "1"}, clear=False):
             result = await telegram_webhook(request=mock_request, db=mock_db)
@@ -207,11 +244,23 @@ class TestTelegramWebhookContract:
         import os
         from unittest.mock import AsyncMock, MagicMock, patch
 
+        from starlette.datastructures import Headers
+        from starlette.requests import Request
+
         from autopack.api.routes.approvals import telegram_webhook
 
         mock_db = MagicMock()
-        mock_request = AsyncMock()
-        mock_request.json = AsyncMock(
+
+        # Create a proper Request object for rate limiting compatibility
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/telegram/webhook",
+            "headers": Headers({"host": "testserver"}).raw,
+            "client": ("127.0.0.1", 8000),
+        }
+        mock_request = Request(scope)
+        mock_request._json = AsyncMock(
             return_value={
                 "callback_query": {
                     "id": "123",
@@ -219,6 +268,7 @@ class TestTelegramWebhookContract:
                 }
             }
         )
+        mock_request.json = mock_request._json
 
         with patch.dict(os.environ, {"TESTING": "1"}, clear=False):
             result = await telegram_webhook(request=mock_request, db=mock_db)
@@ -232,12 +282,24 @@ class TestTelegramWebhookContract:
         from unittest.mock import AsyncMock, MagicMock, patch
 
         from fastapi import HTTPException
+        from starlette.datastructures import Headers
+        from starlette.requests import Request
 
         from autopack.api.routes.approvals import telegram_webhook
 
         mock_db = MagicMock()
-        mock_request = AsyncMock()
-        mock_request.json = AsyncMock(return_value={})
+
+        # Create a proper Request object for rate limiting compatibility
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/telegram/webhook",
+            "headers": Headers({"host": "testserver"}).raw,
+            "client": ("127.0.0.1", 8000),
+        }
+        mock_request = Request(scope)
+        mock_request._json = AsyncMock(return_value={})
+        mock_request.json = mock_request._json
 
         # Not in testing mode, and verification will fail
         with patch.dict(os.environ, {"TESTING": "0"}, clear=False):

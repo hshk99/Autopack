@@ -194,7 +194,7 @@ class QualityValidator(Validator):
                     parsed = urlparse(citation.source_url)
                     if parsed.netloc:
                         domains.add(parsed.netloc)
-                except:
+                except Exception:
                     pass
 
         # Check source diversity

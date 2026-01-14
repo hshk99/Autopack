@@ -21,6 +21,7 @@ from functools import wraps
 from fastapi import APIRouter, HTTPException
 from typing import List
 from .schemas import ResearchSession, CreateResearchSession
+from autopack.sql_sanitizer import SQLSanitizer
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +103,9 @@ async def get_research_session(session_id: str):
 
     QUARANTINE: This endpoint is disabled in production.
     """
+    # Validate session_id to prevent SQL injection
+    session_id = SQLSanitizer.validate_parameter(session_id)
+
     for session in research_sessions:
         if session.session_id == session_id:
             return session

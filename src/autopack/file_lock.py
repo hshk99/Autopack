@@ -59,7 +59,7 @@ class FileLock:
 
                 try:
                     msvcrt.locking(self._lock_fd, msvcrt.LK_NBLCK, 1)
-                except OSError as e:
+                except OSError:
                     # Lock already held
                     os.close(self._lock_fd)
                     self._lock_fd = None
@@ -69,7 +69,7 @@ class FileLock:
 
                 try:
                     fcntl.flock(self._lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                except (IOError, OSError) as e:
+                except (IOError, OSError):
                     # Lock already held
                     os.close(self._lock_fd)
                     self._lock_fd = None

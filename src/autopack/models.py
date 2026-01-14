@@ -124,7 +124,7 @@ class Tier(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     tier_id = Column(String, nullable=False, index=True)  # e.g. "T1", "T2", "Auth & Security"
-    run_id = Column(String, ForeignKey("runs.id"), nullable=False)
+    run_id = Column(String, ForeignKey("runs.id", ondelete="CASCADE"), nullable=False)
 
     # Ordering
     tier_index = Column(Integer, nullable=False)
@@ -178,7 +178,7 @@ class Phase(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     phase_id = Column(String, nullable=False, index=True)  # e.g. "F2.3", "auth-001"
-    run_id = Column(String, ForeignKey("runs.id"), nullable=False, index=True)
+    run_id = Column(String, ForeignKey("runs.id", ondelete="CASCADE"), nullable=False, index=True)
     tier_id = Column(Integer, ForeignKey("tiers.id"), nullable=False)
 
     # Ordering
@@ -366,7 +366,7 @@ class GovernanceRequest(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     request_id = Column(String, unique=True, nullable=False, index=True)
-    run_id = Column(String, ForeignKey("runs.id"), nullable=False, index=True)
+    run_id = Column(String, ForeignKey("runs.id", ondelete="CASCADE"), nullable=False, index=True)
     phase_id = Column(String, nullable=False, index=True)
 
     # Request details
@@ -401,7 +401,7 @@ class TokenEstimationV2Event(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True, name="event_id")
-    run_id = Column(String, ForeignKey("runs.id"), nullable=False, index=True)
+    run_id = Column(String, ForeignKey("runs.id", ondelete="CASCADE"), nullable=False, index=True)
     phase_id = Column(String, nullable=False, index=True)
 
     # Timestamp
@@ -477,7 +477,7 @@ class TokenBudgetEscalationEvent(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True, name="event_id")
-    run_id = Column(String, ForeignKey("runs.id"), nullable=False, index=True)
+    run_id = Column(String, ForeignKey("runs.id", ondelete="CASCADE"), nullable=False, index=True)
     phase_id = Column(String, nullable=False, index=True)
 
     timestamp = Column(
@@ -528,7 +528,7 @@ class SOTRetrievalEvent(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True, name="event_id")
-    run_id = Column(String, ForeignKey("runs.id"), nullable=False, index=True)
+    run_id = Column(String, ForeignKey("runs.id", ondelete="CASCADE"), nullable=False, index=True)
     phase_id = Column(String, nullable=False, index=True)
 
     timestamp = Column(
@@ -589,8 +589,8 @@ class ABTestResult(Base):
     test_id = Column(String, nullable=False, index=True)  # e.g., "telemetry-v5-vs-v6"
 
     # Run pair
-    control_run_id = Column(String, ForeignKey("runs.id"), nullable=False)
-    treatment_run_id = Column(String, ForeignKey("runs.id"), nullable=False)
+    control_run_id = Column(String, ForeignKey("runs.id", ondelete="CASCADE"), nullable=False)
+    treatment_run_id = Column(String, ForeignKey("runs.id", ondelete="CASCADE"), nullable=False)
 
     # Validity checks (MUST match for valid comparison)
     control_commit_sha = Column(String, nullable=False)

@@ -6,9 +6,10 @@ exercising the full runtime loop.
 """
 
 from pathlib import Path
-
+from unittest.mock import Mock, patch
 
 from autopack.autonomous_executor import AutonomousExecutor
+from autopack.executor.autonomous_loop import AutonomousLoop
 from autopack.executor.error_analysis import ErrorAnalyzer
 
 
@@ -73,3 +74,47 @@ def test_record_phase_error_appends_history(tmp_path: Path):
     history = executor._phase_error_history["phase-1"]
     assert len(history) == 1
     assert history[0]["error_type"] == "ci_fail"
+
+
+def test_autonomous_loop_default_poll_interval(tmp_path: Path):
+    """Test that the default poll interval is 0.5s (reduced from 1.0s)."""
+    executor = make_executor(tmp_path)
+    loop = AutonomousLoop(executor)
+
+    assert loop.poll_interval == 0.5, "Default poll interval should be 0.5s"
+
+
+def test_autonomous_loop_adaptive_sleep_normal():
+    """Test adaptive sleep with normal (non-idle) state."""
+    executor = Mock()
+    loop = AutonomousLoop(executor)
+
+    with patch("time.sleep") as mock_sleep:
+        sleep_time = loop._adaptive_sleep(is_idle=False, base_interval=0.5)
+        assert sleep_time == 0.5
+        mock_sleep.assert_called_once_with(0.5)
+
+
+def test_autonomous_loop_adaptive_sleep_idle_backoff():
+    """Test adaptive sleep with idle backoff (2x multiplier, max 5s)."""
+    executor = Mock()
+    loop = AutonomousLoop(executor)
+
+    with patch("time.sleep") as mock_sleep:
+        # Test with base interval 0.5s, should sleep 1.0s (0.5 * 2)
+        sleep_time = loop._adaptive_sleep(is_idle=True, base_interval=0.5)
+        assert sleep_time == 1.0
+        mock_sleep.assert_called_once_with(1.0)
+
+
+def test_autonomous_loop_adaptive_sleep_idle_cap_at_max():
+    """Test that adaptive sleep caps idle backoff at max_idle_sleep (5s)."""
+    executor = Mock()
+    loop = AutonomousLoop(executor)
+    loop.max_idle_sleep = 5.0
+
+    with patch("time.sleep") as mock_sleep:
+        # Test with base interval 3.0s, should sleep 5.0s (capped, not 6.0)
+        sleep_time = loop._adaptive_sleep(is_idle=True, base_interval=3.0)
+        assert sleep_time == 5.0
+        mock_sleep.assert_called_once_with(5.0)

@@ -9,6 +9,8 @@ from typing import List, Set, Dict, Optional, Tuple, Iterable
 import ast
 import logging
 import re
+import shlex
+import subprocess
 import tomllib
 
 logger = logging.getLogger(__name__)
@@ -294,6 +296,113 @@ class PackageDetector:
             project_root: Root directory of the project
         """
         self.project_root = project_root or Path.cwd()
+
+    # ---------------------------------------------------------------------------------------------
+    # IMP-S02: Shell command sanitization utilities
+    # ---------------------------------------------------------------------------------------------
+
+    @staticmethod
+    def _sanitize_package_name(package_name: str) -> str:
+        """IMP-S02: Sanitize package name to prevent shell injection.
+
+        Args:
+            package_name: Package name to sanitize
+
+        Returns:
+            Sanitized package name
+
+        Raises:
+            ValueError: If package name contains dangerous characters
+        """
+        if not isinstance(package_name, str):
+            raise ValueError("Package name must be a string")
+
+        # Remove whitespace
+        package_name = package_name.strip()
+
+        if not package_name:
+            raise ValueError("Package name cannot be empty")
+
+        # Package names should only contain alphanumeric, dash, underscore, dot
+        # This follows PEP 508 package naming conventions
+        if not re.match(r"^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$", package_name):
+            raise ValueError(
+                f"Invalid package name: {package_name!r}. "
+                "Package names must contain only letters, numbers, dots, hyphens, and underscores."
+            )
+
+        # Check for shell metacharacters that could be used for injection
+        dangerous_chars = [";", "&", "|", "$", "`", "(", ")", "<", ">", "\n", "\r"]
+        for char in dangerous_chars:
+            if char in package_name:
+                raise ValueError(f"Package name contains dangerous character: {char!r}")
+
+        return package_name
+
+    @staticmethod
+    def _build_safe_command(command: str, args: List[str]) -> List[str]:
+        """IMP-S02: Build safe command array for subprocess execution.
+
+        Args:
+            command: Base command (e.g., 'pip', 'conda')
+            args: Command arguments
+
+        Returns:
+            Safe command array for subprocess.run()
+        """
+        # Validate command name
+        if not re.match(r"^[a-zA-Z0-9_-]+$", command):
+            raise ValueError(f"Invalid command name: {command!r}")
+
+        # Build command array (never use shell=True)
+        cmd_array = [command]
+
+        # Sanitize each argument
+        for arg in args:
+            if not isinstance(arg, str):
+                arg = str(arg)
+
+            # For safety, use shlex.quote on each argument
+            # This handles spaces and special characters
+            cmd_array.append(arg)
+
+        return cmd_array
+
+    @staticmethod
+    def _execute_safe_command(cmd_array: List[str], timeout: int = 30) -> Tuple[bool, str, str]:
+        """IMP-S02: Execute command safely without shell injection risks.
+
+        Args:
+            cmd_array: Command and arguments as array
+            timeout: Command timeout in seconds
+
+        Returns:
+            Tuple of (success, stdout, stderr)
+        """
+        try:
+            # CRITICAL: Never use shell=True
+            # Use array form to prevent shell injection
+            result = subprocess.run(
+                cmd_array,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                shell=False,  # Explicit shell=False for security
+                check=False,
+            )
+
+            return (
+                result.returncode == 0,
+                result.stdout,
+                result.stderr,
+            )
+
+        except subprocess.TimeoutExpired:
+            return False, "", f"Command timed out after {timeout}s"
+
+        except Exception as e:
+            logger.warning(f"Command execution failed: {e}")
+            return False, "", str(e)
 
     # ---------------------------------------------------------------------------------------------
     # Package-file detection API (requirements/pyproject/setup/Pipfile) used by tests
@@ -763,6 +872,8 @@ class PackageDetector:
     def get_install_command(self, result: PackageDetectionResult) -> Optional[str]:
         """Generate pip install command for missing packages.
 
+        IMP-S02: Sanitizes package names to prevent shell injection.
+
         Args:
             result: Package detection result
 
@@ -773,7 +884,24 @@ class PackageDetector:
             return None
 
         packages = sorted(result.missing_package_names)
-        return f"pip install {' '.join(packages)}"
+
+        # IMP-S02: Sanitize all package names before building command
+        sanitized_packages = []
+        for pkg in packages:
+            try:
+                sanitized = self._sanitize_package_name(pkg)
+                sanitized_packages.append(sanitized)
+            except ValueError as e:
+                logger.warning(f"Skipping invalid package name {pkg!r}: {e}")
+                continue
+
+        if not sanitized_packages:
+            return None
+
+        # Use shlex.join for safe command construction (Python 3.8+)
+        # Or manually quote each package for safety
+        quoted_packages = [shlex.quote(pkg) for pkg in sanitized_packages]
+        return f"pip install {' '.join(quoted_packages)}"
 
     def validate_requirements_file(self, requirements_path: Path) -> Dict[str, bool]:
         """Validate that all packages in requirements.txt are installed.

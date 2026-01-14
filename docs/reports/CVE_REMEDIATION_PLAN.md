@@ -17,7 +17,7 @@ This document details the remediation plan for 30 CVE vulnerabilities found acro
 **Severity**: High (DoS, request smuggling, memory exhaustion vulnerabilities)
 **Action**: Upgrade from 3.13.2 to 3.13.3 via transitive dependency update
 **Breaking Changes**: None expected (patch release)
-**Impact**: 
+**Impact**:
 - CVE-2025-69223: Zip bomb DoS protection
 - CVE-2025-69224: Request smuggling fix for non-ASCII characters
 - CVE-2025-69228: Memory exhaustion protection in Request.post()
@@ -223,7 +223,7 @@ Many of the reported vulnerabilities affect packages that are already pinned to 
 
 **Key Finding**: The requirements files (`requirements.txt` and `requirements-dev.txt`) are **already correct** and contain appropriate versions to address all known CVEs. The issue was limited to the local development environment having outdated transitive dependencies.
 
-**Resolution**: 
+**Resolution**:
 - No changes to dependency versions required
 - CI will automatically use fresh environments with correct dependency versions
 - Developers should recreate virtual environments from scratch to ensure CVE fixes are applied

@@ -13,10 +13,26 @@ import sys
 
 
 def check_cves():
-    """Run pip-audit to check for CVE vulnerabilities in dependencies."""
+    """Run pip-audit to check for CVE vulnerabilities in dependencies.
+
+    Notes:
+    - CVE-2024-23342 (python-ecdsa) currently has no upstream fix; the project
+      treats this side‑channel issue as accepted risk (see CVE remediation plan).
+      We explicitly ignore it here to prevent a permanent CI failure while still
+      blocking all other vulnerabilities.
+    """
     print("Running CVE scan with pip-audit...")
 
-    result = subprocess.run(["pip-audit", "--format", "json"], capture_output=True, text=True)
+    audit_cmd = [
+        "pip-audit",
+        "--format",
+        "json",
+        # Accepted risk (no upstream fix available)
+        "--ignore-vuln",
+        "CVE-2024-23342",
+    ]
+
+    result = subprocess.run(audit_cmd, capture_output=True, text=True)
 
     if result.returncode != 0:
         print("=" * 70)

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -21,6 +22,12 @@ from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
+
+
+class ConfigError(Exception):
+    """Raised when configuration is invalid."""
+
+    pass
 
 
 def _read_secret_file(file_path: str, secret_name: str) -> Optional[str]:
@@ -108,6 +115,68 @@ def _get_secret(
             )
 
     return value
+
+
+class Config:
+    """Application configuration with environment variable validation.
+
+    Validates all required environment variables at startup with clear error messages.
+    Fails fast on misconfiguration instead of runtime errors.
+    """
+
+    def __init__(self):
+        """Initialize configuration and validate all required environment variables."""
+        self.validate()
+
+    def validate(self):
+        """Validate all required environment variables.
+
+        Checks:
+        - Required vars: DATABASE_URL, REDIS_URL, QDRANT_URL, ANTHROPIC_API_KEY
+        - Optional with defaults: LOG_LEVEL, PORT
+
+        Raises:
+            ConfigError: If any required variables are missing or invalid.
+        """
+        errors = []
+
+        # Database
+        if not os.getenv("DATABASE_URL"):
+            errors.append("DATABASE_URL is required")
+
+        # Redis
+        if not os.getenv("REDIS_URL"):
+            errors.append("REDIS_URL is required")
+
+        # Qdrant
+        if not os.getenv("QDRANT_URL"):
+            errors.append("QDRANT_URL is required")
+
+        # LLM API keys
+        if not os.getenv("ANTHROPIC_API_KEY"):
+            errors.append("ANTHROPIC_API_KEY is required")
+
+        # Optional with defaults
+        self.log_level = os.getenv("LOG_LEVEL", "INFO")
+        if self.log_level not in ["DEBUG", "INFO", "WARNING", "ERROR"]:
+            errors.append(f"Invalid LOG_LEVEL: {self.log_level}")
+
+        # Port validation
+        port = os.getenv("PORT", "8000")
+        try:
+            self.port = int(port)
+            if not (1 <= self.port <= 65535):
+                errors.append(f"Invalid PORT: {port} (must be 1-65535)")
+        except ValueError:
+            errors.append(f"Invalid PORT: {port} (must be integer)")
+
+        if errors:
+            print("❌ Configuration errors detected:", file=sys.stderr)
+            for error in errors:
+                print(f"  - {error}", file=sys.stderr)
+            # Include error details in the exception message for better debugging
+            error_details = "\n".join(errors)
+            raise ConfigError(f"{len(errors)} configuration error(s):\n{error_details}")
 
 
 class Settings(BaseSettings):

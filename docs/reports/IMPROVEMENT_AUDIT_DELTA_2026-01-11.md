@@ -234,7 +234,7 @@ This turns `config/feature_flags.yaml` into a truly mechanically enforceable “
   - `docs/FUTURE_PLAN.md` contains `BUILD-041` marked “🔄 IN PROGRESS: Executor State Persistence Fix”, but executor state persistence is described as implemented elsewhere (e.g., in the improvement backlog / execution history).
 - **Why**: This is exactly the “two truths” failure mode the repo is built to avoid: a planning doc says something is unfinished while the code/tests/SOT say it’s done.
 - **Action**:
-  - Reconcile “IN PROGRESS” markers in *canonical* docs (especially `FUTURE_PLAN.md`) to either:
+  - Reconcile “IN PROGRESS” markers in *canonical* docs (especially `docs/FUTURE_PLAN.md`) to either:
     - **✅ implemented** with evidence pointers (PR/build/test), or
     - explicitly “historical snapshot” (and then exclude from “current status” surfaces).
 
@@ -250,7 +250,7 @@ This turns `config/feature_flags.yaml` into a truly mechanically enforceable “
 #### 1.13 Workstation-specific absolute paths still exist across docs (containment policy)
 
 - **What**: There are many `C:\\dev\\Autopack` / `c:/dev/Autopack` occurrences across `docs/` (mostly in guides/cursor/historical).
-- **Why**: Even if these aren’t “canonical”, they’re copy/paste bait. You already have the right principle (`$REPO_ROOT/` in `WORKSPACE_ORGANIZATION_SPEC.md`), but the repo still contains many violations.
+- **Why**: Even if these aren’t “canonical”, they’re copy/paste bait. You already have the right principle (`$REPO_ROOT/` in `docs/WORKSPACE_ORGANIZATION_SPEC.md`), but the repo still contains many violations.
 - **Action**:
   - Ensure these docs are either:
     - labeled **LEGACY/HISTORICAL — do not copy/paste**, or
@@ -309,10 +309,10 @@ This is the smallest PR stack that specifically closes the remaining **“two tr
   - `docs/FUTURE_PLAN.md`
   - `docs/ARCHITECTURE.md`
 - **Edits (minimal)**:
-  - In `FUTURE_PLAN.md`, reconcile any “IN PROGRESS” items that are now implemented (example: `BUILD-041` state persistence) by either:
+  - In `docs/FUTURE_PLAN.md`, reconcile any “IN PROGRESS” items that are now implemented (example: `BUILD-041` state persistence) by either:
     - marking ✅ complete + linking to the authoritative evidence (BUILD/PR/tests), or
     - explicitly labeling as “historical snapshot” if you intentionally keep the old narrative.
-  - In `ARCHITECTURE.md`, update the most drift-prone facts only:
+  - In `docs/ARCHITECTURE.md`, update the most drift-prone facts only:
     - canonical backend path (`src/autopack/...`)
     - canonical migrations posture (scripts-first per DEC-048; avoid implying Alembic is canonical)
     - (optional) brief note that deeper truth lives in SOT ledgers (INDEX already points there)
@@ -382,7 +382,7 @@ This is the smallest PR stack that specifically closes the remaining **“two tr
       - **Search**: `- src/frontend/ -> src/autopack/dashboard/`
       - **Delete** that line.
   - **Fix canonical security README path** (low-risk correctness fix):
-    - **Search** in `CANONICAL_OPERATOR_DOCS`: `docs/security/README.md`
+    - **Search** in `CANONICAL_OPERATOR_DOCS`: `README.md`
     - **Replace**: `security/README.md`
   - **Add workstation-path enforcement**:
     - Add a new pattern set (or extend existing) that flags workstation-specific absolute paths in canonical docs:

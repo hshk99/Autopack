@@ -1429,9 +1429,9 @@ This is a concrete “first secure milestone” that makes docker-compose + ngin
 
 - **Observation**: There are multiple “canonical lists” of SOT/truth docs:
   - `config/sot_registry.json` defines a broader `docs_sot_files` set (includes security ledgers + FUTURE_PLAN + PROJECT_INDEX + LEARNED_RULES, etc.)
-  - `scripts/tidy/verify_workspace_structure.py` treats the “6-file SOT” as: `PROJECT_INDEX.json`, `BUILD_HISTORY.md`, `DEBUG_LOG.md`, `ARCHITECTURE_DECISIONS.md`, `FUTURE_PLAN.md`, `LEARNED_RULES.json`
+  - `scripts/tidy/verify_workspace_structure.py` treats the “6-file SOT” as: `PROJECT_INDEX.json`, `docs/BUILD_HISTORY.md`, `docs/DEBUG_LOG.md`, `docs/ARCHITECTURE_DECISIONS.md`, `docs/FUTURE_PLAN.md`, `LEARNED_RULES.json`
   - `docs/INDEX.md` lists “Primary SOT ledgers” and additional security ledgers
-  - `docs/WORKSPACE_ORGANIZATION_SPEC.md` states the “6-file SOT structure” includes `FUTURE_PLAN.md`
+  - `docs/WORKSPACE_ORGANIZATION_SPEC.md` states the “6-file SOT structure” includes `docs/FUTURE_PLAN.md`
 - **Why it matters**: The system is designed around “one truth” and mechanical enforcement; multiple overlapping lists are fine only if their relationships are explicit.
 - **Recommended direction**:
   - Define *one canonical* SOT registry and treat others as derived projections:

@@ -272,7 +272,7 @@ The contract test prevents route-shape drift during future refactoring.
   - Uses `git ls-files` for tracked-files-only checking.
   - Allows `archive/` paths (explicitly historical).
 - Created `tests/ci/test_no_tracked_docs_consolidated_md.py` with parametrized path classification tests.
-- Moved `docs/CONSOLIDATED_DEBUG.md` to `archive/docs/CONSOLIDATED_DEBUG.md` (historical redirect stub).
+- Moved `archive/docs/CONSOLIDATED_DEBUG.md` to `archive/docs/CONSOLIDATED_DEBUG.md` (historical redirect stub).
 - Added CI step in `.github/workflows/ci.yml`.
 
 **Remaining** (policy clarification):

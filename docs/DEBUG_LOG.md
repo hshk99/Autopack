@@ -81,7 +81,7 @@ Stub sections can be expanded into full detailed sections by replacing the stub 
 | 2025-12-20 | DBG-056 | HIGH | Research-api-router retry-v2/v3 failed due to merge conflict markers (`<<<<<<< ours`) left in src/autopack/main.py from previous failed patch attempts, causing context mismatch errors and preventing convergence despite BUILD-096 fix | ✅ Resolved (Manual Hotfix: BUILD-097) |
 | 2025-12-20 | DBG-055 | HIGH | Research-api-router phase blocked by protected-path isolation: patch attempts to modify `src/autopack/main.py` for FastAPI router registration, but main.py not in ALLOWED_PATHS (narrower than diagnostics subtrees in BUILD-090) | ✅ Resolved (Manual Hotfix: BUILD-096) |
 | 2025-12-20 | DBG-054 | HIGH | Autonomous_executor.py had 3 duplicate copies of allowed_roots computation logic (lines 3474, 4300, 4678) with same bug as DBG-053; manifest gate rejected examples/ deliverables despite deliverables_validator.py being fixed in BUILD-094 | ✅ Resolved (Manual Hotfix: BUILD-095) |
-| 2025-12-20 | DBG-053 | HIGH | Deliverables validator incorrectly computed allowed_roots for file deliverables like `docs/examples/examples/market_research_example.md`, creating root `examples/market_research_example.md/` instead of `examples/`, causing false "outside allowed roots" failures for research-examples-and-docs phase | ✅ Resolved (Manual Hotfix: BUILD-094) |
+| 2025-12-20 | DBG-053 | HIGH | Deliverables validator incorrectly computed allowed_roots for file deliverables like `docs/examples/examples/market_research_example.md`, creating root `docs/examples/examples/market_research_example.md` instead of `examples/`, causing false "outside allowed roots" failures for research-examples-and-docs phase | ✅ Resolved (Manual Hotfix: BUILD-094) |
 | 2025-12-20 | DBG-052 | MEDIUM | After fixing ImportError (DBG-051), phases 2-3 could not retry because `retry_attempt` counter was at 5/5 (MAX_RETRY_ATTEMPTS); reset counter to 0 to enable successful retry | ✅ Resolved (Manual DB Reset: BUILD-093) |
 | 2025-12-20 | DBG-051 | HIGH | LLM clients (OpenAI, Gemini, GLM) attempt to import missing `format_rules_for_prompt` and `format_hints_for_prompt` functions from learned_rules.py, causing ImportError and blocking Builder execution in all follow-up phases | ✅ Resolved (Manual Hotfix: BUILD-092) |
 | 2025-12-20 | DBG-050 | HIGH | Follow-up requirements YAML files contain invalid syntax: backtick-prefixed strings in feature lists cause YAML parser failures during run seeding, blocking `autopack-followups-v1` creation | ✅ Resolved (Manual Hotfix: BUILD-091) |
@@ -533,12 +533,12 @@ Autonomous_executor.py had 3 duplicate copies of allowed_roots computation logic
 
 **Note**: This is a stub section generated from INDEX table entry. Full details to be added in future documentation updates.
 
-### DBG-053 | 2025-12-20 | Deliverables validator incorrectly computed allowed_roots for file deliverables like `docs/examples/examples/market_research_example.md`, creating root `examples/market_research_example.md/` instead of `examples/`, causing false "outside allowed roots" failures for research-examples-and-docs phase
+### DBG-053 | 2025-12-20 | Deliverables validator incorrectly computed allowed_roots for file deliverables like `docs/examples/examples/market_research_example.md`, creating root `docs/examples/examples/market_research_example.md` instead of `examples/`, causing false "outside allowed roots" failures for research-examples-and-docs phase
 **Severity**: HIGH
 **Status**: ✅ Resolved (Manual Hotfix: BUILD-094)
 
 **Summary**:
-Deliverables validator incorrectly computed allowed_roots for file deliverables like `docs/examples/examples/market_research_example.md`, creating root `examples/market_research_example.md/` instead of `examples/`, causing false "outside allowed roots" failures for research-examples-and-docs phase
+Deliverables validator incorrectly computed allowed_roots for file deliverables like `docs/examples/examples/market_research_example.md`, creating root `docs/examples/examples/market_research_example.md` instead of `examples/`, causing false "outside allowed roots" failures for research-examples-and-docs phase
 
 **Note**: This is a stub section generated from INDEX table entry. Full details to be added in future documentation updates.
 
@@ -951,7 +951,7 @@ provider_stats[event.provider]["completion_tokens"] += completion_tokens
 - Primary runbook and capability-gap report referenced outdated port/commands and outdated “chunk completion” status, increasing the chance of operator error and protocol drift.
 
 **Fix**:
-- Update `PROMPT_FOR_OTHER_CURSOR_FILEORG.md` to prefer backend 8001 and reflect current stabilization posture.
+- Update `docs/cursor/PROMPT_FOR_OTHER_CURSOR_FILEORG.md` to prefer backend 8001 and reflect current stabilization posture.
 - Update `archive/superseded/research/unsorted/RESEARCH_SYSTEM_CAPABILITY_GAP_ANALYSIS.md` to reflect post-stabilization reality (Chunk 2B/4/5 convergence blockers resolved).
 - Add `archive/superseded/prompts/unsorted/NEXT_CURSOR_TAKEOVER_PROMPT.md` as a durable handoff artifact.
 
@@ -1587,7 +1587,7 @@ provider_stats[event.provider]["completion_tokens"] += completion_tokens
 
 **Symptoms**:
 - Qdrant not running locally produced WARNING-level logs even though FAISS fallback is expected.
-- Missing `CONSOLIDATED_DEBUG.md` (project journal) logged every attempt despite being non-actionable for this run.
+- Missing `archive/docs/CONSOLIDATED_DEBUG.md` (project journal) logged every attempt despite being non-actionable for this run.
 - Deliverables contract frequently reported `0 forbidden patterns`, and Builder kept creating `tracer_bullet/` instead of required `src/autopack/research/tracer_bullet/...`.
 
 **Fixes Applied (manual)**:

@@ -1,4 +1,4 @@
-# Cursor Implementation Prompt: Implement *all* items from `COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md`
+# Cursor Implementation Prompt: Implement *all* items from `docs/reports/COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md`
 
 **Audience**: Another Cursor agent implementing changes (code + docs + tests) in this repo.
 **Goal**: Implement *everything* required by the canonical PR stack and numbered checklist in `docs/reports/COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md`, with strong guardrails and CI proof.

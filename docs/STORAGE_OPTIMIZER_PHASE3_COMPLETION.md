@@ -712,7 +712,7 @@ python scripts/storage/scan_and_report.py --execute --scan-id 123
 
 **Workaround**:
 - Telegram is optional (CLI still works without it)
-- Comprehensive setup guide in `TELEGRAM_APPROVAL_SETUP.md`
+- Comprehensive setup guide in `archive/superseded/scripts/unsorted/TELEGRAM_APPROVAL_SETUP.md`
 - Clear error messages if misconfigured
 
 ### 4. No Cross-Platform Scheduling

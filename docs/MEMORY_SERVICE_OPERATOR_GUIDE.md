@@ -1409,8 +1409,8 @@ docker logs qdrant | grep -E "POST|GET|DELETE"
 
 ### Documentation
 
-- [docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md](../SOT_MEMORY_INTEGRATION_EXAMPLE.md) - Integration guide
-- [docs/ARCHITECTURE_DECISIONS.md](../ARCHITECTURE_DECISIONS.md) - Memory architecture decisions
+- [docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md](docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md) - Integration guide
+- [docs/ARCHITECTURE_DECISIONS.md](docs/ARCHITECTURE_DECISIONS.md) - Memory architecture decisions
 - Qdrant docs: [qdrant.tech/documentation](https://qdrant.tech/documentation)
 - OpenAI embeddings: [platform.openai.com/docs/guides/embeddings](https://platform.openai.com/docs/guides/embeddings)
 

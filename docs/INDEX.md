@@ -37,7 +37,6 @@ These are the canonical references that should stay current and are designed to 
 - **Running Autopack / using the API**: `docs/QUICKSTART.md`, `docs/API_BASICS.md`, `docs/CANONICAL_API_CONTRACT.md`
 - **Comprehensive improvement scan (single consolidated backlog + PR stack)**: `docs/reports/COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md`
 - **True Autonomy implementation details**: `docs/IMPLEMENTATION_PLAN_TRUE_AUTONOMY.md`, `archive/superseded/reports/unsorted/TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md`
-- **Intention Anchor lifecycle (plan → build → audit → SOT → retrieve)**: `docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_LIFECYCLE.md`
 - **Intention-first autonomy loop (remaining improvements: executor wiring + catalog refresh + contracts)**: `docs/IMPLEMENTATION_PLAN_INTENTION_FIRST_AUTONOMY_LOOP_REMAINING_IMPROVEMENTS.md`
 - **Universal autonomy + safe parallelism (pivot intentions → gap taxonomy → bounded autopilot)**: `docs/IMPLEMENTATION_PLAN_PIVOT_INTENTIONS_AUTONOMY_PARALLELISM.md`
 - **NEXT (BUILD-179 plan): consolidate autonomy CLIs + supervisor (library-first, policy-gated parallel runs)**: `docs/BUILD-179_AUTONOMY_CLI_AND_SUPERVISOR_CONSOLIDATION.md`
@@ -205,5 +204,5 @@ If you're unsure: write the doc, then run the tidy workflow to consolidate and k
 
 **Tidy System Behavior**:
 - README.md is **skipped** by consolidation (has `<!-- SOT_SUMMARY_START/END -->` markers)
-- Append-only ledgers are **auto-updated** by `consolidate_docs_v2.py` during Phase 6 cleanup
+- Append-only ledgers are **auto-updated** by `scripts/consolidate_docs.py` during Phase 6 cleanup
 - Living docs require **manual updates** but can reference ledgers via links

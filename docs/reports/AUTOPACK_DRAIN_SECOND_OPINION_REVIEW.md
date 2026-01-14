@@ -4,7 +4,7 @@ Date: 2025-12-27 (report generated in ChatGPT)
 
 ## Evidence reviewed (from your pack)
 - `README.md`
-- `SOT_BUNDLE.md`
+- `docs/SOT_BUNDLE.md`
 - `CONSOLIDATED_CI_LOGS.txt`
 - `CONSOLIDATED_CI_REPORTS.ndjson`
 - `research-system-v1_DIAGNOSTICS.jsonl`
@@ -40,10 +40,10 @@ This report focuses on whether the observed drain/CI behavior matches the docume
 
 ### A3) README implies “no more /runs/{id} 500s” (during validation), but a later systemic 500 cause was still discovered and fixed
 - The SOT/README narrative includes “No more `/runs/<built-in function id>` 500s during validation” after fixing API identity & DB matching.
-  - Pointer: `SOT_BUNDLE.md` P10-validation section, lines **L13–L21**.
+  - Pointer: `docs/SOT_BUNDLE.md` P10-validation section, lines **L13–L21**.
 - A later systemic blocker was recorded and fixed: `/runs/research-system-v1` could return **500** due to **legacy string `Phase.scope`** breaking response schema validation.
-  - Evidence: build log entry and schema fix note in `SOT_BUNDLE.md` (2025-12-28 entry).
-    - Pointer: `SOT_BUNDLE.md` build log snippet lines **L8–L13**.
+  - Evidence: build log entry and schema fix note in `docs/SOT_BUNDLE.md` (2025-12-28 entry).
+    - Pointer: `docs/SOT_BUNDLE.md` build log snippet lines **L8–L13**.
   - Evidence: commit `5a29b35c` describes the fix explicitly.
     - Pointer: `CODE_AND_GIT_CONTEXT.txt` diff header and summary for `5a29b35c`.
 
@@ -104,7 +104,7 @@ Alternative hypotheses (lower probability without more artifacts):
 - The pack’s SOT summary explicitly records phases completing even when CI is failing:
   - `research-system-v26`: “Phase finalized COMPLETE … CI failed but phase finalized via existing policy (no systemic blocker).”
   - `scope-smoke P1`: “CI failed but phase finalized via existing policy.”
-  - Pointer: `SOT_BUNDLE.md` drain-status summary section lines **L9–L13**.
+  - Pointer: `docs/SOT_BUNDLE.md` drain-status summary section lines **L9–L13**.
 - CI reports for these runs show exitcode=1 and ~60 failed tests.
   - Pointer: `CONSOLIDATED_CI_REPORTS.ndjson` summary table (above).
 
@@ -131,7 +131,7 @@ Alternative hypotheses (lower probability without more artifacts):
 ### Pattern 3: No-op apply / “no operations”
 **Evidence**
 - `build112-completion Phase 5`: “Builder produced JSON outputs; structured edit fallback resulted in ‘No operations (structured edit)’. This did not block …”
-  - Pointer: `SOT_BUNDLE.md` drain-status summary section lines **L14–L16**.
+  - Pointer: `docs/SOT_BUNDLE.md` drain-status summary section lines **L14–L16**.
 
 **Hypothesized root cause**
 - Likely one of:
@@ -159,11 +159,11 @@ Without the phase’s apply logs and the phase spec’s deliverables, this canno
 ### Pattern 4: Truncation / 100% utilization behavior
 **Evidence**
 - Triage and mitigation summary: documentation tasks were a primary driver; P7+P9+P10 introduced adaptive buffers and an “escalate-once” retry strategy.
-  - Pointer: `SOT_BUNDLE.md` truncation mitigation entry (2025-12-25), lines **L24–L28**.
+  - Pointer: `docs/SOT_BUNDLE.md` truncation mitigation entry (2025-12-25), lines **L24–L28**.
 - P10 design was motivated by repeated **exactly 100% utilization** events despite buffers.
-  - Pointer: `SOT_BUNDLE.md` P10 section includes “phases hitting EXACTLY 100% utilization …” lines **L57–L62** in the truncation mitigation details.
+  - Pointer: `docs/SOT_BUNDLE.md` P10 section includes “phases hitting EXACTLY 100% utilization …” lines **L57–L62** in the truncation mitigation details.
 - P10 stability evidence: retried budgets are actually applied across drain batches (persists in DB).
-  - Pointer: `SOT_BUNDLE.md` “P10 Stability” section lines **L3–L8**.
+  - Pointer: `docs/SOT_BUNDLE.md` “P10 Stability” section lines **L3–L8**.
 
 **Hypothesized root cause**
 - Underestimation + hard max-token overrides leading to responses that hit the cap, compounded by doc_synthesis tasks requiring larger context reconstruction.
@@ -262,6 +262,6 @@ Without the phase’s apply logs and the phase spec’s deliverables, this canno
 
 ## Appendix: Quick “evidence pointers” (where to look)
 - CI collector/import failure signature: `CONSOLIDATED_CI_LOGS.txt` around `pytest_research-testing-polish.log` (v29).
-- Phase completion despite CI red: `SOT_BUNDLE.md` drain-status summary section.
+- Phase completion despite CI red: `docs/SOT_BUNDLE.md` drain-status summary section.
 - Run selection helper: `CODE_AND_GIT_CONTEXT.txt` diff for `cf80358c`, and README update line mentioning `scripts/pick_next_run.py`.
 - Legacy scope 500 fix: `CODE_AND_GIT_CONTEXT.txt` diff for `5a29b35c`.

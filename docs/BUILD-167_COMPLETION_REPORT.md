@@ -112,8 +112,8 @@ BUILD-167 focused on high-ROI improvements to the doc link infrastructure after 
 - Created 4 redirect stub files:
   - `SOT_BUNDLE.md` → `docs/BUILD-163_SOT_DB_SYNC.md`
   - `docs/SOT_BUNDLE.md` → `BUILD-163_SOT_DB_SYNC.md`
-  - `CONSOLIDATED_DEBUG.md` → `docs/DEBUG_LOG.md`
-  - `docs/CONSOLIDATED_DEBUG.md` → `DEBUG_LOG.md`
+  - `archive/docs/CONSOLIDATED_DEBUG.md` → `docs/DEBUG_LOG.md`
+  - `archive/docs/CONSOLIDATED_DEBUG.md` → `DEBUG_LOG.md`
 
 **Stub Format**:
 ```markdown
@@ -282,8 +282,8 @@ Broken references: 1,103
 3. `docs/EXIT_CODE_STANDARDS.md` (exit code standards)
 4. `SOT_BUNDLE.md` (redirect stub)
 5. `docs/SOT_BUNDLE.md` (redirect stub)
-6. `CONSOLIDATED_DEBUG.md` (redirect stub)
-7. `docs/CONSOLIDATED_DEBUG.md` (redirect stub)
+6. `archive/docs/CONSOLIDATED_DEBUG.md` (redirect stub)
+7. `archive/docs/CONSOLIDATED_DEBUG.md` (redirect stub)
 8. `archive/diagnostics/top_offenders_analysis.txt` (analysis output)
 9. `archive/diagnostics/phase2_triage_impact.txt` (dry-run results)
 10. `archive/diagnostics/phase2_post_triage_scan.txt` (post-triage scan)

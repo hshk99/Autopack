@@ -165,7 +165,7 @@ These patterns indicate **historical/completed documentation** that should be mo
 Only these subdirectories are permitted under `docs/`:
 
 1. **docs/guides/** - User guides and tutorials
-   - Example: `BUILD-139_T1-T5_HANDOFF.md`
+   - Example: `docs/guides/BUILD-139_T1-T5_HANDOFF.md`
 
 2. **docs/cli/** - CLI documentation and reference
    - Command line interface guides

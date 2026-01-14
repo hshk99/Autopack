@@ -90,7 +90,7 @@ Deep scan baseline shows **746 `missing_file` violations** across 163 docs. Nav 
    - References are intentional (historical context)
    - Should be marked as `historical_ref`, not `missing_file`
 
-3. **Legitimate Missing Docs**: `SOT_BUNDLE.md`, `CONSOLIDATED_DEBUG.md`
+3. **Legitimate Missing Docs**: `docs/SOT_BUNDLE.md`, `archive/docs/CONSOLIDATED_DEBUG.md`
    - These may need to be created or references updated
    - Requires manual investigation
 
@@ -161,8 +161,8 @@ Deep scan baseline shows **746 `missing_file` violations** across 163 docs. Nav 
 **Goal**: Create redirect stubs for frequently referenced missing docs
 
 **Tasks**:
-1. Investigate `SOT_BUNDLE.md` - determine canonical target
-2. Investigate `CONSOLIDATED_DEBUG.md` - create redirect or merge
+1. Investigate `docs/SOT_BUNDLE.md` - determine canonical target
+2. Investigate `archive/docs/CONSOLIDATED_DEBUG.md` - create redirect or merge
 3. Add redirect stub support to `apply_triage.py` (if not present)
 4. Create stubs with proper frontmatter
 

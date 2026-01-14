@@ -262,11 +262,8 @@ class AutonomousExecutor:
         self.anthropic_key = anthropic_key or os.getenv("ANTHROPIC_API_KEY")
         self.openai_key = openai_key or os.getenv("OPENAI_API_KEY")
 
-        # Validate at least one API key is available
-        if not self.glm_key and not self.anthropic_key and not self.openai_key:
-            raise ValueError(
-                "At least one LLM API key required: GLM_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY"
-            )
+        # IMP-R06: Enhanced API key validation
+        self._validate_api_keys()
 
         # Initialize error recovery system
         self.error_recovery = ErrorRecoverySystem()
@@ -697,6 +694,54 @@ class AutonomousExecutor:
             test_commands=test_commands,
             auto_apply_low_risk=auto_apply_low_risk,
         )
+
+    def _validate_api_keys(self) -> None:
+        """IMP-R06: Validate API keys before execution.
+
+        Ensures at least one LLM API key is configured and validates format.
+        Prevents execution with invalid/missing API keys.
+
+        Raises:
+            ValueError: If no valid API keys are configured or keys have invalid format
+        """
+        invalid_keys = []
+
+        # Check if at least one key is present
+        if not self.glm_key and not self.anthropic_key and not self.openai_key:
+            raise ValueError(
+                "At least one LLM API key required: GLM_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY"
+            )
+
+        # Validate GLM key format if present
+        if self.glm_key:
+            if not isinstance(self.glm_key, str) or len(self.glm_key.strip()) == 0:
+                invalid_keys.append("GLM_API_KEY (empty or invalid format)")
+            elif len(self.glm_key) < 10:  # Basic length check
+                invalid_keys.append("GLM_API_KEY (suspiciously short)")
+
+        # Validate Anthropic key format if present
+        if self.anthropic_key:
+            if not isinstance(self.anthropic_key, str) or len(self.anthropic_key.strip()) == 0:
+                invalid_keys.append("ANTHROPIC_API_KEY (empty or invalid format)")
+            elif not self.anthropic_key.startswith("sk-"):
+                invalid_keys.append("ANTHROPIC_API_KEY (invalid format - must start with 'sk-')")
+            elif len(self.anthropic_key) < 20:
+                invalid_keys.append("ANTHROPIC_API_KEY (suspiciously short)")
+
+        # Validate OpenAI key format if present
+        if self.openai_key:
+            if not isinstance(self.openai_key, str) or len(self.openai_key.strip()) == 0:
+                invalid_keys.append("OPENAI_API_KEY (empty or invalid format)")
+            elif not self.openai_key.startswith("sk-"):
+                invalid_keys.append("OPENAI_API_KEY (invalid format - must start with 'sk-')")
+            elif len(self.openai_key) < 20:
+                invalid_keys.append("OPENAI_API_KEY (suspiciously short)")
+
+        # Raise error if any keys are invalid
+        if invalid_keys:
+            raise ValueError("Invalid API key(s) detected:\n  - " + "\n  - ".join(invalid_keys))
+
+        logger.info("API key validation passed")
 
     def _run_startup_checks(self):
         """

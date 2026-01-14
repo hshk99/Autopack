@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 import psycopg2
 from qdrant_client import QdrantClient
 
+
 def check_postgresql():
     """Check PostgreSQL routing rules."""
     dsn = os.getenv("DATABASE_URL")
@@ -26,12 +27,14 @@ def check_postgresql():
     print()
 
     # Check routing rules
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT project_id, file_type, content_keywords, destination_path, priority
         FROM directory_routing_rules
         WHERE source_context = 'cursor'
         ORDER BY project_id, priority DESC
-    """)
+    """
+    )
 
     rows = cursor.fetchall()
     print(f"Total rules: {len(rows)}")
@@ -55,11 +58,13 @@ def check_postgresql():
     print("=" * 70)
     print()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT project_id, base_path, runs_path, archive_path
         FROM project_directory_config
         ORDER BY project_id
-    """)
+    """
+    )
 
     configs = cursor.fetchall()
     for proj, base, runs, archive in configs:
@@ -88,7 +93,7 @@ def check_qdrant():
 
         # Get collection info
         collection_info = client.get_collection("file_routing_patterns")
-        print(f"Collection: file_routing_patterns")
+        print("Collection: file_routing_patterns")
         print(f"Vectors count: {collection_info.points_count}")
         print(f"Vector dimension: {collection_info.config.params.vectors.size}")
         print()
@@ -103,7 +108,7 @@ def check_qdrant():
                 limit=100,
                 offset=offset,
                 with_payload=True,
-                with_vectors=False
+                with_vectors=False,
             )
 
             points, next_offset = result

@@ -13,23 +13,25 @@ import sys
 from pathlib import Path
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'src'))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from sqlalchemy import text
 from autopack.database import SessionLocal, engine
 
+
 def check_database_type():
     """Check if we're using SQLite or PostgreSQL."""
-    db_url = os.getenv('DATABASE_URL', 'sqlite:///autopack.db')
-    if 'postgresql' in db_url:
+    db_url = os.getenv("DATABASE_URL", "sqlite:///autopack.db")
+    if "postgresql" in db_url:
         print("✓ PostgreSQL detected - no migration needed (SERIAL is correct)")
-        return 'postgresql'
-    elif 'sqlite' in db_url:
+        return "postgresql"
+    elif "sqlite" in db_url:
         print("⚠ SQLite detected - migration needed (SERIAL → INTEGER PRIMARY KEY AUTOINCREMENT)")
-        return 'sqlite'
+        return "sqlite"
     else:
         print(f"✗ Unknown database type: {db_url}")
-        return 'unknown'
+        return "unknown"
+
 
 def migrate_sqlite(force=False):
     """Recreate storage optimizer tables with SQLite-compatible syntax."""
@@ -38,9 +40,11 @@ def migrate_sqlite(force=False):
 
     try:
         # Check if tables exist
-        result = session.execute(text(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('storage_scans', 'cleanup_candidates')"
-        )).fetchall()
+        result = session.execute(
+            text(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('storage_scans', 'cleanup_candidates')"
+            )
+        ).fetchall()
 
         existing_tables = [row[0] for row in result]
         print(f"\nExisting tables: {existing_tables}")
@@ -50,14 +54,14 @@ def migrate_sqlite(force=False):
             return 1
 
         # Backup data if exists
-        if 'storage_scans' in existing_tables:
+        if "storage_scans" in existing_tables:
             scan_count = session.execute(text("SELECT COUNT(*) FROM storage_scans")).scalar()
             print(f"  storage_scans: {scan_count} rows")
 
             if scan_count > 0 and not force:
                 print("\n⚠ WARNING: Existing data will be lost!")
                 response = input("Continue with migration? [y/N]: ").lower()
-                if response != 'y':
+                if response != "y":
                     print("Migration cancelled")
                     return 0
             elif scan_count > 0 and force:
@@ -65,11 +69,11 @@ def migrate_sqlite(force=False):
 
         # Drop tables in correct order (FK constraints)
         print("\nDropping existing tables...")
-        if 'cleanup_candidates' in existing_tables:
+        if "cleanup_candidates" in existing_tables:
             session.execute(text("DROP TABLE IF EXISTS cleanup_candidates"))
             print("  ✓ Dropped cleanup_candidates")
 
-        if 'storage_scans' in existing_tables:
+        if "storage_scans" in existing_tables:
             session.execute(text("DROP TABLE IF EXISTS storage_scans"))
             print("  ✓ Dropped storage_scans")
 
@@ -79,7 +83,9 @@ def migrate_sqlite(force=False):
         print("\nCreating tables with INTEGER PRIMARY KEY AUTOINCREMENT...")
 
         # storage_scans table
-        session.execute(text("""
+        session.execute(
+            text(
+                """
             CREATE TABLE storage_scans (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -99,16 +105,26 @@ def migrate_sqlite(force=False):
                 created_by VARCHAR(100),
                 notes TEXT
             )
-        """))
+        """
+            )
+        )
         print("  ✓ Created storage_scans")
 
         # Create indexes
-        session.execute(text("CREATE INDEX idx_storage_scans_timestamp ON storage_scans(timestamp DESC)"))
-        session.execute(text("CREATE INDEX idx_storage_scans_type_target ON storage_scans(scan_type, scan_target)"))
+        session.execute(
+            text("CREATE INDEX idx_storage_scans_timestamp ON storage_scans(timestamp DESC)")
+        )
+        session.execute(
+            text(
+                "CREATE INDEX idx_storage_scans_type_target ON storage_scans(scan_type, scan_target)"
+            )
+        )
         print("  ✓ Created indexes for storage_scans")
 
         # cleanup_candidates table
-        session.execute(text("""
+        session.execute(
+            text(
+                """
             CREATE TABLE cleanup_candidates (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 scan_id INTEGER NOT NULL REFERENCES storage_scans(id) ON DELETE CASCADE,
@@ -139,14 +155,26 @@ def migrate_sqlite(force=False):
                 user_feedback TEXT,
                 learned_rule_id INTEGER REFERENCES learned_rules(id)
             )
-        """))
+        """
+            )
+        )
         print("  ✓ Created cleanup_candidates")
 
         # Create indexes
-        session.execute(text("CREATE INDEX idx_cleanup_candidates_scan_id ON cleanup_candidates(scan_id)"))
-        session.execute(text("CREATE INDEX idx_cleanup_candidates_category ON cleanup_candidates(category)"))
-        session.execute(text("CREATE INDEX idx_cleanup_candidates_approval_status ON cleanup_candidates(approval_status)"))
-        session.execute(text("CREATE INDEX idx_cleanup_candidates_size ON cleanup_candidates(size_bytes DESC)"))
+        session.execute(
+            text("CREATE INDEX idx_cleanup_candidates_scan_id ON cleanup_candidates(scan_id)")
+        )
+        session.execute(
+            text("CREATE INDEX idx_cleanup_candidates_category ON cleanup_candidates(category)")
+        )
+        session.execute(
+            text(
+                "CREATE INDEX idx_cleanup_candidates_approval_status ON cleanup_candidates(approval_status)"
+            )
+        )
+        session.execute(
+            text("CREATE INDEX idx_cleanup_candidates_size ON cleanup_candidates(size_bytes DESC)")
+        )
         print("  ✓ Created indexes for cleanup_candidates")
 
         session.commit()
@@ -165,26 +193,33 @@ def migrate_sqlite(force=False):
     finally:
         session.close()
 
+
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="Fix SQLite auto-increment for storage optimizer tables")
-    parser.add_argument('--force', action='store_true', help='Skip confirmation prompt (drops existing data)')
+
+    parser = argparse.ArgumentParser(
+        description="Fix SQLite auto-increment for storage optimizer tables"
+    )
+    parser.add_argument(
+        "--force", action="store_true", help="Skip confirmation prompt (drops existing data)"
+    )
     args = parser.parse_args()
 
-    print("="*80)
+    print("=" * 80)
     print("STORAGE OPTIMIZER - SQLite Auto-Increment Fix")
-    print("="*80)
+    print("=" * 80)
 
     db_type = check_database_type()
 
-    if db_type == 'postgresql':
+    if db_type == "postgresql":
         print("\nNo migration needed - PostgreSQL uses SERIAL correctly")
         return 0
-    elif db_type == 'sqlite':
+    elif db_type == "sqlite":
         return migrate_sqlite(force=args.force)
     else:
         print("\n✗ Cannot determine database type")
         return 1
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     sys.exit(main())

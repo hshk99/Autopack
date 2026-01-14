@@ -1,9 +1,9 @@
 # Autopack — Remaining Improvement Areas (Current Scan) — 2026-01-12
 
-**Scope**: “Now” (current `main`, post recent PR streak through `#131` and PR-A…F executor seam refactor commits).  
+**Scope**: “Now” (current `main`, post recent PR streak through `#131` and PR-A…F executor seam refactor commits).
 **Goal**: list *all meaningful remaining* improvement areas vs the README ideal state (**safe, deterministic, mechanically enforceable via CI contracts**) and “beyond README” hardening, without re-creating “two truths”.
 
-> This file is a **snapshot report** (not a canonical planning surface).  
+> This file is a **snapshot report** (not a canonical planning surface).
 > Canonical backlogs / deep scans already in-repo:
 > - `docs/IMPROVEMENTS_GAP_ANALYSIS.md` (P0–P3 backlog + acceptance criteria)
 > - `docs/reports/COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md`
@@ -1084,6 +1084,3 @@ These are **NOT** god file refactoring tasks. They are infrastructure/tooling im
 | HTTP enforcement test docstring | P3 | Deferred | Add "allowed zones" documentation |
 
 **These items are tracked here for completeness but are NOT part of the god file refactoring work (Section 6).**
-
-
-

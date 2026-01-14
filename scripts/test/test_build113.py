@@ -91,9 +91,7 @@ ImportError: cannot import name 'TestModule' from 'autopack.test_package'
 
     phase_spec = PhaseSpec(
         phase_id="test-import-fix",
-        deliverables=[
-            "src/autopack/test_package/__init__.py"
-        ],
+        deliverables=["src/autopack/test_package/__init__.py"],
         acceptance_criteria=[
             "Import statement works",
             "No import errors",
@@ -119,8 +117,7 @@ ImportError: cannot import name 'TestModule' from 'autopack.test_package'
 
     try:
         result = investigator.investigate_and_resolve(
-            failure_context=failure_context,
-            phase_spec=phase_spec
+            failure_context=failure_context, phase_spec=phase_spec
         )
 
         print("-" * 80)
@@ -140,7 +137,7 @@ ImportError: cannot import name 'TestModule' from 'autopack.test_package'
         print(f"\nRationale:\n{decision.rationale}")
 
         if decision.alternatives_considered:
-            print(f"\nAlternatives Considered:")
+            print("\nAlternatives Considered:")
             for alt in decision.alternatives_considered:
                 print(f"  - {alt}")
 
@@ -158,7 +155,7 @@ ImportError: cannot import name 'TestModule' from 'autopack.test_package'
             print("  5. Commit or rollback")
 
             if decision.patch:
-                print(f"\nGenerated Patch Preview:")
+                print("\nGenerated Patch Preview:")
                 print("-" * 40)
                 print(decision.patch[:500] if len(decision.patch) > 500 else decision.patch)
                 if len(decision.patch) > 500:
@@ -197,6 +194,7 @@ ImportError: cannot import name 'TestModule' from 'autopack.test_package'
     except Exception as e:
         print(f"\n❌ ERROR during investigation: {e}")
         import traceback
+
         traceback.print_exc()
         return None
 

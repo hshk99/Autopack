@@ -179,5 +179,3 @@ Turn existing primitives into a production parallel-run orchestrator:
 - Keep all new features opt-in until proven stable.
 - Every new “autonomy” feature must come with at least one deterministic test.
 - Prefer small artifacts over large context injection.
-
-

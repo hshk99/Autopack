@@ -131,12 +131,12 @@ def estimate_tokens(
     complexity: str = "medium"
 ) -> int:
     """Estimate token budget for a phase.
-    
+
     Args:
         deliverables: List of file paths to create/modify
         category: Phase category (e.g., 'implementation', 'docs')
         complexity: Phase complexity ('low', 'medium', 'high')
-    
+
     Returns:
         Estimated output tokens needed
     """

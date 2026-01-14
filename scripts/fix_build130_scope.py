@@ -1,11 +1,13 @@
 """
 Fix BUILD-130 phase scopes - remove descriptive text from deliverables and fix protected_paths.
 """
+
 import sqlite3
 import json
 from datetime import datetime
 
 DB_PATH = "autopack.db"
+
 
 def main():
     conn = sqlite3.connect(DB_PATH)
@@ -24,25 +26,24 @@ def main():
                 "src/autopack/error_classifier.py",
                 "src/autopack/autonomous_executor.py",
                 "tests/test_circuit_breaker.py",
-                "docs/DEBUG_JOURNAL.md"
+                "docs/DEBUG_JOURNAL.md",
             ],
-            "protected_paths": [
-                "src/autopack/models.py",
-                "src/backend/",
-                "src/frontend/"
-            ],
+            "protected_paths": ["src/autopack/models.py", "src/backend/", "src/frontend/"],
             "read_only_context": [
                 "docs/BUILD-130_SCHEMA_VALIDATION_AND_PREVENTION.md",
                 "docs/BUILD-127-129_ROOT_CAUSE_ANALYSIS_FOR_GPT52.md",
-                "src/autopack/error_recovery.py"
-            ]
+                "src/autopack/error_recovery.py",
+            ],
         }
 
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE phases
             SET scope = ?, updated_at = ?
             WHERE phase_id = 'build130-phase0-circuit-breaker'
-        """, (json.dumps(phase0_scope), datetime.now().isoformat()))
+        """,
+            (json.dumps(phase0_scope), datetime.now().isoformat()),
+        )
 
         print("✅ Updated Phase 0 scope")
 
@@ -62,36 +63,38 @@ def main():
                 "scripts/break_glass_repair.py",
                 "src/autopack/autonomous_executor.py",
                 "tests/test_schema_validator.py",
-                "tests/test_break_glass_repair.py"
+                "tests/test_break_glass_repair.py",
             ],
-            "protected_paths": [
-                "src/autopack/models.py",
-                "src/backend/",
-                "src/frontend/"
-            ],
+            "protected_paths": ["src/autopack/models.py", "src/backend/", "src/frontend/"],
             "read_only_context": [
                 "docs/BUILD-130_SCHEMA_VALIDATION_AND_PREVENTION.md",
                 "src/autopack/models.py",
                 "src/autopack/database.py",
-                "src/autopack/config.py"
+                "src/autopack/config.py",
             ],
-            "dependencies": ["build130-phase0-circuit-breaker"]
+            "dependencies": ["build130-phase0-circuit-breaker"],
         }
 
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE phases
             SET scope = ?, updated_at = ?
             WHERE phase_id = 'build130-phase1-schema-validator'
-        """, (json.dumps(phase1_scope), datetime.now().isoformat()))
+        """,
+            (json.dumps(phase1_scope), datetime.now().isoformat()),
+        )
 
         print("✅ Updated Phase 1 scope")
 
         # Reset phase states to QUEUED so executor can retry
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE phases
             SET state = 'QUEUED', builder_attempts = 0, updated_at = ?
             WHERE phase_id IN ('build130-phase0-circuit-breaker', 'build130-phase1-schema-validator')
-        """, (datetime.now().isoformat(),))
+        """,
+            (datetime.now().isoformat(),),
+        )
 
         print("✅ Reset phases to QUEUED")
 
@@ -103,6 +106,7 @@ def main():
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         conn.rollback()
         return 1
@@ -111,6 +115,8 @@ def main():
 
     return 0
 
+
 if __name__ == "__main__":
     import sys
+
     sys.exit(main())

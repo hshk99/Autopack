@@ -42,7 +42,9 @@ class NativeGLMClient:
             load_dotenv()
         self.api_key = api_key or os.getenv("GLM_API_KEY")
         if not self.api_key or "." not in self.api_key:
-            raise ValueError("GLM_API_KEY is required and must be in the form '<api_id>.<api_secret>'")
+            raise ValueError(
+                "GLM_API_KEY is required and must be in the form '<api_id>.<api_secret>'"
+            )
         self.api_id, self.api_secret = self.api_key.split(".", 1)
         self.base_url = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
         if model:
@@ -77,9 +79,13 @@ class NativeGLMClient:
             "alg": "HS256",
             "sign_type": "SIGN",
         }
-        return jwt.encode(payload, self.api_secret.encode("utf-8"), algorithm="HS256", headers=headers)
+        return jwt.encode(
+            payload, self.api_secret.encode("utf-8"), algorithm="HS256", headers=headers
+        )
 
-    def chat(self, messages: List[Dict[str, Any]], model: str | None = None, temperature: float = 0.1) -> str:
+    def chat(
+        self, messages: List[Dict[str, Any]], model: str | None = None, temperature: float = 0.1
+    ) -> str:
         token = self._generate_token()
         headers = {
             "Authorization": f"Bearer {token}",
@@ -112,4 +118,3 @@ if __name__ == "__main__":
         print(f"\nSUCCESS: {reply}")
     except Exception as e:
         print(f"\nFAILED: {e}")
-

@@ -49,15 +49,21 @@ def read_run_ids_from_file(file_path: str) -> List[str]:
         List of run IDs (empty lines and comments ignored)
     """
     run_ids = []
-    with open(file_path, 'r') as f:
+    with open(file_path, "r") as f:
         for line in f:
             line = line.strip()
-            if line and not line.startswith('#'):
+            if line and not line.startswith("#"):
                 run_ids.append(line)
     return run_ids
 
 
-async def api_executor(run_id: str, workspace: Path, api_url: Optional[str] = None, api_key: Optional[str] = None, timeout: int = 3600) -> bool:
+async def api_executor(
+    run_id: str,
+    workspace: Path,
+    api_url: Optional[str] = None,
+    api_key: Optional[str] = None,
+    timeout: int = 3600,
+) -> bool:
     """Execute run via Autopack API.
 
     Args:
@@ -91,6 +97,7 @@ async def api_executor(run_id: str, workspace: Path, api_url: Optional[str] = No
 
             # Poll for completion with exponential backoff + jitter (BUILD-146 Ops hardening)
             import random
+
             poll_interval = 2  # start with 2s
             max_poll_interval = 30  # cap at 30s
             elapsed = 0
@@ -181,10 +188,7 @@ async def cli_executor(run_id: str, workspace: Path, timeout: int = 3600) -> boo
 
         # Wait for completion with timeout
         try:
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=timeout
-            )
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
 
             # Check exit code
             if process.returncode == 0:
@@ -193,7 +197,9 @@ async def cli_executor(run_id: str, workspace: Path, timeout: int = 3600) -> boo
             else:
                 logger.error(f"[{run_id}] Execution failed with exit code: {process.returncode}")
                 if stderr:
-                    logger.error(f"[{run_id}] Error output:\n{stderr.decode('utf-8', errors='replace')[:1000]}")
+                    logger.error(
+                        f"[{run_id}] Error output:\n{stderr.decode('utf-8', errors='replace')[:1000]}"
+                    )
                 return False
 
         except asyncio.TimeoutError:
@@ -224,6 +230,7 @@ async def mock_executor(run_id: str, workspace: Path) -> bool:
 
     # Mock success (90% success rate for demo)
     import random
+
     success = random.random() > 0.1
 
     if success:
@@ -253,8 +260,8 @@ def write_report(results: List[RunResult], output_path: str):
 
     report_lines.append("## Summary")
     report_lines.append(f"- Total runs: {total}")
-    report_lines.append(f"- Successful: {successful} ({successful/total*100:.1f}%)")
-    report_lines.append(f"- Failed: {failed} ({failed/total*100:.1f}%)")
+    report_lines.append(f"- Successful: {successful} ({successful / total * 100:.1f}%)")
+    report_lines.append(f"- Failed: {failed} ({failed / total * 100:.1f}%)")
     report_lines.append("")
 
     # Results
@@ -263,7 +270,11 @@ def write_report(results: List[RunResult], output_path: str):
 
     for result in results:
         status = "✅ SUCCESS" if result.success else "❌ FAILED"
-        duration = (result.end_time - result.start_time).total_seconds() if result.end_time and result.start_time else 0
+        duration = (
+            (result.end_time - result.start_time).total_seconds()
+            if result.end_time and result.start_time
+            else 0
+        )
 
         report_lines.append(f"### {result.run_id}")
         report_lines.append(f"- Status: {status}")
@@ -278,8 +289,8 @@ def write_report(results: List[RunResult], output_path: str):
         report_lines.append("")
 
     # Write report
-    with open(output_path, 'w') as f:
-        f.write('\n'.join(report_lines))
+    with open(output_path, "w") as f:
+        f.write("\n".join(report_lines))
 
     logger.info(f"Report written to: {output_path}")
 
@@ -356,12 +367,18 @@ async def main():
     seen = set()
     run_ids = [x for x in run_ids if not (x in seen or seen.add(x))]
 
-    logger.info(f"Executing {len(run_ids)} runs in parallel (max concurrent: {args.max_concurrent})")
+    logger.info(
+        f"Executing {len(run_ids)} runs in parallel (max concurrent: {args.max_concurrent})"
+    )
     logger.info(f"Run IDs: {', '.join(run_ids)}")
 
     # Configuration
     source_repo = args.source_repo or os.getenv("SOURCE_REPO") or Path.cwd()
-    worktree_base = args.worktree_base or os.getenv("WORKTREE_BASE") or (Path(tempfile.gettempdir()) / "autopack_worktrees")
+    worktree_base = (
+        args.worktree_base
+        or os.getenv("WORKTREE_BASE")
+        or (Path(tempfile.gettempdir()) / "autopack_worktrees")
+    )
 
     source_repo = Path(source_repo).resolve()
     worktree_base = Path(worktree_base).resolve()

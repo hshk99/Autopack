@@ -16,7 +16,6 @@ class MockFramework:
 
 
 class TestMetaAuditor(unittest.TestCase):
-
     def setUp(self):
         self.frameworks = [MockFramework("Framework A", 85), MockFramework("Framework B", 90)]
         self.meta_auditor = MetaAuditor(self.frameworks)

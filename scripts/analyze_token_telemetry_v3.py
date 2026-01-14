@@ -32,8 +32,15 @@ import statistics
 class TokenEstimationRecord:
     """Single token estimation record from logs."""
 
-    def __init__(self, timestamp: str, predicted: int, actual: int, error_pct: float,
-                 source_file: str = "", line_number: int = 0):
+    def __init__(
+        self,
+        timestamp: str,
+        predicted: int,
+        actual: int,
+        error_pct: float,
+        source_file: str = "",
+        line_number: int = 0,
+    ):
         self.timestamp = timestamp
         self.predicted = predicted
         self.actual = actual
@@ -72,7 +79,7 @@ class TokenEstimationRecord:
     def waste_ratio(self) -> float:
         """Calculate waste ratio: predicted / actual (>1 = overestimation)."""
         if self.actual == 0:
-            return float('inf')
+            return float("inf")
         return self.predicted / self.actual
 
 
@@ -81,29 +88,27 @@ class TelemetryAnalyzerV3:
 
     # V2 Pattern
     TELEMETRY_V2_PATTERN = re.compile(
-        r'\[TokenEstimationV2\]\s+'
-        r'predicted_output=(\d+)\s+'
-        r'actual_output=(\d+)\s+'
-        r'smape=([\d.]+)%\s+'
-        r'selected_budget=([^\s]+)\s+'
-        r'category=([^\s]+)\s+'
-        r'complexity=([^\s]+)\s+'
-        r'deliverables=(\d+)\s+'
-        r'success=([^\s]+)\s+'
-        r'stop_reason=([^\s]+)\s+'
-        r'truncated=([^\s]+)\s+'
-        r'model=([^\s]+)'
+        r"\[TokenEstimationV2\]\s+"
+        r"predicted_output=(\d+)\s+"
+        r"actual_output=(\d+)\s+"
+        r"smape=([\d.]+)%\s+"
+        r"selected_budget=([^\s]+)\s+"
+        r"category=([^\s]+)\s+"
+        r"complexity=([^\s]+)\s+"
+        r"deliverables=(\d+)\s+"
+        r"success=([^\s]+)\s+"
+        r"stop_reason=([^\s]+)\s+"
+        r"truncated=([^\s]+)\s+"
+        r"model=([^\s]+)"
     )
 
     # V1 Pattern (legacy)
     TELEMETRY_PATTERN = re.compile(
-        r'\[TokenEstimation\]\s+Predicted:\s+(\d+)\s+output tokens,\s+'
-        r'Actual:\s+(\d+)\s+output tokens,\s+Error:\s+([\d.]+)%'
+        r"\[TokenEstimation\]\s+Predicted:\s+(\d+)\s+output tokens,\s+"
+        r"Actual:\s+(\d+)\s+output tokens,\s+Error:\s+([\d.]+)%"
     )
 
-    TIMESTAMP_PATTERN = re.compile(
-        r'^(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})'
-    )
+    TIMESTAMP_PATTERN = re.compile(r"^(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})")
 
     def __init__(self):
         self.records: List[TokenEstimationRecord] = []
@@ -112,7 +117,7 @@ class TelemetryAnalyzerV3:
         """Parse a single log file for telemetry records."""
         count = 0
         try:
-            with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
                 for line_num, line in enumerate(f, 1):
                     # Try V2 first
                     v2 = self.TELEMETRY_V2_PATTERN.search(line)
@@ -132,7 +137,7 @@ class TelemetryAnalyzerV3:
                             actual=actual,
                             error_pct=smape_pct,
                             source_file=str(log_path),
-                            line_number=line_num
+                            line_number=line_num,
                         )
                         record.meta = {
                             "format": "v2",
@@ -167,7 +172,7 @@ class TelemetryAnalyzerV3:
                             actual=actual,
                             error_pct=error_pct,
                             source_file=str(log_path),
-                            line_number=line_num
+                            line_number=line_num,
                         )
                         record.meta = {"format": "v1"}
                         self.records.append(record)
@@ -187,7 +192,9 @@ class TelemetryAnalyzerV3:
             total += count
         return total
 
-    def calculate_tier1_metrics(self, records: List[TokenEstimationRecord], under_multiplier: float = 1.0) -> Dict:
+    def calculate_tier1_metrics(
+        self, records: List[TokenEstimationRecord], under_multiplier: float = 1.0
+    ) -> Dict:
         """Tier 1: Risk Metrics (truncation prevention)."""
         if not records:
             return {"error": "No records"}
@@ -230,14 +237,18 @@ class TelemetryAnalyzerV3:
         if not records:
             return {"error": "No records"}
 
-        waste_ratios = [r.waste_ratio for r in records if r.waste_ratio != float('inf')]
+        waste_ratios = [r.waste_ratio for r in records if r.waste_ratio != float("inf")]
 
         if not waste_ratios:
             return {"error": "No valid waste ratios"}
 
         return {
             "waste_ratio_median": statistics.median(waste_ratios),
-            "waste_ratio_p90": statistics.quantiles(waste_ratios, n=10)[8] if len(waste_ratios) >= 10 else max(waste_ratios),
+            "waste_ratio_p90": (
+                statistics.quantiles(waste_ratios, n=10)[8]
+                if len(waste_ratios) >= 10
+                else max(waste_ratios)
+            ),
             "waste_ratio_mean": statistics.mean(waste_ratios),
         }
 
@@ -264,54 +275,72 @@ class TelemetryAnalyzerV3:
             predicted = [r.predicted for r in non_truncated]
             actual = [r.actual for r in non_truncated]
 
-            result.update({
-                "smape_mean": statistics.mean(errors),
-                "smape_median": statistics.median(errors),
-                "smape_min": min(errors),
-                "smape_max": max(errors),
-                "predicted_mean": statistics.mean(predicted),
-                "predicted_median": statistics.median(predicted),
-                "actual_mean": statistics.mean(actual),
-                "actual_median": statistics.median(actual),
-                "non_truncated_count": len(non_truncated),
-            })
+            result.update(
+                {
+                    "smape_mean": statistics.mean(errors),
+                    "smape_median": statistics.median(errors),
+                    "smape_min": min(errors),
+                    "smape_max": max(errors),
+                    "predicted_mean": statistics.mean(predicted),
+                    "predicted_median": statistics.median(predicted),
+                    "actual_mean": statistics.mean(actual),
+                    "actual_median": statistics.median(actual),
+                    "non_truncated_count": len(non_truncated),
+                }
+            )
         else:
-            result.update({
-                "smape_mean": 0,
-                "smape_median": 0,
-                "smape_min": 0,
-                "smape_max": 0,
-                "predicted_mean": 0,
-                "predicted_median": 0,
-                "actual_mean": 0,
-                "actual_median": 0,
-                "non_truncated_count": 0,
-            })
+            result.update(
+                {
+                    "smape_mean": 0,
+                    "smape_median": 0,
+                    "smape_min": 0,
+                    "smape_max": 0,
+                    "predicted_mean": 0,
+                    "predicted_median": 0,
+                    "actual_mean": 0,
+                    "actual_median": 0,
+                    "non_truncated_count": 0,
+                }
+            )
 
         # Report truncated events separately as lower bounds
         if truncated:
             truncated_predicted = [r.predicted for r in truncated]
             truncated_actual = [r.actual for r in truncated]
 
-            result.update({
-                "truncated_count": len(truncated),
-                "truncated_predicted_mean": statistics.mean(truncated_predicted),
-                "truncated_actual_min": statistics.mean(truncated_actual),  # Actual is lower bound
-                "truncated_underestimation_pct": len([r for r in truncated if r.is_under_estimated]) / len(truncated) * 100,
-            })
+            result.update(
+                {
+                    "truncated_count": len(truncated),
+                    "truncated_predicted_mean": statistics.mean(truncated_predicted),
+                    "truncated_actual_min": statistics.mean(
+                        truncated_actual
+                    ),  # Actual is lower bound
+                    "truncated_underestimation_pct": len(
+                        [r for r in truncated if r.is_under_estimated]
+                    )
+                    / len(truncated)
+                    * 100,
+                }
+            )
         else:
-            result.update({
-                "truncated_count": 0,
-                "truncated_predicted_mean": 0,
-                "truncated_actual_min": 0,
-                "truncated_underestimation_pct": 0,
-            })
+            result.update(
+                {
+                    "truncated_count": 0,
+                    "truncated_predicted_mean": 0,
+                    "truncated_actual_min": 0,
+                    "truncated_underestimation_pct": 0,
+                }
+            )
 
         return result
 
-    def generate_report(self, success_only: bool = False, stratify: bool = False,
-                       under_multiplier: float = 1.0,
-                       output_path: Optional[Path] = None) -> str:
+    def generate_report(
+        self,
+        success_only: bool = False,
+        stratify: bool = False,
+        under_multiplier: float = 1.0,
+        output_path: Optional[Path] = None,
+    ) -> str:
         """Generate comprehensive analysis report."""
         if not self.records:
             return "# Token Estimation Analysis\n\nNo telemetry records found.\n"
@@ -329,8 +358,8 @@ class TelemetryAnalyzerV3:
 
         # Determine if tuning is needed
         needs_tuning = (
-            tier1.get("underestimation_rate_pct", 0) > 5.0 or
-            tier1.get("truncation_rate_pct", 0) > 2.0
+            tier1.get("underestimation_rate_pct", 0) > 5.0
+            or tier1.get("truncation_rate_pct", 0) > 2.0
         )
 
         tuning_status = "❌ TUNING NEEDED" if needs_tuning else "✅ WITHIN TARGETS"
@@ -342,33 +371,33 @@ Generated: {datetime.now().isoformat()}
 - **Filter**: {"SUCCESS ONLY (for tuning decisions)" if success_only else "ALL SAMPLES (includes failures)"}
 - **Total Records**: {len(self.records)}
 - **Analysis Records**: {len(analysis_records)}
-- **V2 Records**: {tier1.get('v2_samples', 0)}
-- **Underestimation tolerance**: actual > predicted * {tier1.get('under_multiplier', 1.0):.2f}
+- **V2 Records**: {tier1.get("v2_samples", 0)}
+- **Underestimation tolerance**: actual > predicted * {tier1.get("under_multiplier", 1.0):.2f}
 
 ---
 
 ## 🎯 TIER 1: RISK METRICS (Primary Tuning Gates)
 
 ### Truncation Prevention
-- **Underestimation Rate**: {tier1.get('underestimation_rate_pct', 0):.1f}% ({tier1.get('underestimation_count', 0)} samples)
+- **Underestimation Rate**: {tier1.get("underestimation_rate_pct", 0):.1f}% ({tier1.get("underestimation_count", 0)} samples)
   - **Target**: ≤ 5%
-  - **Status**: {"❌ ABOVE TARGET" if tier1.get('underestimation_rate_pct', 0) > 5.0 else "✅ WITHIN TARGET"}
+  - **Status**: {"❌ ABOVE TARGET" if tier1.get("underestimation_rate_pct", 0) > 5.0 else "✅ WITHIN TARGET"}
 
-- **Truncation Rate** (V2 only): {tier1.get('truncation_rate_pct', 0):.1f}% ({tier1.get('truncation_count', 0)} samples)
+- **Truncation Rate** (V2 only): {tier1.get("truncation_rate_pct", 0):.1f}% ({tier1.get("truncation_count", 0)} samples)
   - **Target**: ≤ 2%
-  - **Status**: {"❌ ABOVE TARGET" if tier1.get('truncation_rate_pct', 0) > 2.0 else "✅ WITHIN TARGET"}
+  - **Status**: {"❌ ABOVE TARGET" if tier1.get("truncation_rate_pct", 0) > 2.0 else "✅ WITHIN TARGET"}
 
 ### Quality
-- **Success Rate** (V2 only): {tier1.get('success_rate_pct', 0):.1f}% ({tier1.get('success_count', 0)} samples)
+- **Success Rate** (V2 only): {tier1.get("success_rate_pct", 0):.1f}% ({tier1.get("success_count", 0)} samples)
 
 ---
 
 ## 💰 TIER 2: COST METRICS (Secondary Optimization)
 
 ### Budget Waste (predicted/actual ratio)
-- **Median**: {tier2.get('waste_ratio_median', 0):.2f}x
-- **P90**: {tier2.get('waste_ratio_p90', 0):.2f}x
-- **Mean**: {tier2.get('waste_ratio_mean', 0):.2f}x
+- **Median**: {tier2.get("waste_ratio_median", 0):.2f}x
+- **P90**: {tier2.get("waste_ratio_p90", 0):.2f}x
+- **Mean**: {tier2.get("waste_ratio_mean", 0):.2f}x
 
 **Interpretation**:
 - 1.0x = perfect prediction
@@ -382,22 +411,22 @@ Generated: {datetime.now().isoformat()}
 **BUILD-129 Phase 3 P6**: SMAPE calculated on non-truncated events only. Truncated events reported separately as lower bounds.
 
 ### SMAPE (Symmetric Mean Absolute Percentage Error) - Non-Truncated Only
-- **Mean**: {diagnostic.get('smape_mean', 0):.1f}%
-- **Median**: {diagnostic.get('smape_median', 0):.1f}%
-- **Range**: {diagnostic.get('smape_min', 0):.1f}% - {diagnostic.get('smape_max', 0):.1f}%
-- **Samples**: {diagnostic.get('non_truncated_count', 0)} non-truncated events
+- **Mean**: {diagnostic.get("smape_mean", 0):.1f}%
+- **Median**: {diagnostic.get("smape_median", 0):.1f}%
+- **Range**: {diagnostic.get("smape_min", 0):.1f}% - {diagnostic.get("smape_max", 0):.1f}%
+- **Samples**: {diagnostic.get("non_truncated_count", 0)} non-truncated events
 
 ### Truncated Events (Lower Bound Estimates)
-- **Count**: {diagnostic.get('truncated_count', 0)} events ({diagnostic.get('truncated_count', 0) / max(len(analysis_records), 1) * 100:.1f}% of total)
-- **Predicted (mean)**: {diagnostic.get('truncated_predicted_mean', 0):.0f} tokens
-- **Actual (lower bound mean)**: {diagnostic.get('truncated_actual_min', 0):.0f} tokens
-- **Underestimated**: {diagnostic.get('truncated_underestimation_pct', 0):.1f}%
+- **Count**: {diagnostic.get("truncated_count", 0)} events ({diagnostic.get("truncated_count", 0) / max(len(analysis_records), 1) * 100:.1f}% of total)
+- **Predicted (mean)**: {diagnostic.get("truncated_predicted_mean", 0):.0f} tokens
+- **Actual (lower bound mean)**: {diagnostic.get("truncated_actual_min", 0):.0f} tokens
+- **Underestimated**: {diagnostic.get("truncated_underestimation_pct", 0):.1f}%
 
 **Note**: Truncated events have actual >= reported value. Excluding from SMAPE prevents bias toward underestimation.
 
 ### Token Distribution (Non-Truncated)
-- **Predicted**: mean={diagnostic.get('predicted_mean', 0):.0f}, median={diagnostic.get('predicted_median', 0):.0f}
-- **Actual**: mean={diagnostic.get('actual_mean', 0):.0f}, median={diagnostic.get('actual_median', 0):.0f}
+- **Predicted**: mean={diagnostic.get("predicted_mean", 0):.0f}, median={diagnostic.get("predicted_median", 0):.0f}
+- **Actual**: mean={diagnostic.get("actual_mean", 0):.0f}, median={diagnostic.get("actual_median", 0):.0f}
 
 ---
 
@@ -431,7 +460,9 @@ Consider cost optimization (Tier 2) if waste ratio P90 > 3x, but this is seconda
 
         # Stratification section
         if stratify:
-            report += self._generate_stratified_analysis(analysis_records, under_multiplier=under_multiplier)
+            report += self._generate_stratified_analysis(
+                analysis_records, under_multiplier=under_multiplier
+            )
 
         # Recommendations
         report += """
@@ -471,12 +502,14 @@ Total files analyzed: {len(set(r.source_file for r in self.records))}
             report += f"- `{source}`: {count} records\n"
 
         if output_path:
-            output_path.write_text(report, encoding='utf-8')
+            output_path.write_text(report, encoding="utf-8")
             print(f"\nReport written to: {output_path}")
 
         return report
 
-    def _generate_stratified_analysis(self, records: List[TokenEstimationRecord], under_multiplier: float = 1.0) -> str:
+    def _generate_stratified_analysis(
+        self, records: List[TokenEstimationRecord], under_multiplier: float = 1.0
+    ) -> str:
         """Generate stratified breakdown by category/complexity."""
         v2_records = [r for r in records if r.meta.get("format") == "v2"]
 
@@ -528,7 +561,10 @@ Total files analyzed: {len(set(r.source_file for r in self.records))}
             by_bucket[bucket(dcount)].append(r)
 
         report += "### By Deliverable Count\n\n"
-        for b, b_records in sorted(by_bucket.items(), key=lambda x: ["1", "2-5", "6+"].index(x[0]) if x[0] in ["1", "2-5", "6+"] else 99):
+        for b, b_records in sorted(
+            by_bucket.items(),
+            key=lambda x: ["1", "2-5", "6+"].index(x[0]) if x[0] in ["1", "2-5", "6+"] else 99,
+        ):
             tier1 = self.calculate_tier1_metrics(b_records, under_multiplier=under_multiplier)
             report += f"**{b} files** ({len(b_records)} samples):\n"
             report += f"- Underestimation: {tier1.get('underestimation_rate_pct', 0):.1f}%\n"
@@ -539,42 +575,30 @@ Total files analyzed: {len(set(r.source_file for r in self.records))}
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Analyze token estimation telemetry (V3 Enhanced)"
-    )
+    parser = argparse.ArgumentParser(description="Analyze token estimation telemetry (V3 Enhanced)")
     parser.add_argument(
         "--log-dir",
         type=Path,
         default=Path(".autonomous_runs"),
-        help="Directory to scan for log files"
+        help="Directory to scan for log files",
     )
     parser.add_argument(
-        "--pattern",
-        type=str,
-        default="*.log",
-        help="Log file pattern (default: *.log)"
+        "--pattern", type=str, default="*.log", help="Log file pattern (default: *.log)"
     )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=None,
-        help="Output file for report"
-    )
+    parser.add_argument("--output", type=Path, default=None, help="Output file for report")
     parser.add_argument(
         "--success-only",
         action="store_true",
-        help="Filter to successful phases only (for tuning decisions)"
+        help="Filter to successful phases only (for tuning decisions)",
     )
     parser.add_argument(
-        "--stratify",
-        action="store_true",
-        help="Include stratified analysis by category/complexity"
+        "--stratify", action="store_true", help="Include stratified analysis by category/complexity"
     )
     parser.add_argument(
         "--under-multiplier",
         type=float,
         default=1.0,
-        help="Count underestimation when actual > predicted * multiplier (default: 1.0)"
+        help="Count underestimation when actual > predicted * multiplier (default: 1.0)",
     )
 
     args = parser.parse_args()
@@ -596,7 +620,7 @@ def main():
         success_only=args.success_only,
         stratify=args.stratify,
         under_multiplier=args.under_multiplier,
-        output_path=args.output
+        output_path=args.output,
     )
 
     if not args.output:

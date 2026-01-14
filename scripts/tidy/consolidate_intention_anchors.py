@@ -62,9 +62,7 @@ def validate_project_id(project_id: str) -> str:
     - Must not contain path separators or '..'
     """
     if not PROJECT_ID_PATTERN.match(project_id or ""):
-        raise ValueError(
-            "Invalid --project-id. Must match: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
-        )
+        raise ValueError("Invalid --project-id. Must match: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
     if "/" in project_id or "\\" in project_id or ".." in project_id:
         raise ValueError("Invalid --project-id. Must not contain '/', '\\\\', or '..'")
     return project_id
@@ -281,11 +279,11 @@ def generate_report_markdown(analyses: list[dict]) -> str:
     lines.append("|--------|-----------|---------|--------------|--------|--------------------|")
 
     for analysis in analyses:
-        complete = "✅" if (
-            analysis["has_anchor"] and
-            analysis["has_summary"] and
-            analysis["has_events"]
-        ) else "⚠️"
+        complete = (
+            "✅"
+            if (analysis["has_anchor"] and analysis["has_summary"] and analysis["has_events"])
+            else "⚠️"
+        )
 
         last_updated = analysis["last_updated"] or "N/A"
         if last_updated != "N/A" and "T" in last_updated:
@@ -455,10 +453,13 @@ def generate_consolidation_block(analysis: dict, base_dir: Path = Path(".")) -> 
     # Add event summary if available
     if analysis["event_count"] > 0:
         total_injections = sum(
-            count for event_type, count in analysis["event_types"].items()
+            count
+            for event_type, count in analysis["event_types"].items()
             if event_type.startswith("prompt_injected_")
         )
-        lines.append(f"**Events**: {analysis['event_count']} total, {total_injections} prompt injections")
+        lines.append(
+            f"**Events**: {analysis['event_count']} total, {total_injections} prompt injections"
+        )
 
     lines.append("")
     lines.append(f"See: `.autonomous_runs/{analysis['run_id']}/anchor_summary.md`")
@@ -652,7 +653,9 @@ def apply_consolidation_entry(
     """
     # Check idempotency
     if check_marker_exists(file_path, idempotency_hash):
-        logger.info(f"Skipping {anchor_id} v{version} (already consolidated, hash={idempotency_hash})")
+        logger.info(
+            f"Skipping {anchor_id} v{version} (already consolidated, hash={idempotency_hash})"
+        )
         return False
 
     # Ensure file exists
@@ -674,6 +677,7 @@ def apply_consolidation_entry(
     import os
     import time
     import random
+
     pid = os.getpid()
     timestamp = int(time.time() * 1000)  # millisecond precision
     rand = random.randint(1000, 9999)
@@ -755,10 +759,12 @@ def run_apply_mode(
         logger.info(f"\nTarget file: {target_file}")
         logger.info(f"Candidates found: {len(plan['candidates'])}")
 
-        if plan['candidates']:
+        if plan["candidates"]:
             logger.info("\nFirst 3 candidates:")
-            for i, candidate in enumerate(plan['candidates'][:3], 1):
-                logger.info(f"  {i}. {candidate['run_id']} (anchor={candidate['anchor_id']}, hash={candidate['idempotency_hash']})")
+            for i, candidate in enumerate(plan["candidates"][:3], 1):
+                logger.info(
+                    f"  {i}. {candidate['run_id']} (anchor={candidate['anchor_id']}, hash={candidate['idempotency_hash']})"
+                )
 
         logger.error("\nNo writes performed. Use --execute to apply changes.")
         return 1
@@ -828,7 +834,9 @@ def run_apply_mode(
         else:
             skipped_count += 1
 
-    logger.info(f"Consolidation complete: {applied_count} applied, {skipped_count} skipped (already consolidated)")
+    logger.info(
+        f"Consolidation complete: {applied_count} applied, {skipped_count} skipped (already consolidated)"
+    )
     logger.info(f"Target file: {target_file}")
 
     return 0

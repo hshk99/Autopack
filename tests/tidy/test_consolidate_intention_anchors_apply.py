@@ -56,7 +56,7 @@ def test_check_marker_exists_present():
     """Test marker check when marker is in file."""
     with tempfile.TemporaryDirectory() as tmpdir:
         file_path = Path(tmpdir) / "test.md"
-        content = "# Test\n\n" "Some content.\n\n" "<!-- IA_CONSOLIDATION: hash=abc123 -->\n"
+        content = "# Test\n\nSome content.\n\n<!-- IA_CONSOLIDATION: hash=abc123 -->\n"
         file_path.write_text(content, encoding="utf-8")
 
         assert check_marker_exists(file_path, "abc123") is True

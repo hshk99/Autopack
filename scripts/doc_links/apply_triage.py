@@ -65,9 +65,11 @@ NAV_DOCS = {
     "docs/BUILD_HISTORY.md",
 }
 
+
 def _norm_relpath(p: str) -> str:
     """Normalize repo-relative paths for consistent matching across OSes."""
     return str(p).replace("\\", "/").strip()
+
 
 def _configure_utf8_stdio() -> None:
     """
@@ -91,7 +93,7 @@ class TriageApplicator:
         mode: str = "deep",
         dry_run: bool = False,
         apply_fixes: bool = False,
-        generate_report: bool = False
+        generate_report: bool = False,
     ):
         self.mode = mode
         self.dry_run = dry_run
@@ -128,13 +130,16 @@ class TriageApplicator:
             # Nav mode: only navigation docs, and only *real markdown links*.
             # Deep scans can include backticks; nav-mode hygiene (CI policy) intentionally does not.
             filtered = [
-                link for link in all_links
+                link
+                for link in all_links
                 if (
                     _norm_relpath(link.get("source_file", "")) in NAV_DOCS
                     and str(link.get("source_link", "")).lstrip().startswith("[")
                 )
             ]
-            print(f"[MODE] Nav mode: filtered {len(all_links)} → {len(filtered)} links (nav docs only)")
+            print(
+                f"[MODE] Nav mode: filtered {len(all_links)} → {len(filtered)} links (nav docs only)"
+            )
             return filtered
         else:
             # Deep mode: all docs
@@ -168,11 +173,7 @@ class TriageApplicator:
 
         print(f"[SAVED] Updated ignore config: {IGNORE_CONFIG}")
 
-    def match_override(
-        self,
-        broken_link: Dict[str, Any],
-        override: Dict[str, Any]
-    ) -> bool:
+    def match_override(self, broken_link: Dict[str, Any], override: Dict[str, Any]) -> bool:
         """
         Check if a broken link matches a triage override.
 
@@ -216,10 +217,7 @@ class TriageApplicator:
         return True
 
     def apply_ignore(
-        self,
-        broken_link: Dict[str, Any],
-        override: Dict[str, Any],
-        ignore_config: Dict[str, Any]
+        self, broken_link: Dict[str, Any], override: Dict[str, Any], ignore_config: Dict[str, Any]
     ) -> None:
         """Add broken link to ignore configuration."""
         source_file = _norm_relpath(broken_link.get("source_file", ""))
@@ -229,44 +227,42 @@ class TriageApplicator:
 
         # Nav-strict check: NEVER ignore missing_file in nav docs
         if self.mode == "nav" and reason == "missing_file" and source_file in NAV_DOCS:
-            self.nav_strict_violations.append({
-                "source_file": source_file,
-                "broken_target": broken_target,
-                "line_number": broken_link.get("line_number"),
-                "reason": reason,
-                "attempted_action": "ignore"
-            })
+            self.nav_strict_violations.append(
+                {
+                    "source_file": source_file,
+                    "broken_target": broken_target,
+                    "line_number": broken_link.get("line_number"),
+                    "reason": reason,
+                    "attempted_action": "ignore",
+                }
+            )
             self.stats["nav_strict_violations"] += 1
-            print(f"[NAV-STRICT VIOLATION] Cannot ignore missing_file in {source_file}:{broken_link.get('line_number')}")
+            print(
+                f"[NAV-STRICT VIOLATION] Cannot ignore missing_file in {source_file}:{broken_link.get('line_number')}"
+            )
             print(f"                       Target: {broken_target}")
-            print(f"                       Nav docs must have valid links (BUILD-166)")
+            print("                       Nav docs must have valid links (BUILD-166)")
             return
 
         # Check if already in ignore list
         ignore_patterns = ignore_config.setdefault("ignore_patterns", [])
 
         for pattern in ignore_patterns:
-            if (_norm_relpath(pattern.get("file", "")) == source_file and
-                pattern.get("target") == broken_target):
+            if (
+                _norm_relpath(pattern.get("file", "")) == source_file
+                and pattern.get("target") == broken_target
+            ):
                 print(f"[SKIP] Already ignored: {source_file} → {broken_target}")
                 return
 
         # Add to ignore list
-        ignore_patterns.append({
-            "file": source_file,
-            "target": broken_target,
-            "reason": note
-        })
+        ignore_patterns.append({"file": source_file, "target": broken_target, "reason": note})
 
         self.stats["ignores_added"] += 1
         print(f"[IGNORE] {source_file}:{broken_link.get('line_number')} → {broken_target}")
         print(f"         Note: {note}")
 
-    def apply_fix(
-        self,
-        broken_link: Dict[str, Any],
-        override: Dict[str, Any]
-    ) -> None:
+    def apply_fix(self, broken_link: Dict[str, Any], override: Dict[str, Any]) -> None:
         """Apply a fix to a broken link in the source file."""
         source_file = REPO_ROOT / broken_link.get("source_file", "")
         broken_target = broken_link.get("broken_target", "")
@@ -319,15 +315,13 @@ class TriageApplicator:
         print(f"[FIXED] {source_file}:{line_number}")
         print(f"        {broken_target} → {fix_target}")
 
-    def create_stub(
-        self,
-        broken_link: Dict[str, Any],
-        override: Dict[str, Any]
-    ) -> None:
+    def create_stub(self, broken_link: Dict[str, Any], override: Dict[str, Any]) -> None:
         """Create a redirect stub file for a moved document."""
         broken_target = broken_link.get("broken_target", "")
         stub_target = override.get("stub_target")
-        stub_title = override.get("stub_title", broken_target.replace(".md", "").replace("_", " ").title())
+        stub_title = override.get(
+            "stub_title", broken_target.replace(".md", "").replace("_", " ").title()
+        )
 
         if not stub_target:
             print(f"[ERROR] No stub_target specified for {broken_target}")
@@ -355,7 +349,7 @@ This document has been moved. See [{stub_title}]({stub_target}).
         if self.dry_run or not self.apply_fixes:
             print(f"[DRY-RUN] Would create stub: {stub_path}")
             print(f"          Target: {stub_target}")
-            print(f"          Content preview:")
+            print("          Content preview:")
             for line in stub_content.split("\n")[:5]:
                 print(f"          | {line}")
             return
@@ -414,11 +408,15 @@ This document has been moved. See [{stub_title}]({stub_target}).
                         self.create_stub(broken_link, override)
                         self.stats["matched_stub"] += 1
                     elif action == "manual":
-                        print(f"[MANUAL] {broken_link.get('source_file')}:{broken_link.get('line_number')} → {broken_link.get('broken_target')}")
+                        print(
+                            f"[MANUAL] {broken_link.get('source_file')}:{broken_link.get('line_number')} → {broken_link.get('broken_target')}"
+                        )
                         print(f"         Note: {override.get('note', 'Requires manual review')}")
                         self.stats["matched_manual"] += 1
                     else:
-                        print(f"[WARN] Unknown action '{action}' for {broken_link.get('broken_target')}")
+                        print(
+                            f"[WARN] Unknown action '{action}' for {broken_link.get('broken_target')}"
+                        )
 
                     matched = True
                     break  # Only apply first matching override
@@ -454,7 +452,9 @@ This document has been moved. See [{stub_title}]({stub_target}).
             print()
             print("BLOCKED VIOLATIONS (nav-strict):")
             for violation in self.nav_strict_violations:
-                print(f"  - {violation['source_file']}:{violation['line_number']} → {violation['broken_target']}")
+                print(
+                    f"  - {violation['source_file']}:{violation['line_number']} → {violation['broken_target']}"
+                )
 
         # Rule hit count report
         if self.generate_report and self.rule_hits:
@@ -483,30 +483,22 @@ This document has been moved. See [{stub_title}]({stub_target}).
 
 def main():
     _configure_utf8_stdio()
-    parser = argparse.ArgumentParser(
-        description="Apply doc link triage decisions"
-    )
+    parser = argparse.ArgumentParser(description="Apply doc link triage decisions")
     parser.add_argument(
         "--mode",
         choices=["nav", "deep"],
         default="deep",
-        help="Nav (strict, navigation docs only) or deep (permissive, all docs)"
+        help="Nav (strict, navigation docs only) or deep (permissive, all docs)",
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show what would be done without making changes"
+        "--dry-run", action="store_true", help="Show what would be done without making changes"
     )
     parser.add_argument(
         "--apply-fixes",
         action="store_true",
-        help="Actually apply fixes (default: only add ignores)"
+        help="Actually apply fixes (default: only add ignores)",
     )
-    parser.add_argument(
-        "--report",
-        action="store_true",
-        help="Generate rule hit count report"
-    )
+    parser.add_argument("--report", action="store_true", help="Generate rule hit count report")
 
     args = parser.parse_args()
 
@@ -514,7 +506,7 @@ def main():
         mode=args.mode,
         dry_run=args.dry_run,
         apply_fixes=args.apply_fixes,
-        generate_report=args.report
+        generate_report=args.report,
     )
 
     try:

@@ -162,7 +162,9 @@ class Phase2ArchiveCleanup:
                 print(f"                      to: {dest_path.relative_to(REPO_ROOT)}")
             else:
                 shutil.move(str(script_path), str(dest_path))
-                print(f"    [MOVED] {script_path.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}")
+                print(
+                    f"    [MOVED] {script_path.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}"
+                )
 
             self.scripts_moved.append((script_path, dest_path, reason))
 
@@ -202,7 +204,9 @@ class Phase2ArchiveCleanup:
                 print(f"                      to: {dest_path.relative_to(REPO_ROOT)}")
             else:
                 shutil.move(str(log_file), str(dest_path))
-                print(f"    [MOVED] {log_file.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}")
+                print(
+                    f"    [MOVED] {log_file.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}"
+                )
 
             self.logs_moved.append((log_file, dest_path))
 
@@ -223,7 +227,9 @@ class Phase2ArchiveCleanup:
                 continue
 
             # Skip excluded directories
-            if any(dirpath == keep_dir or dirpath.is_relative_to(keep_dir) for keep_dir in keep_dirs):
+            if any(
+                dirpath == keep_dir or dirpath.is_relative_to(keep_dir) for keep_dir in keep_dirs
+            ):
                 continue
 
             # Check if empty
@@ -323,14 +329,18 @@ If you need to understand:
             print(f"    [DRY-RUN] With {len(self.scripts_moved)} script entries")
         else:
             doc_path.write_text(content, encoding="utf-8")
-            print(f"    [CREATED] {doc_path.relative_to(REPO_ROOT)} ({len(self.scripts_moved)} script entries)")
+            print(
+                f"    [CREATED] {doc_path.relative_to(REPO_ROOT)} ({len(self.scripts_moved)} script entries)"
+            )
 
     def _print_summary(self):
         """Print summary of changes"""
         print("\n" + "=" * 80)
         print("PHASE 2 CLEANUP SUMMARY")
         print("=" * 80)
-        print(f"Mode: {'DRY-RUN (no changes made)' if self.dry_run else 'EXECUTED (changes applied)'}")
+        print(
+            f"Mode: {'DRY-RUN (no changes made)' if self.dry_run else 'EXECUTED (changes applied)'}"
+        )
         print()
         print(f"Scripts moved to superseded/: {len(self.scripts_moved)}")
         print(f"Log files centralized: {len(self.logs_moved)}")
@@ -351,9 +361,13 @@ If you need to understand:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Phase 2: Archive cleanup after documentation consolidation")
+    parser = argparse.ArgumentParser(
+        description="Phase 2: Archive cleanup after documentation consolidation"
+    )
     parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
-    parser.add_argument("--execute", action="store_true", help="Execute changes (opposite of --dry-run)")
+    parser.add_argument(
+        "--execute", action="store_true", help="Execute changes (opposite of --dry-run)"
+    )
     args = parser.parse_args()
 
     # Determine dry-run mode

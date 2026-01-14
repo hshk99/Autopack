@@ -334,7 +334,8 @@ class TestMetadataAttachment:
         _touch(tmp_path / "src" / "main.py")
 
         generator = ManifestGenerator(
-            workspace=tmp_path, enable_plan_analyzer=False  # Disabled for now
+            workspace=tmp_path,
+            enable_plan_analyzer=False,  # Disabled for now
         )
 
         plan_data = {
@@ -405,7 +406,8 @@ class TestOptInBehavior:
         # Track if any LLM was instantiated
         with patch("autopack.llm_service.LlmService") as mock_llm_service:
             generator = ManifestGenerator(
-                workspace=tmp_path, enable_plan_analyzer=False  # Disabled
+                workspace=tmp_path,
+                enable_plan_analyzer=False,  # Disabled
             )
 
             plan_data = {

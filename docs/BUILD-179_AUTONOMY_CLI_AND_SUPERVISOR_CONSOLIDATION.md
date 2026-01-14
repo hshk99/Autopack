@@ -1,8 +1,8 @@
 # BUILD-179 (PLAN): Autonomy CLI + Supervisor Consolidation (Library-First, Safe Parallelism)
 
-**Status**: PLANNED  
-**Priority**: High (operator UX + governance consistency)  
-**Related**: BUILD-178 (Pivot Intentions v2 + Gap/Plan/Autopilot/Parallelism Gate), `docs/GOVERNANCE.md`, `docs/PARALLEL_RUNS.md`, `scripts/autopack_supervisor.py`  
+**Status**: PLANNED
+**Priority**: High (operator UX + governance consistency)
+**Related**: BUILD-178 (Pivot Intentions v2 + Gap/Plan/Autopilot/Parallelism Gate), `docs/GOVERNANCE.md`, `docs/PARALLEL_RUNS.md`, `scripts/autopack_supervisor.py`
 **Aligned to README ideal state**: safe, deterministic, mechanically enforceable; SOT-led memory; execution writes run-local; explicit gates; parallelism only under Four-Layer model.
 
 ---
@@ -160,5 +160,3 @@ docs/
 ## Rollback strategy
 - Keep `scripts/autopack_supervisor.py` as the stable entrypoint initially; refactor it to call the library.
 - If issues appear, revert the wrapper change and keep the old script behavior while retaining library modules for testing.
-
-

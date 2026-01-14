@@ -55,18 +55,30 @@ def get_database_url() -> str:
     """
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
-        print("\n" + "="*80, file=sys.stderr)
+        print("\n" + "=" * 80, file=sys.stderr)
         print("ERROR: DATABASE_URL environment variable not set", file=sys.stderr)
-        print("="*80, file=sys.stderr)
-        print("\nMigration scripts require explicit DATABASE_URL to prevent footguns.", file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
+        print(
+            "\nMigration scripts require explicit DATABASE_URL to prevent footguns.",
+            file=sys.stderr,
+        )
         print("Production uses Postgres; SQLite is only for dev/test.\n", file=sys.stderr)
         print("Set DATABASE_URL before running:\n", file=sys.stderr)
         print("  # PowerShell (Postgres production):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\"", file=sys.stderr)
-        print("  python scripts/migrations/add_telemetry_enrichment_build145_deploy.py upgrade\n", file=sys.stderr)
+        print(
+            '  $env:DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"',
+            file=sys.stderr,
+        )
+        print(
+            "  python scripts/migrations/add_telemetry_enrichment_build145_deploy.py upgrade\n",
+            file=sys.stderr,
+        )
         print("  # PowerShell (SQLite dev/test - explicit opt-in):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"sqlite:///autopack.db\"", file=sys.stderr)
-        print("  python scripts/migrations/add_telemetry_enrichment_build145_deploy.py upgrade\n", file=sys.stderr)
+        print('  $env:DATABASE_URL="sqlite:///autopack.db"', file=sys.stderr)
+        print(
+            "  python scripts/migrations/add_telemetry_enrichment_build145_deploy.py upgrade\n",
+            file=sys.stderr,
+        )
         sys.exit(1)
     return db_url
 
@@ -124,15 +136,19 @@ def upgrade(engine: Engine) -> None:
             else:
                 print(f"\n[{columns_added + 1}] Adding column: {col_name} ({col_type})")
                 print(f"    Purpose: {col_desc}")
-                conn.execute(text(f"""
+                conn.execute(
+                    text(
+                        f"""
                     ALTER TABLE token_efficiency_metrics
                     ADD COLUMN {col_name} {col_type}
-                """))
+                """
+                    )
+                )
                 print(f"    ✓ Column '{col_name}' added")
                 columns_added += 1
 
         print("\n" + "=" * 80)
-        print(f"✅ Migration completed successfully!")
+        print("✅ Migration completed successfully!")
         print(f"   Columns added: {columns_added}")
         print(f"   Columns skipped (already exist): {columns_skipped}")
         print("=" * 80)
@@ -187,15 +203,19 @@ def downgrade(engine: Engine) -> None:
                 continue
             else:
                 # PostgreSQL and other databases support DROP COLUMN
-                conn.execute(text(f"""
+                conn.execute(
+                    text(
+                        f"""
                     ALTER TABLE token_efficiency_metrics
                     DROP COLUMN {col_name}
-                """))
+                """
+                    )
+                )
                 print(f"      ✓ Column '{col_name}' dropped")
                 columns_removed += 1
 
     print("\n" + "=" * 80)
-    print(f"✅ Downgrade completed!")
+    print("✅ Downgrade completed!")
     print(f"   Columns removed: {columns_removed}")
     print(f"   Columns not found: {columns_not_found}")
     print("=" * 80)
@@ -224,6 +244,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Migration failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

@@ -35,7 +35,10 @@ if not os.environ.get("DATABASE_URL"):
     print("  python scripts/create_telemetry_v6_targeted_run.py", file=sys.stderr)
     print("", file=sys.stderr)
     print("Example usage (bash):", file=sys.stderr)
-    print("  DATABASE_URL='sqlite:///telemetry_seed_v6.db' python scripts/create_telemetry_v6_targeted_run.py", file=sys.stderr)
+    print(
+        "  DATABASE_URL='sqlite:///telemetry_seed_v6.db' python scripts/create_telemetry_v6_targeted_run.py",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 # Add src to path
@@ -45,6 +48,7 @@ from autopack.database import SessionLocal, init_db
 from autopack.models import Run, RunState, Phase, PhaseState, Tier, TierState
 from datetime import datetime, timezone
 import json
+
 
 def create_telemetry_v6_run():
     """Create telemetry-collection-v6 targeted sampling run."""
@@ -61,29 +65,31 @@ def create_telemetry_v6_run():
             id="telemetry-collection-v6",
             state=RunState.PHASE_EXECUTION,
             created_at=datetime.now(timezone.utc),
-            goal_anchor=json.dumps({
-                "goal": (
-                    "Targeted telemetry sampling to stabilize weak groups from v5. "
-                    "Focus: docs/low (n=3→13), docs/medium (n=0→5), tests/medium (n=3→8). "
-                    "All docs phases have explicit output caps (≤150-250 lines) and minimal context. "
-                    "Multi-deliverable phases to diversify deliverable count distribution."
-                ),
-                "purpose": "telemetry_v6_targeted_sampling",
-                "target_groups": ["docs/low", "docs/medium", "tests/medium"],
-                "v5_gaps": {
-                    "docs/low": "n=3, unstable (CV=0.95), need 10 more",
-                    "docs/medium": "n=0, need 5",
-                    "tests/medium": "n=3, unstable (CV=0.71), need 5"
-                },
-                "guardrails": [
-                    "Explicit output caps for docs (≤150-250 lines)",
-                    "Minimal context loading (5-10 files max)",
-                    "Low initial budgets for docs (4K-8K)",
-                    "Multi-deliverable phases (2-3 files)"
-                ],
-                "total_phases": 20,
-                "expected_clean_samples": 18
-            })
+            goal_anchor=json.dumps(
+                {
+                    "goal": (
+                        "Targeted telemetry sampling to stabilize weak groups from v5. "
+                        "Focus: docs/low (n=3→13), docs/medium (n=0→5), tests/medium (n=3→8). "
+                        "All docs phases have explicit output caps (≤150-250 lines) and minimal context. "
+                        "Multi-deliverable phases to diversify deliverable count distribution."
+                    ),
+                    "purpose": "telemetry_v6_targeted_sampling",
+                    "target_groups": ["docs/low", "docs/medium", "tests/medium"],
+                    "v5_gaps": {
+                        "docs/low": "n=3, unstable (CV=0.95), need 10 more",
+                        "docs/medium": "n=0, need 5",
+                        "tests/medium": "n=3, unstable (CV=0.71), need 5",
+                    },
+                    "guardrails": [
+                        "Explicit output caps for docs (≤150-250 lines)",
+                        "Minimal context loading (5-10 files max)",
+                        "Low initial budgets for docs (4K-8K)",
+                        "Multi-deliverable phases (2-3 files)",
+                    ],
+                    "total_phases": 20,
+                    "expected_clean_samples": 18,
+                }
+            ),
         )
         session.add(run)
         session.flush()
@@ -329,7 +335,7 @@ def create_telemetry_v6_run():
                 "deliverables": [
                     "src/autopack/telemetry_utils.py",
                     "tests/autopack/test_telemetry_utils.py",
-                    "docs/telemetry_utils_api.md"
+                    "docs/telemetry_utils_api.md",
                 ],
                 "goal": (
                     "Create telemetry utility module with helpers for: "
@@ -344,7 +350,7 @@ def create_telemetry_v6_run():
                 "complexity": "medium",
                 "deliverables": [
                     "src/autopack/calibration_reporter.py",
-                    "tests/autopack/test_calibration_reporter.py"
+                    "tests/autopack/test_calibration_reporter.py",
                 ],
                 "goal": (
                     "Create calibration report generator with: "
@@ -356,12 +362,7 @@ def create_telemetry_v6_run():
         ]
 
         # Combine all phases
-        all_phases = (
-            docs_low_phases +
-            docs_medium_phases +
-            tests_medium_phases +
-            impl_medium_phases
-        )
+        all_phases = docs_low_phases + docs_medium_phases + tests_medium_phases + impl_medium_phases
 
         # Create phase records
         for idx, phase_spec in enumerate(all_phases, 1):
@@ -375,15 +376,19 @@ def create_telemetry_v6_run():
                 state=PhaseState.QUEUED,
                 task_category=phase_spec["category"],
                 complexity=phase_spec["complexity"],
-                scope=json.dumps({
-                    "deliverables": phase_spec["deliverables"],
-                }),
+                scope=json.dumps(
+                    {
+                        "deliverables": phase_spec["deliverables"],
+                    }
+                ),
                 created_at=datetime.now(timezone.utc),
             )
             session.add(phase)
             phases.append(phase)
 
-            print(f"  [{idx:02d}] {phase.phase_id} ({phase_spec['category']}/{phase_spec['complexity']})")
+            print(
+                f"  [{idx:02d}] {phase.phase_id} ({phase_spec['category']}/{phase_spec['complexity']})"
+            )
 
         session.commit()
 
@@ -395,10 +400,10 @@ def create_telemetry_v6_run():
         print(f"Total phases: {len(phases)}")
         print()
         print("Breakdown:")
-        print(f"  docs/low: 10 phases")
-        print(f"  docs/medium: 2 phases")
-        print(f"  tests/medium: 6 phases")
-        print(f"  implementation/medium: 2 phases (multi-deliverable)")
+        print("  docs/low: 10 phases")
+        print("  docs/medium: 2 phases")
+        print("  tests/medium: 6 phases")
+        print("  implementation/medium: 2 phases (multi-deliverable)")
         print()
         print("Guardrails:")
         print("  ✓ All docs phases have explicit output caps (≤150-250 lines)")
@@ -409,15 +414,21 @@ def create_telemetry_v6_run():
         print("  1. Drain queued phases (batch_drain_controller only works for FAILED phases):")
         print("     PowerShell:")
         print("       $env:PYTHONUTF8='1'; $env:PYTHONPATH='src'; $env:TELEMETRY_DB_ENABLED='1'")
-        print("       $env:AUTOPACK_SKIP_CI='1'; $env:DATABASE_URL='sqlite:///./telemetry_seed_v6.db'")
+        print(
+            "       $env:AUTOPACK_SKIP_CI='1'; $env:DATABASE_URL='sqlite:///./telemetry_seed_v6.db'"
+        )
         print("       python scripts/drain_queued_phases.py --run-id telemetry-collection-v6 `")
-        print("         --batch-size 20 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
+        print(
+            "         --batch-size 20 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance"
+        )
         print("")
         print("     Bash:")
         print("       PYTHONUTF8=1 PYTHONPATH=src TELEMETRY_DB_ENABLED=1 AUTOPACK_SKIP_CI=1 \\")
         print("         DATABASE_URL='sqlite:///./telemetry_seed_v6.db' \\")
         print("         python scripts/drain_queued_phases.py --run-id telemetry-collection-v6 \\")
-        print("           --batch-size 20 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
+        print(
+            "           --batch-size 20 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance"
+        )
         print()
         print("  2. After completion:")
         print("     - Re-run calibration analysis")

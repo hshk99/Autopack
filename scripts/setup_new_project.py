@@ -97,18 +97,19 @@ def create_project_structure(project_name: str, project_slug: str, base_dir: Pat
 
     if source_runner.exists():
         shutil.copy2(source_runner, dest_runner)
-        print(f"[2/5] Copied generic autopack_runner.py")
+        print("[2/5] Copied generic autopack_runner.py")
     else:
         print(f"[WARNING] Source runner not found at {source_runner}")
-        print(f"[WARNING] You'll need to create autopack_runner.py manually")
+        print("[WARNING] You'll need to create autopack_runner.py manually")
 
     # Create FUTURE_PLAN.md template
     whats_left = project_dir / "FUTURE_PLAN.md"
-    whats_left.write_text(f"""# {project_name} - Tasks for Autopack
+    whats_left.write_text(
+        f"""# {project_name} - Tasks for Autopack
 
 **Project**: {project_name}
 **Slug**: {project_slug}
-**Created**: {datetime.now().strftime('%Y-%m-%d')}
+**Created**: {datetime.now().strftime("%Y-%m-%d")}
 
 ---
 
@@ -166,15 +167,17 @@ RUN AUTOPACK END-TO-END for {project_name} now.
 cd {REPO_ROOT}/.autonomous_runs/{project_slug}
 python scripts/autopack_runner.py --non-interactive
 ```
-""")
-    print(f"[3/5] Created FUTURE_PLAN.md template")
+"""
+    )
+    print("[3/5] Created FUTURE_PLAN.md template")
 
     # Create PROJECT_README.md
     readme = project_dir / "PROJECT_README.md"
-    readme.write_text(f"""# {project_name}
+    readme.write_text(
+        f"""# {project_name}
 
 **Project Slug**: `{project_slug}`
-**Created**: {datetime.now().strftime('%Y-%m-%d')}
+**Created**: {datetime.now().strftime("%Y-%m-%d")}
 **Status**: Setup complete, ready for task definition
 
 ---
@@ -283,12 +286,14 @@ To adjust, edit the run configuration in `autopack_runner.py` or create a projec
 ## Troubleshooting
 
 See [FileOrganizer HOW_TO_RUN_PHASE2.md](../file-organizer-app-v1/HOW_TO_RUN_PHASE2.md) for common issues and solutions.
-""")
-    print(f"[4/5] Created PROJECT_README.md")
+"""
+    )
+    print("[4/5] Created PROJECT_README.md")
 
     # Create run.sh wrapper
     run_script = project_dir / "run.sh"
-    run_script.write_text(f"""#!/bin/bash
+    run_script.write_text(
+        f"""#!/bin/bash
 # {project_name} - Fully Autonomous Build Runner
 #
 # This script triggers the autonomous build defined in FUTURE_PLAN.md
@@ -325,22 +330,23 @@ echo "==========================================================================
 echo ""
 echo "Check the report files listed above for results."
 echo ""
-""")
+"""
+    )
     run_script.chmod(0o755)  # Make executable
-    print(f"[5/5] Created run.sh wrapper script")
+    print("[5/5] Created run.sh wrapper script")
 
     print(f"\n{'=' * 80}")
-    print(f"✅ Project setup complete!")
+    print("✅ Project setup complete!")
     print(f"{'=' * 80}")
     print(f"\nProject: {project_name}")
     print(f"Slug: {project_slug}")
     print(f"Location: {project_dir}")
-    print(f"\nNext steps:")
+    print("\nNext steps:")
     print(f"1. Edit {project_dir}/FUTURE_PLAN.md to define your tasks")
     print(f"2. Use magic phrase: 'RUN AUTOPACK END-TO-END for {project_name} now.'")
-    print(f"\nThe magic phrase will execute:")
+    print("\nThe magic phrase will execute:")
     print(f"  cd {project_dir}")
-    print(f"  python scripts/autopack_runner.py --non-interactive")
+    print("  python scripts/autopack_runner.py --non-interactive")
     print(f"\n{'=' * 80}")
 
 
@@ -369,28 +375,26 @@ Slug Generation:
 
 After setup, the magic phrase will work:
   "RUN AUTOPACK END-TO-END for <ProjectName> now."
-        """
+        """,
     )
 
     parser.add_argument(
-        '--name',
+        "--name",
         type=str,
         required=True,
-        help='Project name (e.g., "MyApp", "File Organizer", "Shopping Cart")'
+        help='Project name (e.g., "MyApp", "File Organizer", "Shopping Cart")',
     )
 
     parser.add_argument(
-        '--slug',
+        "--slug",
         type=str,
         required=False,  # SLUG IS NOW OPTIONAL!
         default=None,
-        help='Project slug for directory name (optional, auto-generated from name if not provided)'
+        help="Project slug for directory name (optional, auto-generated from name if not provided)",
     )
 
     parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Test slug generation without creating files'
+        "--dry-run", action="store_true", help="Test slug generation without creating files"
     )
 
     args = parser.parse_args()
@@ -413,11 +417,11 @@ After setup, the magic phrase will work:
 
     # Dry-run mode: just show what would be generated
     if args.dry_run:
-        print(f"\n[DRY RUN] Would create project:")
+        print("\n[DRY RUN] Would create project:")
         print(f"  Name: {args.name}")
         print(f"  Slug: {slug}")
         print(f"  Path: {base_dir / slug}")
-        print(f"\n[DRY RUN] No files created.")
+        print("\n[DRY RUN] No files created.")
         return
 
     # Create project structure

@@ -27,10 +27,9 @@ class TestWebhookSecurityModule:
         security_module = (
             REPO_ROOT / "src" / "autopack" / "notifications" / "telegram_webhook_security.py"
         )
-        assert security_module.exists(), (
-            "telegram_webhook_security.py not found - "
-            "PR7 requires webhook signature verification"
-        )
+        assert (
+            security_module.exists()
+        ), "telegram_webhook_security.py not found - PR7 requires webhook signature verification"
 
     def test_module_is_importable(self):
         """Module must be importable without errors."""

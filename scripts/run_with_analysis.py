@@ -26,7 +26,9 @@ from autopack.plan_analyzer import analyze_implementation_plan
 
 
 async def main():
-    parser = argparse.ArgumentParser(description="Run autonomous implementation with pre-flight analysis")
+    parser = argparse.ArgumentParser(
+        description="Run autonomous implementation with pre-flight analysis"
+    )
     parser.add_argument("plan_file", help="Path to implementation plan (JSON/YAML)")
     parser.add_argument("--run-id", help="Run ID (default: auto-generated from plan file)")
     parser.add_argument("--skip-analysis", action="store_true", help="Skip pre-flight analysis")
@@ -51,9 +53,9 @@ async def main():
 
     # Step 1: Pre-flight analysis
     if not args.skip_analysis:
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("STEP 1: PRE-FLIGHT ANALYSIS")
-        print("="*80)
+        print("=" * 80)
 
         print(f"\n🔍 Analyzing implementation plan: {plan_file}")
 
@@ -66,7 +68,7 @@ async def main():
             )
 
             # Print summary
-            print(f"\n✅ Analysis complete")
+            print("\n✅ Analysis complete")
             print(f"   Overall Feasibility: {result.overall_feasibility.value}")
             print(f"   Overall Confidence: {result.overall_confidence:.1%}")
             print(f"   Estimated Duration: {result.estimated_total_duration_days:.1f} days")
@@ -75,17 +77,17 @@ async def main():
             print(f"   ❌ MANUAL REQUIRED: {result.manual_required_count} phases")
 
             if result.critical_blockers:
-                print(f"\n⛔ CRITICAL BLOCKERS:")
+                print("\n⛔ CRITICAL BLOCKERS:")
                 for blocker in result.critical_blockers:
                     print(f"   - {blocker}")
 
                 response = input("\nBlockers detected. Continue anyway? [y/N]: ")
-                if response.lower() != 'y':
+                if response.lower() != "y":
                     print("❌ Execution cancelled due to blockers")
                     sys.exit(1)
 
             if result.infrastructure_requirements:
-                print(f"\n📦 INFRASTRUCTURE REQUIREMENTS:")
+                print("\n📦 INFRASTRUCTURE REQUIREMENTS:")
                 for req in result.infrastructure_requirements:
                     print(f"   - {req}")
 
@@ -138,19 +140,20 @@ async def main():
         except Exception as e:
             print(f"\n❌ Analysis failed: {e}")
             import traceback
+
             traceback.print_exc()
 
             response = input("\nAnalysis failed. Continue with execution anyway? [y/N]: ")
-            if response.lower() != 'y':
+            if response.lower() != "y":
                 print("❌ Execution cancelled")
                 sys.exit(1)
 
     # Step 2: Autonomous execution
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("STEP 2: AUTONOMOUS EXECUTION")
-    print("="*80)
+    print("=" * 80)
 
-    print(f"\n🚀 Starting autonomous execution")
+    print("\n🚀 Starting autonomous execution")
     print(f"   Run ID: {run_id}")
     print(f"   Plan: {plan_file}")
     print(f"   Max Iterations: {args.max_iterations}")
@@ -158,10 +161,14 @@ async def main():
     # Build command
     cmd = [
         sys.executable,
-        "-m", "autopack.autonomous_executor",
-        "--run-id", run_id,
-        "--config", str(plan_file),
-        "--max-iterations", str(args.max_iterations),
+        "-m",
+        "autopack.autonomous_executor",
+        "--run-id",
+        run_id,
+        "--config",
+        str(plan_file),
+        "--max-iterations",
+        str(args.max_iterations),
     ]
 
     print(f"\nCommand: {' '.join(cmd)}\n")
@@ -176,17 +183,17 @@ async def main():
                 "PYTHONUTF8": "1",
                 "PYTHONPATH": "src",
                 "DATABASE_URL": subprocess.os.environ.get("DATABASE_URL", "sqlite:///autopack.db"),
-            }
+            },
         )
 
         if result.returncode == 0:
-            print("\n" + "="*80)
+            print("\n" + "=" * 80)
             print("✅ EXECUTION COMPLETE")
-            print("="*80)
+            print("=" * 80)
         else:
-            print("\n" + "="*80)
+            print("\n" + "=" * 80)
             print("❌ EXECUTION FAILED")
-            print("="*80)
+            print("=" * 80)
 
         sys.exit(result.returncode)
 
@@ -196,6 +203,7 @@ async def main():
     except Exception as e:
         print(f"\n❌ Execution failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

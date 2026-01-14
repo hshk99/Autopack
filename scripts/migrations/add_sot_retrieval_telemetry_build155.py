@@ -58,7 +58,9 @@ def upgrade(engine: Engine) -> None:
 
         if dialect == "sqlite":
             # SQLite version
-            conn.execute(text("""
+            conn.execute(
+                text(
+                    """
                 CREATE TABLE sot_retrieval_events (
                     event_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id TEXT NOT NULL,
@@ -88,18 +90,40 @@ def upgrade(engine: Engine) -> None:
                     FOREIGN KEY (run_id, phase_id) REFERENCES phases (run_id, phase_id) ON DELETE CASCADE,
                     FOREIGN KEY (run_id) REFERENCES runs (id) ON DELETE CASCADE
                 )
-            """))
+            """
+                )
+            )
 
             # Create indexes
-            conn.execute(text("CREATE INDEX ix_sot_retrieval_events_run_id ON sot_retrieval_events (run_id)"))
-            conn.execute(text("CREATE INDEX ix_sot_retrieval_events_phase_id ON sot_retrieval_events (phase_id)"))
-            conn.execute(text("CREATE INDEX ix_sot_retrieval_events_timestamp ON sot_retrieval_events (timestamp)"))
-            conn.execute(text("CREATE INDEX ix_sot_retrieval_events_include_sot ON sot_retrieval_events (include_sot)"))
-            conn.execute(text("CREATE INDEX ix_sot_retrieval_events_created_at ON sot_retrieval_events (created_at)"))
+            conn.execute(
+                text("CREATE INDEX ix_sot_retrieval_events_run_id ON sot_retrieval_events (run_id)")
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX ix_sot_retrieval_events_phase_id ON sot_retrieval_events (phase_id)"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX ix_sot_retrieval_events_timestamp ON sot_retrieval_events (timestamp)"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX ix_sot_retrieval_events_include_sot ON sot_retrieval_events (include_sot)"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX ix_sot_retrieval_events_created_at ON sot_retrieval_events (created_at)"
+                )
+            )
 
         elif dialect == "postgresql":
             # PostgreSQL version
-            conn.execute(text("""
+            conn.execute(
+                text(
+                    """
                 CREATE TABLE sot_retrieval_events (
                     event_id SERIAL PRIMARY KEY,
                     run_id VARCHAR NOT NULL,
@@ -135,14 +159,34 @@ def upgrade(engine: Engine) -> None:
                         REFERENCES runs (id)
                         ON DELETE CASCADE
                 )
-            """))
+            """
+                )
+            )
 
             # Create indexes
-            conn.execute(text("CREATE INDEX ix_sot_retrieval_events_run_id ON sot_retrieval_events (run_id)"))
-            conn.execute(text("CREATE INDEX ix_sot_retrieval_events_phase_id ON sot_retrieval_events (phase_id)"))
-            conn.execute(text("CREATE INDEX ix_sot_retrieval_events_timestamp ON sot_retrieval_events (timestamp)"))
-            conn.execute(text("CREATE INDEX ix_sot_retrieval_events_include_sot ON sot_retrieval_events (include_sot)"))
-            conn.execute(text("CREATE INDEX ix_sot_retrieval_events_created_at ON sot_retrieval_events (created_at)"))
+            conn.execute(
+                text("CREATE INDEX ix_sot_retrieval_events_run_id ON sot_retrieval_events (run_id)")
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX ix_sot_retrieval_events_phase_id ON sot_retrieval_events (phase_id)"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX ix_sot_retrieval_events_timestamp ON sot_retrieval_events (timestamp)"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX ix_sot_retrieval_events_include_sot ON sot_retrieval_events (include_sot)"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX ix_sot_retrieval_events_created_at ON sot_retrieval_events (created_at)"
+                )
+            )
 
         else:
             raise ValueError(f"Unsupported database dialect: {dialect}")
@@ -194,6 +238,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Migration failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

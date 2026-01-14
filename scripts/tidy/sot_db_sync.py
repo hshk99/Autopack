@@ -62,6 +62,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 # Import lock infrastructure
 try:
     from locks import MultiLock
+
     LOCKS_AVAILABLE = True
 except ImportError:
     print("[WARN] locks.py not found - running without subsystem locks")
@@ -71,11 +72,13 @@ except ImportError:
 
 class TimeoutError(Exception):
     """Raised when execution exceeds max_seconds"""
+
     pass
 
 
 class SyncMode:
     """Sync execution modes"""
+
     DOCS_ONLY = "docs-only"
     DB_ONLY = "db-only"
     QDRANT_ONLY = "qdrant-only"
@@ -142,7 +145,7 @@ class SOTDBSync:
                 repo_root=self.repo_root,
                 owner=f"sot_db_sync:{self.mode}",
                 ttl_seconds=self.max_seconds + 60,  # Lock TTL > max execution time
-                timeout_seconds=30
+                timeout_seconds=30,
             )
 
     def _resolve_database_url(self, provided_url: Optional[str]) -> str:
@@ -166,14 +169,12 @@ class SOTDBSync:
 
         # Normalize SQLite paths to absolute
         if url.startswith("sqlite:///") and not url.startswith("sqlite:///:memory:"):
-            db_path_str = url[len("sqlite:///"):]
+            db_path_str = url[len("sqlite:///") :]
             db_path = Path(db_path_str)
 
             # Check for Windows absolute path
             is_windows_abs = (
-                len(db_path_str) >= 3
-                and db_path_str[1] == ":"
-                and db_path_str[2] in ("/", "\\")
+                len(db_path_str) >= 3 and db_path_str[1] == ":" and db_path_str[2] in ("/", "\\")
             )
 
             if not db_path.is_absolute() and not is_windows_abs:
@@ -218,6 +219,7 @@ class SOTDBSync:
 
     def _time_operation(self, name: str):
         """Context manager for timing operations"""
+
         class Timer:
             def __init__(self, parent, op_name):
                 self.parent = parent
@@ -245,6 +247,7 @@ class SOTDBSync:
             if self.database_url.startswith("postgresql://"):
                 try:
                     import psycopg2
+
                     self.db_conn = psycopg2.connect(self.database_url)
                     print("[OK] Connected to PostgreSQL")
                 except ImportError:
@@ -257,7 +260,8 @@ class SOTDBSync:
             elif self.database_url.startswith("sqlite:///"):
                 try:
                     import sqlite3
-                    db_path = self.database_url[len("sqlite:///"):]
+
+                    db_path = self.database_url[len("sqlite:///") :]
                     self.db_conn = sqlite3.connect(db_path)
                     # Enable foreign keys for SQLite
                     self.db_conn.execute("PRAGMA foreign_keys = ON")
@@ -288,7 +292,8 @@ class SOTDBSync:
 
         if is_postgres:
             # PostgreSQL schema
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS sot_entries (
                     id SERIAL PRIMARY KEY,
                     project_id TEXT NOT NULL,
@@ -302,14 +307,18 @@ class SOTDBSync:
                     content_hash TEXT NOT NULL,
                     UNIQUE(project_id, file_type, entry_id)
                 );
-            """)
-            cursor.execute("""
+            """
+            )
+            cursor.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_sot_entries_lookup
                 ON sot_entries(project_id, file_type, entry_id);
-            """)
+            """
+            )
         else:
             # SQLite schema
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS sot_entries (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     project_id TEXT NOT NULL,
@@ -323,11 +332,14 @@ class SOTDBSync:
                     content_hash TEXT NOT NULL,
                     UNIQUE(project_id, file_type, entry_id)
                 );
-            """)
-            cursor.execute("""
+            """
+            )
+            cursor.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_sot_entries_lookup
                 ON sot_entries(project_id, file_type, entry_id);
-            """)
+            """
+            )
 
         self.db_conn.commit()
         if self.verbose:
@@ -339,9 +351,7 @@ class SOTDBSync:
             return  # Already initialized
 
         if not self.qdrant_host:
-            raise RuntimeError(
-                "Qdrant host not configured. Set QDRANT_HOST or use --qdrant-host"
-            )
+            raise RuntimeError("Qdrant host not configured. Set QDRANT_HOST or use --qdrant-host")
 
         with self._time_operation("qdrant_connection_init"):
             try:
@@ -495,7 +505,9 @@ class SOTDBSync:
 
         return entries
 
-    def _parse_sot_index_table(self, file_path: Path, file_type: str, lines: List[str]) -> List[Dict]:
+    def _parse_sot_index_table(
+        self, file_path: Path, file_type: str, lines: List[str]
+    ) -> List[Dict]:
         """Parse INDEX table from SOT file"""
         entries = []
 
@@ -507,7 +519,7 @@ class SOTDBSync:
 
         # Collect table rows
         table_rows = []
-        for line in lines[idx_start + 1:]:
+        for line in lines[idx_start + 1 :]:
             stripped = line.strip()
             if stripped.startswith("|"):
                 table_rows.append(stripped)
@@ -529,49 +541,59 @@ class SOTDBSync:
                 # | 2026-01-02 | BUILD-153 | Title | Description |
                 m = re.match(
                     r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(BUILD-\d+)\s*\|\s*([^|]+?)\s*\|\s*(.*)\|\s*$",
-                    row
+                    row,
                 )
                 if m:
                     date_str, bid, title_text, desc = m.groups()
-                    entries.append({
-                        "id": bid,
-                        "title": f"{bid} | {date_str} | {title_text.strip()}",
-                        "content": f"{bid}\n{title_text.strip()}\n\n{desc.strip()}",
-                        "created_at": f"{date_str}T00:00:00Z",
-                        "metadata": {"source": "index_table"},
-                    })
+                    entries.append(
+                        {
+                            "id": bid,
+                            "title": f"{bid} | {date_str} | {title_text.strip()}",
+                            "content": f"{bid}\n{title_text.strip()}\n\n{desc.strip()}",
+                            "created_at": f"{date_str}T00:00:00Z",
+                            "metadata": {"source": "index_table"},
+                        }
+                    )
 
             elif file_type == "architecture":
                 # | 2026-01-02 | DEC-016 | Decision | Status | Impact |
                 m = re.match(
                     r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(DEC-\d+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*$",
-                    row
+                    row,
                 )
                 if m:
                     date_str, did, decision, status, impact = m.groups()
-                    entries.append({
-                        "id": did,
-                        "title": f"{did} | {date_str} | {decision.strip()}",
-                        "content": f"{did}\n{decision.strip()}\nStatus: {status.strip()}\nImpact: {impact.strip()}",
-                        "created_at": f"{date_str}T00:00:00Z",
-                        "metadata": {"source": "index_table", "status": status.strip()},
-                    })
+                    entries.append(
+                        {
+                            "id": did,
+                            "title": f"{did} | {date_str} | {decision.strip()}",
+                            "content": f"{did}\n{decision.strip()}\nStatus: {status.strip()}\nImpact: {impact.strip()}",
+                            "created_at": f"{date_str}T00:00:00Z",
+                            "metadata": {"source": "index_table", "status": status.strip()},
+                        }
+                    )
 
             elif file_type == "debug_log":
                 # | 2026-01-01 | DBG-079 | LOW | Summary | Status |
                 m = re.match(
                     r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(DBG-\d+)\s*\|\s*([^|]+?)\s*\|\s*(.*)\|\s*([^|]+?)\s*\|\s*$",
-                    row
+                    row,
                 )
                 if m:
                     date_str, gid, severity, summary, status = m.groups()
-                    entries.append({
-                        "id": gid,
-                        "title": f"{gid} | {date_str} | {severity.strip()}",
-                        "content": f"{gid}\nSeverity: {severity.strip()}\n{summary.strip()}\nStatus: {status.strip()}",
-                        "created_at": f"{date_str}T00:00:00Z",
-                        "metadata": {"source": "index_table", "severity": severity.strip(), "status": status.strip()},
-                    })
+                    entries.append(
+                        {
+                            "id": gid,
+                            "title": f"{gid} | {date_str} | {severity.strip()}",
+                            "content": f"{gid}\nSeverity: {severity.strip()}\n{summary.strip()}\nStatus: {status.strip()}",
+                            "created_at": f"{date_str}T00:00:00Z",
+                            "metadata": {
+                                "source": "index_table",
+                                "severity": severity.strip(),
+                                "status": status.strip(),
+                            },
+                        }
+                    )
 
         return entries
 
@@ -592,9 +614,7 @@ class SOTDBSync:
                     self._check_timeout()
 
                     # Compute content hash for idempotency
-                    content_hash = hashlib.sha256(
-                        entry["content"].encode("utf-8")
-                    ).hexdigest()[:16]
+                    content_hash = hashlib.sha256(entry["content"].encode("utf-8")).hexdigest()[:16]
 
                     # Stable entry ID
                     entry_id = entry["id"]
@@ -604,12 +624,12 @@ class SOTDBSync:
                     if is_postgres:
                         cursor.execute(
                             "SELECT content_hash FROM sot_entries WHERE project_id = %s AND file_type = %s AND entry_id = %s",
-                            (project_id, file_type, entry_id)
+                            (project_id, file_type, entry_id),
                         )
                     else:
                         cursor.execute(
                             "SELECT content_hash FROM sot_entries WHERE project_id = ? AND file_type = ? AND entry_id = ?",
-                            (project_id, file_type, entry_id)
+                            (project_id, file_type, entry_id),
                         )
 
                     existing = cursor.fetchone()
@@ -622,7 +642,8 @@ class SOTDBSync:
                     metadata_json = json.dumps(entry.get("metadata", {}))
 
                     if is_postgres:
-                        cursor.execute("""
+                        cursor.execute(
+                            """
                             INSERT INTO sot_entries
                             (project_id, file_type, entry_id, title, content, metadata, created_at, updated_at, content_hash)
                             VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, NOW(), %s)
@@ -633,49 +654,8 @@ class SOTDBSync:
                                 metadata = EXCLUDED.metadata,
                                 updated_at = NOW(),
                                 content_hash = EXCLUDED.content_hash
-                        """, (
-                            project_id,
-                            file_type,
-                            entry_id,
-                            entry.get("title", ""),
-                            entry["content"],
-                            metadata_json,
-                            entry.get("created_at", datetime.now(timezone.utc).isoformat()),
-                            content_hash,
-                        ))
-                    else:
-                        # SQLite: manual UPSERT
-                        cursor.execute(
-                            "SELECT id FROM sot_entries WHERE project_id = ? AND file_type = ? AND entry_id = ?",
-                            (project_id, file_type, entry_id)
-                        )
-                        existing_row = cursor.fetchone()
-
-                        if existing_row:
-                            cursor.execute("""
-                                UPDATE sot_entries SET
-                                    title = ?,
-                                    content = ?,
-                                    metadata = ?,
-                                    updated_at = CURRENT_TIMESTAMP,
-                                    content_hash = ?
-                                WHERE project_id = ? AND file_type = ? AND entry_id = ?
-                            """, (
-                                entry.get("title", ""),
-                                entry["content"],
-                                metadata_json,
-                                content_hash,
-                                project_id,
-                                file_type,
-                                entry_id,
-                            ))
-                            self.stats["db_updates"] += 1
-                        else:
-                            cursor.execute("""
-                                INSERT INTO sot_entries
-                                (project_id, file_type, entry_id, title, content, metadata, created_at, updated_at, content_hash)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
-                            """, (
+                        """,
+                            (
                                 project_id,
                                 file_type,
                                 entry_id,
@@ -684,11 +664,62 @@ class SOTDBSync:
                                 metadata_json,
                                 entry.get("created_at", datetime.now(timezone.utc).isoformat()),
                                 content_hash,
-                            ))
+                            ),
+                        )
+                    else:
+                        # SQLite: manual UPSERT
+                        cursor.execute(
+                            "SELECT id FROM sot_entries WHERE project_id = ? AND file_type = ? AND entry_id = ?",
+                            (project_id, file_type, entry_id),
+                        )
+                        existing_row = cursor.fetchone()
+
+                        if existing_row:
+                            cursor.execute(
+                                """
+                                UPDATE sot_entries SET
+                                    title = ?,
+                                    content = ?,
+                                    metadata = ?,
+                                    updated_at = CURRENT_TIMESTAMP,
+                                    content_hash = ?
+                                WHERE project_id = ? AND file_type = ? AND entry_id = ?
+                            """,
+                                (
+                                    entry.get("title", ""),
+                                    entry["content"],
+                                    metadata_json,
+                                    content_hash,
+                                    project_id,
+                                    file_type,
+                                    entry_id,
+                                ),
+                            )
+                            self.stats["db_updates"] += 1
+                        else:
+                            cursor.execute(
+                                """
+                                INSERT INTO sot_entries
+                                (project_id, file_type, entry_id, title, content, metadata, created_at, updated_at, content_hash)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+                            """,
+                                (
+                                    project_id,
+                                    file_type,
+                                    entry_id,
+                                    entry.get("title", ""),
+                                    entry["content"],
+                                    metadata_json,
+                                    entry.get("created_at", datetime.now(timezone.utc).isoformat()),
+                                    content_hash,
+                                ),
+                            )
                             self.stats["db_inserts"] += 1
 
             self.db_conn.commit()
-            print(f"[OK] Synced to database: {self.stats['db_inserts']} inserts, {self.stats['db_updates']} updates")
+            print(
+                f"[OK] Synced to database: {self.stats['db_inserts']} inserts, {self.stats['db_updates']} updates"
+            )
 
     def sync_to_qdrant(self, parsed_entries: Dict[str, List[Dict]]):
         """Sync parsed entries to Qdrant vector store"""
@@ -741,7 +772,7 @@ class SOTDBSync:
                             "content_preview": entry["content"][:500],
                             "updated_at": datetime.now(timezone.utc).isoformat(),
                             "metadata": entry.get("metadata", {}),
-                        }
+                        },
                     }
 
                     points.append(point)
@@ -763,9 +794,9 @@ class SOTDBSync:
             Exit code (0 = success)
         """
         try:
-            print(f"\n{'='*80}")
+            print(f"\n{'=' * 80}")
             print("SOT -> DB/Qdrant Sync (BUILD-163)")
-            print(f"{'='*80}")
+            print(f"{'=' * 80}")
             print(f"Mode: {self.mode}")
             print(f"Execute: {self.execute}")
             print(f"Max seconds: {self.max_seconds}")
@@ -778,7 +809,7 @@ class SOTDBSync:
                     print(f"[SCOPE] Write to: {self.qdrant_host}")
                 print("[SCOPE] No writes to filesystem (DB/Qdrant only)")
 
-            print(f"{'='*80}\n")
+            print(f"{'=' * 80}\n")
 
             # Acquire subsystem locks for write operations
             if self.multi_lock:
@@ -848,6 +879,7 @@ class SOTDBSync:
             print(f"\n[ERROR] Unexpected error: {e}")
             if self.verbose:
                 import traceback
+
                 traceback.print_exc()
             return 1
 
@@ -865,13 +897,13 @@ class SOTDBSync:
         """Print execution summary"""
         elapsed = time.time() - self.start_time
 
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print("SYNC SUMMARY")
-        print(f"{'='*80}")
+        print(f"{'=' * 80}")
         print(f"Mode: {self.mode}")
         print(f"Execute: {self.execute}")
         print(f"Total time: {elapsed:.2f}s")
-        print(f"\nStatistics:")
+        print("\nStatistics:")
         print(f"  Parsed entries: {self.stats['parsed_entries']}")
         print(f"  DB inserts: {self.stats['db_inserts']}")
         print(f"  DB updates: {self.stats['db_updates']}")
@@ -885,11 +917,11 @@ class SOTDBSync:
                 print(f"  ... and {len(self.stats['errors']) - 10} more")
 
         if self.timing and self.timings:
-            print(f"\nTiming breakdown:")
+            print("\nTiming breakdown:")
             for op, duration in sorted(self.timings.items(), key=lambda x: -x[1]):
                 print(f"  {op}: {duration:.2f}s")
 
-        print(f"{'='*80}\n")
+        print(f"{'=' * 80}\n")
 
 
 def main():
@@ -914,7 +946,7 @@ Examples:
   python scripts/tidy/sot_db_sync.py --full --execute \\
       --database-url postgresql://user:pass@host/db \\
       --qdrant-host http://localhost:6333
-        """
+        """,
     )
 
     # Mode selection (mutually exclusive)
@@ -924,28 +956,28 @@ Examples:
         action="store_const",
         const=SyncMode.DOCS_ONLY,
         dest="mode",
-        help="Parse SOT files only, no DB/Qdrant writes (default)"
+        help="Parse SOT files only, no DB/Qdrant writes (default)",
     )
     mode_group.add_argument(
         "--db-only",
         action="store_const",
         const=SyncMode.DB_ONLY,
         dest="mode",
-        help="Sync to database only (no Qdrant)"
+        help="Sync to database only (no Qdrant)",
     )
     mode_group.add_argument(
         "--qdrant-only",
         action="store_const",
         const=SyncMode.QDRANT_ONLY,
         dest="mode",
-        help="Sync to Qdrant only (no database)"
+        help="Sync to Qdrant only (no database)",
     )
     mode_group.add_argument(
         "--full",
         action="store_const",
         const=SyncMode.FULL,
         dest="mode",
-        help="Sync to both database and Qdrant"
+        help="Sync to both database and Qdrant",
     )
     parser.set_defaults(mode=SyncMode.DOCS_ONLY)
 
@@ -953,17 +985,16 @@ Examples:
     parser.add_argument(
         "--execute",
         action="store_true",
-        help="Actually perform writes (required for --db-only, --qdrant-only, --full)"
+        help="Actually perform writes (required for --db-only, --qdrant-only, --full)",
     )
 
     # Target configuration
     parser.add_argument(
         "--database-url",
-        help="Database URL (default: DATABASE_URL env var or sqlite:///autopack.db)"
+        help="Database URL (default: DATABASE_URL env var or sqlite:///autopack.db)",
     )
     parser.add_argument(
-        "--qdrant-host",
-        help="Qdrant host URL (default: QDRANT_HOST env var or disabled)"
+        "--qdrant-host", help="Qdrant host URL (default: QDRANT_HOST env var or disabled)"
     )
 
     # Execution control
@@ -971,24 +1002,19 @@ Examples:
         "--max-seconds",
         type=int,
         default=120,
-        help="Maximum execution time in seconds (default: 120)"
+        help="Maximum execution time in seconds (default: 120)",
     )
     parser.add_argument(
         "--timing",
         action="store_true",
         default=True,
-        help="Print timing information (default: enabled)"
+        help="Print timing information (default: enabled)",
     )
     parser.add_argument(
-        "--no-timing",
-        action="store_false",
-        dest="timing",
-        help="Disable timing information"
+        "--no-timing", action="store_false", dest="timing", help="Disable timing information"
     )
     parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="Verbose output with stack traces"
+        "-v", "--verbose", action="store_true", help="Verbose output with stack traces"
     )
 
     args = parser.parse_args()

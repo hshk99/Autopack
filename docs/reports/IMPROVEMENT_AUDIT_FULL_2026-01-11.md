@@ -611,5 +611,3 @@ In typical nginx deployments, `get_remote_address` will often see the proxy IP u
 - **Docs-only**:
   - Update the DEC-050 status line and add a 1–2 bullet “Evidence” section pointing to the current `docs/AUTHENTICATION.md` + relevant test(s)/PR(s).
   - If anything is still missing (e.g., a specific contract test), list it as “Remaining work” and link to a tracked item in `docs/FUTURE_PLAN.md`.
-
-

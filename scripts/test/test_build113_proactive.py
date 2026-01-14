@@ -13,11 +13,12 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from autopack.diagnostics.goal_aware_decision import GoalAwareDecisionMaker
 from autopack.diagnostics.diagnostics_models import PhaseSpec, DecisionType
 
+
 def test_clear_fix_decision():
     """Test LOW risk patch (<100 lines, meets deliverables) → CLEAR_FIX"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 1: CLEAR_FIX Decision (LOW risk, high confidence)")
-    print("="*80)
+    print("=" * 80)
 
     decision_maker = GoalAwareDecisionMaker(
         low_risk_threshold=100,
@@ -70,9 +71,9 @@ index 1234567..abcdefg 100644
 
 def test_risky_decision():
     """Test HIGH risk patch (>200 lines, integration) → RISKY"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 2: RISKY Decision (HIGH risk, requires approval)")
-    print("="*80)
+    print("=" * 80)
 
     decision_maker = GoalAwareDecisionMaker(
         low_risk_threshold=100,
@@ -91,7 +92,9 @@ index 1234567..abcdefg 100644
 +
 +import logging
 +from typing import Dict, List, Optional
-+""" + "\n".join([f"+# Line {i}" for i in range(4, 250)])
++""" + "\n".join(
+        [f"+# Line {i}" for i in range(4, 250)]
+    )
 
     phase_spec = PhaseSpec(
         phase_id="research-build-history-integrator",
@@ -120,9 +123,9 @@ index 1234567..abcdefg 100644
 
 def test_database_risk_detection():
     """Test database file detection → HIGH risk → RISKY"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 3: Database Risk Detection (database-related file → RISKY)")
-    print("="*80)
+    print("=" * 80)
 
     decision_maker = GoalAwareDecisionMaker(
         low_risk_threshold=100,
@@ -143,7 +146,9 @@ index 1234567..abcdefg 100644
 +    \"\"\"Research session model\"\"\"
 +    __tablename__ = "research_sessions"
 +    id = Column(Integer, primary_key=True)
-+""" + "\n".join([f"+    # Field {i}" for i in range(6, 150)])
++""" + "\n".join(
+        [f"+    # Field {i}" for i in range(6, 150)]
+    )
 
     phase_spec = PhaseSpec(
         phase_id="research-phase-type",
@@ -163,16 +168,18 @@ index 1234567..abcdefg 100644
     print(f"[RESULT] Rationale: {decision.rationale}")
 
     assert decision.type == DecisionType.RISKY, f"Expected RISKY, got {decision.type.value}"
-    assert decision.risk_level == "HIGH", f"Expected HIGH risk (database file), got {decision.risk_level}"
+    assert (
+        decision.risk_level == "HIGH"
+    ), f"Expected HIGH risk (database file), got {decision.risk_level}"
 
     print("\n✓ TEST 3 PASSED: Database file correctly detected as HIGH risk")
 
 
 def test_threshold_boundary():
     """Test MEDIUM risk threshold (100-200 lines) → MEDIUM risk"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 4: Threshold Boundary (100-200 lines → MEDIUM → CLEAR_FIX or RISKY)")
-    print("="*80)
+    print("=" * 80)
 
     decision_maker = GoalAwareDecisionMaker(
         low_risk_threshold=100,
@@ -190,7 +197,9 @@ index 1234567..abcdefg 100644
 +\"\"\"Research hooks for autonomous mode\"\"\"
 +
 +import logging
-+""" + "\n".join([f"+# Line {i}" for i in range(4, 150)])
++""" + "\n".join(
+        [f"+# Line {i}" for i in range(4, 150)]
+    )
 
     phase_spec = PhaseSpec(
         phase_id="research-autonomous-hooks",
@@ -212,7 +221,9 @@ index 1234567..abcdefg 100644
     # At 150 lines: MEDIUM risk, but should still be CLEAR_FIX if high confidence + meets deliverables
     assert decision.risk_level == "MEDIUM", f"Expected MEDIUM risk, got {decision.risk_level}"
 
-    print(f"\n  Decision: {decision.type.value} (MEDIUM risk can be CLEAR_FIX with high confidence)")
+    print(
+        f"\n  Decision: {decision.type.value} (MEDIUM risk can be CLEAR_FIX with high confidence)"
+    )
     print("\n✓ TEST 4 PASSED: Threshold boundary correctly assessed as MEDIUM risk")
 
 
@@ -223,9 +234,9 @@ if __name__ == "__main__":
         test_database_risk_detection()
         test_threshold_boundary()
 
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("ALL TESTS PASSED ✓")
-        print("="*80)
+        print("=" * 80)
         print("\nBUILD-113 Proactive Mode is working correctly!")
         print("Ready to integrate into autonomous_executor.py")
         print()
@@ -236,5 +247,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n✗ UNEXPECTED ERROR: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

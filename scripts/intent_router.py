@@ -21,6 +21,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 # Set UTF-8 encoding for Windows console
 if sys.platform == "win32":
     import codecs
+
     sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
     sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
 
@@ -34,9 +35,11 @@ from autopack.memory import MemoryService
 from autopack.memory.maintenance import run_maintenance, _load_memory_config
 from autopack.diagnostics import DiagnosticsAgent
 
+
 # Import ingest script dynamically to avoid circular import issues
 def _get_ingest_module():
     import importlib.util
+
     script_path = Path(__file__).parent / "ingest_planning_artifacts.py"
     spec = importlib.util.spec_from_file_location("ingest_planning_artifacts", script_path)
     module = importlib.util.module_from_spec(spec)
@@ -72,6 +75,7 @@ def _match_intent(text: str, intents: List[Intent]) -> Optional[Intent]:
 # Actions
 # ---------------------------------------------------------------------------
 
+
 def action_ingest(project_id: str, args: argparse.Namespace) -> ActionResult:
     repo_root = Path(args.repo_root or Path(__file__).resolve().parent.parent)
     ingest_module = _get_ingest_module()
@@ -90,7 +94,9 @@ def action_maintenance(project_id: str, args: argparse.Namespace) -> ActionResul
     ttl = args.ttl_days or cfg.get("ttl_days", 30)
     keep_versions = args.keep_versions or cfg.get("planning_keep_versions", 3)
     mem = MemoryService()
-    stats = run_maintenance(mem.store, project_id, ttl_days=ttl, planning_keep_versions=keep_versions)
+    stats = run_maintenance(
+        mem.store, project_id, ttl_days=ttl, planning_keep_versions=keep_versions
+    )
     return (f"Maintenance complete: {stats}", True)
 
 
@@ -158,7 +164,9 @@ def action_memory_query(project_id: str, args: argparse.Namespace) -> ActionResu
     return (formatted or "(no context)", True)
 
 
-def _run_manual_diagnostics(failure_class: str, project_id: str, args: argparse.Namespace) -> ActionResult:
+def _run_manual_diagnostics(
+    failure_class: str, project_id: str, args: argparse.Namespace
+) -> ActionResult:
     """Fire a governed diagnostics run from the CLI intent router."""
     workspace = Path(args.repo_root or Path.cwd())
     run_id = args.run_id or f"{project_id}-manual"
@@ -320,16 +328,38 @@ def main():
     parser.add_argument("--query", required=True, help="User intent in natural language")
     parser.add_argument("--repo-root", default=None, type=Path, help="Repo root (for ingest)")
     parser.add_argument("--run-id", default=None, help="Run identifier for diagnostics")
-    parser.add_argument("--target", default=None, help="Target selector for diagnostics (e.g., pytest -k pattern)")
+    parser.add_argument(
+        "--target", default=None, help="Target selector for diagnostics (e.g., pytest -k pattern)"
+    )
     parser.add_argument("--author", default="autopack-agent", help="Author for ingest logging")
     parser.add_argument("--reason", default="intent_router", help="Reason for ingest/version bump")
     parser.add_argument("--extra", nargs="*", default=[], help="Additional paths for ingest")
-    parser.add_argument("--ttl-days", type=int, default=None, help="Override TTL days for maintenance")
-    parser.add_argument("--keep-versions", type=int, default=None, help="Override planning keep_versions for maintenance")
-    parser.add_argument("--limit", type=int, default=5, help="Max rows to show for plan changes/decisions")
-    parser.add_argument("--project-path", default=None, type=Path, help="Explicit project path for publication check (overrides project-id)")
-    parser.add_argument("--strict", action="store_true", help="Strict mode for publication check (warnings = errors)")
-    parser.add_argument("--output", default=None, type=Path, help="JSON output file for publication check results")
+    parser.add_argument(
+        "--ttl-days", type=int, default=None, help="Override TTL days for maintenance"
+    )
+    parser.add_argument(
+        "--keep-versions",
+        type=int,
+        default=None,
+        help="Override planning keep_versions for maintenance",
+    )
+    parser.add_argument(
+        "--limit", type=int, default=5, help="Max rows to show for plan changes/decisions"
+    )
+    parser.add_argument(
+        "--project-path",
+        default=None,
+        type=Path,
+        help="Explicit project path for publication check (overrides project-id)",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Strict mode for publication check (warnings = errors)",
+    )
+    parser.add_argument(
+        "--output", default=None, type=Path, help="JSON output file for publication check results"
+    )
     args = parser.parse_args()
 
     intent = _match_intent(args.query, INTENTS)
@@ -346,4 +376,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

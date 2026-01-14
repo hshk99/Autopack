@@ -18,6 +18,7 @@ Usage:
     PYTHONUTF8=1 DATABASE_URL="sqlite:///autopack.db" python scripts/detect_stale_queued.py \\
         --mark-failed --max-age-minutes 60
 """
+
 import os
 import sys
 import argparse
@@ -32,10 +33,7 @@ from autopack.database import SessionLocal
 from autopack.models import Phase, PhaseState
 
 
-def detect_stale_queued_phases(
-    session,
-    max_age_minutes: int = 30
-) -> List[Tuple[Phase, int]]:
+def detect_stale_queued_phases(session, max_age_minutes: int = 30) -> List[Tuple[Phase, int]]:
     """Detect phases that have been QUEUED for too long.
 
     Args:
@@ -75,11 +73,7 @@ def detect_stale_queued_phases(
     return stale_phases
 
 
-def mark_phase_as_failed(
-    session,
-    phase: Phase,
-    reason: str
-):
+def mark_phase_as_failed(session, phase: Phase, reason: str):
     """Mark a stale QUEUED phase as FAILED.
 
     Args:
@@ -91,7 +85,9 @@ def mark_phase_as_failed(
 
     # Update failure reason to indicate stale detection
     if phase.last_failure_reason:
-        phase.last_failure_reason = f"[STALE-QUEUED] {reason}; Original: {phase.last_failure_reason}"
+        phase.last_failure_reason = (
+            f"[STALE-QUEUED] {reason}; Original: {phase.last_failure_reason}"
+        )
     else:
         phase.last_failure_reason = f"[STALE-QUEUED] {reason}"
 
@@ -99,9 +95,7 @@ def mark_phase_as_failed(
     session.commit()
 
 
-def format_stale_report(
-    stale_phases: List[Tuple[Phase, int]]
-) -> str:
+def format_stale_report(stale_phases: List[Tuple[Phase, int]]) -> str:
     """Format a report of stale queued phases.
 
     Args:
@@ -113,12 +107,7 @@ def format_stale_report(
     if not stale_phases:
         return "No stale QUEUED phases detected."
 
-    lines = [
-        f"{'='*70}",
-        f"STALE QUEUED PHASES DETECTED: {len(stale_phases)}",
-        f"{'='*70}",
-        ""
-    ]
+    lines = [f"{'=' * 70}", f"STALE QUEUED PHASES DETECTED: {len(stale_phases)}", f"{'=' * 70}", ""]
 
     # Group by run_id
     by_run = {}
@@ -138,46 +127,46 @@ def format_stale_report(
             age_str = f"{hours}h {mins}m" if hours > 0 else f"{mins}m"
             lines.append(f"    - {phase.phase_id:40s} (queued for {age_str})")
 
-    lines.extend([
-        "",
-        f"{'='*70}",
-        "RECOMMENDATIONS",
-        f"{'='*70}",
-        "",
-        "1. Check if there are any stuck executor processes:",
-        "   - Look for hung API servers or drain_one_phase processes",
-        "   - Check .autonomous_runs/ for active session directories",
-        "",
-        "2. Mark stale phases as FAILED to unblock the queue:",
-        "   python scripts/detect_stale_queued.py --mark-failed",
-        "",
-        "3. Or drain them individually to attempt completion:",
-        "   python scripts/drain_queued_phases.py --run-id <run_id>",
-    ])
+    lines.extend(
+        [
+            "",
+            f"{'=' * 70}",
+            "RECOMMENDATIONS",
+            f"{'=' * 70}",
+            "",
+            "1. Check if there are any stuck executor processes:",
+            "   - Look for hung API servers or drain_one_phase processes",
+            "   - Check .autonomous_runs/ for active session directories",
+            "",
+            "2. Mark stale phases as FAILED to unblock the queue:",
+            "   python scripts/detect_stale_queued.py --mark-failed",
+            "",
+            "3. Or drain them individually to attempt completion:",
+            "   python scripts/drain_queued_phases.py --run-id <run_id>",
+        ]
+    )
 
     return "\n".join(lines)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Detect and remediate stale QUEUED phases"
-    )
+    parser = argparse.ArgumentParser(description="Detect and remediate stale QUEUED phases")
     parser.add_argument(
         "--max-age-minutes",
         type=int,
         default=30,
-        help="Maximum age in minutes before considering a phase stale (default: 30)"
+        help="Maximum age in minutes before considering a phase stale (default: 30)",
     )
     parser.add_argument(
         "--mark-failed",
         action="store_true",
-        help="Automatically mark stale phases as FAILED (default: report only)"
+        help="Automatically mark stale phases as FAILED (default: report only)",
     )
     parser.add_argument(
         "--report-only",
         action="store_true",
         default=True,
-        help="Only report stale phases without taking action (default)"
+        help="Only report stale phases without taking action (default)",
     )
 
     args = parser.parse_args()
@@ -190,7 +179,9 @@ def main() -> int:
     session = SessionLocal()
 
     try:
-        print(f"[stale-detect] Scanning for QUEUED phases older than {args.max_age_minutes} minutes...")
+        print(
+            f"[stale-detect] Scanning for QUEUED phases older than {args.max_age_minutes} minutes..."
+        )
         print()
 
         stale_phases = detect_stale_queued_phases(session, args.max_age_minutes)
@@ -202,9 +193,9 @@ def main() -> int:
         # Take action if requested
         if args.mark_failed and stale_phases:
             print()
-            print(f"{'='*70}")
+            print(f"{'=' * 70}")
             print(f"MARKING {len(stale_phases)} STALE PHASES AS FAILED")
-            print(f"{'='*70}")
+            print(f"{'=' * 70}")
             print()
 
             for phase, age_minutes in stale_phases:

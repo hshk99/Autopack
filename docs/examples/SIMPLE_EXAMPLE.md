@@ -97,10 +97,10 @@ After running the task, you might see a new file `utils.py`:
 ```python
 def hello_world(name: str = "World") -> str:
     """Return a friendly greeting.
-    
+
     Args:
         name: The name to greet (default: "World")
-        
+
     Returns:
         A greeting string
     """

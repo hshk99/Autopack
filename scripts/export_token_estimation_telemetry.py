@@ -4,6 +4,7 @@ Export TokenEstimationV2 telemetry from database to NDJSON for analysis.
 Usage:
     PYTHONUTF8=1 PYTHONPATH=src python scripts/export_token_estimation_telemetry.py > telemetry_export.ndjson
 """
+
 import json
 import sys
 from autopack.database import SessionLocal
@@ -13,9 +14,13 @@ from autopack.models import TokenEstimationV2Event
 def main():
     session = SessionLocal()
     try:
-        events = session.query(TokenEstimationV2Event).order_by(TokenEstimationV2Event.timestamp.desc()).all()
+        events = (
+            session.query(TokenEstimationV2Event)
+            .order_by(TokenEstimationV2Event.timestamp.desc())
+            .all()
+        )
 
-        print(f"# TokenEstimationV2 Telemetry Export", file=sys.stderr)
+        print("# TokenEstimationV2 Telemetry Export", file=sys.stderr)
         print(f"# Total events: {len(events)}", file=sys.stderr)
         print(file=sys.stderr)
 

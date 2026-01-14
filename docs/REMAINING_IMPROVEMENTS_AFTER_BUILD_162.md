@@ -60,19 +60,19 @@ When adding items below, use this structure:
 
 ### Highest-ROI remaining items (recommended next builds)
 
-1. **Tidy → DB / Qdrant sync path (decouple from full tidy)**  
+1. **Tidy → DB / Qdrant sync path (decouple from full tidy)**
    Make the “SOT → PostgreSQL/Qdrant” sync runnable without a full tidy run and without hanging.
 
-2. **Doc link hygiene in deep mode (reduce noise without weakening nav-only CI)**  
+2. **Doc link hygiene in deep mode (reduce noise without weakening nav-only CI)**
    Keep CI strict for navigation docs, but make deep scans actionable (triage + redirect stubs where appropriate).
 
-3. **Parallelism readiness (only if you plan concurrent mutation)**  
+3. **Parallelism readiness (only if you plan concurrent mutation)**
    Add per-subsystem locks + canonical ordering. Keep umbrella lock as safety net until proven.
 
-4. **Autopack core: telemetry → deterministic mitigations loop**  
+4. **Autopack core: telemetry → deterministic mitigations loop**
    Use existing error/telemetry artifacts to automatically propose and codify prevention rules.
 
-5. **Storage Optimizer: execution safety gate + Windows edge hardening**  
+5. **Storage Optimizer: execution safety gate + Windows edge hardening**
    If/when destructive actions exist, require approval artifacts and strengthen junction/ACL protections.
 
 ---
@@ -112,7 +112,7 @@ When adding items below, use this structure:
    - Qdrant writes only occur when explicitly requested AND Qdrant is configured.
 
 **Ambiguities to resolve**
-- What is canonical: DB, Qdrant, or markdown SOT?  
+- What is canonical: DB, Qdrant, or markdown SOT?
   Recommendation: markdown SOT is canonical; DB/Qdrant are derived indexes.
  - Migration behavior: does the tool run migrations or require them?
    Recommendation: require schema/migrations already applied (fail fast with instructions), unless you add a minimal “ensure table exists” step solely for the SOT index table.
@@ -134,7 +134,7 @@ When adding items below, use this structure:
 - When a subsystem lock is held, other operations report a clear wait/timeout.
 
 **Ambiguities to resolve**
-- Whether to keep umbrella `tidy.lock`:  
+- Whether to keep umbrella `tidy.lock`:
   Recommendation: yes, keep until subsystem locks proven.
 
 ---
@@ -187,7 +187,7 @@ When adding items below, use this structure:
 - Nav-only CI remains strict and fast.
 
 **Ambiguities to resolve**
-- Should BUILD_HISTORY be allowed to reference source code paths?  
+- Should BUILD_HISTORY be allowed to reference source code paths?
   Recommendation: allow as informational only; do not enforce as file-links unless you want strictness.
  - Should deep scan include `archive/` by default?
    Recommendation: no; require explicit include globs to avoid noise.
@@ -333,5 +333,3 @@ Provide a single local command to run the same “pre-push” checks as CI:
 ### Autopack core
 - Prevents repeated failures via deterministic learning.
 - Enforces safe scopes and validation.
-
-

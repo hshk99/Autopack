@@ -39,9 +39,12 @@ def analyze_p10_logs():
     print()
 
     # Get all events to find truncation patterns
-    all_events = session.query(TokenEstimationV2Event).order_by(
-        TokenEstimationV2Event.timestamp.desc()
-    ).limit(100).all()
+    all_events = (
+        session.query(TokenEstimationV2Event)
+        .order_by(TokenEstimationV2Event.timestamp.desc())
+        .limit(100)
+        .all()
+    )
 
     print(f"Analyzed last {len(all_events)} telemetry events")
     print()
@@ -56,9 +59,9 @@ def analyze_p10_logs():
             truncated_phases[key].append(e)
 
     print(f"Found {len(truncated_phases)} unique phases that truncated:")
-    for (run_id, phase_id), events in sorted(truncated_phases.items(),
-                                              key=lambda x: x[1][0].timestamp,
-                                              reverse=True)[:5]:
+    for (run_id, phase_id), events in sorted(
+        truncated_phases.items(), key=lambda x: x[1][0].timestamp, reverse=True
+    )[:5]:
         event = events[0]
         print(f"  {phase_id} (run={run_id})")
         print(f"    Latest: {event.timestamp}")
@@ -89,7 +92,9 @@ def analyze_p10_logs():
             print(f"    Truncated: {e.truncated}, Budget: {e.selected_budget}")
             print(f"    Actual output: {e.actual_output_tokens}")
             if e.truncated:
-                utilization = (e.actual_output_tokens / e.selected_budget * 100) if e.selected_budget else 0
+                utilization = (
+                    (e.actual_output_tokens / e.selected_budget * 100) if e.selected_budget else 0
+                )
                 print(f"    Utilization: {utilization:.1f}%")
                 print("    → Should trigger P10 escalation on retry")
             print()

@@ -85,7 +85,7 @@ class AspirationalTestTracker:
                 cwd=self.repo_root,
                 capture_output=True,
                 text=True,
-                timeout=300
+                timeout=300,
             )
 
             # Parse pytest output for test results
@@ -214,20 +214,12 @@ def main():
     parser = argparse.ArgumentParser(
         description="Track and promote aspirational tests to core gate"
     )
+    parser.add_argument("--list", action="store_true", help="List all aspirational tests")
     parser.add_argument(
-        "--list",
-        action="store_true",
-        help="List all aspirational tests"
+        "--find-xpass", action="store_true", help="Find xpass tests (promotion candidates)"
     )
     parser.add_argument(
-        "--find-xpass",
-        action="store_true",
-        help="Find xpass tests (promotion candidates)"
-    )
-    parser.add_argument(
-        "--report",
-        action="store_true",
-        help="Generate comprehensive promotion report"
+        "--report", action="store_true", help="Generate comprehensive promotion report"
     )
 
     args = parser.parse_args()

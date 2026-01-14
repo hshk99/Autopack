@@ -9,6 +9,7 @@ from autopack.models import Run, Tier, Phase, RunState, PhaseState
 
 RUN_ID = "build129-p2-validation"
 
+
 def main():
     session = SessionLocal()
     try:
@@ -29,7 +30,7 @@ def main():
             token_cap=300000,
             max_phases=6,
             max_duration_minutes=180,
-            goal_anchor="BUILD-129 Phase 2: Validate Updated Token Estimator Coefficients"
+            goal_anchor="BUILD-129 Phase 2: Validate Updated Token Estimator Coefficients",
         )
         session.add(run)
         session.flush()
@@ -41,7 +42,7 @@ def main():
             run_id=RUN_ID,
             name="Phase 2 Validation",
             tier_index=0,
-            description="Validate updated TokenEstimator coefficients"
+            description="Validate updated TokenEstimator coefficients",
         )
         session.add(tier)
         session.flush()
@@ -57,8 +58,8 @@ def main():
                 "complexity": "medium",
                 "deliverables": [
                     "src/autopack/validation/test_phase1.py",
-                    "tests/validation/test_test_phase1.py"
-                ]
+                    "tests/validation/test_test_phase1.py",
+                ],
             },
             {
                 "id": "build129-p2-val-2",
@@ -69,8 +70,8 @@ def main():
                 "deliverables": [
                     "src/autopack/validation/refactor_module.py",
                     "src/autopack/validation/helper.py",
-                    "tests/validation/test_refactor.py"
-                ]
+                    "tests/validation/test_refactor.py",
+                ],
             },
             {
                 "id": "build129-p2-val-3",
@@ -78,10 +79,7 @@ def main():
                 "desc": "Test configuration category with low complexity",
                 "category": "configuration",
                 "complexity": "low",
-                "deliverables": [
-                    ".build129_test_config.yaml",
-                    "validation_settings.json"
-                ]
+                "deliverables": [".build129_test_config.yaml", "validation_settings.json"],
             },
             {
                 "id": "build129-p2-val-4",
@@ -93,8 +91,8 @@ def main():
                     "tests/validation/test_suite_a.py",
                     "tests/validation/test_suite_b.py",
                     "tests/validation/test_suite_c.py",
-                    "tests/validation/fixtures.py"
-                ]
+                    "tests/validation/fixtures.py",
+                ],
             },
             {
                 "id": "build129-p2-val-5",
@@ -104,9 +102,9 @@ def main():
                 "complexity": "high",
                 "deliverables": [
                     "src/autopack/validation/complex_algorithm.py",
-                    "tests/validation/test_complex_algorithm.py"
-                ]
-            }
+                    "tests/validation/test_complex_algorithm.py",
+                ],
+            },
         ]
 
         for idx, pd in enumerate(phases, 1):
@@ -121,20 +119,25 @@ def main():
                 scope=scope,
                 state=PhaseState.QUEUED,
                 task_category=pd["category"],
-                complexity=pd["complexity"]
+                complexity=pd["complexity"],
             )
             session.add(phase)
-            print(f"[OK] Phase {idx}: {pd['id']} ({len(pd['deliverables'])} deliverables, {pd['category']}/{pd['complexity']})")
+            print(
+                f"[OK] Phase {idx}: {pd['id']} ({len(pd['deliverables'])} deliverables, {pd['category']}/{pd['complexity']})"
+            )
 
         session.commit()
-        print(f"\n✅ BUILD-129 Phase 2 validation run seeded!")
-        print(f"Run: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {RUN_ID}")
+        print("\n✅ BUILD-129 Phase 2 validation run seeded!")
+        print(
+            f'Run: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python -m autopack.autonomous_executor --run-id {RUN_ID}'
+        )
     except Exception as e:
         session.rollback()
         print(f"[ERROR] {e}")
         raise
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     main()

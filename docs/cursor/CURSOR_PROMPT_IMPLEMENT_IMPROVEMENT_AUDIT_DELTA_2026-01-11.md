@@ -348,4 +348,3 @@ Keep titles short, start with the change type (`docs`, `fix`, `chore`, `test`, `
 - If doc-contract tests start failing broadly: you probably touched a “canonical truth surface” unintentionally.
 - If `docs-sot-integrity` fails due to drift checks: update only the minimal doc lines that violated the mechanical rule.
 - If feature-flags expansion becomes huge: you need a policy boundary (what belongs in registry vs not).
-

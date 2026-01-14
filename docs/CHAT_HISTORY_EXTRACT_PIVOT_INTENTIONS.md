@@ -1,8 +1,8 @@
 # Chat History Extract (SOT-Derived): Pivot Intentions, Gap Types, Autonomy Loop, Parallelism Contract
 
-**Purpose**: Provide an evidence-backed, portable substitute for “Cursor chat history” by extracting the durable decision-making trail from Autopack’s SOT/docs.  
-**Scope**: Pivot intentions + recurring gap types + observed autonomy loop + parallelism isolation model.  
-**Source**: Repository SOT/docs (not live Cursor chat transcripts).  
+**Purpose**: Provide an evidence-backed, portable substitute for “Cursor chat history” by extracting the durable decision-making trail from Autopack’s SOT/docs.
+**Scope**: Pivot intentions + recurring gap types + observed autonomy loop + parallelism isolation model.
+**Source**: Repository SOT/docs (not live Cursor chat transcripts).
 **Extraction Date**: 2026-01-06
 
 ---
@@ -185,5 +185,3 @@ Observed loop (intended “one stream”):
 ## E) Missing info (if you want “real chat quotes”)
 
 This extract is intentionally SOT-derived. If you want verbatim Cursor chat quotations, those must be exported from Cursor and committed as artifacts; Autopack should not depend on vendor chat APIs.
-
-

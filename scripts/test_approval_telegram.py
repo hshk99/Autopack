@@ -33,25 +33,18 @@ test_data = {
         "risk_level": "high",
         "confidence": "85%",
         "rationale": "Large refactoring with cross-cutting changes across multiple modules",
-        "files_modified": [
-            "src/core/engine.py",
-            "src/api/handlers.py",
-            "src/utils/helpers.py"
-        ],
+        "files_modified": ["src/core/engine.py", "src/api/handlers.py", "src/utils/helpers.py"],
         "files_count": 3,
-        "risk_score": 85
+        "risk_score": 85,
     },
     "deletion_info": {
         "net_deletion": 150,
         "loc_removed": 200,
         "loc_added": 50,
-        "files": [
-            "src/core/engine.py",
-            "src/api/handlers.py"
-        ],
+        "files": ["src/core/engine.py", "src/api/handlers.py"],
         "risk_level": "high",
-        "risk_score": 85
-    }
+        "risk_score": 85,
+    },
 }
 
 print("\n📤 Sending approval request...")
@@ -59,11 +52,7 @@ print(f"Request: POST {API_URL}/approval/request")
 print(f"Payload: {test_data['context']}, risk={test_data['decision_info']['risk_level']}")
 
 try:
-    response = requests.post(
-        f"{API_URL}/approval/request",
-        json=test_data,
-        timeout=30
-    )
+    response = requests.post(f"{API_URL}/approval/request", json=test_data, timeout=30)
     response.raise_for_status()
     result = response.json()
 
@@ -99,15 +88,12 @@ try:
     for i in range(6):
         time.sleep(10)
 
-        status_response = requests.get(
-            f"{API_URL}/approval/status/{approval_id}",
-            timeout=10
-        )
+        status_response = requests.get(f"{API_URL}/approval/status/{approval_id}", timeout=10)
         status_response.raise_for_status()
         status_data = status_response.json()
 
         current_status = status_data.get("status")
-        print(f"  [{i*10}s] Status: {current_status}")
+        print(f"  [{i * 10}s] Status: {current_status}")
 
         if current_status == "approved":
             print("\n✅ APPROVED!")
@@ -121,7 +107,9 @@ try:
             break
         elif current_status == "timeout":
             print("\n⏱️  TIMED OUT!")
-            print(f"Default action: {status_data.get('approval_reason') or status_data.get('rejected_reason')}")
+            print(
+                f"Default action: {status_data.get('approval_reason') or status_data.get('rejected_reason')}"
+            )
             break
     else:
         print("\n⏸️  Still pending after 60 seconds")
@@ -131,11 +119,14 @@ except requests.exceptions.ConnectionError:
     print(f"\n❌ ERROR: Cannot connect to {API_URL}")
     print("Make sure the backend server is running:")
     print("  cd c:/dev/Autopack")
-    print("  PYTHONUTF8=1 PYTHONPATH=src python -m uvicorn autopack.main:app --host 0.0.0.0 --port 8001")
+    print(
+        "  PYTHONUTF8=1 PYTHONPATH=src python -m uvicorn autopack.main:app --host 0.0.0.0 --port 8001"
+    )
     exit(1)
 except Exception as e:
     print(f"\n❌ ERROR: {e}")
     import traceback
+
     traceback.print_exc()
     exit(1)
 

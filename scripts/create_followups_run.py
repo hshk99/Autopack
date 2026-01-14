@@ -22,7 +22,7 @@ from autopack.models import Run, Phase, Tier, RunState, PhaseState, TierState
 
 def load_followup_yaml(yaml_path: Path) -> dict:
     """Load follow-up YAML configuration"""
-    with open(yaml_path, 'r', encoding='utf-8') as f:
+    with open(yaml_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
@@ -64,7 +64,7 @@ def create_followups_run():
                 return None
             followup_configs.append(load_followup_yaml(yaml_path))
 
-        print(f"📋 Creating run: autopack-followups-v1")
+        print("📋 Creating run: autopack-followups-v1")
         print(f"   Phases: {len(followup_configs)}")
         for config in followup_configs:
             print(f"   - {config['phase_id']}: {config['description'].strip().split('.')[0]}...")
@@ -83,7 +83,7 @@ def create_followups_run():
             minor_issues_count=0,
             major_issues_count=0,
             created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
+            updated_at=datetime.now(timezone.utc),
         )
         db.add(run)
 
@@ -97,7 +97,7 @@ def create_followups_run():
             state=TierState.PENDING,
             tokens_used=0,
             created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
+            updated_at=datetime.now(timezone.utc),
         )
         db.add(tier)
         db.flush()  # Get the auto-generated id
@@ -105,28 +105,28 @@ def create_followups_run():
         # Create phases
         for idx, config in enumerate(followup_configs):
             phase = Phase(
-                phase_id=config['phase_id'],
+                phase_id=config["phase_id"],
                 run_id="autopack-followups-v1",
                 tier_id=tier.id,
                 phase_index=idx,
-                name=config['phase_id'],
-                description=config['description'].strip(),
+                name=config["phase_id"],
+                description=config["description"].strip(),
                 state=PhaseState.QUEUED,
                 task_category="IMPLEMENT_FEATURE",
                 complexity="MEDIUM",
                 builder_mode="BUILD",
                 scope={
-                    "chunk_number": config.get('chunk_number', f'followup-{idx+1}'),
-                    "deliverables": config.get('deliverables', {}),
-                    "features": config.get('features', []),
-                    "validation": config.get('validation', {}),
-                    "goals": config.get('goals', []),
+                    "chunk_number": config.get("chunk_number", f"followup-{idx + 1}"),
+                    "deliverables": config.get("deliverables", {}),
+                    "features": config.get("features", []),
+                    "validation": config.get("validation", {}),
+                    "goals": config.get("goals", []),
                 },
                 tokens_used=0,
                 builder_attempts=0,
                 auditor_attempts=0,
                 created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc)
+                updated_at=datetime.now(timezone.utc),
             )
             db.add(phase)
             print(f"   ✓ Phase {idx}: {phase.phase_id}")
@@ -134,18 +134,21 @@ def create_followups_run():
         # Commit all changes
         db.commit()
 
-        print(f"\n✅ Run created successfully!")
+        print("\n✅ Run created successfully!")
         print(f"   Run ID: {run.id}")
         print(f"   Tier ID: {tier.tier_id}")
         print(f"   Phases: {len(followup_configs)}")
-        print(f"\n🚀 Ready to launch autonomous executor:")
-        print(f"   PYTHONPATH=src python -m autopack.autonomous_executor --run-id autopack-followups-v1 --api-url http://127.0.0.1:8001 --max-iterations 200")
+        print("\n🚀 Ready to launch autonomous executor:")
+        print(
+            "   PYTHONPATH=src python -m autopack.autonomous_executor --run-id autopack-followups-v1 --api-url http://127.0.0.1:8001 --max-iterations 200"
+        )
 
         return run.id
 
     except Exception as e:
         print(f"❌ Error creating run: {e}")
         import traceback
+
         traceback.print_exc()
         db.rollback()
         raise

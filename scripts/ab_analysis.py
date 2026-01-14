@@ -47,16 +47,25 @@ def get_database_url() -> str:
     """Get DATABASE_URL from environment with helpful error."""
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
-        print("\n" + "="*80, file=sys.stderr)
+        print("\n" + "=" * 80, file=sys.stderr)
         print("ERROR: DATABASE_URL environment variable not set", file=sys.stderr)
-        print("="*80, file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
         print("\nSet DATABASE_URL before running:\n", file=sys.stderr)
         print("  # PowerShell (Postgres production):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\"", file=sys.stderr)
-        print("  python scripts/ab_analysis.py --control-run v5 --treatment-run v6 --test-id test\n", file=sys.stderr)
+        print(
+            '  $env:DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"',
+            file=sys.stderr,
+        )
+        print(
+            "  python scripts/ab_analysis.py --control-run v5 --treatment-run v6 --test-id test\n",
+            file=sys.stderr,
+        )
         print("  # PowerShell (SQLite dev/test):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"sqlite:///autopack.db\"", file=sys.stderr)
-        print("  python scripts/ab_analysis.py --control-run v5 --treatment-run v6 --test-id test\n", file=sys.stderr)
+        print('  $env:DATABASE_URL="sqlite:///autopack.db"', file=sys.stderr)
+        print(
+            "  python scripts/ab_analysis.py --control-run v5 --treatment-run v6 --test-id test\n",
+            file=sys.stderr,
+        )
         sys.exit(1)
     return db_url
 
@@ -76,25 +85,31 @@ def validate_pair(control: Run, treatment: Run) -> Tuple[bool, List[str]]:
     errors = []
 
     # MUST have same commit SHA (STRICT requirement, not warning)
-    control_sha = getattr(control, 'git_commit_sha', None)
-    treatment_sha = getattr(treatment, 'git_commit_sha', None)
+    control_sha = getattr(control, "git_commit_sha", None)
+    treatment_sha = getattr(treatment, "git_commit_sha", None)
 
     if control_sha != treatment_sha:
-        errors.append(f"ERROR: Commit SHA mismatch - control={control_sha}, treatment={treatment_sha}")
+        errors.append(
+            f"ERROR: Commit SHA mismatch - control={control_sha}, treatment={treatment_sha}"
+        )
 
     # MUST have same model mapping hash (STRICT requirement, not warning)
-    control_hash = getattr(control, 'model_mapping_hash', None)
-    treatment_hash = getattr(treatment, 'model_mapping_hash', None)
+    control_hash = getattr(control, "model_mapping_hash", None)
+    treatment_hash = getattr(treatment, "model_mapping_hash", None)
 
     if control_hash != treatment_hash:
-        errors.append(f"ERROR: Model hash mismatch - control={control_hash}, treatment={treatment_hash}")
+        errors.append(
+            f"ERROR: Model hash mismatch - control={control_hash}, treatment={treatment_hash}"
+        )
 
     # SHOULD have same phase count (warning, not error)
-    control_phases = len(control.phases) if hasattr(control, 'phases') else 0
-    treatment_phases = len(treatment.phases) if hasattr(treatment, 'phases') else 0
+    control_phases = len(control.phases) if hasattr(control, "phases") else 0
+    treatment_phases = len(treatment.phases) if hasattr(treatment, "phases") else 0
 
     if control_phases != treatment_phases:
-        errors.append(f"WARNING: Phase count mismatch - control={control_phases}, treatment={treatment_phases}")
+        errors.append(
+            f"WARNING: Phase count mismatch - control={control_phases}, treatment={treatment_phases}"
+        )
 
     # Check for missing metadata
     if not control_sha:
@@ -157,7 +172,9 @@ def calculate_deltas(control: Run, treatment: Run, session) -> dict:
 
     # Success rate = (complete / total) * 100
     control_success_rate = (control_complete / control_total * 100) if control_total > 0 else 0.0
-    treatment_success_rate = (treatment_complete / treatment_total * 100) if treatment_total > 0 else 0.0
+    treatment_success_rate = (
+        (treatment_complete / treatment_total * 100) if treatment_total > 0 else 0.0
+    )
     success_rate_delta = treatment_success_rate - control_success_rate
 
     return {
@@ -181,7 +198,7 @@ def persist_result(
     treatment: Run,
     session,
     created_by: Optional[str] = None,
-    dry_run: bool = False
+    dry_run: bool = False,
 ) -> ABTestResult:
     """Persist A/B result to database.
 
@@ -200,23 +217,23 @@ def persist_result(
     deltas = calculate_deltas(control, treatment, session)
 
     # Get commit SHAs and model hashes (with fallbacks)
-    control_sha = getattr(control, 'git_commit_sha', 'unknown')
-    treatment_sha = getattr(treatment, 'git_commit_sha', 'unknown')
-    control_hash = getattr(control, 'model_mapping_hash', 'unknown')
-    treatment_hash = getattr(treatment, 'model_mapping_hash', 'unknown')
+    control_sha = getattr(control, "git_commit_sha", "unknown")
+    treatment_sha = getattr(treatment, "git_commit_sha", "unknown")
+    control_hash = getattr(control, "model_mapping_hash", "unknown")
+    treatment_hash = getattr(treatment, "model_mapping_hash", "unknown")
 
     result = ABTestResult(
         test_id=test_id,
         control_run_id=control.id,
         treatment_run_id=treatment.id,
-        control_commit_sha=control_sha or 'unknown',
-        treatment_commit_sha=treatment_sha or 'unknown',
-        control_model_hash=control_hash or 'unknown',
-        treatment_model_hash=treatment_hash or 'unknown',
+        control_commit_sha=control_sha or "unknown",
+        treatment_commit_sha=treatment_sha or "unknown",
+        control_model_hash=control_hash or "unknown",
+        treatment_model_hash=treatment_hash or "unknown",
         is_valid=is_valid,
         validity_errors=errors if errors else None,
-        created_by=created_by or 'ab_analysis.py',
-        **deltas
+        created_by=created_by or "ab_analysis.py",
+        **deltas,
     )
 
     if not dry_run:
@@ -271,15 +288,31 @@ def print_comparison_report(control: Run, treatment: Run, result: ABTestResult):
     print("TOKEN METRICS:")
     print(f"  Control tokens:   {result.control_total_tokens:,}")
     print(f"  Treatment tokens: {result.treatment_total_tokens:,}")
-    print(f"  Delta:            {result.token_delta:+,} ({'+' if result.token_delta > 0 else ''}{(result.token_delta / result.control_total_tokens * 100):.1f}%)")
+    print(
+        f"  Delta:            {result.token_delta:+,} ({'+' if result.token_delta > 0 else ''}{(result.token_delta / result.control_total_tokens * 100):.1f}%)"
+    )
     print()
 
     print("PHASE METRICS:")
-    print(f"  Control:   {result.control_phases_complete}/{result.control_total_phases} complete, {result.control_phases_failed} failed")
-    print(f"  Treatment: {result.treatment_phases_complete}/{result.treatment_total_phases} complete, {result.treatment_phases_failed} failed")
-    control_rate = (result.control_phases_complete / result.control_total_phases * 100) if result.control_total_phases > 0 else 0
-    treatment_rate = (result.treatment_phases_complete / result.treatment_total_phases * 100) if result.treatment_total_phases > 0 else 0
-    print(f"  Success rate delta: {result.success_rate_delta:+.1f}% (control: {control_rate:.1f}%, treatment: {treatment_rate:.1f}%)")
+    print(
+        f"  Control:   {result.control_phases_complete}/{result.control_total_phases} complete, {result.control_phases_failed} failed"
+    )
+    print(
+        f"  Treatment: {result.treatment_phases_complete}/{result.treatment_total_phases} complete, {result.treatment_phases_failed} failed"
+    )
+    control_rate = (
+        (result.control_phases_complete / result.control_total_phases * 100)
+        if result.control_total_phases > 0
+        else 0
+    )
+    treatment_rate = (
+        (result.treatment_phases_complete / result.treatment_total_phases * 100)
+        if result.treatment_total_phases > 0
+        else 0
+    )
+    print(
+        f"  Success rate delta: {result.success_rate_delta:+.1f}% (control: {control_rate:.1f}%, treatment: {treatment_rate:.1f}%)"
+    )
     print()
 
     if result.time_delta_seconds is not None:
@@ -295,33 +328,23 @@ def main():
     parser = argparse.ArgumentParser(
         description="Analyze and persist A/B test results with strict validity checks"
     )
+    parser.add_argument("--control-run", type=str, required=True, help="Control run ID (baseline)")
     parser.add_argument(
-        "--control-run",
-        type=str,
-        required=True,
-        help="Control run ID (baseline)"
-    )
-    parser.add_argument(
-        "--treatment-run",
-        type=str,
-        required=True,
-        help="Treatment run ID (experiment)"
+        "--treatment-run", type=str, required=True, help="Treatment run ID (experiment)"
     )
     parser.add_argument(
         "--test-id",
         type=str,
         required=True,
-        help="Unique identifier for this A/B test (e.g., 'v5-vs-v6')"
+        help="Unique identifier for this A/B test (e.g., 'v5-vs-v6')",
     )
     parser.add_argument(
         "--created-by",
         type=str,
-        help="Who created this result (optional, defaults to 'ab_analysis.py')"
+        help="Who created this result (optional, defaults to 'ab_analysis.py')",
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Don't persist to database, just show results"
+        "--dry-run", action="store_true", help="Don't persist to database, just show results"
     )
 
     args = parser.parse_args()
@@ -357,7 +380,7 @@ def main():
             treatment=treatment,
             session=session,
             created_by=args.created_by,
-            dry_run=args.dry_run
+            dry_run=args.dry_run,
         )
 
         # Print report

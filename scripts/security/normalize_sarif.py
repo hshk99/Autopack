@@ -68,7 +68,9 @@ def extract_finding_key(result: Dict[str, Any], tool_name: str) -> Dict[str, Any
     if "partialFingerprints" in result:
         # CodeQL provides primaryLocationLineHash or other stable fingerprints
         partial = result["partialFingerprints"]
-        fingerprint = partial.get("primaryLocationLineHash") or partial.get("primaryLocationStartColumnFingerprint")
+        fingerprint = partial.get("primaryLocationLineHash") or partial.get(
+            "primaryLocationStartColumnFingerprint"
+        )
     elif "fingerprints" in result:
         # Fallback to top-level fingerprints
         fps = result["fingerprints"]
@@ -86,9 +88,7 @@ def extract_finding_key(result: Dict[str, Any], tool_name: str) -> Dict[str, Any
 
             # Artifact URI
             if "artifactLocation" in phys_loc:
-                artifact_uri = normalize_path(
-                    phys_loc["artifactLocation"].get("uri", "unknown")
-                )
+                artifact_uri = normalize_path(phys_loc["artifactLocation"].get("uri", "unknown"))
 
             # Region (line/column) - extract but conditionally include below
             if "region" in phys_loc:

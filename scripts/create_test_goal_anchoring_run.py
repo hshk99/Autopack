@@ -33,7 +33,7 @@ PHASES = [
         "description": "Add a simple utility function to src/autopack/config.py that returns the current config version. This will test symbol preservation validation.",
         "task_category": "core_backend_high",
         "complexity": "low",
-        "builder_mode": None
+        "builder_mode": None,
     },
     {
         "phase_id": "test-2-medium-complexity",
@@ -43,7 +43,7 @@ PHASES = [
         "description": "Add a new helper function to src/autopack/llm_service.py that logs token usage statistics. This will test token soft caps and structural similarity validation.",
         "task_category": "core_backend_high",
         "complexity": "medium",
-        "builder_mode": None
+        "builder_mode": None,
     },
     {
         "phase_id": "test-3-potential-replan",
@@ -53,8 +53,8 @@ PHASES = [
         "description": "Add comprehensive error handling to the goal anchoring system in autonomous_executor.py. This phase is designed to potentially trigger replanning to test goal anchoring telemetry.",
         "task_category": "core_backend_high",
         "complexity": "medium",
-        "builder_mode": None
-    }
+        "builder_mode": None,
+    },
 ]
 
 TIERS = [
@@ -62,14 +62,14 @@ TIERS = [
         "tier_id": "tier-1",
         "tier_index": 0,
         "name": "Test Tier",
-        "description": "Test tier for Goal Anchoring and Validation features"
+        "description": "Test tier for Goal Anchoring and Validation features",
     }
 ]
 
 
 def create_run():
     """Create test run with phases that exercise new features"""
-    
+
     payload = {
         "run": {
             "run_id": RUN_ID,
@@ -78,10 +78,10 @@ def create_run():
             "run_scope": "single_tier",
             "token_cap": 500000,
             "max_phases": len(PHASES),
-            "max_duration_minutes": 60
+            "max_duration_minutes": 60,
         },
         "tiers": TIERS,
-        "phases": PHASES
+        "phases": PHASES,
     }
 
     print(f"[INFO] Creating test run: {RUN_ID}")
@@ -111,10 +111,7 @@ def create_run():
 
     try:
         response = requests.post(
-            f"{API_URL}/runs/start",
-            json=payload,
-            headers=headers if headers else None,
-            timeout=30
+            f"{API_URL}/runs/start", json=payload, headers=headers if headers else None, timeout=30
         )
 
         if response.status_code != 201:
@@ -127,7 +124,9 @@ def create_run():
         print(f"[INFO] Run URL: {API_URL}/runs/{RUN_ID}")
         print()
         print("[OK] Ready to execute autonomous run (from repo root):")
-        print(f"  python src/autopack/autonomous_executor.py --run-id {RUN_ID} --run-type autopack_maintenance --stop-on-first-failure --verbose")
+        print(
+            f"  python src/autopack/autonomous_executor.py --run-id {RUN_ID} --run-type autopack_maintenance --stop-on-first-failure --verbose"
+        )
         print()
         return result
 
@@ -143,4 +142,3 @@ def create_run():
 
 if __name__ == "__main__":
     create_run()
-

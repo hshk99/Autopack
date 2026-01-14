@@ -32,7 +32,11 @@ CATEGORY_PATTERNS = {
         "estimated_ci_time": "10-15 min",
     },
     "C": {  # Backend non-critical (~15-25 min CI)
-        "paths": ["src/autopack/research/**", "src/autopack/storage_optimizer/**", "src/autopack/diagnostics/**"],
+        "paths": [
+            "src/autopack/research/**",
+            "src/autopack/storage_optimizer/**",
+            "src/autopack/diagnostics/**",
+        ],
         "description": "Backend non-critical - partial test suite",
         "estimated_ci_time": "15-25 min",
     },
@@ -218,7 +222,13 @@ def get_pytest_command(category: str, test_files: Set[str], full: bool = False) 
             return ["pytest", "tests/", "-m", "research", "-v"]
         else:
             # Category D - run core tests (excluding research/aspirational)
-            return ["pytest", "tests/", "-m", "not research and not aspirational and not legacy_contract", "-v"]
+            return [
+                "pytest",
+                "tests/",
+                "-m",
+                "not research and not aspirational and not legacy_contract",
+                "-v",
+            ]
 
     # Default: run all tests
     return ["pytest", "tests/", "-v"]
@@ -281,12 +291,11 @@ def main():
     parser.add_argument(
         "--dry-run", action="store_true", help="Show analysis without running tests"
     )
+    parser.add_argument("--full", action="store_true", help="Force run full test suite")
     parser.add_argument(
-        "--full", action="store_true", help="Force run full test suite"
-    )
-    parser.add_argument(
-        "--category", choices=["A", "B", "C", "D", "E"],
-        help="Verify changes match expected CI impact category"
+        "--category",
+        choices=["A", "B", "C", "D", "E"],
+        help="Verify changes match expected CI impact category",
     )
 
     args = parser.parse_args()
@@ -305,7 +314,7 @@ def main():
     # Verify expected category if specified
     if args.category and category != args.category:
         print(f"[ERROR] Changes are category {category}, but expected {args.category}")
-        print(f"   This may trigger unexpected CI jobs.")
+        print("   This may trigger unexpected CI jobs.")
         return 1
 
     # Map to test files

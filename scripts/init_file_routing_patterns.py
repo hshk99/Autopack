@@ -57,7 +57,7 @@ def create_collection(client: QdrantClient, collection_name: str, vector_size: i
         # Create collection with 384-dimensional vectors (sentence-transformers/all-MiniLM-L6-v2)
         client.create_collection(
             collection_name=collection_name,
-            vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE)
+            vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
         )
 
         print(f"✓ Collection created successfully (vector_size={vector_size})")
@@ -93,7 +93,6 @@ Implement a comprehensive memory and context management system for Autopack that
             "destination_path": str(REPO_ROOT / "archive" / "plans"),
             "source_context": "cursor",
         },
-
         {
             "project_id": "autopack",
             "file_type": "analysis",
@@ -111,11 +110,17 @@ After reviewing the system performance metrics, we found several bottlenecks:
 - Add request batching
 - Deploy Redis caching layer
 """,
-            "keywords": ["analysis", "review", "findings", "retrospective", "postmortem", "assessment"],
+            "keywords": [
+                "analysis",
+                "review",
+                "findings",
+                "retrospective",
+                "postmortem",
+                "assessment",
+            ],
             "destination_path": str(REPO_ROOT / "archive" / "analysis"),
             "source_context": "cursor",
         },
-
         {
             "project_id": "autopack",
             "file_type": "prompt",
@@ -137,7 +142,6 @@ This task relates to the memory system implementation.
             "destination_path": str(REPO_ROOT / "archive" / "prompts"),
             "source_context": "cursor",
         },
-
         {
             "project_id": "autopack",
             "file_type": "log",
@@ -151,7 +155,6 @@ This task relates to the memory system implementation.
             "destination_path": str(REPO_ROOT / "archive" / "logs"),
             "source_context": "cursor",
         },
-
         # ==================== FILE ORGANIZER PROJECT PATTERNS ====================
         {
             "project_id": "file-organizer-app-v1",
@@ -175,7 +178,6 @@ Add UK, Canada, and Australia country packs to the file organizer application wi
             "destination_path": ".autonomous_runs/file-organizer-app-v1/archive/plans",
             "source_context": "cursor",
         },
-
         {
             "project_id": "file-organizer-app-v1",
             "file_type": "analysis",
@@ -197,7 +199,6 @@ Update Dockerfile to use correct base image from Docker Hub.
             "destination_path": ".autonomous_runs/file-organizer-app-v1/archive/analysis",
             "source_context": "cursor",
         },
-
         {
             "project_id": "file-organizer-app-v1",
             "file_type": "report",
@@ -219,7 +220,6 @@ Completed Phase 2 build with following achievements:
             "destination_path": ".autonomous_runs/file-organizer-app-v1/archive/reports",
             "source_context": "cursor",
         },
-
         {
             "project_id": "file-organizer-app-v1",
             "file_type": "diagnostic",
@@ -244,7 +244,6 @@ Package was missing from dependencies. Added to package.json.
             "destination_path": ".autonomous_runs/file-organizer-app-v1/archive/diagnostics",
             "source_context": "cursor",
         },
-
         {
             "project_id": "file-organizer-app-v1",
             "file_type": "script",
@@ -309,19 +308,18 @@ def seed_patterns(client: QdrantClient, model: SentenceTransformer, collection_n
                 "destination_path": pattern["destination_path"],
                 "source_context": pattern["source_context"],
                 "created_at": datetime.now(timezone.utc).isoformat(),
-            }
+            },
         )
 
         points.append(point)
 
-        print(f"  [{idx+1}/{len(patterns)}] {pattern['project_id']:25s} | {pattern['file_type']:10s} | {pattern['example_filename']}")
+        print(
+            f"  [{idx + 1}/{len(patterns)}] {pattern['project_id']:25s} | {pattern['file_type']:10s} | {pattern['example_filename']}"
+        )
 
     # Upload points to Qdrant
     print(f"\nUploading {len(points)} points to Qdrant...")
-    client.upsert(
-        collection_name=collection_name,
-        points=points
-    )
+    client.upsert(collection_name=collection_name, points=points)
 
     print(f"✓ Seeded {len(points)} patterns successfully")
 
@@ -331,14 +329,14 @@ def verify_collection(client: QdrantClient, collection_name: str):
 
     try:
         collection_info = client.get_collection(collection_name)
-        print(f"\n=== Collection Info ===")
+        print("\n=== Collection Info ===")
         print(f"  Name: {collection_info.config.params.vectors.size} dimensions")
         print(f"  Vectors: {collection_info.vectors_count} patterns")
         print(f"  Distance: {collection_info.config.params.vectors.distance}")
 
         # Test search
-        print(f"\n=== Test Search ===")
-        model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+        print("\n=== Test Search ===")
+        model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
         test_queries = [
             "IMPLEMENTATION_PLAN_FEATURE.md with implementation strategy",
@@ -349,17 +347,17 @@ def verify_collection(client: QdrantClient, collection_name: str):
         for query in test_queries:
             query_vector = model.encode(query, normalize_embeddings=True).tolist()
             results = client.query_points(
-                collection_name=collection_name,
-                query=query_vector,
-                limit=2
+                collection_name=collection_name, query=query_vector, limit=2
             ).points
 
             print(f"\n  Query: '{query}'")
             for result in results:
                 payload = result.payload
-                print(f"    [{result.score:.3f}] {payload['project_id']:25s} | {payload['file_type']:10s} | {payload['example_filename']}")
+                print(
+                    f"    [{result.score:.3f}] {payload['project_id']:25s} | {payload['file_type']:10s} | {payload['example_filename']}"
+                )
 
-        print(f"\n✓ Collection verification complete")
+        print("\n✓ Collection verification complete")
 
     except Exception as e:
         print(f"Error verifying collection: {e}")
@@ -376,7 +374,7 @@ def main():
     embedding_model = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
     collection_name = "file_routing_patterns"
 
-    print(f"Configuration:")
+    print("Configuration:")
     print(f"  Qdrant Host: {qdrant_host}")
     print(f"  Embedding Model: {embedding_model}")
     print(f"  Collection: {collection_name}")
@@ -394,7 +392,9 @@ def main():
 
         # Create collection
         print()
-        create_collection(client, collection_name, vector_size=model.get_sentence_embedding_dimension())
+        create_collection(
+            client, collection_name, vector_size=model.get_sentence_embedding_dimension()
+        )
 
         # Seed patterns
         seed_patterns(client, model, collection_name)
@@ -402,9 +402,9 @@ def main():
         # Verify
         verify_collection(client, collection_name)
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("✓✓✓ INITIALIZATION COMPLETE ✓✓✓")
-        print("="*60)
+        print("=" * 60)
         print(f"\nThe '{collection_name}' collection is ready for use.")
         print("\nTo use in tidy_workspace.py:")
         print(f"  export QDRANT_HOST={qdrant_host}")
@@ -414,6 +414,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Initialization failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

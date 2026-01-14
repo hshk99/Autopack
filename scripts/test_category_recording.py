@@ -56,8 +56,10 @@ def test_category_metadata():
             deliverables=tc["deliverables"],
             category=tc["category"],
             complexity="medium",
-            scope_paths=["src/main.py"] * 10 if "API" in str(tc["deliverables"]) else ["src/main.py"],
-            task_description=f"Test case: {tc['name']}"
+            scope_paths=(
+                ["src/main.py"] * 10 if "API" in str(tc["deliverables"]) else ["src/main.py"]
+            ),
+            task_description=f"Test case: {tc['name']}",
         )
 
         passed = estimate.category == tc["expected_category"]
@@ -103,25 +105,31 @@ def test_metadata_structure():
         category="documentation",
         complexity="medium",
         scope_paths=["src/main.py"],
-        task_description="Update BUILD_LOG.md"
+        task_description="Update BUILD_LOG.md",
     )
 
     # Simulate metadata update
     metadata = {}
-    metadata.setdefault("token_prediction", {}).update({
-        "predicted_output_tokens": estimate.estimated_tokens,
-        "selected_budget": int(estimate.estimated_tokens * 1.2),
-        "confidence": estimate.confidence,
-        "source": "token_estimator",
-        "estimated_category": estimate.category,  # P5 fix
-    })
+    metadata.setdefault("token_prediction", {}).update(
+        {
+            "predicted_output_tokens": estimate.estimated_tokens,
+            "selected_budget": int(estimate.estimated_tokens * 1.2),
+            "confidence": estimate.confidence,
+            "source": "token_estimator",
+            "estimated_category": estimate.category,  # P5 fix
+        }
+    )
 
     print("Simulated metadata structure:")
-    print(f"  token_prediction.predicted_output_tokens: {metadata['token_prediction']['predicted_output_tokens']}")
+    print(
+        f"  token_prediction.predicted_output_tokens: {metadata['token_prediction']['predicted_output_tokens']}"
+    )
     print(f"  token_prediction.selected_budget: {metadata['token_prediction']['selected_budget']}")
     print(f"  token_prediction.confidence: {metadata['token_prediction']['confidence']:.2f}")
     print(f"  token_prediction.source: {metadata['token_prediction']['source']}")
-    print(f"  token_prediction.estimated_category: {metadata['token_prediction']['estimated_category']}")
+    print(
+        f"  token_prediction.estimated_category: {metadata['token_prediction']['estimated_category']}"
+    )
     print()
 
     # Verify retrieval (what telemetry recording does)
@@ -130,8 +138,8 @@ def test_metadata_structure():
     if retrieved_category == "doc_sot_update":
         print("✓ Metadata retrieval successful")
         print(f"  Retrieved category: {retrieved_category}")
-        print(f"  Expected: doc_sot_update")
-        print(f"  Telemetry will record correct category!")
+        print("  Expected: doc_sot_update")
+        print("  Telemetry will record correct category!")
         return True
     else:
         print("✗ Metadata retrieval failed")

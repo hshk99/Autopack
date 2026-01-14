@@ -27,8 +27,8 @@ This file contains tasks in Autopack format for autonomous execution.
 
 ## ✅ COMPLETE: Pivot Intentions → Gap Taxonomy → Autonomy Loop + Safe Parallelism (Universal)
 
-**Completed in**: BUILD-178 (see `docs/BUILD_HISTORY.md`)  
-**Plan doc (canonical)**: `docs/IMPLEMENTATION_PLAN_PIVOT_INTENTIONS_AUTONOMY_PARALLELISM.md`  
+**Completed in**: BUILD-178 (see `docs/BUILD_HISTORY.md`)
+**Plan doc (canonical)**: `docs/IMPLEMENTATION_PLAN_PIVOT_INTENTIONS_AUTONOMY_PARALLELISM.md`
 **Prompt used**: `docs/PROMPT_OTHER_CURSOR_IMPLEMENT_PIVOT_INTENTIONS_AUTONOMY_PARALLELISM.md`
 
 ### Goal

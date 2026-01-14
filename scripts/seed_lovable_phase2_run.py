@@ -7,6 +7,7 @@ from autopack.models import Run, Tier, Phase, RunState, PhaseState
 
 RUN_ID = "lovable-p2-quality-ux"
 
+
 def main():
     session = SessionLocal()
     try:
@@ -27,7 +28,7 @@ def main():
             token_cap=400000,
             max_phases=8,
             max_duration_minutes=360,
-            goal_anchor="Lovable Integration Phase 2: Quality & UX"
+            goal_anchor="Lovable Integration Phase 2: Quality & UX",
         )
         session.add(run)
         session.flush()
@@ -39,7 +40,7 @@ def main():
             run_id=RUN_ID,
             name="Phase 2: Quality & UX",
             tier_index=0,
-            description="Quality and user experience patterns for Lovable integration"
+            description="Quality and user experience patterns for Lovable integration",
         )
         session.add(tier)
         session.flush()
@@ -55,8 +56,8 @@ def main():
                 "complexity": "medium",
                 "deliverables": [
                     "src/autopack/diagnostics/package_detector.py",
-                    "tests/autopack/diagnostics/test_package_detector.py"
-                ]
+                    "tests/autopack/diagnostics/test_package_detector.py",
+                ],
             },
             {
                 "id": "lovable-p2.2-hmr-error-detection",
@@ -66,8 +67,8 @@ def main():
                 "complexity": "medium",
                 "deliverables": [
                     "src/autopack/lovable/hmr_error_detector.py",
-                    "tests/autopack/lovable/test_hmr_error_detector.py"
-                ]
+                    "tests/autopack/lovable/test_hmr_error_detector.py",
+                ],
             },
             {
                 "id": "lovable-p2.3-missing-import-autofix",
@@ -77,8 +78,8 @@ def main():
                 "complexity": "low",
                 "deliverables": [
                     "src/autopack/lovable/import_autofix.py",
-                    "tests/autopack/lovable/test_import_autofix.py"
-                ]
+                    "tests/autopack/lovable/test_import_autofix.py",
+                ],
             },
             {
                 "id": "lovable-p2.4-conversation-state",
@@ -88,8 +89,8 @@ def main():
                 "complexity": "medium",
                 "deliverables": [
                     "src/autopack/memory/conversation_state.py",
-                    "tests/autopack/memory/test_conversation_state.py"
-                ]
+                    "tests/autopack/memory/test_conversation_state.py",
+                ],
             },
             {
                 "id": "lovable-p2.5-fallback-chain",
@@ -99,9 +100,9 @@ def main():
                 "complexity": "low",
                 "deliverables": [
                     "src/autopack/error_handling/fallback_chain.py",
-                    "tests/autopack/error_handling/test_fallback_chain.py"
-                ]
-            }
+                    "tests/autopack/error_handling/test_fallback_chain.py",
+                ],
+            },
         ]
 
         for idx, pd in enumerate(phases, 1):
@@ -116,19 +117,22 @@ def main():
                 scope=scope,
                 state=PhaseState.QUEUED,
                 task_category=pd["category"],
-                complexity=pd["complexity"]
+                complexity=pd["complexity"],
             )
             session.add(phase)
             print(f"[OK] Phase {idx}: {pd['id']} ({len(pd['deliverables'])} deliverables)")
 
         session.commit()
-        print(f"\n✅ Lovable Phase 2 seeded! Run: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {RUN_ID}")
+        print(
+            f'\n✅ Lovable Phase 2 seeded! Run: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python -m autopack.autonomous_executor --run-id {RUN_ID}'
+        )
     except Exception as e:
         session.rollback()
         print(f"[ERROR] {e}")
         raise
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     main()

@@ -40,12 +40,7 @@ def exclude_from_indexing(file_path: Path, dry_run: bool = False) -> bool:
 
     try:
         # Use attrib +N to set "not content indexed" attribute
-        subprocess.run(
-            ["attrib", "+N", str(file_path)],
-            check=True,
-            capture_output=True,
-            text=True
-        )
+        subprocess.run(["attrib", "+N", str(file_path)], check=True, capture_output=True, text=True)
         print(f"[EXCLUDED] {file_path}")
         return True
     except subprocess.CalledProcessError as e:
@@ -61,14 +56,10 @@ def main():
         description="Exclude database files from Windows Search indexing"
     )
     parser.add_argument(
-        "--pattern",
-        default="*.db",
-        help="Glob pattern for database files (default: *.db)"
+        "--pattern", default="*.db", help="Glob pattern for database files (default: *.db)"
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show what would be done without making changes"
+        "--dry-run", action="store_true", help="Show what would be done without making changes"
     )
 
     args = parser.parse_args()

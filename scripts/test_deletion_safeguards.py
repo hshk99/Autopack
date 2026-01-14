@@ -22,6 +22,7 @@ from pathlib import Path
 # Load .env file if it exists
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass  # dotenv not installed, will use system env vars
@@ -36,9 +37,9 @@ from autopack.notifications.telegram_notifier import TelegramNotifier
 
 def test_deletion_detection(lines_removed=426, lines_added=12):
     """Test deletion detection without actually modifying files."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST: Deletion Detection")
-    print("="*60)
+    print("=" * 60)
 
     scorer = RiskScorer()
 
@@ -47,16 +48,16 @@ def test_deletion_detection(lines_removed=426, lines_added=12):
         files_changed=["src/autopack/diagnostics/deep_retrieval.py"],
         loc_added=lines_added,
         loc_removed=lines_removed,
-        patch_content=None
+        patch_content=None,
     )
 
-    print(f"\nSimulated Change:")
-    print(f"  Files: src/autopack/diagnostics/deep_retrieval.py")
+    print("\nSimulated Change:")
+    print("  Files: src/autopack/diagnostics/deep_retrieval.py")
     print(f"  Lines Added: {lines_added}")
     print(f"  Lines Removed: {lines_removed}")
     print(f"  Net Deletion: {lines_removed - lines_added}")
 
-    print(f"\nRisk Assessment:")
+    print("\nRisk Assessment:")
     print(f"  Risk Score: {result['risk_score']}/100")
     print(f"  Risk Level: {result['risk_level'].upper()}")
     print(f"  Large Deletion Detected: {result['checks']['large_deletion']}")
@@ -64,12 +65,12 @@ def test_deletion_detection(lines_removed=426, lines_added=12):
     print(f"  Approval Required: {result['checks'].get('deletion_approval_required', False)}")
     print(f"  Net Deletion: {result['checks']['net_deletion']}")
 
-    print(f"\nRisk Reasons:")
-    for reason in result['reasons']:
+    print("\nRisk Reasons:")
+    for reason in result["reasons"]:
         print(f"  • {reason}")
 
     # Test quality gate blocking
-    print(f"\nQuality Gate Assessment:")
+    print("\nQuality Gate Assessment:")
     gate = QualityGate(repo_root=Path.cwd())
 
     quality_level = gate._determine_quality_level(
@@ -77,24 +78,24 @@ def test_deletion_detection(lines_removed=426, lines_added=12):
         ci_passed=True,
         has_major_issues=False,
         coverage_regressed=False,
-        risk_result=result
+        risk_result=result,
     )
 
     print(f"  Quality Level: {quality_level.upper()}")
 
     if quality_level == "blocked":
-        print(f"  ✅ BLOCKED - Would trigger approval request")
+        print("  ✅ BLOCKED - Would trigger approval request")
     else:
-        print(f"  ❌ NOT BLOCKED - Would proceed without approval")
+        print("  ❌ NOT BLOCKED - Would proceed without approval")
 
     return result
 
 
 def test_telegram_notification(lines_removed=426, lines_added=12):
     """Test Telegram notification without actual approval workflow."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST: Telegram Notification")
-    print("="*60)
+    print("=" * 60)
 
     notifier = TelegramNotifier()
 
@@ -106,52 +107,52 @@ def test_telegram_notification(lines_removed=426, lines_added=12):
         print("  export NGROK_URL='https://harrybot.ngrok.app'")
         return False
 
-    print(f"\n✅ Telegram configured:")
+    print("\n✅ Telegram configured:")
     print(f"  Bot Token: {notifier.bot_token[:20]}...")
     print(f"  Chat ID: {notifier.chat_id}")
     print(f"  Callback URL: {notifier.callback_url}")
 
     # Simulate deletion info
     deletion_info = {
-        'net_deletion': lines_removed - lines_added,
-        'loc_removed': lines_removed,
-        'loc_added': lines_added,
-        'files': ['src/autopack/diagnostics/deep_retrieval.py'],
-        'risk_level': 'critical',
-        'risk_score': 85,
+        "net_deletion": lines_removed - lines_added,
+        "loc_removed": lines_removed,
+        "loc_added": lines_added,
+        "files": ["src/autopack/diagnostics/deep_retrieval.py"],
+        "risk_level": "critical",
+        "risk_score": 85,
     }
 
-    print(f"\nSending test notification...")
-    print(f"  Phase: test-deletion-safeguard")
+    print("\nSending test notification...")
+    print("  Phase: test-deletion-safeguard")
     print(f"  Net Deletion: {deletion_info['net_deletion']} lines")
     print(f"  Risk Level: {deletion_info['risk_level'].upper()}")
 
     success = notifier.send_approval_request(
-        phase_id='test-deletion-safeguard',
+        phase_id="test-deletion-safeguard",
         deletion_info=deletion_info,
-        run_id='test-run',
-        context='troubleshoot'
+        run_id="test-run",
+        context="troubleshoot",
     )
 
     if success:
-        print(f"\n✅ Notification sent successfully!")
-        print(f"\nCheck your phone - you should see:")
-        print(f"  ⚠️ Autopack Approval Needed")
-        print(f"  Phase: test-deletion-safeguard")
-        print(f"  Risk: 🚨 CRITICAL (score: 85/100)")
+        print("\n✅ Notification sent successfully!")
+        print("\nCheck your phone - you should see:")
+        print("  ⚠️ Autopack Approval Needed")
+        print("  Phase: test-deletion-safeguard")
+        print("  Risk: 🚨 CRITICAL (score: 85/100)")
         print(f"  Net Deletion: {deletion_info['net_deletion']} lines")
-        print(f"  [✅ Approve]  [❌ Reject]")
+        print("  [✅ Approve]  [❌ Reject]")
         return True
     else:
-        print(f"\n❌ Failed to send notification")
+        print("\n❌ Failed to send notification")
         return False
 
 
 def test_approval_workflow():
     """Test full approval workflow (requires backend + ngrok)."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST: Full Approval Workflow")
-    print("="*60)
+    print("=" * 60)
 
     import requests
     import time
@@ -164,26 +165,26 @@ def test_approval_workflow():
     try:
         response = requests.get(f"{api_url}/docs", timeout=5)
         if response.status_code == 200:
-            print(f"✅ Backend is running")
+            print("✅ Backend is running")
         else:
             print(f"⚠️  Backend responded with status {response.status_code}")
     except Exception as e:
         print(f"❌ API server not accessible: {e}")
-        print(f"\nTo start canonical API server:")
-        print(f"  PYTHONPATH=src uvicorn autopack.main:app --host 0.0.0.0 --port 8000")
+        print("\nTo start canonical API server:")
+        print("  PYTHONPATH=src uvicorn autopack.main:app --host 0.0.0.0 --port 8000")
         return False
 
     # Send approval request
     deletion_info = {
-        'net_deletion': 414,
-        'loc_removed': 426,
-        'loc_added': 12,
-        'files': ['src/autopack/diagnostics/deep_retrieval.py'],
-        'risk_level': 'critical',
-        'risk_score': 85,
+        "net_deletion": 414,
+        "loc_removed": 426,
+        "loc_added": 12,
+        "files": ["src/autopack/diagnostics/deep_retrieval.py"],
+        "risk_level": "critical",
+        "risk_score": 85,
     }
 
-    print(f"\nSending approval request to backend...")
+    print("\nSending approval request to backend...")
 
     try:
         response = requests.post(
@@ -192,42 +193,41 @@ def test_approval_workflow():
                 "phase_id": "test-approval-workflow",
                 "deletion_info": deletion_info,
                 "run_id": "test-run",
-                "context": "troubleshoot"
+                "context": "troubleshoot",
             },
-            timeout=10
+            timeout=10,
         )
 
         if response.status_code == 200:
             result = response.json()
             print(f"✅ Approval request sent: {result.get('status')}")
 
-            if result.get('status') == 'pending':
-                print(f"\n📱 Check your phone and tap Approve or Reject")
-                print(f"\nPolling for approval decision (timeout: 60 seconds)...")
+            if result.get("status") == "pending":
+                print("\n📱 Check your phone and tap Approve or Reject")
+                print("\nPolling for approval decision (timeout: 60 seconds)...")
 
                 # Poll for decision
                 for i in range(12):  # 12 * 5s = 60s
                     time.sleep(5)
 
                     status_response = requests.get(
-                        f"{api_url}/approval/status/test-approval-workflow",
-                        timeout=5
+                        f"{api_url}/approval/status/test-approval-workflow", timeout=5
                     )
 
                     if status_response.status_code == 200:
                         status_data = status_response.json()
-                        status = status_data.get('status')
+                        status = status_data.get("status")
 
-                        print(f"  [{i*5}s] Status: {status}")
+                        print(f"  [{i * 5}s] Status: {status}")
 
-                        if status == 'approved':
-                            print(f"\n✅ APPROVED - Workflow would proceed")
+                        if status == "approved":
+                            print("\n✅ APPROVED - Workflow would proceed")
                             return True
-                        elif status == 'rejected':
-                            print(f"\n❌ REJECTED - Workflow would halt")
+                        elif status == "rejected":
+                            print("\n❌ REJECTED - Workflow would halt")
                             return True
 
-                print(f"\n⏱️  Timeout - No decision received")
+                print("\n⏱️  Timeout - No decision received")
                 return False
         else:
             print(f"❌ Request failed: {response.status_code} {response.text}")
@@ -240,9 +240,9 @@ def test_approval_workflow():
 
 def test_thresholds():
     """Test different deletion amounts against thresholds."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST: Two-Tier Threshold Sensitivity")
-    print("="*60)
+    print("=" * 60)
 
     scorer = RiskScorer()
     gate = QualityGate(repo_root=Path.cwd())
@@ -259,20 +259,19 @@ def test_thresholds():
         (426, 12, "The ref6.md incident (net: 414) - Should BLOCK + NOTIFY"),
     ]
 
-    print(f"\nTwo-Tier Thresholds:")
-    print(f"  NOTIFICATION_THRESHOLD: 100 lines (send Telegram notification, don't block)")
-    print(f"  BLOCKING_THRESHOLD: 200 lines (require approval, block execution)")
+    print("\nTwo-Tier Thresholds:")
+    print("  NOTIFICATION_THRESHOLD: 100 lines (send Telegram notification, don't block)")
+    print("  BLOCKING_THRESHOLD: 200 lines (require approval, block execution)")
 
-    print(f"\nTest Results:")
-    print(f"{'Removed':<10} {'Added':<10} {'Net':<10} {'Risk':<10} {'Notify?':<10} {'Block?':<10} {'Description'}")
+    print("\nTest Results:")
+    print(
+        f"{'Removed':<10} {'Added':<10} {'Net':<10} {'Risk':<10} {'Notify?':<10} {'Block?':<10} {'Description'}"
+    )
     print("-" * 100)
 
     for removed, added, desc in test_cases:
         result = scorer.score_change(
-            files_changed=["test.py"],
-            loc_added=added,
-            loc_removed=removed,
-            patch_content=None
+            files_changed=["test.py"], loc_added=added, loc_removed=removed, patch_content=None
         )
 
         quality_level = gate._determine_quality_level(
@@ -280,25 +279,31 @@ def test_thresholds():
             ci_passed=True,
             has_major_issues=False,
             coverage_regressed=False,
-            risk_result=result
+            risk_result=result,
         )
 
         checks = result.get("checks", {})
         notify = "✅ YES" if checks.get("deletion_notification_needed") else "❌ NO"
         blocked = "✅ YES" if checks.get("deletion_approval_required") else "❌ NO"
 
-        print(f"{removed:<10} {added:<10} {removed-added:<10} "
-              f"{result['risk_level']:<10} {notify:<10} {blocked:<10} {desc}")
+        print(
+            f"{removed:<10} {added:<10} {removed - added:<10} "
+            f"{result['risk_level']:<10} {notify:<10} {blocked:<10} {desc}"
+        )
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Test deletion safeguards without actual deletions")
-    parser.add_argument('--test-detection', action='store_true', help='Test deletion detection')
-    parser.add_argument('--test-telegram', action='store_true', help='Test Telegram notification')
-    parser.add_argument('--test-approval', action='store_true', help='Test full approval workflow')
-    parser.add_argument('--test-thresholds', action='store_true', help='Test threshold sensitivity')
-    parser.add_argument('--lines-removed', type=int, default=426, help='Lines removed (default: 426)')
-    parser.add_argument('--lines-added', type=int, default=12, help='Lines added (default: 12)')
+    parser = argparse.ArgumentParser(
+        description="Test deletion safeguards without actual deletions"
+    )
+    parser.add_argument("--test-detection", action="store_true", help="Test deletion detection")
+    parser.add_argument("--test-telegram", action="store_true", help="Test Telegram notification")
+    parser.add_argument("--test-approval", action="store_true", help="Test full approval workflow")
+    parser.add_argument("--test-thresholds", action="store_true", help="Test threshold sensitivity")
+    parser.add_argument(
+        "--lines-removed", type=int, default=426, help="Lines removed (default: 426)"
+    )
+    parser.add_argument("--lines-added", type=int, default=12, help="Lines added (default: 12)")
 
     args = parser.parse_args()
 
@@ -326,9 +331,9 @@ def main():
         success = test_approval_workflow()
         results.append("Approval: " + ("✅" if success else "❌"))
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST SUMMARY")
-    print("="*60)
+    print("=" * 60)
     for result in results:
         print(f"  {result}")
     print()

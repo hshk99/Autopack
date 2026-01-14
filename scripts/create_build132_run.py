@@ -46,9 +46,8 @@ DO NOT establish T0 baseline yet - that's Phase 4.""",
         "phase_index": 0,
         "category": "configuration",
         "complexity": "low",
-        "builder_mode": "tweak_light"
+        "builder_mode": "tweak_light",
     },
-
     # Phase 2: Create CoverageTracker Module
     {
         "phase_id": "build132-phase2-coverage-tracker",
@@ -85,9 +84,8 @@ Files to create:
         "phase_index": 0,
         "category": "implementation",
         "complexity": "medium",
-        "builder_mode": "scaffolding_heavy"
+        "builder_mode": "scaffolding_heavy",
     },
-
     # Phase 3: Integrate with Executor
     {
         "phase_id": "build132-phase3-executor-integration",
@@ -122,9 +120,8 @@ Files to modify:
         "phase_index": 1,
         "category": "integration",
         "complexity": "medium",
-        "builder_mode": "tweak_medium"
+        "builder_mode": "tweak_medium",
     },
-
     # Phase 4: Documentation and Baseline
     {
         "phase_id": "build132-phase4-documentation",
@@ -162,8 +159,8 @@ Files to create:
         "phase_index": 0,
         "category": "docs",
         "complexity": "low",
-        "builder_mode": "tweak_light"
-    }
+        "builder_mode": "tweak_light",
+    },
 ]
 
 
@@ -180,30 +177,34 @@ def create_run():
                 "tier_index": task["tier_index"],
                 "name": tier_id.split("-")[1],
                 "description": f"Tier {task['tier_index'] + 1}",
-                "phases": []
+                "phases": [],
             }
-        tiers[tier_id]["phases"].append({
-            "phase_id": task["phase_id"],
-            "phase_index": task["phase_index"],
-            "tier_id": tier_id,
-            "name": task["name"],
-            "description": task["description"],
-            "task_category": task["category"],
-            "complexity": task["complexity"],
-            "builder_mode": task["builder_mode"]
-        })
+        tiers[tier_id]["phases"].append(
+            {
+                "phase_id": task["phase_id"],
+                "phase_index": task["phase_index"],
+                "tier_id": tier_id,
+                "name": task["name"],
+                "description": task["description"],
+                "task_category": task["category"],
+                "complexity": task["complexity"],
+                "builder_mode": task["builder_mode"],
+            }
+        )
 
     # Flatten for API
     all_phases = []
     tier_list = []
     for tier in sorted(tiers.values(), key=lambda t: t["tier_index"]):
         all_phases.extend(tier["phases"])
-        tier_list.append({
-            "tier_id": tier["tier_id"],
-            "tier_index": tier["tier_index"],
-            "name": tier["name"],
-            "description": tier.get("description")
-        })
+        tier_list.append(
+            {
+                "tier_id": tier["tier_id"],
+                "tier_index": tier["tier_index"],
+                "name": tier["name"],
+                "description": tier.get("description"),
+            }
+        )
 
     payload = {
         "run": {
@@ -212,21 +213,18 @@ def create_run():
             "run_scope": "multi_tier",
             "token_cap": 300000,  # 300k tokens for 4 phases
             "max_phases": 5,
-            "max_duration_minutes": 180  # 3 hours max
+            "max_duration_minutes": 180,  # 3 hours max
         },
         "tiers": tier_list,
-        "phases": all_phases
+        "phases": all_phases,
     }
 
-    print(f"[INFO] Creating BUILD-132: Coverage Delta Integration")
+    print("[INFO] Creating BUILD-132: Coverage Delta Integration")
     print(f"[INFO] Total phases: {len(TASKS)}")
     print(f"[INFO] Total tiers: {len(tiers)}")
-    print(f"[INFO] Expected telemetry samples: 4+ successful Builder executions")
+    print("[INFO] Expected telemetry samples: 4+ successful Builder executions")
 
-    response = requests.post(
-        f"{API_URL}/runs/start",
-        json=payload
-    )
+    response = requests.post(f"{API_URL}/runs/start", json=payload)
 
     if response.status_code != 201:
         print(f"[ERROR] Response: {response.status_code}")
@@ -242,12 +240,15 @@ if __name__ == "__main__":
     try:
         result = create_run()
         print("\n[OK] Ready to execute BUILD-132 autonomous run:")
-        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {RUN_ID}")
+        print(
+            f'  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python -m autopack.autonomous_executor --run-id {RUN_ID}'
+        )
         print("\n[INFO] This will generate token estimation telemetry for each phase")
         print("[INFO] Telemetry will be logged to .autonomous_runs/{RUN_ID}/*.log")
         sys.exit(0)
     except Exception as e:
         print(f"\n[ERROR] Failed to create run: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

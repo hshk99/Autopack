@@ -140,7 +140,9 @@ def create_run():
 
     except requests.exceptions.ConnectionError:
         print(f"[ERROR] Cannot connect to API at {API_URL}")
-        print("[INFO] Make sure the API server is running:\n  python -m uvicorn autopack.main:app --reload --port 8000")
+        print(
+            "[INFO] Make sure the API server is running:\n  python -m uvicorn autopack.main:app --reload --port 8000"
+        )
         sys.exit(1)
     except Exception as exc:
         print(f"[ERROR] Failed to create run: {exc}")
@@ -149,4 +151,3 @@ def create_run():
 
 if __name__ == "__main__":
     create_run()
-

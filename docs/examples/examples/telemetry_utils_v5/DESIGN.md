@@ -112,11 +112,11 @@ Consistent error handling across all modules:
 ```python
 def operation(path: Union[str, Path]) -> Any:
     file_path = Path(path)
-    
+
     # Validate inputs
     if not file_path.exists():
         raise FileNotFoundError(f"File not found: {path}")
-    
+
     try:
         # Perform operation
         result = perform_operation()
@@ -143,10 +143,10 @@ def write_file(
     create_dirs: bool = False,  # Explicit opt-in
 ) -> None:
     file_path = Path(path)
-    
+
     if create_dirs and not file_path.parent.exists():
         file_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     # ... write operation
 ```
 
@@ -223,14 +223,14 @@ Common file operation structure:
 def file_operation(path, data, create_dirs=False):
     # 1. Normalize path
     file_path = Path(path)
-    
+
     # 2. Create directories if needed
     if create_dirs:
         ensure_directories(file_path)
-    
+
     # 3. Perform operation (varies by function)
     perform_specific_operation(file_path, data)
-    
+
     # 4. Handle errors consistently
 ```
 
@@ -272,7 +272,7 @@ Explicit type conversions at boundaries:
 def set_value(path: Union[str, Path], section: str, key: str, value: Any) -> None:
     # Convert to Path at entry
     file_path = Path(path)
-    
+
     # Convert value to string for INI format
     config.set(section, key, str(value))
 ```
@@ -365,12 +365,12 @@ class TestFunction:
         """Test normal, expected usage."""
         result = function(normal_input)
         assert result == expected_output
-    
+
     def test_edge_case(self):
         """Test boundary conditions."""
         result = function(edge_input)
         assert result == edge_output
-    
+
     def test_error_condition(self):
         """Test error handling."""
         with pytest.raises(ExpectedError):

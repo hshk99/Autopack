@@ -66,7 +66,7 @@ def _sym(ok: str, ascii_fallback: str) -> str:
     """
     if not _supports_utf8_output():
         return ascii_fallback
-    enc = (getattr(sys.stdout, "encoding", None) or "utf-8")
+    enc = getattr(sys.stdout, "encoding", None) or "utf-8"
     try:
         ok.encode(enc, errors="strict")
         return ok
@@ -222,7 +222,9 @@ def main():
     print("=" * 70)
 
     if len(baseline_findings) > 0:
-        print(f"\nNote: {len(baseline_findings)} pre-existing findings tracked in SECURITY_BURNDOWN.md")
+        print(
+            f"\nNote: {len(baseline_findings)} pre-existing findings tracked in SECURITY_BURNDOWN.md"
+        )
 
     print("\n" + "=" * 70)
     return 0  # Pass CI

@@ -54,6 +54,7 @@ from io_utils import atomic_write
 # Entry Counting Logic - Dual-Source Strategy (META + Derived)
 # ---------------------------------------------------------------------------
 
+
 def parse_meta_count(content: str, key: str) -> int | None:
     """
     Parse count from META header (e.g., "Total_Builds: 169").
@@ -65,7 +66,7 @@ def parse_meta_count(content: str, key: str) -> int | None:
     Returns:
         Count from META header, or None if not found
     """
-    pattern = rf'^Total_{key}:\s*(\d+)\s*$'
+    pattern = rf"^Total_{key}:\s*(\d+)\s*$"
     match = re.search(pattern, content, re.MULTILINE)
     return int(match.group(1)) if match else None
 
@@ -82,10 +83,10 @@ def derive_build_count(content: str) -> tuple[int, int]:
         Tuple of (total_entries, unique_build_ids)
     """
     # Count index table rows: | YYYY-MM-DD | BUILD-### | ...
-    table_rows = re.findall(r'^\|\s*\d{4}-\d{2}-\d{2}\s*\|\s*BUILD-\d+', content, re.MULTILINE)
+    table_rows = re.findall(r"^\|\s*\d{4}-\d{2}-\d{2}\s*\|\s*BUILD-\d+", content, re.MULTILINE)
 
     # Count unique BUILD IDs
-    unique_ids = set(re.findall(r'\bBUILD-\d+\b', content))
+    unique_ids = set(re.findall(r"\bBUILD-\d+\b", content))
 
     if table_rows:
         return len(table_rows), len(unique_ids)
@@ -104,13 +105,13 @@ def derive_decision_count(content: str) -> int:
     - Fall back to ID union counting only if no headings are present (legacy formats).
     """
     # Preferred: decision section headings (current format)
-    heading_ids = set(re.findall(r'^###\s+(DEC-\d{3})\b', content, flags=re.MULTILINE))
+    heading_ids = set(re.findall(r"^###\s+(DEC-\d{3})\b", content, flags=re.MULTILINE))
     if heading_ids:
         return len(heading_ids)
 
     # Fallback: union of referenced IDs (legacy)
-    dec_ids = set(re.findall(r'\bDEC-\d+\b', content))
-    ad_ids = set(re.findall(r'\bAD-\d+\b', content))
+    dec_ids = set(re.findall(r"\bDEC-\d+\b", content))
+    ad_ids = set(re.findall(r"\bAD-\d+\b", content))
     return len(dec_ids | ad_ids)
 
 
@@ -122,7 +123,7 @@ def update_meta_block(content: str, updates: dict[str, str]) -> tuple[str, bool]
 
     Note: Changes to Last_Updated timestamp are not considered "real" changes for drift detection.
     """
-    meta_re = re.compile(r'<!-- META\s*\n(.*?)\n-->', re.DOTALL)
+    meta_re = re.compile(r"<!-- META\s*\n(.*?)\n-->", re.DOTALL)
     m = meta_re.search(content)
     if not m:
         return content, False
@@ -133,7 +134,7 @@ def update_meta_block(content: str, updates: dict[str, str]) -> tuple[str, bool]
 
     for i, line in enumerate(lines):
         for key, value in updates.items():
-            if re.match(rf'^{re.escape(key)}:\s*', line):
+            if re.match(rf"^{re.escape(key)}:\s*", line):
                 new_line = f"{key}: {value}"
                 if new_line != line:
                     # Ignore Last_Updated timestamp changes for drift detection
@@ -145,7 +146,7 @@ def update_meta_block(content: str, updates: dict[str, str]) -> tuple[str, bool]
         return content, False
 
     new_body = "\n".join(lines)
-    new_content = content[:m.start(1)] + new_body + content[m.end(1):]
+    new_content = content[: m.start(1)] + new_body + content[m.end(1) :]
     return new_content, True
 
 
@@ -155,24 +156,24 @@ def _latest_build_title_from_build_history(build_history: str) -> str | None:
 
     Prefers the latest '## BUILD-###' section's '**Title**:' line and optional status marker.
     """
-    ids = re.findall(r'^##\s+BUILD-(\d+)\b', build_history, flags=re.MULTILINE)
+    ids = re.findall(r"^##\s+BUILD-(\d+)\b", build_history, flags=re.MULTILINE)
     if not ids:
         return None
     latest = max(int(x) for x in ids)
     latest_id = f"BUILD-{latest}"
 
     # Find the latest build section and extract title + status
-    sec_re = re.compile(rf'^##\s+{re.escape(latest_id)}\b', re.MULTILINE)
+    sec_re = re.compile(rf"^##\s+{re.escape(latest_id)}\b", re.MULTILINE)
     m = sec_re.search(build_history)
     if not m:
         return latest_id
 
-    tail = build_history[m.end():]
-    next_m = re.search(r'^##\s+BUILD-\d+\b', tail, flags=re.MULTILINE)
-    block = tail[:next_m.start()] if next_m else tail
+    tail = build_history[m.end() :]
+    next_m = re.search(r"^##\s+BUILD-\d+\b", tail, flags=re.MULTILINE)
+    block = tail[: next_m.start()] if next_m else tail
 
-    title_m = re.search(r'^\*\*Title\*\*:\s*(.+?)\s*$', block, flags=re.MULTILINE)
-    status_m = re.search(r'^\*\*Status\*\*:\s*(.+?)\s*$', block, flags=re.MULTILINE)
+    title_m = re.search(r"^\*\*Title\*\*:\s*(.+?)\s*$", block, flags=re.MULTILINE)
+    status_m = re.search(r"^\*\*Status\*\*:\s*(.+?)\s*$", block, flags=re.MULTILINE)
     title = title_m.group(1).strip() if title_m else ""
     status = status_m.group(1).strip() if status_m else ""
 
@@ -232,14 +233,16 @@ def update_readme_sot_summary(
     summary_lines: list[str] = [f"**Last Updated**: {timestamp}", ""]
 
     if build_unique != build_entries:
-        summary_lines.append(f"- **Builds Completed**: {build_entries} (includes multi-phase builds, {build_unique} unique)")
+        summary_lines.append(
+            f"- **Builds Completed**: {build_entries} (includes multi-phase builds, {build_unique} unique)"
+        )
     else:
         summary_lines.append(f"- **Builds Completed**: {build_entries}")
 
     if latest_build_title:
         summary_lines.append(f"- **Latest Build**: {latest_build_title}")
     else:
-        summary_lines.append(f"- **Latest Build**: (unknown)")
+        summary_lines.append("- **Latest Build**: (unknown)")
 
     summary_lines.append(f"- **Architecture Decisions**: {decision_count}")
     summary_lines.append(f"- **Debugging Sessions**: {debug_count}")
@@ -257,7 +260,7 @@ def update_readme_sot_summary(
     # Normalize both blocks (ignore timestamp changes)
     def normalize_readme_block(block: str) -> str:
         # Remove timestamp line
-        return re.sub(r'\*\*Last Updated\*\*: [^\n]+', '**Last Updated**: <TIMESTAMP>', block)
+        return re.sub(r"\*\*Last Updated\*\*: [^\n]+", "**Last Updated**: <TIMESTAMP>", block)
 
     if normalize_readme_block(existing_block) == normalize_readme_block(new_block):
         return False
@@ -278,21 +281,35 @@ def derive_debug_count(content: str) -> int:
     First tries to count index table rows, falls back to unique IDs and headers.
     """
     # Try counting table rows first: | YYYY-MM-DD | DBG-### | or date-based rows
-    table_rows = re.findall(r'^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(DBG-\d+|\[?\d{4}-\d{2}-\d{2}\]?|[^|]+)', content, re.MULTILINE)
+    table_rows = re.findall(
+        r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(DBG-\d+|\[?\d{4}-\d{2}-\d{2}\]?|[^|]+)",
+        content,
+        re.MULTILINE,
+    )
 
     if table_rows:
         # Filter to only count rows with DBG-### or date patterns in second column
-        valid_rows = [row for row in table_rows if 'DBG-' in row[1] or re.match(r'\[?\d{4}-\d{2}-\d{2}\]?', row[1].strip())]
+        valid_rows = [
+            row
+            for row in table_rows
+            if "DBG-" in row[1] or re.match(r"\[?\d{4}-\d{2}-\d{2}\]?", row[1].strip())
+        ]
         if valid_rows:
             return len(valid_rows)
 
     # Fallback: count unique IDs and date headers
-    dbg_ids = set(re.findall(r'\bDBG-\d+\b', content))
-    date_headers = set(re.findall(r'^#{2,3}\s+\[?(\d{4}-\d{2}-\d{2})\]?', content, re.MULTILINE))
+    dbg_ids = set(re.findall(r"\bDBG-\d+\b", content))
+    date_headers = set(re.findall(r"^#{2,3}\s+\[?(\d{4}-\d{2}-\d{2})\]?", content, re.MULTILINE))
     return len(dbg_ids | date_headers)
 
 
-def pick_count(name: str, meta: int | None, derived: int, verbose: bool = False, trust_meta_on_mismatch: bool = False) -> int:
+def pick_count(
+    name: str,
+    meta: int | None,
+    derived: int,
+    verbose: bool = False,
+    trust_meta_on_mismatch: bool = False,
+) -> int:
     """
     Select canonical count using dual-source validation.
 
@@ -320,10 +337,14 @@ def pick_count(name: str, meta: int | None, derived: int, verbose: bool = False,
 
     if meta != derived:
         if trust_meta_on_mismatch:
-            print(f"  [WARN] {name} count mismatch: META={meta} derived={derived} (using META - trust mode)")
+            print(
+                f"  [WARN] {name} count mismatch: META={meta} derived={derived} (using META - trust mode)"
+            )
             return meta
         else:
-            print(f"  [WARN] {name} count mismatch: META={meta} derived={derived} (using derived - META may be outdated)")
+            print(
+                f"  [WARN] {name} count mismatch: META={meta} derived={derived} (using derived - META may be outdated)"
+            )
             return derived
 
     if verbose and meta == derived:
@@ -339,7 +360,7 @@ def latest_build_id(content: str) -> str | None:
     Returns:
         Latest BUILD ID (e.g., "BUILD-160"), or None if none found
     """
-    ids = re.findall(r'\bBUILD-(\d+)\b', content)
+    ids = re.findall(r"\bBUILD-(\d+)\b", content)
     if not ids:
         return None
     max_num = max(int(id_num) for id_num in ids)
@@ -349,6 +370,7 @@ def latest_build_id(content: str) -> str | None:
 # ---------------------------------------------------------------------------
 # High-Level Counting Functions (Using Dual-Source Strategy)
 # ---------------------------------------------------------------------------
+
 
 def count_build_history_entries(content: str, verbose: bool = False) -> tuple[int, int]:
     """
@@ -397,20 +419,18 @@ def count_architecture_decisions(content: str, verbose: bool = False) -> int:
 # Summary Update Logic
 # ---------------------------------------------------------------------------
 
+
 def _normalize_summary_for_comparison(summary: str) -> str:
     """
     Normalize summary by removing timestamps for comparison purposes.
     This allows detecting real content changes without timestamp noise.
     """
     # Remove the timestamp portion
-    return re.sub(r'\| Last updated: [^|]+', '| Last updated: <TIMESTAMP>', summary)
+    return re.sub(r"\| Last updated: [^|]+", "| Last updated: <TIMESTAMP>", summary)
 
 
 def update_summary_section(
-    content: str,
-    entry_count: int,
-    file_type: str,
-    unique_count: int | None = None
+    content: str, entry_count: int, file_type: str, unique_count: int | None = None
 ) -> Tuple[str, bool]:
     """
     Update or insert summary section in SOT file.
@@ -427,7 +447,7 @@ def update_summary_section(
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Create summary text
-    if file_type == 'build_history':
+    if file_type == "build_history":
         if unique_count is not None and unique_count != entry_count:
             # Show both counts when they differ
             summary = f"""<!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
@@ -440,12 +460,12 @@ def update_summary_section(
 **Summary**: {entry_count} build(s) documented | Last updated: {timestamp}
 <!-- END AUTO-GENERATED SUMMARY -->
 """
-    elif file_type == 'debug_log':
+    elif file_type == "debug_log":
         summary = f"""<!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
 **Summary**: {entry_count} debug session(s) documented | Last updated: {timestamp}
 <!-- END AUTO-GENERATED SUMMARY -->
 """
-    elif file_type == 'architecture_decisions':
+    elif file_type == "architecture_decisions":
         summary = f"""<!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
 **Summary**: {entry_count} decision(s) documented | Last updated: {timestamp}
 <!-- END AUTO-GENERATED SUMMARY -->
@@ -454,7 +474,7 @@ def update_summary_section(
         return content, False
 
     # Check if summary section already exists
-    pattern = r'<!-- AUTO-GENERATED SUMMARY.*?<!-- END AUTO-GENERATED SUMMARY -->\n?'
+    pattern = r"<!-- AUTO-GENERATED SUMMARY.*?<!-- END AUTO-GENERATED SUMMARY -->\n?"
     existing = re.search(pattern, content, re.DOTALL)
 
     if existing:
@@ -473,7 +493,7 @@ def update_summary_section(
     else:
         # Insert summary after first heading
         # Find first H1 heading (# Title)
-        heading_pattern = r'^(#\s+.+\n)'
+        heading_pattern = r"^(#\s+.+\n)"
         match = re.search(heading_pattern, content, re.MULTILINE)
 
         if match:
@@ -481,33 +501,31 @@ def update_summary_section(
             insert_pos = match.end()
 
             # Skip any lines that look like metadata (starting with **)
-            lines = content[insert_pos:].split('\n')
+            lines = content[insert_pos:].split("\n")
             skip_count = 0
             for line in lines:
-                if line.strip().startswith('**') or line.strip() == '':
+                if line.strip().startswith("**") or line.strip() == "":
                     skip_count += 1
                 else:
                     break
 
             if skip_count > 0:
-                insert_pos += len('\n'.join(lines[:skip_count])) + 1
+                insert_pos += len("\n".join(lines[:skip_count])) + 1
 
-            new_content = content[:insert_pos] + '\n' + summary + '\n' + content[insert_pos:]
+            new_content = content[:insert_pos] + "\n" + summary + "\n" + content[insert_pos:]
             return new_content, True
         else:
             # No H1 heading found, prepend summary
-            return summary + '\n' + content, True
+            return summary + "\n" + content, True
 
 
 # ---------------------------------------------------------------------------
 # Main Logic
 # ---------------------------------------------------------------------------
 
+
 def refresh_sot_summaries(
-    docs_dir: Path,
-    dry_run: bool = True,
-    verbose: bool = False,
-    check_mode: bool = False
+    docs_dir: Path, dry_run: bool = True, verbose: bool = False, check_mode: bool = False
 ) -> tuple[Dict[str, int], bool]:
     """
     Refresh summary counts in SOT documentation files.
@@ -527,12 +545,12 @@ def refresh_sot_summaries(
     # Process BUILD_HISTORY.md
     build_history_path = docs_dir / "BUILD_HISTORY.md"
     if build_history_path.exists():
-        content = build_history_path.read_text(encoding='utf-8')
+        content = build_history_path.read_text(encoding="utf-8")
         total_entries, unique_builds = count_build_history_entries(content, verbose=verbose)
-        results['BUILD_HISTORY.md'] = (total_entries, unique_builds)
+        results["BUILD_HISTORY.md"] = (total_entries, unique_builds)
 
         new_content, changed = update_summary_section(
-            content, total_entries, 'build_history', unique_count=unique_builds
+            content, total_entries, "build_history", unique_count=unique_builds
         )
         # Keep META header aligned with derived counts (reduces drift after manual edits)
         meta_updates = {
@@ -548,41 +566,51 @@ def refresh_sot_summaries(
             changes_detected = True
             if dry_run or check_mode:
                 if unique_builds != total_entries:
-                    print(f"[{'CHECK' if check_mode else 'DRY-RUN'}] Would update BUILD_HISTORY.md summary: {total_entries} entries ({unique_builds} unique builds)")
+                    print(
+                        f"[{'CHECK' if check_mode else 'DRY-RUN'}] Would update BUILD_HISTORY.md summary: {total_entries} entries ({unique_builds} unique builds)"
+                    )
                 else:
-                    print(f"[{'CHECK' if check_mode else 'DRY-RUN'}] Would update BUILD_HISTORY.md summary: {total_entries} build(s)")
+                    print(
+                        f"[{'CHECK' if check_mode else 'DRY-RUN'}] Would update BUILD_HISTORY.md summary: {total_entries} build(s)"
+                    )
                 if verbose:
-                    print(f"  Preview of new summary section:")
+                    print("  Preview of new summary section:")
                     summary_match = re.search(
-                        r'<!-- AUTO-GENERATED SUMMARY.*?<!-- END AUTO-GENERATED SUMMARY -->',
+                        r"<!-- AUTO-GENERATED SUMMARY.*?<!-- END AUTO-GENERATED SUMMARY -->",
                         new_content,
-                        re.DOTALL
+                        re.DOTALL,
                     )
                     if summary_match:
                         print(f"  {summary_match.group()}")
             else:
                 atomic_write(build_history_path, new_content)
                 if unique_builds != total_entries:
-                    print(f"[UPDATED] BUILD_HISTORY.md: {total_entries} entries ({unique_builds} unique builds)")
+                    print(
+                        f"[UPDATED] BUILD_HISTORY.md: {total_entries} entries ({unique_builds} unique builds)"
+                    )
                 else:
                     print(f"[UPDATED] BUILD_HISTORY.md: {total_entries} build(s)")
         else:
             if verbose:
                 if unique_builds != total_entries:
-                    print(f"[NO-CHANGE] BUILD_HISTORY.md: {total_entries} entries ({unique_builds} unique builds) (already up to date)")
+                    print(
+                        f"[NO-CHANGE] BUILD_HISTORY.md: {total_entries} entries ({unique_builds} unique builds) (already up to date)"
+                    )
                 else:
-                    print(f"[NO-CHANGE] BUILD_HISTORY.md: {total_entries} build(s) (already up to date)")
+                    print(
+                        f"[NO-CHANGE] BUILD_HISTORY.md: {total_entries} build(s) (already up to date)"
+                    )
     else:
         print(f"[SKIP] BUILD_HISTORY.md not found: {build_history_path}")
 
     # Process DEBUG_LOG.md
     debug_log_path = docs_dir / "DEBUG_LOG.md"
     if debug_log_path.exists():
-        content = debug_log_path.read_text(encoding='utf-8')
+        content = debug_log_path.read_text(encoding="utf-8")
         count = count_debug_log_entries(content, verbose=verbose)
-        results['DEBUG_LOG.md'] = count
+        results["DEBUG_LOG.md"] = count
 
-        new_content, changed = update_summary_section(content, count, 'debug_log')
+        new_content, changed = update_summary_section(content, count, "debug_log")
         meta_updates = {
             "Last_Updated": datetime.now().isoformat() + "Z",
             "Total_Issues": str(count),
@@ -595,7 +623,9 @@ def refresh_sot_summaries(
         if changed:
             changes_detected = True
             if dry_run or check_mode:
-                print(f"[{'CHECK' if check_mode else 'DRY-RUN'}] Would update DEBUG_LOG.md summary: {count} debug session(s)")
+                print(
+                    f"[{'CHECK' if check_mode else 'DRY-RUN'}] Would update DEBUG_LOG.md summary: {count} debug session(s)"
+                )
             else:
                 atomic_write(debug_log_path, new_content)
                 print(f"[UPDATED] DEBUG_LOG.md: {count} debug session(s)")
@@ -608,11 +638,11 @@ def refresh_sot_summaries(
     # Process ARCHITECTURE_DECISIONS.md
     arch_decisions_path = docs_dir / "ARCHITECTURE_DECISIONS.md"
     if arch_decisions_path.exists():
-        content = arch_decisions_path.read_text(encoding='utf-8')
+        content = arch_decisions_path.read_text(encoding="utf-8")
         count = count_architecture_decisions(content, verbose=verbose)
-        results['ARCHITECTURE_DECISIONS.md'] = count
+        results["ARCHITECTURE_DECISIONS.md"] = count
 
-        new_content, changed = update_summary_section(content, count, 'architecture_decisions')
+        new_content, changed = update_summary_section(content, count, "architecture_decisions")
         meta_updates = {
             "Last_Updated": datetime.now().isoformat() + "Z",
             "Total_Decisions": str(count),
@@ -625,13 +655,17 @@ def refresh_sot_summaries(
         if changed:
             changes_detected = True
             if dry_run or check_mode:
-                print(f"[{'CHECK' if check_mode else 'DRY-RUN'}] Would update ARCHITECTURE_DECISIONS.md summary: {count} decision(s)")
+                print(
+                    f"[{'CHECK' if check_mode else 'DRY-RUN'}] Would update ARCHITECTURE_DECISIONS.md summary: {count} decision(s)"
+                )
             else:
                 atomic_write(arch_decisions_path, new_content)
                 print(f"[UPDATED] ARCHITECTURE_DECISIONS.md: {count} decision(s)")
         else:
             if verbose:
-                print(f"[NO-CHANGE] ARCHITECTURE_DECISIONS.md: {count} decision(s) (already up to date)")
+                print(
+                    f"[NO-CHANGE] ARCHITECTURE_DECISIONS.md: {count} decision(s) (already up to date)"
+                )
     else:
         print(f"[SKIP] ARCHITECTURE_DECISIONS.md not found: {arch_decisions_path}")
 
@@ -665,7 +699,9 @@ def refresh_sot_summaries(
         if readme_changed:
             changes_detected = True
             if verbose or check_mode:
-                print(f"[{'CHECK' if check_mode else 'DRY-RUN' if dry_run else 'UPDATED'}] README.md SOT summary block")
+                print(
+                    f"[{'CHECK' if check_mode else 'DRY-RUN' if dry_run else 'UPDATED'}] README.md SOT summary block"
+                )
 
     return results, changes_detected
 
@@ -674,19 +710,22 @@ def main():
     parser = argparse.ArgumentParser(
         description="Refresh SOT summary counts in docs/*.md files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
+        epilog=__doc__,
     )
 
-    parser.add_argument("--dry-run", action="store_true", default=True,
-                        help="Dry run only (default)")
-    parser.add_argument("--execute", action="store_true",
-                        help="Execute changes (overrides --dry-run)")
-    parser.add_argument("--check", action="store_true",
-                        help="Check mode: exit 1 if any derived state would change, 0 otherwise (for CI)")
-    parser.add_argument("--project", default="autopack",
-                        help="Project scope (default: autopack)")
-    parser.add_argument("--verbose", action="store_true",
-                        help="Verbose output")
+    parser.add_argument(
+        "--dry-run", action="store_true", default=True, help="Dry run only (default)"
+    )
+    parser.add_argument(
+        "--execute", action="store_true", help="Execute changes (overrides --dry-run)"
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Check mode: exit 1 if any derived state would change, 0 otherwise (for CI)",
+    )
+    parser.add_argument("--project", default="autopack", help="Project scope (default: autopack)")
+    parser.add_argument("--verbose", action="store_true", help="Verbose output")
 
     args = parser.parse_args()
 
@@ -711,16 +750,13 @@ def main():
     print(f"Project: {args.project}")
     print(f"Docs dir: {docs_dir}")
     if check_mode:
-        print(f"Mode: CHECK (drift detection for CI)")
+        print("Mode: CHECK (drift detection for CI)")
     else:
         print(f"Mode: {'DRY-RUN' if dry_run else 'EXECUTE'}")
     print("=" * 70)
 
     results, changes_detected = refresh_sot_summaries(
-        docs_dir,
-        dry_run=dry_run,
-        verbose=args.verbose,
-        check_mode=check_mode
+        docs_dir, dry_run=dry_run, verbose=args.verbose, check_mode=check_mode
     )
 
     print("\n" + "=" * 70)

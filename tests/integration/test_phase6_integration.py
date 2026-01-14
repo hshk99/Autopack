@@ -274,7 +274,6 @@ class TestParallelExecutionIntegration:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             # Setup mocks
             def create_workspace_mock(run_id, **kwargs):
                 mock = MagicMock()

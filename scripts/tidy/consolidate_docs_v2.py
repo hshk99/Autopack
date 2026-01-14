@@ -38,6 +38,7 @@ from classification_auditor import ClassificationAuditor
 # STATUS AUDITOR - Determines if content is implemented/rejected/pending
 # ============================================================================
 
+
 class StatusAuditor:
     """Infers status of archive content by cross-referencing with project state."""
 
@@ -75,29 +76,33 @@ class StatusAuditor:
             content = file_path.read_text(encoding="utf-8")
 
             # Try Autopack format first (### Task N with **Phase ID** and **Status**)
-            lines = content.split('\n')
+            lines = content.split("\n")
             i = 0
             while i < len(lines):
                 line = lines[i]
 
                 # Detect Autopack task headers: "### Task N:"
-                if re.match(r'^###\s+Task\s+\d+:', line, re.IGNORECASE):
-                    task_name = line.replace('###', '').strip()
+                if re.match(r"^###\s+Task\s+\d+:", line, re.IGNORECASE):
+                    task_name = line.replace("###", "").strip()
                     phase_id = None
                     status = None
 
                     # Scan next lines for Phase ID and Status
                     j = i + 1
-                    while j < len(lines) and not lines[j].startswith('###') and not lines[j].startswith('---'):
+                    while (
+                        j < len(lines)
+                        and not lines[j].startswith("###")
+                        and not lines[j].startswith("---")
+                    ):
                         curr_line = lines[j]
 
                         # Extract Phase ID
-                        phase_match = re.match(r'\*\*Phase ID\*\*:\s*`(.+?)`', curr_line)
+                        phase_match = re.match(r"\*\*Phase ID\*\*:\s*`(.+?)`", curr_line)
                         if phase_match:
                             phase_id = phase_match.group(1)
 
                         # Extract Status
-                        status_match = re.match(r'\*\*Status\*\*:\s*(.+)', curr_line)
+                        status_match = re.match(r"\*\*Status\*\*:\s*(.+)", curr_line)
                         if status_match:
                             status = status_match.group(1).strip()
 
@@ -107,13 +112,25 @@ class StatusAuditor:
                     if status:
                         status_lower = status.lower()
                         # Check for completion indicators
-                        if any(keyword in status_lower for keyword in ['complete', 'done', 'finished', 'implemented']):
+                        if any(
+                            keyword in status_lower
+                            for keyword in ["complete", "done", "finished", "implemented"]
+                        ):
                             if task_name:
                                 self.completed_tasks.add(task_name.lower())
                             if phase_id:
                                 self.completed_tasks.add(phase_id.lower())
                         # Check for active/in-progress indicators
-                        elif any(keyword in status_lower for keyword in ['in progress', 'started', 'ongoing', 'dependency', 'current']):
+                        elif any(
+                            keyword in status_lower
+                            for keyword in [
+                                "in progress",
+                                "started",
+                                "ongoing",
+                                "dependency",
+                                "current",
+                            ]
+                        ):
                             if task_name:
                                 self.active_tasks.add(task_name.lower())
                             if phase_id:
@@ -124,20 +141,24 @@ class StatusAuditor:
 
                 # Fallback: Try classic section-based format
                 # Detect section headers
-                if re.match(r'^##\s+(Completed|Done|Implemented)', line, re.IGNORECASE):
+                if re.match(r"^##\s+(Completed|Done|Implemented)", line, re.IGNORECASE):
                     current_section = "completed"
-                elif re.match(r'^##\s+(In Progress|Active|Current)', line, re.IGNORECASE):
+                elif re.match(r"^##\s+(In Progress|Active|Current)", line, re.IGNORECASE):
                     current_section = "active"
-                elif re.match(r'^##\s+(Todo|Planned|Future)', line, re.IGNORECASE):
+                elif re.match(r"^##\s+(Todo|Planned|Future)", line, re.IGNORECASE):
                     current_section = "todo"
-                elif line.startswith('##'):
+                elif line.startswith("##"):
                     current_section = None
 
                 # Extract tasks from bullet lists
-                if 'current_section' in locals() and current_section and line.strip().startswith(('-', '*', '+')):
+                if (
+                    "current_section" in locals()
+                    and current_section
+                    and line.strip().startswith(("-", "*", "+"))
+                ):
                     task = line.strip()[1:].strip()
                     # Remove checkboxes
-                    task = re.sub(r'^\[[ xX]\]\s*', '', task)
+                    task = re.sub(r"^\[[ xX]\]\s*", "", task)
 
                     if current_section == "completed":
                         self.completed_tasks.add(task.lower())
@@ -158,16 +179,18 @@ class StatusAuditor:
                     content = py_file.read_text(encoding="utf-8")
 
                     # Extract imports
-                    imports = re.findall(r'^(?:from|import)\s+(\w+)', content, re.MULTILINE)
+                    imports = re.findall(r"^(?:from|import)\s+(\w+)", content, re.MULTILINE)
                     self.codebase_keywords.update(imports)
 
                     # Extract class names
-                    classes = re.findall(r'^class\s+(\w+)', content, re.MULTILINE)
+                    classes = re.findall(r"^class\s+(\w+)", content, re.MULTILINE)
                     self.codebase_keywords.update(classes)
 
                     # Extract function names (major ones only)
-                    functions = re.findall(r'^def\s+(\w+)', content, re.MULTILINE)
-                    self.codebase_keywords.update(f[:20] for f in functions)  # Limit to first 20 chars
+                    functions = re.findall(r"^def\s+(\w+)", content, re.MULTILINE)
+                    self.codebase_keywords.update(
+                        f[:20] for f in functions
+                    )  # Limit to first 20 chars
 
                 except Exception:
                     continue
@@ -234,10 +257,10 @@ class StatusAuditor:
 
         # Common technology patterns
         tech_patterns = [
-            r'\b(qdrant|redis|postgresql|sqlite|docker|kubernetes)\b',
-            r'\b(jwt|oauth|authentication|authorization)\b',
-            r'\b(fastapi|django|flask|express)\b',
-            r'\b(react|vue|angular|svelte)\b',
+            r"\b(qdrant|redis|postgresql|sqlite|docker|kubernetes)\b",
+            r"\b(jwt|oauth|authentication|authorization)\b",
+            r"\b(fastapi|django|flask|express)\b",
+            r"\b(react|vue|angular|svelte)\b",
         ]
 
         for pattern in tech_patterns:
@@ -249,26 +272,26 @@ class StatusAuditor:
     def _has_rejection_markers(self, content: str) -> bool:
         """Detect explicit rejection language."""
         rejection_patterns = [
-            r'decided not to',
-            r'abandoned',
-            r'superseded by',
-            r'too complex',
-            r'won\'t implement',
-            r'rejected because',
-            r'not feasible',
-            r'decided against',
+            r"decided not to",
+            r"abandoned",
+            r"superseded by",
+            r"too complex",
+            r"won\'t implement",
+            r"rejected because",
+            r"not feasible",
+            r"decided against",
         ]
         return any(re.search(p, content, re.IGNORECASE) for p in rejection_patterns)
 
     def _has_implementation_markers(self, content: str) -> bool:
         """Detect implementation completion language."""
         implementation_patterns = [
-            r'implemented',
-            r'completed',
-            r'deployed',
-            r'merged',
-            r'live in production',
-            r'successfully integrated',
+            r"implemented",
+            r"completed",
+            r"deployed",
+            r"merged",
+            r"live in production",
+            r"successfully integrated",
         ]
         return any(re.search(p, content, re.IGNORECASE) for p in implementation_patterns)
 
@@ -291,13 +314,13 @@ class StatusAuditor:
     def _is_research_content(self, content: str) -> bool:
         """Detect research/reference value."""
         research_indicators = [
-            r'comparison of',
-            r'evaluation of',
-            r'benchmark',
-            r'literature review',
-            r'market research',
-            r'pros and cons',
-            r'trade-?offs?',
+            r"comparison of",
+            r"evaluation of",
+            r"benchmark",
+            r"literature review",
+            r"market research",
+            r"pros and cons",
+            r"trade-?offs?",
         ]
         return any(re.search(p, content, re.IGNORECASE) for p in research_indicators)
 
@@ -306,9 +329,11 @@ class StatusAuditor:
 # DATA STRUCTURES
 # ============================================================================
 
+
 @dataclass
 class DocumentEntry:
     """Represents a single entry to be consolidated."""
+
     entry_id: str  # BUILD-089, DBG-042, DEC-015
     timestamp: datetime
     title: str
@@ -447,9 +472,21 @@ CLASSIFICATION_PATTERNS = {
             r"Deployed:",
         ],
         "keywords": [
-            "implemented", "added", "created", "integrated", "built",
-            "deployment", "release", "feature", "enhancement", "refactor",
-            "complete", "setup", "install", "configure", "transition"
+            "implemented",
+            "added",
+            "created",
+            "integrated",
+            "built",
+            "deployment",
+            "release",
+            "feature",
+            "enhancement",
+            "refactor",
+            "complete",
+            "setup",
+            "install",
+            "configure",
+            "transition",
         ],
     },
     "debug": {
@@ -478,9 +515,22 @@ CLASSIFICATION_PATTERNS = {
             r"Verification:",
         ],
         "keywords": [
-            "error", "failed", "bug", "fix", "issue", "problem",
-            "exception", "traceback", "stack trace", "crash", "failure",
-            "test", "verify", "troubleshoot", "debug", "resolve"
+            "error",
+            "failed",
+            "bug",
+            "fix",
+            "issue",
+            "problem",
+            "exception",
+            "traceback",
+            "stack trace",
+            "crash",
+            "failure",
+            "test",
+            "verify",
+            "troubleshoot",
+            "debug",
+            "resolve",
         ],
     },
     "decision": {
@@ -509,9 +559,21 @@ CLASSIFICATION_PATTERNS = {
             r"Approach:",
         ],
         "keywords": [
-            "decision", "architecture", "strategy", "research", "analysis",
-            "comparison", "evaluation", "rationale", "approach", "design",
-            "plan", "assessment", "consideration", "option", "trade-off"
+            "decision",
+            "architecture",
+            "strategy",
+            "research",
+            "analysis",
+            "comparison",
+            "evaluation",
+            "rationale",
+            "approach",
+            "design",
+            "plan",
+            "assessment",
+            "consideration",
+            "option",
+            "trade-off",
         ],
     },
 }
@@ -521,10 +583,17 @@ CLASSIFICATION_PATTERNS = {
 # DOCUMENT CONSOLIDATOR
 # ============================================================================
 
+
 class DocumentConsolidator:
     """Main consolidation engine."""
 
-    def __init__(self, project_dir: Path, dry_run: bool = False, run_id: Optional[str] = None, project_id: Optional[str] = None):
+    def __init__(
+        self,
+        project_dir: Path,
+        dry_run: bool = False,
+        run_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+    ):
         self.project_dir = project_dir
         self.dry_run = dry_run
         self.docs_dir = project_dir / "docs"
@@ -555,19 +624,22 @@ class DocumentConsolidator:
 
         # Override flags for automated workflows (e.g., research consolidation)
         self.force_status: Optional[str] = None  # Force all entries to this status
-        self.force_category: Optional[str] = None  # Force all entries to this category (build/debug/decision)
+        self.force_category: Optional[str] = (
+            None  # Force all entries to this category (build/debug/decision)
+        )
 
         # Database logging (replaces audit reports)
         from tidy_logger import TidyLogger
+
         self.run_id = run_id or str(uuid.uuid4())
         self.project_id = project_id or "autopack"
         self.logger = TidyLogger(project_dir, project_id=self.project_id)
 
     def consolidate(self):
         """Main consolidation workflow with status auditing."""
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print(f"DOCUMENTATION CONSOLIDATION - {self.project_dir.name}")
-        print(f"{'='*80}\n")
+        print(f"{'=' * 80}\n")
 
         # Step 0: Initialize auditors
         print("[0] Initializing auditors...")
@@ -578,7 +650,7 @@ class DocumentConsolidator:
         # Files below 0.60 confidence will be reviewed by LLM
         self.classification_auditor = ClassificationAuditor(
             audit_threshold=0.60,  # Review everything below 0.60
-            enable_auto_override=True
+            enable_auto_override=True,
         )
         print("  [ClassificationAuditor] Initialized (threshold=0.60)")
 
@@ -597,9 +669,9 @@ class DocumentConsolidator:
         # Step 5: Delete old CONSOLIDATED files
         self._cleanup_old_files()
 
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print("CONSOLIDATION COMPLETE")
-        print(f"{'='*80}\n")
+        print(f"{'=' * 80}\n")
 
     def _process_consolidated_files(self):
         """Process existing CONSOLIDATED_*.md files."""
@@ -631,7 +703,11 @@ class DocumentConsolidator:
 
         for file_path in md_files:
             # Skip excluded directories
-            if any(file_path.is_relative_to(excluded) for excluded in exclusion_paths if excluded.exists()):
+            if any(
+                file_path.is_relative_to(excluded)
+                for excluded in exclusion_paths
+                if excluded.exists()
+            ):
                 print(f"  [SKIP] Excluded: {file_path.relative_to(self.project_dir)}")
                 continue
 
@@ -659,7 +735,9 @@ class DocumentConsolidator:
 
         # STEP 1: Infer status (NEW - Status Auditor)
         timestamp = self._extract_timestamp(file_path, content) or datetime.now()
-        status = self.force_status or (self.auditor.infer_status(file_path, content, timestamp) if self.auditor else "UNKNOWN")
+        status = self.force_status or (
+            self.auditor.infer_status(file_path, content, timestamp) if self.auditor else "UNKNOWN"
+        )
 
         # STEP 2: Calculate confidence scores for each category (Existing)
         scores = {
@@ -672,7 +750,9 @@ class DocumentConsolidator:
         best_confidence = scores[best_category] if not self.force_category else 1.0
 
         # STEP 3: Status-aware routing (NEW - combines status + category)
-        routed = self._route_by_status(file_path, content, status, best_category, best_confidence, scores)
+        routed = self._route_by_status(
+            file_path, content, status, best_category, best_confidence, scores
+        )
 
         if not routed:
             # Fallback to confidence-based classification with tiered thresholds
@@ -685,31 +765,60 @@ class DocumentConsolidator:
 
                 # First: Check if this is a schema/spec file (always goes to ARCHITECTURE_DECISIONS)
                 if self._is_schema_or_spec_file(file_path, content):
-                    print(f"    [SCHEMA/SPEC] High confidence ({best_confidence:.2f}) schema/spec file → ARCHITECTURE_DECISIONS")
-                    self._extract_entries(file_path, content, "decision", status="REFERENCE",
-                                        metadata={"reference": True, "permanent": True,
-                                                "original_category": best_category,
-                                                "confidence": best_confidence,
-                                                "file_type": "schema"})
+                    print(
+                        f"    [SCHEMA/SPEC] High confidence ({best_confidence:.2f}) schema/spec file → ARCHITECTURE_DECISIONS"
+                    )
+                    self._extract_entries(
+                        file_path,
+                        content,
+                        "decision",
+                        status="REFERENCE",
+                        metadata={
+                            "reference": True,
+                            "permanent": True,
+                            "original_category": best_category,
+                            "confidence": best_confidence,
+                            "file_type": "schema",
+                        },
+                    )
 
                 # Second: Check if this is reference documentation (tutorials, guides, quickstarts)
                 elif self._is_reference_documentation(file_path, content):
-                    print(f"    [REFERENCE_DOC] High confidence ({best_confidence:.2f}) reference docs → ARCHITECTURE_DECISIONS")
-                    self._extract_entries(file_path, content, "decision", status="REFERENCE",
-                                        metadata={"reference": True, "permanent": True,
-                                                "original_category": best_category,
-                                                "confidence": best_confidence,
-                                                "file_type": "reference_doc"})
+                    print(
+                        f"    [REFERENCE_DOC] High confidence ({best_confidence:.2f}) reference docs → ARCHITECTURE_DECISIONS"
+                    )
+                    self._extract_entries(
+                        file_path,
+                        content,
+                        "decision",
+                        status="REFERENCE",
+                        metadata={
+                            "reference": True,
+                            "permanent": True,
+                            "original_category": best_category,
+                            "confidence": best_confidence,
+                            "file_type": "reference_doc",
+                        },
+                    )
 
                 # Third: Check if BUILD_HISTORY-bound content has strategic indicators
                 elif best_category == "build" and self._is_strategic_content(content):
                     # High-confidence implementation plan with strategic content
                     # Route to BUILD_HISTORY but flag for review
-                    print(f"    [HIGH_CONFIDENCE_STRATEGIC] {best_category} ({best_confidence:.2f}) but has strategic content - flagged for review")
-                    self._extract_entries(file_path, content, best_category, status=status,
-                                        metadata={"has_strategic_content": True,
-                                                "needs_review": True,
-                                                "confidence": best_confidence})
+                    print(
+                        f"    [HIGH_CONFIDENCE_STRATEGIC] {best_category} ({best_confidence:.2f}) but has strategic content - flagged for review"
+                    )
+                    self._extract_entries(
+                        file_path,
+                        content,
+                        best_category,
+                        status=status,
+                        metadata={
+                            "has_strategic_content": True,
+                            "needs_review": True,
+                            "confidence": best_confidence,
+                        },
+                    )
                 else:
                     # Pure high-confidence content - safe to auto-route
                     self._extract_entries(file_path, content, best_category, status=status)
@@ -718,19 +827,38 @@ class DocumentConsolidator:
                 # Check if this is strategic content that shouldn't be in BUILD_HISTORY
                 if best_category == "build" and self._is_strategic_content(content):
                     # Strategic content with medium confidence → send to ARCHITECTURE_DECISIONS
-                    print(f"    [STRATEGIC] Medium confidence ({best_confidence:.2f}) strategic content → ARCHITECTURE_DECISIONS")
-                    self._extract_entries(file_path, content, "decision", status="REFERENCE",
-                                        metadata={"reference": True, "needs_review": True,
-                                                "original_category": best_category,
-                                                "confidence": best_confidence})
+                    print(
+                        f"    [STRATEGIC] Medium confidence ({best_confidence:.2f}) strategic content → ARCHITECTURE_DECISIONS"
+                    )
+                    self._extract_entries(
+                        file_path,
+                        content,
+                        "decision",
+                        status="REFERENCE",
+                        metadata={
+                            "reference": True,
+                            "needs_review": True,
+                            "original_category": best_category,
+                            "confidence": best_confidence,
+                        },
+                    )
                 else:
                     # Non-strategic content with medium confidence → route to best category
-                    self._extract_entries(file_path, content, best_category, status=status,
-                                        metadata={"needs_review": True, "confidence": best_confidence})
-                    print(f"    [MEDIUM_CONFIDENCE] Routed to {best_category} (confidence: {best_confidence:.2f})")
+                    self._extract_entries(
+                        file_path,
+                        content,
+                        best_category,
+                        status=status,
+                        metadata={"needs_review": True, "confidence": best_confidence},
+                    )
+                    print(
+                        f"    [MEDIUM_CONFIDENCE] Routed to {best_category} (confidence: {best_confidence:.2f})"
+                    )
             else:
                 # Low confidence (< 0.60) - use LLM auditor for deep analysis
-                print(f"    [LOW_CONFIDENCE] Confidence too low ({best_confidence:.2f}), invoking ClassificationAuditor...")
+                print(
+                    f"    [LOW_CONFIDENCE] Confidence too low ({best_confidence:.2f}), invoking ClassificationAuditor..."
+                )
 
                 # Prepare classifier result in auditor's expected format
                 # Map our categories to file types: build -> plan, debug -> log, decision -> decision
@@ -741,21 +869,44 @@ class DocumentConsolidator:
 
                 # Ask auditor to review
                 if self.classification_auditor:
-                    approved, final_project, final_type, final_dest, final_confidence, audit_reason = \
-                        self.classification_auditor.audit_classification(file_path, content, classifier_result)
+                    (
+                        approved,
+                        final_project,
+                        final_type,
+                        final_dest,
+                        final_confidence,
+                        audit_reason,
+                    ) = self.classification_auditor.audit_classification(
+                        file_path, content, classifier_result
+                    )
 
                     if approved:
                         # Auditor approved or overrode - map back to our categories
-                        type_to_category = {"plan": "build", "log": "debug", "decision": "decision",
-                                          "analysis": "build", "report": "build", "script": "build"}
+                        type_to_category = {
+                            "plan": "build",
+                            "log": "debug",
+                            "decision": "decision",
+                            "analysis": "build",
+                            "report": "build",
+                            "script": "build",
+                        }
                         final_category = type_to_category.get(final_type, best_category)
 
-                        print(f"    [AUDITOR_APPROVED] {final_category} (confidence: {final_confidence:.2f}) - {audit_reason}")
-                        self._extract_entries(file_path, content, final_category, status=status,
-                                            metadata={"auditor_approved": True,
-                                                    "original_confidence": best_confidence,
-                                                    "final_confidence": final_confidence,
-                                                    "audit_reason": audit_reason})
+                        print(
+                            f"    [AUDITOR_APPROVED] {final_category} (confidence: {final_confidence:.2f}) - {audit_reason}"
+                        )
+                        self._extract_entries(
+                            file_path,
+                            content,
+                            final_category,
+                            status=status,
+                            metadata={
+                                "auditor_approved": True,
+                                "original_confidence": best_confidence,
+                                "final_confidence": final_confidence,
+                                "audit_reason": audit_reason,
+                            },
+                        )
                     else:
                         # Auditor flagged for manual review
                         self.unsorted_entries.append((file_path, best_confidence, scores, status))
@@ -763,7 +914,7 @@ class DocumentConsolidator:
                 else:
                     # No auditor available - fall back to manual review
                     self.unsorted_entries.append((file_path, best_confidence, scores, status))
-                    print(f"    [UNSORTED] No auditor available, manual review required")
+                    print("    [UNSORTED] No auditor available, manual review required")
 
     def _is_schema_or_spec_file(self, file_path: Path, content: str) -> bool:
         """
@@ -774,23 +925,29 @@ class DocumentConsolidator:
         """
         # Check filename
         filename_lower = file_path.name.lower()
-        if any(keyword in filename_lower for keyword in ['schema', 'spec', 'specification', 'reference']):
+        if any(
+            keyword in filename_lower
+            for keyword in ["schema", "spec", "specification", "reference"]
+        ):
             return True
 
         # Check content structure (schema files have specific patterns)
         schema_indicators = [
-            r'##\s+(Core\s+)?Fields',
-            r'\*\*Type\*\*:',
-            r'\*\*Purpose\*\*:',
-            r'\*\*Default\*\*:',
-            r'##\s+Schema',
-            r'##\s+Structure',
-            r'##\s+API\s+Reference',
-            r'##\s+Configuration\s+Reference',
+            r"##\s+(Core\s+)?Fields",
+            r"\*\*Type\*\*:",
+            r"\*\*Purpose\*\*:",
+            r"\*\*Default\*\*:",
+            r"##\s+Schema",
+            r"##\s+Structure",
+            r"##\s+API\s+Reference",
+            r"##\s+Configuration\s+Reference",
         ]
 
-        indicator_count = sum(1 for pattern in schema_indicators
-                            if re.search(pattern, content, re.IGNORECASE | re.MULTILINE))
+        indicator_count = sum(
+            1
+            for pattern in schema_indicators
+            if re.search(pattern, content, re.IGNORECASE | re.MULTILINE)
+        )
 
         # File is a schema/spec if it has filename match OR >=2 content indicators
         return indicator_count >= 2
@@ -804,22 +961,31 @@ class DocumentConsolidator:
         """
         # Check filename
         filename_lower = file_path.name.lower()
-        if any(keyword in filename_lower for keyword in [
-            'quickstart', 'quick_start', 'guide', 'tutorial',
-            'readme', 'getting_started', 'how_to', 'user_guide'
-        ]):
+        if any(
+            keyword in filename_lower
+            for keyword in [
+                "quickstart",
+                "quick_start",
+                "guide",
+                "tutorial",
+                "readme",
+                "getting_started",
+                "how_to",
+                "user_guide",
+            ]
+        ):
             return True
 
         # Check content header (first 500 chars)
         header = content[:500].lower() if len(content) >= 500 else content.lower()
         header_indicators = [
-            '# quickstart',
-            '# getting started',
-            '# tutorial',
-            '# user guide',
-            'step-by-step',
-            'before you begin',
-            '## pre-flight checklist',
+            "# quickstart",
+            "# getting started",
+            "# tutorial",
+            "# user guide",
+            "step-by-step",
+            "before you begin",
+            "## pre-flight checklist",
         ]
 
         if any(pattern in header for pattern in header_indicators):
@@ -841,71 +1007,92 @@ class DocumentConsolidator:
         """
         strategic_indicators = [
             # Market/Business Strategy
-            r'\b(market\s+research|TAM|total\s+addressable\s+market|business\s+model|revenue\s+model)\b',
-            r'\b(competitive\s+analysis|competitor|market\s+opportunity|market\s+size)\b',
-            r'\b(go-to-market|GTM|pricing\s+strategy|monetization)\b',
-
+            r"\b(market\s+research|TAM|total\s+addressable\s+market|business\s+model|revenue\s+model)\b",
+            r"\b(competitive\s+analysis|competitor|market\s+opportunity|market\s+size)\b",
+            r"\b(go-to-market|GTM|pricing\s+strategy|monetization)\b",
             # Architectural/Design
-            r'\b(architecture\s+decision|design\s+pattern|system\s+design|architectural\s+trade-?off)\b',
-            r'\b(scalability|performance\s+analysis|load\s+testing\s+strategy)\b',
-            r'\b(microservices|monolith|service-oriented|event-driven)\b',
-
+            r"\b(architecture\s+decision|design\s+pattern|system\s+design|architectural\s+trade-?off)\b",
+            r"\b(scalability|performance\s+analysis|load\s+testing\s+strategy)\b",
+            r"\b(microservices|monolith|service-oriented|event-driven)\b",
             # Technology Evaluation
-            r'\b(technology\s+evaluation|framework\s+comparison|library\s+comparison)\b',
-            r'\b(pros\s+and\s+cons|trade-?offs|alternatives\s+considered)\b',
-            r'\b(evaluation\s+criteria|selection\s+criteria|decision\s+matrix)\b',
-
+            r"\b(technology\s+evaluation|framework\s+comparison|library\s+comparison)\b",
+            r"\b(pros\s+and\s+cons|trade-?offs|alternatives\s+considered)\b",
+            r"\b(evaluation\s+criteria|selection\s+criteria|decision\s+matrix)\b",
             # Strategic Planning
-            r'\b(roadmap|strategic\s+plan|long-?term\s+plan|vision)\b',
-            r'\b(risk\s+analysis|risk\s+assessment|mitigation\s+strategy)\b',
-            r'\b(technical\s+debt|refactoring\s+strategy|migration\s+plan)\b',
-
+            r"\b(roadmap|strategic\s+plan|long-?term\s+plan|vision)\b",
+            r"\b(risk\s+analysis|risk\s+assessment|mitigation\s+strategy)\b",
+            r"\b(technical\s+debt|refactoring\s+strategy|migration\s+plan)\b",
             # Templates / Frameworks (reusable strategic tools)
-            r'##\s+(template|framework|checklist|guidelines)',
-            r'\{[a-z_]+\}',  # Template placeholders like {product_name}
+            r"##\s+(template|framework|checklist|guidelines)",
+            r"\{[a-z_]+\}",  # Template placeholders like {product_name}
         ]
 
         # Count how many strategic indicators are present
-        indicator_count = sum(1 for pattern in strategic_indicators
-                            if re.search(pattern, content, re.IGNORECASE | re.MULTILINE))
+        indicator_count = sum(
+            1
+            for pattern in strategic_indicators
+            if re.search(pattern, content, re.IGNORECASE | re.MULTILINE)
+        )
 
         # Content is strategic if it has >= 3 indicators
         # OR if it's explicitly a template/framework (placeholder pattern)
-        has_template_placeholders = bool(re.search(r'\{[a-z_]+\}', content))
+        has_template_placeholders = bool(re.search(r"\{[a-z_]+\}", content))
 
         return indicator_count >= 3 or has_template_placeholders
 
-    def _route_by_status(self, file_path: Path, content: str, status: str,
-                         category: str, confidence: float, scores: Dict[str, float]) -> bool:
+    def _route_by_status(
+        self,
+        file_path: Path,
+        content: str,
+        status: str,
+        category: str,
+        confidence: float,
+        scores: Dict[str, float],
+    ) -> bool:
         """Route content based on inferred status. Returns True if routed, False if fallback needed."""
 
         if status == "IMPLEMENTED":
             # Implemented features → BUILD_HISTORY
-            self._extract_entries(file_path, content, "build", status=status,
-                                metadata={"implementation_status": "✅ Implemented"})
+            self._extract_entries(
+                file_path,
+                content,
+                "build",
+                status=status,
+                metadata={"implementation_status": "✅ Implemented"},
+            )
             return True
 
         elif status == "REJECTED" or status == "REJECTED_OBSOLETE":
             # Rejected plans → ARCHITECTURE_DECISIONS with rejection context
-            self._extract_entries(file_path, content, "decision", status=status,
-                                metadata={"decision_status": "❌ Rejected", "permanent": False})
+            self._extract_entries(
+                file_path,
+                content,
+                "decision",
+                status=status,
+                metadata={"decision_status": "❌ Rejected", "permanent": False},
+            )
             return True
 
         elif status == "PENDING_ACTIVE":
             # Check if already in FUTURE_PLAN
-            print(f"    [SKIP] Active task already in FUTURE_PLAN")
+            print("    [SKIP] Active task already in FUTURE_PLAN")
             return True  # Skip consolidation
 
         elif status == "REFERENCE":
             # Research/reference → ARCHITECTURE_DECISIONS (permanent)
-            self._extract_entries(file_path, content, "decision", status=status,
-                                metadata={"reference": True, "permanent": True})
+            self._extract_entries(
+                file_path,
+                content,
+                "decision",
+                status=status,
+                metadata={"reference": True, "permanent": True},
+            )
             return True
 
         elif status == "STALE" or status == "STALE_IMPLEMENTATION":
             # Stale content → Manual review with warning
             self.unsorted_entries.append((file_path, confidence, scores, status))
-            print(f"    [UNSORTED] STALE content (age >180 days), manual review required")
+            print("    [UNSORTED] STALE content (age >180 days), manual review required")
             return True
 
         # UNKNOWN status → use confidence-based fallback
@@ -969,10 +1156,10 @@ class DocumentConsolidator:
                 cwd=self.project_dir,
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
             if result.returncode == 0 and result.stdout.strip():
-                dt = datetime.fromisoformat(result.stdout.strip().replace('+00:00', ''))
+                dt = datetime.fromisoformat(result.stdout.strip().replace("+00:00", ""))
                 # Normalize to naive datetime
                 if dt.tzinfo is not None:
                     dt = dt.replace(tzinfo=None)
@@ -994,8 +1181,8 @@ class DocumentConsolidator:
             if match:
                 try:
                     date_str = match.group(1)
-                    if 'T' in date_str or ' ' in date_str:
-                        dt = datetime.fromisoformat(date_str.replace(' ', 'T'))
+                    if "T" in date_str or " " in date_str:
+                        dt = datetime.fromisoformat(date_str.replace(" ", "T"))
                     else:
                         dt = datetime.fromisoformat(f"{date_str}T00:00:00")
                     # Normalize to naive datetime
@@ -1060,9 +1247,13 @@ class DocumentConsolidator:
         """
         # Category-specific prefixes
         prefix_patterns = {
-            "build": [r'\bBUILD-(\d{3})\b', r'\bBUILD-HASH-([a-f0-9]{8})\b'],
-            "debug": [r'\bDBG-(\d{3})\b', r'\bDBG-HASH-([a-f0-9]{8})\b'],
-            "decision": [r'\bDEC-(\d{3})\b', r'\bDEC-HASH-([a-f0-9]{8})\b', r'\bDECISION-(\d{3})\b'],
+            "build": [r"\bBUILD-(\d{3})\b", r"\bBUILD-HASH-([a-f0-9]{8})\b"],
+            "debug": [r"\bDBG-(\d{3})\b", r"\bDBG-HASH-([a-f0-9]{8})\b"],
+            "decision": [
+                r"\bDEC-(\d{3})\b",
+                r"\bDEC-HASH-([a-f0-9]{8})\b",
+                r"\bDECISION-(\d{3})\b",
+            ],
         }
 
         patterns = prefix_patterns.get(category, [])
@@ -1074,7 +1265,9 @@ class DocumentConsolidator:
 
         return None
 
-    def _stable_entry_id(self, prefix: str, source_path: str, heading: str, timestamp: datetime) -> str:
+    def _stable_entry_id(
+        self, prefix: str, source_path: str, heading: str, timestamp: datetime
+    ) -> str:
         """
         Generate stable entry ID from deterministic hash.
 
@@ -1098,8 +1291,14 @@ class DocumentConsolidator:
 
         return f"{prefix}-HASH-{hash_digest}"
 
-    def _extract_entries(self, file_path: Path, content: str, category: str,
-                         status: str = "UNKNOWN", metadata: Optional[Dict[str, any]] = None):
+    def _extract_entries(
+        self,
+        file_path: Path,
+        content: str,
+        category: str,
+        status: str = "UNKNOWN",
+        metadata: Optional[Dict[str, any]] = None,
+    ):
         """Extract entries from file based on category with status-aware metadata."""
         timestamp = self._extract_timestamp(file_path, content)
 
@@ -1118,10 +1317,7 @@ class DocumentConsolidator:
                 # Generate stable ID from content
                 heading = self._extract_title(file_path, content)
                 entry_id = self._stable_entry_id(
-                    "BUILD",
-                    str(file_path.relative_to(self.project_dir)),
-                    heading,
-                    timestamp
+                    "BUILD", str(file_path.relative_to(self.project_dir)), heading, timestamp
                 )
 
             # Extract build-specific metadata
@@ -1136,7 +1332,7 @@ class DocumentConsolidator:
                 category="build",
                 confidence=self._calculate_confidence(file_path, content, "build"),
                 source_file=str(file_path.relative_to(self.project_dir)),
-                metadata=build_metadata  # Use merged metadata
+                metadata=build_metadata,  # Use merged metadata
             )
             self.build_entries.append(entry)
 
@@ -1147,7 +1343,7 @@ class DocumentConsolidator:
                     action="consolidate",
                     src=str(file_path.relative_to(self.project_dir)),
                     dest="docs/BUILD_HISTORY.md",
-                    reason=f"BUILD entry: {entry_id} - {status}"
+                    reason=f"BUILD entry: {entry_id} - {status}",
                 )
 
         elif category == "debug":
@@ -1159,10 +1355,7 @@ class DocumentConsolidator:
                 # Generate stable ID from content
                 heading = self._extract_title(file_path, content)
                 entry_id = self._stable_entry_id(
-                    "DBG",
-                    str(file_path.relative_to(self.project_dir)),
-                    heading,
-                    timestamp
+                    "DBG", str(file_path.relative_to(self.project_dir)), heading, timestamp
                 )
 
             # Extract debug-specific metadata
@@ -1177,7 +1370,7 @@ class DocumentConsolidator:
                 category="debug",
                 confidence=self._calculate_confidence(file_path, content, "debug"),
                 source_file=str(file_path.relative_to(self.project_dir)),
-                metadata=debug_metadata  # Use merged metadata
+                metadata=debug_metadata,  # Use merged metadata
             )
             self.debug_entries.append(entry)
 
@@ -1188,7 +1381,7 @@ class DocumentConsolidator:
                     action="consolidate",
                     src=str(file_path.relative_to(self.project_dir)),
                     dest="docs/DEBUG_LOG.md",
-                    reason=f"DEBUG entry: {entry_id} - {status}"
+                    reason=f"DEBUG entry: {entry_id} - {status}",
                 )
 
         elif category == "decision":
@@ -1200,10 +1393,7 @@ class DocumentConsolidator:
                 # Generate stable ID from content
                 heading = self._extract_title(file_path, content)
                 entry_id = self._stable_entry_id(
-                    "DEC",
-                    str(file_path.relative_to(self.project_dir)),
-                    heading,
-                    timestamp
+                    "DEC", str(file_path.relative_to(self.project_dir)), heading, timestamp
                 )
 
             # Extract decision-specific metadata
@@ -1218,7 +1408,7 @@ class DocumentConsolidator:
                 category="decision",
                 confidence=self._calculate_confidence(file_path, content, "decision"),
                 source_file=str(file_path.relative_to(self.project_dir)),
-                metadata=decision_metadata  # Use merged metadata
+                metadata=decision_metadata,  # Use merged metadata
             )
             self.decision_entries.append(entry)
 
@@ -1229,7 +1419,7 @@ class DocumentConsolidator:
                     action="consolidate",
                     src=str(file_path.relative_to(self.project_dir)),
                     dest="docs/ARCHITECTURE_DECISIONS.md",
-                    reason=f"DECISION entry: {entry_id} - {status}"
+                    reason=f"DECISION entry: {entry_id} - {status}",
                 )
 
     def _extract_title(self, file_path: Path, content: str) -> str:
@@ -1245,19 +1435,19 @@ class DocumentConsolidator:
     def _extract_summary(self, content: str, max_length: int = 500) -> str:
         """Extract summary from content."""
         # Remove markdown headers
-        lines = content.split('\n')
+        lines = content.split("\n")
         clean_lines = []
 
         for line in lines:
             # Skip headers
-            if line.startswith('#'):
+            if line.startswith("#"):
                 continue
             # Skip empty lines
             if not line.strip():
                 continue
             clean_lines.append(line.strip())
 
-        summary = ' '.join(clean_lines)
+        summary = " ".join(clean_lines)
 
         if len(summary) > max_length:
             summary = summary[:max_length] + "..."
@@ -1288,7 +1478,9 @@ class DocumentConsolidator:
         metadata = {}
 
         # Extract root cause
-        match = re.search(r"Root Cause:?\s*\n(.+?)(?:\n\n|\n#|$)", content, re.DOTALL | re.IGNORECASE)
+        match = re.search(
+            r"Root Cause:?\s*\n(.+?)(?:\n\n|\n#|$)", content, re.DOTALL | re.IGNORECASE
+        )
         if match:
             metadata["root_cause"] = match.group(1).strip()
 
@@ -1312,12 +1504,18 @@ class DocumentConsolidator:
         metadata = {}
 
         # Extract rationale
-        match = re.search(r"Rationale:?\s*\n(.+?)(?:\n\n|\n#|$)", content, re.DOTALL | re.IGNORECASE)
+        match = re.search(
+            r"Rationale:?\s*\n(.+?)(?:\n\n|\n#|$)", content, re.DOTALL | re.IGNORECASE
+        )
         if match:
             metadata["rationale"] = match.group(1).strip()
 
         # Extract options
-        match = re.search(r"Options Considered:?\s*\n((?:[-*\d.]\s+.+\n?)+)", content, re.MULTILINE | re.IGNORECASE)
+        match = re.search(
+            r"Options Considered:?\s*\n((?:[-*\d.]\s+.+\n?)+)",
+            content,
+            re.MULTILINE | re.IGNORECASE,
+        )
         if match:
             options_text = match.group(1)
             options = re.findall(r"[-*\d.]\s+(.+)", options_text)
@@ -1339,9 +1537,15 @@ class DocumentConsolidator:
 
         # Sort entries by timestamp (most recent first)
         # Normalize timestamps to prevent offset-naive/offset-aware comparison errors
-        self.build_entries.sort(key=lambda e: self._normalize_timestamp_for_sort(e.timestamp), reverse=True)
-        self.debug_entries.sort(key=lambda e: self._normalize_timestamp_for_sort(e.timestamp), reverse=True)
-        self.decision_entries.sort(key=lambda e: self._normalize_timestamp_for_sort(e.timestamp), reverse=True)
+        self.build_entries.sort(
+            key=lambda e: self._normalize_timestamp_for_sort(e.timestamp), reverse=True
+        )
+        self.debug_entries.sort(
+            key=lambda e: self._normalize_timestamp_for_sort(e.timestamp), reverse=True
+        )
+        self.decision_entries.sort(
+            key=lambda e: self._normalize_timestamp_for_sort(e.timestamp), reverse=True
+        )
 
         # Generate BUILD_HISTORY.md
         self._generate_build_history()
@@ -1499,22 +1703,26 @@ class DocumentConsolidator:
             content += f"## `{rel_path}`\n\n"
             content += f"**Status**: {status}\n"
             content += f"**Best Match**: {max(scores, key=scores.get)} ({confidence:.2f})\n"
-            content += f"**Confidence Scores**:\n"
+            content += "**Confidence Scores**:\n"
             content += f"- BUILD_HISTORY: {scores['build']:.2f}\n"
             content += f"- DEBUG_LOG: {scores['debug']:.2f}\n"
             content += f"- ARCHITECTURE_DECISIONS: {scores['decision']:.2f}\n\n"
 
             # Status-based recommendation
             if status == "IMPLEMENTED":
-                content += f"**Recommendation**: Move to BUILD_HISTORY (implementation confirmed)\n"
+                content += "**Recommendation**: Move to BUILD_HISTORY (implementation confirmed)\n"
             elif status == "REJECTED":
-                content += f"**Recommendation**: Move to ARCHITECTURE_DECISIONS (rejected plan)\n"
+                content += "**Recommendation**: Move to ARCHITECTURE_DECISIONS (rejected plan)\n"
             elif status == "REFERENCE":
-                content += f"**Recommendation**: Move to ARCHITECTURE_DECISIONS (permanent reference)\n"
+                content += (
+                    "**Recommendation**: Move to ARCHITECTURE_DECISIONS (permanent reference)\n"
+                )
             elif status == "STALE":
-                content += f"**Recommendation**: Review for relevance - may be obsolete (age >180 days)\n"
+                content += (
+                    "**Recommendation**: Review for relevance - may be obsolete (age >180 days)\n"
+                )
             else:
-                content += f"**Recommendation**: Manual review required\n"
+                content += "**Recommendation**: Manual review required\n"
             content += "\n"
 
             # Preview content
@@ -1561,6 +1769,7 @@ class DocumentConsolidator:
 # MAIN
 # ============================================================================
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Consolidate documentation into AI-optimized format"
@@ -1568,12 +1777,10 @@ def main():
     parser.add_argument(
         "--project",
         default="autopack-framework",
-        help="Project to consolidate (default: autopack-framework)"
+        help="Project to consolidate (default: autopack-framework)",
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Preview changes without writing files"
+        "--dry-run", action="store_true", help="Preview changes without writing files"
     )
 
     args = parser.parse_args()

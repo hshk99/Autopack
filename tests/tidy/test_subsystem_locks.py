@@ -95,7 +95,10 @@ def test_lock_contention_timeout(temp_repo):
 
     try:
         multi_lock = MultiLock(
-            repo_root=temp_repo, owner="test", ttl_seconds=60, timeout_seconds=1  # Short timeout
+            repo_root=temp_repo,
+            owner="test",
+            ttl_seconds=60,
+            timeout_seconds=1,  # Short timeout
         )
 
         # Should timeout when trying to acquire queue lock

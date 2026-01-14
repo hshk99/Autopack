@@ -173,5 +173,3 @@ coordination:
   must_preserve_for_reuse:
     - "docs/**"               # SOT + canonical guides (subject to WORKSPACE_ORGANIZATION_SPEC)
     - "archive/superseded/**" # audit trail within retention windows
-
-

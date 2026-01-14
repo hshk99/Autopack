@@ -53,7 +53,9 @@ def test_sot_detection():
         else:
             failed += 1
 
-        print(f"{status} {deliverable:30} → {result:10} (expected: {'SOT' if expected_is_sot else 'NOT SOT'})")
+        print(
+            f"{status} {deliverable:30} → {result:10} (expected: {'SOT' if expected_is_sot else 'NOT SOT'})"
+        )
 
     print()
     print("=" * 70)
@@ -79,7 +81,7 @@ def test_sot_estimation():
         category="documentation",
         complexity="medium",
         scope_paths=["src/autopack/main.py"],  # Some context
-        task_description="Update BUILD_LOG.md with phase results"
+        task_description="Update BUILD_LOG.md with phase results",
     )
 
     print(f"Deliverables: {deliverables}")
@@ -87,7 +89,7 @@ def test_sot_estimation():
     print(f"Estimated tokens: {estimate.estimated_tokens}")
     print(f"Deliverable count: {estimate.deliverable_count}")
     print(f"Confidence: {estimate.confidence:.2f}")
-    print(f"Breakdown:")
+    print("Breakdown:")
     for key, value in estimate.breakdown.items():
         print(f"  - {key}: {value}")
 
@@ -124,7 +126,7 @@ def test_non_sot_still_works():
         category="documentation",
         complexity="medium",
         scope_paths=["src/autopack/main.py"],
-        task_description="Create API reference and examples from scratch"
+        task_description="Create API reference and examples from scratch",
     )
 
     print(f"Deliverables: {deliverables}")

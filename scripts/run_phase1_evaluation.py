@@ -41,10 +41,10 @@ def run_evaluation() -> Dict[str, Any]:
         "description": "Citation validity after Phase 1 fix (relaxed numeric verification)",
         "status": "running",
         "baseline": 59.3,  # Original baseline from research
-        "target": 80.0,    # Target validity percentage
+        "target": 80.0,  # Target validity percentage
         "metrics": {},
         "repositories_tested": [],
-        "errors": []
+        "errors": [],
     }
 
     # Check for required environment variables
@@ -66,11 +66,7 @@ def run_evaluation() -> Dict[str, Any]:
         evaluator = CitationValidityEvaluator()
 
         # Test topics for diverse coverage
-        test_topics = [
-            "machine learning python",
-            "web framework",
-            "data visualization"
-        ]
+        test_topics = ["machine learning python", "web framework", "data visualization"]
 
         all_findings: List[Finding] = []
         source_content_map: Dict[str, str] = {}
@@ -104,12 +100,14 @@ def run_evaluation() -> Dict[str, Any]:
 
                     all_findings.extend(findings)
 
-                    results["repositories_tested"].append({
-                        "repo_name": repo_name,
-                        "topic": topic,
-                        "findings_extracted": len(findings),
-                        "readme_length": len(readme_content)
-                    })
+                    results["repositories_tested"].append(
+                        {
+                            "repo_name": repo_name,
+                            "topic": topic,
+                            "findings_extracted": len(findings),
+                            "readme_length": len(readme_content),
+                        }
+                    )
 
                     logger.info(f"Extracted {len(findings)} findings from {repo_name}")
 
@@ -126,13 +124,15 @@ def run_evaluation() -> Dict[str, Any]:
                 "validity_percentage": evaluation_results["validity_percentage"],
                 "failure_breakdown": evaluation_results["failure_breakdown"],
                 "repositories_tested": len(results["repositories_tested"]),
-                "topics_tested": len(test_topics)
+                "topics_tested": len(test_topics),
             }
 
             # Calculate improvement over baseline
             improvement = evaluation_results["validity_percentage"] - results["baseline"]
             results["metrics"]["improvement_over_baseline"] = round(improvement, 2)
-            results["metrics"]["target_met"] = evaluation_results["validity_percentage"] >= results["target"]
+            results["metrics"]["target_met"] = (
+                evaluation_results["validity_percentage"] >= results["target"]
+            )
 
             # Determine status
             if evaluation_results["validity_percentage"] >= results["target"]:
@@ -188,42 +188,50 @@ def generate_report(results: Dict[str, Any]) -> str:
         improvement = metrics.get("improvement_over_baseline", 0)
         target_met = metrics.get("target_met", False)
 
-        lines.extend([
-            "-" * 70,
-            "RESULTS",
-            "-" * 70,
-            f"  Total Findings Tested:          {metrics.get('total_findings', 0)}",
-            f"  Valid Citations:                {metrics.get('valid_citations', 0)}",
-            f"  Invalid Citations:              {metrics.get('invalid_citations', 0)}",
-            f"  Citation Validity:              {validity:.1f}%",
-            f"  Improvement over Baseline:      {improvement:+.1f}%",
-            f"  Target Met (≥80%):              {'✅ YES' if target_met else '❌ NO'}",
-            "",
-            f"  Repositories Tested:            {metrics.get('repositories_tested', 0)}",
-            f"  Topics Tested:                  {metrics.get('topics_tested', 0)}",
-            "",
-        ])
+        lines.extend(
+            [
+                "-" * 70,
+                "RESULTS",
+                "-" * 70,
+                f"  Total Findings Tested:          {metrics.get('total_findings', 0)}",
+                f"  Valid Citations:                {metrics.get('valid_citations', 0)}",
+                f"  Invalid Citations:              {metrics.get('invalid_citations', 0)}",
+                f"  Citation Validity:              {validity:.1f}%",
+                f"  Improvement over Baseline:      {improvement:+.1f}%",
+                f"  Target Met (≥80%):              {'✅ YES' if target_met else '❌ NO'}",
+                "",
+                f"  Repositories Tested:            {metrics.get('repositories_tested', 0)}",
+                f"  Topics Tested:                  {metrics.get('topics_tested', 0)}",
+                "",
+            ]
+        )
 
         # Failure breakdown
         failure_breakdown = metrics.get("failure_breakdown", {})
         if failure_breakdown:
-            lines.extend([
-                "-" * 70,
-                "FAILURE BREAKDOWN",
-                "-" * 70,
-            ])
-            for reason, count in sorted(failure_breakdown.items(), key=lambda x: x[1], reverse=True):
+            lines.extend(
+                [
+                    "-" * 70,
+                    "FAILURE BREAKDOWN",
+                    "-" * 70,
+                ]
+            )
+            for reason, count in sorted(
+                failure_breakdown.items(), key=lambda x: x[1], reverse=True
+            ):
                 lines.append(f"  {reason}: {count}")
             lines.append("")
 
     # Repository details
     repos_tested = results.get("repositories_tested", [])
     if repos_tested:
-        lines.extend([
-            "-" * 70,
-            "REPOSITORIES TESTED",
-            "-" * 70,
-        ])
+        lines.extend(
+            [
+                "-" * 70,
+                "REPOSITORIES TESTED",
+                "-" * 70,
+            ]
+        )
         for repo in repos_tested:
             lines.append(f"  {repo['repo_name']}")
             lines.append(f"    Topic: {repo['topic']}")
@@ -233,21 +241,25 @@ def generate_report(results: Dict[str, Any]) -> str:
 
     # Errors
     if results.get("errors"):
-        lines.extend([
-            "-" * 70,
-            "ERRORS/WARNINGS",
-            "-" * 70,
-        ])
+        lines.extend(
+            [
+                "-" * 70,
+                "ERRORS/WARNINGS",
+                "-" * 70,
+            ]
+        )
         for error in results["errors"]:
             lines.append(f"  ⚠️  {error}")
         lines.append("")
 
     # Next steps
-    lines.extend([
-        "-" * 70,
-        "NEXT STEPS",
-        "-" * 70,
-    ])
+    lines.extend(
+        [
+            "-" * 70,
+            "NEXT STEPS",
+            "-" * 70,
+        ]
+    )
 
     if results["status"] == "success_target_met":
         lines.append("  ✅ Phase 1 fix achieved ≥80% citation validity")

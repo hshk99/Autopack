@@ -1748,13 +1748,13 @@ for record in data:
     if not is_email(record.get('email', '')):
         logger.warning(f"Invalid email: {record.get('email')}")
         continue
-    
+
     # Validate age range
     age = int(record.get('age', 0))
     if not validate_range(age, min_value=18, max_value=120):
         logger.warning(f"Invalid age: {age}")
         continue
-    
+
     valid_records.append(record)
 
 logger.info(f'Validated {len(valid_records)} records')

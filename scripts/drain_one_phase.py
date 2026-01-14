@@ -20,8 +20,14 @@ if not os.environ.get("DATABASE_URL"):
     print("[ERROR] DATABASE_URL must be set", file=sys.stderr)
     print("", file=sys.stderr)
     print("Example usage:", file=sys.stderr)
-    print("  DATABASE_URL='sqlite:///autopack_telemetry_seed.db' TELEMETRY_DB_ENABLED=1 \\", file=sys.stderr)
-    print("    python scripts/drain_one_phase.py --run-id <RUN_ID> --phase-id <PHASE_ID>", file=sys.stderr)
+    print(
+        "  DATABASE_URL='sqlite:///autopack_telemetry_seed.db' TELEMETRY_DB_ENABLED=1 \\",
+        file=sys.stderr,
+    )
+    print(
+        "    python scripts/drain_one_phase.py --run-id <RUN_ID> --phase-id <PHASE_ID>",
+        file=sys.stderr,
+    )
     print("", file=sys.stderr)
     sys.exit(1)
 
@@ -89,7 +95,9 @@ def main() -> int:
         initial_state = phase.state.value if phase.state else "UNKNOWN"
 
         if phase.state == PhaseState.FAILED:
-            print(f"[drain_one_phase] Re-queueing FAILED phase -> QUEUED: {args.run_id} / {args.phase_id}")
+            print(
+                f"[drain_one_phase] Re-queueing FAILED phase -> QUEUED: {args.run_id} / {args.phase_id}"
+            )
             phase.state = PhaseState.QUEUED
             # Keep last_failure_reason for context; the executor will update it on re-failure.
             db.commit()
@@ -128,10 +136,10 @@ def main() -> int:
     # B2: Print DB/API identity for observability
     db_url = os.environ.get("DATABASE_URL", "sqlite:///autopack.db (default)")
     api_url = os.environ.get("AUTOPACK_API_URL", f"http://localhost:{port}")
-    print(f"[drain_one_phase] ===== ENVIRONMENT IDENTITY =====")
+    print("[drain_one_phase] ===== ENVIRONMENT IDENTITY =====")
     print(f"[drain_one_phase] DATABASE_URL: {db_url}")
     print(f"[drain_one_phase] AUTOPACK_API_URL: {api_url}")
-    print(f"[drain_one_phase] ================================")
+    print("[drain_one_phase] ================================")
     print(f"[drain_one_phase] Draining: {args.run_id} / {args.phase_id}")
     print()
 
@@ -155,10 +163,11 @@ def main() -> int:
         # Check final state
         db = SessionLocal()
         try:
-            phase = db.query(Phase).filter(
-                Phase.run_id == args.run_id,
-                Phase.phase_id == args.phase_id
-            ).first()
+            phase = (
+                db.query(Phase)
+                .filter(Phase.run_id == args.run_id, Phase.phase_id == args.phase_id)
+                .first()
+            )
 
             if phase:
                 final_state = phase.state.value
@@ -167,9 +176,11 @@ def main() -> int:
                 if final_state == PhaseState.COMPLETE.value:
                     return 0
                 else:
-                    print(f"[drain_one_phase] Phase did not complete successfully")
+                    print("[drain_one_phase] Phase did not complete successfully")
                     if phase.last_failure_reason:
-                        print(f"[drain_one_phase] Failure reason: {phase.last_failure_reason[:200]}")
+                        print(
+                            f"[drain_one_phase] Failure reason: {phase.last_failure_reason[:200]}"
+                        )
                     return 1
             else:
                 print("[drain_one_phase] Warning: Phase not found after execution", file=sys.stderr)
@@ -184,6 +195,7 @@ def main() -> int:
     except Exception as e:
         print(f"\n[drain_one_phase] Error: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return 1
 

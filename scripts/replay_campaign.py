@@ -51,24 +51,25 @@ def get_database_url() -> str:
     """Get DATABASE_URL from environment with helpful error."""
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
-        print("\n" + "="*80, file=sys.stderr)
+        print("\n" + "=" * 80, file=sys.stderr)
         print("ERROR: DATABASE_URL environment variable not set", file=sys.stderr)
-        print("="*80, file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
         print("\nSet DATABASE_URL before running:\n", file=sys.stderr)
         print("  # PowerShell (Postgres production):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\"", file=sys.stderr)
+        print(
+            '  $env:DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"',
+            file=sys.stderr,
+        )
         print("  python scripts/replay_campaign.py --run-id failed-run\n", file=sys.stderr)
         print("  # PowerShell (SQLite dev/test):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"sqlite:///autopack.db\"", file=sys.stderr)
+        print('  $env:DATABASE_URL="sqlite:///autopack.db"', file=sys.stderr)
         print("  python scripts/replay_campaign.py --run-id failed-run\n", file=sys.stderr)
         sys.exit(1)
     return db_url
 
 
 async def find_failed_runs(
-    from_date: Optional[str] = None,
-    to_date: Optional[str] = None,
-    state: str = "FAILED"
+    from_date: Optional[str] = None, to_date: Optional[str] = None, state: str = "FAILED"
 ) -> List[str]:
     """Find failed runs in date range.
 
@@ -119,7 +120,7 @@ def clone_run(original_run_id: str, session) -> str:
         raise ValueError(f"Run not found: {original_run_id}")
 
     # Create new run ID
-    timestamp = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+    timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
     new_run_id = f"{original_run_id}-replay-{timestamp}"
 
     # Clone run
@@ -173,7 +174,7 @@ async def execute_run(
     run_id: str,
     executor_mode: str = "api",
     enable_phase6_metrics: bool = True,
-    enable_consolidated_metrics: bool = True
+    enable_consolidated_metrics: bool = True,
 ) -> bool:
     """Execute a run with Phase 6 features enabled.
 
@@ -198,30 +199,17 @@ async def execute_run(
     # Construct command
     if executor_mode == "api":
         # Use run_parallel.py with --executor api for async execution
-        cmd = [
-            sys.executable,
-            "scripts/run_parallel.py",
-            "--executor", "api",
-            "--run-id", run_id
-        ]
+        cmd = [sys.executable, "scripts/run_parallel.py", "--executor", "api", "--run-id", run_id]
     else:
         # Use autonomous_executor.py for local execution
-        cmd = [
-            sys.executable,
-            "-m", "autopack.autonomous_executor",
-            "--run-id", run_id
-        ]
+        cmd = [sys.executable, "-m", "autopack.autonomous_executor", "--run-id", run_id]
 
     print(f"  Executing: {' '.join(cmd)}")
 
     try:
         # Start subprocess in background
         process = subprocess.Popen(
-            cmd,
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
+            cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
 
         print(f"  ✓ Started execution (PID: {process.pid})")
@@ -246,7 +234,7 @@ def generate_comparison_report(original_run_id: str, replay_run_id: str):
         replay = session.query(Run).filter(Run.id == replay_run_id).first()
 
         if not original or not replay:
-            print(f"  ⚠ Cannot generate report: runs not found")
+            print("  ⚠ Cannot generate report: runs not found")
             return
 
         # Get phase counts
@@ -278,10 +266,12 @@ def generate_comparison_report(original_run_id: str, replay_run_id: str):
                 "phases_failed": replay_failed,
             },
             "deltas": {
-                "token_delta": replay.tokens_used - original.tokens_used if replay.tokens_used else None,
+                "token_delta": (
+                    replay.tokens_used - original.tokens_used if replay.tokens_used else None
+                ),
                 "phase_complete_delta": replay_complete - original_complete,
                 "phase_failed_delta": replay_failed - original_failed,
-            }
+            },
         }
 
         # Save to archive
@@ -300,7 +290,7 @@ async def replay_run(
     executor_mode: str = "api",
     enable_phase6_metrics: bool = True,
     enable_consolidated_metrics: bool = True,
-    dry_run: bool = False
+    dry_run: bool = False,
 ) -> Optional[str]:
     """Replay a single run with Phase 6 features enabled.
 
@@ -333,7 +323,7 @@ async def replay_run(
             new_run_id,
             executor_mode=executor_mode,
             enable_phase6_metrics=enable_phase6_metrics,
-            enable_consolidated_metrics=enable_consolidated_metrics
+            enable_consolidated_metrics=enable_consolidated_metrics,
         )
 
         if success:
@@ -346,65 +336,46 @@ async def replay_run(
 
 async def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Replay failed runs with Phase 6 features enabled"
+    parser = argparse.ArgumentParser(description="Replay failed runs with Phase 6 features enabled")
+    parser.add_argument("--run-id", type=str, help="Specific run to replay")
+    parser.add_argument("--from-date", type=str, help="Start date (ISO format YYYY-MM-DD)")
+    parser.add_argument("--to-date", type=str, help="End date (ISO format YYYY-MM-DD)")
+    parser.add_argument(
+        "--state", type=str, default="FAILED", help="Run state filter (default: FAILED)"
     )
     parser.add_argument(
-        "--run-id",
-        type=str,
-        help="Specific run to replay"
-    )
-    parser.add_argument(
-        "--from-date",
-        type=str,
-        help="Start date (ISO format YYYY-MM-DD)"
-    )
-    parser.add_argument(
-        "--to-date",
-        type=str,
-        help="End date (ISO format YYYY-MM-DD)"
-    )
-    parser.add_argument(
-        "--state",
-        type=str,
-        default="FAILED",
-        help="Run state filter (default: FAILED)"
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Don't execute, just show what would be replayed"
+        "--dry-run", action="store_true", help="Don't execute, just show what would be replayed"
     )
     parser.add_argument(
         "--executor",
         type=str,
         default="api",
         choices=["api", "local"],
-        help="Executor mode (default: api for async execution)"
+        help="Executor mode (default: api for async execution)",
     )
     parser.add_argument(
         "--enable-phase6-metrics",
         action="store_true",
         default=True,
-        help="Enable Phase 6 P3 telemetry (default: True)"
+        help="Enable Phase 6 P3 telemetry (default: True)",
     )
     parser.add_argument(
         "--enable-consolidated-metrics",
         action="store_true",
         default=True,
-        help="Enable consolidated metrics dashboard (default: True)"
+        help="Enable consolidated metrics dashboard (default: True)",
     )
     parser.add_argument(
         "--batch-size",
         type=int,
         default=5,
-        help="Number of runs to execute in parallel (default: 5)"
+        help="Number of runs to execute in parallel (default: 5)",
     )
 
     args = parser.parse_args()
 
     print("BUILD-146 P12: Replay Campaign")
-    print("="*80)
+    print("=" * 80)
     print()
 
     # Get database connection
@@ -446,7 +417,7 @@ async def main():
     replayed_runs = []
 
     for i in range(0, len(run_ids), args.batch_size):
-        batch = run_ids[i:i+args.batch_size]
+        batch = run_ids[i : i + args.batch_size]
         print(f"Batch {i // args.batch_size + 1}: {len(batch)} runs")
 
         tasks = [
@@ -455,7 +426,7 @@ async def main():
                 executor_mode=args.executor,
                 enable_phase6_metrics=args.enable_phase6_metrics,
                 enable_consolidated_metrics=args.enable_consolidated_metrics,
-                dry_run=args.dry_run
+                dry_run=args.dry_run,
             )
             for run_id in batch
         ]
@@ -470,9 +441,9 @@ async def main():
             await asyncio.sleep(5)
 
     print()
-    print("="*80)
-    print(f"REPLAY CAMPAIGN COMPLETE")
-    print("="*80)
+    print("=" * 80)
+    print("REPLAY CAMPAIGN COMPLETE")
+    print("=" * 80)
     print(f"Replayed: {len(replayed_runs)} / {len(run_ids)} runs")
     print()
 

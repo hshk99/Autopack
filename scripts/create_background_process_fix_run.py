@@ -15,6 +15,7 @@ Let Autopack autonomously:
 3. Verify restoration can proceed
 4. Document process improvements
 """
+
 import os
 import sys
 import requests
@@ -46,11 +47,11 @@ def main():
             "issue": "background_process_404_errors",
             "affected_runs": [
                 "research-system-restore-and-evaluate-v2",
-                "research-system-restore-and-evaluate-v3"
+                "research-system-restore-and-evaluate-v3",
             ],
             "symptom": "Restoration runs stuck in infinite retry loops (404 errors)",
-            "root_cause": "Runs started before being created in API/database"
-        }
+            "root_cause": "Runs started before being created in API/database",
+        },
     }
 
     response = requests.post(f"{API_URL}/runs", json=run_payload, headers=headers)
@@ -94,9 +95,9 @@ DO NOT FIX YET - Just investigate and report findings.""",
                 "files_to_check": [
                     "backend/main.py",
                     "src/autopack/api/main.py",
-                    "src/autopack/api/routes.py"
-                ]
-            }
+                    "src/autopack/api/routes.py",
+                ],
+            },
         },
         {
             "phase_id": "create_missing_runs",
@@ -133,8 +134,8 @@ REFERENCE:
             "metadata": {
                 "complexity": "medium",
                 "estimated_tokens": 4000,
-                "dependencies": ["investigate_api_endpoints"]
-            }
+                "dependencies": ["investigate_api_endpoints"],
+            },
         },
         {
             "phase_id": "restart_restoration_runs",
@@ -171,8 +172,8 @@ EXPECTED OUTCOME:
             "metadata": {
                 "complexity": "low",
                 "estimated_tokens": 2000,
-                "dependencies": ["create_missing_runs"]
-            }
+                "dependencies": ["create_missing_runs"],
+            },
         },
         {
             "phase_id": "document_process_improvements",
@@ -217,26 +218,27 @@ REFERENCE:
 - scripts/create_research_restoration_v2_run.py as example""",
             "category": "documentation",
             "status": "PENDING",
-            "metadata": {
-                "complexity": "low",
-                "estimated_tokens": 3000
-            }
-        }
+            "metadata": {"complexity": "low", "estimated_tokens": 3000},
+        },
     ]
 
     # Create phases
     for phase in phases:
         response = requests.post(f"{API_URL}/runs/{RUN_ID}/phases", json=phase, headers=headers)
         if response.status_code != 200:
-            print(f"Error creating phase {phase['phase_id']}: {response.status_code} - {response.text}")
+            print(
+                f"Error creating phase {phase['phase_id']}: {response.status_code} - {response.text}"
+            )
             return 1
         print(f"  ✅ Created phase: {phase['phase_id']}")
 
-    print(f"\n🚀 Run created successfully!")
+    print("\n🚀 Run created successfully!")
     print(f"   Run ID: {RUN_ID}")
     print(f"   Phases: {len(phases)}")
-    print(f"\nTo execute:")
-    print(f"  cd c:/dev/Autopack && PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" QDRANT_HOST=\"http://localhost:6333\" python -m autopack.autonomous_executor --run-id {RUN_ID} --poll-interval 15 --run-type autopack_maintenance")
+    print("\nTo execute:")
+    print(
+        f'  cd c:/dev/Autopack && PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack" QDRANT_HOST="http://localhost:6333" python -m autopack.autonomous_executor --run-id {RUN_ID} --poll-interval 15 --run-type autopack_maintenance'
+    )
 
     return 0
 

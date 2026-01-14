@@ -132,31 +132,31 @@ def execute_with_retry(
 ) -> Any:
     """
     Execute operation with exponential backoff retry.
-    
+
     Args:
         operation: Function to execute
         max_retries: Maximum retry attempts
         base_delay: Initial delay in seconds
         max_delay: Maximum delay between retries
-    
+
     Returns:
         Operation result if successful
-    
+
     Raises:
         Last exception if all retries exhausted
     """
     last_exception = None
-    
+
     for attempt in range(max_retries + 1):
         try:
             result = operation()
             if attempt > 0:
                 logger.info(f"Operation succeeded on attempt {attempt + 1}")
             return result
-            
+
         except TransientError as e:
             last_exception = e
-            
+
             if attempt < max_retries:
                 # Exponential backoff: 1s, 2s, 4s, 8s, ...
                 delay = min(base_delay * (2 ** attempt), max_delay)
@@ -168,12 +168,12 @@ def execute_with_retry(
             else:
                 logger.error(f"All {max_retries} retries exhausted")
                 raise last_exception
-        
+
         except FatalError as e:
             # Don't retry fatal errors
             logger.error(f"Fatal error, not retrying: {e}")
             raise
-    
+
     raise last_exception
 ```
 
@@ -229,18 +229,18 @@ def execute_with_model_fallback(
     """
     fallback_chain = MODEL_FALLBACK_CHAINS[f'tier_{tier}']
     last_error = None
-    
+
     for model in fallback_chain:
         try:
             logger.info(f"Attempting execution with {model}")
             result = execute_phase(phase_spec, model=model)
             return result
-            
+
         except ModelError as e:
             last_error = e
             logger.warning(f"Model {model} failed: {e}")
             continue
-    
+
     raise ModelError(f"All models in tier {tier} failed: {last_error}")
 ```
 
@@ -258,7 +258,7 @@ def execute_with_context_fallback(
     Execute with progressive context reduction.
     """
     reduction_levels = [1.0, 0.75, 0.5, 0.25]  # 100%, 75%, 50%, 25%
-    
+
     for level in reduction_levels:
         try:
             # Select top N% of context files by relevance
@@ -266,22 +266,22 @@ def execute_with_context_fallback(
                 context_files,
                 percentage=level
             )
-            
+
             estimated_tokens = estimate_tokens(
                 phase_spec,
                 reduced_context
             )
-            
+
             if estimated_tokens <= max_budget:
                 logger.info(
                     f"Using {level*100}% of context "
                     f"({len(reduced_context)} files)"
                 )
                 return execute_phase(phase_spec, reduced_context)
-            
+
         except ContextOverflowError:
             continue
-    
+
     raise ContextOverflowError(
         "Cannot fit phase in budget even with minimal context"
     )
@@ -301,19 +301,19 @@ def execute_with_scope_fallback(
     try:
         # Try full phase first
         return execute_phase(phase_spec)
-        
+
     except ComplexityError:
         logger.warning("Phase too complex, splitting into sub-phases")
-        
+
         # Split deliverables into groups
         sub_phases = split_phase(phase_spec, max_files_per_phase=3)
-        
+
         results = []
         for i, sub_phase in enumerate(sub_phases):
             logger.info(f"Executing sub-phase {i+1}/{len(sub_phases)}")
             result = execute_phase(sub_phase)
             results.append(result)
-        
+
         # Aggregate results
         return aggregate_results(results)
 ```
@@ -390,7 +390,7 @@ def execute_phase_with_recovery(
     Execute phase with comprehensive error recovery.
     """
     max_retries = 3
-    
+
     for attempt in range(max_retries):
         try:
             # Attempt execution
@@ -398,15 +398,15 @@ def execute_phase_with_recovery(
                 phase_spec=phase_spec,
                 context_files=context_files
             )
-            
+
             # Validate result
             if not result.get('success'):
                 raise ValidationError(
                     f"Phase failed validation: {result.get('errors')}"
                 )
-            
+
             return result
-            
+
         except TransientError as e:
             # Retry transient errors with backoff
             if attempt < max_retries - 1:
@@ -419,13 +419,13 @@ def execute_phase_with_recovery(
             else:
                 logger.error("Max retries exceeded for transient error")
                 raise
-        
+
         except ModelError as e:
             # Try fallback model
             logger.warning(f"Model error: {e}. Trying fallback...")
             executor.escalate_model()
             continue
-        
+
         except ValidationError as e:
             # Regenerate with stricter constraints
             logger.warning(f"Validation error: {e}. Regenerating...")
@@ -433,7 +433,7 @@ def execute_phase_with_recovery(
                 phase_spec.get('constraints', [])
             )
             continue
-    
+
     raise RuntimeError(f"Phase execution failed after {max_retries} attempts")
 ```
 
@@ -451,26 +451,26 @@ def run_phases_with_recovery(
     """
     results = []
     checkpoint = load_checkpoint()  # Resume from last successful phase
-    
+
     start_index = checkpoint.get('last_completed_phase', -1) + 1
-    
+
     for i, phase in enumerate(phases[start_index:], start=start_index):
         try:
             logger.info(f"Executing phase {i+1}/{len(phases)}")
-            
+
             result = orchestrator.execute_phase(phase)
             results.append(result)
-            
+
             # Save checkpoint after each success
             save_checkpoint({
                 'last_completed_phase': i,
                 'results': results,
                 'timestamp': datetime.now().isoformat()
             })
-            
+
         except Exception as e:
             logger.error(f"Phase {i+1} failed: {e}")
-            
+
             # Save error state
             save_checkpoint({
                 'last_completed_phase': i - 1,
@@ -478,7 +478,7 @@ def run_phases_with_recovery(
                 'error': str(e),
                 'results': results
             })
-            
+
             # Decide whether to continue or stop
             if orchestrator.stop_on_failure:
                 raise
@@ -488,11 +488,11 @@ def run_phases_with_recovery(
                     'phase_index': i,
                     'error': str(e)
                 })
-    
+
     # Clean up checkpoint on full success
     if all(r.get('success', False) for r in results):
         clear_checkpoint()
-    
+
     return {
         'total_phases': len(phases),
         'successful_phases': sum(1 for r in results if r.get('success')),

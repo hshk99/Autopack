@@ -63,7 +63,6 @@ class TestResearchOrchestrator:
                 orchestrator, "_execute_validation", new_callable=AsyncMock
             ) as mock_validation,
         ):
-
             await orchestrator.execute_pipeline(session.session_id)
 
             mock_intent.assert_called_once()

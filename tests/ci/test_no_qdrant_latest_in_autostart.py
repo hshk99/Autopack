@@ -70,11 +70,9 @@ def test_ci_script_passes_on_current_codebase():
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0, (
-        f"CI script failed on current codebase:\n"
-        f"stdout: {result.stdout}\n"
-        f"stderr: {result.stderr}"
-    )
+    assert (
+        result.returncode == 0
+    ), f"CI script failed on current codebase:\nstdout: {result.stdout}\nstderr: {result.stderr}"
     assert "[OK]" in result.stdout
 
 

@@ -407,7 +407,7 @@ for sample in samples:
     is_valid, error = validate_sample(sample)
     if not is_valid:
         continue
-    
+
     # Check for underestimation
     pred = sample['predicted_output_tokens']
     actual = sample['actual_output_tokens']

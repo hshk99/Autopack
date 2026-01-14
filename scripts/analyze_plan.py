@@ -26,45 +26,53 @@ from autopack.plan_analyzer import analyze_implementation_plan, PlanAnalysisResu
 def print_analysis_summary(result: PlanAnalysisResult):
     """Print human-readable summary of analysis"""
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("IMPLEMENTATION PLAN ANALYSIS")
-    print("="*80)
+    print("=" * 80)
 
     print(f"\nRun ID: {result.run_id}")
     print(f"Total Phases: {result.total_phases}")
 
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("FEASIBILITY ASSESSMENT")
-    print("="*80)
+    print("=" * 80)
 
-    print(f"\n✅ CAN IMPLEMENT: {result.can_implement_count} phases ({result.can_implement_count/result.total_phases*100:.0f}%)")
-    print(f"⚠️  RISKY: {result.risky_count} phases ({result.risky_count/result.total_phases*100:.0f}%)")
-    print(f"❌ MANUAL REQUIRED: {result.manual_required_count} phases ({result.manual_required_count/result.total_phases*100:.0f}%)")
+    print(
+        f"\n✅ CAN IMPLEMENT: {result.can_implement_count} phases ({result.can_implement_count / result.total_phases * 100:.0f}%)"
+    )
+    print(
+        f"⚠️  RISKY: {result.risky_count} phases ({result.risky_count / result.total_phases * 100:.0f}%)"
+    )
+    print(
+        f"❌ MANUAL REQUIRED: {result.manual_required_count} phases ({result.manual_required_count / result.total_phases * 100:.0f}%)"
+    )
 
     print(f"\nOverall Feasibility: {result.overall_feasibility.value}")
     print(f"Overall Confidence: {result.overall_confidence:.1%}")
-    print(f"Estimated Duration: {result.estimated_total_duration_days:.1f} days ({result.estimated_total_duration_days/5:.1f} weeks)")
+    print(
+        f"Estimated Duration: {result.estimated_total_duration_days:.1f} days ({result.estimated_total_duration_days / 5:.1f} weeks)"
+    )
 
     # Critical blockers
     if result.critical_blockers:
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print("⛔ CRITICAL BLOCKERS")
-        print("="*80)
+        print("=" * 80)
         for i, blocker in enumerate(result.critical_blockers, 1):
             print(f"{i}. {blocker}")
 
     # Infrastructure requirements
     if result.infrastructure_requirements:
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print("📦 INFRASTRUCTURE REQUIREMENTS")
-        print("="*80)
+        print("=" * 80)
         for req in result.infrastructure_requirements:
             print(f"  - {req}")
 
     # Phase breakdown
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("PHASE BREAKDOWN")
-    print("="*80)
+    print("=" * 80)
 
     for phase in result.phases:
         # Icon based on feasibility
@@ -80,7 +88,9 @@ def print_analysis_summary(result: PlanAnalysisResult):
         print(f"   Feasibility: {phase.feasibility.value} ({phase.confidence:.0%} confidence)")
         print(f"   Risk: {phase.risk_level.value} | Decision: {phase.decision_category.value}")
         print(f"   Auto-apply: {'Yes' if phase.auto_apply else 'No'}")
-        print(f"   Duration: {phase.estimated_duration_days:.1f} days | Complexity: {phase.complexity_score}/10")
+        print(
+            f"   Duration: {phase.estimated_duration_days:.1f} days | Complexity: {phase.complexity_score}/10"
+        )
         print(f"   Files to modify: ~{phase.estimated_files_modified}")
 
         if phase.core_files_affected:
@@ -89,7 +99,7 @@ def print_analysis_summary(result: PlanAnalysisResult):
                 print(f"               ... and {len(phase.core_files_affected) - 3} more")
 
         if phase.blockers:
-            print(f"   ⛔ Blockers:")
+            print("   ⛔ Blockers:")
             for blocker in phase.blockers:
                 print(f"      - {blocker}")
 
@@ -97,20 +107,24 @@ def print_analysis_summary(result: PlanAnalysisResult):
             print(f"   🔗 Dependencies: {', '.join(phase.dependencies)}")
 
     # Recommended execution order
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("RECOMMENDED EXECUTION ORDER")
-    print("="*80)
+    print("=" * 80)
 
     for i, phase_id in enumerate(result.recommended_execution_order, 1):
         phase = next(p for p in result.phases if p.phase_id == phase_id)
-        icon = "✅" if phase.feasibility.value == "CAN_IMPLEMENT" else "⚠️" if phase.feasibility.value == "RISKY" else "❌"
+        icon = (
+            "✅"
+            if phase.feasibility.value == "CAN_IMPLEMENT"
+            else "⚠️" if phase.feasibility.value == "RISKY" else "❌"
+        )
         print(f"{i:2d}. {icon} {phase_id} ({phase.estimated_duration_days:.1f} days)")
 
     # Manual phases
     if result.phases_requiring_manual_implementation:
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print("❌ PHASES REQUIRING MANUAL IMPLEMENTATION")
-        print("="*80)
+        print("=" * 80)
         for phase_id in result.phases_requiring_manual_implementation:
             phase = next(p for p in result.phases if p.phase_id == phase_id)
             print(f"  - {phase_id}: {phase.phase_name}")
@@ -119,9 +133,9 @@ def print_analysis_summary(result: PlanAnalysisResult):
                     print(f"    ⛔ {blocker}")
 
     # Governance scope
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("GOVERNANCE SCOPE")
-    print("="*80)
+    print("=" * 80)
 
     print(f"\nAllowed Paths ({len(result.global_allowed_paths)}):")
     for path in result.global_allowed_paths[:10]:
@@ -133,9 +147,9 @@ def print_analysis_summary(result: PlanAnalysisResult):
     for path in result.protected_paths:
         print(f"  🔒 {path}")
 
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("ANALYSIS COMPLETE")
-    print("="*80)
+    print("=" * 80)
 
 
 async def main():
@@ -193,6 +207,7 @@ async def main():
     except Exception as e:
         print(f"\n❌ Analysis failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

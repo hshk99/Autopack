@@ -58,6 +58,7 @@ from autopack.usage_recorder import LlmUsageEvent, Phase6Metrics
 @dataclass
 class RunMetrics:
     """Metrics for a single run"""
+
     run_id: str
     condition: str  # "control" or "treatment"
 
@@ -90,6 +91,7 @@ class RunMetrics:
 @dataclass
 class ABPairResult:
     """Results for a matched control/treatment pair"""
+
     pair_id: int
     control_run: RunMetrics
     treatment_run: RunMetrics
@@ -109,6 +111,7 @@ class ABPairResult:
 @dataclass
 class ExperimentMetadata:
     """Experiment metadata for reproducibility and validity (BUILD-146 Ops Maturity)"""
+
     commit_sha: str
     repo_url: Optional[str]
     branch: Optional[str]
@@ -121,6 +124,7 @@ class ExperimentMetadata:
 @dataclass
 class PairValidityCheck:
     """Validity check results for an A/B pair (BUILD-146 Ops Maturity)"""
+
     pair_id: int
     control_run_id: str
     treatment_run_id: str
@@ -250,6 +254,7 @@ def validate_ab_pair(db, control_id: str, treatment_id: str, pair_id: int) -> Pa
     # Check temporal proximity (runs should be close in time to minimize environmental drift)
     if control_metadata["started_at"] and treatment_metadata["started_at"]:
         from datetime import datetime as dt
+
         control_start = dt.fromisoformat(control_metadata["started_at"])
         treatment_start = dt.fromisoformat(treatment_metadata["started_at"])
         delta_hours = abs((treatment_start - control_start).total_seconds() / 3600)
@@ -324,7 +329,9 @@ def get_run_metrics(db, run_id: str, condition: str) -> Optional[RunMetrics]:
     )
 
 
-def compute_ab_pair_result(pair_id: int, control: RunMetrics, treatment: RunMetrics) -> ABPairResult:
+def compute_ab_pair_result(
+    pair_id: int, control: RunMetrics, treatment: RunMetrics
+) -> ABPairResult:
     """Compute deltas for a matched pair"""
     delta_total_tokens = treatment.total_tokens - control.total_tokens
     delta_doctor_tokens = treatment.doctor_tokens - control.doctor_tokens
@@ -335,8 +342,12 @@ def compute_ab_pair_result(pair_id: int, control: RunMetrics, treatment: RunMetr
     if control.wall_time_seconds and treatment.wall_time_seconds:
         delta_wall_time = treatment.wall_time_seconds - control.wall_time_seconds
 
-    control_success_rate = control.phases_complete / control.phases_total if control.phases_total > 0 else 0
-    treatment_success_rate = treatment.phases_complete / treatment.phases_total if treatment.phases_total > 0 else 0
+    control_success_rate = (
+        control.phases_complete / control.phases_total if control.phases_total > 0 else 0
+    )
+    treatment_success_rate = (
+        treatment.phases_complete / treatment.phases_total if treatment.phases_total > 0 else 0
+    )
 
     return ABPairResult(
         pair_id=pair_id,
@@ -427,7 +438,7 @@ def generate_markdown_report(pairs: List[ABPairResult], output_path: str) -> str
 
 """
 
-    md += f"""## Interpretation
+    md += """## Interpretation
 
 """
 
@@ -436,7 +447,7 @@ def generate_markdown_report(pairs: List[ABPairResult], output_path: str) -> str
     elif mean_token_delta > 0:
         md += f"⚠️ **Treatment uses more tokens:** Average {mean_token_delta:,.0f} extra tokens per run ({mean_token_delta / total_control_tokens * 100 * len(pairs):.1f}% increase)\n\n"
     else:
-        md += f"ℹ️ **No significant token difference detected**\n\n"
+        md += "ℹ️ **No significant token difference detected**\n\n"
 
     if avg_treatment_success >= avg_control_success:
         md += f"✅ **Treatment maintains or improves success rate:** {avg_treatment_success:.1%} vs {avg_control_success:.1%}\n\n"
@@ -478,7 +489,7 @@ def main():
         print("Error: Must have equal number of control and treatment runs")
         sys.exit(1)
 
-    print(f"BUILD-146 P4: A/B Testing Phase 6 Features")
+    print("BUILD-146 P4: A/B Testing Phase 6 Features")
     print(f"Pairs: {len(control_run_ids)}")
     print(f"Control runs: {control_run_ids}")
     print(f"Treatment runs: {treatment_run_ids}")
@@ -495,7 +506,7 @@ def main():
         operator=os.getenv("USER") or os.getenv("USERNAME"),  # Windows/Linux
     )
 
-    print(f"📋 Experiment Metadata:")
+    print("📋 Experiment Metadata:")
     print(f"  Commit: {experiment_metadata.commit_sha[:8]}")
     print(f"  Branch: {experiment_metadata.branch}")
     print(f"  Operator: {experiment_metadata.operator}")
@@ -508,20 +519,20 @@ def main():
         validity_checks = []
 
         for i, (control_id, treatment_id) in enumerate(zip(control_run_ids, treatment_run_ids)):
-            print(f"Analyzing pair {i+1}/{len(control_run_ids)}: {control_id} vs {treatment_id}")
+            print(f"Analyzing pair {i + 1}/{len(control_run_ids)}: {control_id} vs {treatment_id}")
 
             # BUILD-146 Ops Maturity: Validate pair before analysis
             validity = validate_ab_pair(db, control_id, treatment_id, i + 1)
             validity_checks.append(validity)
 
             if not validity.is_valid:
-                print(f"  ❌ Pair invalid:")
+                print("  ❌ Pair invalid:")
                 for error in validity.errors:
                     print(f"     - {error}")
                 continue
 
             if validity.warnings:
-                print(f"  ⚠️  Warnings:")
+                print("  ⚠️  Warnings:")
                 for warning in validity.warnings:
                     print(f"     - {warning}")
 
@@ -540,7 +551,9 @@ def main():
             pairs.append(pair_result)
 
             print(f"  Token delta: {pair_result.delta_total_tokens:,}")
-            print(f"  Doctor calls: {control_metrics.doctor_calls_total} -> {treatment_metrics.doctor_calls_total} (skipped: {treatment_metrics.doctor_calls_skipped})")
+            print(
+                f"  Doctor calls: {control_metrics.doctor_calls_total} -> {treatment_metrics.doctor_calls_total} (skipped: {treatment_metrics.doctor_calls_skipped})"
+            )
             print()
 
         if not pairs:
@@ -569,14 +582,22 @@ def main():
             "pairs": [asdict(p) for p in pairs],
             "aggregated": {
                 "mean_total_token_delta": statistics.mean([p.delta_total_tokens for p in pairs]),
-                "median_total_token_delta": statistics.median([p.delta_total_tokens for p in pairs]),
-                "stdev_total_token_delta": statistics.stdev([p.delta_total_tokens for p in pairs]) if len(pairs) > 1 else 0,
+                "median_total_token_delta": statistics.median(
+                    [p.delta_total_tokens for p in pairs]
+                ),
+                "stdev_total_token_delta": (
+                    statistics.stdev([p.delta_total_tokens for p in pairs]) if len(pairs) > 1 else 0
+                ),
                 "mean_doctor_token_delta": statistics.mean([p.delta_doctor_tokens for p in pairs]),
                 "total_control_tokens": sum(p.control_run.total_tokens for p in pairs),
                 "total_treatment_tokens": sum(p.treatment_run.total_tokens for p in pairs),
                 "total_delta_tokens": sum(p.delta_total_tokens for p in pairs),
-                "avg_control_success_rate": statistics.mean([p.control_success_rate for p in pairs]),
-                "avg_treatment_success_rate": statistics.mean([p.treatment_success_rate for p in pairs]),
+                "avg_control_success_rate": statistics.mean(
+                    [p.control_success_rate for p in pairs]
+                ),
+                "avg_treatment_success_rate": statistics.mean(
+                    [p.treatment_success_rate for p in pairs]
+                ),
             },
         }
 

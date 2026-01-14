@@ -4,7 +4,6 @@ from autopack.research.validators.quality_validator import QualityValidator
 
 
 class TestQualityValidator(unittest.TestCase):
-
     def setUp(self):
         self.validator = QualityValidator()
         self.mock_session = MagicMock()

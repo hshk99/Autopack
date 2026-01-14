@@ -1,7 +1,7 @@
 # Implementation Plan: Dev-Loop Speedups via Seam Refactors (High-ROI + Secondary)
 
-**Date**: 2026-01-12  
-**Audience**: “implementation Cursor” (code changes expected)  
+**Date**: 2026-01-12
+**Audience**: “implementation Cursor” (code changes expected)
 **Goal**: reduce day-to-day iteration friction (merge conflicts, review difficulty, test isolation pain) while preserving Autopack’s README thesis: **safe, deterministic, mechanically enforceable via CI contracts**.
 
 This plan intentionally gives **one clear direction** (no “choose option A/B”) and is written as an execution guide + PR stack.
@@ -34,7 +34,7 @@ This file defines **the next refactor targets** (high-ROI + secondary) and the *
 
 ### 2.1 Shrink the executor mega-file
 
-**Target**: `src/autopack/autonomous_executor.py`  
+**Target**: `src/autopack/autonomous_executor.py`
 **Reason**: largest merge-conflict surface + hardest to review + easiest to reintroduce drift.
 
 **Direction**: continue extraction into `src/autopack/executor/*` and `src/autopack/supervisor/*` so the executor becomes a small orchestrator.
@@ -53,7 +53,7 @@ This file defines **the next refactor targets** (high-ROI + secondary) and the *
 
 ### 2.2 Split provider mega-client (Anthropic)
 
-**Target**: `src/autopack/anthropic_clients.py`  
+**Target**: `src/autopack/anthropic_clients.py`
 **Reason**: complex parsing/prompt/transport code; regressions are subtle; test isolation is currently expensive.
 
 **Direction**: split into:
@@ -66,14 +66,14 @@ This file defines **the next refactor targets** (high-ROI + secondary) and the *
 
 ### 2.3 Micro-kernel split for governed apply (safety-critical)
 
-**Target**: `src/autopack/governed_apply.py`  
+**Target**: `src/autopack/governed_apply.py`
 **Reason**: safety boundary; needs clean separation between policy, sanitization, validation, and apply engine.
 
 **Direction**: create `src/autopack/patching/*` modules (sanitize/policy/quality/apply_engine) while preserving `GovernedApplyPath.apply_patch()` API.
 
 ### 2.4 Shrink `LlmService` into internal subsystems (stable facade)
 
-**Target**: `src/autopack/llm_service.py`  
+**Target**: `src/autopack/llm_service.py`
 **Reason**: central orchestration; large file makes it harder to safely evolve model routing/usage/doctor flows.
 
 **Direction**:
@@ -276,4 +276,3 @@ For each completed PR item:
 - add completion date
 - list tests run locally
 - ensure claims match actual diffs
-

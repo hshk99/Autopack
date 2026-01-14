@@ -54,72 +54,100 @@ def upgrade(engine: Engine) -> None:
 
         print("\n[1/6] Adding column: is_truncated_output (Boolean, default=False)")
         print("      Purpose: Flag censored data where actual_tokens is lower bound")
-        conn.execute(text("""
+        conn.execute(
+            text(
+                """
             ALTER TABLE token_estimation_v2_events
             ADD COLUMN is_truncated_output BOOLEAN NOT NULL DEFAULT FALSE
-        """))
+        """
+            )
+        )
         print("      ✓ Column 'is_truncated_output' added")
 
         print("\n[2/6] Adding column: api_reference_required (Boolean, nullable)")
         print("      Purpose: Detect tasks requiring API documentation")
-        conn.execute(text("""
+        conn.execute(
+            text(
+                """
             ALTER TABLE token_estimation_v2_events
             ADD COLUMN api_reference_required BOOLEAN
-        """))
+        """
+            )
+        )
         print("      ✓ Column 'api_reference_required' added")
 
         print("\n[3/6] Adding column: examples_required (Boolean, nullable)")
         print("      Purpose: Detect tasks requiring code examples")
-        conn.execute(text("""
+        conn.execute(
+            text(
+                """
             ALTER TABLE token_estimation_v2_events
             ADD COLUMN examples_required BOOLEAN
-        """))
+        """
+            )
+        )
         print("      ✓ Column 'examples_required' added")
 
         print("\n[4/6] Adding column: research_required (Boolean, nullable)")
         print("      Purpose: Detect tasks requiring codebase investigation")
-        conn.execute(text("""
+        conn.execute(
+            text(
+                """
             ALTER TABLE token_estimation_v2_events
             ADD COLUMN research_required BOOLEAN
-        """))
+        """
+            )
+        )
         print("      ✓ Column 'research_required' added")
 
         print("\n[5/6] Adding column: usage_guide_required (Boolean, nullable)")
         print("      Purpose: Detect tasks requiring usage documentation")
-        conn.execute(text("""
+        conn.execute(
+            text(
+                """
             ALTER TABLE token_estimation_v2_events
             ADD COLUMN usage_guide_required BOOLEAN
-        """))
+        """
+            )
+        )
         print("      ✓ Column 'usage_guide_required' added")
 
         print("\n[6/6] Adding column: context_quality (String, nullable)")
         print("      Purpose: Track context availability (none/some/strong)")
-        conn.execute(text("""
+        conn.execute(
+            text(
+                """
             ALTER TABLE token_estimation_v2_events
             ADD COLUMN context_quality VARCHAR
-        """))
+        """
+            )
+        )
         print("      ✓ Column 'context_quality' added")
 
         # Create index on is_truncated_output for efficient filtering
         print("\n[Index] Creating index: idx_telemetry_truncated")
-        conn.execute(text("""
+        conn.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_telemetry_truncated
             ON token_estimation_v2_events (is_truncated_output, category)
-        """))
+        """
+            )
+        )
         print("      ✓ Index 'idx_telemetry_truncated' created")
 
         # Verify existing events
         result = conn.execute(text("SELECT COUNT(*) FROM token_estimation_v2_events"))
         event_count = result.scalar() or 0
 
-        print(f"\n✓ Migration complete!")
+        print("\n✓ Migration complete!")
         print(f"  - {event_count} existing telemetry events updated with defaults:")
-        print(f"    - is_truncated_output = FALSE")
-        print(f"    - api_reference_required = NULL")
-        print(f"    - examples_required = NULL")
-        print(f"    - research_required = NULL")
-        print(f"    - usage_guide_required = NULL")
-        print(f"    - context_quality = NULL")
+        print("    - is_truncated_output = FALSE")
+        print("    - api_reference_required = NULL")
+        print("    - examples_required = NULL")
+        print("    - research_required = NULL")
+        print("    - usage_guide_required = NULL")
+        print("    - context_quality = NULL")
 
     print("\n" + "=" * 70)
     print("BUILD-129 Phase 3 Migration: SUCCESS")
@@ -143,27 +171,43 @@ def downgrade(engine: Engine) -> None:
         print("      ✓ Index 'idx_telemetry_truncated' dropped")
 
         print("\n[2/7] Dropping column: context_quality")
-        conn.execute(text("ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS context_quality"))
+        conn.execute(
+            text("ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS context_quality")
+        )
         print("      ✓ Column 'context_quality' dropped")
 
         print("\n[3/7] Dropping column: usage_guide_required")
-        conn.execute(text("ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS usage_guide_required"))
+        conn.execute(
+            text(
+                "ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS usage_guide_required"
+            )
+        )
         print("      ✓ Column 'usage_guide_required' dropped")
 
         print("\n[4/7] Dropping column: research_required")
-        conn.execute(text("ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS research_required"))
+        conn.execute(
+            text("ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS research_required")
+        )
         print("      ✓ Column 'research_required' dropped")
 
         print("\n[5/7] Dropping column: examples_required")
-        conn.execute(text("ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS examples_required"))
+        conn.execute(
+            text("ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS examples_required")
+        )
         print("      ✓ Column 'examples_required' dropped")
 
         print("\n[6/7] Dropping column: api_reference_required")
-        conn.execute(text("ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS api_reference_required"))
+        conn.execute(
+            text(
+                "ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS api_reference_required"
+            )
+        )
         print("      ✓ Column 'api_reference_required' dropped")
 
         print("\n[7/7] Dropping column: is_truncated_output")
-        conn.execute(text("ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS is_truncated_output"))
+        conn.execute(
+            text("ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS is_truncated_output")
+        )
         print("      ✓ Column 'is_truncated_output' dropped")
 
     print("\n" + "=" * 70)
@@ -207,6 +251,7 @@ def main():
     except Exception as e:
         print(f"\n✗ Migration failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

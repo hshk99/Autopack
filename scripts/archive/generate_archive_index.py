@@ -315,7 +315,7 @@ def _generate_markdown(index: ArchiveIndex, repo_root: Path) -> str:
 
             for bucket in root["bucket_stats"]:
                 size_kb = bucket["total_bytes"] / 1024
-                size_str = f"{size_kb:.1f} KB" if size_kb < 1024 else f"{size_kb/1024:.1f} MB"
+                size_str = f"{size_kb:.1f} KB" if size_kb < 1024 else f"{size_kb / 1024:.1f} MB"
                 desc = bucket["description"] or "-"
                 bucket_name = bucket["bucket_rel"].split("/")[-1]
                 lines.append(f"| `{bucket_name}/` | {bucket['file_count']} | {size_str} | {desc} |")
@@ -330,7 +330,7 @@ def _generate_markdown(index: ArchiveIndex, repo_root: Path) -> str:
             for f in root["recent_files"][:10]:  # Show first 10 in MD
                 name = f["path_rel"].split("/")[-1]
                 size_kb = f["bytes"] / 1024
-                size_str = f"{size_kb:.1f} KB" if size_kb < 1024 else f"{size_kb/1024:.1f} MB"
+                size_str = f"{size_kb:.1f} KB" if size_kb < 1024 else f"{size_kb / 1024:.1f} MB"
                 hint = f" - {f['summary_hint']}" if f.get("summary_hint") else ""
                 lines.append(f"- `{name}` ({size_str}){hint}")
 

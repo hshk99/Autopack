@@ -3,6 +3,7 @@
 Continuously monitors the 4 BUILD-145 P1 phases and sends a Telegram notification
 when all phases reach a terminal state (COMPLETE or FAILED).
 """
+
 import time
 import sys
 import os
@@ -19,8 +20,9 @@ RUN_IDS = [
     "autopack-onephase-p11-observability-artifact-first",
     "autopack-onephase-p12-embedding-cache-and-cap",
     "autopack-onephase-p13-expand-artifact-substitution",
-    "autopack-onephase-research-import-errors"
+    "autopack-onephase-research-import-errors",
 ]
+
 
 def check_status():
     """Check current status of all phases."""
@@ -30,21 +32,25 @@ def check_status():
 
         phase_statuses = []
         for p in phases:
-            phase_statuses.append({
-                "phase_id": p.phase_id,
-                "run_id": p.run_id,
-                "state": p.state,
-                "tokens_used": p.tokens_used or 0
-            })
+            phase_statuses.append(
+                {
+                    "phase_id": p.phase_id,
+                    "run_id": p.run_id,
+                    "state": p.state,
+                    "tokens_used": p.tokens_used or 0,
+                }
+            )
 
         return phase_statuses
     finally:
         session.close()
 
+
 def is_all_complete(phase_statuses):
     """Check if all phases are in terminal state (COMPLETE or FAILED)."""
     terminal_states = {PhaseState.COMPLETE, PhaseState.FAILED}
     return all(p["state"] in terminal_states for p in phase_statuses)
+
 
 def format_completion_message(phase_statuses):
     """Format completion message for Telegram."""
@@ -52,19 +58,20 @@ def format_completion_message(phase_statuses):
     failed = sum(1 for p in phase_statuses if p["state"] == PhaseState.FAILED)
     total_tokens = sum(p["tokens_used"] for p in phase_statuses)
 
-    message = f"🚀 *BUILD-145 P1 Phases Complete*\n\n"
-    message += f"*Summary*:\n"
+    message = "🚀 *BUILD-145 P1 Phases Complete*\n\n"
+    message += "*Summary*:\n"
     message += f"  ✅ Completed: {completed}/{len(phase_statuses)}\n"
     message += f"  ❌ Failed: {failed}/{len(phase_statuses)}\n"
     message += f"  🎯 Total Tokens: {total_tokens:,}\n\n"
 
-    message += f"*Phase Results*:\n"
+    message += "*Phase Results*:\n"
     for p in phase_statuses:
         state_emoji = "✅" if p["state"] == PhaseState.COMPLETE else "❌"
-        tokens_str = f" ({p['tokens_used']:,} tokens)" if p['tokens_used'] > 0 else ""
+        tokens_str = f" ({p['tokens_used']:,} tokens)" if p["tokens_used"] > 0 else ""
         message += f"  {state_emoji} `{p['phase_id']}`: {p['state'].value}{tokens_str}\n"
 
     return message
+
 
 def main():
     """Monitor phases and send notification when all complete."""
@@ -95,7 +102,7 @@ def main():
                     PhaseState.COMPLETE: "✅",
                     PhaseState.FAILED: "❌",
                     PhaseState.GATE: "🚪",
-                    PhaseState.CI_RUNNING: "🧪"
+                    PhaseState.CI_RUNNING: "🧪",
                 }.get(p["state"], "❓")
                 print(f"  {state_emoji} {p['phase_id']}: {p['state'].value}")
 
@@ -107,9 +114,7 @@ def main():
                 if notifier.is_configured():
                     message = format_completion_message(phase_statuses)
                     success = notifier.send_completion_notice(
-                        phase_id="BUILD-145-P1",
-                        status="complete",
-                        message=message
+                        phase_id="BUILD-145-P1", status="complete", message=message
                     )
 
                     if success:
@@ -135,6 +140,7 @@ def main():
     except KeyboardInterrupt:
         print("\n\n⚠️  Monitoring stopped by user")
         sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

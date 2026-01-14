@@ -3,7 +3,6 @@ from autopack.research.gatherers.content_extractor import ContentExtractor
 
 
 class TestContentExtractor(unittest.TestCase):
-
     def setUp(self):
         self.extractor = ContentExtractor()
 

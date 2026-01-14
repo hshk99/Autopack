@@ -13,6 +13,7 @@ from enum import Enum
 
 class ResearchType(Enum):
     """Types of research files (universal across projects)"""
+
     # Strategic Research
     PRODUCT_VISION = "product_vision"  # Product intent, positioning, target users
     MARKET_RESEARCH = "market_research"  # Competitive landscape, market analysis
@@ -44,6 +45,7 @@ class ResearchType(Enum):
 
 class GapType(Enum):
     """Types of gaps between current state and research findings"""
+
     FEATURE_GAP = "feature_gap"  # Missing features vs market/user research
     CAPABILITY_GAP = "capability_gap"  # Missing capabilities vs technical research
     COMPLIANCE_GAP = "compliance_gap"  # Missing compliance vs regulatory research
@@ -54,6 +56,7 @@ class GapType(Enum):
 
 class Priority(Enum):
     """Priority levels for gaps/decisions"""
+
     CRITICAL = "critical"  # Blocking, must do now
     HIGH = "high"  # Important, should do soon
     MEDIUM = "medium"  # Valuable, can schedule
@@ -62,6 +65,7 @@ class Priority(Enum):
 
 class Effort(Enum):
     """Effort estimates"""
+
     LOW = "low"  # Days
     MEDIUM = "medium"  # Weeks
     HIGH = "high"  # Months
@@ -69,6 +73,7 @@ class Effort(Enum):
 
 class DecisionType(Enum):
     """Decision outcomes"""
+
     IMPLEMENT_NOW = "implement_now"  # Add to active development
     IMPLEMENT_LATER = "implement_later"  # Add to FUTURE_PLAN
     REVIEW = "review"  # Needs more research/discussion
@@ -84,12 +89,15 @@ class ProjectContext:
     - SOT files (current state)
     - Research files (strategy, vision, domain)
     """
+
     project_id: str
     assembled_at: datetime = field(default_factory=datetime.now)
 
     # Current State (from SOT files)
     implemented_features: List[Dict] = field(default_factory=list)  # From BUILD_HISTORY
-    architecture_constraints: List[Dict] = field(default_factory=list)  # From ARCHITECTURE_DECISIONS
+    architecture_constraints: List[Dict] = field(
+        default_factory=list
+    )  # From ARCHITECTURE_DECISIONS
     known_issues: List[Dict] = field(default_factory=list)  # From DEBUG_LOG
     planned_features: List[Dict] = field(default_factory=list)  # From FUTURE_PLAN
     learned_rules: List[Dict] = field(default_factory=list)  # From LEARNED_RULES.json
@@ -124,36 +132,37 @@ class ProjectContext:
     def to_dict(self) -> Dict:
         """Convert to dictionary for serialization"""
         return {
-            'project_id': self.project_id,
-            'assembled_at': self.assembled_at.isoformat(),
-            'implemented_features': self.implemented_features,
-            'architecture_constraints': self.architecture_constraints,
-            'known_issues': self.known_issues,
-            'planned_features': self.planned_features,
-            'learned_rules': self.learned_rules,
-            'vision_statement': self.vision_statement,
-            'target_users': self.target_users,
-            'core_principles': self.core_principles,
-            'positioning': self.positioning,
-            'domain_focus': self.domain_focus,
-            'regulatory_requirements': self.regulatory_requirements,
-            'user_pain_points': self.user_pain_points,
-            'key_competitors': self.key_competitors,
-            'competitive_gaps': self.competitive_gaps,
-            'competitive_advantages': self.competitive_advantages,
-            'market_opportunities': self.market_opportunities,
-            'tech_stack': self.tech_stack,
-            'integration_points': self.integration_points,
-            'technical_constraints': self.technical_constraints,
-            'budget_constraints': self.budget_constraints,
-            'timeline_constraints': self.timeline_constraints,
-            'team_capabilities': self.team_capabilities
+            "project_id": self.project_id,
+            "assembled_at": self.assembled_at.isoformat(),
+            "implemented_features": self.implemented_features,
+            "architecture_constraints": self.architecture_constraints,
+            "known_issues": self.known_issues,
+            "planned_features": self.planned_features,
+            "learned_rules": self.learned_rules,
+            "vision_statement": self.vision_statement,
+            "target_users": self.target_users,
+            "core_principles": self.core_principles,
+            "positioning": self.positioning,
+            "domain_focus": self.domain_focus,
+            "regulatory_requirements": self.regulatory_requirements,
+            "user_pain_points": self.user_pain_points,
+            "key_competitors": self.key_competitors,
+            "competitive_gaps": self.competitive_gaps,
+            "competitive_advantages": self.competitive_advantages,
+            "market_opportunities": self.market_opportunities,
+            "tech_stack": self.tech_stack,
+            "integration_points": self.integration_points,
+            "technical_constraints": self.technical_constraints,
+            "budget_constraints": self.budget_constraints,
+            "timeline_constraints": self.timeline_constraints,
+            "team_capabilities": self.team_capabilities,
         }
 
 
 @dataclass
 class ResearchFile:
     """Metadata about a research file"""
+
     file_path: str
     research_type: ResearchType
     title: str
@@ -168,6 +177,7 @@ class ResearchFile:
 @dataclass
 class ResearchCatalog:
     """Catalog of all research files for a project"""
+
     project_id: str
     research_files: List[ResearchFile] = field(default_factory=list)
     total_files: int = 0
@@ -183,7 +193,7 @@ class ResearchCatalog:
         strategic_types = {
             ResearchType.PRODUCT_VISION,
             ResearchType.MARKET_RESEARCH,
-            ResearchType.STRATEGIC_REVIEW
+            ResearchType.STRATEGIC_REVIEW,
         }
         return [f for f in self.research_files if f.research_type in strategic_types]
 
@@ -192,7 +202,7 @@ class ResearchCatalog:
         domain_types = {
             ResearchType.DOMAIN_REQUIREMENTS,
             ResearchType.REGULATORY_COMPLIANCE,
-            ResearchType.USER_RESEARCH
+            ResearchType.USER_RESEARCH,
         }
         return [f for f in self.research_files if f.research_type in domain_types]
 
@@ -200,13 +210,16 @@ class ResearchCatalog:
 @dataclass
 class ResearchGap:
     """Gap between current state and research findings"""
+
     gap_id: str
     gap_type: GapType
     title: str
     description: str
     current_state: str  # What we have now
     desired_state: str  # What research suggests we should have
-    source_research: List[str] = field(default_factory=list)  # Research files that surfaced this gap
+    source_research: List[str] = field(
+        default_factory=list
+    )  # Research files that surfaced this gap
     priority: Priority = Priority.MEDIUM
     effort: Effort = Effort.MEDIUM
     impact_areas: List[str] = field(default_factory=list)  # Areas affected
@@ -218,6 +231,7 @@ class ResearchGap:
 @dataclass
 class OpportunityAnalysis:
     """Analysis of opportunities from research"""
+
     project_id: str
     gaps: List[ResearchGap] = field(default_factory=list)
     strategic_insights: List[str] = field(default_factory=list)  # Cross-cutting insights
@@ -239,6 +253,7 @@ class OpportunityAnalysis:
 @dataclass
 class ImplementationDecision:
     """Decision about whether/how to implement a gap"""
+
     decision_id: str
     gap: ResearchGap
     decision: DecisionType
@@ -257,6 +272,7 @@ class ImplementationDecision:
 @dataclass
 class DecisionReport:
     """Report of all decisions made"""
+
     project_id: str
     decisions: List[ImplementationDecision] = field(default_factory=list)
     decided_at: datetime = field(default_factory=datetime.now)

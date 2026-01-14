@@ -18,9 +18,9 @@ def verify_bot_token(token: str) -> bool:
     """Verify that a bot token is valid by calling getMe API."""
     import requests
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("VERIFYING BOT TOKEN")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     if not token:
         print("❌ No bot token provided")
@@ -29,7 +29,7 @@ def verify_bot_token(token: str) -> bool:
     # Bot tokens should contain a colon
     if ":" not in token:
         print("⚠️  Bot token format looks incorrect (should contain ':')")
-        print(f"   Format should be: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
+        print("   Format should be: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
         print(f"   Your value: {token[:20]}..." if len(token) > 20 else f"   Your value: {token}")
 
     try:
@@ -41,14 +41,14 @@ def verify_bot_token(token: str) -> bool:
 
         if data.get("ok"):
             bot_info = data.get("result", {})
-            print(f"\n✅ Bot token is VALID!")
-            print(f"\n   Bot Details:")
+            print("\n✅ Bot token is VALID!")
+            print("\n   Bot Details:")
             print(f"   - Name: {bot_info.get('first_name')}")
             print(f"   - Username: @{bot_info.get('username')}")
             print(f"   - ID: {bot_info.get('id')}")
             return True
         else:
-            print(f"\n❌ Bot token is INVALID")
+            print("\n❌ Bot token is INVALID")
             print(f"   Error: {data.get('description', 'Unknown error')}")
             return False
 
@@ -61,18 +61,18 @@ def verify_chat_id(bot_token: str, chat_id: str) -> bool:
     """Verify that a chat ID exists by sending a test message."""
     import requests
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("VERIFYING CHAT ID")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     if not chat_id:
         print("❌ No chat ID provided")
         return False
 
     # Chat IDs should be numeric only
-    if not chat_id.lstrip('-').isdigit():
+    if not chat_id.lstrip("-").isdigit():
         print("⚠️  Chat ID format looks incorrect (should be numeric only)")
-        print(f"   Format should be: 123456789 or -123456789")
+        print("   Format should be: 123456789 or -123456789")
         print(f"   Your value: {chat_id}")
 
     try:
@@ -85,27 +85,27 @@ def verify_chat_id(bot_token: str, chat_id: str) -> bool:
         )
 
         print(f"\nTesting chat ID: {chat_id}")
-        print(f"Sending test message...")
+        print("Sending test message...")
 
-        response = requests.post(url, json={
-            "chat_id": chat_id,
-            "text": message,
-            "parse_mode": "Markdown"
-        }, timeout=10)
+        response = requests.post(
+            url, json={"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}, timeout=10
+        )
 
         data = response.json()
 
         if data.get("ok"):
-            print(f"\n✅ Chat ID is VALID!")
-            print(f"\n   Message sent successfully!")
-            print(f"   Check your Telegram - you should see the test message.")
+            print("\n✅ Chat ID is VALID!")
+            print("\n   Message sent successfully!")
+            print("   Check your Telegram - you should see the test message.")
             return True
         else:
-            print(f"\n❌ Chat ID is INVALID")
+            print("\n❌ Chat ID is INVALID")
             print(f"   Error: {data.get('description', 'Unknown error')}")
 
-            if "chat not found" in data.get('description', '').lower():
-                print(f"\n   💡 Tip: Make sure you've sent at least one message to @{get_bot_username(bot_token)} first")
+            if "chat not found" in data.get("description", "").lower():
+                print(
+                    f"\n   💡 Tip: Make sure you've sent at least one message to @{get_bot_username(bot_token)} first"
+                )
 
             return False
 
@@ -118,6 +118,7 @@ def get_bot_username(bot_token: str) -> str:
     """Get bot username from token."""
     try:
         import requests
+
         url = f"https://api.telegram.org/bot{bot_token}/getMe"
         response = requests.get(url, timeout=5)
         data = response.json()
@@ -153,9 +154,9 @@ def main():
     """Main verification flow."""
     import os
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("🔍 TELEGRAM CREDENTIALS VERIFICATION")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     print("\nThis script will help you verify your Telegram bot configuration.")
     print("\nYou need two things:")
@@ -163,15 +164,15 @@ def main():
     print("  2. TELEGRAM_CHAT_ID - your personal chat ID (numeric only)")
 
     # Get bot token
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("STEP 1: Enter Bot Token")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     if bot_token:
         print(f"\n✓ Found TELEGRAM_BOT_TOKEN in environment: {bot_token[:20]}...")
         use_env = input("Use this token? (Y/n): ").strip().lower()
-        if use_env == 'n':
+        if use_env == "n":
             bot_token = None
 
     if not bot_token:
@@ -188,15 +189,15 @@ def main():
         return
 
     # Get chat ID
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("STEP 2: Enter Chat ID")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     chat_id = os.getenv("TELEGRAM_CHAT_ID")
     if chat_id:
         print(f"\n✓ Found TELEGRAM_CHAT_ID in environment: {chat_id}")
         use_env = input("Use this chat ID? (Y/n): ").strip().lower()
-        if use_env == 'n':
+        if use_env == "n":
             chat_id = None
 
     if not chat_id:
@@ -207,14 +208,14 @@ def main():
         if auto_chat_id:
             print(f"✓ Found chat ID from recent messages: {auto_chat_id}")
             use_auto = input("Use this chat ID? (Y/n): ").strip().lower()
-            if use_auto != 'n':
+            if use_auto != "n":
                 chat_id = auto_chat_id
 
         if not chat_id:
             print("\nManual chat ID entry:")
             print("  1. Send any message to your bot on Telegram")
             print("  2. Visit: https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates")
-            print("  3. Look for \"chat\":{\"id\":123456789}")
+            print('  3. Look for "chat":{"id":123456789}')
             chat_id = input("\nEnter chat ID: ").strip()
 
     # Verify chat ID
@@ -223,16 +224,16 @@ def main():
         return
 
     # Success! Show .env format
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("✅ ALL VERIFICATIONS PASSED!")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     print("\n📝 Add these to your .env file:")
-    print(f"\n{'='*60}")
-    print(f"TELEGRAM_BOT_TOKEN=\"{bot_token}\"")
-    print(f"TELEGRAM_CHAT_ID=\"{chat_id}\"")
-    print(f"NGROK_URL=\"https://harrybot.ngrok.app\"")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print(f'TELEGRAM_BOT_TOKEN="{bot_token}"')
+    print(f'TELEGRAM_CHAT_ID="{chat_id}"')
+    print('NGROK_URL="https://harrybot.ngrok.app"')
+    print(f"{'=' * 60}")
 
     print("\n✅ Your Telegram bot is configured correctly!")
     print("\nNext steps:")
@@ -250,5 +251,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ Unexpected error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

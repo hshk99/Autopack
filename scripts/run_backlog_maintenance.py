@@ -22,7 +22,13 @@ from autopack.backlog_maintenance import (
     parse_patch_stats,
 )
 from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
-from autopack.maintenance_auditor import AuditorInput, AuditorDecision, DiffStats, TestResult, evaluate as audit_evaluate
+from autopack.maintenance_auditor import (
+    AuditorInput,
+    AuditorDecision,
+    DiffStats,
+    TestResult,
+    evaluate as audit_evaluate,
+)
 from autopack.memory import MemoryService
 from autopack.governed_apply import GovernedApplyPath
 from autopack.maintenance_runner import run_tests
@@ -36,9 +42,20 @@ def is_major_change(item, patch_path, auditor_decision):
         (is_major: bool, rationale: str)
     """
     major_keywords = [
-        "database", "migration", "postgresql", "qdrant", "vector", "memory",
-        "architecture", "framework", "integration", "api", "authentication",
-        "refactor", "redesign", "restructure"
+        "database",
+        "migration",
+        "postgresql",
+        "qdrant",
+        "vector",
+        "memory",
+        "architecture",
+        "framework",
+        "integration",
+        "api",
+        "authentication",
+        "refactor",
+        "redesign",
+        "restructure",
     ]
 
     # Check item context for major keywords
@@ -60,23 +77,67 @@ def is_major_change(item, patch_path, auditor_decision):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run propose-first backlog maintenance diagnostics.")
-    parser.add_argument("--backlog", type=Path, required=True, help="Path to backlog markdown (e.g., consolidated_debug.md)")
+    parser = argparse.ArgumentParser(
+        description="Run propose-first backlog maintenance diagnostics."
+    )
+    parser.add_argument(
+        "--backlog",
+        type=Path,
+        required=True,
+        help="Path to backlog markdown (e.g., consolidated_debug.md)",
+    )
     parser.add_argument("--run-id", type=str, default=None, help="Run ID for diagnostics artifacts")
-    parser.add_argument("--allowed-path", action="append", default=[], help="Allowed path prefix to scope patches")
+    parser.add_argument(
+        "--allowed-path", action="append", default=[], help="Allowed path prefix to scope patches"
+    )
     parser.add_argument("--max-items", type=int, default=10, help="Max backlog items to include")
     parser.add_argument("--max-commands", type=int, default=20, help="Per-item command budget")
-    parser.add_argument("--max-seconds", type=int, default=600, help="Per-item time budget (seconds)")
+    parser.add_argument(
+        "--max-seconds", type=int, default=600, help="Per-item time budget (seconds)"
+    )
     parser.add_argument("--workspace", type=Path, default=Path("."), help="Workspace root")
-    parser.add_argument("--checkpoint", action="store_true", help="Create a git checkpoint before running diagnostics")
-    parser.add_argument("--apply", action="store_true", help="Attempt apply using patches from --patch-dir if auditor approves")
-    parser.add_argument("--patch-dir", type=Path, default=None, help="Directory containing patches named <item_id>.patch")
-    parser.add_argument("--default-allowed-path", action="append", default=[], help="Additional default allowed path prefixes")
-    parser.add_argument("--max-files", type=int, default=10, help="Max files allowed in a patch for auto-approval")
-    parser.add_argument("--max-lines", type=int, default=500, help="Max lines added+deleted for auto-approval")
-    parser.add_argument("--test-cmd", action="append", default=[], help="Targeted test command(s) to run per item")
-    parser.add_argument("--log-major-changes", action="store_true", help="Log major changes to PlanChange table for context awareness")
-    parser.add_argument("--project-id", type=str, default="file-organizer-app-v1", help="Project ID for PlanChange logging")
+    parser.add_argument(
+        "--checkpoint",
+        action="store_true",
+        help="Create a git checkpoint before running diagnostics",
+    )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Attempt apply using patches from --patch-dir if auditor approves",
+    )
+    parser.add_argument(
+        "--patch-dir",
+        type=Path,
+        default=None,
+        help="Directory containing patches named <item_id>.patch",
+    )
+    parser.add_argument(
+        "--default-allowed-path",
+        action="append",
+        default=[],
+        help="Additional default allowed path prefixes",
+    )
+    parser.add_argument(
+        "--max-files", type=int, default=10, help="Max files allowed in a patch for auto-approval"
+    )
+    parser.add_argument(
+        "--max-lines", type=int, default=500, help="Max lines added+deleted for auto-approval"
+    )
+    parser.add_argument(
+        "--test-cmd", action="append", default=[], help="Targeted test command(s) to run per item"
+    )
+    parser.add_argument(
+        "--log-major-changes",
+        action="store_true",
+        help="Log major changes to PlanChange table for context awareness",
+    )
+    parser.add_argument(
+        "--project-id",
+        type=str,
+        default="file-organizer-app-v1",
+        help="Project ID for PlanChange logging",
+    )
     args = parser.parse_args()
 
     run_id = args.run_id or f"backlog-maintenance-{int(time.time())}"
@@ -97,6 +158,7 @@ def main():
     # Initialize MemoryService with proper configuration to ensure collections are created
     try:
         import yaml
+
         config_path = Path("config/memory.yaml")
         config = {}
         if config_path.exists():
@@ -138,7 +200,9 @@ def main():
 
     checkpoint_hash = None
     if args.checkpoint:
-        ok, checkpoint_hash = create_git_checkpoint(workspace, message=f"[Autopack] Backlog checkpoint {run_id}")
+        ok, checkpoint_hash = create_git_checkpoint(
+            workspace, message=f"[Autopack] Backlog checkpoint {run_id}"
+        )
         if ok:
             print(f"[Checkpoint] Created at {checkpoint_hash}")
         else:
@@ -163,7 +227,11 @@ def main():
         print(f"[Diagnostics] {item.id}: {item.title}")
         outcome = agent.run_diagnostics(
             failure_class="maintenance",
-            context={"phase_id": item.id, "description": item.title, "backlog_summary": item.summary},
+            context={
+                "phase_id": item.id,
+                "description": item.title,
+                "backlog_summary": item.summary,
+            },
             phase_id=item.id,
             mode="maintenance",
         )
@@ -178,7 +246,9 @@ def main():
         if patch_path:
             raw = patch_path.read_text(encoding="utf-8", errors="ignore")
             diff_stats = parse_patch_stats(raw)
-            print(f"[Patch] Parsed {item.id}: {len(diff_stats.files_changed)} files, +{diff_stats.lines_added}/-{diff_stats.lines_deleted} lines")
+            print(
+                f"[Patch] Parsed {item.id}: {len(diff_stats.files_changed)} files, +{diff_stats.lines_added}/-{diff_stats.lines_deleted} lines"
+            )
 
         # Use workspace test results (run once, not per-item)
         test_results = workspace_test_results
@@ -224,7 +294,9 @@ def main():
                     protected_paths=protected_paths,
                     run_type="project_build",
                 )
-                success, err = applier.apply_patch(patch_path.read_text(encoding="utf-8", errors="ignore"))
+                success, err = applier.apply_patch(
+                    patch_path.read_text(encoding="utf-8", errors="ignore")
+                )
                 apply_result = {"success": success, "error": err}
                 if success:
                     print(f"[Apply] Success for {item.id}")
@@ -292,7 +364,9 @@ def main():
     if test_output_cache:
         cache_path = diag_dir / "test_output_cache.json"
         cache_path.write_text(json.dumps(test_output_cache, indent=2), encoding="utf-8")
-        print(f"[Tests] Test output cache -> {cache_path} ({len(test_output_cache)} unique outputs)")
+        print(
+            f"[Tests] Test output cache -> {cache_path} ({len(test_output_cache)} unique outputs)"
+        )
 
     summary_path = diag_dir / "backlog_diagnostics_summary.json"
     summary_path.write_text(json.dumps(summaries, indent=2), encoding="utf-8")
@@ -301,4 +375,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

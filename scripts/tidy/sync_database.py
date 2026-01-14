@@ -43,7 +43,7 @@ def get_database_schema(db_path: Path) -> Dict[str, Any]:
         schema = {
             "database": str(db_path.name),
             "exported_at": datetime.now().isoformat(),
-            "tables": {}
+            "tables": {},
         }
 
         for table in tables:
@@ -51,21 +51,20 @@ def get_database_schema(db_path: Path) -> Dict[str, Any]:
             cursor.execute(f"PRAGMA table_info({table})")
             columns = []
             for col in cursor.fetchall():
-                columns.append({
-                    "name": col[1],
-                    "type": col[2],
-                    "not_null": bool(col[3]),
-                    "primary_key": bool(col[5])
-                })
+                columns.append(
+                    {
+                        "name": col[1],
+                        "type": col[2],
+                        "not_null": bool(col[3]),
+                        "primary_key": bool(col[5]),
+                    }
+                )
 
             # Get row count
             cursor.execute(f"SELECT COUNT(*) FROM {table}")
             row_count = cursor.fetchone()[0]
 
-            schema["tables"][table] = {
-                "columns": columns,
-                "row_count": row_count
-            }
+            schema["tables"][table] = {"columns": columns, "row_count": row_count}
 
         conn.close()
         return schema
@@ -87,7 +86,7 @@ def get_database_stats(db_path: Path) -> Dict[str, Any]:
             "database": str(db_path.name),
             "exported_at": datetime.now().isoformat(),
             "file_size_kb": db_path.stat().st_size // 1024,
-            "tables": {}
+            "tables": {},
         }
 
         # Get table statistics
@@ -145,22 +144,15 @@ def sync_database_to_docs(db_path: Path, docs_dir: Path, dry_run: bool = False) 
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Sync database information to docs/ folder"
-    )
+    parser = argparse.ArgumentParser(description="Sync database information to docs/ folder")
+    parser.add_argument("--db", help="Specific database file to sync (e.g., autopack.db)")
     parser.add_argument(
-        "--db",
-        help="Specific database file to sync (e.g., autopack.db)"
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show what would be synced without making changes"
+        "--dry-run", action="store_true", help="Show what would be synced without making changes"
     )
     parser.add_argument(
         "--all-projects",
         action="store_true",
-        help="Sync databases from all projects including file-organizer"
+        help="Sync databases from all projects including file-organizer",
     )
 
     args = parser.parse_args()

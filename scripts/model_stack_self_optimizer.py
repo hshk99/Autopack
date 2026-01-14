@@ -57,16 +57,18 @@ def aggregate_stats(log_entries: List[dict], pricing: dict) -> dict:
 
     Returns stats grouped by (role, complexity, model).
     """
-    stats = defaultdict(lambda: {
-        "total_calls": 0,
-        "successful_calls": 0,
-        "failed_calls": 0,
-        "total_tokens_in": 0,
-        "total_tokens_out": 0,
-        "total_cost_usd": 0.0,
-        "escalation_count": 0,
-        "attempts": [],
-    })
+    stats = defaultdict(
+        lambda: {
+            "total_calls": 0,
+            "successful_calls": 0,
+            "failed_calls": 0,
+            "total_tokens_in": 0,
+            "total_tokens_out": 0,
+            "total_cost_usd": 0.0,
+            "escalation_count": 0,
+            "attempts": [],
+        }
+    )
 
     for entry in log_entries:
         role = entry.get("role", "unknown")
@@ -95,18 +97,12 @@ def get_model_price(model: str, pricing: dict) -> tuple:
         if isinstance(models, dict) and model in models:
             model_pricing = models[model]
             if isinstance(model_pricing, dict):
-                return (
-                    model_pricing.get("input_per_1k", 0),
-                    model_pricing.get("output_per_1k", 0)
-                )
+                return (model_pricing.get("input_per_1k", 0), model_pricing.get("output_per_1k", 0))
     return (0, 0)
 
 
 def build_optimization_prompt(
-    models_yaml: dict,
-    pricing_yaml: dict,
-    run_stats: dict,
-    previous_report: Optional[str] = None
+    models_yaml: dict, pricing_yaml: dict, run_stats: dict, previous_report: Optional[str] = None
 ) -> str:
     """Build the optimization prompt for frontier LLM."""
 
@@ -146,7 +142,9 @@ Analyze the current Autopack model stack configuration and recommend optimizatio
 """
 
     if run_stats:
-        prompt += "\n| Role | Complexity | Model | Calls | Success Rate | Avg Attempts | Est. Cost |\n"
+        prompt += (
+            "\n| Role | Complexity | Model | Calls | Success Rate | Avg Attempts | Est. Cost |\n"
+        )
         prompt += "|------|------------|-------|-------|--------------|--------------|----------|\n"
 
         for (role, complexity, model), data in sorted(run_stats.items()):
@@ -216,6 +214,7 @@ def call_frontier_llm(prompt: str, model: str) -> str:
     """Call frontier LLM with the optimization prompt."""
     try:
         import openai
+
         client = openai.OpenAI()
 
         response = client.chat.completions.create(
@@ -223,9 +222,9 @@ def call_frontier_llm(prompt: str, model: str) -> str:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an expert at LLM cost optimization and model selection for automated code generation systems. Provide detailed, actionable recommendations."
+                    "content": "You are an expert at LLM cost optimization and model selection for automated code generation systems. Provide detailed, actionable recommendations.",
                 },
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             max_tokens=4000,
             temperature=0.3,
@@ -250,7 +249,7 @@ def parse_optimizer_response(response: str) -> tuple:
     yaml_end = response.find("```", yaml_start + 7) if yaml_start != -1 else -1
 
     if yaml_start != -1 and yaml_end != -1:
-        yaml_content = response[yaml_start + 7:yaml_end].strip()
+        yaml_content = response[yaml_start + 7 : yaml_end].strip()
         try:
             proposed_yaml = yaml.safe_load(yaml_content)
         except yaml.YAMLError:
@@ -264,28 +263,21 @@ def main():
     parser.add_argument(
         "--optimizer-model",
         default="gpt-4o",
-        help="Model to use for optimization analysis (default: gpt-4o)"
+        help="Model to use for optimization analysis (default: gpt-4o)",
     )
     parser.add_argument(
         "--log-dir",
         default="logs/autopack",
-        help="Directory containing JSONL logs (default: logs/autopack)"
+        help="Directory containing JSONL logs (default: logs/autopack)",
     )
     parser.add_argument(
-        "--days",
-        type=int,
-        default=30,
-        help="Number of days of logs to analyze (default: 30)"
+        "--days", type=int, default=30, help="Number of days of logs to analyze (default: 30)"
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show what would be done without calling LLM"
+        "--dry-run", action="store_true", help="Show what would be done without calling LLM"
     )
     parser.add_argument(
-        "--output-dir",
-        default=".",
-        help="Directory for output files (default: current directory)"
+        "--output-dir", default=".", help="Directory for output files (default: current directory)"
     )
 
     args = parser.parse_args()
@@ -296,7 +288,7 @@ def main():
     models_yaml = load_yaml("config/models.yaml")
     pricing_yaml = load_yaml("config/pricing.yaml")
 
-    print(f"[ModelStackOptimizer] Loaded models.yaml and pricing.yaml")
+    print("[ModelStackOptimizer] Loaded models.yaml and pricing.yaml")
 
     # Load and aggregate run statistics
     log_entries = load_jsonl_logs(args.log_dir, args.days)
@@ -351,8 +343,8 @@ def main():
     print("\n[ModelStackOptimizer] Analysis complete!")
     print("Next steps:")
     print(f"  1. Review {report_path}")
-    print(f"  2. Compare proposed changes with current config/models.yaml")
-    print(f"  3. Apply changes via git after review")
+    print("  2. Compare proposed changes with current config/models.yaml")
+    print("  3. Apply changes via git after review")
 
 
 if __name__ == "__main__":

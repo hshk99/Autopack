@@ -271,10 +271,9 @@ class TestFlagMetadataQuality:
                 invalid_category.append(f"{flag_name} (has '{flag_data['category']}')")
 
         assert not missing_category, f"Flags missing category: {missing_category}"
-        assert not invalid_category, (
-            f"Flags with invalid category: {invalid_category}\n"
-            f"Valid categories: {valid_categories}"
-        )
+        assert (
+            not invalid_category
+        ), f"Flags with invalid category: {invalid_category}\nValid categories: {valid_categories}"
 
     def test_security_flags_have_implications(self):
         """Security category flags should document implications."""

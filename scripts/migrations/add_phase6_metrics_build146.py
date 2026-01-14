@@ -52,18 +52,28 @@ def get_database_url() -> str:
     """
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
-        print("\n" + "="*80, file=sys.stderr)
+        print("\n" + "=" * 80, file=sys.stderr)
         print("ERROR: DATABASE_URL environment variable not set", file=sys.stderr)
-        print("="*80, file=sys.stderr)
-        print("\nMigration scripts require explicit DATABASE_URL to prevent footguns.", file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
+        print(
+            "\nMigration scripts require explicit DATABASE_URL to prevent footguns.",
+            file=sys.stderr,
+        )
         print("Production uses Postgres; SQLite is only for dev/test.\n", file=sys.stderr)
         print("Set DATABASE_URL before running:\n", file=sys.stderr)
         print("  # PowerShell (Postgres production):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\"", file=sys.stderr)
-        print("  python scripts/migrations/add_phase6_metrics_build146.py upgrade\n", file=sys.stderr)
+        print(
+            '  $env:DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"',
+            file=sys.stderr,
+        )
+        print(
+            "  python scripts/migrations/add_phase6_metrics_build146.py upgrade\n", file=sys.stderr
+        )
         print("  # PowerShell (SQLite dev/test - explicit opt-in):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"sqlite:///autopack.db\"", file=sys.stderr)
-        print("  python scripts/migrations/add_phase6_metrics_build146.py upgrade\n", file=sys.stderr)
+        print('  $env:DATABASE_URL="sqlite:///autopack.db"', file=sys.stderr)
+        print(
+            "  python scripts/migrations/add_phase6_metrics_build146.py upgrade\n", file=sys.stderr
+        )
         sys.exit(1)
     return db_url
 
@@ -93,7 +103,9 @@ def upgrade(engine: Engine) -> None:
     print("    Purpose: Track Phase 6 True Autonomy feature effectiveness")
 
     with engine.begin() as conn:
-        conn.execute(text("""
+        conn.execute(
+            text(
+                """
             CREATE TABLE phase6_metrics (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 run_id VARCHAR(255) NOT NULL,
@@ -120,18 +132,32 @@ def upgrade(engine: Engine) -> None:
 
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-        """))
+        """
+            )
+        )
 
         # Create indexes for common queries
-        conn.execute(text("""
+        conn.execute(
+            text(
+                """
             CREATE INDEX idx_phase6_metrics_run_id ON phase6_metrics(run_id)
-        """))
-        conn.execute(text("""
+        """
+            )
+        )
+        conn.execute(
+            text(
+                """
             CREATE INDEX idx_phase6_metrics_phase_id ON phase6_metrics(phase_id)
-        """))
-        conn.execute(text("""
+        """
+            )
+        )
+        conn.execute(
+            text(
+                """
             CREATE INDEX idx_phase6_metrics_created_at ON phase6_metrics(created_at)
-        """))
+        """
+            )
+        )
 
         print("    ✓ Table 'phase6_metrics' created with indexes")
 
@@ -191,6 +217,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Migration failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

@@ -30,6 +30,7 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 
+
 def main():
     print("=" * 80)
     print("BUILD-113 REAL-WORLD TEST: Research System Tracer Bullet")
@@ -39,7 +40,10 @@ def main():
     # Configuration
     workspace = Path.cwd()
     run_id = f"research-tracer-bullet-build113-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-    requirements_file = workspace / ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk0-tracer-bullet.yaml"
+    requirements_file = (
+        workspace
+        / ".autonomous_runs/file-organizer-app-v1/archive/research/active/requirements/chunk0-tracer-bullet.yaml"
+    )
     api_url = "http://127.0.0.1:8001"
 
     # Validation
@@ -75,7 +79,7 @@ def main():
 
     # Confirm execution
     response = input("Start autonomous executor with BUILD-113 enabled? [y/N]: ")
-    if response.lower() != 'y':
+    if response.lower() != "y":
         print("Test cancelled.")
         return 0
 
@@ -87,13 +91,19 @@ def main():
 
     # Build command
     cmd = [
-        "python", "-m", "autopack.autonomous_executor",
-        "--run-id", run_id,
-        "--requirements", str(requirements_file),
-        "--api-url", api_url,
+        "python",
+        "-m",
+        "autopack.autonomous_executor",
+        "--run-id",
+        run_id,
+        "--requirements",
+        str(requirements_file),
+        "--api-url",
+        api_url,
         "--enable-autonomous-fixes",  # BUILD-113 flag
-        "--max-iterations", "30",
-        "--verbose"
+        "--max-iterations",
+        "30",
+        "--verbose",
     ]
 
     print(f"Command: {' '.join(cmd)}")
@@ -111,18 +121,18 @@ def main():
 
     # Execute
     try:
-        with open(log_file, 'w', encoding='utf-8') as f:
+        with open(log_file, "w", encoding="utf-8") as f:
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
                 bufsize=1,
-                env={**subprocess.os.environ, "PYTHONUTF8": "1", "PYTHONPATH": "src"}
+                env={**subprocess.os.environ, "PYTHONUTF8": "1", "PYTHONPATH": "src"},
             )
 
             for line in process.stdout:
-                print(line, end='')
+                print(line, end="")
                 f.write(line)
                 f.flush()
 
@@ -163,7 +173,7 @@ def main():
             ambiguous_count = 0
 
             for decision_file in decision_files:
-                with open(decision_file, 'r', encoding='utf-8') as f:
+                with open(decision_file, "r", encoding="utf-8") as f:
                     decision = json.load(f)
 
                 decision_type = decision.get("decision_type", "unknown")
@@ -199,7 +209,9 @@ def main():
     print("TEST REPORT")
     print("=" * 80)
     print()
-    print(f"Test Execution: {'COMPLETED' if returncode == 0 else 'FAILED' if returncode > 0 else 'INTERRUPTED'}")
+    print(
+        f"Test Execution: {'COMPLETED' if returncode == 0 else 'FAILED' if returncode > 0 else 'INTERRUPTED'}"
+    )
     print(f"Run ID: {run_id}")
     print(f"Log file: {log_file}")
     print(f"Decisions: {decisions_dir if decisions_dir.exists() else 'None'}")
@@ -212,6 +224,7 @@ def main():
     print()
 
     return returncode if returncode >= 0 else 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

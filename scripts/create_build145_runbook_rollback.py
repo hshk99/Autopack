@@ -61,7 +61,7 @@ Notes:
         "phase_index": 0,
         "category": "backend",
         "complexity": "medium",
-        "builder_mode": "default"
+        "builder_mode": "default",
     }
 ]
 
@@ -78,8 +78,8 @@ def create_run():
             "run_scope": "multi_tier",
             "token_cap": 350000,
             "max_phases": 1,
-            "max_duration_minutes": 120
-        }
+            "max_duration_minutes": 120,
+        },
     )
 
     if response.status_code != 200:
@@ -97,8 +97,8 @@ def create_run():
             "tier_id": "T1",
             "tier_index": 0,
             "name": "Ops + Safety Hardening",
-            "description": "Create BUILD-144 migration runbook and implement safe executor rollback via git savepoints/branch strategy."
-        }
+            "description": "Create BUILD-144 migration runbook and implement safe executor rollback via git savepoints/branch strategy.",
+        },
     )
 
     if tier_response.status_code != 200:
@@ -111,10 +111,7 @@ def create_run():
     # Create phase
     print("\n=== Creating Phase F1 ===\n")
     for task in TASKS:
-        phase_response = requests.post(
-            f"{API_URL}/runs/{RUN_ID}/phases",
-            json=task
-        )
+        phase_response = requests.post(f"{API_URL}/runs/{RUN_ID}/phases", json=task)
 
         if phase_response.status_code != 200:
             print(f"❌ Failed to create phase {task['phase_id']}: {phase_response.status_code}")
@@ -130,10 +127,12 @@ if __name__ == "__main__":
     success = create_run()
     if success:
         print(f"\n✅ Run {RUN_ID} created successfully!")
-        print(f"\nNext steps:")
-        print(f"1. Start the executor:")
-        print(f"   PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {RUN_ID}")
-        print(f"\n2. Monitor progress:")
+        print("\nNext steps:")
+        print("1. Start the executor:")
+        print(
+            f'   PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python -m autopack.autonomous_executor --run-id {RUN_ID}'
+        )
+        print("\n2. Monitor progress:")
         print(f"   python scripts/monitor_run.py {RUN_ID}")
     else:
         print("\n❌ Failed to create run")

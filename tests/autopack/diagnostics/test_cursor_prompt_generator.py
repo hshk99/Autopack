@@ -3,7 +3,6 @@ from autopack.diagnostics.cursor_prompt_generator import generate_cursor_prompt
 
 
 class TestCursorPromptGenerator(unittest.TestCase):
-
     def setUp(self):
         self.handoff_bundle_path = "/path/to/handoff/bundle"
         self.error_message = (

@@ -33,7 +33,9 @@ def _table_columns(cur, table: str) -> set[str]:
     return {row[1] for row in cur.fetchall()}
 
 
-def _ensure_table(cur, table: str, create_sql: str, columns: dict[str, str], indices: list[str]) -> None:
+def _ensure_table(
+    cur, table: str, create_sql: str, columns: dict[str, str], indices: list[str]
+) -> None:
     """Create table if missing; add any missing columns if table already exists."""
     cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,))
     exists = cur.fetchone() is not None
@@ -186,4 +188,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

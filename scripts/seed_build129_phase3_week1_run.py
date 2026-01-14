@@ -2,10 +2,12 @@
 Seed BUILD-129 Phase 3 Week 1 Telemetry Collection Run.
 Diverse phases for stratified sampling.
 """
+
 from autopack.database import SessionLocal
 from autopack.models import Run, Tier, Phase, RunState, PhaseState
 
 RUN_ID = "build129-p3-week1-telemetry"
+
 
 def main():
     session = SessionLocal()
@@ -27,7 +29,7 @@ def main():
             token_cap=500000,
             max_phases=12,
             max_duration_minutes=480,
-            goal_anchor="BUILD-129 Phase 3: Week 1 Stratified Telemetry Collection"
+            goal_anchor="BUILD-129 Phase 3: Week 1 Stratified Telemetry Collection",
         )
         session.add(run)
         session.flush()
@@ -39,7 +41,7 @@ def main():
             run_id=RUN_ID,
             name="Week 1: Diverse Categories",
             tier_index=0,
-            description="Collect diverse telemetry samples across categories, complexities, and deliverable counts"
+            description="Collect diverse telemetry samples across categories, complexities, and deliverable counts",
         )
         session.add(tier)
         session.flush()
@@ -59,8 +61,8 @@ def main():
                     "src/autopack/circuit_breaker/state_machine.py",
                     "src/autopack/circuit_breaker/metrics.py",
                     "tests/autopack/circuit_breaker/test_breaker.py",
-                    "tests/autopack/circuit_breaker/test_state_machine.py"
-                ]
+                    "tests/autopack/circuit_breaker/test_state_machine.py",
+                ],
             },
             {
                 "id": "build129-p3-w1.2-testing-medium-4files",
@@ -72,8 +74,8 @@ def main():
                     "tests/autopack/diagnostics/test_package_detector_basic.py",
                     "tests/autopack/diagnostics/test_package_detector_edge_cases.py",
                     "tests/autopack/diagnostics/test_package_detector_integration.py",
-                    "tests/autopack/diagnostics/fixtures/package_scenarios.py"
-                ]
+                    "tests/autopack/diagnostics/fixtures/package_scenarios.py",
+                ],
             },
             {
                 "id": "build129-p3-w1.3-database-high-5files",
@@ -86,8 +88,8 @@ def main():
                     "src/autopack/models/telemetry.py",
                     "src/autopack/telemetry/collector.py",
                     "tests/autopack/models/test_telemetry.py",
-                    "tests/autopack/telemetry/test_collector.py"
-                ]
+                    "tests/autopack/telemetry/test_collector.py",
+                ],
             },
             {
                 "id": "build129-p3-w1.4-frontend-medium-3files",
@@ -98,8 +100,8 @@ def main():
                 "deliverables": [
                     "src/frontend/components/ErrorDisplay.tsx",
                     "src/frontend/hooks/useErrorState.ts",
-                    "tests/frontend/components/ErrorDisplay.test.tsx"
-                ]
+                    "tests/frontend/components/ErrorDisplay.test.tsx",
+                ],
             },
             {
                 "id": "build129-p3-w1.5-refactoring-high-7files",
@@ -114,8 +116,8 @@ def main():
                     "src/autopack/file_manifest/utils.py",
                     "tests/autopack/file_manifest/test_organizer.py",
                     "tests/autopack/file_manifest/test_classifier.py",
-                    "tests/autopack/file_manifest/test_validator.py"
-                ]
+                    "tests/autopack/file_manifest/test_validator.py",
+                ],
             },
             {
                 "id": "build129-p3-w1.6-deployment-medium-3files",
@@ -126,8 +128,8 @@ def main():
                 "deliverables": [
                     "docker/Dockerfile.dev",
                     "docker/docker-compose.dev.yml",
-                    "docs/deployment/DEV_SETUP.md"
-                ]
+                    "docs/deployment/DEV_SETUP.md",
+                ],
             },
             {
                 "id": "build129-p3-w1.7-configuration-medium-4files",
@@ -139,8 +141,8 @@ def main():
                     "src/autopack/config/manager.py",
                     "src/autopack/config/validators.py",
                     "config/defaults.yaml",
-                    "tests/autopack/config/test_manager.py"
-                ]
+                    "tests/autopack/config/test_manager.py",
+                ],
             },
             {
                 "id": "build129-p3-w1.8-integration-high-5files",
@@ -153,8 +155,8 @@ def main():
                     "src/autopack/integrations/auth_manager.py",
                     "src/autopack/integrations/retry_handler.py",
                     "tests/autopack/integrations/test_external_api.py",
-                    "tests/autopack/integrations/test_auth_manager.py"
-                ]
+                    "tests/autopack/integrations/test_auth_manager.py",
+                ],
             },
             {
                 "id": "build129-p3-w1.9-documentation-low-5files",
@@ -167,8 +169,8 @@ def main():
                     "docs/token_estimator/USAGE_GUIDE.md",
                     "docs/token_estimator/API_REFERENCE.md",
                     "docs/token_estimator/EXAMPLES.md",
-                    "docs/token_estimator/FAQ.md"
-                ]
+                    "docs/token_estimator/FAQ.md",
+                ],
             },
             {
                 "id": "build129-p3-w1.10-backend-low-3files",
@@ -179,8 +181,8 @@ def main():
                 "deliverables": [
                     "src/autopack/utils/string_helpers.py",
                     "src/autopack/utils/date_helpers.py",
-                    "tests/autopack/utils/test_helpers.py"
-                ]
+                    "tests/autopack/utils/test_helpers.py",
+                ],
             },
             {
                 "id": "build129-p3-w1.11-testing-high-6files",
@@ -194,8 +196,8 @@ def main():
                     "tests/e2e/fixtures/test_data.py",
                     "tests/e2e/fixtures/mock_responses.py",
                     "tests/e2e/utils/test_helpers.py",
-                    "tests/e2e/conftest.py"
-                ]
+                    "tests/e2e/conftest.py",
+                ],
             },
             {
                 "id": "build129-p3-w1.12-refactoring-low-3files",
@@ -206,9 +208,9 @@ def main():
                 "deliverables": [
                     "src/autopack/models/__init__.py",
                     "src/autopack/database.py",
-                    "src/autopack/constants.py"
-                ]
-            }
+                    "src/autopack/constants.py",
+                ],
+            },
         ]
 
         for idx, pd in enumerate(phases, 1):
@@ -223,24 +225,31 @@ def main():
                 scope=scope,
                 state=PhaseState.QUEUED,
                 task_category=pd["category"],
-                complexity=pd["complexity"]
+                complexity=pd["complexity"],
             )
             session.add(phase)
-            print(f"[OK] Phase {idx}: {pd['id']} ({pd['category']}/{pd['complexity']}, {len(pd['deliverables'])} deliverables)")
+            print(
+                f"[OK] Phase {idx}: {pd['id']} ({pd['category']}/{pd['complexity']}, {len(pd['deliverables'])} deliverables)"
+            )
 
         session.commit()
-        print(f"\n✅ Week 1 telemetry collection run seeded!")
-        print(f"Run: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {RUN_ID}")
-        print(f"\nExpected diversity:")
-        print(f"  Categories: backend(2), testing(2), database(1), frontend(1), refactoring(2), deployment(1), configuration(1), integration(1), documentation(1)")
-        print(f"  Complexity: low(3), medium(4), high(5)")
-        print(f"  Deliverables: 3 files(5), 4 files(2), 5 files(3), 6 files(2), 7 files(1)")
+        print("\n✅ Week 1 telemetry collection run seeded!")
+        print(
+            f'Run: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python -m autopack.autonomous_executor --run-id {RUN_ID}'
+        )
+        print("\nExpected diversity:")
+        print(
+            "  Categories: backend(2), testing(2), database(1), frontend(1), refactoring(2), deployment(1), configuration(1), integration(1), documentation(1)"
+        )
+        print("  Complexity: low(3), medium(4), high(5)")
+        print("  Deliverables: 3 files(5), 4 files(2), 5 files(3), 6 files(2), 7 files(1)")
     except Exception as e:
         session.rollback()
         print(f"[ERROR] {e}")
         raise
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     main()

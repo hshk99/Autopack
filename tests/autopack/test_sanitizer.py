@@ -313,9 +313,9 @@ class TestHyphenatedHeaderRedaction:
         """All hyphenated sensitive headers must be redacted regardless of case/separator."""
         secret_value = "super_secret_value_12345"
         result = sanitize_headers({header_name: secret_value})
-        assert result[header_name] == REDACTED, (
-            f"Header '{header_name}' was not redacted! " f"Got: {result[header_name]}"
-        )
+        assert (
+            result[header_name] == REDACTED
+        ), f"Header '{header_name}' was not redacted! Got: {result[header_name]}"
 
     @pytest.mark.parametrize(
         "header_name,secret_value",

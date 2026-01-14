@@ -38,7 +38,7 @@ class OpenAIDelegationRequest:
         file_paths: List[str],
         context: Optional[str] = None,
         error_logs: Optional[str] = None,
-        attempted_fixes: Optional[List[str]] = None
+        attempted_fixes: Optional[List[str]] = None,
     ):
         self.issue_description = issue_description
         self.file_paths = file_paths
@@ -54,7 +54,7 @@ class OpenAIDelegationRequest:
             "context": self.context,
             "error_logs": self.error_logs,
             "attempted_fixes": self.attempted_fixes,
-            "timestamp": self.timestamp
+            "timestamp": self.timestamp,
         }
 
 
@@ -68,7 +68,7 @@ class OpenAIDelegationResult:
         recommended_fixes: List[Dict],
         confidence: str,
         additional_investigation: List[str],
-        raw_response: str = ""
+        raw_response: str = "",
     ):
         self.analysis = analysis
         self.root_cause = root_cause
@@ -86,7 +86,7 @@ class OpenAIDelegationResult:
             "confidence": self.confidence,
             "additional_investigation": self.additional_investigation,
             "raw_response": self.raw_response,
-            "timestamp": self.timestamp
+            "timestamp": self.timestamp,
         }
 
 
@@ -116,7 +116,7 @@ class OpenAIDelegator:
         4. Parse structured response
         5. Save results
         """
-        print(f"[OpenAI Delegation] Starting analysis...")
+        print("[OpenAI Delegation] Starting analysis...")
         print(f"[OpenAI Delegation] Issue: {request.issue_description}")
         print(f"[OpenAI Delegation] Files: {', '.join(request.file_paths)}")
 
@@ -125,9 +125,11 @@ class OpenAIDelegator:
         for file_path in request.file_paths:
             full_path = self.workspace_root / file_path
             if full_path.exists():
-                with open(full_path, 'r', encoding='utf-8') as f:
+                with open(full_path, "r", encoding="utf-8") as f:
                     file_contents[file_path] = f.read()
-                print(f"[OpenAI Delegation] [OK] Read {file_path} ({len(file_contents[file_path])} chars)")
+                print(
+                    f"[OpenAI Delegation] [OK] Read {file_path} ({len(file_contents[file_path])} chars)"
+                )
             else:
                 print(f"[OpenAI Delegation] [WARN] File not found: {file_path}")
 
@@ -142,7 +144,7 @@ class OpenAIDelegator:
         print(f"[OpenAI Delegation] Request saved: {request_file}")
 
         # Call OpenAI API
-        print(f"[OpenAI Delegation] Calling OpenAI GPT-4o API...")
+        print("[OpenAI Delegation] Calling OpenAI GPT-4o API...")
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4o",
@@ -158,15 +160,12 @@ Your task is to analyze complex issues and provide:
 4. Additional investigation suggestions
 5. Confidence level (high/medium/low)
 
-Be precise, specific, and provide code examples where applicable."""
+Be precise, specific, and provide code examples where applicable.""",
                     },
-                    {
-                        "role": "user",
-                        "content": delegation_doc
-                    }
+                    {"role": "user", "content": delegation_doc},
                 ],
                 temperature=0.2,  # Lower temperature for more focused debugging
-                max_tokens=4000
+                max_tokens=4000,
             )
 
             raw_response = response.choices[0].message.content
@@ -184,35 +183,33 @@ Be precise, specific, and provide code examples where applicable."""
                 recommended_fixes=[],
                 confidence="n/a",
                 additional_investigation=["Retry with valid API key", "Check network connectivity"],
-                raw_response=""
+                raw_response="",
             )
 
         # Save result
         result_file = self._save_delegation_result(result)
         print(f"[OpenAI Delegation] Result saved: {result_file}")
 
-        print(f"\n{'='*80}")
-        print(f"OPENAI DELEGATION COMPLETE")
-        print(f"{'='*80}")
+        print(f"\n{'=' * 80}")
+        print("OPENAI DELEGATION COMPLETE")
+        print(f"{'=' * 80}")
         print(f"\nRequest File: {request_file}")
         print(f"Result File: {result_file}")
-        print(f"\n{'='*80}")
-        print(f"ANALYSIS SUMMARY")
-        print(f"{'='*80}")
+        print(f"\n{'=' * 80}")
+        print("ANALYSIS SUMMARY")
+        print(f"{'=' * 80}")
         print(f"\nRoot Cause:\n{result.root_cause}\n")
         print(f"Confidence: {result.confidence}\n")
         if result.recommended_fixes:
             print(f"Recommended Fixes ({len(result.recommended_fixes)}):")
             for i, fix in enumerate(result.recommended_fixes, 1):
                 print(f"  {i}. {fix.get('description', 'N/A')}")
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
 
         return result
 
     def _create_delegation_document(
-        self,
-        request: OpenAIDelegationRequest,
-        file_contents: Dict[str, str]
+        self, request: OpenAIDelegationRequest, file_contents: Dict[str, str]
     ) -> str:
         """Create a comprehensive delegation document for OpenAI"""
 
@@ -268,16 +265,14 @@ Format your response clearly with these sections.
         return doc
 
     def _parse_openai_response(
-        self,
-        raw_response: str,
-        request: OpenAIDelegationRequest
+        self, raw_response: str, request: OpenAIDelegationRequest
     ) -> OpenAIDelegationResult:
         """Parse OpenAI's response into structured result"""
 
         # Simple parsing - extract sections
         # In production, could use more sophisticated parsing or ask OpenAI for JSON format
 
-        lines = raw_response.split('\n')
+        lines = raw_response.split("\n")
 
         # Extract sections (simple heuristic-based parsing)
         analysis = ""
@@ -296,7 +291,11 @@ Format your response clearly with these sections.
             if "root cause" in line_lower or "cause:" in line_lower:
                 current_section = "root_cause"
                 continue
-            elif "recommended fix" in line_lower or "fixes:" in line_lower or "solution" in line_lower:
+            elif (
+                "recommended fix" in line_lower
+                or "fixes:" in line_lower
+                or "solution" in line_lower
+            ):
                 current_section = "fixes"
                 continue
             elif "additional investigation" in line_lower or "investigate:" in line_lower:
@@ -326,7 +325,7 @@ Format your response clearly with these sections.
                         "description": line.strip(),
                         "file": "See analysis",
                         "changes": "",
-                        "rationale": ""
+                        "rationale": "",
                     }
                 elif current_fix and line.strip():
                     current_fix["description"] += " " + line.strip()
@@ -349,36 +348,44 @@ Format your response clearly with these sections.
         return OpenAIDelegationResult(
             analysis=raw_response,  # Full response as analysis
             root_cause=root_cause,
-            recommended_fixes=recommended_fixes if recommended_fixes else [
-                {
-                    "priority": 1,
-                    "description": "See full analysis for recommendations",
-                    "file": "Multiple files",
-                    "changes": "",
-                    "rationale": "Detailed in analysis"
-                }
-            ],
+            recommended_fixes=(
+                recommended_fixes
+                if recommended_fixes
+                else [
+                    {
+                        "priority": 1,
+                        "description": "See full analysis for recommendations",
+                        "file": "Multiple files",
+                        "changes": "",
+                        "rationale": "Detailed in analysis",
+                    }
+                ]
+            ),
             confidence=confidence,
-            additional_investigation=additional_investigation if additional_investigation else [
-                "Review full analysis for investigation steps"
-            ],
-            raw_response=raw_response
+            additional_investigation=(
+                additional_investigation
+                if additional_investigation
+                else ["Review full analysis for investigation steps"]
+            ),
+            raw_response=raw_response,
         )
 
-    def _save_delegation_request(self, delegation_doc: str, request: OpenAIDelegationRequest) -> Path:
+    def _save_delegation_request(
+        self, delegation_doc: str, request: OpenAIDelegationRequest
+    ) -> Path:
         """Save delegation request to file"""
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         filename = f"OPENAI_DELEGATION_REQUEST_{timestamp}.md"
         filepath = self.delegation_log_dir / filename
 
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(delegation_doc)
 
         # Also save JSON
         json_filename = f"OPENAI_DELEGATION_REQUEST_{timestamp}.json"
         json_filepath = self.delegation_log_dir / json_filename
 
-        with open(json_filepath, 'w', encoding='utf-8') as f:
+        with open(json_filepath, "w", encoding="utf-8") as f:
             json.dump(request.to_dict(), f, indent=2)
 
         return filepath
@@ -406,23 +413,23 @@ Generated: {result.timestamp}
 """
         for fix in result.recommended_fixes:
             doc += f"""
-### Fix {fix.get('priority', 'N/A')}
+### Fix {fix.get("priority", "N/A")}
 
-**Description**: {fix.get('description', '')}
+**Description**: {fix.get("description", "")}
 
-**File**: `{fix.get('file', '')}`
+**File**: `{fix.get("file", "")}`
 
 **Changes**:
 ```python
-{fix.get('changes', '')}
+{fix.get("changes", "")}
 ```
 
-**Rationale**: {fix.get('rationale', '')}
+**Rationale**: {fix.get("rationale", "")}
 
 ---
 """
 
-        doc += f"""
+        doc += """
 ## Additional Investigation
 
 """
@@ -435,14 +442,14 @@ Generated: {result.timestamp}
 {result.confidence}
 """
 
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(doc)
 
         # Also save as JSON
         json_filename = f"OPENAI_DELEGATION_RESULT_{timestamp}.json"
         json_filepath = self.delegation_log_dir / json_filename
 
-        with open(json_filepath, 'w', encoding='utf-8') as f:
+        with open(json_filepath, "w", encoding="utf-8") as f:
             json.dump(result.to_dict(), f, indent=2)
 
         return filepath
@@ -470,56 +477,35 @@ Examples:
 
 Environment:
   OPENAI_API_KEY    OpenAI API key (required)
-"""
+""",
     )
 
+    parser.add_argument("--issue", required=True, help="Brief description of the issue")
+
     parser.add_argument(
-        '--issue',
+        "--files",
         required=True,
-        help='Brief description of the issue'
+        help="Comma-separated list of relevant file paths (relative to workspace root)",
+    )
+
+    parser.add_argument("--context", default="", help="Additional context about the issue")
+
+    parser.add_argument("--logs", default="", help="Error logs or output related to the issue")
+
+    parser.add_argument(
+        "--attempted-fixes", nargs="*", default=[], help="List of fixes that were already attempted"
     )
 
     parser.add_argument(
-        '--files',
-        required=True,
-        help='Comma-separated list of relevant file paths (relative to workspace root)'
+        "--workspace", default=".", help="Workspace root directory (default: current directory)"
     )
 
-    parser.add_argument(
-        '--context',
-        default='',
-        help='Additional context about the issue'
-    )
-
-    parser.add_argument(
-        '--logs',
-        default='',
-        help='Error logs or output related to the issue'
-    )
-
-    parser.add_argument(
-        '--attempted-fixes',
-        nargs='*',
-        default=[],
-        help='List of fixes that were already attempted'
-    )
-
-    parser.add_argument(
-        '--workspace',
-        default='.',
-        help='Workspace root directory (default: current directory)'
-    )
-
-    parser.add_argument(
-        '--api-key',
-        default=None,
-        help='OpenAI API key (default: $OPENAI_API_KEY)'
-    )
+    parser.add_argument("--api-key", default=None, help="OpenAI API key (default: $OPENAI_API_KEY)")
 
     args = parser.parse_args()
 
     # Parse file paths
-    file_paths = [f.strip() for f in args.files.split(',')]
+    file_paths = [f.strip() for f in args.files.split(",")]
 
     # Create workspace root path
     workspace_root = Path(args.workspace).resolve()
@@ -530,7 +516,7 @@ Environment:
         file_paths=file_paths,
         context=args.context,
         error_logs=args.logs,
-        attempted_fixes=args.attempted_fixes
+        attempted_fixes=args.attempted_fixes,
     )
 
     # Delegate to OpenAI

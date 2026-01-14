@@ -32,7 +32,10 @@ if not os.environ.get("DATABASE_URL"):
     print("[ERROR] DATABASE_URL must be set", file=sys.stderr)
     print("", file=sys.stderr)
     print("Example usage:", file=sys.stderr)
-    print("  DATABASE_URL='sqlite:///autopack_telemetry_seed.db' python scripts/create_telemetry_collection_run.py", file=sys.stderr)
+    print(
+        "  DATABASE_URL='sqlite:///autopack_telemetry_seed.db' python scripts/create_telemetry_collection_run.py",
+        file=sys.stderr,
+    )
     print("", file=sys.stderr)
     sys.exit(1)
 
@@ -55,13 +58,12 @@ PHASES = [
         "scope": {
             "paths": ["examples/telemetry_utils/"],
             "read_only_context": [],
-            "deliverables": ["examples/telemetry_utils/string_helper.py"]
+            "deliverables": ["examples/telemetry_utils/string_helper.py"],
         },
         "complexity": "low",
         "task_category": "implementation",
-        "phase_index": 0
+        "phase_index": 0,
     },
-
     # Phase 2: Number utility (low complexity, 1 file)
     {
         "phase_id": "telemetry-p2-number-util",
@@ -70,13 +72,12 @@ PHASES = [
         "scope": {
             "paths": ["examples/telemetry_utils/"],
             "read_only_context": [],
-            "deliverables": ["examples/telemetry_utils/number_helper.py"]
+            "deliverables": ["examples/telemetry_utils/number_helper.py"],
         },
         "complexity": "low",
         "task_category": "implementation",
-        "phase_index": 1
+        "phase_index": 1,
     },
-
     # Phase 3: List utility (medium complexity, 1 file)
     {
         "phase_id": "telemetry-p3-list-util",
@@ -85,13 +86,12 @@ PHASES = [
         "scope": {
             "paths": ["examples/telemetry_utils/"],
             "read_only_context": [],
-            "deliverables": ["examples/telemetry_utils/list_helper.py"]
+            "deliverables": ["examples/telemetry_utils/list_helper.py"],
         },
         "complexity": "medium",
         "task_category": "implementation",
-        "phase_index": 2
+        "phase_index": 2,
     },
-
     # Phase 4: Date utility (medium complexity, 1 file)
     {
         "phase_id": "telemetry-p4-date-util",
@@ -100,13 +100,12 @@ PHASES = [
         "scope": {
             "paths": ["examples/telemetry_utils/"],
             "read_only_context": [],
-            "deliverables": ["examples/telemetry_utils/date_helper.py"]
+            "deliverables": ["examples/telemetry_utils/date_helper.py"],
         },
         "complexity": "medium",
         "task_category": "implementation",
-        "phase_index": 3
+        "phase_index": 3,
     },
-
     # Phase 5: Dict utility (medium complexity, 1 file)
     {
         "phase_id": "telemetry-p5-dict-util",
@@ -115,13 +114,12 @@ PHASES = [
         "scope": {
             "paths": ["examples/telemetry_utils/"],
             "read_only_context": [],
-            "deliverables": ["examples/telemetry_utils/dict_helper.py"]
+            "deliverables": ["examples/telemetry_utils/dict_helper.py"],
         },
         "complexity": "medium",
         "task_category": "implementation",
-        "phase_index": 4
+        "phase_index": 4,
     },
-
     # Phase 6: String utility tests (medium complexity, 2 files)
     {
         "phase_id": "telemetry-p6-string-tests",
@@ -132,14 +130,13 @@ PHASES = [
             "read_only_context": ["examples/telemetry_utils/string_helper.py"],
             "deliverables": [
                 "examples/telemetry_utils/test_string_helper.py",
-                "examples/telemetry_utils/conftest.py"
-            ]
+                "examples/telemetry_utils/conftest.py",
+            ],
         },
         "complexity": "medium",
         "task_category": "tests",
-        "phase_index": 5
+        "phase_index": 5,
     },
-
     # Phase 7: Number utility tests (low complexity, 1 file)
     {
         "phase_id": "telemetry-p7-number-tests",
@@ -149,15 +146,14 @@ PHASES = [
             "paths": ["examples/telemetry_utils/"],
             "read_only_context": [
                 "examples/telemetry_utils/number_helper.py",
-                "examples/telemetry_utils/conftest.py"
+                "examples/telemetry_utils/conftest.py",
             ],
-            "deliverables": ["examples/telemetry_utils/test_number_helper.py"]
+            "deliverables": ["examples/telemetry_utils/test_number_helper.py"],
         },
         "complexity": "low",
         "task_category": "tests",
-        "phase_index": 6
+        "phase_index": 6,
     },
-
     # Phase 8: List utility tests (medium complexity, 1 file)
     {
         "phase_id": "telemetry-p8-list-tests",
@@ -167,15 +163,14 @@ PHASES = [
             "paths": ["examples/telemetry_utils/"],
             "read_only_context": [
                 "examples/telemetry_utils/list_helper.py",
-                "examples/telemetry_utils/conftest.py"
+                "examples/telemetry_utils/conftest.py",
             ],
-            "deliverables": ["examples/telemetry_utils/test_list_helper.py"]
+            "deliverables": ["examples/telemetry_utils/test_list_helper.py"],
         },
         "complexity": "medium",
         "task_category": "tests",
-        "phase_index": 7
+        "phase_index": 7,
     },
-
     # Phase 9: README documentation (low complexity, 1 file)
     {
         "phase_id": "telemetry-p9-readme",
@@ -186,15 +181,14 @@ PHASES = [
             "read_only_context": [
                 "examples/telemetry_utils/string_helper.py",
                 "examples/telemetry_utils/number_helper.py",
-                "examples/telemetry_utils/list_helper.py"
+                "examples/telemetry_utils/list_helper.py",
             ],
-            "deliverables": ["examples/telemetry_utils/README.md"]
+            "deliverables": ["examples/telemetry_utils/README.md"],
         },
         "complexity": "low",
         "task_category": "docs",
-        "phase_index": 8
+        "phase_index": 8,
     },
-
     # Phase 10: File utility (medium complexity, 1 file)
     {
         "phase_id": "telemetry-p10-file-util",
@@ -203,13 +197,14 @@ PHASES = [
         "scope": {
             "paths": ["examples/telemetry_utils/"],
             "read_only_context": [],
-            "deliverables": ["examples/telemetry_utils/file_helper.py"]
+            "deliverables": ["examples/telemetry_utils/file_helper.py"],
         },
         "complexity": "medium",
         "task_category": "implementation",
-        "phase_index": 9
-    }
+        "phase_index": 9,
+    },
 ]
+
 
 def create_run():
     """Create the telemetry collection run via direct database access."""
@@ -221,11 +216,15 @@ def create_run():
         existing_run = session.query(Run).filter(Run.id == RUN_ID).first()
         if existing_run:
             print(f"[ERROR] Run {RUN_ID} already exists")
-            print(f"        To recreate, first delete with:")
+            print("        To recreate, first delete with:")
             db_url = os.environ.get("DATABASE_URL", "sqlite:///autopack_telemetry_seed.db")
-            print(f"        PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"{db_url}\" python -c \\")
-            print(f"            \"from autopack.database import SessionLocal; from autopack.models import Run; \\")
-            print(f"             s = SessionLocal(); s.query(Run).filter(Run.id == '{RUN_ID}').delete(); s.commit(); s.close()\"")
+            print(f'        PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="{db_url}" python -c \\')
+            print(
+                '            "from autopack.database import SessionLocal; from autopack.models import Run; \\'
+            )
+            print(
+                f"             s = SessionLocal(); s.query(Run).filter(Run.id == '{RUN_ID}').delete(); s.commit(); s.close()\""
+            )
             sys.exit(1)
 
         # Create run
@@ -234,7 +233,7 @@ def create_run():
             state=RunState.RUN_CREATED,
             token_cap=500000,  # 500k tokens should be plenty for 10 simple phases
             max_phases=15,
-            max_duration_minutes=120
+            max_duration_minutes=120,
         )
         session.add(run)
         session.flush()
@@ -250,7 +249,7 @@ def create_run():
             description="Simple utility implementations for telemetry collection",
             state=TierState.PENDING,
             token_cap=500000,
-            ci_run_cap=20
+            ci_run_cap=20,
         )
         session.add(tier)
         session.flush()
@@ -273,44 +272,48 @@ def create_run():
                 task_category=phase_def["task_category"],
                 max_builder_attempts=3,
                 max_auditor_attempts=2,
-                incident_token_cap=50000
+                incident_token_cap=50000,
             )
             session.add(phase)
-            print(f"  [{phase_def['phase_index']+1:2d}] {phase_def['phase_id']:35s} ({phase_def['complexity']:6s} {phase_def['task_category']})")
+            print(
+                f"  [{phase_def['phase_index'] + 1:2d}] {phase_def['phase_id']:35s} ({phase_def['complexity']:6s} {phase_def['task_category']})"
+            )
 
         session.commit()
 
-        print(f"\n{'='*70}")
-        print(f"TELEMETRY COLLECTION RUN CREATED")
-        print(f"{'='*70}")
+        print(f"\n{'=' * 70}")
+        print("TELEMETRY COLLECTION RUN CREATED")
+        print(f"{'=' * 70}")
         print(f"Run ID: {RUN_ID}")
         print(f"Total phases: {len(PHASES)}")
-        print(f"\nPhase breakdown:")
-        print(f"  Implementation: 6 phases (3 low, 3 medium complexity)")
-        print(f"  Tests: 3 phases (1 low, 2 medium complexity)")
-        print(f"  Docs: 1 phase (low complexity)")
-        print(f"\nDeliverable counts:")
-        print(f"  1 file: 9 phases")
-        print(f"  2 files: 1 phase")
-        print(f"\nExpected telemetry samples: 10+ successful Builder executions")
-        print(f"\nTo drain individual phases:")
+        print("\nPhase breakdown:")
+        print("  Implementation: 6 phases (3 low, 3 medium complexity)")
+        print("  Tests: 3 phases (1 low, 2 medium complexity)")
+        print("  Docs: 1 phase (low complexity)")
+        print("\nDeliverable counts:")
+        print("  1 file: 9 phases")
+        print("  2 files: 1 phase")
+        print("\nExpected telemetry samples: 10+ successful Builder executions")
+        print("\nTo drain individual phases:")
         db_url = os.environ.get("DATABASE_URL", "sqlite:///autopack_telemetry_seed.db")
-        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"{db_url}\" \\")
-        print(f"      TELEMETRY_DB_ENABLED=1 timeout 600 \\")
+        print(f'  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="{db_url}" \\')
+        print("      TELEMETRY_DB_ENABLED=1 timeout 600 \\")
         print(f"      python scripts/drain_one_phase.py --run-id {RUN_ID} --phase-id <phase_id>")
-        print(f"\nOr drain all phases in batch:")
-        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"{db_url}\" \\")
+        print("\nOr drain all phases in batch:")
+        print(f'  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="{db_url}" \\')
         print(f"      python scripts/batch_drain_controller.py --run-id {RUN_ID} --batch-size 10")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
     except Exception as e:
         session.rollback()
         print(f"[ERROR] {e}")
         import traceback
+
         traceback.print_exc()
         raise
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     create_run()

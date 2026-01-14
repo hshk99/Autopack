@@ -16,7 +16,7 @@ from autopack.archive_consolidator import (
     mark_resolved,
     log_build_event,
     log_strategic_update,
-    update_archive_index
+    update_archive_index,
 )
 
 
@@ -30,7 +30,7 @@ def demo_error_logging():
         run_id="fileorg-test-2025-11-30",
         phase_id="phase-3",
         suspected_cause="No streaming, loading entire file into memory",
-        priority="HIGH"
+        priority="HIGH",
     )
 
     print("[OK] Error logged to CONSOLIDATED_DEBUG.md")
@@ -44,12 +44,9 @@ def demo_fix_logging():
     log_fix(
         error_signature="API Timeout on Large Files",
         fix_description="Implemented streaming file upload with chunking (1MB chunks)",
-        files_changed=[
-            "src/autopack/file_uploader.py",
-            "src/autopack/api_client.py"
-        ],
+        files_changed=["src/autopack/file_uploader.py", "src/autopack/api_client.py"],
         test_run_id="fileorg-test-fix-2025-11-30",
-        result="success"
+        result="success",
     )
 
     print("[OK] Fix logged to CONSOLIDATED_DEBUG.md")
@@ -63,7 +60,7 @@ def demo_resolution():
         error_signature="API Timeout on Large Files",
         resolution_summary="Implemented streaming upload with 1MB chunks. Tested with files up to 50MB successfully.",
         verified_run_id="fileorg-test-fix-2025-11-30",
-        prevention_rule="ALWAYS use streaming uploads for files >1MB to prevent timeout and memory issues"
+        prevention_rule="ALWAYS use streaming uploads for files >1MB to prevent timeout and memory issues",
     )
 
     print("[OK] Issue marked as resolved")
@@ -82,13 +79,9 @@ def demo_build_logging():
             "Full-text search with SQLite FTS5",
             "Advanced filter UI (date range, file type, tags)",
             "Search result highlighting",
-            "Performance optimization for large result sets"
+            "Performance optimization for large result sets",
         ],
-        token_usage={
-            "builder": 12500,
-            "auditor": 8200,
-            "total": 20700
-        }
+        token_usage={"builder": 12500, "auditor": 8200, "total": 20700},
     )
 
     print("[OK] Build event logged to CONSOLIDATED_BUILD.md")
@@ -109,7 +102,7 @@ Updated TAM/SAM/SOM based on Q4 2025 market research:
 
 Key Insight: Enterprise interest higher than expected - 23% of trial users are from companies >500 employees.
 Consider adding Enterprise tier in Year 2 instead of Year 3.
-"""
+""",
     )
 
     print("[OK] Strategic update logged to CONSOLIDATED_STRATEGY.md")
@@ -156,6 +149,7 @@ def main():
     except Exception as e:
         print(f"\n[ERROR] Error during demo: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

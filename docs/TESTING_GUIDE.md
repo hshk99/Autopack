@@ -42,7 +42,7 @@ PYTHONPATH=src pytest tests/test_token_estimator.py::test_estimate_output_tokens
 [pytest]
 pythonpath = src
 testpaths = tests
-addopts = 
+addopts =
     --cov=src/autopack
     --cov-report=json:.coverage.json
     --cov-branch
@@ -100,13 +100,13 @@ from autopack.token_estimator import TokenEstimator
 def test_estimate_output_tokens():
     """Test basic token estimation."""
     estimator = TokenEstimator()
-    
+
     result = estimator.estimate(
         deliverables=["src/main.py", "tests/test_main.py"],
         category="implementation",
         complexity="medium"
     )
-    
+
     assert result.estimated_tokens > 0
     assert result.category == "implementation"
     assert result.complexity == "medium"
@@ -188,7 +188,7 @@ def test_with_mock():
             "patch_content": "diff --git a/file.py...",
             "stop_reason": "end_turn"
         }
-        
+
         # Test code that uses AnthropicClient
         result = some_function_using_client()
         assert result is not None
@@ -229,7 +229,7 @@ assert set(result) == {"a", "b", "c"}
 ```python
 class TestTokenEstimator:
     """Unit tests for TokenEstimator."""
-    
+
     def test_estimate_basic(self):
         """Test basic estimation."""
         estimator = TokenEstimator()
@@ -239,7 +239,7 @@ class TestTokenEstimator:
             complexity="low"
         )
         assert result.estimated_tokens > 0
-    
+
     def test_estimate_with_multiple_files(self):
         """Test estimation with multiple files."""
         estimator = TokenEstimator()
@@ -264,17 +264,17 @@ def test_executor_phase_execution(temp_workspace):
         workspace=str(temp_workspace),
         api_url="http://localhost:8000"
     )
-    
+
     phase = {
         "phase_id": "test-phase",
         "goal": "Create main.py",
         "deliverables": ["src/main.py"],
         "scope": {"paths": ["src/"]}
     }
-    
+
     # Execute phase
     result = executor.execute_phase(phase)
-    
+
     # Verify results
     assert result.success
     assert (temp_workspace / "src/main.py").exists()
@@ -293,7 +293,7 @@ def test_core_imports():
     from autopack.token_estimator import TokenEstimator
     from autopack.quality_gate import QualityGate
     from autopack.phase_finalizer import PhaseFinalizer
-    
+
     # If we get here, imports succeeded
     assert True
 ```
@@ -347,7 +347,7 @@ open htmlcov/index.html  # View coverage report
 ```python
 def test_token_estimation_with_doc_synthesis():
     """Test token estimation for documentation phases.
-    
+
     Verifies that DOC_SYNTHESIS detection activates for pure
     documentation phases and applies appropriate phase-based
     estimation instead of linear scaling.

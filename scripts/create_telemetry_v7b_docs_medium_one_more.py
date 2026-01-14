@@ -34,6 +34,7 @@ from autopack.models import Run, RunState, Phase, PhaseState, Tier, TierState
 from datetime import datetime, timezone
 import json
 
+
 def create_telemetry_v7b_run():
     """Create telemetry-collection-v7b: 1 docs/medium phase (patch-safe)."""
 
@@ -49,21 +50,23 @@ def create_telemetry_v7b_run():
             id="telemetry-collection-v7b",
             state=RunState.PHASE_EXECUTION,
             created_at=datetime.now(timezone.utc),
-            goal_anchor=json.dumps({
-                "goal": (
-                    "V7b: Single docs/medium phase to close min-samples gap (4→5). "
-                    "PATCH-SAFE: deliverable is NEW FILE under examples/telemetry_v7_docs/ "
-                    "to avoid PATCH_FAILED errors."
-                ),
-                "purpose": "telemetry_v7b_docs_medium_sampling",
-                "target_groups": ["docs/medium"],
-                "v7_status": "docs/medium n=4, need 1 more to reach min-samples=5",
-                "patch_safety": [
-                    "Deliverable is a new file (no edits to existing files)",
-                    "File created under examples/telemetry_v7_docs/",
-                    "Goal includes explicit 'create new file' instruction"
-                ]
-            })
+            goal_anchor=json.dumps(
+                {
+                    "goal": (
+                        "V7b: Single docs/medium phase to close min-samples gap (4→5). "
+                        "PATCH-SAFE: deliverable is NEW FILE under examples/telemetry_v7_docs/ "
+                        "to avoid PATCH_FAILED errors."
+                    ),
+                    "purpose": "telemetry_v7b_docs_medium_sampling",
+                    "target_groups": ["docs/medium"],
+                    "v7_status": "docs/medium n=4, need 1 more to reach min-samples=5",
+                    "patch_safety": [
+                        "Deliverable is a new file (no edits to existing files)",
+                        "File created under examples/telemetry_v7_docs/",
+                        "Goal includes explicit 'create new file' instruction",
+                    ],
+                }
+            ),
         )
         session.add(run)
         session.flush()
@@ -77,11 +80,11 @@ def create_telemetry_v7b_run():
             name="telemetry-v7b-tier1",
             description="Single tier for v7b patch-safe docs/medium sampling",
             state=TierState.IN_PROGRESS,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
         )
         session.add(tier)
         session.flush()
-        print(f"✅ Created tier 1")
+        print("✅ Created tier 1")
 
         # Single docs/medium phase
         phase = Phase(
@@ -99,20 +102,24 @@ def create_telemetry_v7b_run():
             state=PhaseState.QUEUED,
             task_category="docs",
             complexity="medium",
-            scope=json.dumps({
-                "deliverables": ["examples/telemetry_v7_docs/error_recovery_guide.md"],
-            }),
-            created_at=datetime.now(timezone.utc)
+            scope=json.dumps(
+                {
+                    "deliverables": ["examples/telemetry_v7_docs/error_recovery_guide.md"],
+                }
+            ),
+            created_at=datetime.now(timezone.utc),
         )
         session.add(phase)
-        print(f"  [01] telemetry-v7b-d1-error-recovery-guide (docs/medium, 1 deliverable)")
+        print("  [01] telemetry-v7b-d1-error-recovery-guide (docs/medium, 1 deliverable)")
 
         session.commit()
-        print(f"\n✅ Successfully created telemetry-collection-v7b with 1 phase")
-        print(f"   - docs/medium: 1 phase")
-        print(f"\nDrain with:")
-        print(f"  python scripts/drain_queued_phases.py --run-id telemetry-collection-v7b \\")
-        print(f"    --batch-size 5 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
+        print("\n✅ Successfully created telemetry-collection-v7b with 1 phase")
+        print("   - docs/medium: 1 phase")
+        print("\nDrain with:")
+        print("  python scripts/drain_queued_phases.py --run-id telemetry-collection-v7b \\")
+        print(
+            "    --batch-size 5 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance"
+        )
 
     except Exception as e:
         session.rollback()

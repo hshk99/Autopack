@@ -48,8 +48,13 @@ if not os.environ.get("DATABASE_URL"):
     print("[batch_drain] ERROR: DATABASE_URL must be set explicitly.", file=sys.stderr)
     print("", file=sys.stderr)
     print("Example usage:", file=sys.stderr)
-    print("  (PowerShell) $env:DATABASE_URL='sqlite:///autopack_telemetry_seed.db'", file=sys.stderr)
-    print("  (bash)      DATABASE_URL='sqlite:///autopack_telemetry_seed.db' python scripts/batch_drain_controller.py ...", file=sys.stderr)
+    print(
+        "  (PowerShell) $env:DATABASE_URL='sqlite:///autopack_telemetry_seed.db'", file=sys.stderr
+    )
+    print(
+        "  (bash)      DATABASE_URL='sqlite:///autopack_telemetry_seed.db' python scripts/batch_drain_controller.py ...",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -79,33 +84,33 @@ def normalize_error_text(text: str) -> str:
     normalized = text.lower()
 
     # Remove timestamps
-    normalized = re.sub(r'\d{4}-\d{2}-\d{2}', 'date', normalized)
-    normalized = re.sub(r'\d{2}:\d{2}:\d{2}', 'time', normalized)
+    normalized = re.sub(r"\d{4}-\d{2}-\d{2}", "date", normalized)
+    normalized = re.sub(r"\d{2}:\d{2}:\d{2}", "time", normalized)
 
     # Remove file paths (Windows and Unix)
-    normalized = re.sub(r'[a-z]:\\[\w\\.\\-]+', 'path', normalized)
-    normalized = re.sub(r'/[\w/\.\-]+', 'path', normalized)
+    normalized = re.sub(r"[a-z]:\\[\w\\.\\-]+", "path", normalized)
+    normalized = re.sub(r"/[\w/\.\-]+", "path", normalized)
 
     # Remove memory addresses
-    normalized = re.sub(r'0x[0-9a-f]+', 'addr', normalized)
+    normalized = re.sub(r"0x[0-9a-f]+", "addr", normalized)
 
     # Remove line numbers
-    normalized = re.sub(r'line \d+', 'line num', normalized)
-    normalized = re.sub(r':\d+', ':num', normalized)
+    normalized = re.sub(r"line \d+", "line num", normalized)
+    normalized = re.sub(r":\d+", ":num", normalized)
 
     # Remove session/run IDs
-    normalized = re.sub(r'(session|run|batch|drain)-\d{8}-\d{6}', r'\1-id', normalized)
+    normalized = re.sub(r"(session|run|batch|drain)-\d{8}-\d{6}", r"\1-id", normalized)
 
     # Remove numbers that aren't part of words
-    normalized = re.sub(r'\b\d+\b', 'num', normalized)
+    normalized = re.sub(r"\b\d+\b", "num", normalized)
 
     # Collapse whitespace
-    normalized = re.sub(r'\s+', ' ', normalized)
+    normalized = re.sub(r"\s+", " ", normalized)
 
     return normalized.strip()
 
 
-def compute_failure_fingerprint(result: 'DrainResult') -> str:
+def compute_failure_fingerprint(result: "DrainResult") -> str:
     """
     Compute a fingerprint for a DrainResult to detect repeating failures.
 
@@ -183,7 +188,7 @@ def detect_zero_yield_reason(
     returncode: Optional[int],
     stdout: str,
     stderr: str,
-    final_state: str
+    final_state: str,
 ) -> Optional[str]:
     """
     T4: Determine why a phase produced zero telemetry events.
@@ -253,6 +258,7 @@ def detect_zero_yield_reason(
 @dataclass
 class DrainResult:
     """Result of draining a single phase."""
+
     run_id: str
     phase_id: str
     phase_index: int
@@ -287,6 +293,7 @@ class DrainResult:
 @dataclass
 class BatchDrainSession:
     """Persistent session state for batch draining."""
+
     session_id: str
     started_at: str
     completed_at: Optional[str] = None
@@ -334,7 +341,7 @@ class BatchDrainSession:
             session_id=session_id,
             started_at=datetime.now(timezone.utc).isoformat(),
             batch_size=batch_size,
-            results=[]
+            results=[],
         )
 
     def save(self, session_dir: Path) -> None:
@@ -343,28 +350,30 @@ class BatchDrainSession:
         session_file = session_dir / f"{self.session_id}.json"
         # Convert sets to lists for JSON serialization
         data = asdict(self)
-        data['stopped_fingerprints'] = list(self.stopped_fingerprints) if self.stopped_fingerprints else []
-        data['stopped_runs'] = list(self.stopped_runs) if self.stopped_runs else []
-        with open(session_file, 'w', encoding='utf-8') as f:
+        data["stopped_fingerprints"] = (
+            list(self.stopped_fingerprints) if self.stopped_fingerprints else []
+        )
+        data["stopped_runs"] = list(self.stopped_runs) if self.stopped_runs else []
+        with open(session_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
     @classmethod
     def load(cls, session_dir: Path, session_id: str) -> BatchDrainSession:
         """Load session state from disk."""
         session_file = session_dir / f"{session_id}.json"
-        with open(session_file, 'r', encoding='utf-8') as f:
+        with open(session_file, "r", encoding="utf-8") as f:
             data = json.load(f)
         # Convert results back to DrainResult objects
-        results = [DrainResult(**r) for r in data.get('results', [])]
-        data['results'] = results
+        results = [DrainResult(**r) for r in data.get("results", [])]
+        data["results"] = results
         # Convert lists back to sets
-        data['stopped_fingerprints'] = set(data.get('stopped_fingerprints', []))
-        data['stopped_runs'] = set(data.get('stopped_runs', []))
+        data["stopped_fingerprints"] = set(data.get("stopped_fingerprints", []))
+        data["stopped_runs"] = set(data.get("stopped_runs", []))
         # Provide defaults for new fields if loading old session
-        data.setdefault('fingerprint_counts', {})
-        data.setdefault('total_timeouts', 0)
-        data.setdefault('total_telemetry_events', 0)
-        data.setdefault('consecutive_zero_yield', 0)
+        data.setdefault("fingerprint_counts", {})
+        data.setdefault("total_timeouts", 0)
+        data.setdefault("total_telemetry_events", 0)
+        data.setdefault("consecutive_zero_yield", 0)
         return cls(**data)
 
     @classmethod
@@ -449,20 +458,26 @@ class BatchDrainController:
 
         # Count timeouts for this run in current session
         run_timeouts = sum(
-            1 for r in self.session.results
+            1
+            for r in self.session.results
             if r.run_id == phase.run_id and r.subprocess_returncode in (-1, 143)
         )
         if run_timeouts >= self.max_timeouts_per_run:
-            return True, f"run {phase.run_id} has {run_timeouts} timeouts (limit: {self.max_timeouts_per_run})"
+            return (
+                True,
+                f"run {phase.run_id} has {run_timeouts} timeouts (limit: {self.max_timeouts_per_run})",
+            )
 
         # Count attempts for this specific phase
         phase_key = f"{phase.run_id}:{phase.phase_id}"
         phase_attempts = sum(
-            1 for r in self.session.results
-            if f"{r.run_id}:{r.phase_id}" == phase_key
+            1 for r in self.session.results if f"{r.run_id}:{r.phase_id}" == phase_key
         )
         if phase_attempts >= self.max_attempts_per_phase:
-            return True, f"phase already attempted {phase_attempts} times (limit: {self.max_attempts_per_phase})"
+            return (
+                True,
+                f"phase already attempted {phase_attempts} times (limit: {self.max_attempts_per_phase})",
+            )
 
         return False, None
 
@@ -504,9 +519,13 @@ class BatchDrainController:
         else:
             # Failed with no telemetry - check if it's a repeating failure
             if result.failure_fingerprint:
-                fingerprint_count = self.session.fingerprint_counts.get(result.failure_fingerprint, 0)
+                fingerprint_count = self.session.fingerprint_counts.get(
+                    result.failure_fingerprint, 0
+                )
                 if fingerprint_count >= 1:  # If we've seen this error before (even once)
-                    deprioritize_reason = f"repeating fingerprint: {result.failure_fingerprint[:80]}..."
+                    deprioritize_reason = (
+                        f"repeating fingerprint: {result.failure_fingerprint[:80]}..."
+                    )
                     is_promising = False
                 else:
                     # First time seeing this error - give it another chance
@@ -547,7 +566,10 @@ class BatchDrainController:
             # Parse output: "- token_estimation_v2_events: 162"
             total = 0
             for line in result.stdout.splitlines():
-                if "token_estimation_v2_events:" in line or "token_budget_escalation_events:" in line:
+                if (
+                    "token_estimation_v2_events:" in line
+                    or "token_budget_escalation_events:" in line
+                ):
                     parts = line.split(":")
                     if len(parts) == 2:
                         try:
@@ -560,10 +582,7 @@ class BatchDrainController:
             return None
 
     def pick_next_failed_phase(
-        self,
-        db_session,
-        run_id_filter: Optional[str] = None,
-        exclude_keys: List[str] = None
+        self, db_session, run_id_filter: Optional[str] = None, exclude_keys: List[str] = None
     ) -> Optional[Phase]:
         """
         Pick the next failed phase to drain using smart prioritization.
@@ -592,7 +611,9 @@ class BatchDrainController:
 
             # Log for transparency
             if queued_phase_keys:
-                print(f"  [INFO] Skipping {len(queued_phase_keys)} individual QUEUED phases (not entire runs)")
+                print(
+                    f"  [INFO] Skipping {len(queued_phase_keys)} individual QUEUED phases (not entire runs)"
+                )
 
         query = db_session.query(Phase).filter(Phase.state == PhaseState.FAILED)
 
@@ -604,22 +625,19 @@ class BatchDrainController:
         # Skip individual QUEUED phases, not entire runs
         if self.skip_runs_with_queued and queued_phase_keys:
             failed_phases = [
-                p for p in failed_phases
-                if f"{p.run_id}:{p.phase_id}" not in queued_phase_keys
+                p for p in failed_phases if f"{p.run_id}:{p.phase_id}" not in queued_phase_keys
             ]
 
         # Filter out runs matching skip_run_prefixes
         if self.skip_run_prefixes:
             failed_phases = [
-                p for p in failed_phases
+                p
+                for p in failed_phases
                 if not any(p.run_id.startswith(prefix) for prefix in self.skip_run_prefixes)
             ]
 
         # IMPORTANT: phase_id is not globally unique across runs. Exclude by composite key.
-        failed_phases = [
-            p for p in failed_phases
-            if f"{p.run_id}:{p.phase_id}" not in exclude_set
-        ]
+        failed_phases = [p for p in failed_phases if f"{p.run_id}:{p.phase_id}" not in exclude_set]
 
         if not failed_phases:
             return None
@@ -676,7 +694,11 @@ class BatchDrainController:
                     collection_errors.append(phase)
                 elif "deliverable" in failure_reason or "missing" in failure_reason:
                     deliverable_errors.append(phase)
-                elif "patch" in failure_reason or "no-op" in failure_reason or "manifest" in failure_reason:
+                elif (
+                    "patch" in failure_reason
+                    or "no-op" in failure_reason
+                    or "manifest" in failure_reason
+                ):
                     patch_errors.append(phase)
                 elif "timeout" in failure_reason or "timed out" in failure_reason:
                     timeout_errors.append(phase)
@@ -684,7 +706,14 @@ class BatchDrainController:
                     other_failures.append(phase)
 
             # Pick from highest priority category (timeouts last!)
-            for category in [unknown_failures, collection_errors, deliverable_errors, patch_errors, other_failures, timeout_errors]:
+            for category in [
+                unknown_failures,
+                collection_errors,
+                deliverable_errors,
+                patch_errors,
+                other_failures,
+                timeout_errors,
+            ]:
                 if category:
                     # Sort by phase_index (earlier phases first)
                     category.sort(key=lambda p: (p.phase_index or 0))
@@ -701,10 +730,11 @@ class BatchDrainController:
         session = SessionLocal()
         try:
             # Get initial state
-            phase = session.query(Phase).filter(
-                Phase.run_id == run_id,
-                Phase.phase_id == phase_id
-            ).first()
+            phase = (
+                session.query(Phase)
+                .filter(Phase.run_id == run_id, Phase.phase_id == phase_id)
+                .first()
+            )
 
             if not phase:
                 return DrainResult(
@@ -714,7 +744,7 @@ class BatchDrainController:
                     initial_state="NOT_FOUND",
                     final_state="NOT_FOUND",
                     success=False,
-                    error_message="Phase not found in database"
+                    error_message="Phase not found in database",
                 )
 
             initial_state = phase.state.value if phase.state else "UNKNOWN"
@@ -729,22 +759,30 @@ class BatchDrainController:
                     initial_state=initial_state,
                     final_state=initial_state,
                     success=True,
-                    error_message="Dry run - no changes made"
+                    error_message="Dry run - no changes made",
                 )
 
             # Run the drain command
             cmd = [
                 sys.executable,
                 "scripts/drain_one_phase.py",
-                "--run-id", run_id,
-                "--phase-id", phase_id,
-                "--force"  # Allow non-exclusive execution (batch controller ensures sequential processing)
+                "--run-id",
+                run_id,
+                "--phase-id",
+                phase_id,
+                "--force",  # Allow non-exclusive execution (batch controller ensures sequential processing)
             ]
 
             print(f"  Draining: {run_id} / {phase_id} (index {phase_index})")
 
             # A2: Create persistent log directory for this session
-            log_dir = self.workspace / ".autonomous_runs" / "batch_drain_sessions" / self.session.session_id / "logs"
+            log_dir = (
+                self.workspace
+                / ".autonomous_runs"
+                / "batch_drain_sessions"
+                / self.session.session_id
+                / "logs"
+            )
             log_dir.mkdir(parents=True, exist_ok=True)
 
             stdout_path = log_dir / f"{run_id}__{phase_id}.stdout.txt"
@@ -764,6 +802,7 @@ class BatchDrainController:
 
             # A1: Capture subprocess metrics
             import time
+
             start_time = time.time()
 
             # Capture telemetry baseline before drain
@@ -782,7 +821,11 @@ class BatchDrainController:
 
             # Capture telemetry after drain and compute delta
             telemetry_after = self._get_telemetry_counts()
-            telemetry_delta = telemetry_after - telemetry_before if telemetry_before is not None and telemetry_after is not None else None
+            telemetry_delta = (
+                telemetry_after - telemetry_before
+                if telemetry_before is not None and telemetry_after is not None
+                else None
+            )
 
             # A2: Write full stdout/stderr to disk
             stdout_path.write_text(result.stdout or "", encoding="utf-8")
@@ -860,7 +903,7 @@ class BatchDrainController:
                 returncode=result.returncode,
                 stdout=stdout_str,
                 stderr=stderr_str,
-                final_state=final_state
+                final_state=final_state,
             )
 
             # If TOKEN_ESCALATION, append note to error message for visibility
@@ -884,13 +927,13 @@ class BatchDrainController:
                 telemetry_events_collected=telemetry_delta,
                 telemetry_yield_per_minute=telemetry_yield,
                 reached_llm_boundary=reached_boundary,
-                zero_yield_reason=zero_yield_reason_val
+                zero_yield_reason=zero_yield_reason_val,
             )
 
         except subprocess.TimeoutExpired as e:
             # Try to write whatever output we got before timeout
-            duration = time.time() - start_time if 'start_time' in locals() else 1800
-            if 'stdout_path' in locals() and 'stderr_path' in locals():
+            duration = time.time() - start_time if "start_time" in locals() else 1800
+            if "stdout_path" in locals() and "stderr_path" in locals():
                 stdout_path.write_text(e.stdout or "", encoding="utf-8")
                 stderr_path.write_text(e.stderr or "", encoding="utf-8")
 
@@ -906,13 +949,13 @@ class BatchDrainController:
                 initial_state=initial_state,
                 final_state="TIMEOUT",
                 success=False,
-                error_message=f"Phase drain timed out after 30 minutes (see logs)",
+                error_message="Phase drain timed out after 30 minutes (see logs)",
                 subprocess_returncode=-1,  # Timeout
                 subprocess_duration_seconds=round(duration, 2),
-                subprocess_stdout_path=str(stdout_path) if 'stdout_path' in locals() else None,
-                subprocess_stderr_path=str(stderr_path) if 'stderr_path' in locals() else None,
+                subprocess_stdout_path=str(stdout_path) if "stdout_path" in locals() else None,
+                subprocess_stderr_path=str(stderr_path) if "stderr_path" in locals() else None,
                 reached_llm_boundary=timeout_boundary,
-                zero_yield_reason="timeout"
+                zero_yield_reason="timeout",
             )
         except Exception as e:
             return DrainResult(
@@ -922,16 +965,13 @@ class BatchDrainController:
                 initial_state=initial_state,
                 final_state="ERROR",
                 success=False,
-                error_message=f"Exception during drain: {type(e).__name__}: {str(e)}"
+                error_message=f"Exception during drain: {type(e).__name__}: {str(e)}",
             )
         finally:
             session.close()
 
     def run_batch(
-        self,
-        batch_size: int = 10,
-        run_id_filter: Optional[str] = None,
-        resume: bool = False
+        self, batch_size: int = 10, run_id_filter: Optional[str] = None, resume: bool = False
     ) -> BatchDrainSession:
         """
         Run a batch drain session.
@@ -949,24 +989,32 @@ class BatchDrainController:
             self.session = BatchDrainSession.find_latest(self.session_dir)
             if self.session:
                 print(f"Resuming session: {self.session.session_id}")
-                print(f"Previous progress: {self.session.total_processed} processed, "
-                      f"{self.session.total_success} succeeded, {self.session.total_failed} failed")
+                print(
+                    f"Previous progress: {self.session.total_processed} processed, "
+                    f"{self.session.total_success} succeeded, {self.session.total_failed} failed"
+                )
             else:
                 print("No incomplete session found, starting new session")
                 self.session = BatchDrainSession.create_new(batch_size)
         else:
             self.session = BatchDrainSession.create_new(batch_size)
 
-        print(f"\nBatch Drain Controller")
+        print("\nBatch Drain Controller")
         print(f"Session ID: {self.session.session_id}")
         print(f"Target: Process {batch_size} failed phases")
         if run_id_filter:
             print(f"Filter: run_id = {run_id_filter}")
         if self.dry_run:
             print("Mode: DRY RUN (no changes will be made)")
-        print(f"Adaptive Controls:")
-        print(f"  - Phase timeout: {self.phase_timeout_seconds}s ({self.phase_timeout_seconds // 60}m)")
-        print(f"  - Max total time: {self.max_total_minutes}m" if self.max_total_minutes else "  - Max total time: unlimited")
+        print("Adaptive Controls:")
+        print(
+            f"  - Phase timeout: {self.phase_timeout_seconds}s ({self.phase_timeout_seconds // 60}m)"
+        )
+        print(
+            f"  - Max total time: {self.max_total_minutes}m"
+            if self.max_total_minutes
+            else "  - Max total time: unlimited"
+        )
         print(f"  - Max timeouts per run: {self.max_timeouts_per_run}")
         print(f"  - Max attempts per phase: {self.max_attempts_per_phase}")
         print(f"  - Max fingerprint repeats: {self.max_fingerprint_repeats}")
@@ -977,6 +1025,7 @@ class BatchDrainController:
 
         # Start session timer
         import time
+
         self.session_start_time = time.time()
 
         # Process phases
@@ -990,12 +1039,10 @@ class BatchDrainController:
                         print(f"  [TIME LIMIT] Reached max total time ({self.max_total_minutes}m)")
                         break
 
-                print(f"[{i+1}/{batch_size}] Selecting next phase...")
+                print(f"[{i + 1}/{batch_size}] Selecting next phase...")
 
                 phase = self.pick_next_failed_phase(
-                    db_session,
-                    run_id_filter=run_id_filter,
-                    exclude_keys=processed_keys
+                    db_session, run_id_filter=run_id_filter, exclude_keys=processed_keys
                 )
 
                 if not phase:
@@ -1031,24 +1078,32 @@ class BatchDrainController:
                 if result.telemetry_events_collected:
                     self.session.total_telemetry_events += result.telemetry_events_collected
                     self.session.consecutive_zero_yield = 0  # Reset streak on success
-                    print(f"    [TELEMETRY] +{result.telemetry_events_collected} events ({result.telemetry_yield_per_minute:.2f}/min)")
+                    print(
+                        f"    [TELEMETRY] +{result.telemetry_events_collected} events ({result.telemetry_yield_per_minute:.2f}/min)"
+                    )
                 else:
                     self.session.consecutive_zero_yield += 1
                     # T4: Log zero-yield reason for transparency
                     if result.zero_yield_reason:
                         print(f"    [TELEMETRY] 0 events (reason: {result.zero_yield_reason})")
-                    if self.max_consecutive_zero_yield and self.session.consecutive_zero_yield >= self.max_consecutive_zero_yield:
-                        print(f"    [STOP] {self.session.consecutive_zero_yield} consecutive phases with 0 telemetry (limit: {self.max_consecutive_zero_yield})")
+                    if (
+                        self.max_consecutive_zero_yield
+                        and self.session.consecutive_zero_yield >= self.max_consecutive_zero_yield
+                    ):
+                        print(
+                            f"    [STOP] {self.session.consecutive_zero_yield} consecutive phases with 0 telemetry (limit: {self.max_consecutive_zero_yield})"
+                        )
                         break
 
                 # T4: Log LLM boundary detection
                 if result.reached_llm_boundary:
-                    print(f"    [LLM-BOUNDARY] Hit message/context limit during execution")
+                    print("    [LLM-BOUNDARY] Hit message/context limit during execution")
 
                 # Track failure fingerprints and check for repeats
                 if result.failure_fingerprint:
-                    self.session.fingerprint_counts[result.failure_fingerprint] = \
+                    self.session.fingerprint_counts[result.failure_fingerprint] = (
                         self.session.fingerprint_counts.get(result.failure_fingerprint, 0) + 1
+                    )
 
                     repeat_count = self.session.fingerprint_counts[result.failure_fingerprint]
                     if repeat_count >= self.max_fingerprint_repeats:
@@ -1056,7 +1111,9 @@ class BatchDrainController:
                         self.session.stopped_fingerprints.add(result.failure_fingerprint)
                         # Mark the run as stopped (deprioritize it)
                         self.session.stopped_runs.add(result.run_id)
-                        print(f"    [STOP] Fingerprint repeated {repeat_count}x - deprioritizing run {result.run_id}")
+                        print(
+                            f"    [STOP] Fingerprint repeated {repeat_count}x - deprioritizing run {result.run_id}"
+                        )
 
                 # Save progress after each phase
                 self.session.save(self.session_dir)
@@ -1073,9 +1130,9 @@ class BatchDrainController:
 
     def print_summary(self, session: BatchDrainSession) -> None:
         """Print summary of batch drain session."""
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("BATCH DRAIN SUMMARY")
-        print("="*80)
+        print("=" * 80)
         print(f"Session ID: {session.session_id}")
         print(f"Started: {session.started_at}")
         print(f"Completed: {session.completed_at or 'In progress'}")
@@ -1105,7 +1162,11 @@ class BatchDrainController:
                 print(f"  Overall Yield: {overall_yield:.2f} events/minute")
 
         # T4: Zero-yield reason breakdown
-        zero_yield_phases = [r for r in session.results if not (r.telemetry_events_collected and r.telemetry_events_collected > 0)]
+        zero_yield_phases = [
+            r
+            for r in session.results
+            if not (r.telemetry_events_collected and r.telemetry_events_collected > 0)
+        ]
         if zero_yield_phases:
             print()
             print("Zero-Yield Breakdown:")
@@ -1120,7 +1181,9 @@ class BatchDrainController:
         llm_boundary_phases = [r for r in session.results if r.reached_llm_boundary]
         if llm_boundary_phases:
             print()
-            print(f"LLM Boundary Hits: {len(llm_boundary_phases)} phases hit message/context limits")
+            print(
+                f"LLM Boundary Hits: {len(llm_boundary_phases)} phases hit message/context limits"
+            )
 
         # Stop conditions summary
         print()
@@ -1148,12 +1211,14 @@ class BatchDrainController:
             telemetry = sum(r.telemetry_events_collected or 0 for r in results)
 
             status = " [STOPPED]" if run_id in session.stopped_runs else ""
-            print(f"  {run_id}{status}: {succeeded}/{total} succeeded, {timeouts} timeouts, {telemetry} events")
+            print(
+                f"  {run_id}{status}: {succeeded}/{total} succeeded, {timeouts} timeouts, {telemetry} events"
+            )
 
         print()
         print("Session saved to:")
         print(f"  {self.session_dir / session.session_id}.json")
-        print("="*80)
+        print("=" * 80)
 
 
 def main() -> int:
@@ -1161,25 +1226,13 @@ def main() -> int:
         description="Batch drain controller for processing failed phases efficiently"
     )
     ap.add_argument(
-        "--batch-size",
-        type=int,
-        default=10,
-        help="Number of phases to process (default: 10)"
+        "--batch-size", type=int, default=10, help="Number of phases to process (default: 10)"
     )
+    ap.add_argument("--run-id", help="Optional: limit processing to specific run_id")
     ap.add_argument(
-        "--run-id",
-        help="Optional: limit processing to specific run_id"
+        "--dry-run", action="store_true", help="Show what would be processed without making changes"
     )
-    ap.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show what would be processed without making changes"
-    )
-    ap.add_argument(
-        "--resume",
-        action="store_true",
-        help="Resume previous incomplete session"
-    )
+    ap.add_argument("--resume", action="store_true", help="Resume previous incomplete session")
     ap.add_argument(
         "--skip-runs-with-queued",
         action="store_true",
@@ -1271,17 +1324,13 @@ def main() -> int:
         try:
             print_db_identity(db_session)
             check_empty_db_warning(
-                db_session,
-                script_name="batch_drain_controller",
-                allow_empty=args.allow_empty_db
+                db_session, script_name="batch_drain_controller", allow_empty=args.allow_empty_db
             )
         finally:
             db_session.close()
 
         session = controller.run_batch(
-            batch_size=args.batch_size,
-            run_id_filter=args.run_id,
-            resume=args.resume
+            batch_size=args.batch_size, run_id_filter=args.run_id, resume=args.resume
         )
         controller.print_summary(session)
 
@@ -1292,7 +1341,7 @@ def main() -> int:
         print("\n\nBatch drain interrupted by user")
         if controller.session:
             controller.session.save(controller.session_dir)
-            print(f"Progress saved. Resume with: --resume")
+            print("Progress saved. Resume with: --resume")
         return 130
     except Exception as e:
         print(f"\nError: {e}", file=sys.stderr)

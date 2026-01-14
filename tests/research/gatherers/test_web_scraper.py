@@ -4,7 +4,6 @@ from autopack.research.gatherers.web_scraper import WebScraper
 
 
 class TestWebScraper(unittest.TestCase):
-
     def setUp(self):
         self.scraper = WebScraper()
 

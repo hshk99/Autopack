@@ -80,7 +80,7 @@ project:
 autonomous:
   max_iterations: 5
   auto_commit: true
-  
+
 quality:
   min_test_coverage: 80
   linting: true

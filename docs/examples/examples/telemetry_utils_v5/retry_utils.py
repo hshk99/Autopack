@@ -8,13 +8,13 @@ This module provides retry logic utilities including:
 
 import time
 import functools
-from typing import Callable, Type, Tuple, Optional, Union, Any
+from typing import Callable, Type, Tuple, Optional, Any
 import random
 
 
 class RetryConfig:
     """Configuration for retry behavior.
-    
+
     Attributes:
         max_attempts: Maximum number of retry attempts (default: 3)
         base_delay: Base delay in seconds for exponential backoff (default: 1.0)
@@ -23,7 +23,7 @@ class RetryConfig:
         jitter: Whether to add random jitter to delays (default: True)
         exceptions: Tuple of exception types to catch (default: (Exception,))
     """
-    
+
     def __init__(
         self,
         max_attempts: int = 3,
@@ -34,7 +34,7 @@ class RetryConfig:
         exceptions: Tuple[Type[Exception], ...] = (Exception,),
     ):
         """Initialize retry configuration.
-        
+
         Args:
             max_attempts: Maximum number of retry attempts
             base_delay: Base delay in seconds for exponential backoff
@@ -42,7 +42,7 @@ class RetryConfig:
             exponential_base: Base for exponential calculation
             jitter: Whether to add random jitter to delays
             exceptions: Tuple of exception types to catch
-            
+
         Raises:
             ValueError: If max_attempts < 1, base_delay < 0, max_delay < 0,
                        exponential_base <= 1, or exceptions is empty
@@ -57,7 +57,7 @@ class RetryConfig:
             raise ValueError("exponential_base must be greater than 1")
         if not exceptions:
             raise ValueError("exceptions tuple cannot be empty")
-        
+
         self.max_attempts = max_attempts
         self.base_delay = base_delay
         self.max_delay = max_delay
@@ -74,26 +74,26 @@ def exponential_backoff(
     jitter: bool = True,
 ) -> float:
     """Calculate exponential backoff delay.
-    
+
     Calculates the delay for a retry attempt using exponential backoff.
     The delay is calculated as: base_delay * (exponential_base ** attempt)
     and capped at max_delay. Optional jitter adds randomness to prevent
     thundering herd problems.
-    
+
     Args:
         attempt: The attempt number (0-indexed)
         base_delay: Base delay in seconds (default: 1.0)
         max_delay: Maximum delay in seconds (default: 60.0)
         exponential_base: Base for exponential calculation (default: 2.0)
         jitter: Whether to add random jitter (default: True)
-        
+
     Returns:
         The calculated delay in seconds
-        
+
     Raises:
         ValueError: If attempt < 0, base_delay < 0, max_delay < 0,
                    or exponential_base <= 1
-        
+
     Examples:
         >>> delay = exponential_backoff(0, base_delay=1.0)
         >>> 0.5 <= delay <= 1.5  # With jitter
@@ -116,20 +116,20 @@ def exponential_backoff(
         raise ValueError("max_delay must be non-negative")
     if exponential_base <= 1:
         raise ValueError("exponential_base must be greater than 1")
-    
+
     # Calculate exponential delay
-    delay = base_delay * (exponential_base ** attempt)
-    
+    delay = base_delay * (exponential_base**attempt)
+
     # Cap at max_delay
     delay = min(delay, max_delay)
-    
+
     # Add jitter if requested (±50% randomness)
     if jitter:
         jitter_range = delay * 0.5
         delay = delay + random.uniform(-jitter_range, jitter_range)
         # Ensure delay is non-negative after jitter
         delay = max(0, delay)
-    
+
     return delay
 
 
@@ -143,10 +143,10 @@ def retry_on_exception(
     on_retry: Optional[Callable[[Exception, int, float], None]] = None,
 ) -> Callable:
     """Decorator to retry a function on exception with exponential backoff.
-    
+
     Retries the decorated function if it raises one of the specified exceptions.
     Uses exponential backoff to calculate delays between retries.
-    
+
     Args:
         max_attempts: Maximum number of retry attempts (default: 3)
         base_delay: Base delay in seconds for exponential backoff (default: 1.0)
@@ -156,13 +156,13 @@ def retry_on_exception(
         exceptions: Tuple of exception types to catch (default: (Exception,))
         on_retry: Optional callback function called before each retry.
                  Receives (exception, attempt_number, delay) as arguments.
-        
+
     Returns:
         A decorator function
-        
+
     Raises:
         ValueError: If max_attempts < 1 or other invalid parameters
-        
+
     Examples:
         >>> @retry_on_exception(max_attempts=3, base_delay=0.1)
         ... def flaky_function():
@@ -170,12 +170,12 @@ def retry_on_exception(
         ...     if random.random() < 0.5:
         ...         raise ValueError("Random failure")
         ...     return "success"
-        
+
         >>> @retry_on_exception(max_attempts=2, exceptions=(IOError,))
         ... def read_file(path):
         ...     with open(path, 'r') as f:
         ...         return f.read()
-        
+
         >>> def log_retry(exc, attempt, delay):
         ...     print(f"Retry {attempt} after {delay}s due to {exc}")
         >>> @retry_on_exception(max_attempts=3, on_retry=log_retry)
@@ -193,22 +193,22 @@ def retry_on_exception(
         raise ValueError("exponential_base must be greater than 1")
     if not exceptions:
         raise ValueError("exceptions tuple cannot be empty")
-    
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             last_exception = None
-            
+
             for attempt in range(max_attempts):
                 try:
                     return func(*args, **kwargs)
                 except exceptions as e:
                     last_exception = e
-                    
+
                     # If this was the last attempt, re-raise
                     if attempt == max_attempts - 1:
                         raise
-                    
+
                     # Calculate delay for next retry
                     delay = exponential_backoff(
                         attempt=attempt,
@@ -217,7 +217,7 @@ def retry_on_exception(
                         exponential_base=exponential_base,
                         jitter=jitter,
                     )
-                    
+
                     # Call retry callback if provided
                     if on_retry is not None:
                         try:
@@ -225,31 +225,33 @@ def retry_on_exception(
                         except Exception:
                             # Ignore exceptions in callback
                             pass
-                    
+
                     # Wait before retrying
                     time.sleep(delay)
-            
+
             # This should never be reached, but just in case
             if last_exception is not None:
                 raise last_exception
-        
+
         return wrapper
-    
+
     return decorator
 
 
-def retry_with_config(config: RetryConfig, on_retry: Optional[Callable[[Exception, int, float], None]] = None) -> Callable:
+def retry_with_config(
+    config: RetryConfig, on_retry: Optional[Callable[[Exception, int, float], None]] = None
+) -> Callable:
     """Decorator to retry a function using a RetryConfig object.
-    
+
     Convenience wrapper around retry_on_exception that accepts a RetryConfig object.
-    
+
     Args:
         config: RetryConfig object with retry settings
         on_retry: Optional callback function called before each retry
-        
+
     Returns:
         A decorator function
-        
+
     Examples:
         >>> config = RetryConfig(max_attempts=5, base_delay=0.5)
         >>> @retry_with_config(config)

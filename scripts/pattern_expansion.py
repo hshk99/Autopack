@@ -63,15 +63,18 @@ def get_database_url() -> str:
     """Get DATABASE_URL from environment with helpful error."""
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
-        print("\n" + "="*80, file=sys.stderr)
+        print("\n" + "=" * 80, file=sys.stderr)
         print("ERROR: DATABASE_URL environment variable not set", file=sys.stderr)
-        print("="*80, file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
         print("\nSet DATABASE_URL before running:\n", file=sys.stderr)
         print("  # PowerShell (Postgres production):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\"", file=sys.stderr)
+        print(
+            '  $env:DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"',
+            file=sys.stderr,
+        )
         print("  python scripts/pattern_expansion.py\n", file=sys.stderr)
         print("  # PowerShell (SQLite dev/test):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"sqlite:///autopack.db\"", file=sys.stderr)
+        print('  $env:DATABASE_URL="sqlite:///autopack.db"', file=sys.stderr)
         print("  python scripts/pattern_expansion.py\n", file=sys.stderr)
         sys.exit(1)
     return db_url
@@ -86,19 +89,19 @@ def normalize_error_message(error_msg: str) -> str:
     import re
 
     # Remove file paths (both Unix and Windows)
-    normalized = re.sub(r'[A-Za-z]:\\[^\s]+', '<PATH>', error_msg)
-    normalized = re.sub(r'/[^\s]+\.py', '<PATH>', normalized)
+    normalized = re.sub(r"[A-Za-z]:\\[^\s]+", "<PATH>", error_msg)
+    normalized = re.sub(r"/[^\s]+\.py", "<PATH>", normalized)
 
     # Remove line numbers
-    normalized = re.sub(r'line \d+', 'line <NUM>', normalized)
-    normalized = re.sub(r':\d+:', ':<NUM>:', normalized)
+    normalized = re.sub(r"line \d+", "line <NUM>", normalized)
+    normalized = re.sub(r":\d+:", ":<NUM>:", normalized)
 
     # Remove specific variable/module names in quotes
-    normalized = re.sub(r"'[A-Za-z_][A-Za-z0-9_]*'", '<VAR>', normalized)
-    normalized = re.sub(r'"[A-Za-z_][A-Za-z0-9_]*"', '<VAR>', normalized)
+    normalized = re.sub(r"'[A-Za-z_][A-Za-z0-9_]*'", "<VAR>", normalized)
+    normalized = re.sub(r'"[A-Za-z_][A-Za-z0-9_]*"', "<VAR>", normalized)
 
     # Remove hex addresses
-    normalized = re.sub(r'0x[0-9a-fA-F]+', '0x<HEX>', normalized)
+    normalized = re.sub(r"0x[0-9a-fA-F]+", "0x<HEX>", normalized)
 
     return normalized
 
@@ -137,9 +140,7 @@ def compute_pattern_signature(normalized_msg: str) -> str:
 
 
 def analyze_uncaught_patterns(
-    db: Session,
-    run_id: Optional[str] = None,
-    min_occurrences: int = 1
+    db: Session, run_id: Optional[str] = None, min_occurrences: int = 1
 ) -> List[UncaughtPattern]:
     """Analyze database to find uncaught error patterns.
 
@@ -154,7 +155,8 @@ def analyze_uncaught_patterns(
     # Query 1: Find errors that weren't caught by failure hardening
     # (error_logs where corresponding phase6_metrics has failure_hardening_triggered = FALSE)
 
-    query = text("""
+    query = text(
+        """
         SELECT
             e.run_id,
             e.phase_id,
@@ -168,7 +170,8 @@ def analyze_uncaught_patterns(
         WHERE (p6.failure_hardening_triggered IS NULL OR p6.failure_hardening_triggered = 0)
             AND e.error_message IS NOT NULL
             AND e.error_message != ''
-    """)
+    """
+    )
 
     params = {}
     if run_id:
@@ -187,14 +190,16 @@ def analyze_uncaught_patterns(
         normalized = normalize_error_message(error_msg)
         signature = compute_pattern_signature(normalized)
 
-        pattern_groups[signature].append({
-            "run_id": run_id_val,
-            "phase_id": phase_id,
-            "error_message": error_msg,
-            "error_type": error_type,
-            "created_at": created_at,
-            "normalized": normalized,
-        })
+        pattern_groups[signature].append(
+            {
+                "run_id": run_id_val,
+                "phase_id": phase_id,
+                "error_message": error_msg,
+                "error_type": error_type,
+                "created_at": created_at,
+                "normalized": normalized,
+            }
+        )
 
     # Convert to UncaughtPattern objects
     uncaught_patterns = []
@@ -334,7 +339,7 @@ def detect_{pattern_id}(error_message: str, context: dict) -> bool:
     Returns:
         True if pattern detected
 
-    Pattern keywords: {', '.join(keywords[:5])}
+    Pattern keywords: {", ".join(keywords[:5])}
     """
     # TODO: Implement detection logic based on pattern analysis
     # Sample error:
@@ -435,10 +440,10 @@ from autopack.patterns.pattern_{pattern_id} import detect_{pattern_id}, mitigate
 
 def test_detect_{pattern_id}_positive():
     """Test detection with known positive case from real data."""
-    # Sample from actual occurrence (run: {pattern.run_ids[0] if pattern.run_ids else 'unknown'})
+    # Sample from actual occurrence (run: {pattern.run_ids[0] if pattern.run_ids else "unknown"})
     error_msg = """{sample_error}"""
     context = {{
-        "phase_id": "{pattern.phase_ids[0] if pattern.phase_ids else 'test-phase'}",
+        "phase_id": "{pattern.phase_ids[0] if pattern.phase_ids else "test-phase"}",
         "builder_mode": "builder"
     }}
 
@@ -528,7 +533,7 @@ def generate_backlog_entry(pattern: UncaughtPattern, output_dir: str) -> str:
     else:
         priority = "LOW"
 
-    content = f'''# Pattern {pattern_id}: {pattern.error_type.replace("_", " ").title()}
+    content = f"""# Pattern {pattern_id}: {pattern.error_type.replace("_", " ").title()}
 
 **Status**: TODO
 **Priority**: {priority}
@@ -563,7 +568,7 @@ a failure mode that was NOT caught by existing failure hardening mechanisms.
 
 ## Detection Strategy
 
-**Keywords**: {', '.join(keywords[:10])}
+**Keywords**: {", ".join(keywords[:10])}
 
 **Suggested Detection Logic**:
 1. Check for presence of key error indicators
@@ -621,7 +626,7 @@ Based on error type `{pattern.error_type}`, consider:
 ---
 
 **Auto-generated by pattern_expansion.py** | Last updated: {timestamp}
-'''
+"""
 
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(content)
@@ -644,14 +649,48 @@ def extract_keywords(error_message: str, max_keywords: int = 10) -> List[str]:
 
     # Remove common stop words
     stop_words = {
-        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-        "of", "with", "by", "from", "is", "was", "are", "were", "been", "be",
-        "have", "has", "had", "do", "does", "did", "will", "would", "should",
-        "could", "may", "might", "can", "this", "that", "these", "those"
+        "the",
+        "a",
+        "an",
+        "and",
+        "or",
+        "but",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "by",
+        "from",
+        "is",
+        "was",
+        "are",
+        "were",
+        "been",
+        "be",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "should",
+        "could",
+        "may",
+        "might",
+        "can",
+        "this",
+        "that",
+        "these",
+        "those",
     }
 
     # Extract words (alphanumeric + underscores)
-    words = re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]{2,}\b', error_message.lower())
+    words = re.findall(r"\b[a-zA-Z_][a-zA-Z0-9_]{2,}\b", error_message.lower())
 
     # Filter stop words and count occurrences
     filtered_words = [w for w in words if w not in stop_words]
@@ -724,32 +763,26 @@ def main():
     parser = argparse.ArgumentParser(
         description="Analyze uncaught error patterns for failure hardening expansion"
     )
-    parser.add_argument(
-        "--run-id",
-        type=str,
-        help="Filter analysis to specific run ID"
-    )
+    parser.add_argument("--run-id", type=str, help="Filter analysis to specific run ID")
     parser.add_argument(
         "--min-occurrences",
         type=int,
         default=1,
-        help="Minimum number of occurrences to include (default: 1)"
+        help="Minimum number of occurrences to include (default: 1)",
     )
     parser.add_argument(
-        "--output",
-        type=str,
-        help="Output JSON file path (optional, defaults to stdout)"
+        "--output", type=str, help="Output JSON file path (optional, defaults to stdout)"
     )
     parser.add_argument(
         "--generate-code",
         action="store_true",
-        help="Generate Python detector stubs, tests, and backlog entries (BUILD-146 P12)"
+        help="Generate Python detector stubs, tests, and backlog entries (BUILD-146 P12)",
     )
     parser.add_argument(
         "--output-dir",
         type=str,
         default="src/autopack/patterns",
-        help="Directory for generated pattern files (default: src/autopack/patterns)"
+        help="Directory for generated pattern files (default: src/autopack/patterns)",
     )
 
     args = parser.parse_args()
@@ -767,9 +800,7 @@ def main():
     # Analyze patterns
     with Session(engine) as session:
         patterns = analyze_uncaught_patterns(
-            session,
-            run_id=args.run_id,
-            min_occurrences=args.min_occurrences
+            session, run_id=args.run_id, min_occurrences=args.min_occurrences
         )
 
     # Output results
@@ -782,7 +813,7 @@ def main():
                 "min_occurrences": args.min_occurrences,
                 "total_patterns": len(patterns),
             },
-            "patterns": [asdict(p) for p in patterns]
+            "patterns": [asdict(p) for p in patterns],
         }
 
         with open(args.output, "w") as f:
@@ -810,13 +841,16 @@ def main():
 
         # Create directories for tests and backlog
         from pathlib import Path
+
         test_dir = Path("tests/patterns")
         backlog_dir = Path("docs/backlog")
 
         generated_files = []
 
         for i, pattern in enumerate(top_patterns, 1):
-            print(f"\n[{i}/{len(top_patterns)}] Generating files for pattern: {pattern.suggested_pattern_id}")
+            print(
+                f"\n[{i}/{len(top_patterns)}] Generating files for pattern: {pattern.suggested_pattern_id}"
+            )
 
             # Generate detector stub
             detector_path = generate_pattern_detector(pattern, args.output_dir)

@@ -44,9 +44,12 @@ from autopack.storage_optimizer.classifier import FileClassifier
 
 def get_last_scan(db, scan_target: str) -> Optional[StorageScan]:
     """Get the most recent scan for a given scan target."""
-    return db.query(StorageScan).filter(
-        StorageScan.scan_target == scan_target
-    ).order_by(StorageScan.timestamp.desc()).first()
+    return (
+        db.query(StorageScan)
+        .filter(StorageScan.scan_target == scan_target)
+        .order_by(StorageScan.timestamp.desc())
+        .first()
+    )
 
 
 def compute_delta_report(db, current_scan_id: int, previous_scan_id: Optional[int]) -> Dict:
@@ -66,7 +69,7 @@ def compute_delta_report(db, current_scan_id: int, previous_scan_id: Optional[in
             "new_candidates": 0,
             "removed_candidates": 0,
             "size_change_gb": 0.0,
-            "category_changes": {}
+            "category_changes": {},
         }
 
     # Get current candidates
@@ -106,7 +109,7 @@ def compute_delta_report(db, current_scan_id: int, previous_scan_id: Optional[in
             "delta_count": len(curr_cat) - len(prev_cat),
             "current_size_gb": curr_size / (1024**3),
             "previous_size_gb": prev_size / (1024**3),
-            "delta_size_gb": (curr_size - prev_size) / (1024**3)
+            "delta_size_gb": (curr_size - prev_size) / (1024**3),
         }
 
     return {
@@ -117,7 +120,7 @@ def compute_delta_report(db, current_scan_id: int, previous_scan_id: Optional[in
         "size_change_gb": size_change_gb,
         "category_changes": category_changes,
         "new_paths_sample": list(new_paths)[:10] if new_paths else [],
-        "removed_paths_sample": list(removed_paths)[:10] if removed_paths else []
+        "removed_paths_sample": list(removed_paths)[:10] if removed_paths else [],
     }
 
 
@@ -133,11 +136,7 @@ def send_telegram_notification(message: str) -> bool:
         import requests
 
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        data = {
-            "chat_id": chat_id,
-            "text": message,
-            "parse_mode": "Markdown"
-        }
+        data = {"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}
 
         response = requests.post(url, json=data, timeout=10)
         return response.status_code == 200
@@ -146,7 +145,9 @@ def send_telegram_notification(message: str) -> bool:
         return False
 
 
-def format_delta_report(delta: Dict, current_scan: StorageScan, previous_scan: Optional[StorageScan]) -> str:
+def format_delta_report(
+    delta: Dict, current_scan: StorageScan, previous_scan: Optional[StorageScan]
+) -> str:
     """Format delta report as human-readable text."""
     lines = []
     lines.append("=" * 80)
@@ -158,10 +159,14 @@ def format_delta_report(delta: Dict, current_scan: StorageScan, previous_scan: O
     if delta["is_first_scan"]:
         lines.append("\nThis is the first scan (no previous scan for comparison).")
         lines.append(f"\nTotal cleanup candidates: {current_scan.cleanup_candidates_count}")
-        lines.append(f"Total potential savings: {current_scan.potential_savings_bytes / (1024**3):.2f} GB")
+        lines.append(
+            f"Total potential savings: {current_scan.potential_savings_bytes / (1024**3):.2f} GB"
+        )
     else:
         lines.append(f"Previous Scan ID: {delta['previous_scan_id']}")
-        lines.append(f"Previous Scan Date: {previous_scan.timestamp.strftime('%Y-%m-%d %H:%M UTC')}")
+        lines.append(
+            f"Previous Scan Date: {previous_scan.timestamp.strftime('%Y-%m-%d %H:%M UTC')}"
+        )
 
         lines.append("\n" + "-" * 80)
         lines.append("CHANGES SINCE LAST SCAN")
@@ -178,8 +183,12 @@ def format_delta_report(delta: Dict, current_scan: StorageScan, previous_scan: O
             for category, changes in sorted(delta["category_changes"].items()):
                 if changes["delta_count"] != 0 or changes["delta_size_gb"] != 0.0:
                     lines.append(f"  {category}:")
-                    lines.append(f"    Count: {changes['previous_count']} → {changes['current_count']} ({changes['delta_count']:+d})")
-                    lines.append(f"    Size:  {changes['previous_size_gb']:.2f} GB → {changes['current_size_gb']:.2f} GB ({changes['delta_size_gb']:+.2f} GB)")
+                    lines.append(
+                        f"    Count: {changes['previous_count']} → {changes['current_count']} ({changes['delta_count']:+d})"
+                    )
+                    lines.append(
+                        f"    Size:  {changes['previous_size_gb']:.2f} GB → {changes['current_size_gb']:.2f} GB ({changes['delta_size_gb']:+.2f} GB)"
+                    )
 
         # Sample new files
         if delta["new_paths_sample"]:
@@ -197,10 +206,14 @@ def format_delta_report(delta: Dict, current_scan: StorageScan, previous_scan: O
     lines.append("NEXT STEPS")
     lines.append("=" * 80)
     lines.append(f"1. Review candidates: http://localhost:8000/storage/scans/{current_scan.id}")
-    lines.append(f"2. Approve via API or interactive mode:")
-    lines.append(f"   python scripts/storage/scan_and_report.py --scan-id {current_scan.id} --interactive")
-    lines.append(f"3. Execute approved deletions:")
-    lines.append(f"   python scripts/storage/scan_and_report.py --scan-id {current_scan.id} --execute --category dev_caches")
+    lines.append("2. Approve via API or interactive mode:")
+    lines.append(
+        f"   python scripts/storage/scan_and_report.py --scan-id {current_scan.id} --interactive"
+    )
+    lines.append("3. Execute approved deletions:")
+    lines.append(
+        f"   python scripts/storage/scan_and_report.py --scan-id {current_scan.id} --execute --category dev_caches"
+    )
     lines.append("")
 
     return "\n".join(lines)
@@ -210,25 +223,21 @@ def main():
     parser = argparse.ArgumentParser(
         description="Scheduled Storage Optimizer Scan (Task Scheduler / Cron)"
     )
-    parser.add_argument(
-        "--root",
-        default="C:/",
-        help="Root directory to scan (default: C:/)"
-    )
+    parser.add_argument("--root", default="C:/", help="Root directory to scan (default: C:/)")
     parser.add_argument(
         "--name",
         default=f"weekly-scan-{datetime.now(timezone.utc).strftime('%Y%m%d')}",
-        help="Scan name (default: weekly-scan-YYYYMMDD)"
+        help="Scan name (default: weekly-scan-YYYYMMDD)",
     )
     parser.add_argument(
         "--notify",
         action="store_true",
-        help="Send Telegram notification (requires TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID env vars)"
+        help="Send Telegram notification (requires TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID env vars)",
     )
     parser.add_argument(
         "--output-dir",
         default="archive/reports/storage/weekly",
-        help="Directory to save delta reports (default: archive/reports/storage/weekly)"
+        help="Directory to save delta reports (default: archive/reports/storage/weekly)",
     )
 
     args = parser.parse_args()
@@ -280,7 +289,7 @@ def main():
         cleanup_candidates_count=len(candidates),
         potential_savings_bytes=potential_savings,
         scan_duration_seconds=0,
-        notes=args.name
+        notes=args.name,
     )
 
     session.add(current_scan)
@@ -295,14 +304,16 @@ def main():
             category=classification.category,
             reason=classification.reason,
             requires_approval=classification.requires_approval,
-            approval_status="pending"
+            approval_status="pending",
         )
         session.add(candidate)
 
     session.commit()
 
     # Compute delta
-    delta = compute_delta_report(session, current_scan.id, previous_scan.id if previous_scan else None)
+    delta = compute_delta_report(
+        session, current_scan.id, previous_scan.id if previous_scan else None
+    )
 
     # Format report
     report_text = format_delta_report(delta, current_scan, previous_scan)
@@ -328,8 +339,8 @@ def main():
             "total_candidates": current_scan.cleanup_candidates_count,
             "total_size_gb": current_scan.potential_savings_bytes / (1024**3),
             "scan_target": current_scan.scan_target,
-            "scan_time": current_scan.timestamp.isoformat()
-        }
+            "scan_time": current_scan.timestamp.isoformat(),
+        },
     }
     json_file.write_text(json.dumps(delta_json, indent=2), encoding="utf-8")
     print(f"✅ JSON report saved to: {json_file}")
@@ -340,7 +351,7 @@ def main():
         telegram_msg = f"""
 📊 *Storage Optimizer Weekly Scan*
 
-📅 Scan: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}
+📅 Scan: {datetime.now(timezone.utc).strftime("%Y-%m-%d")}
 🆔 Scan ID: {current_scan.id}
 
 {"📌 *First Scan*" if delta["is_first_scan"] else ""}

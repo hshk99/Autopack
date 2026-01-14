@@ -2,6 +2,7 @@
 """
 Create a minimal test run directly in database to verify API works.
 """
+
 import sys
 from pathlib import Path
 
@@ -26,10 +27,7 @@ def create_test_run():
 
         # Create run
         run = Run(
-            id=run_id,
-            state=RunState.RUN_CREATED,
-            safety_profile="normal",
-            run_scope="single_tier"
+            id=run_id, state=RunState.RUN_CREATED, safety_profile="normal", run_scope="single_tier"
         )
         session.add(run)
         session.flush()
@@ -41,7 +39,7 @@ def create_test_run():
             tier_index=0,
             name="Test Tier",
             description="Simple test tier",
-            state=TierState.PENDING
+            state=TierState.PENDING,
         )
         session.add(tier)
         session.flush()
@@ -56,7 +54,7 @@ def create_test_run():
             description="Simple test phase to verify API works",
             state=PhaseState.QUEUED,
             task_category="test",
-            complexity="low"
+            complexity="low",
         )
         session.add(phase)
 
@@ -64,7 +62,7 @@ def create_test_run():
         print(f"✅ Created test run: {run_id}")
         print(f"   Tier: {tier.tier_id}")
         print(f"   Phase: {phase.phase_id}")
-        print(f"\n🧪 Test the API:")
+        print("\n🧪 Test the API:")
         print(f"   curl http://localhost:8000/runs/{run_id}")
         return 0
 
@@ -72,6 +70,7 @@ def create_test_run():
         session.rollback()
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
     finally:

@@ -45,4 +45,3 @@ RISK ASSESSMENT:
 COST ASSESSMENT:
   High waste samples (>3x): 8/25 (32.0%)
   Max waste ratio: 4.66x
-

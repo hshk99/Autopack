@@ -73,7 +73,7 @@ This is a real codebase test - validate that Autopack can fix dependency issues 
                 ".autonomous_runs/file-organizer-app-v1/fileorganizer/backend/tests/",
                 ".autonomous_runs/file-organizer-app-v1/fileorganizer/backend/app/",
             ],
-        }
+        },
     }
 ]
 
@@ -82,7 +82,7 @@ TIERS = [
         "tier_id": "tier-1",
         "tier_index": 0,
         "name": "FileOrganizer Test Suite Fix",
-        "description": "Fix dependency conflicts and get test suite passing"
+        "description": "Fix dependency conflicts and get test suite passing",
     }
 ]
 
@@ -98,10 +98,10 @@ def create_run():
             "run_scope": "single_tier",
             "token_cap": 50000,  # Estimated 8k, giving 6x buffer
             "max_phases": 1,
-            "max_duration_minutes": 30
+            "max_duration_minutes": 30,
         },
         "tiers": TIERS,
-        "phases": PHASES
+        "phases": PHASES,
     }
 
     print(f"[INFO] Creating FileOrganizer test run: {RUN_ID}")
@@ -113,7 +113,7 @@ def create_run():
     print("  - Work with external projects (not autopack/ itself)")
     print("  - Validate test suite functionality")
     print()
-    print(f"[INFO] Target: .autonomous_runs/file-organizer-app-v1/backend/")
+    print("[INFO] Target: .autonomous_runs/file-organizer-app-v1/backend/")
     print()
 
     headers = {}
@@ -124,10 +124,7 @@ def create_run():
 
     try:
         response = requests.post(
-            f"{API_URL}/runs/start",
-            json=payload,
-            headers=headers if headers else None,
-            timeout=30
+            f"{API_URL}/runs/start", json=payload, headers=headers if headers else None, timeout=30
         )
 
         if response.status_code != 201:
@@ -140,7 +137,9 @@ def create_run():
         print(f"[INFO] Run URL: {API_URL}/runs/{RUN_ID}")
         print()
         print("[OK] Ready to execute autonomous run (from repo root):")
-        print(f"  PYTHONPATH=src python src/autopack/autonomous_executor.py --run-id {RUN_ID} --run-type project_build --verbose")
+        print(
+            f"  PYTHONPATH=src python src/autopack/autonomous_executor.py --run-id {RUN_ID} --run-type project_build --verbose"
+        )
         print()
         return result
 

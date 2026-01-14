@@ -78,9 +78,9 @@ class TestTodoPolicyExists:
 
     def test_policy_file_exists(self):
         """config/todo_policy.yaml must exist."""
-        assert POLICY_FILE.exists(), (
-            "config/todo_policy.yaml not found - " "TODO quarantine policy must be documented"
-        )
+        assert (
+            POLICY_FILE.exists()
+        ), "config/todo_policy.yaml not found - TODO quarantine policy must be documented"
 
     def test_policy_is_valid_yaml(self):
         """Policy must be valid YAML."""

@@ -19,21 +19,62 @@ from autopack.autonomous_executor import AutonomousExecutor
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Auto-convert markdown plan and run maintenance mode")
+    parser = argparse.ArgumentParser(
+        description="Auto-convert markdown plan and run maintenance mode"
+    )
     parser.add_argument("--plan-md", type=Path, required=True, help="Path to markdown plan")
-    parser.add_argument("--run-id", type=str, required=True, help="Run ID for maintenance execution")
-    parser.add_argument("--out-plan", type=Path, default=None, help="Output plan JSON (default: .autonomous_runs/<run-id>/plan_generated.json)")
-    parser.add_argument("--patch-dir", type=Path, default=None, help="Directory containing patches named <phase_id>.patch")
-    parser.add_argument("--apply", action="store_true", help="Attempt to apply patches if auditor approves (requires checkpoint)")
-    parser.add_argument("--auto-apply-low-risk", action="store_true", help="Auto-apply only low-risk approved patches (in-scope, small diff, tests passing)")
-    parser.add_argument("--test-cmd", action="append", default=[], help="Targeted test command(s) to run per item")
-    parser.add_argument("--allowed-path", action="append", default=[], help="Allowed path prefixes for maintenance")
-    parser.add_argument("--default-allowed-path", action="append", default=[], help="Additional default allowed paths")
+    parser.add_argument(
+        "--run-id", type=str, required=True, help="Run ID for maintenance execution"
+    )
+    parser.add_argument(
+        "--out-plan",
+        type=Path,
+        default=None,
+        help="Output plan JSON (default: .autonomous_runs/<run-id>/plan_generated.json)",
+    )
+    parser.add_argument(
+        "--patch-dir",
+        type=Path,
+        default=None,
+        help="Directory containing patches named <phase_id>.patch",
+    )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Attempt to apply patches if auditor approves (requires checkpoint)",
+    )
+    parser.add_argument(
+        "--auto-apply-low-risk",
+        action="store_true",
+        help="Auto-apply only low-risk approved patches (in-scope, small diff, tests passing)",
+    )
+    parser.add_argument(
+        "--test-cmd", action="append", default=[], help="Targeted test command(s) to run per item"
+    )
+    parser.add_argument(
+        "--allowed-path", action="append", default=[], help="Allowed path prefixes for maintenance"
+    )
+    parser.add_argument(
+        "--default-allowed-path",
+        action="append",
+        default=[],
+        help="Additional default allowed paths",
+    )
     parser.add_argument("--max-files", type=int, default=10, help="Max files for auto-approval")
-    parser.add_argument("--max-lines", type=int, default=500, help="Max lines added+deleted for auto-approval")
+    parser.add_argument(
+        "--max-lines", type=int, default=500, help="Max lines added+deleted for auto-approval"
+    )
     parser.add_argument("--workspace", type=Path, default=Path("."), help="Workspace root")
-    parser.add_argument("--api-url", default=os.getenv("AUTOPACK_API_URL", "http://localhost:8000"), help="Autopack API URL")
-    parser.add_argument("--api-key", default=os.getenv("AUTOPACK_API_KEY"), help="Autopack API key (if required by executor)")
+    parser.add_argument(
+        "--api-url",
+        default=os.getenv("AUTOPACK_API_URL", "http://localhost:8000"),
+        help="Autopack API URL",
+    )
+    parser.add_argument(
+        "--api-key",
+        default=os.getenv("AUTOPACK_API_KEY"),
+        help="Autopack API key (if required by executor)",
+    )
     args = parser.parse_args()
 
     run_id = args.run_id
@@ -72,4 +113,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

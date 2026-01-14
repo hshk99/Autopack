@@ -246,9 +246,9 @@ def check_platform_markers(repo_root: Path) -> LockCheckResult:
 
     # Check for expected platform markers
     expected_markers = [
-        ('python-magic==', 'sys_platform != "win32"'),
-        ('python-magic-bin==', 'sys_platform == "win32"'),
-        ('pywin32==', 'sys_platform == "win32"'),
+        ("python-magic==", 'sys_platform != "win32"'),
+        ("python-magic-bin==", 'sys_platform == "win32"'),
+        ("pywin32==", 'sys_platform == "win32"'),
     ]
 
     missing_markers = []

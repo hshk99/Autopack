@@ -1950,7 +1950,7 @@ Operators must run `python scripts/migrations/add_token_efficiency_idempotency_i
 - **Stronger validation**: Optional Postgres integration test validates real DB enforcement (not just mocked `IntegrityError`)
 - **Zero CI noise**: Postgres test skips cleanly on SQLite (4/4 tests skipped in default environment)
 
-**Test Results**: 
+**Test Results**:
 - Core tests: 53 passing ✅ (no regressions)
 - Postgres integration: 4 skipped (expected, SQLite default) ✅
 - With `DATABASE_URL=postgresql://...`: 4 passing (validates index enforcement) ✅
@@ -2212,8 +2212,8 @@ To preserve auditability, the exact root duplicate was snapshotted before remova
 
 ## BUILD-153.1: Storage Optimizer Minimal Test Pack (2026-01-02)
 
-**Status**: ✅ COMPLETE  
-**Goal**: Create minimal unit test pack (~10 tests) to validate BUILD-152 lock-aware execution components  
+**Status**: ✅ COMPLETE
+**Goal**: Create minimal unit test pack (~10 tests) to validate BUILD-152 lock-aware execution components
 **Result**: 26 tests written, 26 passing (100% pass rate)
 
 ### Test Coverage
@@ -2240,12 +2240,12 @@ To preserve auditability, the exact root duplicate was snapshotted before remova
 
 ### Key Validations
 
-✅ **Lock classification**: All 5 lock types correctly identified from exception messages  
-✅ **Retry logic**: Transient locks retried, permanent locks skipped immediately  
-✅ **Backoff timing**: Correct exponential delays applied  
-✅ **SHA256 checksumming**: Files and directories hashed correctly for idempotency  
-✅ **Checkpoint logging**: Dual-write to PostgreSQL + JSONL fallback working  
-✅ **Skip-locked behavior**: Flag correctly disables retry for automation scenarios  
+✅ **Lock classification**: All 5 lock types correctly identified from exception messages
+✅ **Retry logic**: Transient locks retried, permanent locks skipped immediately
+✅ **Backoff timing**: Correct exponential delays applied
+✅ **SHA256 checksumming**: Files and directories hashed correctly for idempotency
+✅ **Checkpoint logging**: Dual-write to PostgreSQL + JSONL fallback working
+✅ **Skip-locked behavior**: Flag correctly disables retry for automation scenarios
 
 ### Files Created
 
@@ -2266,11 +2266,11 @@ tests/storage/test_executor_caps.py::TestExecutorCaps - 4/4 retry tests PASSED
 
 ### Success Metrics
 
-✅ **All core components tested**: Lock detector, checkpoint logger, retry logic  
-✅ **100% pass rate**: 26/26 tests passing  
-✅ **Idempotency validated**: SHA256 tracking + lookback period filtering working  
-✅ **Lock handling validated**: Transient/permanent separation correct  
-✅ **Ready for canary**: Unit tests confirm components functional in isolation  
+✅ **All core components tested**: Lock detector, checkpoint logger, retry logic
+✅ **100% pass rate**: 26/26 tests passing
+✅ **Idempotency validated**: SHA256 tracking + lookback period filtering working
+✅ **Lock handling validated**: Transient/permanent separation correct
+✅ **Ready for canary**: Unit tests confirm components functional in isolation
 
 ### Next Phase
 
@@ -2282,7 +2282,7 @@ tests/storage/test_executor_caps.py::TestExecutorCaps - 4/4 retry tests PASSED
 
 **Commits**: Pending (test files created, awaiting SOT update + commit)
 
-**Dependencies**: BUILD-152 (lock-aware execution implementation)  
+**Dependencies**: BUILD-152 (lock-aware execution implementation)
 **Related**: BUILD-152 (Storage Optimizer Phase 2)
 
 ---
@@ -2790,7 +2790,7 @@ Suggested next actions:
 ## BUILD-157: Security Baseline + Requirements Regeneration Policy (2026-01-05) ✅ COMPLETE
 
 **Status**: 100% Complete
-**Date**: 2026-01-05  
+**Date**: 2026-01-05
 **Decision IDs**: DEC-043 (Baseline Refresh Policy), DEC-044 (Requirements Regeneration Policy)
 
 ### Summary
@@ -3170,7 +3170,7 @@ Extended BUILD-158's checker with layered heuristic matching + mechanical fixer 
 
 **Remaining 40 Broken Links**: Mostly low-confidence (manual review required)
 - **High**: 2 (will be fixed in next round)
-- **Medium**: 1 (will be fixed in next round)  
+- **Medium**: 1 (will be fixed in next round)
 - **Low**: 37 (runtime files, API endpoints, historical refs, source line numbers)
 
 ### Architecture Decisions
@@ -3292,9 +3292,9 @@ python scripts/fix_doc_links.py --execute --apply-medium
 
 ## BUILD-160
 
-**Title**: Tidy Performance — Quick Mode + Timing Instrumentation + Docs-Only SOT Sync  
-**Status**: ✅ COMPLETE  
-**Completed**: 2026-01-03  
+**Title**: Tidy Performance — Quick Mode + Timing Instrumentation + Docs-Only SOT Sync
+**Status**: ✅ COMPLETE
+**Completed**: 2026-01-03
 **Commit**: c0b44035
 
 ### Problem Statement
@@ -4490,7 +4490,7 @@ PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///:memory:" pytest tests/tidy/
 # Test report mode
 python scripts/tidy/consolidate_intention_anchors.py report --output-json /tmp/report.json
 
-# Test plan mode  
+# Test plan mode
 python scripts/tidy/consolidate_intention_anchors.py plan --project-id autopack --out /tmp/plan.json
 
 # Test apply mode (requires --execute)

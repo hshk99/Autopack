@@ -19,6 +19,7 @@ from autopack.models import Run, Tier, Phase, RunState, PhaseState
 
 RUN_ID = "build132-coverage-delta-integration"
 
+
 def seed_run():
     """Seed BUILD-132 run in database."""
 
@@ -40,7 +41,7 @@ def seed_run():
             token_cap=300000,
             max_phases=5,
             max_duration_minutes=180,
-            goal_anchor="BUILD-132: Coverage Delta Integration for Quality Gate"
+            goal_anchor="BUILD-132: Coverage Delta Integration for Quality Gate",
         )
         session.add(run)
         session.flush()
@@ -51,7 +52,7 @@ def seed_run():
         tiers_data = [
             {"tier_id": "T1-Setup", "tier_index": 0, "name": "Setup"},
             {"tier_id": "T2-Implementation", "tier_index": 1, "name": "Implementation"},
-            {"tier_id": "T3-Documentation", "tier_index": 2, "name": "Documentation"}
+            {"tier_id": "T3-Documentation", "tier_index": 2, "name": "Documentation"},
         ]
 
         tier_db_ids = {}
@@ -60,7 +61,7 @@ def seed_run():
                 tier_id=tier_data["tier_id"],
                 run_id=RUN_ID,
                 name=tier_data["name"],
-                tier_index=tier_data["tier_index"]
+                tier_index=tier_data["tier_index"],
             )
             session.add(tier)
             session.flush()
@@ -92,7 +93,7 @@ Files to modify:
 DO NOT establish T0 baseline yet - that's Phase 4.""",
                 "deliverables": ["pytest.ini", ".gitignore"],
                 "task_category": "configuration",
-                "complexity": "low"
+                "complexity": "low",
             },
             {
                 "phase_id": "build132-phase2-coverage-tracker",
@@ -126,9 +127,12 @@ Reference: docs/BUILD-132_COVERAGE_DELTA_INTEGRATION.md lines 114-375 for comple
 Files to create:
 - src/autopack/coverage_tracker.py (~100 lines)
 - tests/test_coverage_tracker.py (~150 lines)""",
-                "deliverables": ["src/autopack/coverage_tracker.py", "tests/test_coverage_tracker.py"],
+                "deliverables": [
+                    "src/autopack/coverage_tracker.py",
+                    "tests/test_coverage_tracker.py",
+                ],
                 "task_category": "implementation",
-                "complexity": "medium"
+                "complexity": "medium",
             },
             {
                 "phase_id": "build132-phase3-executor-integration",
@@ -162,7 +166,7 @@ Files to modify:
 - src/autopack/autonomous_executor.py (8 locations)""",
                 "deliverables": ["src/autopack/autonomous_executor.py"],
                 "task_category": "integration",
-                "complexity": "medium"
+                "complexity": "medium",
             },
             {
                 "phase_id": "build132-phase4-documentation",
@@ -197,10 +201,14 @@ Files to modify:
 
 Files to create:
 - docs/BUILD-132_IMPLEMENTATION_STATUS.md""",
-                "deliverables": ["BUILD_HISTORY.md", "BUILD_LOG.md", "docs/BUILD-132_IMPLEMENTATION_STATUS.md"],
+                "deliverables": [
+                    "BUILD_HISTORY.md",
+                    "BUILD_LOG.md",
+                    "docs/BUILD-132_IMPLEMENTATION_STATUS.md",
+                ],
                 "task_category": "docs",
-                "complexity": "low"
-            }
+                "complexity": "low",
+            },
         ]
 
         for phase_data in phases_data:
@@ -208,7 +216,7 @@ Files to create:
             scope_config = {
                 "deliverables": phase_data.get("deliverables", []),
                 "paths": [],
-                "read_only_context": []
+                "read_only_context": [],
             }
 
             phase = Phase(
@@ -221,31 +229,35 @@ Files to create:
                 scope=scope_config,
                 state=PhaseState.QUEUED,
                 task_category=phase_data["task_category"],
-                complexity=phase_data["complexity"]
+                complexity=phase_data["complexity"],
             )
             session.add(phase)
-            print(f"[OK] Created phase: {phase_data['phase_id']} with {len(scope_config['deliverables'])} deliverables")
+            print(
+                f"[OK] Created phase: {phase_data['phase_id']} with {len(scope_config['deliverables'])} deliverables"
+            )
 
         session.commit()
 
-        print(f"\n[SUCCESS] BUILD-132 run seeded successfully!")
-        print(f"\nSummary:")
+        print("\n[SUCCESS] BUILD-132 run seeded successfully!")
+        print("\nSummary:")
         print(f"- Run ID: {RUN_ID}")
         print(f"- Total phases: {len(phases_data)}")
         print(f"- Total tiers: {len(tiers_data)}")
-        print(f"- Expected telemetry samples: 4+ successful Builder executions")
-        print(f"\nTo execute:")
-        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" \\")
+        print("- Expected telemetry samples: 4+ successful Builder executions")
+        print("\nTo execute:")
+        print('  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \\')
         print(f"    python -m autopack.autonomous_executor --run-id {RUN_ID}")
 
     except Exception as e:
         session.rollback()
         print(f"[ERROR] {e}")
         import traceback
+
         traceback.print_exc()
         raise
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     seed_run()

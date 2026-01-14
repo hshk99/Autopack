@@ -28,10 +28,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from autopack.database import SessionLocal
 from autopack.models import Phase, PhaseState
 
+
 def main():
     parser = argparse.ArgumentParser(description="Drain all QUEUED phases for a run")
     parser.add_argument("--run-id", required=True, help="Run ID")
-    parser.add_argument("--phase-timeout", type=int, default=900, help="Timeout per phase in seconds (default: 900)")
+    parser.add_argument(
+        "--phase-timeout", type=int, default=900, help="Timeout per phase in seconds (default: 900)"
+    )
     args = parser.parse_args()
 
     # Get all QUEUED phases
@@ -58,9 +61,9 @@ def main():
         timeout_count = 0
 
         for i, phase in enumerate(phases, 1):
-            print(f"{'='*80}")
+            print(f"{'=' * 80}")
             print(f"[{i}/{len(phases)}] Draining: {phase.phase_id}")
-            print(f"{'='*80}")
+            print(f"{'=' * 80}")
 
             # Run drain_one_phase
             env = os.environ.copy()
@@ -68,21 +71,25 @@ def main():
                 [
                     sys.executable,
                     "scripts/drain_one_phase.py",
-                    "--run-id", args.run_id,
-                    "--phase-id", phase.phase_id,
+                    "--run-id",
+                    args.run_id,
+                    "--phase-id",
+                    phase.phase_id,
                     "--force",
-                    "--no-dual-auditor"
+                    "--no-dual-auditor",
                 ],
                 env=env,
                 timeout=args.phase_timeout,
-                capture_output=False
+                capture_output=False,
             )
 
             if result.returncode == 0:
                 print(f"[{i}/{len(phases)}] ✅ {phase.phase_id} completed successfully")
                 success_count += 1
             else:
-                print(f"[{i}/{len(phases)}] ❌ {phase.phase_id} failed with exit code {result.returncode}")
+                print(
+                    f"[{i}/{len(phases)}] ❌ {phase.phase_id} failed with exit code {result.returncode}"
+                )
                 failure_count += 1
 
             print()
@@ -101,18 +108,19 @@ def main():
 
     # Print summary
     elapsed = (datetime.now() - start_time).total_seconds()
-    print(f"{'='*80}")
-    print(f"BATCH DRAIN SUMMARY")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
+    print("BATCH DRAIN SUMMARY")
+    print(f"{'=' * 80}")
     print(f"Run ID: {args.run_id}")
     print(f"Total phases: {len(phases)}")
     print(f"Successful: {success_count}")
     print(f"Failed: {failure_count}")
     print(f"Timed out: {timeout_count}")
-    print(f"Elapsed time: {elapsed:.1f}s ({elapsed/60:.1f}m)")
-    print(f"{'='*80}")
+    print(f"Elapsed time: {elapsed:.1f}s ({elapsed / 60:.1f}m)")
+    print(f"{'=' * 80}")
 
     return 0 if failure_count == 0 and timeout_count == 0 else 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

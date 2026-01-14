@@ -23,14 +23,16 @@ def migrate():
             pass  # Table doesn't exist, continue
 
     # Detect database type
-    is_sqlite = 'sqlite' in str(engine.url)
+    is_sqlite = "sqlite" in str(engine.url)
 
     # Create learned_rules table
     print("Creating learned_rules table...")
     with engine.connect() as conn:
         if is_sqlite:
             # SQLite version
-            conn.execute(text("""
+            conn.execute(
+                text(
+                    """
                 CREATE TABLE learned_rules (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -48,13 +50,23 @@ def migrate():
                     description TEXT,
                     notes TEXT
                 )
-            """))
+            """
+                )
+            )
             conn.execute(text("CREATE INDEX idx_learned_rules_status ON learned_rules(status)"))
-            conn.execute(text("CREATE INDEX idx_learned_rules_confidence ON learned_rules(confidence_score DESC)"))
-            conn.execute(text("CREATE INDEX idx_learned_rules_created_at ON learned_rules(created_at DESC)"))
+            conn.execute(
+                text(
+                    "CREATE INDEX idx_learned_rules_confidence ON learned_rules(confidence_score DESC)"
+                )
+            )
+            conn.execute(
+                text("CREATE INDEX idx_learned_rules_created_at ON learned_rules(created_at DESC)")
+            )
         else:
             # PostgreSQL version
-            conn.execute(text("""
+            conn.execute(
+                text(
+                    """
                 CREATE TABLE learned_rules (
                     id SERIAL PRIMARY KEY,
                     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -72,10 +84,18 @@ def migrate():
                     description TEXT,
                     notes TEXT
                 )
-            """))
+            """
+                )
+            )
             conn.execute(text("CREATE INDEX idx_learned_rules_status ON learned_rules(status)"))
-            conn.execute(text("CREATE INDEX idx_learned_rules_confidence ON learned_rules(confidence_score DESC)"))
-            conn.execute(text("CREATE INDEX idx_learned_rules_created_at ON learned_rules(created_at DESC)"))
+            conn.execute(
+                text(
+                    "CREATE INDEX idx_learned_rules_confidence ON learned_rules(confidence_score DESC)"
+                )
+            )
+            conn.execute(
+                text("CREATE INDEX idx_learned_rules_created_at ON learned_rules(created_at DESC)")
+            )
 
         conn.commit()
 
@@ -94,7 +114,11 @@ def migrate():
                 print(f"Warning: {e}")
 
         try:
-            conn.execute(text("ALTER TABLE cleanup_candidates ADD COLUMN learned_rule_id INTEGER REFERENCES learned_rules(id)"))
+            conn.execute(
+                text(
+                    "ALTER TABLE cleanup_candidates ADD COLUMN learned_rule_id INTEGER REFERENCES learned_rules(id)"
+                )
+            )
             print("✓ Added learned_rule_id column")
         except Exception as e:
             if "duplicate column" in str(e).lower() or "already exists" in str(e).lower():
@@ -103,7 +127,11 @@ def migrate():
                 print(f"Warning: {e}")
 
         try:
-            conn.execute(text("CREATE INDEX idx_cleanup_candidates_learned_rule ON cleanup_candidates(learned_rule_id)"))
+            conn.execute(
+                text(
+                    "CREATE INDEX idx_cleanup_candidates_learned_rule ON cleanup_candidates(learned_rule_id)"
+                )
+            )
             print("✓ Created index on learned_rule_id")
         except Exception as e:
             if "already exists" in str(e).lower():
@@ -128,11 +156,15 @@ def rollback():
             pass
 
         # Drop columns (PostgreSQL only - SQLite doesn't support DROP COLUMN easily)
-        is_sqlite = 'sqlite' in str(engine.url)
+        is_sqlite = "sqlite" in str(engine.url)
         if not is_sqlite:
             try:
-                conn.execute(text("ALTER TABLE cleanup_candidates DROP COLUMN IF EXISTS learned_rule_id"))
-                conn.execute(text("ALTER TABLE cleanup_candidates DROP COLUMN IF EXISTS user_feedback"))
+                conn.execute(
+                    text("ALTER TABLE cleanup_candidates DROP COLUMN IF EXISTS learned_rule_id")
+                )
+                conn.execute(
+                    text("ALTER TABLE cleanup_candidates DROP COLUMN IF EXISTS user_feedback")
+                )
             except Exception:
                 pass
 

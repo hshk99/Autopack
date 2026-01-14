@@ -311,5 +311,3 @@ PowerShell-friendly command to scan for duplicate `test_*.py` basenames:
 ```powershell
 python -c "import pathlib,collections; p=pathlib.Path('tests'); files=[f for f in p.rglob('test_*.py') if f.is_file()]; m=collections.defaultdict(list); [m[f.name].append(str(f)) for f in files]; d={k:v for k,v in m.items() if len(v)>1}; print('dup_basenames',len(d)); [print('\\n'+k+'\\n  '+'\\n  '.join(v)) for k,v in sorted(d.items())]"
 ```
-
-

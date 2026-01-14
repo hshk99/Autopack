@@ -30,5 +30,3 @@ Definition of done:
 - Tests pass: pytest -q
 - No writes outside run-local unless explicitly part of tidy’s gated apply.
 ```
-
-

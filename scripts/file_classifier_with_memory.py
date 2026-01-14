@@ -21,6 +21,7 @@ REPO_ROOT = SCRIPT_DIR.parent
 try:
     from qdrant_client import QdrantClient
     from sentence_transformers import SentenceTransformer
+
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
@@ -28,6 +29,7 @@ except ImportError:
 try:
     import psycopg2
     from psycopg2 import pool
+
     POSTGRES_AVAILABLE = True
 except ImportError:
     POSTGRES_AVAILABLE = False
@@ -79,7 +81,7 @@ class ProjectMemoryClassifier:
                 self.pg_conn = self.pg_pool.getconn()
                 # Set autocommit to avoid transaction errors
                 self.pg_conn.autocommit = True
-                print(f"[Classifier] OK Connected to PostgreSQL with connection pool")
+                print("[Classifier] OK Connected to PostgreSQL with connection pool")
             except Exception as e:
                 print(f"[Classifier] WARN PostgreSQL unavailable: {e}")
                 self.pg_pool = None
@@ -89,7 +91,9 @@ class ProjectMemoryClassifier:
         if QDRANT_AVAILABLE:
             try:
                 if self.qdrant_api_key:
-                    self.qdrant_client = QdrantClient(url=self.qdrant_host, api_key=self.qdrant_api_key)
+                    self.qdrant_client = QdrantClient(
+                        url=self.qdrant_host, api_key=self.qdrant_api_key
+                    )
                 else:
                     self.qdrant_client = QdrantClient(url=self.qdrant_host)
 
@@ -131,19 +135,25 @@ class ProjectMemoryClassifier:
         results = {}
 
         # Strategy 1: PostgreSQL keyword-based rules
-        pg_project, pg_type, pg_dest, pg_conf = self._classify_with_postgres(filename, content_sample, suffix)
+        pg_project, pg_type, pg_dest, pg_conf = self._classify_with_postgres(
+            filename, content_sample, suffix
+        )
         if pg_conf > 0.5:
-            results['postgres'] = (pg_project, pg_type, pg_dest, pg_conf)
+            results["postgres"] = (pg_project, pg_type, pg_dest, pg_conf)
 
         # Strategy 2: Qdrant semantic similarity
         if self.qdrant_client and self.embedding_model:
-            qd_project, qd_type, qd_dest, qd_conf = self._classify_with_qdrant(filename, content_sample, default_project_id)
+            qd_project, qd_type, qd_dest, qd_conf = self._classify_with_qdrant(
+                filename, content_sample, default_project_id
+            )
             if qd_conf > 0.5:
-                results['qdrant'] = (qd_project, qd_type, qd_dest, qd_conf)
+                results["qdrant"] = (qd_project, qd_type, qd_dest, qd_conf)
 
         # Strategy 3: Pattern-based
-        pt_project, pt_type, pt_dest, pt_conf = self._classify_with_patterns(filename, content_sample, suffix, default_project_id)
-        results['pattern'] = (pt_project, pt_type, pt_dest, pt_conf)
+        pt_project, pt_type, pt_dest, pt_conf = self._classify_with_patterns(
+            filename, content_sample, suffix, default_project_id
+        )
+        results["pattern"] = (pt_project, pt_type, pt_dest, pt_conf)
 
         # Disagreement resolution: Check if methods agree
         if len(results) >= 2:
@@ -159,20 +169,24 @@ class ProjectMemoryClassifier:
                 best_method = max(results.items(), key=lambda x: x[1][3])
                 method_name, (project, file_type, dest, conf) = best_method
                 boosted_conf = min(conf * 1.15, 1.0)  # Boost by 15%
-                print(f"[Classifier] {method_name.upper()} (agreement boost): {project}/{file_type} (confidence={boosted_conf:.2f})")
+                print(
+                    f"[Classifier] {method_name.upper()} (agreement boost): {project}/{file_type} (confidence={boosted_conf:.2f})"
+                )
                 return project, file_type, dest, boosted_conf
 
             elif project_agreement and not type_agreement:
                 # Project agrees but type disagrees - use highest confidence type
                 project = projects[0]  # All agree on project
                 best_type_result = max(results.values(), key=lambda x: x[3])
-                print(f"[Classifier] Mixed (project agree, type vary): {best_type_result[0]}/{best_type_result[1]} (confidence={best_type_result[3]:.2f})")
+                print(
+                    f"[Classifier] Mixed (project agree, type vary): {best_type_result[0]}/{best_type_result[1]} (confidence={best_type_result[3]:.2f})"
+                )
                 return best_type_result
 
             else:
                 # Disagreement on project - use weighted voting with smart prioritization
                 # Weight: postgres=2.0, qdrant=1.5, pattern=1.0
-                weights = {'postgres': 2.0, 'qdrant': 1.5, 'pattern': 1.0}
+                weights = {"postgres": 2.0, "qdrant": 1.5, "pattern": 1.0}
                 weighted_scores = {}
 
                 for method, (proj, typ, dest, conf) in results.items():
@@ -191,38 +205,48 @@ class ProjectMemoryClassifier:
                 final_conf = min(score / sum(weights.values()), 1.0)
 
                 # If PostgreSQL has high confidence (>0.8), boost final confidence
-                if 'postgres' in results:
-                    pg_project, pg_type, pg_dest, pg_conf = results['postgres']
+                if "postgres" in results:
+                    pg_project, pg_type, pg_dest, pg_conf = results["postgres"]
                     if pg_conf >= 0.8 and pg_project == project:
                         # PostgreSQL strongly suggests this project - boost confidence
                         final_conf = max(final_conf, min(0.75, pg_conf * 0.85))
-                        print(f"[Classifier] Weighted voting (PostgreSQL boost): {project}/{file_type} (confidence={final_conf:.2f})")
+                        print(
+                            f"[Classifier] Weighted voting (PostgreSQL boost): {project}/{file_type} (confidence={final_conf:.2f})"
+                        )
                         return project, file_type, dest, final_conf
 
                 # If Qdrant has high confidence (>0.85), boost final confidence
-                if 'qdrant' in results:
-                    qd_project, qd_type, qd_dest, qd_conf = results['qdrant']
+                if "qdrant" in results:
+                    qd_project, qd_type, qd_dest, qd_conf = results["qdrant"]
                     if qd_conf >= 0.85 and qd_project == project:
                         # Qdrant strongly suggests this project - boost confidence
                         final_conf = max(final_conf, min(0.70, qd_conf * 0.80))
-                        print(f"[Classifier] Weighted voting (Qdrant boost): {project}/{file_type} (confidence={final_conf:.2f})")
+                        print(
+                            f"[Classifier] Weighted voting (Qdrant boost): {project}/{file_type} (confidence={final_conf:.2f})"
+                        )
                         return project, file_type, dest, final_conf
 
                 # Standard weighted voting result
-                print(f"[Classifier] Weighted voting: {project}/{file_type} (confidence={final_conf:.2f})")
+                print(
+                    f"[Classifier] Weighted voting: {project}/{file_type} (confidence={final_conf:.2f})"
+                )
                 return project, file_type, dest, final_conf
 
         # Single method or no disagreement - use best available
         if results:
             best_method = max(results.items(), key=lambda x: x[1][3])
             method_name, result = best_method
-            print(f"[Classifier] {method_name.upper()}: {result[0]}/{result[1]} (confidence={result[3]:.2f})")
+            print(
+                f"[Classifier] {method_name.upper()}: {result[0]}/{result[1]} (confidence={result[3]:.2f})"
+            )
             return result
 
         # Fallback
         return default_project_id, "unknown", "", 0.3
 
-    def _classify_with_postgres(self, filename: str, content: str, suffix: str) -> Tuple[str, str, str, float]:
+    def _classify_with_postgres(
+        self, filename: str, content: str, suffix: str
+    ) -> Tuple[str, str, str, float]:
         """Classify using PostgreSQL routing rules (keyword matching) with user corrections priority."""
 
         if not self.pg_conn:
@@ -233,23 +257,28 @@ class ProjectMemoryClassifier:
 
             # FIRST: Check if there's a user correction for similar files (highest priority)
             try:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT corrected_project, corrected_type
                     FROM classification_corrections
                     WHERE file_path ILIKE %s
                        OR file_content_sample ILIKE %s
                     LIMIT 1
-                """, (f"%{filename}%", f"%{content[:100]}%"))
+                """,
+                    (f"%{filename}%", f"%{content[:100]}%"),
+                )
 
                 correction = cursor.fetchone()
                 if correction:
                     # User correction found - use it with 100% confidence
-                    print(f"[Classifier] Using user correction for similar file")
+                    print("[Classifier] Using user correction for similar file")
                     proj, typ = correction[0], correction[1]
                     if proj == "autopack":
                         dest = str(REPO_ROOT / "archive" / f"{typ}s" / filename)
                     else:
-                        dest = str(REPO_ROOT / ".autonomous_runs" / proj / "archive" / f"{typ}s" / filename)
+                        dest = str(
+                            REPO_ROOT / ".autonomous_runs" / proj / "archive" / f"{typ}s" / filename
+                        )
                     cursor.close()
                     return proj, typ, dest, 1.0
             except Exception:
@@ -257,12 +286,14 @@ class ProjectMemoryClassifier:
                 pass
 
             # SECOND: Query routing rules with keywords
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT project_id, file_type, destination_path, content_keywords, priority
                 FROM directory_routing_rules
                 WHERE source_context = 'cursor' AND content_keywords IS NOT NULL
                 ORDER BY priority DESC
-            """)
+            """
+            )
 
             rows = cursor.fetchall()
             best_match = None
@@ -283,7 +314,7 @@ class ProjectMemoryClassifier:
                         score += 1.0 / len(keywords)  # Normalize by keyword count
 
                 # Boost by priority
-                score *= (1.0 + priority * 0.1)
+                score *= 1.0 + priority * 0.1
 
                 if score > best_score:
                     best_score = score
@@ -299,7 +330,9 @@ class ProjectMemoryClassifier:
 
         return "", "", "", 0.0
 
-    def _classify_with_qdrant(self, filename: str, content: str, default_project: str) -> Tuple[str, str, str, float]:
+    def _classify_with_qdrant(
+        self, filename: str, content: str, default_project: str
+    ) -> Tuple[str, str, str, float]:
         """Classify using Qdrant semantic similarity."""
 
         if not self.qdrant_client or not self.embedding_model:
@@ -308,7 +341,9 @@ class ProjectMemoryClassifier:
         try:
             # Create embedding for query
             text_to_embed = f"{filename}\n\n{content}"
-            query_vector = self.embedding_model.encode(text_to_embed, normalize_embeddings=True).tolist()
+            query_vector = self.embedding_model.encode(
+                text_to_embed, normalize_embeddings=True
+            ).tolist()
 
             # Search for similar patterns
             results = self.qdrant_client.query_points(
@@ -330,7 +365,7 @@ class ProjectMemoryClassifier:
                 payload.get("project_id", default_project),
                 payload.get("file_type", "unknown"),
                 payload.get("destination_path", ""),
-                confidence
+                confidence,
             )
 
         except Exception as e:
@@ -338,7 +373,9 @@ class ProjectMemoryClassifier:
 
         return "", "", "", 0.0
 
-    def _classify_with_patterns(self, filename: str, content: str, suffix: str, default_project: str) -> Tuple[str, str, str, float]:
+    def _classify_with_patterns(
+        self, filename: str, content: str, suffix: str, default_project: str
+    ) -> Tuple[str, str, str, float]:
         """Fallback pattern-based classification with enhanced multi-signal detection."""
 
         # Multi-signal project detection with signal strength
@@ -347,13 +384,18 @@ class ProjectMemoryClassifier:
         confidence = 0.60  # Base confidence (improved from 0.55)
 
         # Signal 1: Filename indicators (weighted by specificity)
-        if any(indicator in filename for indicator in ["fileorg", "file-org", "file_org", "file_organizer"]):
+        if any(
+            indicator in filename
+            for indicator in ["fileorg", "file-org", "file_org", "file_organizer"]
+        ):
             project_signals.append("file-organizer-app-v1")
             signal_strengths.append(0.9)  # Very specific
         elif any(indicator in filename for indicator in ["backlog", "maintenance", "country_pack"]):
             project_signals.append("file-organizer-app-v1")
             signal_strengths.append(0.7)  # Moderately specific
-        elif any(indicator in filename for indicator in ["autopack", "tidy", "autonomous", "executor"]):
+        elif any(
+            indicator in filename for indicator in ["autopack", "tidy", "autonomous", "executor"]
+        ):
             project_signals.append("autopack")
             signal_strengths.append(0.9)  # Very specific
 
@@ -362,9 +404,21 @@ class ProjectMemoryClassifier:
             content_lower = content.lower()
 
             # File Organizer indicators (high specificity)
-            fo_high_spec = ["file organizer country pack", "uk folder structure", "canada tax documents"]
-            fo_med_spec = ["file organizer", "fileorg", "country pack", "uk folder", "canada folder",
-                          "australia folder", "tax document", "folder structure"]
+            fo_high_spec = [
+                "file organizer country pack",
+                "uk folder structure",
+                "canada tax documents",
+            ]
+            fo_med_spec = [
+                "file organizer",
+                "fileorg",
+                "country pack",
+                "uk folder",
+                "canada folder",
+                "australia folder",
+                "tax document",
+                "folder structure",
+            ]
 
             if any(ind in content_lower for ind in fo_high_spec):
                 project_signals.append("file-organizer-app-v1")
@@ -374,9 +428,21 @@ class ProjectMemoryClassifier:
                 signal_strengths.append(0.75)  # Medium-high specificity
 
             # Autopack indicators (high specificity)
-            ap_high_spec = ["autopack autonomous executor", "tidy workspace classification", "memory-based classification"]
-            ap_med_spec = ["autopack", "autonomous executor", "tidy workspace", "run layout",
-                          "phase execution", "llm usage", "context window", "qdrant vector"]
+            ap_high_spec = [
+                "autopack autonomous executor",
+                "tidy workspace classification",
+                "memory-based classification",
+            ]
+            ap_med_spec = [
+                "autopack",
+                "autonomous executor",
+                "tidy workspace",
+                "run layout",
+                "phase execution",
+                "llm usage",
+                "context window",
+                "qdrant vector",
+            ]
 
             if any(ind in content_lower for ind in ap_high_spec):
                 project_signals.append("autopack")
@@ -392,13 +458,16 @@ class ProjectMemoryClassifier:
         elif suffix == ".py" and ("create_fileorg" in filename or "fileorg_" in filename):
             project_signals.append("file-organizer-app-v1")
             signal_strengths.append(0.85)  # Strong indicator
-        elif suffix == ".py" and ("tidy" in filename or "autonomous" in filename or "executor" in filename):
+        elif suffix == ".py" and (
+            "tidy" in filename or "autonomous" in filename or "executor" in filename
+        ):
             project_signals.append("autopack")
             signal_strengths.append(0.85)  # Strong indicator
 
         # Determine project from signals with weighted voting
         if project_signals:
             from collections import defaultdict
+
             weighted_votes = defaultdict(float)
 
             # Sum weighted votes for each project
@@ -430,13 +499,19 @@ class ProjectMemoryClassifier:
             # Markdown files - check filename first, then content
             if "implementation_plan" in filename or "plan_" in filename or "_plan" in filename:
                 file_type = "plan"
-                type_confidence_boost = 1.2 if "## goal" in content or "## approach" in content else 1.0
+                type_confidence_boost = (
+                    1.2 if "## goal" in content or "## approach" in content else 1.0
+                )
             elif "analysis" in filename or "review" in filename or "revision" in filename:
                 file_type = "analysis"
-                type_confidence_boost = 1.2 if "## findings" in content or "## issue" in content else 1.0
+                type_confidence_boost = (
+                    1.2 if "## findings" in content or "## issue" in content else 1.0
+                )
             elif "report" in filename or "summary" in filename or "consolidated" in filename:
                 file_type = "report"
-                type_confidence_boost = 1.2 if "## summary" in content or "progress" in content else 1.0
+                type_confidence_boost = (
+                    1.2 if "## summary" in content or "progress" in content else 1.0
+                )
             elif "prompt" in filename or "delegation" in filename:
                 file_type = "prompt"
                 type_confidence_boost = 1.2 if "## task" in content or "please" in content else 1.0
@@ -493,25 +568,39 @@ class ProjectMemoryClassifier:
 
         if file_type == "plan" and content:
             # Plan-specific validation markers
-            if "## goal" in content_lower: validation_boost += 0.04
-            if "## approach" in content_lower: validation_boost += 0.04
-            if "## implementation" in content_lower: validation_boost += 0.03
-            if any(word in content_lower for word in ["milestone", "deliverable", "timeline", "phase"]):
+            if "## goal" in content_lower:
+                validation_boost += 0.04
+            if "## approach" in content_lower:
+                validation_boost += 0.04
+            if "## implementation" in content_lower:
+                validation_boost += 0.03
+            if any(
+                word in content_lower for word in ["milestone", "deliverable", "timeline", "phase"]
+            ):
                 validation_boost += 0.03
 
         elif file_type == "analysis" and content:
             # Analysis-specific validation markers
-            if "## findings" in content_lower: validation_boost += 0.04
-            if "## issues" in content_lower or "## problems" in content_lower: validation_boost += 0.04
-            if "## recommendations" in content_lower: validation_boost += 0.03
-            if any(word in content_lower for word in ["performance", "bottleneck", "investigation", "root cause"]):
+            if "## findings" in content_lower:
+                validation_boost += 0.04
+            if "## issues" in content_lower or "## problems" in content_lower:
+                validation_boost += 0.04
+            if "## recommendations" in content_lower:
+                validation_boost += 0.03
+            if any(
+                word in content_lower
+                for word in ["performance", "bottleneck", "investigation", "root cause"]
+            ):
                 validation_boost += 0.03
 
         elif file_type == "report" and content:
             # Report-specific validation markers
-            if "## summary" in content_lower: validation_boost += 0.04
-            if "## results" in content_lower: validation_boost += 0.04
-            if "## conclusion" in content_lower: validation_boost += 0.03
+            if "## summary" in content_lower:
+                validation_boost += 0.04
+            if "## results" in content_lower:
+                validation_boost += 0.04
+            if "## conclusion" in content_lower:
+                validation_boost += 0.03
             if any(word in content_lower for word in ["progress", "status", "metrics", "kpi"]):
                 validation_boost += 0.03
 
@@ -524,9 +613,13 @@ class ProjectMemoryClassifier:
 
         elif file_type == "log" and content:
             # Log-specific validation markers
-            if any(marker in content_lower for marker in ["[info]", "[debug]", "[error]", "[warn]"]):
+            if any(
+                marker in content_lower for marker in ["[info]", "[debug]", "[error]", "[warn]"]
+            ):
                 validation_boost += 0.04
-            if any(marker in content_lower for marker in ["timestamp", "datetime", "2025-", "2024-"]):
+            if any(
+                marker in content_lower for marker in ["timestamp", "datetime", "2025-", "2024-"]
+            ):
                 validation_boost += 0.03
 
         # ENHANCEMENT: File structure heuristics
@@ -562,7 +655,14 @@ class ProjectMemoryClassifier:
             else:
                 dest = str(REPO_ROOT / "archive" / f"{file_type}s" / Path(filename).name)
         else:
-            dest = str(REPO_ROOT / ".autonomous_runs" / project_id / "archive" / f"{file_type}s" / Path(filename).name)
+            dest = str(
+                REPO_ROOT
+                / ".autonomous_runs"
+                / project_id
+                / "archive"
+                / f"{file_type}s"
+                / Path(filename).name
+            )
 
         return project_id, file_type, dest, confidence
 
@@ -590,7 +690,9 @@ class ProjectMemoryClassifier:
             # Store in Qdrant as a new pattern
             if self.qdrant_client and self.embedding_model:
                 text_to_embed = f"{file_path.name}\n\n{content_sample}"
-                vector = self.embedding_model.encode(text_to_embed, normalize_embeddings=True).tolist()
+                vector = self.embedding_model.encode(
+                    text_to_embed, normalize_embeddings=True
+                ).tolist()
 
                 # Create point ID from file hash
                 file_hash = hashlib.sha256(text_to_embed.encode()).hexdigest()[:16]
@@ -613,9 +715,9 @@ class ProjectMemoryClassifier:
                                 "source_context": "learned",
                                 "confidence": confidence,
                                 "learned_at": datetime.now(timezone.utc).isoformat(),
-                            }
+                            },
                         )
-                    ]
+                    ],
                 )
 
                 print(f"[Classifier] OK Learned pattern: {project_id}/{file_type}")

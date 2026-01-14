@@ -46,7 +46,7 @@ def sync_consolidated_files(dry_run: bool = False) -> bool:
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=60,
         )
         if result.returncode == 0:
             print("[OK] CONSOLIDATED_*.md files updated")
@@ -103,19 +103,15 @@ def main():
         description="Synchronize Source of Truth files after workspace changes"
     )
     parser.add_argument(
-        "--quick",
-        action="store_true",
-        help="Quick sync - only update CONSOLIDATED_*.md files"
+        "--quick", action="store_true", help="Quick sync - only update CONSOLIDATED_*.md files"
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show what would be updated without making changes"
+        "--dry-run", action="store_true", help="Show what would be updated without making changes"
     )
     parser.add_argument(
         "--full-cleanup",
         action="store_true",
-        help="Run full corrective_cleanup_v2.py (includes all phases)"
+        help="Run full corrective_cleanup_v2.py (includes all phases)",
     )
 
     args = parser.parse_args()

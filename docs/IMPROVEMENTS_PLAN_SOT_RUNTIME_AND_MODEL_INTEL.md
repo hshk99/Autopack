@@ -1,6 +1,6 @@
 # Improvements Plan: SOT Runtime Wiring + 6-File SOT Coverage + Model-Intel Ops
 
-Audience: **implementation cursor (cheaper model)**  
+Audience: **implementation cursor (cheaper model)**
 Goal: close remaining gaps vs `README.md` “ideal state”, plus high-leverage robustness/ops improvements.
 
 This plan is intentionally explicit to prevent drift. Follow it step-by-step, keep changes small, and add/adjust tests alongside code.
@@ -395,5 +395,3 @@ Do **not** fail on markdown/docs by default.
 - **Do not** assume `workspace_root/docs` is always correct; sub-projects differ.
 - **Do not** remove/rename SOT files; only index additional ones.
 - **Do not** add heavy dependencies to solve simple problems; keep it minimal.
-
-

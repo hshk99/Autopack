@@ -53,6 +53,7 @@ from semantic_store import get_store
 # Import memory-based classifier
 try:
     from file_classifier_with_memory import classify_file_with_memory, ProjectMemoryClassifier
+
     MEMORY_CLASSIFIER_AVAILABLE = True
 except ImportError:
     MEMORY_CLASSIFIER_AVAILABLE = False
@@ -61,6 +62,7 @@ except ImportError:
 # Import classification auditor
 try:
     from classification_auditor import ClassificationAuditor
+
     AUDITOR_AVAILABLE = True
 except ImportError:
     AUDITOR_AVAILABLE = False
@@ -192,7 +194,10 @@ def validate_destination_path(source: Path, dest: Path, repo_root: Path) -> tupl
         # Check for consecutive duplicate folder names
         for i in range(len(rel_parts) - 1):
             if rel_parts[i] == rel_parts[i + 1]:
-                return False, f"Duplicate nesting detected: .../{rel_parts[i]}/{rel_parts[i+1]}/... (probable path construction bug)"
+                return (
+                    False,
+                    f"Duplicate nesting detected: .../{rel_parts[i]}/{rel_parts[i + 1]}/... (probable path construction bug)",
+                )
 
         # Check for excessive depth (more than 10 levels is suspicious)
         if len(rel_parts) > 10:
@@ -219,7 +224,15 @@ def _discover_projects() -> set[str]:
     auto_root = REPO_ROOT / ".autonomous_runs"
     if auto_root.exists():
         for child in auto_root.iterdir():
-            if child.is_dir() and child.name not in {"archive", "checkpoints", "patches", "exports", "docs", "openai_delegations", "runs"}:
+            if child.is_dir() and child.name not in {
+                "archive",
+                "checkpoints",
+                "patches",
+                "exports",
+                "docs",
+                "openai_delegations",
+                "runs",
+            }:
                 projects.add(child.name)
     projects.add("file-organizer-app-v1")
     projects.add("autopack")
@@ -385,6 +398,7 @@ def embed_text(text: str) -> list[float]:
     if model_name:
         try:
             from sentence_transformers import SentenceTransformer  # type: ignore
+
             if _embedding_model is None or _embedding_model_name != model_name:
                 _embedding_model = SentenceTransformer(model_name)
                 _embedding_model_name = model_name
@@ -396,7 +410,7 @@ def embed_text(text: str) -> list[float]:
     h = hashlib.sha256(text.encode("utf-8")).digest()
     vec = []
     for i in range(8):
-        chunk = h[i * 4:(i + 1) * 4]
+        chunk = h[i * 4 : (i + 1) * 4]
         val = int.from_bytes(chunk, byteorder="big", signed=False)
         vec.append((val % 1000000) / 1000000.0)
     return vec
@@ -438,7 +452,9 @@ def apply_truth_merges(suggestions: list[dict], repo_root: Path, run_id: str, lo
             content = path.read_text(encoding="utf-8")
         except Exception:
             continue
-        target_path = (repo_root / target).resolve() if not Path(target).is_absolute() else Path(target)
+        target_path = (
+            (repo_root / target).resolve() if not Path(target).is_absolute() else Path(target)
+        )
         target_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Compute source SHA for idempotency check
@@ -450,20 +466,43 @@ def apply_truth_merges(suggestions: list[dict], repo_root: Path, run_id: str, lo
             # Check for existing merge marker with same SHA
             marker_pattern = f"sha={src_sha}"
             if marker_pattern in existing_content:
-                logger.log(run_id, "merge_skip", str(path), str(target_path), f"already merged (sha={src_sha[:8]}...)", src_sha=src_sha)
+                logger.log(
+                    run_id,
+                    "merge_skip",
+                    str(path),
+                    str(target_path),
+                    f"already merged (sha={src_sha[:8]}...)",
+                    src_sha=src_sha,
+                )
                 continue
 
         heading_hint = path.stem
         # Enhanced marker with SHA for deduplication
-        marker = f"<!-- tidy-merged-from: path={path} sha={src_sha} run={run_id} reason={reason} -->\n"
+        marker = (
+            f"<!-- tidy-merged-from: path={path} sha={src_sha} run={run_id} reason={reason} -->\n"
+        )
         block = marker + content + "\n<!-- end-tidy-merged-from -->\n"
         try:
-            dest_sha_before = compute_sha256(target_path) if target_path.exists() and target_path.is_file() else None
+            dest_sha_before = (
+                compute_sha256(target_path)
+                if target_path.exists() and target_path.is_file()
+                else None
+            )
             _insert_into_markdown(target_path, block, heading_hint)
             dest_sha_after = compute_sha256(target_path) if target_path.is_file() else None
-            logger.log(run_id, "merge", str(path), str(target_path), f"truth merge: {reason}", src_sha=src_sha, dest_sha=dest_sha_after)
+            logger.log(
+                run_id,
+                "merge",
+                str(path),
+                str(target_path),
+                f"truth merge: {reason}",
+                src_sha=src_sha,
+                dest_sha=dest_sha_after,
+            )
         except Exception:
-            logger.log(run_id, "merge_failed", str(path), str(target_path), f"truth merge failed: {reason}")
+            logger.log(
+                run_id, "merge_failed", str(path), str(target_path), f"truth merge failed: {reason}"
+            )
 
 
 def detect_project_rules(root: Path):
@@ -507,7 +546,7 @@ def collapse_consecutive_duplicates(parts: List[str]) -> List[str]:
         return parts
     collapsed: List[str] = [parts[0]]
     for i in range(1, len(parts)):
-        if parts[i] != parts[i-1]:
+        if parts[i] != parts[i - 1]:
             collapsed.append(parts[i])
     return collapsed
 
@@ -538,7 +577,7 @@ def detect_malformed_paths(root: Path, verbose: bool = False) -> List[Tuple[Path
                     fixed_path = root / Path(*collapsed_parts)
 
                     if current != fixed_path:
-                        reason = f"Duplicate nesting: {parts[i]}/{parts[i+1]} -> {parts[i]}"
+                        reason = f"Duplicate nesting: {parts[i]}/{parts[i + 1]} -> {parts[i]}"
                         repairs.append((current, fixed_path, reason))
                         if verbose:
                             print(f"[SELF-HEAL] Detected: {current} -> {fixed_path} ({reason})")
@@ -654,12 +693,14 @@ def plan_seed_db_cleanup(dry_run: bool = True, verbose: bool = False) -> List[Ac
             if db_file == dest:
                 continue
 
-            actions.append(Action(
-                "move",
-                db_file,
-                dest,
-                "seed DB cleanup: move to archive/data/databases/telemetry_seeds/"
-            ))
+            actions.append(
+                Action(
+                    "move",
+                    db_file,
+                    dest,
+                    "seed DB cleanup: move to archive/data/databases/telemetry_seeds/",
+                )
+            )
 
             if verbose:
                 print(f"[SEED-DB] Plan: {db_file.name} -> {dest}")
@@ -712,7 +753,9 @@ def execute_seed_db_cleanup(dry_run: bool = True, verbose: bool = False) -> int:
 # ---------------------------------------------------------------------------
 # Non-MD scanning
 # ---------------------------------------------------------------------------
-def plan_non_md_actions(root: Path, age_days: int, prune: bool, purge: bool, verbose: bool) -> List[Action]:
+def plan_non_md_actions(
+    root: Path, age_days: int, prune: bool, purge: bool, verbose: bool
+) -> List[Action]:
     actions: List[Action] = []
     # If targeting superseded root under global archive, route into project archive superseded
     if "superseded" in root.parts and root.as_posix().endswith("archive/superseded/archive"):
@@ -736,7 +779,8 @@ def plan_non_md_actions(root: Path, age_days: int, prune: bool, purge: bool, ver
     for dirpath, dirnames, filenames in os.walk(root):
         # Skip git/node_modules/venv/temp
         dirnames[:] = [
-            d for d in dirnames
+            d
+            for d in dirnames
             if d not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}
         ]
         current = Path(dirpath)
@@ -749,7 +793,10 @@ def plan_non_md_actions(root: Path, age_days: int, prune: bool, purge: bool, ver
                 continue
 
             # Skip source code/config
-            if src.suffix in {".py", ".ts", ".tsx", ".js", ".json", ".yaml", ".yml"} and "diagnostics" not in src.parts:
+            if (
+                src.suffix in {".py", ".ts", ".tsx", ".js", ".json", ".yaml", ".yml"}
+                and "diagnostics" not in src.parts
+            ):
                 continue
 
             # Exports
@@ -769,7 +816,9 @@ def plan_non_md_actions(root: Path, age_days: int, prune: bool, purge: bool, ver
                 continue
 
             # Logs / diagnostics / errors
-            if src.suffix.lower() in LOG_EXTS or any(seg in {"diagnostics", "errors", "logs"} for seg in src.parts):
+            if src.suffix.lower() in LOG_EXTS or any(
+                seg in {"diagnostics", "errors", "logs"} for seg in src.parts
+            ):
                 run_id = find_run_id(src) or "general"
                 dest_base = archive_dir / "runs" / run_id
                 # preserve relative path under run dir
@@ -793,8 +842,14 @@ def plan_non_md_actions(root: Path, age_days: int, prune: bool, purge: bool, ver
             # Other temp artifacts (keep conservative)
             if fname.lower().endswith((".tmp", ".bak")):
                 if prune or purge:
-                    actions.append(Action("delete" if purge else "move", src, archive_dir / "superseded" / fname,
-                                           "temp artifact"))
+                    actions.append(
+                        Action(
+                            "delete" if purge else "move",
+                            src,
+                            archive_dir / "superseded" / fname,
+                            "temp artifact",
+                        )
+                    )
 
     if verbose:
         print(f"[INFO] Planned {len(actions)} non-MD actions under {root}")
@@ -851,7 +906,9 @@ File content (truncated):
         }
 
 
-def suggest_truth_merge(path: Path, content: str, truth_files: list[Path], client, model: str) -> str:
+def suggest_truth_merge(
+    path: Path, content: str, truth_files: list[Path], client, model: str
+) -> str:
     """
     Ask LLM to suggest where this content should live (which truth file or new file).
     """
@@ -867,18 +924,27 @@ Content (truncated):
 
 Respond with JSON: {{ "target": "<existing or new file path>", "reason": "<short reason>" }}"""
     if client is None:
-        return json.dumps({"target": "archive/superseded/allocator_suggestion.md", "reason": "LLM unavailable"}, ensure_ascii=False)
+        return json.dumps(
+            {"target": "archive/superseded/allocator_suggestion.md", "reason": "LLM unavailable"},
+            ensure_ascii=False,
+        )
     try:
         text = client.chat(
             messages=[
-                {"role": "system", "content": "You are a concise allocator for documentation storage."},
+                {
+                    "role": "system",
+                    "content": "You are a concise allocator for documentation storage.",
+                },
                 {"role": "user", "content": prompt},
             ],
             temperature=0,
         )
         return text.strip()
     except Exception as exc:
-        return json.dumps({"target": "archive/superseded/allocator_error.md", "reason": str(exc)}, ensure_ascii=False)
+        return json.dumps(
+            {"target": "archive/superseded/allocator_error.md", "reason": str(exc)},
+            ensure_ascii=False,
+        )
 
 
 def semantic_analysis(
@@ -908,7 +974,11 @@ def semantic_analysis(
 
     candidates = []
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}]
+        dirnames[:] = [
+            d
+            for d in dirnames
+            if d not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}
+        ]
         for fname in filenames:
             p = Path(dirpath) / fname
             if p.suffix.lower() not in {".md", ".txt"}:
@@ -933,16 +1003,18 @@ def semantic_analysis(
             result = cache_entry
         else:
             result = summarize_and_classify(path, content, truth_snippets, model, client)
-            result.update({
-                "sha": sha,
-                "model": model,
-                "path": str(path),
-                "project_id": project_id,
-                "vector": embed_text(content[:MAX_CONTENT_CHARS]),
-            })
+            result.update(
+                {
+                    "sha": sha,
+                    "model": model,
+                    "path": str(path),
+                    "project_id": project_id,
+                    "vector": embed_text(content[:MAX_CONTENT_CHARS]),
+                }
+            )
             store.set(result, vector=result.get("vector"))
         if verbose:
-            rationale_display = (result.get("rationale") or "")
+            rationale_display = result.get("rationale") or ""
             try:
                 rationale_display = rationale_display.encode("ascii", "replace").decode("ascii")
             except Exception:
@@ -956,7 +1028,9 @@ def semantic_analysis(
 
     if truth_merge_report and merge_suggestions:
         ensure_dir(truth_merge_report.parent)
-        truth_merge_report.write_text(json.dumps(merge_suggestions, indent=2, ensure_ascii=False), encoding="utf-8")
+        truth_merge_report.write_text(
+            json.dumps(merge_suggestions, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
         if verbose:
             print(f"[INFO] Wrote truth-merge suggestions to {truth_merge_report}")
 
@@ -977,7 +1051,13 @@ def get_glm_client(model: str):
 # ---------------------------------------------------------------------------
 # Execution
 # ---------------------------------------------------------------------------
-def execute_actions(actions: List[Action], dry_run: bool, checkpoint_dir: Path | None, logger: TidyLogger, run_id: str) -> Tuple[int, int]:
+def execute_actions(
+    actions: List[Action],
+    dry_run: bool,
+    checkpoint_dir: Path | None,
+    logger: TidyLogger,
+    run_id: str,
+) -> Tuple[int, int]:
     if not actions:
         return 0, 0
 
@@ -1006,7 +1086,15 @@ def execute_actions(actions: List[Action], dry_run: bool, checkpoint_dir: Path |
             shutil.move(str(action.src), str(action.dest))
             dest_sha = compute_sha256(action.dest) if action.dest.is_file() else None
             print(f"[MOVE] {action.src} -> {action.dest} ({action.reason})")
-            logger.log(run_id, "move", str(action.src), str(action.dest), action.reason, src_sha=src_sha, dest_sha=dest_sha)
+            logger.log(
+                run_id,
+                "move",
+                str(action.src),
+                str(action.dest),
+                action.reason,
+                src_sha=src_sha,
+                dest_sha=dest_sha,
+            )
         elif action.kind == "delete":
             deletes += 1
             if dry_run:
@@ -1048,11 +1136,12 @@ def run_git_commit(message: str, repo_root: Path):
         print(f"[WARN] git command failed ({exc}); checkpoint commit skipped")
 
 
-
 # ---------------------------------------------------------------------------
 # Cursor File Detection
 # ---------------------------------------------------------------------------
-def detect_and_route_cursor_files(root: Path, project_id: str, logger: TidyLogger, run_id: str) -> List[Action]:
+def detect_and_route_cursor_files(
+    root: Path, project_id: str, logger: TidyLogger, run_id: str
+) -> List[Action]:
     """Detect files created by Cursor/Autopack in workspace root and route them.
 
     Detects all file types (.md, .py, .json, .log, .sql, etc.) and routes them
@@ -1074,7 +1163,19 @@ def detect_and_route_cursor_files(root: Path, project_id: str, logger: TidyLogge
         return actions
 
     # File extensions to process
-    extensions = ["*.md", "*.py", "*.json", "*.log", "*.sql", "*.txt", "*.yaml", "*.yml", "*.toml", "*.sh", "*.ps1"]
+    extensions = [
+        "*.md",
+        "*.py",
+        "*.json",
+        "*.log",
+        "*.sql",
+        "*.txt",
+        "*.yaml",
+        "*.yml",
+        "*.toml",
+        "*.sh",
+        "*.ps1",
+    ]
 
     for pattern in extensions:
         for file in root.glob(pattern):
@@ -1083,8 +1184,18 @@ def detect_and_route_cursor_files(root: Path, project_id: str, logger: TidyLogge
                 continue
 
             # Skip standard repo files
-            if file.name in {"README.md", "LICENSE.md", "CONTRIBUTING.md", ".gitignore", "package.json",
-                             "requirements.txt", "pyproject.toml", "setup.py", "Dockerfile", "docker-compose.yml"}:
+            if file.name in {
+                "README.md",
+                "LICENSE.md",
+                "CONTRIBUTING.md",
+                ".gitignore",
+                "package.json",
+                "requirements.txt",
+                "pyproject.toml",
+                "setup.py",
+                "Dockerfile",
+                "docker-compose.yml",
+            }:
                 continue
 
             # Determine destination based on project-first classification
@@ -1136,18 +1247,17 @@ def classify_cursor_file(file: Path, project_id: str) -> Path | None:
                         full_content = file.read_text(encoding="utf-8", errors="ignore")
 
                         # Initialize auditor (lazy initialization)
-                        if not hasattr(classify_cursor_file, '_auditor'):
+                        if not hasattr(classify_cursor_file, "_auditor"):
                             classify_cursor_file._auditor = ClassificationAuditor(
-                                audit_threshold=0.80,
-                                enable_auto_override=True
+                                audit_threshold=0.80, enable_auto_override=True
                             )
 
                         auditor = classify_cursor_file._auditor
 
                         # Audit the classification
                         classifier_result = (detected_project, file_type, dest_path, confidence)
-                        approved, final_proj, final_type, final_dest, final_conf, reason = auditor.audit_classification(
-                            file, full_content, classifier_result
+                        approved, final_proj, final_type, final_dest, final_conf, reason = (
+                            auditor.audit_classification(file, full_content, classifier_result)
                         )
 
                         if not approved:
@@ -1156,18 +1266,29 @@ def classify_cursor_file(file: Path, project_id: str) -> Path | None:
 
                         # Use auditor's decision (may be override or approval)
                         if final_proj != detected_project or final_type != file_type:
-                            print(f"[Auditor] OVERRIDE: {file.name} -> {final_proj}/{final_type} (confidence={final_conf:.2f})")
+                            print(
+                                f"[Auditor] OVERRIDE: {file.name} -> {final_proj}/{final_type} (confidence={final_conf:.2f})"
+                            )
                         else:
-                            print(f"[Auditor] APPROVED: {file.name} (confidence boosted to {final_conf:.2f})")
+                            print(
+                                f"[Auditor] APPROVED: {file.name} (confidence boosted to {final_conf:.2f})"
+                            )
 
-                        detected_project, file_type, dest_path, confidence = final_proj, final_type, final_dest, final_conf
+                        detected_project, file_type, dest_path, confidence = (
+                            final_proj,
+                            final_type,
+                            final_dest,
+                            final_conf,
+                        )
 
                     except Exception as e:
                         print(f"[Auditor] Error: {e}, using classifier decision")
 
                 # Accept if confidence meets threshold
                 if confidence > 0.5:
-                    print(f"[Memory Classifier] {file.name} -> {detected_project}/{file_type} (confidence={confidence:.2f})")
+                    print(
+                        f"[Memory Classifier] {file.name} -> {detected_project}/{file_type} (confidence={confidence:.2f})"
+                    )
                     return dest_path
 
         except Exception as e:
@@ -1239,9 +1360,14 @@ def classify_cursor_file(file: Path, project_id: str) -> Path | None:
             bucket = "diagnostics"
         # Content-based fallback for .md
         elif content:
-            if any(word in content for word in ["# implementation plan", "## goal", "implementation strategy"]):
+            if any(
+                word in content
+                for word in ["# implementation plan", "## goal", "implementation strategy"]
+            ):
                 bucket = "plans"
-            elif any(word in content for word in ["# analysis", "## findings", "review", "retrospective"]):
+            elif any(
+                word in content for word in ["# analysis", "## findings", "review", "retrospective"]
+            ):
                 bucket = "analysis"
             elif any(word in content for word in ["# prompt", "delegation", "instruction"]):
                 bucket = "prompts"
@@ -1289,7 +1415,9 @@ def _classify_python_script(file: Path, name: str, content: str) -> str:
         return "test"
     elif "temp" in name or "tmp" in name or "scratch" in name:
         return "temp"
-    elif any(word in name for word in ["api", "server", "endpoint", "route", "model", "db", "database"]):
+    elif any(
+        word in name for word in ["api", "server", "endpoint", "route", "model", "db", "database"]
+    ):
         return "backend"
     elif any(word in name for word in ["ui", "component", "page", "view", "frontend", "client"]):
         return "frontend"
@@ -1298,7 +1426,10 @@ def _classify_python_script(file: Path, name: str, content: str) -> str:
 
     # Check content patterns
     if content:
-        if any(word in content for word in ["fastapi", "flask", "django", "sqlalchemy", "database", "crud"]):
+        if any(
+            word in content
+            for word in ["fastapi", "flask", "django", "sqlalchemy", "database", "crud"]
+        ):
             return "backend"
         elif any(word in content for word in ["react", "vue", "angular", "dom", "html", "css"]):
             return "frontend"
@@ -1316,31 +1447,87 @@ def _classify_python_script(file: Path, name: str, content: str) -> str:
 # ---------------------------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(description="Safely tidy workspace artifacts.")
-    parser.add_argument("--root", action="append", type=Path, help="Root path to tidy (default: repo root)")
+    parser.add_argument(
+        "--root", action="append", type=Path, help="Root path to tidy (default: repo root)"
+    )
     parser.add_argument("--dry-run", action="store_true", help="Dry run only (default)")
-    parser.add_argument("--execute", action="store_true", help="Execute moves/deletes (overrides --dry-run)")
-    parser.add_argument("--consolidate-md", action="store_true", help="Run consolidate_docs after MD tidy")
+    parser.add_argument(
+        "--execute", action="store_true", help="Execute moves/deletes (overrides --dry-run)"
+    )
+    parser.add_argument(
+        "--consolidate-md", action="store_true", help="Run consolidate_docs after MD tidy"
+    )
     parser.add_argument("--age-days", type=int, default=30, help="Age threshold for pruning (days)")
-    parser.add_argument("--prune", action="store_true", help="Prune aged artifacts (move to superseded)")
-    parser.add_argument("--purge", action="store_true", help="Delete aged artifacts (only with --prune; defaults to false)")
-    parser.add_argument("--checkpoint-dir", type=Path, default=DEFAULT_CHECKPOINT_DIR, help="Checkpoint archive dir")
+    parser.add_argument(
+        "--prune", action="store_true", help="Prune aged artifacts (move to superseded)"
+    )
+    parser.add_argument(
+        "--purge",
+        action="store_true",
+        help="Delete aged artifacts (only with --prune; defaults to false)",
+    )
+    parser.add_argument(
+        "--checkpoint-dir", type=Path, default=DEFAULT_CHECKPOINT_DIR, help="Checkpoint archive dir"
+    )
     parser.add_argument("--verbose", action="store_true", help="Verbose logging")
-    parser.add_argument("--git-commit-before", type=str, help="Commit message for checkpoint commit before actions")
-    parser.add_argument("--git-commit-after", type=str, help="Commit message for checkpoint commit after actions")
-    parser.add_argument("--semantic", action="store_true", help="Enable semantic classification (no file mutations)")
+    parser.add_argument(
+        "--git-commit-before", type=str, help="Commit message for checkpoint commit before actions"
+    )
+    parser.add_argument(
+        "--git-commit-after", type=str, help="Commit message for checkpoint commit after actions"
+    )
+    parser.add_argument(
+        "--semantic", action="store_true", help="Enable semantic classification (no file mutations)"
+    )
     # Default comes from config/models.yaml tool_models.tidy_semantic to avoid hardcoded model bumps.
-    parser.add_argument("--semantic-model", type=str, default=None, help="LLM model name for semantic mode (default: config/models.yaml tool_models.tidy_semantic)")
-    parser.add_argument("--semantic-cache", type=Path, default=DEFAULT_SEMANTIC_CACHE, help="Cache file for semantic results")
-    parser.add_argument("--semantic-max-files", type=int, default=50, help="Max files to classify per run")
-    parser.add_argument("--semantic-truth", action="append", type=Path, help="Additional truth/reference files")
-    parser.add_argument("--apply-semantic", action="store_true", help="Apply semantic decisions (archive/delete) instead of report-only")
-    parser.add_argument("--semantic-delete", action="store_true", help="Allow semantic delete; otherwise deletes are converted to archive moves")
-    parser.add_argument("--truth-merge-report", type=Path, help="Path to write truth-merge suggestions (no apply)")
-    parser.add_argument("--apply-truth-merge", action="store_true", help="Apply allocator suggestions into target files (append content)")
+    parser.add_argument(
+        "--semantic-model",
+        type=str,
+        default=None,
+        help="LLM model name for semantic mode (default: config/models.yaml tool_models.tidy_semantic)",
+    )
+    parser.add_argument(
+        "--semantic-cache",
+        type=Path,
+        default=DEFAULT_SEMANTIC_CACHE,
+        help="Cache file for semantic results",
+    )
+    parser.add_argument(
+        "--semantic-max-files", type=int, default=50, help="Max files to classify per run"
+    )
+    parser.add_argument(
+        "--semantic-truth", action="append", type=Path, help="Additional truth/reference files"
+    )
+    parser.add_argument(
+        "--apply-semantic",
+        action="store_true",
+        help="Apply semantic decisions (archive/delete) instead of report-only",
+    )
+    parser.add_argument(
+        "--semantic-delete",
+        action="store_true",
+        help="Allow semantic delete; otherwise deletes are converted to archive moves",
+    )
+    parser.add_argument(
+        "--truth-merge-report", type=Path, help="Path to write truth-merge suggestions (no apply)"
+    )
+    parser.add_argument(
+        "--apply-truth-merge",
+        action="store_true",
+        help="Apply allocator suggestions into target files (append content)",
+    )
     parser.add_argument("--run-id", type=str, help="Run identifier for logging/checkpoints")
     parser.add_argument("--database-url", type=str, help="Override DATABASE_URL for this run")
-    parser.add_argument("--self-heal", action="store_true", help="Run self-healing to fix malformed paths (archive/archive/, etc.)")
-    parser.add_argument("--seed-db-cleanup", action="store_true", help="Move seed databases (telemetry_seed*.db) from repo root to archive/data/databases/telemetry_seeds/")
+    parser.add_argument(
+        "--self-heal",
+        action="store_true",
+        help="Run self-healing to fix malformed paths (archive/archive/, etc.)",
+    )
+    parser.add_argument(
+        "--seed-db-cleanup",
+        action="store_true",
+        help="Move seed databases (telemetry_seed*.db) from repo root to archive/data/databases/telemetry_seeds/",
+    )
     args = parser.parse_args()
 
     dry_run = not args.execute or args.dry_run
@@ -1356,13 +1543,25 @@ def main():
             REPO_ROOT / "docs" / "FUTURE_PLAN_MAINTENANCE.md",
             REPO_ROOT / "docs" / "WORKSPACE_ORGANIZATION_SPEC.md",
             REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "docs" / "FUTURE_PLAN.md",
-            REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "archive" / "CONSOLIDATED_BUILD.md",
-            REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "archive" / "CONSOLIDATED_STRATEGY.md",
+            REPO_ROOT
+            / ".autonomous_runs"
+            / "file-organizer-app-v1"
+            / "archive"
+            / "CONSOLIDATED_BUILD.md",
+            REPO_ROOT
+            / ".autonomous_runs"
+            / "file-organizer-app-v1"
+            / "archive"
+            / "CONSOLIDATED_STRATEGY.md",
         ]
 
     # Default git commit messages if executing and none provided
-    git_before = args.git_commit_before or ("tidy auto checkpoint (pre)" if args.execute and not dry_run else None)
-    git_after = args.git_commit_after or ("tidy auto checkpoint (post)" if args.execute and not dry_run else None)
+    git_before = args.git_commit_before or (
+        "tidy auto checkpoint (pre)" if args.execute and not dry_run else None
+    )
+    git_after = args.git_commit_after or (
+        "tidy auto checkpoint (post)" if args.execute and not dry_run else None
+    )
 
     if args.execute and git_before and not dry_run:
         run_git_commit(git_before, REPO_ROOT)
@@ -1419,13 +1618,33 @@ def main():
             cursor_actions = detect_and_route_cursor_files(root, project_id, logger, run_id)
             if cursor_actions:
                 print(f"[INFO] Found {len(cursor_actions)} Cursor-created files to route")
-                execute_actions(cursor_actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None, logger=logger, run_id=run_id)
+                execute_actions(
+                    cursor_actions,
+                    dry_run=dry_run,
+                    checkpoint_dir=args.checkpoint_dir if not dry_run else None,
+                    logger=logger,
+                    run_id=run_id,
+                )
 
         # Markdown tidy; if superseded root, route files into project archive superseded
         superseded_mode = "superseded" in root.parts
         project_root_path = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1"
         superseded_target = project_root_path / "archive" / "superseded"
-        bucket_names = {"research", "delegations", "phases", "tiers", "prompts", "diagnostics", "runs", "refs", "reports", "plans", "analysis", "logs", "scripts"}
+        bucket_names = {
+            "research",
+            "delegations",
+            "phases",
+            "tiers",
+            "prompts",
+            "diagnostics",
+            "runs",
+            "refs",
+            "reports",
+            "plans",
+            "analysis",
+            "logs",
+            "scripts",
+        }
 
         def collapse_duplicate_buckets(parts: List[str]) -> List[str]:
             collapsed: List[str] = []
@@ -1456,7 +1675,9 @@ def main():
                 rel = Path(path.name)
             parts = [p for p in rel.parts if p not in {"archive", "superseded"}]
             parts = collapse_runs_any(parts)
-            parts = collapse_consecutive_duplicates(parts)  # <-- FIX: Remove consecutive duplicate folder names
+            parts = collapse_consecutive_duplicates(
+                parts
+            )  # <-- FIX: Remove consecutive duplicate folder names
             parts = collapse_duplicate_buckets(parts)
             return superseded_root / Path(*parts)
 
@@ -1495,12 +1716,22 @@ def main():
                 if child.is_dir():
                     grp = run_group(child.name)
                     dest = superseded_target / "runs" / grp / child.name
-                    actions.append(Action("move", child, dest, "runs regroup to project superseded"))
+                    actions.append(
+                        Action("move", child, dest, "runs regroup to project superseded")
+                    )
                 elif child.is_file() and child.suffix.lower() in {".md", ".txt"}:
                     dest = superseded_target / "refs" / child.name
-                    actions.append(Action("move", child, dest, "refs regroup to project superseded"))
+                    actions.append(
+                        Action("move", child, dest, "refs regroup to project superseded")
+                    )
             if actions:
-                execute_actions(actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None, logger=logger, run_id=run_id)
+                execute_actions(
+                    actions,
+                    dry_run=dry_run,
+                    checkpoint_dir=args.checkpoint_dir if not dry_run else None,
+                    logger=logger,
+                    run_id=run_id,
+                )
             continue
 
         if root == REPO_ROOT / "archive":
@@ -1508,15 +1739,44 @@ def main():
             superseded_mode = True
             superseded_target = REPO_ROOT / "archive" / "superseded"
             normalize_dest_fn = lambda p: normalize_dest_generic(p, superseded_target, root)
-            research_keywords = ["research", "brief", "market", "strategy", "strategic_review", "immigration_visa", "tax", "fileorganizer_final"]
+            research_keywords = [
+                "research",
+                "brief",
+                "market",
+                "strategy",
+                "strategic_review",
+                "immigration_visa",
+                "tax",
+                "fileorganizer_final",
+            ]
             delegation_keywords = ["delegation", "gpt", "openai", "codex"]
             phase_keywords = ["phase_", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9"]
             tier_keywords = ["tier_00", "tier_01", "tier_02", "tier_03", "tier_04", "tier_05"]
             prompt_keywords = ["prompt"]
             debug_keywords = ["debug", "error", "journal", "diagnostic", "log", "trace"]
             ref_keywords = ["ref_", "ref"]
-            report_keywords = ["consolidated", "build", "report", "readme", "setup", "tracking", "manual", "how_to", "spec", "summary", "checklist", "task"]
-            plan_keywords = ["plan", "roadmap", "implementation_plan", "design_doc", "strategy", "spec"]
+            report_keywords = [
+                "consolidated",
+                "build",
+                "report",
+                "readme",
+                "setup",
+                "tracking",
+                "manual",
+                "how_to",
+                "spec",
+                "summary",
+                "checklist",
+                "task",
+            ]
+            plan_keywords = [
+                "plan",
+                "roadmap",
+                "implementation_plan",
+                "design_doc",
+                "strategy",
+                "spec",
+            ]
             analysis_keywords = ["analysis", "review", "retrospective", "postmortem"]
             script_keywords = ["script", "runner", "tool", "utility", "setup", "build", "deploy"]
 
@@ -1547,7 +1807,12 @@ def main():
                 return ""
 
             for dirpath, dirnames, filenames in os.walk(root):
-                dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}]
+                dirnames[:] = [
+                    d
+                    for d in dirnames
+                    if d
+                    not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}
+                ]
                 for fname in filenames:
                     src = Path(dirpath) / fname
                     if src.suffix.lower() not in {".md", ".txt"}:
@@ -1559,7 +1824,9 @@ def main():
                     while rel_parts and rel_parts[0] in {"archive", "superseded"}:
                         rel_parts.pop(0)
                     rel_parts = collapse_runs_any(rel_parts)
-                    rel_parts = collapse_consecutive_duplicates(rel_parts)  # <-- FIX: Remove consecutive duplicate folder names
+                    rel_parts = collapse_consecutive_duplicates(
+                        rel_parts
+                    )  # <-- FIX: Remove consecutive duplicate folder names
                     bucket_hint = ""
                     if rel_parts and rel_parts[0] == "diagnostics":
                         bucket_hint = "diagnostics"
@@ -1573,24 +1840,75 @@ def main():
                     rel_parts = collapse_duplicate_buckets(rel_parts)
                     bucket = bucket_hint or existing_bucket or bucket_for(fname) or "reports"
                     target_base = superseded_target / bucket if bucket else superseded_target
-                    dest = normalize_dest_generic(target_base / Path(*rel_parts), superseded_target, root)
+                    dest = normalize_dest_generic(
+                        target_base / Path(*rel_parts), superseded_target, root
+                    )
                     actions.append(Action("move", src, dest, "archive->superseded"))
-            execute_actions(actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None, logger=logger, run_id=run_id)
+            execute_actions(
+                actions,
+                dry_run=dry_run,
+                checkpoint_dir=args.checkpoint_dir if not dry_run else None,
+                logger=logger,
+                run_id=run_id,
+            )
 
         elif superseded_mode and root.as_posix().endswith("archive/superseded/archive"):
             actions: List[Action] = []
-            research_keywords = ["research", "brief", "market", "strategy", "strategic_review", "immigration_visa", "tax", "fileorganizer_final"]
+            research_keywords = [
+                "research",
+                "brief",
+                "market",
+                "strategy",
+                "strategic_review",
+                "immigration_visa",
+                "tax",
+                "fileorganizer_final",
+            ]
             delegation_keywords = ["delegation", "gpt", "openai", "codex"]
             phase_keywords = ["phase_", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9"]
             tier_keywords = ["tier_00", "tier_01", "tier_02", "tier_03", "tier_04", "tier_05"]
             prompt_keywords = ["prompt"]
             debug_keywords = ["debug", "error", "journal", "diagnostic", "log", "trace"]
             ref_keywords = ["ref_", "ref"]
-            report_keywords = ["consolidated", "build", "report", "readme", "setup", "tracking", "manual", "how_to", "spec", "summary", "checklist", "task"]
-            plan_keywords = ["plan", "roadmap", "implementation_plan", "design_doc", "strategy", "spec"]
+            report_keywords = [
+                "consolidated",
+                "build",
+                "report",
+                "readme",
+                "setup",
+                "tracking",
+                "manual",
+                "how_to",
+                "spec",
+                "summary",
+                "checklist",
+                "task",
+            ]
+            plan_keywords = [
+                "plan",
+                "roadmap",
+                "implementation_plan",
+                "design_doc",
+                "strategy",
+                "spec",
+            ]
             analysis_keywords = ["analysis", "review", "retrospective", "postmortem"]
             script_keywords = ["script", "runner", "tool", "utility", "setup", "build", "deploy"]
-            bucket_names = {"research", "delegations", "phases", "tiers", "prompts", "diagnostics", "runs", "refs", "reports", "plans", "analysis", "logs", "scripts"}
+            bucket_names = {
+                "research",
+                "delegations",
+                "phases",
+                "tiers",
+                "prompts",
+                "diagnostics",
+                "runs",
+                "refs",
+                "reports",
+                "plans",
+                "analysis",
+                "logs",
+                "scripts",
+            }
 
             def bucket_for(name: str) -> str:
                 ln = name.lower()
@@ -1639,16 +1957,24 @@ def main():
                 while parts and parts[0] in {"archive", "superseded"}:
                     parts.pop(0)
                 parts = collapse_runs(parts)
-                parts = collapse_consecutive_duplicates(parts)  # <-- FIX: Remove consecutive duplicate folder names
+                parts = collapse_consecutive_duplicates(
+                    parts
+                )  # <-- FIX: Remove consecutive duplicate folder names
                 parts = collapse_duplicate_buckets(parts)
                 return superseded_target / Path(*parts)
+
             normalize_dest_fn = normalize_dest
         elif superseded_mode and normalize_dest_fn == (lambda p: p):
             # Generic superseded root: ensure we still normalize
             normalize_dest_fn = lambda p: normalize_dest_generic(p, superseded_target, root)
 
             for dirpath, dirnames, filenames in os.walk(root):
-                dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}]
+                dirnames[:] = [
+                    d
+                    for d in dirnames
+                    if d
+                    not in {".git", "node_modules", ".pytest_cache", "__pycache__", ".venv", "venv"}
+                ]
                 for fname in filenames:
                     src = Path(dirpath) / fname
                     if src.suffix.lower() not in {".md", ".txt"}:
@@ -1661,7 +1987,9 @@ def main():
                     while rel_parts and rel_parts[0] in {"archive", "superseded"}:
                         rel_parts.pop(0)
                     rel_parts = collapse_runs(rel_parts)
-                    rel_parts = collapse_consecutive_duplicates(rel_parts)  # <-- FIX: Remove consecutive duplicate folder names
+                    rel_parts = collapse_consecutive_duplicates(
+                        rel_parts
+                    )  # <-- FIX: Remove consecutive duplicate folder names
                     # If diagnostics folder present, force diagnostics bucket
                     bucket_hint = ""
                     if rel_parts and rel_parts[0] == "diagnostics":
@@ -1679,17 +2007,27 @@ def main():
                     target_base = superseded_target / bucket if bucket else superseded_target
                     dest = normalize_dest(target_base / Path(*rel_parts))
                     actions.append(Action("move", src, dest, "superseded->project archive"))
-            execute_actions(actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None, logger=logger, run_id=run_id)
+            execute_actions(
+                actions,
+                dry_run=dry_run,
+                checkpoint_dir=args.checkpoint_dir if not dry_run else None,
+                logger=logger,
+                run_id=run_id,
+            )
         else:
             rules = detect_project_rules(root)
-            organizer = DocumentationOrganizer(project_root=root, rules_config=rules, dry_run=dry_run, verbose=args.verbose)
+            organizer = DocumentationOrganizer(
+                project_root=root, rules_config=rules, dry_run=dry_run, verbose=args.verbose
+            )
             organizer.organize()
 
         semantic_results = []
         merge_suggestions_out = args.truth_merge_report
         if args.semantic:
             if args.verbose:
-                print(f"[INFO] Running semantic analysis (max {args.semantic_max_files} files) with model {args.semantic_model}")
+                print(
+                    f"[INFO] Running semantic analysis (max {args.semantic_max_files} files) with model {args.semantic_model}"
+                )
             semantic_results = semantic_analysis(
                 root=root,
                 cache_path=args.semantic_cache,
@@ -1703,7 +2041,7 @@ def main():
             )
             print(f"[INFO] Semantic results ({len(semantic_results)} files):")
             for r in semantic_results:
-                rationale_display = (r.get("rationale") or "")
+                rationale_display = r.get("rationale") or ""
                 try:
                     rationale_display = rationale_display.encode("ascii", "replace").decode("ascii")
                 except Exception:
@@ -1757,11 +2095,13 @@ def main():
                     for s in suggestions:
                         try:
                             sug = json.loads(s.get("suggestion", "{}"))
-                            parsed.append({
-                                "path": s.get("path"),
-                                "target": sug.get("target"),
-                                "reason": sug.get("reason", sug.get("target_reason", "")),
-                            })
+                            parsed.append(
+                                {
+                                    "path": s.get("path"),
+                                    "target": sug.get("target"),
+                                    "reason": sug.get("reason", sug.get("target_reason", "")),
+                                }
+                            )
                         except Exception:
                             continue
                     apply_truth_merges(parsed, REPO_ROOT, run_id, logger)
@@ -1769,7 +2109,13 @@ def main():
                     print("[WARN] Failed to apply truth merges; continuing")
 
         # Execute moves/deletes with checkpoint
-        execute_actions(actions, dry_run=dry_run, checkpoint_dir=args.checkpoint_dir if not dry_run else None, logger=logger, run_id=run_id)
+        execute_actions(
+            actions,
+            dry_run=dry_run,
+            checkpoint_dir=args.checkpoint_dir if not dry_run else None,
+            logger=logger,
+            run_id=run_id,
+        )
 
     # Optional consolidation
     if args.consolidate_md:
@@ -1788,4 +2134,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

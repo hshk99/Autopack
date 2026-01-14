@@ -41,5 +41,3 @@ CREATE INDEX IF NOT EXISTS ix_token_budget_escalation_phase_id ON token_budget_e
 CREATE INDEX IF NOT EXISTS ix_token_budget_escalation_timestamp ON token_budget_escalation_events(timestamp DESC);
 CREATE INDEX IF NOT EXISTS ix_token_budget_escalation_base_source ON token_budget_escalation_events(base_source);
 CREATE INDEX IF NOT EXISTS ix_token_budget_escalation_reason ON token_budget_escalation_events(reason);
-
-

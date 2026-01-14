@@ -1,4 +1,5 @@
 """Monitor execution of 4 autonomous phases"""
+
 import time
 from autopack.database import SessionLocal
 from autopack.models import Run, Phase, PhaseState
@@ -7,8 +8,9 @@ RUN_IDS = [
     "autopack-onephase-p11-observability-artifact-first",
     "autopack-onephase-p12-embedding-cache-and-cap",
     "autopack-onephase-p13-expand-artifact-substitution",
-    "autopack-onephase-research-import-errors"
+    "autopack-onephase-research-import-errors",
 ]
+
 
 def check_status():
     """Check current status of all runs"""
@@ -48,6 +50,7 @@ def check_status():
 
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     check_status()

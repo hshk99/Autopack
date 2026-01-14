@@ -1,7 +1,9 @@
 """Reset retry-api-router-v1 run and phase for clean retry after BUILD-096 fix"""
+
 import sys
 from pathlib import Path
 from datetime import datetime, timezone
+
 sys.path.insert(0, str(Path.cwd() / "src"))
 
 from autopack.database import SessionLocal, init_db
@@ -26,7 +28,9 @@ if phase:
     phase.updated_at = datetime.now(timezone.utc)
 
     db.commit()
-    print(f"Reset run {run.id} and phase {phase.phase_id}: state={phase.state}, retry_attempt={phase.retry_attempt}")
+    print(
+        f"Reset run {run.id} and phase {phase.phase_id}: state={phase.state}, retry_attempt={phase.retry_attempt}"
+    )
 else:
     print("Phase not found")
 

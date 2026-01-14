@@ -5,7 +5,6 @@ from autopack.research.models.enums import EvidenceType
 
 
 class TestEvidenceModel(unittest.TestCase):
-
     def setUp(self):
         self.evidence = Evidence(
             source="https://example.com/research-paper",

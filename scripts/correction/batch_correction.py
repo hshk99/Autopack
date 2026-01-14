@@ -22,6 +22,7 @@ try:
     from qdrant_client import QdrantClient
     from qdrant_client.models import PointStruct
     from sentence_transformers import SentenceTransformer
+
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
@@ -53,19 +54,24 @@ class BatchCorrector:
             except Exception as e:
                 print(f"[WARN] Qdrant unavailable: {e}")
 
-    def correct_by_pattern(self, file_pattern: str, project: str, file_type: str, dry_run: bool = True):
+    def correct_by_pattern(
+        self, file_pattern: str, project: str, file_type: str, dry_run: bool = True
+    ):
         """Correct all files matching a pattern."""
         print(f"\n{'[DRY-RUN] ' if dry_run else ''}Correcting files matching: {file_pattern}")
         print(f"Target: {project}/{file_type}")
 
         # Find matching files in tidy activity
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             SELECT id, project_id, doc_type, src_path, dest_path
             FROM tidy_activity
             WHERE (src_path LIKE %s OR dest_path LIKE %s)
             AND action = 'move'
             ORDER BY created_at DESC
-        """, (f"%{file_pattern}%", f"%{file_pattern}%"))
+        """,
+            (f"%{file_pattern}%", f"%{file_pattern}%"),
+        )
 
         matches = self.cursor.fetchall()
 
@@ -90,7 +96,7 @@ class BatchCorrector:
                     original_project=orig_project,
                     original_type=orig_type,
                     corrected_project=project,
-                    corrected_type=file_type
+                    corrected_type=file_type,
                 )
                 corrected += 1
 
@@ -114,31 +120,32 @@ class BatchCorrector:
             return 0
 
         corrections = []
-        with open(csv_path, 'r', encoding='utf-8') as f:
+        with open(csv_path, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                corrections.append({
-                    'file_path': row['file_path'],
-                    'project': row['project'],
-                    'type': row['type']
-                })
+                corrections.append(
+                    {"file_path": row["file_path"], "project": row["project"], "type": row["type"]}
+                )
 
         print(f"[INFO] Found {len(corrections)} corrections in CSV")
 
         corrected = 0
         for corr in corrections:
-            file_path = corr['file_path']
-            project = corr['project']
-            file_type = corr['type']
+            file_path = corr["file_path"]
+            project = corr["project"]
+            file_type = corr["type"]
 
             # Find original classification
-            self.cursor.execute("""
+            self.cursor.execute(
+                """
                 SELECT project_id, doc_type
                 FROM tidy_activity
                 WHERE (src_path = %s OR dest_path = %s)
                 ORDER BY created_at DESC
                 LIMIT 1
-            """, (file_path, file_path))
+            """,
+                (file_path, file_path),
+            )
 
             result = self.cursor.fetchone()
             if not result:
@@ -157,7 +164,7 @@ class BatchCorrector:
                     original_project=orig_project,
                     original_type=orig_type,
                     corrected_project=project,
-                    corrected_type=file_type
+                    corrected_type=file_type,
                 )
                 corrected += 1
 
@@ -188,13 +195,16 @@ class BatchCorrector:
             file_path_str = str(file_path)
 
             # Find original classification
-            self.cursor.execute("""
+            self.cursor.execute(
+                """
                 SELECT project_id, doc_type
                 FROM tidy_activity
                 WHERE (src_path = %s OR dest_path = %s)
                 ORDER BY created_at DESC
                 LIMIT 1
-            """, (file_path_str, file_path_str))
+            """,
+                (file_path_str, file_path_str),
+            )
 
             result = self.cursor.fetchone()
             if not result:
@@ -212,7 +222,7 @@ class BatchCorrector:
                     original_project=orig_project,
                     original_type=orig_type,
                     corrected_project=project,
-                    corrected_type=file_type
+                    corrected_type=file_type,
                 )
                 corrected += 1
 
@@ -224,20 +234,36 @@ class BatchCorrector:
 
         return corrected
 
-    def _save_correction(self, file_path: str, original_project: str, original_type: str,
-                        corrected_project: str, corrected_type: str):
+    def _save_correction(
+        self,
+        file_path: str,
+        original_project: str,
+        original_type: str,
+        corrected_project: str,
+        corrected_type: str,
+    ):
         """Save single correction to database and Qdrant."""
         # Read file sample
         content_sample = self._read_file_sample(file_path)
 
         # Save to PostgreSQL
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             INSERT INTO classification_corrections
             (file_path, file_content_sample, original_project, original_type,
              corrected_project, corrected_type, corrected_at)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (file_path, content_sample, original_project, original_type,
-              corrected_project, corrected_type, datetime.now(timezone.utc)))
+        """,
+            (
+                file_path,
+                content_sample,
+                original_project,
+                original_type,
+                corrected_project,
+                corrected_type,
+                datetime.now(timezone.utc),
+            ),
+        )
 
         self.conn.commit()
 
@@ -245,7 +271,9 @@ class BatchCorrector:
         if self.qdrant_client and self.embedding_model:
             try:
                 text_to_embed = f"{os.path.basename(file_path)}\n\n{content_sample}"
-                vector = self.embedding_model.encode(text_to_embed, normalize_embeddings=True).tolist()
+                vector = self.embedding_model.encode(
+                    text_to_embed, normalize_embeddings=True
+                ).tolist()
 
                 self.qdrant_client.upsert(
                     collection_name="file_routing_patterns",
@@ -260,9 +288,9 @@ class BatchCorrector:
                                 "source_context": "batch_correction",
                                 "confidence": 1.0,
                                 "corrected_at": datetime.now(timezone.utc).isoformat(),
-                            }
+                            },
                         )
-                    ]
+                    ],
                 )
             except Exception as e:
                 print(f"    [WARN] Could not add to Qdrant: {e}")
@@ -270,7 +298,7 @@ class BatchCorrector:
     def _read_file_sample(self, file_path: str, max_chars: int = 500) -> str:
         """Read first N characters of file."""
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 return f.read(max_chars)
         except Exception:
             return ""
@@ -282,23 +310,25 @@ class BatchCorrector:
 
         # This would ideally join with classifier confidence scores
         # For now, export recent classifications
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             SELECT src_path, project_id, doc_type, dest_path
             FROM tidy_activity
             WHERE action = 'move'
             ORDER BY created_at DESC
             LIMIT 100
-        """)
+        """
+        )
 
         rows = self.cursor.fetchall()
 
-        with open(output_csv, 'w', newline='', encoding='utf-8') as f:
+        with open(output_csv, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow(['file_path', 'project', 'type', 'notes'])
+            writer.writerow(["file_path", "project", "type", "notes"])
 
             for src_path, project, doc_type, dest_path in rows:
                 file_path = dest_path if os.path.exists(dest_path) else src_path
-                writer.writerow([file_path, project, doc_type, ''])
+                writer.writerow([file_path, project, doc_type, ""])
 
         print(f"[OK] Exported {len(rows)} classifications to {output_csv}")
         print("[INFO] Review CSV, update project/type as needed, then import with --csv")
@@ -315,13 +345,17 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Batch file classification correction tool")
-    parser.add_argument("--pattern", "-p", help="Correct files matching pattern (e.g., 'fileorg_*.md')")
+    parser.add_argument(
+        "--pattern", "-p", help="Correct files matching pattern (e.g., 'fileorg_*.md')"
+    )
     parser.add_argument("--project", help="Target project ID")
     parser.add_argument("--type", help="Target file type")
     parser.add_argument("--csv", help="Import corrections from CSV file")
     parser.add_argument("--directory", "-d", help="Correct all files in directory")
     parser.add_argument("--export", "-e", help="Export potential misclassifications to CSV")
-    parser.add_argument("--execute", action="store_true", help="Execute corrections (default is dry-run)")
+    parser.add_argument(
+        "--execute", action="store_true", help="Execute corrections (default is dry-run)"
+    )
 
     args = parser.parse_args()
 
@@ -338,13 +372,17 @@ def main():
             if not args.project or not args.type:
                 print("ERROR: --pattern requires --project and --type")
                 sys.exit(1)
-            corrector.correct_by_pattern(args.pattern, args.project, args.type, dry_run=not args.execute)
+            corrector.correct_by_pattern(
+                args.pattern, args.project, args.type, dry_run=not args.execute
+            )
 
         elif args.directory:
             if not args.project or not args.type:
                 print("ERROR: --directory requires --project and --type")
                 sys.exit(1)
-            corrector.correct_directory(args.directory, args.project, args.type, dry_run=not args.execute)
+            corrector.correct_directory(
+                args.directory, args.project, args.type, dry_run=not args.execute
+            )
 
         else:
             print("Usage: python batch_correction.py [options]")
@@ -358,9 +396,13 @@ def main():
             print("  --execute           Execute corrections (default is dry-run)")
             print("\nExamples:")
             print("  # Dry-run: correct all fileorg_*.md files")
-            print("  python batch_correction.py --pattern 'fileorg_*.md' --project file-organizer-app-v1 --type plan")
+            print(
+                "  python batch_correction.py --pattern 'fileorg_*.md' --project file-organizer-app-v1 --type plan"
+            )
             print("\n  # Execute: correct all files in a directory")
-            print("  python batch_correction.py --directory .autonomous_runs/temp --project autopack --type log --execute")
+            print(
+                "  python batch_correction.py --directory .autonomous_runs/temp --project autopack --type log --execute"
+            )
             print("\n  # Export misclassifications for review")
             print("  python batch_correction.py --export misclassified.csv")
             print("\n  # Import corrections from CSV")

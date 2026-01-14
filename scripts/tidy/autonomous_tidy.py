@@ -75,7 +75,7 @@ class PreTidyAuditor:
         # Generate report
         self._generate_report()
 
-        print(f"\n✅ Pre-Tidy Audit Complete")
+        print("\n✅ Pre-Tidy Audit Complete")
         print(f"   Total files: {self.total_files}")
         print(f"   Report: {self.report_path}")
         print()
@@ -101,8 +101,7 @@ class PreTidyAuditor:
 
         # Exclude files based on project-specific rules
         all_files = [
-            f for f in all_files
-            if not any(excluded in f.parts for excluded in EXCLUDED_DIRS)
+            f for f in all_files if not any(excluded in f.parts for excluded in EXCLUDED_DIRS)
         ]
 
         self.total_files = len(all_files)
@@ -140,11 +139,18 @@ class PreTidyAuditor:
         name_lower = file_path.name.lower()
 
         # Strong indicators for each category
-        if any(keyword in name_lower for keyword in ["implementation", "build", "complete", "summary"]):
+        if any(
+            keyword in name_lower for keyword in ["implementation", "build", "complete", "summary"]
+        ):
             return "BUILD_HISTORY"
-        elif any(keyword in name_lower for keyword in ["error", "bug", "fix", "debug", "troubleshoot"]):
+        elif any(
+            keyword in name_lower for keyword in ["error", "bug", "fix", "debug", "troubleshoot"]
+        ):
             return "DEBUG_LOG"
-        elif any(keyword in name_lower for keyword in ["decision", "analysis", "architecture", "comparison", "research"]):
+        elif any(
+            keyword in name_lower
+            for keyword in ["decision", "analysis", "architecture", "comparison", "research"]
+        ):
             return "ARCHITECTURE_DECISIONS"
         else:
             return "NEEDS_REVIEW"
@@ -159,7 +165,9 @@ class PreTidyAuditor:
                 try:
                     size = file_path.stat().st_size
                     if size > 1_000_000:  # > 1MB
-                        self.special_handling.append((file_path, f"Large file ({size / 1_000_000:.1f}MB)"))
+                        self.special_handling.append(
+                            (file_path, f"Large file ({size / 1_000_000:.1f}MB)")
+                        )
                 except Exception:
                     pass
 
@@ -170,7 +178,9 @@ class PreTidyAuditor:
                 if ext in [".png", ".jpg", ".pdf", ".bin", ".exe"]:
                     for file_path in self.files_by_type[ext]:
                         if file_path.is_relative_to(md_dir):
-                            self.special_handling.append((file_path, f"Binary file in docs directory"))
+                            self.special_handling.append(
+                                (file_path, "Binary file in docs directory")
+                            )
 
         if self.special_handling:
             print(f"      Found {len(self.special_handling)} special cases")
@@ -230,11 +240,12 @@ class PostTidyAuditor:
 
         # Load project configuration
         from project_config import load_project_config
+
         self.config = load_project_config(project_id)
-        self.project_root = Path(self.config['project_root'])
+        self.project_root = Path(self.config["project_root"])
         if not self.project_root.is_absolute():
             self.project_root = REPO_ROOT / self.project_root
-        self.docs_dir = self.project_root / self.config['docs_dir']
+        self.docs_dir = self.project_root / self.config["docs_dir"]
 
         # Verification results
         self.sot_files_updated = []
@@ -261,7 +272,7 @@ class PostTidyAuditor:
         if not dry_run and not self.verification_errors:
             self._auto_commit()
 
-        print(f"\n✅ Post-Tidy Verification Complete")
+        print("\n✅ Post-Tidy Verification Complete")
         print(f"   Report: {self.report_path}")
         print()
 
@@ -270,9 +281,9 @@ class PostTidyAuditor:
         print("   Verifying SOT files...")
 
         sot_files = [
-            self.docs_dir / self.config['sot_build_history'],
-            self.docs_dir / self.config['sot_debug_log'],
-            self.docs_dir / self.config['sot_architecture'],
+            self.docs_dir / self.config["sot_build_history"],
+            self.docs_dir / self.config["sot_debug_log"],
+            self.docs_dir / self.config["sot_architecture"],
         ]
 
         for sot_file in sot_files:
@@ -309,10 +320,7 @@ class PostTidyAuditor:
         print("\n   Checking git status...")
 
         result = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=REPO_ROOT,
-            capture_output=True,
-            text=True
+            ["git", "status", "--porcelain"], cwd=REPO_ROOT, capture_output=True, text=True
         )
 
         changed_files = result.stdout.strip().split("\n") if result.stdout.strip() else []
@@ -379,10 +387,12 @@ class AutonomousTidy:
 
         # Auto-detect project from working directory
         from project_config import detect_project_id
+
         self.project_id = detect_project_id(cwd=Path.cwd())
 
         # Generate run_id for this tidy operation
         import datetime
+
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.run_id = f"tidy-{self.project_id}-{timestamp}"
 
@@ -398,8 +408,9 @@ class AutonomousTidy:
 
         # Load project config to get project root
         from project_config import load_project_config
+
         config = load_project_config(self.project_id)
-        project_root = Path(config['project_root'])
+        project_root = Path(config["project_root"])
         if not project_root.is_absolute():
             project_root = REPO_ROOT / project_root
 
@@ -407,7 +418,7 @@ class AutonomousTidy:
         # If running from within project directory, target_directory is relative to CWD
         # Otherwise it's relative to REPO_ROOT
         cwd = Path.cwd()
-        if self.target_directory.startswith('.') or str(cwd) != str(REPO_ROOT):
+        if self.target_directory.startswith(".") or str(cwd) != str(REPO_ROOT):
             # Relative to current directory
             target_path = cwd / self.target_directory
         else:
@@ -429,6 +440,7 @@ class AutonomousTidy:
             # Remove empty directories
             if not self.dry_run and superseded_dir.exists():
                 import shutil
+
                 shutil.rmtree(superseded_dir)
                 print(f"   🗑️  Removed directory: {superseded_dir.relative_to(REPO_ROOT)}")
 
@@ -445,21 +457,25 @@ class AutonomousTidy:
                     dest_path = scripts_superseded / rel_path
                     dest_path.parent.mkdir(parents=True, exist_ok=True)
 
-                    print(f"   📦 Move: {file_path.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}")
+                    print(
+                        f"   📦 Move: {file_path.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}"
+                    )
                     if not self.dry_run:
                         import shutil
+
                         shutil.move(str(file_path), str(dest_path))
                     moved_count += 1
 
             # Remove empty deprecated directory
             if not self.dry_run and deprecated_dir.exists():
                 import shutil
+
                 shutil.rmtree(deprecated_dir)
                 print(f"   🗑️  Removed directory: {deprecated_dir.relative_to(REPO_ROOT)}")
 
         # 3. Delete all processed archive files (analysis/, plans/, reports/, etc.)
         # These have been extracted to SOT files and are no longer needed
-        print(f"\n📁 Cleaning up extracted archive files...")
+        print("\n📁 Cleaning up extracted archive files...")
 
         # Directories to clean up (exclude research, diagnostics, prompts)
         cleanup_dirs = ["analysis", "plans", "reports", "tidy_v7"]
@@ -491,6 +507,7 @@ class AutonomousTidy:
                 # Remove empty directories
                 if not self.dry_run and dir_path.exists():
                     import shutil
+
                     # Only remove if empty
                     try:
                         remaining_files = list(dir_path.rglob("*"))
@@ -500,7 +517,7 @@ class AutonomousTidy:
                     except:
                         pass  # Directory not empty, keep it
 
-        print(f"\n✅ Cleanup Summary:")
+        print("\n✅ Cleanup Summary:")
         print(f"   Deleted: {deleted_count} files")
         print(f"   Moved: {moved_count} files")
         print()
@@ -515,10 +532,7 @@ class AutonomousTidy:
         try:
             from script_organizer import ScriptOrganizer
 
-            organizer = ScriptOrganizer(
-                repo_root=REPO_ROOT,
-                dry_run=self.dry_run
-            )
+            organizer = ScriptOrganizer(repo_root=REPO_ROOT, dry_run=self.dry_run)
 
             count = organizer.organize()
 
@@ -561,7 +575,7 @@ class AutonomousTidy:
             docs_only=True,
             full_cleanup=False,
             interactive=False,
-            dry_run=self.dry_run
+            dry_run=self.dry_run,
         )
 
         result = tidy.run()
@@ -584,6 +598,7 @@ class AutonomousTidy:
             print("=" * 80)
             try:
                 from db_sync import DatabaseSync
+
                 db_sync = DatabaseSync(project_id=self.project_id, dry_run=self.dry_run)
                 sync_results = db_sync.sync_all()
                 db_sync.close()
@@ -598,8 +613,8 @@ class AutonomousTidy:
         print("=" * 80)
         print()
         print("📊 Reports Generated:")
-        print(f"   - Pre-Tidy Audit: PRE_TIDY_AUDIT_REPORT.md")
-        print(f"   - Post-Tidy Verification: POST_TIDY_VERIFICATION_REPORT.md")
+        print("   - Pre-Tidy Audit: PRE_TIDY_AUDIT_REPORT.md")
+        print("   - Post-Tidy Verification: POST_TIDY_VERIFICATION_REPORT.md")
         print()
 
         if self.dry_run:
@@ -626,7 +641,7 @@ Examples:
   # Triggered from Cursor
   python scripts/tidy/autonomous_tidy.py archive --execute
         """,
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     parser.add_argument("directory", help="Directory to tidy (relative to project root)")

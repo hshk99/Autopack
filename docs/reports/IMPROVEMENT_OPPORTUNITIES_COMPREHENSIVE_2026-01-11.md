@@ -494,5 +494,3 @@ This is not a “minimal PR,” but it is the highest long-term ROI to preserve 
 - **Acceptance criteria**:
   - Route shapes unchanged; contract tests still pass.
   - Reduced broad lint suppressions on critical runtime paths over time.
-
-

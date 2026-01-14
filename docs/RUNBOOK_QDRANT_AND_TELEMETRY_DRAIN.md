@@ -75,5 +75,3 @@ python -m autopack.autonomous_executor --run-id <RUN_ID> --max-iterations 25
     - If not: set `AUTOPACK_USE_QDRANT=0`
 - Run batches, not all 160 at once.
 - If phases commonly exit with timeout (code 143), increase timeout strategy and/or focus on success=True & truncated=False samples for telemetry validation.
-
-

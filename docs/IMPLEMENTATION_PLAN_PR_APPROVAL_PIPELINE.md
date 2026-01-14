@@ -355,5 +355,3 @@ Mock `requests`/`subprocess` for the post-run script tests if you add them; othe
   - on approval creates PR (or detects existing PR)
   - writes run-local result artifact
 - Executor remains unchanged (no new network calls).
-
-

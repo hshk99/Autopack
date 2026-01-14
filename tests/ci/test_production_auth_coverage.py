@@ -200,7 +200,7 @@ Auth Coverage Report:
 - UNPROTECTED (gaps): {len(unprotected)}
 
 Unprotected endpoints requiring attention:
-{chr(10).join(f'  - {p}' for p in sorted(unprotected)) if unprotected else '  (none)'}
+{chr(10).join(f"  - {p}" for p in sorted(unprotected)) if unprotected else "  (none)"}
 """
         print(report)
 

@@ -47,7 +47,10 @@ class EnhancedFileCleanup:
         self.exclusion_paths = [
             REPO_ROOT / "archive" / "tidy_v7",
             REPO_ROOT / "archive" / "prompts",
-            REPO_ROOT / "archive" / "research" / "active",  # Active research awaiting Auditor review
+            REPO_ROOT
+            / "archive"
+            / "research"
+            / "active",  # Active research awaiting Auditor review
         ]
 
         # Tracking
@@ -93,7 +96,11 @@ class EnhancedFileCleanup:
 
     def _is_excluded(self, file_path: Path) -> bool:
         """Check if file is in excluded directory"""
-        return any(file_path.is_relative_to(excluded) for excluded in self.exclusion_paths if excluded.exists())
+        return any(
+            file_path.is_relative_to(excluded)
+            for excluded in self.exclusion_paths
+            if excluded.exists()
+        )
 
     def _process_python_files(self):
         """Process .py files"""
@@ -120,7 +127,9 @@ class EnhancedFileCleanup:
             else:
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(py_file), str(dest_path))
-                print(f"    [MOVED] {py_file.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}")
+                print(
+                    f"    [MOVED] {py_file.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}"
+                )
 
             self.files_moved["python"].append((py_file, dest_path, reason))
 
@@ -177,7 +186,9 @@ class EnhancedFileCleanup:
             else:
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(log_file), str(dest_path))
-                print(f"    [MOVED] {log_file.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}")
+                print(
+                    f"    [MOVED] {log_file.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}"
+                )
 
             self.files_moved["logs"].append((log_file, dest_path, "Centralized log file"))
 
@@ -203,7 +214,9 @@ class EnhancedFileCleanup:
             else:
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(json_file), str(dest_path))
-                print(f"    [MOVED] {json_file.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}")
+                print(
+                    f"    [MOVED] {json_file.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}"
+                )
 
             self.files_moved["json"].append((json_file, dest_path, reason))
 
@@ -227,7 +240,9 @@ class EnhancedFileCleanup:
             # Check structure
             if "$schema" in data or "properties" in data:
                 return ("schema", "JSON schema file")
-            elif isinstance(data, dict) and any(k in data for k in ["config", "settings", "options"]):
+            elif isinstance(data, dict) and any(
+                k in data for k in ["config", "settings", "options"]
+            ):
                 return ("config", "Configuration data")
             else:
                 return ("data", "JSON data file")
@@ -266,7 +281,9 @@ class EnhancedFileCleanup:
             else:
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(yaml_file), str(dest_path))
-                print(f"    [MOVED] {yaml_file.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}")
+                print(
+                    f"    [MOVED] {yaml_file.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}"
+                )
 
             self.files_moved["yaml"].append((yaml_file, dest_path, reason))
 
@@ -305,7 +322,9 @@ class EnhancedFileCleanup:
             else:
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(txt_file), str(dest_path))
-                print(f"    [MOVED] {txt_file.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}")
+                print(
+                    f"    [MOVED] {txt_file.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}"
+                )
 
             self.files_moved["txt"].append((txt_file, dest_path, reason))
 
@@ -363,7 +382,9 @@ class EnhancedFileCleanup:
             else:
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(data_file), str(dest_path))
-                print(f"    [MOVED] {data_file.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}")
+                print(
+                    f"    [MOVED] {data_file.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}"
+                )
 
             self.files_moved["data"].append((data_file, dest_path, f"{data_file.suffix} data file"))
 
@@ -395,7 +416,9 @@ class EnhancedFileCleanup:
             else:
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(sql_file), str(dest_path))
-                print(f"    [MOVED] {sql_file.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}")
+                print(
+                    f"    [MOVED] {sql_file.relative_to(REPO_ROOT)} → {dest_path.relative_to(REPO_ROOT)}"
+                )
 
             self.files_moved["sql"].append((sql_file, dest_path, reason))
 
@@ -412,8 +435,21 @@ class EnhancedFileCleanup:
 
         # Known extensions we've handled
         handled_extensions = {
-            ".md", ".py", ".log", ".json", ".yaml", ".yml", ".txt",
-            ".csv", ".xlsx", ".xls", ".parquet", ".feather", ".pkl", ".pickle", ".sql"
+            ".md",
+            ".py",
+            ".log",
+            ".json",
+            ".yaml",
+            ".yml",
+            ".txt",
+            ".csv",
+            ".xlsx",
+            ".xls",
+            ".parquet",
+            ".feather",
+            ".pkl",
+            ".pickle",
+            ".sql",
         }
 
         # Find unhandled files
@@ -422,8 +458,12 @@ class EnhancedFileCleanup:
         if other_files:
             print(f"    Found {len(other_files)} files with unhandled extensions:")
             for other_file in other_files:
-                print(f"    [REVIEW NEEDED] {other_file.relative_to(REPO_ROOT)} ({other_file.suffix or 'no extension'})")
-                self.files_moved["other"].append((other_file, None, f"Unhandled file type: {other_file.suffix}"))
+                print(
+                    f"    [REVIEW NEEDED] {other_file.relative_to(REPO_ROOT)} ({other_file.suffix or 'no extension'})"
+                )
+                self.files_moved["other"].append(
+                    (other_file, None, f"Unhandled file type: {other_file.suffix}")
+                )
         else:
             print("    No unhandled file types found")
 
@@ -432,10 +472,14 @@ class EnhancedFileCleanup:
         print("\n" + "=" * 80)
         print("ENHANCED CLEANUP SUMMARY")
         print("=" * 80)
-        print(f"Mode: {'DRY-RUN (no changes made)' if self.dry_run else 'EXECUTED (changes applied)'}")
+        print(
+            f"Mode: {'DRY-RUN (no changes made)' if self.dry_run else 'EXECUTED (changes applied)'}"
+        )
         print()
 
-        total_moved = sum(len(files) for category, files in self.files_moved.items() if category != "other")
+        total_moved = sum(
+            len(files) for category, files in self.files_moved.items() if category != "other"
+        )
         print(f"Total files processed: {total_moved}")
         print()
 
@@ -473,4 +517,5 @@ def main():
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(main())

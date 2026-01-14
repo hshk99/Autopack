@@ -25,7 +25,7 @@ class TaskFormatConverter:
         Looks for the presence of structured task headers with required fields.
         """
         # Check for the structured format pattern
-        pattern = r'###\s+Task\s+\d+:.*?\n\*\*Phase ID\*\*:\s+`[^`]+`.*?\*\*Category\*\*:.*?\*\*Complexity\*\*:'
+        pattern = r"###\s+Task\s+\d+:.*?\n\*\*Phase ID\*\*:\s+`[^`]+`.*?\*\*Category\*\*:.*?\*\*Complexity\*\*:"
 
         matches = re.findall(pattern, content, re.DOTALL | re.IGNORECASE)
 
@@ -40,10 +40,10 @@ class TaskFormatConverter:
         parent = file_path.parent.name
 
         # Remove version suffix for cleaner phase IDs
-        slug = re.sub(r'-v\d+$', '', parent)
+        slug = re.sub(r"-v\d+$", "", parent)
 
         # Fallback
-        if not slug or slug == '.autonomous_runs':
+        if not slug or slug == ".autonomous_runs":
             slug = "project"
 
         return slug
@@ -62,18 +62,32 @@ class TaskFormatConverter:
 
         # HIGH complexity indicators
         high_indicators = [
-            'architecture', 'migration', 'authentication', 'security',
-            'complex', 'multi-user', 'refactor', 'redesign'
+            "architecture",
+            "migration",
+            "authentication",
+            "security",
+            "complex",
+            "multi-user",
+            "refactor",
+            "redesign",
         ]
 
         # LOW complexity indicators
         low_indicators = [
-            'fix', 'update', 'simple', 'quick', 'small', 'minor',
-            'bugfix', 'typo', 'dependency', 'version'
+            "fix",
+            "update",
+            "simple",
+            "quick",
+            "small",
+            "minor",
+            "bugfix",
+            "typo",
+            "dependency",
+            "version",
         ]
 
         # Check token estimates if present
-        token_match = re.search(r'(\d+)k?\s+tokens?', text_lower)
+        token_match = re.search(r"(\d+)k?\s+tokens?", text_lower)
         if token_match:
             tokens = int(token_match.group(1))
             if tokens > 15000:
@@ -104,13 +118,13 @@ class TaskFormatConverter:
 
         # Category keyword mapping
         category_keywords = {
-            'backend': ['backend', 'api', 'server', 'service', 'endpoint', 'python', 'fastapi'],
-            'frontend': ['frontend', 'ui', 'react', 'component', 'electron', 'npm', 'css', 'html'],
-            'database': ['database', 'sql', 'migration', 'schema', 'query', 'index'],
-            'api': ['api', 'rest', 'endpoint', 'request', 'response'],
-            'testing': ['test', 'testing', 'pytest', 'unit test', 'integration', 'e2e'],
-            'docs': ['documentation', 'readme', 'guide', 'docs', 'markdown'],
-            'deployment': ['docker', 'deploy', 'container', 'compose', 'production'],
+            "backend": ["backend", "api", "server", "service", "endpoint", "python", "fastapi"],
+            "frontend": ["frontend", "ui", "react", "component", "electron", "npm", "css", "html"],
+            "database": ["database", "sql", "migration", "schema", "query", "index"],
+            "api": ["api", "rest", "endpoint", "request", "response"],
+            "testing": ["test", "testing", "pytest", "unit test", "integration", "e2e"],
+            "docs": ["documentation", "readme", "guide", "docs", "markdown"],
+            "deployment": ["docker", "deploy", "container", "compose", "production"],
         }
 
         # Count matches for each category
@@ -139,7 +153,9 @@ class TaskFormatConverter:
 
         # Pattern to match numbered task sections
         # Matches: ### 1. Task Name, ### Task 1: Name, ## 1. Name, etc.
-        section_pattern = r'###?\s+(?:Task\s+)?(\d+)[.:]\s+([^\n]+)(.*?)(?=###?\s+(?:Task\s+)?\d+[.:]|$)'
+        section_pattern = (
+            r"###?\s+(?:Task\s+)?(\d+)[.:]\s+([^\n]+)(.*?)(?=###?\s+(?:Task\s+)?\d+[.:]|$)"
+        )
 
         matches = re.finditer(section_pattern, content, re.DOTALL | re.MULTILINE)
 
@@ -152,27 +168,27 @@ class TaskFormatConverter:
             task_body = match.group(3).strip()
 
             # Remove common prefixes/suffixes from title
-            task_title = re.sub(r'\(.*?\)$', '', task_title).strip()
-            task_title = re.sub(r'\s*[-–]\s*.*$', '', task_title).strip()
+            task_title = re.sub(r"\(.*?\)$", "", task_title).strip()
+            task_title = re.sub(r"\s*[-–]\s*.*$", "", task_title).strip()
 
             # Extract description (first paragraph or specific markers)
             description_match = re.search(
-                r'\*\*(?:What Autopack Would Do|Description|Overview)\*\*:?\s*(.*?)(?=\n\n|\*\*|$)',
+                r"\*\*(?:What Autopack Would Do|Description|Overview)\*\*:?\s*(.*?)(?=\n\n|\*\*|$)",
                 task_body,
-                re.DOTALL
+                re.DOTALL,
             )
 
             if description_match:
                 description = description_match.group(1).strip()
             else:
                 # Use first non-empty paragraph as description
-                paragraphs = [p.strip() for p in task_body.split('\n\n') if p.strip()]
+                paragraphs = [p.strip() for p in task_body.split("\n\n") if p.strip()]
                 description = paragraphs[0] if paragraphs else task_title
 
             # Clean description (remove code blocks, excessive whitespace)
-            description = re.sub(r'```.*?```', '', description, flags=re.DOTALL)
-            description = re.sub(r'\n+', ' ', description)
-            description = re.sub(r'\s+', ' ', description).strip()
+            description = re.sub(r"```.*?```", "", description, flags=re.DOTALL)
+            description = re.sub(r"\n+", " ", description)
+            description = re.sub(r"\s+", " ", description).strip()
 
             # Truncate if too long
             if len(description) > 500:
@@ -180,24 +196,20 @@ class TaskFormatConverter:
 
             # Extract acceptance criteria if present
             criteria_match = re.search(
-                r'\*\*(?:Deliverables|Acceptance Criteria)\*\*:?\s*(.*?)(?=\n\n|\*\*|$)',
+                r"\*\*(?:Deliverables|Acceptance Criteria)\*\*:?\s*(.*?)(?=\n\n|\*\*|$)",
                 task_body,
-                re.DOTALL
+                re.DOTALL,
             )
 
             criteria = []
             if criteria_match:
                 criteria_text = criteria_match.group(1)
                 # Extract bullet points
-                criteria = re.findall(r'[-•✅]\s+(.+?)(?=\n|$)', criteria_text)
+                criteria = re.findall(r"[-•✅]\s+(.+?)(?=\n|$)", criteria_text)
 
             # If no criteria found, create generic ones
             if not criteria:
-                criteria = [
-                    "Implementation complete",
-                    "Tests passing",
-                    "Documentation updated"
-                ]
+                criteria = ["Implementation complete", "Tests passing", "Documentation updated"]
 
             # Infer metadata
             complexity = self.infer_complexity(task_title + " " + task_body)
@@ -208,7 +220,7 @@ class TaskFormatConverter:
 
             # Detect dependencies (simple heuristic)
             dependencies = "None"
-            if re.search(r'depend|require|after|first', task_body, re.IGNORECASE):
+            if re.search(r"depend|require|after|first", task_body, re.IGNORECASE):
                 if task_number > 1:
                     dependencies = f"`{project_slug}-task{task_number - 1}`"
 
@@ -225,7 +237,7 @@ class TaskFormatConverter:
             for criterion in criteria[:5]:  # Limit to 5 criteria
                 # Clean criterion
                 criterion = criterion.strip()
-                if criterion.startswith('✅'):
+                if criterion.startswith("✅"):
                     criterion = criterion[1:].strip()
                 task_md += f"- [ ] {criterion}\n"
 
@@ -241,8 +253,12 @@ class TaskFormatConverter:
         # Build final document
         if tasks:
             # Preserve header if present
-            header_match = re.match(r'^(#[^#].*?)(?=###)', content, re.DOTALL)
-            header = header_match.group(1).strip() if header_match else f"# {project_slug.title()} - Tasks"
+            header_match = re.match(r"^(#[^#].*?)(?=###)", content, re.DOTALL)
+            header = (
+                header_match.group(1).strip()
+                if header_match
+                else f"# {project_slug.title()} - Tasks"
+            )
 
             converted = f"{header}\n\n**Auto-converted to Autopack format**\n\n---\n\n## Tasks\n\n"
             converted += "\n".join(tasks)
@@ -260,7 +276,7 @@ class TaskFormatConverter:
         """Convert simple numbered list format (fallback)"""
         # Pattern: 1. Task name
         #          Description...
-        pattern = r'^\s*(\d+)\.\s+(.+?)(?=^\s*\d+\.|$)'
+        pattern = r"^\s*(\d+)\.\s+(.+?)(?=^\s*\d+\.|$)"
 
         matches = re.finditer(pattern, content, re.MULTILINE | re.DOTALL)
 
@@ -270,7 +286,7 @@ class TaskFormatConverter:
             task_content = match.group(2).strip()
 
             # First line is title, rest is description
-            lines = task_content.split('\n', 1)
+            lines = task_content.split("\n", 1)
             title = lines[0].strip()
             description = lines[1].strip() if len(lines) > 1 else title
 
@@ -313,7 +329,7 @@ class TaskFormatConverter:
             Path to converted file
         """
         # Read input file
-        with open(input_path, 'r', encoding='utf-8') as f:
+        with open(input_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Check if already in Autopack format
@@ -328,8 +344,8 @@ class TaskFormatConverter:
 
         # Create backup if requested
         if backup:
-            backup_path = input_path.with_suffix('.md.backup')
-            with open(backup_path, 'w', encoding='utf-8') as f:
+            backup_path = input_path.with_suffix(".md.backup")
+            with open(backup_path, "w", encoding="utf-8") as f:
                 f.write(content)
             print(f"[INFO] Backup created: {backup_path}")
 
@@ -338,7 +354,7 @@ class TaskFormatConverter:
             output_path = input_path
 
         # Write converted file
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(converted)
 
         print(f"[INFO] Converted file written: {output_path}")
@@ -350,24 +366,16 @@ def main():
     """CLI entry point for standalone usage"""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Convert narrative task files to Autopack format"
-    )
-    parser.add_argument('input_file', help='Input markdown file')
+    parser = argparse.ArgumentParser(description="Convert narrative task files to Autopack format")
+    parser.add_argument("input_file", help="Input markdown file")
     parser.add_argument(
-        '--output',
-        '-o',
-        help='Output file (default: overwrites input with backup)'
+        "--output", "-o", help="Output file (default: overwrites input with backup)"
     )
     parser.add_argument(
-        '--no-backup',
-        action='store_true',
-        help='Do not create backup of original file'
+        "--no-backup", action="store_true", help="Do not create backup of original file"
     )
     parser.add_argument(
-        '--check-only',
-        action='store_true',
-        help='Only check if file is in Autopack format'
+        "--check-only", action="store_true", help="Only check if file is in Autopack format"
     )
 
     args = parser.parse_args()
@@ -378,7 +386,7 @@ def main():
     converter = TaskFormatConverter()
 
     if args.check_only:
-        with open(input_path, 'r', encoding='utf-8') as f:
+        with open(input_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         is_autopack = converter.is_autopack_format(content)
@@ -386,11 +394,7 @@ def main():
         return 0 if is_autopack else 1
 
     try:
-        result_path = converter.convert_file(
-            input_path,
-            output_path,
-            backup=not args.no_backup
-        )
+        result_path = converter.convert_file(input_path, output_path, backup=not args.no_backup)
         print(f"[SUCCESS] Conversion complete: {result_path}")
         return 0
     except Exception as e:
@@ -400,4 +404,5 @@ def main():
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(main())

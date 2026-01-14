@@ -21,7 +21,7 @@ TASKS = [
         "phase_index": 0,
         "category": "testing",
         "complexity": "low",
-        "builder_mode": "tweak_light"
+        "builder_mode": "tweak_light",
     },
     {
         "phase_id": "fileorg-p2-frontend-build",
@@ -32,7 +32,7 @@ TASKS = [
         "phase_index": 1,
         "category": "frontend",
         "complexity": "low",
-        "builder_mode": "tweak_light"
+        "builder_mode": "tweak_light",
     },
     {
         "phase_id": "fileorg-p2-docker",
@@ -43,7 +43,7 @@ TASKS = [
         "phase_index": 0,
         "category": "deployment",
         "complexity": "medium",
-        "builder_mode": "scaffolding_heavy"
+        "builder_mode": "scaffolding_heavy",
     },
     {
         "phase_id": "fileorg-p2-country-uk",
@@ -54,7 +54,7 @@ TASKS = [
         "phase_index": 0,
         "category": "backend",
         "complexity": "medium",
-        "builder_mode": "scaffolding_heavy"
+        "builder_mode": "scaffolding_heavy",
     },
     {
         "phase_id": "fileorg-p2-country-canada",
@@ -65,7 +65,7 @@ TASKS = [
         "phase_index": 1,
         "category": "backend",
         "complexity": "medium",
-        "builder_mode": "scaffolding_heavy"
+        "builder_mode": "scaffolding_heavy",
     },
     {
         "phase_id": "fileorg-p2-country-australia",
@@ -76,7 +76,7 @@ TASKS = [
         "phase_index": 2,
         "category": "backend",
         "complexity": "medium",
-        "builder_mode": "scaffolding_heavy"
+        "builder_mode": "scaffolding_heavy",
     },
     {
         "phase_id": "fileorg-p2-search",
@@ -87,7 +87,7 @@ TASKS = [
         "phase_index": 0,
         "category": "backend",
         "complexity": "medium",
-        "builder_mode": "scaffolding_heavy"
+        "builder_mode": "scaffolding_heavy",
     },
     {
         "phase_id": "fileorg-p2-batch-upload",
@@ -98,7 +98,7 @@ TASKS = [
         "phase_index": 1,
         "category": "backend",
         "complexity": "medium",
-        "builder_mode": "scaffolding_heavy"
+        "builder_mode": "scaffolding_heavy",
     },
     {
         "phase_id": "fileorg-p2-auth",
@@ -109,9 +109,10 @@ TASKS = [
         "phase_index": 2,
         "category": "backend",
         "complexity": "high",
-        "builder_mode": "scaffolding_heavy"
-    }
+        "builder_mode": "scaffolding_heavy",
+    },
 ]
+
 
 def create_run():
     """Create run with all tasks"""
@@ -125,18 +126,20 @@ def create_run():
                 "tier_index": task["tier_index"],
                 "name": tier_id.split("-")[1],
                 "description": f"Tier {task['tier_index'] + 1}",
-                "phases": []
+                "phases": [],
             }
-        tiers[tier_id]["phases"].append({
-            "phase_id": task["phase_id"],
-            "phase_index": task["phase_index"],
-            "tier_id": tier_id,
-            "name": task["name"],
-            "description": task["description"],
-            "task_category": task["category"],
-            "complexity": task["complexity"],
-            "builder_mode": task["builder_mode"]
-        })
+        tiers[tier_id]["phases"].append(
+            {
+                "phase_id": task["phase_id"],
+                "phase_index": task["phase_index"],
+                "tier_id": tier_id,
+                "name": task["name"],
+                "description": task["description"],
+                "task_category": task["category"],
+                "complexity": task["complexity"],
+                "builder_mode": task["builder_mode"],
+            }
+        )
 
     # Flatten phases for API (expects separate flat arrays)
     all_phases = []
@@ -145,12 +148,14 @@ def create_run():
         # Extract phases from tier
         all_phases.extend(tier["phases"])
         # Create tier without nested phases
-        tier_list.append({
-            "tier_id": tier["tier_id"],
-            "tier_index": tier["tier_index"],
-            "name": tier["name"],
-            "description": tier.get("description")
-        })
+        tier_list.append(
+            {
+                "tier_id": tier["tier_id"],
+                "tier_index": tier["tier_index"],
+                "name": tier["name"],
+                "description": tier.get("description"),
+            }
+        )
 
     # Create run payload
     payload = {
@@ -160,20 +165,17 @@ def create_run():
             "run_scope": "multi_tier",
             "token_cap": 200000,
             "max_phases": 9,
-            "max_duration_minutes": 600
+            "max_duration_minutes": 600,
         },
         "tiers": tier_list,
-        "phases": all_phases
+        "phases": all_phases,
     }
 
     print(f"[INFO] Creating run: {RUN_ID}")
     print(f"[INFO] Total tasks: {len(TASKS)}")
     print(f"[INFO] Total tiers: {len(tiers)}")
 
-    response = requests.post(
-        f"{API_URL}/runs/start",
-        json=payload
-    )
+    response = requests.post(f"{API_URL}/runs/start", json=payload)
 
     if response.status_code != 201:
         print(f"[ERROR] Response: {response.status_code}")

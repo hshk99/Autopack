@@ -252,7 +252,7 @@ END;
 
 -- View: Recent build summary
 CREATE VIEW IF NOT EXISTS v_recent_builds AS
-SELECT 
+SELECT
     br.run_id,
     br.started_at,
     br.completed_at,
@@ -271,7 +271,7 @@ LIMIT 100;
 
 -- View: Phase performance summary
 CREATE VIEW IF NOT EXISTS v_phase_performance AS
-SELECT 
+SELECT
     pe.phase_id,
     pe.phase_name,
     pe.category,
@@ -289,7 +289,7 @@ GROUP BY pe.phase_id, pe.phase_name, pe.category, pe.complexity;
 
 -- View: Token usage trends
 CREATE VIEW IF NOT EXISTS v_token_usage_trends AS
-SELECT 
+SELECT
     DATE(tum.timestamp) as usage_date,
     tum.model_name,
     COUNT(*) as request_count,
@@ -305,7 +305,7 @@ ORDER BY usage_date DESC, tum.model_name;
 
 -- View: Truncation analysis
 CREATE VIEW IF NOT EXISTS v_truncation_analysis AS
-SELECT 
+SELECT
     te.phase_id,
     -- phases table uses column `name` (not `phase_name`)
     p.name AS phase_name,
@@ -323,7 +323,7 @@ ORDER BY event_count DESC;
 
 -- View: Error summary
 CREATE VIEW IF NOT EXISTS v_error_summary AS
-SELECT 
+SELECT
     el.error_category,
     el.error_type,
     el.severity,

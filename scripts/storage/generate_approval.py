@@ -73,10 +73,7 @@ def compute_report_hash(report_data: Dict[str, Any]) -> str:
     This ensures approval is tied to specific scan results.
     """
     # Stable representation of candidates (sorted by path for determinism)
-    candidates = sorted(
-        report_data["cleanup_candidates"],
-        key=lambda x: x.get("path", "")
-    )
+    candidates = sorted(report_data["cleanup_candidates"], key=lambda x: x.get("path", ""))
 
     content = {
         "scan_dir": report_data["scan_dir"],
@@ -84,10 +81,10 @@ def compute_report_hash(report_data: Dict[str, Any]) -> str:
             {
                 "path": c.get("path", ""),
                 "size_bytes": c.get("size_bytes", 0),
-                "category": c.get("category", "unknown")
+                "category": c.get("category", "unknown"),
             }
             for c in candidates
-        ]
+        ],
     }
 
     # JSON with sorted keys for stability
@@ -100,7 +97,7 @@ def generate_approval_artifacts(
     operator_name: str,
     output_path: Path,
     audit_log_path: Path,
-    expiry_days: int = 7
+    expiry_days: int = 7,
 ) -> int:
     """
     Generate approval artifacts from scan report.
@@ -148,8 +145,8 @@ def generate_approval_artifacts(
         "metadata": {
             "expiry_days": expiry_days,
             "source_report": str(report_path.resolve()),
-            "generated_by": "scripts/storage/generate_approval.py"
-        }
+            "generated_by": "scripts/storage/generate_approval.py",
+        },
     }
 
     # Write approval file
@@ -171,7 +168,7 @@ def generate_approval_artifacts(
         "approved_items_count": len(report_data["cleanup_candidates"]),
         "scan_dir": report_data["scan_dir"],
         "approval_file": str(output_path.resolve()),
-        "expires_at": approval_data["expires_at"]
+        "expires_at": approval_data["expires_at"],
     }
 
     try:
@@ -197,8 +194,10 @@ def generate_approval_artifacts(
     print()
     print("Next steps:")
     print(f"  1. Review approval file: {output_path}")
-    print(f"  2. Execute cleanup:")
-    print(f"     python scripts/storage/scan_and_report.py --dir {report_data['scan_dir']} --execute --approval-file {output_path}")
+    print("  2. Execute cleanup:")
+    print(
+        f"     python scripts/storage/scan_and_report.py --dir {report_data['scan_dir']} --execute --approval-file {output_path}"
+    )
     print("=" * 70)
 
     return 0
@@ -234,38 +233,29 @@ Examples:
 
   # 4. Execute cleanup
   python scripts/storage/scan_and_report.py --dir C:/target --execute --approval-file approval.json
-        """
+        """,
     )
 
     parser.add_argument(
-        "--report",
-        type=Path,
-        required=True,
-        help="Path to scan report JSON file (input)"
+        "--report", type=Path, required=True, help="Path to scan report JSON file (input)"
     )
     parser.add_argument(
         "--operator",
         type=str,
         required=True,
-        help="Name of operator approving cleanup (for audit trail)"
+        help="Name of operator approving cleanup (for audit trail)",
     )
     parser.add_argument(
-        "--out",
-        type=Path,
-        required=True,
-        help="Path to write approval JSON file (output)"
+        "--out", type=Path, required=True, help="Path to write approval JSON file (output)"
     )
     parser.add_argument(
         "--audit-log",
         type=Path,
         default=Path("approval_audit.log"),
-        help="Path to audit log file (default: approval_audit.log)"
+        help="Path to audit log file (default: approval_audit.log)",
     )
     parser.add_argument(
-        "--expiry-days",
-        type=int,
-        default=7,
-        help="Days until approval expires (default: 7)"
+        "--expiry-days", type=int, default=7, help="Days until approval expires (default: 7)"
     )
 
     args = parser.parse_args()
@@ -283,7 +273,7 @@ Examples:
         operator_name=args.operator.strip(),
         output_path=args.out,
         audit_log_path=args.audit_log,
-        expiry_days=args.expiry_days
+        expiry_days=args.expiry_days,
     )
 
     return exit_code

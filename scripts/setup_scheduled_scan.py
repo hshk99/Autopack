@@ -26,12 +26,13 @@ import subprocess
 from pathlib import Path
 from datetime import datetime, timedelta
 
+
 def create_scheduled_task(
     task_name: str = "Autopack_Storage_Scan",
     frequency_days: int = 14,
     start_time: str = "02:00",  # 2 AM
     notify: bool = True,
-    auto_execute: bool = False
+    auto_execute: bool = False,
 ) -> bool:
     """
     Create Windows scheduled task for storage scans.
@@ -58,47 +59,48 @@ def create_scheduled_task(
     # Build command
     cmd_parts = [
         f'cd /d "{autopack_root}"',
-        '&&',
+        "&&",
         f'"{python_exe}"',
         f'"{script_path}"',
-        '--save-to-db',
-        '--wiztree',  # Prefer WizTree for speed
+        "--save-to-db",
+        "--wiztree",  # Prefer WizTree for speed
     ]
 
     if notify:
-        cmd_parts.append('--notify')
+        cmd_parts.append("--notify")
 
     if auto_execute:
-        cmd_parts.append('--interactive')  # Interactive mode for approval
+        cmd_parts.append("--interactive")  # Interactive mode for approval
         print("⚠️  WARNING: Auto-execution enabled. This will DELETE files without manual approval!")
         confirm = input("   Type 'YES' to confirm: ")
-        if confirm != 'YES':
+        if confirm != "YES":
             print("❌ Cancelled")
             return False
 
-    cmd = ' '.join(cmd_parts)
+    cmd = " ".join(cmd_parts)
 
     # Build schtasks command
     # /SC DAILY with /MO <days> = every N days
     schtasks_cmd = [
-        'schtasks',
-        '/Create',
-        '/TN', task_name,
-        '/TR', cmd,
-        '/SC', 'DAILY',
-        '/MO', str(frequency_days),
-        '/ST', start_time,
-        '/RL', 'HIGHEST',  # Run with highest privileges
-        '/F',  # Force create (overwrite if exists)
+        "schtasks",
+        "/Create",
+        "/TN",
+        task_name,
+        "/TR",
+        cmd,
+        "/SC",
+        "DAILY",
+        "/MO",
+        str(frequency_days),
+        "/ST",
+        start_time,
+        "/RL",
+        "HIGHEST",  # Run with highest privileges
+        "/F",  # Force create (overwrite if exists)
     ]
 
     try:
-        result = subprocess.run(
-            schtasks_cmd,
-            capture_output=True,
-            text=True,
-            check=True
-        )
+        result = subprocess.run(schtasks_cmd, capture_output=True, text=True, check=True)
 
         print("")
         print("✅ Scheduled task created successfully!")
@@ -108,7 +110,7 @@ def create_scheduled_task(
         print(f"   Working directory: {autopack_root}")
         print("")
         print("Next steps:")
-        print(f"   1. View in Task Scheduler: taskschd.msc")
+        print("   1. View in Task Scheduler: taskschd.msc")
         print(f"   2. Test run: schtasks /Run /TN {task_name}")
         print(f"   3. View history: schtasks /Query /TN {task_name} /V /FO LIST")
         print("")
@@ -116,7 +118,7 @@ def create_scheduled_task(
         return True
 
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to create scheduled task")
+        print("❌ Failed to create scheduled task")
         print(f"   Error: {e.stderr}")
         print("")
         print("Common issues:")
@@ -130,14 +132,11 @@ def list_scheduled_tasks() -> None:
     """List Autopack-related scheduled tasks."""
     try:
         result = subprocess.run(
-            ['schtasks', '/Query', '/FO', 'LIST', '/V'],
-            capture_output=True,
-            text=True,
-            check=True
+            ["schtasks", "/Query", "/FO", "LIST", "/V"], capture_output=True, text=True, check=True
         )
 
         # Filter for Autopack tasks
-        lines = result.stdout.split('\n')
+        lines = result.stdout.split("\n")
         in_autopack_task = False
         task_count = 0
 
@@ -148,7 +147,7 @@ def list_scheduled_tasks() -> None:
         print("")
 
         for line in lines:
-            if 'Autopack' in line:
+            if "Autopack" in line:
                 in_autopack_task = True
                 task_count += 1
 
@@ -156,7 +155,7 @@ def list_scheduled_tasks() -> None:
                 print(line)
 
             # Empty line marks end of task block
-            if in_autopack_task and line.strip() == '':
+            if in_autopack_task and line.strip() == "":
                 in_autopack_task = False
                 print("")  # Extra separator
 
@@ -178,22 +177,22 @@ def delete_scheduled_task(task_name: str = "Autopack_Storage_Scan") -> bool:
         print(f"⚠️  This will delete the scheduled task: {task_name}")
         confirm = input("   Type 'YES' to confirm: ")
 
-        if confirm != 'YES':
+        if confirm != "YES":
             print("❌ Cancelled")
             return False
 
         subprocess.run(
-            ['schtasks', '/Delete', '/TN', task_name, '/F'],
+            ["schtasks", "/Delete", "/TN", task_name, "/F"],
             capture_output=True,
             text=True,
-            check=True
+            check=True,
         )
 
         print(f"✅ Scheduled task '{task_name}' deleted")
         return True
 
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to delete task")
+        print("❌ Failed to delete task")
         print(f"   Error: {e.stderr}")
         print("")
         print("Possible reasons:")
@@ -210,24 +209,21 @@ def run_task(task_name: str = "Autopack_Storage_Scan") -> bool:
         print("")
 
         result = subprocess.run(
-            ['schtasks', '/Run', '/TN', task_name],
-            capture_output=True,
-            text=True,
-            check=True
+            ["schtasks", "/Run", "/TN", task_name], capture_output=True, text=True, check=True
         )
 
         print("✅ Task triggered successfully")
         print("")
         print("Monitor progress:")
-        print(f"   1. Check logs: .autopack/logs/storage_scan.log")
-        print(f"   2. View in Task Scheduler: taskschd.msc")
-        print(f"   3. Check database: SELECT * FROM storage_scans ORDER BY timestamp DESC LIMIT 1;")
+        print("   1. Check logs: .autopack/logs/storage_scan.log")
+        print("   2. View in Task Scheduler: taskschd.msc")
+        print("   3. Check database: SELECT * FROM storage_scans ORDER BY timestamp DESC LIMIT 1;")
         print("")
 
         return True
 
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to run task")
+        print("❌ Failed to run task")
         print(f"   Error: {e.stderr}")
         return False
 
@@ -236,10 +232,10 @@ def show_task_history(task_name: str = "Autopack_Storage_Scan") -> None:
     """Show execution history for task."""
     try:
         result = subprocess.run(
-            ['schtasks', '/Query', '/TN', task_name, '/V', '/FO', 'LIST'],
+            ["schtasks", "/Query", "/TN", task_name, "/V", "/FO", "LIST"],
             capture_output=True,
             text=True,
-            check=True
+            check=True,
         )
 
         print("")
@@ -279,20 +275,28 @@ Examples:
 
     # View task history
     python scripts/setup_scheduled_scan.py --history
-        """
+        """,
     )
 
-    parser.add_argument('--create', action='store_true', help="Create scheduled task")
-    parser.add_argument('--delete', action='store_true', help="Delete scheduled task")
-    parser.add_argument('--list', action='store_true', help="List scheduled tasks")
-    parser.add_argument('--run', action='store_true', help="Manually run task (test)")
-    parser.add_argument('--history', action='store_true', help="Show task execution history")
+    parser.add_argument("--create", action="store_true", help="Create scheduled task")
+    parser.add_argument("--delete", action="store_true", help="Delete scheduled task")
+    parser.add_argument("--list", action="store_true", help="List scheduled tasks")
+    parser.add_argument("--run", action="store_true", help="Manually run task (test)")
+    parser.add_argument("--history", action="store_true", help="Show task execution history")
 
-    parser.add_argument('--task-name', default='Autopack_Storage_Scan', help="Task name (default: Autopack_Storage_Scan)")
-    parser.add_argument('--frequency-days', type=int, default=14, help="Run every N days (default: 14)")
-    parser.add_argument('--start-time', default='02:00', help="Start time HH:MM (default: 02:00)")
-    parser.add_argument('--no-notify', action='store_true', help="Disable Telegram notifications")
-    parser.add_argument('--auto-execute', action='store_true', help="DANGER: Auto-execute approved deletions")
+    parser.add_argument(
+        "--task-name",
+        default="Autopack_Storage_Scan",
+        help="Task name (default: Autopack_Storage_Scan)",
+    )
+    parser.add_argument(
+        "--frequency-days", type=int, default=14, help="Run every N days (default: 14)"
+    )
+    parser.add_argument("--start-time", default="02:00", help="Start time HH:MM (default: 02:00)")
+    parser.add_argument("--no-notify", action="store_true", help="Disable Telegram notifications")
+    parser.add_argument(
+        "--auto-execute", action="store_true", help="DANGER: Auto-execute approved deletions"
+    )
 
     args = parser.parse_args()
 
@@ -313,7 +317,7 @@ Examples:
             frequency_days=args.frequency_days,
             start_time=args.start_time,
             notify=not args.no_notify,
-            auto_execute=args.auto_execute
+            auto_execute=args.auto_execute,
         )
         sys.exit(0 if success else 1)
 

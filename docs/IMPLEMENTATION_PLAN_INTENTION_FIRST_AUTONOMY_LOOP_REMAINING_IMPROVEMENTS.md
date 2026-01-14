@@ -295,5 +295,3 @@ The following must remain mechanically enforced:
 - SOT write protection:
   - `python scripts/check_sot_write_protection.py`
 - CI must not run apply; it must be read-only.
-
-

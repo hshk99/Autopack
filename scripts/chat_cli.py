@@ -28,7 +28,13 @@ def format_results(results: dict) -> str:
         lines.append(f"{key.upper()}:")
         for item in items[:3]:
             payload = item.get("payload", {})
-            preview = payload.get("summary") or payload.get("hint") or payload.get("error_text") or payload.get("choice") or str(payload)[:200]
+            preview = (
+                payload.get("summary")
+                or payload.get("hint")
+                or payload.get("error_text")
+                or payload.get("choice")
+                or str(payload)[:200]
+            )
             lines.append(f"  - {preview}")
     return "\n".join(lines)
 
@@ -37,7 +43,9 @@ def main():
     parser = argparse.ArgumentParser(description="Read-only memory chat/CLI router")
     parser.add_argument("--project-id", default="autopack", help="Project scope for retrieval")
     parser.add_argument("--query", required=True, help="Natural language query")
-    parser.add_argument("--show-plan-changes", action="store_true", help="Also print latest plan changes from DB")
+    parser.add_argument(
+        "--show-plan-changes", action="store_true", help="Also print latest plan changes from DB"
+    )
     args = parser.parse_args()
 
     mem = MemoryService()
@@ -81,4 +89,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

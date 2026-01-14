@@ -108,7 +108,7 @@ def select_initial_tier(phase_spec: Dict) -> int:
     Select starting tier based on phase complexity.
     """
     complexity = phase_spec.get('complexity', 'medium')
-    
+
     if complexity == 'high':
         return 1  # Start with Tier 1
     elif complexity == 'medium':
@@ -131,7 +131,7 @@ def validate_token_budget(model: str, estimated_tokens: int) -> bool:
         'claude-3-haiku-20240307': 100000,
         'gpt-3.5-turbo-16k': 16000
     }
-    
+
     limit = model_limits.get(model, 100000)
     return estimated_tokens <= limit * 0.85  # 85% safety margin
 ```
@@ -152,7 +152,7 @@ def calculate_cost_score(model: str, phase_spec: Dict) -> float:
         'claude-3-haiku-20240307': 0.25,
         'gpt-3.5-turbo-16k': 0.5
     }
-    
+
     # Capability scores (0-1)
     capabilities = {
         'claude-3-opus-20240229': 1.0,
@@ -161,10 +161,10 @@ def calculate_cost_score(model: str, phase_spec: Dict) -> float:
         'claude-3-haiku-20240307': 0.6,
         'gpt-3.5-turbo-16k': 0.5
     }
-    
+
     cost = costs.get(model, 5.0)
     capability = capabilities.get(model, 0.7)
-    
+
     # Score = capability / cost (higher is better)
     return capability / cost
 ```
@@ -178,23 +178,23 @@ def select_model(phase_spec: Dict, estimated_tokens: int) -> str:
     """
     tier = select_initial_tier(phase_spec)
     tier_models = get_tier_models(tier)
-    
+
     # Filter by token budget
     valid_models = [
         m for m in tier_models
         if validate_token_budget(m, estimated_tokens)
     ]
-    
+
     if not valid_models:
         # Escalate to higher tier
         return escalate_tier(tier, estimated_tokens)
-    
+
     # Select best cost-benefit ratio
     best_model = max(
         valid_models,
         key=lambda m: calculate_cost_score(m, phase_spec)
     )
-    
+
     return best_model
 ```
 
@@ -217,20 +217,20 @@ def escalate_tier(current_tier: int, estimated_tokens: int) -> str:
     if current_tier >= 1:
         # Already at highest tier
         raise ValueError("Cannot escalate beyond Tier 1")
-    
+
     # Move up one tier
     next_tier = current_tier - 1
     tier_models = get_tier_models(next_tier)
-    
+
     # Find first model that can handle tokens
     for model in tier_models:
         if validate_token_budget(model, estimated_tokens):
             return model
-    
+
     # If still insufficient, try Tier 1
     if next_tier > 1:
         return escalate_tier(next_tier, estimated_tokens)
-    
+
     raise ValueError("No model can handle token requirement")
 ```
 
@@ -268,16 +268,16 @@ Robust fallback handling ensures continuous operation:
 FALLBACK_CHAIN = [
     # Primary: Try selected model
     lambda: selected_model,
-    
+
     # Fallback 1: Try alternative in same tier
     lambda: get_tier_alternative(selected_model),
-    
+
     # Fallback 2: Try previous tier (if escalated)
     lambda: get_previous_tier_model(selected_model),
-    
+
     # Fallback 3: Try any available model
     lambda: get_any_available_model(),
-    
+
     # Fallback 4: Fail gracefully
     lambda: None
 ]
@@ -292,19 +292,19 @@ def handle_rate_limit(model: str, retry_after: int) -> str:
     """
     tier = get_model_tier(model)
     tier_models = get_tier_models(tier)
-    
+
     # Try other models in same tier
     for alternative in tier_models:
         if alternative != model and is_available(alternative):
             return alternative
-    
+
     # Fall back to lower tier if needed
     if tier < 3:
         lower_tier_models = get_tier_models(tier + 1)
         for fallback in lower_tier_models:
             if is_available(fallback):
                 return fallback
-    
+
     # Wait and retry original model
     time.sleep(retry_after)
     return model
@@ -533,12 +533,12 @@ def analyze_escalations(execution_history):
     Find phases that frequently escalate.
     """
     escalation_rate = {}
-    
+
     for phase in execution_history:
         category = phase['category']
         if phase['model_tier'] > phase['initial_tier']:
             escalation_rate[category] = escalation_rate.get(category, 0) + 1
-    
+
     # Adjust default complexity for high-escalation categories
     for category, count in escalation_rate.items():
         if count > 5:
@@ -556,12 +556,12 @@ def track_model_costs(phase_result):
     """
     model = phase_result['model']
     tokens_used = phase_result['token_usage']
-    
+
     cost_per_million = MODEL_COSTS[model]
     phase_cost = (tokens_used / 1_000_000) * cost_per_million
-    
+
     log_metric('phase_cost', phase_cost, {'model': model})
-    
+
     return phase_cost
 ```
 
@@ -599,14 +599,14 @@ def test_model_selection():
         estimated_tokens=5000
     )
     assert get_model_tier(result) == 3
-    
+
     # Test 2: High tokens → Escalation
     result = select_model(
         {'complexity': 'medium'},
         estimated_tokens=180000
     )
     assert get_model_tier(result) == 1
-    
+
     # Test 3: Cost optimization
     result = select_model(
         {'complexity': 'medium'},

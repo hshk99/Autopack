@@ -16,6 +16,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def migrate():
     """Add goal_anchor column to runs table"""
     logger.info("Adding goal_anchor column to runs table...")
@@ -49,6 +50,7 @@ def migrate():
         raise
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     migrate()

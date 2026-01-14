@@ -54,7 +54,7 @@ def run_migration(db_path: Path, migration_file: Path, dry_run: bool = False):
 
     # Read migration SQL
     try:
-        sql = migration_file.read_text(encoding='utf-8')
+        sql = migration_file.read_text(encoding="utf-8")
     except Exception as e:
         print(f"[ERROR] Failed to read migration file: {e}")
         return False
@@ -86,14 +86,10 @@ def run_migration(db_path: Path, migration_file: Path, dry_run: bool = False):
 def main():
     parser = argparse.ArgumentParser(description="Run database migrations")
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Print migrations without executing them"
+        "--dry-run", action="store_true", help="Print migrations without executing them"
     )
     parser.add_argument(
-        "--db",
-        type=str,
-        help="Database path (default: autopack.db in current directory)"
+        "--db", type=str, help="Database path (default: autopack.db in current directory)"
     )
     parser.add_argument(
         "--include-scripts",

@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -33,6 +34,50 @@ from ..version import __version__
 from .deps import limiter
 
 logger = logging.getLogger(__name__)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all responses.
+
+    Implements defense against:
+    - MIME sniffing (X-Content-Type-Options)
+    - Clickjacking (X-Frame-Options, frame-ancestors CSP directive)
+    - XSS attacks (X-XSS-Protection, Content-Security-Policy)
+    - Referrer leakage (Referrer-Policy)
+    - Unintended feature access (Permissions-Policy)
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        """Process request and add security headers to response."""
+        response = await call_next(request)
+
+        # Prevent MIME sniffing attacks
+        response.headers["X-Content-Type-Options"] = "nosniff"
+
+        # Prevent clickjacking
+        response.headers["X-Frame-Options"] = "DENY"
+
+        # XSS protection (legacy header for older browsers)
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+
+        # Content Security Policy - comprehensive protection against XSS and injection
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: https:; "
+            "font-src 'self'; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none';"
+        )
+
+        # Referrer policy - prevent leaking sensitive URL information
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+        # Permissions policy - restrict browser APIs
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+
+        return response
 
 
 async def approval_timeout_cleanup():
@@ -270,6 +315,10 @@ def create_app() -> FastAPI:
             allow_headers=["*"],
             max_age=600,  # Cache preflight responses for 10 minutes
         )
+
+    # IMP-S05: Add security headers middleware
+    # Must be added after CORS to allow CORS preflight to work properly
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # Add rate limiting to app
     app.state.limiter = limiter

@@ -56,7 +56,7 @@ _startup_logger.debug(
 # Note: We still create the app here (not via create_app()) to keep all routes
 # defined in main.py until router extraction is complete (PR-API-3+).
 # This keeps the canonical entrypoint `uvicorn autopack.main:app` working.
-from .api.app import lifespan, global_exception_handler
+from .api.app import lifespan, global_exception_handler, SecurityHeadersMiddleware
 
 import logging
 
@@ -85,6 +85,10 @@ if _cors_origins:
         allow_headers=["*"],
         max_age=600,  # Cache preflight responses for 10 minutes
     )
+
+# IMP-S05: Add security headers middleware
+# Must be added after CORS to allow CORS preflight to work properly
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Add rate limiting to app
 app.state.limiter = limiter

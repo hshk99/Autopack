@@ -29,3 +29,9 @@ description = "Production auth requirement test fixtures"
 paths = [
     '''tests/ci/test_production_auth_requirement\.py$''',
 ]
+
+[[allowlists]]
+description = "Comprehensive .env.example documentation (commented example secrets)"
+paths = [
+    '''^\.env\.example$''',
+]

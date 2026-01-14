@@ -12,6 +12,7 @@ from sqlalchemy import (
     Enum as SQLEnum,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     Integer,
     JSON,
     String,
@@ -112,6 +113,9 @@ class Run(Base):
     # Goal anchor for drift detection (per IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md)
     goal_anchor = Column(Text, nullable=True)  # Short text describing the run's goal
 
+    # Composite indexes for high-traffic queries
+    __table_args__ = (Index("ix_runs_state_created", "state", "created_at"),)
+
     # Relationships
     tiers = relationship("Tier", back_populates="run", cascade="all, delete-orphan")
     phases = relationship("Phase", back_populates="run", cascade="all, delete-orphan")
@@ -174,6 +178,9 @@ class Phase(Base):
         # Many subsystems (including TokenEstimationV2 DB telemetry) need a stable phase identifier.
         # Enforce uniqueness at the (run_id, phase_id) level.
         UniqueConstraint("run_id", "phase_id", name="uq_phases_run_id_phase_id"),
+        # Composite indexes for high-traffic queries
+        Index("ix_phases_run_state", "run_id", "state"),
+        Index("ix_phases_state_started", "state", "started_at"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -398,6 +405,9 @@ class TokenEstimationV2Event(Base):
             ondelete="CASCADE",
             name="fk_token_est_v2_run_phase",
         ),
+        # Composite indexes for high-traffic telemetry queries
+        Index("ix_telemetry_run_category", "run_id", "category"),
+        Index("ix_telemetry_category_timestamp", "category", "timestamp"),
     )
 
     id = Column(Integer, primary_key=True, index=True, name="event_id")
@@ -474,6 +484,9 @@ class TokenBudgetEscalationEvent(Base):
             ondelete="CASCADE",
             name="fk_token_budget_escalation_run_phase",
         ),
+        # Composite indexes for escalation event queries
+        Index("ix_escalation_run_timestamp", "run_id", "timestamp"),
+        Index("ix_escalation_reason_timestamp", "reason", "timestamp"),
     )
 
     id = Column(Integer, primary_key=True, index=True, name="event_id")
@@ -525,6 +538,9 @@ class SOTRetrievalEvent(Base):
             ondelete="CASCADE",
             name="fk_sot_retrieval_run_phase",
         ),
+        # Composite indexes for SOT retrieval queries
+        Index("ix_sot_run_include", "run_id", "include_sot"),
+        Index("ix_sot_include_timestamp", "include_sot", "timestamp"),
     )
 
     id = Column(Integer, primary_key=True, index=True, name="event_id")

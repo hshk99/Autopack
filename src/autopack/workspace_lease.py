@@ -77,16 +77,10 @@ class WorkspaceLease:
         """
         try:
             # Open lock file for writing using os.open to get fd directly
-            self._lock_fd = os.open(
-                self.lock_file_path, os.O_CREAT | os.O_WRONLY | os.O_TRUNC
-            )
+            self._lock_fd = os.open(self.lock_file_path, os.O_CREAT | os.O_WRONLY | os.O_TRUNC)
 
             # Write current executor info for debugging
-            debug_info = (
-                f"{self.executor_id}\n"
-                f"{self.workspace_path}\n"
-                f"{os.getcwd()}\n"
-            )
+            debug_info = f"{self.executor_id}\n" f"{self.workspace_path}\n" f"{os.getcwd()}\n"
             os.write(self._lock_fd, debug_info.encode())
 
             # Try to acquire exclusive lock (non-blocking)

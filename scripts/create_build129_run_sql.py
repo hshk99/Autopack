@@ -35,27 +35,29 @@ BUILD_129_PLAN = {
             ),
             "complexity": "medium",
             "task_category": "backend",
-            "scope": json.dumps({
-                "deliverables": [
-                    "src/autopack/token_estimator.py",
-                    "src/autopack/anthropic_clients.py modifications",
-                    "src/autopack/manifest_generator.py modifications",
-                    "tests/test_token_estimator.py",
-                    "docs/BUILD-129_PHASE1_OUTPUT_SIZE_PREDICTOR.md"
-                ],
-                "protected_paths": [
-                    "src/autopack/autonomous_executor.py",
-                    "src/autopack/models.py",
-                    "src/frontend/"
-                ],
-                "read_only_context": [
-                    "docs/TOKEN_BUDGET_ANALYSIS_REVISED.md",
-                    "docs/BUILD-129_SELF_IMPROVEMENT_PLAN.md",
-                    "src/autopack/deliverables_validator.py"
-                ]
-            })
+            "scope": json.dumps(
+                {
+                    "deliverables": [
+                        "src/autopack/token_estimator.py",
+                        "src/autopack/anthropic_clients.py modifications",
+                        "src/autopack/manifest_generator.py modifications",
+                        "tests/test_token_estimator.py",
+                        "docs/BUILD-129_PHASE1_OUTPUT_SIZE_PREDICTOR.md",
+                    ],
+                    "protected_paths": [
+                        "src/autopack/autonomous_executor.py",
+                        "src/autopack/models.py",
+                        "src/frontend/",
+                    ],
+                    "read_only_context": [
+                        "docs/TOKEN_BUDGET_ANALYSIS_REVISED.md",
+                        "docs/BUILD-129_SELF_IMPROVEMENT_PLAN.md",
+                        "src/autopack/deliverables_validator.py",
+                    ],
+                }
+            ),
         }
-    ]
+    ],
 }
 
 
@@ -70,36 +72,49 @@ def main():
     try:
         # Create run
         run_id = BUILD_129_PLAN["run_id"]
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO runs (run_id, display_name, goal, state, created_at)
             VALUES (?, ?, ?, 'READY', ?)
-        """, (run_id, BUILD_129_PLAN["display_name"], BUILD_129_PLAN["goal"], datetime.utcnow().isoformat()))
+        """,
+            (
+                run_id,
+                BUILD_129_PLAN["display_name"],
+                BUILD_129_PLAN["goal"],
+                datetime.utcnow().isoformat(),
+            ),
+        )
 
         # Create phases
         for idx, phase in enumerate(BUILD_129_PLAN["phases"]):
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR REPLACE INTO phases (
                     phase_id, run_id, display_name, goal, state,
                     phase_index, complexity, task_category, scope
                 )
                 VALUES (?, ?, ?, ?, 'QUEUED', ?, ?, ?, ?)
-            """, (
-                phase["phase_id"],
-                run_id,
-                phase["display_name"],
-                phase["goal"],
-                idx,
-                phase["complexity"],
-                phase["task_category"],
-                phase["scope"]
-            ))
+            """,
+                (
+                    phase["phase_id"],
+                    run_id,
+                    phase["display_name"],
+                    phase["goal"],
+                    idx,
+                    phase["complexity"],
+                    phase["task_category"],
+                    phase["scope"],
+                ),
+            )
 
         conn.commit()
         print(f"✅ Created run: {run_id}")
         print(f"✅ Created {len(BUILD_129_PLAN['phases'])} phase(s)")
         print()
         print("Start execution:")
-        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL='sqlite:///autopack.db' python -m autopack.autonomous_executor {run_id}")
+        print(
+            f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL='sqlite:///autopack.db' python -m autopack.autonomous_executor {run_id}"
+        )
 
     except Exception as e:
         print(f"❌ Error: {e}")

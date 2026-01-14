@@ -37,6 +37,7 @@ def main():
         sys.exit(1)
 
     import json
+
     payload = json.loads(payload_path.read_text(encoding="utf-8"))
 
     # inject run_id into payload if not present
@@ -52,9 +53,8 @@ def main():
 
     print(f"[SUCCESS] Run created: {args.run_id}")
     print(f"[INFO] Suggested local output dir: {out_dir}")
-    print(f"[INFO] Launch executor with this run-id using that output dir for artifacts/logs.")
+    print("[INFO] Launch executor with this run-id using that output dir for artifacts/logs.")
 
 
 if __name__ == "__main__":
     main()
-

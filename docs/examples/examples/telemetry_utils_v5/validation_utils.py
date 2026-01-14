@@ -15,17 +15,17 @@ from urllib.parse import urlparse
 
 def is_email(email: str) -> bool:
     """Validate if a string is a valid email address.
-    
+
     Uses a regular expression to check if the string matches a basic
     email format (local@domain). This is a simplified validation and
     may not catch all edge cases.
-    
+
     Args:
         email: The string to validate as an email address
-        
+
     Returns:
         True if the string is a valid email format, False otherwise
-        
+
     Examples:
         >>> is_email('user@example.com')
         True
@@ -42,28 +42,28 @@ def is_email(email: str) -> bool:
     """
     if not email or not isinstance(email, str):
         return False
-    
+
     # Basic email pattern: local-part@domain
     # Local part: alphanumeric, dots, hyphens, underscores
     # Domain: alphanumeric, dots, hyphens, must have at least one dot
-    pattern = r'^[a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    
+    pattern = r"^[a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+
     return bool(re.match(pattern, email))
 
 
 def is_url(url: str, require_scheme: bool = True) -> bool:
     """Validate if a string is a valid URL.
-    
+
     Checks if the string is a properly formatted URL. Can optionally
     require a scheme (http://, https://, etc.).
-    
+
     Args:
         url: The string to validate as a URL
         require_scheme: If True, URL must have a scheme (default: True)
-        
+
     Returns:
         True if the string is a valid URL format, False otherwise
-        
+
     Examples:
         >>> is_url('https://www.example.com')
         True
@@ -82,24 +82,24 @@ def is_url(url: str, require_scheme: bool = True) -> bool:
     """
     if not url or not isinstance(url, str):
         return False
-    
+
     try:
         result = urlparse(url)
-        
+
         # Check if scheme is present when required
         if require_scheme and not result.scheme:
             return False
-        
+
         # Must have a netloc (domain) or path
         if not result.netloc and not result.path:
             return False
-        
+
         # If no scheme required, check for basic domain pattern
         if not require_scheme and not result.scheme:
             # Simple check for domain-like pattern
-            domain_pattern = r'^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
-            return bool(re.match(domain_pattern, url.split('/')[0]))
-        
+            domain_pattern = r"^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+            return bool(re.match(domain_pattern, url.split("/")[0]))
+
         return True
     except Exception:
         return False
@@ -107,16 +107,16 @@ def is_url(url: str, require_scheme: bool = True) -> bool:
 
 def is_int(value: str) -> bool:
     """Check if a string can be converted to an integer.
-    
+
     Attempts to convert the string to an integer and returns True if
     successful, False otherwise. Handles negative numbers and whitespace.
-    
+
     Args:
         value: The string to check
-        
+
     Returns:
         True if the string can be converted to an integer, False otherwise
-        
+
     Examples:
         >>> is_int('123')
         True
@@ -135,7 +135,7 @@ def is_int(value: str) -> bool:
     """
     if not isinstance(value, str):
         return False
-    
+
     try:
         int(value)
         return True
@@ -145,17 +145,17 @@ def is_int(value: str) -> bool:
 
 def is_float(value: str) -> bool:
     """Check if a string can be converted to a float.
-    
+
     Attempts to convert the string to a float and returns True if
     successful, False otherwise. Handles negative numbers, decimals,
     scientific notation, and whitespace.
-    
+
     Args:
         value: The string to check
-        
+
     Returns:
         True if the string can be converted to a float, False otherwise
-        
+
     Examples:
         >>> is_float('123.45')
         True
@@ -176,7 +176,7 @@ def is_float(value: str) -> bool:
     """
     if not isinstance(value, str):
         return False
-    
+
     try:
         float(value)
         return True
@@ -184,23 +184,26 @@ def is_float(value: str) -> bool:
         return False
 
 
-def validate_range(value: Union[int, float], min_value: Optional[Union[int, float]] = None,
-                   max_value: Optional[Union[int, float]] = None,
-                   inclusive: bool = True) -> bool:
+def validate_range(
+    value: Union[int, float],
+    min_value: Optional[Union[int, float]] = None,
+    max_value: Optional[Union[int, float]] = None,
+    inclusive: bool = True,
+) -> bool:
     """Validate if a number is within a specified range.
-    
+
     Checks if a numeric value falls within the specified minimum and maximum
     bounds. Can be inclusive or exclusive of the bounds.
-    
+
     Args:
         value: The numeric value to validate
         min_value: Optional minimum bound (None means no minimum)
         max_value: Optional maximum bound (None means no maximum)
         inclusive: If True, bounds are inclusive; if False, exclusive (default: True)
-        
+
     Returns:
         True if the value is within the specified range, False otherwise
-        
+
     Examples:
         >>> validate_range(5, min_value=0, max_value=10)
         True
@@ -221,7 +224,7 @@ def validate_range(value: Union[int, float], min_value: Optional[Union[int, floa
     """
     if not isinstance(value, (int, float)):
         return False
-    
+
     # Check minimum bound
     if min_value is not None:
         if inclusive:
@@ -230,7 +233,7 @@ def validate_range(value: Union[int, float], min_value: Optional[Union[int, floa
         else:
             if value <= min_value:
                 return False
-    
+
     # Check maximum bound
     if max_value is not None:
         if inclusive:
@@ -239,5 +242,5 @@ def validate_range(value: Union[int, float], min_value: Optional[Union[int, floa
         else:
             if value >= max_value:
                 return False
-    
+
     return True

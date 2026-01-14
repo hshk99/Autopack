@@ -32,8 +32,10 @@ import shutil
 # Data Models (Simplified for Prototype)
 # ==============================================================================
 
+
 class ScanResult:
     """Result from disk scan."""
+
     def __init__(self, path: str, size_bytes: int, modified: datetime, is_folder: bool):
         self.path = path
         self.size_bytes = size_bytes
@@ -48,6 +50,7 @@ class ScanResult:
 # ==============================================================================
 # WizTree Scanner
 # ==============================================================================
+
 
 class WizTreeScanner:
     """WizTree CLI wrapper."""
@@ -86,7 +89,12 @@ class WizTreeScanner:
             raise RuntimeError("WizTree not available")
 
         # Create output CSV path
-        output_csv = Path.home() / ".autopack" / "cache" / f"wiztree_scan_{drive_letter}_{int(time.time())}.csv"
+        output_csv = (
+            Path.home()
+            / ".autopack"
+            / "cache"
+            / f"wiztree_scan_{drive_letter}_{int(time.time())}.csv"
+        )
         output_csv.parent.mkdir(parents=True, exist_ok=True)
 
         print(f"[WizTree] Scanning {drive_letter}: drive...")
@@ -97,7 +105,7 @@ class WizTreeScanner:
             str(self.wiztree_path),
             f"{drive_letter}:\\",
             f"/export={output_csv}",
-            "/admin=0"  # Don't require admin (faster)
+            "/admin=0",  # Don't require admin (faster)
         ]
 
         start_time = time.time()
@@ -109,7 +117,7 @@ class WizTreeScanner:
                 capture_output=True,
                 text=True,
                 timeout=600,  # 10 minute timeout
-                check=True
+                check=True,
             )
 
             elapsed = time.time() - start_time
@@ -122,7 +130,7 @@ class WizTreeScanner:
             return results
 
         except subprocess.TimeoutExpired:
-            print(f"[WizTree] ERROR: Scan timed out")
+            print("[WizTree] ERROR: Scan timed out")
             raise
         except subprocess.CalledProcessError as e:
             print(f"[WizTree] ERROR: Scan failed: {e.stderr}")
@@ -136,24 +144,26 @@ class WizTreeScanner:
         results = []
 
         try:
-            with open(csv_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(csv_path, "r", encoding="utf-8", errors="ignore") as f:
                 reader = csv.DictReader(f)
 
                 for row in reader:
                     try:
                         # Parse timestamp
-                        modified_str = row.get('Modified', '')
+                        modified_str = row.get("Modified", "")
                         try:
-                            modified = datetime.strptime(modified_str, '%Y-%m-%d %H:%M:%S')
+                            modified = datetime.strptime(modified_str, "%Y-%m-%d %H:%M:%S")
                         except ValueError:
                             modified = datetime.now()
 
-                        results.append(ScanResult(
-                            path=row['File Name'],
-                            size_bytes=int(row['Size']),
-                            modified=modified,
-                            is_folder=row['Attributes'].startswith('d')
-                        ))
+                        results.append(
+                            ScanResult(
+                                path=row["File Name"],
+                                size_bytes=int(row["Size"]),
+                                modified=modified,
+                                is_folder=row["Attributes"].startswith("d"),
+                            )
+                        )
                     except (ValueError, KeyError) as e:
                         # Skip malformed rows
                         continue
@@ -168,6 +178,7 @@ class WizTreeScanner:
 # ==============================================================================
 # Python Fallback Scanner
 # ==============================================================================
+
 
 class PythonScanner:
     """Python-based fallback scanner."""
@@ -193,7 +204,11 @@ class PythonScanner:
                     continue
 
                 # Skip system/protected folders
-                dirnames[:] = [d for d in dirnames if not d.startswith('$') and d.lower() not in ['system volume information']]
+                dirnames[:] = [
+                    d
+                    for d in dirnames
+                    if not d.startswith("$") and d.lower() not in ["system volume information"]
+                ]
 
                 # Add folders
                 for dirname in dirnames:
@@ -201,12 +216,14 @@ class PythonScanner:
                     try:
                         stat = full_path.stat()
                         size = self._estimate_dir_size(full_path, max_depth=1)  # Quick estimate
-                        results.append(ScanResult(
-                            path=str(full_path),
-                            size_bytes=size,
-                            modified=datetime.fromtimestamp(stat.st_mtime),
-                            is_folder=True
-                        ))
+                        results.append(
+                            ScanResult(
+                                path=str(full_path),
+                                size_bytes=size,
+                                modified=datetime.fromtimestamp(stat.st_mtime),
+                                is_folder=True,
+                            )
+                        )
                     except (PermissionError, FileNotFoundError):
                         continue
 
@@ -216,12 +233,14 @@ class PythonScanner:
                         full_path = Path(dirpath) / filename
                         try:
                             stat = full_path.stat()
-                            results.append(ScanResult(
-                                path=str(full_path),
-                                size_bytes=stat.st_size,
-                                modified=datetime.fromtimestamp(stat.st_mtime),
-                                is_folder=False
-                            ))
+                            results.append(
+                                ScanResult(
+                                    path=str(full_path),
+                                    size_bytes=stat.st_size,
+                                    modified=datetime.fromtimestamp(stat.st_mtime),
+                                    is_folder=False,
+                                )
+                            )
                         except (PermissionError, FileNotFoundError):
                             continue
 
@@ -257,6 +276,7 @@ class PythonScanner:
 # Simple Classifier (Prototype)
 # ==============================================================================
 
+
 class SimpleClassifier:
     """Basic file classification for prototype."""
 
@@ -266,60 +286,68 @@ class SimpleClassifier:
         path_lower = scan_result.path.lower()
 
         # Developer artifacts
-        if 'node_modules' in path_lower and scan_result.is_folder:
+        if "node_modules" in path_lower and scan_result.is_folder:
             return {
-                'category': 'dev_artifacts',
-                'subcategory': 'node_modules',
-                'confidence': 'high',
-                'safe': 'review',  # Requires approval
-                'reason': 'Node.js dependencies folder'
+                "category": "dev_artifacts",
+                "subcategory": "node_modules",
+                "confidence": "high",
+                "safe": "review",  # Requires approval
+                "reason": "Node.js dependencies folder",
             }
 
-        if scan_result.is_folder and Path(scan_result.path).name.lower() in ['venv', '.venv', 'virtualenv']:
+        if scan_result.is_folder and Path(scan_result.path).name.lower() in [
+            "venv",
+            ".venv",
+            "virtualenv",
+        ]:
             return {
-                'category': 'dev_artifacts',
-                'subcategory': 'python_venv',
-                'confidence': 'high',
-                'safe': 'review',
-                'reason': 'Python virtual environment'
+                "category": "dev_artifacts",
+                "subcategory": "python_venv",
+                "confidence": "high",
+                "safe": "review",
+                "reason": "Python virtual environment",
             }
 
         # Temp files
-        if any(pattern in path_lower for pattern in ['\\temp\\', '\\tmp\\', 'appdata\\local\\temp']):
+        if any(
+            pattern in path_lower for pattern in ["\\temp\\", "\\tmp\\", "appdata\\local\\temp"]
+        ):
             age_days = (datetime.now() - scan_result.modified).days
             if age_days >= 7:
                 return {
-                    'category': 'temp_files',
-                    'confidence': 'high',
-                    'safe': 'safe',
-                    'reason': f'Temp file/folder older than 7 days (age: {age_days} days)'
+                    "category": "temp_files",
+                    "confidence": "high",
+                    "safe": "safe",
+                    "reason": f"Temp file/folder older than 7 days (age: {age_days} days)",
                 }
 
         # Browser cache
-        if 'cache' in path_lower and any(browser in path_lower for browser in ['chrome', 'edge', 'firefox']):
+        if "cache" in path_lower and any(
+            browser in path_lower for browser in ["chrome", "edge", "firefox"]
+        ):
             return {
-                'category': 'browser_cache',
-                'confidence': 'high',
-                'safe': 'safe',
-                'reason': 'Browser cache folder'
+                "category": "browser_cache",
+                "confidence": "high",
+                "safe": "safe",
+                "reason": "Browser cache folder",
             }
 
         # Windows Update
-        if 'softwaredistribution\\download' in path_lower:
+        if "softwaredistribution\\download" in path_lower:
             return {
-                'category': 'windows_update',
-                'confidence': 'high',
-                'safe': 'safe',
-                'reason': 'Windows Update download cache'
+                "category": "windows_update",
+                "confidence": "high",
+                "safe": "safe",
+                "reason": "Windows Update download cache",
             }
 
         # Windows.old
-        if 'windows.old' in path_lower:
+        if "windows.old" in path_lower:
             return {
-                'category': 'windows_old',
-                'confidence': 'high',
-                'safe': 'review',
-                'reason': 'Previous Windows installation'
+                "category": "windows_old",
+                "confidence": "high",
+                "safe": "review",
+                "reason": "Previous Windows installation",
             }
 
         return None
@@ -329,11 +357,12 @@ class SimpleClassifier:
 # Main Prototype
 # ==============================================================================
 
+
 def main():
     parser = argparse.ArgumentParser(description="Storage Scanner Prototype")
-    parser.add_argument('--drive', default='C', help='Drive letter to scan')
-    parser.add_argument('--python-fallback', action='store_true', help='Force Python scanner')
-    parser.add_argument('--top-n', type=int, default=20, help='Show top N largest folders')
+    parser.add_argument("--drive", default="C", help="Drive letter to scan")
+    parser.add_argument("--python-fallback", action="store_true", help="Force Python scanner")
+    parser.add_argument("--top-n", type=int, default=20, help="Show top N largest folders")
     args = parser.parse_args()
 
     print("=" * 70)
@@ -368,8 +397,8 @@ def main():
         print("DISK USAGE SUMMARY")
         print("=" * 70)
         print(f"Total Space: {total_gb:.2f} GB")
-        print(f"Used Space:  {used_gb:.2f} GB ({used_gb/total_gb*100:.1f}%)")
-        print(f"Free Space:  {free_gb:.2f} GB ({free_gb/total_gb*100:.1f}%)")
+        print(f"Used Space:  {used_gb:.2f} GB ({used_gb / total_gb * 100:.1f}%)")
+        print(f"Free Space:  {free_gb:.2f} GB ({free_gb / total_gb * 100:.1f}%)")
     except Exception as e:
         print(f"[Warning] Could not get disk usage: {e}")
 
@@ -385,22 +414,23 @@ def main():
     classifier = SimpleClassifier()
     cleanup_candidates = []
 
-    for i, folder in enumerate(folders[:args.top_n], 1):
+    for i, folder in enumerate(folders[: args.top_n], 1):
         classification = classifier.classify(folder)
 
         print(f"\n{i}. {folder.size_gb:.2f} GB - {folder.path}")
         print(f"   Modified: {folder.modified.strftime('%Y-%m-%d')}")
 
         if classification:
-            print(f"   🔍 Category: {classification['category']} ({classification['subcategory'] if 'subcategory' in classification else 'general'})")
+            print(
+                f"   🔍 Category: {classification['category']} ({classification['subcategory'] if 'subcategory' in classification else 'general'})"
+            )
             print(f"   🎯 Confidence: {classification['confidence']}")
-            print(f"   {'✅' if classification['safe'] == 'safe' else '⚠️'} Safety: {classification['safe']}")
+            print(
+                f"   {'✅' if classification['safe'] == 'safe' else '⚠️'} Safety: {classification['safe']}"
+            )
             print(f"   💡 {classification['reason']}")
 
-            cleanup_candidates.append({
-                'folder': folder,
-                'classification': classification
-            })
+            cleanup_candidates.append({"folder": folder, "classification": classification})
 
     # Cleanup summary
     if cleanup_candidates:
@@ -409,28 +439,34 @@ def main():
         print("CLEANUP OPPORTUNITIES")
         print("=" * 70)
 
-        total_reclaimable = sum(c['folder'].size_gb for c in cleanup_candidates)
-        safe_cleanup = [c for c in cleanup_candidates if c['classification']['safe'] == 'safe']
-        review_cleanup = [c for c in cleanup_candidates if c['classification']['safe'] == 'review']
+        total_reclaimable = sum(c["folder"].size_gb for c in cleanup_candidates)
+        safe_cleanup = [c for c in cleanup_candidates if c["classification"]["safe"] == "safe"]
+        review_cleanup = [c for c in cleanup_candidates if c["classification"]["safe"] == "review"]
 
         print(f"Total Potential Savings: {total_reclaimable:.2f} GB")
         print(f"Candidates: {len(cleanup_candidates)}")
         print()
-        print(f"Auto-cleanable (safe):        {sum(c['folder'].size_gb for c in safe_cleanup):.2f} GB ({len(safe_cleanup)} items)")
-        print(f"Requires approval (review):   {sum(c['folder'].size_gb for c in review_cleanup):.2f} GB ({len(review_cleanup)} items)")
+        print(
+            f"Auto-cleanable (safe):        {sum(c['folder'].size_gb for c in safe_cleanup):.2f} GB ({len(safe_cleanup)} items)"
+        )
+        print(
+            f"Requires approval (review):   {sum(c['folder'].size_gb for c in review_cleanup):.2f} GB ({len(review_cleanup)} items)"
+        )
 
         # Group by category
         by_category = {}
         for candidate in cleanup_candidates:
-            category = candidate['classification']['category']
+            category = candidate["classification"]["category"]
             if category not in by_category:
                 by_category[category] = []
             by_category[category].append(candidate)
 
         print()
         print("By Category:")
-        for category, candidates in sorted(by_category.items(), key=lambda x: sum(c['folder'].size_gb for c in x[1]), reverse=True):
-            total = sum(c['folder'].size_gb for c in candidates)
+        for category, candidates in sorted(
+            by_category.items(), key=lambda x: sum(c["folder"].size_gb for c in x[1]), reverse=True
+        ):
+            total = sum(c["folder"].size_gb for c in candidates)
             print(f"  {category}: {total:.2f} GB ({len(candidates)} items)")
 
     print()

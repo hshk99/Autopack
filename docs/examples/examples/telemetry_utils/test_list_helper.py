@@ -48,21 +48,21 @@ class TestChunk:
         """Test that invalid chunk size raises ValueError."""
         with pytest.raises(ValueError, match="Chunk size must be at least 1"):
             chunk([1, 2, 3], 0)
-        
+
         with pytest.raises(ValueError, match="Chunk size must be at least 1"):
             chunk([1, 2, 3], -1)
-        
+
         with pytest.raises(ValueError, match="Chunk size must be at least 1"):
             chunk([], 0)
 
     def test_chunk_strings(self):
         """Test chunking with strings."""
-        assert chunk(['a', 'b', 'c', 'd', 'e'], 2) == [['a', 'b'], ['c', 'd'], ['e']]
-        assert chunk(['hello', 'world', 'test'], 2) == [['hello', 'world'], ['test']]
+        assert chunk(["a", "b", "c", "d", "e"], 2) == [["a", "b"], ["c", "d"], ["e"]]
+        assert chunk(["hello", "world", "test"], 2) == [["hello", "world"], ["test"]]
 
     def test_chunk_mixed_types(self):
         """Test chunking with mixed types."""
-        assert chunk([1, 'a', 2, 'b', 3], 2) == [[1, 'a'], [2, 'b'], [3]]
+        assert chunk([1, "a", 2, "b", 3], 2) == [[1, "a"], [2, "b"], [3]]
         assert chunk([True, False, 1, 0], 2) == [[True, False], [1, 0]]
 
     def test_chunk_preserves_order(self):
@@ -112,12 +112,12 @@ class TestFlatten:
 
     def test_flatten_strings(self):
         """Test flattening with strings."""
-        assert flatten([['a', 'b'], ['c', 'd']]) == ['a', 'b', 'c', 'd']
-        assert flatten([['hello'], ['world']]) == ['hello', 'world']
+        assert flatten([["a", "b"], ["c", "d"]]) == ["a", "b", "c", "d"]
+        assert flatten([["hello"], ["world"]]) == ["hello", "world"]
 
     def test_flatten_mixed_types(self):
         """Test flattening with mixed types."""
-        assert flatten([[1, 'a'], [2, 'b']]) == [1, 'a', 2, 'b']
+        assert flatten([[1, "a"], [2, "b"]]) == [1, "a", 2, "b"]
         assert flatten([[True, False], [1, 0]]) == [True, False, 1, 0]
 
     def test_flatten_preserves_order(self):
@@ -128,7 +128,7 @@ class TestFlatten:
 
     def test_flatten_large_list(self):
         """Test flattening a large nested list."""
-        nested = [[i, i+1] for i in range(0, 1000, 2)]
+        nested = [[i, i + 1] for i in range(0, 1000, 2)]
         result = flatten(nested)
         assert len(result) == 1000
         assert result == list(range(1000))
@@ -150,17 +150,17 @@ class TestUnique:
     def test_unique_single_element(self):
         """Test deduplicating a single element."""
         assert unique([1]) == [1]
-        assert unique(['a']) == ['a']
+        assert unique(["a"]) == ["a"]
 
     def test_unique_no_duplicates(self):
         """Test deduplicating a list with no duplicates."""
         assert unique([1, 2, 3, 4, 5]) == [1, 2, 3, 4, 5]
-        assert unique(['a', 'b', 'c']) == ['a', 'b', 'c']
+        assert unique(["a", "b", "c"]) == ["a", "b", "c"]
 
     def test_unique_all_duplicates(self):
         """Test deduplicating a list with all duplicates."""
         assert unique([1, 1, 1, 1, 1]) == [1]
-        assert unique(['a', 'a', 'a']) == ['a']
+        assert unique(["a", "a", "a"]) == ["a"]
 
     def test_unique_preserves_order(self):
         """Test that unique preserves first occurrence order."""
@@ -169,12 +169,16 @@ class TestUnique:
 
     def test_unique_strings(self):
         """Test deduplicating strings."""
-        assert unique(['apple', 'banana', 'apple', 'cherry', 'banana']) == ['apple', 'banana', 'cherry']
-        assert unique(['a', 'b', 'a', 'c']) == ['a', 'b', 'c']
+        assert unique(["apple", "banana", "apple", "cherry", "banana"]) == [
+            "apple",
+            "banana",
+            "cherry",
+        ]
+        assert unique(["a", "b", "a", "c"]) == ["a", "b", "c"]
 
     def test_unique_mixed_types(self):
         """Test deduplicating with mixed types."""
-        assert unique([1, '1', 1, '1']) == [1, '1']
+        assert unique([1, "1", 1, "1"]) == [1, "1"]
         assert unique([True, 1, False, 0]) == [True, False]  # True == 1, False == 0 in Python
 
     def test_unique_with_none(self):
@@ -207,27 +211,29 @@ class TestGroupBy:
     def test_group_by_single_element(self):
         """Test grouping a single element."""
         assert group_by([1], lambda x: x % 2) == {1: [1]}
-        assert group_by(['a'], lambda x: x[0]) == {'a': ['a']}
+        assert group_by(["a"], lambda x: x[0]) == {"a": ["a"]}
 
     def test_group_by_all_same_group(self):
         """Test grouping when all items belong to same group."""
-        assert group_by([1, 2, 3], lambda x: 'all') == {'all': [1, 2, 3]}
+        assert group_by([1, 2, 3], lambda x: "all") == {"all": [1, 2, 3]}
         assert group_by([2, 4, 6], lambda x: x % 2) == {0: [2, 4, 6]}
 
     def test_group_by_strings(self):
         """Test grouping strings."""
-        result = group_by(['apple', 'apricot', 'banana', 'blueberry'], lambda x: x[0])
-        assert result == {'a': ['apple', 'apricot'], 'b': ['banana', 'blueberry']}
+        result = group_by(["apple", "apricot", "banana", "blueberry"], lambda x: x[0])
+        assert result == {"a": ["apple", "apricot"], "b": ["banana", "blueberry"]}
 
     def test_group_by_string_length(self):
         """Test grouping by string length."""
-        result = group_by(['a', 'bb', 'ccc', 'dd', 'e'], lambda x: len(x))
-        assert result == {1: ['a', 'e'], 2: ['bb', 'dd'], 3: ['ccc']}
+        result = group_by(["a", "bb", "ccc", "dd", "e"], lambda x: len(x))
+        assert result == {1: ["a", "e"], 2: ["bb", "dd"], 3: ["ccc"]}
 
     def test_group_by_even_odd(self):
         """Test grouping by even/odd."""
-        result = group_by([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], lambda x: 'even' if x % 2 == 0 else 'odd')
-        assert result == {'odd': [1, 3, 5, 7, 9], 'even': [2, 4, 6, 8, 10]}
+        result = group_by(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], lambda x: "even" if x % 2 == 0 else "odd"
+        )
+        assert result == {"odd": [1, 3, 5, 7, 9], "even": [2, 4, 6, 8, 10]}
 
     def test_group_by_preserves_order(self):
         """Test that grouping preserves order within groups."""
@@ -237,10 +243,14 @@ class TestGroupBy:
 
     def test_group_by_complex_key(self):
         """Test grouping with complex key function."""
-        items = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}, {'name': 'Charlie', 'age': 30}]
-        result = group_by(items, lambda x: x['age'])
-        assert result[30] == [{'name': 'Alice', 'age': 30}, {'name': 'Charlie', 'age': 30}]
-        assert result[25] == [{'name': 'Bob', 'age': 25}]
+        items = [
+            {"name": "Alice", "age": 30},
+            {"name": "Bob", "age": 25},
+            {"name": "Charlie", "age": 30},
+        ]
+        result = group_by(items, lambda x: x["age"])
+        assert result[30] == [{"name": "Alice", "age": 30}, {"name": "Charlie", "age": 30}]
+        assert result[25] == [{"name": "Bob", "age": 25}]
 
     def test_group_by_boolean_key(self):
         """Test grouping with boolean key."""
@@ -331,7 +341,7 @@ class TestIntegration:
         grouped = group_by(deduplicated, lambda x: x % 2)
         # Chunk each group
         result = {k: chunk(v, 2) for k, v in grouped.items()}
-        
+
         assert result[1] == [[1, 3], [5, 7]]
         assert result[0] == [[2, 4], [6, 8]]
 
@@ -375,7 +385,7 @@ class TestEdgeCases:
         """Test unique behavior with hashable types only."""
         # unique uses set internally, so only hashable types work
         assert unique([1, 2, 1, 3, 2]) == [1, 2, 3]
-        assert unique(['a', 'b', 'a']) == ['a', 'b']
+        assert unique(["a", "b", "a"]) == ["a", "b"]
 
     def test_group_by_with_tuple_key(self):
         """Test grouping with tuple keys."""

@@ -2,11 +2,14 @@
 """
 Reset v2.2 restoration phases and re-run as v2.3 with BUILD-040
 """
+
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from autopack.data_layer import DataLayer
+
 
 def main():
     # Initialize data layer
@@ -28,19 +31,20 @@ def main():
 
     # Reset all phases to QUEUED
     for phase in phases:
-        phase_id = phase['phase_id']
-        current_status = phase['status']
+        phase_id = phase["phase_id"]
+        current_status = phase["status"]
 
-        if current_status in ['COMPLETE', 'FAILED']:
-            dl.update_phase_status(run_id, phase_id, 'QUEUED')
+        if current_status in ["COMPLETE", "FAILED"]:
+            dl.update_phase_status(run_id, phase_id, "QUEUED")
             print(f"Reset phase {phase_id}: {current_status} -> QUEUED")
 
     # Reset run status to IN_PROGRESS
-    dl.update_run_status(run_id, 'IN_PROGRESS')
-    print(f"Reset run status to IN_PROGRESS")
+    dl.update_run_status(run_id, "IN_PROGRESS")
+    print("Reset run status to IN_PROGRESS")
 
     print("\nPhases have been reset. You can now re-run the autonomous_executor.")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

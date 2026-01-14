@@ -276,15 +276,15 @@ def test_circuit_breaker_opens_on_failures():
     """Test that circuit opens after threshold failures."""
     config = CircuitBreakerConfig(failure_threshold=3)
     breaker = CircuitBreaker(name="test", config=config)
-    
+
     # Fail 3 times
     for _ in range(3):
         with pytest.raises(Exception):
             breaker.call(lambda: raise_exception())
-    
+
     # Circuit should be open
     assert breaker.get_state() == CircuitState.OPEN
-    
+
     # Next call should be rejected
     with pytest.raises(CircuitBreakerOpenError):
         breaker.call(lambda: "success")
@@ -310,7 +310,7 @@ class ResilientHttpClient:
                 expected_exception=requests.RequestException
             )
         )
-    
+
     def get(self, url):
         breaker = self.registry.get("http_client")
         return breaker.call(lambda: requests.get(url))
@@ -338,16 +338,16 @@ class ResilientDatabase:
                 expected_exception=psycopg2.Error
             )
         )
-    
+
     def query(self, sql):
         breaker = self.registry.get("database")
-        
+
         def execute():
             conn = psycopg2.connect(self.connection_string)
             cursor = conn.cursor()
             cursor.execute(sql)
             return cursor.fetchall()
-        
+
         return breaker.call(execute)
 
 db = ResilientDatabase("postgresql://localhost/mydb")

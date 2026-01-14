@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 # BUILD-162: ASCII-safe lock output and comprehensive lock listing
 # ---------------------------------------------------------------------------
 
+
 def should_use_ascii(force_ascii: bool, force_unicode: bool) -> bool:
     """
     Determine whether to use ASCII-only output for lock status.
@@ -52,6 +53,7 @@ def should_use_ascii(force_ascii: bool, force_unicode: bool) -> bool:
 
     # Auto-detect from stdout encoding
     import sys
+
     enc = (sys.stdout.encoding or "").lower()
     return "utf" not in enc
 
@@ -69,6 +71,7 @@ def pid_running(pid: int) -> bool | None:
     """
     try:
         import os
+
         os.kill(pid, 0)
         return True
     except PermissionError:
@@ -86,6 +89,7 @@ class LockStatus:
 
     Used by --lock-status and --break-stale-lock commands.
     """
+
     path: Path
     exists: bool
     owner: str | None = None
@@ -156,24 +160,14 @@ def read_lock_status(lock_path: Path, grace_seconds: int = 120) -> LockStatus:
             expires_at=expires_at,
             expired=expired,
             pid_running=pid_status,
-            malformed=False
+            malformed=False,
         )
 
     except json.JSONDecodeError as e:
-        return LockStatus(
-            path=lock_path,
-            exists=True,
-            malformed=True,
-            error=f"Invalid JSON: {e}"
-        )
+        return LockStatus(path=lock_path, exists=True, malformed=True, error=f"Invalid JSON: {e}")
 
     except OSError as e:
-        return LockStatus(
-            path=lock_path,
-            exists=True,
-            malformed=True,
-            error=f"Read error: {e}"
-        )
+        return LockStatus(path=lock_path, exists=True, malformed=True, error=f"Read error: {e}")
 
 
 def break_stale_lock(lock_path: Path, grace_seconds: int, force: bool) -> tuple[bool, str]:
@@ -208,10 +202,13 @@ def break_stale_lock(lock_path: Path, grace_seconds: int, force: bool) -> tuple[
 
     # Check expiry
     if status.expired is None:
-        return False, f"Cannot determine if lock is expired (missing/invalid timestamp)"
+        return False, "Cannot determine if lock is expired (missing/invalid timestamp)"
 
     if not status.expired:
-        return False, f"Lock is not expired (expires at: {status.expires_at}, grace: {grace_seconds}s)"
+        return (
+            False,
+            f"Lock is not expired (expires at: {status.expires_at}, grace: {grace_seconds}s)",
+        )
 
     # Check PID status
     if status.pid_running is True:
@@ -219,11 +216,18 @@ def break_stale_lock(lock_path: Path, grace_seconds: int, force: bool) -> tuple[
 
     if status.pid_running is None:
         if not force:
-            return False, f"Cannot verify if process is running (PID {status.pid}, use --force to break anyway)"
-        logger.warning(f"[LOCK-BREAK] Breaking lock with unknown PID status (--force): PID {status.pid}")
+            return (
+                False,
+                f"Cannot verify if process is running (PID {status.pid}, use --force to break anyway)",
+            )
+        logger.warning(
+            f"[LOCK-BREAK] Breaking lock with unknown PID status (--force): PID {status.pid}"
+        )
 
     # Safe to break
-    logger.info(f"[LOCK-BREAK] Breaking stale lock: expired={status.expired}, pid_running={status.pid_running}, owner={status.owner}")
+    logger.info(
+        f"[LOCK-BREAK] Breaking stale lock: expired={status.expired}, pid_running={status.pid_running}, owner={status.owner}"
+    )
     lock_path.unlink(missing_ok=True)
 
     return True, f"Broke stale lock: {lock_path} (owner: {status.owner}, PID: {status.pid})"
@@ -262,7 +266,7 @@ def print_lock_status(status: LockStatus, ascii_mode: bool = False) -> None:
         return
 
     if status.malformed:
-        print(f"Malformed:        YES")
+        print("Malformed:        YES")
         print(f"Error:            {status.error}")
         print("\nLock file is corrupted or unreadable.")
         print("Use --break-stale-lock --force to remove it.")
@@ -287,7 +291,9 @@ def print_lock_status(status: LockStatus, ascii_mode: bool = False) -> None:
             print("✅ Lock is stale and can be safely broken with --break-stale-lock")
     elif status.expired and status.pid_running is None:
         if ascii_mode:
-            print("[WARN] Lock is expired but PID status is unknown (use --break-stale-lock --force)")
+            print(
+                "[WARN] Lock is expired but PID status is unknown (use --break-stale-lock --force)"
+            )
         else:
             print("⚠️  Lock is expired but PID status is unknown (use --break-stale-lock --force)")
     elif status.expired and status.pid_running:
@@ -308,9 +314,7 @@ def print_lock_status(status: LockStatus, ascii_mode: bool = False) -> None:
 
 
 def print_all_lock_status(
-    repo_root: Path,
-    grace_seconds: int = 120,
-    ascii_mode: bool = False
+    repo_root: Path, grace_seconds: int = 120, ascii_mode: bool = False
 ) -> None:
     """
     Print status of all locks under .autonomous_runs/.locks/.
@@ -353,7 +357,7 @@ def print_all_lock_status(
         print(f"  Path: {lock_path}")
 
         if not status.exists:
-            print(f"  Status: Not found")
+            print("  Status: Not found")
         elif status.malformed:
             if ascii_mode:
                 print(f"  Status: [ERROR] Malformed - {status.error}")
@@ -379,7 +383,9 @@ def print_all_lock_status(
 
             print(f"  Status: {indicator} {status_text}")
             print(f"  Owner: {status.owner}")
-            print(f"  PID: {status.pid} ({'running' if status.pid_running else 'not running' if status.pid_running is False else 'unknown'})")
+            print(
+                f"  PID: {status.pid} ({'running' if status.pid_running else 'not running' if status.pid_running is False else 'unknown'})"
+            )
             print(f"  Expires: {status.expires_at}")
 
         print()
@@ -465,7 +471,10 @@ class Lease:
 
             if now > grace_expires:
                 age_seconds = (now - expires_at).total_seconds()
-                return True, f"expired {age_seconds:.0f}s ago (grace period: {self.grace_period_seconds}s)"
+                return (
+                    True,
+                    f"expired {age_seconds:.0f}s ago (grace period: {self.grace_period_seconds}s)",
+                )
 
             return False, "not expired"
 
@@ -513,7 +522,9 @@ class Lease:
                         return True
                     except OSError as e:
                         if attempt < 2:
-                            logger.debug(f"[LEASE] Replace attempt {attempt + 1} failed: {e}, retrying...")
+                            logger.debug(
+                                f"[LEASE] Replace attempt {attempt + 1} failed: {e}, retrying..."
+                            )
                             time.sleep(0.1 * (attempt + 1))
                         else:
                             raise
@@ -557,7 +568,9 @@ class Lease:
             if not self.lock_path.exists():
                 if self._write_lock(self._payload(), mode="create"):
                     self._acquired = True
-                    logger.info(f"[LEASE] Acquired lease: {self.lock_path} (owner={self.owner}, token={self._token[:8]}...)")
+                    logger.info(
+                        f"[LEASE] Acquired lease: {self.lock_path} (owner={self.owner}, token={self._token[:8]}...)"
+                    )
                     return
 
             # Lock exists - check if stale
@@ -565,7 +578,9 @@ class Lease:
 
             if lock_data is None:
                 # Unreadable/malformed lock - treat as stale (safe default)
-                logger.warning(f"[LEASE] Breaking unreadable/malformed lock (cannot parse lock data)")
+                logger.warning(
+                    "[LEASE] Breaking unreadable/malformed lock (cannot parse lock data)"
+                )
                 self.lock_path.unlink(missing_ok=True)
                 continue
 
@@ -574,7 +589,9 @@ class Lease:
                 if is_stale:
                     owner = lock_data.get("owner", "unknown")
                     pid = lock_data.get("pid", "unknown")
-                    logger.warning(f"[LEASE] Breaking stale lock: {reason} (owner={owner}, pid={pid})")
+                    logger.warning(
+                        f"[LEASE] Breaking stale lock: {reason} (owner={owner}, pid={pid})"
+                    )
                     self.lock_path.unlink(missing_ok=True)
                     continue
 
@@ -587,7 +604,9 @@ class Lease:
 
             # Check timeout
             if time.time() > deadline:
-                owner_info = f"owner={lock_data.get('owner', 'unknown')}" if lock_data else "unknown owner"
+                owner_info = (
+                    f"owner={lock_data.get('owner', 'unknown')}" if lock_data else "unknown owner"
+                )
                 raise TimeoutError(
                     f"Could not acquire lease within {timeout_seconds}s: {self.lock_path} "
                     f"(held by {owner_info}, attempts={attempt_count})"
@@ -615,7 +634,7 @@ class Lease:
         lock_data = self._read_lock()
 
         if lock_data is None:
-            logger.error(f"[LEASE] Cannot renew - lock file is missing or unreadable")
+            logger.error("[LEASE] Cannot renew - lock file is missing or unreadable")
             return False
 
         if lock_data.get("token") != self._token:
@@ -628,13 +647,17 @@ class Lease:
 
         # Update expiry and last_renewed_at
         new_payload = self._payload()
-        new_payload["created_at"] = lock_data.get("created_at", new_payload["created_at"])  # Preserve original
+        new_payload["created_at"] = lock_data.get(
+            "created_at", new_payload["created_at"]
+        )  # Preserve original
 
         if self._write_lock(new_payload, mode="update"):
-            logger.info(f"[LEASE] Renewed lease: {self.lock_path} (new expiry: {new_payload['expires_at']})")
+            logger.info(
+                f"[LEASE] Renewed lease: {self.lock_path} (new expiry: {new_payload['expires_at']})"
+            )
             return True
 
-        logger.warning(f"[LEASE] Failed to renew lease (write failed)")
+        logger.warning("[LEASE] Failed to renew lease (write failed)")
         return False
 
     def release(self) -> None:
@@ -645,7 +668,7 @@ class Lease:
         Does not verify ownership (for cleanup scenarios).
         """
         if not self._acquired:
-            logger.debug(f"[LEASE] Release called but lease was not acquired")
+            logger.debug("[LEASE] Release called but lease was not acquired")
             return
 
         try:

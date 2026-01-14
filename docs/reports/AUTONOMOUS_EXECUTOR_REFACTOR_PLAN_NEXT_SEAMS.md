@@ -266,4 +266,3 @@ If drift is detected:
 - include drift-fix commit in the PR
 
 **Critical**: never manually edit the README SOT block; only via `sot_summary_refresh.py`.
-

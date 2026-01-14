@@ -46,8 +46,7 @@ def analyze_p10_effectiveness():
     # Get all events post-P7+P9+P10
     all_events = session.query(TokenEstimationV2Event).all()
     post_p10 = sorted(
-        [e for e in all_events if e.timestamp >= P7P9_CUTOFF],
-        key=lambda x: x.timestamp
+        [e for e in all_events if e.timestamp >= P7P9_CUTOFF], key=lambda x: x.timestamp
     )
 
     print(f"Total events (post-P10): {len(post_p10)}")
@@ -77,18 +76,23 @@ def analyze_p10_effectiveness():
             len(first_attempt_truncated) / max(len(first_attempt_total), 1) * 100
         )
 
-        print(f"  First-Attempt Truncation: {first_attempt_trunc_rate:.1f}% "
-              f"({len(first_attempt_truncated)}/{len(first_attempt_total)})")
+        print(
+            f"  First-Attempt Truncation: {first_attempt_trunc_rate:.1f}% "
+            f"({len(first_attempt_truncated)}/{len(first_attempt_total)})"
+        )
 
         # P10 trigger rate (output_utilization ≥95% or truncated on first attempt)
         p10_triggered = [
-            e for e in window
+            e
+            for e in window
             if e.retry_attempt == 1 and (e.truncated or (e.output_utilization or 0) >= 95.0)
         ]
         p10_trigger_rate = len(p10_triggered) / max(len(first_attempt_total), 1) * 100
 
-        print(f"  P10 Trigger Rate: {p10_trigger_rate:.1f}% "
-              f"({len(p10_triggered)}/{len(first_attempt_total)})")
+        print(
+            f"  P10 Trigger Rate: {p10_trigger_rate:.1f}% "
+            f"({len(p10_triggered)}/{len(first_attempt_total)})"
+        )
 
         # P10 retry success rate (how many retries succeeded after P10 escalation)
         # We need to track retry_attempt=2 events and see if they succeeded
@@ -98,13 +102,16 @@ def analyze_p10_effectiveness():
             len(retry_success) / max(len(retry_events), 1) * 100 if retry_events else 0
         )
 
-        print(f"  P10 Retry Success: {p10_retry_success_rate:.1f}% "
-              f"({len(retry_success)}/{len(retry_events)}) "
-              f"{'⚠️ LOW (<80%)' if p10_retry_success_rate < 80 and retry_events else ''}")
+        print(
+            f"  P10 Retry Success: {p10_retry_success_rate:.1f}% "
+            f"({len(retry_success)}/{len(retry_events)}) "
+            f"{'⚠️ LOW (<80%)' if p10_retry_success_rate < 80 and retry_events else ''}"
+        )
 
         # Clean SMAPE median (non-truncated, valid events only)
         non_truncated_valid = [
-            e for e in window
+            e
+            for e in window
             if not e.truncated and e.actual_output_tokens >= 50  # Validity guard
         ]
 
@@ -119,8 +126,10 @@ def analyze_p10_effectiveness():
 
             if smapes:
                 clean_smape_median = statistics.median(smapes)
-                print(f"  Clean SMAPE Median: {clean_smape_median:.1f}% "
-                      f"(n={len(non_truncated_valid)})")
+                print(
+                    f"  Clean SMAPE Median: {clean_smape_median:.1f}% "
+                    f"(n={len(non_truncated_valid)})"
+                )
 
         # Waste ratio P90 (using actual_max_tokens from P8)
         waste_ratios = []
@@ -176,8 +185,10 @@ def analyze_p10_effectiveness():
         stats = by_category[cat]
         trunc_rate = stats["truncated"] / max(stats["total"], 1) * 100
         trigger_rate = stats["p10_triggered"] / max(stats["total"], 1) * 100
-        print(f"  {cat}: {stats['truncated']}/{stats['total']} truncated ({trunc_rate:.1f}%), "
-              f"{stats['p10_triggered']} P10 triggers ({trigger_rate:.1f}%)")
+        print(
+            f"  {cat}: {stats['truncated']}/{stats['total']} truncated ({trunc_rate:.1f}%), "
+            f"{stats['p10_triggered']} P10 triggers ({trigger_rate:.1f}%)"
+        )
     print()
 
     # Group by deliverable count bucket
@@ -209,8 +220,10 @@ def analyze_p10_effectiveness():
             stats = by_deliv[bucket]
             trunc_rate = stats["truncated"] / max(stats["total"], 1) * 100
             trigger_rate = stats["p10_triggered"] / max(stats["total"], 1) * 100
-            print(f"  {bucket} deliverables: {stats['truncated']}/{stats['total']} truncated "
-                  f"({trunc_rate:.1f}%), {stats['p10_triggered']} P10 triggers ({trigger_rate:.1f}%)")
+            print(
+                f"  {bucket} deliverables: {stats['truncated']}/{stats['total']} truncated "
+                f"({trunc_rate:.1f}%), {stats['p10_triggered']} P10 triggers ({trigger_rate:.1f}%)"
+            )
     print()
 
     # Summary
@@ -221,9 +234,7 @@ def analyze_p10_effectiveness():
 
     first_attempt_events = [e for e in post_p10 if e.retry_attempt == 1]
     first_attempt_truncated = [e for e in first_attempt_events if e.truncated]
-    overall_trunc_rate = (
-        len(first_attempt_truncated) / max(len(first_attempt_events), 1) * 100
-    )
+    overall_trunc_rate = len(first_attempt_truncated) / max(len(first_attempt_events), 1) * 100
 
     retry_events = [e for e in post_p10 if e.retry_attempt == 2]
     retry_success = [e for e in retry_events if not e.truncated]
@@ -232,7 +243,9 @@ def analyze_p10_effectiveness():
     )
 
     print(f"Overall first-attempt truncation: {overall_trunc_rate:.1f}%")
-    print(f"Overall P10 retry success: {overall_retry_success:.1f}% ({len(retry_success)}/{len(retry_events)})")
+    print(
+        f"Overall P10 retry success: {overall_retry_success:.1f}% ({len(retry_success)}/{len(retry_events)})"
+    )
     print()
 
     if overall_trunc_rate <= 30:

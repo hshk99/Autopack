@@ -54,9 +54,9 @@ def analyze_truncation_segments():
     print()
 
     # Get all truncated events
-    truncated = session.query(TokenEstimationV2Event).filter(
-        TokenEstimationV2Event.truncated == True
-    ).all()
+    truncated = (
+        session.query(TokenEstimationV2Event).filter(TokenEstimationV2Event.truncated == True).all()
+    )
 
     print(f"Total Truncated Events: {len(truncated)}")
     print()
@@ -90,13 +90,15 @@ def analyze_truncation_segments():
     segment_stats = []
     for segment, factors in segments.items():
         if len(factors) >= 2:  # At least 2 samples
-            segment_stats.append({
-                "segment": segment,
-                "count": len(factors),
-                "lb_factor_mean": statistics.mean(factors),
-                "lb_factor_median": statistics.median(factors),
-                "lb_factor_max": max(factors),
-            })
+            segment_stats.append(
+                {
+                    "segment": segment,
+                    "count": len(factors),
+                    "lb_factor_mean": statistics.mean(factors),
+                    "lb_factor_median": statistics.median(factors),
+                    "lb_factor_max": max(factors),
+                }
+            )
 
     # Sort by worst mean lb_factor
     segment_stats.sort(key=lambda x: x["lb_factor_mean"], reverse=True)
@@ -109,8 +111,10 @@ def analyze_truncation_segments():
     print("-" * 70)
 
     for i, stat in enumerate(segment_stats[:15], 1):
-        print(f"{stat['segment']:<50} {stat['count']:<6} {stat['lb_factor_mean']:<8.2f} "
-              f"{stat['lb_factor_median']:<8.2f} {stat['lb_factor_max']:<8.2f}")
+        print(
+            f"{stat['segment']:<50} {stat['count']:<6} {stat['lb_factor_mean']:<8.2f} "
+            f"{stat['lb_factor_median']:<8.2f} {stat['lb_factor_max']:<8.2f}"
+        )
 
     print()
     print("=" * 70)
@@ -139,8 +143,10 @@ def analyze_truncation_segments():
         print(f"   Median lb_factor: {stat['lb_factor_median']:.2f}")
         print(f"   Max lb_factor: {stat['lb_factor_max']:.2f}")
         print()
-        print(f"   Tuning recommendation:")
-        print(f"   - Increase base estimate for this segment by {(stat['lb_factor_mean'] - 1) * 100:.0f}%")
+        print("   Tuning recommendation:")
+        print(
+            f"   - Increase base estimate for this segment by {(stat['lb_factor_mean'] - 1) * 100:.0f}%"
+        )
         print(f"   - OR increase buffer margin to {stat['lb_factor_mean']:.2f}x")
         print()
 
@@ -157,9 +163,11 @@ def analyze_non_truncated_outliers():
     print()
 
     # Get non-truncated events
-    non_truncated = session.query(TokenEstimationV2Event).filter(
-        TokenEstimationV2Event.truncated == False
-    ).all()
+    non_truncated = (
+        session.query(TokenEstimationV2Event)
+        .filter(TokenEstimationV2Event.truncated == False)
+        .all()
+    )
 
     if not non_truncated:
         print("No non-truncated events found.")
@@ -174,15 +182,17 @@ def analyze_non_truncated_outliers():
         smape = abs(pred - actual) * 200 / (abs(pred) + abs(actual)) if (pred + actual) > 0 else 0
 
         if smape > 100:  # Outliers with SMAPE > 100%
-            outliers.append({
-                "phase_id": e.phase_id,
-                "category": e.category,
-                "complexity": e.complexity,
-                "deliverable_count": e.deliverable_count,
-                "predicted": pred,
-                "actual": actual,
-                "smape": smape,
-            })
+            outliers.append(
+                {
+                    "phase_id": e.phase_id,
+                    "category": e.category,
+                    "complexity": e.complexity,
+                    "deliverable_count": e.deliverable_count,
+                    "predicted": pred,
+                    "actual": actual,
+                    "smape": smape,
+                }
+            )
 
     outliers.sort(key=lambda x: x["smape"], reverse=True)
 
@@ -193,9 +203,11 @@ def analyze_non_truncated_outliers():
         print(f"{'Phase':<40} {'Cat':<20} {'Deliv':<6} {'Pred':<8} {'Actual':<8} {'SMAPE':<8}")
         print("-" * 100)
         for o in outliers[:5]:
-            print(f"{o['phase_id'][:38]:<40} {o['category'][:18]:<20} "
-                  f"{o['deliverable_count']:<6} {o['predicted']:<8} "
-                  f"{o['actual']:<8} {o['smape']:<8.1f}%")
+            print(
+                f"{o['phase_id'][:38]:<40} {o['category'][:18]:<20} "
+                f"{o['deliverable_count']:<6} {o['predicted']:<8} "
+                f"{o['actual']:<8} {o['smape']:<8.1f}%"
+            )
         print()
         print("Recommended action: Inspect top 2 outliers for missing heuristics")
         print()

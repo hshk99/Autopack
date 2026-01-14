@@ -56,45 +56,53 @@ def upgrade(engine: Engine) -> None:
 
         print("\n[1/3] Adding column: is_sot_file (Boolean, nullable, default=False)")
         print("      Purpose: Flag updates to SOT files (BUILD_LOG.md, BUILD_HISTORY.md, etc.)")
-        conn.execute(text("""
+        conn.execute(
+            text("""
             ALTER TABLE token_estimation_v2_events
             ADD COLUMN is_sot_file BOOLEAN DEFAULT FALSE
-        """))
+        """)
+        )
         print("      ✓ Column 'is_sot_file' added")
 
         print("\n[2/3] Adding column: sot_file_name (String, nullable)")
         print("      Purpose: Store basename of SOT file (e.g., 'build_log.md')")
-        conn.execute(text("""
+        conn.execute(
+            text("""
             ALTER TABLE token_estimation_v2_events
             ADD COLUMN sot_file_name VARCHAR
-        """))
+        """)
+        )
         print("      ✓ Column 'sot_file_name' added")
 
         print("\n[3/3] Adding column: sot_entry_count_hint (Integer, nullable)")
         print("      Purpose: Proxy for number of entries to write (affects token cost)")
-        conn.execute(text("""
+        conn.execute(
+            text("""
             ALTER TABLE token_estimation_v2_events
             ADD COLUMN sot_entry_count_hint INTEGER
-        """))
+        """)
+        )
         print("      ✓ Column 'sot_entry_count_hint' added")
 
         # Create index on is_sot_file for efficient filtering
         print("\n[Index] Creating index: idx_telemetry_sot")
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE INDEX IF NOT EXISTS idx_telemetry_sot
             ON token_estimation_v2_events (is_sot_file, sot_file_name)
-        """))
+        """)
+        )
         print("      ✓ Index 'idx_telemetry_sot' created")
 
         # Verify existing events
         result = conn.execute(text("SELECT COUNT(*) FROM token_estimation_v2_events"))
         event_count = result.scalar() or 0
 
-        print(f"\n✓ Migration complete!")
+        print("\n✓ Migration complete!")
         print(f"  - {event_count} existing telemetry events updated with defaults:")
-        print(f"    - is_sot_file = FALSE")
-        print(f"    - sot_file_name = NULL")
-        print(f"    - sot_entry_count_hint = NULL")
+        print("    - is_sot_file = FALSE")
+        print("    - sot_file_name = NULL")
+        print("    - sot_entry_count_hint = NULL")
 
     print("\n" + "=" * 70)
     print("BUILD-129 Phase 3 P3 Migration: SUCCESS")
@@ -118,15 +126,23 @@ def downgrade(engine: Engine) -> None:
         print("      ✓ Index 'idx_telemetry_sot' dropped")
 
         print("\n[2/4] Dropping column: sot_entry_count_hint")
-        conn.execute(text("ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS sot_entry_count_hint"))
+        conn.execute(
+            text(
+                "ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS sot_entry_count_hint"
+            )
+        )
         print("      ✓ Column 'sot_entry_count_hint' dropped")
 
         print("\n[3/4] Dropping column: sot_file_name")
-        conn.execute(text("ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS sot_file_name"))
+        conn.execute(
+            text("ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS sot_file_name")
+        )
         print("      ✓ Column 'sot_file_name' dropped")
 
         print("\n[4/4] Dropping column: is_sot_file")
-        conn.execute(text("ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS is_sot_file"))
+        conn.execute(
+            text("ALTER TABLE token_estimation_v2_events DROP COLUMN IF EXISTS is_sot_file")
+        )
         print("      ✓ Column 'is_sot_file' dropped")
 
     print("\n" + "=" * 70)
@@ -170,6 +186,7 @@ def main():
     except Exception as e:
         print(f"\n✗ Migration failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

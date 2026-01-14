@@ -4,7 +4,6 @@ from autopack.research.validators.recency_validator import RecencyValidator
 
 
 class TestRecencyValidator(unittest.TestCase):
-
     def setUp(self):
         self.validator = RecencyValidator()
         self.mock_session = MagicMock()

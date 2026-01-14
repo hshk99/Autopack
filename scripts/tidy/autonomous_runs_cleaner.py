@@ -51,6 +51,7 @@ class StepTimer:
         try:
             import os
             import psutil
+
             return int(psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024))
         except Exception:
             return None
@@ -70,13 +71,13 @@ def is_runtime_workspace(dirpath: Path) -> bool:
     """
     # Protected runtime workspace directories
     runtime_workspaces = {
-        "autopack",              # Main runtime workspace
-        "_shared",               # Shared runtime resources
-        "baselines",             # Test baseline cache
+        "autopack",  # Main runtime workspace
+        "_shared",  # Shared runtime resources
+        "baselines",  # Test baseline cache
         "batch_drain_sessions",  # Batch drain runtime workspace
-        "checkpoints",           # Git checkpoint storage
-        ".locks",                # Lock files
-        "tidy_checkpoints",      # Tidy checkpoint storage
+        "checkpoints",  # Git checkpoint storage
+        ".locks",  # Lock files
+        "tidy_checkpoints",  # Tidy checkpoint storage
     }
 
     return dirpath.name in runtime_workspaces
@@ -135,22 +136,22 @@ def is_run_directory(dirpath: Path) -> bool:
     # Matches run directory patterns (prioritize name patterns)
     name_lower = dirpath.name.lower()
     looks_like_run = (
-        has_rollback_log or
-        has_executor_log or
-        has_errors_dir or
-        "build" in name_lower or
-        "telemetry" in name_lower or
-        "test-" in name_lower or
-        "autopack-" in name_lower or       # autopack-diagnostics-parity-*, autopack-onephase-*, etc.
-        "research-" in name_lower or       # research-system-v*, research-build113-test
-        "retry-" in name_lower or          # retry-api-router-*, retry-examples-*
-        "diagnostics-" in name_lower or    # diagnostics-parity-phases-*
-        "lovable-" in name_lower or        # lovable-integration-*, lovable-p0-*, etc.
-        "p10-" in name_lower or            # p10-validation-test
-        name_lower == "start" or           # start/
-        name_lower == "errors" or          # errors/
-        name_lower == "logs" or            # logs/
-        name_lower.startswith("run-")      # run-001, run-002
+        has_rollback_log
+        or has_executor_log
+        or has_errors_dir
+        or "build" in name_lower
+        or "telemetry" in name_lower
+        or "test-" in name_lower
+        or "autopack-" in name_lower  # autopack-diagnostics-parity-*, autopack-onephase-*, etc.
+        or "research-" in name_lower  # research-system-v*, research-build113-test
+        or "retry-" in name_lower  # retry-api-router-*, retry-examples-*
+        or "diagnostics-" in name_lower  # diagnostics-parity-phases-*
+        or "lovable-" in name_lower  # lovable-integration-*, lovable-p0-*, etc.
+        or "p10-" in name_lower  # p10-validation-test
+        or name_lower == "start"  # start/
+        or name_lower == "errors"  # errors/
+        or name_lower == "logs"  # logs/
+        or name_lower.startswith("run-")  # run-001, run-002
     )
 
     return looks_like_run
@@ -216,9 +217,9 @@ def find_orphaned_files(autonomous_runs: Path) -> List[Path]:
 
     # Patterns for orphaned files at root
     orphaned_patterns = [
-        "*.log",           # All log files (api_server.log, build*.log, tidy_*.log, etc.)
-        "*.json",          # All JSON files (baseline.json, retry.json, verify_report_*.json)
-        "*.jsonl",         # JSONL files (telemetry_counts.jsonl)
+        "*.log",  # All log files (api_server.log, build*.log, tidy_*.log, etc.)
+        "*.json",  # All JSON files (baseline.json, retry.json, verify_report_*.json)
+        "*.jsonl",  # JSONL files (telemetry_counts.jsonl)
     ]
 
     # Find all orphaned files directly under .autonomous_runs/ (not in subdirectories)
@@ -258,9 +259,7 @@ def find_duplicate_baseline_archives(autonomous_runs: Path) -> List[Path]:
 
 
 def find_old_run_directories(
-    autonomous_runs: Path,
-    keep_last_n: int = 10,
-    min_age_days: int = 7
+    autonomous_runs: Path, keep_last_n: int = 10, min_age_days: int = 7
 ) -> List[Path]:
     """
     Find old run directories to archive/delete.
@@ -374,10 +373,7 @@ def delete_empty_dirs_bottomup(root: Path, dry_run: bool, verbose: bool = False)
 
 
 def archive_old_autopack_runs(
-    repo_root: Path,
-    autonomous_runs: Path,
-    keep_last_n: int = 10,
-    dry_run: bool = True
+    repo_root: Path, autonomous_runs: Path, keep_last_n: int = 10, dry_run: bool = True
 ) -> int:
     """
     Archive old Autopack run directories to archive/runs/.
@@ -433,7 +429,9 @@ def archive_old_autopack_runs(
     if not runs_to_archive:
         return 0
 
-    print(f"[RUN-ARCHIVAL] Found {len(runs_to_archive)} old Autopack run directories to archive (keeping last {keep_last_n}):")
+    print(
+        f"[RUN-ARCHIVAL] Found {len(runs_to_archive)} old Autopack run directories to archive (keeping last {keep_last_n}):"
+    )
     print()
 
     for run_dir in sorted(runs_to_archive, key=lambda p: p.name):
@@ -455,7 +453,9 @@ def archive_old_autopack_runs(
                 logger.warning(f"[RUN-ARCHIVAL] Failed to archive {run_dir}: {e}")
 
     print()
-    print(f"[RUN-ARCHIVAL-SUMMARY] Archived {archived_count}/{len(runs_to_archive)} run directories to archive/runs/")
+    print(
+        f"[RUN-ARCHIVAL-SUMMARY] Archived {archived_count}/{len(runs_to_archive)} run directories to archive/runs/"
+    )
     print()
 
     return archived_count
@@ -467,7 +467,7 @@ def cleanup_autonomous_runs(
     verbose: bool = False,
     profile: bool = False,
     keep_last_n_runs: int = 10,
-    min_age_days: int = 7
+    min_age_days: int = 7,
 ) -> Tuple[int, int]:
     """
     Clean up .autonomous_runs/ directory.
@@ -490,9 +490,9 @@ def cleanup_autonomous_runs(
             print("[CLEANUP] .autonomous_runs/ does not exist, skipping")
         return 0, 0
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("Phase 3: .autonomous_runs/ Cleanup")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print(f"Mode: {'DRY-RUN' if dry_run else 'EXECUTE'}")
     print(f"Keep last N runs: {keep_last_n_runs}")
     print(f"Minimum age for cleanup: {min_age_days} days")
@@ -508,7 +508,9 @@ def cleanup_autonomous_runs(
     dirs_deleted = 0
 
     # Step 0: Archive old Autopack runs to archive/runs/ (keeps last 10 at .autonomous_runs/ root)
-    archive_old_autopack_runs(repo_root, autonomous_runs, keep_last_n=keep_last_n_runs, dry_run=dry_run)
+    archive_old_autopack_runs(
+        repo_root, autonomous_runs, keep_last_n=keep_last_n_runs, dry_run=dry_run
+    )
     timer.mark("Step 0 (archive old runs) done")
 
     # Step 1: Orphaned files (logs, JSON, etc.)
@@ -525,9 +527,9 @@ def cleanup_autonomous_runs(
             size_kb = filepath.stat().st_size / 1024
 
             # Determine destination based on file type
-            if filepath.suffix in ['.log', '.jsonl']:
+            if filepath.suffix in [".log", ".jsonl"]:
                 dest_subdir = archive_dest
-            elif filepath.suffix == '.json':
+            elif filepath.suffix == ".json":
                 # JSON reports/metadata go to diagnostics
                 dest_subdir = archive_dest
             else:
@@ -535,7 +537,9 @@ def cleanup_autonomous_runs(
 
             dest_file = dest_subdir / filepath.name
 
-            print(f"  MOVE {rel_path} -> archive/diagnostics/logs/autonomous_runs/{filepath.name} ({size_kb:.1f} KB)")
+            print(
+                f"  MOVE {rel_path} -> archive/diagnostics/logs/autonomous_runs/{filepath.name} ({size_kb:.1f} KB)"
+            )
 
             if not dry_run:
                 dest_subdir.mkdir(parents=True, exist_ok=True)
@@ -543,6 +547,7 @@ def cleanup_autonomous_runs(
                 # Handle duplicates with timestamp
                 if dest_file.exists():
                     from datetime import datetime
+
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     stem = dest_file.stem
                     suffix = dest_file.suffix
@@ -567,11 +572,13 @@ def cleanup_autonomous_runs(
         print()
 
     # Step 3: Empty directories (optimized bottom-up deletion)
-    print(f"[EMPTY-DIRS] Scanning for empty directories...")
+    print("[EMPTY-DIRS] Scanning for empty directories...")
     dirs_deleted = delete_empty_dirs_bottomup(autonomous_runs, dry_run=dry_run, verbose=verbose)
     timer.mark("Step 3 (delete empty directories) done")
     if dirs_deleted > 0:
-        print(f"[EMPTY-DIRS] {'Would delete' if dry_run else 'Deleted'} {dirs_deleted} empty directories")
+        print(
+            f"[EMPTY-DIRS] {'Would delete' if dry_run else 'Deleted'} {dirs_deleted} empty directories"
+        )
         print()
 
     # Summary
@@ -584,21 +591,31 @@ def cleanup_autonomous_runs(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Clean up .autonomous_runs/ directory"
+    parser = argparse.ArgumentParser(description="Clean up .autonomous_runs/ directory")
+    parser.add_argument(
+        "--dry-run", action="store_true", default=True, help="Dry run only (default)"
     )
-    parser.add_argument("--dry-run", action="store_true", default=True,
-                        help="Dry run only (default)")
-    parser.add_argument("--execute", action="store_true",
-                        help="Execute cleanup (overrides --dry-run)")
-    parser.add_argument("--verbose", action="store_true",
-                        help="Verbose output")
-    parser.add_argument("--profile", action="store_true",
-                        help="Enable profiling with timing and memory usage per step")
-    parser.add_argument("--keep-last-n-runs", type=int, default=10,
-                        help="Number of runs to keep per project (default: 10)")
-    parser.add_argument("--min-age-days", type=int, default=7,
-                        help="Minimum age in days before cleanup (default: 7)")
+    parser.add_argument(
+        "--execute", action="store_true", help="Execute cleanup (overrides --dry-run)"
+    )
+    parser.add_argument("--verbose", action="store_true", help="Verbose output")
+    parser.add_argument(
+        "--profile",
+        action="store_true",
+        help="Enable profiling with timing and memory usage per step",
+    )
+    parser.add_argument(
+        "--keep-last-n-runs",
+        type=int,
+        default=10,
+        help="Number of runs to keep per project (default: 10)",
+    )
+    parser.add_argument(
+        "--min-age-days",
+        type=int,
+        default=7,
+        help="Minimum age in days before cleanup (default: 7)",
+    )
 
     args = parser.parse_args()
 
@@ -614,5 +631,5 @@ if __name__ == "__main__":
         verbose=args.verbose,
         profile=args.profile,
         keep_last_n_runs=args.keep_last_n_runs,
-        min_age_days=args.min_age_days
+        min_age_days=args.min_age_days,
     )

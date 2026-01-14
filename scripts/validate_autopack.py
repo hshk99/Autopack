@@ -48,18 +48,16 @@ def create_test_run() -> str:
         "run_id": run_id,
         "project_id": "autopack-validation",
         "description": "Validation run to prove Autopack works independently",
-        "tiers": [
-            {"tier_id": "tier-1", "tier_num": 1, "title": "Validation Tier"}
-        ],
+        "tiers": [{"tier_id": "tier-1", "tier_num": 1, "title": "Validation Tier"}],
         "phases": [
             {
                 "phase_id": "phase-1-hello",
                 "tier_id": "tier-1",
                 "description": "Create a simple hello.py file that prints 'Hello from Autopack!'",
                 "task_category": "core_backend_high",
-                "complexity": "low"
+                "complexity": "low",
             }
-        ]
+        ],
     }
 
     print(f"\n[NOTE] Creating test run: {run_id}")
@@ -88,10 +86,7 @@ def call_builder_directly(run_id: str, phase_id: str) -> Dict:
         "description": "Create a simple hello.py file that prints 'Hello from Autopack!'",
         "task_category": "core_backend_high",
         "complexity": "low",
-        "acceptance_criteria": [
-            "File hello.py exists",
-            "Prints 'Hello from Autopack!' when run"
-        ]
+        "acceptance_criteria": ["File hello.py exists", "Prints 'Hello from Autopack!' when run"],
     }
 
     payload = {
@@ -99,14 +94,11 @@ def call_builder_directly(run_id: str, phase_id: str) -> Dict:
         "file_context": {},  # Empty context for this simple test
         "max_tokens": 2000,
         "project_rules": [],
-        "run_hints": []
+        "run_hints": [],
     }
 
     # THIS IS THE KEY: We're calling Autopack's API, not generating code ourselves
-    response = requests.post(
-        f"{API_URL}/runs/{run_id}/builder/submit",
-        json=payload
-    )
+    response = requests.post(f"{API_URL}/runs/{run_id}/builder/submit", json=payload)
 
     if response.status_code != 200:
         print(f"[ERROR] Builder call failed: {response.status_code}")
@@ -119,8 +111,8 @@ def call_builder_directly(run_id: str, phase_id: str) -> Dict:
     print("=" * 60)
     print(f"Model used: {result.get('model_used', 'unknown')}")
     print(f"Tokens: {result.get('total_tokens', 0)}")
-    print(f"\nGenerated patch:\n")
-    print(result.get('patch_content', 'No patch'))
+    print("\nGenerated patch:\n")
+    print(result.get("patch_content", "No patch"))
     print("=" * 60)
 
     return result
@@ -173,7 +165,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--test-phase",
         action="store_true",
-        help="Run a test phase through Autopack to prove it works"
+        help="Run a test phase through Autopack to prove it works",
     )
 
     args = parser.parse_args()

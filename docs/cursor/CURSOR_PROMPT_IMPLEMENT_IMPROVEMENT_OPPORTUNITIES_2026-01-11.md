@@ -1,7 +1,7 @@
 # Cursor Implementation Prompt — Close `IMPROVEMENT_OPPORTUNITIES_COMPREHENSIVE_2026-01-11` (Full Execution)
 
-**Audience**: Another Cursor agent implementing changes (code + docs + tests) in this repo.  
-**Objective**: Implement **everything** listed in `docs/reports/IMPROVEMENT_OPPORTUNITIES_COMPREHENSIVE_2026-01-11.md` (including its appendices) in a safe, deterministic, mechanically-enforced way.  
+**Audience**: Another Cursor agent implementing changes (code + docs + tests) in this repo.
+**Objective**: Implement **everything** listed in `docs/reports/IMPROVEMENT_OPPORTUNITIES_COMPREHENSIVE_2026-01-11.md` (including its appendices) in a safe, deterministic, mechanically-enforced way.
 **Non-goal**: Do not “improve things opportunistically” outside the report. Avoid scope creep.
 
 ---
@@ -268,4 +268,3 @@ These are multi-PR refactors; keep each PR behavior-preserving and contract-test
 - If docs integrity tests start failing broadly, you likely expanded enforcement scope too far (especially on append-only ledgers).
 - If feature-flags registry scope explodes, you need a stricter boundary decision before continuing.
 - If refactors start changing route behavior, stop and add contract tests before proceeding.
-

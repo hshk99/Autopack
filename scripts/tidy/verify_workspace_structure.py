@@ -39,11 +39,23 @@ REPO_ROOT = SCRIPT_DIR.parent.parent
 # ---------------------------------------------------------------------------
 
 ROOT_ALLOWED_FILES = {
-    ".gitignore", ".dockerignore", ".eslintrc.cjs", ".env",
-    "README.md", "LICENSE", "pyproject.toml", "package.json",
-    "tsconfig.json", "docker-compose.yml", "Dockerfile",
-    "requirements.txt", "poetry.lock", "package-lock.json", "yarn.lock",
-    ".coverage", ".coverage.json",
+    ".gitignore",
+    ".dockerignore",
+    ".eslintrc.cjs",
+    ".env",
+    "README.md",
+    "LICENSE",
+    "pyproject.toml",
+    "package.json",
+    "tsconfig.json",
+    "docker-compose.yml",
+    "Dockerfile",
+    "requirements.txt",
+    "poetry.lock",
+    "package-lock.json",
+    "yarn.lock",
+    ".coverage",
+    ".coverage.json",
     # Common repo-root config files used by this repo
     "docker-compose.dev.yml",
     "pytest.ini",
@@ -78,10 +90,26 @@ ROOT_ALLOWED_PATTERNS = [
 ]
 
 ROOT_ALLOWED_DIRS = {
-    ".git", ".github", ".pytest_cache", ".autopack", ".claude",
-    ".autonomous_runs", "__pycache__", "node_modules",
-    "src", "tests", "scripts", "docs", "archive", "backend", "frontend",
-    "config", "venv", ".venv", "dist", "build",
+    ".git",
+    ".github",
+    ".pytest_cache",
+    ".autopack",
+    ".claude",
+    ".autonomous_runs",
+    "__pycache__",
+    "node_modules",
+    "src",
+    "tests",
+    "scripts",
+    "docs",
+    "archive",
+    "backend",
+    "frontend",
+    "config",
+    "venv",
+    ".venv",
+    "dist",
+    "build",
     # BUILD-183: security/ is allowed at root by design - contains security
     # baselines, threat models, and audit artifacts for visibility.
     "security",
@@ -144,47 +172,61 @@ DOCS_ALLOWED_PATTERNS = [
     # BUILD-183: Additional allowlisted patterns for known intentional docs.
     # These are NOT converted to SOT; they are simply allowed without warning.
     # Unknown docs files still emit warnings (default-warn preserved).
-    "BUILD-*.md",       # Per-task build documentation
-    "BUILD_*.md",       # Alternate build doc naming convention
-    "*_COMPLETION*.md", # Task completion reports
-    "*_REPORT*.md",     # Analysis and status reports
-    "*_OPERATIONS*.md", # Operations documentation
-    "*_PLAYBOOK*.md",   # Operational playbooks
-    "*_HOWTO*.md",      # How-to guides
-    "*_STATUS*.md",     # Status tracking documents
-    "*_PLAN*.md",       # Planning documents
-    "*_SUMMARY*.md",    # Summary documents
+    "BUILD-*.md",  # Per-task build documentation
+    "BUILD_*.md",  # Alternate build doc naming convention
+    "*_COMPLETION*.md",  # Task completion reports
+    "*_REPORT*.md",  # Analysis and status reports
+    "*_OPERATIONS*.md",  # Operations documentation
+    "*_PLAYBOOK*.md",  # Operational playbooks
+    "*_HOWTO*.md",  # How-to guides
+    "*_STATUS*.md",  # Status tracking documents
+    "*_PLAN*.md",  # Planning documents
+    "*_SUMMARY*.md",  # Summary documents
     "*_DECISIONS*.md",  # Decision records (ARCHITECTURE_DECISIONS.md is SOT)
-    "*_POLICY*.md",     # Policy documents
-    "*_LOG*.md",        # Log files (security, debug, etc.)
+    "*_POLICY*.md",  # Policy documents
+    "*_LOG*.md",  # Log files (security, debug, etc.)
     "*_STANDARDS*.md",  # Standards documentation
-    "PROMPT_*.md",      # Prompt documentation
-    "P0_*.md",          # Priority-0 documents
-    "PRE_*.md",         # Pre-task analysis docs
-    "REMAINING_*.md",   # Remaining work docs
-    "LEARNED_*.json",   # Learned rules/mitigations JSON
-    "CHAT_HISTORY_*.md",   # Chat history extracts
-    "CHAT_HISTORY_*.json", # Chat history extracts JSON
-    "CONSOLIDATED_*.md",   # Consolidated documents
-    "STORAGE_*.md",        # Storage optimizer docs
-    "SECURITY_*.md",       # Security documentation
-    "INTENTION_*.md",      # Intention tracking docs
-    "DOC_*.md",            # Doc-related analysis
-    "EXIT_*.md",           # Exit code standards, etc.
+    "PROMPT_*.md",  # Prompt documentation
+    "P0_*.md",  # Priority-0 documents
+    "PRE_*.md",  # Pre-task analysis docs
+    "REMAINING_*.md",  # Remaining work docs
+    "LEARNED_*.json",  # Learned rules/mitigations JSON
+    "CHAT_HISTORY_*.md",  # Chat history extracts
+    "CHAT_HISTORY_*.json",  # Chat history extracts JSON
+    "CONSOLIDATED_*.md",  # Consolidated documents
+    "STORAGE_*.md",  # Storage optimizer docs
+    "SECURITY_*.md",  # Security documentation
+    "INTENTION_*.md",  # Intention tracking docs
+    "DOC_*.md",  # Doc-related analysis
+    "EXIT_*.md",  # Exit code standards, etc.
 ]
 
 DOCS_ALLOWED_SUBDIRS = {
-    "guides", "cli", "cursor", "examples", "api", "autopack", "research", "reports"
+    "guides",
+    "cli",
+    "cursor",
+    "examples",
+    "api",
+    "autopack",
+    "research",
+    "reports",
 }
 
 ARCHIVE_REQUIRED_BUCKETS = {
-    "plans", "reports", "research", "prompts", "diagnostics", "scripts",
-    "superseded", "unsorted"
+    "plans",
+    "reports",
+    "research",
+    "prompts",
+    "diagnostics",
+    "scripts",
+    "superseded",
+    "unsorted",
 }
 
 # ---------------------------------------------------------------------------
 # Helper Functions
 # ---------------------------------------------------------------------------
+
 
 def matches_pattern(filename: str, pattern: str) -> bool:
     """Check if filename matches a wildcard pattern."""
@@ -215,6 +257,7 @@ def is_docs_file_allowed(filename: str) -> bool:
 # ---------------------------------------------------------------------------
 # Verification Functions
 # ---------------------------------------------------------------------------
+
 
 def verify_root_structure(repo_root: Path) -> Tuple[bool, List[str], List[str]]:
     """
@@ -360,10 +403,9 @@ def verify_project_structure(project_root: Path) -> Tuple[bool, List[str], List[
 # Main Verification
 # ---------------------------------------------------------------------------
 
+
 def generate_report(
-    results: Dict[str, Tuple[bool, List[str], List[str]]],
-    repo_root: Path,
-    project: str
+    results: Dict[str, Tuple[bool, List[str], List[str]]], repo_root: Path, project: str
 ) -> Dict:
     """Generate verification report."""
     total_errors = sum(len(r[1]) for r in results.values())
@@ -379,7 +421,7 @@ def generate_report(
             "total_errors": total_errors,
             "total_warnings": total_warnings,
         },
-        "results": {}
+        "results": {},
     }
 
     for section, (is_valid, errors, warnings) in results.items():
@@ -421,7 +463,7 @@ def print_report(report: Dict) -> None:
                 print(f"  WARNING: {warning}")
 
     print("\n" + "=" * 70)
-    if report['overall_valid']:
+    if report["overall_valid"]:
         print("WORKSPACE STRUCTURE IS VALID")
     else:
         print("WORKSPACE STRUCTURE HAS VIOLATIONS")
@@ -433,17 +475,19 @@ def main():
     parser = argparse.ArgumentParser(
         description="Verify workspace structure matches WORKSPACE_ORGANIZATION_SPEC.md",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
+        epilog=__doc__,
     )
 
-    parser.add_argument("--project", default="autopack",
-                        help="Project to verify (default: autopack)")
-    parser.add_argument("--json-output", type=Path,
-                        help="Write JSON report to file")
-    parser.add_argument("--markdown-output", type=Path,
-                        help="Write markdown report to file")
-    parser.add_argument("--strict", action="store_true",
-                        help="Treat warnings as errors (fail verification if any warnings present)")
+    parser.add_argument(
+        "--project", default="autopack", help="Project to verify (default: autopack)"
+    )
+    parser.add_argument("--json-output", type=Path, help="Write JSON report to file")
+    parser.add_argument("--markdown-output", type=Path, help="Write markdown report to file")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Treat warnings as errors (fail verification if any warnings present)",
+    )
 
     args = parser.parse_args()
 
@@ -495,10 +539,14 @@ def main():
                         continue
 
                     if project_dir.name in known_projects:
-                        results[f"project:{project_dir.name}"] = verify_project_structure(project_dir)
+                        results[f"project:{project_dir.name}"] = verify_project_structure(
+                            project_dir
+                        )
                         continue
                     if (project_dir / "docs").exists() or (project_dir / "archive").exists():
-                        results[f"project:{project_dir.name}"] = verify_project_structure(project_dir)
+                        results[f"project:{project_dir.name}"] = verify_project_structure(
+                            project_dir
+                        )
                         continue
                     # Otherwise: skip (run directories / infra / caches)
 
@@ -536,7 +584,7 @@ def main():
             f"**Total Warnings**: {report['summary']['total_warnings']}",
             "",
             "---",
-            ""
+            "",
         ]
 
         for section, result in report["results"].items():
@@ -561,7 +609,7 @@ def main():
 
         md_lines.append("---")
         md_lines.append("")
-        if report['overall_valid']:
+        if report["overall_valid"]:
             md_lines.append("**WORKSPACE STRUCTURE IS VALID**")
         else:
             md_lines.append("**WORKSPACE STRUCTURE HAS VIOLATIONS**")
@@ -572,7 +620,7 @@ def main():
         print(f"Markdown report written to: {args.markdown_output}")
 
     # Exit with appropriate code
-    return 0 if report['overall_valid'] else 1
+    return 0 if report["overall_valid"] else 1
 
 
 if __name__ == "__main__":

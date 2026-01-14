@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 import psycopg2
 from qdrant_client import QdrantClient
 
+
 def check_postgresql():
     """Check PostgreSQL routing rules."""
     dsn = os.getenv("DATABASE_URL")
@@ -88,7 +89,7 @@ def check_qdrant():
 
         # Get collection info
         collection_info = client.get_collection("file_routing_patterns")
-        print(f"Collection: file_routing_patterns")
+        print("Collection: file_routing_patterns")
         print(f"Vectors count: {collection_info.points_count}")
         print(f"Vector dimension: {collection_info.config.params.vectors.size}")
         print()
@@ -103,7 +104,7 @@ def check_qdrant():
                 limit=100,
                 offset=offset,
                 with_payload=True,
-                with_vectors=False
+                with_vectors=False,
             )
 
             points, next_offset = result

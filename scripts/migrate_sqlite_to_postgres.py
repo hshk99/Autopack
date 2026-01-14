@@ -1,12 +1,14 @@
 """
 Migrate data from SQLite to PostgreSQL
 """
+
 import sys
 from pathlib import Path
 
 # Set UTF-8 encoding for Windows console
 if sys.platform == "win32":
     import codecs
+
     sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
     sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
 
@@ -17,6 +19,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from autopack.models import DecisionLog, Run, Tier, Phase, PlanningArtifact, PlanChange
 from autopack.usage_recorder import LlmUsageEvent, DoctorUsageStats
+
 
 def migrate():
     """Migrate all data from SQLite to PostgreSQL"""
@@ -29,6 +32,7 @@ def migrate():
 
     # Connect to PostgreSQL target (using default DATABASE_URL)
     from autopack.database import SessionLocal
+
     pg_session = SessionLocal()
 
     try:
@@ -167,6 +171,7 @@ def migrate():
     finally:
         sqlite_session.close()
         pg_session.close()
+
 
 if __name__ == "__main__":
     migrate()

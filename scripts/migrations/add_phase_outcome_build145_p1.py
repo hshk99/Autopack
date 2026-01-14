@@ -50,18 +50,30 @@ def get_database_url() -> str:
     """
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
-        print("\n" + "="*80, file=sys.stderr)
+        print("\n" + "=" * 80, file=sys.stderr)
         print("ERROR: DATABASE_URL environment variable not set", file=sys.stderr)
-        print("="*80, file=sys.stderr)
-        print("\nMigration scripts require explicit DATABASE_URL to prevent footguns.", file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
+        print(
+            "\nMigration scripts require explicit DATABASE_URL to prevent footguns.",
+            file=sys.stderr,
+        )
         print("Production uses Postgres; SQLite is only for dev/test.\n", file=sys.stderr)
         print("Set DATABASE_URL before running:\n", file=sys.stderr)
         print("  # PowerShell (Postgres production):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\"", file=sys.stderr)
-        print("  python scripts/migrations/add_phase_outcome_build145_p1.py upgrade\n", file=sys.stderr)
+        print(
+            '  $env:DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"',
+            file=sys.stderr,
+        )
+        print(
+            "  python scripts/migrations/add_phase_outcome_build145_p1.py upgrade\n",
+            file=sys.stderr,
+        )
         print("  # PowerShell (SQLite dev/test - explicit opt-in):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"sqlite:///autopack.db\"", file=sys.stderr)
-        print("  python scripts/migrations/add_phase_outcome_build145_p1.py upgrade\n", file=sys.stderr)
+        print('  $env:DATABASE_URL="sqlite:///autopack.db"', file=sys.stderr)
+        print(
+            "  python scripts/migrations/add_phase_outcome_build145_p1.py upgrade\n",
+            file=sys.stderr,
+        )
         sys.exit(1)
     return db_url
 
@@ -103,16 +115,18 @@ def upgrade(engine: Engine) -> None:
             print("✓ Column 'phase_outcome' already exists, skipping column creation")
 
             # Verify existing data
-            result = conn.execute(text("""
+            result = conn.execute(
+                text("""
                 SELECT COUNT(*) as total,
                        SUM(CASE WHEN phase_outcome IS NULL THEN 1 ELSE 0 END) as null_count,
                        SUM(CASE WHEN phase_outcome = 'COMPLETE' THEN 1 ELSE 0 END) as complete_count,
                        SUM(CASE WHEN phase_outcome = 'FAILED' THEN 1 ELSE 0 END) as failed_count
                 FROM token_efficiency_metrics
-            """))
+            """)
+            )
             row = result.fetchone()
             if row:
-                print(f"✓ Existing metrics breakdown:")
+                print("✓ Existing metrics breakdown:")
                 print(f"    Total rows: {row[0]}")
                 print(f"    NULL (legacy): {row[1]}")
                 print(f"    COMPLETE: {row[2]}")
@@ -125,18 +139,22 @@ def upgrade(engine: Engine) -> None:
         print("      Nullable: TRUE (backward compatible with existing rows)")
 
         # SQLite and PostgreSQL both support this syntax
-        conn.execute(text("""
+        conn.execute(
+            text("""
             ALTER TABLE token_efficiency_metrics
             ADD COLUMN phase_outcome VARCHAR(50) NULL
-        """))
+        """)
+        )
         print("      ✓ Column 'phase_outcome' added")
 
         print("\n[2/2] Creating index on phase_outcome for efficient filtering")
         try:
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE INDEX idx_token_efficiency_metrics_phase_outcome
                 ON token_efficiency_metrics(phase_outcome)
-            """))
+            """)
+            )
             print("      ✓ Index 'idx_token_efficiency_metrics_phase_outcome' created")
         except Exception as e:
             if "already exists" in str(e).lower():
@@ -145,14 +163,16 @@ def upgrade(engine: Engine) -> None:
                 raise
 
         print("\n[3/3] Verification")
-        result = conn.execute(text("""
+        result = conn.execute(
+            text("""
             SELECT COUNT(*) as total_rows
             FROM token_efficiency_metrics
-        """))
+        """)
+        )
         row = result.fetchone()
         if row:
             print(f"      Total rows: {row[0]}")
-            print(f"      All existing rows have phase_outcome=NULL (expected)")
+            print("      All existing rows have phase_outcome=NULL (expected)")
 
     print("\n" + "=" * 80)
     print("✅ Migration completed successfully!")
@@ -180,9 +200,11 @@ def downgrade(engine: Engine) -> None:
 
         print("\n[1/2] Dropping index: idx_token_efficiency_metrics_phase_outcome")
         try:
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 DROP INDEX idx_token_efficiency_metrics_phase_outcome
-            """))
+            """)
+            )
             print("      ✓ Index dropped")
         except Exception as e:
             if "no such index" in str(e).lower() or "does not exist" in str(e).lower():
@@ -204,10 +226,12 @@ def downgrade(engine: Engine) -> None:
             return
         else:
             # PostgreSQL and other databases support DROP COLUMN
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 ALTER TABLE token_efficiency_metrics
                 DROP COLUMN phase_outcome
-            """))
+            """)
+            )
             print("      ✓ Column 'phase_outcome' dropped")
 
     print("\n" + "=" * 80)
@@ -238,6 +262,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Migration failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

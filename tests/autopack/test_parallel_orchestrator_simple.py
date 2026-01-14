@@ -121,7 +121,6 @@ class TestParallelRunOrchestrator:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path
             mock_wm.worktree_path = tmp_path
@@ -149,7 +148,6 @@ class TestParallelRunOrchestrator:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path
             mock_wm.worktree_path = tmp_path
@@ -212,7 +210,6 @@ class TestParallelRunOrchestrator:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path
             mock_wm.worktree_path = tmp_path
@@ -245,7 +242,6 @@ class TestConvenienceFunctions:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path
             mock_wm.worktree_path = tmp_path
@@ -272,7 +268,6 @@ class TestConvenienceFunctions:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path
             mock_wm.worktree_path = tmp_path

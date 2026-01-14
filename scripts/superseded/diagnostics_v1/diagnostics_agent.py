@@ -44,7 +44,9 @@ class DiagnosticsAgent:
         run_id: str,
         workspace: Path,
         memory_service: Optional[MemoryService] = None,
-        decision_logger: Optional[Callable[[str, str, str, Optional[str], Optional[str]], None]] = None,
+        decision_logger: Optional[
+            Callable[[str, str, str, Optional[str], Optional[str]], None]
+        ] = None,
         diagnostics_dir: Optional[Path] = None,
         max_probes: int = 8,
         max_seconds: int = 300,
@@ -126,7 +128,9 @@ class DiagnosticsAgent:
                     break
                 result = self._run_probe(probe)
                 probe_results.append(result)
-                artifacts.extend([r.artifact_path or "" for r in result.command_results if r.artifact_path])
+                artifacts.extend(
+                    [r.artifact_path or "" for r in result.command_results if r.artifact_path]
+                )
                 evidence_line = self._summarize_probe_result(result)
                 ledger.items[0].add_evidence(evidence_line)
                 if result.resolved and probe.stop_on_success:
@@ -184,7 +188,12 @@ class DiagnosticsAgent:
                 sandbox=cmd.sandbox,
             )
             results.append(res)
-            if not res.skipped and not res.timed_out and res.exit_code == 0 and probe.stop_on_success:
+            if (
+                not res.skipped
+                and not res.timed_out
+                and res.exit_code == 0
+                and probe.stop_on_success
+            ):
                 resolved = True
                 break
         return ProbeRunResult(probe=probe, command_results=results, resolved=resolved)
@@ -257,4 +266,3 @@ class DiagnosticsAgent:
             except Exception:
                 return {}
         return {}
-

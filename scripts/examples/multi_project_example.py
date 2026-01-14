@@ -28,6 +28,7 @@ def create_project_if_not_exists(project_path: str) -> None:
 
         # Initialize git repo
         import subprocess
+
         subprocess.run(["git", "init"], cwd=project_path, check=True)
 
         # Create README
@@ -35,7 +36,7 @@ def create_project_if_not_exists(project_path: str) -> None:
         subprocess.run(["git", "add", "README.md"], cwd=project_path, check=True)
         subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=project_path, check=True)
 
-        print(f"[Setup] ✅ Project initialized with git")
+        print("[Setup] ✅ Project initialized with git")
     else:
         print(f"[Setup] Project already exists: {project_path}")
 
@@ -48,7 +49,7 @@ def build_project_a():
 
     supervisor = Supervisor(
         api_url="http://localhost:8000",
-        target_repo_path=project_path  # ← Isolated to this project
+        target_repo_path=project_path,  # ← Isolated to this project
     )
 
     # Define build plan
@@ -73,7 +74,7 @@ def build_project_a():
             "acceptance_criteria": [
                 "main.py exists with FastAPI app",
                 "/health endpoint returns 200",
-                "Can start with: uvicorn main:app"
+                "Can start with: uvicorn main:app",
             ],
         },
         {
@@ -87,7 +88,7 @@ def build_project_a():
             "acceptance_criteria": [
                 "Logging configured in main.py",
                 "Logs to console with timestamps",
-                "Log levels configured (INFO, DEBUG, ERROR)"
+                "Log levels configured (INFO, DEBUG, ERROR)",
             ],
         },
     ]
@@ -111,7 +112,7 @@ def build_project_b():
 
     supervisor = Supervisor(
         api_url="http://localhost:8000",
-        target_repo_path=project_path  # ← Isolated to this project
+        target_repo_path=project_path,  # ← Isolated to this project
     )
 
     # Define build plan
@@ -137,7 +138,7 @@ def build_project_b():
                 "pipeline.py exists with DataPipeline class",
                 "extract() method reads CSV files",
                 "transform() method processes data",
-                "load() method writes output"
+                "load() method writes output",
             ],
         },
     ]
@@ -156,9 +157,9 @@ def build_project_b():
 def main():
     """Run multiple isolated autonomous builds"""
 
-    print("="*70)
+    print("=" * 70)
     print("Multi-Project Autonomous Build Example")
-    print("="*70)
+    print("=" * 70)
     print()
     print("This will create two isolated projects:")
     print("  1. c:\\Projects\\web-service     - FastAPI web service")
@@ -193,9 +194,9 @@ def main():
         result_b = build_project_b()
         print(f"✅ Project B completed: {result_b['run_id']}")
 
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("Both projects built successfully!")
-        print("="*70)
+        print("=" * 70)
 
     else:
         print("Invalid choice. Exiting.")

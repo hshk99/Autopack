@@ -73,9 +73,9 @@ class TestAnalyzer:
         from autopack.research.analyzer import Analyzer
 
         analyzer = Analyzer()
-        long_text = """Machine learning is a method of data analysis that automates 
-        analytical model building. It is a branch of artificial intelligence based on 
-        the idea that systems can learn from data, identify patterns and make decisions 
+        long_text = """Machine learning is a method of data analysis that automates
+        analytical model building. It is a branch of artificial intelligence based on
+        the idea that systems can learn from data, identify patterns and make decisions
         with minimal human intervention."""
 
         summary = analyzer.summarize(long_text)

@@ -31,7 +31,9 @@ from autopack.models import Phase, PhaseState  # noqa: E402
 from autopack.token_estimator import TokenEstimator  # noqa: E402
 
 
-RUN_TYPE_AUTOPACK_RE = re.compile(r"^(build\d+|build-|build_|autopack\b|autopack-|autopack_)", re.IGNORECASE)
+RUN_TYPE_AUTOPACK_RE = re.compile(
+    r"^(build\d+|build-|build_|autopack\b|autopack-|autopack_)", re.IGNORECASE
+)
 
 
 def infer_run_type(run_id: str) -> str:
@@ -147,7 +149,9 @@ def score_phase_for_p10(phase: Phase, estimator: TokenEstimator) -> ScoredPhase 
     return ScoredPhase(run_id=phase.run_id, score=score, deliverable_count=dcount)
 
 
-def pick_next_run_id_p10_first(queued_phases: Iterable[Phase], estimator: TokenEstimator) -> str | None:
+def pick_next_run_id_p10_first(
+    queued_phases: Iterable[Phase], estimator: TokenEstimator
+) -> str | None:
     scored: List[ScoredPhase] = []
     for p in queued_phases:
         sp = score_phase_for_p10(p, estimator)
@@ -174,11 +178,7 @@ def pick_next_run_id_p10_first(queued_phases: Iterable[Phase], estimator: TokenE
 
 def pick_next_run_id_highest_queued(session) -> str | None:
     # Equivalent to scripts/list_run_counts.py ranking (but implemented directly here).
-    rows = (
-        session.query(Phase.run_id)
-        .filter(Phase.state == PhaseState.QUEUED)
-        .all()
-    )
+    rows = session.query(Phase.run_id).filter(Phase.state == PhaseState.QUEUED).all()
     if not rows:
         return None
 
@@ -190,7 +190,9 @@ def pick_next_run_id_highest_queued(session) -> str | None:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Pick the next run_id to drain (P10-first with fallback).")
+    ap = argparse.ArgumentParser(
+        description="Pick the next run_id to drain (P10-first with fallback)."
+    )
     ap.add_argument("--format", choices=["tsv", "json"], default="tsv")
     args = ap.parse_args()
 
@@ -199,7 +201,9 @@ def main() -> int:
         queued = session.query(Phase).filter(Phase.state == PhaseState.QUEUED).all()
         estimator = TokenEstimator(workspace=Path.cwd())
 
-        run_id = pick_next_run_id_p10_first(queued, estimator) or pick_next_run_id_highest_queued(session)
+        run_id = pick_next_run_id_p10_first(queued, estimator) or pick_next_run_id_highest_queued(
+            session
+        )
         if not run_id:
             # No queued work
             if args.format == "json":
@@ -220,5 +224,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-

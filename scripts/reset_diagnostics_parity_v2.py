@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Reset diagnostics-parity-v2 run after BUILD-098 fix"""
+
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path.cwd() / "src"))
 
 from autopack.database import SessionLocal, init_db

@@ -74,9 +74,7 @@ LEGACY_PATH_PATTERNS = [
 ]
 
 
-def check_content_for_legacy_paths(
-    content: str, file_path: str
-) -> List[LegacyPathViolation]:
+def check_content_for_legacy_paths(content: str, file_path: str) -> List[LegacyPathViolation]:
     """Check file content for legacy path references.
 
     Properly handles fenced code blocks (``` delimited sections).
@@ -244,9 +242,7 @@ See docs/GOVERNANCE.md Section 10 for canonical doc policy.
 
 def main() -> int:
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Check canonical docs for legacy path references"
-    )
+    parser = argparse.ArgumentParser(description="Check canonical docs for legacy path references")
     parser.add_argument(
         "--repo-root",
         type=Path,

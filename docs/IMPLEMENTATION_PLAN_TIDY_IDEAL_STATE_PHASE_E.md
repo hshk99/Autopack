@@ -1,9 +1,9 @@
 # Implementation Plan: Autopack Tidy “Ideal State” (Phase E — Prevention + Reuse Quality)
 
-Audience: implementation cursor (cheaper model)  
-Scope: Improve “tidy up” beyond the current gap-closure so it matches `README.md`’s *ideal intention* and stays clean over time.  
-Primary entrypoint: `scripts/tidy/tidy_up.py`  
-Validator: `scripts/tidy/verify_workspace_structure.py`  
+Audience: implementation cursor (cheaper model)
+Scope: Improve “tidy up” beyond the current gap-closure so it matches `README.md`’s *ideal intention* and stays clean over time.
+Primary entrypoint: `scripts/tidy/tidy_up.py`
+Validator: `scripts/tidy/verify_workspace_structure.py`
 Key reuse mechanism: SOT indexing + retrieval (`include_sot`) via `MemoryService` and executor startup indexing.
 
 ---
@@ -201,5 +201,3 @@ Vector retrieval works best when chunks have consistent structure and high signa
 4) E.4 consolidation idempotency markers
 5) E.6 CI + hook enforcement
 6) E.5 retrieval quality improvements + smoke checks (ongoing)
-
-

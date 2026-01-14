@@ -9,7 +9,6 @@ from autopack.research.agents.source_evaluator import SourceEvaluator
 
 
 class TestSourceEvaluator(unittest.TestCase):
-
     def setUp(self):
         """
         Set up the test case environment.

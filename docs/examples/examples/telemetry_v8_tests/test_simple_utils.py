@@ -5,17 +5,14 @@ for utility functions like string formatting, path normalization, and
 list deduplication.
 """
 
-import os
-import pytest
-
 
 def format_phase_name(phase_id: str, category: str) -> str:
     """Format a phase name from ID and category.
-    
+
     Args:
         phase_id: The phase identifier (e.g., 'telemetry-v8-d1')
         category: The phase category (e.g., 'docs', 'tests')
-    
+
     Returns:
         Formatted phase name string
     """
@@ -24,10 +21,10 @@ def format_phase_name(phase_id: str, category: str) -> str:
 
 def normalize_path(path: str) -> str:
     """Normalize a file path to use forward slashes.
-    
+
     Args:
         path: Input path with any separator style
-    
+
     Returns:
         Normalized path with forward slashes
     """
@@ -36,10 +33,10 @@ def normalize_path(path: str) -> str:
 
 def deduplicate_list(items: list) -> list:
     """Remove duplicates from a list while preserving order.
-    
+
     Args:
         items: Input list that may contain duplicates
-    
+
     Returns:
         List with duplicates removed, order preserved
     """
@@ -53,6 +50,7 @@ def deduplicate_list(items: list) -> list:
 
 
 # Test cases
+
 
 def test_format_phase_name():
     """Test phase name formatting."""

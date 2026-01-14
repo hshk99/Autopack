@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from autopack.research.gatherers.github_gatherer import GitHubGatherer
 from autopack.research.models.validators import CitationValidator, Finding
 
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -33,12 +33,7 @@ def diagnose_failures() -> Dict[str, Any]:
     Returns:
         dict: Diagnostic results with failure details
     """
-    results = {
-        "total_findings": 0,
-        "valid_count": 0,
-        "invalid_count": 0,
-        "failures": []
-    }
+    results = {"total_findings": 0, "valid_count": 0, "invalid_count": 0, "failures": []}
 
     # Check for required environment variables
     github_token = os.getenv("GITHUB_TOKEN")
@@ -54,16 +49,12 @@ def diagnose_failures() -> Dict[str, Any]:
         validator = CitationValidator()
 
         # Test same repositories as Phase 2 evaluation
-        test_topics = [
-            "machine learning python",
-            "web framework",
-            "data visualization"
-        ]
+        test_topics = ["machine learning python", "web framework", "data visualization"]
 
         for topic in test_topics:
-            logger.info(f"\n{'='*70}")
+            logger.info(f"\n{'=' * 70}")
             logger.info(f"Topic: {topic}")
-            logger.info(f"{'='*70}")
+            logger.info(f"{'=' * 70}")
 
             # Discover 2 repos per topic
             repos = gatherer.discover_repositories(topic, max_repos=2)
@@ -76,14 +67,14 @@ def diagnose_failures() -> Dict[str, Any]:
                 readme_content = gatherer.fetch_readme(repo_name)
 
                 if not readme_content:
-                    logger.warning(f"  No README content")
+                    logger.warning("  No README content")
                     continue
 
                 # Extract findings
                 findings = gatherer.extract_findings(readme_content, topic, max_findings=3)
 
                 if not findings:
-                    logger.warning(f"  No findings extracted")
+                    logger.warning("  No findings extracted")
                     continue
 
                 logger.info(f"  Extracted {len(findings)} findings")
@@ -93,11 +84,7 @@ def diagnose_failures() -> Dict[str, Any]:
                     results["total_findings"] += 1
 
                     # Verify citation
-                    verification = validator.verify(
-                        finding,
-                        readme_content,
-                        finding.source_hash
-                    )
+                    verification = validator.verify(finding, readme_content, finding.source_hash)
 
                     if verification.valid:
                         results["valid_count"] += 1
@@ -114,11 +101,17 @@ def diagnose_failures() -> Dict[str, Any]:
                             "category": finding.category,
                             "reason": verification.reason,
                             "confidence": verification.confidence,
-                            "content": finding.content[:200] + "..." if len(finding.content) > 200 else finding.content,
-                            "extraction_span": finding.extraction_span[:300] + "..." if len(finding.extraction_span) > 300 else finding.extraction_span,
+                            "content": finding.content[:200] + "..."
+                            if len(finding.content) > 200
+                            else finding.content,
+                            "extraction_span": finding.extraction_span[:300] + "..."
+                            if len(finding.extraction_span) > 300
+                            else finding.extraction_span,
                             "extraction_span_length": len(finding.extraction_span),
-                            "has_numbers_in_span": bool(re.findall(r'\d+(?:\.\d+)?', finding.extraction_span)),
-                            "readme_snippet": ""
+                            "has_numbers_in_span": bool(
+                                re.findall(r"\d+(?:\.\d+)?", finding.extraction_span)
+                            ),
+                            "readme_snippet": "",
                         }
 
                         # Try to find where the span should be in the README
@@ -133,7 +126,7 @@ def diagnose_failures() -> Dict[str, Any]:
 
                             if search_phrase in normalized_readme:
                                 pos = normalized_readme.index(search_phrase)
-                                snippet = readme_content[max(0, pos-100):pos+200]
+                                snippet = readme_content[max(0, pos - 100) : pos + 200]
                                 failure_info["readme_snippet"] = snippet
                                 failure_info["partial_match"] = True
                             else:
@@ -143,7 +136,9 @@ def diagnose_failures() -> Dict[str, Any]:
 
         # Calculate validity percentage
         if results["total_findings"] > 0:
-            results["validity_percentage"] = (results["valid_count"] / results["total_findings"]) * 100
+            results["validity_percentage"] = (
+                results["valid_count"] / results["total_findings"]
+            ) * 100
         else:
             results["validity_percentage"] = 0.0
 
@@ -170,82 +165,96 @@ def generate_diagnostic_report(results: Dict[str, Any]) -> str:
     ]
 
     for idx, failure in enumerate(results.get("failures", []), 1):
-        lines.extend([
-            "",
-            f"FAILURE #{idx}",
-            "-" * 70,
-            f"Repository:        {failure['repository']}",
-            f"Topic:             {failure['topic']}",
-            f"Category:          {failure['category']}",
-            f"Reason:            {failure['reason']}",
-            f"Confidence:        {failure['confidence']}",
-            "",
-            f"Content (LLM interpretation):",
-            f"  {failure['content']}",
-            "",
-            f"Extraction Span (quote from source):",
-            f"  Length: {failure['extraction_span_length']} chars",
-            f"  Has numbers: {failure['has_numbers_in_span']}",
-            f"  Text: {failure['extraction_span']}",
-        ])
+        lines.extend(
+            [
+                "",
+                f"FAILURE #{idx}",
+                "-" * 70,
+                f"Repository:        {failure['repository']}",
+                f"Topic:             {failure['topic']}",
+                f"Category:          {failure['category']}",
+                f"Reason:            {failure['reason']}",
+                f"Confidence:        {failure['confidence']}",
+                "",
+                "Content (LLM interpretation):",
+                f"  {failure['content']}",
+                "",
+                "Extraction Span (quote from source):",
+                f"  Length: {failure['extraction_span_length']} chars",
+                f"  Has numbers: {failure['has_numbers_in_span']}",
+                f"  Text: {failure['extraction_span']}",
+            ]
+        )
 
         if "readme_snippet" in failure and failure["readme_snippet"]:
-            lines.extend([
-                "",
-                f"README Snippet (closest match):",
-                f"  {failure['readme_snippet'][:300]}",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "README Snippet (closest match):",
+                    f"  {failure['readme_snippet'][:300]}",
+                ]
+            )
 
-        if failure['reason'] == "numeric claim does not match extraction_span":
-            lines.extend([
-                "",
-                "ANALYSIS: Numeric verification failure",
-                "  - Category is market_intelligence or competitive_analysis",
-                "  - extraction_span is missing numbers",
-                "  - This suggests LLM categorized incorrectly OR extracted non-numeric quote",
-            ])
-        elif failure['reason'] == "extraction_span not found in source document":
-            lines.extend([
-                "",
-                "ANALYSIS: Text matching failure",
-                "  - extraction_span quote not found in normalized source",
-                "  - Could be: encoding issue, LLM hallucination, or normalization gap",
-            ])
+        if failure["reason"] == "numeric claim does not match extraction_span":
+            lines.extend(
+                [
+                    "",
+                    "ANALYSIS: Numeric verification failure",
+                    "  - Category is market_intelligence or competitive_analysis",
+                    "  - extraction_span is missing numbers",
+                    "  - This suggests LLM categorized incorrectly OR extracted non-numeric quote",
+                ]
+            )
+        elif failure["reason"] == "extraction_span not found in source document":
+            lines.extend(
+                [
+                    "",
+                    "ANALYSIS: Text matching failure",
+                    "  - extraction_span quote not found in normalized source",
+                    "  - Could be: encoding issue, LLM hallucination, or normalization gap",
+                ]
+            )
 
-    lines.extend([
-        "",
-        "=" * 70,
-        "RECOMMENDATIONS",
-        "=" * 70,
-    ])
+    lines.extend(
+        [
+            "",
+            "=" * 70,
+            "RECOMMENDATIONS",
+            "=" * 70,
+        ]
+    )
 
     # Analyze failure patterns
-    numeric_failures = sum(1 for f in results.get("failures", []) if "numeric" in f['reason'])
-    text_failures = sum(1 for f in results.get("failures", []) if "not found" in f['reason'])
+    numeric_failures = sum(1 for f in results.get("failures", []) if "numeric" in f["reason"])
+    text_failures = sum(1 for f in results.get("failures", []) if "not found" in f["reason"])
 
     if numeric_failures >= 3:
-        lines.extend([
-            "",
-            f"PRIMARY ISSUE: Numeric verification ({numeric_failures} failures)",
-            "  - LLM is categorizing findings as market_intelligence/competitive_analysis",
-            "  - But extraction_span doesn't contain numbers",
-            "  - OPTIONS:",
-            "    A. Relax numeric requirement (allow empty numbers for these categories)",
-            "    B. Improve LLM prompt to choose correct category",
-            "    C. Remove numeric verification entirely",
-        ])
+        lines.extend(
+            [
+                "",
+                f"PRIMARY ISSUE: Numeric verification ({numeric_failures} failures)",
+                "  - LLM is categorizing findings as market_intelligence/competitive_analysis",
+                "  - But extraction_span doesn't contain numbers",
+                "  - OPTIONS:",
+                "    A. Relax numeric requirement (allow empty numbers for these categories)",
+                "    B. Improve LLM prompt to choose correct category",
+                "    C. Remove numeric verification entirely",
+            ]
+        )
 
     if text_failures >= 1:
-        lines.extend([
-            "",
-            f"SECONDARY ISSUE: Text matching ({text_failures} failures)",
-            "  - extraction_span quote not found in source",
-            "  - Likely LLM hallucination or paraphrasing instead of exact quote",
-            "  - OPTIONS:",
-            "    A. Improve LLM prompt to emphasize EXACT quotes",
-            "    B. Add fuzzy matching (risky - might allow bad citations)",
-            "    C. Accept this as acceptable failure rate",
-        ])
+        lines.extend(
+            [
+                "",
+                f"SECONDARY ISSUE: Text matching ({text_failures} failures)",
+                "  - extraction_span quote not found in source",
+                "  - Likely LLM hallucination or paraphrasing instead of exact quote",
+                "  - OPTIONS:",
+                "    A. Improve LLM prompt to emphasize EXACT quotes",
+                "    B. Add fuzzy matching (risky - might allow bad citations)",
+                "    C. Accept this as acceptable failure rate",
+            ]
+        )
 
     lines.append("=" * 70)
     return "\n".join(lines)

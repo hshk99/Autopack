@@ -19,7 +19,7 @@ def atomic_write(
     content: str,
     encoding: str = "utf-8",
     max_retries: int = 3,
-    retry_delay_ms: int = 100
+    retry_delay_ms: int = 100,
 ) -> None:
     """
     Write file atomically using temp-file + replace pattern.
@@ -78,7 +78,7 @@ def atomic_write_json(
     indent: Optional[int] = 2,
     encoding: str = "utf-8",
     max_retries: int = 3,
-    retry_delay_ms: int = 100
+    retry_delay_ms: int = 100,
 ) -> None:
     """
     Write JSON file atomically.
@@ -107,14 +107,12 @@ def atomic_write_json(
         content=content,
         encoding=encoding,
         max_retries=max_retries,
-        retry_delay_ms=retry_delay_ms
+        retry_delay_ms=retry_delay_ms,
     )
 
 
 def safe_read_json(
-    path: Path,
-    default: Optional[Dict[str, Any]] = None,
-    encoding: str = "utf-8"
+    path: Path, default: Optional[Dict[str, Any]] = None, encoding: str = "utf-8"
 ) -> Dict[str, Any]:
     """
     Read JSON file with fallback to default on failure.

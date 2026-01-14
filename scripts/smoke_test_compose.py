@@ -59,13 +59,13 @@ class SmokeTestResult:
     def summary(self):
         """Print summary."""
         total = self.passed + self.failed + self.warnings
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Smoke Test Results: {self.passed}/{total} passed")
         if self.failed > 0:
             print(f"  Failed: {self.failed}")
         if self.warnings > 0:
             print(f"  Warnings: {self.warnings}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         return self.failed == 0
 
 
@@ -92,7 +92,9 @@ def check_service_health(service: str, timeout: int = 5) -> Tuple[bool, str]:
         return False, f"error checking service: {e}"
 
 
-def check_http_endpoint(url: str, expected_status: int = 200, retries: int = MAX_RETRIES) -> Tuple[bool, str]:
+def check_http_endpoint(
+    url: str, expected_status: int = 200, retries: int = MAX_RETRIES
+) -> Tuple[bool, str]:
     """Check if HTTP endpoint responds with expected status."""
     for attempt in range(retries):
         try:
@@ -270,7 +272,7 @@ def main():
                 "backend→db connectivity",
                 db_ok,
                 f"database_status={db_status}",
-                is_warning=not db_ok
+                is_warning=not db_ok,
             )
 
             # Check Qdrant status (optional)
@@ -280,13 +282,11 @@ def main():
                 "backend→qdrant connectivity",
                 qdrant_ok,
                 f"qdrant_status={qdrant_status}",
-                is_warning=not qdrant_ok
+                is_warning=not qdrant_ok,
             )
         else:
             results.record(
-                "backend readiness check",
-                False,
-                f"health endpoint returned {response.status_code}"
+                "backend readiness check", False, f"health endpoint returned {response.status_code}"
             )
     except Exception as e:
         results.record("backend readiness check", False, f"error: {e}")

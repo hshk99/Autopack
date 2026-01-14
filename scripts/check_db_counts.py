@@ -1,4 +1,5 @@
 """Quick database phase count check."""
+
 import sys
 from pathlib import Path
 

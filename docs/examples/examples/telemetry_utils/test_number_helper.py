@@ -103,12 +103,12 @@ class TestIsPrime:
 
     def test_perfect_squares(self):
         """Test perfect squares (all composite)."""
-        assert is_prime(4) is False   # 2^2
-        assert is_prime(9) is False   # 3^2
+        assert is_prime(4) is False  # 2^2
+        assert is_prime(9) is False  # 3^2
         assert is_prime(16) is False  # 4^2
         assert is_prime(25) is False  # 5^2
         assert is_prime(49) is False  # 7^2
-        assert is_prime(121) is False # 11^2
+        assert is_prime(121) is False  # 11^2
 
     def test_large_primes(self):
         """Test larger prime numbers."""
@@ -155,10 +155,10 @@ class TestFactorial:
         """Test that factorial of negative number raises ValueError."""
         with pytest.raises(ValueError, match="Factorial is not defined for negative numbers"):
             factorial(-1)
-        
+
         with pytest.raises(ValueError, match="Factorial is not defined for negative numbers"):
             factorial(-5)
-        
+
         with pytest.raises(ValueError, match="Factorial is not defined for negative numbers"):
             factorial(-100)
 
@@ -188,7 +188,7 @@ class TestIntegration:
         # 2 is the only even prime
         assert is_even(2) is True
         assert is_prime(2) is True
-        
+
         # All other even numbers are not prime
         for n in [4, 6, 8, 10, 12, 14, 16, 18, 20]:
             assert is_even(n) is True
@@ -229,14 +229,14 @@ class TestIntegration:
         for n in range(21):
             # Check even/odd property
             even = is_even(n)
-            
+
             # Check prime property
             prime = is_prime(n)
-            
+
             # If prime and greater than 2, must be odd
             if prime and n > 2:
                 assert even is False
-            
+
             # Calculate factorial if non-negative
             if n >= 0:
                 fact = factorial(n)
@@ -253,12 +253,12 @@ class TestEdgeCases:
         assert is_even(0) is True
         assert is_even(-1) is False
         assert is_even(1) is False
-        
+
         # is_prime boundaries
         assert is_prime(0) is False
         assert is_prime(1) is False
         assert is_prime(2) is True
-        
+
         # factorial boundaries
         assert factorial(0) == 1
         assert factorial(1) == 1
@@ -287,13 +287,13 @@ class TestEdgeCases:
         """Test special number properties."""
         # 1 is neither prime nor composite
         assert is_prime(1) is False
-        
+
         # 0 is even
         assert is_even(0) is True
-        
+
         # 0! = 1 by definition
         assert factorial(0) == 1
-        
+
         # 2 is the only even prime
         assert is_even(2) is True
         assert is_prime(2) is True
@@ -308,7 +308,7 @@ class TestPerformance:
         # Test some known large primes
         assert is_prime(997) is True
         assert is_prime(1009) is True
-        
+
         # Test some large composites
         assert is_prime(1000) is False
         assert is_prime(1001) is False
@@ -319,7 +319,7 @@ class TestPerformance:
         # Test that we can compute larger factorials
         result = factorial(20)
         assert result == 2432902008176640000
-        
+
         # Verify it's a very large number
         assert result > 10**18
 
@@ -328,6 +328,6 @@ class TestPerformance:
         # Should be O(1) regardless of size
         large_even = 10**100
         large_odd = 10**100 + 1
-        
+
         assert is_even(large_even) is True
         assert is_even(large_odd) is False

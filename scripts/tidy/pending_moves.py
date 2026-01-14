@@ -85,7 +85,7 @@ class PendingMovesQueue:
         max_backoff_seconds: int = DEFAULT_MAX_BACKOFF_SECONDS,
         max_queue_items: int = DEFAULT_MAX_QUEUE_ITEMS,
         max_queue_bytes: int = DEFAULT_MAX_QUEUE_BYTES,
-        use_smart_policies: bool = True
+        use_smart_policies: bool = True,
     ):
         """
         Initialize pending moves queue.
@@ -131,7 +131,7 @@ class PendingMovesQueue:
                 "base_backoff_seconds": self.base_backoff_seconds,
                 "max_backoff_seconds": self.max_backoff_seconds,
             },
-            "items": []
+            "items": [],
         }
 
     def load(self) -> bool:
@@ -146,16 +146,20 @@ class PendingMovesQueue:
             return False
 
         try:
-            with open(self.queue_file, 'r', encoding='utf-8') as f:
+            with open(self.queue_file, "r", encoding="utf-8") as f:
                 self.data = json.load(f)
 
             # Validate schema version
             if self.data.get("schema_version") != self.SCHEMA_VERSION:
-                logger.warning(f"[QUEUE] Unsupported schema version {self.data.get('schema_version')}, resetting")
+                logger.warning(
+                    f"[QUEUE] Unsupported schema version {self.data.get('schema_version')}, resetting"
+                )
                 self.data = self._init_data()
                 return False
 
-            logger.info(f"[QUEUE] Loaded {len(self.data['items'])} pending items from {self.queue_file}")
+            logger.info(
+                f"[QUEUE] Loaded {len(self.data['items'])} pending items from {self.queue_file}"
+            )
             return True
         except Exception as e:
             logger.error(f"[QUEUE] Failed to load queue: {e}")
@@ -178,7 +182,9 @@ class PendingMovesQueue:
             # Write atomically with retry tolerance
             atomic_write_json(self.queue_file, self.data, indent=2)
 
-            logger.debug(f"[QUEUE] Saved {len(self.data['items'])} pending items to {self.queue_file}")
+            logger.debug(
+                f"[QUEUE] Saved {len(self.data['items'])} pending items to {self.queue_file}"
+            )
             return True
         except Exception as e:
             logger.error(f"[QUEUE] Failed to save queue: {e}")
@@ -198,12 +204,12 @@ class PendingMovesQueue:
             Stable 16-character ID
         """
         # Normalize paths (lowercase, forward slashes)
-        src_norm = str(Path(src)).lower().replace('\\', '/')
-        dest_norm = str(Path(dest)).lower().replace('\\', '/')
+        src_norm = str(Path(src)).lower().replace("\\", "/")
+        dest_norm = str(Path(dest)).lower().replace("\\", "/")
 
         # Hash combination
         key = f"{src_norm}|{dest_norm}|{action}"
-        return hashlib.sha256(key.encode('utf-8')).hexdigest()[:16]
+        return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
 
     def _get_policy(self, reason: str) -> Dict:
         """
@@ -256,7 +262,7 @@ class PendingMovesQueue:
         reason: str = "locked",
         error_info: Optional[Exception] = None,
         bytes_estimate: Optional[int] = None,
-        tags: Optional[List[str]] = None
+        tags: Optional[List[str]] = None,
     ) -> str:
         """
         Add or update item in queue.
@@ -285,7 +291,9 @@ class PendingMovesQueue:
         # Check queue caps BEFORE adding new items
         pending_items = [item for item in self.data["items"] if item["status"] == "pending"]
         current_count = len(pending_items)
-        current_bytes = sum(item.get("bytes_estimate", 0) for item in pending_items if item.get("bytes_estimate"))
+        current_bytes = sum(
+            item.get("bytes_estimate", 0) for item in pending_items if item.get("bytes_estimate")
+        )
 
         # Make paths relative for ID check
         try:
@@ -338,9 +346,9 @@ class PendingMovesQueue:
             if error_info:
                 item["last_error"] = str(error_info)[:2000]
                 item["last_error_type"] = type(error_info).__name__
-                if hasattr(error_info, 'errno'):
+                if hasattr(error_info, "errno"):
                     item["last_error_errno"] = error_info.errno
-                if hasattr(error_info, 'winerror'):
+                if hasattr(error_info, "winerror"):
                     item["last_error_winerror"] = error_info.winerror
 
             # Calculate next eligible time with backoff using policy
@@ -349,21 +357,29 @@ class PendingMovesQueue:
             item["next_eligible_at"] = next_eligible.isoformat() + "Z"
 
             # Check if should abandon or escalate to manual
-            first_seen = datetime.fromisoformat(item["first_seen_at"].rstrip('Z'))
+            first_seen = datetime.fromisoformat(item["first_seen_at"].rstrip("Z"))
             age_days = (now - first_seen).days
             max_attempts = policy.get("max_attempts", self.max_attempts)
 
             if item["attempt_count"] >= max_attempts:
                 if policy.get("escalate_to_manual", False):
                     item["status"] = "needs_manual"
-                    item["manual_reason"] = f"Max attempts ({max_attempts}) reached for {reason}: {policy.get('description', 'No description')}"
-                    logger.warning(f"[QUEUE] Escalating item {item_id} to needs_manual (attempts={item['attempt_count']}, reason={reason})")
+                    item["manual_reason"] = (
+                        f"Max attempts ({max_attempts}) reached for {reason}: {policy.get('description', 'No description')}"
+                    )
+                    logger.warning(
+                        f"[QUEUE] Escalating item {item_id} to needs_manual (attempts={item['attempt_count']}, reason={reason})"
+                    )
                 else:
                     item["status"] = "abandoned"
-                    logger.warning(f"[QUEUE] Abandoning item {item_id} (attempts={item['attempt_count']}, age={age_days}d)")
+                    logger.warning(
+                        f"[QUEUE] Abandoning item {item_id} (attempts={item['attempt_count']}, age={age_days}d)"
+                    )
             elif age_days >= self.abandon_after_days:
                 item["status"] = "abandoned"
-                logger.warning(f"[QUEUE] Abandoning item {item_id} (attempts={item['attempt_count']}, age={age_days}d)")
+                logger.warning(
+                    f"[QUEUE] Abandoning item {item_id} (attempts={item['attempt_count']}, age={age_days}d)"
+                )
         else:
             # Create new item
             # Get retry policy for this failure reason
@@ -396,14 +412,16 @@ class PendingMovesQueue:
 
             if manual_reason:
                 item["manual_reason"] = manual_reason
-                logger.info(f"[QUEUE] Item {item_id} escalated to needs_manual immediately (reason: {reason})")
+                logger.info(
+                    f"[QUEUE] Item {item_id} escalated to needs_manual immediately (reason: {reason})"
+                )
 
             if error_info:
                 item["last_error"] = str(error_info)[:2000]
                 item["last_error_type"] = type(error_info).__name__
-                if hasattr(error_info, 'errno'):
+                if hasattr(error_info, "errno"):
                     item["last_error_errno"] = error_info.errno
-                if hasattr(error_info, 'winerror'):
+                if hasattr(error_info, "winerror"):
                     item["last_error_winerror"] = error_info.winerror
 
             if bytes_estimate is not None:
@@ -437,7 +455,7 @@ class PendingMovesQueue:
 
             # Check if eligible based on backoff
             if "next_eligible_at" in item:
-                next_eligible = datetime.fromisoformat(item["next_eligible_at"].rstrip('Z'))
+                next_eligible = datetime.fromisoformat(item["next_eligible_at"].rstrip("Z"))
                 if next_eligible > now:
                     continue
 
@@ -488,7 +506,7 @@ class PendingMovesQueue:
                 if "next_eligible_at" not in item:
                     summary["eligible_now"] += 1
                 else:
-                    next_eligible = datetime.fromisoformat(item["next_eligible_at"].rstrip('Z'))
+                    next_eligible = datetime.fromisoformat(item["next_eligible_at"].rstrip("Z"))
                     if next_eligible <= now:
                         summary["eligible_now"] += 1
 
@@ -519,7 +537,7 @@ class PendingMovesQueue:
         # Calculate priority score (higher = more urgent)
         # Priority = attempt_count * 10 + age_days
         for item in pending_items:
-            first_seen = datetime.fromisoformat(item["first_seen_at"].rstrip('Z'))
+            first_seen = datetime.fromisoformat(item["first_seen_at"].rstrip("Z"))
             age_days = (now - first_seen).days
             item["_age_days"] = age_days
             item["_priority"] = item["attempt_count"] * 10 + age_days
@@ -531,29 +549,37 @@ class PendingMovesQueue:
         top_items = pending_items[:top_n]
 
         # Calculate total bytes pending
-        total_bytes = sum(item.get("bytes_estimate", 0) for item in pending_items if item.get("bytes_estimate"))
+        total_bytes = sum(
+            item.get("bytes_estimate", 0) for item in pending_items if item.get("bytes_estimate")
+        )
 
         # Determine suggested actions
         suggested_actions = []
         has_locked = any(item.get("reason") == "locked" for item in pending_items)
 
         if has_locked:
-            suggested_actions.append({
-                "action": "close_locking_processes",
-                "description": "Close processes that may be locking files (database browsers, file explorers, IDEs)",
-                "priority": "high"
-            })
-            suggested_actions.append({
-                "action": "reboot",
-                "description": "Reboot the system to release all file locks",
-                "priority": "medium"
-            })
+            suggested_actions.append(
+                {
+                    "action": "close_locking_processes",
+                    "description": "Close processes that may be locking files (database browsers, file explorers, IDEs)",
+                    "priority": "high",
+                }
+            )
+            suggested_actions.append(
+                {
+                    "action": "reboot",
+                    "description": "Reboot the system to release all file locks",
+                    "priority": "medium",
+                }
+            )
 
-        suggested_actions.append({
-            "action": "rerun_tidy",
-            "description": "Run 'python scripts/tidy/tidy_up.py --execute' to retry pending moves",
-            "priority": "high"
-        })
+        suggested_actions.append(
+            {
+                "action": "rerun_tidy",
+                "description": "Run 'python scripts/tidy/tidy_up.py --execute' to retry pending moves",
+                "priority": "high",
+            }
+        )
 
         # Build report
         report = {
@@ -561,7 +587,9 @@ class PendingMovesQueue:
             "summary": {
                 "total_pending": len(pending_items),
                 "total_bytes_estimate": total_bytes,
-                "eligible_now": len([item for item in pending_items if self._is_eligible(item, now)]),
+                "eligible_now": len(
+                    [item for item in pending_items if self._is_eligible(item, now)]
+                ),
                 "top_n_shown": min(top_n, len(pending_items)),
             },
             "top_items": [
@@ -591,7 +619,7 @@ class PendingMovesQueue:
         if "next_eligible_at" not in item:
             return True
 
-        next_eligible = datetime.fromisoformat(item["next_eligible_at"].rstrip('Z'))
+        next_eligible = datetime.fromisoformat(item["next_eligible_at"].rstrip("Z"))
         return next_eligible <= now
 
     def cleanup_succeeded(self) -> int:
@@ -602,10 +630,7 @@ class PendingMovesQueue:
             Number of items removed
         """
         before_count = len(self.data["items"])
-        self.data["items"] = [
-            item for item in self.data["items"]
-            if item["status"] != "succeeded"
-        ]
+        self.data["items"] = [item for item in self.data["items"] if item["status"] != "succeeded"]
         removed = before_count - len(self.data["items"])
 
         if removed > 0:
@@ -614,9 +639,7 @@ class PendingMovesQueue:
         return removed
 
     def cleanup_old_items(
-        self,
-        max_age_days: int = 30,
-        cleanup_statuses: Optional[set] = None
+        self, max_age_days: int = 30, cleanup_statuses: Optional[set] = None
     ) -> int:
         """
         Remove old items from queue based on age to prevent unbounded growth.
@@ -641,24 +664,25 @@ class PendingMovesQueue:
 
         before_count = len(self.data["items"])
         self.data["items"] = [
-            item for item in self.data["items"]
+            item
+            for item in self.data["items"]
             if not (
                 item["status"] in cleanup_statuses
-                and datetime.fromisoformat(item["first_seen_at"].rstrip('Z')) < cutoff_date
+                and datetime.fromisoformat(item["first_seen_at"].rstrip("Z")) < cutoff_date
             )
         ]
         removed = before_count - len(self.data["items"])
 
         if removed > 0:
-            logger.info(f"[QUEUE-CLEANUP] Removed {removed} old items (>{max_age_days}d, statuses: {cleanup_statuses})")
+            logger.info(
+                f"[QUEUE-CLEANUP] Removed {removed} old items (>{max_age_days}d, statuses: {cleanup_statuses})"
+            )
 
         return removed
 
 
 def retry_pending_moves(
-    queue: PendingMovesQueue,
-    dry_run: bool = True,
-    verbose: bool = False
+    queue: PendingMovesQueue, dry_run: bool = True, verbose: bool = False
 ) -> Tuple[int, int, int]:
     """
     Retry eligible pending moves.
@@ -699,7 +723,7 @@ def retry_pending_moves(
         if dry_run:
             # CRITICAL: In dry-run, do NOT mutate the queue at all
             # Just report what would happen
-            print(f"    [DRY-RUN] Would retry move (queue unchanged)")
+            print("    [DRY-RUN] Would retry move (queue unchanged)")
             # Don't count as succeeded in dry-run to avoid confusion
             continue
 
@@ -711,20 +735,17 @@ def retry_pending_moves(
 
             # Attempt move
             import shutil
+
             shutil.move(str(src), str(dest))
 
             # Mark succeeded (only in execute mode)
             queue.mark_succeeded(item["id"])
             succeeded += 1
-            print(f"    SUCCESS")
+            print("    SUCCESS")
         except Exception as e:
             # Re-queue with updated error info (only in execute mode)
             queue.enqueue(
-                src=src,
-                dest=dest,
-                action=item["action"],
-                reason=item["reason"],
-                error_info=e
+                src=src, dest=dest, action=item["action"], reason=item["reason"], error_info=e
             )
             failed += 1
             print(f"    FAILED: {e}")
@@ -754,7 +775,9 @@ def format_actionable_report_markdown(report: Dict) -> str:
     lines.append("## Summary")
     lines.append("")
     lines.append(f"- **Total Pending**: {summary['total_pending']} items")
-    lines.append(f"- **Total Size Estimate**: {summary['total_bytes_estimate'] / 1024 / 1024:.2f} MB")
+    lines.append(
+        f"- **Total Size Estimate**: {summary['total_bytes_estimate'] / 1024 / 1024:.2f} MB"
+    )
     lines.append(f"- **Eligible Now**: {summary['eligible_now']} items")
     lines.append(f"- **Showing Top**: {summary['top_n_shown']} items")
     lines.append("")
@@ -769,7 +792,11 @@ def format_actionable_report_markdown(report: Dict) -> str:
         for item in report["top_items"]:
             # Truncate paths for readability
             src_short = item["src"] if len(item["src"]) < 40 else "..." + item["src"][-37:]
-            error_short = item["last_error"][:50] + "..." if len(item["last_error"]) > 50 else item["last_error"]
+            error_short = (
+                item["last_error"][:50] + "..."
+                if len(item["last_error"]) > 50
+                else item["last_error"]
+            )
             error_short = error_short.replace("|", "\\|")  # Escape pipes for markdown
 
             lines.append(
@@ -791,7 +818,9 @@ def format_actionable_report_markdown(report: Dict) -> str:
 
     lines.append("---")
     lines.append("")
-    lines.append("*This report shows the most problematic pending items. Close locking processes and rerun tidy to resolve.*")
+    lines.append(
+        "*This report shows the most problematic pending items. Close locking processes and rerun tidy to resolve.*"
+    )
     lines.append("")
 
     return "\n".join(lines)

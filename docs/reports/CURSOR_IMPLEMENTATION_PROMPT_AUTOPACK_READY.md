@@ -127,5 +127,3 @@ Implement in this order (each is a PR unless you can prove it’s safer combined
 - Storing OAuth tokens in plaintext in production.
 - Returning unbounded artifact content.
 - Creating multiple competing “canonical lists” of endpoints/SOT—always converge to the canonical docs.
-
-

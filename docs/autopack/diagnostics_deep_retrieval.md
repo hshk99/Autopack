@@ -243,17 +243,17 @@ MAX_MEMORY_ENTRIES_SIZE = 5 * 1024  # 5KB
 def _extract_keywords(handoff_bundle):
     """Extract meaningful keywords from handoff bundle."""
     keywords = set()
-    
+
     # Extract from error_message
     if "error_message" in handoff_bundle:
         words = handoff_bundle["error_message"].lower().split()
         keywords.update(w for w in words if len(w) > 4)
-    
+
     # Extract from root_cause
     if "root_cause" in handoff_bundle:
         words = handoff_bundle["root_cause"].lower().split()
         keywords.update(w for w in words if len(w) > 4)
-    
+
     return keywords
 ```
 
@@ -276,12 +276,12 @@ def _calculate_relevance(file_content, keywords):
     """Calculate relevance score based on keyword matches."""
     content_lower = file_content.lower()
     score = 0
-    
+
     for keyword in keywords:
         # Count occurrences of each keyword
         count = content_lower.count(keyword)
         score += count
-    
+
     return score
 ```
 
@@ -457,14 +457,14 @@ handoff_bundle = {
 if trigger.should_escalate(handoff_bundle, "phase_001", attempt=1):
     # Get priority
     priority = trigger.get_retrieval_priority(handoff_bundle)
-    
+
     # Retrieve additional context
     retrieval_bundle = retrieval.retrieve(
         phase_id="phase_001",
         handoff_bundle=handoff_bundle,
         priority=priority
     )
-    
+
     print(f"Retrieved {retrieval_bundle['stats']['run_artifacts_count']} artifacts")
     print(f"Retrieved {retrieval_bundle['stats']['sot_files_count']} SOT files")
 ```
@@ -482,13 +482,13 @@ handoff_bundle = {
 if trigger.should_escalate(handoff_bundle, "phase_001", attempt=2):
     priority = trigger.get_retrieval_priority(handoff_bundle)
     # Returns "high"
-    
+
     retrieval_bundle = retrieval.retrieve(
         phase_id="phase_001",
         handoff_bundle=handoff_bundle,
         priority=priority
     )
-    
+
     # High priority retrieval includes:
     # - Up to 5 most recent run artifacts
     # - Up to 3 most relevant SOT files

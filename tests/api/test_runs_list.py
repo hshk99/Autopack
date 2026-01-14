@@ -44,10 +44,10 @@ def populated_db(client, db_session):
 
             for j in range(3):
                 phase = models.Phase(
-                    phase_id=f"P{j+1}",
+                    phase_id=f"P{j + 1}",
                     run_id=run.id,
                     tier_id=tier.id,
-                    name=f"Phase {j+1}",
+                    name=f"Phase {j + 1}",
                     phase_index=j,
                     state=(models.PhaseState.COMPLETE if j < 2 else models.PhaseState.QUEUED),
                 )

@@ -53,7 +53,7 @@ from autopack.config import settings
 logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s] [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
 
@@ -62,40 +62,37 @@ def main():
     parser = argparse.ArgumentParser(
         description="Autopack Supervisor - Orchestrate parallel run execution",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
+        epilog=__doc__,
     )
 
     # Execution mode
     parser.add_argument(
         "--run-ids",
         type=str,
-        help="Comma-separated list of run IDs to execute (e.g., 'run1,run2,run3')"
+        help="Comma-separated list of run IDs to execute (e.g., 'run1,run2,run3')",
     )
 
     parser.add_argument(
         "--anchor-path",
         type=Path,
-        help="Path to IntentionAnchorV2 JSON (REQUIRED for parallel execution)"
+        help="Path to IntentionAnchorV2 JSON (REQUIRED for parallel execution)",
     )
 
     parser.add_argument(
-        "--workers",
-        type=int,
-        default=3,
-        help="Maximum number of concurrent workers (default: 3)"
+        "--workers", type=int, default=3, help="Maximum number of concurrent workers (default: 3)"
     )
 
     # Database configuration
     parser.add_argument(
         "--database-url",
         type=str,
-        help="Database URL (default: from settings). Postgres recommended for parallel runs."
+        help="Database URL (default: from settings). Postgres recommended for parallel runs.",
     )
 
     parser.add_argument(
         "--per-run-sqlite",
         action="store_true",
-        help="Use per-run SQLite databases instead of shared Postgres (limits aggregation)"
+        help="Use per-run SQLite databases instead of shared Postgres (limits aggregation)",
     )
 
     # Directories
@@ -103,26 +100,22 @@ def main():
         "--source-repo",
         type=Path,
         default=Path.cwd(),
-        help="Source git repository path (default: current directory)"
+        help="Source git repository path (default: current directory)",
     )
 
     parser.add_argument(
         "--autonomous-runs-dir",
         type=str,
-        help="Override autonomous runs directory (default: from settings)"
+        help="Override autonomous runs directory (default: from settings)",
     )
 
     # Utility commands
     parser.add_argument(
-        "--list-worktrees",
-        action="store_true",
-        help="List all existing worktrees and exit"
+        "--list-worktrees", action="store_true", help="List all existing worktrees and exit"
     )
 
     parser.add_argument(
-        "--cleanup",
-        action="store_true",
-        help="Remove all managed worktrees and exit"
+        "--cleanup", action="store_true", help="Remove all managed worktrees and exit"
     )
 
     args = parser.parse_args()
@@ -177,9 +170,9 @@ def main():
         )
 
         # Print summary
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("EXECUTION SUMMARY")
-        print("="*80)
+        print("=" * 80)
 
         for run_id, run_result in result.run_results.items():
             status = "SUCCESS" if run_result.success else "FAILED"

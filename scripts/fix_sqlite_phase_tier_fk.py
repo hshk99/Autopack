@@ -28,7 +28,9 @@ def _connect(db_path: Path) -> sqlite3.Connection:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--db", type=Path, default=Path("autopack.db"), help="Path to SQLite DB file")
+    parser.add_argument(
+        "--db", type=Path, default=Path("autopack.db"), help="Path to SQLite DB file"
+    )
     parser.add_argument("--dry-run", action="store_true", help="Print planned updates, don't write")
     args = parser.parse_args()
 
@@ -93,8 +95,12 @@ def main() -> int:
             )
 
     if not planned:
-        print("[WARN] Found phases with mismatched tier_id, but couldn't infer fixes automatically.")
-        print("       This usually means phases.tier_id is wrong *and* doesn't match tiers.tier_id.")
+        print(
+            "[WARN] Found phases with mismatched tier_id, but couldn't infer fixes automatically."
+        )
+        print(
+            "       This usually means phases.tier_id is wrong *and* doesn't match tiers.tier_id."
+        )
         return 1
 
     print(f"[INFO] Planned fixes: {len(planned)}")
@@ -127,5 +133,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-

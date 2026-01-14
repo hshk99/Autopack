@@ -84,7 +84,9 @@ def _count_rows(engine, table: str, run_id: Optional[str]) -> Optional[int]:
         return int(conn.execute(q).scalar_one())
 
 
-def _load_last_snapshot(log_path: Path, compare_to: str, database_url: str, run_id: Optional[str]) -> Optional[Snapshot]:
+def _load_last_snapshot(
+    log_path: Path, compare_to: str, database_url: str, run_id: Optional[str]
+) -> Optional[Snapshot]:
     if not log_path.exists():
         return None
     try:
@@ -120,10 +122,24 @@ def _load_last_snapshot(log_path: Path, compare_to: str, database_url: str, run_
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Print telemetry table row counts (optionally log snapshots for deltas).")
-    ap.add_argument("--run-id", default=None, help="Optional: count only rows for this run_id when table supports it.")
-    ap.add_argument("--label", default=None, help="Optional label (e.g., before/after). If set, snapshot is logged.")
-    ap.add_argument("--compare-to", default=None, help="If set, compute delta vs the most recent snapshot with this label.")
+    ap = argparse.ArgumentParser(
+        description="Print telemetry table row counts (optionally log snapshots for deltas)."
+    )
+    ap.add_argument(
+        "--run-id",
+        default=None,
+        help="Optional: count only rows for this run_id when table supports it.",
+    )
+    ap.add_argument(
+        "--label",
+        default=None,
+        help="Optional label (e.g., before/after). If set, snapshot is logged.",
+    )
+    ap.add_argument(
+        "--compare-to",
+        default=None,
+        help="If set, compute delta vs the most recent snapshot with this label.",
+    )
     ap.add_argument(
         "--log-path",
         default=str(Path(".autonomous_runs") / "telemetry_counts.jsonl"),
@@ -180,7 +196,9 @@ def main() -> int:
         prev = _load_last_snapshot(log_path, args.compare_to, db_url, args.run_id)
         print()
         if not prev:
-            print(f"[telemetry_counts] No prior snapshot found for compare-to='{args.compare_to}' (same DB + run-id).")
+            print(
+                f"[telemetry_counts] No prior snapshot found for compare-to='{args.compare_to}' (same DB + run-id)."
+            )
         else:
             print(f"[telemetry_counts] Delta vs '{args.compare_to}' ({prev.timestamp}):")
             for t in args.tables:
@@ -216,5 +234,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-

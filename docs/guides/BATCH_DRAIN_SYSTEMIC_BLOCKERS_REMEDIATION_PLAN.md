@@ -1,7 +1,7 @@
 # Batch Drain Systemic Blockers Remediation Plan (Post-Triage)
 
-**Date**: 2025-12-28  
-**Audience**: Cursor operator implementing fixes in `C:\dev\Autopack`  
+**Date**: 2025-12-28
+**Audience**: Cursor operator implementing fixes in `C:\dev\Autopack`
 **Primary goal**: Remove *systemic* blockers discovered by token-safe triage so backlog draining produces higher completion rates and higher-quality telemetry (per `README.md` “ideal state”: no collection/import hard blocks; less token waste; reliable self-healing signals).
 
 ---
@@ -21,7 +21,7 @@
 ## 2) Observed fingerprints → root causes (from triage session `batch-drain-20251228-064330`)
 
 ### 2.1 Dominant fingerprint (9x): `subprocess exit 1 ... SyntaxError ... autonomous_executor.py`
-**Symptom**: drain subprocess crashes immediately (duration ~2s) while importing `autopack.autonomous_executor`.  
+**Symptom**: drain subprocess crashes immediately (duration ~2s) while importing `autopack.autonomous_executor`.
 **Evidence**: session JSON entries show:
 - `SyntaxError: expected 'except' or 'finally' block` at `src/autopack/autonomous_executor.py` around line ~4557
 - The error is stable across many runs/phases, so draining cannot proceed for large parts of the backlog.
@@ -308,5 +308,3 @@ Scale from batch 30 → 100 only if:
    - `python -m py_compile src/autopack/autonomous_executor.py`
    - `pytest -q tests/test_autonomous_executor.py tests/autopack/workflow/test_research_review.py tests/research/gatherers/test_reddit_gatherer.py`
 6) Resume draining (batch 30) with strict settings; review fingerprint distribution; then scale.
-
-

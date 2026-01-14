@@ -44,9 +44,15 @@ from autopack.autonomous_executor import AutonomousExecutor  # noqa: E402
 
 
 def _count_phases(db, run_id: str) -> tuple[int, int, int]:
-    queued = db.query(Phase).filter(Phase.run_id == run_id, Phase.state == PhaseState.QUEUED).count()
-    complete = db.query(Phase).filter(Phase.run_id == run_id, Phase.state == PhaseState.COMPLETE).count()
-    failed = db.query(Phase).filter(Phase.run_id == run_id, Phase.state == PhaseState.FAILED).count()
+    queued = (
+        db.query(Phase).filter(Phase.run_id == run_id, Phase.state == PhaseState.QUEUED).count()
+    )
+    complete = (
+        db.query(Phase).filter(Phase.run_id == run_id, Phase.state == PhaseState.COMPLETE).count()
+    )
+    failed = (
+        db.query(Phase).filter(Phase.run_id == run_id, Phase.state == PhaseState.FAILED).count()
+    )
     return queued, complete, failed
 
 
@@ -73,7 +79,9 @@ def main() -> int:
     p.add_argument("--batch-size", type=int, default=25)
     p.add_argument("--poll-seconds", type=int, default=2)
     p.add_argument("--stop-on-first-failure", action="store_true")
-    p.add_argument("--max-batches", type=int, default=None, help="Optional cap for number of batches")
+    p.add_argument(
+        "--max-batches", type=int, default=None, help="Optional cap for number of batches"
+    )
     p.add_argument(
         "--run-type",
         choices=["project_build", "autopack_maintenance", "autopack_upgrade", "self_repair"],
@@ -102,7 +110,9 @@ def main() -> int:
     if not os.environ.get("AUTOPACK_API_URL"):
         port = _pick_free_local_port()
         os.environ["AUTOPACK_API_URL"] = f"http://localhost:{port}"
-        print(f"[drain] AUTOPACK_API_URL not set; using ephemeral API URL: {os.environ['AUTOPACK_API_URL']}")
+        print(
+            f"[drain] AUTOPACK_API_URL not set; using ephemeral API URL: {os.environ['AUTOPACK_API_URL']}"
+        )
 
     db = SessionLocal()
     try:
@@ -110,7 +120,9 @@ def main() -> int:
         while True:
             batch += 1
             queued, complete, failed = _count_phases(db, args.run_id)
-            print(f"[drain] run_id={args.run_id} queued={queued} complete={complete} failed={failed}")
+            print(
+                f"[drain] run_id={args.run_id} queued={queued} complete={complete} failed={failed}"
+            )
             if queued == 0:
                 print("[drain] No queued phases remain. Done.")
                 return 0
@@ -143,5 +155,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-

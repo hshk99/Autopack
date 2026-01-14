@@ -182,9 +182,9 @@ def test_archive_index_bucket_stats_sorted():
 
     for root in data["archive_roots"]:
         bucket_rels = [b["bucket_rel"] for b in root["bucket_stats"]]
-        assert bucket_rels == sorted(
-            bucket_rels
-        ), f"Bucket stats in {root['id']} are not sorted: {bucket_rels}"
+        assert bucket_rels == sorted(bucket_rels), (
+            f"Bucket stats in {root['id']} are not sorted: {bucket_rels}"
+        )
 
 
 def test_schema_file_exists():

@@ -41,7 +41,7 @@ def print_result_summary(result: ManifestGenerationResult):
         return
 
     # Confidence scores
-    print(f"\nConfidence Scores:")
+    print("\nConfidence Scores:")
     for phase_id, confidence in result.confidence_scores.items():
         icon = "✅" if confidence >= 0.70 else "⚠️" if confidence >= 0.30 else "❌"
         print(f"  {icon} {phase_id}: {confidence:.1%}")
@@ -70,8 +70,8 @@ def print_statistics(generator: ManifestGenerator, plan_data: dict):
     print(f"Total Directories: {stats['total_directories']}")
     print(f"Average Confidence: {stats['confidence_avg']:.1%}")
 
-    print(f"\nCategories:")
-    for category, count in sorted(stats['categories'].items(), key=lambda x: x[1], reverse=True):
+    print("\nCategories:")
+    for category, count in sorted(stats["categories"].items(), key=lambda x: x[1], reverse=True):
         print(f"  - {category}: {count} phases")
 
     print("\n" + "=" * 80)
@@ -84,10 +84,18 @@ def main():
     parser.add_argument("--validate-only", action="store_true", help="Validate plan without output")
     parser.add_argument("--stats", action="store_true", help="Show scope statistics")
     parser.add_argument("--workspace", help="Project workspace directory (default: current dir)")
-    parser.add_argument("--autopack-internal-mode", action="store_true", help="Allow src/autopack/ writes")
-    parser.add_argument("--run-type", default="project_build", help="Run type (default: project_build)")
+    parser.add_argument(
+        "--autopack-internal-mode", action="store_true", help="Allow src/autopack/ writes"
+    )
+    parser.add_argument(
+        "--run-type", default="project_build", help="Run type (default: project_build)"
+    )
     parser.add_argument("--skip-validation", action="store_true", help="Skip preflight validation")
-    parser.add_argument("--enable-plan-analyzer", action="store_true", help="Enable LLM-based feasibility analysis (BUILD-124, experimental)")
+    parser.add_argument(
+        "--enable-plan-analyzer",
+        action="store_true",
+        help="Enable LLM-based feasibility analysis (BUILD-124, experimental)",
+    )
 
     args = parser.parse_args()
 
@@ -112,7 +120,7 @@ def main():
         workspace=workspace,
         autopack_internal_mode=args.autopack_internal_mode,
         run_type=args.run_type,
-        enable_plan_analyzer=args.enable_plan_analyzer  # BUILD-124
+        enable_plan_analyzer=args.enable_plan_analyzer,  # BUILD-124
     )
 
     print(f"🔍 Generating manifest for: {plan_data.get('run_id', 'unknown')}")
@@ -121,12 +129,12 @@ def main():
     # Generate manifest
     try:
         result = generator.generate_manifest(
-            plan_data=plan_data,
-            skip_validation=args.skip_validation
+            plan_data=plan_data, skip_validation=args.skip_validation
         )
     except Exception as e:
         print(f"\n❌ Generation failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

@@ -61,6 +61,7 @@ from pending_moves import PendingMovesQueue, retry_pending_moves, format_actiona
 from lease import Lease
 from locks import MultiLock, LOCK_ORDER
 from io_utils import atomic_write_json
+
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 # ---------------------------------------------------------------------------
@@ -69,11 +70,23 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 # Root allowed files (configuration, build artifacts, etc.)
 ROOT_ALLOWED_FILES = {
-    ".gitignore", ".dockerignore", ".eslintrc.cjs", ".env",
-    "README.md", "LICENSE", "pyproject.toml", "package.json",
-    "tsconfig.json", "docker-compose.yml", "Dockerfile",
-    "requirements.txt", "poetry.lock", "package-lock.json", "yarn.lock",
-    ".coverage", ".coverage.json",
+    ".gitignore",
+    ".dockerignore",
+    ".eslintrc.cjs",
+    ".env",
+    "README.md",
+    "LICENSE",
+    "pyproject.toml",
+    "package.json",
+    "tsconfig.json",
+    "docker-compose.yml",
+    "Dockerfile",
+    "requirements.txt",
+    "poetry.lock",
+    "package-lock.json",
+    "yarn.lock",
+    ".coverage",
+    ".coverage.json",
     # Common repo-root config files used by this repo
     "docker-compose.dev.yml",
     "pytest.ini",
@@ -101,11 +114,28 @@ ROOT_ALLOWED_PATTERNS = {
 }
 
 ROOT_ALLOWED_DIRS = {
-    ".git", ".github", ".pytest_cache", ".autopack", ".claude",
-    ".autonomous_runs", "__pycache__", "node_modules",
-    "src", "tests", "scripts", "docs", "archive", "backend", "frontend",
-    "config", "venv", ".venv", "dist", "build",
+    ".git",
+    ".github",
+    ".pytest_cache",
+    ".autopack",
+    ".claude",
+    ".autonomous_runs",
+    "__pycache__",
+    "node_modules",
+    "src",
+    "tests",
+    "scripts",
+    "docs",
+    "archive",
+    "backend",
+    "frontend",
+    "config",
+    "venv",
+    ".venv",
+    "dist",
+    "build",
 }
+
 
 # Docs SOT 6-file structure
 def _load_docs_sot_files_from_registry(repo_root: Path) -> Set[str]:
@@ -206,18 +236,32 @@ DOCS_ALLOWED_PATTERNS = {
 
 # Allowed subdirectories in docs/
 DOCS_ALLOWED_SUBDIRS = {
-    "guides", "cli", "cursor", "examples", "api", "autopack", "research", "reports"
+    "guides",
+    "cli",
+    "cursor",
+    "examples",
+    "api",
+    "autopack",
+    "research",
+    "reports",
 }
 
 # Archive required buckets
 ARCHIVE_REQUIRED_BUCKETS = {
-    "plans", "reports", "research", "prompts", "diagnostics", "scripts",
-    "superseded", "unsorted"
+    "plans",
+    "reports",
+    "research",
+    "prompts",
+    "diagnostics",
+    "scripts",
+    "superseded",
+    "unsorted",
 }
 
 # ---------------------------------------------------------------------------
 # Repair helpers (safe, minimal) - create missing SOT files + buckets
 # ---------------------------------------------------------------------------
+
 
 def _write_file_if_missing(path: Path, content: str, dry_run: bool, verbose: bool = False) -> bool:
     """
@@ -274,7 +318,9 @@ def repair_project_workspace(
 
     # Skip runtime workspace semantics (explicitly not a project SOT root)
     if project_id == "autopack":
-        print("[REPAIR][SKIP] .autonomous_runs/autopack is a runtime workspace (not a project SOT root)")
+        print(
+            "[REPAIR][SKIP] .autonomous_runs/autopack is a runtime workspace (not a project SOT root)"
+        )
         return False
 
     changed = False
@@ -340,7 +386,9 @@ def repair_project_workspace(
     for fname in DOCS_SOT_FILES:
         path = project_docs / fname
         if fname in sot_templates:
-            changed |= _write_file_if_missing(path, sot_templates[fname], dry_run=dry_run, verbose=verbose)
+            changed |= _write_file_if_missing(
+                path, sot_templates[fname], dry_run=dry_run, verbose=verbose
+            )
         else:
             # Fallback: create empty placeholder if something changes in DOCS_SOT_FILES set later
             changed |= _write_file_if_missing(path, "", dry_run=dry_run, verbose=verbose)
@@ -417,9 +465,7 @@ def classify_root_directory(dirpath: Path, repo_root: Path) -> Optional[str]:
 
 
 def migrate_fileorganizer_to_project(
-    repo_root: Path,
-    dry_run: bool = True,
-    verbose: bool = False
+    repo_root: Path, dry_run: bool = True, verbose: bool = False
 ) -> bool:
     """
     Migrate fileorganizer/ root directory to proper project structure.
@@ -442,7 +488,9 @@ def migrate_fileorganizer_to_project(
     project_docs = project_root / "docs"
     project_archive = project_root / "archive"
 
-    print(f"[MIGRATE-FILEORG] Found fileorganizer/ at root -> migrating to {project_root.relative_to(repo_root)}")
+    print(
+        f"[MIGRATE-FILEORG] Found fileorganizer/ at root -> migrating to {project_root.relative_to(repo_root)}"
+    )
 
     changed = False
 
@@ -462,7 +510,9 @@ def migrate_fileorganizer_to_project(
     # Move fileorganizer/ to src/fileorganizer/
     if not dry_run:
         if project_src.exists():
-            print(f"  [WARNING] Destination {project_src.relative_to(repo_root)} already exists, skipping move")
+            print(
+                f"  [WARNING] Destination {project_src.relative_to(repo_root)} already exists, skipping move"
+            )
         else:
             fileorg_root.rename(project_src)
             print(f"  MOVED fileorganizer/ -> {project_src.relative_to(repo_root)}/")
@@ -473,10 +523,7 @@ def migrate_fileorganizer_to_project(
 
     # Create SOT files using existing repair logic
     changed |= repair_project_workspace(
-        repo_root,
-        "file-organizer-app-v1",
-        dry_run=dry_run,
-        verbose=verbose
+        repo_root, "file-organizer-app-v1", dry_run=dry_run, verbose=verbose
     )
 
     return changed
@@ -485,6 +532,7 @@ def migrate_fileorganizer_to_project(
 # ---------------------------------------------------------------------------
 # Helper Functions
 # ---------------------------------------------------------------------------
+
 
 def matches_pattern(filename: str, pattern: str) -> bool:
     """Check if filename matches a wildcard pattern."""
@@ -654,7 +702,13 @@ def mark_sot_dirty(project_id: str, repo_root: Path, dry_run: bool = True) -> No
     if project_id == "autopack":
         marker_path = repo_root / ".autonomous_runs" / "sot_index_dirty_autopack.json"
     else:
-        marker_path = repo_root / ".autonomous_runs" / project_id / ".autonomous_runs" / "sot_index_dirty.json"
+        marker_path = (
+            repo_root
+            / ".autonomous_runs"
+            / project_id
+            / ".autonomous_runs"
+            / "sot_index_dirty.json"
+        )
 
     marker_data = {
         "dirty": True,
@@ -830,7 +884,10 @@ def generate_root_sot_duplicate_report(
 # Phase 1: Root Routing
 # ---------------------------------------------------------------------------
 
-def route_root_files(repo_root: Path, dry_run: bool = True, verbose: bool = False) -> Tuple[List[Tuple[Path, Path]], List[Path]]:
+
+def route_root_files(
+    repo_root: Path, dry_run: bool = True, verbose: bool = False
+) -> Tuple[List[Tuple[Path, Path]], List[Path]]:
     """
     Route stray files from repo root to appropriate locations.
     Returns (moves, blocked_files) where:
@@ -940,11 +997,9 @@ def route_root_files(repo_root: Path, dry_run: bool = True, verbose: bool = Fals
 # Phase 2: Docs Hygiene
 # ---------------------------------------------------------------------------
 
+
 def check_docs_hygiene(
-    docs_dir: Path,
-    reduce_to_sot: bool = False,
-    dry_run: bool = True,
-    verbose: bool = False
+    docs_dir: Path, reduce_to_sot: bool = False, dry_run: bool = True, verbose: bool = False
 ) -> Tuple[List[Tuple[Path, Path]], List[str]]:
     """
     Check docs/ hygiene and optionally reduce to SOT-only.
@@ -994,7 +1049,9 @@ def check_docs_hygiene(
     if not moves and not violations:
         print("[DOCS-HYGIENE] docs/ is clean")
     elif violations and not reduce_to_sot:
-        print(f"[DOCS-HYGIENE] Found {len(violations)} violations (use --docs-reduce-to-sot to fix)")
+        print(
+            f"[DOCS-HYGIENE] Found {len(violations)} violations (use --docs-reduce-to-sot to fix)"
+        )
 
     return moves, violations
 
@@ -1003,6 +1060,7 @@ def check_docs_hygiene(
 # Phase 3: Archive Consolidation
 # ---------------------------------------------------------------------------
 
+
 def consolidate_archive(
     repo_root: Path,
     roots: List[str],
@@ -1010,7 +1068,7 @@ def consolidate_archive(
     db_overrides: Dict[str, str],
     purge: bool,
     dry_run: bool = True,
-    verbose: bool = False
+    verbose: bool = False,
 ) -> bool:
     """
     Run archive consolidation via tidy_workspace.py for each root.
@@ -1022,12 +1080,16 @@ def consolidate_archive(
         cmd = [
             sys.executable,
             str(repo_root / "scripts" / "tidy" / "tidy_workspace.py"),
-            "--root", root,
+            "--root",
+            root,
             "--semantic",
-            "--semantic-model", semantic_model,
-            "--semantic-max-files", "200",
+            "--semantic-model",
+            semantic_model,
+            "--semantic-max-files",
+            "200",
             "--prune",
-            "--age-days", "30",
+            "--age-days",
+            "30",
         ]
 
         if not dry_run:
@@ -1064,6 +1126,7 @@ def consolidate_archive(
 # ---------------------------------------------------------------------------
 # Phase 4: Verification
 # ---------------------------------------------------------------------------
+
 
 def verify_structure(repo_root: Path, docs_dir: Path) -> Tuple[bool, List[str]]:
     """
@@ -1130,10 +1193,11 @@ def verify_structure(repo_root: Path, docs_dir: Path) -> Tuple[bool, List[str]]:
 # Main Orchestration
 # ---------------------------------------------------------------------------
 
+
 def execute_moves(
     moves: List[Tuple[Path, Path]],
     dry_run: bool = True,
-    pending_queue: Optional[PendingMovesQueue] = None
+    pending_queue: Optional[PendingMovesQueue] = None,
 ) -> Tuple[int, int]:
     """
     Execute file moves, queueing locked files for retry.
@@ -1166,15 +1230,16 @@ def execute_moves(
             except PermissionError as e:
                 # Classify permission errors more precisely
                 reason = "locked"
-                if hasattr(e, 'winerror'):
+                if hasattr(e, "winerror"):
                     # WinError 32 = file locked by another process
                     # WinError 5 = access denied (permissions)
                     if e.winerror == 5:
                         reason = "permission"
-                elif hasattr(e, 'errno'):
+                elif hasattr(e, "errno"):
                     # EACCES = permission denied
                     # EPERM = operation not permitted
                     import errno
+
                     if e.errno in (errno.EACCES, errno.EPERM):
                         reason = "permission"
 
@@ -1196,7 +1261,7 @@ def execute_moves(
                         reason=reason,
                         error_info=e,
                         bytes_estimate=size,
-                        tags=["tidy_move"]
+                        tags=["tidy_move"],
                     )
             except FileExistsError as e:
                 # Destination already exists (collision)
@@ -1217,7 +1282,7 @@ def execute_moves(
                         reason="dest_exists",
                         error_info=e,
                         bytes_estimate=size,
-                        tags=["tidy_move"]
+                        tags=["tidy_move"],
                     )
             except Exception as e:
                 # Other errors (not permission-related)
@@ -1233,7 +1298,7 @@ def execute_moves(
                         action="move",
                         reason="unknown",
                         error_info=e,
-                        tags=["tidy_move"]
+                        tags=["tidy_move"],
                     )
 
     if failed_moves and not dry_run:
@@ -1243,7 +1308,7 @@ def execute_moves(
             print(f"    Error: {err}")
 
         if pending_queue:
-            print(f"\n[QUEUE] Failed moves have been queued for retry on next tidy run")
+            print("\n[QUEUE] Failed moves have been queued for retry on next tidy run")
 
     return succeeded, failed
 
@@ -1282,7 +1347,9 @@ def _regenerate_archive_index(repo_root: Path) -> None:
         md_path.write_text(md_content, encoding="utf-8")
 
         total_buckets = sum(len(r["bucket_stats"]) for r in index["archive_roots"])
-        print(f"[ARCHIVE-INDEX] Updated: {len(index['archive_roots'])} roots, {total_buckets} buckets")
+        print(
+            f"[ARCHIVE-INDEX] Updated: {len(index['archive_roots'])} roots, {total_buckets} buckets"
+        )
     except Exception as e:
         print(f"[ARCHIVE-INDEX] Warning: Failed to regenerate archive index: {e}")
 
@@ -1291,26 +1358,34 @@ def main():
     parser = argparse.ArgumentParser(
         description="Unified workspace tidy - matches README expectations",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
+        epilog=__doc__,
     )
 
     # Execution mode
-    parser.add_argument("--dry-run", action="store_true", default=True,
-                        help="Dry run only (default)")
-    parser.add_argument("--execute", action="store_true",
-                        help="Execute moves/consolidation (overrides --dry-run)")
-    parser.add_argument("--first-run", action="store_true",
-                        help="First-run bootstrap mode (equivalent to --execute --repair --docs-reduce-to-sot)")
+    parser.add_argument(
+        "--dry-run", action="store_true", default=True, help="Dry run only (default)"
+    )
+    parser.add_argument(
+        "--execute", action="store_true", help="Execute moves/consolidation (overrides --dry-run)"
+    )
+    parser.add_argument(
+        "--first-run",
+        action="store_true",
+        help="First-run bootstrap mode (equivalent to --execute --repair --docs-reduce-to-sot)",
+    )
 
     # Scope
-    parser.add_argument("--project", default="autopack",
-                        help="Project scope (default: autopack)")
-    parser.add_argument("--scope", nargs="+",
-                        help="Additional roots to tidy (overrides tidy_scope.yaml)")
+    parser.add_argument("--project", default="autopack", help="Project scope (default: autopack)")
+    parser.add_argument(
+        "--scope", nargs="+", help="Additional roots to tidy (overrides tidy_scope.yaml)"
+    )
 
     # Docs hygiene
-    parser.add_argument("--docs-reduce-to-sot", action="store_true",
-                        help="Reduce docs/ to SOT-only (move non-SOT files to archive)")
+    parser.add_argument(
+        "--docs-reduce-to-sot",
+        action="store_true",
+        help="Reduce docs/ to SOT-only (move non-SOT files to archive)",
+    )
 
     # Repair mode
     parser.add_argument(
@@ -1346,69 +1421,134 @@ def main():
     )
 
     # Checkpoints
-    parser.add_argument("--checkpoint", action="store_true", default=True,
-                        help="Create checkpoint zip before changes (default: true)")
-    parser.add_argument("--no-checkpoint", action="store_false", dest="checkpoint",
-                        help="Skip checkpoint creation")
-    parser.add_argument("--git-checkpoint", action="store_true",
-                        help="Create git commits before/after changes")
+    parser.add_argument(
+        "--checkpoint",
+        action="store_true",
+        default=True,
+        help="Create checkpoint zip before changes (default: true)",
+    )
+    parser.add_argument(
+        "--no-checkpoint", action="store_false", dest="checkpoint", help="Skip checkpoint creation"
+    )
+    parser.add_argument(
+        "--git-checkpoint", action="store_true", help="Create git commits before/after changes"
+    )
 
     # Other options
-    parser.add_argument("--verbose", action="store_true",
-                        help="Verbose output")
-    parser.add_argument("--profile", action="store_true",
-                        help="Enable profiling with timing and memory usage per phase")
-    parser.add_argument("--skip-archive-consolidation", action="store_true",
-                        help="Skip Phase 3 (archive consolidation)")
+    parser.add_argument("--verbose", action="store_true", help="Verbose output")
+    parser.add_argument(
+        "--profile",
+        action="store_true",
+        help="Enable profiling with timing and memory usage per phase",
+    )
+    parser.add_argument(
+        "--skip-archive-consolidation",
+        action="store_true",
+        help="Skip Phase 3 (archive consolidation)",
+    )
 
     # BUILD-160: Performance modes
-    parser.add_argument("--quick", action="store_true",
-                        help="Quick mode - skip archive consolidation, keep SOT sync")
-    parser.add_argument("--timing", action="store_true",
-                        help="Print timing instrumentation for each phase")
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Quick mode - skip archive consolidation, keep SOT sync",
+    )
+    parser.add_argument(
+        "--timing", action="store_true", help="Print timing instrumentation for each phase"
+    )
 
     # Queue reporting
-    parser.add_argument("--queue-report", action="store_true",
-                        help="Generate actionable report for pending queue (top items + next actions)")
-    parser.add_argument("--queue-report-top-n", type=int, default=10,
-                        help="Number of top items to show in queue report (default: 10)")
-    parser.add_argument("--queue-report-format", choices=["json", "markdown", "both"], default="both",
-                        help="Output format for queue report (default: both)")
-    parser.add_argument("--queue-report-output", type=Path,
-                        default=Path("archive/diagnostics/queue_report"),
-                        help="Output path (without extension) for queue report (default: archive/diagnostics/queue_report)")
+    parser.add_argument(
+        "--queue-report",
+        action="store_true",
+        help="Generate actionable report for pending queue (top items + next actions)",
+    )
+    parser.add_argument(
+        "--queue-report-top-n",
+        type=int,
+        default=10,
+        help="Number of top items to show in queue report (default: 10)",
+    )
+    parser.add_argument(
+        "--queue-report-format",
+        choices=["json", "markdown", "both"],
+        default="both",
+        help="Output format for queue report (default: both)",
+    )
+    parser.add_argument(
+        "--queue-report-output",
+        type=Path,
+        default=Path("archive/diagnostics/queue_report"),
+        help="Output path (without extension) for queue report (default: archive/diagnostics/queue_report)",
+    )
 
     # Lease configuration (BUILD-158)
-    parser.add_argument("--lease-timeout", type=int, default=30,
-                        help="Maximum seconds to wait for lease acquisition (default: 30)")
-    parser.add_argument("--lease-ttl", type=int, default=1800,
-                        help="Lease time-to-live in seconds before considered stale (default: 1800 = 30 min)")
-    parser.add_argument("--no-lease", action="store_true",
-                        help="Skip lease acquisition (unsafe: allows concurrent tidy runs)")
+    parser.add_argument(
+        "--lease-timeout",
+        type=int,
+        default=30,
+        help="Maximum seconds to wait for lease acquisition (default: 30)",
+    )
+    parser.add_argument(
+        "--lease-ttl",
+        type=int,
+        default=1800,
+        help="Lease time-to-live in seconds before considered stale (default: 1800 = 30 min)",
+    )
+    parser.add_argument(
+        "--no-lease",
+        action="store_true",
+        help="Skip lease acquisition (unsafe: allows concurrent tidy runs)",
+    )
 
     # BUILD-161: Lock status and safe breaking
-    parser.add_argument("--lock-status", action="store_true",
-                        help="Print lock status and exit (diagnostics)")
-    parser.add_argument("--break-stale-lock", action="store_true",
-                        help="Safely break stale lock (expired + PID not running) and exit")
-    parser.add_argument("--lock-name", type=str, default="tidy",
-                        help="Lock name to check/break (default: tidy)")
-    parser.add_argument("--lock-grace-seconds", type=int, default=120,
-                        help="Grace period in seconds before breaking expired lock (default: 120)")
-    parser.add_argument("--force", action="store_true",
-                        help="Force lock breaking even when PID status is unknown (use with caution)")
+    parser.add_argument(
+        "--lock-status", action="store_true", help="Print lock status and exit (diagnostics)"
+    )
+    parser.add_argument(
+        "--break-stale-lock",
+        action="store_true",
+        help="Safely break stale lock (expired + PID not running) and exit",
+    )
+    parser.add_argument(
+        "--lock-name", type=str, default="tidy", help="Lock name to check/break (default: tidy)"
+    )
+    parser.add_argument(
+        "--lock-grace-seconds",
+        type=int,
+        default=120,
+        help="Grace period in seconds before breaking expired lock (default: 120)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force lock breaking even when PID status is unknown (use with caution)",
+    )
 
     # BUILD-162: ASCII-safe lock output and comprehensive lock listing
-    parser.add_argument("--ascii", action="store_true",
-                        help="Use ASCII-only output (no Unicode emojis) for lock status")
-    parser.add_argument("--unicode", action="store_true",
-                        help="Force Unicode output for lock status (default: auto-detect)")
-    parser.add_argument("--all", action="store_true", dest="lock_all",
-                        help="List all locks under .autonomous_runs/.locks/ (use with --lock-status)")
+    parser.add_argument(
+        "--ascii",
+        action="store_true",
+        help="Use ASCII-only output (no Unicode emojis) for lock status",
+    )
+    parser.add_argument(
+        "--unicode",
+        action="store_true",
+        help="Force Unicode output for lock status (default: auto-detect)",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        dest="lock_all",
+        help="List all locks under .autonomous_runs/.locks/ (use with --lock-status)",
+    )
 
     # BUILD-165: Per-subsystem locks
-    parser.add_argument("--no-subsystem-locks", action="store_true",
-                        help="Disable subsystem locks (escape hatch; uses only umbrella lock)")
+    parser.add_argument(
+        "--no-subsystem-locks",
+        action="store_true",
+        help="Disable subsystem locks (escape hatch; uses only umbrella lock)",
+    )
 
     args = parser.parse_args()
 
@@ -1439,7 +1579,14 @@ def main():
     # BUILD-161: Early exit for lock status/break commands (before lease acquisition)
     # BUILD-162: Added --ascii/--unicode and --all support
     if args.lock_status or args.break_stale_lock:
-        from lease import read_lock_status, break_stale_lock, print_lock_status, lock_path_for_name, should_use_ascii, print_all_lock_status
+        from lease import (
+            read_lock_status,
+            break_stale_lock,
+            print_lock_status,
+            lock_path_for_name,
+            should_use_ascii,
+            print_all_lock_status,
+        )
 
         # Determine ASCII mode
         ascii_mode = should_use_ascii(force_ascii=args.ascii, force_unicode=args.unicode)
@@ -1450,7 +1597,7 @@ def main():
                 print_all_lock_status(
                     repo_root=repo_root,
                     grace_seconds=args.lock_grace_seconds,
-                    ascii_mode=ascii_mode
+                    ascii_mode=ascii_mode,
                 )
             else:
                 # Single lock status
@@ -1462,9 +1609,7 @@ def main():
         if args.break_stale_lock:
             lock_path = lock_path_for_name(repo_root, args.lock_name)
             did_break, msg = break_stale_lock(
-                lock_path=lock_path,
-                grace_seconds=args.lock_grace_seconds,
-                force=args.force
+                lock_path=lock_path, grace_seconds=args.lock_grace_seconds, force=args.force
             )
             print(msg)
             return 0 if did_break else 1
@@ -1483,7 +1628,9 @@ def main():
             lease.acquire(timeout_seconds=args.lease_timeout)
         except TimeoutError as e:
             print(f"\n[LEASE] ERROR: {e}")
-            print("[LEASE] Another tidy process may be running. Wait for it to complete or use --no-lease (unsafe).")
+            print(
+                "[LEASE] Another tidy process may be running. Wait for it to complete or use --no-lease (unsafe)."
+            )
             return 5  # Standardized exit code for lock acquisition failure (BUILD-166)
         except Exception as e:
             print(f"\n[LEASE] ERROR: Failed to acquire lease: {e}")
@@ -1495,7 +1642,7 @@ def main():
         owner="tidy_up",
         ttl_seconds=args.lease_ttl,
         timeout_seconds=args.lease_timeout,
-        enabled=not args.no_subsystem_locks
+        enabled=not args.no_subsystem_locks,
     )
 
     print("=" * 70)
@@ -1505,7 +1652,9 @@ def main():
     print(f"Docs dir: {docs_dir}")
     print(f"Mode: {'DRY-RUN' if dry_run else 'EXECUTE'}")
     print(f"Lease acquired: {lease is not None}")
-    print(f"Subsystem locks: {'enabled' if multi_lock.enabled else 'disabled (using umbrella only)'}")
+    print(
+        f"Subsystem locks: {'enabled' if multi_lock.enabled else 'disabled (using umbrella only)'}"
+    )
     print(f"Docs reduce to SOT: {args.docs_reduce_to_sot}")
     print(f"Repair: {args.repair}")
     print(f"Report root SOT duplicates: {args.report_root_sot_duplicates}")
@@ -1519,9 +1668,7 @@ def main():
         # Initialize pending moves queue
         queue_file = repo_root / ".autonomous_runs" / "tidy_pending_moves.json"
         pending_queue = PendingMovesQueue(
-            queue_file=queue_file,
-            workspace_root=repo_root,
-            queue_id="autopack-root"
+            queue_file=queue_file, workspace_root=repo_root, queue_id="autopack-root"
         )
         pending_queue.load()
 
@@ -1535,15 +1682,17 @@ def main():
 
         phase_start = time.perf_counter() if args.timing else None
         retried, retry_succeeded, retry_failed = retry_pending_moves(
-            queue=pending_queue,
-            dry_run=dry_run,
-            verbose=args.verbose
+            queue=pending_queue, dry_run=dry_run, verbose=args.verbose
         )
 
         if retried > 0:
-            print(f"[QUEUE-RETRY] Retried: {retried}, Succeeded: {retry_succeeded}, Failed: {retry_failed}")
+            print(
+                f"[QUEUE-RETRY] Retried: {retried}, Succeeded: {retry_succeeded}, Failed: {retry_failed}"
+            )
             if retry_succeeded > 0:
-                print(f"[QUEUE-RETRY] Successfully completed {retry_succeeded} previously locked moves")
+                print(
+                    f"[QUEUE-RETRY] Successfully completed {retry_succeeded} previously locked moves"
+                )
 
             # Save updated queue
             if not dry_run:
@@ -1603,10 +1752,16 @@ def main():
                     for p in projects_root.iterdir():
                         if not p.is_dir() or p.name.startswith(".") or p.name == "autopack":
                             continue
-                        if p.name in known_projects or (p / "docs").exists() or (p / "archive").exists():
+                        if (
+                            p.name in known_projects
+                            or (p / "docs").exists()
+                            or (p / "archive").exists()
+                        ):
                             project_ids.append(p.name)
                 for pid in project_ids:
-                    changed_any |= repair_project_workspace(repo_root, pid, dry_run=dry_run, verbose=args.verbose)
+                    changed_any |= repair_project_workspace(
+                        repo_root, pid, dry_run=dry_run, verbose=args.verbose
+                    )
 
             if not changed_any:
                 print("[REPAIR] No missing required structure detected")
@@ -1625,22 +1780,33 @@ def main():
             try:
                 import yaml  # type: ignore
             except ImportError:
-                print("[WARN] tidy_scope.yaml exists but PyYAML is not installed; using default roots. Install with: pip install pyyaml")
+                print(
+                    "[WARN] tidy_scope.yaml exists but PyYAML is not installed; using default roots. Install with: pip install pyyaml"
+                )
                 data = {}
             else:
                 data = yaml.safe_load(scope_file.read_text(encoding="utf-8")) or {}
 
-            roots = data.get("roots") or [".autonomous_runs/file-organizer-app-v1", ".autonomous_runs", "archive"]
+            roots = data.get("roots") or [
+                ".autonomous_runs/file-organizer-app-v1",
+                ".autonomous_runs",
+                "archive",
+            ]
             db_overrides = data.get("db_overrides") or {}
             purge = data.get("purge", False)
         else:
-            roots = args.scope or [".autonomous_runs/file-organizer-app-v1", ".autonomous_runs", "archive"]
+            roots = args.scope or [
+                ".autonomous_runs/file-organizer-app-v1",
+                ".autonomous_runs",
+                "archive",
+            ]
             db_overrides = {}
             purge = False
 
         # Resolve semantic model
         try:
             from autopack.model_registry import get_tool_model
+
             semantic_model = get_tool_model("tidy_semantic", default="glm-4.7") or "glm-4.7"
         except Exception:
             semantic_model = "glm-4.7"
@@ -1650,8 +1816,13 @@ def main():
             print("\n[GIT-CHECKPOINT] Creating pre-tidy commit...")
             subprocess.run(["git", "add", "-A"], cwd=repo_root)
             subprocess.run(
-                ["git", "commit", "-m", f"chore: pre-tidy checkpoint ({datetime.now().isoformat()})"],
-                cwd=repo_root
+                [
+                    "git",
+                    "commit",
+                    "-m",
+                    f"chore: pre-tidy checkpoint ({datetime.now().isoformat()})",
+                ],
+                cwd=repo_root,
             )
 
         # Phase 0: Special migrations (fileorganizer -> file-organizer-app-v1)
@@ -1681,7 +1852,7 @@ def main():
                 verbose=args.verbose,
                 profile=args.profile,
                 keep_last_n_runs=3,  # Keep only last 3 runs (archive older telemetry runs)
-                min_age_days=0  # Allow cleanup based on "keep last N" policy only
+                min_age_days=0,  # Allow cleanup based on "keep last N" policy only
             )
         except Exception as e:
             # Never crash tidy on autonomous_runs cleanup; it's best-effort and should not block SOT routing/consolidation.
@@ -1717,7 +1888,11 @@ def main():
             for blocked_file in blocked_sot_files:
                 print(f"  - {blocked_file.name}")
             print("\nTo resolve:")
-            print("  1. Compare: diff {0} docs/{0}".format(blocked_sot_files[0].name if blocked_sot_files else "FILE"))
+            print(
+                "  1. Compare: diff {0} docs/{0}".format(
+                    blocked_sot_files[0].name if blocked_sot_files else "FILE"
+                )
+            )
             print("  2. Merge unique content from root into docs/ version")
             print("  3. Delete root version")
             print("  4. Commit: git add -A && git commit -m 'fix: merge duplicate SOT files'")
@@ -1840,8 +2015,13 @@ def main():
             print("\n[GIT-CHECKPOINT] Creating post-tidy commit...")
             subprocess.run(["git", "add", "-A"], cwd=repo_root)
             subprocess.run(
-                ["git", "commit", "-m", f"chore: post-tidy checkpoint ({datetime.now().isoformat()})"],
-                cwd=repo_root
+                [
+                    "git",
+                    "commit",
+                    "-m",
+                    f"chore: post-tidy checkpoint ({datetime.now().isoformat()})",
+                ],
+                cwd=repo_root,
             )
 
         # Final summary
@@ -1874,7 +2054,9 @@ def main():
             print()
 
             if queue_summary.get("needs_manual", 0) > 0:
-                print(f"[ACTION REQUIRED] {queue_summary['needs_manual']} items need manual resolution:")
+                print(
+                    f"[ACTION REQUIRED] {queue_summary['needs_manual']} items need manual resolution:"
+                )
                 print("  - dest_exists: Destination file collision - requires manual decision")
                 print("  - permission: Access denied - check file/folder permissions")
                 print("  - See queue report for details")
@@ -1897,14 +2079,18 @@ def main():
 
             # Print summary to console
             print(f"Total pending: {actionable_report['summary']['total_pending']} items")
-            print(f"Total size estimate: {actionable_report['summary']['total_bytes_estimate'] / 1024 / 1024:.2f} MB")
+            print(
+                f"Total size estimate: {actionable_report['summary']['total_bytes_estimate'] / 1024 / 1024:.2f} MB"
+            )
             print(f"Eligible now: {actionable_report['summary']['eligible_now']} items")
             print()
 
             if actionable_report["top_items"]:
                 print(f"Top {len(actionable_report['top_items'])} items by priority:")
                 for item in actionable_report["top_items"][:5]:  # Show top 5 in console
-                    print(f"  [{item['priority_score']}] {item['src']} ({item['attempt_count']} attempts, {item['age_days']} days old)")
+                    print(
+                        f"  [{item['priority_score']}] {item['src']} ({item['attempt_count']} attempts, {item['age_days']} days old)"
+                    )
                 if len(actionable_report["top_items"]) > 5:
                     print(f"  ... and {len(actionable_report['top_items']) - 5} more")
                 print()

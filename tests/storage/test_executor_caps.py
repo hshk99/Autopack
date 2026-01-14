@@ -220,7 +220,9 @@ class TestExecutorCaps:
     def test_skip_locked_flag_disables_retry(self, mock_sleep):
         """Test that skip_locked=True disables retry for transient locks."""
         executor = CleanupExecutor(
-            policy=self.policy, dry_run=False, skip_locked=True  # Enable skip_locked
+            policy=self.policy,
+            dry_run=False,
+            skip_locked=True,  # Enable skip_locked
         )
 
         with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:

@@ -314,7 +314,7 @@ class TestHyphenatedHeaderRedaction:
         secret_value = "super_secret_value_12345"
         result = sanitize_headers({header_name: secret_value})
         assert result[header_name] == REDACTED, (
-            f"Header '{header_name}' was not redacted! " f"Got: {result[header_name]}"
+            f"Header '{header_name}' was not redacted! Got: {result[header_name]}"
         )
 
     @pytest.mark.parametrize(
@@ -364,9 +364,9 @@ class TestHyphenatedHeaderRedaction:
         result = sanitize_headers(security_headers)
 
         for header_name in security_headers:
-            assert (
-                result[header_name] == REDACTED
-            ), f"Security header '{header_name}' was not redacted!"
+            assert result[header_name] == REDACTED, (
+                f"Security header '{header_name}' was not redacted!"
+            )
 
 
 class TestSanitizerKeyNormalization:
@@ -402,9 +402,9 @@ class TestSanitizerKeyNormalization:
         result = sanitize_headers(safe_headers)
 
         for header_name, value in safe_headers.items():
-            assert (
-                result[header_name] == value
-            ), f"Safe header '{header_name}' was incorrectly modified"
+            assert result[header_name] == value, (
+                f"Safe header '{header_name}' was incorrectly modified"
+            )
 
 
 class TestNoSecretsInPersistedArtifacts:

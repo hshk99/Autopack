@@ -37,20 +37,16 @@ BUILD_130_PLAN = {
                     "src/autopack/error_classifier.py",
                     "src/autopack/autonomous_executor.py modifications (integrate circuit breaker)",
                     "tests/test_circuit_breaker.py",
-                    "docs/DEBUG_JOURNAL.md update (circuit breaker entry)"
+                    "docs/DEBUG_JOURNAL.md update (circuit breaker entry)",
                 ],
-                "protected_paths": [
-                    "src/autopack/models.py",
-                    "src/backend/",
-                    "src/frontend/"
-                ],
+                "protected_paths": ["src/autopack/models.py", "src/backend/", "src/frontend/"],
                 "read_only_context": [
                     "docs/BUILD-130_SCHEMA_VALIDATION_AND_PREVENTION.md",
                     "docs/BUILD-127-129_ROOT_CAUSE_ANALYSIS_FOR_GPT52.md",
                     "src/autopack/error_recovery.py",
-                    "src/autopack/autonomous_executor.py (lines 1040-1060)"
-                ]
-            }
+                    "src/autopack/autonomous_executor.py (lines 1040-1060)",
+                ],
+            },
         },
         {
             "phase_id": "build130-phase1-schema-validator",
@@ -72,23 +68,19 @@ BUILD_130_PLAN = {
                     "scripts/break_glass_repair.py (CLI tool)",
                     "src/autopack/autonomous_executor.py modifications (startup validation)",
                     "tests/test_schema_validator.py",
-                    "tests/test_break_glass_repair.py"
+                    "tests/test_break_glass_repair.py",
                 ],
-                "protected_paths": [
-                    "src/autopack/models.py",
-                    "src/backend/",
-                    "src/frontend/"
-                ],
+                "protected_paths": ["src/autopack/models.py", "src/backend/", "src/frontend/"],
                 "read_only_context": [
                     "docs/BUILD-130_SCHEMA_VALIDATION_AND_PREVENTION.md",
                     "src/autopack/models.py (RunState, PhaseState, TierState enums)",
                     "src/autopack/database.py",
-                    "src/autopack/config.py"
-                ]
+                    "src/autopack/config.py",
+                ],
             },
-            "dependencies": ["build130-phase0-circuit-breaker"]
-        }
-    ]
+            "dependencies": ["build130-phase0-circuit-breaker"],
+        },
+    ],
 }
 
 
@@ -101,11 +93,11 @@ def main():
     print("Goal: Implement GPT-5.2's prevention-first architecture")
     print()
     print(f"Phases: {len(BUILD_130_PLAN['phases'])}")
-    for i, phase in enumerate(BUILD_130_PLAN['phases'], 1):
+    for i, phase in enumerate(BUILD_130_PLAN["phases"], 1):
         print(f"  Phase {i}: {phase['display_name']}")
         print(f"    Complexity: {phase['complexity']}")
         print(f"    Deliverables: {len(phase['scope']['deliverables'])}")
-        if 'dependencies' in phase:
+        if "dependencies" in phase:
             print(f"    Dependencies: {phase['dependencies']}")
     print()
 
@@ -117,7 +109,8 @@ def main():
         run_id = BUILD_130_PLAN["run_id"]
         now = datetime.now().isoformat()
 
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO runs (
                 id, state, created_at, updated_at,
                 safety_profile, run_scope, token_cap, max_phases, max_duration_minutes,
@@ -125,29 +118,42 @@ def main():
                 promotion_eligible_to_main, debt_status, goal_anchor
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            run_id,
-            'RUN_CREATED',  # Use valid enum value (not READY)
-            now, now,
-            'normal', 'multi_phase', 500000, 25, 180,
-            0, 0, 0, 0, 'false', 'none',
-            BUILD_130_PLAN['goal'][:500]
-        ))
+        """,
+            (
+                run_id,
+                "RUN_CREATED",  # Use valid enum value (not READY)
+                now,
+                now,
+                "normal",
+                "multi_phase",
+                500000,
+                25,
+                180,
+                0,
+                0,
+                0,
+                0,
+                "false",
+                "none",
+                BUILD_130_PLAN["goal"][:500],
+            ),
+        )
 
         # Create phases
-        for idx, phase in enumerate(BUILD_130_PLAN['phases']):
+        for idx, phase in enumerate(BUILD_130_PLAN["phases"]):
             # Build scope JSON with goal inside
             scope = {
-                'goal': phase['goal'],
-                'deliverables': phase['scope']['deliverables'],
-                'protected_paths': phase['scope']['protected_paths'],
-                'read_only_context': phase['scope']['read_only_context']
+                "goal": phase["goal"],
+                "deliverables": phase["scope"]["deliverables"],
+                "protected_paths": phase["scope"]["protected_paths"],
+                "read_only_context": phase["scope"]["read_only_context"],
             }
 
-            if 'dependencies' in phase:
-                scope['dependencies'] = phase['dependencies']
+            if "dependencies" in phase:
+                scope["dependencies"] = phase["dependencies"]
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR REPLACE INTO phases (
                     phase_id, run_id, tier_id, phase_index, name, description, state,
                     task_category, complexity, builder_mode, tokens_used, minor_issues_count,
@@ -156,21 +162,33 @@ def main():
                     escalation_level, scope
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                phase['phase_id'],
-                run_id,
-                191,  # Use same tier_id as BUILD-127
-                idx,
-                phase['display_name'],
-                phase['goal'][:500],
-                'QUEUED',  # Use valid enum value
-                phase['task_category'],
-                phase['complexity'],
-                'BUILD',
-                0, 0, 0, 'no_issues', 0, now, now,
-                0, 0, 0, 0, 0,
-                json.dumps(scope)
-            ))
+            """,
+                (
+                    phase["phase_id"],
+                    run_id,
+                    191,  # Use same tier_id as BUILD-127
+                    idx,
+                    phase["display_name"],
+                    phase["goal"][:500],
+                    "QUEUED",  # Use valid enum value
+                    phase["task_category"],
+                    phase["complexity"],
+                    "BUILD",
+                    0,
+                    0,
+                    0,
+                    "no_issues",
+                    0,
+                    now,
+                    now,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    json.dumps(scope),
+                ),
+            )
 
         conn.commit()
 
@@ -185,11 +203,14 @@ def main():
         print("3. Verify prevention infrastructure works as expected")
         print()
         print("Run command:")
-        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL='sqlite:///autopack.db' python -m autopack.autonomous_executor --run-id {run_id}")
+        print(
+            f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL='sqlite:///autopack.db' python -m autopack.autonomous_executor --run-id {run_id}"
+        )
 
     except Exception as e:
         print(f"❌ Error creating run: {e}")
         import traceback
+
         traceback.print_exc()
         conn.rollback()
         return 1
@@ -201,4 +222,5 @@ def main():
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(main())

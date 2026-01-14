@@ -26,9 +26,15 @@ def load_plan(path: Path) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run diagnostics over a backlog maintenance plan (propose-first).")
-    parser.add_argument("--plan", type=Path, required=True, help="Path to plan JSON from backlog_maintenance script")
-    parser.add_argument("--run-id", type=str, default=None, help="Run ID to use for diagnostics artifacts")
+    parser = argparse.ArgumentParser(
+        description="Run diagnostics over a backlog maintenance plan (propose-first)."
+    )
+    parser.add_argument(
+        "--plan", type=Path, required=True, help="Path to plan JSON from backlog_maintenance script"
+    )
+    parser.add_argument(
+        "--run-id", type=str, default=None, help="Run ID to use for diagnostics artifacts"
+    )
     parser.add_argument("--workspace", type=Path, default=Path("."), help="Workspace root")
     parser.add_argument("--max-probes", type=int, default=6, help="Max probes per item")
     parser.add_argument("--max-seconds", type=int, default=300, help="Max seconds per item")
@@ -87,4 +93,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

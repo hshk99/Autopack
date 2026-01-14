@@ -3,7 +3,6 @@ from autopack.research.orchestrator import ResearchOrchestrator
 
 
 class TestResearchOrchestrator(unittest.TestCase):
-
     def setUp(self):
         self.orchestrator = ResearchOrchestrator()
         self.intent_title = "Impact of Climate Change on Marine Life"

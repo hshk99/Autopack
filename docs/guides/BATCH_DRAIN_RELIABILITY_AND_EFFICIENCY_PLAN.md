@@ -1,6 +1,6 @@
 ## Batch Drain Reliability & Efficiency Plan (Autopack)
 
-**Audience**: “other cursor” implementing drain + telemetry hardening on Windows for the 57-run backlog.  
+**Audience**: “other cursor” implementing drain + telemetry hardening on Windows for the 57-run backlog.
 **Goal**: Make batch draining *reliable*, *diagnosable*, and *fast enough* to generate high-quality telemetry aligned with `README.md` expectations (reduced log hunting, deterministic evidence, token-efficient operation).
 
 ---
@@ -162,11 +162,11 @@ We observed multiple batches where phases ended `FAILED` with `last_failure_reas
 
 Use this prompt exactly:
 
-> Implement the plan in `docs/guides/BATCH_DRAIN_RELIABILITY_AND_EFFICIENCY_PLAN.md` (Sections A–E).  
+> Implement the plan in `docs/guides/BATCH_DRAIN_RELIABILITY_AND_EFFICIENCY_PLAN.md` (Sections A–E).
 > After implementing, run at least:
 > - one small targeted batch (`--batch-size 3`) and
 > - one medium batch (`--batch-size 10`)
-> and report back with evidence that the run is healthy using the “Acceptance Criteria” block in that file.  
+> and report back with evidence that the run is healthy using the “Acceptance Criteria” block in that file.
 >
 > During the run, monitor:
 > - count of phases where `FAILED` and `last_failure_reason=None`
@@ -209,5 +209,3 @@ Use this prompt exactly:
 6. **Telemetry Viability**
    - `token_estimation_v2_events` row count increases for successful phases (report delta).
    - If truncation/escalation occurs, `token_budget_escalation_events` row count increases appropriately (report delta).
-
-

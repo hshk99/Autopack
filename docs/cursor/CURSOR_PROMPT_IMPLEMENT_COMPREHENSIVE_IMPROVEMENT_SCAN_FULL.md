@@ -1,7 +1,7 @@
 # Cursor Implementation Prompt: Implement *all* items from `COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md`
 
-**Audience**: Another Cursor agent implementing changes (code + docs + tests) in this repo.  
-**Goal**: Implement *everything* required by the canonical PR stack and numbered checklist in `docs/reports/COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md`, with strong guardrails and CI proof.  
+**Audience**: Another Cursor agent implementing changes (code + docs + tests) in this repo.
+**Goal**: Implement *everything* required by the canonical PR stack and numbered checklist in `docs/reports/COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md`, with strong guardrails and CI proof.
 **Non-goal**: Do not “improve things opportunistically” outside the explicitly listed items—avoid scope creep.
 
 ---
@@ -263,5 +263,3 @@ Each PR must include:
 - The code/doc change(s)
 - The contract test(s) that prevents regression
 - A short update to `docs/BUILD_HISTORY.md` entry (if that is the repo’s current norm) **or** whatever the current “ledger update” policy requires
-
-

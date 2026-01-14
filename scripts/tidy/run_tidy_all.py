@@ -30,6 +30,7 @@ def main():
     sys.path.insert(0, str(repo_root / "src"))
     try:
         from autopack.model_registry import get_tool_model  # type: ignore
+
         semantic_model = get_tool_model("tidy_semantic", default="glm-4.6") or "glm-4.6"
     except Exception:
         semantic_model = "glm-4.6"
@@ -38,14 +39,18 @@ def main():
         cmd = [
             sys.executable,
             str(repo_root / "scripts" / "tidy" / "tidy_workspace.py"),
-            "--root", r,
+            "--root",
+            r,
             "--semantic",
-            "--semantic-model", semantic_model,
-            "--semantic-max-files", "200",
+            "--semantic-model",
+            semantic_model,
+            "--semantic-max-files",
+            "200",
             "--apply-semantic",
             "--execute",
             "--prune",
-            "--age-days", "30",
+            "--age-days",
+            "30",
             "--verbose",
         ]
         dsn = db_overrides.get(r)
@@ -59,4 +64,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

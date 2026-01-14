@@ -55,6 +55,7 @@ from src.autopack.learned_rules import (
 try:
     sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
     from launch_claude_agents import launch_agents
+
     AGENTS_AVAILABLE = True
 except ImportError:
     AGENTS_AVAILABLE = False
@@ -70,7 +71,7 @@ class Supervisor:
         openai_api_key: Optional[str] = None,
         target_repo_path: Optional[str] = None,
         project_id: str = "Autopack",
-        enable_aux_agents: bool = True
+        enable_aux_agents: bool = True,
     ):
         """
         Initialize Supervisor for autonomous builds.
@@ -98,9 +99,9 @@ class Supervisor:
         # Auxiliary agents configuration
         self.enable_aux_agents = enable_aux_agents and AGENTS_AVAILABLE
         if self.enable_aux_agents:
-            print(f"[Supervisor] Auxiliary agents: ENABLED")
+            print("[Supervisor] Auxiliary agents: ENABLED")
         else:
-            print(f"[Supervisor] Auxiliary agents: DISABLED")
+            print("[Supervisor] Auxiliary agents: DISABLED")
 
         # Load configurations
         self.models_config = self._load_models_config()
@@ -202,18 +203,16 @@ class Supervisor:
         # Step 1: Select models based on complexity and risk
         is_high_risk = task_category in self.high_risk_categories
         model_selection = self.model_selector.select_models(
-            task_category=task_category,
-            complexity=complexity,
-            is_high_risk=is_high_risk
+            task_category=task_category, complexity=complexity, is_high_risk=is_high_risk
         )
 
-        print(f"\n[Supervisor] 🧠 Model Selection:")
+        print("\n[Supervisor] 🧠 Model Selection:")
         print(f"[Supervisor]    Builder: {model_selection.builder_model}")
         print(f"[Supervisor]    Auditor: {model_selection.auditor_model}")
         print(f"[Supervisor]    Rationale: {model_selection.rationale}")
 
         # Stage 0A + 0B: Get relevant rules and hints for this phase
-        print(f"\n[Supervisor] 📚 Loading learned rules for phase...")
+        print("\n[Supervisor] 📚 Loading learned rules for phase...")
 
         # Stage 0B: Get persistent project rules (from snapshot)
         relevant_project_rules = get_relevant_rules_for_phase(
@@ -221,18 +220,18 @@ class Supervisor:
         )
 
         # Stage 0A: Get run-local hints from earlier phases
-        relevant_run_hints = get_relevant_hints_for_phase(
-            run_id, phase, max_hints=5
-        )
+        relevant_run_hints = get_relevant_hints_for_phase(run_id, phase, max_hints=5)
 
         if relevant_project_rules or relevant_run_hints:
             print(f"[Supervisor]    Project rules: {len(relevant_project_rules)}")
             print(f"[Supervisor]    Run hints: {len(relevant_run_hints)}")
         else:
-            print(f"[Supervisor]    No relevant rules or hints found")
+            print("[Supervisor]    No relevant rules or hints found")
 
         # Step 2: Builder executes
-        print(f"\n[Supervisor] → Dispatching to Builder (OpenAI {model_selection.builder_model})...")
+        print(
+            f"\n[Supervisor] → Dispatching to Builder (OpenAI {model_selection.builder_model})..."
+        )
 
         # Prepare phase spec for Builder
         phase_spec = {
@@ -249,35 +248,31 @@ class Supervisor:
             max_tokens=phase.get("incident_token_cap", 500000),
             model=model_selection.builder_model,
             project_rules=relevant_project_rules,  # Stage 0B
-            run_hints=relevant_run_hints  # Stage 0A
+            run_hints=relevant_run_hints,  # Stage 0A
         )
 
         if not builder_result.success:
             print(f"\n[Supervisor] ❌ Builder failed: {builder_result.error}")
-            return {
-                "status": "builder_failed",
-                "phase_id": phase_id,
-                "error": builder_result.error
-            }
+            return {"status": "builder_failed", "phase_id": phase_id, "error": builder_result.error}
 
-        print(f"[Supervisor] ✅ Builder completed")
+        print("[Supervisor] ✅ Builder completed")
         print(f"[Supervisor]    Tokens used: {builder_result.tokens_used:,}")
         print(f"[Supervisor]    Patch size: {len(builder_result.patch_content)} chars")
 
         # Step 3: Submit builder result to API
-        print(f"\n[Supervisor] → Submitting builder result to API...")
+        print("\n[Supervisor] → Submitting builder result to API...")
 
         submit_result = self._submit_builder_result(
-            run_id=run_id,
-            phase_id=phase_id,
-            builder_result=builder_result
+            run_id=run_id, phase_id=phase_id, builder_result=builder_result
         )
 
         if not submit_result:
-            print(f"[Supervisor] ⚠️  Warning: Failed to submit builder result")
+            print("[Supervisor] ⚠️  Warning: Failed to submit builder result")
 
         # Step 4: Auditor reviews
-        print(f"\n[Supervisor] → Dispatching to Auditor (OpenAI {model_selection.auditor_model})...")
+        print(
+            f"\n[Supervisor] → Dispatching to Auditor (OpenAI {model_selection.auditor_model})..."
+        )
 
         auditor_result = self.auditor.review_patch(
             patch_content=builder_result.patch_content,
@@ -285,7 +280,7 @@ class Supervisor:
             max_tokens=phase.get("incident_token_cap", 500000) // 2,  # Auditor gets half the budget
             model=model_selection.auditor_model,
             project_rules=relevant_project_rules,  # Stage 0B
-            run_hints=relevant_run_hints  # Stage 0A
+            run_hints=relevant_run_hints,  # Stage 0A
         )
 
         if not auditor_result.approved:
@@ -298,16 +293,14 @@ class Supervisor:
         print(f"[Supervisor] Auditor tokens used: {auditor_result.tokens_used:,}")
 
         # Step 5: Submit auditor result to API
-        print(f"\n[Supervisor] → Submitting auditor result to API...")
+        print("\n[Supervisor] → Submitting auditor result to API...")
 
         audit_submit_result = self._submit_auditor_result(
-            run_id=run_id,
-            phase_id=phase_id,
-            auditor_result=auditor_result
+            run_id=run_id, phase_id=phase_id, auditor_result=auditor_result
         )
 
         if not audit_submit_result:
-            print(f"[Supervisor] ⚠️  Warning: Failed to submit auditor result")
+            print("[Supervisor] ⚠️  Warning: Failed to submit auditor result")
 
         # Step 6: Determine outcome
         total_tokens = builder_result.tokens_used + auditor_result.tokens_used
@@ -328,7 +321,7 @@ class Supervisor:
                     phase=phase,
                     issues_before=issues_before,
                     issues_after=issues_after,
-                    context={"file_paths": []}  # TODO: Extract from patch
+                    context={"file_paths": []},  # TODO: Extract from patch
                 )
                 if hint:
                     print(f"[Supervisor] 📝 Recorded run hint: {hint.hint_text[:60]}...")
@@ -339,7 +332,7 @@ class Supervisor:
                 "status": "approved",
                 "phase_id": phase_id,
                 "tokens_used": total_tokens,
-                "issues_found": len(auditor_result.issues_found)
+                "issues_found": len(auditor_result.issues_found),
             }
         else:
             print(f"\n[Supervisor] ⚠️  Phase {phase_id} NEEDS REVISION")
@@ -348,15 +341,10 @@ class Supervisor:
                 "status": "needs_revision",
                 "phase_id": phase_id,
                 "tokens_used": total_tokens,
-                "issues_found": len(auditor_result.issues_found)
+                "issues_found": len(auditor_result.issues_found),
             }
 
-    def _submit_builder_result(
-        self,
-        run_id: str,
-        phase_id: str,
-        builder_result
-    ) -> bool:
+    def _submit_builder_result(self, run_id: str, phase_id: str, builder_result) -> bool:
         """Submit builder result to Autopack API"""
         url = f"{self.api_url}/runs/{run_id}/phases/{phase_id}/builder_result"
 
@@ -376,12 +364,7 @@ class Supervisor:
             print(f"[Supervisor] Error submitting builder result: {e}")
             return False
 
-    def _submit_auditor_result(
-        self,
-        run_id: str,
-        phase_id: str,
-        auditor_result
-    ) -> bool:
+    def _submit_auditor_result(self, run_id: str, phase_id: str, auditor_result) -> bool:
         """Submit auditor result to Autopack API"""
         url = f"{self.api_url}/runs/{run_id}/phases/{phase_id}/auditor_result"
 
@@ -418,15 +401,17 @@ class Supervisor:
         3. Monitor progress
         4. Report results
         """
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"🤖 AUTONOMOUS BUILD: {run_id}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         # Stage 0B: Load persistent project rules (before run starts)
-        print(f"[Supervisor] 📚 Loading project learned rules...")
+        print("[Supervisor] 📚 Loading project learned rules...")
         self.project_rules = load_project_learned_rules(self.project_id)
         self.run_rules_snapshot = self.project_rules.copy()  # Freeze for this run
-        print(f"[Supervisor] Loaded {len(self.project_rules)} persistent rules for project '{self.project_id}'")
+        print(
+            f"[Supervisor] Loaded {len(self.project_rules)} persistent rules for project '{self.project_id}'"
+        )
 
         # Create run
         run = self.create_run(
@@ -449,7 +434,7 @@ class Supervisor:
 
             # Check if we should stop
             if result["status"] == "builder_failed":
-                print(f"\n[Supervisor] ⚠️  Build stopped due to builder failure")
+                print("\n[Supervisor] ⚠️  Build stopped due to builder failure")
                 break
 
         # Get final summary
@@ -460,17 +445,19 @@ class Supervisor:
             summary = {}
 
         # Stage 0B: Promote run hints to persistent rules (after run completes)
-        print(f"\n[Supervisor] 🎓 Promoting run hints to persistent rules...")
+        print("\n[Supervisor] 🎓 Promoting run hints to persistent rules...")
         promoted_count = promote_hints_to_rules(run_id, self.project_id)
         if promoted_count > 0:
-            print(f"[Supervisor] ✅ Promoted {promoted_count} new rules to project '{self.project_id}'")
-            print(f"[Supervisor] These rules will be available for future runs")
+            print(
+                f"[Supervisor] ✅ Promoted {promoted_count} new rules to project '{self.project_id}'"
+            )
+            print("[Supervisor] These rules will be available for future runs")
         else:
-            print(f"[Supervisor] No new rules promoted (no recurring patterns found)")
+            print("[Supervisor] No new rules promoted (no recurring patterns found)")
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"✅ AUTONOMOUS BUILD COMPLETE: {run_id}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
         print(f"Phases executed: {len(results)}")
         print(f"Tokens used: {total_tokens:,}")
         print(f"Approved: {sum(1 for r in results if r['status'] == 'approved')}")
@@ -478,7 +465,7 @@ class Supervisor:
 
         # Event trigger: Launch auxiliary Claude agents after run completion
         if self.enable_aux_agents:
-            print(f"\n[Supervisor] 🤖 Launching auxiliary Claude agents...")
+            print("\n[Supervisor] 🤖 Launching auxiliary Claude agents...")
             try:
                 agent_results = launch_agents(
                     event="run_complete",
@@ -489,14 +476,16 @@ class Supervisor:
                         "total_tokens": total_tokens,
                         "rules_promoted": promoted_count,
                         "summary": summary,
-                    }
+                    },
                 )
                 print(f"[Supervisor] ✅ Launched {len(agent_results)} agent(s)")
                 for agent_result in agent_results:
-                    print(f"[Supervisor]    - {agent_result['agent_role']}: {agent_result['status']}")
+                    print(
+                        f"[Supervisor]    - {agent_result['agent_role']}: {agent_result['status']}"
+                    )
             except Exception as e:
                 print(f"[Supervisor] ⚠️  Warning: Agent launch failed: {e}")
-                print(f"[Supervisor]    Build completed successfully despite agent failure")
+                print("[Supervisor]    Build completed successfully despite agent failure")
 
         return {
             "run_id": run_id,
@@ -521,7 +510,7 @@ class Supervisor:
             poll_interval: Seconds between status checks
         """
         print(f"[Supervisor] Monitoring run: {run_id}")
-        print(f"[Supervisor] Press Ctrl+C to stop monitoring\n")
+        print("[Supervisor] Press Ctrl+C to stop monitoring\n")
 
         try:
             while True:
@@ -536,7 +525,7 @@ class Supervisor:
 
                 time.sleep(poll_interval)
         except KeyboardInterrupt:
-            print(f"\n[Supervisor] Monitoring stopped by user")
+            print("\n[Supervisor] Monitoring stopped by user")
 
 
 def example_build():
@@ -566,14 +555,14 @@ def example_build():
             "phase_index": 0,
             "tier_id": "T1",
             "name": "Add Health Check",
-            "description": "Add a /health endpoint to the FastAPI application that returns status 200 and {\"status\": \"healthy\"}",
+            "description": 'Add a /health endpoint to the FastAPI application that returns status 200 and {"status": "healthy"}',
             "task_category": "feature_scaffolding",
             "complexity": "low",
             "builder_mode": "compose",
             "acceptance_criteria": [
                 "Endpoint responds at GET /health",
                 "Returns 200 status code",
-                "Returns JSON with status field"
+                "Returns JSON with status field",
             ],
         },
     ]
@@ -597,13 +586,15 @@ if __name__ == "__main__":
     result = example_build()
 
     if result:
-        print(f"\n{'='*60}")
-        print(f"Final Result Summary:")
-        print(f"{'='*60}")
+        print(f"\n{'=' * 60}")
+        print("Final Result Summary:")
+        print(f"{'=' * 60}")
         print(f"Run ID: {result['run_id']}")
         print(f"Phases: {len(result['phase_results'])}")
         print(f"Total Tokens: {result['total_tokens']:,}")
-        print(f"\nPhase Results:")
-        for pr in result['phase_results']:
-            status_icon = "✅" if pr['status'] == 'approved' else "⚠️"
-            print(f"  {status_icon} {pr['phase_id']}: {pr['status']} ({pr.get('tokens_used', 0):,} tokens)")
+        print("\nPhase Results:")
+        for pr in result["phase_results"]:
+            status_icon = "✅" if pr["status"] == "approved" else "⚠️"
+            print(
+                f"  {status_icon} {pr['phase_id']}: {pr['status']} ({pr.get('tokens_used', 0):,} tokens)"
+            )

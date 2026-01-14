@@ -7,6 +7,7 @@ Usage:
     PYTHONUTF8=1 DATABASE_URL="sqlite:///autopack.db" TELEMETRY_DB_ENABLED=1 \\
     python scripts/drain_all_queued.py
 """
+
 import os
 import sys
 import subprocess
@@ -17,8 +18,13 @@ if not os.environ.get("DATABASE_URL"):
     print("[drain-all] ERROR: DATABASE_URL must be set explicitly.", file=sys.stderr)
     print("", file=sys.stderr)
     print("Example usage:", file=sys.stderr)
-    print("  (PowerShell) $env:DATABASE_URL='sqlite:///autopack_telemetry_seed.db'", file=sys.stderr)
-    print("  (bash)      DATABASE_URL='sqlite:///autopack_telemetry_seed.db' python scripts/drain_all_queued.py", file=sys.stderr)
+    print(
+        "  (PowerShell) $env:DATABASE_URL='sqlite:///autopack_telemetry_seed.db'", file=sys.stderr
+    )
+    print(
+        "  (bash)      DATABASE_URL='sqlite:///autopack_telemetry_seed.db' python scripts/drain_all_queued.py",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 # Ensure src/ is importable
@@ -26,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from autopack.database import SessionLocal
 from autopack.models import Phase, PhaseState
+
 
 def main():
     session = SessionLocal()
@@ -44,16 +51,18 @@ def main():
                 runs_with_queued[p.run_id] = []
             runs_with_queued[p.run_id].append(p.phase_id)
 
-        print(f"[drain-all] Found {len(queued_phases)} queued phases across {len(runs_with_queued)} runs")
+        print(
+            f"[drain-all] Found {len(queued_phases)} queued phases across {len(runs_with_queued)} runs"
+        )
         print()
 
         for idx, (run_id, phase_ids) in enumerate(runs_with_queued.items(), 1):
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print(f"[{idx}/{len(runs_with_queued)}] Draining run: {run_id}")
             print(f"  Queued phases: {len(phase_ids)}")
             for pid in phase_ids:
                 print(f"    - {pid}")
-            print("="*60)
+            print("=" * 60)
 
             # Prepare environment
             env = os.environ.copy()
@@ -64,9 +73,12 @@ def main():
             cmd = [
                 sys.executable,
                 "scripts/drain_queued_phases.py",
-                "--run-id", run_id,
-                "--batch-size", "10",  # Small batch for safety
-                "--max-batches", "1",  # Only one batch per run for now
+                "--run-id",
+                run_id,
+                "--batch-size",
+                "10",  # Small batch for safety
+                "--max-batches",
+                "1",  # Only one batch per run for now
                 "--no-dual-auditor",  # Reduce LLM calls
             ]
 
@@ -74,14 +86,16 @@ def main():
             result = subprocess.run(cmd, env=env, cwd=Path(__file__).parent.parent)
 
             if result.returncode != 0:
-                print(f"\n[drain-all] WARNING: Batch for {run_id} returned code {result.returncode}")
+                print(
+                    f"\n[drain-all] WARNING: Batch for {run_id} returned code {result.returncode}"
+                )
                 print("[drain-all] Continuing to next run...")
             else:
                 print(f"\n[drain-all] Successfully processed {run_id}")
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("[drain-all] All queued phase batches completed")
-        print("="*60)
+        print("=" * 60)
 
         # Final snapshot
         remaining_queued = session.query(Phase).filter(Phase.state == PhaseState.QUEUED).count()
@@ -89,6 +103,7 @@ def main():
 
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     sys.exit(main())

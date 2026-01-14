@@ -146,7 +146,7 @@ triage_system = SecondOpinionTriageSystem(config)
 if triage_system.is_enabled() and triage_system.within_budget():
     # 4. Generate triage report
     report = triage_system.generate_triage(handoff_bundle)
-    
+
     if report:
         print(f"Confidence: {report.confidence}")
         print(f"Hypotheses: {len(report.hypotheses)}")
@@ -158,15 +158,15 @@ if triage_system.is_enabled() and triage_system.within_budget():
 ```python
 def handle_phase_failure(phase, handoff_bundle):
     """Handle phase failure with optional second opinion."""
-    
+
     # Load triage configuration
     config = SecondOpinionConfig(
         enabled=os.getenv("ENABLE_SECOND_OPINION", "false").lower() == "true",
         token_budget=int(os.getenv("TRIAGE_TOKEN_BUDGET", "50000"))
     )
-    
+
     triage_system = SecondOpinionTriageSystem(config)
-    
+
     # Generate triage if enabled and within budget
     if triage_system.is_enabled() and triage_system.within_budget():
         phase_context = {
@@ -174,17 +174,17 @@ def handle_phase_failure(phase, handoff_bundle):
             "category": phase.category,
             "attempts": phase.builder_attempts
         }
-        
+
         report = triage_system.generate_triage(
             handoff_bundle,
             phase_context
         )
-        
+
         if report:
             # Save report for later analysis
             report_path = Path(f".autonomous_runs/{phase.name}/triage_report.json")
             triage_system.save_triage_report(report, report_path)
-            
+
             # Log key findings
             logger.info(f"Triage confidence: {report.confidence}")
             for hypothesis in report.hypotheses:
@@ -382,7 +382,7 @@ triage_system.save_triage_report(report, report_path)
 ```python
 def apply_triage_recommendations(report, phase):
     """Apply triage recommendations to phase execution."""
-    
+
     # Execute next probes
     for probe in report.next_probes:
         if probe["type"] == "check":
@@ -393,7 +393,7 @@ def apply_triage_recommendations(report, phase):
                 text=True
             )
             logger.info(f"Probe result: {result.stdout}")
-    
+
     # Consider patch strategy
     strategy = report.minimal_patch_strategy
     if report.confidence > 0.8:

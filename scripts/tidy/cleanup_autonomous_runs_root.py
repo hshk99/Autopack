@@ -73,13 +73,10 @@ class RootCleanup:
         name_lower = name.lower()
 
         # File-organizer patterns
-        if any(pattern in name_lower for pattern in [
-            "fileorg",
-            "file-org",
-            "immigration",
-            "visa",
-            "evidence"
-        ]):
+        if any(
+            pattern in name_lower
+            for pattern in ["fileorg", "file-org", "immigration", "visa", "evidence"]
+        ):
             return "file-organizer-app-v1"
 
         # Autopack patterns (default)
@@ -270,7 +267,7 @@ class RootCleanup:
 
         for item in items:
             # Skip hidden files/dirs (except .locks)
-            if item.name.startswith('.') and item.name != '.locks':
+            if item.name.startswith(".") and item.name != ".locks":
                 continue
 
             # Check if protected
@@ -367,7 +364,7 @@ Protected items (never moved):
   - STRUCTURE.md (documentation)
   - api_server.log (active API log)
         """,
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     parser.add_argument("--dry-run", action="store_true", help="Preview only (default)")

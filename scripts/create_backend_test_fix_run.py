@@ -31,7 +31,7 @@ Update the Settings class Config to match src/autopack/config.py pattern.""",
         "phase_index": 0,
         "category": "backend",
         "complexity": "low",
-        "builder_mode": "tweak_light"
+        "builder_mode": "tweak_light",
     },
     {
         "phase_id": "backend-requirements-fix",
@@ -48,7 +48,7 @@ Also update the main requirements.txt if needed.""",
         "phase_index": 1,
         "category": "backend",
         "complexity": "low",
-        "builder_mode": "tweak_light"
+        "builder_mode": "tweak_light",
     },
     {
         "phase_id": "backend-test-isolation",
@@ -64,9 +64,10 @@ Also update the main requirements.txt if needed.""",
         "phase_index": 0,
         "category": "testing",
         "complexity": "medium",
-        "builder_mode": "scaffolding_heavy"
-    }
+        "builder_mode": "scaffolding_heavy",
+    },
 ]
+
 
 def create_run():
     """Create run with all tasks"""
@@ -80,30 +81,34 @@ def create_run():
                 "tier_index": task["tier_index"],
                 "name": tier_id.split("-")[1],
                 "description": f"Tier {task['tier_index'] + 1}",
-                "phases": []
+                "phases": [],
             }
-        tiers[tier_id]["phases"].append({
-            "phase_id": task["phase_id"],
-            "phase_index": task["phase_index"],
-            "tier_id": tier_id,
-            "name": task["name"],
-            "description": task["description"],
-            "task_category": task["category"],
-            "complexity": task["complexity"],
-            "builder_mode": task["builder_mode"]
-        })
+        tiers[tier_id]["phases"].append(
+            {
+                "phase_id": task["phase_id"],
+                "phase_index": task["phase_index"],
+                "tier_id": tier_id,
+                "name": task["name"],
+                "description": task["description"],
+                "task_category": task["category"],
+                "complexity": task["complexity"],
+                "builder_mode": task["builder_mode"],
+            }
+        )
 
     # Flatten phases for API
     all_phases = []
     tier_list = []
     for tier in tiers.values():
         all_phases.extend(tier["phases"])
-        tier_list.append({
-            "tier_id": tier["tier_id"],
-            "tier_index": tier["tier_index"],
-            "name": tier["name"],
-            "description": tier.get("description")
-        })
+        tier_list.append(
+            {
+                "tier_id": tier["tier_id"],
+                "tier_index": tier["tier_index"],
+                "name": tier["name"],
+                "description": tier.get("description"),
+            }
+        )
 
     payload = {
         "run": {
@@ -112,20 +117,17 @@ def create_run():
             "run_scope": "multi_tier",
             "token_cap": 100000,
             "max_phases": 5,
-            "max_duration_minutes": 60
+            "max_duration_minutes": 60,
         },
         "tiers": tier_list,
-        "phases": all_phases
+        "phases": all_phases,
     }
 
     print(f"[INFO] Creating run: {RUN_ID}")
     print(f"[INFO] Total tasks: {len(TASKS)}")
     print(f"[INFO] Total tiers: {len(tiers)}")
 
-    response = requests.post(
-        f"{API_URL}/runs/start",
-        json=payload
-    )
+    response = requests.post(f"{API_URL}/runs/start", json=payload)
 
     if response.status_code != 201:
         print(f"[ERROR] Response: {response.status_code}")

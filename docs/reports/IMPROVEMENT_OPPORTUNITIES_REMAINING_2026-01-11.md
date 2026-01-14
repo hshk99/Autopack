@@ -670,5 +670,3 @@ This is a “two truths” inventory: it lists every major build/deploy surface 
 - Add an explicit “parallel-run guard” in the executor entrypoint:
   - refuse to run in shared workspace if a lease/lock indicates another run is active (unless a `--force`/explicit override).
   - or always require using the supervisor/orchestrator for parallel runs.
-
-

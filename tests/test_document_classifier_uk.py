@@ -11,7 +11,6 @@ from autopack.document_classifier_uk import UKDocumentClassifier
 
 
 class TestUKDocumentClassifier(unittest.TestCase):
-
     def test_classify_document(self):
         self.assertEqual(
             UKDocumentClassifier.classify_document("HMRC tax return for 2022"), "HMRC Tax Return"

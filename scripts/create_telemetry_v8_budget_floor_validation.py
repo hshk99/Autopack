@@ -37,6 +37,7 @@ from autopack.models import Run, RunState, Phase, PhaseState, Tier, TierState
 from datetime import datetime, timezone
 import json
 
+
 def create_telemetry_v8_run():
     """Create telemetry-collection-v8-budget-floors validation run (5 phases, patch-safe)."""
 
@@ -52,24 +53,26 @@ def create_telemetry_v8_run():
             id="telemetry-collection-v8-budget-floors",
             state=RunState.PHASE_EXECUTION,
             created_at=datetime.now(timezone.utc),
-            goal_anchor=json.dumps({
-                "goal": (
-                    "V8: Validate BUILD-142 category-aware base budget floors. "
-                    "5 phases (3 docs/low, 2 tests/low) to confirm zero truncations "
-                    "and budget waste reduction. PATCH-SAFE: all new files."
-                ),
-                "purpose": "telemetry_v8_budget_floor_validation",
-                "target_validation": [
-                    "docs/low: base=4096 (was 8192), expect waste ~1.2x (was 2.4x)",
-                    "tests/low: base=6144 (was 8192), expect waste ~1.5x (was 10x)",
-                    "Zero truncations (safety validation)"
-                ],
-                "patch_safety": [
-                    "All deliverables are new files",
-                    "Files created under examples/telemetry_v8_docs/ and examples/telemetry_v8_tests/",
-                    "No modifications to existing directories"
-                ]
-            })
+            goal_anchor=json.dumps(
+                {
+                    "goal": (
+                        "V8: Validate BUILD-142 category-aware base budget floors. "
+                        "5 phases (3 docs/low, 2 tests/low) to confirm zero truncations "
+                        "and budget waste reduction. PATCH-SAFE: all new files."
+                    ),
+                    "purpose": "telemetry_v8_budget_floor_validation",
+                    "target_validation": [
+                        "docs/low: base=4096 (was 8192), expect waste ~1.2x (was 2.4x)",
+                        "tests/low: base=6144 (was 8192), expect waste ~1.5x (was 10x)",
+                        "Zero truncations (safety validation)",
+                    ],
+                    "patch_safety": [
+                        "All deliverables are new files",
+                        "Files created under examples/telemetry_v8_docs/ and examples/telemetry_v8_tests/",
+                        "No modifications to existing directories",
+                    ],
+                }
+            ),
         )
         session.add(run)
         session.flush()
@@ -83,11 +86,11 @@ def create_telemetry_v8_run():
             name="telemetry-v8-tier1",
             description="Single tier for v8 budget floor validation phases",
             state=TierState.IN_PROGRESS,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
         )
         session.add(tier)
         session.flush()
-        print(f"✅ Created tier 1")
+        print("✅ Created tier 1")
 
         # === DOCS/LOW PHASES (3) ===
         docs_low_phases = [
@@ -167,21 +170,29 @@ def create_telemetry_v8_run():
                 state=PhaseState.QUEUED,
                 task_category=phase_def["category"],
                 complexity=phase_def["complexity"],
-                scope=json.dumps({
-                    "deliverables": phase_def["deliverables"],
-                }),
-                created_at=datetime.now(timezone.utc)
+                scope=json.dumps(
+                    {
+                        "deliverables": phase_def["deliverables"],
+                    }
+                ),
+                created_at=datetime.now(timezone.utc),
             )
             session.add(phase)
-            print(f"  [{idx:02d}] {phase_def['phase_id']} ({phase_def['category']}/{phase_def['complexity']}, {len(phase_def['deliverables'])} deliverable(s))")
+            print(
+                f"  [{idx:02d}] {phase_def['phase_id']} ({phase_def['category']}/{phase_def['complexity']}, {len(phase_def['deliverables'])} deliverable(s))"
+            )
 
         session.commit()
-        print(f"\n✅ Successfully created telemetry-collection-v8-budget-floors with 5 phases")
-        print(f"   - docs/low: 3 phases (expect base=4096 each)")
-        print(f"   - tests/low: 2 phases (expect base=6144 each)")
-        print(f"\nDrain with:")
-        print(f"  python scripts/drain_queued_phases.py --run-id telemetry-collection-v8-budget-floors \\")
-        print(f"    --batch-size 10 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
+        print("\n✅ Successfully created telemetry-collection-v8-budget-floors with 5 phases")
+        print("   - docs/low: 3 phases (expect base=4096 each)")
+        print("   - tests/low: 2 phases (expect base=6144 each)")
+        print("\nDrain with:")
+        print(
+            "  python scripts/drain_queued_phases.py --run-id telemetry-collection-v8-budget-floors \\"
+        )
+        print(
+            "    --batch-size 10 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance"
+        )
 
     except Exception as e:
         session.rollback()

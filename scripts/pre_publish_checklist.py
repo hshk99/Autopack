@@ -33,6 +33,7 @@ from typing import Dict, List, Tuple, Optional
 # Set UTF-8 encoding for Windows console
 if sys.platform == "win32":
     import codecs
+
     sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
     sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
 
@@ -47,6 +48,7 @@ RESET = "\033[0m"
 
 class CheckResult:
     """Result of a single checklist item"""
+
     def __init__(self, name: str, passed: bool, message: str, severity: str = "error"):
         self.name = name
         self.passed = passed
@@ -54,8 +56,10 @@ class CheckResult:
         self.severity = severity  # "error", "warning", "info"
 
     def __str__(self):
-        icon = f"{GREEN}✓{RESET}" if self.passed else (
-            f"{YELLOW}⚠{RESET}" if self.severity == "warning" else f"{RED}✗{RESET}"
+        icon = (
+            f"{GREEN}✓{RESET}"
+            if self.passed
+            else (f"{YELLOW}⚠{RESET}" if self.severity == "warning" else f"{RED}✗{RESET}")
         )
         return f"{icon} {self.name}: {self.message}"
 
@@ -124,12 +128,14 @@ class PrePublishChecker:
         """Check for README.md with essential sections"""
         readme_path = self.project_path / "README.md"
         if not readme_path.exists():
-            self.results.append(CheckResult(
-                "README.md",
-                False,
-                "README.md not found. Create user-facing documentation.",
-                "error"
-            ))
+            self.results.append(
+                CheckResult(
+                    "README.md",
+                    False,
+                    "README.md not found. Create user-facing documentation.",
+                    "error",
+                )
+            )
             return
 
         content = readme_path.read_text(encoding="utf-8")
@@ -146,18 +152,18 @@ class PrePublishChecker:
                 missing.append(desc)
 
         if missing:
-            self.results.append(CheckResult(
-                "README.md sections",
-                False,
-                f"Missing sections: {', '.join(missing)}",
-                "warning"
-            ))
+            self.results.append(
+                CheckResult(
+                    "README.md sections",
+                    False,
+                    f"Missing sections: {', '.join(missing)}",
+                    "warning",
+                )
+            )
         else:
-            self.results.append(CheckResult(
-                "README.md",
-                True,
-                "README.md exists with essential sections"
-            ))
+            self.results.append(
+                CheckResult("README.md", True, "README.md exists with essential sections")
+            )
 
     def check_license(self):
         """Check for LICENSE file"""
@@ -165,46 +171,46 @@ class PrePublishChecker:
         found = any((self.project_path / f).exists() for f in license_files)
 
         if found:
-            self.results.append(CheckResult(
-                "LICENSE",
-                True,
-                "LICENSE file found"
-            ))
+            self.results.append(CheckResult("LICENSE", True, "LICENSE file found"))
         else:
-            self.results.append(CheckResult(
-                "LICENSE",
-                False,
-                "No LICENSE file found. Add MIT, Apache-2.0, or appropriate license.",
-                "error"
-            ))
+            self.results.append(
+                CheckResult(
+                    "LICENSE",
+                    False,
+                    "No LICENSE file found. Add MIT, Apache-2.0, or appropriate license.",
+                    "error",
+                )
+            )
 
     def check_changelog(self):
         """Check for CHANGELOG.md"""
         changelog_path = self.project_path / "CHANGELOG.md"
         if not changelog_path.exists():
-            self.results.append(CheckResult(
-                "CHANGELOG.md",
-                False,
-                "CHANGELOG.md not found. Create version history with release notes.",
-                "warning"
-            ))
+            self.results.append(
+                CheckResult(
+                    "CHANGELOG.md",
+                    False,
+                    "CHANGELOG.md not found. Create version history with release notes.",
+                    "warning",
+                )
+            )
             return
 
         content = changelog_path.read_text(encoding="utf-8")
         # Check for semver-style versions
         if not re.search(r"##?\s+\[?v?\d+\.\d+\.\d+", content):
-            self.results.append(CheckResult(
-                "CHANGELOG.md format",
-                False,
-                "CHANGELOG.md exists but doesn't follow semver versioning format",
-                "warning"
-            ))
+            self.results.append(
+                CheckResult(
+                    "CHANGELOG.md format",
+                    False,
+                    "CHANGELOG.md exists but doesn't follow semver versioning format",
+                    "warning",
+                )
+            )
         else:
-            self.results.append(CheckResult(
-                "CHANGELOG.md",
-                True,
-                "CHANGELOG.md exists with versioned entries"
-            ))
+            self.results.append(
+                CheckResult("CHANGELOG.md", True, "CHANGELOG.md exists with versioned entries")
+            )
 
     def check_version_file(self):
         """Check for version file or version in package metadata"""
@@ -224,18 +230,18 @@ class PrePublishChecker:
                 break
 
         if found:
-            self.results.append(CheckResult(
-                "Version file",
-                True,
-                f"Version metadata found in {location.name}"
-            ))
+            self.results.append(
+                CheckResult("Version file", True, f"Version metadata found in {location.name}")
+            )
         else:
-            self.results.append(CheckResult(
-                "Version file",
-                False,
-                "No version file found (VERSION, package.json, setup.py, etc.)",
-                "warning"
-            ))
+            self.results.append(
+                CheckResult(
+                    "Version file",
+                    False,
+                    "No version file found (VERSION, package.json, setup.py, etc.)",
+                    "warning",
+                )
+            )
 
     def check_semver_tags(self):
         """Check for semver git tags"""
@@ -245,31 +251,37 @@ class PrePublishChecker:
                 cwd=self.project_path,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             tags = result.stdout.strip().split("\n")
             semver_tags = [t for t in tags if re.match(r"v?\d+\.\d+\.\d+", t)]
 
             if semver_tags:
-                self.results.append(CheckResult(
-                    "Git tags",
-                    True,
-                    f"Found {len(semver_tags)} semver tags (latest: {semver_tags[-1]})"
-                ))
+                self.results.append(
+                    CheckResult(
+                        "Git tags",
+                        True,
+                        f"Found {len(semver_tags)} semver tags (latest: {semver_tags[-1]})",
+                    )
+                )
             else:
-                self.results.append(CheckResult(
+                self.results.append(
+                    CheckResult(
+                        "Git tags",
+                        False,
+                        "No semver git tags found. Create release tags (v1.0.0, etc.)",
+                        "warning",
+                    )
+                )
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            self.results.append(
+                CheckResult(
                     "Git tags",
                     False,
-                    "No semver git tags found. Create release tags (v1.0.0, etc.)",
-                    "warning"
-                ))
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            self.results.append(CheckResult(
-                "Git tags",
-                False,
-                "Could not check git tags (not a git repo or git not installed)",
-                "info"
-            ))
+                    "Could not check git tags (not a git repo or git not installed)",
+                    "info",
+                )
+            )
 
     def check_package_json_or_setup_py(self):
         """Check for package metadata files"""
@@ -287,18 +299,16 @@ class PrePublishChecker:
                 found.append(f"{filename} ({desc})")
 
         if found:
-            self.results.append(CheckResult(
-                "Package metadata",
-                True,
-                f"Found: {', '.join(found)}"
-            ))
+            self.results.append(CheckResult("Package metadata", True, f"Found: {', '.join(found)}"))
         else:
-            self.results.append(CheckResult(
-                "Package metadata",
-                False,
-                "No package metadata found (package.json, setup.py, pyproject.toml, etc.)",
-                "error"
-            ))
+            self.results.append(
+                CheckResult(
+                    "Package metadata",
+                    False,
+                    "No package metadata found (package.json, setup.py, pyproject.toml, etc.)",
+                    "error",
+                )
+            )
 
     def check_dependencies_locked(self):
         """Check for lockfiles"""
@@ -319,18 +329,18 @@ class PrePublishChecker:
                 found.append(f"{filename} ({tool})")
 
         if found:
-            self.results.append(CheckResult(
-                "Dependency lockfile",
-                True,
-                f"Found: {', '.join(found)}"
-            ))
+            self.results.append(
+                CheckResult("Dependency lockfile", True, f"Found: {', '.join(found)}")
+            )
         else:
-            self.results.append(CheckResult(
-                "Dependency lockfile",
-                False,
-                "No dependency lockfile found. Lock dependencies for reproducible builds.",
-                "warning"
-            ))
+            self.results.append(
+                CheckResult(
+                    "Dependency lockfile",
+                    False,
+                    "No dependency lockfile found. Lock dependencies for reproducible builds.",
+                    "warning",
+                )
+            )
 
     def check_build_directory(self):
         """Check for build output or distribution directory"""
@@ -338,18 +348,18 @@ class PrePublishChecker:
         found = [d for d in build_dirs if (self.project_path / d).exists()]
 
         if found:
-            self.results.append(CheckResult(
-                "Build directory",
-                True,
-                f"Found build directories: {', '.join(found)}"
-            ))
+            self.results.append(
+                CheckResult("Build directory", True, f"Found build directories: {', '.join(found)}")
+            )
         else:
-            self.results.append(CheckResult(
-                "Build directory",
-                False,
-                "No build/dist directory found. Run build before publishing.",
-                "warning"
-            ))
+            self.results.append(
+                CheckResult(
+                    "Build directory",
+                    False,
+                    "No build/dist directory found. Run build before publishing.",
+                    "warning",
+                )
+            )
 
     def check_docker_support(self):
         """Check for Docker support"""
@@ -362,18 +372,16 @@ class PrePublishChecker:
                 files.append("Dockerfile")
             if compose.exists():
                 files.append("docker-compose.yml")
-            self.results.append(CheckResult(
-                "Docker support",
-                True,
-                f"Found: {', '.join(files)}"
-            ))
+            self.results.append(CheckResult("Docker support", True, f"Found: {', '.join(files)}"))
         else:
-            self.results.append(CheckResult(
-                "Docker support",
-                False,
-                "No Dockerfile or docker-compose.yml. Consider adding for easier deployment.",
-                "info"
-            ))
+            self.results.append(
+                CheckResult(
+                    "Docker support",
+                    False,
+                    "No Dockerfile or docker-compose.yml. Consider adding for easier deployment.",
+                    "info",
+                )
+            )
 
     def check_user_documentation(self):
         """Check for user-facing documentation"""
@@ -386,18 +394,18 @@ class PrePublishChecker:
         found = any(loc.exists() and loc.is_dir() for loc in doc_locations)
 
         if found:
-            self.results.append(CheckResult(
-                "User documentation",
-                True,
-                "Documentation directory found"
-            ))
+            self.results.append(
+                CheckResult("User documentation", True, "Documentation directory found")
+            )
         else:
-            self.results.append(CheckResult(
-                "User documentation",
-                False,
-                "No docs/ directory. Create user guides and tutorials.",
-                "warning"
-            ))
+            self.results.append(
+                CheckResult(
+                    "User documentation",
+                    False,
+                    "No docs/ directory. Create user guides and tutorials.",
+                    "warning",
+                )
+            )
 
     def check_api_documentation(self):
         """Check for API documentation"""
@@ -410,18 +418,16 @@ class PrePublishChecker:
         found = any(loc.exists() for loc in api_doc_indicators)
 
         if found:
-            self.results.append(CheckResult(
-                "API documentation",
-                True,
-                "API documentation found"
-            ))
+            self.results.append(CheckResult("API documentation", True, "API documentation found"))
         else:
-            self.results.append(CheckResult(
-                "API documentation",
-                False,
-                "No API documentation found. Document public APIs if applicable.",
-                "info"
-            ))
+            self.results.append(
+                CheckResult(
+                    "API documentation",
+                    False,
+                    "No API documentation found. Document public APIs if applicable.",
+                    "info",
+                )
+            )
 
     def check_installation_guide(self):
         """Check for installation guide"""
@@ -437,18 +443,18 @@ class PrePublishChecker:
             has_install = True
 
         if has_install:
-            self.results.append(CheckResult(
-                "Installation guide",
-                True,
-                "Installation instructions found"
-            ))
+            self.results.append(
+                CheckResult("Installation guide", True, "Installation instructions found")
+            )
         else:
-            self.results.append(CheckResult(
-                "Installation guide",
-                False,
-                "No installation guide found. Add installation instructions.",
-                "error"
-            ))
+            self.results.append(
+                CheckResult(
+                    "Installation guide",
+                    False,
+                    "No installation guide found. Add installation instructions.",
+                    "error",
+                )
+            )
 
     def check_examples(self):
         """Check for example code or usage examples"""
@@ -461,18 +467,13 @@ class PrePublishChecker:
         found = any(loc.exists() and loc.is_dir() for loc in example_locations)
 
         if found:
-            self.results.append(CheckResult(
-                "Examples",
-                True,
-                "Examples directory found"
-            ))
+            self.results.append(CheckResult("Examples", True, "Examples directory found"))
         else:
-            self.results.append(CheckResult(
-                "Examples",
-                False,
-                "No examples/ directory. Add usage examples.",
-                "info"
-            ))
+            self.results.append(
+                CheckResult(
+                    "Examples", False, "No examples/ directory. Add usage examples.", "info"
+                )
+            )
 
     def check_tests_exist(self):
         """Check for test suite"""
@@ -486,18 +487,13 @@ class PrePublishChecker:
         found = any(loc.exists() and loc.is_dir() for loc in test_locations)
 
         if found:
-            self.results.append(CheckResult(
-                "Test suite",
-                True,
-                "Test directory found"
-            ))
+            self.results.append(CheckResult("Test suite", True, "Test directory found"))
         else:
-            self.results.append(CheckResult(
-                "Test suite",
-                False,
-                "No tests/ directory. Add automated tests.",
-                "warning"
-            ))
+            self.results.append(
+                CheckResult(
+                    "Test suite", False, "No tests/ directory. Add automated tests.", "warning"
+                )
+            )
 
     def check_ci_cd_config(self):
         """Check for CI/CD configuration"""
@@ -512,54 +508,45 @@ class PrePublishChecker:
         found = any(loc.exists() for loc in ci_configs)
 
         if found:
-            self.results.append(CheckResult(
-                "CI/CD",
-                True,
-                "CI/CD configuration found"
-            ))
+            self.results.append(CheckResult("CI/CD", True, "CI/CD configuration found"))
         else:
-            self.results.append(CheckResult(
-                "CI/CD",
-                False,
-                "No CI/CD config. Add GitHub Actions or equivalent.",
-                "warning"
-            ))
+            self.results.append(
+                CheckResult(
+                    "CI/CD", False, "No CI/CD config. Add GitHub Actions or equivalent.", "warning"
+                )
+            )
 
     def check_security_policy(self):
         """Check for security policy"""
         security = self.project_path / "SECURITY.md"
 
         if security.exists():
-            self.results.append(CheckResult(
-                "SECURITY.md",
-                True,
-                "Security policy found"
-            ))
+            self.results.append(CheckResult("SECURITY.md", True, "Security policy found"))
         else:
-            self.results.append(CheckResult(
-                "SECURITY.md",
-                False,
-                "No SECURITY.md. Add security reporting guidelines.",
-                "info"
-            ))
+            self.results.append(
+                CheckResult(
+                    "SECURITY.md",
+                    False,
+                    "No SECURITY.md. Add security reporting guidelines.",
+                    "info",
+                )
+            )
 
     def check_contributing_guide(self):
         """Check for contributing guidelines"""
         contributing = self.project_path / "CONTRIBUTING.md"
 
         if contributing.exists():
-            self.results.append(CheckResult(
-                "CONTRIBUTING.md",
-                True,
-                "Contributing guide found"
-            ))
+            self.results.append(CheckResult("CONTRIBUTING.md", True, "Contributing guide found"))
         else:
-            self.results.append(CheckResult(
-                "CONTRIBUTING.md",
-                False,
-                "No CONTRIBUTING.md. Add contribution guidelines if accepting PRs.",
-                "info"
-            ))
+            self.results.append(
+                CheckResult(
+                    "CONTRIBUTING.md",
+                    False,
+                    "No CONTRIBUTING.md. Add contribution guidelines if accepting PRs.",
+                    "info",
+                )
+            )
 
     def check_code_of_conduct(self):
         """Check for code of conduct"""
@@ -567,18 +554,16 @@ class PrePublishChecker:
         found = any((self.project_path / f).exists() for f in coc_files)
 
         if found:
-            self.results.append(CheckResult(
-                "Code of Conduct",
-                True,
-                "Code of Conduct found"
-            ))
+            self.results.append(CheckResult("Code of Conduct", True, "Code of Conduct found"))
         else:
-            self.results.append(CheckResult(
-                "Code of Conduct",
-                False,
-                "No CODE_OF_CONDUCT.md. Consider adding for open-source projects.",
-                "info"
-            ))
+            self.results.append(
+                CheckResult(
+                    "Code of Conduct",
+                    False,
+                    "No CODE_OF_CONDUCT.md. Consider adding for open-source projects.",
+                    "info",
+                )
+            )
 
     def check_license_headers(self):
         """Check for license headers in source files"""
@@ -591,12 +576,9 @@ class PrePublishChecker:
             source_files.extend(list(self.project_path.rglob(pattern))[:sample_size])
 
         if not source_files:
-            self.results.append(CheckResult(
-                "License headers",
-                False,
-                "No source files found to check",
-                "info"
-            ))
+            self.results.append(
+                CheckResult("License headers", False, "No source files found to check", "info")
+            )
             return
 
         files_with_headers = 0
@@ -610,18 +592,22 @@ class PrePublishChecker:
                 pass
 
         if files_with_headers >= len(source_files) * 0.5:
-            self.results.append(CheckResult(
-                "License headers",
-                True,
-                f"{files_with_headers}/{len(source_files)} sampled files have license headers"
-            ))
+            self.results.append(
+                CheckResult(
+                    "License headers",
+                    True,
+                    f"{files_with_headers}/{len(source_files)} sampled files have license headers",
+                )
+            )
         else:
-            self.results.append(CheckResult(
-                "License headers",
-                False,
-                f"Only {files_with_headers}/{len(source_files)} sampled files have license headers",
-                "info"
-            ))
+            self.results.append(
+                CheckResult(
+                    "License headers",
+                    False,
+                    f"Only {files_with_headers}/{len(source_files)} sampled files have license headers",
+                    "info",
+                )
+            )
 
     def check_third_party_licenses(self):
         """Check for third-party license documentation"""
@@ -635,18 +621,18 @@ class PrePublishChecker:
         found = any((self.project_path / f).exists() for f in license_files)
 
         if found:
-            self.results.append(CheckResult(
-                "Third-party licenses",
-                True,
-                "Third-party license documentation found"
-            ))
+            self.results.append(
+                CheckResult("Third-party licenses", True, "Third-party license documentation found")
+            )
         else:
-            self.results.append(CheckResult(
-                "Third-party licenses",
-                False,
-                "No third-party license doc. Document dependencies' licenses if distributing binaries.",
-                "info"
-            ))
+            self.results.append(
+                CheckResult(
+                    "Third-party licenses",
+                    False,
+                    "No third-party license doc. Document dependencies' licenses if distributing binaries.",
+                    "info",
+                )
+            )
 
     def check_no_secrets(self):
         """Check for potential secrets in git history"""
@@ -671,18 +657,18 @@ class PrePublishChecker:
         found_files = [f for f in potential_secret_files if (self.project_path / f).exists()]
 
         if found_files:
-            self.results.append(CheckResult(
-                "Secrets check",
-                False,
-                f"Found potential secret files: {', '.join(found_files)}. Ensure they're in .gitignore!",
-                "error"
-            ))
+            self.results.append(
+                CheckResult(
+                    "Secrets check",
+                    False,
+                    f"Found potential secret files: {', '.join(found_files)}. Ensure they're in .gitignore!",
+                    "error",
+                )
+            )
         else:
-            self.results.append(CheckResult(
-                "Secrets check",
-                True,
-                "No obvious secret files found in repo"
-            ))
+            self.results.append(
+                CheckResult("Secrets check", True, "No obvious secret files found in repo")
+            )
 
     def check_no_personal_data(self):
         """Check for personal data or PII"""
@@ -693,12 +679,14 @@ class PrePublishChecker:
         ]
 
         # Sample check - would need more thorough scanning in production
-        self.results.append(CheckResult(
-            "Personal data check",
-            True,
-            "Manual review recommended for PII/personal data",
-            "info"
-        ))
+        self.results.append(
+            CheckResult(
+                "Personal data check",
+                True,
+                "Manual review recommended for PII/personal data",
+                "info",
+            )
+        )
 
     def check_git_tags(self):
         """Check for properly formatted git tags"""
@@ -708,23 +696,23 @@ class PrePublishChecker:
                 cwd=self.project_path,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             tags = [t for t in result.stdout.strip().split("\n") if t]
 
             if tags:
-                self.results.append(CheckResult(
-                    "Git release tags",
-                    True,
-                    f"Found {len(tags)} release tags"
-                ))
+                self.results.append(
+                    CheckResult("Git release tags", True, f"Found {len(tags)} release tags")
+                )
             else:
-                self.results.append(CheckResult(
-                    "Git release tags",
-                    False,
-                    "No release tags (v1.0.0, etc.). Tag releases for version tracking.",
-                    "warning"
-                ))
+                self.results.append(
+                    CheckResult(
+                        "Git release tags",
+                        False,
+                        "No release tags (v1.0.0, etc.). Tag releases for version tracking.",
+                        "warning",
+                    )
+                )
         except Exception:
             pass  # Already checked in check_semver_tags
 
@@ -733,18 +721,18 @@ class PrePublishChecker:
         release_template = self.project_path / ".github" / "release_template.md"
 
         if release_template.exists():
-            self.results.append(CheckResult(
-                "Release template",
-                True,
-                "GitHub release template found"
-            ))
+            self.results.append(
+                CheckResult("Release template", True, "GitHub release template found")
+            )
         else:
-            self.results.append(CheckResult(
-                "Release template",
-                False,
-                "No .github/release_template.md. Create template for consistent releases.",
-                "info"
-            ))
+            self.results.append(
+                CheckResult(
+                    "Release template",
+                    False,
+                    "No .github/release_template.md. Create template for consistent releases.",
+                    "info",
+                )
+            )
 
     def check_release_notes_format(self):
         """Check CHANGELOG format follows standard"""
@@ -760,18 +748,18 @@ class PrePublishChecker:
         has_sections = all(s in content for s in ["Added", "Changed", "Fixed"])
 
         if has_keepachangelog or has_sections:
-            self.results.append(CheckResult(
-                "CHANGELOG format",
-                True,
-                "CHANGELOG follows standard format"
-            ))
+            self.results.append(
+                CheckResult("CHANGELOG format", True, "CHANGELOG follows standard format")
+            )
         else:
-            self.results.append(CheckResult(
-                "CHANGELOG format",
-                False,
-                "CHANGELOG doesn't follow Keep a Changelog format",
-                "info"
-            ))
+            self.results.append(
+                CheckResult(
+                    "CHANGELOG format",
+                    False,
+                    "CHANGELOG doesn't follow Keep a Changelog format",
+                    "info",
+                )
+            )
 
     def check_build_succeeds(self):
         """Check if project builds successfully"""
@@ -785,20 +773,24 @@ class PrePublishChecker:
 
         for indicator, command in build_commands:
             if indicator.exists():
-                self.results.append(CheckResult(
-                    "Build verification",
-                    True,
-                    f"Build script detected: {' '.join(command)}. Run manually to verify.",
-                    "info"
-                ))
+                self.results.append(
+                    CheckResult(
+                        "Build verification",
+                        True,
+                        f"Build script detected: {' '.join(command)}. Run manually to verify.",
+                        "info",
+                    )
+                )
                 return
 
-        self.results.append(CheckResult(
-            "Build verification",
-            False,
-            "No build script detected. Verify project builds before publishing.",
-            "info"
-        ))
+        self.results.append(
+            CheckResult(
+                "Build verification",
+                False,
+                "No build script detected. Verify project builds before publishing.",
+                "info",
+            )
+        )
 
     def check_tests_pass(self):
         """Check if tests can be run"""
@@ -810,20 +802,24 @@ class PrePublishChecker:
 
         for indicator, command in test_commands:
             if indicator.exists():
-                self.results.append(CheckResult(
-                    "Test verification",
-                    True,
-                    f"Test command detected: {command}. Run manually to verify all pass.",
-                    "info"
-                ))
+                self.results.append(
+                    CheckResult(
+                        "Test verification",
+                        True,
+                        f"Test command detected: {command}. Run manually to verify all pass.",
+                        "info",
+                    )
+                )
                 return
 
-        self.results.append(CheckResult(
-            "Test verification",
-            False,
-            "No test command detected. Run tests before publishing.",
-            "info"
-        ))
+        self.results.append(
+            CheckResult(
+                "Test verification",
+                False,
+                "No test command detected. Run tests before publishing.",
+                "info",
+            )
+        )
 
     def check_badges(self):
         """Check for README badges"""
@@ -836,18 +832,16 @@ class PrePublishChecker:
         has_badges = "shields.io" in content or "badge" in content.lower()
 
         if has_badges:
-            self.results.append(CheckResult(
-                "README badges",
-                True,
-                "Badges found in README"
-            ))
+            self.results.append(CheckResult("README badges", True, "Badges found in README"))
         else:
-            self.results.append(CheckResult(
-                "README badges",
-                False,
-                "No badges in README. Add build status, version, license badges.",
-                "info"
-            ))
+            self.results.append(
+                CheckResult(
+                    "README badges",
+                    False,
+                    "No badges in README. Add build status, version, license badges.",
+                    "info",
+                )
+            )
 
     def check_demo_or_screenshots(self):
         """Check for demo or screenshots"""
@@ -860,18 +854,16 @@ class PrePublishChecker:
         has_media = any(ext in content for ext in [".png", ".jpg", ".gif", ".mp4", "demo"])
 
         if has_media:
-            self.results.append(CheckResult(
-                "Demo/screenshots",
-                True,
-                "Demo or screenshots found"
-            ))
+            self.results.append(CheckResult("Demo/screenshots", True, "Demo or screenshots found"))
         else:
-            self.results.append(CheckResult(
-                "Demo/screenshots",
-                False,
-                "No demo or screenshots in README. Add visual examples.",
-                "info"
-            ))
+            self.results.append(
+                CheckResult(
+                    "Demo/screenshots",
+                    False,
+                    "No demo or screenshots in README. Add visual examples.",
+                    "info",
+                )
+            )
 
     def check_roadmap(self):
         """Check for roadmap"""
@@ -879,24 +871,19 @@ class PrePublishChecker:
         found = any((self.project_path / f).exists() for f in roadmap_files)
 
         if found:
-            self.results.append(CheckResult(
-                "Roadmap",
-                True,
-                "Roadmap or TODO found"
-            ))
+            self.results.append(CheckResult("Roadmap", True, "Roadmap or TODO found"))
         else:
-            self.results.append(CheckResult(
-                "Roadmap",
-                False,
-                "No ROADMAP.md. Consider adding future plans.",
-                "info"
-            ))
+            self.results.append(
+                CheckResult(
+                    "Roadmap", False, "No ROADMAP.md. Consider adding future plans.", "info"
+                )
+            )
 
     def print_summary(self) -> bool:
         """Print check results and return success status"""
-        print(f"\n{BOLD}{'='*70}{RESET}")
+        print(f"\n{BOLD}{'=' * 70}{RESET}")
         print(f"{BOLD}Pre-Publication Checklist Results{RESET}")
-        print(f"{BOLD}{'='*70}{RESET}\n")
+        print(f"{BOLD}{'=' * 70}{RESET}\n")
 
         # Group by severity
         errors = [r for r in self.results if not r.passed and r.severity == "error"]
@@ -926,7 +913,7 @@ class PrePublishChecker:
             print()
 
         # Summary
-        print(f"{BOLD}{'='*70}{RESET}")
+        print(f"{BOLD}{'=' * 70}{RESET}")
         print(f"{GREEN}✓ {len(passed)} passed{RESET}")
         if errors:
             print(f"{RED}✗ {len(errors)} errors{RESET}")
@@ -934,7 +921,7 @@ class PrePublishChecker:
             print(f"{YELLOW}⚠ {len(warnings)} warnings{RESET}")
         if info:
             print(f"{BLUE}ℹ {len(info)} recommendations{RESET}")
-        print(f"{BOLD}{'='*70}{RESET}\n")
+        print(f"{BOLD}{'=' * 70}{RESET}\n")
 
         # Determine pass/fail
         if self.strict:
@@ -975,27 +962,18 @@ Checklist Categories:
   - Metadata (git tags, release templates)
   - Build verification (build succeeds, tests pass)
   - Optional (badges, demos, roadmap)
-"""
+""",
     )
 
     parser.add_argument(
-        "--project-path",
-        type=Path,
-        required=True,
-        help="Path to project directory to check"
+        "--project-path", type=Path, required=True, help="Path to project directory to check"
     )
 
     parser.add_argument(
-        "--strict",
-        action="store_true",
-        help="Strict mode: warnings are treated as failures"
+        "--strict", action="store_true", help="Strict mode: warnings are treated as failures"
     )
 
-    parser.add_argument(
-        "--output",
-        type=Path,
-        help="Optional: Write results to JSON file"
-    )
+    parser.add_argument("--output", type=Path, help="Optional: Write results to JSON file")
 
     args = parser.parse_args()
 

@@ -142,7 +142,6 @@ class TestParallelRunOrchestrator:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             # Mock workspace manager instance
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path
@@ -183,7 +182,6 @@ class TestParallelRunOrchestrator:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path
             mock_wm.worktree_path = tmp_path
@@ -216,7 +214,6 @@ class TestParallelRunOrchestrator:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager"),
         ):
-
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.side_effect = RuntimeError("Git error")
 
@@ -238,7 +235,6 @@ class TestParallelRunOrchestrator:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path
             mock_wm.worktree_path = tmp_path
@@ -267,7 +263,6 @@ class TestParallelRunOrchestrator:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             # Track calls for cleanup verification
             mock_wm_instances = {}
 
@@ -318,7 +313,6 @@ class TestParallelRunOrchestrator:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             # Track workspace manager instances
             def create_wm_instance(*args, **kwargs):
                 instance = MagicMock()
@@ -417,7 +411,6 @@ class TestParallelRunOrchestrator:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = Path("/tmp/test-workspace")
             mock_wm.worktree_path = Path("/tmp/test-workspace")
@@ -443,7 +436,6 @@ class TestParallelRunOrchestrator:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = Path("/tmp/test-workspace")
             mock_wm.worktree_path = Path("/tmp/test-workspace")
@@ -478,7 +470,6 @@ class TestParallelRunOrchestrator:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = Path("/tmp/test-workspace")
             mock_wm.worktree_path = Path("/tmp/test-workspace")
@@ -517,7 +508,6 @@ class TestConvenienceFunctions:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             # Mock workspace manager
             def create_wm_instance(*args, **kwargs):
                 instance = MagicMock()
@@ -552,7 +542,6 @@ class TestConvenienceFunctions:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = tmp_path
             mock_wm.worktree_path = tmp_path
@@ -590,7 +579,6 @@ class TestResourceCleanup:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager") as MockLM,
         ):
-
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.return_value = Path("/tmp/test-workspace")
             mock_wm.worktree_path = Path("/tmp/test-workspace")
@@ -623,7 +611,6 @@ class TestResourceCleanup:
             patch("autopack.parallel_orchestrator.WorkspaceManager") as MockWM,
             patch("autopack.parallel_orchestrator.ExecutorLockManager"),
         ):
-
             # Simulate workspace acquisition failure
             mock_wm = MockWM.return_value
             mock_wm.create_worktree.side_effect = RuntimeError("Workspace failed")

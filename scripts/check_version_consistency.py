@@ -25,7 +25,7 @@ from pathlib import Path
 def extract_version_from_python(file_path: Path) -> str | None:
     """Extract __version__ from Python file."""
     try:
-        content = file_path.read_text(encoding='utf-8')
+        content = file_path.read_text(encoding="utf-8")
         # Match: __version__ = "x.y.z"
         match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', content)
         if match:
@@ -39,7 +39,7 @@ def extract_version_from_python(file_path: Path) -> str | None:
 def extract_version_from_toml(file_path: Path) -> str | None:
     """Extract version from pyproject.toml."""
     try:
-        content = file_path.read_text(encoding='utf-8')
+        content = file_path.read_text(encoding="utf-8")
         # Match: version = "x.y.z" under [project] section
         match = re.search(r'\[project\].*?version\s*=\s*["\']([^"\']+)["\']', content, re.DOTALL)
         if match:
@@ -53,7 +53,7 @@ def extract_version_from_toml(file_path: Path) -> str | None:
 def extract_version_from_json(file_path: Path) -> str | None:
     """Extract version from PROJECT_INDEX.json."""
     try:
-        content = file_path.read_text(encoding='utf-8')
+        content = file_path.read_text(encoding="utf-8")
         data = json.loads(content)
         return data.get("version")
     except json.JSONDecodeError as e:
@@ -126,7 +126,10 @@ def main() -> int:
             print(f"  - {path}: {versions[path]}", file=sys.stderr)
         print("", file=sys.stderr)
         print("To fix this:", file=sys.stderr)
-        print("  1. Decide on canonical version (usually from src/autopack/__version__.py)", file=sys.stderr)
+        print(
+            "  1. Decide on canonical version (usually from src/autopack/__version__.py)",
+            file=sys.stderr,
+        )
         print("  2. Update all other files to match", file=sys.stderr)
         print("  3. Commit the version sync", file=sys.stderr)
         print("", file=sys.stderr)
@@ -135,7 +138,9 @@ def main() -> int:
         canonical_file = "src/autopack/__version__.py"
         if canonical_file in versions:
             canonical_version = versions[canonical_file]
-            print(f"Canonical version (from {canonical_file}): {canonical_version}", file=sys.stderr)
+            print(
+                f"Canonical version (from {canonical_file}): {canonical_version}", file=sys.stderr
+            )
             print("", file=sys.stderr)
             print("Files needing update:", file=sys.stderr)
             for path, version in sorted(versions.items()):

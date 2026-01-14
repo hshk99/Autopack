@@ -45,10 +45,12 @@ MOVED_TO = [
     "src/autopack/api/routes/storage.py",
 ]
 
+
 def load_baseline() -> List[Dict[str, Any]]:
     """Load current baseline."""
     with open(BASELINE_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
+
 
 def check_refactor_impact():
     """Check which findings in baseline are from files affected by refactor."""
@@ -58,7 +60,7 @@ def check_refactor_impact():
 
     print(f"Current baseline: {len(baseline)} total findings")
     print(f"Findings in {MOVED_FROM}: {len(main_py_findings)}")
-    print(f"\nBreakdown by ruleId:")
+    print("\nBreakdown by ruleId:")
 
     rule_counts: Dict[str, int] = {}
     for finding in main_py_findings:
@@ -68,8 +70,9 @@ def check_refactor_impact():
     for rule_id, count in sorted(rule_counts.items(), key=lambda x: -x[1]):
         print(f"  {rule_id}: {count}")
 
-    print(f"\nThese findings likely moved to router files during refactor.")
+    print("\nThese findings likely moved to router files during refactor.")
     print(f"Expected new finding count after refactor: ~{len(baseline)} (similar total)")
+
 
 def update_baseline_note():
     """
@@ -78,9 +81,9 @@ def update_baseline_note():
     We can't automatically update the baseline without running CodeQL,
     but we can document the expected change pattern.
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("BASELINE UPDATE REQUIRED")
-    print("="*70)
+    print("=" * 70)
     print("\nThis is a special case (code refactor, not vulnerability change).")
     print("The diff gate is failing because fingerprints changed due to file moves.")
     print("\nRecommended approach:")
@@ -95,10 +98,12 @@ def update_baseline_note():
     print("   - Commit updated baseline with SECBASE entry")
     print("\nNext steps:")
     print("  python scripts/security/update_baseline.py --codeql <path-to-sarif> --write")
-    print("="*70)
+    print("=" * 70)
+
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Check refactor impact")
     parser.add_argument("--update", action="store_true", help="Show update instructions")
@@ -110,6 +115,7 @@ def main():
 
     if args.update or (not args.check and not args.update):
         update_baseline_note()
+
 
 if __name__ == "__main__":
     main()

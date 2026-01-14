@@ -95,7 +95,6 @@ class TestGetProofMetrics:
             patch("autopack.proof_metrics.count_changed_files") as mock_count,
             patch("autopack.proof_metrics.list_changed_files") as mock_list,
         ):
-
             mock_count.return_value = 5
             mock_list.return_value = ["a.py", "b.py"]
 
@@ -125,7 +124,6 @@ class TestPhaseProofWriterIntegration:
             patch("autopack.phase_proof_writer.get_proof_metrics") as mock_metrics,
             patch("autopack.phase_proof_writer.PhaseProofStorage") as mock_storage,
         ):
-
             mock_metrics.return_value = ProofMetrics(
                 files_modified=3, changed_file_sample=["x.py"], metrics_placeholder=False
             )
@@ -151,7 +149,6 @@ class TestPhaseProofWriterIntegration:
             patch("autopack.phase_proof_writer.get_proof_metrics") as mock_metrics,
             patch("autopack.phase_proof_writer.PhaseProofStorage") as mock_storage,
         ):
-
             mock_metrics.return_value = ProofMetrics(
                 files_modified=0, changed_file_sample=[], metrics_placeholder=True
             )

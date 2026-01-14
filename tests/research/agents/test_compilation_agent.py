@@ -4,7 +4,6 @@ from autopack.research.agents.compilation_agent import CompilationAgent
 
 
 class TestCompilationAgent(unittest.TestCase):
-
     def setUp(self):
         self.agent = CompilationAgent()
 

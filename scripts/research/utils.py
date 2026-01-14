@@ -22,7 +22,7 @@ def extract_json_from_response(text: str) -> dict:
         pass
 
     # Look for JSON object in the text
-    json_match = re.search(r'\{.*\}', text, re.DOTALL)
+    json_match = re.search(r"\{.*\}", text, re.DOTALL)
     if json_match:
         try:
             return json.loads(json_match.group())
@@ -30,7 +30,7 @@ def extract_json_from_response(text: str) -> dict:
             pass
 
     # Look for JSON array in the text
-    array_match = re.search(r'\[.*\]', text, re.DOTALL)
+    array_match = re.search(r"\[.*\]", text, re.DOTALL)
     if array_match:
         try:
             return json.loads(array_match.group())

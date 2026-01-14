@@ -3,7 +3,6 @@ from autopack.research.agents.analysis_agent import AnalysisAgent
 
 
 class TestAnalysisAgent(unittest.TestCase):
-
     def setUp(self):
         self.agent = AnalysisAgent()
 

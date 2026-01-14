@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from autopack.database import SessionLocal, engine
 from sqlalchemy import text
 
+
 def migrate():
     """Add scope column to phases table"""
 
@@ -22,11 +23,13 @@ def migrate():
     db = SessionLocal()
     try:
         # Check if column already exists (PostgreSQL)
-        result = db.execute(text("""
+        result = db.execute(
+            text("""
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name='phases' AND column_name='scope'
-        """))
+        """)
+        )
 
         if result.fetchone():
             print("[OK] Column 'scope' already exists in phases table")
@@ -45,6 +48,7 @@ def migrate():
         raise
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     migrate()

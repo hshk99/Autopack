@@ -21,6 +21,7 @@ try:
     from qdrant_client import QdrantClient
     from qdrant_client.models import PointStruct
     from sentence_transformers import SentenceTransformer
+
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
@@ -54,13 +55,16 @@ class InteractiveCorrector:
 
     def get_recent_classifications(self, limit: int = 20) -> List[Tuple]:
         """Get recent tidy activity for review."""
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             SELECT id, project_id, doc_type, src_path, dest_path, created_at
             FROM tidy_activity
             WHERE action = 'move'
             ORDER BY created_at DESC
             LIMIT %s
-        """, (limit,))
+        """,
+            (limit,),
+        )
 
         return self.cursor.fetchall()
 
@@ -80,7 +84,7 @@ class InteractiveCorrector:
         print("=" * 70)
         print(f"File: {os.path.basename(src_path)}")
         print(f"Source: {src_path}")
-        print(f"Classified as:")
+        print("Classified as:")
         print(f"  Project: {project_id}")
         print(f"  Type: {doc_type}")
         print(f"Moved to: {dest_path}")
@@ -106,7 +110,9 @@ class InteractiveCorrector:
             return (project, None)
 
         elif choice == "3":
-            doc_type = input("Enter correct type (plan/analysis/report/prompt/log/script/unknown): ").strip()
+            doc_type = input(
+                "Enter correct type (plan/analysis/report/prompt/log/script/unknown): "
+            ).strip()
             return (None, doc_type)
 
         elif choice == "4":
@@ -124,31 +130,49 @@ class InteractiveCorrector:
             print("Invalid choice, skipping...")
             return "skip"
 
-    def save_correction(self, file_path: str, content_sample: str,
-                       original_project: str, original_type: str,
-                       corrected_project: str, corrected_type: str):
+    def save_correction(
+        self,
+        file_path: str,
+        content_sample: str,
+        original_project: str,
+        original_type: str,
+        corrected_project: str,
+        corrected_type: str,
+    ):
         """Save correction to database and Qdrant."""
         # Use original values if not corrected
         final_project = corrected_project or original_project
         final_type = corrected_type or original_type
 
         # Save to PostgreSQL
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             INSERT INTO classification_corrections
             (file_path, file_content_sample, original_project, original_type,
              corrected_project, corrected_type, corrected_at)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (file_path, content_sample, original_project, original_type,
-              final_project, final_type, datetime.now(timezone.utc)))
+        """,
+            (
+                file_path,
+                content_sample,
+                original_project,
+                original_type,
+                final_project,
+                final_type,
+                datetime.now(timezone.utc),
+            ),
+        )
 
         self.conn.commit()
-        print(f"\n[OK] Correction saved to PostgreSQL")
+        print("\n[OK] Correction saved to PostgreSQL")
 
         # Save to Qdrant as high-priority pattern
         if self.qdrant_client and self.embedding_model:
             try:
                 text_to_embed = f"{os.path.basename(file_path)}\n\n{content_sample}"
-                vector = self.embedding_model.encode(text_to_embed, normalize_embeddings=True).tolist()
+                vector = self.embedding_model.encode(
+                    text_to_embed, normalize_embeddings=True
+                ).tolist()
 
                 self.qdrant_client.upsert(
                     collection_name="file_routing_patterns",
@@ -163,18 +187,18 @@ class InteractiveCorrector:
                                 "source_context": "user_correction",
                                 "confidence": 1.0,  # User corrections are 100% confident
                                 "corrected_at": datetime.now(timezone.utc).isoformat(),
-                            }
+                            },
                         )
-                    ]
+                    ],
                 )
-                print(f"[OK] Correction added to Qdrant as high-priority pattern")
+                print("[OK] Correction added to Qdrant as high-priority pattern")
             except Exception as e:
                 print(f"[WARN] Could not add to Qdrant: {e}")
 
     def read_file_sample(self, file_path: str, max_chars: int = 500) -> str:
         """Read first N characters of file."""
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 return f.read(max_chars)
         except Exception:
             return ""
@@ -238,7 +262,7 @@ class InteractiveCorrector:
                     original_project=project_id,
                     original_type=doc_type,
                     corrected_project=corrected_project,
-                    corrected_type=corrected_type
+                    corrected_type=corrected_type,
                 )
                 corrected_count += 1
 
@@ -303,12 +327,16 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Interactive file classification correction tool")
-    parser.add_argument("--interactive", "-i", action="store_true",
-                       help="Start interactive review of recent classifications")
-    parser.add_argument("--flagged", "-f", action="store_true",
-                       help="Review files flagged by auditor")
-    parser.add_argument("--stats", "-s", action="store_true",
-                       help="Show correction statistics")
+    parser.add_argument(
+        "--interactive",
+        "-i",
+        action="store_true",
+        help="Start interactive review of recent classifications",
+    )
+    parser.add_argument(
+        "--flagged", "-f", action="store_true", help="Review files flagged by auditor"
+    )
+    parser.add_argument("--stats", "-s", action="store_true", help="Show correction statistics")
 
     args = parser.parse_args()
 

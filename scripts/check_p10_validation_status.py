@@ -29,17 +29,22 @@ def check_status():
     p10_query_ok = False
     try:
         from autopack.models import TokenBudgetEscalationEvent  # type: ignore
-        p10_events = session.query(TokenBudgetEscalationEvent).order_by(
-            TokenBudgetEscalationEvent.timestamp.desc()
-        ).all()
+
+        p10_events = (
+            session.query(TokenBudgetEscalationEvent)
+            .order_by(TokenBudgetEscalationEvent.timestamp.desc())
+            .all()
+        )
         p10_query_ok = True
     except Exception:
         p10_events = []
 
     # Fallback: check token estimation events (less direct; P10 may trigger later in executor).
-    all_events = session.query(TokenEstimationV2Event).order_by(
-        TokenEstimationV2Event.timestamp.desc()
-    ).all()
+    all_events = (
+        session.query(TokenEstimationV2Event)
+        .order_by(TokenEstimationV2Event.timestamp.desc())
+        .all()
+    )
 
     # NOTE: SQLite CURRENT_TIMESTAMP is UTC; local logs are usually local time.
     # Some environments end up with naive datetimes that make strict "after deploy" comparisons misleading.
@@ -59,7 +64,9 @@ def check_status():
         print(f"P10 escalation events after fix #2: {len(post_fix2)}")
     else:
         print("Total P10 escalation events in DB: (unavailable)")
-        print("Hint: apply migrations/005_add_p10_escalation_events.sql (see scripts/apply_sql_file.py).")
+        print(
+            "Hint: apply migrations/005_add_p10_escalation_events.sql (see scripts/apply_sql_file.py)."
+        )
     print()
 
     if not p10_events:
@@ -88,12 +95,18 @@ def check_status():
             show = post_fix2
         else:
             print("Found P10 escalation events, but none are >= the configured fix #2 cutoff.")
-            print("This is usually a timezone/clock mismatch (DB timestamps are often UTC). Showing most recent events:")
+            print(
+                "This is usually a timezone/clock mismatch (DB timestamps are often UTC). Showing most recent events:"
+            )
             show = p10_events
         for e in show[:5]:
             print(f"  {e.timestamp}: {e.phase_id} (attempt {e.attempt_index})")
-            print(f"    base={e.base_value} (from {e.base_source}) → retry={e.retry_max_tokens} (x{e.escalation_factor})")
-            print(f"    reason={e.reason}, truncated={bool(e.was_truncated)}, utilization={e.output_utilization}")
+            print(
+                f"    base={e.base_value} (from {e.base_source}) → retry={e.retry_max_tokens} (x{e.escalation_factor})"
+            )
+            print(
+                f"    reason={e.reason}, truncated={bool(e.was_truncated)}, utilization={e.output_utilization}"
+            )
             print()
 
         print("Next steps:")

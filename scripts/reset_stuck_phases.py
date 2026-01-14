@@ -16,6 +16,7 @@ if len(sys.argv) > 1:
 else:
     RUN_ID = "fileorg-test-verification-2025-11-29"
 
+
 def get_headers():
     headers = {"Content-Type": "application/json"}
     api_key = os.getenv("AUTOPACK_API_KEY")
@@ -23,18 +24,20 @@ def get_headers():
         headers["Authorization"] = f"Bearer {api_key}"
     return headers
 
+
 def get_run_status():
     """Fetch run status from API"""
     response = requests.get(f"{API_URL}/runs/{RUN_ID}", headers=get_headers())
     response.raise_for_status()
     return response.json()
 
+
 def reset_phase_to_queued(phase_id: str):
     """Reset a phase to QUEUED status"""
     response = requests.put(
         f"{API_URL}/runs/{RUN_ID}/phases/{phase_id}/status",
         json={"status": "QUEUED"},
-        headers=get_headers()
+        headers=get_headers(),
     )
     response.raise_for_status()
     return response.json()
@@ -50,9 +53,9 @@ def main():
     stuck_phases = []
 
     # Find all phases stuck in EXECUTING
-    for tier in run.get('tiers', []):
-        for phase in tier.get('phases', []):
-            if phase['state'] == 'EXECUTING':
+    for tier in run.get("tiers", []):
+        for phase in tier.get("phases", []):
+            if phase["state"] == "EXECUTING":
                 stuck_phases.append(phase)
 
     print(f"\n[INFO] Found {len(stuck_phases)} phases stuck in EXECUTING state")
@@ -63,12 +66,12 @@ def main():
 
     print("\n[INFO] Resetting stuck phases to QUEUED...")
     for phase in stuck_phases:
-        phase_id = phase['phase_id']
-        name = phase['name']
+        phase_id = phase["phase_id"]
+        name = phase["name"]
         print(f"  - Resetting {phase_id}: {name}")
         try:
             reset_phase_to_queued(phase_id)
-            print(f"    [OK] SUCCESS")
+            print("    [OK] SUCCESS")
         except Exception as e:
             print(f"    [FAIL] FAILED: {e}")
             return 1

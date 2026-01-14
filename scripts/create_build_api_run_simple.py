@@ -9,6 +9,7 @@ Minimal API bootstrap is complete (3 endpoints). Now Autopack will:
 4. Add API documentation
 5. Add tests
 """
+
 import sys
 from pathlib import Path
 
@@ -35,7 +36,7 @@ def create_run():
             state=RunState.RUN_CREATED,
             safety_profile="normal",
             run_scope="single_tier",
-            goal_anchor="Complete Runs Management API with all CRUD operations"
+            goal_anchor="Complete Runs Management API with all CRUD operations",
         )
         session.add(run)
         session.flush()
@@ -46,7 +47,7 @@ def create_run():
             run_id=run_id,
             tier_index=0,
             name="API Completion",
-            description="Add remaining endpoints to Runs API"
+            description="Add remaining endpoints to Runs API",
         )
         session.add(tier)
         session.flush()
@@ -95,7 +96,7 @@ curl -X POST http://localhost:8000/runs \\
             state=PhaseState.QUEUED,
             task_category="feature",
             complexity="low",
-            builder_mode="tweak_light"
+            builder_mode="tweak_light",
         )
         session.add(phase1)
 
@@ -134,7 +135,7 @@ ACCEPTANCE CRITERIA:
             state=PhaseState.QUEUED,
             task_category="feature",
             complexity="low",
-            builder_mode="tweak_light"
+            builder_mode="tweak_light",
         )
         session.add(phase2)
 
@@ -178,7 +179,7 @@ ACCEPTANCE CRITERIA:
             state=PhaseState.QUEUED,
             task_category="feature",
             complexity="low",
-            builder_mode="tweak_light"
+            builder_mode="tweak_light",
         )
         session.add(phase3)
 
@@ -213,17 +214,19 @@ ACCEPTANCE CRITERIA:
 """,
             state=PhaseState.QUEUED,
             task_category="documentation",
-            complexity="low"
+            complexity="low",
         )
         session.add(phase4)
 
         session.commit()
         print(f"✅ Created run: {run_id}")
-        print(f"   Phases: 4")
-        print(f"\n🚀 Start autonomous executor:")
-        print(f"  cd c:/dev/Autopack")
-        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" \\")
-        print(f"  QDRANT_HOST=\"http://localhost:6333\" python -m autopack.autonomous_executor \\")
+        print("   Phases: 4")
+        print("\n🚀 Start autonomous executor:")
+        print("  cd c:/dev/Autopack")
+        print(
+            '  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack" \\'
+        )
+        print('  QDRANT_HOST="http://localhost:6333" python -m autopack.autonomous_executor \\')
         print(f"  --run-id {run_id} --api-url http://localhost:8000 --poll-interval 15")
         return 0
 
@@ -231,6 +234,7 @@ ACCEPTANCE CRITERIA:
         session.rollback()
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
     finally:

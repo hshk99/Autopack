@@ -8,19 +8,18 @@ import sys
 import os
 
 # Add src to path so we can import from autopack
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from autopack.database import SessionLocal
 from autopack.models import Phase, PhaseState
+
 
 def reset_phases(run_id: str):
     """Reset all EXECUTING phases to QUEUED for a given run"""
     db = SessionLocal()
     try:
         # Find all EXECUTING phases for this run
-        phases = db.query(Phase).join(Phase.tier).filter(
-            Phase.state == PhaseState.EXECUTING
-        ).all()
+        phases = db.query(Phase).join(Phase.tier).filter(Phase.state == PhaseState.EXECUTING).all()
 
         # Filter by run_id
         reset_count = 0
@@ -55,5 +54,7 @@ if __name__ == "__main__":
         print(f"\n[OK] Run {run_id} is now ready for execution")
         sys.exit(0)
     else:
-        print(f"\n[WARNING] No phases were reset (either no EXECUTING phases found, or run doesn't exist)")
+        print(
+            "\n[WARNING] No phases were reset (either no EXECUTING phases found, or run doesn't exist)"
+        )
         sys.exit(1)

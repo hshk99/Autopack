@@ -195,8 +195,7 @@ def main() -> int:
 
     # Check if any baseline files changed
     baselines_changed_list = [
-        p for p in changed_files
-        if Path(p).as_posix().startswith(BASELINES_DIR.as_posix() + "/")
+        p for p in changed_files if Path(p).as_posix().startswith(BASELINES_DIR.as_posix() + "/")
     ]
 
     if not baselines_changed_list:
@@ -225,11 +224,20 @@ def main() -> int:
     new_ids = sorted(head_ids - base_ids)
 
     if not new_ids:
-        print("ERROR: Security baselines changed, but no new SECBASE entry was added.", file=sys.stderr)
+        print(
+            "ERROR: Security baselines changed, but no new SECBASE entry was added.",
+            file=sys.stderr,
+        )
         print("", file=sys.stderr)
         print("Required:", file=sys.stderr)
-        print("  - Add a new top-level heading like: '## SECBASE-YYYYMMDD: ...' to docs/SECURITY_LOG.md", file=sys.stderr)
-        print("  - Include workflow run URL + commit SHA + delta summary (see template in docs/SECURITY_LOG.md)", file=sys.stderr)
+        print(
+            "  - Add a new top-level heading like: '## SECBASE-YYYYMMDD: ...' to docs/SECURITY_LOG.md",
+            file=sys.stderr,
+        )
+        print(
+            "  - Include workflow run URL + commit SHA + delta summary (see template in docs/SECURITY_LOG.md)",
+            file=sys.stderr,
+        )
         print("", file=sys.stderr)
         print("Detected baseline changes in:", file=sys.stderr)
         for p in sorted(baselines_changed_list):
@@ -238,7 +246,10 @@ def main() -> int:
 
     # Check for stub SECBASE entries (automated PR workflow safety)
     if _has_stub_secbase_entry(head_log):
-        print("ERROR: Security baselines changed, but SECBASE entry is incomplete (contains TODO markers).", file=sys.stderr)
+        print(
+            "ERROR: Security baselines changed, but SECBASE entry is incomplete (contains TODO markers).",
+            file=sys.stderr,
+        )
         print("", file=sys.stderr)
         print("Required before merge:", file=sys.stderr)
         print("  - Complete the SECBASE entry in docs/SECURITY_LOG.md", file=sys.stderr)
@@ -248,7 +259,10 @@ def main() -> int:
         print("    - Add security team reviewer name", file=sys.stderr)
         print("  - Ensure heading is 'SECBASE-YYYYMMDD' (not 'SECBASE-TODO-...')", file=sys.stderr)
         print("", file=sys.stderr)
-        print("This safety check prevents merging automated baseline refresh PRs without human review.", file=sys.stderr)
+        print(
+            "This safety check prevents merging automated baseline refresh PRs without human review.",
+            file=sys.stderr,
+        )
         return 1
 
     print("OK: Security baselines changed and new SECBASE entry detected.")

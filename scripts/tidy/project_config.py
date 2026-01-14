@@ -65,13 +65,16 @@ def load_project_config(project_id: str) -> Dict[str, Any]:
         conn = psycopg2.connect(database_url)
         cur = conn.cursor()
 
-        cur.execute("""
+        cur.execute(
+            """
             SELECT project_root, docs_dir, archive_dir,
                    sot_build_history, sot_debug_log, sot_architecture, sot_unsorted,
                    project_context, enable_database_logging, enable_research_workflow
             FROM tidy_project_config
             WHERE project_id = %s
-        """, (project_id,))
+        """,
+            (project_id,),
+        )
 
         row = cur.fetchone()
         if not row:
@@ -80,17 +83,17 @@ def load_project_config(project_id: str) -> Dict[str, Any]:
             return get_default_config(project_id)
 
         config = {
-            'project_id': project_id,
-            'project_root': row[0],
-            'docs_dir': row[1],
-            'archive_dir': row[2],
-            'sot_build_history': row[3],
-            'sot_debug_log': row[4],
-            'sot_architecture': row[5],
-            'sot_unsorted': row[6],
-            'project_context': row[7],  # Already parsed as dict by psycopg2
-            'enable_database_logging': row[8],
-            'enable_research_workflow': row[9]
+            "project_id": project_id,
+            "project_root": row[0],
+            "docs_dir": row[1],
+            "archive_dir": row[2],
+            "sot_build_history": row[3],
+            "sot_debug_log": row[4],
+            "sot_architecture": row[5],
+            "sot_unsorted": row[6],
+            "project_context": row[7],  # Already parsed as dict by psycopg2
+            "enable_database_logging": row[8],
+            "enable_research_workflow": row[9],
         }
 
         conn.close()
@@ -118,52 +121,59 @@ def get_default_config(project_id: str) -> Dict[str, Any]:
     """
     if project_id == "autopack":
         return {
-            'project_id': 'autopack',
-            'project_root': '.',
-            'docs_dir': 'docs',
-            'archive_dir': 'archive',
-            'sot_build_history': 'BUILD_HISTORY.md',
-            'sot_debug_log': 'DEBUG_LOG.md',
-            'sot_architecture': 'ARCHITECTURE_DECISIONS.md',
-            'sot_unsorted': 'UNSORTED_REVIEW.md',
-            'project_context': {
-                'keywords': {
-                    'build': ['implementation', 'build', 'complete', 'feature'],
-                    'debug': ['error', 'bug', 'fix', 'troubleshoot'],
-                    'architecture': ['decision', 'design', 'architecture', 'analysis']
+            "project_id": "autopack",
+            "project_root": ".",
+            "docs_dir": "docs",
+            "archive_dir": "archive",
+            "sot_build_history": "BUILD_HISTORY.md",
+            "sot_debug_log": "DEBUG_LOG.md",
+            "sot_architecture": "ARCHITECTURE_DECISIONS.md",
+            "sot_unsorted": "UNSORTED_REVIEW.md",
+            "project_context": {
+                "keywords": {
+                    "build": ["implementation", "build", "complete", "feature"],
+                    "debug": ["error", "bug", "fix", "troubleshoot"],
+                    "architecture": ["decision", "design", "architecture", "analysis"],
                 },
-                'priorities': {},
-                'exclude_patterns': ['.autonomous_runs/*', '*.pyc', '__pycache__']
+                "priorities": {},
+                "exclude_patterns": [".autonomous_runs/*", "*.pyc", "__pycache__"],
             },
-            'enable_database_logging': True,
-            'enable_research_workflow': True
+            "enable_database_logging": True,
+            "enable_research_workflow": True,
         }
 
     elif project_id == "file-organizer-app-v1":
         return {
-            'project_id': 'file-organizer-app-v1',
-            'project_root': '.autonomous_runs/file-organizer-app-v1',
-            'docs_dir': 'docs',
-            'archive_dir': 'archive',
-            'sot_build_history': 'BUILD_HISTORY.md',
-            'sot_debug_log': 'DEBUG_LOG.md',
-            'sot_architecture': 'ARCHITECTURE_DECISIONS.md',
-            'sot_unsorted': 'UNSORTED_REVIEW.md',
-            'project_context': {
-                'keywords': {
-                    'build': ['visa pack', 'document classification', 'batch upload', 'implementation'],
-                    'debug': ['processing error', 'classification failed', 'error', 'bug'],
-                    'architecture': ['pack structure', 'visa type', 'decision', 'design']
+            "project_id": "file-organizer-app-v1",
+            "project_root": ".autonomous_runs/file-organizer-app-v1",
+            "docs_dir": "docs",
+            "archive_dir": "archive",
+            "sot_build_history": "BUILD_HISTORY.md",
+            "sot_debug_log": "DEBUG_LOG.md",
+            "sot_architecture": "ARCHITECTURE_DECISIONS.md",
+            "sot_unsorted": "UNSORTED_REVIEW.md",
+            "project_context": {
+                "keywords": {
+                    "build": [
+                        "visa pack",
+                        "document classification",
+                        "batch upload",
+                        "implementation",
+                    ],
+                    "debug": ["processing error", "classification failed", "error", "bug"],
+                    "architecture": ["pack structure", "visa type", "decision", "design"],
                 },
-                'priorities': {},
-                'exclude_patterns': ['packs/*', '*.db', '*.sqlite', '__pycache__']
+                "priorities": {},
+                "exclude_patterns": ["packs/*", "*.db", "*.sqlite", "__pycache__"],
             },
-            'enable_database_logging': True,
-            'enable_research_workflow': True
+            "enable_database_logging": True,
+            "enable_research_workflow": True,
         }
 
     else:
-        raise ValueError(f"Unknown project_id: {project_id}. Add to database or define default config.")
+        raise ValueError(
+            f"Unknown project_id: {project_id}. Add to database or define default config."
+        )
 
 
 def get_project_keywords(config: Dict[str, Any], category: str) -> list:
@@ -177,7 +187,7 @@ def get_project_keywords(config: Dict[str, Any], category: str) -> list:
     Returns:
         List of keywords for the category
     """
-    return config.get('project_context', {}).get('keywords', {}).get(category, [])
+    return config.get("project_context", {}).get("keywords", {}).get(category, [])
 
 
 if __name__ == "__main__":

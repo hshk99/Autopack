@@ -20,7 +20,9 @@ from typing import Optional, Dict, Any
 
 
 class SemanticStore:
-    def get(self, path: str, sha: str, model: str, project_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def get(
+        self, path: str, sha: str, model: str, project_id: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         raise NotImplementedError
 
     def set(self, record: Dict[str, Any], vector: Optional[list[float]] = None) -> None:
@@ -44,9 +46,16 @@ class JsonSemanticStore(SemanticStore):
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
         self.cache_path.write_text(json.dumps(self._data, indent=2), encoding="utf-8")
 
-    def get(self, path: str, sha: str, model: str, project_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def get(
+        self, path: str, sha: str, model: str, project_id: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         rec = self._data.get(path)
-        if rec and rec.get("sha") == sha and rec.get("model") == model and rec.get("project_id") == project_id:
+        if (
+            rec
+            and rec.get("sha") == sha
+            and rec.get("model") == model
+            and rec.get("project_id") == project_id
+        ):
             return rec
         return None
 
@@ -84,7 +93,9 @@ class PostgresSemanticStore(SemanticStore):
         cur.close()
         conn.close()
 
-    def get(self, path: str, sha: str, model: str, project_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def get(
+        self, path: str, sha: str, model: str, project_id: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         conn = self.pg.connect(self.dsn)
         cur = conn.cursor()
         cur.execute(
@@ -94,7 +105,12 @@ class PostgresSemanticStore(SemanticStore):
         row = cur.fetchone()
         cur.close()
         conn.close()
-        if row and row[1] == sha and row[2] == model and (project_id is None or row[3] == project_id):
+        if (
+            row
+            and row[1] == sha
+            and row[2] == model
+            and (project_id is None or row[3] == project_id)
+        ):
             return {
                 "path": row[0],
                 "sha": row[1],
@@ -132,7 +148,9 @@ class PostgresSemanticStore(SemanticStore):
         conn.close()
 
 
-def get_store(cache_path: Path, dsn_override: Optional[str], project_id: Optional[str]) -> SemanticStore:
+def get_store(
+    cache_path: Path, dsn_override: Optional[str], project_id: Optional[str]
+) -> SemanticStore:
     dsn = dsn_override or os.getenv("DATABASE_URL")
     if dsn and dsn.startswith("postgres"):
         try:
@@ -149,6 +167,7 @@ def get_store(cache_path: Path, dsn_override: Optional[str], project_id: Optiona
         qdrant_api_key = os.getenv("QDRANT_API_KEY")
         if qdrant_url:
             try:
+
                 class QdrantSemanticStore(SemanticStore):
                     def __init__(self, url: str, api_key: Optional[str]):
                         self.client = QdrantClient(url=url, api_key=api_key)
@@ -157,6 +176,7 @@ def get_store(cache_path: Path, dsn_override: Optional[str], project_id: Optiona
 
                     def _ensure_collection(self):
                         from qdrant_client.http.models import Distance, VectorParams  # type: ignore
+
                         try:
                             self.client.get_collection(self.collection)
                         except Exception:
@@ -168,8 +188,11 @@ def get_store(cache_path: Path, dsn_override: Optional[str], project_id: Optiona
                     def _id(self, path: str, model: str, project_id: Optional[str]) -> str:
                         return f"{project_id or 'default'}::{path}::{model}"
 
-                    def get(self, path: str, sha: str, model: str, project_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+                    def get(
+                        self, path: str, sha: str, model: str, project_id: Optional[str] = None
+                    ) -> Optional[Dict[str, Any]]:
                         from qdrant_client.http import models as rest  # type: ignore
+
                         try:
                             res = self.client.retrieve(
                                 collection_name=self.collection,
@@ -179,28 +202,36 @@ def get_store(cache_path: Path, dsn_override: Optional[str], project_id: Optiona
                             if not res:
                                 return None
                             payload = res[0].payload or {}
-                            if payload.get("sha") == sha and payload.get("project_id") == project_id:
+                            if (
+                                payload.get("sha") == sha
+                                and payload.get("project_id") == project_id
+                            ):
                                 return payload
                         except Exception:
                             return None
                         return None
 
-                    def set(self, record: Dict[str, Any], vector: Optional[list[float]] = None) -> None:
+                    def set(
+                        self, record: Dict[str, Any], vector: Optional[list[float]] = None
+                    ) -> None:
                         from qdrant_client.http import models as rest  # type: ignore
+
                         payload = record.copy()
                         vec = vector or [0.0] * 8
                         self.client.upsert(
                             collection_name=self.collection,
                             points=[
                                 rest.PointStruct(
-                                    id=self._id(record["path"], record["model"], record.get("project_id")),
+                                    id=self._id(
+                                        record["path"], record["model"], record.get("project_id")
+                                    ),
                                     vector=vec,
                                     payload=payload,
                                 )
                             ],
                         )
+
                 return QdrantSemanticStore(qdrant_url, qdrant_api_key)
             except Exception as exc:
                 print(f"[WARN] Qdrant store unavailable ({exc}); falling back to JSON cache.")
     return JsonSemanticStore(cache_path)
-

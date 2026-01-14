@@ -183,7 +183,9 @@ def create_run(country: str) -> None:
         )
     except requests.exceptions.ConnectionError:
         print(f"[ERROR] Cannot reach API at {API_URL}")
-        print("       Start the FastAPI server first: python -m uvicorn autopack.main:app --port 8000")
+        print(
+            "       Start the FastAPI server first: python -m uvicorn autopack.main:app --port 8000"
+        )
         sys.exit(1)
     except Exception as exc:
         print(f"[ERROR] Failed to create run: {exc}")
@@ -218,4 +220,3 @@ if __name__ == "__main__":
 
     for country in targets:
         create_run(country)
-

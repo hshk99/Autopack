@@ -61,15 +61,19 @@ def test_escalate_once_logic():
         expected_escalate = scenario["expected_escalate"]
 
         # Escalation decision logic (mirrors autonomous_executor.py:3994)
-        should_escalate = (was_truncated or output_utilization >= 95.0)
+        should_escalate = was_truncated or output_utilization >= 95.0
         will_escalate = should_escalate and not already_escalated
 
-        passed = (will_escalate == expected_escalate)
+        passed = will_escalate == expected_escalate
         status = "✅ PASS" if passed else "❌ FAIL"
 
         print(f"{status} {scenario['name']}")
-        print(f"  Truncated: {was_truncated}, Utilization: {output_utilization:.1f}%, Already escalated: {already_escalated}")
-        print(f"  Should escalate: {should_escalate}, Will escalate: {will_escalate}, Expected: {expected_escalate}")
+        print(
+            f"  Truncated: {was_truncated}, Utilization: {output_utilization:.1f}%, Already escalated: {already_escalated}"
+        )
+        print(
+            f"  Should escalate: {should_escalate}, Will escalate: {will_escalate}, Expected: {expected_escalate}"
+        )
         print()
 
         if not passed:
@@ -83,14 +87,14 @@ def test_escalate_once_logic():
 
     test_budgets = [
         ("P7 high deliverable buffer", 16707, 20883),  # 1.25x
-        ("P7 doc_synthesis buffer", 18018, 22522),     # 1.25x
-        ("Baseline", 12288, 15360),                     # 1.25x
+        ("P7 doc_synthesis buffer", 18018, 22522),  # 1.25x
+        ("Baseline", 12288, 15360),  # 1.25x
     ]
 
     for name, current, expected_escalated in test_budgets:
         escalation_factor = 1.25
         escalated = min(int(current * escalation_factor), 64000)
-        passed = (escalated == expected_escalated)
+        passed = escalated == expected_escalated
         status = "✅ PASS" if passed else "❌ FAIL"
 
         print(f"{status} {name}")

@@ -9,7 +9,6 @@ from autopack.research.security.content_sanitizer import ContentSanitizer
 
 
 class TestContentSanitizer(unittest.TestCase):
-
     def setUp(self):
         """
         Set up the test case environment.

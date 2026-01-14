@@ -167,5 +167,3 @@ If you changed only docs/tests, keep the run minimal (docs + CI tests).
 1. A sequence of PRs implementing items from `docs/reports/COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md`.
 2. New/updated doc contract tests ensuring canonical docs stay copy/paste correct and do not reintroduce legacy path references.
 3. Optional: `docker-compose.prod.example.yml` + aligned deployment docs.
-
-

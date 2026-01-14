@@ -53,12 +53,15 @@ def _configure_utf8_stdio() -> None:
             # Best-effort only; never block execution.
             pass
 
+
 # File reference patterns
 # Matches: [text](path/to/file.md) and `path/to/file.txt` or `Makefile`
-MARKDOWN_LINK_PATTERN = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')  # [text](link)
-BACKTICK_PATH_PATTERN = re.compile(r'`([a-zA-Z0-9_\-./]+(?:\.[a-zA-Z0-9]+)?)`')  # `file.ext` or `Makefile` (BUILD-166: extension optional)
-DIRECT_PATH_PATTERN = re.compile(r'(?:^|[ \t])([a-zA-Z0-9_\-./]+\.md)(?:[ \t:]|$)')  # file.md
-FENCED_CODE_BLOCK_PATTERN = re.compile(r'^```.*?^```', re.MULTILINE | re.DOTALL)  # ```...```
+MARKDOWN_LINK_PATTERN = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")  # [text](link)
+BACKTICK_PATH_PATTERN = re.compile(
+    r"`([a-zA-Z0-9_\-./]+(?:\.[a-zA-Z0-9]+)?)`"
+)  # `file.ext` or `Makefile` (BUILD-166: extension optional)
+DIRECT_PATH_PATTERN = re.compile(r"(?:^|[ \t])([a-zA-Z0-9_\-./]+\.md)(?:[ \t:]|$)")  # file.md
+FENCED_CODE_BLOCK_PATTERN = re.compile(r"^```.*?^```", re.MULTILINE | re.DOTALL)  # ```...```
 
 # Confidence thresholds
 CONFIDENCE_HIGH = 0.90
@@ -67,15 +70,43 @@ CONFIDENCE_MEDIUM = 0.85
 # Backtick path heuristics (BUILD-167: extracted for maintainability)
 # Common file extensions that indicate a file path when in backticks
 KNOWN_EXTENSIONS = {
-    '.md', '.py', '.js', '.ts', '.jsx', '.tsx', '.json', '.yaml', '.yml',
-    '.toml', '.txt', '.sh', '.bash', '.sql', '.env', '.gitignore',
-    '.dockerignore', '.csv', '.log', '.xml', '.html', '.css', '.scss'
+    ".md",
+    ".py",
+    ".js",
+    ".ts",
+    ".jsx",
+    ".tsx",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".txt",
+    ".sh",
+    ".bash",
+    ".sql",
+    ".env",
+    ".gitignore",
+    ".dockerignore",
+    ".csv",
+    ".log",
+    ".xml",
+    ".html",
+    ".css",
+    ".scss",
 }
 
 # Common filenames (without extension) that indicate a file path
 KNOWN_FILENAMES = {
-    'Makefile', 'Dockerfile', 'README', 'LICENSE', 'CHANGELOG',
-    'TODO', 'AUTHORS', 'CONTRIBUTING', 'Pipfile', 'Procfile'
+    "Makefile",
+    "Dockerfile",
+    "README",
+    "LICENSE",
+    "CHANGELOG",
+    "TODO",
+    "AUTHORS",
+    "CONTRIBUTING",
+    "Pipfile",
+    "Procfile",
 }
 
 
@@ -91,7 +122,7 @@ def load_ignore_config(repo_root: Path) -> Dict:
         return {}
 
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
     except Exception as e:
         print(f"[!]️  Failed to load ignore config: {e}", file=sys.stderr)
@@ -134,36 +165,36 @@ def classify_link_target(target: str, repo_root: Path, ignore_config: Dict) -> s
         return pattern in value
 
     # Check pattern ignores first (complete skip)
-    pattern_ignores = ignore_config.get('pattern_ignores', [])
+    pattern_ignores = ignore_config.get("pattern_ignores", [])
     for ignore_entry in pattern_ignores:
-        pattern = ignore_entry.get('pattern', '')
+        pattern = ignore_entry.get("pattern", "")
         if pattern_matches(normalized, pattern):
-            return 'ignored'
+            return "ignored"
 
     # Check for anchor-only links
-    if normalized.startswith('#'):
-        return 'anchor_only'
+    if normalized.startswith("#"):
+        return "anchor_only"
 
     # Check runtime endpoints
-    runtime_endpoints = ignore_config.get('runtime_endpoints', [])
+    runtime_endpoints = ignore_config.get("runtime_endpoints", [])
     for endpoint_entry in runtime_endpoints:
-        pattern = endpoint_entry.get('pattern', '')
+        pattern = endpoint_entry.get("pattern", "")
         if pattern_matches(normalized, pattern):
-            return 'runtime_endpoint'
+            return "runtime_endpoint"
 
     # Check external URLs
-    if normalized.startswith('http://') or normalized.startswith('https://'):
-        return 'external_url'
+    if normalized.startswith("http://") or normalized.startswith("https://"):
+        return "external_url"
 
     # Check historical references
-    historical_refs = ignore_config.get('historical_refs', [])
+    historical_refs = ignore_config.get("historical_refs", [])
     for hist_entry in historical_refs:
-        pattern = hist_entry.get('pattern', '')
+        pattern = hist_entry.get("pattern", "")
         if pattern_matches(normalized, pattern):
-            return 'historical_ref'
+            return "historical_ref"
 
     # Default to missing_file
-    return 'missing_file'
+    return "missing_file"
 
 
 def normalize_path(path: str) -> str:
@@ -176,7 +207,7 @@ def normalize_path(path: str) -> str:
     - Decode URL encoding (%20 -> space)
     - Strip trailing whitespace
     """
-    normalized = unquote(path.replace('\\', '/')).strip()
+    normalized = unquote(path.replace("\\", "/")).strip()
 
     # Remove one-or-more leading "./" segments (but do NOT collapse "../")
     while normalized.startswith("./"):
@@ -195,16 +226,19 @@ def strip_fenced_code_blocks(content: str) -> str:
 
     Replaces code blocks with empty lines to preserve line numbers.
     """
+
     def replace_with_newlines(match):
         # Count lines in matched block
         block = match.group(0)
-        line_count = block.count('\n')
-        return '\n' * line_count
+        line_count = block.count("\n")
+        return "\n" * line_count
 
     return FENCED_CODE_BLOCK_PATTERN.sub(replace_with_newlines, content)
 
 
-def extract_file_references(content: str, file_path: Path, skip_code_blocks: bool = True, include_backticks: bool = False) -> Dict[str, List[Dict]]:
+def extract_file_references(
+    content: str, file_path: Path, skip_code_blocks: bool = True, include_backticks: bool = False
+) -> Dict[str, List[Dict]]:
     """
     Extract potential file references from markdown content.
 
@@ -222,7 +256,7 @@ def extract_file_references(content: str, file_path: Path, skip_code_blocks: boo
         content = strip_fenced_code_blocks(content)
 
     refs = {}
-    lines = content.split('\n')
+    lines = content.split("\n")
 
     # Extract markdown links: [text](path)
     for line_num, line in enumerate(lines, start=1):
@@ -231,28 +265,30 @@ def extract_file_references(content: str, file_path: Path, skip_code_blocks: boo
             link = match.group(2)
 
             # Skip URLs (http://, https://, mailto:)
-            if link.startswith(('http://', 'https://', 'mailto:')):
+            if link.startswith(("http://", "https://", "mailto:")):
                 continue
 
             # Skip anchor-only links
-            if link.startswith('#'):
+            if link.startswith("#"):
                 continue
 
             # Remove anchor fragments
             original_link = link
-            if '#' in link:
-                link = link.split('#')[0]
+            if "#" in link:
+                link = link.split("#")[0]
 
             if link:
                 normalized = normalize_path(link)
                 if normalized not in refs:
                     refs[normalized] = []
-                refs[normalized].append({
-                    'link_text': link_text,
-                    'line_number': line_num,
-                    'source_link': f'[{link_text}]({original_link})',
-                    'original_target': link
-                })
+                refs[normalized].append(
+                    {
+                        "link_text": link_text,
+                        "line_number": line_num,
+                        "source_link": f"[{link_text}]({original_link})",
+                        "original_target": link,
+                    }
+                )
 
     # Extract backtick-wrapped paths: `path/to/file.ext` (BUILD-166: optional)
     if include_backticks:
@@ -267,31 +303,30 @@ def extract_file_references(content: str, file_path: Path, skip_code_blocks: boo
                 # 3. Is a known filename (e.g., Makefile, README)
                 # 4. Has multiple dots (e.g., config.yaml.example)
                 is_path = (
-                    '/' in path_ref or
-                    any(path_ref.endswith(ext) for ext in KNOWN_EXTENSIONS) or
-                    any(path_ref.startswith(name) for name in KNOWN_FILENAMES) or
-                    path_ref.count('.') >= 2
+                    "/" in path_ref
+                    or any(path_ref.endswith(ext) for ext in KNOWN_EXTENSIONS)
+                    or any(path_ref.startswith(name) for name in KNOWN_FILENAMES)
+                    or path_ref.count(".") >= 2
                 )
 
                 if is_path:
                     normalized = normalize_path(path_ref)
                     if normalized not in refs:
                         refs[normalized] = []
-                    refs[normalized].append({
-                        'link_text': path_ref,
-                        'line_number': line_num,
-                        'source_link': f'`{path_ref}`',
-                        'original_target': path_ref
-                    })
+                    refs[normalized].append(
+                        {
+                            "link_text": path_ref,
+                            "line_number": line_num,
+                            "source_link": f"`{path_ref}`",
+                            "original_target": path_ref,
+                        }
+                    )
 
     return refs
 
 
 def find_closest_matches(
-    broken_target: str,
-    source_file: Path,
-    repo_root: Path,
-    search_paths: List[Path]
+    broken_target: str, source_file: Path, repo_root: Path, search_paths: List[Path]
 ) -> List[Tuple[str, float]]:
     """
     Layered heuristic matching for broken links.
@@ -375,10 +410,7 @@ def find_closest_matches(
 
     # Use difflib to find close matches
     close_matches = difflib.get_close_matches(
-        normalized_target,
-        all_paths,
-        n=5,
-        cutoff=CONFIDENCE_MEDIUM
+        normalized_target, all_paths, n=5, cutoff=CONFIDENCE_MEDIUM
     )
 
     for match in close_matches:
@@ -404,7 +436,7 @@ def validate_references(
     source_file: Path,
     repo_root: Path,
     search_paths: Optional[List[Path]] = None,
-    ignore_config: Optional[Dict] = None
+    ignore_config: Optional[Dict] = None,
 ) -> Tuple[List[Dict], List[Dict]]:
     """
     Validate that referenced paths exist and suggest fixes for broken ones.
@@ -430,11 +462,7 @@ def validate_references(
             try:
                 resolved = abs_path.relative_to(repo_root)
                 for occ in occurrences:
-                    valid.append({
-                        'target': ref,
-                        'resolved_path': str(resolved),
-                        **occ
-                    })
+                    valid.append({"target": ref, "resolved_path": str(resolved), **occ})
                 continue
             except ValueError:
                 # Path exists but is outside repo - treat as broken
@@ -446,23 +474,19 @@ def validate_references(
             try:
                 resolved = rel_path.relative_to(repo_root)
                 for occ in occurrences:
-                    valid.append({
-                        'target': ref,
-                        'resolved_path': str(resolved),
-                        **occ
-                    })
+                    valid.append({"target": ref, "resolved_path": str(resolved), **occ})
                 continue
             except ValueError:
                 # Path exists but is outside repo - treat as broken
                 pass
 
         # Check ignore_patterns first (file+target specific ignores)
-        ignore_patterns = ignore_config.get('ignore_patterns', [])
+        ignore_patterns = ignore_config.get("ignore_patterns", [])
         source_file_rel = normalize_path(str(source_file.relative_to(repo_root)))
         is_ignored_pattern = False
         for ignore_entry in ignore_patterns:
-            ignore_file = normalize_path(str(ignore_entry.get('file', '')))
-            ignore_target = normalize_path(str(ignore_entry.get('target', '')))
+            ignore_file = normalize_path(str(ignore_entry.get("file", "")))
+            ignore_target = normalize_path(str(ignore_entry.get("target", "")))
             if ignore_file == source_file_rel and ignore_target == ref:
                 is_ignored_pattern = True
                 break
@@ -474,7 +498,7 @@ def validate_references(
         category = classify_link_target(ref, repo_root, ignore_config)
 
         # Skip if ignored
-        if category == 'ignored':
+        if category == "ignored":
             continue
 
         # Find suggestions for missing_file category
@@ -483,7 +507,7 @@ def validate_references(
         confidence = "low"
         fix_type = "manual_review"
 
-        if category == 'missing_file' and search_paths:
+        if category == "missing_file" and search_paths:
             matches = find_closest_matches(ref, source_file, repo_root, search_paths)
             if matches:
                 suggestions = [{"path": path, "score": round(score, 3)} for path, score in matches]
@@ -503,19 +527,21 @@ def validate_references(
 
         # Add broken reference with suggestions for each occurrence
         for occ in occurrences:
-            broken.append({
-                'source_file': str(source_file.relative_to(repo_root)),
-                'line_number': occ['line_number'],
-                'link_text': occ['link_text'],
-                'source_link': occ['source_link'],
-                'broken_target': occ['original_target'],
-                'normalized_target': ref,
-                'reason': category,
-                'suggested_fix': suggested_fix,
-                'suggestions': suggestions,
-                'confidence': confidence,
-                'fix_type': fix_type
-            })
+            broken.append(
+                {
+                    "source_file": str(source_file.relative_to(repo_root)),
+                    "line_number": occ["line_number"],
+                    "link_text": occ["link_text"],
+                    "source_link": occ["source_link"],
+                    "broken_target": occ["original_target"],
+                    "normalized_target": ref,
+                    "reason": category,
+                    "suggested_fix": suggested_fix,
+                    "suggestions": suggestions,
+                    "confidence": confidence,
+                    "fix_type": fix_type,
+                }
+            )
 
     return valid, broken
 
@@ -526,7 +552,7 @@ def check_file(
     search_paths: Optional[List[Path]] = None,
     skip_code_blocks: bool = True,
     include_backticks: bool = False,
-    ignore_config: Optional[Dict] = None
+    ignore_config: Optional[Dict] = None,
 ) -> Dict:
     """
     Check a single file for broken links.
@@ -550,9 +576,13 @@ def check_file(
             "refs_broken": [],
         }
 
-    content = file_path.read_text(encoding='utf-8')
-    refs = extract_file_references(content, file_path, skip_code_blocks=skip_code_blocks, include_backticks=include_backticks)
-    valid, broken = validate_references(refs, file_path, repo_root, search_paths=search_paths, ignore_config=ignore_config)
+    content = file_path.read_text(encoding="utf-8")
+    refs = extract_file_references(
+        content, file_path, skip_code_blocks=skip_code_blocks, include_backticks=include_backticks
+    )
+    valid, broken = validate_references(
+        refs, file_path, repo_root, search_paths=search_paths, ignore_config=ignore_config
+    )
 
     return {
         "file": str(file_path.relative_to(repo_root)),
@@ -566,7 +596,7 @@ def check_file(
 def discover_markdown_files(
     repo_root: Path,
     include_globs: Optional[List[str]] = None,
-    exclude_globs: Optional[List[str]] = None
+    exclude_globs: Optional[List[str]] = None,
 ) -> List[Path]:
     """
     Discover markdown files based on glob patterns.
@@ -612,23 +642,23 @@ def export_fix_plan_json(broken_links: List[Dict], output_path: Path) -> None:
     """
     summary = {
         "total_broken": len(broken_links),
-        "auto_fixable": sum(1 for b in broken_links if b['confidence'] in ['high', 'medium']),
-        "manual_review": sum(1 for b in broken_links if b['confidence'] == 'low'),
+        "auto_fixable": sum(1 for b in broken_links if b["confidence"] in ["high", "medium"]),
+        "manual_review": sum(1 for b in broken_links if b["confidence"] == "low"),
         "by_confidence": {
-            "high": sum(1 for b in broken_links if b['confidence'] == 'high'),
-            "medium": sum(1 for b in broken_links if b['confidence'] == 'medium'),
-            "low": sum(1 for b in broken_links if b['confidence'] == 'low'),
-        }
+            "high": sum(1 for b in broken_links if b["confidence"] == "high"),
+            "medium": sum(1 for b in broken_links if b["confidence"] == "medium"),
+            "low": sum(1 for b in broken_links if b["confidence"] == "low"),
+        },
     }
 
     fix_plan = {
         "generated_at": datetime.now().isoformat(),
         "broken_links": broken_links,
-        "summary": summary
+        "summary": summary,
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(fix_plan, indent=2), encoding='utf-8')
+    output_path.write_text(json.dumps(fix_plan, indent=2), encoding="utf-8")
 
 
 def export_fix_plan_markdown(broken_links: List[Dict], output_path: Path) -> None:
@@ -652,13 +682,13 @@ def export_fix_plan_markdown(broken_links: List[Dict], output_path: Path) -> Non
         f"- **Low** (<{CONFIDENCE_MEDIUM:.0%}): {sum(1 for b in broken_links if b['confidence'] == 'low')} links (manual review required)",
         "",
         "## Broken Links",
-        ""
+        "",
     ]
 
     # Group by source file
     by_file = {}
     for broken in broken_links:
-        source = broken['source_file']
+        source = broken["source_file"]
         if source not in by_file:
             by_file[source] = []
         by_file[source].append(broken)
@@ -670,19 +700,21 @@ def export_fix_plan_markdown(broken_links: List[Dict], output_path: Path) -> Non
         lines.append("| Line | Broken Target | Suggested Fix | Confidence | Score |")
         lines.append("|------|---------------|---------------|------------|-------|")
 
-        for broken in sorted(links, key=lambda x: x['line_number']):
-            line_num = broken['line_number']
-            broken_target = broken['broken_target']
-            suggested = broken['suggested_fix'] or '(none)'
-            confidence = broken['confidence']
-            score = broken['suggestions'][0]['score'] if broken['suggestions'] else 'N/A'
+        for broken in sorted(links, key=lambda x: x["line_number"]):
+            line_num = broken["line_number"]
+            broken_target = broken["broken_target"]
+            suggested = broken["suggested_fix"] or "(none)"
+            confidence = broken["confidence"]
+            score = broken["suggestions"][0]["score"] if broken["suggestions"] else "N/A"
 
-            lines.append(f"| {line_num} | `{broken_target}` | `{suggested}` | {confidence} | {score} |")
+            lines.append(
+                f"| {line_num} | `{broken_target}` | `{suggested}` | {confidence} | {score} |"
+            )
 
         lines.append("")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text('\n'.join(lines), encoding='utf-8')
+    output_path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def main():
@@ -694,49 +726,47 @@ def main():
         "--repo-root",
         type=Path,
         default=Path(__file__).parent.parent,
-        help="Repository root directory (default: autodetect)"
+        help="Repository root directory (default: autodetect)",
     )
     parser.add_argument(
         "--deep",
         action="store_true",
-        help="Deep mode: scan docs/**/*.md instead of just navigation files"
+        help="Deep mode: scan docs/**/*.md instead of just navigation files",
     )
     parser.add_argument(
         "--include-glob",
         action="append",
         dest="include_globs",
-        help="Additional glob patterns to include (can be repeated)"
+        help="Additional glob patterns to include (can be repeated)",
     )
     parser.add_argument(
         "--exclude-glob",
         action="append",
         dest="exclude_globs",
-        help="Glob patterns to exclude (can be repeated)"
+        help="Glob patterns to exclude (can be repeated)",
     )
     parser.add_argument(
         "--export-json",
         type=Path,
-        help="Export fix plan as JSON (default: archive/diagnostics/doc_link_fix_plan.json in deep mode)"
+        help="Export fix plan as JSON (default: archive/diagnostics/doc_link_fix_plan.json in deep mode)",
     )
     parser.add_argument(
         "--export-md",
         type=Path,
-        help="Export fix plan as Markdown (default: archive/diagnostics/doc_link_fix_plan.md in deep mode)"
+        help="Export fix plan as Markdown (default: archive/diagnostics/doc_link_fix_plan.md in deep mode)",
     )
     parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Show valid links in addition to broken ones"
+        "--verbose", action="store_true", help="Show valid links in addition to broken ones"
     )
     parser.add_argument(
         "--no-skip-code-blocks",
         action="store_true",
-        help="Don't skip fenced code blocks (may increase false positives)"
+        help="Don't skip fenced code blocks (may increase false positives)",
     )
     parser.add_argument(
         "--include-backticks",
         action="store_true",
-        help="Include backtick-wrapped paths (default: false for nav mode, true for deep mode if specified)"
+        help="Include backtick-wrapped paths (default: false for nav mode, true for deep mode if specified)",
     )
 
     args = parser.parse_args()
@@ -802,7 +832,14 @@ def main():
     results = []
 
     for file_path in files_to_check:
-        result = check_file(file_path, repo_root, search_paths=all_markdown_files, skip_code_blocks=skip_code_blocks, include_backticks=include_backticks, ignore_config=ignore_config)
+        result = check_file(
+            file_path,
+            repo_root,
+            search_paths=all_markdown_files,
+            skip_code_blocks=skip_code_blocks,
+            include_backticks=include_backticks,
+            ignore_config=ignore_config,
+        )
         results.append(result)
 
         if not result["exists"]:
@@ -817,14 +854,18 @@ def main():
             print(f"[X] {result['file']}: {len(result['refs_broken'])} broken link(s)")
             if args.verbose:
                 for broken in result["refs_broken"]:
-                    suggested = broken['suggested_fix'] or '(none)'
-                    print(f"   Line {broken['line_number']}: {broken['broken_target']} -> {suggested} ({broken['confidence']})")
+                    suggested = broken["suggested_fix"] or "(none)"
+                    print(
+                        f"   Line {broken['line_number']}: {broken['broken_target']} -> {suggested} ({broken['confidence']})"
+                    )
         else:
             print(f"[OK] {result['file']}: all {result['refs_total']} link(s) valid")
 
         if args.verbose and result["refs_valid"]:
             print(f"   Valid refs ({len(result['refs_valid'])}):")
-            for valid_ref in sorted(result["refs_valid"], key=lambda x: x['target'])[:10]:  # Show first 10
+            for valid_ref in sorted(result["refs_valid"], key=lambda x: x["target"])[
+                :10
+            ]:  # Show first 10
                 print(f"     * {valid_ref['target']}")
             if len(result["refs_valid"]) > 10:
                 print(f"     ... and {len(result['refs_valid']) - 10} more")
@@ -833,8 +874,16 @@ def main():
 
     # Export fix plan if requested or in deep mode
     if all_broken_links and (args.export_json or args.export_md or mode == "deep"):
-        json_path = args.export_json if args.export_json else (repo_root / "archive" / "diagnostics" / "doc_link_fix_plan.json")
-        md_path = args.export_md if args.export_md else (repo_root / "archive" / "diagnostics" / "doc_link_fix_plan.md")
+        json_path = (
+            args.export_json
+            if args.export_json
+            else (repo_root / "archive" / "diagnostics" / "doc_link_fix_plan.json")
+        )
+        md_path = (
+            args.export_md
+            if args.export_md
+            else (repo_root / "archive" / "diagnostics" / "doc_link_fix_plan.md")
+        )
 
         # Ensure paths are absolute
         if not json_path.is_absolute():
@@ -872,20 +921,22 @@ def main():
         # Category breakdown
         categories = {}
         for b in all_broken_links:
-            cat = b['reason']
+            cat = b["reason"]
             categories[cat] = categories.get(cat, 0) + 1
 
         # Separate enforced vs informational categories
-        ci_fail_categories = ignore_config.get('ci_enforcement', {}).get('fail_on', ['missing_file'])
-        enforced_links = [b for b in all_broken_links if b['reason'] in ci_fail_categories]
-        informational_links = [b for b in all_broken_links if b['reason'] not in ci_fail_categories]
+        ci_fail_categories = ignore_config.get("ci_enforcement", {}).get(
+            "fail_on", ["missing_file"]
+        )
+        enforced_links = [b for b in all_broken_links if b["reason"] in ci_fail_categories]
+        informational_links = [b for b in all_broken_links if b["reason"] not in ci_fail_categories]
 
         print()
         if enforced_links:
             print(f"[X] Enforced broken links (CI-blocking): {len(enforced_links)}")
             enforced_cats = {}
             for b in enforced_links:
-                cat = b['reason']
+                cat = b["reason"]
                 enforced_cats[cat] = enforced_cats.get(cat, 0) + 1
             for cat, count in sorted(enforced_cats.items(), key=lambda x: -x[1]):
                 print(f"  {cat}: {count}")
@@ -895,20 +946,20 @@ def main():
             print(f"[i]️  Informational references (report-only): {len(informational_links)}")
             info_cats = {}
             for b in informational_links:
-                cat = b['reason']
+                cat = b["reason"]
                 info_cats[cat] = info_cats.get(cat, 0) + 1
             for cat, count in sorted(info_cats.items(), key=lambda x: -x[1]):
                 print(f"  {cat}: {count}")
 
         # Confidence breakdown (for missing_file category)
-        missing_file_links = [b for b in all_broken_links if b['reason'] == 'missing_file']
+        missing_file_links = [b for b in all_broken_links if b["reason"] == "missing_file"]
         if missing_file_links:
-            high_conf = sum(1 for b in missing_file_links if b['confidence'] == 'high')
-            med_conf = sum(1 for b in missing_file_links if b['confidence'] == 'medium')
-            low_conf = sum(1 for b in missing_file_links if b['confidence'] == 'low')
+            high_conf = sum(1 for b in missing_file_links if b["confidence"] == "high")
+            med_conf = sum(1 for b in missing_file_links if b["confidence"] == "medium")
+            low_conf = sum(1 for b in missing_file_links if b["confidence"] == "low")
 
             print()
-            print(f"Missing files auto-fix confidence:")
+            print("Missing files auto-fix confidence:")
             print(f"  Auto-fixable (high confidence): {high_conf}")
             print(f"  Auto-fixable (medium confidence): {med_conf}")
             print(f"  Manual review required: {low_conf}")
@@ -918,11 +969,17 @@ def main():
 
         print()
         if ci_failures > 0:
-            print(f"[X] FAILED: {ci_failures} broken link(s) in fail_on categories: {ci_fail_categories}")
-            print("   Run with --deep to generate fix plan, or use scripts/fix_doc_links.py to apply fixes")
+            print(
+                f"[X] FAILED: {ci_failures} broken link(s) in fail_on categories: {ci_fail_categories}"
+            )
+            print(
+                "   Run with --deep to generate fix plan, or use scripts/fix_doc_links.py to apply fixes"
+            )
             return 1
         else:
-            print(f"[!]️  WARNING: {total_broken} broken link(s) found, but not in fail_on categories")
+            print(
+                f"[!]️  WARNING: {total_broken} broken link(s) found, but not in fail_on categories"
+            )
             print("   These are informational only and don't fail CI")
             return 0
     else:

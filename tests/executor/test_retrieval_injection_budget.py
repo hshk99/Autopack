@@ -94,7 +94,9 @@ class TestGlobalKillSwitch:
     def test_enabled_allows_with_budget(self):
         """Test that enabled state allows retrieval with sufficient budget."""
         injection = RetrievalInjection(
-            sot_budget_limit=4000, reserve_budget=2000, enabled=True  # Enabled
+            sot_budget_limit=4000,
+            reserve_budget=2000,
+            enabled=True,  # Enabled
         )
 
         gate = injection.gate_sot_retrieval(max_context_chars=10_000)
@@ -399,7 +401,9 @@ class TestEdgeCases:
     def test_custom_reserve_budget(self):
         """Test with custom reserve budget."""
         injection = RetrievalInjection(
-            sot_budget_limit=4000, reserve_budget=5000, enabled=True  # Custom reserve
+            sot_budget_limit=4000,
+            reserve_budget=5000,
+            enabled=True,  # Custom reserve
         )
 
         gate = injection.gate_sot_retrieval(max_context_chars=8000)

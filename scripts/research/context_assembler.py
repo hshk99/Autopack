@@ -44,7 +44,7 @@ class ContextAssembler:
             pass
 
         # Look for JSON object in the text
-        json_match = re.search(r'\{.*\}', text, re.DOTALL)
+        json_match = re.search(r"\{.*\}", text, re.DOTALL)
         if json_match:
             try:
                 return json.loads(json_match.group())
@@ -52,20 +52,20 @@ class ContextAssembler:
                 pass
 
         # Look for JSON array in the text
-        array_match = re.search(r'\[.*\]', text, re.DOTALL)
+        array_match = re.search(r"\[.*\]", text, re.DOTALL)
         if array_match:
             try:
                 return json.loads(array_match.group())
             except:
                 pass
 
-        raise ValueError(f"Could not extract JSON from response")
+        raise ValueError("Could not extract JSON from response")
 
     def assemble(self) -> ProjectContext:
         """Assemble complete project context"""
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"ASSEMBLING CONTEXT: {self.project_id}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         context = ProjectContext(project_id=self.project_id)
 
@@ -90,9 +90,9 @@ class ContextAssembler:
         print("\nPhase 4: Extracting domain requirements from research...")
         self._extract_domain_context(context)
 
-        print(f"\n{'='*60}")
-        print(f"CONTEXT ASSEMBLY COMPLETE")
-        print(f"{'='*60}\n")
+        print(f"\n{'=' * 60}")
+        print("CONTEXT ASSEMBLY COMPLETE")
+        print(f"{'=' * 60}\n")
         self._print_summary(context)
 
         return context
@@ -107,13 +107,16 @@ class ContextAssembler:
             conn = psycopg2.connect(self.db_url)
             cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT title, content, metadata
                 FROM sot_entries
                 WHERE project_id = %s AND file_type = 'BUILD_HISTORY'
                 ORDER BY created_at DESC
                 LIMIT 100
-            """, (self.project_id,))
+            """,
+                (self.project_id,),
+            )
 
             entries = cursor.fetchall()
             cursor.close()
@@ -121,12 +124,14 @@ class ContextAssembler:
 
             features = []
             for entry in entries:
-                if entry['metadata'] and entry['metadata'].get('status') == 'implemented':
-                    features.append({
-                        'title': entry['title'],
-                        'description': entry['content'][:200],
-                        'category': entry['metadata'].get('category', 'unknown')
-                    })
+                if entry["metadata"] and entry["metadata"].get("status") == "implemented":
+                    features.append(
+                        {
+                            "title": entry["title"],
+                            "description": entry["content"][:200],
+                            "category": entry["metadata"].get("category", "unknown"),
+                        }
+                    )
 
             print(f"  ✓ Extracted {len(features)} implemented features")
             return features
@@ -142,17 +147,13 @@ class ContextAssembler:
             return []
 
         features = []
-        content = build_history_path.read_text(encoding='utf-8')
+        content = build_history_path.read_text(encoding="utf-8")
 
         # Simple extraction: Look for "## " headings (build entries)
-        for line in content.split('\n'):
-            if line.startswith('## ') and 'BUILD:' in line:
-                title = line.replace('## ', '').strip()
-                features.append({
-                    'title': title,
-                    'description': '',
-                    'category': 'build'
-                })
+        for line in content.split("\n"):
+            if line.startswith("## ") and "BUILD:" in line:
+                title = line.replace("## ", "").strip()
+                features.append({"title": title, "description": "", "category": "build"})
 
         print(f"  ✓ Extracted {len(features)} build entries from file")
         return features
@@ -164,16 +165,13 @@ class ContextAssembler:
             return []
 
         constraints = []
-        content = arch_path.read_text(encoding='utf-8')
+        content = arch_path.read_text(encoding="utf-8")
 
         # Extract decision headings
-        for line in content.split('\n'):
-            if line.startswith('## ') and 'DECISION:' in line:
-                title = line.replace('## ', '').strip()
-                constraints.append({
-                    'title': title,
-                    'type': 'architecture_decision'
-                })
+        for line in content.split("\n"):
+            if line.startswith("## ") and "DECISION:" in line:
+                title = line.replace("## ", "").strip()
+                constraints.append({"title": title, "type": "architecture_decision"})
 
         print(f"  ✓ Extracted {len(constraints)} architecture constraints")
         return constraints
@@ -185,16 +183,13 @@ class ContextAssembler:
             return []
 
         issues = []
-        content = debug_path.read_text(encoding='utf-8')
+        content = debug_path.read_text(encoding="utf-8")
 
         # Extract debug session headings
-        for line in content.split('\n'):
-            if line.startswith('## ') and 'DEBUG:' in line:
-                title = line.replace('## ', '').strip()
-                issues.append({
-                    'title': title,
-                    'type': 'debug_session'
-                })
+        for line in content.split("\n"):
+            if line.startswith("## ") and "DEBUG:" in line:
+                title = line.replace("## ", "").strip()
+                issues.append({"title": title, "type": "debug_session"})
 
         print(f"  ✓ Extracted {len(issues)} known issues")
         return issues
@@ -206,16 +201,13 @@ class ContextAssembler:
             return []
 
         features = []
-        content = future_path.read_text(encoding='utf-8')
+        content = future_path.read_text(encoding="utf-8")
 
         # Extract feature headings
-        for line in content.split('\n'):
-            if line.startswith('## '):
-                title = line.replace('## ', '').strip()
-                features.append({
-                    'title': title,
-                    'status': 'planned'
-                })
+        for line in content.split("\n"):
+            if line.startswith("## "):
+                title = line.replace("## ", "").strip()
+                features.append({"title": title, "status": "planned"})
 
         print(f"  ✓ Extracted {len(features)} planned features")
         return features
@@ -227,8 +219,8 @@ class ContextAssembler:
             return []
 
         try:
-            data = json.loads(rules_path.read_text(encoding='utf-8'))
-            rules = data.get('rules', [])
+            data = json.loads(rules_path.read_text(encoding="utf-8"))
+            rules = data.get("rules", [])
             print(f"  ✓ Extracted {len(rules)} learned rules")
             return rules
         except Exception as e:
@@ -242,15 +234,34 @@ class ContextAssembler:
         if not arch_path.exists():
             return []
 
-        content = arch_path.read_text(encoding='utf-8')
+        content = arch_path.read_text(encoding="utf-8")
 
         # Common tech keywords to look for
         tech_keywords = [
-            'Python', 'JavaScript', 'TypeScript', 'React', 'Vue', 'Angular',
-            'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'Qdrant',
-            'FastAPI', 'Flask', 'Django', 'Express', 'Node.js',
-            'Docker', 'Kubernetes', 'AWS', 'GCP', 'Azure',
-            'Electron', 'Tauri', 'SQLite'
+            "Python",
+            "JavaScript",
+            "TypeScript",
+            "React",
+            "Vue",
+            "Angular",
+            "PostgreSQL",
+            "MySQL",
+            "MongoDB",
+            "Redis",
+            "Qdrant",
+            "FastAPI",
+            "Flask",
+            "Django",
+            "Express",
+            "Node.js",
+            "Docker",
+            "Kubernetes",
+            "AWS",
+            "GCP",
+            "Azure",
+            "Electron",
+            "Tauri",
+            "SQLite",
         ]
 
         found_tech = []
@@ -272,7 +283,7 @@ class ContextAssembler:
         vision_files = []
         for file in research_dir.rglob("*.md"):
             filename_lower = file.name.lower()
-            if any(kw in filename_lower for kw in ['vision', 'product', 'intent', 'strategy']):
+            if any(kw in filename_lower for kw in ["vision", "product", "intent", "strategy"]):
                 vision_files.append(file)
 
         if not vision_files:
@@ -281,7 +292,7 @@ class ContextAssembler:
 
         # Read first vision file and extract with LLM
         vision_file = vision_files[0]
-        content = vision_file.read_text(encoding='utf-8')[:10000]  # First 10k chars
+        content = vision_file.read_text(encoding="utf-8")[:10000]  # First 10k chars
 
         prompt = f"""Extract the following from this product vision document:
 
@@ -305,14 +316,14 @@ Return JSON:
             response = self.anthropic_client.messages.create(
                 model="claude-3-5-haiku-20241022",
                 max_tokens=1000,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             result = self._extract_json_from_response(response.content[0].text)
-            context.vision_statement = result.get('vision_statement')
-            context.target_users = result.get('target_users', [])
-            context.core_principles = result.get('core_principles', [])
-            context.positioning = result.get('positioning')
+            context.vision_statement = result.get("vision_statement")
+            context.target_users = result.get("target_users", [])
+            context.core_principles = result.get("core_principles", [])
+            context.positioning = result.get("positioning")
 
             print(f"  ✓ Extracted vision from {vision_file.name}")
         except Exception as e:
@@ -328,7 +339,7 @@ Return JSON:
         market_files = []
         for file in research_dir.rglob("*.md"):
             filename_lower = file.name.lower()
-            if any(kw in filename_lower for kw in ['market', 'competitive', 'competitor']):
+            if any(kw in filename_lower for kw in ["market", "competitive", "competitor"]):
                 market_files.append(file)
 
         if not market_files:
@@ -337,7 +348,7 @@ Return JSON:
 
         # Read first market file and extract with LLM
         market_file = market_files[0]
-        content = market_file.read_text(encoding='utf-8')[:10000]
+        content = market_file.read_text(encoding="utf-8")[:10000]
 
         prompt = f"""Extract the following from this market research document:
 
@@ -361,14 +372,14 @@ Return JSON:
             response = self.anthropic_client.messages.create(
                 model="claude-3-5-haiku-20241022",
                 max_tokens=1500,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             result = self._extract_json_from_response(response.content[0].text)
-            context.key_competitors = result.get('key_competitors', [])
-            context.competitive_gaps = result.get('competitive_gaps', [])
-            context.competitive_advantages = result.get('competitive_advantages', [])
-            context.market_opportunities = result.get('market_opportunities', [])
+            context.key_competitors = result.get("key_competitors", [])
+            context.competitive_gaps = result.get("competitive_gaps", [])
+            context.competitive_advantages = result.get("competitive_advantages", [])
+            context.market_opportunities = result.get("market_opportunities", [])
 
             print(f"  ✓ Extracted market context from {market_file.name}")
         except Exception as e:
@@ -384,7 +395,10 @@ Return JSON:
         domain_files = []
         for file in research_dir.rglob("*.md"):
             filename_lower = file.name.lower()
-            if any(kw in filename_lower for kw in ['domain', 'requirement', 'legal', 'tax', 'compliance']):
+            if any(
+                kw in filename_lower
+                for kw in ["domain", "requirement", "legal", "tax", "compliance"]
+            ):
                 domain_files.append(file)
 
         if not domain_files:
@@ -395,7 +409,7 @@ Return JSON:
         combined_content = ""
         for file in domain_files[:3]:  # Max 3 files
             combined_content += f"\n\n=== {file.name} ===\n"
-            combined_content += file.read_text(encoding='utf-8')[:5000]
+            combined_content += file.read_text(encoding="utf-8")[:5000]
 
         prompt = f"""Extract the following from these domain requirement documents:
 
@@ -417,13 +431,13 @@ Return JSON:
             response = self.anthropic_client.messages.create(
                 model="claude-3-5-haiku-20241022",
                 max_tokens=1000,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             result = self._extract_json_from_response(response.content[0].text)
-            context.domain_focus = result.get('domain_focus', [])
-            context.regulatory_requirements = result.get('regulatory_requirements', [])
-            context.user_pain_points = result.get('user_pain_points', [])
+            context.domain_focus = result.get("domain_focus", [])
+            context.regulatory_requirements = result.get("regulatory_requirements", [])
+            context.user_pain_points = result.get("user_pain_points", [])
 
             print(f"  ✓ Extracted domain context from {len(domain_files)} files")
         except Exception as e:
@@ -445,7 +459,7 @@ Return JSON:
 
     def _print_summary(self, context: ProjectContext):
         """Print summary of assembled context"""
-        print(f"Summary:")
+        print("Summary:")
         print(f"  • Implemented features: {len(context.implemented_features)}")
         print(f"  • Architecture constraints: {len(context.architecture_constraints)}")
         print(f"  • Known issues: {len(context.known_issues)}")
@@ -463,6 +477,7 @@ Return JSON:
 
 if __name__ == "__main__":
     import sys
+
     project_id = sys.argv[1] if len(sys.argv) > 1 else "file-organizer-app-v1"
 
     assembler = ContextAssembler(project_id)
@@ -471,5 +486,5 @@ if __name__ == "__main__":
     # Save to JSON
     output_path = Path(f".autonomous_runs/{project_id}/context.json")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(context.to_dict(), indent=2), encoding='utf-8')
+    output_path.write_text(json.dumps(context.to_dict(), indent=2), encoding="utf-8")
     print(f"\n✓ Context saved to {output_path}")

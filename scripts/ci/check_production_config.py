@@ -51,7 +51,6 @@ DEBUG_ENABLED_PATTERNS = [
     (r"^\s*DEBUG\s*=\s*['\"]?True['\"]?\s*$", "DEBUG=True"),
     (r"^\s*DEBUG\s*=\s*['\"]?yes['\"]?\s*$", "DEBUG=yes"),
     (r"^\s*DEBUG\s*=\s*['\"]?on['\"]?\s*$", "DEBUG=on"),
-
     # YAML patterns
     (r"^\s*debug\s*:\s*true\s*$", "debug: true"),
     (r"^\s*debug\s*:\s*True\s*$", "debug: True"),
@@ -59,7 +58,6 @@ DEBUG_ENABLED_PATTERNS = [
     (r"^\s*debug\s*:\s*['\"]true['\"]\s*$", "debug: 'true'"),
     (r"^\s*DEBUG\s*:\s*true\s*$", "DEBUG: true"),
     (r"^\s*DEBUG\s*:\s*1\s*$", "DEBUG: 1"),
-
     # JSON patterns (less common in configs but check anyway)
     (r'["\']debug["\']\s*:\s*true', '"debug": true'),
     (r'["\']DEBUG["\']\s*:\s*true', '"DEBUG": true'),
@@ -271,9 +269,7 @@ See docs/SECURITY_BURNDOWN.md for security policy details.
 
 def main() -> int:
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Check production configs for DEBUG enablement"
-    )
+    parser = argparse.ArgumentParser(description="Check production configs for DEBUG enablement")
     parser.add_argument(
         "--repo-root",
         type=Path,

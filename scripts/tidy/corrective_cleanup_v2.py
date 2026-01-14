@@ -29,11 +29,13 @@ def git_checkpoint(message: str) -> bool:
     """Create a git checkpoint commit."""
     try:
         subprocess.run(["git", "add", "-A"], cwd=REPO_ROOT, check=True, capture_output=True)
-        result = subprocess.run(["git", "commit", "-m", message], cwd=REPO_ROOT, check=True, capture_output=True)
+        result = subprocess.run(
+            ["git", "commit", "-m", message], cwd=REPO_ROOT, check=True, capture_output=True
+        )
         print(f"\n[GIT] Created checkpoint: {message}")
         return True
     except subprocess.CalledProcessError:
-        print(f"\n[GIT] No changes to commit")
+        print("\n[GIT] No changes to commit")
         return False
 
 
@@ -79,6 +81,7 @@ def safe_delete(path: Path) -> bool:
 # PHASE 1: Root Directory Cleanup
 # ============================================================================
 
+
 def phase1_root_cleanup(dry_run: bool = True) -> None:
     """Consolidate ALL truth source files to docs/ folder."""
     print("\n" + "=" * 80)
@@ -92,7 +95,7 @@ def phase1_root_cleanup(dry_run: bool = True) -> None:
     truth_md_files = [
         "WORKSPACE_ORGANIZATION_SPEC.md",
         "FUTURE_PLAN.md",
-        "FUTURE_PLAN_MAINTENANCE.md"
+        "FUTURE_PLAN_MAINTENANCE.md",
     ]
 
     moved_md = 0
@@ -108,11 +111,7 @@ def phase1_root_cleanup(dry_run: bool = True) -> None:
                 moved_md += 1
 
     # 1.2 Move ruleset/config .json files to docs/
-    ruleset_files = [
-        "LEARNED_RULES.json",
-        "project_issue_backlog.json",
-        "autopack_phase_plan.json"
-    ]
+    ruleset_files = ["LEARNED_RULES.json", "project_issue_backlog.json", "autopack_phase_plan.json"]
 
     moved_rulesets = 0
 
@@ -142,10 +141,7 @@ def phase1_root_cleanup(dry_run: bool = True) -> None:
                 moved_apis += 1
 
     # 1.4 Move diagnostic data to archive/diagnostics/
-    diag_files = [
-        "test_run.json",
-        "builder_fullfile_failure_latest.json"
-    ]
+    diag_files = ["test_run.json", "builder_fullfile_failure_latest.json"]
 
     diag_dir = REPO_ROOT / "archive" / "diagnostics"
     moved_diags = 0
@@ -193,21 +189,18 @@ def phase1_root_cleanup(dry_run: bool = True) -> None:
     probe_script_root = REPO_ROOT / "probe_script.py"
     if probe_script_root.exists():
         if probe_script_root.stat().st_size < 100:
-            print(f"  Removing obsolete probe_script.py (placeholder)")
+            print("  Removing obsolete probe_script.py (placeholder)")
             if not dry_run:
                 safe_delete(probe_script_root)
         else:
-            print(f"  probe_script.py has content - moving to tests/")
+            print("  probe_script.py has content - moving to tests/")
             if not dry_run:
                 tests_dir = REPO_ROOT / "tests"
                 tests_dir.mkdir(exist_ok=True)
                 safe_move(probe_script_root, tests_dir / "probe_script.py")
 
     # Move test scripts to tests/ directory
-    test_scripts = [
-        "test_auditor_400.py",
-        "test_learned_rules_standalone.py"
-    ]
+    test_scripts = ["test_auditor_400.py", "test_learned_rules_standalone.py"]
 
     moved_tests = 0
     for test_file in test_scripts:
@@ -224,16 +217,13 @@ def phase1_root_cleanup(dry_run: bool = True) -> None:
     tidy_scope_root = REPO_ROOT / "tidy_scope.yaml"
     if tidy_scope_root.exists():
         dest = REPO_ROOT / "scripts" / "tidy" / "tidy_scope.yaml"
-        print(f"  tidy_scope.yaml -> scripts/tidy/")
+        print("  tidy_scope.yaml -> scripts/tidy/")
         if not dry_run:
             dest.parent.mkdir(parents=True, exist_ok=True)
             safe_move(tidy_scope_root, dest)
 
     # Move probe test runner scripts to tests/
-    probe_runners = [
-        "probe_test_runner.sh",
-        "run_full_probe_suite.sh"
-    ]
+    probe_runners = ["probe_test_runner.sh", "run_full_probe_suite.sh"]
 
     moved_runners = 0
     for runner_file in probe_runners:
@@ -245,7 +235,7 @@ def phase1_root_cleanup(dry_run: bool = True) -> None:
                 safe_move(src, dest)
                 moved_runners += 1
 
-    print(f"\n[PHASE 1] Summary:")
+    print("\n[PHASE 1] Summary:")
     print(f"  - Moved {moved_md} truth source .md files to docs/")
     print(f"  - Moved {moved_rulesets} ruleset .json files to docs/")
     print(f"  - Moved {moved_apis} API specs to docs/api/")
@@ -253,13 +243,16 @@ def phase1_root_cleanup(dry_run: bool = True) -> None:
     print(f"  - Archived {moved_archive_docs} obsolete docs")
     print(f"  - Moved {moved_tests} test scripts to tests/")
     print(f"  - Moved {moved_runners} test runners to tests/")
-    print(f"  NOTE: Root README.md stays as quick-start (will link to docs/README.md)")
-    print(f"  NOTE: Essential configs (package.json, tsconfig.json, docker-compose.yml) stay at root")
+    print("  NOTE: Root README.md stays as quick-start (will link to docs/README.md)")
+    print(
+        "  NOTE: Essential configs (package.json, tsconfig.json, docker-compose.yml) stay at root"
+    )
 
 
 # ============================================================================
 # PHASE 2: Archive Restructuring
 # ============================================================================
+
 
 def phase2_archive_restructuring(dry_run: bool = True) -> None:
     """Eliminate archive/src, group runs, flatten nesting."""
@@ -278,7 +271,7 @@ def phase2_archive_restructuring(dry_run: bool = True) -> None:
         if current_src.exists():
             print("  diagnostics/ exists in current src/ - archiving old version")
             superseded = REPO_ROOT / "archive" / "superseded" / "diagnostics_v1"
-            print(f"  archive/src/autopack/diagnostics/ -> archive/superseded/diagnostics_v1/")
+            print("  archive/src/autopack/diagnostics/ -> archive/superseded/diagnostics_v1/")
             if not dry_run:
                 safe_move(archive_src / "autopack" / "diagnostics", superseded)
                 # Remove empty folders
@@ -338,7 +331,7 @@ def phase2_archive_restructuring(dry_run: bool = True) -> None:
         # Flatten Autopack excessive nesting
         autopack_nested = runs_dir / "Autopack" / ".autonomous_runs"
         if autopack_nested.exists():
-            print(f"    Flattening Autopack/.autonomous_runs/ nesting")
+            print("    Flattening Autopack/.autonomous_runs/ nesting")
             if not dry_run:
                 # Extract runs to Autopack/ level
                 for item in autopack_nested.rglob("*"):
@@ -350,11 +343,13 @@ def phase2_archive_restructuring(dry_run: bool = True) -> None:
     # 2.3 Flatten superseded nested structures
     print("\n[2.3] Flattening superseded nested structures")
 
-    superseded_dir = REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "archive" / "superseded"
+    superseded_dir = (
+        REPO_ROOT / ".autonomous_runs" / "file-organizer-app-v1" / "archive" / "superseded"
+    )
     if superseded_dir.exists():
         nested_autonomous = superseded_dir / ".autonomous_runs"
         if nested_autonomous.exists():
-            print(f"  Found nested .autonomous_runs/ inside superseded/")
+            print("  Found nested .autonomous_runs/ inside superseded/")
             if not dry_run:
                 # Flatten contents up to superseded level
                 for item in nested_autonomous.rglob("*"):
@@ -367,14 +362,14 @@ def phase2_archive_restructuring(dry_run: bool = True) -> None:
                         safe_move(item, dest)
                 # Remove now-empty nested structure
                 safe_delete(nested_autonomous)
-                print(f"  [OK] Flattened and removed nested .autonomous_runs/")
+                print("  [OK] Flattened and removed nested .autonomous_runs/")
             else:
-                print(f"  [DRY-RUN] Would flatten nested .autonomous_runs/")
+                print("  [DRY-RUN] Would flatten nested .autonomous_runs/")
 
         # Also flatten any nested archive/ folders
         nested_archive = superseded_dir / "archive"
         if nested_archive.exists():
-            print(f"  Found nested archive/ inside superseded/")
+            print("  Found nested archive/ inside superseded/")
             if not dry_run:
                 for item in nested_archive.rglob("*"):
                     if item.is_file():
@@ -384,9 +379,9 @@ def phase2_archive_restructuring(dry_run: bool = True) -> None:
                         print(f"    Flattening: {rel_path}")
                         safe_move(item, dest)
                 safe_delete(nested_archive)
-                print(f"  [OK] Flattened and removed nested archive/")
+                print("  [OK] Flattened and removed nested archive/")
             else:
-                print(f"  [DRY-RUN] Would flatten nested archive/")
+                print("  [DRY-RUN] Would flatten nested archive/")
     else:
         print("  [SKIP] superseded/ does not exist")
 
@@ -398,34 +393,34 @@ def phase2_archive_restructuring(dry_run: bool = True) -> None:
         # 2.4.1 Remove deeply nested .autonomous_runs folders
         nested_runs = reports_dir / ".autonomous_runs"
         if nested_runs.exists():
-            print(f"  Removing nested .autonomous_runs/ from reports/")
+            print("  Removing nested .autonomous_runs/ from reports/")
             if not dry_run:
                 safe_delete(nested_runs)
-                print(f"  [OK] Removed nested structure")
+                print("  [OK] Removed nested structure")
             else:
-                print(f"  [DRY-RUN] Would remove nested .autonomous_runs/")
+                print("  [DRY-RUN] Would remove nested .autonomous_runs/")
 
         # 2.4.2 Move misplaced src/ folders
         reports_src = reports_dir / "src"
         if reports_src.exists():
-            print(f"  Moving src/ from reports/ to archive/superseded/")
+            print("  Moving src/ from reports/ to archive/superseded/")
             superseded_src = REPO_ROOT / "archive" / "superseded" / "reports_src"
             if not dry_run:
                 safe_move(reports_src, superseded_src)
-                print(f"  [OK] Moved to superseded/reports_src/")
+                print("  [OK] Moved to superseded/reports_src/")
             else:
-                print(f"  [DRY-RUN] Would move to superseded/reports_src/")
+                print("  [DRY-RUN] Would move to superseded/reports_src/")
 
         # 2.4.3 Move integrations/ if exists
         reports_integrations = reports_dir / "integrations"
         if reports_integrations.exists():
-            print(f"  Moving integrations/ from reports/ to archive/superseded/")
+            print("  Moving integrations/ from reports/ to archive/superseded/")
             superseded_integrations = REPO_ROOT / "archive" / "superseded" / "reports_integrations"
             if not dry_run:
                 safe_move(reports_integrations, superseded_integrations)
-                print(f"  [OK] Moved to superseded/reports_integrations/")
+                print("  [OK] Moved to superseded/reports_integrations/")
             else:
-                print(f"  [DRY-RUN] Would move to superseded/reports_integrations/")
+                print("  [DRY-RUN] Would move to superseded/reports_integrations/")
 
     # 2.5 Move tidy-related configs and scripts to scripts/tidy/
     print("\n[2.5] Organizing tidy-related configs and scripts")
@@ -434,7 +429,7 @@ def phase2_archive_restructuring(dry_run: bool = True) -> None:
     tidy_scope = REPO_ROOT / "archive" / "configs" / "tidy_scope.yaml"
     if tidy_scope.exists():
         dest = REPO_ROOT / "scripts" / "tidy" / "tidy_scope.yaml"
-        print(f"  archive/configs/tidy_scope.yaml -> scripts/tidy/")
+        print("  archive/configs/tidy_scope.yaml -> scripts/tidy/")
         if not dry_run:
             dest.parent.mkdir(parents=True, exist_ok=True)
             safe_move(tidy_scope, dest)
@@ -443,13 +438,13 @@ def phase2_archive_restructuring(dry_run: bool = True) -> None:
             if configs_dir.exists() and not any(configs_dir.iterdir()):
                 safe_delete(configs_dir)
         else:
-            print(f"  [DRY-RUN] Would move to scripts/tidy/")
+            print("  [DRY-RUN] Would move to scripts/tidy/")
 
     # 2.5.2 Move archive/patches/cleanup_script.sh to scripts/tidy/
     cleanup_script = REPO_ROOT / "archive" / "patches" / "cleanup_script.sh"
     if cleanup_script.exists():
         dest = REPO_ROOT / "scripts" / "tidy" / "cleanup_script.sh"
-        print(f"  archive/patches/cleanup_script.sh -> scripts/tidy/")
+        print("  archive/patches/cleanup_script.sh -> scripts/tidy/")
         if not dry_run:
             safe_move(cleanup_script, dest)
             # Remove empty patches dir if now empty
@@ -457,14 +452,14 @@ def phase2_archive_restructuring(dry_run: bool = True) -> None:
             if patches_dir.exists() and not any(patches_dir.iterdir()):
                 safe_delete(patches_dir)
         else:
-            print(f"  [DRY-RUN] Would move to scripts/tidy/")
+            print("  [DRY-RUN] Would move to scripts/tidy/")
 
     # 2.5.3 Remove archive/scripts/probe_script.py (obsolete placeholder)
     probe_script = REPO_ROOT / "archive" / "scripts" / "probe_script.py"
     if probe_script.exists():
         # Check if it's just a placeholder (< 100 bytes)
         if probe_script.stat().st_size < 100:
-            print(f"  Removing obsolete probe_script.py (placeholder)")
+            print("  Removing obsolete probe_script.py (placeholder)")
             if not dry_run:
                 safe_delete(probe_script)
                 # Remove empty scripts dir if now empty
@@ -472,16 +467,16 @@ def phase2_archive_restructuring(dry_run: bool = True) -> None:
                 if archive_scripts_dir.exists() and not any(archive_scripts_dir.iterdir()):
                     safe_delete(archive_scripts_dir)
             else:
-                print(f"  [DRY-RUN] Would remove placeholder")
+                print("  [DRY-RUN] Would remove placeholder")
         else:
             # If it has content, move to scripts/archive/ for reference
             dest = REPO_ROOT / "scripts" / "archive" / "probe_script.py"
-            print(f"  archive/scripts/probe_script.py -> scripts/archive/ (reference)")
+            print("  archive/scripts/probe_script.py -> scripts/archive/ (reference)")
             if not dry_run:
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 safe_move(probe_script, dest)
             else:
-                print(f"  [DRY-RUN] Would move to scripts/archive/")
+                print("  [DRY-RUN] Would move to scripts/archive/")
 
     # 2.6 Handle superseded diagnostics scripts
     print("\n[2.6] Handling superseded diagnostic scripts")
@@ -492,11 +487,11 @@ def phase2_archive_restructuring(dry_run: bool = True) -> None:
         py_files = list(diagnostics_v1.glob("*.py"))
         if py_files:
             print(f"  Found {len(py_files)} Python files in diagnostics_v1/")
-            print(f"  These are superseded versions - keeping for reference in archive/superseded/")
-            print(f"  (They serve as historical reference for diagnostic system evolution)")
+            print("  These are superseded versions - keeping for reference in archive/superseded/")
+            print("  (They serve as historical reference for diagnostic system evolution)")
             # No action needed - they're already correctly placed in archive/superseded/
         else:
-            print(f"  [SKIP] No Python files found")
+            print("  [SKIP] No Python files found")
 
     # 2.7 Rename diagnostic data folder
     autopack_data = REPO_ROOT / "archive" / "diagnostics" / "autopack_data"
@@ -504,18 +499,19 @@ def phase2_archive_restructuring(dry_run: bool = True) -> None:
 
     print("\n[2.7] Renaming diagnostic data folder")
     if autopack_data.exists() and not data_folder.exists():
-        print(f"  autopack_data/ -> data/")
+        print("  autopack_data/ -> data/")
         if not dry_run:
             autopack_data.rename(data_folder)
     else:
         print("  [SKIP] Already renamed or doesn't exist")
 
-    print(f"\n[PHASE 2] Complete")
+    print("\n[PHASE 2] Complete")
 
 
 # ============================================================================
 # PHASE 3: .autonomous_runs Cleanup
 # ============================================================================
+
 
 def phase3_autonomous_runs_cleanup(dry_run: bool = True) -> None:
     """Rename checkpoints, add truth sources, handle Autopack folder."""
@@ -531,7 +527,7 @@ def phase3_autonomous_runs_cleanup(dry_run: bool = True) -> None:
 
     print("\n[3.1] Renaming checkpoints folder")
     if checkpoints.exists() and not tidy_checkpoints.exists():
-        print(f"  checkpoints/ -> tidy_checkpoints/")
+        print("  checkpoints/ -> tidy_checkpoints/")
         if not dry_run:
             checkpoints.rename(tidy_checkpoints)
             print("  NOTE: May need to update tidy_workspace.py references")
@@ -553,34 +549,39 @@ def phase3_autonomous_runs_cleanup(dry_run: bool = True) -> None:
         docs_readme = fileorg_docs / "README.md"
 
         if project_readme.exists() and not docs_readme.exists():
-            print(f"  Moving README.md from project root to docs/ (comprehensive)")
+            print("  Moving README.md from project root to docs/ (comprehensive)")
             if not dry_run:
                 safe_move(project_readme, docs_readme)
         elif project_readme.exists() and docs_readme.exists():
-            print(f"  README.md exists in both locations - keeping docs/ version")
+            print("  README.md exists in both locations - keeping docs/ version")
             if not dry_run:
                 # Archive the project root one
                 (fileorg_project / "archive" / "superseded").mkdir(parents=True, exist_ok=True)
-                safe_move(project_readme, fileorg_project / "archive" / "superseded" / "README_OLD.md")
+                safe_move(
+                    project_readme, fileorg_project / "archive" / "superseded" / "README_OLD.md"
+                )
 
         # Move FUTURE_PLAN.md from project root to docs/
         project_roadmap = fileorg_project / "FUTURE_PLAN.md"
         docs_roadmap = fileorg_docs / "FUTURE_PLAN.md"
 
         if project_roadmap.exists() and not docs_roadmap.exists():
-            print(f"  Moving FUTURE_PLAN.md from project root to docs/")
+            print("  Moving FUTURE_PLAN.md from project root to docs/")
             if not dry_run:
                 safe_move(project_roadmap, docs_roadmap)
         elif project_roadmap.exists() and docs_roadmap.exists():
-            print(f"  FUTURE_PLAN.md exists in both locations - keeping docs/ version")
+            print("  FUTURE_PLAN.md exists in both locations - keeping docs/ version")
             if not dry_run:
                 (fileorg_project / "archive" / "superseded").mkdir(parents=True, exist_ok=True)
-                safe_move(project_roadmap, fileorg_project / "archive" / "superseded" / "FUTURE_PLAN_OLD.md")
+                safe_move(
+                    project_roadmap,
+                    fileorg_project / "archive" / "superseded" / "FUTURE_PLAN_OLD.md",
+                )
 
         # Create quick-start README.md at project root
         project_readme_quickstart = fileorg_project / "README.md"
         if not project_readme_quickstart.exists():
-            print(f"  Creating quick-start README.md at project root")
+            print("  Creating quick-start README.md at project root")
             if not dry_run:
                 project_readme_quickstart.write_text("""# FileOrganizer
 
@@ -642,9 +643,10 @@ See [docs/README.md](docs/README.md) for development setup and contributing guid
         if docs_readme_old.exists():
             content = docs_readme_old.read_text(encoding="utf-8")
             if "Unsorted Inbox" in content or len(content) < 1000:
-                print(f"  Replacing outdated docs/README.md with comprehensive version")
+                print("  Replacing outdated docs/README.md with comprehensive version")
                 if not dry_run:
-                    docs_readme_old.write_text("""# FileOrganizer - Complete Documentation
+                    docs_readme_old.write_text(
+                        """# FileOrganizer - Complete Documentation
 
 AI-powered document organization system for immigration visa packs.
 
@@ -694,12 +696,14 @@ file-organizer-app-v1/
 ## Related Projects
 
 This is a subproject within the Autopack framework workspace.
-""", encoding="utf-8")
+""",
+                        encoding="utf-8",
+                    )
 
         # Create ARCHITECTURE.md stub if it doesn't exist
         arch = fileorg_docs / "ARCHITECTURE.md"
         if not arch.exists():
-            print(f"  Creating ARCHITECTURE.md stub")
+            print("  Creating ARCHITECTURE.md stub")
             if not dry_run:
                 arch.write_text("""# FileOrganizer Architecture
 
@@ -733,7 +737,7 @@ FileOrganizer is an AI-powered document organization system for immigration visa
         # Check if it only has archive/
         contents = list(autopack_folder.iterdir())
         if len(contents) == 1 and contents[0].name == "archive":
-            print(f"  Autopack/ only has archive/ - merging to main archive")
+            print("  Autopack/ only has archive/ - merging to main archive")
             if not dry_run:
                 # Move archive contents to main archive
                 autopack_archive = contents[0]
@@ -745,7 +749,7 @@ FileOrganizer is an AI-powered document organization system for immigration visa
                 # Delete empty Autopack folder
                 safe_delete(autopack_folder)
         else:
-            print(f"  Autopack/ has active content - adding README.md")
+            print("  Autopack/ has active content - adding README.md")
             readme = autopack_folder / "README.md"
             if not readme.exists() and not dry_run:
                 readme.write_text("""# Autopack Autonomous Runs
@@ -761,12 +765,13 @@ Autopack uses this folder for self-directed development and improvements.
 - `archive/` - Historical runs and outputs
 """)
 
-    print(f"\n[PHASE 3] Complete")
+    print("\n[PHASE 3] Complete")
 
 
 # ============================================================================
 # PHASE 4: Documentation Creation
 # ============================================================================
+
 
 def phase4_restore_documentation(dry_run: bool = True) -> None:
     """Restore truth source documentation files that were archived.
@@ -824,12 +829,22 @@ def phase4_restore_documentation(dry_run: bool = True) -> None:
 
     # Map source locations in archive subdirs -> docs/
     consolidated_sources = {
-        "CONSOLIDATED_CORRESPONDENCE.md": REPO_ROOT / "archive" / "reports" / "CONSOLIDATED_CORRESPONDENCE.md",
+        "CONSOLIDATED_CORRESPONDENCE.md": REPO_ROOT
+        / "archive"
+        / "reports"
+        / "CONSOLIDATED_CORRESPONDENCE.md",
         "CONSOLIDATED_MISC.md": REPO_ROOT / "archive" / "reports" / "CONSOLIDATED_MISC.md",
-        "CONSOLIDATED_REFERENCE.md": REPO_ROOT / "archive" / "reports" / "CONSOLIDATED_REFERENCE.md",
+        "CONSOLIDATED_REFERENCE.md": REPO_ROOT
+        / "archive"
+        / "reports"
+        / "CONSOLIDATED_REFERENCE.md",
         "CONSOLIDATED_RESEARCH.md": REPO_ROOT / "archive" / "research" / "CONSOLIDATED_RESEARCH.md",
         "CONSOLIDATED_STRATEGY.md": REPO_ROOT / "archive" / "research" / "CONSOLIDATED_STRATEGY.md",
-        "CONSOLIDATED_DEBUG.md": REPO_ROOT / "archive" / "diagnostics" / "docs" / "CONSOLIDATED_DEBUG.md",
+        "CONSOLIDATED_DEBUG.md": REPO_ROOT
+        / "archive"
+        / "diagnostics"
+        / "docs"
+        / "CONSOLIDATED_DEBUG.md",
     }
 
     moved_consolidated = 0
@@ -847,7 +862,7 @@ def phase4_restore_documentation(dry_run: bool = True) -> None:
                 moved_consolidated += 1
         else:
             print(f"  [NOT FOUND] {consolidated_name} at {source_path.relative_to(REPO_ROOT)}")
-            print(f"              (will be auto-generated on next consolidate run)")
+            print("              (will be auto-generated on next consolidate run)")
 
     print(f"  Moved {moved_consolidated} CONSOLIDATED_*.md files to docs/")
 
@@ -904,10 +919,10 @@ def phase4_restore_documentation(dry_run: bool = True) -> None:
 
     archive_index_path = REPO_ROOT / "archive" / "reports" / "ARCHIVE_INDEX.md"
     if archive_index_path.exists():
-        print(f"  [OK] ARCHIVE_INDEX.md exists at archive/reports/")
-        print(f"       (Auto-generated by scripts/consolidate_docs.py)")
+        print("  [OK] ARCHIVE_INDEX.md exists at archive/reports/")
+        print("       (Auto-generated by scripts/consolidate_docs.py)")
     else:
-        print(f"  [MISSING] ARCHIVE_INDEX.md (will be created on next consolidate_docs.py run)")
+        print("  [MISSING] ARCHIVE_INDEX.md (will be created on next consolidate_docs.py run)")
 
     # ========================================================================
     # SECTION 4.4: Ruleset/Config Files (Will be moved in Phase 1)
@@ -944,26 +959,26 @@ def phase4_restore_documentation(dry_run: bool = True) -> None:
     # Check README.md (already exists)
     fo_readme = fo_project_dir / "README.md"
     if fo_readme.exists():
-        print(f"  [OK] README.md exists at .autonomous_runs/file-organizer-app-v1/")
+        print("  [OK] README.md exists at .autonomous_runs/file-organizer-app-v1/")
     else:
-        print(f"  [MISSING] README.md (should exist)")
+        print("  [MISSING] README.md (should exist)")
 
     # Check for ARCHITECTURE.md in docs/ or archive
     fo_architecture = fo_docs_dir / "ARCHITECTURE.md"
     if fo_architecture.exists():
-        print(f"  [OK] ARCHITECTURE.md exists in docs/")
+        print("  [OK] ARCHITECTURE.md exists in docs/")
     else:
         # Search archive for it
-        print(f"  [NOT FOUND] ARCHITECTURE.md in docs/ - searching archive...")
+        print("  [NOT FOUND] ARCHITECTURE.md in docs/ - searching archive...")
         # (Could search here if needed, but likely doesn't exist)
-        print(f"  [MISSING] ARCHITECTURE.md (may never have been created)")
+        print("  [MISSING] ARCHITECTURE.md (may never have been created)")
 
     # Check FUTURE_PLAN.md
     fo_roadmap = fo_project_dir / "FUTURE_PLAN.md"
     if fo_roadmap.exists():
-        print(f"  [OK] FUTURE_PLAN.md exists")
+        print("  [OK] FUTURE_PLAN.md exists")
     else:
-        print(f"  [MISSING] FUTURE_PLAN.md")
+        print("  [MISSING] FUTURE_PLAN.md")
 
     # ========================================================================
     # SECTION 4.6: Summary
@@ -992,6 +1007,7 @@ def phase4_restore_documentation(dry_run: bool = True) -> None:
 # ============================================================================
 # PHASE 5: Organize Cleanup Documentation & Scripts
 # ============================================================================
+
 
 def phase5_organize_cleanup_artifacts(dry_run: bool = True) -> None:
     """Group cleanup-related documentation and scripts for reusability."""
@@ -1089,12 +1105,13 @@ def phase5_organize_cleanup_artifacts(dry_run: bool = True) -> None:
 
     print(f"  Grouped {moved_scripts} tidy/cleanup scripts")
 
-    print(f"\n[PHASE 5] Complete")
+    print("\n[PHASE 5] Complete")
 
 
 # ============================================================================
 # PHASE 6: Synchronize SOT Files
 # ============================================================================
+
 
 def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
     """Synchronize all Source of Truth files after cleanup.
@@ -1112,7 +1129,7 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
         print("  - Sync LEARNED_RULES.json")
         print("  - Sync project_issue_backlog.json")
         print("  - Update ARCHIVE_INDEX.md")
-        print(f"\n[PHASE 6] Complete (dry-run)")
+        print("\n[PHASE 6] Complete (dry-run)")
         return
 
     # 6.1 Update CONSOLIDATED_*.md files
@@ -1127,7 +1144,7 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
-                timeout=60
+                timeout=60,
             )
             if result.returncode == 0:
                 print("  [OK] CONSOLIDATED_*.md files updated")
@@ -1148,9 +1165,9 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
     # The consolidate_docs.py script should handle this, but verify
     archive_index = REPO_ROOT / "archive" / "reports" / "ARCHIVE_INDEX.md"
     if archive_index.exists():
-        print(f"  [OK] ARCHIVE_INDEX.md exists (updated by consolidate_docs.py)")
+        print("  [OK] ARCHIVE_INDEX.md exists (updated by consolidate_docs.py)")
     else:
-        print(f"  [SKIP] ARCHIVE_INDEX.md not found (will be created on next run)")
+        print("  [SKIP] ARCHIVE_INDEX.md not found (will be created on next run)")
 
     # 6.3 Sync database schemas to docs/
     print("\n[6.3] Syncing database schemas to docs/")
@@ -1161,6 +1178,7 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
         print("  Exporting autopack.db schema...")
         try:
             import sqlite3
+
             conn = sqlite3.connect(str(autopack_db))
             cursor = conn.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
@@ -1168,11 +1186,12 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
 
             schema_info = {
                 "database": "autopack.db",
-                "exported_at": subprocess.run(["date", "+%Y-%m-%d %H:%M:%S"],
-                                             capture_output=True, text=True, timeout=5).stdout.strip()
-                              if subprocess.run(["date"], capture_output=True).returncode == 0
-                              else "unknown",
-                "tables": {}
+                "exported_at": subprocess.run(
+                    ["date", "+%Y-%m-%d %H:%M:%S"], capture_output=True, text=True, timeout=5
+                ).stdout.strip()
+                if subprocess.run(["date"], capture_output=True).returncode == 0
+                else "unknown",
+                "tables": {},
             }
 
             for table in tables:
@@ -1184,8 +1203,9 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
 
             schema_file = REPO_ROOT / "docs" / "database_schema_autopack.json"
             import json
+
             schema_file.write_text(json.dumps(schema_info, indent=2), encoding="utf-8")
-            print(f"  [OK] Exported database schema to docs/database_schema_autopack.json")
+            print("  [OK] Exported database schema to docs/database_schema_autopack.json")
             print(f"       Tables: {', '.join(tables)}")
         except Exception as e:
             print(f"  [WARNING] Failed to export database schema: {e}")
@@ -1201,6 +1221,7 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
             print("  Exporting file-organizer autopack.db schema...")
             try:
                 import sqlite3
+
                 conn = sqlite3.connect(str(fo_db))
                 cursor = conn.cursor()
                 cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
@@ -1209,11 +1230,12 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
                 schema_info = {
                     "database": "autopack.db",
                     "project": "file-organizer-app-v1",
-                    "exported_at": subprocess.run(["date", "+%Y-%m-%d %H:%M:%S"],
-                                                 capture_output=True, text=True, timeout=5).stdout.strip()
-                                  if subprocess.run(["date"], capture_output=True).returncode == 0
-                                  else "unknown",
-                    "tables": {}
+                    "exported_at": subprocess.run(
+                        ["date", "+%Y-%m-%d %H:%M:%S"], capture_output=True, text=True, timeout=5
+                    ).stdout.strip()
+                    if subprocess.run(["date"], capture_output=True).returncode == 0
+                    else "unknown",
+                    "tables": {},
                 }
 
                 for table in tables:
@@ -1225,8 +1247,9 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
 
                 schema_file = fo_docs / "database_schema_autopack.json"
                 import json
+
                 schema_file.write_text(json.dumps(schema_info, indent=2), encoding="utf-8")
-                print(f"  [OK] Exported file-organizer database schema")
+                print("  [OK] Exported file-organizer database schema")
             except Exception as e:
                 print(f"  [WARNING] Failed to export file-organizer database: {e}")
 
@@ -1243,13 +1266,13 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
-                timeout=120
+                timeout=120,
             )
             if result.returncode == 0:
                 print("  [OK] Autopack documentation consolidated")
                 # Show summary from output
                 if "Total_Builds:" in result.stdout or "Total_Issues:" in result.stdout:
-                    for line in result.stdout.split('\n'):
+                    for line in result.stdout.split("\n"):
                         if "entries" in line.lower() or "items" in line.lower():
                             print(f"    {line.strip()}")
             else:
@@ -1269,7 +1292,7 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
                     cwd=REPO_ROOT,
                     capture_output=True,
                     text=True,
-                    timeout=120
+                    timeout=120,
                 )
                 if result.returncode == 0:
                     print("  [OK] File-organizer documentation consolidated")
@@ -1297,7 +1320,7 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
         else:
             print(f"  [MISSING] {file_path} - {description}")
 
-    print(f"\n[PHASE 6] Complete")
+    print("\n[PHASE 6] Complete")
     print("  Synchronized:")
     print("    ✓ Documentation consolidated (BUILD_HISTORY, DEBUG_LOG, ARCHITECTURE_DECISIONS)")
     print("    ✓ Old CONSOLIDATED_*.md files replaced with AI-optimized format")
@@ -1309,6 +1332,7 @@ def phase6_synchronize_sot_files(dry_run: bool = True) -> None:
 # ============================================================================
 # VALIDATION (V2)
 # ============================================================================
+
 
 def validate_v2_structure() -> Tuple[bool, List[str]]:
     """Validate against PROPOSED_CLEANUP_STRUCTURE_V2.md."""
@@ -1329,9 +1353,11 @@ def validate_v2_structure() -> Tuple[bool, List[str]]:
     runs_dir = REPO_ROOT / "archive" / "diagnostics" / "runs"
     if runs_dir.exists():
         expected_projects = ["Autopack", "file-organizer", "unknown"]
-        loose_runs = [d for d in runs_dir.iterdir()
-                     if d.is_dir() and d.name not in expected_projects
-                     and not d.name.startswith(".")]
+        loose_runs = [
+            d
+            for d in runs_dir.iterdir()
+            if d.is_dir() and d.name not in expected_projects and not d.name.startswith(".")
+        ]
         if loose_runs:
             issues.append(f"[X] {len(loose_runs)} ungrouped runs in diagnostics/runs/")
             for run in loose_runs[:5]:
@@ -1346,11 +1372,16 @@ def validate_v2_structure() -> Tuple[bool, List[str]]:
         print("[OK] checkpoints/ renamed or doesn't exist")
 
     # Check 4: Truth source .md files moved to docs/
-    truth_md_files = ["WORKSPACE_ORGANIZATION_SPEC.md", "FUTURE_PLAN.md",
-                      "FUTURE_PLAN_MAINTENANCE.md"]
+    truth_md_files = [
+        "WORKSPACE_ORGANIZATION_SPEC.md",
+        "FUTURE_PLAN.md",
+        "FUTURE_PLAN_MAINTENANCE.md",
+    ]
     loose_md = [f for f in truth_md_files if (REPO_ROOT / f).exists()]
     if loose_md:
-        issues.append(f"[X] {len(loose_md)} truth source .md files still at root: {', '.join(loose_md)}")
+        issues.append(
+            f"[X] {len(loose_md)} truth source .md files still at root: {', '.join(loose_md)}"
+        )
     else:
         print("[OK] Truth source .md files moved to docs/")
 
@@ -1368,7 +1399,9 @@ def validate_v2_structure() -> Tuple[bool, List[str]]:
     if (REPO_ROOT / sot_ruleset).exists():
         loose_rulesets.append(sot_ruleset)
     if loose_rulesets:
-        issues.append(f"[X] {len(loose_rulesets)} ruleset files still at root: {', '.join(loose_rulesets)}")
+        issues.append(
+            f"[X] {len(loose_rulesets)} ruleset files still at root: {', '.join(loose_rulesets)}"
+        )
 
     # Check if SOT ruleset is in docs/ (good)
     if (docs_dir / sot_ruleset).exists():
@@ -1454,17 +1487,22 @@ def validate_v2_structure() -> Tuple[bool, List[str]]:
 # MAIN
 # ============================================================================
 
+
 def main():
     """Run corrective cleanup V2."""
     parser = argparse.ArgumentParser(
         description="Corrective cleanup V2 - implements PROPOSED_CLEANUP_STRUCTURE_V2.md"
     )
-    parser.add_argument("--dry-run", action="store_true", default=True,
-                       help="Show what would be done without making changes (default)")
-    parser.add_argument("--execute", action="store_true",
-                       help="Actually execute the cleanup")
-    parser.add_argument("--validate-only", action="store_true",
-                       help="Only run validation, no cleanup")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=True,
+        help="Show what would be done without making changes (default)",
+    )
+    parser.add_argument("--execute", action="store_true", help="Actually execute the cleanup")
+    parser.add_argument(
+        "--validate-only", action="store_true", help="Only run validation, no cleanup"
+    )
 
     args = parser.parse_args()
     dry_run = not args.execute

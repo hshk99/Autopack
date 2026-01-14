@@ -78,9 +78,7 @@ def load_baseline(baseline_path: Path) -> List[Dict[str, Any]]:
         return json.load(f)
 
 
-def compare_baselines(
-    old: List[Dict[str, Any]], new: List[Dict[str, Any]]
-) -> Dict[str, Any]:
+def compare_baselines(old: List[Dict[str, Any]], new: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Compare old vs new baselines and return diff summary.
 
@@ -177,12 +175,14 @@ def main():
         print(f"\n{baseline_key.upper()}: {update_info['path']}")
         print(f"  Old: {diff['total_old']} findings")
         print(f"  New: {diff['total_new']} findings")
-        print(f"  Added: {diff['added']} | Removed: {diff['removed']} | Unchanged: {diff['unchanged']}")
+        print(
+            f"  Added: {diff['added']} | Removed: {diff['removed']} | Unchanged: {diff['unchanged']}"
+        )
 
         if diff["added"] > 0 or diff["removed"] > 0:
-            print(f"  [!]️  Baseline will change!")
+            print("  [!]️  Baseline will change!")
         else:
-            print(f"  [OK] No changes (baseline stable)")
+            print("  [OK] No changes (baseline stable)")
 
     print("\n" + "=" * 70)
 
@@ -206,10 +206,7 @@ def main():
 
     # Exit with status based on whether baselines would change
     # (useful for CI drift detection in the future)
-    has_changes = any(
-        u["diff"]["added"] > 0 or u["diff"]["removed"] > 0
-        for u in updates.values()
-    )
+    has_changes = any(u["diff"]["added"] > 0 or u["diff"]["removed"] > 0 for u in updates.values())
 
     if has_changes:
         return 1  # Changes detected (drift)

@@ -352,5 +352,3 @@ All tests must be offline, deterministic, and bounded.
   - SOT write protection checks
 - Runtime writes run-local only
 - Approval gates are explicit, pivot-only, and disabled by default
-
-

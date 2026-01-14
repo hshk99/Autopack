@@ -5,11 +5,12 @@ import sys
 import os
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from autopack.db_setup import init_db, SessionLocal
 from autopack.models import Run, Tier, Phase
 from datetime import datetime, timezone
+
 
 def create_verification_run():
     """Create a minimal test run to verify fixes"""
@@ -27,7 +28,7 @@ def create_verification_run():
             token_cap=50000,
             max_phases=2,
             max_duration_minutes=60,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
         )
         session.add(run)
         session.flush()
@@ -40,7 +41,7 @@ def create_verification_run():
             tier_id="verify-tier1",
             tier_index=0,
             name="Verification Tier",
-            description="Test tier to verify OpenAI Builder fixes"
+            description="Test tier to verify OpenAI Builder fixes",
         )
         session.add(tier)
         session.flush()
@@ -59,7 +60,7 @@ def create_verification_run():
                 task_category="backend",
                 complexity="low",
                 builder_mode="tweak_light",
-                status="QUEUED"
+                status="QUEUED",
             ),
             Phase(
                 run_id=run.run_id,
@@ -71,8 +72,8 @@ def create_verification_run():
                 task_category="documentation",
                 complexity="low",
                 builder_mode="tweak_light",
-                status="QUEUED"
-            )
+                status="QUEUED",
+            ),
         ]
 
         for phase in phases:
@@ -81,8 +82,10 @@ def create_verification_run():
 
         session.commit()
         print(f"\n[SUCCESS] Created test run: {run.run_id} with {len(phases)} phases")
-        print(f"\nRun autonomous executor with:")
-        print(f"python src/autopack/autonomous_executor.py --run-id {run.run_id} --max-iterations 2")
+        print("\nRun autonomous executor with:")
+        print(
+            f"python src/autopack/autonomous_executor.py --run-id {run.run_id} --max-iterations 2"
+        )
 
     except Exception as e:
         session.rollback()
@@ -90,6 +93,7 @@ def create_verification_run():
         raise
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     create_verification_run()

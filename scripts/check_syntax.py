@@ -10,6 +10,7 @@ Exit codes:
     0: All files compile successfully
     1: One or more files have SyntaxErrors
 """
+
 import sys
 from pathlib import Path
 import py_compile

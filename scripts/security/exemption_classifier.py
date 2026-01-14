@@ -107,25 +107,29 @@ class BaselineExemptionClassifier:
     """
 
     # Trivy metadata-only fields that are safe to change without review
-    TRIVY_SAFE_METADATA_FIELDS = frozenset([
-        "DataSource.ID",
-        "DataSource.URL",
-        "DataSource.Name",
-        "Metadata.RepoDigests",
-        "Metadata.RepoTags",
-        "SchemaVersion",
-        "ArtifactName",
-        "CreatedAt",  # Scan timestamp
-    ])
+    TRIVY_SAFE_METADATA_FIELDS = frozenset(
+        [
+            "DataSource.ID",
+            "DataSource.URL",
+            "DataSource.Name",
+            "Metadata.RepoDigests",
+            "Metadata.RepoTags",
+            "SchemaVersion",
+            "ArtifactName",
+            "CreatedAt",  # Scan timestamp
+        ]
+    )
 
     # CodeQL help text fields that are safe to change without review
-    CODEQL_SAFE_HELP_FIELDS = frozenset([
-        "help.text",
-        "help.markdown",
-        "shortDescription.text",
-        "fullDescription.text",
-        "properties.problem.severity",  # description of severity, not actual severity
-    ])
+    CODEQL_SAFE_HELP_FIELDS = frozenset(
+        [
+            "help.text",
+            "help.markdown",
+            "shortDescription.text",
+            "fullDescription.text",
+            "properties.problem.severity",  # description of severity, not actual severity
+        ]
+    )
 
     def __init__(self, emergency_disable: bool = False, dry_run: bool = False):
         """Initialize classifier.
@@ -202,6 +206,7 @@ class BaselineExemptionClassifier:
                 # Check for CVE IDs in added lines
                 if "CVE-" in line:
                     import re
+
                     cves = re.findall(r"CVE-\d{4}-\d+", line)
                     changes["new_cves"].extend(cves)
                 # Check if line changes non-metadata fields
@@ -214,6 +219,7 @@ class BaselineExemptionClassifier:
                 # Check for CVE IDs in removed lines
                 if "CVE-" in line:
                     import re
+
                     cves = re.findall(r"CVE-\d{4}-\d+", line)
                     changes["removed_cves"].extend(cves)
 
@@ -366,7 +372,9 @@ class BaselineExemptionClassifier:
         has_trivy_changes = False
         if fs_changes and (fs_changes.get("added_lines") or fs_changes.get("removed_lines")):
             has_trivy_changes = True
-        if container_changes and (container_changes.get("added_lines") or container_changes.get("removed_lines")):
+        if container_changes and (
+            container_changes.get("added_lines") or container_changes.get("removed_lines")
+        ):
             has_trivy_changes = True
 
         if not has_trivy_changes:
@@ -480,7 +488,9 @@ class BaselineExemptionClassifier:
         # This rule should NOT match if it would also match codeql_help_text_only
         # Check: is this codeql-only AND help-text-only?
         codeql_only = codeql_changed and not trivy_fs_changed and not trivy_container_changed
-        codeql_help_only = diff.codeql_changes.get("help_text_only", True) if diff.codeql_changes else True
+        codeql_help_only = (
+            diff.codeql_changes.get("help_text_only", True) if diff.codeql_changes else True
+        )
 
         # If codeql-only AND help-text-only, let the codeql rule handle it
         if codeql_only and codeql_help_only:
@@ -533,6 +543,7 @@ def main():
 
     # Check for emergency disable env var
     import os
+
     emergency_disable = args.emergency_disable or os.getenv("DISABLE_PHASE_C_AUTOMERGE") == "1"
 
     classifier = BaselineExemptionClassifier(
@@ -543,14 +554,14 @@ def main():
     print(f"[Phase C] Parsing baseline diff from {args.baseline_path}...")
     diff = classifier.parse_git_diff(args.baseline_path)
 
-    print(f"[Phase C] Classifying changes...")
+    print("[Phase C] Classifying changes...")
     print(f"  - New CVE IDs: {len(diff.new_cve_ids)}")
     print(f"  - Finding count delta: {diff.finding_count_delta:+d}")
     print(f"  - Severity escalations: {diff.has_severity_escalations}")
 
     result = classifier.classify(diff)
 
-    print(f"\n[Phase C] Classification Result:")
+    print("\n[Phase C] Classification Result:")
     print(f"  Decision: {result.decision.value}")
     print(f"  Rationale: {result.rationale}")
     print(f"  Rules applied: {result.rules_applied}")

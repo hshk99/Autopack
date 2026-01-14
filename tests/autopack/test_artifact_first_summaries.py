@@ -71,7 +71,7 @@ class TestArtifactLoader:
         phases_dir.mkdir()
 
         phase_summary = phases_dir / "phase_01_test.md"
-        phase_summary.write_text("# Phase Summary\n\n" "Modified auth.py to add validation")
+        phase_summary.write_text("# Phase Summary\n\nModified auth.py to add validation")
 
         result = artifact_loader.find_artifact_for_path("src/auth.py")
         assert result is not None

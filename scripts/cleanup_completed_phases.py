@@ -11,8 +11,10 @@ Use failure_reason field to document manual completion while preserving failure 
 
 Note: Phase and Run models don't have 'notes' field. Using failure_reason instead.
 """
+
 from autopack.database import SessionLocal
 from autopack.models import Phase, Run, PhaseState, RunState
+
 
 def main():
     session = SessionLocal()
@@ -20,9 +22,9 @@ def main():
     try:
         # BUILD-132: Coverage Delta Integration (manually completed Dec 23)
         print("\n=== BUILD-132: Coverage Delta Integration ===")
-        build132_run = session.query(Run).filter(
-            Run.id == 'build132-coverage-delta-integration'
-        ).first()
+        build132_run = (
+            session.query(Run).filter(Run.id == "build132-coverage-delta-integration").first()
+        )
 
         if build132_run:
             print(f"Run {build132_run.id}: {build132_run.state} (updating failure_reason)")
@@ -35,9 +37,9 @@ def main():
 
         # BUILD-130: Schema Validation Prevention (manually completed Dec 23-24)
         print("\n=== BUILD-130: Schema Validation Prevention ===")
-        build130_run = session.query(Run).filter(
-            Run.id == 'build130-schema-validation-prevention'
-        ).first()
+        build130_run = (
+            session.query(Run).filter(Run.id == "build130-schema-validation-prevention").first()
+        )
 
         if build130_run:
             print(f"Run {build130_run.id}: {build130_run.state} (updating failure_reason)")
@@ -51,9 +53,9 @@ def main():
         # BUILD-129: Document test/validation runs (keep for reproducibility)
         print("\n=== BUILD-129: Test/Validation Runs ===")
         test_run_ids = [
-            'build129-p2-validation',
-            'build129-p3-week1-telemetry',
-            'telemetry-test-single'
+            "build129-p2-validation",
+            "build129-p3-week1-telemetry",
+            "telemetry-test-single",
         ]
 
         for run_id in test_run_ids:
@@ -61,11 +63,11 @@ def main():
             if run:
                 print(f"Run {run_id}: {run.state} (updating failure_reason)")
                 run.failure_reason = (
-                    f"[TEST/VALIDATION RUN] Created for BUILD-129 Phase 3 telemetry collection validation. "
-                    f"Purpose: Collect diverse telemetry samples to validate overhead model. "
-                    f"Outcome: Operational blockers (protected paths, telemetry persistence to stderr vs database). "
-                    f"Preserved as reproducible telemetry baseline - DO NOT DELETE. "
-                    f"See BUILD-129_PHASE3_EXECUTION_SUMMARY.md."
+                    "[TEST/VALIDATION RUN] Created for BUILD-129 Phase 3 telemetry collection validation. "
+                    "Purpose: Collect diverse telemetry samples to validate overhead model. "
+                    "Outcome: Operational blockers (protected paths, telemetry persistence to stderr vs database). "
+                    "Preserved as reproducible telemetry baseline - DO NOT DELETE. "
+                    "See BUILD-129_PHASE3_EXECUTION_SUMMARY.md."
                 )
 
         session.commit()
@@ -85,6 +87,7 @@ def main():
         raise
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     main()

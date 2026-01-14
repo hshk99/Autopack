@@ -1,4 +1,5 @@
 """Create build112-completion run in database for BUILD-112 Phase 3, 4, 5 completion."""
+
 import sys
 import yaml
 from pathlib import Path
@@ -10,10 +11,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from autopack.database import SessionLocal
 from autopack.models import Run, Phase, Tier, RunState, PhaseState, TierState
 
+
 def load_phase_yaml(phase_file: Path) -> dict:
     """Load phase YAML file."""
-    with open(phase_file, 'r', encoding='utf-8') as f:
+    with open(phase_file, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
+
 
 def create_build112_completion_run():
     """Create BUILD-112 completion run with 4 phases."""
@@ -52,7 +55,7 @@ def create_build112_completion_run():
             safety_profile="normal",
             run_scope="multi_tier",
             token_cap=1500000,
-            tokens_used=0
+            tokens_used=0,
         )
         db.add(run)
         db.flush()
@@ -67,7 +70,7 @@ def create_build112_completion_run():
             name="BUILD-112 Completion Tier",
             description="Diagnostics Parity with Cursor - Complete Phases 3, 4, 5",
             state=TierState.PENDING,
-            tokens_used=0
+            tokens_used=0,
         )
         db.add(tier)
         db.flush()
@@ -114,7 +117,7 @@ def create_build112_completion_run():
                 retry_attempt=0,
                 revision_epoch=0,
                 escalation_level=0,
-                tokens_used=0
+                tokens_used=0,
             )
             db.add(phase)
 
@@ -129,11 +132,13 @@ def create_build112_completion_run():
         db.rollback()
         print(f"ERROR: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     success = create_build112_completion_run()

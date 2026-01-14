@@ -53,7 +53,8 @@ def upgrade(engine: Engine) -> None:
             return
 
         print("\n[1/3] Creating table: storage_scans")
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE TABLE storage_scans (
                 id SERIAL PRIMARY KEY,
                 timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -73,22 +74,28 @@ def upgrade(engine: Engine) -> None:
                 created_by VARCHAR(100),
                 notes TEXT
             )
-        """))
+        """)
+        )
 
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE INDEX idx_storage_scans_timestamp
             ON storage_scans(timestamp DESC)
-        """))
+        """)
+        )
 
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE INDEX idx_storage_scans_type_target
             ON storage_scans(scan_type, scan_target)
-        """))
+        """)
+        )
 
         print("      ✓ Table 'storage_scans' created with 2 indexes")
 
         print("\n[2/3] Creating table: cleanup_candidates")
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE TABLE cleanup_candidates (
                 id SERIAL PRIMARY KEY,
                 scan_id INTEGER NOT NULL REFERENCES storage_scans(id) ON DELETE CASCADE,
@@ -116,32 +123,42 @@ def upgrade(engine: Engine) -> None:
                 compression_ratio DECIMAL(5, 2),
                 compression_duration_seconds INTEGER
             )
-        """))
+        """)
+        )
 
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE INDEX idx_cleanup_candidates_scan_id
             ON cleanup_candidates(scan_id)
-        """))
+        """)
+        )
 
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE INDEX idx_cleanup_candidates_category
             ON cleanup_candidates(category)
-        """))
+        """)
+        )
 
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE INDEX idx_cleanup_candidates_approval_status
             ON cleanup_candidates(approval_status)
-        """))
+        """)
+        )
 
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE INDEX idx_cleanup_candidates_size
             ON cleanup_candidates(size_bytes DESC)
-        """))
+        """)
+        )
 
         print("      ✓ Table 'cleanup_candidates' created with 4 indexes")
 
         print("\n[3/3] Creating table: approval_decisions")
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE TABLE approval_decisions (
                 id SERIAL PRIMARY KEY,
                 scan_id INTEGER NOT NULL REFERENCES storage_scans(id) ON DELETE CASCADE,
@@ -156,17 +173,22 @@ def upgrade(engine: Engine) -> None:
                 decision VARCHAR(20) NOT NULL,
                 notes TEXT
             )
-        """))
+        """)
+        )
 
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE INDEX idx_approval_decisions_scan_id
             ON approval_decisions(scan_id)
-        """))
+        """)
+        )
 
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE INDEX idx_approval_decisions_approved_at
             ON approval_decisions(approved_at DESC)
-        """))
+        """)
+        )
 
         print("      ✓ Table 'approval_decisions' created with 2 indexes")
 
@@ -201,7 +223,7 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python add_storage_optimizer_tables.py [upgrade|downgrade]")
         print("\nExample:")
-        print("  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" \\")
+        print('  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \\')
         print("    python scripts/migrations/add_storage_optimizer_tables.py upgrade")
         sys.exit(1)
 
@@ -236,6 +258,7 @@ def main():
     except Exception as e:
         print(f"\n✗ Migration failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

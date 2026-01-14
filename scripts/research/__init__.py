@@ -26,7 +26,7 @@ from scripts.research.data_structures import (
     GapType,
     Priority,
     Effort,
-    DecisionType
+    DecisionType,
 )
 
 from scripts.research.context_assembler import ContextAssembler
@@ -36,20 +36,20 @@ from scripts.research.run_universal_analysis import UniversalResearchAnalysisPip
 
 __all__ = [
     # Data structures
-    'ProjectContext',
-    'ResearchGap',
-    'OpportunityAnalysis',
-    'ImplementationDecision',
-    'DecisionReport',
-    'ResearchType',
-    'GapType',
-    'Priority',
-    'Effort',
-    'DecisionType',
+    "ProjectContext",
+    "ResearchGap",
+    "OpportunityAnalysis",
+    "ImplementationDecision",
+    "DecisionReport",
+    "ResearchType",
+    "GapType",
+    "Priority",
+    "Effort",
+    "DecisionType",
     # Components
-    'ContextAssembler',
-    'ResearchAnalyzer',
-    'DecisionEngine',
-    'DecisionRouter',
-    'UniversalResearchAnalysisPipeline'
+    "ContextAssembler",
+    "ResearchAnalyzer",
+    "DecisionEngine",
+    "DecisionRouter",
+    "UniversalResearchAnalysisPipeline",
 ]

@@ -3,7 +3,6 @@ from autopack.research.reporting.citation_formatter import CitationFormatter
 
 
 class TestCitationFormatter(unittest.TestCase):
-
     def setUp(self):
         self.formatter = CitationFormatter()
 

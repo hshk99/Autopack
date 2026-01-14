@@ -48,14 +48,13 @@ with open(TEST_PATH, "r", encoding="utf-8") as f:
 
 # Fix LLMService → LlmService path
 test_content = test_content.replace(
-    "autopack.plan_analyzer.LLMService",
-    "autopack.llm_service.LlmService"
+    "autopack.plan_analyzer.LLMService", "autopack.llm_service.LlmService"
 )
 
 # Fix PlanAnalyzer patching to patch the import location
 test_content = test_content.replace(
     "with patch('autopack.manifest_generator.PlanAnalyzer')",
-    "with patch('autopack.plan_analyzer.PlanAnalyzer')"
+    "with patch('autopack.plan_analyzer.PlanAnalyzer')",
 )
 
 with open(TEST_PATH, "w", encoding="utf-8") as f:

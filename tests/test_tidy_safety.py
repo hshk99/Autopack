@@ -51,14 +51,14 @@ class TestTidySafety:
 
         # Assert: root BUILD_HISTORY.md should NOT be in moves
         moved_files = {src.name for src, dest in moves}
-        assert (
-            "BUILD_HISTORY.md" not in moved_files
-        ), "Divergent root SOT file should be blocked, not moved"
+        assert "BUILD_HISTORY.md" not in moved_files, (
+            "Divergent root SOT file should be blocked, not moved"
+        )
 
         # Assert: root file still exists (not moved)
-        assert (
-            root_build_history.exists()
-        ), "Root SOT file should remain at root for manual resolution"
+        assert root_build_history.exists(), (
+            "Root SOT file should remain at root for manual resolution"
+        )
 
         # Assert: docs file unchanged
         assert (
@@ -155,22 +155,22 @@ class TestIdenticalSOTDuplicate:
         execute_moves(moves, dry_run=False)
 
         # Assert: root file removed
-        assert not (
-            tmp_path / "DEBUG_LOG.md"
-        ).exists(), "Root duplicate should be removed after move"
+        assert not (tmp_path / "DEBUG_LOG.md").exists(), (
+            "Root duplicate should be removed after move"
+        )
 
         # Assert: file exists in archive/superseded
         superseded_file = (
             tmp_path / "archive" / "superseded" / "root_sot_duplicates" / "DEBUG_LOG.md"
         )
-        assert (
-            superseded_file.exists()
-        ), "File should exist in archive/superseded/root_sot_duplicates/"
+        assert superseded_file.exists(), (
+            "File should exist in archive/superseded/root_sot_duplicates/"
+        )
 
         # Assert: content preserved
-        assert (
-            superseded_file.read_text(encoding="utf-8") == content
-        ), "Content should be preserved in archive"
+        assert superseded_file.read_text(encoding="utf-8") == content, (
+            "Content should be preserved in archive"
+        )
 
 
 class TestFailFastBehavior:
@@ -279,9 +279,9 @@ class TestDirtyMarker:
             / ".autonomous_runs"
             / "sot_index_dirty.json"
         )
-        assert (
-            marker_path.exists()
-        ), "Subproject marker should be created in project-specific location"
+        assert marker_path.exists(), (
+            "Subproject marker should be created in project-specific location"
+        )
 
         marker_data = json.loads(marker_path.read_text(encoding="utf-8"))
         assert marker_data["dirty"] is True
@@ -404,9 +404,9 @@ class TestDirtyMarkerTightening:
                     break
 
         # Assert: no modification detected
-        assert (
-            not sot_modified_by_consolidation
-        ), "Should not detect modification when SOT files unchanged"
+        assert not sot_modified_by_consolidation, (
+            "Should not detect modification when SOT files unchanged"
+        )
 
     def test_marker_created_when_consolidation_changes_sot(self, tmp_path):
         """
@@ -472,9 +472,9 @@ class TestTidyIntegration:
         mark_sot_dirty("autopack", tmp_path, dry_run=False)
 
         # Assert
-        assert (
-            marker_path.exists()
-        ), "Tidy should create dirty marker when archive consolidation runs"
+        assert marker_path.exists(), (
+            "Tidy should create dirty marker when archive consolidation runs"
+        )
 
 
 if __name__ == "__main__":

@@ -4,7 +4,6 @@ from autopack.research.validators.evidence_validator import EvidenceValidator
 
 
 class TestEvidenceValidator(unittest.TestCase):
-
     def setUp(self):
         self.validator = EvidenceValidator()
         self.mock_session = MagicMock()

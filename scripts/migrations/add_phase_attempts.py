@@ -51,50 +51,60 @@ def upgrade(engine: Engine) -> None:
             return
 
         print("\n[1/5] Adding column: attempts_used (Integer, default=0)")
-        conn.execute(text("""
+        conn.execute(
+            text("""
             ALTER TABLE phases
             ADD COLUMN attempts_used INTEGER NOT NULL DEFAULT 0
-        """))
+        """)
+        )
         print("      ✓ Column 'attempts_used' added")
 
         print("\n[2/5] Adding column: max_attempts (Integer, default=5)")
-        conn.execute(text("""
+        conn.execute(
+            text("""
             ALTER TABLE phases
             ADD COLUMN max_attempts INTEGER NOT NULL DEFAULT 5
-        """))
+        """)
+        )
         print("      ✓ Column 'max_attempts' added")
 
         print("\n[3/5] Adding column: last_attempt_timestamp (DateTime, nullable)")
-        conn.execute(text("""
+        conn.execute(
+            text("""
             ALTER TABLE phases
             ADD COLUMN last_attempt_timestamp TIMESTAMP WITH TIME ZONE
-        """))
+        """)
+        )
         print("      ✓ Column 'last_attempt_timestamp' added")
 
         print("\n[4/5] Adding column: last_failure_reason (String, nullable)")
-        conn.execute(text("""
+        conn.execute(
+            text("""
             ALTER TABLE phases
             ADD COLUMN last_failure_reason VARCHAR
-        """))
+        """)
+        )
         print("      ✓ Column 'last_failure_reason' added")
 
         print("\n[5/5] Creating index: idx_phase_executable")
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE INDEX IF NOT EXISTS idx_phase_executable
             ON phases (run_id, state, attempts_used)
-        """))
+        """)
+        )
         print("      ✓ Index 'idx_phase_executable' created")
 
         # Verify existing phases have correct defaults
         result = conn.execute(text("SELECT COUNT(*) FROM phases"))
         phase_count = result.scalar()
 
-        print(f"\n✓ Migration complete!")
+        print("\n✓ Migration complete!")
         print(f"  - {phase_count} existing phases have been updated with defaults:")
-        print(f"    - attempts_used = 0")
-        print(f"    - max_attempts = 5")
-        print(f"    - last_attempt_timestamp = NULL")
-        print(f"    - last_failure_reason = NULL")
+        print("    - attempts_used = 0")
+        print("    - max_attempts = 5")
+        print("    - last_attempt_timestamp = NULL")
+        print("    - last_failure_reason = NULL")
 
     print("\n" + "=" * 60)
     print("BUILD-041 Migration: SUCCESS")
@@ -174,6 +184,7 @@ def main():
     except Exception as e:
         print(f"\n✗ Migration failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

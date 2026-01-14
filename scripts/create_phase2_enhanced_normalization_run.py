@@ -5,6 +5,7 @@ Create Autopack run for Phase 2: Enhanced Text Normalization
 This script creates an Autopack autonomous run to integrate text_normalization.py
 into validators.py to improve citation validity from 72.2% to ≥80%.
 """
+
 import os
 import sys
 import requests
@@ -39,8 +40,8 @@ def main():
             "target_validity": "80.0%",
             "phase1_improvement": "+12.9%",
             "remaining_gap": "7.8%",
-            "primary_failures": "3/5 failures are 'extraction_span not found in source' (text normalization issue)"
-        }
+            "primary_failures": "3/5 failures are 'extraction_span not found in source' (text normalization issue)",
+        },
     }
 
     response = requests.post(f"{API_URL}/runs", json=run_payload, headers=headers)
@@ -119,11 +120,11 @@ DO NOT:
                 "estimated_tokens": 3000,
                 "files_to_modify": ["src/autopack/research/models/validators.py"],
                 "reference_files": ["src/autopack/text_normalization.py"],
-                "expected_impact": "+5-10% citation validity"
+                "expected_impact": "+5-10% citation validity",
             },
             "status": "PENDING",
             "category": "feature",
-            "estimated_token_budget": 3000
+            "estimated_token_budget": 3000,
         },
         {
             "phase_id": "run_phase2_evaluation",
@@ -166,7 +167,7 @@ Save evaluation report and document results in phase completion notes.
 """,
             "status": "PENDING",
             "category": "test",
-            "estimated_token_budget": 2000
+            "estimated_token_budget": 2000,
         },
         {
             "phase_id": "update_documentation_phase2",
@@ -209,23 +210,27 @@ REFERENCE:
 """,
             "status": "PENDING",
             "category": "documentation",
-            "estimated_token_budget": 4000
-        }
+            "estimated_token_budget": 4000,
+        },
     ]
 
     # Create phases
     for phase in phases:
         response = requests.post(f"{API_URL}/runs/{RUN_ID}/phases", json=phase, headers=headers)
         if response.status_code != 200:
-            print(f"Error creating phase {phase['phase_id']}: {response.status_code} - {response.text}")
+            print(
+                f"Error creating phase {phase['phase_id']}: {response.status_code} - {response.text}"
+            )
             return 1
         print(f"  ✅ Created phase: {phase['phase_id']}")
 
-    print(f"\n🚀 Run created successfully!")
+    print("\n🚀 Run created successfully!")
     print(f"   Run ID: {RUN_ID}")
     print(f"   Phases: {len(phases)}")
-    print(f"\nTo execute:")
-    print(f"  cd c:/dev/Autopack && PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" QDRANT_HOST=\"http://localhost:6333\" python -m autopack.autonomous_executor --run-id {RUN_ID} --poll-interval 15 --run-type autopack_maintenance")
+    print("\nTo execute:")
+    print(
+        f'  cd c:/dev/Autopack && PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack" QDRANT_HOST="http://localhost:6333" python -m autopack.autonomous_executor --run-id {RUN_ID} --poll-interval 15 --run-type autopack_maintenance'
+    )
 
     return 0
 

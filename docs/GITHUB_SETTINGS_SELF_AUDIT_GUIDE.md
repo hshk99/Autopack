@@ -122,5 +122,3 @@ Example policy file:
 - **If protections are missing/loose**: update GitHub branch protection settings to match policy.
 - **If policy is too strict**: update the policy (and document rationale in `docs/IMPROVEMENTS_GAP_ANALYSIS.md` / governance docs).
 - **If check names don’t match**: adjust `required_checks` to the actual check-run names you want enforced (prefer stable job names).
-
-

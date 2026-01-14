@@ -36,7 +36,6 @@ AUTOPACK_RULES = {
             "security/README.md",
         ],
     },
-
     "root_essential": {
         "description": "Essential documentation that must stay at root",
         "files": [
@@ -45,7 +44,6 @@ AUTOPACK_RULES = {
         ],
         "patterns": [],
     },
-
     "docs_guides": {
         "description": "Implementation and technical guides",
         "location": "docs/",
@@ -63,7 +61,6 @@ AUTOPACK_RULES = {
             "optimization",
         ],
     },
-
     "archive_historical": {
         "description": "Historical and reference documentation",
         "location": "archive/",
@@ -92,7 +89,6 @@ AUTOPACK_RULES = {
             "quick_start",
         ],
     },
-
     "delete_obsolete": {
         "description": "Obsolete files to delete",
         "patterns": [
@@ -122,7 +118,6 @@ FILEORGANIZER_RULES = {
         ],
         "patterns": [],
     },
-
     "docs_research": {
         "description": "Research documents in docs/research/",
         "location": "docs/research/",
@@ -137,7 +132,6 @@ FILEORGANIZER_RULES = {
             "detailed_spec",
         ],
     },
-
     "archive_reference": {
         "description": "Reference materials and historical prompts",
         "location": "archive/",
@@ -163,7 +157,6 @@ FILEORGANIZER_RULES = {
             "strategic_analysis",
         ],
     },
-
     "delete_obsolete": {
         "description": "Obsolete/duplicate files to delete",
         "patterns": [
@@ -185,7 +178,9 @@ FILEORGANIZER_RULES = {
 
 
 class DocumentationOrganizer:
-    def __init__(self, project_root: Path, rules_config: Dict, dry_run: bool = False, verbose: bool = False):
+    def __init__(
+        self, project_root: Path, rules_config: Dict, dry_run: bool = False, verbose: bool = False
+    ):
         self.project_root = project_root
         self.rules = rules_config
         self.dry_run = dry_run
@@ -208,6 +203,7 @@ class DocumentationOrganizer:
     def matches_pattern(self, filename: str, patterns: List[str]) -> bool:
         """Check if filename matches any of the patterns"""
         from fnmatch import fnmatch
+
         return any(fnmatch(filename, pattern) for pattern in patterns)
 
     def contains_keyword(self, filename: str, keywords: List[str]) -> bool:
@@ -235,39 +231,46 @@ class DocumentationOrganizer:
 
         # Check if it should be deleted
         rules = self.rules["delete_obsolete"]
-        if self.matches_pattern(filename, rules.get("patterns", [])) or \
-           self.contains_keyword(filename, rules.get("keywords", [])):
-            return ("delete_obsolete", f"Obsolete file pattern/keyword matched")
+        if self.matches_pattern(filename, rules.get("patterns", [])) or self.contains_keyword(
+            filename, rules.get("keywords", [])
+        ):
+            return ("delete_obsolete", "Obsolete file pattern/keyword matched")
 
         # Check for docs/ or docs/research/ based on available rules
         if "docs_guides" in self.rules:
             rules = self.rules["docs_guides"]
-            if self.matches_pattern(filename, rules.get("patterns", [])) or \
-               self.contains_keyword(filename, rules.get("keywords", [])):
-                return ("docs_guides", f"Implementation guide pattern/keyword matched")
+            if self.matches_pattern(filename, rules.get("patterns", [])) or self.contains_keyword(
+                filename, rules.get("keywords", [])
+            ):
+                return ("docs_guides", "Implementation guide pattern/keyword matched")
 
         if "docs_research" in self.rules:
             rules = self.rules["docs_research"]
-            if self.matches_pattern(filename, rules.get("patterns", [])) or \
-               self.contains_keyword(filename, rules.get("keywords", [])):
-                return ("docs_research", f"Research document pattern/keyword matched")
+            if self.matches_pattern(filename, rules.get("patterns", [])) or self.contains_keyword(
+                filename, rules.get("keywords", [])
+            ):
+                return ("docs_research", "Research document pattern/keyword matched")
 
         # Check for archive/ historical docs
         if "archive_historical" in self.rules:
             rules = self.rules["archive_historical"]
-            if self.matches_pattern(filename, rules.get("patterns", [])) or \
-               self.contains_keyword(filename, rules.get("keywords", [])):
-                return ("archive_historical", f"Historical document pattern/keyword matched")
+            if self.matches_pattern(filename, rules.get("patterns", [])) or self.contains_keyword(
+                filename, rules.get("keywords", [])
+            ):
+                return ("archive_historical", "Historical document pattern/keyword matched")
 
         if "archive_reference" in self.rules:
             rules = self.rules["archive_reference"]
-            if self.matches_pattern(filename, rules.get("patterns", [])) or \
-               self.contains_keyword(filename, rules.get("keywords", [])):
-                return ("archive_reference", f"Reference material pattern/keyword matched")
+            if self.matches_pattern(filename, rules.get("patterns", [])) or self.contains_keyword(
+                filename, rules.get("keywords", [])
+            ):
+                return ("archive_reference", "Reference material pattern/keyword matched")
 
         # Default: if unsure, move to archive
-        return ("archive_reference" if "archive_reference" in self.rules else "archive_historical",
-                "Default: move to archive for review")
+        return (
+            "archive_reference" if "archive_reference" in self.rules else "archive_historical",
+            "Default: move to archive for review",
+        )
 
     def find_all_markdown_files(self) -> List[Path]:
         """Find all markdown files in the project (excluding node_modules, .git, etc.)"""
@@ -276,8 +279,16 @@ class DocumentationOrganizer:
         is_fileorganizer = "file-organizer" in str(self.project_root).lower()
 
         exclude_dirs = {
-            ".git", "node_modules", ".pytest_cache", "__pycache__",
-            ".claude", "prompts", "integrations", "tests", "venv", "fileorganizer"
+            ".git",
+            "node_modules",
+            ".pytest_cache",
+            "__pycache__",
+            ".claude",
+            "prompts",
+            "integrations",
+            "tests",
+            "venv",
+            "fileorganizer",
         }
 
         if not is_fileorganizer:
@@ -437,7 +448,10 @@ class DocumentationOrganizer:
                 try:
                     if not any(dir_path.iterdir()):
                         dir_path.rmdir()
-                        self.log(f"Removed empty directory: {dir_path.relative_to(self.project_root)}", "ACTION")
+                        self.log(
+                            f"Removed empty directory: {dir_path.relative_to(self.project_root)}",
+                            "ACTION",
+                        )
                 except OSError:
                     pass  # Directory not empty or permission issue
 
@@ -473,24 +487,15 @@ def main():
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Show what would be done without actually moving/deleting files"
+        help="Show what would be done without actually moving/deleting files",
     )
-    parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Show detailed output"
-    )
-    parser.add_argument(
-        "--report",
-        type=str,
-        help="Save JSON report to file"
-    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed output")
+    parser.add_argument("--report", type=str, help="Save JSON report to file")
     parser.add_argument(
         "--project",
         type=str,
         choices=["autopack", "fileorganizer"],
-        help="Specify project type (defaults to autopack if run from root, or detects from path)"
+        help="Specify project type (defaults to autopack if run from root, or detects from path)",
     )
 
     args = parser.parse_args()
@@ -516,25 +521,25 @@ def main():
         project_root=project_root,
         rules_config=rules_config,
         dry_run=args.dry_run,
-        verbose=args.verbose
+        verbose=args.verbose,
     )
 
     report = organizer.organize()
 
     # Print summary
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print(f"{project_name.upper()} ORGANIZATION SUMMARY")
-    print("="*60)
+    print("=" * 60)
     for key, value in report["summary"].items():
         print(f"{key.replace('_', ' ').title()}: {value}")
-    print("="*60)
+    print("=" * 60)
 
     if args.dry_run:
         print("\n[WARNING] This was a DRY RUN. Run without --dry-run to apply changes.")
 
     # Save report if requested
     if args.report:
-        with open(args.report, 'w') as f:
+        with open(args.report, "w") as f:
             json.dump(report, f, indent=2)
         print(f"\nReport saved to: {args.report}")
 

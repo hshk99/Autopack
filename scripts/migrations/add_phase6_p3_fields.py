@@ -50,17 +50,23 @@ def get_database_url() -> str:
     """
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
-        print("\n" + "="*80, file=sys.stderr)
+        print("\n" + "=" * 80, file=sys.stderr)
         print("ERROR: DATABASE_URL environment variable not set", file=sys.stderr)
-        print("="*80, file=sys.stderr)
-        print("\nMigration scripts require explicit DATABASE_URL to prevent footguns.", file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
+        print(
+            "\nMigration scripts require explicit DATABASE_URL to prevent footguns.",
+            file=sys.stderr,
+        )
         print("Production uses Postgres; SQLite is only for dev/test.\n", file=sys.stderr)
         print("Set DATABASE_URL before running:\n", file=sys.stderr)
         print("  # PowerShell (Postgres production):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\"", file=sys.stderr)
+        print(
+            '  $env:DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"',
+            file=sys.stderr,
+        )
         print("  python scripts/migrations/add_phase6_p3_fields.py upgrade\n", file=sys.stderr)
         print("  # PowerShell (SQLite dev/test - explicit opt-in):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"sqlite:///autopack.db\"", file=sys.stderr)
+        print('  $env:DATABASE_URL="sqlite:///autopack.db"', file=sys.stderr)
         print("  python scripts/migrations/add_phase6_p3_fields.py upgrade\n", file=sys.stderr)
         sys.exit(1)
     return db_url
@@ -79,7 +85,7 @@ def check_column_exists(engine: Engine, table_name: str, column_name: str) -> bo
     """Check if a column exists in a table"""
     try:
         inspector = inspect(engine)
-        columns = [col['name'] for col in inspector.get_columns(table_name)]
+        columns = [col["name"] for col in inspector.get_columns(table_name)]
         return column_name in columns
     except Exception:
         return False
@@ -105,16 +111,20 @@ def upgrade(engine: Engine) -> None:
     print("\n[1] Adding new coverage tracking fields")
     with engine.begin() as conn:
         # Add new fields first
-        conn.execute(text("""
+        conn.execute(
+            text("""
             ALTER TABLE phase6_metrics
             ADD COLUMN estimate_coverage_n INTEGER NULL
-        """))
+        """)
+        )
         print("    ✓ Added estimate_coverage_n")
 
-        conn.execute(text("""
+        conn.execute(
+            text("""
             ALTER TABLE phase6_metrics
             ADD COLUMN estimate_source VARCHAR(50) NULL
-        """))
+        """)
+        )
         print("    ✓ Added estimate_source")
 
     print("\n[2] Renaming tokens_saved_estimate -> doctor_tokens_avoided_estimate")
@@ -125,16 +135,20 @@ def upgrade(engine: Engine) -> None:
         print("    (Using SQLite-compatible rename strategy)")
         with engine.begin() as conn:
             # Add new column
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 ALTER TABLE phase6_metrics
                 ADD COLUMN doctor_tokens_avoided_estimate INTEGER NOT NULL DEFAULT 0
-            """))
+            """)
+            )
 
             # Copy data from old column
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 UPDATE phase6_metrics
                 SET doctor_tokens_avoided_estimate = tokens_saved_estimate
-            """))
+            """)
+            )
 
             # Note: SQLite doesn't allow dropping columns easily
             # We'll leave tokens_saved_estimate in place but document it as deprecated
@@ -143,10 +157,12 @@ def upgrade(engine: Engine) -> None:
     else:
         # PostgreSQL supports direct rename
         with engine.begin() as conn:
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 ALTER TABLE phase6_metrics
                 RENAME COLUMN tokens_saved_estimate TO doctor_tokens_avoided_estimate
-            """))
+            """)
+            )
             print("    ✓ Renamed column")
 
     print("\n" + "=" * 80)
@@ -186,10 +202,12 @@ def downgrade(engine: Engine) -> None:
     else:
         # PostgreSQL can do full revert
         with engine.begin() as conn:
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 ALTER TABLE phase6_metrics
                 RENAME COLUMN doctor_tokens_avoided_estimate TO tokens_saved_estimate
-            """))
+            """)
+            )
 
             conn.execute(text("ALTER TABLE phase6_metrics DROP COLUMN estimate_coverage_n"))
             conn.execute(text("ALTER TABLE phase6_metrics DROP COLUMN estimate_source"))
@@ -223,6 +241,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Migration failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

@@ -28,7 +28,6 @@ class TestDBInitGuardrails:
             patch("autopack.database.engine") as mock_engine,
             patch("autopack.config.settings") as mock_settings,
         ):
-
             # Mock settings: bootstrap DISABLED
             mock_settings.db_bootstrap_enabled = False
 
@@ -58,7 +57,6 @@ class TestDBInitGuardrails:
             patch("autopack.config.settings") as mock_settings,
             patch("autopack.database.Base.metadata.create_all") as mock_create,
         ):
-
             # Mock settings: bootstrap ENABLED
             mock_settings.db_bootstrap_enabled = True
 
@@ -97,7 +95,6 @@ class TestDBInitGuardrails:
                 patch("autopack.config.settings") as mock_settings,
                 patch("autopack.database.Base.metadata.create_all") as mock_create,
             ):
-
                 # Mock settings: bootstrap DISABLED
                 mock_settings.db_bootstrap_enabled = False
 
@@ -148,7 +145,6 @@ class TestDBInitGuardrails:
             patch("autopack.database.engine") as mock_engine,
             patch("autopack.config.settings") as mock_settings,
         ):
-
             mock_settings.db_bootstrap_enabled = False
 
             # Use the partial-schema engine

@@ -7,6 +7,7 @@ from autopack.models import Run, Tier, Phase, RunState, PhaseState
 
 RUN_ID = "lovable-p0-foundation"
 
+
 def main():
     session = SessionLocal()
     try:
@@ -27,7 +28,7 @@ def main():
             token_cap=300000,
             max_phases=5,
             max_duration_minutes=240,
-            goal_anchor="Lovable Integration Phase 0: Foundation & Governance"
+            goal_anchor="Lovable Integration Phase 0: Foundation & Governance",
         )
         session.add(run)
         session.flush()
@@ -39,7 +40,7 @@ def main():
             run_id=RUN_ID,
             name="Phase 0: Foundation",
             tier_index=0,
-            description="Foundation infrastructure for Lovable integration"
+            description="Foundation infrastructure for Lovable integration",
         )
         session.add(tier)
         session.flush()
@@ -57,8 +58,8 @@ def main():
                     "src/autopack/lovable/__init__.py",
                     "src/autopack/governed_apply.py",
                     ".autonomous_runs/lovable-integration-v1/GOVERNANCE.md",
-                    "tests/test_lovable_governance.py"
-                ]
+                    "tests/test_lovable_governance.py",
+                ],
             },
             {
                 "id": "lovable-p0.2-semantic-embeddings",
@@ -69,8 +70,8 @@ def main():
                 "deliverables": [
                     "src/autopack/memory/embeddings.py",
                     "requirements-lovable.txt",
-                    "tests/test_semantic_embeddings.py"
-                ]
+                    "tests/test_semantic_embeddings.py",
+                ],
             },
             {
                 "id": "lovable-p0.3-browser-telemetry",
@@ -81,9 +82,9 @@ def main():
                 "deliverables": [
                     "src/autopack/lovable/browser_telemetry.py",
                     "src/autopack/main.py",
-                    "scripts/ingest_browser_telemetry.py"
-                ]
-            }
+                    "scripts/ingest_browser_telemetry.py",
+                ],
+            },
         ]
 
         for idx, pd in enumerate(phases, 1):
@@ -98,19 +99,22 @@ def main():
                 scope=scope,
                 state=PhaseState.QUEUED,
                 task_category=pd["category"],
-                complexity=pd["complexity"]
+                complexity=pd["complexity"],
             )
             session.add(phase)
             print(f"[OK] Phase {idx}: {pd['id']} ({len(pd['deliverables'])} deliverables)")
 
         session.commit()
-        print(f"\n✅ Lovable Phase 0 seeded! Run: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {RUN_ID}")
+        print(
+            f'\n✅ Lovable Phase 0 seeded! Run: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python -m autopack.autonomous_executor --run-id {RUN_ID}'
+        )
     except Exception as e:
         session.rollback()
         print(f"[ERROR] {e}")
         raise
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     main()

@@ -139,5 +139,3 @@ Avoid broad ignores that can hide missing docs.
 
 - **Target A (near-term)**: nav docs remain 0 missing_file; deep scan missing_file reduced by ~50%.
 - **Target B (later)**: deep scan missing_file reduced to a manageable tail (< 50–100), with redirect stubs used for important moved docs.
-
-

@@ -10,40 +10,40 @@ The telemetry system can be configured through environment variables, configurat
 
 ### 1. Telemetry Enabled
 
-**Setting:** `TELEMETRY_ENABLED`  
-**Type:** Boolean  
+**Setting:** `TELEMETRY_ENABLED`
+**Type:** Boolean
 **Default:** `true`
 
 Controls whether telemetry collection is active. When disabled, no metrics or events are collected or transmitted.
 
 ### 2. Collection Interval
 
-**Setting:** `TELEMETRY_COLLECTION_INTERVAL`  
-**Type:** Integer (seconds)  
+**Setting:** `TELEMETRY_COLLECTION_INTERVAL`
+**Type:** Integer (seconds)
 **Default:** `60`
 
 Defines how frequently metrics are collected and aggregated. Lower values provide more granular data but increase overhead.
 
 ### 3. Export Endpoint
 
-**Setting:** `TELEMETRY_EXPORT_ENDPOINT`  
-**Type:** String (URL)  
+**Setting:** `TELEMETRY_EXPORT_ENDPOINT`
+**Type:** String (URL)
 **Default:** `http://localhost:4317`
 
 Specifies the endpoint where telemetry data is exported. Supports OTLP-compatible backends.
 
 ### 4. Log Level
 
-**Setting:** `TELEMETRY_LOG_LEVEL`  
-**Type:** String (DEBUG, INFO, WARNING, ERROR)  
+**Setting:** `TELEMETRY_LOG_LEVEL`
+**Type:** String (DEBUG, INFO, WARNING, ERROR)
 **Default:** `INFO`
 
 Controls the verbosity of telemetry system logs. Useful for debugging configuration issues.
 
 ### 5. Batch Size
 
-**Setting:** `TELEMETRY_BATCH_SIZE`  
-**Type:** Integer  
+**Setting:** `TELEMETRY_BATCH_SIZE`
+**Type:** Integer
 **Default:** `100`
 
 Number of telemetry events to batch before export. Higher values reduce network overhead but increase memory usage.
@@ -60,7 +60,7 @@ telemetry:
   export_endpoint: "https://telemetry.prod.example.com:4317"
   log_level: "WARNING"
   batch_size: 500
-  
+
   # Resource attributes
   resource_attributes:
     service.name: "my-application"

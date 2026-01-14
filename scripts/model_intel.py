@@ -53,12 +53,13 @@ def cmd_ingest_catalog(args):
 
     try:
         results = ingest_all()
-        print(f"\n✓ Catalog ingestion complete:")
+        print("\n✓ Catalog ingestion complete:")
         print(f"  - Models ingested: {results['catalog']}")
         print(f"  - Pricing records ingested: {results['pricing']}")
     except Exception as e:
         print(f"\n✗ Catalog ingestion failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
@@ -72,12 +73,13 @@ def cmd_compute_runtime_stats(args):
     try:
         with get_model_intelligence_session() as session:
             count = compute_runtime_stats(session, window_days=args.window_days)
-            print(f"\n✓ Runtime stats computation complete:")
+            print("\n✓ Runtime stats computation complete:")
             print(f"  - Stats records created: {count}")
             print(f"  - Window: {args.window_days} days")
     except Exception as e:
         print(f"\n✗ Runtime stats computation failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
@@ -107,6 +109,7 @@ def cmd_ingest_sentiment(args):
     except Exception as e:
         print(f"\n✗ Sentiment ingestion failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
@@ -114,7 +117,7 @@ def cmd_ingest_sentiment(args):
 def cmd_recommend(args):
     """Generate recommendations for a use case."""
     print("=" * 70)
-    print(f"Model Intelligence: Generate Recommendations")
+    print("Model Intelligence: Generate Recommendations")
     print(f"Use Case: {args.use_case}")
     print("=" * 70)
 
@@ -164,6 +167,7 @@ def cmd_recommend(args):
     except Exception as e:
         print(f"\n✗ Recommendation generation failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
@@ -205,6 +209,7 @@ def cmd_report(args):
     except Exception as e:
         print(f"\n✗ Report generation failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
@@ -237,6 +242,7 @@ def cmd_propose_patch(args):
     except Exception as e:
         print(f"\n✗ Patch generation failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
@@ -256,6 +262,7 @@ def cmd_refresh_all(args):
     except Exception as e:
         print(f"  ✗ Catalog ingestion failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
@@ -268,13 +275,16 @@ def cmd_refresh_all(args):
     except Exception as e:
         print(f"  ✗ Runtime stats computation failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
     print("\n✓ Refresh complete!")
-    print(f"  - Next steps:")
-    print(f"    • Review recommendations: python scripts/model_intel.py report --latest")
-    print(f"    • Generate new recommendations: python scripts/model_intel.py recommend --use-case <use_case> --current-model <model>")
+    print("  - Next steps:")
+    print("    • Review recommendations: python scripts/model_intel.py report --latest")
+    print(
+        "    • Generate new recommendations: python scripts/model_intel.py recommend --use-case <use_case> --current-model <model>"
+    )
 
 
 def main():
@@ -298,9 +308,7 @@ def main():
     )
 
     # ingest-sentiment command
-    parser_sentiment = subparsers.add_parser(
-        "ingest-sentiment", help="Ingest a sentiment signal"
-    )
+    parser_sentiment = subparsers.add_parser("ingest-sentiment", help="Ingest a sentiment signal")
     parser_sentiment.add_argument("--model", required=True, help="Model ID")
     parser_sentiment.add_argument(
         "--source", required=True, help="Source type (reddit, hn, twitter, blog)"
@@ -329,9 +337,7 @@ def main():
     )
 
     # report command
-    parser_report = subparsers.add_parser(
-        "report", help="Display latest recommendations"
-    )
+    parser_report = subparsers.add_parser("report", help="Display latest recommendations")
     parser_report.add_argument("--use-case", help="Filter by use case")
     parser_report.add_argument("--status", help="Filter by status")
     parser_report.add_argument("--limit", type=int, default=10, help="Max records (default: 10)")
@@ -341,7 +347,9 @@ def main():
     parser_patch = subparsers.add_parser(
         "propose-patch", help="Generate YAML patch for a recommendation"
     )
-    parser_patch.add_argument("--recommendation-id", type=int, required=True, help="Recommendation ID")
+    parser_patch.add_argument(
+        "--recommendation-id", type=int, required=True, help="Recommendation ID"
+    )
     parser_patch.add_argument("--output", help="Write patch to file")
 
     # refresh-all command
@@ -349,7 +357,10 @@ def main():
         "refresh-all", help="Refresh all model intelligence data (catalog + runtime stats)"
     )
     parser_refresh.add_argument(
-        "--window-days", type=int, default=30, help="Rolling window in days for runtime stats (default: 30)"
+        "--window-days",
+        type=int,
+        default=30,
+        help="Rolling window in days for runtime stats (default: 30)",
     )
 
     args = parser.parse_args()

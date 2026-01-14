@@ -144,19 +144,8 @@ python-jose[cryptography]==3.5.0
     # via autopack (pyproject.toml)
 python-magic==0.4.27 ; sys_platform != "win32"
     # via autopack (pyproject.toml)
-python-magic-bin==0.4.14 ; sys_platform == "win32"
-    # via autopack (pyproject.toml)
 python-multipart==0.0.21
     # via autopack (pyproject.toml)
-pywin32==311 ; sys_platform == "win32"
-    # via portalocker
-    # via autopack (pyproject.toml)
-python-multipart==0.0.21
-    # via autopack (pyproject.toml)
-pywin32==311 ; sys_platform == "win32"
-    # via
-    #   autopack (pyproject.toml)
-    #   portalocker
 pyyaml==6.0.3
     # via
     #   autopack (pyproject.toml)
@@ -189,6 +178,8 @@ sqlalchemy==2.0.45
     #   autopack (pyproject.toml)
 starlette==0.50.0
     # via fastapi
+tenacity==9.1.2
+    # via autopack (pyproject.toml)
 tomli==2.4.0
     # via alembic
 typing-extensions==4.15.0

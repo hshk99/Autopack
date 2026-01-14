@@ -44,6 +44,8 @@ dependencies = [
     # Windows-only dependency from portalocker (transitive via qdrant-client)
     # Must be marked Windows-only to avoid breaking Linux Docker builds
     "pywin32>=311; sys_platform == 'win32'",
+    # Retry logic with exponential backoff for state persistence
+    "tenacity>=8.0.0",
 ]
 
 [project.optional-dependencies]

@@ -14,7 +14,7 @@ Test coverage (25 tests):
 import pytest
 from pathlib import Path
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, MagicMock, patch
 
 from autopack.executor.phase_state_manager import (
     PhaseStateManager,
@@ -297,10 +297,14 @@ class TestDatabaseIntegration:
         mock_phase.retry_attempt = 0
         mock_phase.revision_epoch = 0
         mock_phase.escalation_level = 0
+        mock_phase.version = 1  # Add version attribute for optimistic locking
 
-        mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = mock_phase
+        # Set up proper query chain: query().with_for_update().filter().first()
+        mock_query = MagicMock()
         mock_db.query.return_value = mock_query
+        mock_query.with_for_update.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = mock_phase
 
         result = mgr._update_phase_attempts_in_db(
             "phase-123", retry_attempt=3, revision_epoch=1, escalation_level=0
@@ -310,6 +314,7 @@ class TestDatabaseIntegration:
         assert mock_phase.retry_attempt == 3
         assert mock_phase.revision_epoch == 1
         assert mock_phase.escalation_level == 0
+        assert mock_phase.version == 2  # Version should be incremented
         mock_db.commit.assert_called_once()
         mock_session_local.return_value.__exit__.assert_called_once()
 
@@ -343,10 +348,14 @@ class TestDatabaseIntegration:
 
         mock_phase = Mock()
         mock_phase.created_at = datetime.now(timezone.utc)
+        mock_phase.version = 1  # Add version attribute for optimistic locking
 
-        mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = mock_phase
+        # Set up proper query chain: query().with_for_update().filter().first()
+        mock_query = MagicMock()
         mock_db.query.return_value = mock_query
+        mock_query.with_for_update.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = mock_phase
 
         # Mock PhaseState enum
         with patch("autopack.models.PhaseState"):
@@ -354,6 +363,7 @@ class TestDatabaseIntegration:
 
         assert result is True
         assert hasattr(mock_phase, "completed_at")
+        assert mock_phase.version == 2  # Version should be incremented
         mock_db.commit.assert_called_once()
 
     @patch("autopack.database.SessionLocal")
@@ -367,10 +377,14 @@ class TestDatabaseIntegration:
 
         mock_phase = Mock()
         mock_phase.created_at = datetime.now(timezone.utc)
+        mock_phase.version = 1  # Add version attribute for optimistic locking
 
-        mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = mock_phase
+        # Set up proper query chain: query().with_for_update().filter().first()
+        mock_query = MagicMock()
         mock_db.query.return_value = mock_query
+        mock_query.with_for_update.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = mock_phase
 
         with patch("autopack.models.PhaseState"):
             result = mgr._mark_phase_failed_in_db("phase-123", "MAX_ATTEMPTS_EXHAUSTED")
@@ -378,6 +392,7 @@ class TestDatabaseIntegration:
         assert result is True
         assert mock_phase.last_failure_reason == "MAX_ATTEMPTS_EXHAUSTED"
         assert hasattr(mock_phase, "completed_at")
+        assert mock_phase.version == 2  # Version should be incremented
         mock_db.commit.assert_called_once()
 
 
@@ -444,9 +459,14 @@ class TestErrorHandling:
 
         mock_phase = Mock()
         mock_phase.retry_attempt = 0
-        mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = mock_phase
+        mock_phase.version = 1  # Add version attribute for optimistic locking
+
+        # Set up proper query chain: query().with_for_update().filter().first()
+        mock_query = MagicMock()
         mock_db.query.return_value = mock_query
+        mock_query.with_for_update.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = mock_phase
 
         # Track call order
         call_order = []
@@ -470,9 +490,14 @@ class TestErrorHandling:
         mock_session_local.return_value.__exit__ = Mock(return_value=False)
 
         mock_phase = Mock()
-        mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = mock_phase
+        mock_phase.version = 1  # Add version attribute for optimistic locking
+
+        # Set up proper query chain: query().with_for_update().filter().first()
+        mock_query = MagicMock()
         mock_db.query.return_value = mock_query
+        mock_query.with_for_update.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = mock_phase
 
         with patch("autopack.models.PhaseState"):
             result = mgr._mark_phase_complete_in_db("phase-123")
@@ -491,9 +516,14 @@ class TestErrorHandling:
         mock_session_local.return_value.__exit__ = Mock(return_value=False)
 
         mock_phase = Mock()
-        mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = mock_phase
+        mock_phase.version = 1  # Add version attribute for optimistic locking
+
+        # Set up proper query chain: query().with_for_update().filter().first()
+        mock_query = MagicMock()
         mock_db.query.return_value = mock_query
+        mock_query.with_for_update.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = mock_phase
 
         with patch("autopack.models.PhaseState"):
             result = mgr._mark_phase_failed_in_db("phase-123", "MAX_ATTEMPTS_EXHAUSTED")

@@ -1,18 +1,24 @@
 """
-Centralized Logging Configuration
+Centralized Logging Configuration with Structured Logging Support
 
 Provides a centralized logging configuration to prevent root clutter.
+Supports both traditional text logging and structured JSON logging with correlation IDs.
+
 Default log directory: archive/diagnostics/logs/ (for main project)
                         .autonomous_runs/<project>/archive/diagnostics/logs/ (for sub-projects)
 
 Usage:
-    from autopack.logging_config import configure_logging
+    from autopack.logging_config import configure_logging, setup_structured_logging, correlation_id_var
 
-    # In main project
+    # Traditional logging
     configure_logging(run_id="build-147", project_id="autopack")
 
-    # In sub-project
-    configure_logging(run_id="phase-1", project_id="file-organizer-app-v1")
+    # Structured logging (for API servers)
+    setup_structured_logging()
+
+    # Use correlation IDs in middleware
+    from autopack.logging_config import correlation_id_var
+    correlation_id_var.set("request-123")
 
 Environment Variables:
     AUTOPACK_LOG_DIR - Override default log directory
@@ -21,12 +27,112 @@ Environment Variables:
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
+from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
+# Context var for correlation ID (used in structured logging)
+correlation_id_var: ContextVar[Optional[str]] = ContextVar("correlation_id", default=None)
+
+
+class StructuredFormatter(logging.Formatter):
+    """JSON formatter with correlation ID for structured logging.
+
+    Formats log records as JSON with correlation ID support for distributed tracing.
+    Each log entry includes timestamp, level, logger name, message, correlation ID,
+    and any extra fields added to the log record.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        """Format a log record as JSON.
+
+        Args:
+            record: The log record to format
+
+        Returns:
+            JSON-formatted log string
+        """
+        log_data = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "correlation_id": correlation_id_var.get(),
+        }
+
+        if record.exc_info:
+            log_data["exception"] = self.formatException(record.exc_info)
+
+        # Add extra fields (custom log attributes)
+        standard_attrs = {
+            "name",
+            "msg",
+            "args",
+            "created",
+            "filename",
+            "funcName",
+            "levelname",
+            "levelno",
+            "lineno",
+            "module",
+            "msecs",
+            "pathname",
+            "process",
+            "processName",
+            "relativeCreated",
+            "thread",
+            "threadName",
+            "exc_info",
+            "exc_text",
+            "stack_info",
+            "message",
+        }
+
+        for key, value in record.__dict__.items():
+            if key not in standard_attrs:
+                log_data[key] = value
+
+        return json.dumps(log_data)
+
+
+def setup_structured_logging(log_level: str = "INFO") -> None:
+    """Configure structured JSON logging for the application.
+
+    This function configures the root logger to use JSON-formatted output
+    with correlation ID support. Useful for API servers and services
+    that need structured logging for observability.
+
+    Args:
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+
+    Example:
+        from autopack.logging_config import setup_structured_logging, correlation_id_var
+        import uuid
+
+        setup_structured_logging()
+
+        # In request handler:
+        correlation_id_var.set(str(uuid.uuid4()))
+        logger.info("Processing request")  # Will include correlation_id in JSON output
+    """
+    # Get or create root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(getattr(logging, log_level.upper()))
+
+    # Clear existing handlers
+    root_logger.handlers.clear()
+
+    # Create and configure stream handler with structured formatter
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(StructuredFormatter())
+    handler.setLevel(getattr(logging, log_level.upper()))
+
+    root_logger.addHandler(handler)
 
 
 def get_default_log_dir(workspace: Optional[Path] = None, project_id: Optional[str] = None) -> Path:

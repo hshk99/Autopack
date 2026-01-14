@@ -55,6 +55,12 @@ class InvalidStateTransitionError(Exception):
     pass
 
 
+class OptimisticLockError(Exception):
+    """Raised when optimistic lock fails due to concurrent update."""
+
+    pass
+
+
 class PhaseStateManager:
     """Manages phase state persistence lifecycle.
 
@@ -295,7 +301,10 @@ class PhaseStateManager:
         revision_epoch: Optional[int] = None,
         escalation_level: Optional[int] = None,
     ) -> bool:
-        """Update phase attempt tracking in database.
+        """Update phase attempt tracking in database with optimistic locking.
+
+        Uses SELECT FOR UPDATE and version checking to prevent concurrent
+        updates from causing data corruption.
 
         Args:
             phase_id: Phase identifier
@@ -308,15 +317,21 @@ class PhaseStateManager:
 
         Returns:
             True if update successful, False otherwise
+
+        Raises:
+            OptimisticLockError: If phase was modified by another process
         """
         try:
             from autopack.database import SessionLocal
             from autopack.models import Phase
+            from sqlalchemy.exc import OperationalError
 
             # Use session as context manager to ensure proper cleanup and transaction boundaries
             with SessionLocal() as db:
+                # SERIALIZABLE isolation + SELECT FOR UPDATE to prevent race conditions
                 phase = (
                     db.query(Phase)
+                    .with_for_update()
                     .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
                     .first()
                 )
@@ -344,6 +359,10 @@ class PhaseStateManager:
                 if hasattr(phase, "last_attempt_timestamp"):
                     phase.last_attempt_timestamp = timestamp or datetime.now(timezone.utc)
 
+                # Increment version if version tracking is enabled
+                if hasattr(phase, "version"):
+                    phase.version += 1
+
                 # Log while the instance is still bound to a live Session
                 if (
                     retry_attempt is not None
@@ -368,12 +387,27 @@ class PhaseStateManager:
 
             return True
 
+        except OperationalError as e:
+            # Handle serialization failures from concurrent updates
+            if "serialization failure" in str(e).lower() or "deadlock" in str(e).lower():
+                logger.warning(
+                    f"[{phase_id}] Concurrent update detected (serialization failure), "
+                    f"retry may be needed: {e}"
+                )
+                raise OptimisticLockError(
+                    f"Phase {phase_id} was modified by another process"
+                ) from e
+            # Non-retriable database error
+            logger.error(f"[{phase_id}] Database error updating attempts: {e}")
+            return False
         except Exception as e:
             logger.error(f"[{phase_id}] Failed to update attempts in database: {e}")
             return False
 
     def _mark_phase_complete_in_db(self, phase_id: str) -> bool:
-        """Mark phase as COMPLETE in database.
+        """Mark phase as COMPLETE in database with row locking.
+
+        Uses SELECT FOR UPDATE to prevent concurrent state modifications.
 
         Args:
             phase_id: Phase identifier
@@ -384,11 +418,14 @@ class PhaseStateManager:
         try:
             from autopack.database import SessionLocal
             from autopack.models import Phase, PhaseState as PhaseStateEnum
+            from sqlalchemy.exc import OperationalError
 
             # Use session as context manager to ensure proper cleanup and transaction boundaries
             with SessionLocal() as db:
+                # Use SELECT FOR UPDATE to prevent race conditions
                 phase = (
                     db.query(Phase)
+                    .with_for_update()
                     .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
                     .first()
                 )
@@ -401,6 +438,10 @@ class PhaseStateManager:
                 phase.state = PhaseStateEnum.COMPLETE
                 phase.completed_at = datetime.now(timezone.utc)
 
+                # Increment version if version tracking is enabled
+                if hasattr(phase, "version"):
+                    phase.version += 1
+
                 # Explicit commit for transaction boundary
                 db.commit()
 
@@ -410,12 +451,25 @@ class PhaseStateManager:
             logger.info(f"[{phase_id}] Marked COMPLETE in database")
             return True
 
+        except OperationalError as e:
+            # Handle serialization failures from concurrent updates
+            if "serialization failure" in str(e).lower() or "deadlock" in str(e).lower():
+                logger.warning(
+                    f"[{phase_id}] Concurrent update detected while marking complete: {e}"
+                )
+                raise OptimisticLockError(
+                    f"Phase {phase_id} was modified by another process"
+                ) from e
+            logger.error(f"[{phase_id}] Database error marking complete: {e}")
+            return False
         except Exception as e:
             logger.error(f"[{phase_id}] Failed to mark complete in database: {e}")
             return False
 
     def _mark_phase_failed_in_db(self, phase_id: str, reason: str) -> bool:
-        """Mark phase as FAILED in database.
+        """Mark phase as FAILED in database with row locking.
+
+        Uses SELECT FOR UPDATE to prevent concurrent state modifications.
 
         Args:
             phase_id: Phase identifier
@@ -427,11 +481,14 @@ class PhaseStateManager:
         try:
             from autopack.database import SessionLocal
             from autopack.models import Phase, PhaseState as PhaseStateEnum
+            from sqlalchemy.exc import OperationalError
 
             # Use session as context manager to ensure proper cleanup and transaction boundaries
             with SessionLocal() as db:
+                # Use SELECT FOR UPDATE to prevent race conditions
                 phase = (
                     db.query(Phase)
+                    .with_for_update()
                     .filter(Phase.phase_id == phase_id, Phase.run_id == self.run_id)
                     .first()
                 )
@@ -444,6 +501,10 @@ class PhaseStateManager:
                 phase.state = PhaseStateEnum.FAILED
                 phase.last_failure_reason = reason
                 phase.completed_at = datetime.now(timezone.utc)
+
+                # Increment version if version tracking is enabled
+                if hasattr(phase, "version"):
+                    phase.version += 1
 
                 # Explicit commit for transaction boundary
                 db.commit()
@@ -458,6 +519,15 @@ class PhaseStateManager:
 
             return True
 
+        except OperationalError as e:
+            # Handle serialization failures from concurrent updates
+            if "serialization failure" in str(e).lower() or "deadlock" in str(e).lower():
+                logger.warning(f"[{phase_id}] Concurrent update detected while marking failed: {e}")
+                raise OptimisticLockError(
+                    f"Phase {phase_id} was modified by another process"
+                ) from e
+            logger.error(f"[{phase_id}] Database error marking failed: {e}")
+            return False
         except Exception as e:
             logger.error(f"[{phase_id}] Failed to mark failed in database: {e}")
             return False

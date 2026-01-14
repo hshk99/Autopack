@@ -18,7 +18,15 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
 
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
 logger = logging.getLogger(__name__)
+
+
+class PersistenceError(Exception):
+    """Raised when state persistence fails non-transiently."""
+
+    pass
 
 
 class PhaseStatus(str, Enum):
@@ -382,38 +390,59 @@ class ExecutorStateManager:
 
         return None
 
+    @retry(
+        retry=retry_if_exception_type(OSError),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+    )
     def save_state(self, state: ExecutorState) -> None:
-        """Save state atomically.
+        """Save state atomically with retry on transient failures.
 
         Uses backup-and-swap pattern for atomic writes.
+        Retries on OSError with exponential backoff to handle transient
+        filesystem issues (e.g., network file systems, concurrent access).
 
         Args:
             state: State to save
+
+        Raises:
+            PersistenceError: If state persistence fails after retries
         """
         state_path = self._state_path(state.run_id)
         backup_path = self._backup_path(state.run_id)
 
-        # Ensure directory exists
-        state_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            # Ensure directory exists
+            state_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Update timestamp
-        state.updated_at = datetime.now(timezone.utc)
+            # Update timestamp
+            state.updated_at = datetime.now(timezone.utc)
 
-        # Backup existing state
-        if state_path.exists():
-            try:
-                backup_path.write_text(
-                    state_path.read_text(encoding="utf-8"),
-                    encoding="utf-8",
-                )
-            except OSError:
-                pass  # Backup failure is not critical
+            # Backup existing state
+            if state_path.exists():
+                try:
+                    backup_path.write_text(
+                        state_path.read_text(encoding="utf-8"),
+                        encoding="utf-8",
+                    )
+                except OSError as e:
+                    # Backup failure is not critical, but log it
+                    logger.warning(f"Failed to backup state for {state.run_id}: {e}")
 
-        # Write new state
-        state_json = json.dumps(state.to_dict(), indent=2)
-        state_path.write_text(state_json, encoding="utf-8")
+            # Write new state
+            state_json = json.dumps(state.to_dict(), indent=2)
+            state_path.write_text(state_json, encoding="utf-8")
 
-        logger.debug(f"Saved state for run {state.run_id}")
+            logger.debug(f"Saved state for run {state.run_id}")
+
+        except OSError as e:
+            # Retriable error - tenacity will handle retry
+            logger.warning(f"Transient error saving state for {state.run_id}: {e}")
+            raise
+        except Exception as e:
+            # Non-retriable error
+            logger.error(f"Non-retriable error saving state for {state.run_id}: {e}")
+            raise PersistenceError(f"Failed to persist state: {e}") from e
 
     def start_phase(
         self,

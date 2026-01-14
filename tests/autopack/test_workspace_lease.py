@@ -1,5 +1,6 @@
 """Tests for WorkspaceLease (P2.4 workspace locking)."""
 
+import os
 import pytest
 import threading
 import time
@@ -135,9 +136,9 @@ def test_workspace_lease_force_unlock(temp_workspace, lease_dir):
     # Simulate crash by not releasing properly
     # Note: On some systems, closing file handle releases OS lock automatically
     # So we just check that force_unlock can clean up the lock file
-    if lease1.lock_file:
-        lease1.lock_file.close()
-        lease1.lock_file = None
+    if lease1._lock_fd is not None:
+        os.close(lease1._lock_fd)
+        lease1._lock_fd = None
 
     # Lock file might still exist (stale lock file)
     # Even if OS lock was released, the file remains
@@ -170,3 +171,62 @@ def test_workspace_lease_handles_absolute_path_normalization(tmp_path, lease_dir
 
     # Cleanup
     lease1.release()
+
+
+def test_workspace_lease_no_file_handle_leak_on_release(temp_workspace, lease_dir):
+    """Verify file descriptor is properly closed on release."""
+    # Create lease and acquire lock successfully
+    lease = WorkspaceLease(temp_workspace, lease_dir=lease_dir)
+    assert lease.acquire() is True
+
+    # Verify _lock_fd is set
+    assert lease._lock_fd is not None
+
+    # Release the lock
+    lease.release()
+
+    # Verify _lock_fd was cleared (fd was closed)
+    assert lease._lock_fd is None
+
+
+def test_workspace_lease_no_leak_on_failed_acquire(temp_workspace, lease_dir):
+    """Verify no file handle leak when lock acquisition fails (already held)."""
+    # First lease holds the lock
+    lease1 = WorkspaceLease(temp_workspace, lease_dir=lease_dir)
+    assert lease1.acquire() is True
+
+    # Second lease tries to acquire (will fail)
+    lease2 = WorkspaceLease(temp_workspace, lease_dir=lease_dir)
+    assert lease2.acquire() is False
+
+    # Verify second lease cleaned up its fd (no leak)
+    assert lease2._lock_fd is None
+
+    # Cleanup
+    lease1.release()
+
+
+def test_workspace_lease_no_leak_on_exception_in_acquire(temp_workspace, lease_dir):
+    """Verify no file handle leak when exception occurs in acquire() method."""
+    # Create a lease
+    lease = WorkspaceLease(temp_workspace, lease_dir=lease_dir)
+
+    # Monkey-patch os.write to raise an exception after fd is opened
+    original_write = os.write
+
+    def failing_write(fd, data):
+        # Raise exception to simulate failure
+        raise OSError("Simulated write failure")
+
+    os.write = failing_write
+
+    try:
+        # This should raise RuntimeError wrapping our OSError
+        with pytest.raises(RuntimeError, match="Failed to acquire workspace lease"):
+            lease.acquire()
+    finally:
+        # Restore original write
+        os.write = original_write
+
+    # Verify _lock_fd was cleaned up (no leak)
+    assert lease._lock_fd is None

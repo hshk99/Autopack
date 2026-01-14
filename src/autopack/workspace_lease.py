@@ -18,6 +18,7 @@ Example:
 """
 
 import os
+import platform
 import socket
 import logging
 from pathlib import Path
@@ -58,7 +59,7 @@ class WorkspaceLease:
         path_hash = hashlib.sha256(str(self.workspace_path).encode()).hexdigest()[:16]
         self.lock_file_path = self.lease_dir / f"workspace_{path_hash}.lock"
 
-        self.lock_file = None
+        self._lock_fd = None
 
         # Current process info for debugging
         self.pid = os.getpid()
@@ -75,21 +76,19 @@ class WorkspaceLease:
             RuntimeError: If lease operation fails unexpectedly
         """
         try:
-            # Open lock file for writing
-            self.lock_file = open(self.lock_file_path, "w")
+            # Open lock file for writing using os.open to get fd directly
+            self._lock_fd = os.open(self.lock_file_path, os.O_CREAT | os.O_WRONLY | os.O_TRUNC)
 
             # Write current executor info for debugging
-            self.lock_file.write(f"{self.executor_id}\n")
-            self.lock_file.write(f"{self.workspace_path}\n")
-            self.lock_file.write(f"{os.getcwd()}\n")
-            self.lock_file.flush()
+            debug_info = f"{self.executor_id}\n" f"{self.workspace_path}\n" f"{os.getcwd()}\n"
+            os.write(self._lock_fd, debug_info.encode())
 
             # Try to acquire exclusive lock (non-blocking)
-            if os.name == "nt":  # Windows
+            if platform.system() == "Windows":
                 import msvcrt
 
                 try:
-                    msvcrt.locking(self.lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+                    msvcrt.locking(self._lock_fd, msvcrt.LK_NBLCK, 1)
                     logger.info(
                         f"[WorkspaceLease] Acquired lease for workspace={self.workspace_path} "
                         f"(PID={self.pid}, host={self.hostname})"
@@ -98,14 +97,14 @@ class WorkspaceLease:
                 except OSError:
                     # Lock already held
                     self._log_existing_lease()
-                    self.lock_file.close()
-                    self.lock_file = None
+                    os.close(self._lock_fd)
+                    self._lock_fd = None
                     return False
             else:  # Unix/Linux/Mac
                 import fcntl
 
                 try:
-                    fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    fcntl.flock(self._lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
                     logger.info(
                         f"[WorkspaceLease] Acquired lease for workspace={self.workspace_path} "
                         f"(PID={self.pid}, host={self.hostname})"
@@ -114,15 +113,17 @@ class WorkspaceLease:
                 except (IOError, OSError):
                     # Lock already held
                     self._log_existing_lease()
-                    self.lock_file.close()
-                    self.lock_file = None
+                    os.close(self._lock_fd)
+                    self._lock_fd = None
                     return False
 
         except Exception as e:
             logger.error(f"[WorkspaceLease] Unexpected error acquiring lease: {e}")
-            if self.lock_file:
-                self.lock_file.close()
-                self.lock_file = None
+            if self._lock_fd is not None:
+                try:
+                    os.close(self._lock_fd)
+                finally:
+                    self._lock_fd = None
             raise RuntimeError(f"Failed to acquire workspace lease: {e}")
 
     def _log_existing_lease(self):
@@ -155,29 +156,31 @@ class WorkspaceLease:
 
     def release(self):
         """Release the workspace lease."""
-        if not self.lock_file:
+        if self._lock_fd is None:
             return
 
         try:
             # Release file lock
-            if os.name == "nt":  # Windows
+            if platform.system() == "Windows":
                 import msvcrt
 
                 try:
-                    msvcrt.locking(self.lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+                    msvcrt.locking(self._lock_fd, msvcrt.LK_UNLCK, 1)
                 except OSError:
                     pass  # Lock may already be released
             else:  # Unix
                 import fcntl
 
                 try:
-                    fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_UN)
+                    fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
                 except (IOError, OSError):
                     pass  # Lock may already be released
 
-            # Close and delete lock file
-            self.lock_file.close()
-            self.lock_file = None
+            # Close file descriptor
+            try:
+                os.close(self._lock_fd)
+            finally:
+                self._lock_fd = None
 
             # Remove lock file
             try:

@@ -28,6 +28,10 @@ Note: SOT→DB sync (`scripts/tidy/sot_db_sync.py`) exists as a derived index (`
 
 ## Quickstart
 
+**New developers**: Get Autopack running in <15 minutes:
+- **[Developer Quickstart Guide](docs/QUICKSTART.md)** - Step-by-step setup for local development
+
+**Already familiar?** Quick commands:
 - **Run the API (dev)**:
   - `PYTHONPATH=src python -m uvicorn autopack.main:app --host 127.0.0.1 --port 8000`
 - **Run an executor**:

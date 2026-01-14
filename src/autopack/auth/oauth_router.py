@@ -15,8 +15,9 @@ SOT Contract Endpoints:
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Request
 
+from autopack.api.deps import limiter
 from .oauth_lifecycle import (
     OAuthCredentialManager,
 )
@@ -108,13 +109,17 @@ async def get_credential_events(
 
 
 @router.post("/refresh/{provider}")
+@limiter.limit("5/minute")
 async def refresh_credential(
+    request: Request,
     provider: str,
     background_tasks: BackgroundTasks,
     max_retries: int = 3,
     current_user: User = Depends(get_current_user),
 ) -> dict:
     """Manually trigger credential refresh.
+
+    Rate limited to 5 requests/minute to prevent abuse of refresh operations.
 
     Queues a background refresh operation for the specified provider.
     Requires admin/superuser privileges.
@@ -169,11 +174,15 @@ async def refresh_credential(
 
 
 @router.post("/reset/{provider}")
+@limiter.limit("5/minute")
 async def reset_failure_count(
+    request: Request,
     provider: str,
     current_user: User = Depends(get_current_user),
 ) -> dict:
     """Reset consecutive failure count for a provider.
+
+    Rate limited to 5 requests/minute to prevent abuse of reset operations.
 
     Use this after manually resolving credential issues to
     re-enable automatic refresh attempts.

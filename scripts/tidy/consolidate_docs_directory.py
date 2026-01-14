@@ -37,13 +37,13 @@ def main():
         print(f"❌ Directory not found: {target_dir}")
         return 1
 
-    print(f"\n{'=' * 80}")
+    print(f"\n{'='*80}")
     print("DIRECTORY-SPECIFIC CONSOLIDATION")
-    print(f"{'=' * 80}")
+    print(f"{'='*80}")
     print(f"Project: {project_dir.name}")
     print(f"Target Directory: {args.directory}")
     print(f"Dry Run: {args.dry_run}")
-    print(f"{'=' * 80}\n")
+    print(f"{'='*80}\n")
 
     # Create consolidator with directory filter
     consolidator = DocumentConsolidator(project_dir, dry_run=args.dry_run)
@@ -57,9 +57,9 @@ def main():
     # Run consolidation
     try:
         consolidator.consolidate()
-        print(f"\n{'=' * 80}")
+        print(f"\n{'='*80}")
         print("DIRECTORY CONSOLIDATION COMPLETE")
-        print(f"{'=' * 80}\n")
+        print(f"{'='*80}\n")
         return 0
     except Exception as e:
         print(f"\n❌ Error during consolidation: {e}")

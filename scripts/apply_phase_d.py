@@ -39,7 +39,7 @@ def main():
             lines.insert(
                 i + 1, f"{indent}self._context_builder = None  # Phase C lazy init (BUILD-124)\n"
             )
-            print(f"   ✓ Added at line {i + 2}")
+            print(f"   ✓ Added at line {i+2}")
             break
     else:
         print("   ✗ Warning: Could not find _plan_analyzer = None")
@@ -57,7 +57,7 @@ def main():
                 i + 1, f'{indent}enhanced_phase["metadata"]["_match_result"] = match_result\n'
             )
             lines.insert(i + 2, "\n")
-            print(f"   ✓ Added at line {i + 1}")
+            print(f"   ✓ Added at line {i+1}")
             break
     else:
         print("   ✗ Warning: Could not find return statement in _enhance_phase")

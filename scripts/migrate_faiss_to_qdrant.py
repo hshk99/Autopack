@@ -73,7 +73,7 @@ def migrate_collection(
         # Show sample
         for i, point in enumerate(points[:3]):
             logger.info(
-                f"  Sample {i + 1}: id={point['id']}, payload keys={list(point['payload'].keys())}"
+                f"  Sample {i+1}: id={point['id']}, payload keys={list(point['payload'].keys())}"
             )
         return 0
 

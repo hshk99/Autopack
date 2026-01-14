@@ -169,10 +169,10 @@ def main():
 
     print("\nUnderestimation rate:")
     print(
-        f"  Old: {old_underestimations}/{len(samples)} ({old_underestimations / len(samples) * 100:.1f}%)"
+        f"  Old: {old_underestimations}/{len(samples)} ({old_underestimations/len(samples)*100:.1f}%)"
     )
     print(
-        f"  New: {new_underestimations}/{len(samples)} ({new_underestimations / len(samples) * 100:.1f}%)"
+        f"  New: {new_underestimations}/{len(samples)} ({new_underestimations/len(samples)*100:.1f}%)"
     )
 
     # Waste analysis (overestimation)

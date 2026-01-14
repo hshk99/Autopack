@@ -146,12 +146,31 @@ def estimate_tokens(
 
 ### Formatting
 
-We recommend using `black` for automatic formatting:
+**CRITICAL**: We use `black` for formatting and enforce it via pre-commit hooks. **All PRs MUST pass formatting checks**.
+
+**Setup pre-commit hooks (one-time)**:
 
 ```bash
-pip install black
-black src/ tests/
+pip install pre-commit
+pre-commit install
 ```
+
+**Before EVERY commit, run**:
+
+```bash
+# Run formatting on all files
+pre-commit run --all-files
+
+# If pre-commit modifies files, stage them
+git add .
+
+# Now commit
+git commit -m "your message"
+```
+
+**Why this matters**: CI runs `black --check` and will FAIL if code isn't formatted. Running pre-commit locally prevents CI failures and saves 25+ minutes per PR in debugging cycles.
+
+**See also**: [PRE-FLIGHT CHECKLIST](C:\dev\Autopack\docs\WORKTREE_PARALLEL_WORKFLOW.md#-pre-flight-checklist-run-before-every-commit) for complete commit workflow.
 
 ### Type Checking (Mypy Adoption Ladder)
 

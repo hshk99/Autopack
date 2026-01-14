@@ -40,7 +40,7 @@ def analyze_run(run_id: str):
     print(f"  Prompt: {total_usage['prompt_tokens']:,}")
     print(f"  Completion: {total_usage['completion_tokens']:,}")
     if total_usage["completion_tokens"] > 0:
-        print(f"  Ratio: {total_usage['prompt_tokens'] / total_usage['completion_tokens']:.2f}:1\n")
+        print(f"  Ratio: {total_usage['prompt_tokens']/total_usage['completion_tokens']:.2f}:1\n")
     else:
         print("  Ratio: N/A (no completion tokens)\n")
 

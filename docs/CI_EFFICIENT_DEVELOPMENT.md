@@ -27,6 +27,60 @@ What are you doing?
 
 ---
 
+## 0. PRE-FLIGHT CHECKLIST (Before Every Commit)
+
+**CRITICAL**: Follow these steps BEFORE every `git commit` to prevent CI failures and save 45-70 minutes per PR in debugging cycles.
+
+### Quick Checklist:
+
+```bash
+# 1. Clean git state (remove temp files)
+git status
+rm -f tmpclaude-*-cwd 2>/dev/null || true
+git status  # Verify no temp files remain
+
+# 2. Run formatting (MANDATORY)
+pre-commit run --all-files
+# If pre-commit modifies files, stage them:
+git add .
+
+# 3. Verify clean state
+git status
+# Should show only your intended changes
+
+# 4. Run local tests (optional but recommended)
+pytest tests/path/to/your_tests.py -v
+
+# 5. Commit and push
+git commit -m "your commit message"
+git push
+```
+
+### Why This Matters:
+
+**Time Savings**: Following this checklist prevents:
+- ✅ Formatting CI failures (saves 25+ min per PR)
+- ✅ Temp file rebase conflicts (saves 10-15 min per PR)
+- ✅ Multiple CI feedback loops (saves 45-70 min per cursor)
+
+**Evidence**: Cursor sessions (ref3.md) showed 45-70 minutes wasted per cursor from:
+- Not running pre-commit before pushing (formatting failures)
+- Committing temp files (rebase conflicts)
+- Reactive CI debugging vs proactive local checks
+
+### Common Mistakes (DO NOT DO THIS):
+- ❌ Committing without running `pre-commit run --all-files`
+- ❌ Leaving temp files (tmpclaude-*-cwd) in commits
+- ❌ Skipping `git status` verification before commit
+- ❌ Pushing without running local tests on critical changes
+
+**See Also**:
+- [Complete PRE-FLIGHT CHECKLIST](C:\dev\Autopack\docs\WORKTREE_PARALLEL_WORKFLOW.md#-pre-flight-checklist-run-before-every-commit) with detailed explanations
+- [REBASE RECOVERY GUIDE](C:\dev\Autopack\docs\WORKTREE_PARALLEL_WORKFLOW.md#-rebase-recovery-guide-when-git-state-goes-wrong) for when things go wrong
+- [KNOWN PITFALLS](C:\Users\hshk9\OneDrive\Backup\Desktop\comprehensive_scan_prompt_v2.md#-known-pitfalls-learn-from-past-failures) documenting common failure patterns
+
+---
+
 ## 1. STANDARD WORKFLOW
 **When**: Small fixes, known changes, normal development
 **CI Time**: Depends on files changed (5-45 min)
@@ -34,15 +88,15 @@ What are you doing?
 ### Steps:
 ```bash
 # 1. Make changes to files
-# 2. Run local pre-flight (optional but recommended)
-pytest tests/path/to/affected_tests.py -v
 
-# 3. Commit and push
-git add .
-git commit -m "fix: description"
-git push
+# 2. Follow PRE-FLIGHT CHECKLIST (Section 0 above) BEFORE committing:
+#    - Clean git state (remove temp files)
+#    - Run pre-commit formatting
+#    - Verify clean state
+#    - Run local tests (optional)
+#    - Commit and push
 
-# 4. Wait for CI (time varies by path filter)
+# 3. Wait for CI (time varies by path filter)
 ```
 
 ### CI Time by File Type:

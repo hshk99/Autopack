@@ -33,29 +33,29 @@ def print_analysis_summary(result: PlanAnalysisResult):
     print(f"\nRun ID: {result.run_id}")
     print(f"Total Phases: {result.total_phases}")
 
-    print(f"\n{'=' * 80}")
+    print(f"\n{'='*80}")
     print("FEASIBILITY ASSESSMENT")
     print("=" * 80)
 
     print(
-        f"\n✅ CAN IMPLEMENT: {result.can_implement_count} phases ({result.can_implement_count / result.total_phases * 100:.0f}%)"
+        f"\n✅ CAN IMPLEMENT: {result.can_implement_count} phases ({result.can_implement_count/result.total_phases*100:.0f}%)"
     )
     print(
-        f"⚠️  RISKY: {result.risky_count} phases ({result.risky_count / result.total_phases * 100:.0f}%)"
+        f"⚠️  RISKY: {result.risky_count} phases ({result.risky_count/result.total_phases*100:.0f}%)"
     )
     print(
-        f"❌ MANUAL REQUIRED: {result.manual_required_count} phases ({result.manual_required_count / result.total_phases * 100:.0f}%)"
+        f"❌ MANUAL REQUIRED: {result.manual_required_count} phases ({result.manual_required_count/result.total_phases*100:.0f}%)"
     )
 
     print(f"\nOverall Feasibility: {result.overall_feasibility.value}")
     print(f"Overall Confidence: {result.overall_confidence:.1%}")
     print(
-        f"Estimated Duration: {result.estimated_total_duration_days:.1f} days ({result.estimated_total_duration_days / 5:.1f} weeks)"
+        f"Estimated Duration: {result.estimated_total_duration_days:.1f} days ({result.estimated_total_duration_days/5:.1f} weeks)"
     )
 
     # Critical blockers
     if result.critical_blockers:
-        print(f"\n{'=' * 80}")
+        print(f"\n{'='*80}")
         print("⛔ CRITICAL BLOCKERS")
         print("=" * 80)
         for i, blocker in enumerate(result.critical_blockers, 1):
@@ -63,14 +63,14 @@ def print_analysis_summary(result: PlanAnalysisResult):
 
     # Infrastructure requirements
     if result.infrastructure_requirements:
-        print(f"\n{'=' * 80}")
+        print(f"\n{'='*80}")
         print("📦 INFRASTRUCTURE REQUIREMENTS")
         print("=" * 80)
         for req in result.infrastructure_requirements:
             print(f"  - {req}")
 
     # Phase breakdown
-    print(f"\n{'=' * 80}")
+    print(f"\n{'='*80}")
     print("PHASE BREAKDOWN")
     print("=" * 80)
 
@@ -107,7 +107,7 @@ def print_analysis_summary(result: PlanAnalysisResult):
             print(f"   🔗 Dependencies: {', '.join(phase.dependencies)}")
 
     # Recommended execution order
-    print(f"\n{'=' * 80}")
+    print(f"\n{'='*80}")
     print("RECOMMENDED EXECUTION ORDER")
     print("=" * 80)
 
@@ -122,7 +122,7 @@ def print_analysis_summary(result: PlanAnalysisResult):
 
     # Manual phases
     if result.phases_requiring_manual_implementation:
-        print(f"\n{'=' * 80}")
+        print(f"\n{'='*80}")
         print("❌ PHASES REQUIRING MANUAL IMPLEMENTATION")
         print("=" * 80)
         for phase_id in result.phases_requiring_manual_implementation:
@@ -133,7 +133,7 @@ def print_analysis_summary(result: PlanAnalysisResult):
                     print(f"    ⛔ {blocker}")
 
     # Governance scope
-    print(f"\n{'=' * 80}")
+    print(f"\n{'='*80}")
     print("GOVERNANCE SCOPE")
     print("=" * 80)
 
@@ -147,7 +147,7 @@ def print_analysis_summary(result: PlanAnalysisResult):
     for path in result.protected_paths:
         print(f"  🔒 {path}")
 
-    print(f"\n{'=' * 80}")
+    print(f"\n{'='*80}")
     print("ANALYSIS COMPLETE")
     print("=" * 80)
 

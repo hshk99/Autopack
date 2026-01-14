@@ -20,6 +20,7 @@ except ImportError:
     ContentBlock = None
     Usage = None
 
+from autopack.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitBreakerOpenError
 
 logger = logging.getLogger(__name__)
 
@@ -96,12 +97,15 @@ class AnthropicTransport:
     Provides:
     - Typed exception hierarchy for different error categories
     - Configurable timeout with default 60s
+    - Circuit breaker pattern for resilience (trips after 5 failures, recovers after 60s)
     - Usage extraction (input_tokens, output_tokens)
     - Support for both streaming and non-streaming modes
     - API key from environment (ANTHROPIC_API_KEY)
     """
 
     DEFAULT_TIMEOUT = 60.0  # seconds
+    DEFAULT_CB_FAILURE_THRESHOLD = 5  # Circuit opens after 5 consecutive failures
+    DEFAULT_CB_RECOVERY_TIMEOUT = 60.0  # Attempt recovery after 60 seconds
 
     def __init__(self, api_key: Optional[str] = None, timeout: float = DEFAULT_TIMEOUT):
         """Initialize transport wrapper
@@ -126,6 +130,20 @@ class AnthropicTransport:
 
         self.client = Anthropic(api_key=api_key, timeout=timeout)
         self.timeout = timeout
+
+        # Initialize circuit breaker for resilience
+        # Trips after 5 consecutive failures, attempts recovery after 60s
+        circuit_breaker_config = CircuitBreakerConfig(
+            failure_threshold=self.DEFAULT_CB_FAILURE_THRESHOLD,
+            timeout=self.DEFAULT_CB_RECOVERY_TIMEOUT,
+            expected_exception=(
+                AnthropicTransportError,
+                AnthropicTransportTimeout,
+                AnthropicTransportNetworkError,
+                AnthropicTransportApiError,
+            ),
+        )
+        self.circuit_breaker = CircuitBreaker(name="anthropic_api", config=circuit_breaker_config)
 
     def send_request(
         self,
@@ -153,23 +171,33 @@ class AnthropicTransport:
             AnthropicTransportTimeout: On timeout
             AnthropicTransportNetworkError: On connection errors
             AnthropicTransportApiError: On API errors (with status code)
+            CircuitBreakerOpenError: If circuit breaker is open
         """
-        if stream:
-            return self._send_streaming_request(
-                messages=messages,
-                model=model,
-                max_tokens=max_tokens,
-                system=system,
-                temperature=temperature,
-            )
-        else:
-            return self._send_non_streaming_request(
-                messages=messages,
-                model=model,
-                max_tokens=max_tokens,
-                system=system,
-                temperature=temperature,
-            )
+        try:
+            if stream:
+                return self.circuit_breaker.call(
+                    self._send_streaming_request,
+                    messages=messages,
+                    model=model,
+                    max_tokens=max_tokens,
+                    system=system,
+                    temperature=temperature,
+                )
+            else:
+                return self.circuit_breaker.call(
+                    self._send_non_streaming_request,
+                    messages=messages,
+                    model=model,
+                    max_tokens=max_tokens,
+                    system=system,
+                    temperature=temperature,
+                )
+        except CircuitBreakerOpenError as e:
+            # Re-raise as a transport error for API consumers
+            logger.error(f"Circuit breaker is open: {e}")
+            raise AnthropicTransportApiError(
+                f"Service temporarily unavailable (circuit breaker open): {e}"
+            ) from e
 
     def _send_non_streaming_request(
         self,

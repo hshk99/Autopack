@@ -1,9 +1,5 @@
 """Tests for configuration validation."""
 
-import os
-import sys
-from io import StringIO
-
 import pytest
 
 from autopack.config import Config, ConfigError

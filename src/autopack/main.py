@@ -56,7 +56,12 @@ _startup_logger.debug(
 # Note: We still create the app here (not via create_app()) to keep all routes
 # defined in main.py until router extraction is complete (PR-API-3+).
 # This keeps the canonical entrypoint `uvicorn autopack.main:app` working.
-from .api.app import lifespan, global_exception_handler, SecurityHeadersMiddleware
+from .api.app import (
+    lifespan,
+    global_exception_handler,
+    correlation_id_middleware,
+    SecurityHeadersMiddleware,
+)
 
 import logging
 
@@ -68,6 +73,14 @@ app = FastAPI(
     version=__version__,
     lifespan=lifespan,
 )
+
+
+# IMP-047: Add correlation ID middleware for distributed tracing
+@app.middleware("http")
+async def add_correlation_id_middleware(request, call_next):
+    """Middleware wrapper for correlation ID handling."""
+    return await correlation_id_middleware(request, call_next)
+
 
 # BUILD-188 P5.3: CORS configuration
 # Default: deny all cross-origin requests. Configure CORS_ALLOWED_ORIGINS in env for frontend needs.

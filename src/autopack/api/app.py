@@ -30,10 +30,43 @@ from slowapi.errors import RateLimitExceeded
 
 from ..config import get_api_key, is_production
 from ..database import get_db, init_db
+from ..logging_config import correlation_id_var
 from ..version import __version__
 from .deps import limiter
 
 logger = logging.getLogger(__name__)
+
+
+async def correlation_id_middleware(request: Request, call_next):
+    """Add correlation ID to request context for distributed tracing.
+
+    Implements IMP-047: Structured Logging with Correlation IDs.
+
+    - Extracts X-Correlation-ID header from request
+    - Generates new UUID if not provided (for distributed tracing)
+    - Sets correlation ID in context var (available to all async tasks)
+    - Returns correlation ID in response header for client tracking
+
+    Args:
+        request: FastAPI request object
+        call_next: Next middleware/handler in chain
+
+    Returns:
+        Response with X-Correlation-ID header set
+    """
+    # Get correlation ID from request header or generate new one
+    correlation_id = request.headers.get("X-Correlation-ID", str(uuid.uuid4()))
+
+    # Set correlation ID in context var (used by structured logging)
+    correlation_id_var.set(correlation_id)
+
+    # Process request through next middleware/handler
+    response = await call_next(request)
+
+    # Return correlation ID in response header for client to track
+    response.headers["X-Correlation-ID"] = correlation_id
+
+    return response
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -287,6 +320,7 @@ def create_app() -> FastAPI:
     This is the primary app factory. It:
     - Creates the FastAPI instance with metadata
     - Attaches lifespan context manager
+    - Adds correlation ID middleware for distributed tracing (IMP-047)
     - Configures CORS (when CORS_ALLOWED_ORIGINS is set)
     - Attaches rate limiter
     - Registers global exception handler
@@ -301,6 +335,12 @@ def create_app() -> FastAPI:
         version=__version__,
         lifespan=lifespan,
     )
+
+    # IMP-047: Add correlation ID middleware for distributed tracing
+    @app.middleware("http")
+    async def add_correlation_id_middleware(request: Request, call_next):
+        """Middleware wrapper for correlation ID handling."""
+        return await correlation_id_middleware(request, call_next)
 
     # BUILD-188 P5.3: CORS configuration
     # Default: deny all cross-origin requests. Configure CORS_ALLOWED_ORIGINS in env for frontend needs.

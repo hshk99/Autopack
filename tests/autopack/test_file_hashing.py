@@ -7,9 +7,7 @@ Tests the compute_file_hash_with_cache function to ensure:
 4. Cache statistics are tracked correctly
 """
 
-import os
 import time
-from pathlib import Path
 
 import pytest
 

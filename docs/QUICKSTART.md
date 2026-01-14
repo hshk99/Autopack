@@ -1,201 +1,221 @@
-# Autopack Quickstart Guide
+# Developer Quickstart Guide
 
-**Get started with Autopack in 5 minutes**
-
----
-
-## Installation
-
-```bash
-pip install -e .
-```
+**Get Autopack running locally in <15 minutes. Perfect for new developers.**
 
 ---
 
-## Basic Usage
+## Prerequisites (Verify)
 
-### 1. Initialize Database
+- Python 3.11+
+- pip / venv
+- Git
+- A text editor (VSCode, Cursor, etc.)
+
+**Time: 2 minutes**
+
+---
+
+## Step 1: Clone and Setup Environment (3 min)
+
+**Terminal:**
 
 ```bash
-# P0 DB guardrail: schema bootstrap is disabled by default.
-# For dev/test only, temporarily allow bootstrap once:
-export AUTOPACK_DB_BOOTSTRAP=1  # Windows PowerShell: $env:AUTOPACK_DB_BOOTSTRAP="1"
+# Clone repository
+git clone https://github.com/yourorg/autopack.git
+cd autopack
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# Linux/Mac:
+source venv/bin/activate
+# Windows PowerShell:
+./venv/Scripts/Activate.ps1
+
+# Install dependencies
+pip install -r requirements.txt -r requirements-dev.txt
 ```
 
-### 2. Start API Server
+---
+
+## Step 2: Configure Local Environment (2 min)
 
 ```bash
-# Terminal 1: Start backend API
-PYTHONPATH=src uvicorn autopack.main:app --host 127.0.0.1 --port 8000
+# Set PYTHONPATH (required for all commands)
+# Linux/Mac:
+export PYTHONPATH=src
+
+# Windows PowerShell:
+$env:PYTHONPATH="src"
+
+# Set API key (optional but recommended)
+# Get your key from https://console.anthropic.com/
+export ANTHROPIC_API_KEY="sk-ant-..."  # Linux/Mac
+$env:ANTHROPIC_API_KEY="sk-ant-..."    # Windows PowerShell
 ```
 
-Once the server has started successfully, you can unset bootstrap:
+---
+
+## Step 3: Initialize Database (2 min)
 
 ```bash
-unset AUTOPACK_DB_BOOTSTRAP  # Windows PowerShell: Remove-Item Env:AUTOPACK_DB_BOOTSTRAP
+# Enable database bootstrap (dev-only, one-time)
+export AUTOPACK_DB_BOOTSTRAP=1  # Linux/Mac
+$env:AUTOPACK_DB_BOOTSTRAP="1"  # Windows PowerShell
+
+# Verify PYTHONPATH is set
+echo $PYTHONPATH  # Linux/Mac
+Write-Output $env:PYTHONPATH  # Windows PowerShell
+# Should print: src
 ```
 
-### 3. Create Your First Run
+---
+
+## Step 4: Start API Server (2 min)
+
+**Terminal 1:**
 
 ```bash
-# Terminal 2: Create a simple run
-PYTHONPATH=src python scripts/create_telemetry_collection_run.py
+# Ensure PYTHONPATH=src is still set
+PYTHONPATH=src python -m uvicorn autopack.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-This creates a run with 10 simple phases (implementation, tests, docs).
+**Expected output:**
+```
+INFO:     Uvicorn running on http://127.0.0.1:8000
+INFO:     Application startup complete
+```
 
-### 4. Execute Phases
+**Verify** (in another terminal):
+```bash
+curl http://localhost:8000/health
+# Expected: {"status": "ok"} or similar
+```
+
+---
+
+## Step 5: Disable Bootstrap (After API Starts)
 
 ```bash
-# Execute all queued phases
+# Once API is running, disable bootstrap in original terminal
+unset AUTOPACK_DB_BOOTSTRAP  # Linux/Mac
+Remove-Item Env:AUTOPACK_DB_BOOTSTRAP  # Windows PowerShell
+```
+
+---
+
+## Step 6: Run Tests (3 min)
+
+**Terminal 2:**
+
+```bash
+# Ensure PYTHONPATH=src is set
+PYTHONPATH=src pytest tests/ -v --tb=short
+
+# Run a specific test file (faster):
+PYTHONPATH=src pytest tests/test_main.py -v
+```
+
+**Expected:** Most tests pass (some marked `aspirational` may be skipped).
+
+---
+
+## Step 7: Verify Everything Works (1 min)
+
+```bash
+# Check API health endpoint
+curl http://localhost:8000/health
+
+# View API documentation
+# Open browser to: http://localhost:8000/docs
+```
+
+---
+
+## Next Steps: Development Workflow
+
+### Option A: Run Autonomous Executor
+
+```bash
+# Terminal 3 (with PYTHONPATH=src set):
 PYTHONPATH=src python -m autopack.autonomous_executor --run-id telemetry-collection-v4
 ```
 
-**Or drain phases one at a time:**
+### Option B: Explore the Codebase
 
-```bash
-# Drain first queued phase
-PYTHONPATH=src python scripts/drain_one_phase.py --run-id telemetry-collection-v4
+- **Architecture Overview:** See [docs/ARCHITECTURE.md](ARCHITECTURE.md)
+- **Build History:** See [docs/BUILD_HISTORY.md](BUILD_HISTORY.md)
+- **Development Guide:** See [docs/CONTRIBUTING.md](CONTRIBUTING.md)
+
+---
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| "No module named autopack" | Verify `PYTHONPATH=src` is set: `echo $PYTHONPATH` |
+| "Connection refused" (port 8000) | API not running. Start it in Terminal 1. |
+| "Database locked" | Close other executors. Only one can run at a time. |
+| "ModuleNotFoundError" | Run `pip install -r requirements-dev.txt` again. |
+| Tests take too long | Run a single file: `pytest tests/test_main.py -v` |
+
+---
+
+## Windows-Specific Guidance
+
+**PowerShell Equivalents:**
+
+```powershell
+# Set PYTHONPATH
+$env:PYTHONPATH="src"
+
+# Activate venv
+./venv/Scripts/Activate.ps1
+
+# Set API key
+$env:ANTHROPIC_API_KEY="sk-ant-..."
+
+# Run tests with parallel execution
+$env:PYTHONPATH="src"
+pytest tests/ -v -n auto
 ```
 
 ---
 
-## First Run Checklist
-
-### Before Running
-
-- [ ] Database initialized (`autopack.db` exists)
-- [ ] API server running on port 8000
-- [ ] Environment variables set:
-  - `PYTHONPATH=src`
-  - `DATABASE_URL=sqlite:///autopack.db` (optional, defaults to this)
-  - `ANTHROPIC_API_KEY=<your-key>` (required for LLM calls)
-
-### During Execution
-
-**Monitor progress:**
+## Common Commands Reference
 
 ```bash
-# Check run status
-PYTHONPATH=src python scripts/db_identity_check.py
-
-# View logs
-tail -f .autonomous_runs/autopack/runs/telemetry/telemetry-collection-v4/run.log
-```
-
-### After Completion
-
-**Check results:**
-
-```bash
-# View phase summaries
-ls .autonomous_runs/autopack/runs/telemetry/telemetry-collection-v4/phases/
-
-# Check telemetry (if enabled)
-grep "\[TokenEstimationV2\]" .autonomous_runs/autopack/runs/telemetry/telemetry-collection-v4/*.log
-```
-
----
-
-## Common Issues
-
-### "No module named autopack"
-
-**Fix:** Set `PYTHONPATH=src` before running commands.
-
-```bash
-export PYTHONPATH=src  # Linux/Mac
-$env:PYTHONPATH="src"  # Windows PowerShell
-```
-
-### "API server not responding"
-
-**Fix:** Ensure API server is running on port 8000.
-
-```bash
-# Check if server is running
+# Health check
 curl http://localhost:8000/health
 
-# If not, start it
-PYTHONPATH=src uvicorn autopack.main:app --host 127.0.0.1 --port 8000
-```
+# Run all tests
+PYTHONPATH=src pytest tests/ -v
 
-### "Database locked"
+# Run with coverage
+PYTHONPATH=src pytest tests/ --cov=src/autopack
 
-**Fix:** Only one executor can run per database at a time. Stop other executors first.
+# Format code (before commit)
+pre-commit run --all-files
 
-```bash
-# Find running executors
-ps aux | grep autonomous_executor
-
-# Kill if needed
-kill <PID>
+# List available runs
+PYTHONPATH=src python scripts/list_run_counts.py
 ```
 
 ---
 
-## Next Steps
+## Advanced Features
 
-### Learn More
-
-- **Full Documentation:** [README.md](../README.md)
-- **Build History:** [BUILD_HISTORY.md](BUILD_HISTORY.md)
-- **Troubleshooting:** [DEBUG_LOG.md](DEBUG_LOG.md)
-
-### Advanced Features
+For advanced usage including batch draining, telemetry collection, and other features:
 
 - **Batch Draining:** [scripts/batch_drain_controller.py](../scripts/batch_drain_controller.py)
 - **Telemetry Collection:** [DB_HYGIENE_AND_TELEMETRY_SEEDING.md](guides/DB_HYGIENE_AND_TELEMETRY_SEEDING.md)
 - **Quality Gates:** [BUILD-126_QUALITY_GATE.md](BUILD-126_QUALITY_GATE.md)
 
-### Example Workflows
-
-**Drain legacy backlog:**
-
-```bash
-DATABASE_URL="sqlite:///autopack_legacy.db" TELEMETRY_DB_ENABLED=1 \
-  PYTHONPATH=src python scripts/batch_drain_controller.py \
-  --batch-size 10 --max-consecutive-zero-yield 5
-```
-
-**Collect telemetry samples:**
-
-```bash
-TELEMETRY_DB_ENABLED=1 PYTHONPATH=src \
-  python -m autopack.autonomous_executor --run-id telemetry-collection-v4
-```
-
 ---
 
-## Quick Reference
+## Getting Help
 
-### Essential Commands
-
-```bash
-# Check database state
-PYTHONPATH=src python scripts/db_identity_check.py
-
-# List runs
-PYTHONPATH=src python scripts/list_run_counts.py
-
-# Drain one phase
-PYTHONPATH=src python scripts/drain_one_phase.py --run-id <RUN_ID>
-
-# Execute full run
-PYTHONPATH=src python -m autopack.autonomous_executor --run-id <RUN_ID>
-```
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PYTHONPATH` | (none) | Must be set to `src` |
-| `DATABASE_URL` | `sqlite:///autopack.db` | Database connection string |
-| `ANTHROPIC_API_KEY` | (none) | Required for LLM calls |
-| `TELEMETRY_DB_ENABLED` | `0` | Enable telemetry persistence |
-
----
-
-**Total Lines:** 148 (within 150-line limit)
-
-**Coverage:** Installation (5 lines), basic usage (1 snippet + 4 commands), first run (checklist + monitoring), common issues (3 fixes), next steps (references)
+- **Documentation:** Start at [docs/INDEX.md](INDEX.md)
+- **Debug Issues:** Check [docs/DEBUG_LOG.md](DEBUG_LOG.md)
+- **Architecture Questions:** See [docs/ARCHITECTURE_DECISIONS.md](ARCHITECTURE_DECISIONS.md)

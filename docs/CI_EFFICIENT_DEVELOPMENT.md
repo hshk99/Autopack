@@ -75,9 +75,9 @@ git push
 - ❌ Pushing without running local tests on critical changes
 
 **See Also**:
-- [Complete PRE-FLIGHT CHECKLIST](C:\dev\Autopack\docs\WORKTREE_PARALLEL_WORKFLOW.md#-pre-flight-checklist-run-before-every-commit) with detailed explanations
-- [REBASE RECOVERY GUIDE](C:\dev\Autopack\docs\WORKTREE_PARALLEL_WORKFLOW.md#-rebase-recovery-guide-when-git-state-goes-wrong) for when things go wrong
-- [KNOWN PITFALLS](C:\Users\hshk9\OneDrive\Backup\Desktop\comprehensive_scan_prompt_v2.md#-known-pitfalls-learn-from-past-failures) documenting common failure patterns
+- [Complete PRE-FLIGHT CHECKLIST](WORKTREE_PARALLEL_WORKFLOW.md#-pre-flight-checklist-run-before-every-commit) with detailed explanations
+- [REBASE RECOVERY GUIDE](WORKTREE_PARALLEL_WORKFLOW.md#-rebase-recovery-guide-when-git-state-goes-wrong) for when things go wrong
+- KNOWN PITFALLS section in comprehensive_scan_prompt_v2.md (external file) documenting common failure patterns
 
 ---
 

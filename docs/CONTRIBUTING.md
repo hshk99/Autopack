@@ -170,7 +170,7 @@ git commit -m "your message"
 
 **Why this matters**: CI runs `black --check` and will FAIL if code isn't formatted. Running pre-commit locally prevents CI failures and saves 25+ minutes per PR in debugging cycles.
 
-**See also**: [PRE-FLIGHT CHECKLIST](C:\dev\Autopack\docs\WORKTREE_PARALLEL_WORKFLOW.md#-pre-flight-checklist-run-before-every-commit) for complete commit workflow.
+**See also**: [PRE-FLIGHT CHECKLIST](WORKTREE_PARALLEL_WORKFLOW.md#-pre-flight-checklist-run-before-every-commit) for complete commit workflow.
 
 ### Type Checking (Mypy Adoption Ladder)
 

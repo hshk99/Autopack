@@ -141,43 +141,36 @@ def test_dashboard_usage_empty(client):
 
 @pytest.mark.xfail(
     strict=False,
-    reason="DB session isolation issue - test db_session doesn't share data with client's dependency-injected session. Needs fixture refactoring.",
+    reason="DB session isolation issue - SQLAlchemy session doesn't automatically share uncommitted data between separate sessions even with StaticPool. Test data added to one session isn't visible to API calls through another session without proper transaction handling.",
 )
-def test_dashboard_usage_with_data(client, test_db):
+def test_dashboard_usage_with_data(client, db_session):
     """Test GET /dashboard/usage with usage data"""
-    # Create a session using the same engine/sessionmaker as the client
+    # Use the db_session fixture which shares the same database as the client
     from datetime import timezone
-    from sqlalchemy.orm import sessionmaker
 
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db)
-    db = SessionLocal()
-
-    try:
-        # Add some usage events directly to database (use UTC timezone to match endpoint logic)
-        usage1 = LlmUsageEvent(
-            provider="openai",
-            model="gpt-4o",
-            role="builder",
-            prompt_tokens=1000,
-            completion_tokens=2000,
-            run_id="test_run_123",
-            phase_id="F1.1",
-            created_at=datetime.now(timezone.utc),
-        )
-        usage2 = LlmUsageEvent(
-            provider="openai",
-            model="gpt-4o-mini",
-            role="auditor",
-            prompt_tokens=500,
-            completion_tokens=300,
-            run_id="test_run_123",
-            phase_id="F1.1",
-            created_at=datetime.now(timezone.utc),
-        )
-        db.add_all([usage1, usage2])
-        db.commit()
-    finally:
-        db.close()
+    # Add some usage events directly to database (use UTC timezone to match endpoint logic)
+    usage1 = LlmUsageEvent(
+        provider="openai",
+        model="gpt-4o",
+        role="builder",
+        prompt_tokens=1000,
+        completion_tokens=2000,
+        run_id="test_run_123",
+        phase_id="F1.1",
+        created_at=datetime.now(timezone.utc),
+    )
+    usage2 = LlmUsageEvent(
+        provider="openai",
+        model="gpt-4o-mini",
+        role="auditor",
+        prompt_tokens=500,
+        completion_tokens=300,
+        run_id="test_run_123",
+        phase_id="F1.1",
+        created_at=datetime.now(timezone.utc),
+    )
+    db_session.add_all([usage1, usage2])
+    db_session.commit()
 
     response = client.get("/dashboard/usage?period=week")
     assert response.status_code == 200

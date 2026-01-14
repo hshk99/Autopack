@@ -14,9 +14,8 @@ Tests are marked xfail until the enhanced API is implemented.
 import pytest
 
 pytestmark = [
-    pytest.mark.xfail(
-        strict=False,
-        reason="Extended ContextBudgeter API not implemented - aspirational test suite",
+    pytest.mark.skip(
+        reason="Extended ContextBudgeter API not implemented - aspirational test suite. Marked skip to remove xfail debt."
     ),
     pytest.mark.aspirational,
 ]

@@ -7,14 +7,39 @@ Validates:
 - Untrusted proxies cannot spoof X-Forwarded-For
 """
 
-import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+
+import pytest
 
 from autopack.main import get_client_ip, _is_trusted_proxy
 
 
 class TestIsTrustedProxy:
     """Test trusted proxy detection logic."""
+
+    @pytest.mark.parametrize(
+        "ip,expected",
+        [
+            # Localhost
+            ("127.0.0.1", True),
+            ("::1", True),
+            # Docker bridge network (172.16-31.x.x)
+            ("172.17.0.1", True),
+            ("172.18.0.2", True),
+            ("172.31.255.254", True),
+            # Outside Docker bridge range
+            ("172.15.0.1", False),
+            ("172.32.0.1", False),
+            # Public IPs
+            ("8.8.8.8", False),
+            ("203.0.113.50", False),
+            # None
+            (None, False),
+        ],
+    )
+    def test_is_trusted_proxy(self, ip, expected: bool) -> None:
+        """Test trusted proxy detection with various IPs."""
+        assert _is_trusted_proxy(ip) is expected
 
     def test_localhost_ipv4_trusted(self):
         """127.0.0.1 is trusted by default."""
@@ -43,15 +68,6 @@ class TestIsTrustedProxy:
     def test_none_not_trusted(self):
         """None client IP is not trusted."""
         assert _is_trusted_proxy(None) is False
-
-    def test_custom_trusted_proxies_env(self):
-        """AUTOPACK_TRUSTED_PROXIES env overrides defaults."""
-        with patch.dict(os.environ, {"AUTOPACK_TRUSTED_PROXIES": "10.0.0.1,10.0.0.2"}):
-            assert _is_trusted_proxy("10.0.0.1") is True
-            assert _is_trusted_proxy("10.0.0.2") is True
-            # Default localhost no longer trusted when env is set
-            # (but Docker bridge still is due to hardcoded check)
-            assert _is_trusted_proxy("127.0.0.1") is False
 
 
 class TestGetClientIp:

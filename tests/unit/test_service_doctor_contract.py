@@ -254,18 +254,32 @@ class TestCreateDefaultDoctorResponse:
 class TestValidateDoctorAction:
     """Tests for validate_doctor_action function."""
 
-    def test_valid_actions(self) -> None:
-        assert validate_doctor_action("retry_with_fix") is True
-        assert validate_doctor_action("replan") is True
-        assert validate_doctor_action("rollback_run") is True
-        assert validate_doctor_action("skip_phase") is True
-        assert validate_doctor_action("mark_fatal") is True
-        assert validate_doctor_action("execute_fix") is True
+    @pytest.mark.parametrize(
+        "action",
+        [
+            "retry_with_fix",
+            "replan",
+            "rollback_run",
+            "skip_phase",
+            "mark_fatal",
+            "execute_fix",
+        ],
+    )
+    def test_valid_actions(self, action: str) -> None:
+        """Test that valid doctor actions are recognized."""
+        assert validate_doctor_action(action) is True
 
-    def test_invalid_actions(self) -> None:
-        assert validate_doctor_action("invalid") is False
-        assert validate_doctor_action("") is False
-        assert validate_doctor_action("REPLAN") is False  # Case sensitive
+    @pytest.mark.parametrize(
+        "action",
+        [
+            "invalid",
+            "",
+            "REPLAN",  # Case sensitive
+        ],
+    )
+    def test_invalid_actions(self, action: str) -> None:
+        """Test that invalid doctor actions are rejected."""
+        assert validate_doctor_action(action) is False
 
 
 # ============================================================================
@@ -276,15 +290,29 @@ class TestValidateDoctorAction:
 class TestValidateFixType:
     """Tests for validate_fix_type function."""
 
-    def test_valid_fix_types(self) -> None:
-        assert validate_fix_type("git") is True
-        assert validate_fix_type("file") is True
-        assert validate_fix_type("python") is True
+    @pytest.mark.parametrize(
+        "fix_type",
+        [
+            "git",
+            "file",
+            "python",
+        ],
+    )
+    def test_valid_fix_types(self, fix_type: str) -> None:
+        """Test that valid fix types are recognized."""
+        assert validate_fix_type(fix_type) is True
 
-    def test_invalid_fix_types(self) -> None:
-        assert validate_fix_type("shell") is False
-        assert validate_fix_type("bash") is False
-        assert validate_fix_type("") is False
+    @pytest.mark.parametrize(
+        "fix_type",
+        [
+            "shell",
+            "bash",
+            "",
+        ],
+    )
+    def test_invalid_fix_types(self, fix_type: str) -> None:
+        """Test that invalid fix types are rejected."""
+        assert validate_fix_type(fix_type) is False
 
 
 # ============================================================================
@@ -295,31 +323,23 @@ class TestValidateFixType:
 class TestCalculateHealthRatio:
     """Tests for calculate_health_ratio function."""
 
-    def test_zero_failures(self) -> None:
-        budget = {"total_failures": 0, "total_cap": 25}
-        assert calculate_health_ratio(budget) == 0.0
-
-    def test_half_budget_used(self) -> None:
-        budget = {"total_failures": 10, "total_cap": 20}
-        assert calculate_health_ratio(budget) == 0.5
-
-    def test_full_budget_used(self) -> None:
-        budget = {"total_failures": 25, "total_cap": 25}
-        assert calculate_health_ratio(budget) == 1.0
-
-    def test_over_budget(self) -> None:
-        budget = {"total_failures": 30, "total_cap": 25}
-        assert calculate_health_ratio(budget) == 1.2
-
-    def test_handles_missing_keys(self) -> None:
-        # Missing total_failures defaults to 0
-        budget = {"total_cap": 25}
-        assert calculate_health_ratio(budget) == 0.0
-
-    def test_handles_zero_cap(self) -> None:
-        # Zero cap should use 1 to avoid division by zero
-        budget = {"total_failures": 5, "total_cap": 0}
-        assert calculate_health_ratio(budget) == 5.0
+    @pytest.mark.parametrize(
+        "budget,expected_ratio",
+        [
+            ({"total_failures": 0, "total_cap": 25}, 0.0),
+            ({"total_failures": 10, "total_cap": 20}, 0.5),
+            ({"total_failures": 25, "total_cap": 25}, 1.0),
+            ({"total_failures": 30, "total_cap": 25}, 1.2),
+            ({"total_cap": 25}, 0.0),  # Missing total_failures defaults to 0
+            (
+                {"total_failures": 5, "total_cap": 0},
+                5.0,
+            ),  # Zero cap uses 1 to avoid division by zero
+        ],
+    )
+    def test_calculate_health_ratio(self, budget, expected_ratio) -> None:
+        """Test health ratio calculation with various budget scenarios."""
+        assert calculate_health_ratio(budget) == expected_ratio
 
 
 # ============================================================================
@@ -330,22 +350,19 @@ class TestCalculateHealthRatio:
 class TestShouldConsiderRollback:
     """Tests for should_consider_rollback function."""
 
-    def test_below_threshold_no_rollback(self) -> None:
-        budget = {"total_failures": 10, "total_cap": 25}  # 0.4 ratio
-        assert should_consider_rollback(budget) is False
-
-    def test_at_threshold_rollback(self) -> None:
-        budget = {"total_failures": 20, "total_cap": 25}  # 0.8 ratio
-        assert should_consider_rollback(budget) is True
-
-    def test_above_threshold_rollback(self) -> None:
-        budget = {"total_failures": 24, "total_cap": 25}  # 0.96 ratio
-        assert should_consider_rollback(budget) is True
-
-    def test_custom_threshold(self) -> None:
-        budget = {"total_failures": 15, "total_cap": 25}  # 0.6 ratio
-        assert should_consider_rollback(budget, threshold=0.5) is True
-        assert should_consider_rollback(budget, threshold=0.7) is False
+    @pytest.mark.parametrize(
+        "budget,threshold,expected",
+        [
+            ({"total_failures": 10, "total_cap": 25}, 0.8, False),  # 0.4 ratio < 0.8 threshold
+            ({"total_failures": 20, "total_cap": 25}, 0.8, True),  # 0.8 ratio >= 0.8 threshold
+            ({"total_failures": 24, "total_cap": 25}, 0.8, True),  # 0.96 ratio > 0.8 threshold
+            ({"total_failures": 15, "total_cap": 25}, 0.5, True),  # 0.6 ratio > 0.5 threshold
+            ({"total_failures": 15, "total_cap": 25}, 0.7, False),  # 0.6 ratio < 0.7 threshold
+        ],
+    )
+    def test_should_consider_rollback(self, budget, threshold, expected) -> None:
+        """Test rollback consideration with various budget and threshold combinations."""
+        assert should_consider_rollback(budget, threshold=threshold) is expected
 
 
 # ============================================================================

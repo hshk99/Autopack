@@ -5,6 +5,8 @@ These tests verify the parser's public API and behavior.
 
 from __future__ import annotations
 
+import pytest
+
 
 class TestJSONRepair:
     """Tests for JSONRepair utilities."""
@@ -301,6 +303,26 @@ index abc..def 100644
 
         assert result.success is True
         assert "diff --git" in result.data["patch_content"]
+
+    @pytest.mark.parametrize(
+        "raw_input,expected_format",
+        [
+            ('{"summary": "test", "files": []}', "full_file"),
+            ('{"summary": "test", "operations": []}', "structured_edit"),
+            (
+                """diff --git a/test.py b/test.py
++new line""",
+                "diff",
+            ),
+            ("Just some plain text", "unknown"),
+        ],
+    )
+    def test_detect_format(self, raw_input: str, expected_format: str) -> None:
+        """Test format detection with parameterized inputs."""
+        from autopack.llm.parsers import ResponseParser
+
+        parser = ResponseParser()
+        assert parser.detect_format(raw_input) == expected_format
 
     def test_detect_format_full_file(self):
         """Detects full-file format."""

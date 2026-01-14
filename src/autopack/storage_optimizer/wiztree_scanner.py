@@ -158,7 +158,7 @@ class WizTreeScanner:
             # Cleanup temp file
             try:
                 csv_path.unlink(missing_ok=True)
-            except:
+            except Exception:
                 pass  # Don't fail if cleanup fails
 
             return scan_results
@@ -328,7 +328,7 @@ class WizTreeScanner:
             # Cleanup
             try:
                 csv_path.unlink(missing_ok=True)
-            except:
+            except Exception:
                 pass
 
             return scan_results

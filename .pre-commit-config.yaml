@@ -49,5 +49,28 @@ repos:
         additional_dependencies: ["bandit[toml]"]
         exclude: ^(tests/|archive/|\.autonomous_runs/|scripts/|docs/)
 
+  # Type checking with mypy
+  # Note: Temporarily disabled due to pre-existing type errors in codebase
+  # Re-enable once type hints are added to all modules
+  # - repo: https://github.com/pre-commit/mirrors-mypy
+  #   rev: v1.8.0
+  #   hooks:
+  #     - id: mypy
+  #       additional_dependencies: [types-requests]
+  #       exclude: ^(archive/|\.autonomous_runs/)
+
+  # Fast unit tests (excludes slow integration tests)
+  # Note: Disabled by default - runs pytest but takes too long for pre-commit (10+ min)
+  # To run manually: pytest tests/ -m "not slow" --maxfail=1 -x
+  # - repo: local
+  #   hooks:
+  #     - id: pytest-fast
+  #       name: pytest (fast tests only)
+  #       entry: pytest tests/ -m "not slow" --maxfail=1 -x
+  #       language: system
+  #       pass_filenames: false
+  #       always_run: true
+  #       exclude: ^(archive/|\.autonomous_runs/)
+
 # CI note: These hooks mirror the checks in .github/workflows/ci.yml
 # Keep them in sync to ensure local == CI behavior

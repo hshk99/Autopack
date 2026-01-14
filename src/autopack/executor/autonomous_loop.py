@@ -36,7 +36,7 @@ class AutonomousLoop:
 
     def run(
         self,
-        poll_interval: int = 10,
+        poll_interval: int = 1,
         max_iterations: Optional[int] = None,
         stop_on_first_failure: bool = False,
     ):

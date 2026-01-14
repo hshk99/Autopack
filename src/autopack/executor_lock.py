@@ -5,7 +5,6 @@ Prevents multiple executor instances from running concurrently for the same run-
 """
 
 import os
-import platform
 import socket
 import logging
 from pathlib import Path
@@ -44,6 +43,7 @@ class ExecutorLockManager:
             timeout: Lock acquisition timeout in seconds (not currently used)
         """
         from .config import settings
+        from .file_lock import FileLock
 
         self.run_id = run_id
 
@@ -61,7 +61,9 @@ class ExecutorLockManager:
 
         # Lock file path
         self.lock_file_path = self.lock_dir / f"{run_id}.lock"
-        self._lock_fd = None
+
+        # Use FileLock for cross-platform file locking
+        self._file_lock = FileLock(str(self.lock_file_path))
 
         # Current process info for debugging
         self.pid = os.getpid()
@@ -78,59 +80,34 @@ class ExecutorLockManager:
             RuntimeError: If lock file operation fails unexpectedly
         """
         try:
-            # Open lock file for writing using os.open to get fd directly
-            self._lock_fd = os.open(self.lock_file_path, os.O_CREAT | os.O_WRONLY | os.O_TRUNC)
+            # Try to acquire the lock (non-blocking)
+            try:
+                self._file_lock.acquire()
+            except RuntimeError:
+                # Lock already held
+                self._log_existing_lock()
+                return False
 
-            # Write current executor info for debugging
-            debug_info = (
-                f"{self.executor_id}\n" f"{os.getcwd()}\n" f"{os.getenv('PYTHONPATH', 'N/A')}\n"
+            # Write current executor info for debugging (only if lock acquired)
+            try:
+                debug_info = (
+                    f"{self.executor_id}\n" f"{os.getcwd()}\n" f"{os.getenv('PYTHONPATH', 'N/A')}\n"
+                )
+                with open(self.lock_file_path, "w") as f:
+                    f.write(debug_info)
+            except Exception as e:
+                # If we can't write debug info, still consider lock acquired
+                logger.warning(f"[LOCK] Could not write debug info to lock file: {e}")
+
+            logger.info(
+                f"[LOCK] Acquired executor lock for run_id={self.run_id} "
+                f"(PID={self.pid}, host={self.hostname})"
             )
-            os.write(self._lock_fd, debug_info.encode())
-
-            # Try to acquire exclusive lock (non-blocking)
-            if platform.system() == "Windows":
-                import msvcrt
-
-                try:
-                    # Lock first byte of file (exclusive, non-blocking)
-                    msvcrt.locking(self._lock_fd, msvcrt.LK_NBLCK, 1)
-                    logger.info(
-                        f"[LOCK] Acquired executor lock for run_id={self.run_id} "
-                        f"(PID={self.pid}, host={self.hostname})"
-                    )
-                    return True
-                except OSError:
-                    # Lock already held
-                    self._log_existing_lock()
-                    os.close(self._lock_fd)
-                    self._lock_fd = None
-                    return False
-            else:  # Unix/Linux/Mac
-                import fcntl
-
-                try:
-                    # Acquire exclusive lock (non-blocking)
-                    fcntl.flock(self._lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    logger.info(
-                        f"[LOCK] Acquired executor lock for run_id={self.run_id} "
-                        f"(PID={self.pid}, host={self.hostname})"
-                    )
-                    return True
-                except (IOError, OSError):
-                    # Lock already held
-                    self._log_existing_lock()
-                    os.close(self._lock_fd)
-                    self._lock_fd = None
-                    return False
+            return True
 
         except Exception as e:
             logger.error(f"[LOCK] Unexpected error acquiring lock: {e}")
-            if self._lock_fd is not None:
-                try:
-                    os.close(self._lock_fd)
-                finally:
-                    self._lock_fd = None
-            raise RuntimeError(f"Failed to acquire executor lock: {e}")
+            raise RuntimeError(f"Failed to acquire executor lock: {e}") from e
 
     def _log_existing_lock(self):
         """Log information about the existing lock holder."""
@@ -161,37 +138,8 @@ class ExecutorLockManager:
 
     def release(self):
         """Release the lock."""
-        if self._lock_fd is None:
-            return
-
         try:
-            # Release file lock
-            if platform.system() == "Windows":
-                import msvcrt
-
-                try:
-                    msvcrt.locking(self._lock_fd, msvcrt.LK_UNLCK, 1)
-                except OSError:
-                    pass  # Lock may already be released
-            else:  # Unix
-                import fcntl
-
-                try:
-                    fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
-                except (IOError, OSError):
-                    pass  # Lock may already be released
-
-            # Close file descriptor
-            try:
-                os.close(self._lock_fd)
-            finally:
-                self._lock_fd = None
-
-            # Remove lock file
-            try:
-                self.lock_file_path.unlink(missing_ok=True)
-            except Exception as e:
-                logger.warning(f"[LOCK] Could not delete lock file: {e}")
+            self._file_lock.release()
 
             logger.info(f"[LOCK] Released executor lock for run_id={self.run_id} (PID={self.pid})")
 

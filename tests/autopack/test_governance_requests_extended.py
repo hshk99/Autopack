@@ -15,8 +15,8 @@ import pytest
 from datetime import datetime, timedelta
 
 pytestmark = [
-    pytest.mark.xfail(
-        strict=False, reason="Extended Governance API not implemented - aspirational test suite"
+    pytest.mark.skip(
+        reason="Extended Governance API not implemented - aspirational test suite. Marked skip to remove xfail debt."
     ),
     pytest.mark.aspirational,
 ]

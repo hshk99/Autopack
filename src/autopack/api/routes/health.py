@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from autopack import models
-from autopack.database import get_db
+from autopack.database import get_db, get_pool_health
 from autopack.version import __version__
 
 logger = logging.getLogger(__name__)
@@ -140,3 +140,33 @@ def health_check(db: Session = Depends(get_db)):
         return JSONResponse(status_code=503, content=payload)
 
     return payload
+
+
+@router.get("/health/database")
+def database_pool_health():
+    """
+    Database connection pool health check endpoint.
+
+    Returns pool utilization, connection status, and leak detection indicators.
+    Useful for monitoring pool exhaustion and detecting leaks in production.
+
+    Response:
+        {
+            "status": "healthy" | "degraded",
+            "pool": {
+                "pool_size": int,
+                "checked_out": int,
+                "overflow": int,
+                "utilization": float (0-1.0),
+                "is_healthy": bool
+            },
+            "timestamp": ISO8601 timestamp
+        }
+    """
+    pool_health = get_pool_health()
+
+    return {
+        "status": "healthy" if pool_health["is_healthy"] else "degraded",
+        "pool": pool_health,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }

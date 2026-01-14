@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from .config import get_database_url
+from .db_leak_detector import ConnectionLeakDetector
 
 # Enable pool_pre_ping so dropped/closed connections are detected and re-established.
 # pool_recycle guards against server-side timeouts on long-lived processes.
@@ -16,6 +17,9 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+# Initialize connection pool leak detector
+leak_detector = ConnectionLeakDetector(engine.pool)
+
 
 def get_db():
     """Dependency for FastAPI to get DB session"""
@@ -24,6 +28,15 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def get_pool_health():
+    """Get connection pool health stats.
+
+    Returns:
+        dict with pool statistics and health indicators
+    """
+    return leak_detector.check_pool_health()
 
 
 def init_db():

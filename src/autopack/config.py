@@ -21,11 +21,17 @@ from typing import Optional
 from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from .exceptions import ConfigurationError
+
 logger = logging.getLogger(__name__)
 
 
-class ConfigError(Exception):
-    """Raised when configuration is invalid."""
+class ConfigError(ConfigurationError):
+    """Raised when configuration is invalid.
+
+    Deprecated: Use ConfigurationError instead.
+    This class is kept for backward compatibility.
+    """
 
     pass
 
@@ -41,7 +47,7 @@ def _read_secret_file(file_path: str, secret_name: str) -> Optional[str]:
         Secret value with whitespace stripped, or None if file doesn't exist.
 
     Raises:
-        RuntimeError: If file exists but cannot be read or is empty.
+        ConfigurationError: If file exists but cannot be read or is empty.
     """
     path = Path(file_path)
     if not path.exists():
@@ -50,18 +56,20 @@ def _read_secret_file(file_path: str, secret_name: str) -> Optional[str]:
     try:
         content = path.read_text(encoding="utf-8").strip()
         if not content:
-            raise RuntimeError(
+            raise ConfigurationError(
                 f"{secret_name}_FILE points to empty file: {file_path}. "
                 f"Secret files must contain non-empty values."
             )
         return content
     except PermissionError as e:
-        raise RuntimeError(
+        raise ConfigurationError(
             f"{secret_name}_FILE is unreadable (permission denied): {file_path}. "
             f"Check file permissions."
         ) from e
+    except ConfigurationError:
+        raise
     except Exception as e:
-        raise RuntimeError(f"Failed to read {secret_name}_FILE from {file_path}: {e}") from e
+        raise ConfigurationError(f"Failed to read {secret_name}_FILE from {file_path}: {e}") from e
 
 
 def _get_secret(
@@ -84,7 +92,7 @@ def _get_secret(
         The secret value.
 
     Raises:
-        RuntimeError: If required in production and not set, or if file read fails.
+        ConfigurationError: If required in production and not set, or if file read fails.
     """
     value = default
 
@@ -109,7 +117,7 @@ def _get_secret(
     if required_in_production and not value:
         env_mode = os.getenv("AUTOPACK_ENV", "development").lower()
         if env_mode == "production":
-            raise RuntimeError(
+            raise ConfigurationError(
                 f"FATAL: {env_var} is required in production but not set. "
                 f"Set {env_var} or {file_env_var or env_var + '_FILE'} environment variable."
             )

@@ -13,6 +13,7 @@ import pytest
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String
 
 from autopack.config import Settings
+from autopack.exceptions import DatabaseError
 
 
 class TestDBInitGuardrails:
@@ -39,8 +40,8 @@ class TestDBInitGuardrails:
             # Import init_db after patching
             from autopack.database import init_db
 
-            # Should raise RuntimeError with clear message
-            with pytest.raises(RuntimeError) as exc_info:
+            # Should raise DatabaseError with clear message
+            with pytest.raises(DatabaseError) as exc_info:
                 init_db()
 
             error_msg = str(exc_info.value)
@@ -154,8 +155,8 @@ class TestDBInitGuardrails:
             # Import init_db after patching
             from autopack.database import init_db
 
-            # Should raise RuntimeError
-            with pytest.raises(RuntimeError) as exc_info:
+            # Should raise DatabaseError
+            with pytest.raises(DatabaseError) as exc_info:
                 init_db()
 
             assert "runs" in str(exc_info.value).lower()

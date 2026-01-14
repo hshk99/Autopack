@@ -34,6 +34,7 @@ from .patching.apply_engine import (
     execute_git_apply,
     execute_manual_apply,
 )
+from .exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -260,7 +261,7 @@ class GovernedApplyPath:
 
         # [Q7 Implementation] Validate autopack_internal_mode is only used with maintenance runs
         if autopack_internal_mode and run_type not in self.MAINTENANCE_RUN_TYPES:
-            raise ValueError(
+            raise ValidationError(
                 f"autopack_internal_mode=True only allowed for maintenance runs "
                 f"(run_type must be one of {self.MAINTENANCE_RUN_TYPES}, got '{run_type}')"
             )

@@ -79,3 +79,75 @@ class ValidationError(AutopackError):
     """Exception raised for validation errors."""
 
     pass
+
+
+class PatchApplicationError(AutopackError):
+    """Exception raised when patch application fails."""
+
+    pass
+
+
+class ApprovalRequiredError(AutopackError):
+    """Exception raised when approval required but not granted."""
+
+    pass
+
+
+class DatabaseError(AutopackError):
+    """Exception raised when database operation fails."""
+
+    pass
+
+
+class LLMAPIError(AutopackError):
+    """Exception raised when LLM API call fails."""
+
+    pass
+
+
+class ConfigurationError(AutopackError):
+    """Exception raised when configuration is invalid."""
+
+    pass
+
+
+class CircuitBreakerOpenError(AutopackError):
+    """Exception raised when circuit breaker is open."""
+
+    pass
+
+
+class ResourceNotFoundError(AutopackError):
+    """Exception raised when a required resource is not found."""
+
+    pass
+
+
+class StateError(AutopackError):
+    """Exception raised when operation violates expected state."""
+
+    pass
+
+
+class IntegrationError(AutopackError):
+    """Exception raised when external system integration fails."""
+
+    pass
+
+
+class TimeoutError(AutopackError):
+    """Exception raised when operation times out."""
+
+    pass
+
+
+class SecurityError(AutopackError):
+    """Exception raised for security-related errors."""
+
+    pass
+
+
+class DataIntegrityError(AutopackError):
+    """Exception raised when data integrity is compromised."""
+
+    pass

@@ -12,8 +12,7 @@ All tests are marked with @pytest.mark.aspirational for fast CI execution.
 
 import pytest
 from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
 
 from autopack.models import Phase, PhaseState, Run, RunState, Tier, TierState
 from autopack.executor.phase_state_manager import PhaseStateManager, StateUpdateRequest

@@ -23,7 +23,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
-@router.get("/runs/{run_id}/status", response_model=dashboard_schemas.DashboardRunStatus)
+@router.get(
+    "/runs/{run_id}/status",
+    summary="Get run status for dashboard",
+    description="Retrieve current run status including phase progress, token utilization, issue counts, and token efficiency metrics. Used by dashboard to display real-time run information.",
+    response_model=dashboard_schemas.DashboardRunStatus,
+    responses={
+        200: {"description": "Run status retrieved successfully"},
+        404: {"description": "Run not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 def get_dashboard_run_status(
     run_id: str,
     db: Session = Depends(get_db),
@@ -79,7 +89,17 @@ def get_dashboard_run_status(
     )
 
 
-@router.get("/usage", response_model=dashboard_schemas.UsageResponse)
+@router.get(
+    "/usage",
+    summary="Get token usage statistics",
+    description="Retrieve token usage statistics aggregated by provider and model for the specified period. Returns both provider-level and model-level breakdowns with capacity information.",
+    response_model=dashboard_schemas.UsageResponse,
+    responses={
+        200: {"description": "Usage statistics retrieved successfully"},
+        400: {"description": "Invalid period parameter"},
+        500: {"description": "Internal server error"},
+    },
+)
 def get_dashboard_usage(
     period: str = "week",
     db: Session = Depends(get_db),
@@ -178,7 +198,16 @@ def get_dashboard_usage(
     return dashboard_schemas.UsageResponse(providers=providers, models=models_list)
 
 
-@router.get("/models")
+@router.get(
+    "/models",
+    summary="Get current model mappings",
+    description="Retrieve the current model mappings for all roles (builder, auditor) and complexity levels. Returns the global scope model assignments used for LLM routing.",
+    response_model=list,
+    responses={
+        200: {"description": "Model mappings retrieved successfully"},
+        500: {"description": "Internal server error"},
+    },
+)
 def get_dashboard_models(
     db: Session = Depends(get_db),
     _auth: str = Depends(verify_read_access),
@@ -206,7 +235,16 @@ def get_dashboard_models(
     return result
 
 
-@router.post("/human-notes")
+@router.post(
+    "/human-notes",
+    summary="Add a human note",
+    description="Add a human note to the central notes file with timestamp and optional run ID. Useful for recording observations during build execution.",
+    responses={
+        200: {"description": "Note added successfully"},
+        400: {"description": "Invalid request"},
+        500: {"description": "Internal server error"},
+    },
+)
 def add_dashboard_human_note(
     note_request: dashboard_schemas.HumanNoteRequest,
     db: Session = Depends(get_db),
@@ -235,7 +273,14 @@ def add_dashboard_human_note(
 
 @router.get(
     "/runs/{run_id}/token-efficiency",
+    summary="Get token efficiency metrics",
+    description="Get token efficiency metrics for a run (BUILD-145). Returns aggregated token efficiency statistics including artifact substitutions, tokens saved, context budget usage, and files kept vs omitted across all phases.",
     response_model=dashboard_schemas.TokenEfficiencyStats,
+    responses={
+        200: {"description": "Token efficiency metrics retrieved successfully"},
+        404: {"description": "Run not found"},
+        500: {"description": "Internal server error"},
+    },
 )
 def get_run_token_efficiency(
     run_id: str, db: Session = Depends(get_db), api_key: str = Depends(verify_api_key)
@@ -256,7 +301,17 @@ def get_run_token_efficiency(
     return dashboard_schemas.TokenEfficiencyStats(**stats)
 
 
-@router.get("/runs/{run_id}/phase6-stats", response_model=dashboard_schemas.Phase6Stats)
+@router.get(
+    "/runs/{run_id}/phase6-stats",
+    summary="Get Phase 6 feature effectiveness metrics",
+    description="Get Phase 6 True Autonomy feature effectiveness metrics (BUILD-146). Returns aggregated Phase 6 statistics including failure hardening pattern detection, doctor call optimization, and intention context injection metrics.",
+    response_model=dashboard_schemas.Phase6Stats,
+    responses={
+        200: {"description": "Phase 6 metrics retrieved successfully"},
+        404: {"description": "Run not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 def get_run_phase6_stats(
     run_id: str, db: Session = Depends(get_db), api_key: str = Depends(verify_api_key)
 ):
@@ -279,7 +334,17 @@ def get_run_phase6_stats(
     return dashboard_schemas.Phase6Stats(run_id=run_id, **stats)
 
 
-@router.get("/runs/{run_id}/consolidated-metrics")
+@router.get(
+    "/runs/{run_id}/consolidated-metrics",
+    summary="Get consolidated token metrics",
+    description="Get consolidated token metrics for a run (BUILD-146 P11 P12 API Consolidation). Returns all token metrics in clearly separated categories (total spend, artifact savings, doctor counterfactual, A/B delta) to prevent confusion and double-counting. This is the PRIMARY observability endpoint - prefer over legacy endpoints.",
+    responses={
+        200: {"description": "Consolidated metrics retrieved successfully"},
+        400: {"description": "Invalid pagination parameters"},
+        404: {"description": "Run not found"},
+        503: {"description": "Consolidated metrics disabled"},
+    },
+)
 def get_dashboard_consolidated_metrics(
     run_id: str,
     limit: int = 1000,
@@ -442,7 +507,16 @@ def get_dashboard_consolidated_metrics(
     }
 
 
-@router.post("/models/override")
+@router.post(
+    "/models/override",
+    summary="Add or update model override",
+    description="Add a model override for either global scope (affects all runs) or run scope (affects specific run). Global overrides update the model mapping used for LLM routing.",
+    responses={
+        200: {"description": "Model override added successfully"},
+        400: {"description": "Invalid scope parameter"},
+        500: {"description": "Internal server error"},
+    },
+)
 def add_dashboard_model_override(
     override_request: dashboard_schemas.ModelOverrideRequest,
     db: Session = Depends(get_db),

@@ -26,28 +26,31 @@ from autopack.service.client_resolution import (
 class TestModelToProvider:
     """Tests for model_to_provider function."""
 
-    def test_gemini_model_returns_google(self) -> None:
-        assert model_to_provider("gemini-2.5-pro") == "google"
-        assert model_to_provider("gemini-1.5-flash") == "google"
-
-    def test_gpt_model_returns_openai(self) -> None:
-        assert model_to_provider("gpt-4o") == "openai"
-        assert model_to_provider("gpt-4-turbo") == "openai"
-
-    def test_o1_model_returns_openai(self) -> None:
-        assert model_to_provider("o1-preview") == "openai"
-        assert model_to_provider("o1-mini") == "openai"
-
-    def test_claude_model_returns_anthropic(self) -> None:
-        assert model_to_provider("claude-sonnet-4-5") == "anthropic"
-        assert model_to_provider("claude-opus-4-5") == "anthropic"
-
-    def test_opus_prefix_returns_anthropic(self) -> None:
-        assert model_to_provider("opus-4") == "anthropic"
-
-    def test_unknown_model_defaults_to_openai(self) -> None:
-        assert model_to_provider("unknown-model") == "openai"
-        assert model_to_provider("llama-70b") == "openai"
+    @pytest.mark.parametrize(
+        "model,expected_provider",
+        [
+            # Gemini models
+            ("gemini-2.5-pro", "google"),
+            ("gemini-1.5-flash", "google"),
+            # GPT models
+            ("gpt-4o", "openai"),
+            ("gpt-4-turbo", "openai"),
+            # O1 models
+            ("o1-preview", "openai"),
+            ("o1-mini", "openai"),
+            # Claude models
+            ("claude-sonnet-4-5", "anthropic"),
+            ("claude-opus-4-5", "anthropic"),
+            # Opus prefix
+            ("opus-4", "anthropic"),
+            # Unknown models (default to openai)
+            ("unknown-model", "openai"),
+            ("llama-70b", "openai"),
+        ],
+    )
+    def test_model_to_provider(self, model: str, expected_provider: str) -> None:
+        """Test model to provider mapping with parameterized inputs."""
+        assert model_to_provider(model) == expected_provider
 
 
 # ============================================================================
@@ -230,21 +233,19 @@ class TestResolveClientAndModel:
 class TestGetFallbackChain:
     """Tests for get_fallback_chain function."""
 
-    def test_gemini_fallback_chain(self) -> None:
-        chain = get_fallback_chain("gemini-2.5-pro")
-        assert chain == ["gemini", "anthropic", "openai", "glm"]
-
-    def test_claude_fallback_chain(self) -> None:
-        chain = get_fallback_chain("claude-sonnet-4-5")
-        assert chain == ["anthropic", "gemini", "openai"]
-
-    def test_openai_fallback_chain(self) -> None:
-        chain = get_fallback_chain("gpt-4o")
-        assert chain == ["openai", "gemini", "anthropic"]
-
-    def test_unknown_model_fallback_chain(self) -> None:
-        chain = get_fallback_chain("llama-70b")
-        assert chain == ["openai", "gemini", "anthropic"]
+    @pytest.mark.parametrize(
+        "model,expected_chain",
+        [
+            ("gemini-2.5-pro", ["gemini", "anthropic", "openai", "glm"]),
+            ("claude-sonnet-4-5", ["anthropic", "gemini", "openai"]),
+            ("gpt-4o", ["openai", "gemini", "anthropic"]),
+            ("llama-70b", ["openai", "gemini", "anthropic"]),
+        ],
+    )
+    def test_fallback_chain(self, model: str, expected_chain: list) -> None:
+        """Test fallback chain with parameterized model inputs."""
+        chain = get_fallback_chain(model)
+        assert chain == expected_chain
 
 
 # ============================================================================

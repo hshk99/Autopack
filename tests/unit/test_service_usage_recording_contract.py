@@ -27,29 +27,23 @@ from autopack.service.usage_recording import (
 class TestEstimateTokens:
     """Tests for estimate_tokens function."""
 
-    def test_empty_string_returns_one(self) -> None:
-        assert estimate_tokens("") == 1
-
-    def test_short_string_estimation(self) -> None:
-        # 4 chars = 1 token with default 4.0 chars/token
-        assert estimate_tokens("test") == 1
-
-    def test_longer_string_estimation(self) -> None:
-        # 40 chars = 10 tokens with default 4.0 chars/token
-        text = "a" * 40
-        assert estimate_tokens(text) == 10
-
-    def test_custom_chars_per_token(self) -> None:
-        # 40 chars = 20 tokens with 2.0 chars/token
-        text = "a" * 40
-        assert estimate_tokens(text, chars_per_token=2.0) == 20
-
-    def test_minimum_one_token(self) -> None:
-        # Even very short text returns at least 1
-        assert estimate_tokens("a") == 1
-        assert estimate_tokens("ab") == 1
+    @pytest.mark.parametrize(
+        "text,chars_per_token,expected_tokens",
+        [
+            ("", 4.0, 1),  # Empty string returns 1
+            ("test", 4.0, 1),  # 4 chars = 1 token with default 4.0 chars/token
+            ("a" * 40, 4.0, 10),  # 40 chars = 10 tokens with default 4.0 chars/token
+            ("a" * 40, 2.0, 20),  # 40 chars = 20 tokens with 2.0 chars/token
+            ("a", 4.0, 1),  # Even very short text returns at least 1
+            ("ab", 4.0, 1),  # Two characters still returns 1
+        ],
+    )
+    def test_estimate_tokens(self, text: str, chars_per_token: float, expected_tokens: int) -> None:
+        """Test token estimation with various text and config combinations."""
+        assert estimate_tokens(text, chars_per_token=chars_per_token) == expected_tokens
 
     def test_realistic_text_estimation(self) -> None:
+        """Test realistic text estimation produces expected token range."""
         # ~400 chars should be ~100 tokens
         text = "This is a sample sentence for testing. " * 10
         tokens = estimate_tokens(text)

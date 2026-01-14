@@ -26,15 +26,17 @@ from autopack.supervisor import (
 class TestSupervisorApiClientConstruction:
     """Test client initialization and configuration."""
 
-    def test_client_strips_trailing_slash_from_base_url(self):
-        """Base URL trailing slash should be normalized."""
-        client = SupervisorApiClient("http://localhost:8000/")
-        assert client.base_url == "http://localhost:8000"
-
-    def test_client_accepts_base_url_without_trailing_slash(self):
-        """Base URL without trailing slash should work."""
-        client = SupervisorApiClient("http://localhost:8000")
-        assert client.base_url == "http://localhost:8000"
+    @pytest.mark.parametrize(
+        "base_url,expected_base_url",
+        [
+            ("http://localhost:8000/", "http://localhost:8000"),
+            ("http://localhost:8000", "http://localhost:8000"),
+        ],
+    )
+    def test_base_url_normalization(self, base_url: str, expected_base_url: str) -> None:
+        """Test that base URL is normalized correctly."""
+        client = SupervisorApiClient(base_url)
+        assert client.base_url == expected_base_url
 
     def test_client_stores_api_key(self):
         """API key should be stored if provided."""
@@ -46,15 +48,16 @@ class TestSupervisorApiClientConstruction:
         client = SupervisorApiClient("http://localhost:8000", api_key=None)
         assert client.api_key is None
 
+    @pytest.mark.parametrize("timeout", [10.0, 15.0, 30.0])
+    def test_client_stores_timeout(self, timeout: float) -> None:
+        """Client should store provided timeout."""
+        client = SupervisorApiClient("http://localhost:8000", default_timeout=timeout)
+        assert client.default_timeout == timeout
+
     def test_client_has_default_timeout(self):
         """Client should have a default timeout."""
         client = SupervisorApiClient("http://localhost:8000")
         assert client.default_timeout == 10.0
-
-    def test_client_allows_custom_default_timeout(self):
-        """Client should allow custom default timeout."""
-        client = SupervisorApiClient("http://localhost:8000", default_timeout=30.0)
-        assert client.default_timeout == 30.0
 
 
 class TestSupervisorApiClientHeaders:
@@ -82,22 +85,22 @@ class TestSupervisorApiClientHeaders:
 class TestSupervisorApiClientUrlConstruction:
     """Test URL building logic."""
 
-    def test_url_joins_base_and_path_correctly(self):
-        """URL joining should handle base URL and path correctly."""
+    @pytest.mark.parametrize(
+        "path,expected_url",
+        [
+            ("/health", "http://localhost:8000/health"),
+            ("/runs/123", "http://localhost:8000/runs/123"),
+            ("health", "http://localhost:8000/health"),
+            (
+                "/runs/run-123/phases/phase-456/update_status",
+                "http://localhost:8000/runs/run-123/phases/phase-456/update_status",
+            ),
+        ],
+    )
+    def test_url_construction(self, path: str, expected_url: str) -> None:
+        """Test URL joining handles various path formats."""
         client = SupervisorApiClient("http://localhost:8000")
-        assert client._url("/health") == "http://localhost:8000/health"
-        assert client._url("/runs/123") == "http://localhost:8000/runs/123"
-
-    def test_url_handles_path_without_leading_slash(self):
-        """URL builder should add leading slash if missing."""
-        client = SupervisorApiClient("http://localhost:8000")
-        assert client._url("health") == "http://localhost:8000/health"
-
-    def test_url_handles_complex_paths(self):
-        """URL builder should handle complex paths with multiple segments."""
-        client = SupervisorApiClient("http://localhost:8000")
-        expected = "http://localhost:8000/runs/run-123/phases/phase-456/update_status"
-        assert client._url("/runs/run-123/phases/phase-456/update_status") == expected
+        assert client._url(path) == expected_url
 
 
 class TestSupervisorApiClientErrorMapping:

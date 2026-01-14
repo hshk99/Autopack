@@ -66,10 +66,11 @@ class TestVerifyApiKeyContract:
     async def test_production_requires_api_key_configured(self):
         """Contract: Production mode with no key configured raises error.
 
-        Note: get_api_key() in config.py raises RuntimeError for missing key in production,
-        which is then handled. The test verifies this behavior via RuntimeError.
+        Note: get_api_key() in config.py raises ConfigurationError for missing key in production,
+        which is then handled. The test verifies this behavior via ConfigurationError.
         """
         from autopack.api.deps import verify_api_key
+        from autopack.exceptions import ConfigurationError
 
         # Clear PYTEST_CURRENT_TEST to disable test bypass
         saved_pct = os.environ.pop("PYTEST_CURRENT_TEST", None)
@@ -79,8 +80,8 @@ class TestVerifyApiKeyContract:
                 {"TESTING": "", "AUTOPACK_ENV": "production", "AUTOPACK_API_KEY": ""},
                 clear=False,
             ):
-                # get_api_key() raises RuntimeError when key required but missing
-                with pytest.raises(RuntimeError) as exc_info:
+                # get_api_key() raises ConfigurationError when key required but missing
+                with pytest.raises(ConfigurationError) as exc_info:
                     await verify_api_key("some-key")
                 assert "required in production" in str(exc_info.value)
         finally:
@@ -232,9 +233,10 @@ class TestVerifyReadAccessContract:
     async def test_production_requires_auth_even_with_public_read(self):
         """Contract: Production ignores AUTOPACK_PUBLIC_READ.
 
-        Note: get_api_key() raises RuntimeError when key is required but not set.
+        Note: get_api_key() raises ConfigurationError when key is required but not set.
         """
         from autopack.api.deps import verify_read_access
+        from autopack.exceptions import ConfigurationError
 
         # Clear PYTEST_CURRENT_TEST to disable test bypass
         saved_pct = os.environ.pop("PYTEST_CURRENT_TEST", None)
@@ -249,8 +251,8 @@ class TestVerifyReadAccessContract:
                 },
                 clear=False,
             ):
-                # get_api_key() raises RuntimeError when key required but missing
-                with pytest.raises(RuntimeError) as exc_info:
+                # get_api_key() raises ConfigurationError when key required but missing
+                with pytest.raises(ConfigurationError) as exc_info:
                     await verify_read_access(None)
                 assert "required in production" in str(exc_info.value)
         finally:

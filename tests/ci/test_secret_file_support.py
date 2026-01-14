@@ -9,6 +9,7 @@ import os
 import pytest
 from pathlib import Path
 from unittest.mock import patch
+from autopack.exceptions import ConfigurationError
 
 
 class TestReadSecretFile:
@@ -42,25 +43,25 @@ class TestReadSecretFile:
         assert result is None
 
     def test_read_secret_file_empty(self, tmp_path: Path):
-        """Should raise RuntimeError for empty file."""
+        """Should raise ConfigurationError for empty file."""
         from autopack.config import _read_secret_file
 
         secret_file = tmp_path / "empty.txt"
         secret_file.write_text("")
 
-        with pytest.raises(RuntimeError) as excinfo:
+        with pytest.raises(ConfigurationError) as excinfo:
             _read_secret_file(str(secret_file), "TEST_SECRET")
 
         assert "empty file" in str(excinfo.value).lower()
 
     def test_read_secret_file_whitespace_only(self, tmp_path: Path):
-        """Should raise RuntimeError for whitespace-only file."""
+        """Should raise ConfigurationError for whitespace-only file."""
         from autopack.config import _read_secret_file
 
         secret_file = tmp_path / "whitespace.txt"
         secret_file.write_text("   \n\n\t  ")
 
-        with pytest.raises(RuntimeError) as excinfo:
+        with pytest.raises(ConfigurationError) as excinfo:
             _read_secret_file(str(secret_file), "TEST_SECRET")
 
         assert "empty file" in str(excinfo.value).lower()
@@ -111,7 +112,7 @@ class TestGetSecret:
             assert result == "default-value"
 
     def test_get_secret_required_in_production_fails(self):
-        """Should raise RuntimeError in production when required secret missing."""
+        """Should raise ConfigurationError in production when required secret missing."""
         from autopack.config import _get_secret
 
         with patch.dict(
@@ -122,7 +123,7 @@ class TestGetSecret:
             os.environ.pop("REQUIRED_SECRET", None)
             os.environ.pop("REQUIRED_SECRET_FILE", None)
 
-            with pytest.raises(RuntimeError) as excinfo:
+            with pytest.raises(ConfigurationError) as excinfo:
                 _get_secret(
                     "REQUIRED_SECRET",
                     file_env_var="REQUIRED_SECRET_FILE",
@@ -293,7 +294,7 @@ class TestApiKeyFile:
             os.environ.pop("AUTOPACK_API_KEY", None)
             os.environ.pop("AUTOPACK_API_KEY_FILE", None)
 
-            with pytest.raises(RuntimeError) as excinfo:
+            with pytest.raises(ConfigurationError) as excinfo:
                 config_module.get_api_key()
 
             assert "AUTOPACK_API_KEY" in str(excinfo.value)

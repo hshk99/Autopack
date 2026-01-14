@@ -18,6 +18,8 @@ import urllib.robotparser
 from dataclasses import dataclass
 from typing import Dict, Optional
 
+from ...exceptions import ValidationError, IntegrationError
+
 import requests
 
 from autopack.research.gatherers.content_extractor import ContentExtractor
@@ -84,11 +86,11 @@ class WebScraper:
         # requests doesn't raise on non-2xx unless raise_for_status is called;
         # tests expect an Exception on failure
         if resp.status_code >= 400:
-            raise Exception(f"HTTP {resp.status_code} for {norm}")
+            raise IntegrationError(f"HTTP {resp.status_code} for {norm}")
 
         content_type = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
         if content_type and content_type not in self.allow_content_types:
-            raise ValueError(f"Unsupported content-type: {content_type}")
+            raise ValidationError(f"Unsupported content-type: {content_type}")
 
         return FetchResult(
             url=norm, status_code=resp.status_code, content_type=content_type, text=resp.text or ""
@@ -96,17 +98,17 @@ class WebScraper:
 
     def _validate_and_normalize_url(self, url: str) -> str:
         if url is None:
-            raise ValueError("url must not be None")
+            raise ValidationError("url must not be None")
         if not isinstance(url, str):
-            raise ValueError("url must be a string")
+            raise ValidationError("url must be a string")
         url = url.strip()
         if not url:
-            raise ValueError("url must not be empty")
+            raise ValidationError("url must not be empty")
         parsed = urllib.parse.urlparse(url)
         if parsed.scheme not in ("http", "https"):
-            raise ValueError("url must be http(s)")
+            raise ValidationError("url must be http(s)")
         if not parsed.netloc:
-            raise ValueError("url must include a host")
+            raise ValidationError("url must include a host")
         return url
 
     def _enforce_rate_limit(self, domain: str) -> None:

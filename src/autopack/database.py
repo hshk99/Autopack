@@ -5,6 +5,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from .config import get_database_url
 from .db_leak_detector import ConnectionLeakDetector
+from .exceptions import DatabaseError
 
 # Enable pool_pre_ping so dropped/closed connections are detected and re-established.
 # pool_recycle guards against server-side timeouts on long-lived processes.
@@ -77,7 +78,7 @@ def init_db():
                 "For production, run migrations instead of using create_all()."
             )
             logger.error(error_msg)
-            raise RuntimeError(error_msg)
+            raise DatabaseError(error_msg)
 
         logger.info(f"[DB] Schema validation passed: {len(existing_tables)} tables found")
     else:

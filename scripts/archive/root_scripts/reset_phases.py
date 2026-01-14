@@ -10,7 +10,8 @@ cursor = conn.cursor()
 
 # Restore COMPLETE phases that were running (restore from QUEUED to COMPLETE)
 # Only keep FAILED phases as QUEUED
-cursor.execute("""
+cursor.execute(
+    """
     UPDATE phases
     SET
         state = 'COMPLETE',
@@ -18,10 +19,12 @@ cursor.execute("""
     WHERE run_id = 'fileorg-phase2-beta-release'
     AND state = 'QUEUED'
     AND phase_id != 'fileorg-p2-advanced-search'
-""")
+"""
+)
 
 # Ensure the FAILED phase stays QUEUED
-cursor.execute("""
+cursor.execute(
+    """
     UPDATE phases
     SET
         state = 'QUEUED',
@@ -29,19 +32,22 @@ cursor.execute("""
         last_failure_reason = NULL
     WHERE run_id = 'fileorg-phase2-beta-release'
     AND phase_id = 'fileorg-p2-advanced-search'
-""")
+"""
+)
 
 conn.commit()
 
 print("Restored 14 COMPLETE phases, kept 1 FAILED phase as QUEUED")
 
 # Show updated phase states
-cursor.execute("""
+cursor.execute(
+    """
     SELECT phase_id, state, attempts_used, max_attempts
     FROM phases
     WHERE run_id = 'fileorg-phase2-beta-release'
     ORDER BY tier_id, phase_index
-""")
+"""
+)
 
 phases = cursor.fetchall()
 for phase in phases:

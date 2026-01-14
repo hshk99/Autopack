@@ -205,9 +205,9 @@ class TestSOTTelemetryFields:
                     )
 
         event = test_db.query(SOTRetrievalEvent).first()
-        assert event.sot_truncated is True, (
-            "Truncation flag should be set when output is near cap (>= 95%)"
-        )
+        assert (
+            event.sot_truncated is True
+        ), "Truncation flag should be set when output is near cap (>= 95%)"
 
     def test_sections_included_tracking(self, test_db, test_run_and_phase, executor):
         """Telemetry should track which context sections were included"""

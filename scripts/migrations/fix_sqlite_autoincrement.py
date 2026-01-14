@@ -84,7 +84,8 @@ def migrate_sqlite(force=False):
 
         # storage_scans table
         session.execute(
-            text("""
+            text(
+                """
             CREATE TABLE storage_scans (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -104,7 +105,8 @@ def migrate_sqlite(force=False):
                 created_by VARCHAR(100),
                 notes TEXT
             )
-        """)
+        """
+            )
         )
         print("  ✓ Created storage_scans")
 
@@ -121,7 +123,8 @@ def migrate_sqlite(force=False):
 
         # cleanup_candidates table
         session.execute(
-            text("""
+            text(
+                """
             CREATE TABLE cleanup_candidates (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 scan_id INTEGER NOT NULL REFERENCES storage_scans(id) ON DELETE CASCADE,
@@ -152,7 +155,8 @@ def migrate_sqlite(force=False):
                 user_feedback TEXT,
                 learned_rule_id INTEGER REFERENCES learned_rules(id)
             )
-        """)
+        """
+            )
         )
         print("  ✓ Created cleanup_candidates")
 

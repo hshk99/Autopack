@@ -109,11 +109,13 @@ def upgrade(engine: Engine) -> None:
 
             # Verify backfill for existing rows with total_tokens=0
             result = conn.execute(
-                text("""
+                text(
+                    """
                 SELECT COUNT(*) as count FROM llm_usage_events
                 WHERE total_tokens = 0
                 AND (prompt_tokens IS NOT NULL OR completion_tokens IS NOT NULL)
-            """)
+            """
+                )
             )
             row = result.fetchone()
             zero_total_count = row[0] if row else 0
@@ -122,12 +124,14 @@ def upgrade(engine: Engine) -> None:
                 print(f"[!]️  Found {zero_total_count} rows with total_tokens=0 but non-NULL splits")
                 print("    Running backfill to fix these rows...")
                 conn.execute(
-                    text("""
+                    text(
+                        """
                     UPDATE llm_usage_events
                     SET total_tokens = COALESCE(prompt_tokens, 0) + COALESCE(completion_tokens, 0)
                     WHERE total_tokens = 0
                     AND (prompt_tokens IS NOT NULL OR completion_tokens IS NOT NULL)
-                """)
+                """
+                    )
                 )
                 print(f"[x] Backfilled {zero_total_count} rows with correct total_tokens")
             else:
@@ -138,10 +142,12 @@ def upgrade(engine: Engine) -> None:
         print("\n[1/3] Adding column: total_tokens (INTEGER NOT NULL DEFAULT 0)")
         print("      Purpose: Always record total tokens to avoid under-reporting")
         conn.execute(
-            text("""
+            text(
+                """
             ALTER TABLE llm_usage_events
             ADD COLUMN total_tokens INTEGER NOT NULL DEFAULT 0
-        """)
+        """
+            )
         )
         print("      [x] Column 'total_tokens' added")
 
@@ -150,10 +156,12 @@ def upgrade(engine: Engine) -> None:
             "      Formula: total_tokens = COALESCE(prompt_tokens, 0) + COALESCE(completion_tokens, 0)"
         )
         result = conn.execute(
-            text("""
+            text(
+                """
             UPDATE llm_usage_events
             SET total_tokens = COALESCE(prompt_tokens, 0) + COALESCE(completion_tokens, 0)
-        """)
+        """
+            )
         )
         rows_updated = result.rowcount
         print(f"      [x] Backfilled {rows_updated} rows")
@@ -161,14 +169,16 @@ def upgrade(engine: Engine) -> None:
         print("\n[3/3] Verification")
         # Count rows by token pattern
         result = conn.execute(
-            text("""
+            text(
+                """
             SELECT
                 COUNT(*) as total_rows,
                 SUM(CASE WHEN prompt_tokens IS NOT NULL AND completion_tokens IS NOT NULL THEN 1 ELSE 0 END) as exact_splits,
                 SUM(CASE WHEN prompt_tokens IS NULL AND completion_tokens IS NULL THEN 1 ELSE 0 END) as total_only,
                 SUM(total_tokens) as total_tokens_sum
             FROM llm_usage_events
-        """)
+        """
+            )
         )
         row = result.fetchone()
         if row:
@@ -216,10 +226,12 @@ def downgrade(engine: Engine) -> None:
         else:
             # PostgreSQL and other databases support DROP COLUMN
             conn.execute(
-                text("""
+                text(
+                    """
                 ALTER TABLE llm_usage_events
                 DROP COLUMN total_tokens
-            """)
+            """
+                )
             )
             print("      [x] Column 'total_tokens' dropped")
 

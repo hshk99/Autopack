@@ -32,9 +32,7 @@ MUTABLE_RE = re.compile(r"@(master|main|v\d+)$", re.IGNORECASE)
 
 # Policy: first-party actions allowed to use version tags
 # All third-party actions must use SHA pins
-ALLOWED_TAG_PREFIXES = (
-    "actions/",  # e.g. actions/checkout@v4, actions/setup-python@v5
-)
+ALLOWED_TAG_PREFIXES = ("actions/",)  # e.g. actions/checkout@v4, actions/setup-python@v5
 
 
 def is_allowed_tag_ref(uses: str) -> bool:

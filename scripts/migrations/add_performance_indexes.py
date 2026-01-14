@@ -65,11 +65,13 @@ def index_exists(engine, index_name: str, table_name: str) -> bool:
         else:
             # PostgreSQL: Query pg_indexes
             result = conn.execute(
-                text("""
+                text(
+                    """
                 SELECT indexname
                 FROM pg_indexes
                 WHERE tablename = :table_name AND indexname = :index_name
-            """),
+            """
+                ),
                 {"table_name": table_name, "index_name": index_name},
             )
             return result.fetchone() is not None
@@ -282,12 +284,14 @@ def verify_indexes(engine):
             else:
                 # PostgreSQL: Query pg_indexes
                 result = conn.execute(
-                    text("""
+                    text(
+                        """
                     SELECT indexname, indexdef
                     FROM pg_indexes
                     WHERE tablename = :table_name
                     ORDER BY indexname
-                """),
+                """
+                    ),
                     {"table_name": table_name},
                 )
                 indexes = result.fetchall()

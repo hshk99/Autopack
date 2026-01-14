@@ -55,70 +55,84 @@ def upgrade(engine: Engine) -> None:
         print("\n[1/6] Adding column: is_truncated_output (Boolean, default=False)")
         print("      Purpose: Flag censored data where actual_tokens is lower bound")
         conn.execute(
-            text("""
+            text(
+                """
             ALTER TABLE token_estimation_v2_events
             ADD COLUMN is_truncated_output BOOLEAN NOT NULL DEFAULT FALSE
-        """)
+        """
+            )
         )
         print("      ✓ Column 'is_truncated_output' added")
 
         print("\n[2/6] Adding column: api_reference_required (Boolean, nullable)")
         print("      Purpose: Detect tasks requiring API documentation")
         conn.execute(
-            text("""
+            text(
+                """
             ALTER TABLE token_estimation_v2_events
             ADD COLUMN api_reference_required BOOLEAN
-        """)
+        """
+            )
         )
         print("      ✓ Column 'api_reference_required' added")
 
         print("\n[3/6] Adding column: examples_required (Boolean, nullable)")
         print("      Purpose: Detect tasks requiring code examples")
         conn.execute(
-            text("""
+            text(
+                """
             ALTER TABLE token_estimation_v2_events
             ADD COLUMN examples_required BOOLEAN
-        """)
+        """
+            )
         )
         print("      ✓ Column 'examples_required' added")
 
         print("\n[4/6] Adding column: research_required (Boolean, nullable)")
         print("      Purpose: Detect tasks requiring codebase investigation")
         conn.execute(
-            text("""
+            text(
+                """
             ALTER TABLE token_estimation_v2_events
             ADD COLUMN research_required BOOLEAN
-        """)
+        """
+            )
         )
         print("      ✓ Column 'research_required' added")
 
         print("\n[5/6] Adding column: usage_guide_required (Boolean, nullable)")
         print("      Purpose: Detect tasks requiring usage documentation")
         conn.execute(
-            text("""
+            text(
+                """
             ALTER TABLE token_estimation_v2_events
             ADD COLUMN usage_guide_required BOOLEAN
-        """)
+        """
+            )
         )
         print("      ✓ Column 'usage_guide_required' added")
 
         print("\n[6/6] Adding column: context_quality (String, nullable)")
         print("      Purpose: Track context availability (none/some/strong)")
         conn.execute(
-            text("""
+            text(
+                """
             ALTER TABLE token_estimation_v2_events
             ADD COLUMN context_quality VARCHAR
-        """)
+        """
+            )
         )
         print("      ✓ Column 'context_quality' added")
 
         # Create index on is_truncated_output for efficient filtering
         print("\n[Index] Creating index: idx_telemetry_truncated")
         conn.execute(
-            text("""
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_telemetry_truncated
             ON token_estimation_v2_events (is_truncated_output, category)
-        """)
+        """
+            )
         )
         print("      ✓ Index 'idx_telemetry_truncated' created")
 

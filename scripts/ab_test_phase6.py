@@ -585,9 +585,9 @@ def main():
                 "median_total_token_delta": statistics.median(
                     [p.delta_total_tokens for p in pairs]
                 ),
-                "stdev_total_token_delta": statistics.stdev([p.delta_total_tokens for p in pairs])
-                if len(pairs) > 1
-                else 0,
+                "stdev_total_token_delta": (
+                    statistics.stdev([p.delta_total_tokens for p in pairs]) if len(pairs) > 1 else 0
+                ),
                 "mean_doctor_token_delta": statistics.mean([p.delta_doctor_tokens for p in pairs]),
                 "total_control_tokens": sum(p.control_run.total_tokens for p in pairs),
                 "total_treatment_tokens": sum(p.treatment_run.total_tokens for p in pairs),

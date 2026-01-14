@@ -159,9 +159,9 @@ class TestInv003PathInjection:
             is_unix_absolute = path_str.startswith("/") and not path_str.startswith("//")
 
             # At least one safety check should trigger
-            assert has_traversal or is_windows_drive or is_unix_absolute, (
-                f"Path {path_str} should be rejected"
-            )
+            assert (
+                has_traversal or is_windows_drive or is_unix_absolute
+            ), f"Path {path_str} should be rejected"
 
 
 class TestInv005ArtifactRedaction:

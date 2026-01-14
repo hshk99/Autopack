@@ -104,7 +104,8 @@ def upgrade(engine: Engine) -> None:
 
     with engine.begin() as conn:
         conn.execute(
-            text("""
+            text(
+                """
             CREATE TABLE phase6_metrics (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 run_id VARCHAR(255) NOT NULL,
@@ -131,24 +132,31 @@ def upgrade(engine: Engine) -> None:
 
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-        """)
+        """
+            )
         )
 
         # Create indexes for common queries
         conn.execute(
-            text("""
+            text(
+                """
             CREATE INDEX idx_phase6_metrics_run_id ON phase6_metrics(run_id)
-        """)
+        """
+            )
         )
         conn.execute(
-            text("""
+            text(
+                """
             CREATE INDEX idx_phase6_metrics_phase_id ON phase6_metrics(phase_id)
-        """)
+        """
+            )
         )
         conn.execute(
-            text("""
+            text(
+                """
             CREATE INDEX idx_phase6_metrics_created_at ON phase6_metrics(created_at)
-        """)
+        """
+            )
         )
 
         print("    ✓ Table 'phase6_metrics' created with indexes")

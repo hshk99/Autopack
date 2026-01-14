@@ -130,9 +130,9 @@ class TestPostgresIdempotencyIndex:
 
         # Verify columns (order matters for partial unique index)
         expected_columns = ["run_id", "phase_id", "phase_outcome"]
-        assert idempotency_index["column_names"] == expected_columns, (
-            f"Index columns should be {expected_columns}, got {idempotency_index['column_names']}"
-        )
+        assert (
+            idempotency_index["column_names"] == expected_columns
+        ), f"Index columns should be {expected_columns}, got {idempotency_index['column_names']}"
 
     def test_duplicate_terminal_outcome_prevented(self, postgres_session):
         """Assert that duplicates are prevented by the unique index.
@@ -203,9 +203,9 @@ class TestPostgresIdempotencyIndex:
 
         # Verify error message mentions the index
         error_msg = str(exc_info.value).lower()
-        assert "ux_token_eff_metrics_run_phase_outcome" in error_msg or "unique" in error_msg, (
-            f"IntegrityError should mention unique constraint or index, got: {exc_info.value}"
-        )
+        assert (
+            "ux_token_eff_metrics_run_phase_outcome" in error_msg or "unique" in error_msg
+        ), f"IntegrityError should mention unique constraint or index, got: {exc_info.value}"
 
         # Rollback the failed transaction
         postgres_session.rollback()

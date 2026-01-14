@@ -155,7 +155,8 @@ def analyze_uncaught_patterns(
     # Query 1: Find errors that weren't caught by failure hardening
     # (error_logs where corresponding phase6_metrics has failure_hardening_triggered = FALSE)
 
-    query = text("""
+    query = text(
+        """
         SELECT
             e.run_id,
             e.phase_id,
@@ -169,7 +170,8 @@ def analyze_uncaught_patterns(
         WHERE (p6.failure_hardening_triggered IS NULL OR p6.failure_hardening_triggered = 0)
             AND e.error_message IS NOT NULL
             AND e.error_message != ''
-    """)
+    """
+    )
 
     params = {}
     if run_id:

@@ -244,9 +244,11 @@ class TelemetryAnalyzerV3:
 
         return {
             "waste_ratio_median": statistics.median(waste_ratios),
-            "waste_ratio_p90": statistics.quantiles(waste_ratios, n=10)[8]
-            if len(waste_ratios) >= 10
-            else max(waste_ratios),
+            "waste_ratio_p90": (
+                statistics.quantiles(waste_ratios, n=10)[8]
+                if len(waste_ratios) >= 10
+                else max(waste_ratios)
+            ),
             "waste_ratio_mean": statistics.mean(waste_ratios),
         }
 

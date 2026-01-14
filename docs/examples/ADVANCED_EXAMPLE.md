@@ -28,7 +28,7 @@ autonomous:
   max_iterations: 10
   auto_commit: true
   branch_prefix: "autopack/"
-  
+
 phases:
   - name: setup
     description: Initialize project structure
@@ -74,13 +74,13 @@ phases:
       - Create project structure
       - Set up dependencies (FastAPI, SQLAlchemy, etc.)
       - Configure database connection
-      
+
   - phase: models
     tasks:
       - Create User model with fields: id, email, password_hash, created_at
       - Add password hashing utilities
       - Create database migration
-      
+
   - phase: api
     tasks:
       - Implement POST /users (registration)
@@ -89,7 +89,7 @@ phases:
       - Implement PUT /users/me (update user)
       - Add JWT token generation and validation
       - Add authentication middleware
-      
+
   - phase: tests
     tasks:
       - Unit tests for User model
@@ -97,7 +97,7 @@ phases:
       - Integration tests for all endpoints
       - Test authentication flow
       - Test error cases
-      
+
   - phase: docs
     tasks:
       - Generate OpenAPI documentation
@@ -212,23 +212,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-          
+
       - name: Install AutoPack
         run: pip install autopack
-        
+
       - name: Run AutoPack
         run: autopack run --all-phases
         env:
           AUTOPACK_API_KEY: ${{ secrets.AUTOPACK_API_KEY }}
-          
+
       - name: Run Tests
         run: pytest
-        
+
       - name: Create Pull Request
         if: success()
         uses: peter-evans/create-pull-request@v5

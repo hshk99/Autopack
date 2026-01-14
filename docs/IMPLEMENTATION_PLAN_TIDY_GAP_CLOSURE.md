@@ -1,6 +1,6 @@
 # Implementation Plan: Close the Gap on “Autopack Tidy Up” (README Intent → Reality)
 
-Audience: maintainers + next implementation cursor  
+Audience: maintainers + next implementation cursor
 Goal: make “tidy up” behavior match the **intention described in `README.md`**, especially for keeping `C:\dev\Autopack\` and `C:\dev\Autopack\docs\` clean and preventing surprise directory creation.
 
 ---
@@ -202,11 +202,11 @@ Verification:
 
 Design: `docs/` should not be an inbox. We need **two explicit modes**:
 
-- **Mode 1: conservative (default)**  
+- **Mode 1: conservative (default)**
   - Do not move anything under `docs/` automatically except clearly non-truth artifacts (e.g., `UNSORTED_REVIEW.md` is allowed, but random `ref*.md` is not).
   - Enforce “no new docs subdirs” by denylisting unknown directories.
 
-- **Mode 2: reduce docs (explicit opt-in)** (`--docs-reduce-to-sot`)  
+- **Mode 2: reduce docs (explicit opt-in)** (`--docs-reduce-to-sot`)
   - Move *everything* in `docs/` that is not in an allowlist into `archive/reports/docs_superseded/` (or `archive/superseded/reports/docs/`).
   - Optionally leave behind a small stub file (redirect) pointing to the new archive location (only if helpful).
 
@@ -272,8 +272,8 @@ Optional (recommended): wire verifier into CI as a non-blocking job at first, th
 
 ## 5) Recommended immediate next steps (to unblock you fastest)
 
-1) Implement Phase 0 + Phase 1 entrypoint unification (so “tidy up” means one thing).  
-2) Implement Phase 2 docs hygiene in **opt-in reduction mode**, so you can clean `docs/` safely without surprising moves.  
+1) Implement Phase 0 + Phase 1 entrypoint unification (so “tidy up” means one thing).
+2) Implement Phase 2 docs hygiene in **opt-in reduction mode**, so you can clean `docs/` safely without surprising moves.
 3) Add Phase 4 verifier + tests so it doesn’t drift again.
 
 ---
@@ -284,5 +284,3 @@ Optional (recommended): wire verifier into CI as a non-blocking job at first, th
 - Must remain **reversible** (checkpoint zip + git checkpoint).
 - Must never delete protected truth sources; deletions must remain **opt-in**.
 - Must work on Windows paths and avoid runaway nesting.
-
-

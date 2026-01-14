@@ -79,4 +79,3 @@ Autopack uses a **3-gate CI test strategy** with 4,901 core tests that must pass
 **For comprehensive improvement scans**: Use [docs/COMPREHENSIVE_SCAN_UNIVERSAL_PROMPT.md](docs/COMPREHENSIVE_SCAN_UNIVERSAL_PROMPT.md) to categorize improvements by CI impact (A/B/C/D/E) and execute in parallel waves. Reduces CI time from 450+ min to ~125 min (72% reduction).
 
 **Full Strategy**: [docs/COMPREHENSIVE_SCAN_WORKFLOW.md](docs/COMPREHENSIVE_SCAN_WORKFLOW.md)
-

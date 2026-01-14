@@ -4,7 +4,6 @@ This module provides comprehensive test coverage for the string_helper module,
 including tests for capitalize_words and reverse_string functions.
 """
 
-import pytest
 from examples.telemetry_utils.string_helper import capitalize_words, reverse_string
 
 
@@ -30,7 +29,10 @@ class TestCapitalizeWords:
     def test_capitalize_with_custom_delimiter(self, delimiter_strings):
         """Test capitalizing with custom delimiter."""
         assert capitalize_words("hello-world", delimiter="-") == "Hello-World"
-        assert capitalize_words("python-programming-language", delimiter="-") == "Python-Programming-Language"
+        assert (
+            capitalize_words("python-programming-language", delimiter="-")
+            == "Python-Programming-Language"
+        )
         assert capitalize_words("one_two_three", delimiter="_") == "One_Two_Three"
 
     def test_capitalize_with_multiple_spaces(self):
@@ -130,7 +132,7 @@ class TestReverseString:
         """Test that reversing twice returns the original string."""
         original = "hello world"
         assert reverse_string(reverse_string(original)) == original
-        
+
         original = "test123"
         assert reverse_string(reverse_string(original)) == original
 
@@ -192,7 +194,7 @@ class TestEdgeCases:
         """Test strings with newlines and tabs."""
         text_with_newline = "hello\nworld"
         assert reverse_string(text_with_newline) == "dlrow\nolleh"
-        
+
         text_with_tab = "hello\tworld"
         capitalized = capitalize_words(text_with_tab)
         assert "Hello" in capitalized

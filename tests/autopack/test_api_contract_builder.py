@@ -106,15 +106,15 @@ class TestBuilderResultContract:
         result = BuilderResult(**executor_payload)
 
         # Verify data loss occurs
-        assert (
-            result.patch_content is None
-        ), "Data lost: executor sends 'output' not 'patch_content'"
-        assert (
-            result.files_changed == []
-        ), "Data lost: executor sends 'files_modified' not 'files_changed'"
-        assert (
-            result.tokens_used == 0
-        ), "Data lost: executor packs 'tokens_used' in 'metadata' not top-level"
+        assert result.patch_content is None, (
+            "Data lost: executor sends 'output' not 'patch_content'"
+        )
+        assert result.files_changed == [], (
+            "Data lost: executor sends 'files_modified' not 'files_changed'"
+        )
+        assert result.tokens_used == 0, (
+            "Data lost: executor packs 'tokens_used' in 'metadata' not top-level"
+        )
 
     @pytest.mark.legacy_contract
     @pytest.mark.xfail(
@@ -182,9 +182,9 @@ class TestBuilderResultContract:
         assert parsed.run_id == "test-run"
         assert parsed.status == "success"
         assert parsed.patch_content is not None and parsed.patch_content.strip()
-        assert (
-            parsed.files_changed
-        ), "files_changed must be top-level and non-empty when patch modifies files"
+        assert parsed.files_changed, (
+            "files_changed must be top-level and non-empty when patch modifies files"
+        )
         assert parsed.tokens_used == 1500
 
     def test_probe_result_schema(self):

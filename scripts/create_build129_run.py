@@ -42,19 +42,19 @@ BUILD_129_PLAN = {
                     "src/autopack/anthropic_clients.py modifications",
                     "src/autopack/manifest_generator.py modifications",
                     "tests/test_token_estimator.py",
-                    "docs/BUILD-129_PHASE1_OUTPUT_SIZE_PREDICTOR.md"
+                    "docs/BUILD-129_PHASE1_OUTPUT_SIZE_PREDICTOR.md",
                 ],
                 "protected_paths": [
                     "src/autopack/autonomous_executor.py",
                     "src/autopack/models.py",
-                    "src/frontend/"
+                    "src/frontend/",
                 ],
                 "read_only_context": [
                     "docs/TOKEN_BUDGET_ANALYSIS_REVISED.md",
                     "docs/BUILD-129_SELF_IMPROVEMENT_PLAN.md",
-                    "src/autopack/deliverables_validator.py"
-                ]
-            }
+                    "src/autopack/deliverables_validator.py",
+                ],
+            },
         },
         {
             "phase_id": "build129-phase2-continuation-recovery",
@@ -80,18 +80,15 @@ BUILD_129_PLAN = {
                     "src/autopack/autonomous_executor.py modifications",
                     "src/autopack/anthropic_clients.py modifications",
                     "tests/test_continuation_recovery.py",
-                    "docs/BUILD-129_PHASE2_CONTINUATION_RECOVERY.md"
+                    "docs/BUILD-129_PHASE2_CONTINUATION_RECOVERY.md",
                 ],
-                "protected_paths": [
-                    "src/autopack/models.py",
-                    "src/frontend/"
-                ],
+                "protected_paths": ["src/autopack/models.py", "src/frontend/"],
                 "read_only_context": [
                     "docs/TOKEN_BUDGET_ANALYSIS_REVISED.md",
                     "docs/BUILD-129_SELF_IMPROVEMENT_PLAN.md",
-                    "src/autopack/token_estimator.py"
-                ]
-            }
+                    "src/autopack/token_estimator.py",
+                ],
+            },
         },
         {
             "phase_id": "build129-phase3-ndjson-format",
@@ -101,7 +98,7 @@ BUILD_129_PLAN = {
                 "Current structured-edit uses single JSON object - one truncation ruins entire output. "
                 "NDJSON format: one operation per line, so partial output is parseable (only last line lost). "
                 "Create ndjson_handler.py with parse_ndjson_structured_edit() and apply_ndjson_operations(). "
-                "Format: First line is meta {\"type\": \"meta\", \"total_operations\": N}, then one operation per line. "
+                'Format: First line is meta {"type": "meta", "total_operations": N}, then one operation per line. '
                 "Update anthropic_clients.py to request NDJSON for multi-file scopes (≥5 deliverables). "
                 "Update apply_handler.py to apply NDJSON operations incrementally. "
                 "Reference: docs/TOKEN_BUDGET_ANALYSIS_REVISED.md Section 'Layer 3: Truncation-Tolerant Output Formats'. "
@@ -117,27 +114,20 @@ BUILD_129_PLAN = {
                     "src/autopack/apply_handler.py modifications",
                     "src/autopack/autonomous_executor.py modifications",
                     "tests/test_ndjson_structured_edit.py",
-                    "docs/BUILD-129_PHASE3_NDJSON_FORMAT.md"
+                    "docs/BUILD-129_PHASE3_NDJSON_FORMAT.md",
                 ],
-                "protected_paths": [
-                    "src/autopack/models.py",
-                    "src/frontend/"
-                ],
+                "protected_paths": ["src/autopack/models.py", "src/frontend/"],
                 "read_only_context": [
                     "docs/TOKEN_BUDGET_ANALYSIS_REVISED.md",
                     "docs/BUILD-129_SELF_IMPROVEMENT_PLAN.md",
                     "src/autopack/continuation_handler.py",
-                    "src/autopack/token_estimator.py"
-                ]
-            }
-        }
+                    "src/autopack/token_estimator.py",
+                ],
+            },
+        },
     ],
-    "model_overrides": {
-        "builder": {
-            "backend:high": "claude-sonnet-4-5"
-        }
-    },
-    "auto_approve": False  # Human review after each phase to check BUILD-112/113/114 stability
+    "model_overrides": {"builder": {"backend:high": "claude-sonnet-4-5"}},
+    "auto_approve": False,  # Human review after each phase to check BUILD-112/113/114 stability
 }
 
 
@@ -149,21 +139,17 @@ def main():
     print(f"Phases: {len(BUILD_129_PLAN['phases'])}")
     print()
 
-    for i, phase in enumerate(BUILD_129_PLAN['phases'], 1):
+    for i, phase in enumerate(BUILD_129_PLAN["phases"], 1):
         print(f"Phase {i}: {phase['display_name']}")
         print(f"  Complexity: {phase['complexity']}")
         print(f"  Deliverables: {len(phase['scope']['deliverables'])}")
-        if 'dependencies' in phase:
+        if "dependencies" in phase:
             print(f"  Dependencies: {phase['dependencies']}")
         print()
 
     print("Creating run via API...")
     try:
-        response = requests.post(
-            f"{API_URL}/run/create",
-            json=BUILD_129_PLAN,
-            timeout=30
-        )
+        response = requests.post(f"{API_URL}/run/create", json=BUILD_129_PLAN, timeout=30)
         response.raise_for_status()
         result = response.json()
         run_id = result.get("run_id")
@@ -176,13 +162,15 @@ def main():
         print("3. Review phase outputs before approving next phase")
         print()
         print("Run command:")
-        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL='sqlite:///autopack.db' python -m autopack.autonomous_executor {run_id}")
+        print(
+            f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL='sqlite:///autopack.db' python -m autopack.autonomous_executor {run_id}"
+        )
 
         return run_id
 
     except requests.exceptions.RequestException as e:
         print(f"❌ Error creating run: {e}")
-        if hasattr(e, 'response') and e.response is not None:
+        if hasattr(e, "response") and e.response is not None:
             print(f"Response: {e.response.text}")
         sys.exit(1)
 

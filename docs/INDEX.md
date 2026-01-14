@@ -207,5 +207,3 @@ If you're unsure: write the doc, then run the tidy workflow to consolidate and k
 - README.md is **skipped** by consolidation (has `<!-- SOT_SUMMARY_START/END -->` markers)
 - Append-only ledgers are **auto-updated** by `consolidate_docs_v2.py` during Phase 6 cleanup
 - Living docs require **manual updates** but can reference ledgers via links
-
-

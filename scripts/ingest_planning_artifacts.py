@@ -60,7 +60,9 @@ def ensure_version_and_embed(
     content_hash = hashlib.sha256(content.encode("utf-8", errors="ignore")).hexdigest()
     latest = (
         session.query(models.PlanningArtifact)
-        .filter(models.PlanningArtifact.path == path, models.PlanningArtifact.project_id == project_id)
+        .filter(
+            models.PlanningArtifact.path == path, models.PlanningArtifact.project_id == project_id
+        )
         .order_by(models.PlanningArtifact.version.desc())
         .first()
     )
@@ -103,7 +105,12 @@ def ensure_version_and_embed(
         latest.replaced_by = next_version
         session.add(latest)
         if latest.vector_id:
-            memory.tombstone_entry(memory.planning_collection, latest.vector_id, replaced_by=vector_id, reason="superseded")
+            memory.tombstone_entry(
+                memory.planning_collection,
+                latest.vector_id,
+                replaced_by=vector_id,
+                reason="superseded",
+            )
 
     session.commit()
     return next_version, vector_id
@@ -159,12 +166,22 @@ def run_ingest(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Ingest planning artifacts into DB + vector memory")
-    parser.add_argument("--project-id", default="autopack", help="Project identifier for scoping embeddings")
-    parser.add_argument("--repo-root", default=Path(__file__).resolve().parent.parent, type=Path, help="Repo root")
+    parser = argparse.ArgumentParser(
+        description="Ingest planning artifacts into DB + vector memory"
+    )
+    parser.add_argument(
+        "--project-id", default="autopack", help="Project identifier for scoping embeddings"
+    )
+    parser.add_argument(
+        "--repo-root", default=Path(__file__).resolve().parent.parent, type=Path, help="Repo root"
+    )
     parser.add_argument("--author", default="autopack-agent", help="Author/agent string to record")
-    parser.add_argument("--reason", default="initial_ingest", help="Reason for ingestion/version bump")
-    parser.add_argument("--extra", nargs="*", default=[], help="Additional relative paths to ingest")
+    parser.add_argument(
+        "--reason", default="initial_ingest", help="Reason for ingestion/version bump"
+    )
+    parser.add_argument(
+        "--extra", nargs="*", default=[], help="Additional relative paths to ingest"
+    )
     args = parser.parse_args()
     run_ingest(
         project_id=args.project_id,
@@ -177,4 +194,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -19,12 +19,28 @@ from autopack.plan_utils import merge_plans
 
 def main():
     parser = argparse.ArgumentParser(description="Generate phase specs from markdown plan")
-    parser.add_argument("--in", dest="input_path", type=Path, required=True, help="Path to markdown plan")
-    parser.add_argument("--out", dest="output_path", type=Path, required=True, help="Output JSON path for phases")
-    parser.add_argument("--merge-base", dest="merge_base", type=Path, default=None, help="Existing plan JSON to merge into")
-    parser.add_argument("--allow-update", action="store_true", help="Allow updating existing phase ids when merging")
-    parser.add_argument("--default-complexity", default="medium", help="Default complexity if not tagged")
-    parser.add_argument("--default-category", default="feature", help="Default task_category if not tagged")
+    parser.add_argument(
+        "--in", dest="input_path", type=Path, required=True, help="Path to markdown plan"
+    )
+    parser.add_argument(
+        "--out", dest="output_path", type=Path, required=True, help="Output JSON path for phases"
+    )
+    parser.add_argument(
+        "--merge-base",
+        dest="merge_base",
+        type=Path,
+        default=None,
+        help="Existing plan JSON to merge into",
+    )
+    parser.add_argument(
+        "--allow-update", action="store_true", help="Allow updating existing phase ids when merging"
+    )
+    parser.add_argument(
+        "--default-complexity", default="medium", help="Default complexity if not tagged"
+    )
+    parser.add_argument(
+        "--default-category", default="feature", help="Default task_category if not tagged"
+    )
     args = parser.parse_args()
 
     phases = parse_markdown_plan(
@@ -47,4 +63,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

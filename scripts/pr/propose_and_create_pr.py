@@ -68,7 +68,9 @@ def main() -> int:
     print("\n[1/5] Computing diff stats...")
     try:
         diff_stats = get_diff_stats(args.base_branch)
-        print(f"  ✓ {len(diff_stats.files)} files changed (+{diff_stats.added}/-{diff_stats.removed})")
+        print(
+            f"  ✓ {len(diff_stats.files)} files changed (+{diff_stats.added}/-{diff_stats.removed})"
+        )
     except subprocess.CalledProcessError as e:
         print(f"  ❌ Git diff failed: {e}")
         return 1
@@ -97,7 +99,7 @@ def main() -> int:
     )
 
     json_path, md_path = PrProposalStorage.save(proposal, project_id=args.project_id)
-    print(f"  ✓ Proposal saved:")
+    print("  ✓ Proposal saved:")
     print(f"    - {json_path}")
     print(f"    - {md_path}")
 

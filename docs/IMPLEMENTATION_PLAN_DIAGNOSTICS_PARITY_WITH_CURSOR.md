@@ -1,8 +1,8 @@
 # Implementation Plan: Diagnostics Parity with Cursor (Handoff Bundle + Prompt + Second Opinion)
 
-**Last Updated**: 2025-12-20  
-**Status**: PROPOSED  
-**Scope**: Autopack core (framework-level; benefits all projects)  
+**Last Updated**: 2025-12-20
+**Status**: PROPOSED
+**Scope**: Autopack core (framework-level; benefits all projects)
 
 ---
 
@@ -233,5 +233,3 @@ Prioritization order:
 - Over-automation: second opinion may be mistaken; must remain advisory and gated.
 - Missing artifacts: some runs may not emit run.log or phase logs; bundle must degrade gracefully.
 - Token regression: bundler must remain conservative; never inline huge logs by default.
-
-

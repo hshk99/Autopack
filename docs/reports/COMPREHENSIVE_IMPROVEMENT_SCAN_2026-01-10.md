@@ -1,7 +1,7 @@
 # Comprehensive Improvement Scan (Repo-Wide)
 
-**Date**: 2026-01-10  
-**Scope**: Autopack repo current state + recent PR themes + “ideal state” as defined by `README.md` and SOT docs (especially `docs/INDEX.md`, `docs/WORKSPACE_ORGANIZATION_SPEC.md`, `docs/IMPROVEMENTS_GAP_ANALYSIS.md`).  
+**Date**: 2026-01-10
+**Scope**: Autopack repo current state + recent PR themes + “ideal state” as defined by `README.md` and SOT docs (especially `docs/INDEX.md`, `docs/WORKSPACE_ORGANIZATION_SPEC.md`, `docs/IMPROVEMENTS_GAP_ANALYSIS.md`).
 **Goal**: Identify **all** remaining areas for improvement/enhancement at once, with concrete evidence and acceptance criteria.
 
 This report is intentionally “single-pane”: it links to deeper SOT docs (so we don’t create “two truths”), but still enumerates every actionable gap we can see from the repo surface.
@@ -1553,5 +1553,3 @@ This is a concrete “first secure milestone” that makes docker-compose + ngin
   - Update the comment block in `docker-compose.yml` to reference `docker-compose.prod.example.yml` explicitly (or add a short note: “copy example to prod.yml, do not commit secrets”).
 - **Acceptance criteria**:
   - Compose comments and `docs/DEPLOYMENT.md` point at the same production override template and procedure.
-
-

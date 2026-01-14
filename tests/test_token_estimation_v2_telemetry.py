@@ -123,15 +123,15 @@ def test_telemetry_write_with_feature_flag(temp_db):
             #       = |800 - 1200| / ((800 + 1200) / 2) * 100
             #       = 400 / 1000 * 100 = 40.0
             assert event.smape_percent is not None
-            assert (
-                abs(event.smape_percent - 40.0) < 0.01
-            ), f"Expected SMAPE ~40.0, got {event.smape_percent}"
+            assert abs(event.smape_percent - 40.0) < 0.01, (
+                f"Expected SMAPE ~40.0, got {event.smape_percent}"
+            )
 
             # Waste ratio = predicted / actual = 1200 / 800 = 1.5 (NOT 150)
             assert event.waste_ratio is not None
-            assert (
-                abs(event.waste_ratio - 1.5) < 0.01
-            ), f"Expected waste_ratio ~1.5, got {event.waste_ratio}"
+            assert abs(event.waste_ratio - 1.5) < 0.01, (
+                f"Expected waste_ratio ~1.5, got {event.waste_ratio}"
+            )
 
             # Underestimated = actual > pred = 800 > 1200 = False
             assert event.underestimated is False

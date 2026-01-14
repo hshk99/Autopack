@@ -38,7 +38,7 @@ Test files affected:
         "phase_index": 0,
         "category": "backend",
         "complexity": "low",
-        "builder_mode": "tweak_light"
+        "builder_mode": "tweak_light",
     },
     {
         "phase_id": "fix-file-validator-import",
@@ -59,7 +59,7 @@ Check if PIL.Image needs to be imported and exported, or if the test is checking
         "phase_index": 1,
         "category": "backend",
         "complexity": "low",
-        "builder_mode": "tweak_light"
+        "builder_mode": "tweak_light",
     },
     {
         "phase_id": "fix-health-check-tests",
@@ -81,9 +81,8 @@ Options:
         "phase_index": 2,
         "category": "testing",
         "complexity": "low",
-        "builder_mode": "tweak_light"
+        "builder_mode": "tweak_light",
     },
-
     # Tier 2: Australian Document Pack Fixes
     {
         "phase_id": "fix-postcode-validator",
@@ -102,7 +101,7 @@ Check the valid postcode ranges for Australia and fix the validation logic.""",
         "phase_index": 0,
         "category": "backend",
         "complexity": "low",
-        "builder_mode": "tweak_light"
+        "builder_mode": "tweak_light",
     },
     {
         "phase_id": "fix-ato-classifier",
@@ -121,9 +120,8 @@ Check the classification logic and patterns for ATO tax returns.""",
         "phase_index": 1,
         "category": "backend",
         "complexity": "medium",
-        "builder_mode": "tweak_medium"
+        "builder_mode": "tweak_medium",
     },
-
     # Tier 3: Missing API Endpoints
     {
         "phase_id": "implement-search-endpoint",
@@ -146,7 +144,7 @@ Create or update src/backend/api/search.py router and register it in main.py."""
         "phase_index": 0,
         "category": "feature_scaffolding",
         "complexity": "high",
-        "builder_mode": "scaffolding_heavy"
+        "builder_mode": "scaffolding_heavy",
     },
     {
         "phase_id": "implement-batch-endpoint",
@@ -168,7 +166,7 @@ Create or update src/backend/api/batch.py router and register it in main.py.""",
         "phase_index": 1,
         "category": "feature_scaffolding",
         "complexity": "medium",
-        "builder_mode": "scaffolding_medium"
+        "builder_mode": "scaffolding_medium",
     },
     {
         "phase_id": "implement-auth-endpoints",
@@ -190,8 +188,8 @@ Create or update src/backend/api/auth.py router and register it in main.py.""",
         "phase_index": 2,
         "category": "feature_scaffolding",
         "complexity": "medium",
-        "builder_mode": "scaffolding_medium"
-    }
+        "builder_mode": "scaffolding_medium",
+    },
 ]
 
 
@@ -207,30 +205,34 @@ def create_run():
                 "tier_index": task["tier_index"],
                 "name": tier_id.split("-")[1],
                 "description": f"Tier {task['tier_index'] + 1}",
-                "phases": []
+                "phases": [],
             }
-        tiers[tier_id]["phases"].append({
-            "phase_id": task["phase_id"],
-            "phase_index": task["phase_index"],
-            "tier_id": tier_id,
-            "name": task["name"],
-            "description": task["description"],
-            "task_category": task["category"],
-            "complexity": task["complexity"],
-            "builder_mode": task["builder_mode"]
-        })
+        tiers[tier_id]["phases"].append(
+            {
+                "phase_id": task["phase_id"],
+                "phase_index": task["phase_index"],
+                "tier_id": tier_id,
+                "name": task["name"],
+                "description": task["description"],
+                "task_category": task["category"],
+                "complexity": task["complexity"],
+                "builder_mode": task["builder_mode"],
+            }
+        )
 
     # Flatten for API
     all_phases = []
     tier_list = []
     for tier in sorted(tiers.values(), key=lambda t: t["tier_index"]):
         all_phases.extend(tier["phases"])
-        tier_list.append({
-            "tier_id": tier["tier_id"],
-            "tier_index": tier["tier_index"],
-            "name": tier["name"],
-            "description": tier.get("description")
-        })
+        tier_list.append(
+            {
+                "tier_id": tier["tier_id"],
+                "tier_index": tier["tier_index"],
+                "name": tier["name"],
+                "description": tier.get("description"),
+            }
+        )
 
     payload = {
         "run": {
@@ -239,20 +241,17 @@ def create_run():
             "run_scope": "multi_tier",
             "token_cap": 200000,
             "max_phases": 10,
-            "max_duration_minutes": 90
+            "max_duration_minutes": 90,
         },
         "tiers": tier_list,
-        "phases": all_phases
+        "phases": all_phases,
     }
 
     print(f"[INFO] Creating run: {RUN_ID}")
     print(f"[INFO] Total tasks: {len(TASKS)}")
     print(f"[INFO] Total tiers: {len(tiers)}")
 
-    response = requests.post(
-        f"{API_URL}/runs/start",
-        json=payload
-    )
+    response = requests.post(f"{API_URL}/runs/start", json=payload)
 
     if response.status_code != 201:
         print(f"[ERROR] Response: {response.status_code}")

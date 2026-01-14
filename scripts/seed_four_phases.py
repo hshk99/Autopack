@@ -1,8 +1,10 @@
 """Seed 4 autonomous phases for BUILD-145 P1 completion"""
+
 import json
 from pathlib import Path
 from autopack.database import SessionLocal
 from autopack.models import Run, Tier, Phase, RunState, PhaseState
+
 
 def seed_run_from_json(json_path: Path):
     """Seed a single run from JSON specification"""
@@ -28,7 +30,7 @@ def seed_run_from_json(json_path: Path):
             state=RunState.QUEUED,
             token_cap=run_config.get("token_cap"),
             max_phases=run_config.get("max_phases"),
-            max_duration_minutes=run_config.get("max_duration_minutes")
+            max_duration_minutes=run_config.get("max_duration_minutes"),
         )
         session.add(run)
 
@@ -40,7 +42,7 @@ def seed_run_from_json(json_path: Path):
                 tier_index=tier_spec["tier_index"],
                 run_id=run_id,
                 name=tier_spec["name"],
-                description=tier_spec.get("description", "")
+                description=tier_spec.get("description", ""),
             )
             session.add(tier)
             session.flush()  # Flush to get the auto-generated tier.id
@@ -64,7 +66,7 @@ def seed_run_from_json(json_path: Path):
                 complexity=phase_spec.get("complexity"),
                 builder_mode=phase_spec.get("builder_mode", "default"),
                 state=PhaseState.QUEUED,
-                scope=phase_spec.get("scope")
+                scope=phase_spec.get("scope"),
             )
             session.add(phase)
 
@@ -79,6 +81,7 @@ def seed_run_from_json(json_path: Path):
     finally:
         session.close()
 
+
 def main():
     """Seed all 4 phases"""
     base_dir = Path(__file__).parent.parent
@@ -87,7 +90,7 @@ def main():
         base_dir / "phase_a_p11_observability.json",
         base_dir / "phase_b_p12_embedding_cache.json",
         base_dir / "phase_c_p13_expand_artifacts.json",
-        base_dir / "phase_d_research_imports.json"
+        base_dir / "phase_d_research_imports.json",
     ]
 
     seeded_count = 0
@@ -99,6 +102,7 @@ def main():
             print(f"⚠️  File not found: {json_file}")
 
     print(f"\n✅ Seeded {seeded_count}/{len(json_files)} runs")
+
 
 if __name__ == "__main__":
     main()

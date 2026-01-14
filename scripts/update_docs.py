@@ -29,6 +29,7 @@ from typing import Dict, List, Tuple, Set, Optional
 
 class StructuralChange:
     """Represents a detected structural change"""
+
     def __init__(self, category: str, description: str, location: str):
         self.category = category  # "module", "class", "api", "dependency", "config"
         self.description = description
@@ -49,9 +50,9 @@ class DocUpdater:
         if not main_py.exists():
             return 0
 
-        content = main_py.read_text(encoding='utf-8')
+        content = main_py.read_text(encoding="utf-8")
         # Count @app decorators (get, post, put, delete, patch)
-        pattern = r'@app\.(get|post|put|delete|patch)\('
+        pattern = r"@app\.(get|post|put|delete|patch)\("
         matches = re.findall(pattern, content)
         return len(matches)
 
@@ -92,7 +93,9 @@ class DocUpdater:
             return 0
         return len(list(docs_dir.glob("*.md")))
 
-    def detect_new_modules_since_commit(self, since_commit: str = "HEAD~5") -> List[StructuralChange]:
+    def detect_new_modules_since_commit(
+        self, since_commit: str = "HEAD~5"
+    ) -> List[StructuralChange]:
         """Detect new Python modules added since a commit using git diff"""
         try:
             result = subprocess.run(
@@ -100,7 +103,7 @@ class DocUpdater:
                 cwd=self.root,
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
 
             if result.returncode != 0:
@@ -115,11 +118,13 @@ class DocUpdater:
                         file_path = parts[1]
                         if "src/autopack/" in file_path and not file_path.endswith("__init__.py"):
                             module_name = Path(file_path).stem
-                            changes.append(StructuralChange(
-                                category="module",
-                                description=f"New module: {module_name}",
-                                location=file_path
-                            ))
+                            changes.append(
+                                StructuralChange(
+                                    category="module",
+                                    description=f"New module: {module_name}",
+                                    location=file_path,
+                                )
+                            )
 
             return changes
         except Exception:
@@ -128,7 +133,7 @@ class DocUpdater:
     def detect_new_classes_in_file(self, file_path: Path) -> List[str]:
         """Use AST to detect class definitions in a Python file"""
         try:
-            content = file_path.read_text(encoding='utf-8')
+            content = file_path.read_text(encoding="utf-8")
             tree = ast.parse(content)
 
             classes = []
@@ -148,7 +153,7 @@ class DocUpdater:
 
         changes = []
         try:
-            content = main_py.read_text(encoding='utf-8')
+            content = main_py.read_text(encoding="utf-8")
 
             # Find all endpoint decorators with their routes
             pattern = r'@app\.(get|post|put|delete|patch)\(["\']([^"\']+)["\']\)'
@@ -162,12 +167,14 @@ class DocUpdater:
 
             # Detect major new endpoint groups
             if any("/dashboard/" in route for route in endpoint_routes):
-                if not hasattr(self, '_dashboard_endpoints_seen'):
-                    changes.append(StructuralChange(
-                        category="api",
-                        description="Dashboard API endpoints added",
-                        location="main.py::/dashboard/*"
-                    ))
+                if not hasattr(self, "_dashboard_endpoints_seen"):
+                    changes.append(
+                        StructuralChange(
+                            category="api",
+                            description="Dashboard API endpoints added",
+                            location="main.py::/dashboard/*",
+                        )
+                    )
 
         except Exception:
             pass
@@ -182,11 +189,23 @@ class DocUpdater:
         requirements_txt = self.root / "requirements.txt"
         if requirements_txt.exists():
             try:
-                content = requirements_txt.read_text(encoding='utf-8')
-                lines = [line.strip() for line in content.splitlines() if line.strip() and not line.startswith("#")]
+                content = requirements_txt.read_text(encoding="utf-8")
+                lines = [
+                    line.strip()
+                    for line in content.splitlines()
+                    if line.strip() and not line.startswith("#")
+                ]
 
                 # Major dependencies to watch for
-                major_deps = ["fastapi", "sqlalchemy", "pydantic", "openai", "anthropic", "react", "vite"]
+                major_deps = [
+                    "fastapi",
+                    "sqlalchemy",
+                    "pydantic",
+                    "openai",
+                    "anthropic",
+                    "react",
+                    "vite",
+                ]
 
                 for dep in major_deps:
                     if any(dep.lower() in line.lower() for line in lines):
@@ -200,7 +219,8 @@ class DocUpdater:
         if package_json.exists():
             try:
                 import json
-                content = package_json.read_text(encoding='utf-8')
+
+                content = package_json.read_text(encoding="utf-8")
                 data = json.loads(content)
 
                 # Check for major frontend frameworks
@@ -233,11 +253,13 @@ class DocUpdater:
                 if classes:
                     important_classes = [c for c in classes if not c.startswith("_")]
                     if important_classes:
-                        all_changes.append(StructuralChange(
-                            category="class",
-                            description=f"New classes: {', '.join(important_classes[:3])}",
-                            location=change.location
-                        ))
+                        all_changes.append(
+                            StructuralChange(
+                                category="class",
+                                description=f"New classes: {', '.join(important_classes[:3])}",
+                                location=change.location,
+                            )
+                        )
 
         # 3. Detect API changes
         api_changes = self.detect_api_endpoint_changes()
@@ -256,15 +278,15 @@ class DocUpdater:
             print("❌ README.md not found")
             return False
 
-        content = readme.read_text(encoding='utf-8')
+        content = readme.read_text(encoding="utf-8")
         updated = False
 
         # Update API endpoint count
         endpoint_count = self.count_api_endpoints()
         new_content = re.sub(
-            r'\*\*Backend\*\* \| FastAPI \(\d+ REST endpoints\)',
-            f'**Backend** | FastAPI ({endpoint_count} REST endpoints)',
-            content
+            r"\*\*Backend\*\* \| FastAPI \(\d+ REST endpoints\)",
+            f"**Backend** | FastAPI ({endpoint_count} REST endpoints)",
+            content,
         )
         if new_content != content:
             updated = True
@@ -279,7 +301,7 @@ class DocUpdater:
             self.changes_needed.append("Architecture diagram needs LlmService")
 
         if updated and not dry_run:
-            readme.write_text(content, encoding='utf-8')
+            readme.write_text(content, encoding="utf-8")
             print(f"[OK] Updated README.md (API endpoints: {endpoint_count})")
             return True
         elif dry_run and updated:
@@ -293,7 +315,7 @@ class DocUpdater:
         if not readme.exists():
             return False
 
-        content = readme.read_text(encoding='utf-8')
+        content = readme.read_text(encoding="utf-8")
         # Dashboard is production ready if dist/ exists
         has_dashboard = self.check_dashboard_ui_exists()
 
@@ -329,7 +351,7 @@ class DocUpdater:
             "class": "### New Classes",
             "api": "### API Changes",
             "dependency": "### Dependencies",
-            "config": "### Configuration"
+            "config": "### Configuration",
         }
 
         for category in ["module", "class", "api", "dependency", "config"]:
@@ -341,13 +363,13 @@ class DocUpdater:
         entry_text = "".join(entry_lines)
 
         if dry_run:
-            print(f"[DRY RUN] Would update CHANGELOG.md:")
+            print("[DRY RUN] Would update CHANGELOG.md:")
             print(entry_text)
             return True
 
         # Create or update changelog
         if changelog.exists():
-            content = changelog.read_text(encoding='utf-8')
+            content = changelog.read_text(encoding="utf-8")
 
             # Check if today's entry already exists
             today_marker = f"## [{today}] - Structural Updates"
@@ -361,7 +383,7 @@ class DocUpdater:
                     if today_marker in line:
                         # Found today's entry, skip until next ## section
                         skip_until_next_section = True
-                        new_lines.append(entry_text.lstrip('\n'))  # Add new entry
+                        new_lines.append(entry_text.lstrip("\n"))  # Add new entry
                         continue
 
                     if skip_until_next_section:
@@ -385,8 +407,10 @@ class DocUpdater:
         else:
             new_content = "# Changelog\n" + entry_text
 
-        changelog.write_text(new_content, encoding='utf-8')
-        print(f"[OK] Updated CHANGELOG.md with {len(changes)} structural changes (merged into today's entry)")
+        changelog.write_text(new_content, encoding="utf-8")
+        print(
+            f"[OK] Updated CHANGELOG.md with {len(changes)} structural changes (merged into today's entry)"
+        )
         return True
 
     def generate_feature_summary(self) -> Dict[str, any]:
@@ -420,7 +444,7 @@ class DocUpdater:
             self.check_status_badge()
 
             if self.changes_needed:
-                print(f"\n[!] Documentation changes needed:")
+                print("\n[!] Documentation changes needed:")
                 for change in self.changes_needed:
                     print(f"  - {change}")
 
@@ -443,7 +467,7 @@ class DocUpdater:
         # Gather current state
         summary = self.generate_feature_summary()
 
-        print(f"\n[Status] Current State:")
+        print("\n[Status] Current State:")
         print(f"  API Endpoints: {summary['api_endpoints']}")
         print(f"  New Modules: {len(summary['new_modules'])}")
         print(f"  Dashboard Built: {'YES' if summary['dashboard_built'] else 'NO'}")
@@ -488,23 +512,17 @@ class DocUpdater:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Automatically update Autopack documentation"
+    parser = argparse.ArgumentParser(description="Automatically update Autopack documentation")
+    parser.add_argument(
+        "--check", action="store_true", help="Check if updates needed without modifying files"
     )
     parser.add_argument(
-        "--check",
-        action="store_true",
-        help="Check if updates needed without modifying files"
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show what would change without modifying files"
+        "--dry-run", action="store_true", help="Show what would change without modifying files"
     )
     parser.add_argument(
         "--analyze",
         action="store_true",
-        help="Run full structural analysis (for CI flow - detects major changes)"
+        help="Run full structural analysis (for CI flow - detects major changes)",
     )
 
     args = parser.parse_args()
@@ -514,11 +532,7 @@ def main():
     repo_root = script_dir.parent
 
     updater = DocUpdater(repo_root)
-    exit_code = updater.run(
-        check_only=args.check,
-        dry_run=args.dry_run,
-        analyze=args.analyze
-    )
+    exit_code = updater.run(check_only=args.check, dry_run=args.dry_run, analyze=args.analyze)
 
     sys.exit(exit_code)
 

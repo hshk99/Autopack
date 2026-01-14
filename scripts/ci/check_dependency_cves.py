@@ -16,11 +16,7 @@ def check_cves():
     """Run pip-audit to check for CVE vulnerabilities in dependencies."""
     print("Running CVE scan with pip-audit...")
 
-    result = subprocess.run(
-        ['pip-audit', '--format', 'json'],
-        capture_output=True,
-        text=True
-    )
+    result = subprocess.run(["pip-audit", "--format", "json"], capture_output=True, text=True)
 
     if result.returncode != 0:
         print("=" * 70)
@@ -38,5 +34,5 @@ def check_cves():
     print(result.stdout)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     check_cves()

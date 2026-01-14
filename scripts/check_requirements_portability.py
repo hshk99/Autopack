@@ -39,13 +39,13 @@ def check_pywin32_marker(lines: List[str], filename: str) -> List[str]:
     errors = []
     for i, line in enumerate(lines, 1):
         # Skip comments and empty lines
-        if line.strip().startswith('#') or not line.strip():
+        if line.strip().startswith("#") or not line.strip():
             continue
 
         # Check for pywin32 without marker
-        if re.match(r'^pywin32==', line):
+        if re.match(r"^pywin32==", line):
             # Must be explicitly Windows-only
-            if not re.search(r'''sys_platform\s*==\s*["']win32["']''', line):
+            if not re.search(r"""sys_platform\s*==\s*["']win32["']""", line):
                 errors.append(
                     f"{filename}:{i}: pywin32 is unconditional (must be 'sys_platform == \"win32\"')\n"
                     f"  Line: {line.strip()}"
@@ -65,12 +65,12 @@ def check_python_magic_marker(lines: List[str], filename: str) -> List[str]:
 
     for line in lines:
         # Skip comments and empty lines
-        if line.strip().startswith('#') or not line.strip():
+        if line.strip().startswith("#") or not line.strip():
             continue
 
         # Check for python-magic with non-win32 marker
-        if re.match(r'^python-magic==', line):
-            if re.search(r'''sys_platform\s*!=\s*["']win32["']''', line):
+        if re.match(r"^python-magic==", line):
+            if re.search(r"""sys_platform\s*!=\s*["']win32["']""", line):
                 has_python_magic_non_win = True
                 break
 
@@ -92,13 +92,13 @@ def check_python_magic_bin_marker(lines: List[str], filename: str) -> List[str]:
     errors = []
     for i, line in enumerate(lines, 1):
         # Skip comments and empty lines
-        if line.strip().startswith('#') or not line.strip():
+        if line.strip().startswith("#") or not line.strip():
             continue
 
         # Check for python-magic-bin without marker
-        if re.match(r'^python-magic-bin==', line):
+        if re.match(r"^python-magic-bin==", line):
             # Must be explicitly Windows-only
-            if not re.search(r'''sys_platform\s*==\s*["']win32["']''', line):
+            if not re.search(r"""sys_platform\s*==\s*["']win32["']""", line):
                 errors.append(
                     f"{filename}:{i}: python-magic-bin is unconditional (must be 'sys_platform == \"win32\"')\n"
                     f"  Line: {line.strip()}"
@@ -117,7 +117,7 @@ def check_generated_header(lines: List[str], filename: str) -> List[str]:
     has_header = False
 
     for line in lines[:10]:  # Check first 10 lines
-        if 'pip-compile' in line.lower() or 'pyproject.toml' in line.lower():
+        if "pip-compile" in line.lower() or "pyproject.toml" in line.lower():
             has_header = True
             break
 
@@ -130,10 +130,7 @@ def check_generated_header(lines: List[str], filename: str) -> List[str]:
     return warnings
 
 
-def check_requirements_file(
-    filepath: Path,
-    strict: bool = False
-) -> Tuple[List[str], List[str]]:
+def check_requirements_file(filepath: Path, strict: bool = False) -> Tuple[List[str], List[str]]:
     """
     Check a single requirements file for portability violations.
 
@@ -144,7 +141,7 @@ def check_requirements_file(
     warnings = []
 
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             lines = f.readlines()
     except FileNotFoundError:
         errors.append(f"Error: File not found: {filepath}")

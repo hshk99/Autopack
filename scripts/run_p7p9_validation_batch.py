@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from autopack.database import SessionLocal
 from autopack.models import Phase
 
+
 def select_validation_phases():
     """Select 10-15 phases with intentional coverage."""
     session = SessionLocal()
@@ -37,7 +38,7 @@ def select_validation_phases():
     print()
 
     # Get all QUEUED phases
-    queued_phases = session.query(Phase).filter(Phase.state == 'QUEUED').all()
+    queued_phases = session.query(Phase).filter(Phase.state == "QUEUED").all()
 
     print(f"Total QUEUED phases: {len(queued_phases)}")
     print()
@@ -123,7 +124,9 @@ def select_validation_phases():
     # Print batch details
     for i, p in enumerate(validation_batch, 1):
         print(f"{i}. {p['run_id']} / {p['phase_id']}")
-        print(f"   Category: {p['category']}, Complexity: {p['complexity']}, Deliverables: {p['deliverable_count']}")
+        print(
+            f"   Category: {p['category']}, Complexity: {p['complexity']}, Deliverables: {p['deliverable_count']}"
+        )
 
     print()
     print("=" * 70)
@@ -134,15 +137,17 @@ def select_validation_phases():
     # Group by run_id
     by_run = defaultdict(list)
     for p in validation_batch:
-        by_run[p['run_id']].append(p['phase_id'])
+        by_run[p["run_id"]].append(p["phase_id"])
 
     for run_id, phase_ids in by_run.items():
         print(f"# {run_id} ({len(phase_ids)} phases)")
-        print(f"TELEMETRY_DB_ENABLED=1 PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" \\")
-        print(f"  timeout 600 python scripts/drain_queued_phases.py \\")
+        print(
+            'TELEMETRY_DB_ENABLED=1 PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \\'
+        )
+        print("  timeout 600 python scripts/drain_queued_phases.py \\")
         print(f"  --run-id {run_id} \\")
         print(f"  --batch-size {len(phase_ids)} \\")
-        print(f"  --max-batches 1")
+        print("  --max-batches 1")
         print()
 
     session.close()
@@ -161,7 +166,9 @@ if __name__ == "__main__":
     print()
     print("1. Run the execution commands above to process validation batch")
     print("2. After completion, run:")
-    print("   PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python scripts/analyze_token_telemetry_v3.py")
+    print(
+        '   PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python scripts/analyze_token_telemetry_v3.py'
+    )
     print()
     print("3. Check metrics:")
     print("   - Truncation rate (target: <25-30%)")

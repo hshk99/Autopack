@@ -19,10 +19,22 @@ from autopack.backlog_maintenance import (
 
 def main():
     parser = argparse.ArgumentParser(description="Generate backlog maintenance plan")
-    parser.add_argument("--backlog", type=Path, required=True, help="Path to backlog markdown (e.g., consolidated_debug.md)")
-    parser.add_argument("--out", type=Path, default=Path(".autonomous_runs/backlog_plan.json"), help="Output plan path")
+    parser.add_argument(
+        "--backlog",
+        type=Path,
+        required=True,
+        help="Path to backlog markdown (e.g., consolidated_debug.md)",
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path(".autonomous_runs/backlog_plan.json"),
+        help="Output plan path",
+    )
     parser.add_argument("--max-items", type=int, default=10, help="Max backlog items to include")
-    parser.add_argument("--allowed-path", action="append", default=[], help="Allowed path prefix to scope patches")
+    parser.add_argument(
+        "--allowed-path", action="append", default=[], help="Allowed path prefix to scope patches"
+    )
     parser.add_argument("--max-commands", type=int, default=20, help="Per-phase command budget")
     parser.add_argument("--max-seconds", type=int, default=600, help="Per-phase time budget (sec)")
     args = parser.parse_args()
@@ -40,4 +52,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -20,9 +20,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 def print_header(text):
     """Print a formatted header."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print(text)
-    print("="*60)
+    print("=" * 60)
 
 
 def get_bot_token():
@@ -85,7 +85,7 @@ def get_chat_id(bot_token):
         print(f"❌ Error fetching chat ID: {e}")
         print("\nManual method:")
         print(f"1. Visit: https://api.telegram.org/bot{bot_token}/getUpdates")
-        print("2. Look for \"chat\":{\"id\":123456789}")
+        print('2. Look for "chat":{"id":123456789}')
         print("3. Copy the numeric ID")
 
         chat_id = input("\nEnter your chat ID manually: ").strip()
@@ -109,11 +109,9 @@ def test_telegram(bot_token, chat_id):
             "✅ Setup successful!"
         )
 
-        response = requests.post(url, json={
-            "chat_id": chat_id,
-            "text": message,
-            "parse_mode": "Markdown"
-        }, timeout=10)
+        response = requests.post(
+            url, json={"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}, timeout=10
+        )
 
         if response.status_code == 200:
             print("\n✅ Test message sent successfully!")
@@ -136,21 +134,21 @@ def save_to_env_file(bot_token, chat_id, ngrok_url):
     # Read existing .env if it exists
     existing_vars = {}
     if env_file.exists():
-        with open(env_file, 'r') as f:
+        with open(env_file, "r") as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
                     existing_vars[key] = value
 
     # Update variables
-    existing_vars['TELEGRAM_BOT_TOKEN'] = f'"{bot_token}"'
-    existing_vars['TELEGRAM_CHAT_ID'] = f'"{chat_id}"'
+    existing_vars["TELEGRAM_BOT_TOKEN"] = f'"{bot_token}"'
+    existing_vars["TELEGRAM_CHAT_ID"] = f'"{chat_id}"'
     if ngrok_url:
-        existing_vars['NGROK_URL'] = f'"{ngrok_url}"'
+        existing_vars["NGROK_URL"] = f'"{ngrok_url}"'
 
     # Write back
-    with open(env_file, 'w') as f:
+    with open(env_file, "w") as f:
         f.write("# Autopack Environment Variables\n\n")
         for key, value in existing_vars.items():
             f.write(f"{key}={value}\n")
@@ -170,16 +168,16 @@ def print_env_instructions(bot_token, chat_id, ngrok_url):
 
     print("\nOption B: Export manually (for this session)")
     print("\nWindows (PowerShell):")
-    print(f"  $env:TELEGRAM_BOT_TOKEN=\"{bot_token}\"")
-    print(f"  $env:TELEGRAM_CHAT_ID=\"{chat_id}\"")
+    print(f'  $env:TELEGRAM_BOT_TOKEN="{bot_token}"')
+    print(f'  $env:TELEGRAM_CHAT_ID="{chat_id}"')
     if ngrok_url:
-        print(f"  $env:NGROK_URL=\"{ngrok_url}\"")
+        print(f'  $env:NGROK_URL="{ngrok_url}"')
 
     print("\nLinux/Mac (Bash):")
-    print(f"  export TELEGRAM_BOT_TOKEN=\"{bot_token}\"")
-    print(f"  export TELEGRAM_CHAT_ID=\"{chat_id}\"")
+    print(f'  export TELEGRAM_BOT_TOKEN="{bot_token}"')
+    print(f'  export TELEGRAM_CHAT_ID="{chat_id}"')
     if ngrok_url:
-        print(f"  export NGROK_URL=\"{ngrok_url}\"")
+        print(f'  export NGROK_URL="{ngrok_url}"')
 
 
 def main():
@@ -202,7 +200,7 @@ def main():
         print(f"  Chat ID: {existing_chat_id}")
 
         reconfigure = input("\nReconfigure? (y/N): ").strip().lower()
-        if reconfigure != 'y':
+        if reconfigure != "y":
             print("\n✅ Keeping existing configuration")
             return
 

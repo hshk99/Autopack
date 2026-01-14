@@ -9,14 +9,14 @@ from typing import Optional
 
 def capitalize_words(text: str, delimiter: Optional[str] = None) -> str:
     """Capitalize the first letter of each word in a string.
-    
+
     Args:
         text: The input string to capitalize
         delimiter: Optional delimiter to split words. If None, splits on whitespace.
-    
+
     Returns:
         A new string with each word capitalized
-    
+
     Examples:
         >>> capitalize_words("hello world")
         'Hello World'
@@ -27,7 +27,7 @@ def capitalize_words(text: str, delimiter: Optional[str] = None) -> str:
     """
     if not text:
         return text
-    
+
     if delimiter is None:
         # Use built-in title() for whitespace-delimited words
         return text.title()
@@ -40,13 +40,13 @@ def capitalize_words(text: str, delimiter: Optional[str] = None) -> str:
 
 def reverse_string(text: str) -> str:
     """Reverse a string.
-    
+
     Args:
         text: The input string to reverse
-    
+
     Returns:
         A new string with characters in reverse order
-    
+
     Examples:
         >>> reverse_string("hello")
         'olleh'
@@ -64,25 +64,25 @@ if __name__ == "__main__":
     # Simple demonstration
     print("String Helper Demo")
     print("=" * 40)
-    
+
     # Test capitalize_words
     test_strings = [
         "hello world",
         "python programming",
         "the quick brown fox",
-        "hello-world-example"
+        "hello-world-example",
     ]
-    
+
     print("\nCapitalize Words:")
     for s in test_strings[:-1]:
         result = capitalize_words(s)
         print(f"  '{s}' -> '{result}'")
-    
+
     # Test with delimiter
     s = test_strings[-1]
     result = capitalize_words(s, delimiter="-")
     print(f"  '{s}' (delimiter='-') -> '{result}'")
-    
+
     # Test reverse_string
     print("\nReverse String:")
     for s in test_strings:

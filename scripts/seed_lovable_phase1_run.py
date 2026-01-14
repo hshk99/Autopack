@@ -7,6 +7,7 @@ from autopack.models import Run, Tier, Phase, RunState, PhaseState
 
 RUN_ID = "lovable-p1-core-precision"
 
+
 def main():
     session = SessionLocal()
     try:
@@ -27,7 +28,7 @@ def main():
             token_cap=400000,
             max_phases=8,
             max_duration_minutes=360,
-            goal_anchor="Lovable Integration Phase 1: Core Precision"
+            goal_anchor="Lovable Integration Phase 1: Core Precision",
         )
         session.add(run)
         session.flush()
@@ -39,7 +40,7 @@ def main():
             run_id=RUN_ID,
             name="Phase 1: Core Precision",
             tier_index=0,
-            description="Core precision patterns for Lovable integration"
+            description="Core precision patterns for Lovable integration",
         )
         session.add(tier)
         session.flush()
@@ -55,8 +56,8 @@ def main():
                 "complexity": "high",
                 "deliverables": [
                     "src/autopack/file_manifest/agentic_search.py",
-                    "tests/autopack/file_manifest/test_agentic_search.py"
-                ]
+                    "tests/autopack/file_manifest/test_agentic_search.py",
+                ],
             },
             {
                 "id": "lovable-p1.2-intelligent-file-selection",
@@ -66,8 +67,8 @@ def main():
                 "complexity": "medium",
                 "deliverables": [
                     "src/autopack/file_manifest/intelligent_selector.py",
-                    "tests/autopack/file_manifest/test_intelligent_selector.py"
-                ]
+                    "tests/autopack/file_manifest/test_intelligent_selector.py",
+                ],
             },
             {
                 "id": "lovable-p1.3-build-validation",
@@ -77,8 +78,8 @@ def main():
                 "complexity": "medium",
                 "deliverables": [
                     "src/autopack/validation/build_validator.py",
-                    "tests/autopack/validation/test_build_validator.py"
-                ]
+                    "tests/autopack/validation/test_build_validator.py",
+                ],
             },
             {
                 "id": "lovable-p1.4-dynamic-retry-delays",
@@ -88,9 +89,9 @@ def main():
                 "complexity": "low",
                 "deliverables": [
                     "src/autopack/error_handling/dynamic_retry.py",
-                    "tests/autopack/error_handling/test_dynamic_retry.py"
-                ]
-            }
+                    "tests/autopack/error_handling/test_dynamic_retry.py",
+                ],
+            },
         ]
 
         for idx, pd in enumerate(phases, 1):
@@ -105,19 +106,22 @@ def main():
                 scope=scope,
                 state=PhaseState.QUEUED,
                 task_category=pd["category"],
-                complexity=pd["complexity"]
+                complexity=pd["complexity"],
             )
             session.add(phase)
             print(f"[OK] Phase {idx}: {pd['id']} ({len(pd['deliverables'])} deliverables)")
 
         session.commit()
-        print(f"\n✅ Lovable Phase 1 seeded! Run: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {RUN_ID}")
+        print(
+            f'\n✅ Lovable Phase 1 seeded! Run: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python -m autopack.autonomous_executor --run-id {RUN_ID}'
+        )
     except Exception as e:
         session.rollback()
         print(f"[ERROR] {e}")
         raise
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     main()

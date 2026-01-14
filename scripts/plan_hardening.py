@@ -9,6 +9,7 @@ This loads templates/hardening_phases.json and templates/phase_defaults.json,
 filters phases whose "features" intersect the requested features, and writes
 an autopack_phase_plan.json for the project (or updates an existing one).
 """
+
 import argparse
 import json
 from pathlib import Path
@@ -100,4 +101,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

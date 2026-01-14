@@ -30,4 +30,3 @@ All calibration groups (including low-confidence):
 - **Median ratio < 1.0**: Overestimating (need to decrease coefficients)
 - **Confidence**: Based on sample count and ratio variance
 - **Proposed multiplier**: Apply to current PHASE_OVERHEAD or TOKEN_WEIGHTS
-

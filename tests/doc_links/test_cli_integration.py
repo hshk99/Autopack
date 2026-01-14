@@ -65,12 +65,12 @@ And here is a backtick reference: `.autonomous_runs/test_fake_file.json`.
         result = _run_doc_link_checker("--verbose")
 
         # Output should mention the markdown link but NOT the backtick reference
-        assert (
-            "TEST_NONEXISTENT_FILE" in result.stdout
-        ), f"Expected TEST_NONEXISTENT_FILE in output, got: {result.stdout}"
-        assert (
-            "test_fake_file" not in result.stdout
-        ), "Nav mode should not report backtick references"
+        assert "TEST_NONEXISTENT_FILE" in result.stdout, (
+            f"Expected TEST_NONEXISTENT_FILE in output, got: {result.stdout}"
+        )
+        assert "test_fake_file" not in result.stdout, (
+            "Nav mode should not report backtick references"
+        )
 
         print("✅ test_nav_mode_ignores_backticks passed")
     finally:
@@ -97,13 +97,13 @@ And here is a backtick reference: `.autonomous_runs/test_deep_fake_file.json`.
 
         # Output should mention both the markdown link AND the backtick reference
         # Note: paths may be normalized (leading . and / stripped)
-        assert (
-            "TEST_DEEP_NONEXISTENT_FILE" in result.stdout
-        ), "Expected TEST_DEEP_NONEXISTENT_FILE in output"
+        assert "TEST_DEEP_NONEXISTENT_FILE" in result.stdout, (
+            "Expected TEST_DEEP_NONEXISTENT_FILE in output"
+        )
         # Backtick may appear as normalized path (without leading .)
-        assert (
-            "test_deep_fake_file" in result.stdout
-        ), "Expected test_deep_fake_file (backtick) in output"
+        assert "test_deep_fake_file" in result.stdout, (
+            "Expected test_deep_fake_file (backtick) in output"
+        )
 
         print("✅ test_deep_mode_includes_backticks passed")
     finally:
@@ -128,9 +128,9 @@ Backtick reference: `scripts/test_nonexistent_default_script.py`.
         result = _run_doc_link_checker("--deep", "--verbose")
 
         # Should still detect backtick reference (deep mode defaults to include backticks)
-        assert (
-            "test_nonexistent_default_script" in result.stdout
-        ), "Deep mode should include backticks by default"
+        assert "test_nonexistent_default_script" in result.stdout, (
+            "Deep mode should include backticks by default"
+        )
 
         print("✅ test_deep_mode_defaults_to_backticks passed")
     finally:
@@ -156,9 +156,9 @@ Runtime endpoint: `/api/test_auth/test_endpoint`.
 
         # Output should label informational references clearly
         # (Should be marked as informational/report-only in the summary)
-        assert (
-            "Informational" in result.stdout or "report-only" in result.stdout
-        ), f"Expected 'Informational' or 'report-only' in output, got: {result.stdout[-500:]}"
+        assert "Informational" in result.stdout or "report-only" in result.stdout, (
+            f"Expected 'Informational' or 'report-only' in output, got: {result.stdout[-500:]}"
+        )
 
         print("✅ test_output_labeling passed")
     finally:

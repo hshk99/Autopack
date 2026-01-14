@@ -79,14 +79,15 @@ def add_correction(
     original_confidence: float,
     corrected_project: str,
     corrected_type: str,
-    reason: str = None
+    reason: str = None,
 ):
     """Store a user correction in PostgreSQL."""
 
     conn = psycopg2.connect(dsn)
     cursor = conn.cursor()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT INTO classification_corrections (
             file_path, file_content_sample,
             original_project, original_type, original_confidence,
@@ -99,12 +100,18 @@ def add_correction(
             original_confidence = EXCLUDED.original_confidence,
             correction_reason = EXCLUDED.correction_reason,
             corrected_at = NOW()
-    """, (
-        file_path, content_sample,
-        original_project, original_type, original_confidence,
-        corrected_project, corrected_type,
-        reason
-    ))
+    """,
+        (
+            file_path,
+            content_sample,
+            original_project,
+            original_type,
+            original_confidence,
+            corrected_project,
+            corrected_type,
+            reason,
+        ),
+    )
 
     conn.commit()
     cursor.close()
@@ -121,7 +128,7 @@ def update_qdrant_with_correction(
     content_sample: str,
     corrected_project: str,
     corrected_type: str,
-    destination_path: str
+    destination_path: str,
 ):
     """Update Qdrant with the corrected classification as a high-priority pattern."""
 
@@ -134,7 +141,10 @@ def update_qdrant_with_correction(
 
     # Create point ID from hash
     import hashlib
-    file_hash = hashlib.sha256(f"{file_path}_{corrected_project}_{corrected_type}".encode()).hexdigest()[:16]
+
+    file_hash = hashlib.sha256(
+        f"{file_path}_{corrected_project}_{corrected_type}".encode()
+    ).hexdigest()[:16]
     point_id = int(file_hash, 16) % (2**63)
 
     from qdrant_client.http.models import PointStruct
@@ -155,12 +165,12 @@ def update_qdrant_with_correction(
                     "source_context": "user_corrected",  # High priority
                     "confidence": 1.0,  # User corrections are 100% confident
                     "corrected_at": datetime.now(timezone.utc).isoformat(),
-                }
+                },
             )
-        ]
+        ],
     )
 
-    print(f"[OK] Qdrant pattern updated with user correction")
+    print("[OK] Qdrant pattern updated with user correction")
 
 
 def interactive_correction():
@@ -200,17 +210,24 @@ def interactive_correction():
     if corrected_project == "autopack":
         destination_path = str(REPO_ROOT / "archive" / f"{corrected_type}s" / Path(file_path).name)
     else:
-        destination_path = str(REPO_ROOT / ".autonomous_runs" / corrected_project / "archive" / f"{corrected_type}s" / Path(file_path).name)
+        destination_path = str(
+            REPO_ROOT
+            / ".autonomous_runs"
+            / corrected_project
+            / "archive"
+            / f"{corrected_type}s"
+            / Path(file_path).name
+        )
 
     # Confirm
-    print(f"\n--- Confirmation ---")
+    print("\n--- Confirmation ---")
     print(f"File: {file_path}")
     print(f"Original: {original_project}/{original_type} (confidence={original_confidence})")
     print(f"Correct:  {corrected_project}/{corrected_type}")
     print(f"Destination: {destination_path}")
     confirm = input("\nStore this correction? (y/n): ").strip().lower()
 
-    if confirm != 'y':
+    if confirm != "y":
         print("Cancelled.")
         return
 
@@ -222,19 +239,27 @@ def interactive_correction():
     if dsn:
         create_correction_table(dsn)
         add_correction(
-            dsn, file_path, content_sample,
-            original_project, original_type, original_confidence,
-            corrected_project, corrected_type,
-            reason
+            dsn,
+            file_path,
+            content_sample,
+            original_project,
+            original_type,
+            original_confidence,
+            corrected_project,
+            corrected_type,
+            reason,
         )
 
         # Update Qdrant
         try:
             update_qdrant_with_correction(
-                qdrant_host, embedding_model,
-                file_path, content_sample,
-                corrected_project, corrected_type,
-                destination_path
+                qdrant_host,
+                embedding_model,
+                file_path,
+                content_sample,
+                corrected_project,
+                corrected_type,
+                destination_path,
             )
         except Exception as e:
             print(f"Warning: Could not update Qdrant: {e}")
@@ -250,7 +275,8 @@ def show_corrections(dsn: str, limit: int = 20):
     conn = psycopg2.connect(dsn)
     cursor = conn.cursor()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT
             file_path,
             original_project, original_type, original_confidence,
@@ -260,7 +286,9 @@ def show_corrections(dsn: str, limit: int = 20):
         FROM classification_corrections
         ORDER BY corrected_at DESC
         LIMIT %s
-    """, (limit,))
+    """,
+        (limit,),
+    )
 
     rows = cursor.fetchall()
 
@@ -282,7 +310,9 @@ def show_corrections(dsn: str, limit: int = 20):
 
 def main():
     parser = argparse.ArgumentParser(description="Correct misclassifications and improve accuracy")
-    parser.add_argument("--interactive", "-i", action="store_true", help="Interactive correction mode")
+    parser.add_argument(
+        "--interactive", "-i", action="store_true", help="Interactive correction mode"
+    )
     parser.add_argument("--show", "-s", action="store_true", help="Show recent corrections")
     parser.add_argument("--limit", type=int, default=20, help="Number of corrections to show")
 

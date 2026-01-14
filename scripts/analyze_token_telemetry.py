@@ -24,8 +24,15 @@ from collections import defaultdict
 class TokenEstimationRecord:
     """Single token estimation record from logs."""
 
-    def __init__(self, timestamp: str, predicted: int, actual: int, error_pct: float,
-                 source_file: str = "", line_number: int = 0):
+    def __init__(
+        self,
+        timestamp: str,
+        predicted: int,
+        actual: int,
+        error_pct: float,
+        source_file: str = "",
+        line_number: int = 0,
+    ):
         self.timestamp = timestamp
         self.predicted = predicted
         self.actual = actual
@@ -52,31 +59,29 @@ class TelemetryAnalyzer:
 
     # Pattern: [TokenEstimation] Predicted: 500 output tokens, Actual: 114 output tokens, Error: 77.2%
     TELEMETRY_PATTERN = re.compile(
-        r'\[TokenEstimation\]\s+Predicted:\s+(\d+)\s+output tokens,\s+'
-        r'Actual:\s+(\d+)\s+output tokens,\s+Error:\s+([\d.]+)%'
+        r"\[TokenEstimation\]\s+Predicted:\s+(\d+)\s+output tokens,\s+"
+        r"Actual:\s+(\d+)\s+output tokens,\s+Error:\s+([\d.]+)%"
     )
 
     # Pattern:
     # [TokenEstimationV2] predicted_output=448 actual_output=128 smape=111.8% selected_budget=8192 category=implementation ...
     TELEMETRY_V2_PATTERN = re.compile(
-        r'\[TokenEstimationV2\]\s+'
-        r'predicted_output=(\d+)\s+'
-        r'actual_output=(\d+)\s+'
-        r'smape=([\d.]+)%\s+'
-        r'selected_budget=([^\s]+)\s+'
-        r'category=([^\s]+)\s+'
-        r'complexity=([^\s]+)\s+'
-        r'deliverables=(\d+)\s+'
-        r'success=([^\s]+)\s+'
-        r'stop_reason=([^\s]+)\s+'
-        r'truncated=([^\s]+)\s+'
-        r'model=([^\s]+)'
+        r"\[TokenEstimationV2\]\s+"
+        r"predicted_output=(\d+)\s+"
+        r"actual_output=(\d+)\s+"
+        r"smape=([\d.]+)%\s+"
+        r"selected_budget=([^\s]+)\s+"
+        r"category=([^\s]+)\s+"
+        r"complexity=([^\s]+)\s+"
+        r"deliverables=(\d+)\s+"
+        r"success=([^\s]+)\s+"
+        r"stop_reason=([^\s]+)\s+"
+        r"truncated=([^\s]+)\s+"
+        r"model=([^\s]+)"
     )
 
     # Timestamp pattern (various formats)
-    TIMESTAMP_PATTERN = re.compile(
-        r'^(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})'
-    )
+    TIMESTAMP_PATTERN = re.compile(r"^(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})")
 
     def __init__(self):
         self.records: List[TokenEstimationRecord] = []
@@ -92,7 +97,7 @@ class TelemetryAnalyzer:
         """
         count = 0
         try:
-            with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
                 for line_num, line in enumerate(f, 1):
                     v2 = self.TELEMETRY_V2_PATTERN.search(line)
                     if v2:
@@ -112,7 +117,7 @@ class TelemetryAnalyzer:
                             actual=actual,
                             error_pct=smape_pct,  # Store as error_pct for reporting compatibility
                             source_file=str(log_path),
-                            line_number=line_num
+                            line_number=line_num,
                         )
                         # Attach lightweight metadata for richer reporting
                         record.meta = {
@@ -148,7 +153,7 @@ class TelemetryAnalyzer:
                             actual=actual,
                             error_pct=error_pct,
                             source_file=str(log_path),
-                            line_number=line_num
+                            line_number=line_num,
                         )
                         record.meta = {"format": "v1"}
                         self.records.append(record)
@@ -183,10 +188,7 @@ class TelemetryAnalyzer:
             Dictionary with statistics
         """
         if not self.records:
-            return {
-                "total_records": 0,
-                "error": "No telemetry records found"
-            }
+            return {"total_records": 0, "error": "No telemetry records found"}
 
         errors = [r.error_pct for r in self.records]
         predicted = [r.predicted for r in self.records]
@@ -253,7 +255,7 @@ class TelemetryAnalyzer:
         """Calculate standard deviation."""
         mean = sum(values) / len(values)
         variance = sum((x - mean) ** 2 for x in values) / len(values)
-        return variance ** 0.5
+        return variance**0.5
 
     def generate_report(self, stats: Dict, output_path: Optional[Path] = None) -> str:
         """Generate analysis report.
@@ -277,43 +279,43 @@ Generated: {datetime.now().isoformat()}
 
 ## Summary
 
-**Total Records Analyzed:** {stats['total_records']}
-**Formats:** v2={stats.get('formats', {}).get('v2_records', 0)} v1={stats.get('formats', {}).get('v1_records', 0)}
+**Total Records Analyzed:** {stats["total_records"]}
+**Formats:** v2={stats.get("formats", {}).get("v2_records", 0)} v1={stats.get("formats", {}).get("v1_records", 0)}
 **Mean Error Rate:** {mean_error:.1f}%
 **Target (<30% error):** {target_met}
-**Under-estimation rate:** {stats.get('directional', {}).get('under_estimated_pct', 0.0):.1f}% (risk for truncation)
-**Over-estimation rate:** {stats.get('directional', {}).get('over_estimated_pct', 0.0):.1f}%
-**V2 truncation rate:** {stats.get('v2', {}).get('truncated_pct', 0.0):.1f}% (only where V2 telemetry present)
-**V2 success rate:** {stats.get('v2', {}).get('success_pct', 0.0):.1f}% (only where V2 telemetry present)
+**Under-estimation rate:** {stats.get("directional", {}).get("under_estimated_pct", 0.0):.1f}% (risk for truncation)
+**Over-estimation rate:** {stats.get("directional", {}).get("over_estimated_pct", 0.0):.1f}%
+**V2 truncation rate:** {stats.get("v2", {}).get("truncated_pct", 0.0):.1f}% (only where V2 telemetry present)
+**V2 success rate:** {stats.get("v2", {}).get("success_pct", 0.0):.1f}% (only where V2 telemetry present)
 
 ## Error Rate Statistics
 
-- **Mean:** {stats['error_rate']['mean']:.1f}%
-- **Median:** {stats['error_rate']['median']:.1f}%
-- **Min:** {stats['error_rate']['min']:.1f}%
-- **Max:** {stats['error_rate']['max']:.1f}%
-- **Std Dev:** {stats['error_rate']['std_dev']:.1f}%
+- **Mean:** {stats["error_rate"]["mean"]:.1f}%
+- **Median:** {stats["error_rate"]["median"]:.1f}%
+- **Min:** {stats["error_rate"]["min"]:.1f}%
+- **Max:** {stats["error_rate"]["max"]:.1f}%
+- **Std Dev:** {stats["error_rate"]["std_dev"]:.1f}%
 
 ## Token Predictions
 
 ### Predicted Tokens
-- **Mean:** {stats['predicted_tokens']['mean']:.0f}
-- **Median:** {stats['predicted_tokens']['median']:.0f}
-- **Range:** {stats['predicted_tokens']['min']:.0f} - {stats['predicted_tokens']['max']:.0f}
+- **Mean:** {stats["predicted_tokens"]["mean"]:.0f}
+- **Median:** {stats["predicted_tokens"]["median"]:.0f}
+- **Range:** {stats["predicted_tokens"]["min"]:.0f} - {stats["predicted_tokens"]["max"]:.0f}
 
 ### Actual Tokens
-- **Mean:** {stats['actual_tokens']['mean']:.0f}
-- **Median:** {stats['actual_tokens']['median']:.0f}
-- **Range:** {stats['actual_tokens']['min']:.0f} - {stats['actual_tokens']['max']:.0f}
+- **Mean:** {stats["actual_tokens"]["mean"]:.0f}
+- **Median:** {stats["actual_tokens"]["median"]:.0f}
+- **Range:** {stats["actual_tokens"]["min"]:.0f} - {stats["actual_tokens"]["max"]:.0f}
 
 ### Absolute Error
-- **Mean:** {stats['absolute_error']['mean']:.0f} tokens
-- **Median:** {stats['absolute_error']['median']:.0f} tokens
+- **Mean:** {stats["absolute_error"]["mean"]:.0f} tokens
+- **Median:** {stats["absolute_error"]["median"]:.0f} tokens
 
 ## Estimation Direction (Risk)
 
-- **Over-estimated:** {stats['directional']['over_estimated_count']} records ({stats['directional']['over_estimated_pct']:.1f}%)
-- **Under-estimated:** {stats['directional']['under_estimated_count']} records ({stats['directional']['under_estimated_pct']:.1f}%)
+- **Over-estimated:** {stats["directional"]["over_estimated_count"]} records ({stats["directional"]["over_estimated_pct"]:.1f}%)
+- **Under-estimated:** {stats["directional"]["under_estimated_count"]} records ({stats["directional"]["under_estimated_pct"]:.1f}%)
 
 ## Recommendations
 
@@ -358,8 +360,8 @@ Generated: {datetime.now().isoformat()}
 """
 
         # Bias-specific recommendations
-        over_pct = stats['directional']['over_estimated_pct']
-        under_pct = stats['directional']['under_estimated_pct']
+        over_pct = stats["directional"]["over_estimated_pct"]
+        under_pct = stats["directional"]["under_estimated_pct"]
 
         if over_pct > 70:
             report += """
@@ -410,7 +412,7 @@ Over/under-estimation is relatively balanced, which is good.
 
         # Write report if output path specified
         if output_path:
-            output_path.write_text(report, encoding='utf-8')
+            output_path.write_text(report, encoding="utf-8")
             print(f"\nReport written to: {output_path}")
 
         return report
@@ -428,32 +430,21 @@ Over/under-estimation is relatively balanced, which is good.
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Analyze token estimation telemetry from logs"
-    )
+    parser = argparse.ArgumentParser(description="Analyze token estimation telemetry from logs")
     parser.add_argument(
         "--log-dir",
         type=Path,
         default=Path(".autonomous_runs"),
-        help="Directory to scan for log files (default: .autonomous_runs)"
+        help="Directory to scan for log files (default: .autonomous_runs)",
     )
     parser.add_argument(
-        "--output",
-        type=Path,
-        default=None,
-        help="Output file for report (default: stdout only)"
+        "--output", type=Path, default=None, help="Output file for report (default: stdout only)"
     )
     parser.add_argument(
-        "--pattern",
-        type=str,
-        default="*.log",
-        help="Log file pattern (default: *.log)"
+        "--pattern", type=str, default="*.log", help="Log file pattern (default: *.log)"
     )
     parser.add_argument(
-        "--worst",
-        type=int,
-        default=0,
-        help="Show N worst predictions (default: 0, don't show)"
+        "--worst", type=int, default=0, help="Show N worst predictions (default: 0, don't show)"
     )
 
     args = parser.parse_args()
@@ -485,9 +476,11 @@ def main():
         worst = analyzer.get_worst_predictions(args.worst)
         print(f"\n## Top {len(worst)} Worst Predictions\n")
         for i, record in enumerate(worst, 1):
-            print(f"{i}. Error: {record.error_pct:.1f}% | "
-                  f"Predicted: {record.predicted} | Actual: {record.actual} | "
-                  f"Source: {Path(record.source_file).name}:{record.line_number}")
+            print(
+                f"{i}. Error: {record.error_pct:.1f}% | "
+                f"Predicted: {record.predicted} | Actual: {record.actual} | "
+                f"Source: {Path(record.source_file).name}:{record.line_number}"
+            )
 
     return 0
 

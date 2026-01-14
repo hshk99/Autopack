@@ -114,9 +114,9 @@ class MultiLock:
         unknown = [n for n in requested if n not in LOCK_ORDER]
         if unknown:
             import logging
+
             logging.warning(
-                f"[MULTI-LOCK] Unknown subsystem lock names: {unknown}. "
-                f"Known locks: {LOCK_ORDER}"
+                f"[MULTI-LOCK] Unknown subsystem lock names: {unknown}. Known locks: {LOCK_ORDER}"
             )
 
         # Acquire locks in canonical order
@@ -128,7 +128,7 @@ class MultiLock:
                 lease = Lease(
                     lock_path=lock_path(self.repo_root, name),
                     owner=f"{self.owner}:{name}",
-                    ttl_seconds=self.ttl_seconds
+                    ttl_seconds=self.ttl_seconds,
                 )
                 lease.acquire(timeout_seconds=self.timeout_seconds)
                 self.leases.append(lease)
@@ -197,7 +197,4 @@ class MultiLock:
         if not self.leases:
             return []
 
-        return [
-            lease.lock_path.stem.replace('.lock', '')
-            for lease in self.leases
-        ]
+        return [lease.lock_path.stem.replace(".lock", "") for lease in self.leases]

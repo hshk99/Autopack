@@ -137,11 +137,10 @@ def check_idempotency_index() -> Tuple[bool, str]:
                 return True, f"✓ Idempotency index present ({index_name})"
             else:
                 # Index missing - provide migration command
-                migration_cmd = (
-                    "python scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py upgrade"
-                )
+                migration_cmd = "python scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py upgrade"
                 db_hint = (
-                    "(PostgreSQL for production, SQLite for dev/test)" if dialect == "sqlite"
+                    "(PostgreSQL for production, SQLite for dev/test)"
+                    if dialect == "sqlite"
                     else "(Production database)"
                 )
                 return False, (
@@ -387,7 +386,11 @@ def main():
     elif features["Telemetry Recording"] and not features["History Pack"]:
         print("  Stage 1: Telemetry-Only")
         print("  → Safe to run with telemetry collection")
-    elif features["History Pack"] and features["SOT Substitution"] and not features["Extended Contexts"]:
+    elif (
+        features["History Pack"]
+        and features["SOT Substitution"]
+        and not features["Extended Contexts"]
+    ):
         print("  Stage 2: History Pack + SOT Substitution")
         print("  → Monitor token savings from artifacts")
     elif features["Extended Contexts"]:

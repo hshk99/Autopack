@@ -39,77 +39,77 @@ class ScriptOrganizer:
                 "patterns": ["*.py", "*.sh", "*.bat"],
                 "max_depth": 1,
                 "destination": self.scripts_dir / "archive" / "root_scripts",
-                "description": "Scripts from repository root"
+                "description": "Scripts from repository root",
             },
             "root_reports": {
                 "source": repo_root,
                 "patterns": ["*.md"],
                 "max_depth": 1,
                 "destination": self.archive_dir / "reports",
-                "description": "Reports and documentation from root (will be consolidated by tidy)"
+                "description": "Reports and documentation from root (will be consolidated by tidy)",
             },
             "root_logs": {
                 "source": repo_root,
                 "patterns": ["*.log", "*.diff"],
                 "max_depth": 1,
                 "destination": self.archive_dir / "diagnostics",
-                "description": "Log and debug files from root"
+                "description": "Log and debug files from root",
             },
             "root_config": {
                 "source": repo_root,
                 "patterns": ["*.yaml", "*.yml"],
                 "max_depth": 1,
                 "destination": repo_root / "config",
-                "description": "Configuration files from root"
+                "description": "Configuration files from root",
             },
             "examples": {
                 "source": repo_root / "examples",
                 "patterns": ["*"],
                 "max_depth": 10,
                 "destination": self.scripts_dir / "examples",
-                "description": "Example scripts and usage demos"
+                "description": "Example scripts and usage demos",
             },
             "tasks": {
                 "source": repo_root / "tasks",
                 "patterns": ["*.yaml", "*.yml", "*.json"],
                 "max_depth": 10,
                 "destination": self.archive_dir / "tasks",
-                "description": "Task configuration files"
+                "description": "Task configuration files",
             },
             "patches": {
                 "source": repo_root / "patches",
                 "patterns": ["*.patch", "*.diff"],
                 "max_depth": 10,
                 "destination": self.archive_dir / "patches",
-                "description": "Git patches and diffs"
+                "description": "Git patches and diffs",
             },
         }
 
         # Files to exclude (these should stay where they are)
         self.exclude_files = {
-            "setup.py",           # Package setup
-            "manage.py",          # Django/Flask management
-            "wsgi.py",            # WSGI entry point
-            "asgi.py",            # ASGI entry point
-            "__init__.py",        # Python package markers
-            "conftest.py",        # Pytest configuration
-            "README.md",          # Project README (stays at root)
-            "docker-compose.yml", # Docker orchestration (stays at root)
-            "docker-compose.dev.yml", # Docker dev config (stays at root)
+            "setup.py",  # Package setup
+            "manage.py",  # Django/Flask management
+            "wsgi.py",  # WSGI entry point
+            "asgi.py",  # ASGI entry point
+            "__init__.py",  # Python package markers
+            "conftest.py",  # Pytest configuration
+            "README.md",  # Project README (stays at root)
+            "docker-compose.yml",  # Docker orchestration (stays at root)
+            "docker-compose.dev.yml",  # Docker dev config (stays at root)
         }
 
         # Directories to skip entirely
         self.exclude_dirs = {
-            "scripts",            # Already organized
-            "src",                # Source code
-            "tests",              # Test suites (stay in place)
-            "config",             # Configuration
-            ".autonomous_runs",   # Sub-projects
-            "archive",            # Already archived
-            ".git",               # Git metadata
-            "venv",               # Virtual environments
-            "node_modules",       # Node dependencies
-            "__pycache__",        # Python cache
+            "scripts",  # Already organized
+            "src",  # Source code
+            "tests",  # Test suites (stay in place)
+            "config",  # Configuration
+            ".autonomous_runs",  # Sub-projects
+            "archive",  # Already archived
+            ".git",  # Git metadata
+            "venv",  # Virtual environments
+            "node_modules",  # Node dependencies
+            "__pycache__",  # Python cache
         }
 
     def scan_scripts(self) -> List[Tuple[Path, str, Path]]:
@@ -236,7 +236,9 @@ class ScriptOrganizer:
                 if not contents or (len(contents) == 1 and contents[0].name == ".gitkeep"):
                     if not self.dry_run:
                         source_dir.rmdir()
-                        print(f"🗑️  Removed empty directory: {source_dir.relative_to(self.repo_root)}")
+                        print(
+                            f"🗑️  Removed empty directory: {source_dir.relative_to(self.repo_root)}"
+                        )
             except Exception:
                 pass
 
@@ -249,23 +251,18 @@ def main():
         description="Organize scattered scripts in Autopack repository"
     )
     parser.add_argument(
-        "--execute",
-        action="store_true",
-        help="Execute the organization (default is dry-run)"
+        "--execute", action="store_true", help="Execute the organization (default is dry-run)"
     )
     parser.add_argument(
         "--repo-root",
         type=Path,
         default=Path(__file__).parent.parent.parent,
-        help="Repository root directory"
+        help="Repository root directory",
     )
 
     args = parser.parse_args()
 
-    organizer = ScriptOrganizer(
-        repo_root=args.repo_root,
-        dry_run=not args.execute
-    )
+    organizer = ScriptOrganizer(repo_root=args.repo_root, dry_run=not args.execute)
 
     organizer.organize()
 

@@ -39,6 +39,7 @@ from autopack.models import Run, RunState, Phase, PhaseState, Tier, TierState
 from datetime import datetime, timezone
 import json
 
+
 def create_telemetry_v7_run():
     """Create telemetry-collection-v7 tiny targeted run (6 phases, patch-safe)."""
 
@@ -54,26 +55,28 @@ def create_telemetry_v7_run():
             id="telemetry-collection-v7",
             state=RunState.PHASE_EXECUTION,
             created_at=datetime.now(timezone.utc),
-            goal_anchor=json.dumps({
-                "goal": (
-                    "Tiny targeted v7 sampling (6 phases) to close weak groups from v5+v6. "
-                    "Focus: docs/medium (2→5), tests/low (4→5), tests/medium (3→5). "
-                    "PATCH-SAFE: all deliverables are NEW FILES under examples/telemetry_v7_*/ "
-                    "to avoid PATCH_FAILED errors."
-                ),
-                "purpose": "telemetry_v7_patch_safe_targeted",
-                "target_groups": ["docs/medium", "tests/low", "tests/medium"],
-                "v6_gaps": {
-                    "docs/medium": "n=2, need 3 more to reach min-samples=5",
-                    "tests/low": "n=4, need 1 more",
-                    "tests/medium": "n=3, need 2 more"
-                },
-                "patch_safety": [
-                    "All deliverables are new files (no edits to existing files)",
-                    "Files created under examples/telemetry_v7_docs/ and examples/telemetry_v7_tests/",
-                    "Goals include explicit 'create new file' instruction"
-                ]
-            })
+            goal_anchor=json.dumps(
+                {
+                    "goal": (
+                        "Tiny targeted v7 sampling (6 phases) to close weak groups from v5+v6. "
+                        "Focus: docs/medium (2→5), tests/low (4→5), tests/medium (3→5). "
+                        "PATCH-SAFE: all deliverables are NEW FILES under examples/telemetry_v7_*/ "
+                        "to avoid PATCH_FAILED errors."
+                    ),
+                    "purpose": "telemetry_v7_patch_safe_targeted",
+                    "target_groups": ["docs/medium", "tests/low", "tests/medium"],
+                    "v6_gaps": {
+                        "docs/medium": "n=2, need 3 more to reach min-samples=5",
+                        "tests/low": "n=4, need 1 more",
+                        "tests/medium": "n=3, need 2 more",
+                    },
+                    "patch_safety": [
+                        "All deliverables are new files (no edits to existing files)",
+                        "Files created under examples/telemetry_v7_docs/ and examples/telemetry_v7_tests/",
+                        "Goals include explicit 'create new file' instruction",
+                    ],
+                }
+            ),
         )
         session.add(run)
         session.flush()
@@ -87,11 +90,11 @@ def create_telemetry_v7_run():
             name="telemetry-v7-tier1",
             description="Single tier for all v7 patch-safe telemetry sampling phases",
             state=TierState.IN_PROGRESS,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
         )
         session.add(tier)
         session.flush()
-        print(f"✅ Created tier 1")
+        print("✅ Created tier 1")
 
         # === DOCS/MEDIUM PHASES (3) ===
         docs_medium_phases = [
@@ -194,22 +197,28 @@ def create_telemetry_v7_run():
                 state=PhaseState.QUEUED,
                 task_category=phase_def["category"],
                 complexity=phase_def["complexity"],
-                scope=json.dumps({
-                    "deliverables": phase_def["deliverables"],
-                }),
-                created_at=datetime.now(timezone.utc)
+                scope=json.dumps(
+                    {
+                        "deliverables": phase_def["deliverables"],
+                    }
+                ),
+                created_at=datetime.now(timezone.utc),
             )
             session.add(phase)
-            print(f"  [{idx:02d}] {phase_def['phase_id']} ({phase_def['category']}/{phase_def['complexity']}, {len(phase_def['deliverables'])} deliverable(s))")
+            print(
+                f"  [{idx:02d}] {phase_def['phase_id']} ({phase_def['category']}/{phase_def['complexity']}, {len(phase_def['deliverables'])} deliverable(s))"
+            )
 
         session.commit()
-        print(f"\n✅ Successfully created telemetry-collection-v7 with 6 phases")
-        print(f"   - docs/medium: 3 phases")
-        print(f"   - tests/low: 1 phase")
-        print(f"   - tests/medium: 2 phases")
-        print(f"\nDrain with:")
-        print(f"  python scripts/drain_queued_phases.py --run-id telemetry-collection-v7 \\")
-        print(f"    --batch-size 10 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
+        print("\n✅ Successfully created telemetry-collection-v7 with 6 phases")
+        print("   - docs/medium: 3 phases")
+        print("   - tests/low: 1 phase")
+        print("   - tests/medium: 2 phases")
+        print("\nDrain with:")
+        print("  python scripts/drain_queued_phases.py --run-id telemetry-collection-v7 \\")
+        print(
+            "    --batch-size 10 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance"
+        )
 
     except Exception as e:
         session.rollback()

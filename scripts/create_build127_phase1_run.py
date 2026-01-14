@@ -1,4 +1,5 @@
 """Create build127-phase1 run in database for BUILD-127 Phase 1: Self-Healing Governance."""
+
 import sys
 import yaml
 from pathlib import Path
@@ -10,10 +11,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from autopack.database import SessionLocal
 from autopack.models import Run, Phase, Tier, RunState, PhaseState, TierState
 
+
 def load_phase_yaml(phase_file: Path) -> dict:
     """Load phase YAML file."""
-    with open(phase_file, 'r', encoding='utf-8') as f:
+    with open(phase_file, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
+
 
 def create_build127_phase1_run():
     """Create BUILD-127 Phase 1 run."""
@@ -52,7 +55,7 @@ def create_build127_phase1_run():
             safety_profile="normal",
             run_scope="single_phase",
             token_cap=500000,  # 500K tokens for single complex phase
-            tokens_used=0
+            tokens_used=0,
         )
         db.add(run)
         db.flush()
@@ -67,7 +70,7 @@ def create_build127_phase1_run():
             name="BUILD-127 Phase 1: Self-Healing Governance",
             description="Authoritative completion gates and governance negotiation",
             state=TierState.PENDING,
-            tokens_used=0
+            tokens_used=0,
         )
         db.add(tier)
         db.flush()
@@ -115,7 +118,7 @@ def create_build127_phase1_run():
             retry_attempt=0,
             revision_epoch=0,
             escalation_level=0,
-            tokens_used=0
+            tokens_used=0,
         )
         db.add(phase)
 
@@ -124,18 +127,22 @@ def create_build127_phase1_run():
         # Commit all changes
         db.commit()
         print(f"\n✓ Successfully created run '{run_id}' with 1 phase")
-        print(f"\n🚀 Ready to execute: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {run_id}")
+        print(
+            f'\n🚀 Ready to execute: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python -m autopack.autonomous_executor --run-id {run_id}'
+        )
         return True
 
     except Exception as e:
         db.rollback()
         print(f"ERROR: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     success = create_build127_phase1_run()

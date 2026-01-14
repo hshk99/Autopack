@@ -260,13 +260,13 @@ builder_output_mode:
   # Churn limit: reject patches that change more than this % of file
   # for small fixes (prevents accidental large rewrites)
   max_churn_percent_for_small_fix: 30
-  
+
   # NEW: Global safety thresholds (per GPT_RESPONSE14 Q3)
   # Reject >60% shrinkage without explicit opt-in
   max_shrinkage_percent: 60
   # Reject >3x growth without explicit opt-in
   max_growth_multiplier: 3.0
-  
+
   # Symbol validation: reject patches that remove required top-level symbols
   # for small fixes (per GPT_RESPONSE11 Q5)
   symbol_validation:

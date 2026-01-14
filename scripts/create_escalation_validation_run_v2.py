@@ -27,9 +27,8 @@ This is a trivial task that should succeed with the cheapest model on attempt 0.
         "phase_index": 0,
         "category": "docs",
         "complexity": "low",
-        "builder_mode": "tweak_light"
+        "builder_mode": "tweak_light",
     },
-
     # Phase 2: Intentionally tricky task - tests model escalation
     {
         "phase_id": "low-tricky-task",
@@ -53,9 +52,8 @@ The retry loop should try multiple times with progressively better models.
         "phase_index": 1,
         "category": "backend",
         "complexity": "low",
-        "builder_mode": "tweak_medium"
+        "builder_mode": "tweak_medium",
     },
-
     # Phase 3: Medium complexity
     {
         "phase_id": "medium-task",
@@ -66,7 +64,7 @@ TASK: Add a function to src/autopack/utils.py called `format_token_count`.
 
 Takes an integer token_count and returns a formatted string:
 - If < 1000: return as-is (e.g., "500 tokens")
-- If >= 1000: return with K suffix (e.g., "1.5K tokens")  
+- If >= 1000: return with K suffix (e.g., "1.5K tokens")
 - If >= 1000000: return with M suffix (e.g., "2.3M tokens")
 
 Include type hints.
@@ -76,7 +74,7 @@ Include type hints.
         "phase_index": 0,
         "category": "backend",
         "complexity": "medium",
-        "builder_mode": "scaffolding_medium"
+        "builder_mode": "scaffolding_medium",
     },
 ]
 
@@ -93,30 +91,34 @@ def create_run():
                 "tier_index": task["tier_index"],
                 "name": tier_id.split("-")[1],
                 "description": f"Tier {task['tier_index'] + 1}: {tier_id}",
-                "phases": []
+                "phases": [],
             }
-        tiers[tier_id]["phases"].append({
-            "phase_id": task["phase_id"],
-            "phase_index": task["phase_index"],
-            "tier_id": tier_id,
-            "name": task["name"],
-            "description": task["description"],
-            "task_category": task["category"],
-            "complexity": task["complexity"],
-            "builder_mode": task["builder_mode"]
-        })
+        tiers[tier_id]["phases"].append(
+            {
+                "phase_id": task["phase_id"],
+                "phase_index": task["phase_index"],
+                "tier_id": tier_id,
+                "name": task["name"],
+                "description": task["description"],
+                "task_category": task["category"],
+                "complexity": task["complexity"],
+                "builder_mode": task["builder_mode"],
+            }
+        )
 
     # Flatten for API
     all_phases = []
     tier_list = []
     for tier in sorted(tiers.values(), key=lambda t: t["tier_index"]):
         all_phases.extend(tier["phases"])
-        tier_list.append({
-            "tier_id": tier["tier_id"],
-            "tier_index": tier["tier_index"],
-            "name": tier["name"],
-            "description": tier.get("description")
-        })
+        tier_list.append(
+            {
+                "tier_id": tier["tier_id"],
+                "tier_index": tier["tier_index"],
+                "name": tier["name"],
+                "description": tier.get("description"),
+            }
+        )
 
     payload = {
         "run": {
@@ -125,20 +127,17 @@ def create_run():
             "run_scope": "multi_tier",
             "token_cap": 50000,
             "max_phases": 10,
-            "max_duration_minutes": 30
+            "max_duration_minutes": 30,
         },
         "tiers": tier_list,
-        "phases": all_phases
+        "phases": all_phases,
     }
 
     print(f"[INFO] Creating validation run: {RUN_ID}")
     print(f"[INFO] Total tasks: {len(TASKS)}")
     print()
 
-    response = requests.post(
-        f"{API_URL}/runs/start",
-        json=payload
-    )
+    response = requests.post(f"{API_URL}/runs/start", json=payload)
 
     if response.status_code != 201:
         print(f"[ERROR] Response: {response.status_code}")
@@ -153,7 +152,9 @@ def create_run():
 if __name__ == "__main__":
     try:
         run_id = create_run()
-        print(f"\n[OK] Ready to execute: python src/autopack/autonomous_executor.py --run-id {run_id}")
+        print(
+            f"\n[OK] Ready to execute: python src/autopack/autonomous_executor.py --run-id {run_id}"
+        )
         sys.exit(0)
     except Exception as e:
         print(f"\n[ERROR] Failed: {e}")

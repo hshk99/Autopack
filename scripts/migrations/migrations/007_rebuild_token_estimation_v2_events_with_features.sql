@@ -148,5 +148,3 @@ ORDER BY timestamp DESC
 LIMIT 200;
 
 PRAGMA foreign_keys = ON;
-
-

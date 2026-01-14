@@ -125,10 +125,7 @@ class AgentLauncher:
             return all_agents
 
     def launch_agent(
-        self,
-        agent_role: str,
-        run_id: Optional[str] = None,
-        context: Optional[Dict] = None
+        self, agent_role: str, run_id: Optional[str] = None, context: Optional[Dict] = None
     ) -> Dict:
         """Launch a single Claude agent
 
@@ -155,7 +152,7 @@ class AgentLauncher:
         result = self._call_claude_api(
             prompt=prompt,
             model=agent_def.get("model", "claude-sonnet-3-5"),
-            max_tokens=agent_def.get("max_tokens", 100_000)
+            max_tokens=agent_def.get("max_tokens", 100_000),
         )
 
         if not result["success"]:
@@ -163,11 +160,9 @@ class AgentLauncher:
             return result
 
         # Save outputs
-        output_files = self._save_agent_outputs(
-            agent_role, agent_def, result["content"], run_id
-        )
+        output_files = self._save_agent_outputs(agent_role, agent_def, result["content"], run_id)
 
-        print(f"[AgentLauncher] ✅ Agent completed")
+        print("[AgentLauncher] ✅ Agent completed")
         print(f"[AgentLauncher]    Tokens used: {result['tokens_used']:,}")
         print(f"[AgentLauncher]    Outputs: {len(output_files)} files")
 
@@ -175,15 +170,11 @@ class AgentLauncher:
             "success": True,
             "agent_role": agent_role,
             "output_files": output_files,
-            "tokens_used": result["tokens_used"]
+            "tokens_used": result["tokens_used"],
         }
 
     def _build_agent_prompt(
-        self,
-        agent_role: str,
-        agent_def: Dict,
-        run_id: Optional[str],
-        context: Optional[Dict]
+        self, agent_role: str, agent_def: Dict, run_id: Optional[str], context: Optional[Dict]
     ) -> str:
         """Build prompt for agent with learned rules integration
 
@@ -211,10 +202,14 @@ class AgentLauncher:
 
             # Get promoted rules from this run
             # (Simplified: in production, track which rules were promoted in this specific run)
-            prompt_context["promoted_count"] = len([
-                h for h in run_hints
-                if len([h2 for h2 in run_hints if h2.source_issue_keys == h.source_issue_keys]) >= 2
-            ])
+            prompt_context["promoted_count"] = len(
+                [
+                    h
+                    for h in run_hints
+                    if len([h2 for h2 in run_hints if h2.source_issue_keys == h.source_issue_keys])
+                    >= 2
+                ]
+            )
             prompt_context["promoted_rules"] = format_rules_for_prompt(learned_rules[:5])  # Last 5
 
         # Add project context
@@ -251,12 +246,12 @@ class AgentLauncher:
                 "success": False,
                 "error": "ANTHROPIC_API_KEY not set",
                 "content": "",
-                "tokens_used": 0
+                "tokens_used": 0,
             }
 
         # TODO: Implement actual API call
         # For now, return stub indicating implementation needed
-        print(f"[AgentLauncher] ⚠️  Claude API call not implemented yet")
+        print("[AgentLauncher] ⚠️  Claude API call not implemented yet")
         print(f"[AgentLauncher]    Model: {model}, Max tokens: {max_tokens:,}")
         print(f"[AgentLauncher]    Prompt length: {len(prompt)} chars")
 
@@ -264,15 +259,11 @@ class AgentLauncher:
             "success": True,
             "content": f"# Agent Output (Stub)\n\nAgent would generate output here.\n\nPrompt received: {len(prompt)} chars\nLearned rules: {'Yes' if '{learned_rules}' not in prompt else 'No'}",
             "tokens_used": 1000,  # Stub
-            "model": model
+            "model": model,
         }
 
     def _save_agent_outputs(
-        self,
-        agent_role: str,
-        agent_def: Dict,
-        content: str,
-        run_id: Optional[str]
+        self, agent_role: str, agent_def: Dict, content: str, run_id: Optional[str]
     ) -> List[str]:
         """Save agent outputs to configured file paths
 
@@ -304,7 +295,7 @@ class AgentLauncher:
             output_file.parent.mkdir(parents=True, exist_ok=True)
 
             # Save content
-            with open(output_file, 'w') as f:
+            with open(output_file, "w") as f:
                 f.write(content)
 
             output_files.append(str(output_file))
@@ -317,7 +308,7 @@ class AgentLauncher:
         event: str,
         run_id: Optional[str] = None,
         agents: Optional[List[str]] = None,
-        context: Optional[Dict] = None
+        context: Optional[Dict] = None,
     ) -> Dict:
         """Launch agents for a specific event
 
@@ -330,9 +321,9 @@ class AgentLauncher:
         Returns:
             Dict with results per agent
         """
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"🤖 Agent Launcher: {event}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
         print(f"[AgentLauncher] Project: {self.project_id}")
         if run_id:
             print(f"[AgentLauncher] Run ID: {run_id}")
@@ -356,16 +347,12 @@ class AgentLauncher:
                 total_tokens += result.get("tokens_used", 0)
             except Exception as e:
                 print(f"[AgentLauncher] ⚠️  Agent {agent_role} failed: {e}")
-                results[agent_role] = {
-                    "success": False,
-                    "error": str(e),
-                    "tokens_used": 0
-                }
+                results[agent_role] = {"success": False, "error": str(e), "tokens_used": 0}
 
         # Summary
-        print(f"\n{'='*60}")
-        print(f"✅ Agent Launcher Complete")
-        print(f"{'='*60}\n")
+        print(f"\n{'=' * 60}")
+        print("✅ Agent Launcher Complete")
+        print(f"{'=' * 60}\n")
         print(f"Agents launched: {len(results)}")
         print(f"Total tokens: {total_tokens:,}")
         print(f"Successes: {sum(1 for r in results.values() if r.get('success'))}")
@@ -377,7 +364,7 @@ class AgentLauncher:
             "run_id": run_id,
             "agents_launched": len(results),
             "results": results,
-            "total_tokens": total_tokens
+            "total_tokens": total_tokens,
         }
 
 
@@ -385,45 +372,26 @@ def main():
     parser = argparse.ArgumentParser(
         description="Launch Claude agents for planning, brainstorming, marketing, postmortem"
     )
-    parser.add_argument(
-        "--project-id",
-        required=True,
-        help="Project identifier"
-    )
+    parser.add_argument("--project-id", required=True, help="Project identifier")
     parser.add_argument(
         "--event",
         choices=["project_init", "run_complete", "manual"],
         default="manual",
-        help="Event type"
+        help="Event type",
     )
+    parser.add_argument("--run-id", help="Run ID (for postmortem agent)")
     parser.add_argument(
-        "--run-id",
-        help="Run ID (for postmortem agent)"
+        "--agents", nargs="+", help="Specific agents to launch (overrides event filtering)"
     )
-    parser.add_argument(
-        "--agents",
-        nargs="+",
-        help="Specific agents to launch (overrides event filtering)"
-    )
-    parser.add_argument(
-        "--config",
-        help="Path to project_types.yaml"
-    )
+    parser.add_argument("--config", help="Path to project_types.yaml")
 
     args = parser.parse_args()
 
     # Create launcher
-    launcher = AgentLauncher(
-        project_id=args.project_id,
-        config_path=args.config
-    )
+    launcher = AgentLauncher(project_id=args.project_id, config_path=args.config)
 
     # Launch agents
-    result = launcher.launch_for_event(
-        event=args.event,
-        run_id=args.run_id,
-        agents=args.agents
-    )
+    result = launcher.launch_for_event(event=args.event, run_id=args.run_id, agents=args.agents)
 
     # Exit code based on success
     if all(r.get("success") for r in result["results"].values()):

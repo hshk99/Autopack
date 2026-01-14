@@ -7,6 +7,7 @@ the missing /runs endpoints that are currently returning 404.
 
 GOAL: Make Autopack truly autonomous and reusable for future projects.
 """
+
 import os
 import sys
 import json
@@ -99,13 +100,15 @@ REFERENCE:
             "category": "feature",
             "status": "PENDING",
             "complexity": "medium",
-            "metadata": json.dumps({
-                "estimated_tokens": 4000,
-                "files_to_create": [
-                    "src/backend/models/runs.py",
-                    "src/backend/models/__init__.py"
-                ]
-            })
+            "metadata": json.dumps(
+                {
+                    "estimated_tokens": 4000,
+                    "files_to_create": [
+                        "src/backend/models/runs.py",
+                        "src/backend/models/__init__.py",
+                    ],
+                }
+            ),
         },
         {
             "phase_id": "create_runs_api_router",
@@ -184,13 +187,12 @@ REFERENCE:
             "category": "feature",
             "status": "PENDING",
             "complexity": "high",
-            "metadata": json.dumps({
-                "estimated_tokens": 6000,
-                "files_to_create": [
-                    "src/backend/api/runs.py",
-                    "src/backend/schemas/runs.py"
-                ]
-            })
+            "metadata": json.dumps(
+                {
+                    "estimated_tokens": 6000,
+                    "files_to_create": ["src/backend/api/runs.py", "src/backend/schemas/runs.py"],
+                }
+            ),
         },
         {
             "phase_id": "integrate_runs_router",
@@ -225,10 +227,9 @@ curl http://localhost:8000/docs""",
             "category": "integration",
             "status": "PENDING",
             "complexity": "low",
-            "metadata": json.dumps({
-                "estimated_tokens": 1500,
-                "files_to_modify": ["src/backend/main.py"]
-            })
+            "metadata": json.dumps(
+                {"estimated_tokens": 1500, "files_to_modify": ["src/backend/main.py"]}
+            ),
         },
         {
             "phase_id": "test_api_with_autonomous_executor",
@@ -283,10 +284,9 @@ If executor runs without 404 errors, API is working!""",
             "category": "test",
             "status": "PENDING",
             "complexity": "medium",
-            "metadata": json.dumps({
-                "estimated_tokens": 3000,
-                "validation": "no_404_errors_in_executor"
-            })
+            "metadata": json.dumps(
+                {"estimated_tokens": 3000, "validation": "no_404_errors_in_executor"}
+            ),
         },
         {
             "phase_id": "create_restoration_runs_via_api",
@@ -326,10 +326,9 @@ After this, restoration runs can be started with autonomous executor.""",
             "category": "execution",
             "status": "PENDING",
             "complexity": "low",
-            "metadata": json.dumps({
-                "estimated_tokens": 2000,
-                "dependencies": ["test_api_with_autonomous_executor"]
-            })
+            "metadata": json.dumps(
+                {"estimated_tokens": 2000, "dependencies": ["test_api_with_autonomous_executor"]}
+            ),
         },
         {
             "phase_id": "document_api_usage",
@@ -387,11 +386,10 @@ REFERENCE:
             "category": "documentation",
             "status": "PENDING",
             "complexity": "low",
-            "metadata": json.dumps({
-                "estimated_tokens": 3000,
-                "output_file": "docs/RUNS_API_GUIDE.md"
-            })
-        }
+            "metadata": json.dumps(
+                {"estimated_tokens": 3000, "output_file": "docs/RUNS_API_GUIDE.md"}
+            ),
+        },
     ]
 
     # Create in database
@@ -412,17 +410,20 @@ REFERENCE:
         session.commit()
         print(f"✅ Created run directly in database: {run_id}")
         print(f"   Phases: {len(phases)}")
-        print(f"\n🚀 Run created!")
-        print(f"\nTo execute:")
-        print(f"  cd c:/dev/Autopack")
-        print(f"  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\" \\")
-        print(f"  QDRANT_HOST=\"http://localhost:6333\" python -m autopack.autonomous_executor \\")
+        print("\n🚀 Run created!")
+        print("\nTo execute:")
+        print("  cd c:/dev/Autopack")
+        print(
+            '  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack" \\'
+        )
+        print('  QDRANT_HOST="http://localhost:6333" python -m autopack.autonomous_executor \\')
         print(f"  --run-id {run_id} --poll-interval 15 --run-type autopack_core_development")
         return 0
 
     except Exception as e:
         print(f"❌ Error creating run: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

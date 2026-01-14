@@ -82,7 +82,7 @@ def test_confidence_buffering():
             category=tc["category"],
             complexity=tc["complexity"],
             scope_paths=["src/main.py"] * 5,
-            task_description=f"Test: {tc['name']}"
+            task_description=f"Test: {tc['name']}",
         )
 
         budget = estimator.select_budget(estimate, tc["complexity"])
@@ -136,10 +136,14 @@ if __name__ == "__main__":
     if success:
         print("✓ P7+P9 confidence-based buffering validated!")
         print("  Expected impact:")
-        print("  - DOC_SYNTHESIS/SOT: 2.2x buffer → eliminates truncation for doc investigation tasks")
+        print(
+            "  - DOC_SYNTHESIS/SOT: 2.2x buffer → eliminates truncation for doc investigation tasks"
+        )
         print("  - High deliverable count: 1.6x buffer → prevents override-triggered truncation")
         print("  - Low confidence: 1.4x buffer → safety net for uncertain estimates")
-        print("  P9: Narrowed 2.2x buffer to doc_synthesis/doc_sot_update (was: all documentation low complexity)")
+        print(
+            "  P9: Narrowed 2.2x buffer to doc_synthesis/doc_sot_update (was: all documentation low complexity)"
+        )
         sys.exit(0)
     else:
         print("✗ Validation failed")

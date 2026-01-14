@@ -3,6 +3,7 @@
 Checks the status of BUILD-145 P1 phases and restarts only those that are
 not in COMPLETE state. Skips phases that have already completed successfully.
 """
+
 import sys
 import subprocess
 from pathlib import Path
@@ -17,8 +18,9 @@ RUN_IDS = [
     "autopack-onephase-p11-observability-artifact-first",
     "autopack-onephase-p12-embedding-cache-and-cap",
     "autopack-onephase-p13-expand-artifact-substitution",
-    "autopack-onephase-research-import-errors"
+    "autopack-onephase-research-import-errors",
 ]
+
 
 def get_phase_statuses():
     """Get current status of all phases."""
@@ -32,27 +34,31 @@ def get_phase_statuses():
 
         for p in phases:
             run = run_map.get(p.run_id)
-            phase_info.append({
-                "phase_id": p.phase_id,
-                "run_id": p.run_id,
-                "phase_state": p.state,
-                "run_state": run.state if run else None,
-                "tokens_used": p.tokens_used or 0
-            })
+            phase_info.append(
+                {
+                    "phase_id": p.phase_id,
+                    "run_id": p.run_id,
+                    "phase_state": p.state,
+                    "run_state": run.state if run else None,
+                    "tokens_used": p.tokens_used or 0,
+                }
+            )
 
         return phase_info
     finally:
         session.close()
+
 
 def reset_incomplete_phases():
     """Reset incomplete phases to QUEUED state."""
     session = SessionLocal()
     try:
         # Find incomplete phases
-        phases = session.query(Phase).filter(
-            Phase.run_id.in_(RUN_IDS),
-            Phase.state != PhaseState.COMPLETE
-        ).all()
+        phases = (
+            session.query(Phase)
+            .filter(Phase.run_id.in_(RUN_IDS), Phase.state != PhaseState.COMPLETE)
+            .all()
+        )
 
         incomplete_run_ids = [p.run_id for p in phases]
 
@@ -65,11 +71,10 @@ def reset_incomplete_phases():
             print(f"  • {p.phase_id} ({p.run_id}): {p.state.value}")
 
         # Reset incomplete runs to QUEUED
-        session.query(Run).filter(Run.id.in_(incomplete_run_ids)).update({
-            Run.state: RunState.QUEUED,
-            Run.started_at: None,
-            Run.completed_at: None
-        }, synchronize_session=False)
+        session.query(Run).filter(Run.id.in_(incomplete_run_ids)).update(
+            {Run.state: RunState.QUEUED, Run.started_at: None, Run.completed_at: None},
+            synchronize_session=False,
+        )
 
         # Reset incomplete phases to QUEUED
         for phase in phases:
@@ -91,18 +96,12 @@ def reset_incomplete_phases():
     finally:
         session.close()
 
+
 def start_executor(run_id):
     """Start autonomous executor for a run in background."""
-    cmd = [
-        "python", "-m", "autopack.autonomous_executor",
-        "--run-id", run_id
-    ]
+    cmd = ["python", "-m", "autopack.autonomous_executor", "--run-id", run_id]
 
-    env = {
-        "PYTHONUTF8": "1",
-        "PYTHONPATH": "src",
-        "DATABASE_URL": "sqlite:///autopack.db"
-    }
+    env = {"PYTHONUTF8": "1", "PYTHONPATH": "src", "DATABASE_URL": "sqlite:///autopack.db"}
 
     print(f"🚀 Starting executor for {run_id}")
 
@@ -112,10 +111,11 @@ def start_executor(run_id):
         env={**subprocess.os.environ, **env},
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        cwd=Path(__file__).parent.parent
+        cwd=Path(__file__).parent.parent,
     )
 
     return process.pid
+
 
 def main():
     """Main entry point."""
@@ -178,6 +178,7 @@ def main():
     print("3. Check executor logs in:")
     print("   .autonomous_runs/autopack/runs/<run-id>/")
     print()
+
 
 if __name__ == "__main__":
     main()

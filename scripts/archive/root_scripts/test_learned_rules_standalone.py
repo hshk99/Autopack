@@ -4,9 +4,10 @@ import sys
 import os
 
 # Set UTF-8 encoding for console output
-if sys.stdout.encoding != 'utf-8':
+if sys.stdout.encoding != "utf-8":
     import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 # Add parent to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -44,7 +45,7 @@ def test_basic_functionality():
         scope_paths=["auth.py", "auth_test.py"],
         source_issue_keys=["missing_type_hints_auth_py"],
         hint_text="Resolved missing_type_hints_auth_py in auth.py - ensure all functions have type annotations",
-        created_at=datetime.utcnow().isoformat()
+        created_at=datetime.utcnow().isoformat(),
     )
     assert hint.run_id == "test_run_001"
     print("✅ RunRuleHint created successfully")
@@ -60,7 +61,7 @@ def test_basic_functionality():
         promotion_count=2,
         first_seen=datetime.utcnow().isoformat(),
         last_seen=datetime.utcnow().isoformat(),
-        status="active"
+        status="active",
     )
     assert rule.rule_id == "feature_scaffolding.missing_type_hints"
     print("✅ LearnedRule created successfully")
@@ -82,7 +83,9 @@ def test_basic_functionality():
     # Test 4: Extract pattern
     print("\nTest 4: Extract pattern from issue key")
     assert _extract_pattern("missing_type_hints_auth_py") == "missing_type_hints"
-    assert _extract_pattern("placeholder_code_handler_py") == "placeholder_code_handler"  # Takes up to 3 parts
+    assert (
+        _extract_pattern("placeholder_code_handler_py") == "placeholder_code_handler"
+    )  # Takes up to 3 parts
     assert _extract_pattern("import_error_utils_123") == "import_error_utils"  # Takes up to 3 parts
     print("✅ Pattern extraction working")
 
@@ -160,7 +163,7 @@ def test_file_persistence():
             "phase_id": "P1.1",
             "phase_index": 0,
             "tier_id": "T1",
-            "task_category": "feature_scaffolding"
+            "task_category": "feature_scaffolding",
         }
         issues_before = [{"issue_key": "missing_type_hints_auth_py", "severity": "major"}]
         issues_after = []
@@ -182,7 +185,7 @@ def test_file_persistence():
             "phase_id": "P1.2",
             "phase_index": 1,
             "tier_id": "T1",
-            "task_category": "feature_scaffolding"
+            "task_category": "feature_scaffolding",
         }
         issues_before2 = [{"issue_key": "missing_type_hints_models_py", "severity": "major"}]
         record_run_rule_hint(run_id, phase2, issues_before2, [], {"file_paths": ["models.py"]})
@@ -196,7 +199,7 @@ def test_file_persistence():
         target_phase = {
             "phase_id": "P1.5",
             "phase_index": 5,
-            "task_category": "feature_scaffolding"
+            "task_category": "feature_scaffolding",
         }
         relevant = get_relevant_hints_for_phase(run_id, target_phase)
         assert len(relevant) == 2  # Both earlier phases match category
@@ -245,5 +248,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ Unexpected error: {e}\n")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

@@ -59,18 +59,30 @@ def get_database_url() -> str:
     """
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
-        print("\n" + "="*80, file=sys.stderr)
+        print("\n" + "=" * 80, file=sys.stderr)
         print("ERROR: DATABASE_URL environment variable not set", file=sys.stderr)
-        print("="*80, file=sys.stderr)
-        print("\nMigration scripts require explicit DATABASE_URL to prevent footguns.", file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
+        print(
+            "\nMigration scripts require explicit DATABASE_URL to prevent footguns.",
+            file=sys.stderr,
+        )
         print("Production uses Postgres; SQLite is only for dev/test.\n", file=sys.stderr)
         print("Set DATABASE_URL before running:\n", file=sys.stderr)
         print("  # PowerShell (Postgres production):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\"", file=sys.stderr)
-        print("  python scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py upgrade\n", file=sys.stderr)
+        print(
+            '  $env:DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"',
+            file=sys.stderr,
+        )
+        print(
+            "  python scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py upgrade\n",
+            file=sys.stderr,
+        )
         print("  # PowerShell (SQLite dev/test - explicit opt-in):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"sqlite:///autopack.db\"", file=sys.stderr)
-        print("  python scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py upgrade\n", file=sys.stderr)
+        print('  $env:DATABASE_URL="sqlite:///autopack.db"', file=sys.stderr)
+        print(
+            "  python scripts/migrations/add_token_efficiency_idempotency_index_build146_p17x.py upgrade\n",
+            file=sys.stderr,
+        )
         sys.exit(1)
     return db_url
 
@@ -131,18 +143,22 @@ def upgrade(engine: Engine) -> None:
 
         # Verify index is working (check for duplicates)
         with engine.connect() as conn:
-            result = conn.execute(text("""
+            result = conn.execute(
+                text("""
                 SELECT run_id, phase_id, phase_outcome, COUNT(*) as count
                 FROM token_efficiency_metrics
                 WHERE phase_outcome IS NOT NULL
                 GROUP BY run_id, phase_id, phase_outcome
                 HAVING COUNT(*) > 1
-            """))
+            """)
+            )
             duplicates = result.fetchall()
             if duplicates:
                 print(f"⚠️  WARNING: Found {len(duplicates)} duplicate terminal outcomes:")
                 for dup in duplicates[:5]:  # Show first 5
-                    print(f"    run_id={dup[0]}, phase_id={dup[1]}, outcome={dup[2]}, count={dup[3]}")
+                    print(
+                        f"    run_id={dup[0]}, phase_id={dup[1]}, outcome={dup[2]}, count={dup[3]}"
+                    )
                 print("  These duplicates should be cleaned up manually")
             else:
                 print("✓ No duplicate terminal outcomes found (idempotency is working)")
@@ -162,11 +178,13 @@ def upgrade(engine: Engine) -> None:
         with engine.connect() as conn:
             # Set autocommit mode (no transaction)
             conn = conn.execution_options(isolation_level="AUTOCOMMIT")
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS ux_token_eff_metrics_run_phase_outcome
                 ON token_efficiency_metrics (run_id, phase_id, phase_outcome)
                 WHERE phase_outcome IS NOT NULL
-            """))
+            """)
+            )
         print("      ✓ Partial unique index created successfully (PostgreSQL)")
 
     elif dialect == "sqlite":
@@ -179,15 +197,17 @@ def upgrade(engine: Engine) -> None:
         # SQLite can run in transaction
         with engine.begin() as conn:
             try:
-                conn.execute(text("""
+                conn.execute(
+                    text("""
                     CREATE UNIQUE INDEX IF NOT EXISTS ux_token_eff_metrics_run_phase_outcome
                     ON token_efficiency_metrics (run_id, phase_id, phase_outcome)
                     WHERE phase_outcome IS NOT NULL
-                """))
+                """)
+                )
                 print("      ✓ Partial unique index created successfully (SQLite)")
             except Exception as e:
                 if "partial" in str(e).lower() or "WHERE" in str(e):
-                    print(f"      ⚠️  SQLite version does not support partial indexes")
+                    print("      ⚠️  SQLite version does not support partial indexes")
                     print(f"      Error: {e}")
                     print("      Upgrade to SQLite 3.8+ or use PostgreSQL for production")
                     print("      Skipping index creation (app-level guard will still work)")
@@ -248,7 +268,9 @@ def downgrade(engine: Engine) -> None:
 def main():
     """Main entry point"""
     if len(sys.argv) < 2 or sys.argv[1] not in ["upgrade", "downgrade"]:
-        print("Usage: python add_token_efficiency_idempotency_index_build146_p17x.py [upgrade|downgrade]")
+        print(
+            "Usage: python add_token_efficiency_idempotency_index_build146_p17x.py [upgrade|downgrade]"
+        )
         sys.exit(1)
 
     command = sys.argv[1]
@@ -268,6 +290,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Migration failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

@@ -110,9 +110,9 @@ class TestDashboardNullTokens:
         response = client.get("/dashboard/usage?period=week")
 
         # Should return 200, not crash
-        assert (
-            response.status_code == 200
-        ), f"Expected 200, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, (
+            f"Expected 200, got {response.status_code}: {response.text}"
+        )
 
         data = response.json()
         assert "providers" in data

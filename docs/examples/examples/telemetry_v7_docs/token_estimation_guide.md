@@ -67,7 +67,7 @@ for file_path in context_files:
     file_size = get_file_size(file_path)
     file_type = get_file_extension(file_path)
     weight = TOKEN_WEIGHTS.get(file_type, TOKEN_WEIGHTS['default'])
-    
+
     # Estimate tokens: (size in chars / 4) * weight
     file_tokens = (file_size // 4) * weight
     total_context_tokens += file_tokens
@@ -162,12 +162,12 @@ TOKEN_WEIGHTS = {
   - Docstrings and comments
   - Import statements
   - Decorator syntax
-  
+
 - **Markdown (0.9x)**: Lower weight due to:
   - Formatting characters (*, #, -, etc.)
   - Whitespace for readability
   - Link syntax overhead
-  
+
 - **Plain Text (0.8x)**: Lowest weight:
   - No syntax overhead
   - Natural language (fewer tokens per char)
@@ -196,17 +196,17 @@ BUDGET_TIERS = [
 def select_budget(estimated_tokens: int) -> int:
     """
     Select the smallest budget tier that accommodates the estimate.
-    
+
     Args:
         estimated_tokens: Total estimated token requirement
-        
+
     Returns:
         Selected budget from BUDGET_TIERS
     """
     for budget in BUDGET_TIERS:
         if estimated_tokens <= budget * 0.85:  # Use 85% threshold
             return budget
-    
+
     # If estimate exceeds all tiers, return maximum
     return BUDGET_TIERS[-1]
 ```
@@ -409,15 +409,15 @@ def optimize_context(context_files, max_budget):
     Reduce context files if estimate exceeds budget.
     """
     estimated = estimate_tokens(context_files)
-    
+
     if estimated > max_budget * 0.85:
         # Sort by relevance score
         sorted_files = sort_by_relevance(context_files)
-        
+
         # Include files until budget threshold
         optimized = []
         running_total = PHASE_OVERHEAD['total']
-        
+
         for file in sorted_files:
             file_tokens = estimate_file_tokens(file)
             if running_total + file_tokens <= max_budget * 0.85:
@@ -425,9 +425,9 @@ def optimize_context(context_files, max_budget):
                 running_total += file_tokens
             else:
                 break
-        
+
         return optimized
-    
+
     return context_files
 ```
 

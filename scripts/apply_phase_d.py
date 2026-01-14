@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 MANIFEST_GEN_PATH = Path(__file__).parent.parent / "src" / "autopack" / "manifest_generator.py"
 
+
 def main():
     print("Reading manifest_generator.py...")
     with open(MANIFEST_GEN_PATH, "r", encoding="utf-8") as f:
@@ -35,8 +36,10 @@ def main():
         if "self._plan_analyzer = None" in line and i > 140:
             # Insert after this line
             indent = "        "
-            lines.insert(i + 1, f"{indent}self._context_builder = None  # Phase C lazy init (BUILD-124)\n")
-            print(f"   ✓ Added at line {i+2}")
+            lines.insert(
+                i + 1, f"{indent}self._context_builder = None  # Phase C lazy init (BUILD-124)\n"
+            )
+            print(f"   ✓ Added at line {i + 2}")
             break
     else:
         print("   ✗ Warning: Could not find _plan_analyzer = None")
@@ -47,10 +50,14 @@ def main():
         if "return enhanced_phase, match_result.confidence, warnings" in lines[i]:
             indent = "        "
             # Insert before return
-            lines.insert(i, f"{indent}# Store match_result in phase metadata for PlanAnalyzer (BUILD-124)\n")
-            lines.insert(i + 1, f'{indent}enhanced_phase["metadata"]["_match_result"] = match_result\n')
+            lines.insert(
+                i, f"{indent}# Store match_result in phase metadata for PlanAnalyzer (BUILD-124)\n"
+            )
+            lines.insert(
+                i + 1, f'{indent}enhanced_phase["metadata"]["_match_result"] = match_result\n'
+            )
             lines.insert(i + 2, "\n")
-            print(f"   ✓ Added at line {i+1}")
+            print(f"   ✓ Added at line {i + 1}")
             break
     else:
         print("   ✗ Warning: Could not find return statement in _enhance_phase")
@@ -370,7 +377,8 @@ def main():
 
     print("\n✅ Phase D implementation complete!")
     print(f"   Final file: {len(lines)} lines")
-    print(f"   Added: ~233 lines")
+    print("   Added: ~233 lines")
+
 
 if __name__ == "__main__":
     main()

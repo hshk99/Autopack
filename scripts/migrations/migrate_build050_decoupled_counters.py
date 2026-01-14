@@ -47,24 +47,34 @@ def migrate():
         # Add new columns
         if is_sqlite:
             # SQLite doesn't support adding multiple columns in one statement
-            session.execute(text("ALTER TABLE phases ADD COLUMN retry_attempt INTEGER NOT NULL DEFAULT 0"))
-            session.execute(text("ALTER TABLE phases ADD COLUMN revision_epoch INTEGER NOT NULL DEFAULT 0"))
-            session.execute(text("ALTER TABLE phases ADD COLUMN escalation_level INTEGER NOT NULL DEFAULT 0"))
+            session.execute(
+                text("ALTER TABLE phases ADD COLUMN retry_attempt INTEGER NOT NULL DEFAULT 0")
+            )
+            session.execute(
+                text("ALTER TABLE phases ADD COLUMN revision_epoch INTEGER NOT NULL DEFAULT 0")
+            )
+            session.execute(
+                text("ALTER TABLE phases ADD COLUMN escalation_level INTEGER NOT NULL DEFAULT 0")
+            )
         else:
             # PostgreSQL supports adding multiple columns
-            session.execute(text("""
+            session.execute(
+                text("""
                 ALTER TABLE phases
                 ADD COLUMN retry_attempt INTEGER NOT NULL DEFAULT 0,
                 ADD COLUMN revision_epoch INTEGER NOT NULL DEFAULT 0,
                 ADD COLUMN escalation_level INTEGER NOT NULL DEFAULT 0
-            """))
+            """)
+            )
 
         session.commit()
         logger.info("New columns added successfully")
 
         # Migrate existing data
         logger.info("Migrating existing data: copying attempts_used to retry_attempt...")
-        session.execute(text("UPDATE phases SET retry_attempt = attempts_used WHERE retry_attempt = 0"))
+        session.execute(
+            text("UPDATE phases SET retry_attempt = attempts_used WHERE retry_attempt = 0")
+        )
         session.commit()
         logger.info("Data migration complete")
 

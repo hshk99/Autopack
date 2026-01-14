@@ -19,7 +19,7 @@ Autopack is an **autonomous build system** that executes multi-phase implementat
 ## Core Components
 
 ### 1. Autonomous Executor
-**File**: `src/autopack/autonomous_executor.py` (8000+ lines)  
+**File**: `src/autopack/autonomous_executor.py` (8000+ lines)
 **Purpose**: Main orchestration engine
 
 - Fetches phases from API (`GET /runs/{run_id}`)
@@ -33,7 +33,7 @@ Autopack is an **autonomous build system** that executes multi-phase implementat
 - `_load_repository_context()` - Smart context loading (scope-aware, targeted, heuristic)
 
 ### 2. Builder (LLM Code Generation)
-**Files**: `src/autopack/anthropic_clients.py`, `src/autopack/openai_clients.py`, `src/autopack/gemini_clients.py`  
+**Files**: `src/autopack/anthropic_clients.py`, `src/autopack/openai_clients.py`, `src/autopack/gemini_clients.py`
 **Purpose**: Generate code changes via LLM
 
 - Supports multiple providers (Anthropic, OpenAI, Gemini)
@@ -46,7 +46,7 @@ Autopack is an **autonomous build system** that executes multi-phase implementat
 - **Structured Edits**: JSON with `create_file`, `modify_file`, `delete_file` operations (for large scopes ≥30 files)
 
 ### 3. Governed Apply (Patch Application)
-**File**: `src/autopack/governed_apply.py`  
+**File**: `src/autopack/governed_apply.py`
 **Purpose**: Safe patch application with governance checks
 
 - **Protected Paths**: `.git/`, `.autonomous_runs/`, `autopack.db` (never modified)
@@ -60,7 +60,7 @@ Autopack is an **autonomous build system** that executes multi-phase implementat
 - Automatic rollback on validation failure
 
 ### 4. Quality Gate
-**File**: `src/autopack/quality_gate.py`  
+**File**: `src/autopack/quality_gate.py`
 **Purpose**: Enforce quality standards before phase completion
 
 - **Risk Assessment**: Analyzes patch for protected paths, large deletions, complexity
@@ -74,7 +74,7 @@ Autopack is an **autonomous build system** that executes multi-phase implementat
 - `blocked` - Critical issues, phase cannot complete
 
 ### 5. Phase Finalizer
-**File**: `src/autopack/phase_finalizer.py`  
+**File**: `src/autopack/phase_finalizer.py`
 **Purpose**: Authoritative completion gate (replaces old quality gate)
 
 - **Test Baseline Comparison**: Detects new failures, regressions, flaky tests
@@ -85,7 +85,7 @@ Autopack is an **autonomous build system** that executes multi-phase implementat
 **Key Insight**: Separates pre-existing failures from new regressions (delta-based gating)
 
 ### 6. Diagnostics System
-**Files**: `src/autopack/diagnostics/`  
+**Files**: `src/autopack/diagnostics/`
 **Purpose**: Autonomous troubleshooting and failure analysis
 
 **Components**:
@@ -101,7 +101,7 @@ Autopack is an **autonomous build system** that executes multi-phase implementat
 - Generic error phrases ("unknown error", "internal error")
 
 ### 7. Learning System
-**File**: `src/autopack/learned_rules.py`  
+**File**: `src/autopack/learned_rules.py`
 **Purpose**: Capture and reuse patterns from past runs
 
 - **Learned Rules**: Persistent patterns (e.g., "Always add __init__.py for new packages")
@@ -110,7 +110,7 @@ Autopack is an **autonomous build system** that executes multi-phase implementat
 - **Scope Matching**: Rules apply to specific file patterns or globally
 
 ### 8. Manifest Generator
-**File**: `src/autopack/manifest_generator.py`  
+**File**: `src/autopack/manifest_generator.py`
 **Purpose**: Generate phase plans from high-level goals
 
 - **Deliverables-Aware**: Infers category from file paths (not just goal text)
@@ -182,23 +182,23 @@ Autopack is an **autonomous build system** that executes multi-phase implementat
 ## Key Architectural Patterns
 
 ### 1. Scope-First Context Loading
-**Problem**: Targeted context loaders (frontend, docker) loaded root-level files, violating scope  
+**Problem**: Targeted context loaders (frontend, docker) loaded root-level files, violating scope
 **Solution**: Check `scope.paths` FIRST, before pattern-based targeting
 
 ### 2. Deliverables-Aware Manifest
-**Problem**: Pattern matching on goal text unreliable ("completion" matched frontend dashboard)  
+**Problem**: Pattern matching on goal text unreliable ("completion" matched frontend dashboard)
 **Solution**: Infer category from deliverable file paths (BUILD-128)
 
 ### 3. Delta-Based Test Gating
-**Problem**: Pre-existing test failures blocked new phases  
+**Problem**: Pre-existing test failures blocked new phases
 **Solution**: Capture T0 baseline, only block on NEW failures (Phase Finalizer)
 
 ### 4. Overhead Model Token Estimation
-**Problem**: Linear scaling (tokens ∝ deliverables) caused severe overestimation  
+**Problem**: Linear scaling (tokens ∝ deliverables) caused severe overestimation
 **Solution**: Separate fixed overhead + marginal cost per file (BUILD-129)
 
 ### 5. Structured Edit Fallback
-**Problem**: Large scopes (≥30 files) hit truncation with unified diff  
+**Problem**: Large scopes (≥30 files) hit truncation with unified diff
 **Solution**: Auto-switch to structured edits (JSON operations) for large contexts (BUILD-114)
 
 ---
@@ -226,7 +226,7 @@ Autopack is an **autonomous build system** that executes multi-phase implementat
 ## Integration Points
 
 ### API Server
-**File**: `src/autopack/main.py`  
+**File**: `src/autopack/main.py`
 **Endpoints**:
 - `GET /runs/{run_id}` - Fetch run state
 - `PUT /runs/{run_id}/phases/{phase_id}` - Update phase status
@@ -234,7 +234,7 @@ Autopack is an **autonomous build system** that executes multi-phase implementat
 - `GET /approval/status/{id}` - Poll approval decision
 
 ### Database
-**File**: `src/autopack/models.py`  
+**File**: `src/autopack/models.py`
 **Tables**:
 - `runs` - Run metadata (id, state, created_at)
 - `phases` - Phase state (phase_id, status, retry_attempt)
@@ -242,7 +242,7 @@ Autopack is an **autonomous build system** that executes multi-phase implementat
 - `token_estimation_v2_events` - Telemetry data
 
 ### Telemetry
-**Files**: `src/autopack/anthropic_clients.py` (logging), `scripts/analyze_token_telemetry_v3.py` (analysis)  
+**Files**: `src/autopack/anthropic_clients.py` (logging), `scripts/analyze_token_telemetry_v3.py` (analysis)
 **Purpose**: Track token predictions vs actuals for calibration
 
 ---
@@ -285,6 +285,6 @@ TELEMETRY_DB_ENABLED=1            # Enable telemetry persistence
 
 ---
 
-**Total Lines**: 180 (within ≤180 line constraint)  
-**Style**: Bullet-style with code examples  
+**Total Lines**: 180 (within ≤180 line constraint)
+**Style**: Bullet-style with code examples
 **Scope**: High-level overview, no detailed API docs

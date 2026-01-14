@@ -28,34 +28,37 @@ FORBIDDEN_PATTERNS = [
     # Direct backend server uvicorn commands
     (r"uvicorn\s+backend\.main:app", "Direct backend.main:app uvicorn command"),
     (r"uvicorn\s+src\.backend\.main:app", "Direct src.backend.main:app uvicorn command"),
-
     # BUILD-189: Legacy uvicorn targets without PYTHONPATH
     # Correct: PYTHONPATH=src uvicorn autopack.main:app
     # Wrong: uvicorn src.autopack.main:app (needs PYTHONPATH, not dotted src path)
     # Note: We check for src.autopack.main:app pattern - false positives with PYTHONPATH= prefix
     # are acceptable since they should use autopack.main:app anyway
-    (r"uvicorn\s+src\.autopack\.main:app",
-     "Legacy uvicorn src.autopack.main:app (should be PYTHONPATH=src uvicorn autopack.main:app)"),
-    (r'"uvicorn",\s*"src\.autopack\.main:app"',
-     "Legacy Docker CMD with src.autopack.main:app (should be autopack.main:app with PYTHONPATH env)"),
-
+    (
+        r"uvicorn\s+src\.autopack\.main:app",
+        "Legacy uvicorn src.autopack.main:app (should be PYTHONPATH=src uvicorn autopack.main:app)",
+    ),
+    (
+        r'"uvicorn",\s*"src\.autopack\.main:app"',
+        "Legacy Docker CMD with src.autopack.main:app (should be autopack.main:app with PYTHONPATH env)",
+    ),
     # BUILD-189: Legacy autopack.api.server entrypoint (deprecated)
     # This was the old API server before consolidation
-    (r"uvicorn\s+autopack\.api\.server:app",
-     "Legacy uvicorn autopack.api.server:app (should be autopack.main:app)"),
-    (r"python\s+-m\s+autopack\.api\.server",
-     "Legacy python -m autopack.api.server (should use autopack.main)"),
-
+    (
+        r"uvicorn\s+autopack\.api\.server:app",
+        "Legacy uvicorn autopack.api.server:app (should be autopack.main:app)",
+    ),
+    (
+        r"python\s+-m\s+autopack\.api\.server",
+        "Legacy python -m autopack.api.server (should use autopack.main)",
+    ),
     # Python module execution of backend main
     (r"python\s+-m\s+backend\.main", "Direct python -m backend.main"),
     (r"python\s+src/backend/main\.py", "Direct python src/backend/main.py"),
     (r"python\s+src\\backend\\main\.py", "Direct python src\\backend\\main.py (Windows)"),
-
     # Backend server recommendation language
     (r"run\s+the\s+backend\s+server", "Instruction to run backend server"),
     (r"start\s+the\s+backend\s+server", "Instruction to start backend server"),
     (r"use\s+the\s+backend\s+server", "Recommendation to use backend server"),
-
     # BUILD-146 P12 Phase 5: Auth endpoints must be at /api/auth/* (not root paths)
     # These patterns detect auth endpoints at wrong paths
     (r"POST\s+/register\b", "Auth endpoint at wrong path (should be /api/auth/register)"),
@@ -63,31 +66,42 @@ FORBIDDEN_PATTERNS = [
     (r"GET\s+/me\b", "Auth endpoint at wrong path (should be /api/auth/me)"),
     (r"from\s+backend\.api\.auth", "Import from deprecated backend.api.auth (use autopack.auth)"),
     (r"import\s+backend\.api\.auth", "Import from deprecated backend.api.auth (use autopack.auth)"),
-
     # === BUILD-195 (revised): Env template drift ===
     # Canonical template is the repo-root .env.example (see WORKSPACE_ORGANIZATION_SPEC.md).
-    (r"cp\s+docs/templates/env\.example\s+\.env",
-     "Env template drift (should be: cp .env.example .env)"),
-
+    (
+        r"cp\s+docs/templates/env\.example\s+\.env",
+        "Env template drift (should be: cp .env.example .env)",
+    ),
     # === BUILD-195: Compose service-name drift ===
     # Services are: backend (not api), db (not postgres)
-    (r"docker-compose\s+logs\s+-f\s+api\b",
-     "Compose service-name drift (should be: docker-compose logs -f backend)"),
-    (r"docker-compose\s+up\s+.*\s+postgres\b",
-     "Compose service-name drift (should be: docker-compose up ... db)"),
-    (r"docker-compose\s+restart\s+postgres\b",
-     "Compose service-name drift (should be: docker-compose restart db)"),
-
+    (
+        r"docker-compose\s+logs\s+-f\s+api\b",
+        "Compose service-name drift (should be: docker-compose logs -f backend)",
+    ),
+    (
+        r"docker-compose\s+up\s+.*\s+postgres\b",
+        "Compose service-name drift (should be: docker-compose up ... db)",
+    ),
+    (
+        r"docker-compose\s+restart\s+postgres\b",
+        "Compose service-name drift (should be: docker-compose restart db)",
+    ),
     # === BUILD-195: Run-layout drift ===
     # Canonical: .autonomous_runs/<project>/runs/<family>/<run_id>/...
     # Legacy: .autonomous_runs/<run_id>/... (missing project/family hierarchy)
     # Note: We detect the legacy pattern in instructional contexts (not historical records)
-    (r"\.autonomous_runs/<run_id>",
-     "Run-layout drift (should be: .autonomous_runs/<project>/runs/<family>/<run_id>/ via RunFileLayout)"),
-    (r"\.autonomous_runs/\{run_id\}",
-     "Run-layout drift (should be: .autonomous_runs/<project>/runs/<family>/<run_id>/ via RunFileLayout)"),
-    (r"\.autonomous_runs/\$\{run_id\}",
-     "Run-layout drift (should be: .autonomous_runs/<project>/runs/<family>/<run_id>/ via RunFileLayout)"),
+    (
+        r"\.autonomous_runs/<run_id>",
+        "Run-layout drift (should be: .autonomous_runs/<project>/runs/<family>/<run_id>/ via RunFileLayout)",
+    ),
+    (
+        r"\.autonomous_runs/\{run_id\}",
+        "Run-layout drift (should be: .autonomous_runs/<project>/runs/<family>/<run_id>/ via RunFileLayout)",
+    ),
+    (
+        r"\.autonomous_runs/\$\{run_id\}",
+        "Run-layout drift (should be: .autonomous_runs/<project>/runs/<family>/<run_id>/ via RunFileLayout)",
+    ),
 ]
 
 # Files that should be checked in "diff-only" mode:
@@ -103,12 +117,10 @@ EXCLUDED_PATHS = [
     "docs/CANONICAL_API_CONSOLIDATION_PLAN.md",
     "docs/API_CONSOLIDATION_COMPLETION_SUMMARY.md",
     # Canonical API contract MUST be drift-checked (do not exclude).
-
     # Historical records (legitimately contain legacy patterns)
     "docs/BUILD_HISTORY.md",
     "docs/DEBUG_LOG.md",
     "docs/CHANGELOG.md",
-
     # Gap analysis and cursor prompts (discuss drift patterns)
     "docs/IMPROVEMENTS_GAP_ANALYSIS.md",
     "docs/IMPROVEMENTS_AUDIT.md",
@@ -116,16 +128,13 @@ EXCLUDED_PATHS = [
     "docs/CURSOR_PROMPT_EXECUTE_IMPLEMENT_IMPROVEMENTS_GAP_ANALYSIS.md",
     "docs/CURSOR_PROMPT_IMPLEMENT_P0_BROKEN.md",
     "docs/FURTHER_IMPROVEMENTS_COMPREHENSIVE_SCAN",
-
     # Implementation plans and completion summaries (historical, describe evolution)
     "docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md",
     "docs/IMPLEMENTATION_PLAN_INTENTION_FIRST_AUTONOMY_LOOP_REMAINING_IMPROVEMENTS.md",
     "docs/INTENTION_ANCHOR_COMPLETION_SUMMARY.md",
     "docs/P0_RELIABILITY_DECISIONS.md",
-
     # Self-reference
     "scripts/check_docs_drift.py",
-
     # Build artifacts and caches
     ".git",
     "__pycache__",
@@ -134,10 +143,8 @@ EXCLUDED_PATHS = [
     ".venv",
     "venv",
     "dist",
-
     # Archives (historical content)
     "archive",
-
     # Runtime artifacts (generated, not canonical docs)
     ".autonomous_runs",
     ".autopack",
@@ -322,7 +329,7 @@ def main():
         print("  - Run layout: .autonomous_runs/<project>/runs/<family>/<run_id>/")
         return 0
     else:
-        print(f"FAILURE: Documentation drift detected!")
+        print("FAILURE: Documentation drift detected!")
         print()
         print(f"Found {total_violations} violations in {files_with_violations} files.")
         print()

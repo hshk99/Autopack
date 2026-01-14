@@ -18,7 +18,7 @@ index 0000000..0000000 100644
  ## Executive Summary (Where you’re already strong)
 @@
  The remaining work is mostly **convergence (“one truth”)** and **hardening for multi-tenant / external-side-effect autonomy**, plus a set of tracked performance/UX polish items.
- 
+
  ---
 +
 +## Balanced “Readiness Program” (equal-weight across all areas)
@@ -259,7 +259,7 @@ index 0000000..0000000 100644
 @@
  ## Executable PR plan (detailed file-by-file + tests)
 +
-+**Readiness crosswalk**: This PR plan is the detailed implementation view of the balanced readiness sequence.  
++**Readiness crosswalk**: This PR plan is the detailed implementation view of the balanced readiness sequence.
 +See the table: **“Mapping: Readiness sequence (`R-*`) ↔ existing executable PR plan (`PR-*`)”** in the “Balanced Readiness Program” section above.
 @@
  ### PR-07 (P0/P2): Auth unification decision + minimal UI path
@@ -395,5 +395,3 @@ index 0000000..0000000 100644
 +
 +**Ready threshold**: 16/16 (no gate can be “1” for production use).
 ```
-
-

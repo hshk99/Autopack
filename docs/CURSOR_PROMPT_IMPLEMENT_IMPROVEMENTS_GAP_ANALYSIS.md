@@ -1,7 +1,7 @@
 # CURSOR_PROMPT: Implement `docs/IMPROVEMENTS_GAP_ANALYSIS.md` End-to-End
 
-**Audience**: Another Cursor AI agent implementing the full gap list.  
-**Repo**: `hshk99/Autopack`  
+**Audience**: Another Cursor AI agent implementing the full gap list.
+**Repo**: `hshk99/Autopack`
 **Canonical task list**: `docs/IMPROVEMENTS_GAP_ANALYSIS.md` (treat as the source of truth; verify each item before changing code).
 
 ---
@@ -336,5 +336,3 @@ Work is “done” only when:
 - the corresponding acceptance criteria in `docs/IMPROVEMENTS_GAP_ANALYSIS.md` are met,
 - CI is green on PR,
 - and any new policy is encoded in tests/scripts (or explicitly documented as “beyond-repo setting”).
-
-

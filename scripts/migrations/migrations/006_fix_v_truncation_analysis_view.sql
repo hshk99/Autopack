@@ -27,5 +27,3 @@ FROM truncation_events te
 LEFT JOIN phases p ON te.phase_id = p.phase_id
 GROUP BY te.phase_id, p.name, te.truncation_type, te.severity
 ORDER BY event_count DESC;
-
-

@@ -1,10 +1,12 @@
 """
 Create a simple single-phase run to test telemetry collection.
 """
+
 from autopack.database import SessionLocal
 from autopack.models import Run, Tier, Phase, RunState, PhaseState
 
 RUN_ID = "telemetry-test-single"
+
 
 def main():
     session = SessionLocal()
@@ -26,7 +28,7 @@ def main():
             token_cap=100000,
             max_phases=1,
             max_duration_minutes=60,
-            goal_anchor="Simple telemetry collection test"
+            goal_anchor="Simple telemetry collection test",
         )
         session.add(run)
         session.flush()
@@ -37,7 +39,7 @@ def main():
             run_id=RUN_ID,
             name="Test",
             tier_index=0,
-            description="Simple telemetry test"
+            description="Simple telemetry test",
         )
         session.add(tier)
         session.flush()
@@ -47,10 +49,10 @@ def main():
             "deliverables": [
                 "docs/examples/SIMPLE_EXAMPLE.md",
                 "docs/examples/ADVANCED_EXAMPLE.md",
-                "docs/examples/FAQ.md"
+                "docs/examples/FAQ.md",
             ],
             "paths": [],
-            "read_only_context": []
+            "read_only_context": [],
         }
 
         phase = Phase(
@@ -63,17 +65,20 @@ def main():
             scope=scope,
             state=PhaseState.QUEUED,
             task_category="documentation",
-            complexity="low"
+            complexity="low",
         )
         session.add(phase)
         session.commit()
 
-        print(f"✅ Simple telemetry test run created!")
-        print(f"Run: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {RUN_ID} 2>&1 | tee telemetry_test.log")
-        print(f"Then: grep 'TokenEstimationV2' telemetry_test.log")
+        print("✅ Simple telemetry test run created!")
+        print(
+            f'Run: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python -m autopack.autonomous_executor --run-id {RUN_ID} 2>&1 | tee telemetry_test.log'
+        )
+        print("Then: grep 'TokenEstimationV2' telemetry_test.log")
 
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     main()

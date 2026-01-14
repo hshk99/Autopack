@@ -45,9 +45,9 @@ class TestActionClassification:
         ]
         for cmd in commands:
             classification = classify_action(ActionType.COMMAND, cmd)
-            assert (
-                classification == ActionClassification.REQUIRES_APPROVAL
-            ), f"Expected {cmd} to require approval"
+            assert classification == ActionClassification.REQUIRES_APPROVAL, (
+                f"Expected {cmd} to require approval"
+            )
 
     def test_run_local_artifact_writes_are_safe(self):
         """Run-local artifact writes should be classified as safe."""
@@ -71,9 +71,9 @@ class TestActionClassification:
         ]
         for path in repo_paths:
             classification = classify_action(ActionType.FILE_WRITE, path)
-            assert (
-                classification == ActionClassification.REQUIRES_APPROVAL
-            ), f"Expected {path} to require approval"
+            assert classification == ActionClassification.REQUIRES_APPROVAL, (
+                f"Expected {path} to require approval"
+            )
 
     def test_tidy_execute_requires_approval(self):
         """Tidy with --execute flag requires approval."""

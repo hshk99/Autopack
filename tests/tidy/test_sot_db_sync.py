@@ -351,7 +351,9 @@ def test_qdrant_mode_requires_host(mock_repo_structure):
     """Test that qdrant-only mode requires QDRANT_HOST"""
     with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(
-            mode=SyncMode.QDRANT_ONLY, execute=True, qdrant_host=None  # No Qdrant configured
+            mode=SyncMode.QDRANT_ONLY,
+            execute=True,
+            qdrant_host=None,  # No Qdrant configured
         )
 
         exit_code = syncer.run()
@@ -364,7 +366,9 @@ def test_full_mode_requires_qdrant(mock_repo_structure):
     """Test that full mode requires Qdrant configuration"""
     with patch("sot_db_sync.REPO_ROOT", mock_repo_structure):
         syncer = SOTDBSync(
-            mode=SyncMode.FULL, execute=True, qdrant_host=None  # No Qdrant configured
+            mode=SyncMode.FULL,
+            execute=True,
+            qdrant_host=None,  # No Qdrant configured
         )
 
         exit_code = syncer.run()

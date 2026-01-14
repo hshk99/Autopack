@@ -136,9 +136,7 @@ def replace_block(md_content: str, new_block: str) -> str:
 
     if start_marker not in md_content or end_marker not in md_content:
         raise ValueError(
-            f"Missing markers in SECURITY_BURNDOWN.md. Expected:\n"
-            f"  {start_marker}\n"
-            f"  {end_marker}"
+            f"Missing markers in SECURITY_BURNDOWN.md. Expected:\n  {start_marker}\n  {end_marker}"
         )
 
     parts = md_content.split(start_marker, 1)
@@ -196,8 +194,13 @@ def main():
     if args.check:
         # Check mode: exit non-zero if drift
         if updated_content != current_content:
-            print("ERROR: SECURITY_BURNDOWN.md counts are out of sync with baselines.", file=sys.stderr)
-            print("Run: python scripts/security/generate_security_burndown_counts.py", file=sys.stderr)
+            print(
+                "ERROR: SECURITY_BURNDOWN.md counts are out of sync with baselines.",
+                file=sys.stderr,
+            )
+            print(
+                "Run: python scripts/security/generate_security_burndown_counts.py", file=sys.stderr
+            )
             sys.exit(1)
         else:
             print("OK: SECURITY_BURNDOWN.md counts are up-to-date")

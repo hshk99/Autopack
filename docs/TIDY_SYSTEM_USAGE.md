@@ -505,7 +505,7 @@ Tidy works in coordination with the Storage Optimizer according to `config/prote
 - **Tidy never deletes protected paths** (src/, tests/, .git/, docs/ SOT, archive/superseded/)
 - **Storage Optimizer respects tidy's audit trail** (archive/superseded/ within retention)
 - **Both tools consult the unified policy** before any destructive actions
-  
+
 **Absolute Protections** (defined in `config/protection_and_retention_policy.yaml`):
 ```yaml
 protected_globs:

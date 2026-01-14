@@ -95,11 +95,12 @@ class AutoConsolidateResearch:
             self.consolidated_files["implemented"] = md_files
 
             print(f"\n    ✅ Consolidated {len(md_files)} files → docs/BUILD_HISTORY.md")
-            print(f"    Status: IMPLEMENTED")
+            print("    Status: IMPLEMENTED")
 
         except Exception as e:
             print(f"    ❌ Error: {e}")
             import traceback
+
             traceback.print_exc()
 
     def _consolidate_deferred(self):
@@ -128,12 +129,15 @@ class AutoConsolidateResearch:
             self.consolidated_files["deferred"] = md_files
 
             print(f"\n    ✅ Consolidated {len(md_files)} files → docs/ARCHITECTURE_DECISIONS.md")
-            print(f"    Status: PENDING_ACTIVE (deferred plans)")
-            print(f"    Note: Consider creating docs/FUTURE_PLANS.md for dedicated deferred tracking")
+            print("    Status: PENDING_ACTIVE (deferred plans)")
+            print(
+                "    Note: Consider creating docs/FUTURE_PLANS.md for dedicated deferred tracking"
+            )
 
         except Exception as e:
             print(f"    ❌ Error: {e}")
             import traceback
+
             traceback.print_exc()
 
     def _consolidate_rejected(self):
@@ -162,12 +166,15 @@ class AutoConsolidateResearch:
             self.consolidated_files["rejected"] = md_files
 
             print(f"\n    ✅ Consolidated {len(md_files)} files → docs/ARCHITECTURE_DECISIONS.md")
-            print(f"    Status: REJECTED (to prevent re-consideration)")
-            print(f"    Note: Consider creating docs/REJECTED_IDEAS.md for dedicated rejection tracking")
+            print("    Status: REJECTED (to prevent re-consideration)")
+            print(
+                "    Note: Consider creating docs/REJECTED_IDEAS.md for dedicated rejection tracking"
+            )
 
         except Exception as e:
             print(f"    ❌ Error: {e}")
             import traceback
+
             traceback.print_exc()
 
     def _print_summary(self):
@@ -175,7 +182,9 @@ class AutoConsolidateResearch:
         print("\n" + "=" * 80)
         print("CONSOLIDATION SUMMARY")
         print("=" * 80)
-        print(f"Mode: {'DRY-RUN (no changes made)' if self.dry_run else 'EXECUTED (changes applied)'}")
+        print(
+            f"Mode: {'DRY-RUN (no changes made)' if self.dry_run else 'EXECUTED (changes applied)'}"
+        )
         print()
 
         total_files = sum(len(files) for files in self.consolidated_files.values())
@@ -213,7 +222,7 @@ Examples:
   # Execute consolidation
   python scripts/research/auto_consolidate_research.py --execute
         """,
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")

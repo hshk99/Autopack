@@ -228,7 +228,9 @@ def main() -> None:
             batch_size = 3
             max_batches = 4
             print(f"# P10-first drain: {run_id} (run_score={run_score}, high_prob_phases={count})")
-            print("TELEMETRY_DB_ENABLED=1 PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" \\")
+            print(
+                'TELEMETRY_DB_ENABLED=1 PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \\'
+            )
             print("  timeout 600 python scripts/drain_queued_phases.py \\")
             print(f"  --run-id {run_id} \\")
             print(f"  --batch-size {batch_size} \\")
@@ -246,5 +248,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-

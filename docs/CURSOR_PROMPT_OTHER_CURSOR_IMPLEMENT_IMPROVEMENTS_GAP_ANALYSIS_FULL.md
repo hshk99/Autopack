@@ -179,5 +179,3 @@ Each PR must keep CI green and include tests/guardrails that prevent regression.
 - Logging secrets in artifacts (headers, cookies, OAuth tokens, HAR files).
 - Making side-effect actions executable without approval gates.
 - Breaking Windows console safety checks with Unicode output in critical scripts.
-
-

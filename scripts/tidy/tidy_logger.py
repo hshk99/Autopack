@@ -3,6 +3,7 @@
 Lightweight tidy activity logger.
 Logs to Postgres if DATABASE_URL is set, otherwise to a JSONL file in .autonomous_runs/tidy_activity.log
 """
+
 from __future__ import annotations
 import json
 import os
@@ -12,7 +13,9 @@ from typing import Optional, Dict, Any
 
 
 class TidyLogger:
-    def __init__(self, repo_root: Path, dsn: Optional[str] = None, project_id: Optional[str] = None):
+    def __init__(
+        self, repo_root: Path, dsn: Optional[str] = None, project_id: Optional[str] = None
+    ):
         self.repo_root = repo_root
         self.dsn = dsn or os.getenv("DATABASE_URL")
         self.project_id = project_id
@@ -20,6 +23,7 @@ class TidyLogger:
         if self.dsn and self.dsn.startswith("postgres"):
             try:
                 import psycopg2  # type: ignore
+
                 self.pg = psycopg2
                 self._ensure_table()
             except Exception:
@@ -68,7 +72,16 @@ class TidyLogger:
         cur.close()
         conn.close()
 
-    def log(self, run_id: str, action: str, src: str, dest: Optional[str], reason: str, src_sha: Optional[str] = None, dest_sha: Optional[str] = None):
+    def log(
+        self,
+        run_id: str,
+        action: str,
+        src: str,
+        dest: Optional[str],
+        reason: str,
+        src_sha: Optional[str] = None,
+        dest_sha: Optional[str] = None,
+    ):
         ts = datetime.now(timezone.utc).isoformat()
         if self.pg:
             try:
@@ -87,17 +100,22 @@ class TidyLogger:
         # fallback JSONL
         self.fallback.parent.mkdir(parents=True, exist_ok=True)
         with self.fallback.open("a", encoding="utf-8") as f:
-            f.write(json.dumps({
-                "run_id": run_id,
-                "project_id": self.project_id,
-                "action": action,
-                "src": src,
-                "dest": dest,
-                "reason": reason,
-                "src_sha": src_sha,
-                "dest_sha": dest_sha,
-                "ts": ts
-            }) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "run_id": run_id,
+                        "project_id": self.project_id,
+                        "action": action,
+                        "src": src,
+                        "dest": dest,
+                        "reason": reason,
+                        "src_sha": src_sha,
+                        "dest_sha": dest_sha,
+                        "ts": ts,
+                    }
+                )
+                + "\n"
+            )
 
     def log_move_error(self, source_path: str, dest_path: str, validation_error: str, run_id: str):
         """Log a path validation error to track path construction bugs."""
@@ -120,12 +138,16 @@ class TidyLogger:
         error_log = self.repo_root / ".autonomous_runs" / "tidy_validation_errors.log"
         error_log.parent.mkdir(parents=True, exist_ok=True)
         with error_log.open("a", encoding="utf-8") as f:
-            f.write(json.dumps({
-                "run_id": run_id,
-                "project_id": self.project_id,
-                "source_path": source_path,
-                "destination_path": dest_path,
-                "validation_error": validation_error,
-                "ts": ts
-            }) + "\n")
-
+            f.write(
+                json.dumps(
+                    {
+                        "run_id": run_id,
+                        "project_id": self.project_id,
+                        "source_path": source_path,
+                        "destination_path": dest_path,
+                        "validation_error": validation_error,
+                        "ts": ts,
+                    }
+                )
+                + "\n"
+            )

@@ -66,7 +66,7 @@ Files to modify:
         "phase_index": 0,
         "category": "backend",
         "complexity": "low",
-        "builder_mode": "tweak_light"
+        "builder_mode": "tweak_light",
     },
     {
         "phase_id": "phase3-doctor-tests",
@@ -104,7 +104,7 @@ Files to create:
         "phase_index": 1,
         "category": "tests",
         "complexity": "low",
-        "builder_mode": "scaffolding_heavy"
+        "builder_mode": "scaffolding_heavy",
     },
     {
         "phase_id": "phase3-branch-rollback",
@@ -137,7 +137,7 @@ Files to modify:
         "phase_index": 0,
         "category": "backend",
         "complexity": "medium",
-        "builder_mode": "scaffolding_heavy"
+        "builder_mode": "scaffolding_heavy",
     },
     {
         "phase_id": "phase3-t0t1-checks",
@@ -181,7 +181,7 @@ Files to modify:
         "phase_index": 1,
         "category": "backend",
         "complexity": "medium",
-        "builder_mode": "scaffolding_heavy"
+        "builder_mode": "scaffolding_heavy",
     },
     {
         "phase_id": "phase3-dashboard-metrics",
@@ -218,7 +218,7 @@ Files to modify:
         "phase_index": 0,
         "category": "backend",
         "complexity": "medium",
-        "builder_mode": "scaffolding_heavy"
+        "builder_mode": "scaffolding_heavy",
     },
     {
         "phase_id": "phase3-discovery-promotion",
@@ -257,8 +257,8 @@ Files to modify:
         "phase_index": 1,
         "category": "backend",
         "complexity": "medium",
-        "builder_mode": "scaffolding_heavy"
-    }
+        "builder_mode": "scaffolding_heavy",
+    },
 ]
 
 
@@ -274,30 +274,34 @@ def create_run():
                 "tier_index": task["tier_index"],
                 "name": tier_id.split("-")[1],
                 "description": f"Phase 3 Tier {task['tier_index'] + 1}",
-                "phases": []
+                "phases": [],
             }
-        tiers[tier_id]["phases"].append({
-            "phase_id": task["phase_id"],
-            "phase_index": task["phase_index"],
-            "tier_id": tier_id,
-            "name": task["name"],
-            "description": task["description"],
-            "task_category": task["category"],
-            "complexity": task["complexity"],
-            "builder_mode": task["builder_mode"]
-        })
+        tiers[tier_id]["phases"].append(
+            {
+                "phase_id": task["phase_id"],
+                "phase_index": task["phase_index"],
+                "tier_id": tier_id,
+                "name": task["name"],
+                "description": task["description"],
+                "task_category": task["category"],
+                "complexity": task["complexity"],
+                "builder_mode": task["builder_mode"],
+            }
+        )
 
     # Flatten for API
     all_phases = []
     tier_list = []
     for tier in tiers.values():
         all_phases.extend(tier["phases"])
-        tier_list.append({
-            "tier_id": tier["tier_id"],
-            "tier_index": tier["tier_index"],
-            "name": tier["name"],
-            "description": tier.get("description")
-        })
+        tier_list.append(
+            {
+                "tier_id": tier["tier_id"],
+                "tier_index": tier["tier_index"],
+                "name": tier["name"],
+                "description": tier.get("description"),
+            }
+        )
 
     # Create run payload
     # NOTE: run_type="autopack_maintenance" allows patches to modify src/autopack/
@@ -310,10 +314,10 @@ def create_run():
             "run_scope": "multi_tier",
             "token_cap": 300000,
             "max_phases": len(TASKS),
-            "max_duration_minutes": 720
+            "max_duration_minutes": 720,
         },
         "tiers": tier_list,
-        "phases": all_phases
+        "phases": all_phases,
     }
 
     print(f"[INFO] Creating Phase 3 delegated run: {RUN_ID}")
@@ -351,7 +355,9 @@ if __name__ == "__main__":
         result = create_run()
         print()
         print("[OK] Ready to execute autonomous run:")
-        print(f"  PYTHONPATH=src python src/autopack/autonomous_executor.py --run-id {RUN_ID} --run-type autopack_maintenance")
+        print(
+            f"  PYTHONPATH=src python src/autopack/autonomous_executor.py --run-id {RUN_ID} --run-type autopack_maintenance"
+        )
         print()
         print("[INFO] NOTE: --run-type autopack_maintenance is required to modify src/autopack/")
         print()

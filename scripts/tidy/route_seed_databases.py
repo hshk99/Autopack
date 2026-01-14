@@ -99,9 +99,7 @@ def route_databases(dry_run: bool = True) -> tuple[int, int]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Route seed databases from repo root to archive"
-    )
+    parser = argparse.ArgumentParser(description="Route seed databases from repo root to archive")
     parser.add_argument(
         "--apply",
         action="store_true",

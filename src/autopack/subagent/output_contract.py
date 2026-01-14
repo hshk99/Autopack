@@ -398,9 +398,9 @@ class SubagentOutputValidator:
                 # Add artifact path
                 if "artifact_paths" not in context_data:
                     context_data["artifact_paths"] = {}
-                context_data["artifact_paths"][
-                    f"{output.output_type.value}_{output.topic}"
-                ] = output.get_filename()
+                context_data["artifact_paths"][f"{output.output_type.value}_{output.topic}"] = (
+                    output.get_filename()
+                )
 
                 # Update version and timestamp
                 context_data["version"] = context_data.get("version", 0) + 1

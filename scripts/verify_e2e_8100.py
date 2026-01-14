@@ -40,7 +40,9 @@ def load_phases(plan_path: Path) -> List[Dict[str, Any]]:
         raise ValueError("Plan must contain a non-empty 'phases' list.")
 
     for idx, phase in enumerate(phases):
-        missing = [k for k in ("id", "description", "task_category", "complexity") if k not in phase]
+        missing = [
+            k for k in ("id", "description", "task_category", "complexity") if k not in phase
+        ]
         if missing:
             raise ValueError(f"Phase index {idx} missing keys: {', '.join(missing)}")
 
@@ -54,7 +56,7 @@ def build_run_payload(run_id: str, phases: List[Dict[str, Any]]) -> Dict[str, An
         "tier_id": tier_id,
         "tier_index": 0,
         "name": "Stability",
-        "description": "Autopack maintenance smoke tier"
+        "description": "Autopack maintenance smoke tier",
     }
 
     api_phases: List[Dict[str, Any]] = []

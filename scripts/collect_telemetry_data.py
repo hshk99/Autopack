@@ -15,6 +15,7 @@ For telemetry collection, use the updated workflow:
 
 import sys
 
+
 def main():
     print("=" * 70)
     print("DEPRECATED SCRIPT")
@@ -25,16 +26,19 @@ def main():
     print("Use the following instead:")
     print()
     print("1. Create telemetry collection run:")
-    print("   PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" \\")
+    print('   PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \\')
     print("       python scripts/create_telemetry_collection_run.py")
     print()
     print("2. Drain phases to collect telemetry:")
-    print("   PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" \\")
+    print('   PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" \\')
     print("       TELEMETRY_DB_ENABLED=1 \\")
-    print("       python scripts/drain_queued_phases.py --run-id telemetry-collection-v4 --batch-size 5")
+    print(
+        "       python scripts/drain_queued_phases.py --run-id telemetry-collection-v4 --batch-size 5"
+    )
     print()
     print("=" * 70)
     return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

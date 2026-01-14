@@ -40,23 +40,20 @@ Excluded (will not be moved):
   - tests/ (test suites)
   - config/ (configuration)
         """,
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     parser.add_argument(
         "--execute",
         action="store_true",
-        help="Execute the organization (default is dry-run preview)"
+        help="Execute the organization (default is dry-run preview)",
     )
 
     args = parser.parse_args()
 
     repo_root = Path(__file__).parent.parent
 
-    organizer = ScriptOrganizer(
-        repo_root=repo_root,
-        dry_run=not args.execute
-    )
+    organizer = ScriptOrganizer(repo_root=repo_root, dry_run=not args.execute)
 
     count = organizer.organize()
 

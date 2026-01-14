@@ -95,12 +95,11 @@ class TestRouteContract:
     @pytest.mark.parametrize("required_path", REQUIRED_ROUTE_PATTERNS)
     def test_required_route_exists(self, route_paths, required_path):
         """Critical routes must exist in the API."""
-        assert (
-            required_path in route_paths
-        ), f"Required route {required_path} missing from API.\n" f"Available routes ({len(route_paths)}):\n" + "\n".join(
-            sorted(route_paths)[:20]
-        ) + (
-            "\n..." if len(route_paths) > 20 else ""
+        assert required_path in route_paths, (
+            f"Required route {required_path} missing from API.\n"
+            f"Available routes ({len(route_paths)}):\n"
+            + "\n".join(sorted(route_paths)[:20])
+            + ("\n..." if len(route_paths) > 20 else "")
         )
 
     def test_minimum_route_count(self, route_paths):

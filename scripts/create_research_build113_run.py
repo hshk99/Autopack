@@ -1,4 +1,5 @@
 """Create research-build113-test run in database for BUILD-113 testing."""
+
 import sys
 import yaml
 from pathlib import Path
@@ -10,10 +11,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from autopack.database import SessionLocal
 from autopack.models import Run, Phase, Tier, RunState, PhaseState, TierState
 
+
 def load_phase_yaml(phase_file: Path) -> dict:
     """Load phase YAML file."""
-    with open(phase_file, 'r', encoding='utf-8') as f:
+    with open(phase_file, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
+
 
 def create_build113_run():
     """Create BUILD-113 test run with 6 phases."""
@@ -52,7 +55,7 @@ def create_build113_run():
             safety_profile="normal",
             run_scope="multi_tier",
             token_cap=1000000,
-            tokens_used=0
+            tokens_used=0,
         )
         db.add(run)
         db.flush()
@@ -67,7 +70,7 @@ def create_build113_run():
             name="BUILD-113 Test Tier",
             description="Research System Integration - Testing autonomous fixes",
             state=TierState.PENDING,
-            tokens_used=0
+            tokens_used=0,
         )
         db.add(tier)
         db.flush()
@@ -95,9 +98,15 @@ def create_build113_run():
             scope = {
                 "deliverables": deliverables if isinstance(deliverables, list) else [deliverables],
                 "goals": goals if isinstance(goals, list) else [goals],
-                "acceptance_criteria": acceptance_criteria if isinstance(acceptance_criteria, list) else [acceptance_criteria],
-                "allowed_paths": allowed_paths if isinstance(allowed_paths, list) else [allowed_paths],
-                "protected_paths": protected_paths if isinstance(protected_paths, list) else [protected_paths],
+                "acceptance_criteria": acceptance_criteria
+                if isinstance(acceptance_criteria, list)
+                else [acceptance_criteria],
+                "allowed_paths": allowed_paths
+                if isinstance(allowed_paths, list)
+                else [allowed_paths],
+                "protected_paths": protected_paths
+                if isinstance(protected_paths, list)
+                else [protected_paths],
             }
 
             # Add features if present
@@ -119,7 +128,7 @@ def create_build113_run():
                 scope=scope,
                 tokens_used=0,
                 builder_attempts=0,
-                auditor_attempts=0
+                auditor_attempts=0,
             )
             db.add(phase)
 
@@ -131,17 +140,17 @@ def create_build113_run():
         # Commit all changes
         db.commit()
 
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print(f"SUCCESS: Created run '{run_id}' with {len(phase_files)} phases")
-        print(f"{'='*80}")
-        print(f"\nRun details:")
+        print(f"{'=' * 80}")
+        print("\nRun details:")
         print(f"  - Run ID: {run_id}")
-        print(f"  - State: IN_PROGRESS")
+        print("  - State: IN_PROGRESS")
         print(f"  - Tier: {tier.tier_id}")
         print(f"  - Phases: {len(phase_files)}")
-        print(f"\nNext step:")
-        print(f"  Launch autonomous executor with:")
-        print(f"  bash launch_research_build113_test.sh")
+        print("\nNext step:")
+        print("  Launch autonomous executor with:")
+        print("  bash launch_research_build113_test.sh")
         print()
 
         return True
@@ -149,11 +158,13 @@ def create_build113_run():
     except Exception as e:
         print(f"\nERROR: Failed to create run: {e}")
         import traceback
+
         traceback.print_exc()
         db.rollback()
         return False
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     success = create_build113_run()

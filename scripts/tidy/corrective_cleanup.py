@@ -26,11 +26,13 @@ def git_checkpoint(message: str):
     """Create a git checkpoint commit."""
     try:
         subprocess.run(["git", "add", "-A"], cwd=REPO_ROOT, check=True, capture_output=True)
-        result = subprocess.run(["git", "commit", "-m", message], cwd=REPO_ROOT, check=True, capture_output=True)
+        result = subprocess.run(
+            ["git", "commit", "-m", message], cwd=REPO_ROOT, check=True, capture_output=True
+        )
         print(f"\n[GIT] [OK] Created checkpoint: {message}")
         return True
     except subprocess.CalledProcessError:
-        print(f"\n[GIT] No changes to commit")
+        print("\n[GIT] No changes to commit")
         return False
 
 
@@ -94,30 +96,51 @@ def classify_md_file(md_file: Path) -> str:
 
     # Truth sources - keep at root
     truth_sources = {
-        "readme.md", "workspace_organization_spec.md",
-        "whats_left_to_build.md", "whats_left_to_build_maintenance.md",
-        "proposed_cleanup_structure.md", "cleanup_summary_report.md",
-        "cleanup_verification_issues.md", "root_cause_analysis_cleanup_failure.md",
-        "implementation_plan_systemic_cleanup_fix.md"
+        "readme.md",
+        "workspace_organization_spec.md",
+        "whats_left_to_build.md",
+        "whats_left_to_build_maintenance.md",
+        "proposed_cleanup_structure.md",
+        "cleanup_summary_report.md",
+        "cleanup_verification_issues.md",
+        "root_cause_analysis_cleanup_failure.md",
+        "implementation_plan_systemic_cleanup_fix.md",
     }
 
     if name_lower in truth_sources:
         return "keep_at_root"
 
     # Plans: PLAN, IMPLEMENTATION, ROADMAP (but not COMPLETE, SUMMARY, STATUS)
-    if any(k in name_lower for k in ["plan", "implementation", "roadmap"]) and \
-       not any(k in name_lower for k in ["complete", "summary", "status"]):
+    if any(k in name_lower for k in ["plan", "implementation", "roadmap"]) and not any(
+        k in name_lower for k in ["complete", "summary", "status"]
+    ):
         return "plans"
 
     # Reports: GUIDE, CHECKLIST, COMPLETE, VERIFIED, STATUS, SUMMARY, IMPROVEMENTS, FIX
-    if any(k in name_lower for k in ["guide", "checklist", "complete", "verified",
-                                      "status", "summary", "improvement", "fix",
-                                      "enhancement", "verification", "cursor", "integration"]):
+    if any(
+        k in name_lower
+        for k in [
+            "guide",
+            "checklist",
+            "complete",
+            "verified",
+            "status",
+            "summary",
+            "improvement",
+            "fix",
+            "enhancement",
+            "verification",
+            "cursor",
+            "integration",
+        ]
+    ):
         return "reports"
 
     # Analysis: ANALYSIS, REVIEW, PROGRESS, TROUBLESHOOTING
-    if any(k in name_lower for k in ["analysis", "review", "progress", "troubleshooting",
-                                      "probe", "scope"]):
+    if any(
+        k in name_lower
+        for k in ["analysis", "review", "progress", "troubleshooting", "probe", "scope"]
+    ):
         return "analysis"
 
     # Research: RESEARCH, QUOTA, TRANSITION
@@ -157,7 +180,7 @@ def fix1_root_loose_files(dry_run: bool = True):
         "plans": archive / "plans",
         "reports": archive / "reports",
         "analysis": archive / "analysis",
-        "research": archive / "research"
+        "research": archive / "research",
     }
 
     for bucket_path in buckets.values():
@@ -193,11 +216,11 @@ def fix2_prompts_folder(dry_run: bool = True):
     archive_prompts = REPO_ROOT / "archive" / "prompts"
     archive_prompts.mkdir(parents=True, exist_ok=True)
 
-    print(f"[MERGE] prompts/ -> archive/prompts/")
+    print("[MERGE] prompts/ -> archive/prompts/")
     if not dry_run:
         safe_merge_folder(prompts_src, archive_prompts)
 
-    print(f"\n[FIX 2] Complete")
+    print("\n[FIX 2] Complete")
 
 
 def fix3_archive_diagnostics_nesting(dry_run: bool = True):
@@ -214,12 +237,12 @@ def fix3_archive_diagnostics_nesting(dry_run: bool = True):
     # Folders that should NOT be in diagnostics/
     bad_nested = {
         ".autonomous_runs": "runs",  # Move contents to diagnostics/runs/
-        "archive": "../archive",      # Merge up to archive/
-        "docs": "docs",               # Keep as diagnostics/docs/ (for CONSOLIDATED_DEBUG.md notes)
-        "exports": "../exports",      # Merge up to archive/exports/
-        "patches": "../patches",      # Merge up to archive/patches/
-        "archived_runs": "runs",      # Move to diagnostics/runs/
-        "autopack": "runs"            # Move to diagnostics/runs/
+        "archive": "../archive",  # Merge up to archive/
+        "docs": "docs",  # Keep as diagnostics/docs/ (for CONSOLIDATED_DEBUG.md notes)
+        "exports": "../exports",  # Merge up to archive/exports/
+        "patches": "../patches",  # Merge up to archive/patches/
+        "archived_runs": "runs",  # Move to diagnostics/runs/
+        "autopack": "runs",  # Move to diagnostics/runs/
     }
 
     for nested_name, dest_rel_path in bad_nested.items():
@@ -278,7 +301,7 @@ def fix3_archive_diagnostics_nesting(dry_run: bool = True):
             if not dry_run:
                 safe_move(md_file, dest)
 
-    print(f"\n[FIX 3] Complete")
+    print("\n[FIX 3] Complete")
 
 
 def fix4_autonomous_runs_root(dry_run: bool = True):
@@ -298,7 +321,7 @@ def fix4_autonomous_runs_root(dry_run: bool = True):
         reports = REPO_ROOT / "archive" / "reports"
         reports.mkdir(parents=True, exist_ok=True)
 
-        print(f"\n[DELEGATIONS] Merging openai_delegations/ -> archive/reports/")
+        print("\n[DELEGATIONS] Merging openai_delegations/ -> archive/reports/")
         if not dry_run:
             safe_merge_folder(openai_deleg, reports)
 
@@ -309,9 +332,9 @@ def fix4_autonomous_runs_root(dry_run: bool = True):
 
     if found_loose:
         print(f"\n[NOTE] Found loose folders at .autonomous_runs root: {', '.join(found_loose)}")
-        print(f"  These require project-specific review and are not automatically moved")
+        print("  These require project-specific review and are not automatically moved")
 
-    print(f"\n[FIX 4] Complete")
+    print("\n[FIX 4] Complete")
 
 
 def fix5_fileorganizer_archive(dry_run: bool = True):
@@ -333,7 +356,7 @@ def fix5_fileorganizer_archive(dry_run: bool = True):
         docs_guides = fileorg_root / "docs" / "guides"
         docs_guides.mkdir(parents=True, exist_ok=True)
         dest = docs_guides / "FUTURE_PLAN_MAINTENANCE.md"
-        print(f"\n[TRUTH] FUTURE_PLAN_MAINTENANCE.md -> docs/guides/")
+        print("\n[TRUTH] FUTURE_PLAN_MAINTENANCE.md -> docs/guides/")
         if not dry_run:
             safe_move(wltb_maint, dest)
 
@@ -343,7 +366,7 @@ def fix5_fileorganizer_archive(dry_run: bool = True):
         runs_dir = fileorg_archive / "diagnostics" / "runs"
         runs_dir.mkdir(parents=True, exist_ok=True)
         dest = runs_dir / "backend-fixes-v6-20251130"
-        print(f"\n[RUN] backend-fixes-v6-20251130/ -> diagnostics/runs/")
+        print("\n[RUN] backend-fixes-v6-20251130/ -> diagnostics/runs/")
         if not dry_run:
             safe_move(backend_fixes, dest)
 
@@ -358,7 +381,7 @@ def fix5_fileorganizer_archive(dry_run: bool = True):
         reports = fileorg_archive / "reports"
         reports.mkdir(parents=True, exist_ok=True)
         dest = reports / "plans_notes.txt"
-        print(f"\n[FILE] 'plans' file -> reports/plans_notes.txt")
+        print("\n[FILE] 'plans' file -> reports/plans_notes.txt")
         if not dry_run:
             safe_move(plans_file, dest)
             plans_is_file = False  # File moved, no longer exists
@@ -391,7 +414,9 @@ def fix5_fileorganizer_archive(dry_run: bool = True):
                 else:
                     dest = plans / md_file.name
                     bucket = "plans"
-            elif any(k in name_lower for k in ["guide", "checklist", "reference", "quick", "master"]):
+            elif any(
+                k in name_lower for k in ["guide", "checklist", "reference", "quick", "master"]
+            ):
                 dest = reports / md_file.name
                 bucket = "reports"
             else:
@@ -407,7 +432,7 @@ def fix5_fileorganizer_archive(dry_run: bool = True):
     if docs_research.exists():
         research = fileorg_archive / "research"
         research.mkdir(parents=True, exist_ok=True)
-        print(f"\n[RESEARCH] docs/research/ -> research/")
+        print("\n[RESEARCH] docs/research/ -> research/")
         if not dry_run:
             safe_merge_folder(docs_research, research)
 
@@ -416,25 +441,25 @@ def fix5_fileorganizer_archive(dry_run: bool = True):
             if docs_dir.exists() and not any(docs_dir.rglob("*")):
                 try:
                     docs_dir.rmdir()
-                    print(f"  [DELETE] Removed empty docs/")
+                    print("  [DELETE] Removed empty docs/")
                 except:
                     pass
 
     # 5. Remove .faiss/ (old vector DB)
     faiss_dir = fileorg_root / ".faiss"
     if faiss_dir.exists():
-        print(f"\n[DELETE] Removing .faiss/ (old vector DB)")
+        print("\n[DELETE] Removing .faiss/ (old vector DB)")
         if not dry_run:
             shutil.rmtree(faiss_dir)
 
     # 6. Remove .autonomous_runs/autopack/ nested folder
     nested_autopack = fileorg_root / ".autonomous_runs" / "autopack"
     if nested_autopack.exists():
-        print(f"\n[NESTED] Found .autonomous_runs/autopack/")
+        print("\n[NESTED] Found .autonomous_runs/autopack/")
         # This needs investigation - may contain run data
-        print(f"  [NOTE] Requires manual review - not automatically removed")
+        print("  [NOTE] Requires manual review - not automatically removed")
 
-    print(f"\n[FIX 5] Complete")
+    print("\n[FIX 5] Complete")
 
 
 def fix6_archive_runs_folder(dry_run: bool = True):
@@ -453,7 +478,7 @@ def fix6_archive_runs_folder(dry_run: bool = True):
     diag_runs = archive / "diagnostics" / "runs"
     diag_runs.mkdir(parents=True, exist_ok=True)
 
-    print(f"[MOVE] archive/runs/ -> archive/diagnostics/runs/")
+    print("[MOVE] archive/runs/ -> archive/diagnostics/runs/")
     if not dry_run:
         if runs_at_archive.is_dir():
             for item in runs_at_archive.iterdir():
@@ -465,11 +490,11 @@ def fix6_archive_runs_folder(dry_run: bool = True):
             try:
                 if not any(runs_at_archive.iterdir()):
                     runs_at_archive.rmdir()
-                    print(f"  [DELETE] Removed empty runs/")
+                    print("  [DELETE] Removed empty runs/")
             except:
                 pass
 
-    print(f"\n[FIX 6] Complete")
+    print("\n[FIX 6] Complete")
 
 
 def fix7_create_unsorted_bucket(dry_run: bool = True):
@@ -485,7 +510,7 @@ def fix7_create_unsorted_bucket(dry_run: bool = True):
         print("[SKIP] archive/unsorted/ already exists")
         return
 
-    print(f"[CREATE] archive/unsorted/ (last-resort inbox)")
+    print("[CREATE] archive/unsorted/ (last-resort inbox)")
     if not dry_run:
         unsorted.mkdir(parents=True, exist_ok=True)
         # Create README
@@ -504,9 +529,9 @@ Files placed here should be manually reviewed and moved to the appropriate bucke
 
 Tidy_up will attempt to classify and move these files to proper locations.
 """)
-        print(f"  Created unsorted/ with README.md")
+        print("  Created unsorted/ with README.md")
 
-    print(f"\n[FIX 7] Complete")
+    print("\n[FIX 7] Complete")
 
 
 def validate_final_structure():
@@ -520,11 +545,15 @@ def validate_final_structure():
 
     # Check 1: Loose .md files at root
     keep_md = {
-        "README.md", "WORKSPACE_ORGANIZATION_SPEC.md",
-        "FUTURE_PLAN.md", "FUTURE_PLAN_MAINTENANCE.md",
-        "PROPOSED_CLEANUP_STRUCTURE.md", "CLEANUP_SUMMARY_REPORT.md",
-        "CLEANUP_VERIFICATION_ISSUES.md", "ROOT_CAUSE_ANALYSIS_CLEANUP_FAILURE.md",
-        "IMPLEMENTATION_PLAN_SYSTEMIC_CLEANUP_FIX.md"
+        "README.md",
+        "WORKSPACE_ORGANIZATION_SPEC.md",
+        "FUTURE_PLAN.md",
+        "FUTURE_PLAN_MAINTENANCE.md",
+        "PROPOSED_CLEANUP_STRUCTURE.md",
+        "CLEANUP_SUMMARY_REPORT.md",
+        "CLEANUP_VERIFICATION_ISSUES.md",
+        "ROOT_CAUSE_ANALYSIS_CLEANUP_FAILURE.md",
+        "IMPLEMENTATION_PLAN_SYSTEMIC_CLEANUP_FIX.md",
     }
     loose_md = list(REPO_ROOT.glob("*.md"))
     unwanted_md = [f for f in loose_md if f.name not in keep_md]
@@ -555,8 +584,21 @@ def validate_final_structure():
 
     # Check 4: Archive bucket structure
     archive = REPO_ROOT / "archive"
-    required_buckets = ["plans", "reports", "analysis", "research", "prompts",
-                       "diagnostics", "unsorted", "configs", "docs", "exports", "patches", "refs", "src"]
+    required_buckets = [
+        "plans",
+        "reports",
+        "analysis",
+        "research",
+        "prompts",
+        "diagnostics",
+        "unsorted",
+        "configs",
+        "docs",
+        "exports",
+        "patches",
+        "refs",
+        "src",
+    ]
 
     missing_buckets = []
     for bucket in required_buckets:
@@ -572,7 +614,14 @@ def validate_final_structure():
     diag = archive / "diagnostics"
     if diag.exists():
         allowed_diag = {"logs", "runs", "docs"}  # docs for CONSOLIDATED_DEBUG.md notes
-        bad_nested = [".autonomous_runs", "archive", "exports", "patches", "archived_runs", "autopack"]
+        bad_nested = [
+            ".autonomous_runs",
+            "archive",
+            "exports",
+            "patches",
+            "archived_runs",
+            "autopack",
+        ]
         found_bad = []
 
         for nested in bad_nested:
@@ -632,7 +681,9 @@ def main():
     """Run corrective cleanup."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Corrective cleanup - fix comprehensive_cleanup.py failures")
+    parser = argparse.ArgumentParser(
+        description="Corrective cleanup - fix comprehensive_cleanup.py failures"
+    )
     parser.add_argument("--dry-run", action="store_true", help="Dry run (no changes)")
     parser.add_argument("--execute", action="store_true", help="Execute changes")
     args = parser.parse_args()

@@ -76,14 +76,11 @@ Acceptance Criteria:
             "workdir": ".autonomous_runs/file-organizer-app-v1/fileorganizer/backend",
             "paths": ["tests"],
             "args": ["-vv"],
-            "env": {
-                "PYTHONPATH": ".",
-                "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"
-            },
+            "env": {"PYTHONPATH": ".", "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"},
             "timeout_seconds": 600,
             "log_name": "backend_pytest.log",
             "success_message": "Backend pytest suite passed",
-            "failure_message": "Backend pytest suite failed"
+            "failure_message": "Backend pytest suite failed",
         },
     }
 ]
@@ -154,7 +151,9 @@ def create_run():
 
     except requests.exceptions.ConnectionError:
         print(f"[ERROR] Cannot connect to API at {API_URL}")
-        print("[INFO] Make sure the API server is running:\n  python -m uvicorn autopack.main:app --reload --port 8000")
+        print(
+            "[INFO] Make sure the API server is running:\n  python -m uvicorn autopack.main:app --reload --port 8000"
+        )
         sys.exit(1)
     except Exception as exc:
         print(f"[ERROR] Failed to create run: {exc}")

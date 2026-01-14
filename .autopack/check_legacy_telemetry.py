@@ -26,10 +26,14 @@ try:
         print(f"  Actual output tokens: {sample.actual_output_tokens}")
 
         # Count events with both estimated and actual tokens
-        usable_events = session.query(LlmUsageEvent).filter(
-            LlmUsageEvent.estimated_tokens.isnot(None),
-            LlmUsageEvent.actual_output_tokens.isnot(None)
-        ).count()
+        usable_events = (
+            session.query(LlmUsageEvent)
+            .filter(
+                LlmUsageEvent.estimated_tokens.isnot(None),
+                LlmUsageEvent.actual_output_tokens.isnot(None),
+            )
+            .count()
+        )
         print(f"\nUsable events (has estimated + actual tokens): {usable_events}")
 
 finally:

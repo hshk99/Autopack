@@ -35,21 +35,16 @@ def check_prerequisites() -> Tuple[bool, List[str]]:
     """
     issues = []
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("PHASE 0 PRE-IMPLEMENTATION CHECKLIST")
-    print("="*80)
+    print("=" * 80)
 
     # 1. Environment Setup
     print("\n[1/6] Checking environment setup...")
 
     # PostgreSQL check
     try:
-        result = subprocess.run(
-            ["psql", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
+        result = subprocess.run(["psql", "--version"], capture_output=True, text=True, timeout=5)
         if result.returncode == 0:
             print("  ✓ PostgreSQL installed")
         else:
@@ -62,6 +57,7 @@ def check_prerequisites() -> Tuple[bool, List[str]]:
     # Qdrant check
     try:
         import requests
+
         response = requests.get("http://localhost:6333/health", timeout=2)
         if response.status_code == 200:
             print("  ✓ Qdrant running")
@@ -100,7 +96,7 @@ def check_prerequisites() -> Tuple[bool, List[str]]:
             capture_output=True,
             text=True,
             cwd=Path(__file__).parent.parent,
-            timeout=5
+            timeout=5,
         )
 
         if result.stdout.strip():
@@ -115,7 +111,7 @@ def check_prerequisites() -> Tuple[bool, List[str]]:
             capture_output=True,
             text=True,
             cwd=Path(__file__).parent.parent,
-            timeout=5
+            timeout=5,
         )
         branch = result.stdout.strip()
         print(f"  ✓ Current branch: {branch}")
@@ -147,14 +143,16 @@ def check_prerequisites() -> Tuple[bool, List[str]]:
                 sim_12 = cosine_sim(emb1, emb2)
                 sim_13 = cosine_sim(emb1, emb3)
 
-                print(f"  → Semantic similarity test:")
+                print("  → Semantic similarity test:")
                 print(f"    - Related concepts: {sim_12:.3f} (expected > 0.7)")
                 print(f"    - Unrelated concepts: {sim_13:.3f} (expected < 0.5)")
 
                 if sim_12 > 0.7 and sim_13 < 0.5:
                     print("  ✓ Semantic embeddings working correctly")
                 else:
-                    issues.append(f"Semantic similarity test failed: related={sim_12:.3f}, unrelated={sim_13:.3f}")
+                    issues.append(
+                        f"Semantic similarity test failed: related={sim_12:.3f}, unrelated={sim_13:.3f}"
+                    )
                     print("  ✗ Semantic similarity test failed")
             except Exception as e:
                 issues.append(f"Embedding test failed: {e}")
@@ -169,13 +167,14 @@ def check_prerequisites() -> Tuple[bool, List[str]]:
 
     try:
         from autopack.governed_apply import apply_governed_patch
+
         print("  ✓ governed_apply.py accessible")
 
         # Check if lovable/ directory already exists
         lovable_dir = Path(__file__).parent.parent / "src" / "autopack" / "lovable"
         if lovable_dir.exists():
-            print(f"  ⚠ src/autopack/lovable/ already exists")
-            print(f"  → Will preserve existing files during Phase 0.1")
+            print("  ⚠ src/autopack/lovable/ already exists")
+            print("  → Will preserve existing files during Phase 0.1")
         else:
             print("  ✓ src/autopack/lovable/ does not exist (will be created)")
 
@@ -192,7 +191,7 @@ def check_prerequisites() -> Tuple[bool, List[str]]:
             capture_output=True,
             text=True,
             cwd=Path(__file__).parent.parent,
-            timeout=120
+            timeout=120,
         )
 
         if result.returncode == 0:
@@ -210,16 +209,16 @@ def check_prerequisites() -> Tuple[bool, List[str]]:
         print(f"  ✗ Test suite check failed: {e}")
 
     # Summary
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     if not issues:
         print("✓ ALL PRE-IMPLEMENTATION CHECKS PASSED")
-        print("="*80)
+        print("=" * 80)
         return True, []
     else:
         print("⚠ ISSUES DETECTED:")
         for i, issue in enumerate(issues, 1):
             print(f"  {i}. {issue}")
-        print("="*80)
+        print("=" * 80)
 
         # Check for blockers
         blockers = [issue for issue in issues if "BLOCKER" in issue or "NOT INSTALLED" in issue]
@@ -233,19 +232,26 @@ def check_prerequisites() -> Tuple[bool, List[str]]:
 
 def create_git_checkpoint() -> bool:
     """Create git checkpoint before Phase 0 implementation."""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("CREATING GIT CHECKPOINT")
-    print("="*80)
+    print("=" * 80)
 
     repo_root = Path(__file__).parent.parent
 
     try:
         # Create checkpoint tag
         subprocess.run(
-            ["git", "tag", "-f", "lovable-phase0-start", "-m", "Checkpoint before Phase 0 implementation"],
+            [
+                "git",
+                "tag",
+                "-f",
+                "lovable-phase0-start",
+                "-m",
+                "Checkpoint before Phase 0 implementation",
+            ],
             cwd=repo_root,
             check=True,
-            timeout=5
+            timeout=5,
         )
         print("✓ Created git tag: lovable-phase0-start")
 
@@ -255,7 +261,7 @@ def create_git_checkpoint() -> bool:
             capture_output=True,
             text=True,
             cwd=repo_root,
-            timeout=5
+            timeout=5,
         )
         print(f"✓ Current commit: {result.stdout.strip()}")
 
@@ -269,11 +275,16 @@ def create_git_checkpoint() -> bool:
 def execute_phase0(dry_run: bool = False, skip_approval: bool = False) -> bool:
     """Execute Phase 0 autonomous implementation."""
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("EXECUTING PHASE 0: FOUNDATION & GOVERNANCE")
-    print("="*80)
+    print("=" * 80)
 
-    config_path = Path(__file__).parent.parent / ".autonomous_runs" / "lovable-integration-v1" / "run_config_phase0.json"
+    config_path = (
+        Path(__file__).parent.parent
+        / ".autonomous_runs"
+        / "lovable-integration-v1"
+        / "run_config_phase0.json"
+    )
 
     if not config_path.exists():
         print(f"✗ Config not found: {config_path}")
@@ -287,32 +298,38 @@ def execute_phase0(dry_run: bool = False, skip_approval: bool = False) -> bool:
     print(f"✓ Run ID: {config['run_id']}")
     print(f"✓ Phases: {len(config['phases'])}")
 
-    for i, phase in enumerate(config['phases'], 1):
-        print(f"  {i}. {phase['phase_name']} ({phase['decision_category']}, {phase['risk_level']} risk)")
+    for i, phase in enumerate(config["phases"], 1):
+        print(
+            f"  {i}. {phase['phase_name']} ({phase['decision_category']}, {phase['risk_level']} risk)"
+        )
 
     if dry_run:
         print("\n⚠ DRY RUN MODE - No actual execution")
         return True
 
     if not skip_approval:
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         response = input("Proceed with autonomous execution? [y/N]: ")
-        if response.lower() != 'y':
+        if response.lower() != "y":
             print("✗ Execution cancelled by user")
             return False
 
     print("\n🚀 Starting autonomous execution...")
-    print("="*80)
+    print("=" * 80)
 
     # Execute via autonomous_executor
     try:
         # Build command
         cmd = [
             sys.executable,
-            "-m", "autopack.autonomous_executor",
-            "--run-id", config['run_id'],
-            "--config", str(config_path),
-            "--max-iterations", "10"
+            "-m",
+            "autopack.autonomous_executor",
+            "--run-id",
+            config["run_id"],
+            "--config",
+            str(config_path),
+            "--max-iterations",
+            "10",
         ]
 
         print(f"\nCommand: {' '.join(cmd)}\n")
@@ -325,8 +342,8 @@ def execute_phase0(dry_run: bool = False, skip_approval: bool = False) -> bool:
                 **subprocess.os.environ,
                 "PYTHONUTF8": "1",
                 "PYTHONPATH": "src",
-                "DATABASE_URL": "sqlite:///autopack.db"
-            }
+                "DATABASE_URL": "sqlite:///autopack.db",
+            },
         )
 
         return result.returncode == 0
@@ -338,15 +355,19 @@ def execute_phase0(dry_run: bool = False, skip_approval: bool = False) -> bool:
 
 def main():
     parser = argparse.ArgumentParser(description="Execute Phase 0: Foundation & Governance")
-    parser.add_argument("--dry-run", action="store_true", help="Check prerequisites only, don't execute")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Check prerequisites only, don't execute"
+    )
     parser.add_argument("--skip-approval", action="store_true", help="Skip user approval prompt")
-    parser.add_argument("--skip-prereq", action="store_true", help="Skip prerequisite checks (dangerous)")
+    parser.add_argument(
+        "--skip-prereq", action="store_true", help="Skip prerequisite checks (dangerous)"
+    )
 
     args = parser.parse_args()
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("LOVABLE INTEGRATION - PHASE 0 AUTONOMOUS EXECUTION")
-    print("="*80)
+    print("=" * 80)
     print("\nThis script will autonomously implement:")
     print("  - Phase 0.1: Protected-Path Strategy (2 days)")
     print("  - Phase 0.2: Semantic Embedding Backend (2 days)")
@@ -379,19 +400,21 @@ def main():
     success = execute_phase0(dry_run=args.dry_run, skip_approval=args.skip_approval)
 
     if success:
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("✓ PHASE 0 EXECUTION COMPLETE")
-        print("="*80)
+        print("=" * 80)
         print("\nNext steps:")
         print("  1. Review implementation in src/autopack/lovable/")
         print("  2. Run full test suite: pytest tests/autopack/ -v")
-        print("  3. Validate checklist: .autonomous_runs/lovable-integration-v1/AUTONOMOUS_IMPLEMENTATION_CHECKLIST.md")
+        print(
+            "  3. Validate checklist: .autonomous_runs/lovable-integration-v1/AUTONOMOUS_IMPLEMENTATION_CHECKLIST.md"
+        )
         print("  4. Proceed to Phase 1 if all gates pass")
         sys.exit(0)
     else:
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("✗ PHASE 0 EXECUTION FAILED")
-        print("="*80)
+        print("=" * 80)
         print("\nRollback procedure:")
         print("  git reset --hard lovable-phase0-start")
         print("  git tag -d lovable-phase0-start")

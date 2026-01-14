@@ -2358,4 +2358,3 @@ decision_report.json      - Strategic decisions with rationale
 - **Transparent reasoning** (every decision includes rationale, alignment, impact, ROI)
 
 See `archive/superseded/reports/BUILD_universal_research_analysis_system.md` for full documentation.
-

@@ -1,4 +1,5 @@
 """Create build126-e2-through-i run in database for BUILD-126 Phases E2, F, G, H, I."""
+
 import sys
 import yaml
 from pathlib import Path
@@ -10,10 +11,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from autopack.database import SessionLocal
 from autopack.models import Run, Phase, Tier, RunState, PhaseState, TierState
 
+
 def load_phase_yaml(phase_file: Path) -> dict:
     """Load phase YAML file."""
-    with open(phase_file, 'r', encoding='utf-8') as f:
+    with open(phase_file, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
+
 
 def create_build126_run():
     """Create BUILD-126 run with 5 phases (E2, F, G, H, I)."""
@@ -52,7 +55,7 @@ def create_build126_run():
             safety_profile="normal",
             run_scope="multi_tier",
             token_cap=2000000,  # 2M tokens for 5 phases
-            tokens_used=0
+            tokens_used=0,
         )
         db.add(run)
         db.flush()
@@ -67,7 +70,7 @@ def create_build126_run():
             name="BUILD-126 Complete Implementation Tier",
             description="Large File Handling - Phases E2, F, G, H, I (Import Graph, Scope Refinement, Quality Gates, Risk Scoring, Adaptive Context)",
             state=TierState.PENDING,
-            tokens_used=0
+            tokens_used=0,
         )
         db.add(tier)
         db.flush()
@@ -114,7 +117,7 @@ def create_build126_run():
                 retry_attempt=0,
                 revision_epoch=0,
                 escalation_level=0,
-                tokens_used=0
+                tokens_used=0,
             )
             db.add(phase)
 
@@ -123,18 +126,22 @@ def create_build126_run():
         # Commit all changes
         db.commit()
         print(f"\n✓ Successfully created run '{run_id}' with {len(phase_files)} phases")
-        print(f"\n🚀 Ready to execute: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL=\"sqlite:///autopack.db\" python -m autopack.autonomous_executor --run-id {run_id}")
+        print(
+            f'\n🚀 Ready to execute: PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="sqlite:///autopack.db" python -m autopack.autonomous_executor --run-id {run_id}'
+        )
         return True
 
     except Exception as e:
         db.rollback()
         print(f"ERROR: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     success = create_build126_run()

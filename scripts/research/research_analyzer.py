@@ -13,8 +13,12 @@ from datetime import datetime
 import anthropic
 
 from scripts.research.data_structures import (
-    ProjectContext, ResearchGap, OpportunityAnalysis,
-    GapType, Priority, Effort
+    ProjectContext,
+    ResearchGap,
+    OpportunityAnalysis,
+    GapType,
+    Priority,
+    Effort,
 )
 
 
@@ -36,9 +40,9 @@ class ResearchAnalyzer:
 
     def analyze(self, context: ProjectContext) -> OpportunityAnalysis:
         """Analyze research against context to find gaps"""
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"ANALYZING RESEARCH: {self.project_id}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         analysis = OpportunityAnalysis(project_id=self.project_id)
 
@@ -66,9 +70,9 @@ class ResearchAnalyzer:
         print("\nPhase 5: Extracting strategic insights...")
         analysis.strategic_insights = self._extract_strategic_insights(context, analysis.gaps)
 
-        print(f"\n{'='*60}")
-        print(f"RESEARCH ANALYSIS COMPLETE")
-        print(f"{'='*60}\n")
+        print(f"\n{'=' * 60}")
+        print("RESEARCH ANALYSIS COMPLETE")
+        print(f"{'=' * 60}\n")
         self._print_summary(analysis)
 
         return analysis
@@ -80,8 +84,8 @@ class ResearchAnalyzer:
             return []
 
         # Get list of implemented feature titles
-        implemented = [f['title'] for f in context.implemented_features]
-        planned = [f['title'] for f in context.planned_features]
+        implemented = [f["title"] for f in context.implemented_features]
+        planned = [f["title"] for f in context.planned_features]
 
         # Use LLM to identify which opportunities are NOT addressed
         prompt = f"""Analyze market opportunities against implemented and planned features.
@@ -121,7 +125,7 @@ Return JSON array:
             response = self.anthropic_client.messages.create(
                 model="claude-3-5-haiku-20241022",
                 max_tokens=2000,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             gaps_data = json.loads(response.content[0].text)
@@ -129,15 +133,15 @@ Return JSON array:
 
             for i, gap_data in enumerate(gaps_data):
                 gap = ResearchGap(
-                    gap_id=f"feature_gap_{i+1}",
+                    gap_id=f"feature_gap_{i + 1}",
                     gap_type=GapType.FEATURE_GAP,
-                    title=gap_data['title'],
-                    description=gap_data['description'],
-                    current_state=gap_data['current_state'],
-                    desired_state=gap_data['desired_state'],
-                    source_research=['market_research'],
-                    priority=Priority[gap_data['priority'].upper()],
-                    effort=Effort[gap_data['effort'].upper()]
+                    title=gap_data["title"],
+                    description=gap_data["description"],
+                    current_state=gap_data["current_state"],
+                    desired_state=gap_data["desired_state"],
+                    source_research=["market_research"],
+                    priority=Priority[gap_data["priority"].upper()],
+                    effort=Effort[gap_data["effort"].upper()],
                 )
                 gaps.append(gap)
 
@@ -161,10 +165,10 @@ REGULATORY REQUIREMENTS:
 {json.dumps(context.regulatory_requirements, indent=2)}
 
 IMPLEMENTED FEATURES:
-{json.dumps([f['title'] for f in context.implemented_features[:20]], indent=2)}
+{json.dumps([f["title"] for f in context.implemented_features[:20]], indent=2)}
 
 KNOWN ISSUES:
-{json.dumps([i['title'] for i in context.known_issues[:10]], indent=2)}
+{json.dumps([i["title"] for i in context.known_issues[:10]], indent=2)}
 
 Identify regulatory requirements that are NOT adequately addressed.
 
@@ -192,7 +196,7 @@ Return JSON array:
             response = self.anthropic_client.messages.create(
                 model="claude-3-5-haiku-20241022",
                 max_tokens=2000,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             gaps_data = json.loads(response.content[0].text)
@@ -200,15 +204,15 @@ Return JSON array:
 
             for i, gap_data in enumerate(gaps_data):
                 gap = ResearchGap(
-                    gap_id=f"compliance_gap_{i+1}",
+                    gap_id=f"compliance_gap_{i + 1}",
                     gap_type=GapType.COMPLIANCE_GAP,
-                    title=gap_data['title'],
-                    description=gap_data['description'],
-                    current_state=gap_data['current_state'],
-                    desired_state=gap_data['desired_state'],
-                    source_research=['regulatory_requirements'],
-                    priority=Priority[gap_data['priority'].upper()],
-                    effort=Effort[gap_data['effort'].upper()]
+                    title=gap_data["title"],
+                    description=gap_data["description"],
+                    current_state=gap_data["current_state"],
+                    desired_state=gap_data["desired_state"],
+                    source_research=["regulatory_requirements"],
+                    priority=Priority[gap_data["priority"].upper()],
+                    effort=Effort[gap_data["effort"].upper()],
                 )
                 gaps.append(gap)
 
@@ -235,10 +239,10 @@ OUR VISION:
 {context.vision_statement or "Not specified"}
 
 OUR IMPLEMENTED FEATURES:
-{json.dumps([f['title'] for f in context.implemented_features[:20]], indent=2)}
+{json.dumps([f["title"] for f in context.implemented_features[:20]], indent=2)}
 
 OUR PLANNED FEATURES:
-{json.dumps([f['title'] for f in context.planned_features[:20]], indent=2)}
+{json.dumps([f["title"] for f in context.planned_features[:20]], indent=2)}
 
 Identify which competitive gaps are worth addressing based on:
 - Strategic alignment with our vision
@@ -269,7 +273,7 @@ Return JSON array (only include gaps worth addressing):
             response = self.anthropic_client.messages.create(
                 model="claude-3-5-haiku-20241022",
                 max_tokens=2000,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             gaps_data = json.loads(response.content[0].text)
@@ -277,15 +281,15 @@ Return JSON array (only include gaps worth addressing):
 
             for i, gap_data in enumerate(gaps_data):
                 gap = ResearchGap(
-                    gap_id=f"competitive_gap_{i+1}",
+                    gap_id=f"competitive_gap_{i + 1}",
                     gap_type=GapType.MARKET_GAP,
-                    title=gap_data['title'],
-                    description=gap_data['description'],
-                    current_state=gap_data['current_state'],
-                    desired_state=gap_data['desired_state'],
-                    source_research=['competitive_analysis'],
-                    priority=Priority[gap_data['priority'].upper()],
-                    effort=Effort[gap_data['effort'].upper()]
+                    title=gap_data["title"],
+                    description=gap_data["description"],
+                    current_state=gap_data["current_state"],
+                    desired_state=gap_data["desired_state"],
+                    source_research=["competitive_analysis"],
+                    priority=Priority[gap_data["priority"].upper()],
+                    effort=Effort[gap_data["effort"].upper()],
                 )
                 gaps.append(gap)
 
@@ -315,10 +319,10 @@ CORE PRINCIPLES:
 {json.dumps(context.core_principles, indent=2)}
 
 IMPLEMENTED FEATURES:
-{json.dumps([f['title'] for f in context.implemented_features[:20]], indent=2)}
+{json.dumps([f["title"] for f in context.implemented_features[:20]], indent=2)}
 
 ARCHITECTURE CONSTRAINTS:
-{json.dumps([a['title'] for a in context.architecture_constraints[:10]], indent=2)}
+{json.dumps([a["title"] for a in context.architecture_constraints[:10]], indent=2)}
 
 Identify areas where current implementation does NOT align with vision/principles.
 
@@ -346,7 +350,7 @@ Return JSON array:
             response = self.anthropic_client.messages.create(
                 model="claude-3-5-haiku-20241022",
                 max_tokens=2000,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             gaps_data = json.loads(response.content[0].text)
@@ -354,15 +358,15 @@ Return JSON array:
 
             for i, gap_data in enumerate(gaps_data):
                 gap = ResearchGap(
-                    gap_id=f"vision_gap_{i+1}",
+                    gap_id=f"vision_gap_{i + 1}",
                     gap_type=GapType.VISION_GAP,
-                    title=gap_data['title'],
-                    description=gap_data['description'],
-                    current_state=gap_data['current_state'],
-                    desired_state=gap_data['desired_state'],
-                    source_research=['product_vision'],
-                    priority=Priority[gap_data['priority'].upper()],
-                    effort=Effort[gap_data['effort'].upper()]
+                    title=gap_data["title"],
+                    description=gap_data["description"],
+                    current_state=gap_data["current_state"],
+                    desired_state=gap_data["desired_state"],
+                    source_research=["product_vision"],
+                    priority=Priority[gap_data["priority"].upper()],
+                    effort=Effort[gap_data["effort"].upper()],
                 )
                 gaps.append(gap)
 
@@ -373,7 +377,9 @@ Return JSON array:
             print(f"  ⚠️  Error finding vision gaps: {e}")
             return []
 
-    def _extract_strategic_insights(self, context: ProjectContext, gaps: List[ResearchGap]) -> List[str]:
+    def _extract_strategic_insights(
+        self, context: ProjectContext, gaps: List[ResearchGap]
+    ) -> List[str]:
         """Extract cross-cutting strategic insights from all gaps"""
         if not gaps:
             return []
@@ -381,11 +387,9 @@ Return JSON array:
         # Use LLM to identify strategic themes
         gaps_summary = []
         for gap in gaps[:20]:  # Max 20 gaps
-            gaps_summary.append({
-                'type': gap.gap_type.value,
-                'title': gap.title,
-                'priority': gap.priority.value
-            })
+            gaps_summary.append(
+                {"type": gap.gap_type.value, "title": gap.title, "priority": gap.priority.value}
+            )
 
         prompt = f"""Analyze these gaps to identify strategic themes and insights.
 
@@ -415,7 +419,7 @@ Return JSON array of strings:
             response = self.anthropic_client.messages.create(
                 model="claude-3-5-haiku-20241022",
                 max_tokens=1000,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             insights = json.loads(response.content[0].text)
@@ -428,13 +432,13 @@ Return JSON array of strings:
 
     def _print_summary(self, analysis: OpportunityAnalysis):
         """Print summary of analysis"""
-        print(f"Summary:")
+        print("Summary:")
         print(f"  • Total gaps: {len(analysis.gaps)}")
         print(f"  • Critical: {len(analysis.get_by_priority(Priority.CRITICAL))}")
         print(f"  • High: {len(analysis.get_by_priority(Priority.HIGH))}")
         print(f"  • Medium: {len(analysis.get_by_priority(Priority.MEDIUM))}")
         print(f"  • Low: {len(analysis.get_by_priority(Priority.LOW))}")
-        print(f"\nGaps by type:")
+        print("\nGaps by type:")
         for gap_type in GapType:
             count = len(analysis.get_by_type(gap_type))
             if count > 0:
@@ -462,24 +466,24 @@ if __name__ == "__main__":
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     output_data = {
-        'project_id': analysis.project_id,
-        'analyzed_at': analysis.analyzed_at.isoformat(),
-        'gaps': [
+        "project_id": analysis.project_id,
+        "analyzed_at": analysis.analyzed_at.isoformat(),
+        "gaps": [
             {
-                'gap_id': g.gap_id,
-                'gap_type': g.gap_type.value,
-                'title': g.title,
-                'description': g.description,
-                'current_state': g.current_state,
-                'desired_state': g.desired_state,
-                'priority': g.priority.value,
-                'effort': g.effort.value,
-                'source_research': g.source_research
+                "gap_id": g.gap_id,
+                "gap_type": g.gap_type.value,
+                "title": g.title,
+                "description": g.description,
+                "current_state": g.current_state,
+                "desired_state": g.desired_state,
+                "priority": g.priority.value,
+                "effort": g.effort.value,
+                "source_research": g.source_research,
             }
             for g in analysis.gaps
         ],
-        'strategic_insights': analysis.strategic_insights
+        "strategic_insights": analysis.strategic_insights,
     }
 
-    output_path.write_text(json.dumps(output_data, indent=2), encoding='utf-8')
+    output_path.write_text(json.dumps(output_data, indent=2), encoding="utf-8")
     print(f"\n✓ Analysis saved to {output_path}")

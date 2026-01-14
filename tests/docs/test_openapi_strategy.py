@@ -142,8 +142,7 @@ class TestOpenAPINotCheckedIn:
         """Verify the OpenAPI strategy documentation exists."""
         strategy_doc = REPO_ROOT / "docs" / "api" / "OPENAPI_STRATEGY.md"
         assert strategy_doc.exists(), (
-            f"Missing {strategy_doc}. "
-            "This document defines the runtime-canonical OpenAPI strategy."
+            f"Missing {strategy_doc}. This document defines the runtime-canonical OpenAPI strategy."
         )
 
 

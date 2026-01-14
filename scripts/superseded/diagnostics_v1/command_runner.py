@@ -97,17 +97,32 @@ COMMAND_PALETTE: List[PaletteEntry] = [
         default_timeout=360,
     ),
     PaletteEntry("pip_check", r"^(pip|python\s+-m\s+pip)\s+check$", default_timeout=120),
-    PaletteEntry("pip_list", r"^(pip|python\s+-m\s+pip)\s+list(\s+--format=columns)?$", default_timeout=90),
-    PaletteEntry("python_site", r"^python\s+-m\s+site(\s+--user-site|\s+--user-base)?$", default_timeout=60),
+    PaletteEntry(
+        "pip_list", r"^(pip|python\s+-m\s+pip)\s+list(\s+--format=columns)?$", default_timeout=90
+    ),
+    PaletteEntry(
+        "python_site", r"^python\s+-m\s+site(\s+--user-site|\s+--user-base)?$", default_timeout=60
+    ),
     PaletteEntry("python_sysconfig", r"^python\s+-m\s+sysconfig$", default_timeout=60),
     PaletteEntry("disk_df", r"^df\s+-h(\s+[^\s]+)?$", default_timeout=30),
     PaletteEntry("disk_usage", r"^du\s+-sh\s+\.$", default_timeout=30),
     PaletteEntry("mem_free", r"^free\s+-h$", default_timeout=20),
-    PaletteEntry("curl", r"^curl\s+(-I\s+)?https?://[^\s]+$", default_timeout=60, allow_network=True),
-    PaletteEntry("ping", r"^ping\s+(-c|-n)\s+\d+\s+[A-Za-z0-9\.-]+$", default_timeout=40, allow_network=True),
-    PaletteEntry("traceroute", r"^(traceroute|tracert)\s+[A-Za-z0-9\.-]+$", default_timeout=120, allow_network=True),
+    PaletteEntry(
+        "curl", r"^curl\s+(-I\s+)?https?://[^\s]+$", default_timeout=60, allow_network=True
+    ),
+    PaletteEntry(
+        "ping", r"^ping\s+(-c|-n)\s+\d+\s+[A-Za-z0-9\.-]+$", default_timeout=40, allow_network=True
+    ),
+    PaletteEntry(
+        "traceroute",
+        r"^(traceroute|tracert)\s+[A-Za-z0-9\.-]+$",
+        default_timeout=120,
+        allow_network=True,
+    ),
     PaletteEntry("dig", r"^dig\s+[A-Za-z0-9\.-]+$", default_timeout=60, allow_network=True),
-    PaletteEntry("nslookup", r"^nslookup\s+[A-Za-z0-9\.-]+$", default_timeout=60, allow_network=True),
+    PaletteEntry(
+        "nslookup", r"^nslookup\s+[A-Za-z0-9\.-]+$", default_timeout=60, allow_network=True
+    ),
 ]
 
 
@@ -184,7 +199,9 @@ class GovernedCommandRunner:
                 return self._skipped(command, reason, label)
 
             palette_entry = self._match_palette(command)
-            effective_timeout = timeout or (palette_entry.default_timeout if palette_entry else self.default_timeout)
+            effective_timeout = timeout or (
+                palette_entry.default_timeout if palette_entry else self.default_timeout
+            )
 
             start = time.monotonic()
             try:
@@ -306,7 +323,17 @@ class GovernedCommandRunner:
             if re.match(r"^[A-Za-z0-9\.-]+$", tok):
                 # Likely host or simple token, skip
                 continue
-            if tok in {"find", "pytest", "git", "curl", "ping", "traceroute", "tracert", "dig", "nslookup"}:
+            if tok in {
+                "find",
+                "pytest",
+                "git",
+                "curl",
+                "ping",
+                "traceroute",
+                "tracert",
+                "dig",
+                "nslookup",
+            }:
                 continue
 
             path = self._safe_resolve_path(tok)
@@ -438,4 +465,3 @@ class GovernedCommandRunner:
     @property
     def seconds_used(self) -> float:
         return self._seconds_used
-

@@ -452,6 +452,3 @@ LEGACY_PATH_PATTERNS = [
 - **Expected CI checks that prove closure**:
   - `docs-sot-integrity` should pass (doc tests will cover basic doc formatting and drift patterns).
   - No new CI jobs required; this is a documentation-only PR.
-
-
-

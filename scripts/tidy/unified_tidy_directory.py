@@ -79,7 +79,9 @@ class UnifiedTidyDirectory:
         print("=" * 80)
         print(f"Target Directory: {self.target_directory}")
         print(f"Mode: {'DRY-RUN (preview only)' if self.dry_run else 'EXECUTE (making changes)'}")
-        print(f"Scope: {'DOCS ONLY (.md files)' if self.docs_only else 'FULL CLEANUP (all file types: .md, .py, .log, .json, .yaml, .txt, .csv, .sql, etc.)'}")
+        print(
+            f"Scope: {'DOCS ONLY (.md files)' if self.docs_only else 'FULL CLEANUP (all file types: .md, .py, .log, .json, .yaml, .txt, .csv, .sql, etc.)'}"
+        )
         print("=" * 80)
         print()
 
@@ -104,7 +106,7 @@ class UnifiedTidyDirectory:
 
             if self.interactive:
                 response = input("\nProceed with Phase 2 (scripts/logs cleanup)? [y/N]: ")
-                if response.lower() != 'y':
+                if response.lower() != "y":
                     print("Phase 2 skipped by user.")
                     return 0
 
@@ -122,8 +124,12 @@ class UnifiedTidyDirectory:
             print("✅ Documentation (.md files) consolidated into SOT files")
             print()
             print("Next steps:")
-            print("1. Review docs/BUILD_HISTORY.md, docs/DEBUG_LOG.md, docs/ARCHITECTURE_DECISIONS.md")
-            print("2. Run with --full to organize ALL file types (.py, .log, .json, .yaml, .txt, .csv, .sql) (optional)")
+            print(
+                "1. Review docs/BUILD_HISTORY.md, docs/DEBUG_LOG.md, docs/ARCHITECTURE_DECISIONS.md"
+            )
+            print(
+                "2. Run with --full to organize ALL file types (.py, .log, .json, .yaml, .txt, .csv, .sql) (optional)"
+            )
         else:
             print("✅ All file types organized:")
             print("  - .md files → consolidated to SOT files")
@@ -159,6 +165,7 @@ class UnifiedTidyDirectory:
         except Exception as e:
             print(f"❌ Phase 1 error: {e}")
             import traceback
+
             traceback.print_exc()
             return 1
 
@@ -176,6 +183,7 @@ class UnifiedTidyDirectory:
         except Exception as e:
             print(f"❌ Phase 2 error: {e}")
             import traceback
+
             traceback.print_exc()
             return 1
 
@@ -199,12 +207,12 @@ Examples:
   # Other directories
   python scripts/tidy/unified_tidy_directory.py .autonomous_runs/my-project --docs-only
         """,
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     parser.add_argument(
         "directory",
-        help="Directory to tidy (relative to project root, e.g., 'archive' or '.autonomous_runs/project')"
+        help="Directory to tidy (relative to project root, e.g., 'archive' or '.autonomous_runs/project')",
     )
 
     # Mode selection (mutually exclusive)
@@ -213,31 +221,25 @@ Examples:
         "--docs-only",
         action="store_true",
         default=True,
-        help="Consolidate documentation only (default)"
+        help="Consolidate documentation only (default)",
     )
     mode_group.add_argument(
-        "--full",
-        action="store_true",
-        help="Full cleanup: docs + scripts + logs + empty dirs"
+        "--full", action="store_true", help="Full cleanup: docs + scripts + logs + empty dirs"
     )
 
     # Execution mode
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Preview changes without executing (recommended first run)"
+        help="Preview changes without executing (recommended first run)",
     )
     parser.add_argument(
-        "--execute",
-        action="store_true",
-        help="Execute changes (opposite of --dry-run)"
+        "--execute", action="store_true", help="Execute changes (opposite of --dry-run)"
     )
 
     # Interactive mode
     parser.add_argument(
-        "--interactive",
-        action="store_true",
-        help="Prompt for confirmation before each phase"
+        "--interactive", action="store_true", help="Prompt for confirmation before each phase"
     )
 
     args = parser.parse_args()

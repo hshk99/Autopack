@@ -85,7 +85,6 @@ class TestGapScannerDocDriftIntegration:
             patch("autopack.gaps.scanner.run_doc_drift_check") as mock_drift,
             patch("autopack.gaps.scanner.run_sot_summary_check") as mock_sot,
         ):
-
             mock_drift.return_value = DocDriftResult(
                 passed=True,
                 exit_code=0,
@@ -113,7 +112,6 @@ class TestGapScannerDocDriftIntegration:
             patch("autopack.gaps.scanner.run_doc_drift_check") as mock_drift,
             patch("autopack.gaps.scanner.run_sot_summary_check") as mock_sot,
         ):
-
             mock_drift.return_value = DocDriftResult(
                 passed=False,
                 exit_code=1,
@@ -143,7 +141,6 @@ class TestGapScannerDocDriftIntegration:
             patch("autopack.gaps.scanner.run_doc_drift_check") as mock_drift,
             patch("autopack.gaps.scanner.run_sot_summary_check") as mock_sot,
         ):
-
             mock_drift.return_value = DocDriftResult(
                 passed=False,
                 exit_code=1,

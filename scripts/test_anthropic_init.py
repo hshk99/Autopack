@@ -1,7 +1,8 @@
-
 import os
+
 try:
     from anthropic import Anthropic
+
     print("Anthropic imported")
     try:
         client = Anthropic(api_key=None)
@@ -10,4 +11,3 @@ try:
         print(f"Anthropic init FAILED: {e}")
 except ImportError:
     print("Anthropic not installed")
-

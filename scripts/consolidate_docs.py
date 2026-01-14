@@ -16,6 +16,7 @@ from typing import Dict, List, Tuple
 from datetime import datetime
 import shutil
 
+
 class ProjectDocConsolidator:
     """Consolidates documentation with strict project separation."""
 
@@ -26,13 +27,24 @@ class ProjectDocConsolidator:
         # Project detection patterns
         self.project_patterns = {
             "file-organizer-app-v1": [
-                "fileorg", "file-organizer", "pack", "scenario",
-                "ocr", "tesseract", "classification"
+                "fileorg",
+                "file-organizer",
+                "pack",
+                "scenario",
+                "ocr",
+                "tesseract",
+                "classification",
             ],
             "autopack-framework": [
-                "autopack", "builder", "auditor", "llm", "phase",
-                "tier", "executor", "governed"
-            ]
+                "autopack",
+                "builder",
+                "auditor",
+                "llm",
+                "phase",
+                "tier",
+                "executor",
+                "governed",
+            ],
         }
 
     def detect_project(self, file_path: Path, content: str) -> str:
@@ -43,14 +55,20 @@ class ProjectDocConsolidator:
         # Check file path first
         if "file-organizer-app-v1" in file_str:
             return "file-organizer-app-v1"
-        if ".autonomous_runs" not in file_str and ("src/autopack" in file_str or "tests/" in file_str):
+        if ".autonomous_runs" not in file_str and (
+            "src/autopack" in file_str or "tests/" in file_str
+        ):
             return "autopack-framework"
 
         # Check content patterns
-        fileorg_score = sum(1 for pattern in self.project_patterns["file-organizer-app-v1"]
-                           if pattern in content_lower)
-        autopack_score = sum(1 for pattern in self.project_patterns["autopack-framework"]
-                            if pattern in content_lower)
+        fileorg_score = sum(
+            1
+            for pattern in self.project_patterns["file-organizer-app-v1"]
+            if pattern in content_lower
+        )
+        autopack_score = sum(
+            1 for pattern in self.project_patterns["autopack-framework"] if pattern in content_lower
+        )
 
         if fileorg_score > autopack_score * 2:
             return "file-organizer-app-v1"
@@ -76,13 +94,19 @@ class ProjectDocConsolidator:
         # Build history files
         if any(word in filename for word in ["build", "progress", "history", "timeline", "week"]):
             return "build"
-        if any(word in content_lower[:500] for word in ["week", "deliverable", "milestone", "commit"]):
+        if any(
+            word in content_lower[:500] for word in ["week", "deliverable", "milestone", "commit"]
+        ):
             return "build"
 
         # Strategy/Analysis files
-        if any(word in filename for word in ["strategy", "analysis", "market", "product", "revenue"]):
+        if any(
+            word in filename for word in ["strategy", "analysis", "market", "product", "revenue"]
+        ):
             return "strategy"
-        if any(word in content_lower[:500] for word in ["market", "revenue", "customer", "pricing"]):
+        if any(
+            word in content_lower[:500] for word in ["market", "revenue", "customer", "pricing"]
+        ):
             return "strategy"
 
         # Research/Investigation files
@@ -95,9 +119,11 @@ class ProjectDocConsolidator:
 
         return "misc"
 
-    def _process_file(self, md_file: Path, all_files: list, force_project=None, force_category=None):
+    def _process_file(
+        self, md_file: Path, all_files: list, force_project=None, force_category=None
+    ):
         try:
-            content = md_file.read_text(encoding='utf-8')
+            content = md_file.read_text(encoding="utf-8")
             project = force_project or self.detect_project(md_file, content)
             category = force_category or self.categorize_file(md_file, content)
             all_files.append((md_file, content, project, category))
@@ -124,7 +150,7 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
         rules_seen = set()
         for file_path, content in files:
             # Extract numbered rules
-            rule_pattern = r'(?:Rule|rule)\s*[#:]?\s*(\d+)[:\s]+([^\n]+)'
+            rule_pattern = r"(?:Rule|rule)\s*[#:]?\s*(\d+)[:\s]+([^\n]+)"
             for match in re.finditer(rule_pattern, content):
                 rule_text = match.group(2).strip()
                 if rule_text not in rules_seen:
@@ -136,7 +162,7 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
         # Extract resolved issues
         for file_path, content in files:
             # Look for resolved issue sections
-            resolved_pattern = r'###?\s+(?:Issue\s+#?\d+|.*?)[\s\S]*?(?:RESOLVED|Fixed|Resolved)'
+            resolved_pattern = r"###?\s+(?:Issue\s+#?\d+|.*?)[\s\S]*?(?:RESOLVED|Fixed|Resolved)"
             for match in re.finditer(resolved_pattern, content, re.IGNORECASE):
                 issue_text = match.group(0)
                 if "**Status**: RESOLVED" in issue_text or "Status**: ✅" in issue_text:
@@ -148,18 +174,18 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
         # Extract open issues
         for file_path, content in files:
             # Look for open issue sections
-            open_pattern = r'###?\s+(?:Issue\s+#?\d+|.*?)[\s\S]*?(?:OPEN|Priority|First Observed)'
+            open_pattern = r"###?\s+(?:Issue\s+#?\d+|.*?)[\s\S]*?(?:OPEN|Priority|First Observed)"
             for match in re.finditer(open_pattern, content, re.IGNORECASE):
                 issue_text = match.group(0)
-                if "**Status**: OPEN" in issue_text or ("Priority" in issue_text and "RESOLVED" not in issue_text):
+                if "**Status**: OPEN" in issue_text or (
+                    "Priority" in issue_text and "RESOLVED" not in issue_text
+                ):
                     consolidated += f"\n{issue_text}\n\n"
                     consolidated += f"**Source**: [{file_path.name}]({file_path})\n\n---\n\n"
 
         return consolidated
 
-    def consolidate_by_category(self,
-                                  files: List[Tuple[Path, str]],
-                                  category: str) -> str:
+    def consolidate_by_category(self, files: List[Tuple[Path, str]], category: str) -> str:
         """Consolidate files by category."""
         if category == "debug":
             return self.consolidate_debug_files(files)
@@ -184,7 +210,7 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
             consolidated += f"""## {file_path.stem}
 
 **Source**: [{file_path.name}]({file_path})
-**Last Modified**: {datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d')}
+**Last Modified**: {datetime.fromtimestamp(file_path.stat().st_mtime).strftime("%Y-%m-%d")}
 
 {content}
 
@@ -199,8 +225,12 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
         print(f"[INFO] Starting documentation consolidation at {self.timestamp}")
 
         # Find all markdown files in archive locations
-        file_org_archive = self.autopack_root / ".autonomous_runs" / "file-organizer-app-v1" / "archive"
-        file_org_research = self.autopack_root / ".autonomous_runs" / "file-organizer-app-v1" / "docs" / "research"
+        file_org_archive = (
+            self.autopack_root / ".autonomous_runs" / "file-organizer-app-v1" / "archive"
+        )
+        file_org_research = (
+            self.autopack_root / ".autonomous_runs" / "file-organizer-app-v1" / "docs" / "research"
+        )
         autopack_archive = self.autopack_root / "archive"
 
         all_files = []
@@ -209,9 +239,11 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
         if file_org_archive.exists():
             # Scan main folder
             for md_file in file_org_archive.glob("*.md"):
-                if md_file.name not in ["ARCHIVE_INDEX.md"] and not md_file.name.startswith("CONSOLIDATED_"):
+                if md_file.name not in ["ARCHIVE_INDEX.md"] and not md_file.name.startswith(
+                    "CONSOLIDATED_"
+                ):
                     self._process_file(md_file, all_files)
-            
+
             # Scan superseded folder
             superseded = file_org_archive / "superseded"
             if superseded.exists():
@@ -221,20 +253,32 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
         # Scan file-organizer-app-v1 research docs (including superseded)
         if file_org_research.exists():
             for md_file in file_org_research.glob("*.md"):
-                 self._process_file(md_file, all_files, force_project="file-organizer-app-v1", force_category="research")
-            
+                self._process_file(
+                    md_file,
+                    all_files,
+                    force_project="file-organizer-app-v1",
+                    force_category="research",
+                )
+
             research_superseded = file_org_research / "superseded"
             if research_superseded.exists():
                 for md_file in research_superseded.glob("*.md"):
-                    self._process_file(md_file, all_files, force_project="file-organizer-app-v1", force_category="research")
+                    self._process_file(
+                        md_file,
+                        all_files,
+                        force_project="file-organizer-app-v1",
+                        force_category="research",
+                    )
 
         # Scan Autopack archive (including superseded)
         if autopack_archive.exists():
             # Scan main folder
             for md_file in autopack_archive.glob("*.md"):
-                if md_file.name not in ["ARCHIVE_INDEX.md"] and not md_file.name.startswith("CONSOLIDATED_"):
+                if md_file.name not in ["ARCHIVE_INDEX.md"] and not md_file.name.startswith(
+                    "CONSOLIDATED_"
+                ):
                     self._process_file(md_file, all_files)
-            
+
             # Scan superseded folder
             superseded = autopack_archive / "superseded"
             if superseded.exists():
@@ -270,24 +314,23 @@ Single source of truth for all errors, fixes, prevention rules, and troubleshoot
                 consolidated_content = self.consolidate_by_category(files, category)
                 output_file = output_dir / f"CONSOLIDATED_{category.upper()}.md"
 
-                output_file.write_text(consolidated_content, encoding='utf-8')
+                output_file.write_text(consolidated_content, encoding="utf-8")
                 print(f"    [OK] Created: {output_file}")
 
         # Create master index
         self.create_master_index(grouped, file_org_archive, autopack_archive)
 
-        print(f"\n[SUCCESS] Consolidation complete!")
-        print(f"\nNext steps:")
-        print(f"1. Review consolidated files in:")
+        print("\n[SUCCESS] Consolidation complete!")
+        print("\nNext steps:")
+        print("1. Review consolidated files in:")
         print(f"   - {file_org_archive}")
         print(f"   - {autopack_archive}")
-        print(f"2. Archive original files to 'superseded/' subfolder")
-        print(f"3. Update archive_consolidator.py for auto-update")
+        print("2. Archive original files to 'superseded/' subfolder")
+        print("3. Update archive_consolidator.py for auto-update")
 
-    def create_master_index(self,
-                           grouped: Dict[str, Dict[str, List]],
-                           file_org_archive: Path,
-                           autopack_archive: Path):
+    def create_master_index(
+        self, grouped: Dict[str, Dict[str, List]], file_org_archive: Path, autopack_archive: Path
+    ):
         """Create master index file."""
         index_content = f"""# Documentation Archive Index
 
@@ -306,7 +349,9 @@ Quick reference guide to all consolidated documentation across projects.
             for category, files in grouped["file-organizer-app-v1"].items():
                 consolidated_file = f"CONSOLIDATED_{category.upper()}.md"
                 index_content += f"\n### {category.title()}\n"
-                index_content += f"**File**: [{consolidated_file}]({file_org_archive / consolidated_file})\n"
+                index_content += (
+                    f"**File**: [{consolidated_file}]({file_org_archive / consolidated_file})\n"
+                )
                 index_content += f"**Sources**: {len(files)} files consolidated\n\n"
 
         index_content += "\n---\n\n## Autopack Framework Documentation\n\n"
@@ -315,7 +360,9 @@ Quick reference guide to all consolidated documentation across projects.
             for category, files in grouped["autopack-framework"].items():
                 consolidated_file = f"CONSOLIDATED_{category.upper()}.md"
                 index_content += f"\n### {category.title()}\n"
-                index_content += f"**File**: [{consolidated_file}]({autopack_archive / consolidated_file})\n"
+                index_content += (
+                    f"**File**: [{consolidated_file}]({autopack_archive / consolidated_file})\n"
+                )
                 index_content += f"**Sources**: {len(files)} files consolidated\n\n"
 
         index_content += """
@@ -344,10 +391,10 @@ python scripts/consolidate_docs.py
 """
 
         # Write index to both locations
-        (file_org_archive / "ARCHIVE_INDEX.md").write_text(index_content, encoding='utf-8')
-        (autopack_archive / "ARCHIVE_INDEX.md").write_text(index_content, encoding='utf-8')
+        (file_org_archive / "ARCHIVE_INDEX.md").write_text(index_content, encoding="utf-8")
+        (autopack_archive / "ARCHIVE_INDEX.md").write_text(index_content, encoding="utf-8")
 
-        print(f"  [OK] Created: ARCHIVE_INDEX.md in both locations")
+        print("  [OK] Created: ARCHIVE_INDEX.md in both locations")
 
 
 def main():

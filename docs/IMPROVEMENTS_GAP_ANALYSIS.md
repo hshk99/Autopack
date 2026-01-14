@@ -78,7 +78,7 @@ Autopack currently contains **two UIs**. We must choose one as canonical so CI +
 
 ### Decision
 
-**Canonical frontend = Option A (root Vite UI).**  
+**Canonical frontend = Option A (root Vite UI).**
 Treat `src/autopack/dashboard/frontend/` as **legacy**: either migrate features into `src/frontend/` or move the dashboard UI to `archive/experiments/` (or delete once migrated).
 
 ### Canonical “one truth” skeleton (after convergence)
@@ -1574,4 +1574,3 @@ These are tracked opportunities for future improvement, identified during GAP-8.
 - **Enhancement**: Integrate with existing `pii_detector` to optionally redact sensitive content in artifact responses.
 - **Priority**: P2 (compliance for shared artifact viewing)
 - **Acceptance criteria**: Artifact responses have redaction applied when governance policy requires it.
-

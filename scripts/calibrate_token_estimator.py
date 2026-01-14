@@ -55,6 +55,7 @@ except (ImportError, AttributeError):
 @dataclass
 class CalibrationSample:
     """Single telemetry sample for calibration."""
+
     phase_id: str
     run_id: str
     category: str
@@ -73,6 +74,7 @@ class CalibrationSample:
 @dataclass
 class CalibrationResult:
     """Calibration result for a category/complexity group."""
+
     category: str
     complexity: Optional[str]
     sample_count: int
@@ -91,7 +93,9 @@ class CalibrationResult:
     avg_selected_budget: float
 
 
-def collect_telemetry_samples(session, include_run_ids: Optional[List[str]] = None) -> List[CalibrationSample]:
+def collect_telemetry_samples(
+    session, include_run_ids: Optional[List[str]] = None
+) -> List[CalibrationSample]:
     """
     Collect telemetry samples from database.
 
@@ -113,7 +117,7 @@ def collect_telemetry_samples(session, include_run_ids: Optional[List[str]] = No
         TokenEstimationV2Event.success == True,
         TokenEstimationV2Event.truncated == False,
         TokenEstimationV2Event.predicted_output_tokens.isnot(None),
-        TokenEstimationV2Event.actual_output_tokens.isnot(None)
+        TokenEstimationV2Event.actual_output_tokens.isnot(None),
     )
 
     # Apply run-id filter if specified
@@ -146,7 +150,7 @@ def collect_telemetry_samples(session, include_run_ids: Optional[List[str]] = No
             actual_max_tokens=event.actual_max_tokens,
             success=event.success,
             truncated=event.truncated,
-            timestamp=event.timestamp or datetime.now(timezone.utc).isoformat()
+            timestamp=event.timestamp or datetime.now(timezone.utc).isoformat(),
         )
         samples.append(sample)
 
@@ -154,7 +158,7 @@ def collect_telemetry_samples(session, include_run_ids: Optional[List[str]] = No
 
 
 def group_samples_by_category_complexity(
-    samples: List[CalibrationSample]
+    samples: List[CalibrationSample],
 ) -> Dict[Tuple[str, str], List[CalibrationSample]]:
     """
     Group samples by (category, complexity).
@@ -173,10 +177,7 @@ def group_samples_by_category_complexity(
 
 
 def compute_calibration_result(
-    category: str,
-    complexity: str,
-    samples: List[CalibrationSample],
-    min_samples: int = 5
+    category: str, complexity: str, samples: List[CalibrationSample], min_samples: int = 5
 ) -> Optional[CalibrationResult]:
     """
     Compute calibration result for a category/complexity group.
@@ -216,7 +217,7 @@ def compute_calibration_result(
     # Variance-based confidence: lower when ratios are widely spread
     # Use 1/(1+std) formula so confidence doesn't instantly collapse to 0
     ratio_variance = sum((r - avg_ratio) ** 2 for r in ratios) / len(ratios)
-    ratio_std = ratio_variance ** 0.5
+    ratio_std = ratio_variance**0.5
     variance_confidence = 1.0 / (1.0 + ratio_std)
 
     # Weight sample count more heavily (60/40) since we want min-samples gate to be meaningful
@@ -238,7 +239,9 @@ def compute_calibration_result(
     sorted_waste = sorted(budget_waste_ratios)
     median_budget_waste = sorted_waste[len(sorted_waste) // 2]
     p90_index = int(len(sorted_waste) * 0.9)
-    p90_budget_waste = sorted_waste[p90_index] if p90_index < len(sorted_waste) else sorted_waste[-1]
+    p90_budget_waste = (
+        sorted_waste[p90_index] if p90_index < len(sorted_waste) else sorted_waste[-1]
+    )
     avg_selected_budget = sum(s.selected_budget for s in samples) / len(samples)
 
     return CalibrationResult(
@@ -256,14 +259,12 @@ def compute_calibration_result(
         samples=samples,
         median_budget_waste=median_budget_waste,
         p90_budget_waste=p90_budget_waste,
-        avg_selected_budget=avg_selected_budget
+        avg_selected_budget=avg_selected_budget,
     )
 
 
 def generate_markdown_report(
-    results: List[CalibrationResult],
-    output_path: Path,
-    confidence_threshold: float = 0.7
+    results: List[CalibrationResult], output_path: Path, confidence_threshold: float = 0.7
 ) -> None:
     """
     Generate markdown report with calibration results.
@@ -273,7 +274,7 @@ def generate_markdown_report(
         output_path: Output file path
         confidence_threshold: Minimum confidence for recommendations
     """
-    with open(output_path, 'w', encoding='utf-8') as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write("# Token Estimator Calibration Report\n\n")
         f.write(f"Generated: {datetime.now(timezone.utc).isoformat()}\n\n")
 
@@ -283,7 +284,9 @@ def generate_markdown_report(
         f.write(f"- Total samples analyzed: {total_samples}\n")
         f.write(f"- Total groups: {len(results)}\n")
         high_confidence = [r for r in results if r.confidence >= confidence_threshold]
-        f.write(f"- High-confidence groups (≥{confidence_threshold:.0%}): {len(high_confidence)}\n\n")
+        f.write(
+            f"- High-confidence groups (≥{confidence_threshold:.0%}): {len(high_confidence)}\n\n"
+        )
 
         # Recommendations
         f.write("## Recommendations\n\n")
@@ -299,22 +302,32 @@ def generate_markdown_report(
                 f.write(f"- **Proposed multiplier**: {result.proposed_multiplier:.2f}x\n")
 
                 if result.median_ratio > 1.2:
-                    f.write(f"- **Action**: Increase coefficients by {(result.proposed_multiplier - 1) * 100:.0f}%\n")
+                    f.write(
+                        f"- **Action**: Increase coefficients by {(result.proposed_multiplier - 1) * 100:.0f}%\n"
+                    )
                 elif result.median_ratio < 0.8:
-                    f.write(f"- **Action**: Decrease coefficients by {(1 - result.proposed_multiplier) * 100:.0f}%\n")
+                    f.write(
+                        f"- **Action**: Decrease coefficients by {(1 - result.proposed_multiplier) * 100:.0f}%\n"
+                    )
                 else:
-                    f.write(f"- **Action**: No adjustment needed (within ±20% tolerance)\n")
+                    f.write("- **Action**: No adjustment needed (within ±20% tolerance)\n")
                 f.write("\n")
         else:
             f.write("No groups met the confidence threshold for recommendations.\n")
-            f.write(f"Increase sample size or lower confidence threshold.\n\n")
+            f.write("Increase sample size or lower confidence threshold.\n\n")
 
         # Detailed Results
         f.write("## Detailed Results\n\n")
         f.write("All calibration groups (including low-confidence):\n\n")
-        f.write("| Category | Complexity | Samples | Avg Actual | Avg Est | Median Ratio | Confidence | Proposed Mult |\n")
-        f.write("|----------|------------|---------|------------|---------|--------------|------------|---------------|\n")
-        for result in sorted(results, key=lambda r: (-r.sample_count, r.category, r.complexity or "")):
+        f.write(
+            "| Category | Complexity | Samples | Avg Actual | Avg Est | Median Ratio | Confidence | Proposed Mult |\n"
+        )
+        f.write(
+            "|----------|------------|---------|------------|---------|--------------|------------|---------------|\n"
+        )
+        for result in sorted(
+            results, key=lambda r: (-r.sample_count, r.category, r.complexity or "")
+        ):
             f.write(
                 f"| {result.category} | {result.complexity or 'N/A'} | {result.sample_count} | "
                 f"{result.avg_actual:.0f} | {result.avg_estimated:.0f} | "
@@ -331,9 +344,7 @@ def generate_markdown_report(
 
 
 def generate_json_patch(
-    results: List[CalibrationResult],
-    output_path: Path,
-    confidence_threshold: float = 0.7
+    results: List[CalibrationResult], output_path: Path, confidence_threshold: float = 0.7
 ) -> None:
     """
     Generate JSON patch with proposed coefficient updates.
@@ -350,9 +361,9 @@ def generate_json_patch(
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "confidence_threshold": confidence_threshold,
             "total_samples": sum(r.sample_count for r in results),
-            "high_confidence_groups": len(high_confidence)
+            "high_confidence_groups": len(high_confidence),
         },
-        "proposed_changes": []
+        "proposed_changes": [],
     }
 
     for result in high_confidence:
@@ -367,11 +378,11 @@ def generate_json_patch(
             "median_ratio": round(result.median_ratio, 3),
             "proposed_multiplier": round(result.proposed_multiplier, 3),
             "action": "multiply PHASE_OVERHEAD[(category, complexity)] by proposed_multiplier",
-            "reasoning": f"Actual tokens are {result.median_ratio:.2f}x estimated (median)"
+            "reasoning": f"Actual tokens are {result.median_ratio:.2f}x estimated (median)",
         }
         patch["proposed_changes"].append(change)
 
-    with open(output_path, 'w', encoding='utf-8') as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(patch, f, indent=2)
 
 
@@ -384,25 +395,25 @@ def main():
         "--min-samples",
         type=int,
         default=5,
-        help="Minimum samples required per category/complexity group (default: 5)"
+        help="Minimum samples required per category/complexity group (default: 5)",
     )
     parser.add_argument(
         "--confidence-threshold",
         type=float,
         default=0.7,
-        help="Minimum confidence to propose changes (default: 0.7)"
+        help="Minimum confidence to propose changes (default: 0.7)",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path("."),
-        help="Directory for output files (default: current directory)"
+        help="Directory for output files (default: current directory)",
     )
     parser.add_argument(
         "--include-run-id",
         action="append",
         dest="include_run_ids",
-        help="Only include samples from specified run IDs (repeatable). Example: --include-run-id telemetry-collection-v5 --include-run-id telemetry-collection-v6"
+        help="Only include samples from specified run IDs (repeatable). Example: --include-run-id telemetry-collection-v5 --include-run-id telemetry-collection-v6",
     )
     add_empty_db_arg(parser)
 
@@ -413,9 +424,7 @@ def main():
     try:
         print_db_identity(session)
         check_empty_db_warning(
-            session,
-            script_name="calibrate_token_estimator",
-            allow_empty=args.allow_empty_db
+            session, script_name="calibrate_token_estimator", allow_empty=args.allow_empty_db
         )
     finally:
         session.close()
@@ -429,7 +438,7 @@ def main():
     if args.include_run_ids:
         print(f"Run-ID filter: {', '.join(args.include_run_ids)}")
     else:
-        print(f"Run-ID filter: None (all runs)")
+        print("Run-ID filter: None (all runs)")
     print()
 
     # Collect telemetry samples
@@ -443,12 +452,16 @@ def main():
         if samples:
             populated_count = sum(1 for s in samples if s.actual_max_tokens is not None)
             coverage_pct = (populated_count / len(samples) * 100) if len(samples) > 0 else 0
-            print(f"\nTelemetry coverage: actual_max_tokens populated in {populated_count}/{len(samples)} samples ({coverage_pct:.1f}%)")
+            print(
+                f"\nTelemetry coverage: actual_max_tokens populated in {populated_count}/{len(samples)} samples ({coverage_pct:.1f}%)"
+            )
             if coverage_pct < 80.0:
                 print("⚠️  WARNING: Low actual_max_tokens coverage (<80%)")
                 print("   Waste numbers may be underestimated (falling back to selected_budget)")
                 print("   Consider running BUILD-142 migration/backfill:")
-                print("     python scripts/migrations/add_actual_max_tokens_to_token_estimation_v2.py")
+                print(
+                    "     python scripts/migrations/add_actual_max_tokens_to_token_estimation_v2.py"
+                )
                 print()
 
         if not samples:
@@ -459,7 +472,9 @@ def main():
             print("    3. Database missing llm_usage_events table")
             print("\n  To collect telemetry:")
             print("    1. Create telemetry run: python scripts/create_telemetry_collection_run.py")
-            print("    2. Drain phases: python scripts/drain_one_phase.py --run-id <run> --phase-id <phase>")
+            print(
+                "    2. Drain phases: python scripts/drain_one_phase.py --run-id <run> --phase-id <phase>"
+            )
             print("       (with TELEMETRY_DB_ENABLED=1 environment variable)")
             sys.exit(1)
 
@@ -477,16 +492,20 @@ def main():
                 category=category,
                 complexity=complexity,
                 samples=group_samples,
-                min_samples=args.min_samples
+                min_samples=args.min_samples,
             )
             if result:
                 results.append(result)
-                print(f"  [{category}/{complexity}] {result.sample_count} samples, "
-                      f"median ratio: {result.median_ratio:.2f}x, "
-                      f"confidence: {result.confidence:.1%}")
+                print(
+                    f"  [{category}/{complexity}] {result.sample_count} samples, "
+                    f"median ratio: {result.median_ratio:.2f}x, "
+                    f"confidence: {result.confidence:.1%}"
+                )
             else:
                 below_threshold_groups.append((category, complexity, len(group_samples)))
-                print(f"  [{category}/{complexity}] {len(group_samples)} samples (below min threshold)")
+                print(
+                    f"  [{category}/{complexity}] {len(group_samples)} samples (below min threshold)"
+                )
 
         if not results:
             print("\n[STOP] No groups met minimum sample size")
@@ -524,10 +543,12 @@ def main():
         print(f"High-confidence groups (≥{args.confidence_threshold:.0%}): {len(high_confidence)}")
 
         if below_threshold_groups:
-            print(f"\nBelow-threshold groups (need more samples for V7):")
+            print("\nBelow-threshold groups (need more samples for V7):")
             for cat, comp, count in sorted(below_threshold_groups, key=lambda x: (x[0], x[1])):
                 needed = args.min_samples - count
-                print(f"  [{cat}/{comp}] {count} samples (need {needed} more to reach {args.min_samples})")
+                print(
+                    f"  [{cat}/{comp}] {count} samples (need {needed} more to reach {args.min_samples})"
+                )
 
         # Cost-aware analysis
         print("\n" + "=" * 70)
@@ -535,12 +556,14 @@ def main():
         print("=" * 70)
         print("Group                      Median Waste  P90 Waste  Avg Budget  Avg Actual")
         print("-" * 70)
-        for result in sorted(results, key=lambda r: (r.category, r.complexity or '')):
-            print(f"{result.category}/{result.complexity or 'all':15s}   "
-                  f"{result.median_budget_waste:6.2f}x      "
-                  f"{result.p90_budget_waste:6.2f}x    "
-                  f"{result.avg_selected_budget:7.0f}     "
-                  f"{result.avg_actual:7.0f}")
+        for result in sorted(results, key=lambda r: (r.category, r.complexity or "")):
+            print(
+                f"{result.category}/{result.complexity or 'all':15s}   "
+                f"{result.median_budget_waste:6.2f}x      "
+                f"{result.p90_budget_waste:6.2f}x    "
+                f"{result.avg_selected_budget:7.0f}     "
+                f"{result.avg_actual:7.0f}"
+            )
         print("=" * 70)
         print("Note: Waste = actual_max_tokens / actual_tokens (BUILD-142+)")
         print("      Fallback to selected_budget for pre-BUILD-142 telemetry")
@@ -552,14 +575,16 @@ def main():
             for result in sorted(high_confidence, key=lambda r: -r.confidence):
                 action = "increase" if result.median_ratio > 1.0 else "decrease"
                 pct = abs((result.proposed_multiplier - 1) * 100)
-                print(f"  [{result.category}/{result.complexity}] "
-                      f"{action} coefficients by {pct:.0f}% "
-                      f"(confidence: {result.confidence:.1%})")
+                print(
+                    f"  [{result.category}/{result.complexity}] "
+                    f"{action} coefficients by {pct:.0f}% "
+                    f"(confidence: {result.confidence:.1%})"
+                )
 
             print("\n⚠️  IMPORTANT: Review outputs before applying changes!")
             print(f"  1. Read markdown report: {markdown_path}")
             print(f"  2. Review JSON patch: {json_path}")
-            print(f"  3. Manually update src/autopack/token_estimator.py if changes are warranted")
+            print("  3. Manually update src/autopack/token_estimator.py if changes are warranted")
         else:
             print("\nNo high-confidence recommendations.")
             print(f"  All groups below {args.confidence_threshold:.0%} confidence threshold")

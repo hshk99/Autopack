@@ -21,12 +21,12 @@ def test_security_baseline_refresh_has_artifacts_run_id_input() -> None:
     )
 
     assert "workflow_dispatch" in wf
-    assert re.search(
-        r"^\s+inputs:\s*$", wf, flags=re.MULTILINE
-    ), "workflow_dispatch must define inputs"
-    assert re.search(
-        r"^\s+artifacts_run_id:\s*$", wf, flags=re.MULTILINE
-    ), "workflow_dispatch.inputs.artifacts_run_id is required"
+    assert re.search(r"^\s+inputs:\s*$", wf, flags=re.MULTILINE), (
+        "workflow_dispatch must define inputs"
+    )
+    assert re.search(r"^\s+artifacts_run_id:\s*$", wf, flags=re.MULTILINE), (
+        "workflow_dispatch.inputs.artifacts_run_id is required"
+    )
 
 
 def test_security_baseline_refresh_has_concurrency_block() -> None:
@@ -38,12 +38,12 @@ def test_security_baseline_refresh_has_concurrency_block() -> None:
     # Basic structural enforcement (avoid YAML parsing)
     assert re.search(r"^concurrency:\s*$", wf, flags=re.MULTILINE), "concurrency block required"
     group_pattern = r"^\s+group:\s+security-baseline-refresh-" r"\$\{\{\s*github\.ref\s*\}\}\s*$"
-    assert re.search(
-        group_pattern, wf, flags=re.MULTILINE
-    ), "concurrency.group must scope to github.ref"
-    assert re.search(
-        r"^\s+cancel-in-progress:\s+true\s*$", wf, flags=re.MULTILINE
-    ), "concurrency.cancel-in-progress must be true"
+    assert re.search(group_pattern, wf, flags=re.MULTILINE), (
+        "concurrency.group must scope to github.ref"
+    )
+    assert re.search(r"^\s+cancel-in-progress:\s+true\s*$", wf, flags=re.MULTILINE), (
+        "concurrency.cancel-in-progress must be true"
+    )
 
 
 def test_security_baseline_refresh_uses_force_with_lease_not_force() -> None:
@@ -68,6 +68,6 @@ def test_security_baseline_refresh_download_step_is_deterministic_when_input_pro
     assert "Download security artifacts from specified run_id" in wf
     assert "inputs.artifacts_run_id" in wf
     run_id_pattern = r"^\s+run_id:\s+\$\{\{\s*inputs\.artifacts_run_id\s*\}\}\s*$"
-    assert re.search(
-        run_id_pattern, wf, flags=re.MULTILINE
-    ), "download step must pass run_id from workflow_dispatch input"
+    assert re.search(run_id_pattern, wf, flags=re.MULTILINE), (
+        "download step must pass run_id from workflow_dispatch input"
+    )

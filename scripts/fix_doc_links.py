@@ -54,11 +54,11 @@ def create_backup(repo_root: Path, files_to_backup: List[Path]) -> Path:
     Returns:
         Path to backup zip file
     """
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_path = repo_root / "archive" / "diagnostics" / f"doc_link_fix_backup_{timestamp}.zip"
     backup_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with zipfile.ZipFile(backup_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+    with zipfile.ZipFile(backup_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for file_path in files_to_backup:
             if file_path.exists():
                 arcname = file_path.relative_to(repo_root)
@@ -80,7 +80,7 @@ def load_fix_plan(plan_path: Path) -> Dict:
     if not plan_path.exists():
         raise FileNotFoundError(f"Fix plan not found: {plan_path}")
 
-    content = plan_path.read_text(encoding='utf-8')
+    content = plan_path.read_text(encoding="utf-8")
     return json.loads(content)
 
 
@@ -102,21 +102,24 @@ def apply_fix_to_line(line: str, broken_target: str, suggested_fix: str) -> str:
     escaped_broken = re.escape(broken_target)
 
     # Normalize suggested fix to forward slashes (markdown standard)
-    normalized_fix = suggested_fix.replace('\\', '/')
+    normalized_fix = suggested_fix.replace("\\", "/")
 
     # Try markdown link pattern: [text](broken_target)
-    markdown_pattern = r'\[([^\]]+)\]\(' + escaped_broken + r'([#\)])'
+    markdown_pattern = r"\[([^\]]+)\]\(" + escaped_broken + r"([#\)])"
     if re.search(markdown_pattern, line):
         # Use a replacement function to avoid regex escape issues
         def markdown_repl(match):
-            return f'[{match.group(1)}]({normalized_fix}{match.group(2)}'
+            return f"[{match.group(1)}]({normalized_fix}{match.group(2)}"
+
         return re.sub(markdown_pattern, markdown_repl, line)
 
     # Try backtick pattern: `broken_target`
-    backtick_pattern = r'`' + escaped_broken + r'`'
+    backtick_pattern = r"`" + escaped_broken + r"`"
     if re.search(backtick_pattern, line):
+
         def backtick_repl(match):
-            return f'`{normalized_fix}`'
+            return f"`{normalized_fix}`"
+
         return re.sub(backtick_pattern, backtick_repl, line)
 
     # Direct replacement as fallback
@@ -128,7 +131,7 @@ def apply_fixes(
     fix_plan: Dict,
     dry_run: bool = True,
     apply_medium: bool = False,
-    force: bool = False
+    force: bool = False,
 ) -> Dict:
     """
     Apply fixes from fix plan.
@@ -143,36 +146,31 @@ def apply_fixes(
     Returns:
         Dict with fix statistics
     """
-    broken_links = fix_plan.get('broken_links', [])
+    broken_links = fix_plan.get("broken_links", [])
 
     # Group fixes by source file and line number
     fixes_by_file = {}
     for broken in broken_links:
         # Skip if no suggested fix
-        if not broken.get('suggested_fix'):
+        if not broken.get("suggested_fix"):
             continue
 
         # Skip based on confidence threshold
-        confidence = broken.get('confidence', 'low')
+        confidence = broken.get("confidence", "low")
         if not force:
-            if confidence == 'low':
+            if confidence == "low":
                 continue
-            if confidence == 'medium' and not apply_medium:
+            if confidence == "medium" and not apply_medium:
                 continue
 
-        source_file = broken['source_file']
+        source_file = broken["source_file"]
         if source_file not in fixes_by_file:
             fixes_by_file[source_file] = []
 
         fixes_by_file[source_file].append(broken)
 
     # Statistics
-    stats = {
-        'files_modified': 0,
-        'links_fixed': 0,
-        'skipped': 0,
-        'errors': 0
-    }
+    stats = {"files_modified": 0, "links_fixed": 0, "skipped": 0, "errors": 0}
 
     # Preview or apply fixes
     for source_file_rel, fixes in sorted(fixes_by_file.items()):
@@ -180,25 +178,25 @@ def apply_fixes(
 
         if not source_file.exists():
             print(f"⚠️  File not found: {source_file_rel}")
-            stats['errors'] += 1
+            stats["errors"] += 1
             continue
 
         # Read file
-        content = source_file.read_text(encoding='utf-8')
-        lines = content.split('\n')
+        content = source_file.read_text(encoding="utf-8")
+        lines = content.split("\n")
 
         # Apply fixes (in reverse line order to preserve line numbers)
         modified = False
-        for fix in sorted(fixes, key=lambda f: f['line_number'], reverse=True):
-            line_num = fix['line_number']
-            broken_target = fix['broken_target']
-            suggested_fix = fix['suggested_fix']
-            confidence = fix['confidence']
+        for fix in sorted(fixes, key=lambda f: f["line_number"], reverse=True):
+            line_num = fix["line_number"]
+            broken_target = fix["broken_target"]
+            suggested_fix = fix["suggested_fix"]
+            confidence = fix["confidence"]
 
             # Validate line number
             if line_num < 1 or line_num > len(lines):
                 print(f"⚠️  Invalid line number {line_num} in {source_file_rel}")
-                stats['errors'] += 1
+                stats["errors"] += 1
                 continue
 
             # Apply fix to line
@@ -214,16 +212,16 @@ def apply_fixes(
                     lines[line_num - 1] = fixed_line
 
                 modified = True
-                stats['links_fixed'] += 1
+                stats["links_fixed"] += 1
             else:
                 print(f"⚠️  No change detected for line {line_num} in {source_file_rel}")
-                stats['skipped'] += 1
+                stats["skipped"] += 1
 
         # Write back if modified and not dry-run
         if modified and not dry_run:
-            fixed_content = '\n'.join(lines)
-            source_file.write_text(fixed_content, encoding='utf-8')
-            stats['files_modified'] += 1
+            fixed_content = "\n".join(lines)
+            source_file.write_text(fixed_content, encoding="utf-8")
+            stats["files_modified"] += 1
             print(f"✅ Fixed {source_file_rel}")
 
     return stats
@@ -238,33 +236,27 @@ def main():
         "--repo-root",
         type=Path,
         default=Path(__file__).parent.parent,
-        help="Repository root directory (default: autodetect)"
+        help="Repository root directory (default: autodetect)",
     )
     parser.add_argument(
         "--fix-plan",
         type=Path,
         default=None,
-        help="Path to fix plan JSON (default: archive/diagnostics/doc_link_fix_plan.json)"
+        help="Path to fix plan JSON (default: archive/diagnostics/doc_link_fix_plan.json)",
     )
     parser.add_argument(
-        "--execute",
-        action="store_true",
-        help="Apply fixes (default: dry-run preview)"
+        "--execute", action="store_true", help="Apply fixes (default: dry-run preview)"
     )
     parser.add_argument(
         "--apply-medium",
         action="store_true",
-        help="Apply medium confidence fixes in addition to high"
+        help="Apply medium confidence fixes in addition to high",
     )
     parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Apply all fixes regardless of confidence (dangerous)"
+        "--force", action="store_true", help="Apply all fixes regardless of confidence (dangerous)"
     )
     parser.add_argument(
-        "--no-backup",
-        action="store_true",
-        help="Skip backup creation (dangerous, not recommended)"
+        "--no-backup", action="store_true", help="Skip backup creation (dangerous, not recommended)"
     )
 
     args = parser.parse_args()
@@ -279,9 +271,13 @@ def main():
     print("DOCUMENTATION LINK FIXER")
     print("=" * 70)
     print(f"Repository root: {repo_root}")
-    print(f"Fix plan: {plan_path.relative_to(repo_root) if plan_path.is_relative_to(repo_root) else plan_path}")
+    print(
+        f"Fix plan: {plan_path.relative_to(repo_root) if plan_path.is_relative_to(repo_root) else plan_path}"
+    )
     print(f"Mode: {'EXECUTE' if args.execute else 'DRY-RUN'}")
-    print(f"Confidence threshold: {'all' if args.force else ('medium+high' if args.apply_medium else 'high only')}")
+    print(
+        f"Confidence threshold: {'all' if args.force else ('medium+high' if args.apply_medium else 'high only')}"
+    )
     print("=" * 70)
     print()
 
@@ -295,8 +291,8 @@ def main():
         print("  python scripts/check_doc_links.py --export-json")
         return 1
 
-    summary = fix_plan.get('summary', {})
-    print(f"Fix plan summary:")
+    summary = fix_plan.get("summary", {})
+    print("Fix plan summary:")
     print(f"  Total broken links: {summary.get('total_broken', 0)}")
     print(f"  Auto-fixable (high): {summary.get('by_confidence', {}).get('high', 0)}")
     print(f"  Auto-fixable (medium): {summary.get('by_confidence', {}).get('medium', 0)}")
@@ -305,10 +301,10 @@ def main():
 
     # Create backup if executing and not disabled
     if args.execute and not args.no_backup:
-        broken_links = fix_plan.get('broken_links', [])
+        broken_links = fix_plan.get("broken_links", [])
         files_to_backup = set()
         for broken in broken_links:
-            source_file = repo_root / broken['source_file']
+            source_file = repo_root / broken["source_file"]
             if source_file.exists():
                 files_to_backup.add(source_file)
 
@@ -328,7 +324,7 @@ def main():
         fix_plan,
         dry_run=not args.execute,
         apply_medium=args.apply_medium,
-        force=args.force
+        force=args.force,
     )
 
     # Summary

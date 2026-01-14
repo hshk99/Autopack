@@ -54,6 +54,7 @@ from autopack.storage_optimizer.models import CleanupPlan
 # Phase 2: Execution and Approval Helpers
 # ==============================================================================
 
+
 def send_scan_completion_notification(scan, db):
     """Send Telegram notification on scan completion (BUILD-150 Phase 3)."""
     from autopack.storage_optimizer.telegram_notifications import StorageTelegramNotifier
@@ -90,6 +91,7 @@ def send_scan_completion_notification(scan, db):
 # Phase 2: Database Persistence Helpers
 # ==============================================================================
 
+
 def execute_cleanup(args, db):
     """Execute approved deletions for a specific scan (BUILD-152 enhanced)."""
     from autopack.storage_optimizer.db import get_scan_by_id
@@ -103,15 +105,19 @@ def execute_cleanup(args, db):
         print("[SAFETY] Approval artifact required for execution mode")
 
         # Check for approval file
-        if not hasattr(args, 'approval_file') or not args.approval_file:
+        if not hasattr(args, "approval_file") or not args.approval_file:
             print("")
             print("ERROR: --approval-file is required for --execute mode")
             print("")
             print("To approve this execution:")
-            print(f"  1. Generate report: python scripts/storage/scan_and_report.py --scan-id {args.scan_id} --generate-report")
-            print(f"  2. Review the report and generate approval template")
-            print(f"  3. Fill out approval.json with your details")
-            print(f"  4. Run: python scripts/storage/scan_and_report.py --execute --scan-id {args.scan_id} --approval-file approval.json")
+            print(
+                f"  1. Generate report: python scripts/storage/scan_and_report.py --scan-id {args.scan_id} --generate-report"
+            )
+            print("  2. Review the report and generate approval template")
+            print("  3. Fill out approval.json with your details")
+            print(
+                f"  4. Run: python scripts/storage/scan_and_report.py --execute --scan-id {args.scan_id} --approval-file approval.json"
+            )
             print("")
             return 1
 
@@ -137,8 +143,10 @@ def execute_cleanup(args, db):
         reporter = StorageReporter()
         # Note: We need scan metadata to verify - for now, we'll verify the report_id exists
         # TODO: Store report alongside scan or reconstruct from scan data
-        print(f"[SAFETY] Approval artifact validated")
-        print(f"[SAFETY] Operator '{approval.operator}' authorized execution at {approval.timestamp}")
+        print("[SAFETY] Approval artifact validated")
+        print(
+            f"[SAFETY] Operator '{approval.operator}' authorized execution at {approval.timestamp}"
+        )
         print("")
     else:
         print("[SAFETY] Dry-run mode - no approval required")
@@ -164,7 +172,7 @@ def execute_cleanup(args, db):
         policy=policy,
         dry_run=args.dry_run,
         compress_before_delete=args.compress,
-        skip_locked=args.skip_locked
+        skip_locked=args.skip_locked,
     )
 
     # Execute
@@ -176,9 +184,7 @@ def execute_cleanup(args, db):
     print("")
 
     batch_result = executor.execute_approved_candidates(
-        db,
-        scan_id=args.scan_id,
-        category=args.category
+        db, scan_id=args.scan_id, category=args.category
     )
 
     # BUILD-152: Analyze lock statistics
@@ -208,7 +214,7 @@ def execute_cleanup(args, db):
         # Group by lock type
         lock_types = {}
         for result in locked_results:
-            lock_type = result.lock_type or 'unknown'
+            lock_type = result.lock_type or "unknown"
             if lock_type not in lock_types:
                 lock_types[lock_type] = []
             lock_types[lock_type].append(result)
@@ -256,7 +262,7 @@ def interactive_approval(scan_id, db, approved_by):
         get_scan_by_id,
         get_cleanup_candidates_by_scan,
         get_candidate_stats_by_category,
-        create_approval_decision
+        create_approval_decision,
     )
 
     scan = get_scan_by_id(db, scan_id)
@@ -275,8 +281,8 @@ def interactive_approval(scan_id, db, approved_by):
 
     # Prompt for each category
     for category, category_stats in stats.items():
-        count = category_stats['count']
-        size_gb = category_stats['total_size_bytes'] / (1024**3)
+        count = category_stats["count"]
+        size_gb = category_stats["total_size_bytes"] / (1024**3)
 
         print(f"Category: {category}")
         print(f"  Items: {count}")
@@ -286,23 +292,23 @@ def interactive_approval(scan_id, db, approved_by):
         candidates = get_cleanup_candidates_by_scan(db, scan_id, category=category)
 
         # Prompt user
-        decision = input(f"  Approve deletion? [y/N]: ").strip().lower()
+        decision = input("  Approve deletion? [y/N]: ").strip().lower()
 
-        if decision == 'y':
+        if decision == "y":
             candidate_ids = [c.id for c in candidates]
             approval = create_approval_decision(
                 db,
                 scan_id=scan_id,
                 candidate_ids=candidate_ids,
                 approved_by=approved_by,
-                decision='approve',
-                approval_method='cli_interactive',
-                notes=f"Interactive approval for {category}"
+                decision="approve",
+                approval_method="cli_interactive",
+                notes=f"Interactive approval for {category}",
             )
             db.commit()
             print(f"  [x] Approved {len(candidate_ids)} items ({size_gb:.2f} GB)")
         else:
-            print(f"  [X] Skipped (not approved)")
+            print("  [X] Skipped (not approved)")
 
         print("")
 
@@ -315,7 +321,9 @@ def interactive_approval(scan_id, db, approved_by):
     print("")
 
 
-def save_scan_to_database(db, scan_target, scan_type, policy, scan_results, candidates, start_time, args):
+def save_scan_to_database(
+    db, scan_target, scan_type, policy, scan_results, candidates, start_time, args
+):
     """Save scan results to PostgreSQL database."""
     from autopack.models import StorageScan, CleanupCandidateDB
 
@@ -337,14 +345,16 @@ def save_scan_to_database(db, scan_target, scan_type, policy, scan_results, cand
         cleanup_candidates_count=len(candidates),
         potential_savings_bytes=potential_savings_bytes,
         scan_duration_seconds=scan_duration_seconds,
-        created_by=args.approved_by
+        created_by=args.approved_by,
     )
     db.add(scan)
     db.flush()  # Get scan.id
 
     # Verify scan.id is populated
     if not scan.id:
-        raise ValueError("Scan ID not generated after flush - database may not support auto-increment")
+        raise ValueError(
+            "Scan ID not generated after flush - database may not support auto-increment"
+        )
 
     # Save candidates
     for candidate in candidates:
@@ -357,7 +367,7 @@ def save_scan_to_database(db, scan_target, scan_type, policy, scan_results, cand
             category=candidate.category,
             reason=candidate.reason,
             requires_approval=candidate.requires_approval,
-            approval_status='pending'
+            approval_status="pending",
         )
         db.add(candidate_db)
 
@@ -391,15 +401,15 @@ def compare_scans(db, current_scan_id, previous_scan_id):
     try:
         comparison = db_compare_scans(db, current_scan_id, previous_scan_id)
 
-        current = comparison['scan_current']
-        previous = comparison['scan_previous']
+        current = comparison["scan_current"]
+        previous = comparison["scan_previous"]
 
         print(f"Current scan:  {current.id} ({current.timestamp})")
         print(f"Previous scan: {previous.id} ({previous.timestamp})")
         print("")
 
         # Size changes
-        size_change = comparison['total_size_change_bytes']
+        size_change = comparison["total_size_change_bytes"]
         size_change_gb = size_change / (1024**3)
         change_symbol = "+" if size_change > 0 else ""
 
@@ -410,7 +420,7 @@ def compare_scans(db, current_scan_id, previous_scan_id):
         print("")
 
         # Cleanup candidates changes
-        candidates_change = comparison['cleanup_candidates_change']
+        candidates_change = comparison["cleanup_candidates_change"]
         print("CLEANUP CANDIDATES:")
         print(f"  Previous: {previous.cleanup_candidates_count}")
         print(f"  Current:  {current.cleanup_candidates_count}")
@@ -418,9 +428,9 @@ def compare_scans(db, current_scan_id, previous_scan_id):
         print("")
 
         # Category changes
-        if comparison['categories_added']:
+        if comparison["categories_added"]:
             print(f"NEW CATEGORIES: {', '.join(comparison['categories_added'])}")
-        if comparison['categories_removed']:
+        if comparison["categories_removed"]:
             print(f"REMOVED CATEGORIES: {', '.join(comparison['categories_removed'])}")
         print("")
 
@@ -433,71 +443,51 @@ def main():
     parser = argparse.ArgumentParser(
         description="Storage Optimizer - Scan and generate cleanup reports"
     )
+    parser.add_argument("--drive", default="C", help="Drive letter to scan (default: C)")
+    parser.add_argument("--dir", help="Specific directory to scan (overrides --drive)")
     parser.add_argument(
-        "--drive",
-        default="C",
-        help="Drive letter to scan (default: C)"
+        "--max-depth", type=int, default=3, help="Maximum directory depth to scan (default: 3)"
     )
     parser.add_argument(
-        "--dir",
-        help="Specific directory to scan (overrides --drive)"
+        "--max-items", type=int, default=10000, help="Maximum items to scan (default: 10000)"
     )
     parser.add_argument(
-        "--max-depth",
-        type=int,
-        default=3,
-        help="Maximum directory depth to scan (default: 3)"
+        "--output-dir", help="Directory to save reports (default: archive/reports/storage/)"
     )
     parser.add_argument(
-        "--max-items",
-        type=int,
-        default=10000,
-        help="Maximum items to scan (default: 10000)"
-    )
-    parser.add_argument(
-        "--output-dir",
-        help="Directory to save reports (default: archive/reports/storage/)"
-    )
-    parser.add_argument(
-        "--no-save",
-        action="store_true",
-        help="Don't save report to disk, only print to console"
+        "--no-save", action="store_true", help="Don't save report to disk, only print to console"
     )
 
     # Phase 2: Database persistence
     parser.add_argument(
         "--save-to-db",
         action="store_true",
-        help="Save scan results to PostgreSQL database (BUILD-149 Phase 2)"
+        help="Save scan results to PostgreSQL database (BUILD-149 Phase 2)",
     )
     parser.add_argument(
-        "--scan-id",
-        type=int,
-        help="Scan ID to operate on (for --execute or --compare-with)"
+        "--scan-id", type=int, help="Scan ID to operate on (for --execute or --compare-with)"
     )
     parser.add_argument(
-        "--compare-with",
-        type=int,
-        help="Compare current scan with previous scan ID"
+        "--compare-with", type=int, help="Compare current scan with previous scan ID"
     )
 
     # Phase 2: Interactive approval
     parser.add_argument(
         "--interactive",
         action="store_true",
-        help="Interactive approval mode - prompt for cleanup decisions"
+        help="Interactive approval mode - prompt for cleanup decisions",
     )
     parser.add_argument(
         "--approved-by",
         default=os.getenv("USER", "cli_user"),
-        help="User identifier for approvals (default: $USER)"
+        help="User identifier for approvals (default: $USER)",
     )
 
     # Phase 2: Execution
     parser.add_argument(
         "--execute",
         action="store_true",
-        help="Execute approved deletions (DANGER: actual deletion via Recycle Bin)"
+        help="Execute approved deletions (DANGER: actual deletion via Recycle Bin)",
     )
     # Dry-run is default; use --no-dry-run to disable
     parser.add_argument(
@@ -505,44 +495,41 @@ def main():
         dest="dry_run",
         action="store_true",
         default=None,  # Will be set based on --execute mode
-        help="Preview actions without executing"
+        help="Preview actions without executing",
     )
     parser.add_argument(
         "--no-dry-run",
         dest="dry_run",
         action="store_false",
-        help="Disable dry-run mode (execute for real)"
+        help="Disable dry-run mode (execute for real)",
     )
     parser.add_argument(
-        "--compress",
-        action="store_true",
-        help="Compress files/folders before deletion"
+        "--compress", action="store_true", help="Compress files/folders before deletion"
     )
     parser.add_argument(
-        "--category",
-        help="Filter execution to specific category (e.g., 'dev_caches')"
+        "--category", help="Filter execution to specific category (e.g., 'dev_caches')"
     )
     parser.add_argument(
         "--skip-locked",
         action="store_true",
-        help="Skip locked files without retry (BUILD-152, useful for automated runs)"
+        help="Skip locked files without retry (BUILD-152, useful for automated runs)",
     )
     parser.add_argument(
         "--approval-file",
         type=str,
-        help="Path to approval.json artifact (REQUIRED for --execute without --dry-run)"
+        help="Path to approval.json artifact (REQUIRED for --execute without --dry-run)",
     )
 
     # Phase 3 (BUILD-150): Performance and automation
     parser.add_argument(
         "--wiztree",
         action="store_true",
-        help="Use WizTree for 30-50x faster scanning (BUILD-150 Phase 3)"
+        help="Use WizTree for 30-50x faster scanning (BUILD-150 Phase 3)",
     )
     parser.add_argument(
         "--notify",
         action="store_true",
-        help="Send Telegram notification on scan completion (BUILD-150 Phase 3)"
+        help="Send Telegram notification on scan completion (BUILD-150 Phase 3)",
     )
 
     args = parser.parse_args()
@@ -584,6 +571,7 @@ def main():
     db_session = None
     if args.save_to_db or args.execute or args.compare_with:
         from autopack.database import SessionLocal
+
         db_session = SessionLocal()
         print("[DB] Connected to PostgreSQL database")
         print("")
@@ -613,6 +601,7 @@ def main():
         scanner = create_scanner(prefer_wiztree=True)
         # Check if WizTree is actually available
         from autopack.storage_optimizer.wiztree_scanner import WizTreeScanner
+
         if isinstance(scanner, WizTreeScanner):
             print("      [x] WizTree available - expect 30-50x faster scans")
         else:
@@ -622,7 +611,7 @@ def main():
         scanner = StorageScanner()
 
     # Set max_depth if using Python scanner
-    if hasattr(scanner, 'max_depth'):
+    if hasattr(scanner, "max_depth"):
         scanner.max_depth = args.max_depth
 
     classifier = FileClassifier(policy)
@@ -640,12 +629,14 @@ def main():
         drive_letter = args.dir[0] if len(args.dir) > 0 else "C"
     else:
         # Phase 3: Use full drive scan with WizTree (much faster than selective scanning)
-        if args.wiztree and hasattr(scanner, 'scan_drive'):
+        if args.wiztree and hasattr(scanner, "scan_drive"):
             print(f"      Drive: {args.drive}:\\ (full drive scan via WizTree MFT)")
-            scan_results = scanner.scan_drive(args.drive, max_depth=args.max_depth, max_items=args.max_items)
+            scan_results = scanner.scan_drive(
+                args.drive, max_depth=args.max_depth, max_items=args.max_items
+            )
         else:
             print(f"      Drive: {args.drive}:\\")
-            print(f"      Scanning high-value directories...")
+            print("      Scanning high-value directories...")
             scan_results = scanner.scan_high_value_directories(args.drive)
         drive_letter = args.drive
 
@@ -671,7 +662,9 @@ def main():
     protected_paths = classifier.get_protected_paths(scan_results)
     protected_size = sum(r.size_bytes for r in scan_results if r.path in protected_paths)
 
-    print(f"      Protected paths: {len(protected_paths):,} items ({protected_size / (1024**3):.2f} GB)")
+    print(
+        f"      Protected paths: {len(protected_paths):,} items ({protected_size / (1024**3):.2f} GB)"
+    )
 
     # Classify candidates
     candidates = classifier.classify_batch(scan_results)
@@ -699,7 +692,7 @@ def main():
         scan_results=scan_results,
         cleanup_plan=cleanup_plan,
         protected_paths=protected_paths,
-        protected_size_bytes=protected_size
+        protected_size_bytes=protected_size,
     )
 
     # Print summary to console
@@ -714,7 +707,7 @@ def main():
     # Phase 2: Save to database if requested
     saved_scan = None
     if args.save_to_db and db_session:
-        scan_type = 'directory' if args.dir else 'drive'
+        scan_type = "directory" if args.dir else "drive"
         scan_target = args.dir if args.dir else f"{drive_letter}:"
         saved_scan = save_scan_to_database(
             db_session,
@@ -724,7 +717,7 @@ def main():
             scan_results=scan_results,
             candidates=candidates,
             start_time=datetime.now(timezone.utc),
-            args=args
+            args=args,
         )
 
     # Phase 2: Compare with previous scan if requested
@@ -752,13 +745,17 @@ def main():
 
     if args.save_to_db and saved_scan:
         print(f"Scan ID: {saved_scan.id}")
-        print(f"Scan saved to database for future execution/comparison")
+        print("Scan saved to database for future execution/comparison")
         print("")
         if not args.interactive:
             print("Next steps:")
-            print(f"  1. Review candidates: curl http://localhost:8000/storage/scans/{saved_scan.id}")
-            print(f"  2. Approve via API or use --interactive flag")
-            print(f"  3. Execute: python scripts/storage/scan_and_report.py --execute --scan-id {saved_scan.id}")
+            print(
+                f"  1. Review candidates: curl http://localhost:8000/storage/scans/{saved_scan.id}"
+            )
+            print("  2. Approve via API or use --interactive flag")
+            print(
+                f"  3. Execute: python scripts/storage/scan_and_report.py --execute --scan-id {saved_scan.id}"
+            )
     else:
         print("This was a DRY-RUN analysis. No files were deleted.")
         print("")

@@ -118,7 +118,7 @@ index XXXXXXXX..YYYYYYYY 100644
      ) -> Tuple[bool, str]:
          \"\"\"Inner phase execution with error handling and model escalation support\"\"\"
          phase_id = phase.get(\"phase_id\")
- 
+
          try:
 -            # Chunk 0 batching (research-tracer-bullet) is handled by a specialized executor path
 -            # to reduce patch size and avoid incomplete/truncated patches.
@@ -197,7 +197,7 @@ index XXXXXXXX..YYYYYYYY 100644
 +                    attempt_index=attempt_index,
 +                    allowed_paths=allowed_paths,
 +                )
- 
+
              # Step 1: Execute with Builder using LlmService
              logger.info(f\"[{phase_id}] Step 1/4: Generating code with Builder (via LlmService)...\")
 
@@ -440,4 +440,3 @@ index 00000000..44444444
 
 4) **Risk of circular imports**
    - **Decision**: keep `autopack.executor.*` “leafy.” They must not import `autonomous_executor.py`.
-

@@ -54,4 +54,3 @@ class HypothesisLedger:
                 f"evidence={evidence}; actions={actions}; outcome={outcome}"
             )
         return " | ".join(parts)
-

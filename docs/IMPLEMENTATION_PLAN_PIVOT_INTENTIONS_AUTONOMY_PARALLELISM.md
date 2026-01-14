@@ -1,7 +1,7 @@
 # Implementation Plan: Pivot Intentions → Gap Taxonomy → Autonomy Loop + Safe Parallelism (Universal)
 
-**Audience**: implementation cursor / engineering agent  
-**Status**: plan only (do not implement in this doc)  
+**Audience**: implementation cursor / engineering agent
+**Status**: plan only (do not implement in this doc)
 **Aligned to README “ideal state”**: safe, deterministic, mechanically enforceable; SOT ledgers as canonical memory; execution writes run-local; tidy consolidates; explicit gating and approvals.
 
 ---
@@ -278,16 +278,16 @@ Implement (or harden if already present) the explicit contract to run multiple r
 
 ## Known ambiguities (resolved here)
 
-1. **Can Autopack auto-change intentions?**  
+1. **Can Autopack auto-change intentions?**
    **No.** It may propose clarifying questions or a revised anchor, but requires explicit user approval to update the canonical intention.
 
-2. **Can Autopack write to SOT directly?**  
+2. **Can Autopack write to SOT directly?**
    **No.** Execution is run-local; tidy consolidates (gated, idempotent).
 
-3. **Can Autopack run parallel phases within a run?**  
+3. **Can Autopack run parallel phases within a run?**
    **No (out of scope).** Parallelism is multi-run only under the Four-Layer model.
 
-4. **Can Autopack auto-approve risky changes?**  
+4. **Can Autopack auto-approve risky changes?**
    **No.** Default-deny; narrow auto-approval only. Any uncertainty → requires approval.
 
 ---
@@ -301,5 +301,3 @@ Implement (or harden if already present) the explicit contract to run multiple r
   - `pytest -q tests/autonomy/`
 - Parallelism tests subset:
   - `pytest -q tests/parallelism/`
-
-

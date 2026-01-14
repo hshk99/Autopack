@@ -275,10 +275,10 @@ def execute_phase(phase_id: str, context: str) -> str:
     if Path(response_path).exists():
         response = load_human_response(response_path)
         context = inject_response_into_context(context, response)
-    
+
     # Execute phase logic...
     result = run_llm_with_context(context)
-    
+
     # If evidence is needed, create request
     if needs_clarification(result):
         request = create_clarification_request(
@@ -289,7 +289,7 @@ def execute_phase(phase_id: str, context: str) -> str:
         save_evidence_requests([request], ".autonomous_runs/pending_requests.json")
         print(format_evidence_request(request))
         return "AWAITING_EVIDENCE"
-    
+
     return result
 ```
 

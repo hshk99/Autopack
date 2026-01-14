@@ -46,7 +46,7 @@ def find_recent_execution_logs(since_date: str = None) -> List[Path]:
 def count_pattern_in_log(log_file: Path, pattern: str) -> int:
     """Count occurrences of pattern in log file."""
     try:
-        content = log_file.read_text(encoding='utf-8', errors='ignore')
+        content = log_file.read_text(encoding="utf-8", errors="ignore")
         return len(re.findall(pattern, content, re.IGNORECASE))
     except Exception as e:
         print(f"⚠️  Error reading {log_file}: {e}")
@@ -66,7 +66,7 @@ def analyze_build112_stability(logs: List[Path]) -> Dict:
         "deep_retrieval_triggers": 0,
         "sot_file_retrievals": 0,
         "memory_retrievals": 0,
-        "logs_with_deep_retrieval": 0
+        "logs_with_deep_retrieval": 0,
     }
 
     for log in logs:
@@ -97,7 +97,7 @@ def analyze_build113_stability(logs: List[Path]) -> Dict:
         "goal_aware_decisions": 0,
         "proactive_mode_triggers": 0,
         "risk_assessments": 0,
-        "logs_with_decisions": 0
+        "logs_with_decisions": 0,
     }
 
     for log in logs:
@@ -128,7 +128,7 @@ def analyze_build114_stability(logs: List[Path]) -> Dict:
         "structured_edit_fallbacks": 0,
         "json_repair_attempts": 0,
         "format_conversions": 0,
-        "logs_with_fallbacks": 0
+        "logs_with_fallbacks": 0,
     }
 
     for log in logs:
@@ -147,9 +147,7 @@ def analyze_build114_stability(logs: List[Path]) -> Dict:
 
 
 def check_stability(
-    current_metrics: Dict,
-    baseline_metrics: Dict,
-    threshold: float = 0.10
+    current_metrics: Dict, baseline_metrics: Dict, threshold: float = 0.10
 ) -> Tuple[bool, List[str]]:
     """
     Check if current metrics are within acceptable range of baseline.
@@ -176,13 +174,13 @@ def check_stability(
             is_stable = False
             warnings.append(
                 f"  ⚠️  {key}: {current_value} (baseline: {baseline_value}, "
-                f"drop: {drop_percentage*100:.1f}%)"
+                f"drop: {drop_percentage * 100:.1f}%)"
             )
         elif drop_percentage > threshold / 2:
             # Warning but not failure
             warnings.append(
                 f"  ⚡ {key}: {current_value} (baseline: {baseline_value}, "
-                f"drop: {drop_percentage*100:.1f}%) - close to threshold"
+                f"drop: {drop_percentage * 100:.1f}%) - close to threshold"
             )
 
     return is_stable, warnings
@@ -233,17 +231,17 @@ def main():
     # Baselines from recent builds (conservative estimates)
     build112_baseline = {
         "deep_retrieval_triggers": 10,  # ~15 per week, but conservative
-        "logs_with_deep_retrieval": 3
+        "logs_with_deep_retrieval": 3,
     }
 
     build113_baseline = {
         "goal_aware_decisions": 5,  # ~8 per week, but conservative
-        "logs_with_decisions": 2
+        "logs_with_decisions": 2,
     }
 
     build114_baseline = {
         "structured_edit_fallbacks": 8,  # ~12 per week, but conservative
-        "logs_with_fallbacks": 3
+        "logs_with_fallbacks": 3,
     }
 
     # Check BUILD-112 stability

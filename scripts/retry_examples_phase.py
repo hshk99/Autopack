@@ -1,7 +1,9 @@
 """Retry research-examples-and-docs phase after BUILD-094 validator fix"""
+
 import sys
 from pathlib import Path
 from datetime import datetime, timezone
+
 sys.path.insert(0, str(Path.cwd() / "src"))
 
 from autopack.database import SessionLocal, init_db
@@ -25,7 +27,7 @@ run = Run(
     minor_issues_count=0,
     major_issues_count=0,
     created_at=datetime.now(timezone.utc),
-    updated_at=datetime.now(timezone.utc)
+    updated_at=datetime.now(timezone.utc),
 )
 db.add(run)
 
@@ -39,7 +41,7 @@ tier = Tier(
     state=TierState.PENDING,
     tokens_used=0,
     created_at=datetime.now(timezone.utc),
-    updated_at=datetime.now(timezone.utc)
+    updated_at=datetime.now(timezone.utc),
 )
 db.add(tier)
 db.flush()  # Get auto-generated id
@@ -51,28 +53,28 @@ with open(req_path, "r", encoding="utf-8") as f:
 
 # Create phase
 phase = Phase(
-    phase_id=config['phase_id'],
+    phase_id=config["phase_id"],
     run_id="retry-examples-v1",
     tier_id=tier.id,  # Use integer FK
     phase_index=0,
-    name=config['phase_id'],
-    description=config['description'].strip(),
+    name=config["phase_id"],
+    description=config["description"].strip(),
     state=PhaseState.QUEUED,
     task_category="IMPLEMENT_FEATURE",
     complexity="MEDIUM",
     builder_mode="BUILD",
     scope={
-        "chunk_number": config.get('chunk_number', 'followup-6'),
-        "deliverables": config.get('deliverables', {}),
-        "features": config.get('features', []),
-        "validation": config.get('validation', {}),
-        "goals": config.get('goals', []),
+        "chunk_number": config.get("chunk_number", "followup-6"),
+        "deliverables": config.get("deliverables", {}),
+        "features": config.get("features", []),
+        "validation": config.get("validation", {}),
+        "goals": config.get("goals", []),
     },
     tokens_used=0,
     builder_attempts=0,
     auditor_attempts=0,
     created_at=datetime.now(timezone.utc),
-    updated_at=datetime.now(timezone.utc)
+    updated_at=datetime.now(timezone.utc),
 )
 db.add(phase)
 

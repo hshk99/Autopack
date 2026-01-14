@@ -25,15 +25,18 @@ def get_database_url() -> str:
     """Get DATABASE_URL from environment with helpful error."""
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
-        print("\n" + "="*80, file=sys.stderr)
+        print("\n" + "=" * 80, file=sys.stderr)
         print("ERROR: DATABASE_URL environment variable not set", file=sys.stderr)
-        print("="*80, file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
         print("\nSet DATABASE_URL before running:\n", file=sys.stderr)
         print("  # PowerShell (Postgres production):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"postgresql://autopack:autopack@localhost:5432/autopack\"", file=sys.stderr)
+        print(
+            '  $env:DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"',
+            file=sys.stderr,
+        )
         print("  python scripts/migrations/add_ab_test_results.py\n", file=sys.stderr)
         print("  # PowerShell (SQLite dev/test):", file=sys.stderr)
-        print("  $env:DATABASE_URL=\"sqlite:///autopack.db\"", file=sys.stderr)
+        print('  $env:DATABASE_URL="sqlite:///autopack.db"', file=sys.stderr)
         print("  python scripts/migrations/add_ab_test_results.py\n", file=sys.stderr)
         sys.exit(1)
     return db_url
@@ -60,7 +63,7 @@ def migrate():
     BUILD-146 P12: Stores A/B test comparison results with strict validity checks.
     """
     print("BUILD-146 P12: A/B Test Results Table Migration")
-    print("="*80)
+    print("=" * 80)
     print()
 
     # Get database connection
@@ -86,6 +89,7 @@ def migrate():
 
         # Verify table structure
         from sqlalchemy import inspect
+
         inspector = inspect(engine)
         columns = inspector.get_columns("ab_test_results")
 

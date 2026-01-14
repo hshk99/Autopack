@@ -72,7 +72,9 @@ def migrate_collection(
         logger.info(f"[{collection}] DRY RUN: Would migrate {len(points)} points")
         # Show sample
         for i, point in enumerate(points[:3]):
-            logger.info(f"  Sample {i+1}: id={point['id']}, payload keys={list(point['payload'].keys())}")
+            logger.info(
+                f"  Sample {i + 1}: id={point['id']}, payload keys={list(point['payload'].keys())}"
+            )
         return 0
 
     # Ensure collection exists in Qdrant
@@ -85,9 +87,7 @@ def migrate_collection(
         f"[{collection}] FAISS scroll doesn't return vectors. "
         "Vectors will need to be regenerated for complete migration."
     )
-    logger.info(
-        f"[{collection}] Migrating payloads only. Vectors will be regenerated on-demand."
-    )
+    logger.info(f"[{collection}] Migrating payloads only. Vectors will be regenerated on-demand.")
 
     # Migrate payloads (vectors will be regenerated)
     migrated = 0
@@ -111,9 +111,7 @@ def migrate_collection(
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Migrate FAISS indices to Qdrant"
-    )
+    parser = argparse.ArgumentParser(description="Migrate FAISS indices to Qdrant")
     parser.add_argument(
         "--faiss-dir",
         type=Path,
@@ -201,9 +199,7 @@ def main():
             "\nNote: FAISS migration is best-effort. "
             "Vectors will be regenerated when MemoryService indexes new content."
         )
-        logger.info(
-            "\nTo use Qdrant, ensure config/memory.yaml has 'use_qdrant: true'"
-        )
+        logger.info("\nTo use Qdrant, ensure config/memory.yaml has 'use_qdrant: true'")
 
     return 0
 

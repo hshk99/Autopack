@@ -1,4 +1,5 @@
 """Snapshot current database state for telemetry collection planning."""
+
 import sys
 from pathlib import Path
 
@@ -8,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from autopack.database import SessionLocal
 from autopack.models import Phase, PhaseState
 from collections import Counter
+
 
 def main():
     session = SessionLocal()
@@ -28,9 +30,9 @@ def main():
 
         # Queued phases detail
         queued_phases = session.query(Phase).filter(Phase.state == PhaseState.QUEUED).all()
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"QUEUED PHASES ({len(queued_phases)} total)")
-        print("="*60)
+        print("=" * 60)
 
         if queued_phases:
             runs_with_queued = {}
@@ -41,14 +43,16 @@ def main():
 
             for run_id, phase_ids in runs_with_queued.items():
                 # Count other states in this run
-                failed_count = session.query(Phase).filter(
-                    Phase.run_id == run_id,
-                    Phase.state == PhaseState.FAILED
-                ).count()
-                complete_count = session.query(Phase).filter(
-                    Phase.run_id == run_id,
-                    Phase.state == PhaseState.COMPLETE
-                ).count()
+                failed_count = (
+                    session.query(Phase)
+                    .filter(Phase.run_id == run_id, Phase.state == PhaseState.FAILED)
+                    .count()
+                )
+                complete_count = (
+                    session.query(Phase)
+                    .filter(Phase.run_id == run_id, Phase.state == PhaseState.COMPLETE)
+                    .count()
+                )
 
                 print(f"\nRun: {run_id}")
                 print(f"  QUEUED phases: {len(phase_ids)}")
@@ -58,9 +62,9 @@ def main():
 
         # Failed phases by run
         failed_phases = session.query(Phase).filter(Phase.state == PhaseState.FAILED).all()
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"FAILED PHASES ({len(failed_phases)} total)")
-        print("="*60)
+        print("=" * 60)
 
         runs_with_failed = {}
         for p in failed_phases:
@@ -70,16 +74,16 @@ def main():
 
         # Sort by count
         sorted_runs = sorted(runs_with_failed.items(), key=lambda x: x[1], reverse=True)
-        print(f"\nFailed phases by run (top 20):")
+        print("\nFailed phases by run (top 20):")
         for run_id, count in sorted_runs[:20]:
             # Check if this run has queued phases
             has_queued = run_id in ([p.run_id for p in queued_phases] if queued_phases else [])
             marker = " [HAS QUEUED]" if has_queued else ""
             print(f"  {run_id:50s}: {count:3d} failed{marker}")
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("RECOMMENDATIONS")
-        print("="*60)
+        print("=" * 60)
 
         if queued_phases:
             print("\n1. Drain QUEUED phases first to avoid skip_runs_with_queued trap")
@@ -93,12 +97,13 @@ def main():
         print("     --max-timeouts-per-run 1 \\")
         print("     --max-consecutive-zero-yield 10")
 
-        if any(run_id.startswith('research-system') for run_id in runs_with_failed):
+        if any(run_id.startswith("research-system") for run_id in runs_with_failed):
             print("\n3. Research-system runs present - CI collection fixes should help")
             print("   Consider removing --skip-run-prefix research-system")
 
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     main()

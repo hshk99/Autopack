@@ -31,6 +31,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 try:
     import psycopg2
+
     POSTGRES_AVAILABLE = True
 except ImportError:
     POSTGRES_AVAILABLE = False
@@ -39,6 +40,7 @@ except ImportError:
 try:
     from autopack.memory.qdrant_store import QdrantStore
     from autopack.memory.embeddings import sync_embed_text
+
     QDRANT_AVAILABLE = True
 except ImportError as e:
     QDRANT_AVAILABLE = False
@@ -85,7 +87,11 @@ class DatabaseSync:
                 # Parse host and port from URL
                 if qdrant_host.startswith("http://"):
                     host = qdrant_host.replace("http://", "").split(":")[0]
-                    port = int(qdrant_host.split(":")[-1]) if ":" in qdrant_host.replace("http://", "") else 6333
+                    port = (
+                        int(qdrant_host.split(":")[-1])
+                        if ":" in qdrant_host.replace("http://", "")
+                        else 6333
+                    )
                 else:
                     host = qdrant_host
                     port = 6333
@@ -147,16 +153,11 @@ class DatabaseSync:
 
     def sync_all(self):
         """Run complete synchronization"""
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print(f"DATABASE SYNC: {self.project_id}")
-        print(f"{'='*80}\n")
+        print(f"{'=' * 80}\n")
 
-        results = {
-            "postgres": 0,
-            "qdrant": 0,
-            "readme": False,
-            "validation_errors": []
-        }
+        results = {"postgres": 0, "qdrant": 0, "readme": False, "validation_errors": []}
 
         # 1. Sync SOT files to PostgreSQL
         if self.pg_conn:
@@ -199,7 +200,8 @@ class DatabaseSync:
                 content_hash = hashlib.md5(entry["content"].encode()).hexdigest()
 
                 # Upsert entry
-                cur.execute("""
+                cur.execute(
+                    """
                     INSERT INTO sot_entries
                     (project_id, file_type, entry_id, title, content, metadata, created_at, updated_at, content_hash)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), %s)
@@ -210,24 +212,29 @@ class DatabaseSync:
                         metadata = EXCLUDED.metadata,
                         updated_at = NOW(),
                         content_hash = EXCLUDED.content_hash
-                """, (
-                    self.project_id,
-                    file_type,
-                    entry.get("id"),
-                    entry.get("title"),
-                    entry["content"],
-                    json.dumps(entry.get("metadata", {})),
-                    entry.get("created_at", datetime.now()),
-                    content_hash
-                ))
+                """,
+                    (
+                        self.project_id,
+                        file_type,
+                        entry.get("id"),
+                        entry.get("title"),
+                        entry["content"],
+                        json.dumps(entry.get("metadata", {})),
+                        entry.get("created_at", datetime.now()),
+                        content_hash,
+                    ),
+                )
 
                 synced_count += 1
 
             # Log sync activity
-            cur.execute("""
+            cur.execute(
+                """
                 INSERT INTO sync_activity (project_id, sync_type, action, details)
                 VALUES (%s, 'postgres', 'sync', %s)
-            """, (self.project_id, json.dumps({"file_type": file_type, "entries": len(entries)})))
+            """,
+                (self.project_id, json.dumps({"file_type": file_type, "entries": len(entries)})),
+            )
 
         if not self.dry_run:
             self.pg_conn.commit()
@@ -283,8 +290,8 @@ class DatabaseSync:
                     "file_type": file_type,
                     "file_path": str(file_path),
                     "updated_at": datetime.now().isoformat(),
-                    "content_preview": content[:500]
-                }
+                    "content_preview": content[:500],
+                },
             }
 
             points.append(point)
@@ -328,7 +335,7 @@ class DatabaseSync:
                 "title": title,
                 "content": title + "\n",
                 "created_at": created_at or datetime.now(),
-                "metadata": {}
+                "metadata": {},
             }
 
         # Header patterns (current SOT formats)
@@ -367,7 +374,9 @@ class DatabaseSync:
         index_entries = self._parse_sot_index_table(file_path, file_type, lines)
         return index_entries
 
-    def _parse_sot_index_table(self, file_path: Path, file_type: str, lines: List[str]) -> List[Dict]:
+    def _parse_sot_index_table(
+        self, file_path: Path, file_type: str, lines: List[str]
+    ) -> List[Dict]:
         """
         Parse INDEX tables for SOT files.
 
@@ -384,7 +393,7 @@ class DatabaseSync:
 
         # Collect contiguous markdown table rows after INDEX header
         table_rows: List[str] = []
-        for l in lines[idx_start + 1:]:
+        for l in lines[idx_start + 1 :]:
             s = l.strip()
             if s.startswith("|"):
                 # skip separator/header rows but keep data rows
@@ -411,34 +420,67 @@ class DatabaseSync:
         for row in data_rows:
             if file_type == "build_history":
                 # | 2026-01-02 | BUILD-153 | Title | Description |
-                m = re.match(r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(BUILD-\d+)\s*\|\s*([^|]+?)\s*\|\s*(.*)\|\s*$", row)
+                m = re.match(
+                    r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(BUILD-\d+)\s*\|\s*([^|]+?)\s*\|\s*(.*)\|\s*$",
+                    row,
+                )
                 if not m:
                     continue
                 date_s, bid, title_s, desc = m.groups()
                 created_at = _parse_date(date_s)
                 title = f"{bid} | {date_s} | {title_s.strip()}"
                 content = f"{title}\n\n{desc.strip()}\n"
-                entries.append({"id": bid, "title": title, "content": content, "created_at": created_at or datetime.now(), "metadata": {"source": "index_table", "file": str(file_path)}})
+                entries.append(
+                    {
+                        "id": bid,
+                        "title": title,
+                        "content": content,
+                        "created_at": created_at or datetime.now(),
+                        "metadata": {"source": "index_table", "file": str(file_path)},
+                    }
+                )
             elif file_type == "architecture":
                 # | 2026-01-02 | DEC-016 | Decision | Status | Impact |
-                m = re.match(r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(DEC-\d+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*$", row)
+                m = re.match(
+                    r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(DEC-\d+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*$",
+                    row,
+                )
                 if not m:
                     continue
                 date_s, did, decision, status, impact = m.groups()
                 created_at = _parse_date(date_s)
                 title = f"{did} | {date_s} | {decision.strip()} ({status.strip()})"
                 content = f"{title}\n\nImpact: {impact.strip()}\n"
-                entries.append({"id": did, "title": title, "content": content, "created_at": created_at or datetime.now(), "metadata": {"source": "index_table", "file": str(file_path)}})
+                entries.append(
+                    {
+                        "id": did,
+                        "title": title,
+                        "content": content,
+                        "created_at": created_at or datetime.now(),
+                        "metadata": {"source": "index_table", "file": str(file_path)},
+                    }
+                )
             elif file_type == "debug_log":
                 # | 2026-01-01 | DBG-079 | LOW | Summary | Status |
-                m = re.match(r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(DBG-\d+)\s*\|\s*([^|]+?)\s*\|\s*(.*)\|\s*([^|]+?)\s*\|\s*$", row)
+                m = re.match(
+                    r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(DBG-\d+)\s*\|\s*([^|]+?)\s*\|\s*(.*)\|\s*([^|]+?)\s*\|\s*$",
+                    row,
+                )
                 if not m:
                     continue
                 date_s, gid, severity, summary, status = m.groups()
                 created_at = _parse_date(date_s)
                 title = f"{gid} | {date_s} | {severity.strip()} | {status.strip()}"
                 content = f"{title}\n\n{summary.strip()}\n"
-                entries.append({"id": gid, "title": title, "content": content, "created_at": created_at or datetime.now(), "metadata": {"source": "index_table", "file": str(file_path)}})
+                entries.append(
+                    {
+                        "id": gid,
+                        "title": title,
+                        "content": content,
+                        "created_at": created_at or datetime.now(),
+                        "metadata": {"source": "index_table", "file": str(file_path)},
+                    }
+                )
 
         return entries
 
@@ -451,12 +493,15 @@ class DatabaseSync:
         # Validate PostgreSQL vs Files
         if self.pg_conn:
             cur = self.pg_conn.cursor()
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT file_type, COUNT(*)
                 FROM sot_entries
                 WHERE project_id = %s
                 GROUP BY file_type
-            """, (self.project_id,))
+            """,
+                (self.project_id,),
+            )
 
             db_counts = {row[0]: row[1] for row in cur.fetchall()}
 
@@ -471,7 +516,9 @@ class DatabaseSync:
                     db_count = db_counts.get(file_type, 0)
 
                     if len(file_entries) != db_count:
-                        error = f"{file_type}: File has {len(file_entries)} entries, DB has {db_count}"
+                        error = (
+                            f"{file_type}: File has {len(file_entries)} entries, DB has {db_count}"
+                        )
                         errors.append(error)
                         print(f"   [WARN] {error}")
 
@@ -484,22 +531,22 @@ class DatabaseSync:
 
     def _print_summary(self, results: Dict):
         """Print sync summary"""
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print("SYNC SUMMARY")
-        print(f"{'='*80}")
+        print(f"{'=' * 80}")
         print(f"Project: {self.project_id}")
         print(f"PostgreSQL entries: {results['postgres']}")
         print(f"Qdrant documents: {results['qdrant']}")
         print(f"README updated: {'YES' if results['readme'] else 'NO'}")
 
-        if results['validation_errors']:
+        if results["validation_errors"]:
             print("\n[WARN] Validation Errors:")
-            for error in results['validation_errors']:
+            for error in results["validation_errors"]:
                 print(f"   - {error}")
         else:
             print("\n[OK] All systems in sync!")
 
-        print(f"{'='*80}\n")
+        print(f"{'=' * 80}\n")
 
     def close(self):
         """Close database connections"""
@@ -520,7 +567,7 @@ def main():
 
     try:
         results = sync.sync_all()
-        return 0 if not results['validation_errors'] else 1
+        return 0 if not results["validation_errors"] else 1
     finally:
         sync.close()
 

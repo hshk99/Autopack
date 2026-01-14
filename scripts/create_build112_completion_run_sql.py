@@ -1,14 +1,17 @@
 """Create build112-completion run using raw SQL (BUILD-115 compatible)."""
+
 import sys
 import yaml
 import sqlite3
 from pathlib import Path
 from datetime import datetime
 
+
 def load_phase_yaml(phase_file: Path) -> dict:
     """Load phase YAML file."""
-    with open(phase_file, 'r', encoding='utf-8') as f:
+    with open(phase_file, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
+
 
 def create_build112_completion_run():
     """Create BUILD-112 completion run with 4 phases using raw SQL."""
@@ -46,21 +49,39 @@ def create_build112_completion_run():
 
         # Create run
         now = datetime.now().isoformat()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO runs (
                 id, state, created_at, updated_at, safety_profile, run_scope,
                 token_cap, max_phases, max_duration_minutes, tokens_used, ci_runs_used,
                 minor_issues_count, major_issues_count, promotion_eligible_to_main
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (run_id, "PHASE_EXECUTION", now, now, "normal", "multi_tier",
-              1500000, 100, 480, 0, 0, 0, 0, "false"))
+        """,
+            (
+                run_id,
+                "PHASE_EXECUTION",
+                now,
+                now,
+                "normal",
+                "multi_tier",
+                1500000,
+                100,
+                480,
+                0,
+                0,
+                0,
+                0,
+                "false",
+            ),
+        )
 
         print(f"✓ Created run: {run_id}")
 
         # Create tier
         tier_id = f"{run_id}-tier"
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO tiers (
                 tier_id, run_id, tier_index, name, description, state,
                 max_major_issues_tolerated, tokens_used, ci_runs_used,
@@ -68,9 +89,24 @@ def create_build112_completion_run():
                 created_at, updated_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (tier_id, run_id, 0, "BUILD-112 Completion Tier",
-              "Diagnostics Parity with Cursor - Complete Phases 3, 4, 5", "PENDING",
-              3, 0, 0, 0, 0, "spotless", now, now))
+        """,
+            (
+                tier_id,
+                run_id,
+                0,
+                "BUILD-112 Completion Tier",
+                "Diagnostics Parity with Cursor - Complete Phases 3, 4, 5",
+                "PENDING",
+                3,
+                0,
+                0,
+                0,
+                0,
+                "spotless",
+                now,
+                now,
+            ),
+        )
 
         print(f"✓ Created tier: {tier_id}")
 
@@ -91,6 +127,7 @@ def create_build112_completion_run():
 
             # Build scope JSON string
             import json
+
             scope = {
                 "goal": goal,
                 "deliverables": deliverables if isinstance(deliverables, list) else [deliverables],
@@ -100,16 +137,31 @@ def create_build112_completion_run():
             scope_json = json.dumps(scope)
 
             # Create phase
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO phases (
                     id, run_id, tier_id, phase_index, name, description, state, phase_type,
                     scope, priority, retry_attempt, revision_epoch, escalation_level, tokens_used
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                phase_id, run_id, tier_id, idx, display_name, goal[:500],
-                "QUEUED", phase_type, scope_json, priority, 0, 0, 0, 0
-            ))
+            """,
+                (
+                    phase_id,
+                    run_id,
+                    tier_id,
+                    idx,
+                    display_name,
+                    goal[:500],
+                    "QUEUED",
+                    phase_type,
+                    scope_json,
+                    priority,
+                    0,
+                    0,
+                    0,
+                    0,
+                ),
+            )
 
             print(f"  ✓ Created phase: {phase_id} (priority={priority})")
 
@@ -122,11 +174,13 @@ def create_build112_completion_run():
         conn.rollback()
         print(f"ERROR: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
     finally:
         conn.close()
+
 
 if __name__ == "__main__":
     success = create_build112_completion_run()

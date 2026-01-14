@@ -98,11 +98,33 @@ def main() -> int:
         pass
 
     parser = argparse.ArgumentParser(description="Audit model string usage across the repo.")
-    parser.add_argument("--include", action="append", default=None, help="Directory to include (repeatable). Default: src,scripts,config")
-    parser.add_argument("--exclude", action="append", default=None, help="Directory name to exclude (repeatable). Default includes archive/.git/venv/node_modules")
-    parser.add_argument("--glob", default="*.py", help="File glob to scan (default: *.py). Use '*.md' to scan docs too.")
-    parser.add_argument("--filter", default=None, help="Only show matches that contain this substring (case-insensitive), e.g. glm-4.6")
-    parser.add_argument("--fail-on", default=None, help="Exit 1 if any match contains this substring (case-insensitive)")
+    parser.add_argument(
+        "--include",
+        action="append",
+        default=None,
+        help="Directory to include (repeatable). Default: src,scripts,config",
+    )
+    parser.add_argument(
+        "--exclude",
+        action="append",
+        default=None,
+        help="Directory name to exclude (repeatable). Default includes archive/.git/venv/node_modules",
+    )
+    parser.add_argument(
+        "--glob",
+        default="*.py",
+        help="File glob to scan (default: *.py). Use '*.md' to scan docs too.",
+    )
+    parser.add_argument(
+        "--filter",
+        default=None,
+        help="Only show matches that contain this substring (case-insensitive), e.g. glm-4.6",
+    )
+    parser.add_argument(
+        "--fail-on",
+        default=None,
+        help="Exit 1 if any match contains this substring (case-insensitive)",
+    )
     args = parser.parse_args()
 
     include_dirs = args.include or list(DEFAULT_INCLUDE_DIRS)
@@ -152,5 +174,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-

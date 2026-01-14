@@ -746,12 +746,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Build and push Docker images
         run: |
           docker-compose build
           docker-compose push
-      
+
       - name: Deploy to production
         run: |
           ssh user@server 'cd /app && docker-compose pull && docker-compose up -d'

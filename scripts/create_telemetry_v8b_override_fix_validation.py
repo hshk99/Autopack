@@ -38,6 +38,7 @@ from autopack.models import Run, RunState, Phase, PhaseState, Tier, TierState
 from datetime import datetime, timezone
 import json
 
+
 def create_telemetry_v8b_run():
     """Create telemetry-collection-v8b validation run (3 docs/low phases, patch-safe)."""
 
@@ -53,29 +54,31 @@ def create_telemetry_v8b_run():
             id="telemetry-collection-v8b-override-fix",
             state=RunState.PHASE_EXECUTION,
             created_at=datetime.now(timezone.utc),
-            goal_anchor=json.dumps({
-                "goal": (
-                    "V8b: Validate BUILD-142 conditional override fix. "
-                    "3 docs/low phases to confirm category-aware budgets (4096) are preserved, "
-                    "not overridden to 16384. PATCH-SAFE: all new files."
-                ),
-                "purpose": "telemetry_v8b_override_fix_validation",
-                "target_validation": [
-                    "docs/low: selected_budget=4096 (not 16384 override)",
-                    "Zero truncations (safety validation)",
-                    "Budget waste ~1.2x (was 34.9x in V8 pre-fix)"
-                ],
-                "build_142_fix": [
-                    "Conditional override: skip 16384 floor for docs-like categories",
-                    "Telemetry semantics: selected_budget records estimator intent",
-                    "Safety preserved: non-docs categories still get 16384 floor"
-                ],
-                "patch_safety": [
-                    "All deliverables are new files",
-                    "Files created under examples/telemetry_v8b_docs/",
-                    "No modifications to existing directories"
-                ]
-            })
+            goal_anchor=json.dumps(
+                {
+                    "goal": (
+                        "V8b: Validate BUILD-142 conditional override fix. "
+                        "3 docs/low phases to confirm category-aware budgets (4096) are preserved, "
+                        "not overridden to 16384. PATCH-SAFE: all new files."
+                    ),
+                    "purpose": "telemetry_v8b_override_fix_validation",
+                    "target_validation": [
+                        "docs/low: selected_budget=4096 (not 16384 override)",
+                        "Zero truncations (safety validation)",
+                        "Budget waste ~1.2x (was 34.9x in V8 pre-fix)",
+                    ],
+                    "build_142_fix": [
+                        "Conditional override: skip 16384 floor for docs-like categories",
+                        "Telemetry semantics: selected_budget records estimator intent",
+                        "Safety preserved: non-docs categories still get 16384 floor",
+                    ],
+                    "patch_safety": [
+                        "All deliverables are new files",
+                        "Files created under examples/telemetry_v8b_docs/",
+                        "No modifications to existing directories",
+                    ],
+                }
+            ),
         )
         session.add(run)
         session.flush()
@@ -89,11 +92,11 @@ def create_telemetry_v8b_run():
             name="telemetry-v8b-tier1",
             description="Single tier for v8b override fix validation",
             state=TierState.IN_PROGRESS,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
         )
         session.add(tier)
         session.flush()
-        print(f"✅ Created tier 1")
+        print("✅ Created tier 1")
 
         # === DOCS/LOW PHASES (3) ===
         docs_low_phases = [
@@ -144,20 +147,28 @@ def create_telemetry_v8b_run():
                 state=PhaseState.QUEUED,
                 task_category=phase_def["category"],
                 complexity=phase_def["complexity"],
-                scope=json.dumps({
-                    "deliverables": phase_def["deliverables"],
-                }),
-                created_at=datetime.now(timezone.utc)
+                scope=json.dumps(
+                    {
+                        "deliverables": phase_def["deliverables"],
+                    }
+                ),
+                created_at=datetime.now(timezone.utc),
             )
             session.add(phase)
-            print(f"  [{idx:02d}] {phase_def['phase_id']} ({phase_def['category']}/{phase_def['complexity']}, {len(phase_def['deliverables'])} deliverable(s))")
+            print(
+                f"  [{idx:02d}] {phase_def['phase_id']} ({phase_def['category']}/{phase_def['complexity']}, {len(phase_def['deliverables'])} deliverable(s))"
+            )
 
         session.commit()
-        print(f"\n✅ Successfully created telemetry-collection-v8b-override-fix with 3 phases")
-        print(f"   - docs/low: 3 phases (expect selected_budget=4096 each)")
-        print(f"\nDrain with:")
-        print(f"  python scripts/drain_queued_phases.py --run-id telemetry-collection-v8b-override-fix \\")
-        print(f"    --batch-size 10 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance")
+        print("\n✅ Successfully created telemetry-collection-v8b-override-fix with 3 phases")
+        print("   - docs/low: 3 phases (expect selected_budget=4096 each)")
+        print("\nDrain with:")
+        print(
+            "  python scripts/drain_queued_phases.py --run-id telemetry-collection-v8b-override-fix \\"
+        )
+        print(
+            "    --batch-size 10 --max-batches 1 --no-dual-auditor --run-type autopack_maintenance"
+        )
 
     except Exception as e:
         session.rollback()

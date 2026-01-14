@@ -17,6 +17,7 @@ from collections import defaultdict
 from datetime import datetime
 
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.autopack.learned_rules import (
@@ -31,19 +32,15 @@ def analyze_project_rules(project_id: str) -> Dict:
     Returns:
         Dict with analysis results
     """
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"📚 Project Learned Rules Analysis: {project_id}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     rules = load_project_learned_rules(project_id)
 
     if not rules:
         print(f"⚠️  No learned rules found for project '{project_id}'")
-        return {
-            "project_id": project_id,
-            "total_rules": 0,
-            "rules": []
-        }
+        return {"project_id": project_id, "total_rules": 0, "rules": []}
 
     # Overall stats
     print(f"Total Rules: {len(rules)}")
@@ -55,12 +52,12 @@ def analyze_project_rules(project_id: str) -> Dict:
     for rule in rules:
         by_category[rule.task_category].append(rule)
 
-    print(f"\n📊 Rules by Task Category:")
+    print("\n📊 Rules by Task Category:")
     for category, category_rules in sorted(by_category.items()):
         print(f"  {category}: {len(category_rules)} rules")
 
     # Find most promoted rules (highest confidence)
-    print(f"\n🏆 Top Promoted Rules (highest confidence):")
+    print("\n🏆 Top Promoted Rules (highest confidence):")
     sorted_by_promotion = sorted(rules, key=lambda r: r.promotion_count, reverse=True)
     for i, rule in enumerate(sorted_by_promotion[:10], 1):
         print(f"  {i}. {rule.rule_id}")
@@ -71,26 +68,26 @@ def analyze_project_rules(project_id: str) -> Dict:
         print()
 
     # Pattern analysis
-    print(f"\n🔍 Pattern Analysis:")
+    print("\n🔍 Pattern Analysis:")
     patterns = defaultdict(int)
     for rule in rules:
         # Extract pattern from rule_id (e.g., "feature_scaffolding.missing_type_hints" -> "missing_type_hints")
         pattern = rule.rule_id.split(".", 1)[-1] if "." in rule.rule_id else rule.rule_id
         patterns[pattern] += 1
 
-    print(f"  Most common patterns:")
+    print("  Most common patterns:")
     for pattern, count in sorted(patterns.items(), key=lambda x: x[1], reverse=True)[:10]:
         print(f"    - {pattern}: {count} rules")
 
     # Scope analysis
-    print(f"\n📂 Scope Analysis:")
+    print("\n📂 Scope Analysis:")
     global_rules = sum(1 for r in rules if r.scope_pattern is None)
     scoped_rules = sum(1 for r in rules if r.scope_pattern is not None)
     print(f"  Global rules (no scope): {global_rules}")
     print(f"  Scoped rules (specific patterns): {scoped_rules}")
 
     if scoped_rules > 0:
-        print(f"\n  Common scope patterns:")
+        print("\n  Common scope patterns:")
         scope_patterns = defaultdict(int)
         for rule in rules:
             if rule.scope_pattern:
@@ -104,13 +101,9 @@ def analyze_project_rules(project_id: str) -> Dict:
         "active_rules": sum(1 for r in rules if r.status == "active"),
         "by_category": {cat: len(r_list) for cat, r_list in by_category.items()},
         "top_promoted": [
-            {
-                "rule_id": r.rule_id,
-                "promotion_count": r.promotion_count,
-                "constraint": r.constraint
-            }
+            {"rule_id": r.rule_id, "promotion_count": r.promotion_count, "constraint": r.constraint}
             for r in sorted_by_promotion[:10]
-        ]
+        ],
     }
 
 
@@ -120,19 +113,15 @@ def analyze_run_hints(run_id: str) -> Dict:
     Returns:
         Dict with analysis results
     """
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"💡 Run Hints Analysis: {run_id}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     hints = load_run_rule_hints(run_id)
 
     if not hints:
         print(f"⚠️  No hints found for run '{run_id}'")
-        return {
-            "run_id": run_id,
-            "total_hints": 0,
-            "hints": []
-        }
+        return {"run_id": run_id, "total_hints": 0, "hints": []}
 
     # Overall stats
     print(f"Total Hints: {len(hints)}")
@@ -150,12 +139,12 @@ def analyze_run_hints(run_id: str) -> Dict:
         if hint.task_category:
             by_category[hint.task_category].append(hint)
 
-    print(f"\n📊 Hints by Task Category:")
+    print("\n📊 Hints by Task Category:")
     for category, category_hints in sorted(by_category.items()):
         print(f"  {category}: {len(category_hints)} hints")
 
     # Pattern frequency (for promotion prediction)
-    print(f"\n🔮 Pattern Frequency (promotion candidates):")
+    print("\n🔮 Pattern Frequency (promotion candidates):")
     pattern_counts = defaultdict(int)
     for hint in hints:
         if hint.source_issue_keys:
@@ -180,7 +169,7 @@ def analyze_run_hints(run_id: str) -> Dict:
         print(f"    {status} {pattern}: {count} occurrences")
 
     # Hint details
-    print(f"\n📝 Hint Details:")
+    print("\n📝 Hint Details:")
     for hint in hints:
         print(f"\n  Phase {hint.phase_id} ({hint.task_category or 'unknown'}):")
         print(f"    {hint.hint_text}")
@@ -193,7 +182,7 @@ def analyze_run_hints(run_id: str) -> Dict:
         "total_hints": len(hints),
         "by_category": {cat: len(h_list) for cat, h_list in by_category.items()},
         "promotion_candidates": promoted_count,
-        "total_patterns": len(pattern_counts)
+        "total_patterns": len(pattern_counts),
     }
 
 
@@ -203,13 +192,13 @@ def analyze_all_projects() -> Dict:
     Returns:
         Dict with cross-project analysis
     """
-    print(f"\n{'='*60}")
-    print(f"🌍 All Projects Analysis")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("🌍 All Projects Analysis")
+    print(f"{'=' * 60}\n")
 
     runs_dir = Path(".autonomous_runs")
     if not runs_dir.exists():
-        print(f"⚠️  No .autonomous_runs directory found")
+        print("⚠️  No .autonomous_runs directory found")
         return {"projects": []}
 
     # Find all project directories
@@ -221,7 +210,7 @@ def analyze_all_projects() -> Dict:
                 projects.append(project_dir.name)
 
     if not projects:
-        print(f"⚠️  No projects with learned rules found")
+        print("⚠️  No projects with learned rules found")
         return {"projects": []}
 
     print(f"Found {len(projects)} project(s) with learned rules:\n")
@@ -232,9 +221,9 @@ def analyze_all_projects() -> Dict:
         all_results.append(result)
 
     # Cross-project summary
-    print(f"\n{'='*60}")
-    print(f"📈 Cross-Project Summary")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("📈 Cross-Project Summary")
+    print(f"{'=' * 60}\n")
 
     total_rules = sum(r["total_rules"] for r in all_results)
     print(f"Total rules across all projects: {total_rules}")
@@ -247,7 +236,7 @@ def analyze_all_projects() -> Dict:
             pattern = rule.rule_id.split(".", 1)[-1] if "." in rule.rule_id else rule.rule_id
             all_patterns[pattern] += 1
 
-    print(f"\nMost common patterns across all projects:")
+    print("\nMost common patterns across all projects:")
     for pattern, count in sorted(all_patterns.items(), key=lambda x: x[1], reverse=True)[:15]:
         print(f"  {pattern}: {count} projects")
 
@@ -255,7 +244,9 @@ def analyze_all_projects() -> Dict:
         "projects": all_results,
         "total_projects": len(projects),
         "total_rules": total_rules,
-        "common_patterns": dict(sorted(all_patterns.items(), key=lambda x: x[1], reverse=True)[:15])
+        "common_patterns": dict(
+            sorted(all_patterns.items(), key=lambda x: x[1], reverse=True)[:15]
+        ),
     }
 
 
@@ -265,13 +256,13 @@ def analyze_run_series(project_id: str) -> Dict:
     Returns:
         Dict with time-series analysis
     """
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"📊 Run Series Analysis: {project_id}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     runs_dir = Path(".autonomous_runs") / "runs"
     if not runs_dir.exists():
-        print(f"⚠️  No runs directory found")
+        print("⚠️  No runs directory found")
         return {"project_id": project_id, "runs": []}
 
     # Find all runs
@@ -285,16 +276,18 @@ def analyze_run_series(project_id: str) -> Dict:
                     hints = load_run_rule_hints(run_dir.name)
                     if hints:
                         # Get creation time from first hint
-                        runs.append({
-                            "run_id": run_dir.name,
-                            "hint_count": len(hints),
-                            "created_at": hints[0].created_at
-                        })
+                        runs.append(
+                            {
+                                "run_id": run_dir.name,
+                                "hint_count": len(hints),
+                                "created_at": hints[0].created_at,
+                            }
+                        )
                 except:
                     pass
 
     if not runs:
-        print(f"⚠️  No runs found")
+        print("⚠️  No runs found")
         return {"project_id": project_id, "runs": []}
 
     # Sort by creation time
@@ -308,38 +301,16 @@ def analyze_run_series(project_id: str) -> Dict:
         print(f"   Hints: {run['hint_count']}")
         print()
 
-    return {
-        "project_id": project_id,
-        "total_runs": len(runs),
-        "runs": runs
-    }
+    return {"project_id": project_id, "total_runs": len(runs), "runs": runs}
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Analyze learned rules across runs and projects"
-    )
-    parser.add_argument(
-        "--project-id",
-        help="Analyze rules for specific project"
-    )
-    parser.add_argument(
-        "--run-id",
-        help="Analyze hints for specific run"
-    )
-    parser.add_argument(
-        "--all-projects",
-        action="store_true",
-        help="Analyze all projects"
-    )
-    parser.add_argument(
-        "--run-series",
-        help="Analyze run series for project"
-    )
-    parser.add_argument(
-        "--output-json",
-        help="Save analysis results to JSON file"
-    )
+    parser = argparse.ArgumentParser(description="Analyze learned rules across runs and projects")
+    parser.add_argument("--project-id", help="Analyze rules for specific project")
+    parser.add_argument("--run-id", help="Analyze hints for specific run")
+    parser.add_argument("--all-projects", action="store_true", help="Analyze all projects")
+    parser.add_argument("--run-series", help="Analyze run series for project")
+    parser.add_argument("--output-json", help="Save analysis results to JSON file")
 
     args = parser.parse_args()
 
@@ -364,13 +335,13 @@ def main():
     # Save to JSON if requested
     if args.output_json:
         output_path = Path(args.output_json)
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(results, f, indent=2)
         print(f"\n💾 Analysis saved to: {output_path}")
 
-    print(f"\n{'='*60}")
-    print(f"✅ Analysis Complete")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("✅ Analysis Complete")
+    print(f"{'=' * 60}\n")
 
 
 if __name__ == "__main__":

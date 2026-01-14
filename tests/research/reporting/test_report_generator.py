@@ -4,7 +4,6 @@ from autopack.research.reporting.citation_formatter import CitationFormatter
 
 
 class TestReportGenerator(unittest.TestCase):
-
     def setUp(self):
         self.formatter = CitationFormatter()
         self.generator = ReportGenerator(self.formatter)

@@ -74,8 +74,10 @@ def analyze_p7p9_validation():
     truncation_rate = len(truncated) / len(post_p7p9) * 100
 
     print(f"Truncation Rate: {truncation_rate:.1f}% ({len(truncated)}/{len(post_p7p9)})")
-    print(f"  Target: <25-30%")
-    print(f"  Baseline (pre-P7+P9): {len([e for e in pre_p7p9 if e.truncated])/max(len(pre_p7p9),1)*100:.1f}%")
+    print("  Target: <25-30%")
+    print(
+        f"  Baseline (pre-P7+P9): {len([e for e in pre_p7p9 if e.truncated]) / max(len(pre_p7p9), 1) * 100:.1f}%"
+    )
     print()
 
     if truncation_rate > 30:
@@ -95,9 +97,13 @@ def analyze_p7p9_validation():
 
     if waste_ratios:
         if len(waste_ratios) >= 2:
-            waste_p90 = statistics.quantiles(waste_ratios, n=10)[8] if len(waste_ratios) >= 10 else max(waste_ratios)
+            waste_p90 = (
+                statistics.quantiles(waste_ratios, n=10)[8]
+                if len(waste_ratios) >= 10
+                else max(waste_ratios)
+            )
             print(f"Waste Ratio P90: {waste_p90:.2f}x")
-        print(f"  Ideal: 1.0-1.5x")
+        print("  Ideal: 1.0-1.5x")
         print(f"  Mean: {statistics.mean(waste_ratios):.2f}x")
         if len(waste_ratios) >= 2:
             print(f"  Median: {statistics.median(waste_ratios):.2f}x")
@@ -114,13 +120,16 @@ def analyze_p7p9_validation():
                 smape = abs(pred - actual) * 200 / (abs(pred) + abs(actual))
                 smapes.append(smape)
 
-        print(f"SMAPE (Non-Truncated): {statistics.mean(smapes):.1f}% mean, {statistics.median(smapes):.1f}% median")
-        print(f"  Target: <50%")
+        print(
+            f"SMAPE (Non-Truncated): {statistics.mean(smapes):.1f}% mean, {statistics.median(smapes):.1f}% median"
+        )
+        print("  Target: <50%")
         print(f"  Samples: {len(non_truncated)}")
         print()
 
     # Category-specific truncation
     from collections import Counter
+
     categories = Counter()
     truncated_by_cat = Counter()
 
@@ -147,13 +156,19 @@ def analyze_p7p9_validation():
     for e in sorted(post_p7p9, key=lambda x: x.timestamp):
         trunc_marker = "🔴 TRUNCATED" if e.truncated else "✅ OK"
         utilization = e.actual_output_tokens / max(e.selected_budget, 1) * 100
-        smape = abs(e.predicted_output_tokens - e.actual_output_tokens) * 200 / (
-            abs(e.predicted_output_tokens) + abs(e.actual_output_tokens)
-        ) if (e.predicted_output_tokens + e.actual_output_tokens) > 0 else 0
+        smape = (
+            abs(e.predicted_output_tokens - e.actual_output_tokens)
+            * 200
+            / (abs(e.predicted_output_tokens) + abs(e.actual_output_tokens))
+            if (e.predicted_output_tokens + e.actual_output_tokens) > 0
+            else 0
+        )
 
         print(f"{trunc_marker} {e.phase_id}")
         print(f"  Category: {e.category}, Complexity: {e.complexity}")
-        print(f"  Predicted: {e.predicted_output_tokens}, Budget: {e.selected_budget}, Actual: {e.actual_output_tokens}")
+        print(
+            f"  Predicted: {e.predicted_output_tokens}, Budget: {e.selected_budget}, Actual: {e.actual_output_tokens}"
+        )
         print(f"  Utilization: {utilization:.1f}%, SMAPE: {smape:.1f}%")
         print()
 

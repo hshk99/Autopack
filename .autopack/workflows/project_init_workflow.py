@@ -34,7 +34,7 @@ class ProjectInitWorkflow:
 
     def _load_config(self) -> Dict:
         """Load project initialization configuration"""
-        with open(self.config_path, 'r') as f:
+        with open(self.config_path, "r") as f:
             return yaml.safe_load(f)
 
     def should_trigger(self, user_message: str) -> bool:
@@ -55,7 +55,7 @@ class ProjectInitWorkflow:
             "can we build",
             "should we build",
             "i'd like to build",
-            "i want to create"
+            "i want to create",
         ]
 
         user_lower = user_message.lower()
@@ -71,12 +71,12 @@ class ProjectInitWorkflow:
         # This would use NLP or LLM to extract structured info
         # For now, placeholder that would be filled by Claude
         return {
-            'project_name': '',  # To be extracted
-            'project_type': '',  # desktop_app, web_app, cli_tool, etc.
-            'domain': '',        # legal, personal, business, etc.
-            'key_features': [],  # List of main features
-            'use_case': '',      # Primary use case
-            'constraints': [],   # Technical/business constraints
+            "project_name": "",  # To be extracted
+            "project_type": "",  # desktop_app, web_app, cli_tool, etc.
+            "domain": "",  # legal, personal, business, etc.
+            "key_features": [],  # List of main features
+            "use_case": "",  # Primary use case
+            "constraints": [],  # Technical/business constraints
         }
 
     def generate_search_queries(self, project_info: Dict) -> List[str]:
@@ -85,17 +85,17 @@ class ProjectInitWorkflow:
 
         Uses templates from config and fills in project-specific terms
         """
-        templates = self.config['project_init']['research']['web_search']['queries']
+        templates = self.config["project_init"]["research"]["web_search"]["queries"]
 
         queries = []
         for template in templates:
             query = template.format(
-                project_type=project_info.get('project_type', ''),
-                domain=project_info.get('domain', ''),
-                key_feature=', '.join(project_info.get('key_features', [])[:2]),
-                use_case=project_info.get('use_case', ''),
-                keywords=' '.join(project_info.get('key_features', [])[:3]),
-                technology=project_info.get('technology', 'AI')
+                project_type=project_info.get("project_type", ""),
+                domain=project_info.get("domain", ""),
+                key_feature=", ".join(project_info.get("key_features", [])[:2]),
+                use_case=project_info.get("use_case", ""),
+                keywords=" ".join(project_info.get("key_features", [])[:3]),
+                technology=project_info.get("technology", "AI"),
             )
             queries.append(query)
 
@@ -111,7 +111,7 @@ class ProjectInitWorkflow:
         Returns:
             Markdown formatted research document
         """
-        template = self.config['market_research_template']
+        template = self.config["market_research_template"]
 
         # Format solutions
         solutions_detailed = self._format_solutions_detailed(search_results)
@@ -121,14 +121,14 @@ class ProjectInitWorkflow:
         competitive_advantages = self._identify_advantages(search_results)
 
         return template.format(
-            project_name=self.project_info['project_name'],
-            date=datetime.now().strftime('%Y-%m-%d'),
+            project_name=self.project_info["project_name"],
+            date=datetime.now().strftime("%Y-%m-%d"),
             summary=self._generate_executive_summary(search_results),
             solutions_detailed=solutions_detailed,
             matrix_table=matrix_table,
             gaps_analysis=gaps_analysis,
             consolidation_potential=consolidation,
-            competitive_advantages=competitive_advantages
+            competitive_advantages=competitive_advantages,
         )
 
     def _format_solutions_detailed(self, solutions: List[Dict]) -> str:
@@ -141,43 +141,41 @@ class ProjectInitWorkflow:
             output.append(f"**URL**: {solution.get('url', 'N/A')}")
             output.append("")
             output.append("**Key Features**:")
-            for feature in solution.get('features', []):
+            for feature in solution.get("features", []):
                 output.append(f"- {feature}")
             output.append("")
             output.append("**Pros**:")
-            for pro in solution.get('pros', []):
+            for pro in solution.get("pros", []):
                 output.append(f"- ✅ {pro}")
             output.append("")
             output.append("**Cons**:")
-            for con in solution.get('cons', []):
+            for con in solution.get("cons", []):
                 output.append(f"- ❌ {con}")
             output.append("")
             output.append("**Limitations**:")
-            for limitation in solution.get('limitations', []):
+            for limitation in solution.get("limitations", []):
                 output.append(f"- {limitation}")
             output.append("")
             output.append("---")
             output.append("")
 
-        return '\n'.join(output)
+        return "\n".join(output)
 
     def _format_solution_matrix(self, solutions: List[Dict]) -> str:
         """Create comparison matrix table"""
-        columns = self.config['project_init']['research']['solution_matrix']['columns']
+        columns = self.config["project_init"]["research"]["solution_matrix"]["columns"]
 
         # Header
-        header = "| " + " | ".join([col.replace('_', ' ').title() for col in columns]) + " |"
+        header = "| " + " | ".join([col.replace("_", " ").title() for col in columns]) + " |"
         separator = "|" + "|".join(["---" for _ in columns]) + "|"
 
         # Rows
         rows = []
         for solution in solutions:
-            row = "| " + " | ".join([
-                str(solution.get(col, 'N/A')) for col in columns
-            ]) + " |"
+            row = "| " + " | ".join([str(solution.get(col, "N/A")) for col in columns]) + " |"
             rows.append(row)
 
-        return '\n'.join([header, separator] + rows)
+        return "\n".join([header, separator] + rows)
 
     def _analyze_market_gaps(self, solutions: List[Dict]) -> str:
         """Identify market gaps based on solution analysis"""
@@ -208,32 +206,32 @@ class ProjectInitWorkflow:
         Returns:
             Markdown formatted requirements document
         """
-        template = self.config['user_requirements_template']
+        template = self.config["user_requirements_template"]
 
         return template.format(
-            project_name=project_info['project_name'],
-            date=datetime.now().strftime('%Y-%m-%d'),
-            core_requirements=self._format_requirements(project_info.get('requirements', [])),
-            use_cases=self._format_use_cases(project_info.get('use_cases', [])),
-            target_users=project_info.get('target_users', 'To be defined'),
-            constraints=self._format_constraints(project_info.get('constraints', [])),
-            lessons_if_applicable=project_info.get('lessons_learned', 'N/A'),
-            must_have=self._format_features(project_info.get('must_have', [])),
-            should_have=self._format_features(project_info.get('should_have', [])),
-            nice_to_have=self._format_features(project_info.get('nice_to_have', []))
+            project_name=project_info["project_name"],
+            date=datetime.now().strftime("%Y-%m-%d"),
+            core_requirements=self._format_requirements(project_info.get("requirements", [])),
+            use_cases=self._format_use_cases(project_info.get("use_cases", [])),
+            target_users=project_info.get("target_users", "To be defined"),
+            constraints=self._format_constraints(project_info.get("constraints", [])),
+            lessons_if_applicable=project_info.get("lessons_learned", "N/A"),
+            must_have=self._format_features(project_info.get("must_have", [])),
+            should_have=self._format_features(project_info.get("should_have", [])),
+            nice_to_have=self._format_features(project_info.get("nice_to_have", [])),
         )
 
     def _format_requirements(self, requirements: List[str]) -> str:
-        return '\n'.join([f"{i}. {req}" for i, req in enumerate(requirements, 1)])
+        return "\n".join([f"{i}. {req}" for i, req in enumerate(requirements, 1)])
 
     def _format_use_cases(self, use_cases: List[str]) -> str:
-        return '\n'.join([f"- {uc}" for uc in use_cases])
+        return "\n".join([f"- {uc}" for uc in use_cases])
 
     def _format_constraints(self, constraints: List[str]) -> str:
-        return '\n'.join([f"- {c}" for c in constraints])
+        return "\n".join([f"- {c}" for c in constraints])
 
     def _format_features(self, features: List[str]) -> str:
-        return '\n'.join([f"{i}. {f}" for i, f in enumerate(features, 1)])
+        return "\n".join([f"{i}. {f}" for i, f in enumerate(features, 1)])
 
     def generate_gpt_prompt(self, project_info: Dict, solution_count: int) -> str:
         """
@@ -246,22 +244,21 @@ class ProjectInitWorkflow:
         Returns:
             Markdown formatted GPT prompt
         """
-        template = self.config['gpt_prompt_template']
+        template = self.config["gpt_prompt_template"]
 
         # Get project-type-specific analysis request
-        project_type = project_info.get('project_type', 'desktop_app')
-        analysis_request = self.config['analysis_requests'].get(
-            project_type,
-            self.config['analysis_requests']['desktop_app']
+        project_type = project_info.get("project_type", "desktop_app")
+        analysis_request = self.config["analysis_requests"].get(
+            project_type, self.config["analysis_requests"]["desktop_app"]
         )
 
         return template.format(
-            project_name=project_info['project_name'],
-            date=datetime.now().strftime('%Y-%m-%d'),
-            project_description=project_info.get('description', ''),
+            project_name=project_info["project_name"],
+            date=datetime.now().strftime("%Y-%m-%d"),
+            project_description=project_info.get("description", ""),
             solution_count=solution_count,
-            specific_analysis_request=analysis_request['request'],
-            expected_outputs=analysis_request['outputs']
+            specific_analysis_request=analysis_request["request"],
+            expected_outputs=analysis_request["outputs"],
         )
 
     def create_project_structure(self, project_slug: str) -> Path:
@@ -274,7 +271,7 @@ class ProjectInitWorkflow:
         Returns:
             Path to project directory
         """
-        output_dir = self.config['project_init']['outputs']['directory'].format(
+        output_dir = self.config["project_init"]["outputs"]["directory"].format(
             project_slug=project_slug
         )
 
@@ -294,12 +291,9 @@ class ProjectInitWorkflow:
         Returns:
             Formatted notification message
         """
-        template = self.config['user_notification']
+        template = self.config["user_notification"]
 
-        return template.format(
-            project_slug=project_slug,
-            solution_count=solution_count
-        )
+        return template.format(project_slug=project_slug, solution_count=solution_count)
 
 
 # Workflow execution checklist for Claude:

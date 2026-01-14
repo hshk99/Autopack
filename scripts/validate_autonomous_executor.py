@@ -11,6 +11,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+
 def test_imports():
     """Test that all required imports work"""
     print("[Probe 1/5] Testing imports...")
@@ -19,11 +20,13 @@ def test_imports():
         from autopack.anthropic_clients import AnthropicBuilderClient, AnthropicAuditorClient
         from autopack.dual_auditor import DualAuditor
         from autopack.quality_gate import QualityGate
+
         print("[PASS] All imports successful")
         return True
     except Exception as e:
         print(f"[FAIL] Import error: {e}")
         return False
+
 
 def test_client_initialization():
     """Test that clients can be initialized"""
@@ -41,6 +44,7 @@ def test_client_initialization():
         print(f"[FAIL] Client initialization error: {e}")
         return False
 
+
 def test_quality_gate_initialization():
     """Test that QualityGate can be initialized"""
     print("\n[Probe 3/5] Testing QualityGate initialization...")
@@ -54,6 +58,7 @@ def test_quality_gate_initialization():
     except Exception as e:
         print(f"[FAIL] QualityGate initialization error: {e}")
         return False
+
 
 def test_api_connection():
     """Test that we can connect to Autopack API"""
@@ -73,6 +78,7 @@ def test_api_connection():
         print(f"[FAIL] API connection error: {e}")
         return False
 
+
 def test_run_status_fetch():
     """Test that we can fetch run status"""
     print("\n[Probe 5/5] Testing run status fetch...")
@@ -83,7 +89,7 @@ def test_run_status_fetch():
 
         if response.status_code == 200:
             data = response.json()
-            if 'id' in data and 'state' in data:
+            if "id" in data and "state" in data:
                 print(f"[PASS] Run status fetch successful (state: {data['state']})")
                 return True
             else:
@@ -96,25 +102,26 @@ def test_run_status_fetch():
         print(f"[FAIL] Run status fetch error: {e}")
         return False
 
+
 def main():
     """Run all validation probes"""
-    print("="*80)
+    print("=" * 80)
     print("AUTONOMOUS EXECUTOR VALIDATION PROBE")
-    print("="*80)
+    print("=" * 80)
 
     tests = [
         test_imports,
         test_client_initialization,
         test_quality_gate_initialization,
         test_api_connection,
-        test_run_status_fetch
+        test_run_status_fetch,
     ]
 
     results = [test() for test in tests]
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("PROBE SUMMARY")
-    print("="*80)
+    print("=" * 80)
     print(f"Passed: {sum(results)}/{len(results)}")
     print(f"Failed: {len(results) - sum(results)}/{len(results)}")
 
@@ -124,6 +131,7 @@ def main():
     else:
         print("\n[FAILURE] Some probes failed - Review errors above")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

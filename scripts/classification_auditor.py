@@ -102,17 +102,28 @@ class ClassificationAuditor:
 
         # Skip audit if confidence is high
         if confidence >= self.audit_threshold:
-            return (True, project_id, file_type, dest_path, confidence, "High confidence, no audit needed")
+            return (
+                True,
+                project_id,
+                file_type,
+                dest_path,
+                confidence,
+                "High confidence, no audit needed",
+            )
 
         # Perform LLM-based audit
         if not self.llm_client:
             # No LLM available, trust classifier
             return (True, project_id, file_type, dest_path, confidence, "No LLM available")
 
-        print(f"[Auditor] Reviewing low-confidence classification ({confidence:.2f}) for: {file_path.name}")
+        print(
+            f"[Auditor] Reviewing low-confidence classification ({confidence:.2f}) for: {file_path.name}"
+        )
 
         # Build context-rich prompt
-        prompt = self._build_audit_prompt(file_path, file_content, project_id, file_type, confidence)
+        prompt = self._build_audit_prompt(
+            file_path, file_content, project_id, file_type, confidence
+        )
 
         # Get LLM audit
         try:
@@ -127,7 +138,7 @@ class ClassificationAuditor:
                     file_type,
                     dest_path,
                     min(confidence * 1.1, 1.0),  # Boost confidence slightly
-                    f"Auditor approved: {audit_result['reason']}"
+                    f"Auditor approved: {audit_result['reason']}",
                 )
 
             elif audit_result["action"] == "override" and self.enable_auto_override:
@@ -139,7 +150,14 @@ class ClassificationAuditor:
                 if new_project == "autopack":
                     new_dest = str(REPO_ROOT / "archive" / f"{new_type}s" / file_path.name)
                 else:
-                    new_dest = str(REPO_ROOT / ".autonomous_runs" / new_project / "archive" / f"{new_type}s" / file_path.name)
+                    new_dest = str(
+                        REPO_ROOT
+                        / ".autonomous_runs"
+                        / new_project
+                        / "archive"
+                        / f"{new_type}s"
+                        / file_path.name
+                    )
 
                 print(f"[Auditor] OVERRIDE: {project_id}/{file_type} -> {new_project}/{new_type}")
 
@@ -149,7 +167,7 @@ class ClassificationAuditor:
                     new_type,
                     new_dest,
                     0.95,  # Auditor override has high confidence
-                    f"Auditor override: {audit_result['reason']}"
+                    f"Auditor override: {audit_result['reason']}",
                 )
 
             elif audit_result["action"] == "flag":
@@ -161,7 +179,7 @@ class ClassificationAuditor:
                     file_type,
                     dest_path,
                     confidence,
-                    f"Flagged for manual review: {audit_result['reason']}"
+                    f"Flagged for manual review: {audit_result['reason']}",
                 )
 
         except Exception as e:
@@ -178,7 +196,7 @@ class ClassificationAuditor:
         file_content: str,
         classified_project: str,
         classified_type: str,
-        confidence: float
+        confidence: float,
     ) -> str:
         """Build context-rich audit prompt for LLM."""
 
@@ -236,11 +254,14 @@ RESPOND:"""
             cursor = self.pg_conn.cursor()
 
             # Get project configuration
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT base_path, runs_path, archive_path, docs_path
                 FROM project_directory_config
                 WHERE project_id = %s
-            """, (project_id,))
+            """,
+                (project_id,),
+            )
 
             config = cursor.fetchone()
             if not config:
@@ -257,13 +278,16 @@ KNOWN FILE TYPES FOR THIS PROJECT:
 """
 
             # Get routing rules for this project
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT file_type, content_keywords, destination_path
                 FROM directory_routing_rules
                 WHERE project_id = %s
                 ORDER BY priority DESC
                 LIMIT 10
-            """, (project_id,))
+            """,
+                (project_id,),
+            )
 
             rules = cursor.fetchall()
             for rule in rules:
@@ -306,7 +330,7 @@ PROJECT: File Organizer App
             "reason": "No clear decision in response",
         }
 
-        lines = response.strip().split('\n')
+        lines = response.strip().split("\n")
 
         for line in lines:
             line = line.strip()
@@ -334,9 +358,7 @@ PROJECT: File Organizer App
 
 
 def batch_audit_classifications(
-    classifications: list,
-    auditor: ClassificationAuditor,
-    show_approved: bool = False
+    classifications: list, auditor: ClassificationAuditor, show_approved: bool = False
 ) -> Tuple[list, list, list]:
     """
     Batch audit multiple classifications.
@@ -365,15 +387,24 @@ def batch_audit_classifications(
             print(f"[FLAGGED] {file_path.name}: {reason}")
 
         elif final_proj != classifier_result[0] or final_type != classifier_result[1]:
-            overridden.append((file_path, classifier_result, (final_proj, final_type, final_dest, final_conf), reason))
-            print(f"[OVERRIDE] {file_path.name}: {classifier_result[0]}/{classifier_result[1]} -> {final_proj}/{final_type}")
+            overridden.append(
+                (
+                    file_path,
+                    classifier_result,
+                    (final_proj, final_type, final_dest, final_conf),
+                    reason,
+                )
+            )
+            print(
+                f"[OVERRIDE] {file_path.name}: {classifier_result[0]}/{classifier_result[1]} -> {final_proj}/{final_type}"
+            )
 
         else:
             approved.append((file_path, classifier_result, reason))
             if show_approved:
                 print(f"[APPROVED] {file_path.name}: {reason}")
 
-    print(f"\n=== Audit Summary ===")
+    print("\n=== Audit Summary ===")
     print(f"Approved: {len(approved)}")
     print(f"Overridden: {len(overridden)}")
     print(f"Flagged for manual review: {len(flagged)}")
@@ -404,10 +435,7 @@ def main():
     classifier_result = (args.project, args.type, f"dest/{args.file.name}", args.confidence)
 
     # Create auditor
-    auditor = ClassificationAuditor(
-        audit_threshold=0.80,
-        enable_auto_override=True
-    )
+    auditor = ClassificationAuditor(audit_threshold=0.80, enable_auto_override=True)
 
     # Audit
     result = auditor.audit_classification(args.file, content, classifier_result)

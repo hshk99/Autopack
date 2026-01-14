@@ -32,7 +32,16 @@ router = APIRouter(tags=["phases"])
 
 
 @router.post(
-    "/runs/{run_id}/phases/{phase_id}/update_status", dependencies=[Depends(verify_api_key)]
+    "/runs/{run_id}/phases/{phase_id}/update_status",
+    summary="Update phase status",
+    description="Update the status and metadata of a specific phase including state, builder attempts, tokens used, and issue counts. Also updates run state if all phases reach terminal state.",
+    dependencies=[Depends(verify_api_key)],
+    responses={
+        200: {"description": "Phase status updated successfully"},
+        400: {"description": "Invalid phase state"},
+        404: {"description": "Phase or run not found"},
+        500: {"description": "Internal server error"},
+    },
 )
 def update_phase_status(
     run_id: str,
@@ -137,7 +146,15 @@ def update_phase_status(
 
 
 @router.post(
-    "/runs/{run_id}/phases/{phase_id}/record_issue", dependencies=[Depends(verify_api_key)]
+    "/runs/{run_id}/phases/{phase_id}/record_issue",
+    summary="Record an issue for a phase",
+    description="Record an issue detected during phase execution. Updates phase, tier, and run issue counts. Issues are categorized by severity and source.",
+    dependencies=[Depends(verify_api_key)],
+    responses={
+        200: {"description": "Issue recorded successfully"},
+        404: {"description": "Phase, run, or tier not found"},
+        500: {"description": "Internal server error"},
+    },
 )
 def record_phase_issue(
     run_id: str,
@@ -206,7 +223,17 @@ def record_phase_issue(
 
 
 @router.post(
-    "/runs/{run_id}/phases/{phase_id}/builder_result", dependencies=[Depends(verify_api_key)]
+    "/runs/{run_id}/phases/{phase_id}/builder_result",
+    summary="Submit Builder result for a phase",
+    description="Submit the results of Builder execution for a phase including patch content, issues, and token usage. Applies patches to workspace via governed apply path and updates phase state.",
+    dependencies=[Depends(verify_api_key)],
+    responses={
+        200: {"description": "Builder result submitted successfully"},
+        400: {"description": "Invalid run or phase ID mismatch"},
+        404: {"description": "Phase not found"},
+        422: {"description": "Patch application failed"},
+        500: {"description": "Internal server error"},
+    },
 )
 def submit_builder_result(
     run_id: str,
@@ -412,7 +439,16 @@ def submit_builder_result(
 
 
 @router.post(
-    "/runs/{run_id}/phases/{phase_id}/auditor_result", dependencies=[Depends(verify_api_key)]
+    "/runs/{run_id}/phases/{phase_id}/auditor_result",
+    summary="Submit Auditor result for a phase",
+    description="Submit the results of Auditor execution for a phase including recommendation and issues found. Records auditor attempts and token usage for the phase.",
+    dependencies=[Depends(verify_api_key)],
+    responses={
+        200: {"description": "Auditor result submitted successfully"},
+        400: {"description": "Run or phase ID mismatch"},
+        404: {"description": "Phase not found"},
+        500: {"description": "Database error"},
+    },
 )
 def submit_auditor_result(
     run_id: str,

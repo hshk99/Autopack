@@ -32,9 +32,17 @@ router = APIRouter(tags=["runs"])
 
 @router.post(
     "/runs/start",
+    summary="Start a new autonomous build run",
+    description="Start a new autonomous build run with specified tiers and phases. Returns run configuration with tier and phase details. Rate limited to 10 runs per minute.",
     response_model=schemas.RunResponse,
     status_code=201,
     dependencies=[Depends(verify_api_key)],
+    responses={
+        201: {"description": "Run created successfully"},
+        400: {"description": "Invalid request or run already exists"},
+        429: {"description": "Rate limit exceeded (10 runs/minute)"},
+        503: {"description": "Database unavailable"},
+    },
 )
 @limiter.limit("10/minute")  # Max 10 runs per minute per IP
 def start_run(
@@ -177,7 +185,17 @@ def start_run(
     return run_with_relationships
 
 
-@router.get("/runs/{run_id}", response_model=schemas.RunResponse)
+@router.get(
+    "/runs/{run_id}",
+    summary="Get run details",
+    description="Retrieve detailed information about a specific run including all tiers, phases, current status, and metadata. Includes phase states and progress information.",
+    response_model=schemas.RunResponse,
+    responses={
+        200: {"description": "Run details retrieved successfully"},
+        404: {"description": "Run not found"},
+        503: {"description": "Database unavailable or misconfigured"},
+    },
+)
 def get_run(
     run_id: str,
     db: Session = Depends(get_db),
@@ -201,7 +219,16 @@ def get_run(
         )
 
 
-@router.get("/runs/{run_id}/issues/index")
+@router.get(
+    "/runs/{run_id}/issues/index",
+    summary="Get run-level issue index",
+    description="Retrieve the run-level issue index containing all issues detected during the run execution. Returns categorized issues with severity levels and evidence references.",
+    responses={
+        200: {"description": "Issue index retrieved successfully"},
+        404: {"description": "Run not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 def get_run_issue_index(run_id: str, _auth: str = Depends(verify_read_access)):
     """Get run-level issue index."""
     tracker = IssueTracker(run_id=run_id)
@@ -209,7 +236,15 @@ def get_run_issue_index(run_id: str, _auth: str = Depends(verify_read_access)):
     return index.model_dump()
 
 
-@router.get("/project/issues/backlog")
+@router.get(
+    "/project/issues/backlog",
+    summary="Get project-level issue backlog",
+    description="Retrieve the project-level issue backlog containing all issues across all runs. Returns prioritized issues for project-wide tracking and analysis.",
+    responses={
+        200: {"description": "Project backlog retrieved successfully"},
+        500: {"description": "Internal server error"},
+    },
+)
 def get_project_backlog(_auth: str = Depends(verify_read_access)):
     """Get project-level issue backlog."""
     tracker = IssueTracker(run_id="dummy")
@@ -217,7 +252,16 @@ def get_project_backlog(_auth: str = Depends(verify_read_access)):
     return backlog.model_dump()
 
 
-@router.get("/runs/{run_id}/errors")
+@router.get(
+    "/runs/{run_id}/errors",
+    summary="Get all error reports for a run",
+    description="Retrieve all error reports collected during a specific run execution. Returns detailed error information including error types, messages, and context.",
+    responses={
+        200: {"description": "Error reports retrieved successfully"},
+        404: {"description": "Run not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 def get_run_errors(run_id: str, _auth: str = Depends(verify_read_access)):
     """Get all error reports for a run."""
     from autopack.error_reporter import get_error_reporter
@@ -227,7 +271,16 @@ def get_run_errors(run_id: str, _auth: str = Depends(verify_read_access)):
     return {"run_id": run_id, "error_count": len(errors), "errors": errors}
 
 
-@router.get("/runs/{run_id}/errors/summary")
+@router.get(
+    "/runs/{run_id}/errors/summary",
+    summary="Get error summary for a run",
+    description="Retrieve a summarized view of all errors for a run with aggregated counts and categorization. Useful for quick error overview without detailed error lists.",
+    responses={
+        200: {"description": "Error summary retrieved successfully"},
+        404: {"description": "Run not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 def get_run_error_summary(run_id: str, _auth: str = Depends(verify_read_access)):
     """Get error summary for a run."""
     from autopack.error_reporter import get_error_reporter
@@ -237,7 +290,16 @@ def get_run_error_summary(run_id: str, _auth: str = Depends(verify_read_access))
     return {"run_id": run_id, "summary": summary}
 
 
-@router.get("/runs")
+@router.get(
+    "/runs",
+    summary="List all runs with pagination",
+    description="List all runs with pagination support (GAP-8.10.2 Runs Inbox). Returns summary information for each run suitable for inbox display including current phase and token usage.",
+    responses={
+        200: {"description": "Runs list retrieved successfully"},
+        400: {"description": "Invalid pagination parameters"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def list_runs(
     limit: int = 20,
     offset: int = 0,
@@ -312,7 +374,16 @@ async def list_runs(
     }
 
 
-@router.get("/runs/{run_id}/progress")
+@router.get(
+    "/runs/{run_id}/progress",
+    summary="Get detailed run progress",
+    description="Get detailed progress for a run (GAP-8.10.4 Progress View). Returns phase-by-phase progress with timing, token information, and status breakdown.",
+    responses={
+        200: {"description": "Run progress retrieved successfully"},
+        404: {"description": "Run not found"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def get_run_progress(
     run_id: str,
     db: Session = Depends(get_db),

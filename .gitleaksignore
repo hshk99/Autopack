@@ -46,3 +46,8 @@ f8ad99729c03793ebd74798f6c759ab2e175e38d:tests/artifacts/test_redaction.py:gener
 f8ad99729c03793ebd74798f6c759ab2e175e38d:tests/subagent/test_guardrails.py:generic-api-key:117
 f8ad99729c03793ebd74798f6c759ab2e175e38d:tests/subagent/test_guardrails.py:generic-api-key:327
 f8ad99729c03793ebd74798f6c759ab2e175e38d:tests/subagent/test_guardrails.py:generic-api-key:418
+
+# IMP-051: Comprehensive .env.example documentation (commented example secrets)
+# These are intentional example strings showing JWT format, not actual secrets
+ea4a3710e16dd6bcfbe73b7082725b7fa727f9db:.env.example:private-key:308
+ea4a3710e16dd6bcfbe73b7082725b7fa727f9db:.env.example:public-key:315

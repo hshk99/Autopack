@@ -3,6 +3,7 @@
 Extracted from main.py as part of PR-API-3h.
 
 Endpoints:
+- GET /phases - List phases with pagination
 - POST /runs/{run_id}/phases/{phase_id}/update_status - Update phase status
 - POST /runs/{run_id}/phases/{phase_id}/record_issue - Record an issue for a phase
 - POST /runs/{run_id}/phases/{phase_id}/builder_result - Submit Builder result
@@ -29,6 +30,51 @@ from autopack.issue_tracker import IssueTracker
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["phases"])
+
+
+@router.get("/phases", response_model=schemas.PaginatedResponse)
+async def list_phases(
+    run_id: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+    db: Session = Depends(get_db),
+):
+    """
+    List phases with pagination.
+
+    Args:
+        run_id: Optional filter by run ID
+        page: Page number (1-indexed, default 1)
+        page_size: Number of items per page (default 50, max 100)
+
+    Returns:
+        Paginated response with items and metadata
+    """
+    # Validate pagination params
+    page = max(1, page)
+    page_size = min(max(1, page_size), 100)
+
+    query = db.query(models.Phase)
+    if run_id:
+        query = query.filter_by(run_id=run_id)
+
+    # Get total count
+    total = query.count()
+
+    # Apply pagination
+    offset = (page - 1) * page_size
+    phase_items = query.offset(offset).limit(page_size).all()
+
+    # Convert Phase objects to PhaseResponse for serialization
+    items = [schemas.PhaseResponse.model_validate(phase) for phase in phase_items]
+
+    return schemas.PaginatedResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        has_next=(offset + page_size) < total,
+    )
 
 
 @router.post(

@@ -426,3 +426,20 @@ class RecommendationsListResponse(BaseModel):
 
     recommendations: List[RecommendationResponse]
     scan_statistics: Dict[str, Any]
+
+
+# ==============================================================================
+# Pagination Schemas (IMP-044)
+# ==============================================================================
+
+
+class PaginatedResponse(BaseModel):
+    """Generic paginated response for listing resources"""
+
+    items: List[Any] = Field(..., description="List of items for this page")
+    total: int = Field(..., description="Total number of items across all pages")
+    page: int = Field(..., description="Current page number (1-indexed)")
+    page_size: int = Field(..., description="Number of items per page")
+    has_next: bool = Field(..., description="Whether there are more pages after this one")
+
+    model_config = ConfigDict(from_attributes=True)

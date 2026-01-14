@@ -422,7 +422,7 @@ PYTHONUTF8=1 python scripts/tidy/run_tidy_all.py --semantic --project autopack-f
 **Tidy Safety Notes**:
 - Uses **append-only** approach (never deletes SOT files)
 - Processes archive files matching patterns, consolidates to `BUILD_HISTORY.md`, `DEBUG_LOG.md`, `ARCHITECTURE_DECISIONS.md`
-- Excludes: `archive/prompts/`, `archive/research/active/`, `ARCHIVE_INDEX.md`, `README.md`
+- Excludes: `archive/prompts/`, `archive/research/active/`, `archive/ARCHIVE_INDEX.md`, `README.md`
 - Uses `glm-4.7` for semantic classification (configured in `config/models.yaml:154`)
 - Safe to run repeatedly (idempotent)
 

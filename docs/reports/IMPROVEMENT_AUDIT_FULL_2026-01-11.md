@@ -31,7 +31,7 @@ This file focuses on: **what remains after the recent hardening PR streak**.
 
 From the recent merges (PRs **#103–#109**), many of the previously-documented “two truths” issues appear already closed, including:
 
-- **Docs truth drift fixes** (e.g., BUILD-041 status drift; `ARCHITECTURE.md` path correctness).
+- **Docs truth drift fixes** (e.g., BUILD-041 status drift; `docs/ARCHITECTURE.md` path correctness).
 - **Canonical-doc portability enforcement** (CI-level).
 - **CI enforcement ladder documentation**.
 - **Feature flags registry + stronger extraction**.
@@ -48,7 +48,7 @@ That shifts the “next best work” away from small doc nits and toward **maint
 ### 2.1 “One truth” / docs portability cleanup (still leaks in living SOT docs)
 
 - **`docs/FUTURE_PLAN.md` contains workstation-specific paths** (e.g., `cd c:/dev/Autopack`) and **legacy repo paths** (e.g., `src/backend/`).
-  - Why it matters: `FUTURE_PLAN.md` is part of the **6-file SOT** per `docs/WORKSPACE_ORGANIZATION_SPEC.md`; it should not be copy/paste-bait for wrong paths.
+  - Why it matters: `docs/FUTURE_PLAN.md` is part of the **6-file SOT** per `docs/WORKSPACE_ORGANIZATION_SPEC.md`; it should not be copy/paste-bait for wrong paths.
   - Fix shape:
     - Replace `cd c:/dev/Autopack` with `$REPO_ROOT`-portable guidance.
     - Where `src/backend/` appears, either:

@@ -203,7 +203,7 @@ Verification:
 Design: `docs/` should not be an inbox. We need **two explicit modes**:
 
 - **Mode 1: conservative (default)**
-  - Do not move anything under `docs/` automatically except clearly non-truth artifacts (e.g., `UNSORTED_REVIEW.md` is allowed, but random `ref*.md` is not).
+  - Do not move anything under `docs/` automatically except clearly non-truth artifacts (e.g., `archive/superseded/analysis/unsorted/UNSORTED_REVIEW.md` is allowed, but random `ref*.md` is not).
   - Enforce “no new docs subdirs” by denylisting unknown directories.
 
 - **Mode 2: reduce docs (explicit opt-in)** (`--docs-reduce-to-sot`)

@@ -444,7 +444,7 @@ This appendix converts the scan into a **small PR queue**. Each PR is scoped to 
 
 ### PR-E2 — Add a “6-file SOT portability contract” (mechanical enforcement)
 
-Right now the canonical-doc CI check is strong, but **6-file SOT docs** (notably `FUTURE_PLAN.md`) can still accumulate copy/paste traps.
+Right now the canonical-doc CI check is strong, but **6-file SOT docs** (notably `docs/FUTURE_PLAN.md`) can still accumulate copy/paste traps.
 
 - **Goal**: mechanically block workstation-path reintroduction into the SOT surface.
 - **Implementation options**:
@@ -460,7 +460,7 @@ Right now the canonical-doc CI check is strong, but **6-file SOT docs** (notably
   - `C:\\dev\\Autopack` (and variants)
   - `c:/dev/Autopack` (case-insensitive)
 - **Acceptance criteria**:
-  - CI fails if a workstation absolute path is added to SOT docs (at least `FUTURE_PLAN.md`).
+  - CI fails if a workstation absolute path is added to SOT docs (at least `docs/FUTURE_PLAN.md`).
   - No failures triggered by historical ledgers unless you explicitly choose “recent window” enforcement.
 
 ### PR-E3 — Containment policy for legacy `src/backend` references in SOT ledgers (optional)

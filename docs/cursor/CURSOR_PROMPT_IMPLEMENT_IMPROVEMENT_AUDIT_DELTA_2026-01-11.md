@@ -166,7 +166,7 @@ Make workstation-path usage impossible in canonical operator docs, and ensure th
 
 2) **Fix canonical security README path**
 
-- In `CANONICAL_OPERATOR_DOCS`, replace `docs/security/README.md` with `security/README.md`.
+- In `CANONICAL_OPERATOR_DOCS`, replace `README.md` with `security/README.md`.
 
 3) **Add workstation-path enforcement (copy/paste snippet)**
 

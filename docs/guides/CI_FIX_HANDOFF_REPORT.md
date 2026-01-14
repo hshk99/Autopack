@@ -58,7 +58,7 @@ Research phases were failing at pytest collection stage with ImportError issues.
 - `src/autopack/autonomous/research_hooks.py` - Added `create_research_hooks()` factory
 - `src/autopack/integrations/build_history_integrator.py` - Added `BuildHistoryEntry` + 3 methods
 - `src/autopack/phases/research_phase.py` - Added `ResearchPhaseExecutor` wrapper
-- `BUILD_LOG.md` - Documented CI fix completion
+- `archive/superseded/reports/BUILD_LOG.md` - Documented CI fix completion
 
 ### Created
 - `docs/guides/RESEARCH_CI_IMPORT_FIX.md` - Technical specification (for implementation)

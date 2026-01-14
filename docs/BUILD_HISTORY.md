@@ -580,7 +580,7 @@ python scripts/batch_drain_controller.py \
 
 **Files Modified**:
 - `archive/superseded/research/unsorted/RESEARCH_SYSTEM_CAPABILITY_GAP_ANALYSIS.md`
-- `PROMPT_FOR_OTHER_CURSOR_FILEORG.md`
+- `docs/cursor/PROMPT_FOR_OTHER_CURSOR_FILEORG.md`
 - `archive/superseded/prompts/unsorted/NEXT_CURSOR_TAKEOVER_PROMPT.md`
 
 ---
@@ -1190,7 +1190,7 @@ python scripts/batch_drain_controller.py \
 **Fixes**:
 - Memory: `MemoryService` now validates Qdrant reachability and **falls back to FAISS** if Qdrant is unreachable, preserving memory functionality without requiring paid services.
 - Qdrant client log: downgraded the “connected” message to a debug-level “client initialized”.
-- Consolidated docs: `ArchiveConsolidator` now creates `.docs_dir` and initializes `CONSOLIDATED_DEBUG.md`, `CONSOLIDATED_BUILD.md`, and `CONSOLIDATED_STRATEGY.md` skeletons when missing (events are persisted instead of dropped).
+- Consolidated docs: `ArchiveConsolidator` now creates `.docs_dir` and initializes `archive/docs/CONSOLIDATED_DEBUG.md`, `archive/superseded/scripts/unsorted/CONSOLIDATED_BUILD.md`, and `archive/superseded/research/unsorted/CONSOLIDATED_STRATEGY.md` skeletons when missing (events are persisted instead of dropped).
 - Tier IDs: executor now surfaces `tier_id` as the stable string (`Tier.tier_id`) and keeps DB PK as `tier_db_id`; backend `/runs/{id}` now serializes `tier_id` as the stable string; IssueTracker normalizes IDs to strings.
 
 **Files Modified**:
@@ -1212,14 +1212,14 @@ python scripts/batch_drain_controller.py \
 - Windows: executor lock acquisition could raise `PermissionError` when a second executor attempted to start, instead of cleanly returning “lock held”.
 - Backend API lacked `/health`, causing noisy warning: “Port 8000 is open but API health check failed”.
 - Diagnostics baseline used Unix-only commands (`du`, `df`) causing noisy `WinError 2` on Windows.
-- Optional inputs produced overly loud warnings (missing `CONSOLIDATED_DEBUG.md`).
+- Optional inputs produced overly loud warnings (missing `archive/docs/CONSOLIDATED_DEBUG.md`).
 - Optional FAISS dependency absence logged as a warning even though an in-memory fallback exists.
 
 **Fixes**:
 - Locking: acquire OS-level file lock **before** writing metadata to the lock file; treat Windows `PermissionError` as “lock held”.
 - Backend: added `GET /health` endpoint to `src/backend/main.py`.
 - Diagnostics: only run `du`/`df` baseline probes when available and not on Windows.
-- Reduced noise for optional artifacts: downgraded missing `CONSOLIDATED_DEBUG.md` log to info.
+- Reduced noise for optional artifacts: downgraded missing `archive/docs/CONSOLIDATED_DEBUG.md` log to info.
 - Downgraded FAISS “not installed” to info (expected on some platforms).
 
 **Files Modified**:

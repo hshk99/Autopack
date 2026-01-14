@@ -156,7 +156,7 @@ Implement in the order below. Each PR should contain:
   - `docs/PROJECT_INDEX.json`
   - `docs/LEARNED_RULES.json`
   - `docs/FUTURE_PLAN.md` (**strict**)
-  - For append-only ledgers (`BUILD_HISTORY.md`, `DEBUG_LOG.md`, `ARCHITECTURE_DECISIONS.md`): prefer **recent-window-only** enforcement to avoid rewriting history.
+  - For append-only ledgers (`docs/BUILD_HISTORY.md`, `docs/DEBUG_LOG.md`, `docs/ARCHITECTURE_DECISIONS.md`): prefer **recent-window-only** enforcement to avoid rewriting history.
 
 **Patterns to forbid** (unless explicitly labeled `HISTORICAL`/`LEGACY` on the same line):
 - `c:/dev/Autopack` (case-insensitive)

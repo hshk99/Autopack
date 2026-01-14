@@ -14,7 +14,7 @@ The `verify-workspace-structure` workflow reports "Overall Valid: NO" with 3 pre
    - Redirect stub pointing to `docs/BUILD-163_SOT_DB_SYNC.md`
    - Created by doc link triage (BUILD-166)
 
-2. **Disallowed file at root: `CONSOLIDATED_DEBUG.md`**
+2. **Disallowed file at root: `archive/docs/CONSOLIDATED_DEBUG.md`**
    - Redirect stub pointing to `docs/DEBUG_LOG.md`
    - Created by doc link triage (BUILD-166)
 
@@ -25,7 +25,7 @@ The `verify-workspace-structure` workflow reports "Overall Valid: NO" with 3 pre
 
 ### Root File Violations
 
-Both `SOT_BUNDLE.md` and `CONSOLIDATED_DEBUG.md` are redirect stubs with no unique content (the actual content was moved to their canonical locations). These stubs can be safely deleted.
+Both `SOT_BUNDLE.md` and `archive/docs/CONSOLIDATED_DEBUG.md` are redirect stubs with no unique content (the actual content was moved to their canonical locations). These stubs can be safely deleted.
 
 ### docs/schemas Violation
 
@@ -49,7 +49,7 @@ The workflow uses `continue-on-error: true` and the violation check has `exit 1`
 
 ### Files Deleted
 - `SOT_BUNDLE.md` (redirect stub)
-- `CONSOLIDATED_DEBUG.md` (redirect stub)
+- `archive/docs/CONSOLIDATED_DEBUG.md` (redirect stub)
 
 ### Files Moved
 - `docs/schemas/*.schema.json` → `src/autopack/schemas/`

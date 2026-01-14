@@ -7,9 +7,9 @@
 
 ## SOT Files Updated
 
-- ✅ `BUILD_HISTORY.md`: 33 total entries
-- ✅ `DEBUG_LOG.md`: 0 total entries
-- ✅ `ARCHITECTURE_DECISIONS.md`: 0 total entries
+- ✅ `docs/BUILD_HISTORY.md`: 33 total entries
+- ✅ `docs/DEBUG_LOG.md`: 0 total entries
+- ✅ `docs/ARCHITECTURE_DECISIONS.md`: 0 total entries
 
 ---
 

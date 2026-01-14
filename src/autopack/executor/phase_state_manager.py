@@ -49,6 +49,12 @@ class StateUpdateRequest:
     timestamp: Optional[datetime] = None
 
 
+class InvalidStateTransitionError(Exception):
+    """Raised when an invalid state transition is attempted."""
+
+    pass
+
+
 class PhaseStateManager:
     """Manages phase state persistence lifecycle.
 
@@ -60,17 +66,21 @@ class PhaseStateManager:
     exact semantics from the original scattered implementation.
     """
 
-    def __init__(self, run_id: str, workspace: Path, project_id: Optional[str] = None):
+    def __init__(
+        self, run_id: str, workspace: Path, project_id: Optional[str] = None, validate: bool = True
+    ):
         """Initialize phase state manager.
 
         Args:
             run_id: Unique run identifier
             workspace: Workspace root path
             project_id: Optional project identifier
+            validate: Whether to validate state transitions (default: True)
         """
         self.run_id = run_id
         self.workspace = workspace
         self.project_id = project_id
+        self.validate = validate
 
     def load_or_create_default(self, phase_id: str) -> PhaseState:
         """Load phase state from DB or create defaults.
@@ -107,6 +117,9 @@ class PhaseStateManager:
 
         Returns:
             True if update successful, False otherwise
+
+        Raises:
+            InvalidStateTransitionError: If validation is enabled and transition is invalid
         """
         # Load current state to calculate new values
         current_state = self.load_or_create_default(phase_id)
@@ -140,6 +153,10 @@ class PhaseStateManager:
             logger.debug(f"[{phase_id}] No state updates to apply")
             return True
 
+        # Validate state transition if enabled
+        if self.validate:
+            self._validate_state_update(phase_id, current_state, updates)
+
         return self._update_phase_attempts_in_db(phase_id, **updates)
 
     def mark_complete(self, phase_id: str) -> bool:
@@ -164,6 +181,70 @@ class PhaseStateManager:
             True if update successful, False otherwise
         """
         return self._mark_phase_failed_in_db(phase_id, reason)
+
+    def _validate_state_update(
+        self, phase_id: str, current_state: PhaseState, updates: dict
+    ) -> None:
+        """Validate state update to prevent invalid transitions.
+
+        Args:
+            phase_id: Phase identifier
+            current_state: Current phase state
+            updates: Proposed state updates
+
+        Raises:
+            InvalidStateTransitionError: If transition is invalid
+        """
+        # Validate retry_attempt: must be non-negative and monotonic
+        if "retry_attempt" in updates:
+            new_retry = updates["retry_attempt"]
+            if new_retry < 0:
+                raise InvalidStateTransitionError(
+                    f"[{phase_id}] Invalid retry_attempt: {new_retry} (must be non-negative)"
+                )
+            if new_retry < current_state.retry_attempt:
+                logger.warning(
+                    f"[{phase_id}] Non-monotonic retry_attempt: {current_state.retry_attempt} -> {new_retry}"
+                )
+
+        # Validate revision_epoch: must be non-negative and monotonic
+        if "revision_epoch" in updates:
+            new_epoch = updates["revision_epoch"]
+            if new_epoch < 0:
+                raise InvalidStateTransitionError(
+                    f"[{phase_id}] Invalid revision_epoch: {new_epoch} (must be non-negative)"
+                )
+            if new_epoch < current_state.revision_epoch:
+                logger.warning(
+                    f"[{phase_id}] Non-monotonic revision_epoch: {current_state.revision_epoch} -> {new_epoch}"
+                )
+
+        # Validate escalation_level: must be non-negative and bounded
+        if "escalation_level" in updates:
+            new_escalation = updates["escalation_level"]
+            MAX_ESCALATION_LEVEL = 10  # Reasonable upper bound
+            if new_escalation < 0:
+                raise InvalidStateTransitionError(
+                    f"[{phase_id}] Invalid escalation_level: {new_escalation} (must be non-negative)"
+                )
+            if new_escalation > MAX_ESCALATION_LEVEL:
+                raise InvalidStateTransitionError(
+                    f"[{phase_id}] Invalid escalation_level: {new_escalation} (exceeds max: {MAX_ESCALATION_LEVEL})"
+                )
+            if new_escalation < current_state.escalation_level:
+                logger.warning(
+                    f"[{phase_id}] Non-monotonic escalation_level: {current_state.escalation_level} -> {new_escalation}"
+                )
+
+        # Validate timestamp: must not be in the future
+        if "timestamp" in updates:
+            new_timestamp = updates["timestamp"]
+            if new_timestamp and new_timestamp > datetime.now(timezone.utc):
+                raise InvalidStateTransitionError(
+                    f"[{phase_id}] Invalid timestamp: {new_timestamp} (timestamp in future)"
+                )
+
+        logger.debug(f"[{phase_id}] State update validation passed")
 
     # Internal methods that wrap database calls
     # These preserve exact implementation from autonomous_executor.py

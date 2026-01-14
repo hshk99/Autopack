@@ -23,6 +23,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import _rate_limit_exceeded_handler
@@ -359,6 +360,11 @@ def create_app() -> FastAPI:
     # IMP-S05: Add security headers middleware
     # Must be added after CORS to allow CORS preflight to work properly
     app.add_middleware(SecurityHeadersMiddleware)
+
+    # IMP-045: Add gzip compression middleware
+    # Compresses responses larger than 1KB to reduce bandwidth by 60-80% on large JSON responses
+    # Only applied when client sends Accept-Encoding: gzip header
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
 
     # Add rate limiting to app
     app.state.limiter = limiter

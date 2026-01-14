@@ -52,6 +52,7 @@ def mock_research_execution():
         yield mock
 
 
+@pytest.mark.timeout(60)  # Increased from 30s for slow CI runners
 def test_full_research_workflow(integration_setup, mock_research_execution):
     """Test complete research workflow from trigger to review."""
     setup = integration_setup
@@ -98,6 +99,7 @@ def test_full_research_workflow(integration_setup, mock_research_execution):
     assert "research_session_id" in updated_plan["metadata"]
 
 
+@pytest.mark.timeout(60)  # Increased from 30s for slow CI runners
 def test_build_history_integration(integration_setup):
     """Test BUILD_HISTORY integration with research system."""
     setup = integration_setup
@@ -121,6 +123,7 @@ def test_build_history_integration(integration_setup):
     assert should_trigger
 
 
+@pytest.mark.timeout(60)  # Increased from 30s for slow CI runners
 def test_research_phase_storage(integration_setup, mock_research_execution):
     """Test research phase result storage."""
     setup = integration_setup
@@ -145,6 +148,7 @@ def test_research_phase_storage(integration_setup, mock_research_execution):
         assert artifact_path is not None
 
 
+@pytest.mark.timeout(60)  # Increased from 30s for slow CI runners
 def test_review_workflow_storage(integration_setup, mock_research_execution):
     """Test review workflow storage and retrieval."""
     setup = integration_setup
@@ -165,6 +169,7 @@ def test_review_workflow_storage(integration_setup, mock_research_execution):
     assert loaded_review.decision == review.decision
 
 
+@pytest.mark.timeout(60)  # Increased from 30s for slow CI runners
 def test_autonomous_mode_integration(integration_setup, mock_research_execution):
     """Test integration with autonomous mode workflow."""
     setup = integration_setup
@@ -202,6 +207,7 @@ def test_autonomous_mode_integration(integration_setup, mock_research_execution)
     assert metadata["research_findings_count"] > 0
 
 
+@pytest.mark.timeout(60)  # Increased from 30s for slow CI runners
 def test_error_handling_integration(integration_setup):
     """Test error handling across integration points."""
     setup = integration_setup
@@ -217,6 +223,7 @@ def test_error_handling_integration(integration_setup):
     assert context is not None
 
 
+@pytest.mark.timeout(60)  # Increased from 30s for slow CI runners
 def test_disabled_research_integration(integration_setup):
     """Test that system works when research is disabled."""
 

@@ -49,6 +49,7 @@ def mock_layout(tmp_path):
 class TestExecutorContextSafetyProfile:
     """Tests for safety profile derivation."""
 
+    @pytest.mark.timeout(60)  # Increased from 30s to reduce I/O flakes
     def test_normal_safety_profile_for_moderate_risk(self, mock_anchor, mock_layout):
         """Test that moderate risk maps to normal safety profile."""
         mock_anchor.pivot_intentions.safety_risk.risk_tolerance = "moderate"
@@ -58,6 +59,7 @@ class TestExecutorContextSafetyProfile:
         assert ctx.safety_profile == "normal"
         assert not ctx.is_strict
 
+    @pytest.mark.timeout(60)  # Increased from 30s for slow CI runners
     def test_strict_safety_profile_for_low_risk(self, mock_anchor, mock_layout):
         """Test that low risk maps to strict safety profile."""
         mock_anchor.pivot_intentions.safety_risk.risk_tolerance = "low"

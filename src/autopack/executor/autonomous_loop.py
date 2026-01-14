@@ -33,17 +33,36 @@ class AutonomousLoop:
 
     def __init__(self, executor: "AutonomousExecutor"):
         self.executor = executor
+        self.poll_interval = 0.5  # Base polling interval
+        self.idle_backoff_multiplier = 2.0  # Backoff when idle
+        self.max_idle_sleep = 5.0  # Maximum sleep time when idle
+
+    def _adaptive_sleep(self, is_idle: bool = False, base_interval: Optional[float] = None):
+        """Sleep with adaptive backoff when idle to reduce CPU usage.
+
+        Args:
+            is_idle: If True, apply backoff multiplier to reduce CPU usage when no phases available
+            base_interval: Override base interval for this sleep (defaults to self.poll_interval)
+        """
+        interval = base_interval if base_interval is not None else self.poll_interval
+        if is_idle:
+            # Apply backoff multiplier and cap at max_idle_sleep
+            sleep_time = min(interval * self.idle_backoff_multiplier, self.max_idle_sleep)
+        else:
+            sleep_time = interval
+        time.sleep(sleep_time)
+        return sleep_time
 
     def run(
         self,
-        poll_interval: int = 1,
+        poll_interval: float = 0.5,
         max_iterations: Optional[int] = None,
         stop_on_first_failure: bool = False,
     ):
         """Run autonomous execution loop.
 
         Args:
-            poll_interval: Seconds to wait between polling for next phase
+            poll_interval: Seconds to wait between polling for next phase (default: 0.5s, reduced from 1.0s for better performance)
             max_iterations: Maximum number of phases to execute (None = unlimited)
             stop_on_first_failure: If True, stop immediately when any phase fails
 
@@ -173,7 +192,7 @@ class AutonomousLoop:
             self.executor._intention_anchor = None
 
     def _execute_loop(
-        self, poll_interval: int, max_iterations: Optional[int], stop_on_first_failure: bool
+        self, poll_interval: float, max_iterations: Optional[int], stop_on_first_failure: bool
     ) -> Dict:
         """Execute the main autonomous loop.
 
@@ -212,7 +231,7 @@ class AutonomousLoop:
             except Exception as e:
                 logger.error(f"Failed to fetch run status: {e}")
                 logger.info(f"Waiting {poll_interval}s before retry...")
-                time.sleep(poll_interval)
+                self._adaptive_sleep(is_idle=True, base_interval=poll_interval)
                 continue
 
             # Auto-fix queued phases (normalize deliverables/scope, tune CI timeouts) before selection.
@@ -285,7 +304,7 @@ class AutonomousLoop:
             # Wait before next iteration
             if max_iterations is None or iteration < max_iterations:
                 logger.info(f"Waiting {poll_interval}s before next phase...")
-                time.sleep(poll_interval)
+                self._adaptive_sleep(is_idle=False, base_interval=poll_interval)
 
         logger.info("Autonomous execution loop finished")
 

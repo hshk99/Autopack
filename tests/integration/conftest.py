@@ -18,5 +18,5 @@ def mock_session_local(db_engine):
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
 
     # Patch the SessionLocal in the database module
-    with patch.object(database, 'SessionLocal', TestingSessionLocal):
+    with patch.object(database, "SessionLocal", TestingSessionLocal):
         yield

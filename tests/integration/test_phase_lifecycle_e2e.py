@@ -99,7 +99,9 @@ class TestPhaseLifecycleComplete:
     def test_phase_state_transitions_success_path(self, setup_run_tier_phase, db_session, tmp_path):
         """Test phase transitions through QUEUED → EXECUTING → COMPLETE."""
         # Setup run, tier, and phase using fixture
-        run, tier, phase = setup_run_tier_phase("test-run-002", "test-phase-002", name="Success Phase", state=PhaseState.QUEUED)
+        run, tier, phase = setup_run_tier_phase(
+            "test-run-002", "test-phase-002", name="Success Phase", state=PhaseState.QUEUED
+        )
 
         # Transition 1: QUEUED → EXECUTING
         phase.state = PhaseState.EXECUTING
@@ -123,7 +125,9 @@ class TestPhaseLifecycleComplete:
     def test_phase_state_transitions_failure_path(self, setup_run_tier_phase, db_session, tmp_path):
         """Test phase transitions through QUEUED → EXECUTING → FAILED."""
         # Setup run, tier, and phase using fixture
-        run, tier, phase = setup_run_tier_phase("test-run-003", "test-phase-003", name="Failure Phase", state=PhaseState.QUEUED)
+        run, tier, phase = setup_run_tier_phase(
+            "test-run-003", "test-phase-003", name="Failure Phase", state=PhaseState.QUEUED
+        )
 
         # Transition 1: QUEUED → EXECUTING
         phase.state = PhaseState.EXECUTING
@@ -151,7 +155,13 @@ class TestPhaseStateTransitions:
     def test_retry_attempt_increment(self, setup_run_tier_phase, db_session, tmp_path):
         """Test retry attempt counter increments correctly."""
         # Setup run, tier, and phase using fixture
-        run, tier, phase = setup_run_tier_phase("test-run-004", "test-phase-004", name="Retry Phase", state=PhaseState.EXECUTING, retry_attempt=0)
+        run, tier, phase = setup_run_tier_phase(
+            "test-run-004",
+            "test-phase-004",
+            name="Retry Phase",
+            state=PhaseState.EXECUTING,
+            retry_attempt=0,
+        )
 
         # Increment retry attempt
         state_manager = PhaseStateManager(run_id="test-run-004", workspace=tmp_path)
@@ -167,7 +177,13 @@ class TestPhaseStateTransitions:
     def test_revision_epoch_increment(self, setup_run_tier_phase, db_session, tmp_path):
         """Test revision epoch increments on replanning."""
         # Setup run, tier, and phase using fixture
-        run, tier, phase = setup_run_tier_phase("test-run-005", "test-phase-005", name="Replan Phase", state=PhaseState.EXECUTING, revision_epoch=0)
+        run, tier, phase = setup_run_tier_phase(
+            "test-run-005",
+            "test-phase-005",
+            name="Replan Phase",
+            state=PhaseState.EXECUTING,
+            revision_epoch=0,
+        )
 
         # Increment revision epoch (replan)
         state_manager = PhaseStateManager(run_id="test-run-005", workspace=tmp_path)
@@ -183,7 +199,13 @@ class TestPhaseStateTransitions:
     def test_escalation_level_increment(self, setup_run_tier_phase, db_session, tmp_path):
         """Test escalation level increments correctly."""
         # Setup run, tier, and phase using fixture
-        run, tier, phase = setup_run_tier_phase("test-run-006", "test-phase-006", name="Escalation Phase", state=PhaseState.EXECUTING, escalation_level=0)
+        run, tier, phase = setup_run_tier_phase(
+            "test-run-006",
+            "test-phase-006",
+            name="Escalation Phase",
+            state=PhaseState.EXECUTING,
+            escalation_level=0,
+        )
 
         # Increment escalation level
         state_manager = PhaseStateManager(run_id="test-run-006", workspace=tmp_path)
@@ -195,10 +217,14 @@ class TestPhaseStateTransitions:
         db_session.refresh(phase)
         assert phase.escalation_level == 1
 
-    def test_multiple_state_updates_preserve_counters(self, setup_run_tier_phase, db_session, tmp_path):
+    def test_multiple_state_updates_preserve_counters(
+        self, setup_run_tier_phase, db_session, tmp_path
+    ):
         """Test that multiple state updates preserve independent counters."""
         # Setup run, tier, and phase using fixture
-        run, tier, phase = setup_run_tier_phase("test-run-007", "test-phase-007", name="Multi-Update Phase", state=PhaseState.EXECUTING)
+        run, tier, phase = setup_run_tier_phase(
+            "test-run-007", "test-phase-007", name="Multi-Update Phase", state=PhaseState.EXECUTING
+        )
 
         state_manager = PhaseStateManager(run_id="test-run-007", workspace=tmp_path)
 
@@ -395,7 +421,9 @@ class TestPhaseErrorHandlingAndRecovery:
         assert phase.escalation_level == 1  # Preserved
         assert phase.last_failure_reason == "DOCTOR_REPLAN"
 
-    def test_database_transaction_rollback_on_error(self, setup_run_tier_phase, db_session, tmp_path):
+    def test_database_transaction_rollback_on_error(
+        self, setup_run_tier_phase, db_session, tmp_path
+    ):
         """Test database transaction handling on errors."""
         # Setup run, tier, and phase using fixture
         run, tier, phase = setup_run_tier_phase(

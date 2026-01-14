@@ -478,12 +478,6 @@ class TestPhaseOrchestratorIntegration:
 
     def test_orchestrator_success_result_handling(self, tmp_path):
         """Test orchestrator properly handles successful execution results."""
-        phase_spec = {
-            "phase_id": "orch-phase-002",
-            "name": "Success Test",
-            "description": "Test successful execution",
-        }
-
         # Create mock execution result
         from autopack.executor.phase_orchestrator import ExecutionResult
 
@@ -508,12 +502,6 @@ class TestPhaseOrchestratorIntegration:
 
     def test_orchestrator_failure_result_handling(self, tmp_path):
         """Test orchestrator properly handles execution failures."""
-        phase_spec = {
-            "phase_id": "orch-phase-003",
-            "name": "Failure Test",
-            "description": "Test failure handling",
-        }
-
         # Create mock failure result
         from autopack.executor.phase_orchestrator import ExecutionResult
 

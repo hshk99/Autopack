@@ -142,16 +142,16 @@ def is_run_directory(dirpath: Path) -> bool:
         or "build" in name_lower
         or "telemetry" in name_lower
         or "test-" in name_lower
-        or "autopack-" in name_lower  # autopack-diagnostics-parity-*, autopack-onephase-*, etc.
-        or "research-" in name_lower  # research-system-v*, research-build113-test
-        or "retry-" in name_lower  # retry-api-router-*, retry-examples-*
-        or "diagnostics-" in name_lower  # diagnostics-parity-phases-*
-        or "lovable-" in name_lower  # lovable-integration-*, lovable-p0-*, etc.
-        or "p10-" in name_lower  # p10-validation-test
-        or name_lower == "start"  # start/
-        or name_lower == "errors"  # errors/
-        or name_lower == "logs"  # logs/
-        or name_lower.startswith("run-")  # run-001, run-002
+        or "autopack-" in name_lower
+        or "research-" in name_lower  # autopack-diagnostics-parity-*, autopack-onephase-*, etc.
+        or "retry-" in name_lower  # research-system-v*, research-build113-test
+        or "diagnostics-" in name_lower  # retry-api-router-*, retry-examples-*
+        or "lovable-" in name_lower  # diagnostics-parity-phases-*
+        or "p10-" in name_lower  # lovable-integration-*, lovable-p0-*, etc.
+        or name_lower == "start"  # p10-validation-test
+        or name_lower == "errors"  # start/
+        or name_lower == "logs"  # errors/
+        or name_lower.startswith("run-")  # logs/  # run-001, run-002
     )
 
     return looks_like_run
@@ -490,9 +490,9 @@ def cleanup_autonomous_runs(
             print("[CLEANUP] .autonomous_runs/ does not exist, skipping")
         return 0, 0
 
-    print(f"\n{'=' * 70}")
+    print(f"\n{'='*70}")
     print("Phase 3: .autonomous_runs/ Cleanup")
-    print(f"{'=' * 70}")
+    print(f"{'='*70}")
     print(f"Mode: {'DRY-RUN' if dry_run else 'EXECUTE'}")
     print(f"Keep last N runs: {keep_last_n_runs}")
     print(f"Minimum age for cleanup: {min_age_days} days")

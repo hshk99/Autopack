@@ -1,4 +1,4 @@
-import sqlite3
+﻿import sqlite3
 
 c = sqlite3.connect("autopack.db")
 cur = c.cursor()

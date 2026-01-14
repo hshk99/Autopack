@@ -32,9 +32,9 @@ def analyze_project_rules(project_id: str) -> Dict:
     Returns:
         Dict with analysis results
     """
-    print(f"\n{'=' * 60}")
+    print(f"\n{'='*60}")
     print(f"📚 Project Learned Rules Analysis: {project_id}")
-    print(f"{'=' * 60}\n")
+    print(f"{'='*60}\n")
 
     rules = load_project_learned_rules(project_id)
 
@@ -113,9 +113,9 @@ def analyze_run_hints(run_id: str) -> Dict:
     Returns:
         Dict with analysis results
     """
-    print(f"\n{'=' * 60}")
+    print(f"\n{'='*60}")
     print(f"💡 Run Hints Analysis: {run_id}")
-    print(f"{'=' * 60}\n")
+    print(f"{'='*60}\n")
 
     hints = load_run_rule_hints(run_id)
 
@@ -192,9 +192,9 @@ def analyze_all_projects() -> Dict:
     Returns:
         Dict with cross-project analysis
     """
-    print(f"\n{'=' * 60}")
+    print(f"\n{'='*60}")
     print("🌍 All Projects Analysis")
-    print(f"{'=' * 60}\n")
+    print(f"{'='*60}\n")
 
     runs_dir = Path(".autonomous_runs")
     if not runs_dir.exists():
@@ -221,9 +221,9 @@ def analyze_all_projects() -> Dict:
         all_results.append(result)
 
     # Cross-project summary
-    print(f"\n{'=' * 60}")
+    print(f"\n{'='*60}")
     print("📈 Cross-Project Summary")
-    print(f"{'=' * 60}\n")
+    print(f"{'='*60}\n")
 
     total_rules = sum(r["total_rules"] for r in all_results)
     print(f"Total rules across all projects: {total_rules}")
@@ -256,9 +256,9 @@ def analyze_run_series(project_id: str) -> Dict:
     Returns:
         Dict with time-series analysis
     """
-    print(f"\n{'=' * 60}")
+    print(f"\n{'='*60}")
     print(f"📊 Run Series Analysis: {project_id}")
-    print(f"{'=' * 60}\n")
+    print(f"{'='*60}\n")
 
     runs_dir = Path(".autonomous_runs") / "runs"
     if not runs_dir.exists():
@@ -339,9 +339,9 @@ def main():
             json.dump(results, f, indent=2)
         print(f"\n💾 Analysis saved to: {output_path}")
 
-    print(f"\n{'=' * 60}")
+    print(f"\n{'='*60}")
     print("✅ Analysis Complete")
-    print(f"{'=' * 60}\n")
+    print(f"{'='*60}\n")
 
 
 if __name__ == "__main__":

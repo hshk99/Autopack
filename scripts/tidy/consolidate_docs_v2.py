@@ -637,9 +637,9 @@ class DocumentConsolidator:
 
     def consolidate(self):
         """Main consolidation workflow with status auditing."""
-        print(f"\n{'=' * 80}")
+        print(f"\n{'='*80}")
         print(f"DOCUMENTATION CONSOLIDATION - {self.project_dir.name}")
-        print(f"{'=' * 80}\n")
+        print(f"{'='*80}\n")
 
         # Step 0: Initialize auditors
         print("[0] Initializing auditors...")
@@ -649,8 +649,7 @@ class DocumentConsolidator:
         # Initialize classification auditor with low threshold (0.60)
         # Files below 0.60 confidence will be reviewed by LLM
         self.classification_auditor = ClassificationAuditor(
-            audit_threshold=0.60,  # Review everything below 0.60
-            enable_auto_override=True,
+            audit_threshold=0.60, enable_auto_override=True  # Review everything below 0.60
         )
         print("  [ClassificationAuditor] Initialized (threshold=0.60)")
 
@@ -669,9 +668,9 @@ class DocumentConsolidator:
         # Step 5: Delete old CONSOLIDATED files
         self._cleanup_old_files()
 
-        print(f"\n{'=' * 80}")
+        print(f"\n{'='*80}")
         print("CONSOLIDATION COMPLETE")
-        print(f"{'=' * 80}\n")
+        print(f"{'='*80}\n")
 
     def _process_consolidated_files(self):
         """Process existing CONSOLIDATED_*.md files."""

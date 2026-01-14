@@ -63,9 +63,9 @@ class ContextAssembler:
 
     def assemble(self) -> ProjectContext:
         """Assemble complete project context"""
-        print(f"\n{'=' * 60}")
+        print(f"\n{'='*60}")
         print(f"ASSEMBLING CONTEXT: {self.project_id}")
-        print(f"{'=' * 60}\n")
+        print(f"{'='*60}\n")
 
         context = ProjectContext(project_id=self.project_id)
 
@@ -90,9 +90,9 @@ class ContextAssembler:
         print("\nPhase 4: Extracting domain requirements from research...")
         self._extract_domain_context(context)
 
-        print(f"\n{'=' * 60}")
+        print(f"\n{'='*60}")
         print("CONTEXT ASSEMBLY COMPLETE")
-        print(f"{'=' * 60}\n")
+        print(f"{'='*60}\n")
         self._print_summary(context)
 
         return context

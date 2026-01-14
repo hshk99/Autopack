@@ -314,7 +314,7 @@ def seed_patterns(client: QdrantClient, model: SentenceTransformer, collection_n
         points.append(point)
 
         print(
-            f"  [{idx + 1}/{len(patterns)}] {pattern['project_id']:25s} | {pattern['file_type']:10s} | {pattern['example_filename']}"
+            f"  [{idx+1}/{len(patterns)}] {pattern['project_id']:25s} | {pattern['file_type']:10s} | {pattern['example_filename']}"
         )
 
     # Upload points to Qdrant

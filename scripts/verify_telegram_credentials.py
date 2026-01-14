@@ -18,9 +18,9 @@ def verify_bot_token(token: str) -> bool:
     """Verify that a bot token is valid by calling getMe API."""
     import requests
 
-    print(f"\n{'=' * 60}")
+    print(f"\n{'='*60}")
     print("VERIFYING BOT TOKEN")
-    print(f"{'=' * 60}")
+    print(f"{'='*60}")
 
     if not token:
         print("❌ No bot token provided")
@@ -61,9 +61,9 @@ def verify_chat_id(bot_token: str, chat_id: str) -> bool:
     """Verify that a chat ID exists by sending a test message."""
     import requests
 
-    print(f"\n{'=' * 60}")
+    print(f"\n{'='*60}")
     print("VERIFYING CHAT ID")
-    print(f"{'=' * 60}")
+    print(f"{'='*60}")
 
     if not chat_id:
         print("❌ No chat ID provided")
@@ -154,9 +154,9 @@ def main():
     """Main verification flow."""
     import os
 
-    print(f"\n{'=' * 60}")
+    print(f"\n{'='*60}")
     print("🔍 TELEGRAM CREDENTIALS VERIFICATION")
-    print(f"{'=' * 60}")
+    print(f"{'='*60}")
 
     print("\nThis script will help you verify your Telegram bot configuration.")
     print("\nYou need two things:")
@@ -164,9 +164,9 @@ def main():
     print("  2. TELEGRAM_CHAT_ID - your personal chat ID (numeric only)")
 
     # Get bot token
-    print(f"\n{'=' * 60}")
+    print(f"\n{'='*60}")
     print("STEP 1: Enter Bot Token")
-    print(f"{'=' * 60}")
+    print(f"{'='*60}")
 
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     if bot_token:
@@ -189,9 +189,9 @@ def main():
         return
 
     # Get chat ID
-    print(f"\n{'=' * 60}")
+    print(f"\n{'='*60}")
     print("STEP 2: Enter Chat ID")
-    print(f"{'=' * 60}")
+    print(f"{'='*60}")
 
     chat_id = os.getenv("TELEGRAM_CHAT_ID")
     if chat_id:
@@ -224,16 +224,16 @@ def main():
         return
 
     # Success! Show .env format
-    print(f"\n{'=' * 60}")
+    print(f"\n{'='*60}")
     print("✅ ALL VERIFICATIONS PASSED!")
-    print(f"{'=' * 60}")
+    print(f"{'='*60}")
 
     print("\n📝 Add these to your .env file:")
-    print(f"\n{'=' * 60}")
+    print(f"\n{'='*60}")
     print(f'TELEGRAM_BOT_TOKEN="{bot_token}"')
     print(f'TELEGRAM_CHAT_ID="{chat_id}"')
     print('NGROK_URL="https://harrybot.ngrok.app"')
-    print(f"{'=' * 60}")
+    print(f"{'='*60}")
 
     print("\n✅ Your Telegram bot is configured correctly!")
     print("\nNext steps:")

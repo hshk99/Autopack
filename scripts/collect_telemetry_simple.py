@@ -73,10 +73,10 @@ def run_telemetry_test(api_key: str, scenario: dict, run_num: int, total: int):
         run_num: Current run number
         total: Total number of runs
     """
-    print(f"\n{'=' * 70}")
+    print(f"\n{'='*70}")
     print(f"[{run_num}/{total}] {scenario['name']}")
     print(f"Complexity: {scenario['complexity']}")
-    print(f"{'=' * 70}")
+    print(f"{'='*70}")
 
     client = AnthropicBuilderClient(api_key=api_key)
 
@@ -113,13 +113,13 @@ def main():
         print("Set it with: export ANTHROPIC_API_KEY=your_key_here")
         return 1
 
-    print(f"\n{'=' * 70}")
+    print(f"\n{'='*70}")
     print("TOKEN ESTIMATION TELEMETRY COLLECTION")
-    print(f"{'=' * 70}")
+    print(f"{'='*70}")
     print(f"Running {len(TEST_SCENARIOS)} test scenarios")
     print("Objective: Collect [TokenEstimation] telemetry for BUILD-129 validation")
     print("Target: <30% mean error rate")
-    print(f"{'=' * 70}\n")
+    print(f"{'='*70}\n")
 
     results = []
     for i, scenario in enumerate(TEST_SCENARIOS, 1):
@@ -127,9 +127,9 @@ def main():
         results.append(success)
 
     # Summary
-    print(f"\n{'=' * 70}")
+    print(f"\n{'='*70}")
     print("COLLECTION SUMMARY")
-    print(f"{'=' * 70}")
+    print(f"{'='*70}")
     print(f"Total scenarios: {len(TEST_SCENARIOS)}")
     print(f"Successful: {sum(results)}")
     print(f"Failed: {len(results) - sum(results)}")
@@ -140,7 +140,7 @@ def main():
     )
     print("2. Review the baseline error rate")
     print("3. Tune TokenEstimator coefficients if error rate >30%")
-    print(f"{'=' * 70}\n")
+    print(f"{'='*70}\n")
 
     return 0 if all(results) else 1
 

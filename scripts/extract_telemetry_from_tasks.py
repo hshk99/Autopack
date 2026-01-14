@@ -49,10 +49,7 @@ def main():
     print("=" * 80)
 
     # Task IDs for Lovable P1 and P2
-    task_ids = [
-        "b43be62",  # Lovable P1
-        "ba24bff",  # Lovable P2
-    ]
+    task_ids = ["b43be62", "ba24bff"]  # Lovable P1  # Lovable P2
 
     telemetry = extract_telemetry(task_ids)
 

@@ -65,11 +65,9 @@ def analyze_session(session_path: Path) -> None:
     timeouts = session["total_timeouts"]
 
     print(f"Progress: {processed}/{batch_size} phases")
-    print(f"  [OK] Success: {success} ({100 * success / processed if processed else 0:.1f}%)")
-    print(f"  [FAIL] Failed: {failed} ({100 * failed / processed if processed else 0:.1f}%)")
-    print(
-        f"  [TIMEOUT] Timeouts: {timeouts} ({100 * timeouts / processed if processed else 0:.1f}%)"
-    )
+    print(f"  [OK] Success: {success} ({100*success/processed if processed else 0:.1f}%)")
+    print(f"  [FAIL] Failed: {failed} ({100*failed/processed if processed else 0:.1f}%)")
+    print(f"  [TIMEOUT] Timeouts: {timeouts} ({100*timeouts/processed if processed else 0:.1f}%)")
     print()
 
     # Telemetry metrics
@@ -86,7 +84,7 @@ def analyze_session(session_path: Path) -> None:
 
         phases_with_events = sum(1 for e in events_collected if e > 0)
         print(
-            f"  Phases with Events: {phases_with_events}/{len(results)} ({100 * phases_with_events / len(results):.1f}%)"
+            f"  Phases with Events: {phases_with_events}/{len(results)} ({100*phases_with_events/len(results):.1f}%)"
         )
 
         if yields:

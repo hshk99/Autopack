@@ -401,9 +401,9 @@ class Supervisor:
         3. Monitor progress
         4. Report results
         """
-        print(f"\n{'=' * 60}")
+        print(f"\n{'='*60}")
         print(f"🤖 AUTONOMOUS BUILD: {run_id}")
-        print(f"{'=' * 60}\n")
+        print(f"{'='*60}\n")
 
         # Stage 0B: Load persistent project rules (before run starts)
         print("[Supervisor] 📚 Loading project learned rules...")
@@ -455,9 +455,9 @@ class Supervisor:
         else:
             print("[Supervisor] No new rules promoted (no recurring patterns found)")
 
-        print(f"\n{'=' * 60}")
+        print(f"\n{'='*60}")
         print(f"✅ AUTONOMOUS BUILD COMPLETE: {run_id}")
-        print(f"{'=' * 60}\n")
+        print(f"{'='*60}\n")
         print(f"Phases executed: {len(results)}")
         print(f"Tokens used: {total_tokens:,}")
         print(f"Approved: {sum(1 for r in results if r['status'] == 'approved')}")
@@ -586,9 +586,9 @@ if __name__ == "__main__":
     result = example_build()
 
     if result:
-        print(f"\n{'=' * 60}")
+        print(f"\n{'='*60}")
         print("Final Result Summary:")
-        print(f"{'=' * 60}")
+        print(f"{'='*60}")
         print(f"Run ID: {result['run_id']}")
         print(f"Phases: {len(result['phase_results'])}")
         print(f"Total Tokens: {result['total_tokens']:,}")

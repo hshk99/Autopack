@@ -21,6 +21,8 @@ from typing import Dict, List, Any, Tuple
 from datetime import datetime
 from pathlib import Path
 
+from autopack.sql_sanitizer import SQLSanitizer
+
 logger = logging.getLogger(__name__)
 
 
@@ -64,6 +66,10 @@ class DeepRetrieval:
         Returns:
             Deep retrieval bundle with categorized snippets
         """
+        # Validate phase_id to prevent SQL injection
+        phase_id = SQLSanitizer.validate_parameter(phase_id)
+        priority = SQLSanitizer.validate_parameter(priority)
+
         self.logger.info(
             f"[DeepRetrieval] Starting bounded retrieval for phase {phase_id} (priority={priority})"
         )

@@ -15,6 +15,7 @@ Contract guarantees (tested in tests/api/test_auth_dependency_contract.py):
 - Forwarded headers trusted only from trusted proxies
 """
 
+import ipaddress
 import os
 from typing import Optional
 
@@ -111,24 +112,46 @@ _DEFAULT_TRUSTED_PROXIES = {"127.0.0.1", "::1"}
 
 
 def _is_trusted_proxy(client_ip: Optional[str]) -> bool:
-    """Check if the direct client IP is from a trusted proxy."""
+    """Check if the direct client IP is from a trusted proxy.
+
+    Supports both single IPs and CIDR notation in AUTOPACK_TRUSTED_PROXIES.
+    Examples:
+    - Single IP: "127.0.0.1"
+    - CIDR range: "10.0.0.0/8", "172.16.0.0/12"
+    - Both: "127.0.0.1, 10.0.0.0/8, 192.168.1.0/24"
+    """
     if not client_ip:
+        return False
+
+    try:
+        client_ip_obj = ipaddress.ip_address(client_ip)
+    except ValueError:
+        # Invalid IP format
         return False
 
     # Check explicit trusted list
     trusted = os.getenv("AUTOPACK_TRUSTED_PROXIES", "").strip()
     if trusted:
-        trusted_set = {ip.strip() for ip in trusted.split(",") if ip.strip()}
+        trusted_list = [entry.strip() for entry in trusted.split(",") if entry.strip()]
     else:
-        trusted_set = _DEFAULT_TRUSTED_PROXIES
+        trusted_list = list(_DEFAULT_TRUSTED_PROXIES)
 
-    # Exact match for now (CIDR support can be added later if needed)
-    if client_ip in trusted_set:
-        return True
+    # Check each trusted entry (single IP or CIDR range)
+    for entry in trusted_list:
+        try:
+            # Try parsing as a network (handles both single IPs and CIDR ranges)
+            # "192.168.1.5" becomes "192.168.1.5/32", "10.0.0.0/8" stays as is
+            network = ipaddress.ip_network(entry, strict=False)
+            if client_ip_obj in network:
+                return True
+        except ValueError:
+            # Invalid entry format, skip it
+            continue
 
     # Trust Docker bridge networks (172.16.0.0/12) when running in compose
     # This covers 172.16.x.x through 172.31.x.x
-    if client_ip.startswith("172.") and 16 <= int(client_ip.split(".")[1]) <= 31:
+    docker_bridge = ipaddress.ip_network("172.16.0.0/12")
+    if client_ip_obj in docker_bridge:
         return True
 
     return False

@@ -361,6 +361,192 @@ class TestGetClientIpContract:
         assert result == "127.0.0.1"
 
 
+class TestCidrTrustedProxiesContract:
+    """Contract tests for CIDR notation support in trusted proxies."""
+
+    def _make_mock_request(
+        self, client_ip: str, forwarded_for: str = None, real_ip: str = None
+    ) -> MagicMock:
+        """Create a mock Request with specified IP and headers."""
+        request = MagicMock()
+        request.client = MagicMock()
+        request.client.host = client_ip
+        headers = {}
+        if forwarded_for:
+            headers["x-forwarded-for"] = forwarded_for
+        if real_ip:
+            headers["x-real-ip"] = real_ip
+        request.headers = headers
+        return request
+
+    def test_single_ip_in_cidr_notation_is_trusted(self):
+        """Contract: Single IP in CIDR notation (e.g., 10.0.0.5/32) is trusted."""
+        from autopack.api.deps import get_client_ip
+
+        with patch.dict(os.environ, {"AUTOPACK_TRUSTED_PROXIES": "10.0.0.5/32"}):
+            request = self._make_mock_request(client_ip="10.0.0.5", forwarded_for="203.0.113.50")
+            result = get_client_ip(request)
+            # Should trust X-Forwarded-For since 10.0.0.5 is in 10.0.0.5/32
+            assert result == "203.0.113.50"
+
+    def test_ip_in_cidr_range_is_trusted(self):
+        """Contract: IP within CIDR range is trusted."""
+        from autopack.api.deps import get_client_ip
+
+        with patch.dict(os.environ, {"AUTOPACK_TRUSTED_PROXIES": "10.0.0.0/24"}):
+            # Test various IPs in the 10.0.0.0/24 range
+            for ip in ["10.0.0.1", "10.0.0.100", "10.0.0.254"]:
+                request = self._make_mock_request(client_ip=ip, forwarded_for="203.0.113.50")
+                result = get_client_ip(request)
+                assert result == "203.0.113.50", f"IP {ip} should be trusted in 10.0.0.0/24"
+
+    def test_ip_outside_cidr_range_is_untrusted(self):
+        """Contract: IP outside CIDR range is untrusted (spoofing defense)."""
+        from autopack.api.deps import get_client_ip
+
+        with patch.dict(os.environ, {"AUTOPACK_TRUSTED_PROXIES": "10.0.0.0/24"}):
+            # 10.0.1.1 is outside 10.0.0.0/24
+            request = self._make_mock_request(client_ip="10.0.1.1", forwarded_for="203.0.113.50")
+            result = get_client_ip(request)
+            # Should ignore X-Forwarded-For since 10.0.1.1 is not in trusted range
+            assert result == "10.0.1.1"
+
+    def test_multiple_cidrs_any_match_trusts(self):
+        """Contract: Multiple CIDR ranges - any match trusts."""
+        from autopack.api.deps import get_client_ip
+
+        with patch.dict(
+            os.environ,
+            {"AUTOPACK_TRUSTED_PROXIES": "10.0.0.0/24, 172.18.0.0/16, 192.168.1.0/24"},
+        ):
+            # Test first CIDR match
+            request = self._make_mock_request(client_ip="10.0.0.50", forwarded_for="8.8.8.8")
+            result = get_client_ip(request)
+            assert result == "8.8.8.8"
+
+            # Test second CIDR match
+            request = self._make_mock_request(client_ip="172.18.50.100", forwarded_for="1.1.1.1")
+            result = get_client_ip(request)
+            assert result == "1.1.1.1"
+
+            # Test third CIDR match
+            request = self._make_mock_request(client_ip="192.168.1.200", forwarded_for="9.9.9.9")
+            result = get_client_ip(request)
+            assert result == "9.9.9.9"
+
+    def test_mixed_single_ips_and_cidrs(self):
+        """Contract: Can mix single IPs and CIDR ranges in trusted list."""
+        from autopack.api.deps import get_client_ip
+
+        with patch.dict(
+            os.environ, {"AUTOPACK_TRUSTED_PROXIES": "10.0.0.1, 192.168.0.0/16, 172.16.0.5"}
+        ):
+            # Single IP exact match
+            request = self._make_mock_request(client_ip="10.0.0.1", forwarded_for="8.8.8.8")
+            result = get_client_ip(request)
+            assert result == "8.8.8.8"
+
+            # CIDR range match
+            request = self._make_mock_request(client_ip="192.168.100.50", forwarded_for="1.1.1.1")
+            result = get_client_ip(request)
+            assert result == "1.1.1.1"
+
+            # Another single IP exact match
+            request = self._make_mock_request(client_ip="172.16.0.5", forwarded_for="4.4.4.4")
+            result = get_client_ip(request)
+            assert result == "4.4.4.4"
+
+    def test_large_cidr_range_10_0_0_0_8(self):
+        """Contract: Large CIDR range like 10.0.0.0/8 works."""
+        from autopack.api.deps import get_client_ip
+
+        with patch.dict(os.environ, {"AUTOPACK_TRUSTED_PROXIES": "10.0.0.0/8"}):
+            # Test edge cases within 10.0.0.0/8 (10.0.0.0 to 10.255.255.255)
+            test_cases = [
+                ("10.0.0.1", True),
+                ("10.100.200.50", True),
+                ("10.255.255.254", True),
+                ("11.0.0.1", False),  # Outside range
+            ]
+
+            for ip, should_trust in test_cases:
+                request = self._make_mock_request(client_ip=ip, forwarded_for="203.0.113.50")
+                result = get_client_ip(request)
+                if should_trust:
+                    assert result == "203.0.113.50", f"IP {ip} should be trusted"
+                else:
+                    assert result == ip, f"IP {ip} should NOT be trusted"
+
+    def test_ipv6_cidr_notation(self):
+        """Contract: IPv6 CIDR notation is supported."""
+        from autopack.api.deps import get_client_ip
+
+        with patch.dict(os.environ, {"AUTOPACK_TRUSTED_PROXIES": "2001:db8::/32"}):
+            # Test IPv6 address in range
+            request = self._make_mock_request(client_ip="2001:db8::1", forwarded_for="203.0.113.50")
+            result = get_client_ip(request)
+            assert result == "203.0.113.50"
+
+            # Test IPv6 address outside range
+            request = self._make_mock_request(client_ip="2001:db9::1", forwarded_for="203.0.113.50")
+            result = get_client_ip(request)
+            assert result == "2001:db9::1"
+
+    def test_invalid_cidr_notation_skipped(self):
+        """Contract: Invalid CIDR entries are silently skipped."""
+        from autopack.api.deps import get_client_ip
+
+        # Mix valid and invalid CIDR entries
+        with patch.dict(
+            os.environ,
+            {"AUTOPACK_TRUSTED_PROXIES": "10.0.0.0/24, invalid-cidr, 192.168.1.0/24"},
+        ):
+            # Valid entry before invalid one
+            request = self._make_mock_request(client_ip="10.0.0.1", forwarded_for="8.8.8.8")
+            result = get_client_ip(request)
+            assert result == "8.8.8.8"
+
+            # Valid entry after invalid one
+            request = self._make_mock_request(client_ip="192.168.1.1", forwarded_for="1.1.1.1")
+            result = get_client_ip(request)
+            assert result == "1.1.1.1"
+
+            # Entry with valid IP syntax but not in any trusted range
+            request = self._make_mock_request(client_ip="8.8.8.8", forwarded_for="9.9.9.9")
+            result = get_client_ip(request)
+            # Should ignore forwarded header since 8.8.8.8 not trusted
+            assert result == "8.8.8.8"
+
+    def test_whitespace_in_cidr_entries_handled(self):
+        """Contract: Whitespace around CIDR entries is stripped."""
+        from autopack.api.deps import get_client_ip
+
+        with patch.dict(
+            os.environ,
+            {"AUTOPACK_TRUSTED_PROXIES": "  10.0.0.0/24  ,  192.168.0.0/16  "},
+        ):
+            # Test first CIDR with leading/trailing spaces
+            request = self._make_mock_request(client_ip="10.0.0.5", forwarded_for="8.8.8.8")
+            result = get_client_ip(request)
+            assert result == "8.8.8.8"
+
+            # Test second CIDR with leading/trailing spaces
+            request = self._make_mock_request(client_ip="192.168.50.100", forwarded_for="1.1.1.1")
+            result = get_client_ip(request)
+            assert result == "1.1.1.1"
+
+    def test_docker_bridge_still_trusted_with_cidr(self):
+        """Contract: Docker bridge (172.16.0.0/12) is still trusted even with custom CIDRs."""
+        from autopack.api.deps import get_client_ip
+
+        # Set custom trusted proxies (not including Docker bridge)
+        with patch.dict(os.environ, {"AUTOPACK_TRUSTED_PROXIES": "10.0.0.0/8"}):
+            # Docker bridge should still be trusted
+            request = self._make_mock_request(client_ip="172.18.0.1", forwarded_for="8.8.8.8")
+            result = get_client_ip(request)
+            assert result == "8.8.8.8"
+
+
 class TestLimiterContract:
     """Contract tests for rate limiter configuration."""
 

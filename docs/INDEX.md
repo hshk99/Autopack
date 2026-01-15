@@ -50,6 +50,7 @@ These are the canonical references that should stay current and are designed to 
 
 ### Operations / Autonomy
 - **Autopilot Operations Runbook (BUILD-179)**: `docs/AUTOPILOT_OPERATIONS.md` - operator guide for gap scan → plan → autopilot → supervise loop, parallelism gates, artifact types, troubleshooting
+- **Operator Runbook (Multi-Device)**: `docs/OPERATOR_RUNBOOK.md` - multi-device operation, backup/restore, non-local access
 
 ### Testing & Operations
 - **Testing**: `docs/TESTING_GUIDE.md`

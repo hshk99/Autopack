@@ -27,6 +27,12 @@ import logging
 import os
 from pathlib import Path
 
+from autopack.config import settings
+from autopack.autonomous.budgeting import (
+    is_phase_budget_exceeded,
+    get_phase_budget_remaining_pct,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -134,6 +140,11 @@ class PhaseOrchestrator:
         # Setup scope manifest if missing (BUILD-123v2)
         self._setup_phase_scope(context)
 
+        # IMP-COST-002: Check phase-level budget before execution
+        phase_budget_result = self._check_phase_budget(context)
+        if phase_budget_result:
+            return phase_budget_result
+
         # Check if already exhausted attempts
         if context.attempt_index >= self.max_retry_attempts:
             return self._create_exhausted_result(context)
@@ -227,6 +238,60 @@ class PhaseOrchestrator:
 
                 traceback.print_exc()
                 # Continue with empty scope
+
+    def _check_phase_budget(self, context: ExecutionContext) -> Optional[ExecutionResult]:
+        """IMP-COST-002: Check phase-level token budget before execution.
+
+        Returns ExecutionResult if budget exceeded, None if budget OK to proceed.
+        """
+        phase_id = context.phase.get("phase_id")
+        phase_type = context.phase.get("category") or "implementation"
+
+        # Get phase-specific token cap based on phase type
+        phase_token_cap = settings.get_phase_token_cap(phase_type)
+
+        # Get phase's current token usage (would need to be tracked per-phase)
+        # For now, use a placeholder - in production this would query LlmUsageEvent
+        phase_tokens_used = context.phase.get("_tokens_used", 0)
+
+        # Check if phase budget exceeded
+        if is_phase_budget_exceeded(phase_tokens_used, phase_token_cap):
+            budget_pct = get_phase_budget_remaining_pct(phase_tokens_used, phase_token_cap) * 100
+            error_msg = (
+                f"Phase {phase_id} exceeded token budget: "
+                f"{phase_tokens_used}/{phase_token_cap} tokens ({100 - budget_pct:.1f}% used). "
+                f"Phase type: {phase_type}. "
+                f"Consider: 1) Reduce phase scope, 2) Switch to smaller model, "
+                f"3) Request escalation approval to increase phase budget."
+            )
+            logger.error(f"[PHASE_BUDGET_EXCEEDED] {error_msg}")
+
+            if context.mark_phase_failed_in_db:
+                context.mark_phase_failed_in_db(phase_id, "PHASE_TOKEN_BUDGET_EXCEEDED")
+
+            return ExecutionResult(
+                success=False,
+                status="PHASE_TOKEN_BUDGET_EXCEEDED",
+                phase_result=PhaseResult.FAILED,
+                updated_counters={
+                    "total_failures": context.run_total_failures,
+                    "http_500_count": context.run_http_500_count,
+                    "patch_failure_count": context.run_patch_failure_count,
+                    "doctor_calls": context.run_doctor_calls,
+                    "replan_count": context.run_replan_count,
+                },
+                should_continue=False,
+            )
+
+        # Log phase budget status
+        budget_remaining = phase_token_cap - phase_tokens_used
+        budget_pct = get_phase_budget_remaining_pct(phase_tokens_used, phase_token_cap) * 100
+        logger.info(
+            f"Phase {phase_id}: {budget_remaining} tokens remaining "
+            f"({budget_pct:.1f}% of {phase_token_cap} cap, type={phase_type})"
+        )
+
+        return None  # Budget OK, proceed with execution
 
     def _create_exhausted_result(self, context: ExecutionContext) -> ExecutionResult:
         """Create result when max attempts are exhausted."""

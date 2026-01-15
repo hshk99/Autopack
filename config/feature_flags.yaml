@@ -313,6 +313,27 @@ flags:
     aliases: ["TELEGRAM_CHAT_ID"]
 
   # ============================================================================
+  # Per-Phase Budget Controls (IMP-COST-002)
+  # ============================================================================
+  AUTOPACK_PHASE_TOKEN_CAP:
+    description: "Default max tokens per phase (10% of run cap)"
+    category: tuning
+    default: "500000"
+    values: "Integer (tokens)"
+    affects: ["config.py", "autonomous_executor.py"]
+    aliases: ["PHASE_TOKEN_CAP_DEFAULT"]
+    notes: "IMP-COST-002: Per-phase budget control to prevent runaway token usage"
+
+  AUTOPACK_PHASE_TOKEN_MULTIPLIERS:
+    description: "Per-phase type budget multipliers (comma-separated key:value pairs)"
+    category: tuning
+    default: "research:1.5,implementation:1.0,verification:0.5,audit:0.3"
+    values: "Comma-separated key:value pairs (e.g., research:1.5,implementation:1.0)"
+    affects: ["config.py", "autonomous_executor.py"]
+    aliases: ["PHASE_TOKEN_CAP_MULTIPLIERS"]
+    notes: "IMP-COST-002: Phase types can have different budget multipliers. research=1.5x, implementation=1.0x, verification=0.5x, audit=0.3x"
+
+  # ============================================================================
   # Rollback Configuration (BUILD-145)
   # ============================================================================
   AUTOPACK_ROLLBACK_ENABLED:

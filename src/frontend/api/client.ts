@@ -80,7 +80,7 @@ export async function apiFetch(
   const url = new URL(endpoint, baseUrl).toString();
 
   // Merge headers with auth
-  const headers = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options?.headers || {}),
   };

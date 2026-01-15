@@ -14,6 +14,8 @@ from typing import List, Literal
 
 import yaml
 
+from autopack.config import settings
+
 
 @dataclass
 class HealthCheckResult:
@@ -121,7 +123,7 @@ class HealthChecker:
         port = int(match.group(2)) if match.group(2) else 5432
 
         try:
-            with socket.create_connection((host, port), timeout=2.0):
+            with socket.create_connection((host, port), timeout=settings.health_check_timeout):
                 return ("Database", True, f"Postgres reachable at {host}:{port}")
         except socket.timeout:
             return (

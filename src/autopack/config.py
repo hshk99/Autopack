@@ -333,6 +333,27 @@ class Settings(BaseSettings):
         description="Enable PII/credential redaction in artifact reads",
     )
 
+    # Configurable timeout values (IMP-033)
+    health_check_timeout: float = Field(
+        default=2.0,
+        validation_alias=AliasChoices("AUTOPACK_HEALTH_CHECK_TIMEOUT", "HEALTH_CHECK_TIMEOUT"),
+        description="Timeout for health check operations in seconds",
+    )
+
+    approval_check_interval: float = Field(
+        default=60.0,
+        validation_alias=AliasChoices(
+            "AUTOPACK_APPROVAL_CHECK_INTERVAL", "APPROVAL_CHECK_INTERVAL"
+        ),
+        description="Interval between approval status checks in seconds",
+    )
+
+    db_operation_timeout: float = Field(
+        default=30.0,
+        validation_alias=AliasChoices("AUTOPACK_DB_OPERATION_TIMEOUT", "DB_OPERATION_TIMEOUT"),
+        description="Timeout for database operations in seconds",
+    )
+
     # PR-08 Phase 5: Outbound egress allowlist / SSRF guardrails
     # List of allowed external hosts for outbound HTTP calls (comma-separated)
     # Empty list (default) allows all hosts (permissive for private/internal use)

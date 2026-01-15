@@ -239,6 +239,18 @@ class PhaseOrchestrator:
         if context.mark_phase_failed_in_db:
             context.mark_phase_failed_in_db(phase_id, "MAX_ATTEMPTS_EXHAUSTED")
 
+        # ROAD-A: Record phase outcome for telemetry analysis
+        self._record_phase_outcome(
+            phase_id=phase_id,
+            run_id=context.run_id,
+            outcome="FAILED",
+            stop_reason="max_attempts_exhausted",
+            tokens_used=getattr(context, "phase_tokens_used", None),
+            duration_seconds=getattr(context, "phase_duration_seconds", None),
+            model_used=getattr(context, "model_used", None),
+            phase_type=context.phase.get("category"),
+        )
+
         return ExecutionResult(
             success=False,
             status="FAILED",
@@ -320,6 +332,18 @@ class PhaseOrchestrator:
         # BUILD-145 P1.1: Record token efficiency telemetry
         if context.record_token_efficiency_telemetry:
             context.record_token_efficiency_telemetry(phase_id, "COMPLETE")
+
+        # ROAD-A: Record phase outcome for telemetry analysis
+        self._record_phase_outcome(
+            phase_id=phase_id,
+            run_id=context.run_id,
+            outcome="SUCCESS",
+            stop_reason="completed",
+            tokens_used=getattr(context, "phase_tokens_used", None),
+            duration_seconds=getattr(context, "phase_duration_seconds", None),
+            model_used=getattr(context, "model_used", None),
+            phase_type=context.phase.get("category"),
+        )
 
         logger.info(
             f"[{phase_id}] Phase completed successfully on attempt {context.attempt_index + 1}"
@@ -679,6 +703,53 @@ class PhaseOrchestrator:
                 db.close()
         except Exception as e:
             logger.warning(f"[{phase_id}] Failed to record Phase 6 telemetry: {e}")
+
+    def _record_phase_outcome(
+        self,
+        phase_id: str,
+        run_id: str,
+        outcome: str,
+        stop_reason: str = None,
+        rationale: str = None,
+        tokens_used: int = None,
+        duration_seconds: float = None,
+        model_used: str = None,
+        phase_type: str = None,
+    ):
+        """Record phase outcome with stop reason and metrics for downstream analysis (ROAD-A).
+
+        Enables:
+        - ROAD-B: Automated telemetry analysis
+        - ROAD-G: Real-time anomaly detection
+        - ROAD-L: Telemetry-driven model optimization
+        """
+        if os.getenv("TELEMETRY_DB_ENABLED", "false").lower() != "true":
+            return
+
+        try:
+            from autopack.models import PhaseOutcomeEvent
+            from autopack.database import SessionLocal
+
+            db = SessionLocal()
+            try:
+                event = PhaseOutcomeEvent(
+                    run_id=run_id,
+                    phase_id=phase_id,
+                    phase_type=phase_type,
+                    phase_outcome=outcome,
+                    stop_reason=stop_reason,
+                    stuck_decision_rationale=rationale,
+                    tokens_used=tokens_used,
+                    duration_seconds=duration_seconds,
+                    model_used=model_used,
+                )
+                db.add(event)
+                db.commit()
+                logger.debug(f"[ROAD-A] Recorded phase outcome: {phase_id} -> {outcome}")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"[{phase_id}] Failed to record ROAD-A phase outcome: {e}")
 
     def _check_intention_stuck_handling(
         self, context: ExecutionContext, status: str

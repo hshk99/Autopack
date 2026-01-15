@@ -466,6 +466,36 @@ class TokenEstimationV2Event(Base):
     )
 
 
+class PhaseOutcomeEvent(Base):
+    """Track per-phase outcomes with stop reasons for ROAD-A telemetry foundation.
+
+    Enables automated analysis (ROAD-B), anomaly detection (ROAD-G), and model optimization (ROAD-L).
+    """
+
+    __tablename__ = "phase_outcome_events"
+    __table_args__ = (
+        Index("ix_phase_outcome_run_id", "run_id"),
+        Index("ix_phase_outcome_phase_id", "phase_id"),
+        Index("ix_phase_outcome_outcome", "phase_outcome"),
+        Index("ix_phase_outcome_timestamp", "timestamp"),
+        Index("ix_phase_outcome_phase_type", "phase_type"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    run_id = Column(String, nullable=False, index=True)
+    phase_id = Column(String, nullable=False, index=True)
+    phase_type = Column(String, nullable=True)  # For ROAD-L model optimization
+    phase_outcome = Column(
+        SQLEnum("SUCCESS", "FAILED", "TIMEOUT", "STUCK", name="phase_outcome"), nullable=False
+    )
+    stop_reason = Column(String, nullable=True)  # e.g., "max_tokens", "retry_limit", "user_abort"
+    stuck_decision_rationale = Column(String, nullable=True)
+    tokens_used = Column(Integer, nullable=True)  # For cost tracking
+    duration_seconds = Column(Float, nullable=True)  # For anomaly detection
+    model_used = Column(String, nullable=True)  # For ROAD-L optimization
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class TokenBudgetEscalationEvent(Base):
     """
     Token budget escalation telemetry (BUILD-129 Phase 3 P10).

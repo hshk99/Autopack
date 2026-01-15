@@ -1,12 +1,24 @@
-"""Telemetry analysis and aggregation for ROAD-B.
+"""Telemetry analysis and anomaly detection for ROAD components.
 
-Provides automated analysis of PhaseOutcomeEvent telemetry to identify:
-- Top cost sinks (phases consuming the most tokens)
-- Top failure modes (most common failure patterns)
-- Top retry causes (phases that retry most frequently)
-- Phase type statistics (for ROAD-L model optimization)
+Provides:
+- Automated analysis of PhaseOutcomeEvent telemetry (ROAD-B)
+- Real-time anomaly detection (ROAD-G)
+- Alert routing
 """
 
 from autopack.telemetry.analyzer import TelemetryAnalyzer, RankedIssue
+from autopack.telemetry.anomaly_detector import (
+    TelemetryAnomalyDetector,
+    AnomalyAlert,
+    AlertSeverity,
+)
+from autopack.telemetry.alerts import AlertRouter
 
-__all__ = ["TelemetryAnalyzer", "RankedIssue"]
+__all__ = [
+    "TelemetryAnalyzer",
+    "RankedIssue",
+    "TelemetryAnomalyDetector",
+    "AnomalyAlert",
+    "AlertSeverity",
+    "AlertRouter",
+]

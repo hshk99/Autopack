@@ -1,1 +1,1 @@
-"""Tests for telemetry analysis."""
+"""Tests for telemetry analysis and anomaly detection."""

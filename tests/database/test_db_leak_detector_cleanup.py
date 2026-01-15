@@ -72,10 +72,14 @@ def test_cleanup_skips_active_transactions(detector):
 
 
 def test_pool_config_explicit():
-    """Verify engine pool configuration with explicit limits."""
-    # Create an in-memory SQLite engine with explicit pool config
+    """Verify engine pool configuration with explicit limits using QueuePool."""
+    from sqlalchemy.pool import QueuePool
+
+    # Create an in-memory SQLite engine with explicit QueuePool configuration
+    # SQLite doesn't support pool settings directly, so we explicitly use QueuePool
     engine = create_engine(
         "sqlite:///:memory:",
+        poolclass=QueuePool,
         pool_size=20,
         max_overflow=10,
         pool_timeout=30,

@@ -18,6 +18,7 @@ Key Features:
 """
 
 import logging
+import threading
 import time
 import traceback
 import sys
@@ -856,13 +857,17 @@ class ErrorRecoverySystem:
 
 # Global error recovery instance
 _global_recovery = None
+_recovery_lock = threading.Lock()
 
 
 def get_error_recovery() -> ErrorRecoverySystem:
-    """Get global error recovery instance (singleton)"""
+    """Get global error recovery instance (thread-safe singleton)"""
     global _global_recovery
     if _global_recovery is None:
-        _global_recovery = ErrorRecoverySystem()
+        with _recovery_lock:
+            # Double-check locking pattern
+            if _global_recovery is None:
+                _global_recovery = ErrorRecoverySystem()
     return _global_recovery
 
 

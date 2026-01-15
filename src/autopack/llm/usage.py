@@ -28,6 +28,7 @@ def record_usage(
     category: str,
     complexity: str,
     success: bool,
+    client_id: Optional[str] = None,
 ) -> None:
     """
     Record LLM usage in database with exact token splits.
@@ -36,6 +37,7 @@ def record_usage(
     when available from the provider.
 
     BUILD-144 P0.4: Always records total_tokens = prompt_tokens + completion_tokens.
+    IMP-TEL-001: Supports client_id for SaaS cost attribution.
 
     Args:
         db: Database session
@@ -46,6 +48,7 @@ def record_usage(
         category: Task category (e.g., 'builder', 'auditor', 'doctor')
         complexity: Task complexity (e.g., 'low', 'medium', 'high')
         success: Whether the operation succeeded
+        client_id: Client identifier for cost attribution (optional, for SaaS billing)
     """
     try:
         provider = model_to_provider(model)
@@ -71,6 +74,7 @@ def record_usage(
             completion_tokens=completion_tokens,
             run_id=run_id,
             phase_id=phase_id,
+            client_id=client_id,
             created_at=datetime.now(timezone.utc),
         )
         db.add(usage_event)
@@ -88,6 +92,7 @@ def record_usage_total_only(
     model: str,
     total_tokens: int,
     role: Optional[str] = None,
+    client_id: Optional[str] = None,
 ) -> None:
     """
     Record LLM usage when provider doesn't return exact token splits.
@@ -98,6 +103,7 @@ def record_usage_total_only(
     BUILD-144 P0.4: Records total_tokens explicitly with prompt_tokens=None and
     completion_tokens=None to indicate "total-only" accounting. Dashboard totals
     now use total_tokens field to avoid under-reporting.
+    IMP-TEL-001: Supports client_id for SaaS cost attribution.
 
     Args:
         db: Database session
@@ -106,6 +112,7 @@ def record_usage_total_only(
         model: Model name
         total_tokens: Total tokens used (sum of prompt + completion)
         role: Role (optional, defaults to "unknown")
+        client_id: Client identifier for cost attribution (optional, for SaaS billing)
     """
     try:
         provider = model_to_provider(model)
@@ -120,6 +127,7 @@ def record_usage_total_only(
             completion_tokens=None,  # Explicit None: no guessing
             run_id=run_id,
             phase_id=phase_id,
+            client_id=client_id,
             created_at=datetime.now(timezone.utc),
         )
         db.add(usage_event)
@@ -240,3 +248,106 @@ def aggregate_usage_by_model(db: Session, run_id: str) -> Dict:
         }
 
     return breakdown
+
+
+def get_client_usage(
+    db: Session,
+    client_id: str,
+    start_date: datetime,
+    end_date: datetime,
+) -> Dict:
+    """
+    Get aggregated usage for a client within a date range.
+
+    IMP-TEL-001: Enables downstream SaaS projects to attribute costs to end users.
+    This function aggregates token usage for a specific client across all runs
+    within the specified time period.
+
+    Args:
+        db: Database session
+        client_id: Client identifier to query
+        start_date: Start of the date range (inclusive)
+        end_date: End of the date range (inclusive)
+
+    Returns:
+        Dict with aggregated usage statistics including:
+        - client_id: The queried client identifier
+        - start_date: Query start date (ISO format)
+        - end_date: Query end date (ISO format)
+        - total_tokens: Total tokens used by this client
+        - total_calls: Number of LLM calls made
+        - by_model: Breakdown by model {model_name: {"tokens": int, "calls": int}}
+        - by_provider: Breakdown by provider {provider_name: {"tokens": int, "calls": int}}
+    """
+    # Get totals
+    totals = (
+        db.query(
+            func.sum(LlmUsageEvent.total_tokens).label("total_tokens"),
+            func.count(LlmUsageEvent.id).label("total_calls"),
+        )
+        .filter(
+            LlmUsageEvent.client_id == client_id,
+            LlmUsageEvent.created_at >= start_date,
+            LlmUsageEvent.created_at <= end_date,
+        )
+        .first()
+    )
+
+    total_tokens = totals.total_tokens or 0 if totals else 0
+    total_calls = totals.total_calls or 0 if totals else 0
+
+    # Get breakdown by model
+    by_model_results = (
+        db.query(
+            LlmUsageEvent.model,
+            func.sum(LlmUsageEvent.total_tokens).label("tokens"),
+            func.count(LlmUsageEvent.id).label("calls"),
+        )
+        .filter(
+            LlmUsageEvent.client_id == client_id,
+            LlmUsageEvent.created_at >= start_date,
+            LlmUsageEvent.created_at <= end_date,
+        )
+        .group_by(LlmUsageEvent.model)
+        .all()
+    )
+
+    by_model = {}
+    for row in by_model_results:
+        by_model[row.model] = {
+            "tokens": row.tokens or 0,
+            "calls": row.calls or 0,
+        }
+
+    # Get breakdown by provider
+    by_provider_results = (
+        db.query(
+            LlmUsageEvent.provider,
+            func.sum(LlmUsageEvent.total_tokens).label("tokens"),
+            func.count(LlmUsageEvent.id).label("calls"),
+        )
+        .filter(
+            LlmUsageEvent.client_id == client_id,
+            LlmUsageEvent.created_at >= start_date,
+            LlmUsageEvent.created_at <= end_date,
+        )
+        .group_by(LlmUsageEvent.provider)
+        .all()
+    )
+
+    by_provider = {}
+    for row in by_provider_results:
+        by_provider[row.provider] = {
+            "tokens": row.tokens or 0,
+            "calls": row.calls or 0,
+        }
+
+    return {
+        "client_id": client_id,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "total_tokens": total_tokens,
+        "total_calls": total_calls,
+        "by_model": by_model,
+        "by_provider": by_provider,
+    }

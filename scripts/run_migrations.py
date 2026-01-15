@@ -2,12 +2,13 @@
 """Simple migration runner
 
 Following GPT's recommendation: Simple migration scripts (not full Migration Manager yet).
-Run SQL files from both:
+Run SQL files from:
 - migrations/ (root)  [primary schema + telemetry migrations]
-- scripts/migrations/ (legacy/utility migrations)
+- src/autopack/migrations/ [autopack-specific migrations]
+- scripts/migrations/ (legacy/utility migrations, optional with --include-scripts)
 
 Files are executed in lexicographic order within each directory, with root migrations
-running first by default.
+running first, then autopack, then scripts (if enabled).
 """
 
 import argparse
@@ -104,16 +105,19 @@ def main():
 
     print(f"[*] Database: {db_path}")
     root_migrations_dir = Path.cwd() / "migrations"
+    autopack_migrations_dir = Path.cwd() / "src" / "autopack" / "migrations"
     scripts_migrations_dir = Path(__file__).parent / "migrations"
     print(f"[*] Root migrations directory: {root_migrations_dir}")
+    print(f"[*] Autopack migrations directory: {autopack_migrations_dir}")
     print(f"[*] Scripts migrations directory: {scripts_migrations_dir}")
 
     if args.dry_run:
         print("[*] DRY RUN MODE - No changes will be made")
 
-    # Get migration files (root first). scripts/migrations is legacy and may not be SQLite-safe.
+    # Get migration files (root first, then autopack). scripts/migrations is legacy and may not be SQLite-safe.
     migrations = []
     migrations.extend(get_migration_files(root_migrations_dir, label="root"))
+    migrations.extend(get_migration_files(autopack_migrations_dir, label="autopack"))
     if args.include_scripts:
         migrations.extend(get_migration_files(scripts_migrations_dir, label="scripts"))
 

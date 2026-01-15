@@ -237,15 +237,21 @@ class CircuitBreakerRegistry:
 
 # Global registry instance
 _global_registry: Optional[CircuitBreakerRegistry] = None
+_global_registry_lock = threading.Lock()
 
 
 def get_global_registry() -> CircuitBreakerRegistry:
     """Get the global circuit breaker registry instance.
+
+    Thread-safe singleton access.
 
     Returns:
         Global registry singleton
     """
     global _global_registry
     if _global_registry is None:
-        _global_registry = CircuitBreakerRegistry()
+        with _global_registry_lock:
+            # Double-check locking pattern
+            if _global_registry is None:
+                _global_registry = CircuitBreakerRegistry()
     return _global_registry

@@ -26,6 +26,8 @@ import click
 from .commands.gaps import gaps_group
 from .commands.planning import plan_group
 from .commands.autopilot import autopilot_group
+from .commands.backup import backup
+from .commands.restore import restore
 
 
 def get_repo_root() -> Path:
@@ -52,6 +54,8 @@ def cli() -> None:
 cli.add_command(gaps_group)
 cli.add_command(plan_group)
 cli.add_command(autopilot_group)
+cli.add_command(backup)
+cli.add_command(restore)
 
 
 # ============================================================================
@@ -126,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
     args_list = argv if argv is not None else sys.argv[1:]
 
     # BUILD-179 commands use Click CLI
-    click_commands = {"gaps", "plan", "autopilot", "--help", "-h", "--version"}
+    click_commands = {"gaps", "plan", "autopilot", "backup", "restore", "--help", "-h", "--version"}
 
     if args_list and args_list[0] in click_commands:
         # Use Click CLI

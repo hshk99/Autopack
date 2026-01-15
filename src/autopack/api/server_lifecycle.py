@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 from urllib.parse import urlparse
 
+from autopack.config import settings
+
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
 
@@ -101,12 +103,22 @@ class APIServerLifecycle:
         """Start API server process.
 
         Args:
-            host: Host to bind to
+            host: Host to bind to (overridden by settings.autopack_bind_address)
             port: Port to bind to
 
         Returns:
             True if server started successfully
         """
+        # IMP-SEC-001: Use explicit bind address from settings instead of deriving from URL
+        # This prevents accidental exposure when DATABASE_URL contains a non-local host
+        bind_host = settings.autopack_bind_address
+        if bind_host != host:
+            logger.info(
+                f"Using explicit bind address '{bind_host}' from settings "
+                f"(original host from URL: '{host}')"
+            )
+            host = bind_host
+
         logger.info(
             f"API server not detected at {self.executor.api_url}, attempting to start it..."
         )

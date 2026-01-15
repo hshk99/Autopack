@@ -333,6 +333,33 @@ class Settings(BaseSettings):
         description="Enable PII/credential redaction in artifact reads",
     )
 
+    # PR-08 Phase 5: Outbound egress allowlist / SSRF guardrails
+    # List of allowed external hosts for outbound HTTP calls (comma-separated)
+    # Empty list (default) allows all hosts (permissive for private/internal use)
+    # Example: "api.anthropic.com,api.openai.com,github.com"
+    allowed_external_hosts: list[str] = Field(
+        default_factory=list,
+        validation_alias=AliasChoices("AUTOPACK_ALLOWED_EXTERNAL_HOSTS", "ALLOWED_EXTERNAL_HOSTS"),
+        description="Comma-separated list of allowed external hosts (empty=all allowed)",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def parse_allowed_hosts(cls, values):
+        """Parse allowed_external_hosts from comma-separated string or list."""
+        if isinstance(values, dict):
+            hosts = values.get("allowed_external_hosts")
+            if isinstance(hosts, str):
+                if hosts:
+                    values["allowed_external_hosts"] = [
+                        h.strip() for h in hosts.split(",") if h.strip()
+                    ]
+                else:
+                    values["allowed_external_hosts"] = []
+            elif hosts is None:
+                values["allowed_external_hosts"] = []
+        return values
+
     @model_validator(mode="after")
     def validate_jwt_algorithm(self) -> "Settings":
         """

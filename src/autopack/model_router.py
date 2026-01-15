@@ -2,6 +2,7 @@
 
 from typing import Dict, Literal, Optional
 
+import os
 import yaml
 import logging
 from pathlib import Path
@@ -13,6 +14,7 @@ from .model_selection import (
     get_model_selector,
     HIGH_RISK_CATEGORIES,
 )
+from .telemetry.model_performance_tracker import TelemetryDrivenModelOptimizer
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +58,11 @@ class ModelRouter:
         # Providers that have been marked unhealthy for this process/run
         # (e.g., due to repeated infra_error failures during health checks)
         self.disabled_providers: set[str] = set()
+
+        # Initialize telemetry-driven model optimizer (ROAD-L)
+        self.telemetry_optimizer: Optional[TelemetryDrivenModelOptimizer] = None
+        if os.getenv("AUTOPACK_TELEMETRY_MODEL_OPTIMIZATION", "0") == "1":
+            self.telemetry_optimizer = TelemetryDrivenModelOptimizer(db)
 
     def select_model(
         self,
@@ -123,6 +130,19 @@ class ModelRouter:
                     f"for role={role}, category={task_category}, complexity={complexity}"
                 )
                 return fallback, budget_warning
+
+        # 5. Apply telemetry-driven optimization if enabled (ROAD-L)
+        if self.telemetry_optimizer and task_category:
+            optimized_model, reason = self.telemetry_optimizer.suggest_model(
+                phase_type=task_category, current_model=baseline_model, complexity=complexity
+            )
+            if reason:
+                logger.info(f"[ROAD-L] Model optimization: {reason}")
+                budget_warning = {
+                    "level": "info",
+                    "message": f"Telemetry optimization: {reason}",
+                }
+                return optimized_model, budget_warning
 
         return baseline_model, budget_warning
 

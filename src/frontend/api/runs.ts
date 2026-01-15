@@ -72,6 +72,12 @@ export interface BrowserArtifactsResponse {
   total_count: number;
 }
 
+export interface ArtifactFileResponse {
+  content: string;
+  truncated: boolean;
+  redacted: boolean;
+}
+
 /**
  * Helper to normalize API errors with consistent formatting
  */
@@ -114,14 +120,22 @@ export async function fetchArtifactsIndex(
 export async function fetchArtifactFile(
   runId: string,
   path: string
-): Promise<string> {
+): Promise<ArtifactFileResponse> {
   const response = await apiFetch(
     `/runs/${runId}/artifacts/file?path=${encodeURIComponent(path)}`
   );
   if (!response.ok) {
     throw await normalizeError(response);
   }
-  return response.text();
+  const content = await response.text();
+  const truncated = response.headers.get('X-Truncated') === 'true';
+  const redacted = response.headers.get('X-Redacted') === 'true';
+
+  return {
+    content,
+    truncated,
+    redacted,
+  };
 }
 
 export async function fetchBrowserArtifacts(

@@ -10,6 +10,7 @@
 # - configs/   (configuration archives)
 # - scripts/   (archived scripts)
 # - superseded/ (deprecated code)
+# - security-infrastructure/ (archived security baseline infrastructure)
 #
 # DISALLOWED: Any new top-level files or directories not listed above
 
@@ -26,6 +27,7 @@
 !/scripts/
 !/superseded/
 !/reports/
+!/security-infrastructure/
 
 # Allow this .gitignore file itself
 !/.gitignore
@@ -51,6 +53,7 @@
 !/scripts/**
 !/superseded/**
 !/reports/**
+!/security-infrastructure/**
 
 # But exclude diagnostic backup zips (build artifacts)
 /diagnostics/doc_link_fix_backup_*.zip

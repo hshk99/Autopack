@@ -4,8 +4,8 @@ from pathlib import Path
 env_vars = set()
 
 # Search in src directory
-for py_file in Path('src').rglob('*.py'):
-    with open(py_file, 'r', encoding='utf-8', errors='ignore') as f:
+for py_file in Path("src").rglob("*.py"):
+    with open(py_file, "r", encoding="utf-8", errors="ignore") as f:
         content = f.read()
         # Find os.getenv, os.environ patterns
         patterns = [
@@ -18,11 +18,11 @@ for py_file in Path('src').rglob('*.py'):
             env_vars.update(matches)
 
 # Also check for Field definitions with validation_alias
-for py_file in Path('src').rglob('*.py'):
-    with open(py_file, 'r', encoding='utf-8', errors='ignore') as f:
+for py_file in Path("src").rglob("*.py"):
+    with open(py_file, "r", encoding="utf-8", errors="ignore") as f:
         content = f.read()
         # Find AliasChoices patterns
-        alias_pattern = r'AliasChoices\(([^)]+)\)'
+        alias_pattern = r"AliasChoices\(([^)]+)\)"
         for match in re.finditer(alias_pattern, content):
             vars_str = match.group(1)
             # Extract variable names from AliasChoices

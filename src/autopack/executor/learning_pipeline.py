@@ -23,6 +23,7 @@ class LearningHint:
     hint_text: str
     source_issue_keys: List[str]
     recorded_at: float
+    task_category: Optional[str] = None
 
 
 class LearningPipeline:
@@ -78,6 +79,7 @@ class LearningPipeline:
                 hint_text=hint_text,
                 source_issue_keys=[f"{hint_type}_{phase_id}"],
                 recorded_at=time.time(),
+                task_category=phase.get("task_category"),
             )
 
             self._hints.append(hint)
@@ -104,8 +106,7 @@ class LearningPipeline:
             List of hint text strings
         """
         phase_id = phase.get("phase_id")
-        # Note: task_category parameter reserved for future category filtering
-        _ = task_category  # Silence lint warning
+        phase_task_category = phase.get("task_category")
 
         # Filter hints by category or phase
         relevant_hints = []
@@ -116,8 +117,13 @@ class LearningPipeline:
                 relevant_hints.append(hint.hint_text)
                 continue
 
-            # Same category (if available)
-            # TODO: Add category filtering when available
+            # Same category (if available on both hint and phase)
+            if (
+                phase_task_category is not None
+                and hint.task_category is not None
+                and hint.task_category == phase_task_category
+            ):
+                relevant_hints.append(hint.hint_text)
 
         return relevant_hints[:10]  # Limit to top 10
 

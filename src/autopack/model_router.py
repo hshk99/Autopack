@@ -1,6 +1,6 @@
 """Model router for quota-aware model selection with escalation support."""
 
-from typing import Dict, Literal, Optional
+from typing import Any, Dict, Literal, Optional
 
 import os
 import yaml
@@ -440,3 +440,79 @@ class ModelRouter:
                     mappings[role][key] = model
 
         return mappings
+
+    # ---------------------------------------------------------------------
+    # Auxiliary model accessors (non-routing models like Doctor, Judge, Tidy)
+    # ---------------------------------------------------------------------
+
+    def get_doctor_models(self) -> Dict[str, Any]:
+        """
+        Get Doctor system model configuration.
+
+        Returns config from doctor_models section in models.yaml:
+        - cheap: Model for routine failures
+        - strong: Model for complex failures
+        - min_confidence_for_cheap: Threshold for cheap model confidence
+        - health_budget_near_limit_ratio: Threshold for budget-based escalation
+        - max_builder_attempts_before_complex: Attempts threshold for complexity
+        - high_risk_categories: Categories that warrant strong model
+        - low_risk_categories: Categories suitable for cheap model
+
+        Returns:
+            Dict with doctor model configuration
+        """
+        defaults = {
+            "cheap": "claude-sonnet-4-5",
+            "strong": "claude-opus-4-5",
+            "min_confidence_for_cheap": 0.7,
+            "health_budget_near_limit_ratio": 0.8,
+            "max_builder_attempts_before_complex": 4,
+            "high_risk_categories": ["import", "logic", "patch_apply_error"],
+            "low_risk_categories": ["encoding", "network", "file_io", "validation"],
+            "max_escalations_per_phase": 1,
+        }
+        doctor_config = self.config.get("doctor_models", {})
+        # Merge with defaults (config values override defaults)
+        return {**defaults, **doctor_config}
+
+    def get_judge_model(self) -> str:
+        """
+        Get the dual-audit judge model for resolving auditor disagreements.
+
+        Returns:
+            Model identifier for judge (defaults to claude-opus-4-5)
+        """
+        dual_audit_config = self.config.get("dual_audit_judge", {})
+        return dual_audit_config.get("model", "claude-opus-4-5")
+
+    def get_tool_model(self, tool_name: str) -> Optional[str]:
+        """
+        Get model for a specific tool (non-routing models).
+
+        Tool models are defined in the tool_models section of models.yaml.
+        Example: tidy_semantic uses glm-4.7 for semantic analysis.
+
+        Args:
+            tool_name: Tool identifier (e.g., "tidy_semantic")
+
+        Returns:
+            Model identifier or None if not configured
+        """
+        tool_models = self.config.get("tool_models", {})
+        return tool_models.get(tool_name)
+
+    def resolve_model_alias(self, alias: str) -> str:
+        """
+        Resolve a model alias to its full model identifier.
+
+        Aliases are defined in the model_aliases section of models.yaml.
+        Example: "sonnet" -> "claude-sonnet-4-5"
+
+        Args:
+            alias: Model alias or full model identifier
+
+        Returns:
+            Full model identifier (returns input unchanged if not an alias)
+        """
+        aliases = self.config.get("model_aliases", {})
+        return aliases.get(alias, alias)

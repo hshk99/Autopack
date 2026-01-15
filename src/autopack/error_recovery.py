@@ -28,6 +28,7 @@ from enum import Enum
 from dataclasses import dataclass, field
 
 from .debug_journal import log_error, log_fix, log_escalation
+from .config_loader import doctor_config as _doctor_config
 
 
 logger = logging.getLogger(__name__)
@@ -208,19 +209,20 @@ class DoctorResponse:
 
 # Doctor invocation thresholds (per GPT_RESPONSE6 constraints)
 DOCTOR_MIN_BUILDER_ATTEMPTS = 2  # Only invoke Doctor after N failures
-DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO = 0.8  # Invoke Doctor when health budget is 80% exhausted
 
-# Doctor model routing thresholds (per GPT_RESPONSE7 recommendations)
-DOCTOR_MAX_BUILDER_ATTEMPTS_BEFORE_COMPLEX = 4  # >= this means complex failure
-DOCTOR_MIN_CONFIDENCE_FOR_CHEAP = 0.7  # Escalate to strong if confidence below this
-DOCTOR_CHEAP_MODEL = "claude-sonnet-4-5"
-DOCTOR_STRONG_MODEL = "claude-opus-4-5"
+# Doctor model routing thresholds - loaded from config/models.yaml doctor_models section
+# These are module-level aliases for backward compatibility
+DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO = _doctor_config.health_budget_near_limit_ratio
+DOCTOR_MAX_BUILDER_ATTEMPTS_BEFORE_COMPLEX = _doctor_config.max_builder_attempts_before_complex
+DOCTOR_MIN_CONFIDENCE_FOR_CHEAP = _doctor_config.min_confidence_for_cheap
+DOCTOR_CHEAP_MODEL = _doctor_config.cheap_model
+DOCTOR_STRONG_MODEL = _doctor_config.strong_model
 
 # High-risk error categories that warrant strong Doctor model
-DOCTOR_HIGH_RISK_CATEGORIES = {"import", "logic"}
+DOCTOR_HIGH_RISK_CATEGORIES = set(_doctor_config.high_risk_categories)
 
 # Low-risk error categories suitable for cheap Doctor model
-DOCTOR_LOW_RISK_CATEGORIES = {"encoding", "network", "file_io", "validation"}
+DOCTOR_LOW_RISK_CATEGORIES = set(_doctor_config.low_risk_categories)
 
 
 @dataclass

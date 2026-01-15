@@ -1,4 +1,4 @@
-"""Telemetry analysis, anomaly detection, model optimization, and self-healing for ROAD components.
+"""Telemetry analysis, anomaly detection, model optimization, self-healing, and causal analysis for ROAD components.
 
 Provides:
 - Automated analysis of PhaseOutcomeEvent telemetry (ROAD-B)
@@ -7,6 +7,7 @@ Provides:
 - Self-healing engine (ROAD-J)
 - Telemetry-driven model selection optimization (ROAD-L)
 - Meta-metrics for feedback loop quality (ROAD-K)
+- Causal analysis for change impact assessment (ROAD-H)
 """
 
 from autopack.telemetry.analyzer import TelemetryAnalyzer, RankedIssue
@@ -16,6 +17,7 @@ from autopack.telemetry.anomaly_detector import (
     AlertSeverity,
 )
 from autopack.telemetry.alerts import AlertRouter
+from autopack.telemetry.auto_healer import AutoHealingEngine, HealingAction, HealingDecision
 from autopack.telemetry.model_performance_tracker import (
     TelemetryDrivenModelOptimizer,
     ModelPerformance,
@@ -28,45 +30,37 @@ from autopack.telemetry.meta_metrics import (
     ComponentHealthReport,
     FeedbackLoopHealthReport,
 )
+from autopack.telemetry.causal_analysis import (
+    CausalAnalyzer,
+    CausalStrength,
+    ChangeEvent,
+    OutcomeMetric,
+    CausalRelationship,
+    CausalAnalysisReport,
+)
 
-# Try to import auto_healer if available (may not be on all branches)
-try:
-    from autopack.telemetry.auto_healer import AutoHealingEngine, HealingAction, HealingDecision
-
-    __all__ = [
-        "TelemetryAnalyzer",
-        "RankedIssue",
-        "TelemetryAnomalyDetector",
-        "AnomalyAlert",
-        "AlertSeverity",
-        "AlertRouter",
-        "AutoHealingEngine",
-        "HealingAction",
-        "HealingDecision",
-        "TelemetryDrivenModelOptimizer",
-        "ModelPerformance",
-        "MetaMetricsTracker",
-        "FeedbackLoopHealth",
-        "ComponentStatus",
-        "MetricTrend",
-        "ComponentHealthReport",
-        "FeedbackLoopHealthReport",
-    ]
-except ImportError:
-    # auto_healer not available on this branch
-    __all__ = [
-        "TelemetryAnalyzer",
-        "RankedIssue",
-        "TelemetryAnomalyDetector",
-        "AnomalyAlert",
-        "AlertSeverity",
-        "AlertRouter",
-        "TelemetryDrivenModelOptimizer",
-        "ModelPerformance",
-        "MetaMetricsTracker",
-        "FeedbackLoopHealth",
-        "ComponentStatus",
-        "MetricTrend",
-        "ComponentHealthReport",
-        "FeedbackLoopHealthReport",
-    ]
+__all__ = [
+    "TelemetryAnalyzer",
+    "RankedIssue",
+    "TelemetryAnomalyDetector",
+    "AnomalyAlert",
+    "AlertSeverity",
+    "AlertRouter",
+    "AutoHealingEngine",
+    "HealingAction",
+    "HealingDecision",
+    "TelemetryDrivenModelOptimizer",
+    "ModelPerformance",
+    "MetaMetricsTracker",
+    "FeedbackLoopHealth",
+    "ComponentStatus",
+    "MetricTrend",
+    "ComponentHealthReport",
+    "FeedbackLoopHealthReport",
+    "CausalAnalyzer",
+    "CausalStrength",
+    "ChangeEvent",
+    "OutcomeMetric",
+    "CausalRelationship",
+    "CausalAnalysisReport",
+]

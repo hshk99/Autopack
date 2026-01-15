@@ -8,10 +8,13 @@ timeouts, and state transitions.
 import time
 import threading
 from enum import Enum
-from typing import Callable, Any, Optional, Dict
+from typing import Callable, Any, Optional, Dict, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime
 import logging
+
+if TYPE_CHECKING:
+    from .circuit_breaker_persistence import CircuitBreakerPersistence
 
 logger = logging.getLogger(__name__)
 
@@ -100,12 +103,18 @@ class CircuitBreaker:
             result = fallback_value
     """
 
-    def __init__(self, name: str, config: Optional[CircuitBreakerConfig] = None):
+    def __init__(
+        self,
+        name: str,
+        config: Optional[CircuitBreakerConfig] = None,
+        persistence: Optional["CircuitBreakerPersistence"] = None,
+    ):
         """Initialize circuit breaker.
 
         Args:
             name: Identifier for this circuit breaker
             config: Configuration settings
+            persistence: Optional persistence layer for state recovery
         """
         self.name = name
         self.config = config or CircuitBreakerConfig()
@@ -116,6 +125,7 @@ class CircuitBreaker:
         self.last_state_change: float = time.time()
         self.metrics = CircuitBreakerMetrics()
         self._lock = threading.RLock()
+        self._persistence = persistence
 
         logger.info(
             f"Circuit breaker '{name}' initialized: "
@@ -233,11 +243,41 @@ class CircuitBreaker:
             f"{old_state.value} -> {new_state.value}"
         )
 
+        # Persist state immediately on status change
+        if self._persistence is not None:
+            self._persistence.save_state(self.name, self.to_dict())
+
     def reset(self):
         """Manually reset circuit breaker to CLOSED state."""
         with self._lock:
             logger.info(f"Manually resetting circuit breaker '{self.name}'")
             self._transition_to(CircuitState.CLOSED)
+
+    def _restore_state(self, saved_state: dict):
+        """Restore circuit breaker state from persisted data.
+
+        Args:
+            saved_state: State dictionary from persistence layer
+        """
+        with self._lock:
+            self.state = CircuitState(saved_state.get("state", "closed"))
+            self.failure_count = saved_state.get("failure_count", 0)
+            self.success_count = saved_state.get("success_count", 0)
+            self.last_failure_time = saved_state.get("last_failure_time")
+            self.last_state_change = saved_state.get("last_state_change", time.time())
+
+            # Restore metrics if available
+            metrics_data = saved_state.get("metrics", {})
+            self.metrics.total_calls = metrics_data.get("total_calls", 0)
+            self.metrics.successful_calls = metrics_data.get("successful_calls", 0)
+            self.metrics.failed_calls = metrics_data.get("failed_calls", 0)
+            self.metrics.rejected_calls = metrics_data.get("rejected_calls", 0)
+            self.metrics.state_transitions = metrics_data.get("state_transitions", {}).copy()
+
+            logger.info(
+                f"Restored circuit breaker '{self.name}' state: {self.state.value}, "
+                f"failures={self.failure_count}"
+            )
 
     def get_state(self) -> CircuitState:
         """Get current circuit breaker state."""

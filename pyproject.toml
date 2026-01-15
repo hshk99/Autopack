@@ -46,6 +46,8 @@ dependencies = [
     "pywin32>=311; sys_platform == 'win32'",
     # Retry logic with exponential backoff for state persistence
     "tenacity>=8.0.0",
+    # Redis client for circuit breaker state persistence
+    "redis>=5.0.0",
 ]
 
 [project.optional-dependencies]
@@ -61,6 +63,8 @@ dev = [
     # Alternative LLM providers (for prompt wiring tests)
     "openai>=1.0.0",
     "google-generativeai>=0.3.0",
+    # Fake Redis for testing circuit breaker persistence
+    "fakeredis>=2.20.0",
 ]
 
 [build-system]

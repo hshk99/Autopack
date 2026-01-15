@@ -7,7 +7,7 @@ across the application.
 import json
 import threading
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, TYPE_CHECKING
 from dataclasses import dataclass
 import logging
 
@@ -17,6 +17,9 @@ from .circuit_breaker import (
     CircuitState,
     CircuitBreakerMetrics,
 )
+
+if TYPE_CHECKING:
+    from .circuit_breaker_persistence import CircuitBreakerPersistence
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +61,7 @@ class CircuitBreakerRegistry:
     _instance: Optional["CircuitBreakerRegistry"] = None
     _lock = threading.Lock()
 
-    def __new__(cls):
+    def __new__(cls, persistence: Optional["CircuitBreakerPersistence"] = None):
         """Implement singleton pattern."""
         if cls._instance is None:
             with cls._lock:
@@ -66,14 +69,22 @@ class CircuitBreakerRegistry:
                     cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self):
-        """Initialize registry."""
+    def __init__(self, persistence: Optional["CircuitBreakerPersistence"] = None):
+        """Initialize registry.
+
+        Args:
+            persistence: Optional persistence layer for state recovery across restarts
+        """
         if not hasattr(self, "_initialized"):
             self._breakers: Dict[str, CircuitBreaker] = {}
             self._configs: Dict[str, CircuitBreakerConfig] = {}
             self._registry_lock = threading.RLock()
+            self._persistence = persistence
             self._initialized = True
             logger.info("Circuit breaker registry initialized")
+        elif persistence is not None:
+            # Allow updating persistence on existing singleton
+            self._persistence = persistence
 
     def register(
         self, name: str, config: Optional[CircuitBreakerConfig] = None, force: bool = False
@@ -97,7 +108,15 @@ class CircuitBreakerRegistry:
                     f"Circuit breaker '{name}' already registered. Use force=True to replace."
                 )
 
-            breaker = CircuitBreaker(name=name, config=config)
+            breaker = CircuitBreaker(name=name, config=config, persistence=self._persistence)
+
+            # Try to restore state from persistence
+            if self._persistence is not None:
+                saved_state = self._persistence.load_state(name)
+                if saved_state is not None:
+                    breaker._restore_state(saved_state)
+                    logger.info(f"Restored circuit breaker '{name}' from persistence")
+
             self._breakers[name] = breaker
             self._configs[name] = config or CircuitBreakerConfig()
 
@@ -116,6 +135,27 @@ class CircuitBreakerRegistry:
         with self._registry_lock:
             return self._breakers.get(name)
 
+    def get_breaker(
+        self, name: str, config: Optional[CircuitBreakerConfig] = None
+    ) -> CircuitBreaker:
+        """Get existing circuit breaker or create new one with state restoration.
+
+        This is the preferred method for obtaining circuit breakers as it
+        automatically restores state from persistence if available.
+
+        Args:
+            name: Circuit breaker identifier
+            config: Configuration for new circuit breaker (if created)
+
+        Returns:
+            Existing or newly created circuit breaker with restored state
+        """
+        with self._registry_lock:
+            breaker = self._breakers.get(name)
+            if breaker is None:
+                breaker = self.register(name, config)
+            return breaker
+
     def get_or_create(
         self, name: str, config: Optional[CircuitBreakerConfig] = None
     ) -> CircuitBreaker:
@@ -127,12 +167,11 @@ class CircuitBreakerRegistry:
 
         Returns:
             Existing or newly created circuit breaker
+
+        Note:
+            This method is an alias for get_breaker() for backwards compatibility.
         """
-        with self._registry_lock:
-            breaker = self._breakers.get(name)
-            if breaker is None:
-                breaker = self.register(name, config)
-            return breaker
+        return self.get_breaker(name, config)
 
     def unregister(self, name: str) -> bool:
         """Unregister a circuit breaker.

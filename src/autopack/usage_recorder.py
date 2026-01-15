@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
-from sqlalchemy import Column, DateTime, Integer, String, Boolean, JSON
+from sqlalchemy import Column, DateTime, Integer, String, Boolean, JSON, Index
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -36,10 +36,17 @@ class LlmUsageEvent(Base):
         DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
     )
 
+    # IMP-TEL-001: Client attribution for SaaS cost tracking
+    # Nullable for backward compatibility with existing records
+    client_id = Column(String, nullable=True, index=True)
+
     # Doctor-specific fields
     is_doctor_call = Column(Boolean, nullable=False, default=False, index=True)
     doctor_model = Column(String, nullable=True)  # cheap or strong
     doctor_action = Column(String, nullable=True)  # retry_with_fix, replan, skip_phase, etc.
+
+    # Composite index for client usage queries over time ranges
+    __table_args__ = (Index("ix_client_created", "client_id", "created_at"),)
 
 
 class DoctorUsageStats(Base):

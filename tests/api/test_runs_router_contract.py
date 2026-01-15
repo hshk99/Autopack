@@ -332,3 +332,57 @@ class TestStartRunContract:
 
         assert exc_info.value.status_code == 400
         assert "unknown tier" in exc_info.value.detail.lower()
+
+    def test_start_run_rejects_invalid_token_cap(self):
+        """Contract: POST /runs/start rejects token_cap < 1."""
+        from pydantic import ValidationError
+
+        from autopack import schemas
+
+        # Test that zero token_cap is rejected
+        with pytest.raises(ValidationError) as exc_info:
+            schemas.RunCreate(
+                run_id="test-run",
+                safety_profile="normal",
+                run_scope="full",
+                token_cap=0,
+            )
+
+        errors = exc_info.value.errors()
+        assert any("greater than or equal to 1" in str(e).lower() for e in errors)
+
+    def test_start_run_rejects_invalid_max_phases(self):
+        """Contract: POST /runs/start rejects max_phases < 1."""
+        from pydantic import ValidationError
+
+        from autopack import schemas
+
+        # Test that zero max_phases is rejected
+        with pytest.raises(ValidationError) as exc_info:
+            schemas.RunCreate(
+                run_id="test-run",
+                safety_profile="normal",
+                run_scope="full",
+                max_phases=0,
+            )
+
+        errors = exc_info.value.errors()
+        assert any("greater than or equal to 1" in str(e).lower() for e in errors)
+
+    def test_start_run_rejects_invalid_max_duration(self):
+        """Contract: POST /runs/start rejects max_duration_minutes < 1."""
+        from pydantic import ValidationError
+
+        from autopack import schemas
+
+        # Test that zero max_duration_minutes is rejected
+        with pytest.raises(ValidationError) as exc_info:
+            schemas.RunCreate(
+                run_id="test-run",
+                safety_profile="normal",
+                run_scope="full",
+                max_duration_minutes=0,
+            )
+
+        errors = exc_info.value.errors()
+        assert any("greater than or equal to 1" in str(e).lower() for e in errors)

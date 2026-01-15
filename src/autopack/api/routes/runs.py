@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from autopack import models, schemas
 from autopack.api.deps import limiter, verify_api_key, verify_read_access
+from autopack.config import settings
 from autopack.database import get_db
 from autopack.file_layout import RunFileLayout
 from autopack.issue_tracker import IssueTracker
@@ -65,9 +66,10 @@ def start_run(
         state=models.RunState.RUN_CREATED,
         safety_profile=request_data.run.safety_profile,
         run_scope=request_data.run.run_scope,
-        token_cap=request_data.run.token_cap or 5_000_000,
-        max_phases=request_data.run.max_phases or 25,
-        max_duration_minutes=request_data.run.max_duration_minutes or 120,
+        token_cap=request_data.run.token_cap or settings.run_token_cap,
+        max_phases=request_data.run.max_phases or settings.run_max_phases,
+        max_duration_minutes=request_data.run.max_duration_minutes
+        or settings.run_max_duration_minutes,
         max_minor_issues_total=None,
         started_at=datetime.now(timezone.utc),
     )

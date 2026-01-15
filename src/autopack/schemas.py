@@ -44,10 +44,14 @@ class RunCreate(BaseModel):
     run_id: str = Field(..., description="Unique identifier for the run")
     safety_profile: str = Field(default="normal", description="normal or safety_critical")
     run_scope: str = Field(default="multi_tier", description="multi_tier or single_tier")
-    token_cap: Optional[int] = Field(default=5_000_000, description="Maximum tokens for this run")
-    max_phases: Optional[int] = Field(default=25, description="Maximum phases for this run")
+    token_cap: Optional[int] = Field(
+        default=5_000_000, ge=1, description="Maximum tokens for this run (must be >= 1)"
+    )
+    max_phases: Optional[int] = Field(
+        default=25, ge=1, description="Maximum phases for this run (must be >= 1)"
+    )
     max_duration_minutes: Optional[int] = Field(
-        default=120, description="Maximum duration in minutes"
+        default=120, ge=1, description="Maximum duration in minutes (must be >= 1)"
     )
 
 

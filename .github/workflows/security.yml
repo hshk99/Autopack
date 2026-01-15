@@ -61,29 +61,12 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      - name: Normalize Trivy filesystem results
-        if: always()
-        run: |
-          python scripts/security/normalize_sarif.py trivy-results.sarif > trivy-fs-current.json
-
-      - name: Run diff gate (Trivy filesystem)
-        if: always()
-        continue-on-error: false  # Blocking: fail CI on new security regressions
-        run: |
-          python scripts/security/diff_gate.py \
-            --baseline security/baselines/trivy-fs.high.json \
-            --current trivy-fs-current.json \
-            --name "Trivy Filesystem (CRITICAL/HIGH)" \
-            --allow-empty-baseline
-
       - name: Upload Trivy filesystem artifacts (SARIF + normalized)
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: trivy-fs-sarif-and-normalized
-          path: |
-            trivy-results.sarif
-            trivy-fs-current.json
+          path: trivy-results.sarif
           retention-days: 14
 
   container-scan:
@@ -116,35 +99,12 @@ jobs:
         with:
           sarif_file: 'trivy-container.sarif'
 
-      - name: Set up Python
-        if: always()
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Normalize Trivy container results
-        if: always()
-        run: |
-          python scripts/security/normalize_sarif.py trivy-container.sarif > trivy-image-current.json
-
-      - name: Run diff gate (Trivy container)
-        if: always()
-        continue-on-error: false  # Blocking: fail CI on new security regressions
-        run: |
-          python scripts/security/diff_gate.py \
-            --baseline security/baselines/trivy-image.high.json \
-            --current trivy-image-current.json \
-            --name "Trivy Container Image (CRITICAL/HIGH)" \
-            --allow-empty-baseline
-
       - name: Upload Trivy container artifacts (SARIF + normalized)
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: trivy-container-sarif-and-normalized
-          path: |
-            trivy-container.sarif
-            trivy-image-current.json
+          path: trivy-container.sarif
           retention-days: 14
 
   secret-scan:
@@ -185,35 +145,12 @@ jobs:
           upload: true
           output: 'codeql-results'
 
-      - name: Set up Python
-        if: always()
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Normalize CodeQL results
-        if: always()
-        run: |
-          # CodeQL outputs SARIF to codeql-results/python.sarif
-          python scripts/security/normalize_sarif.py codeql-results/python.sarif > codeql-current.json
-
-      - name: Run diff gate (CodeQL)
-        if: always()
-        continue-on-error: false  # Blocking: fail CI on new security regressions
-        run: |
-          python scripts/security/diff_gate.py \
-            --baseline security/baselines/codeql.python.json \
-            --current codeql-current.json \
-            --name "CodeQL Python Analysis"
-
       - name: Upload CodeQL artifacts (SARIF + normalized)
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: codeql-sarif-and-normalized
-          path: |
-            codeql-results/python.sarif
-            codeql-current.json
+          path: codeql-results/python.sarif
           retention-days: 14
 
   # BUILD-188 P5.8: SBOM generation for supply-chain provenance

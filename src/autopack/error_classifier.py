@@ -6,6 +6,7 @@ Key principle: Never retry a request that fails deterministically with the same 
 Per BUILD-130 Phase 0: Circuit Breaker implementation.
 """
 
+import random
 from enum import Enum
 from typing import Tuple, Optional
 import logging
@@ -222,22 +223,29 @@ class ErrorClassifier:
 
     def get_backoff_seconds(self, error_class: ErrorClass, attempt: int) -> int:
         """
-        Calculate backoff duration for retry.
+        Calculate backoff duration for retry with jitter.
+
+        Jitter (0.5x to 1.5x) prevents thundering herd when multiple
+        workers hit rate limits simultaneously.
 
         Args:
             error_class: Classified error type
             attempt: Retry attempt number (0-indexed)
 
         Returns:
-            Seconds to wait before retry
+            Seconds to wait before retry (with jitter applied)
         """
         if error_class == ErrorClass.TRANSIENT_LLM:
             # LLM errors: longer backoff for rate limits
-            return min(60 * (2**attempt), 300)  # 60s, 120s, 240s, 300s max
+            base = min(60 * (2**attempt), 300)  # 60s, 120s, 240s, 300s max
+            jitter = random.uniform(0.5, 1.5)  # nosec B311 - not security-sensitive
+            return int(base * jitter)
 
         if error_class == ErrorClass.TRANSIENT_INFRA:
             # Infrastructure errors: shorter backoff
-            return min(5 * (attempt + 1), 30)  # 5s, 10s, 15s, ..., 30s max
+            base = min(5 * (attempt + 1), 30)  # 5s, 10s, 15s, ..., 30s max
+            jitter = random.uniform(0.5, 1.5)  # nosec B311 - not security-sensitive
+            return int(base * jitter)
 
         # Deterministic errors: no backoff (shouldn't retry anyway)
         return 0

@@ -273,3 +273,128 @@ class TelemetryAnalyzer:
                 f.write("*No phase type statistics available*\n")
 
         logger.info(f"[ROAD-B] Wrote ranked issues to: {output_path}")
+
+    def get_recommendations_for_phase(
+        self, phase_type: str, lookback_hours: int = 24
+    ) -> List[Dict[str, Any]]:
+        """Get actionable recommendations for a phase type based on recent telemetry.
+
+        Queries recent analysis results for the given phase type and returns
+        recommendations for mitigating detected issues.
+
+        Args:
+            phase_type: The type of phase to get recommendations for
+            lookback_hours: Number of hours to look back for analysis (default: 24)
+
+        Returns:
+            List of recommendation dicts with:
+            - severity: "CRITICAL" or "HIGH"
+            - action: One of "reduce_context_size", "switch_to_smaller_model",
+                      "increase_timeout", "optimize_prompt"
+            - reason: Human-readable explanation
+            - metric_value: The metric value that triggered this recommendation
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=lookback_hours)
+        recommendations: List[Dict[str, Any]] = []
+
+        # Check for high failure rates (triggers model downgrade or prompt optimization)
+        failure_result = self.db.execute(
+            text(
+                """
+            SELECT COUNT(*) as total,
+                   SUM(CASE WHEN phase_outcome != 'SUCCESS' THEN 1 ELSE 0 END) as failures
+            FROM phase_outcome_events
+            WHERE timestamp >= :cutoff AND phase_type = :phase_type
+            """
+            ),
+            {"cutoff": cutoff, "phase_type": phase_type},
+        )
+        failure_row = failure_result.fetchone()
+        if failure_row and failure_row.total > 0:
+            failure_rate = failure_row.failures / failure_row.total
+            if failure_rate >= 0.5:  # 50%+ failure rate is CRITICAL
+                recommendations.append(
+                    {
+                        "severity": "CRITICAL",
+                        "action": "switch_to_smaller_model",
+                        "reason": f"High failure rate ({failure_rate:.0%}) for phase type '{phase_type}' - smaller model may be more reliable",
+                        "metric_value": failure_rate,
+                    }
+                )
+            elif failure_rate >= 0.3:  # 30%+ failure rate is HIGH
+                recommendations.append(
+                    {
+                        "severity": "HIGH",
+                        "action": "optimize_prompt",
+                        "reason": f"Elevated failure rate ({failure_rate:.0%}) for phase type '{phase_type}'",
+                        "metric_value": failure_rate,
+                    }
+                )
+
+        # Check for high token usage (triggers context size reduction)
+        token_result = self.db.execute(
+            text(
+                """
+            SELECT AVG(tokens_used) as avg_tokens, MAX(tokens_used) as max_tokens
+            FROM phase_outcome_events
+            WHERE timestamp >= :cutoff AND phase_type = :phase_type AND tokens_used IS NOT NULL
+            """
+            ),
+            {"cutoff": cutoff, "phase_type": phase_type},
+        )
+        token_row = token_result.fetchone()
+        if token_row and token_row.avg_tokens:
+            # CRITICAL if average exceeds 100k tokens
+            if token_row.avg_tokens > 100_000:
+                recommendations.append(
+                    {
+                        "severity": "CRITICAL",
+                        "action": "reduce_context_size",
+                        "reason": f"Very high average token usage ({token_row.avg_tokens:,.0f}) for phase type '{phase_type}'",
+                        "metric_value": token_row.avg_tokens,
+                    }
+                )
+            # HIGH if average exceeds 50k tokens
+            elif token_row.avg_tokens > 50_000:
+                recommendations.append(
+                    {
+                        "severity": "HIGH",
+                        "action": "reduce_context_size",
+                        "reason": f"High average token usage ({token_row.avg_tokens:,.0f}) for phase type '{phase_type}'",
+                        "metric_value": token_row.avg_tokens,
+                    }
+                )
+
+        # Check for timeout patterns (triggers timeout increase)
+        timeout_result = self.db.execute(
+            text(
+                """
+            SELECT COUNT(*) as timeout_count
+            FROM phase_outcome_events
+            WHERE timestamp >= :cutoff AND phase_type = :phase_type
+                  AND (stop_reason LIKE '%timeout%' OR stop_reason LIKE '%TIMEOUT%')
+            """
+            ),
+            {"cutoff": cutoff, "phase_type": phase_type},
+        )
+        timeout_row = timeout_result.fetchone()
+        if timeout_row and timeout_row.timeout_count >= 3:  # 3+ timeouts is CRITICAL
+            recommendations.append(
+                {
+                    "severity": "CRITICAL",
+                    "action": "increase_timeout",
+                    "reason": f"Frequent timeouts ({timeout_row.timeout_count}) for phase type '{phase_type}'",
+                    "metric_value": timeout_row.timeout_count,
+                }
+            )
+        elif timeout_row and timeout_row.timeout_count >= 1:  # 1-2 timeouts is HIGH
+            recommendations.append(
+                {
+                    "severity": "HIGH",
+                    "action": "increase_timeout",
+                    "reason": f"Timeout detected ({timeout_row.timeout_count}) for phase type '{phase_type}'",
+                    "metric_value": timeout_row.timeout_count,
+                }
+            )
+
+        return recommendations

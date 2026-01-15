@@ -15,6 +15,7 @@ from autopack.archive_consolidator import log_build_event
 from autopack.database import ensure_session_healthy, SESSION_HEALTH_CHECK_INTERVAL
 from autopack.memory import extract_goal_from_description
 from autopack.learned_rules import promote_hints_to_rules
+from autopack.telemetry.analyzer import TelemetryAnalyzer
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
@@ -38,6 +39,94 @@ class AutonomousLoop:
         self.idle_backoff_multiplier = 2.0  # Backoff when idle
         self.max_idle_sleep = 5.0  # Maximum sleep time when idle
         self._last_session_health_check = time.time()  # Track last health check
+        self._telemetry_analyzer: Optional[TelemetryAnalyzer] = None
+
+    def _get_telemetry_analyzer(self) -> Optional[TelemetryAnalyzer]:
+        """Get or create the telemetry analyzer instance.
+
+        Returns:
+            TelemetryAnalyzer instance if database session is available, None otherwise.
+        """
+        if self._telemetry_analyzer is None:
+            if hasattr(self.executor, "db_session") and self.executor.db_session:
+                self._telemetry_analyzer = TelemetryAnalyzer(self.executor.db_session)
+        return self._telemetry_analyzer
+
+    def _get_telemetry_adjustments(self, phase_type: Optional[str]) -> Dict:
+        """Get telemetry-driven adjustments for phase execution.
+
+        Queries the telemetry analyzer for recommendations and returns
+        adjustments to apply to the phase execution.
+
+        Args:
+            phase_type: The type of phase being executed
+
+        Returns:
+            Dictionary of adjustments to pass to execute_phase:
+            - context_reduction_factor: Factor to reduce context by (e.g., 0.7 for 30% reduction)
+            - model_downgrade: Target model to use instead (e.g., "sonnet", "haiku")
+            - timeout_increase_factor: Factor to increase timeout by (e.g., 1.5 for 50% increase)
+        """
+        adjustments: Dict = {}
+
+        if not phase_type:
+            return adjustments
+
+        analyzer = self._get_telemetry_analyzer()
+        if not analyzer:
+            return adjustments
+
+        try:
+            recommendations = analyzer.get_recommendations_for_phase(phase_type)
+        except Exception as e:
+            logger.warning(f"[Telemetry] Failed to get recommendations for {phase_type}: {e}")
+            return adjustments
+
+        # Model downgrade hierarchy: opus -> sonnet -> haiku
+        model_hierarchy = ["opus", "sonnet", "haiku"]
+
+        for rec in recommendations:
+            severity = rec.get("severity")
+            action = rec.get("action")
+            reason = rec.get("reason", "")
+            metric_value = rec.get("metric_value")
+
+            if severity == "CRITICAL":
+                # Apply mitigations for CRITICAL recommendations
+                if action == "reduce_context_size":
+                    adjustments["context_reduction_factor"] = 0.7  # Reduce by 30%
+                    logger.warning(
+                        f"[Telemetry] CRITICAL: Reducing context size by 30% for {phase_type}. "
+                        f"Reason: {reason}"
+                    )
+                elif action == "switch_to_smaller_model":
+                    # Downgrade model: opus -> sonnet -> haiku
+                    current_model = getattr(settings, "default_model", "opus").lower()
+                    current_idx = -1
+                    for i, model in enumerate(model_hierarchy):
+                        if model in current_model:
+                            current_idx = i
+                            break
+                    if current_idx >= 0 and current_idx < len(model_hierarchy) - 1:
+                        adjustments["model_downgrade"] = model_hierarchy[current_idx + 1]
+                        logger.warning(
+                            f"[Telemetry] CRITICAL: Downgrading model to {adjustments['model_downgrade']} "
+                            f"for {phase_type}. Reason: {reason}"
+                        )
+                elif action == "increase_timeout":
+                    adjustments["timeout_increase_factor"] = 1.5  # Increase by 50%
+                    logger.warning(
+                        f"[Telemetry] CRITICAL: Increasing timeout by 50% for {phase_type}. "
+                        f"Reason: {reason}"
+                    )
+            elif severity == "HIGH":
+                # Log HIGH recommendations for informational tracking only
+                logger.info(
+                    f"[Telemetry] HIGH: {action} recommended for {phase_type}. "
+                    f"Reason: {reason} (metric: {metric_value})"
+                )
+
+        return adjustments
 
     def _adaptive_sleep(self, is_idle: bool = False, base_interval: Optional[float] = None):
         """Sleep with adaptive backoff when idle to reduce CPU usage.
@@ -286,10 +375,14 @@ class AutonomousLoop:
                 break
 
             phase_id = next_phase.get("phase_id")
+            phase_type = next_phase.get("phase_type")
             logger.info(f"[BUILD-041] Next phase: {phase_id}")
 
-            # Execute phase
-            success, status = self.executor.execute_phase(next_phase)
+            # Telemetry-driven phase adjustments (IMP-TEL-002)
+            phase_adjustments = self._get_telemetry_adjustments(phase_type)
+
+            # Execute phase (with any telemetry-driven adjustments)
+            success, status = self.executor.execute_phase(next_phase, **phase_adjustments)
 
             if success:
                 logger.info(f"Phase {phase_id} completed successfully")

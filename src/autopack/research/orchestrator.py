@@ -1,5 +1,6 @@
 from autopack.research.models.research_session import ResearchSession
 from autopack.research.models.research_intent import ResearchIntent
+from autopack.research.models.enums import ValidationStatus
 from autopack.research.validators.evidence_validator import EvidenceValidator
 from autopack.research.validators.recency_validator import RecencyValidator
 from autopack.research.validators.quality_validator import QualityValidator

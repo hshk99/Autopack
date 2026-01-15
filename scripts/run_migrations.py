@@ -12,6 +12,7 @@ running first, then autopack, then scripts (if enabled).
 """
 
 import argparse
+import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -85,6 +86,15 @@ def run_migration(db_path: Path, migration_file: Path, dry_run: bool = False):
 
 
 def main():
+    # Guard against non-SQLite DATABASE_URL
+    database_url = os.environ.get("DATABASE_URL", "")
+    if database_url and not database_url.lower().startswith("sqlite"):
+        print(
+            "[ERROR] This migration runner only supports SQLite. "
+            "DATABASE_URL points to non-SQLite database."
+        )
+        return 1
+
     parser = argparse.ArgumentParser(description="Run database migrations")
     parser.add_argument(
         "--dry-run", action="store_true", help="Print migrations without executing them"

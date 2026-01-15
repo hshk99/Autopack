@@ -1,7 +1,9 @@
 """Alert routing and notification for anomaly detection."""
 
 import logging
+from typing import Optional
 from .anomaly_detector import AnomalyAlert, AlertSeverity
+from .auto_healer import AutoHealingEngine
 
 logger = logging.getLogger(__name__)
 
@@ -9,7 +11,13 @@ logger = logging.getLogger(__name__)
 class AlertRouter:
     """Routes alerts to appropriate handlers."""
 
-    def __init__(self):
+    def __init__(self, auto_healer: Optional[AutoHealingEngine] = None):
+        """
+        Args:
+            auto_healer: ROAD-J AutoHealingEngine instance for automatic recovery.
+                        If None, alerts are logged only (no auto-healing).
+        """
+        self.auto_healer = auto_healer
         self.handlers = {
             AlertSeverity.INFO: self._handle_info,
             AlertSeverity.WARNING: self._handle_warning,
@@ -28,15 +36,21 @@ class AlertRouter:
         )
 
     def _handle_warning(self, alert: AnomalyAlert) -> None:
-        """Log warning and queue for review."""
+        """Log warning and trigger auto-healing if enabled."""
         logger.warning(
             f"[ANOMALY:WARNING] {alert.metric} on {alert.phase_id}: {alert.recommendation}"
         )
-        # TODO: Integrate with ROAD-J auto-heal
+
+        # ROAD-J integration: Attempt automatic healing
+        if self.auto_healer:
+            self.auto_healer.heal(alert)
 
     def _handle_critical(self, alert: AnomalyAlert) -> None:
-        """Log critical and trigger immediate action."""
+        """Log critical and trigger immediate healing action."""
         logger.error(
             f"[ANOMALY:CRITICAL] {alert.metric} on {alert.phase_id}: {alert.recommendation}"
         )
-        # TODO: Trigger model escalation or pause execution
+
+        # ROAD-J integration: Attempt critical healing (replan, escalate, or rollback)
+        if self.auto_healer:
+            self.auto_healer.heal(alert)

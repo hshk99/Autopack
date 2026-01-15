@@ -386,6 +386,21 @@ flags:
     notes: "PR-06: Prevents rate limit bypass via spoofed X-Forwarded-For headers"
 
   # ============================================================================
+  # Outbound Egress / SSRF Guardrails (Phase 5)
+  # ============================================================================
+  AUTOPACK_ALLOWED_EXTERNAL_HOSTS:
+    description: "Comma-separated list of allowed external hosts for outbound HTTP calls"
+    category: security
+    default: "empty (all hosts allowed)"
+    values: "Comma-separated hostnames (e.g., api.anthropic.com,api.openai.com)"
+    affects: ["utils/egress.py"]
+    aliases: ["ALLOWED_EXTERNAL_HOSTS"]
+    security_implications:
+      set: "Only listed hosts are allowed for outbound calls (SSRF protection)"
+      unset: "All hosts allowed (permissive for private/internal use)"
+    notes: "Phase 5: Optional hardening for outbound HTTP calls. Localhost/loopback always allowed."
+
+  # ============================================================================
   # Service Configuration
   # ============================================================================
   AUTOPACK_API_URL:

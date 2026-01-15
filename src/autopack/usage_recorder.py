@@ -10,6 +10,11 @@ from sqlalchemy.orm import Session
 
 from .database import Base
 
+# Role constants for usage tracking
+BUILDER_ROLE = "builder"
+AUDITOR_ROLE = "auditor"
+EMBEDDING_ROLE = "embedding"
+
 
 class LlmUsageEvent(Base):
     """Record of LLM token usage for a single API call"""

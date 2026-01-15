@@ -13,7 +13,9 @@ import os
 import asyncio
 import hashlib
 import logging
-from typing import List
+from typing import List, Optional
+
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -64,13 +66,77 @@ def _local_embed(text: str, size: int = EMBEDDING_SIZE) -> List[float]:
     return vec
 
 
-def sync_embed_text(text: str, model: str = "text-embedding-3-small") -> List[float]:
+def _record_embedding_usage(
+    response,
+    model: str,
+    db: Optional[Session],
+    run_id: Optional[str],
+    phase_id: Optional[str],
+) -> None:
+    """
+    Record embedding API usage to telemetry.
+
+    IMP-TEL-003: Track embedding costs for complete cost attribution.
+
+    Args:
+        response: OpenAI embeddings response object
+        model: Model name used for embedding
+        db: Database session (if None, usage is not recorded)
+        run_id: Optional run identifier
+        phase_id: Optional phase identifier
+    """
+    if db is None:
+        return
+
+    # Extract total_tokens from response usage
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        logger.debug("No usage data in embedding response; skipping usage recording")
+        return
+
+    total_tokens = getattr(usage, "total_tokens", None)
+    if total_tokens is None or total_tokens == 0:
+        logger.debug("No total_tokens in embedding usage; skipping usage recording")
+        return
+
+    try:
+        from autopack.usage_recorder import EMBEDDING_ROLE
+        from autopack.service.usage_recording import record_usage_total_only
+
+        record_usage_total_only(
+            db=db,
+            provider="openai",
+            model=model,
+            role=EMBEDDING_ROLE,
+            total_tokens=total_tokens,
+            run_id=run_id,
+            phase_id=phase_id,
+        )
+        logger.debug(
+            f"[EMBEDDING-USAGE] Recorded {total_tokens} tokens for model={model}, "
+            f"run_id={run_id}, phase_id={phase_id}"
+        )
+    except Exception as e:
+        # Don't fail embedding call if usage recording fails
+        logger.warning(f"Failed to record embedding usage: {e}")
+
+
+def sync_embed_text(
+    text: str,
+    model: str = "text-embedding-3-small",
+    db: Optional[Session] = None,
+    run_id: Optional[str] = None,
+    phase_id: Optional[str] = None,
+) -> List[float]:
     """
     Synchronous wrapper for OpenAI embedding with input truncation.
 
     Args:
         text: Text to embed
         model: OpenAI embedding model (default: text-embedding-3-small)
+        db: Optional database session for usage recording
+        run_id: Optional run identifier for usage tracking
+        phase_id: Optional phase identifier for usage tracking
 
     Returns:
         List of floats (embedding vector of size EMBEDDING_SIZE)
@@ -89,6 +155,8 @@ def sync_embed_text(text: str, model: str = "text-embedding-3-small") -> List[fl
                 input=text,
                 model=model,
             )
+            # Record embedding usage if db session provided
+            _record_embedding_usage(response, model, db, run_id, phase_id)
             return list(response.data[0].embedding)
         except Exception as e:
             logger.warning(f"OpenAI embedding failed ({e}); falling back to local embedding.")
@@ -98,11 +166,27 @@ def sync_embed_text(text: str, model: str = "text-embedding-3-small") -> List[fl
         return _local_embed(text)
 
 
-def sync_embed_texts(texts: List[str], model: str = "text-embedding-3-small") -> List[List[float]]:
+def sync_embed_texts(
+    texts: List[str],
+    model: str = "text-embedding-3-small",
+    db: Optional[Session] = None,
+    run_id: Optional[str] = None,
+    phase_id: Optional[str] = None,
+) -> List[List[float]]:
     """
     Batch embedding helper.
     - Uses OpenAI embeddings in a single request when enabled.
     - Falls back to local hashing embeddings per item otherwise.
+
+    Args:
+        texts: List of texts to embed
+        model: OpenAI embedding model (default: text-embedding-3-small)
+        db: Optional database session for usage recording
+        run_id: Optional run identifier for usage tracking
+        phase_id: Optional phase identifier for usage tracking
+
+    Returns:
+        List of embedding vectors
     """
     cleaned: List[str] = []
     for t in texts:
@@ -114,6 +198,8 @@ def sync_embed_texts(texts: List[str], model: str = "text-embedding-3-small") ->
     if _USE_OPENAI and _openai_client:
         try:
             resp = _openai_client.embeddings.create(input=cleaned, model=model)
+            # Record embedding usage if db session provided
+            _record_embedding_usage(resp, model, db, run_id, phase_id)
             return [list(item.embedding) for item in resp.data]
         except Exception as e:
             logger.warning(
@@ -123,15 +209,24 @@ def sync_embed_texts(texts: List[str], model: str = "text-embedding-3-small") ->
     return [_local_embed(t) for t in cleaned]
 
 
-async def async_embed_text(text: str, model: str = "text-embedding-3-small") -> List[float]:
+async def async_embed_text(
+    text: str,
+    model: str = "text-embedding-3-small",
+    db: Optional[Session] = None,
+    run_id: Optional[str] = None,
+    phase_id: Optional[str] = None,
+) -> List[float]:
     """
     Asynchronous wrapper for embedding using asyncio.to_thread.
 
     Args:
         text: Text to embed
         model: OpenAI embedding model
+        db: Optional database session for usage recording
+        run_id: Optional run identifier for usage tracking
+        phase_id: Optional phase identifier for usage tracking
 
     Returns:
         List of floats (embedding vector)
     """
-    return await asyncio.to_thread(sync_embed_text, text, model)
+    return await asyncio.to_thread(sync_embed_text, text, model, db, run_id, phase_id)

@@ -59,6 +59,96 @@ class TestValidateOutboundHost:
         with pytest.raises(ValidationError, match="blocked by egress allowlist"):
             validate_outbound_host("https://example.com/api")
 
+    def test_wildcard_domain_matching(self, monkeypatch):
+        """Wildcard patterns like *.domain.com should match subdomains."""
+        monkeypatch.setattr(
+            settings,
+            "allowed_external_hosts",
+            ["*.anthropic.com", "api.openai.com"],
+        )
+
+        # Should permit hosts matching wildcard pattern
+        validate_outbound_host("https://api.anthropic.com/v1/messages")
+        validate_outbound_host("https://models.anthropic.com/list")
+        validate_outbound_host("https://deep.nested.anthropic.com/test")
+
+        # Should still permit exact matches
+        validate_outbound_host("https://api.openai.com/v1/chat")
+
+        # Should block hosts not matching any pattern
+        with pytest.raises(ValidationError, match="blocked by egress allowlist"):
+            validate_outbound_host("https://malicious.anthropic.co/steal")
+
+        with pytest.raises(ValidationError, match="blocked by egress allowlist"):
+            validate_outbound_host("https://example.com/api")
+
+    def test_cidr_notation_matching(self, monkeypatch):
+        """CIDR notation like 192.168.0.0/16 should match IP ranges."""
+        monkeypatch.setattr(
+            settings,
+            "allowed_external_hosts",
+            ["192.168.0.0/16", "10.0.0.0/8", "api.anthropic.com"],
+        )
+
+        # Should permit IPs within CIDR ranges
+        validate_outbound_host("http://192.168.1.1:8080/api")
+        validate_outbound_host("http://192.168.255.255:9000/health")
+        validate_outbound_host("http://10.0.0.1/service")
+        validate_outbound_host("http://10.255.255.255/data")
+
+        # Should block IPs outside CIDR ranges
+        with pytest.raises(ValidationError, match="blocked by egress allowlist"):
+            validate_outbound_host("http://192.169.1.1/api")
+
+        with pytest.raises(ValidationError, match="blocked by egress allowlist"):
+            validate_outbound_host("http://11.0.0.1/api")
+
+        # Should still support domain names in allowlist
+        validate_outbound_host("https://api.anthropic.com/v1/messages")
+
+    def test_cidr_ipv6_matching(self, monkeypatch):
+        """CIDR notation should also work with IPv6 addresses."""
+        monkeypatch.setattr(
+            settings,
+            "allowed_external_hosts",
+            ["2001:db8::/32"],
+        )
+
+        # Should permit IPs within IPv6 CIDR range
+        validate_outbound_host("http://[2001:db8::1]:8080/api")
+        validate_outbound_host("http://[2001:db8:ffff:ffff:ffff:ffff:ffff:ffff]/health")
+
+        # Should block IPs outside range
+        with pytest.raises(ValidationError, match="blocked by egress allowlist"):
+            validate_outbound_host("http://[2001:db9::1]/api")
+
+    def test_mixed_pattern_allowlist(self, monkeypatch):
+        """Allowlist can contain exact matches, wildcards, and CIDR ranges together."""
+        monkeypatch.setattr(
+            settings,
+            "allowed_external_hosts",
+            [
+                "api.anthropic.com",  # Exact match
+                "*.github.com",  # Wildcard (matches *.github.com only)
+                "*.githubusercontent.com",  # Wildcard for GitHub user content
+                "10.0.0.0/8",  # CIDR
+            ],
+        )
+
+        # Exact match
+        validate_outbound_host("https://api.anthropic.com/v1/messages")
+
+        # Wildcard matches
+        validate_outbound_host("https://raw.githubusercontent.com/file.txt")
+        validate_outbound_host("https://api.github.com/repos")
+
+        # CIDR match
+        validate_outbound_host("http://10.5.20.100:8080/service")
+
+        # Block non-matching
+        with pytest.raises(ValidationError, match="blocked by egress allowlist"):
+            validate_outbound_host("https://evil.com/steal")
+
     def test_invalid_url_raises_error(self):
         """Invalid URLs should raise ValidationError."""
         with pytest.raises(ValidationError, match="Invalid URL"):

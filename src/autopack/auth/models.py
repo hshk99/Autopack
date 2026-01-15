@@ -52,3 +52,34 @@ class User(Base):
             for k, v in self.__dict__.items()
             if not k.startswith("_") and k != "hashed_password"
         }
+
+
+class APIKey(Base):
+    """API key model for simplified multi-device authentication.
+
+    Stores API keys for accessing Autopack across multiple devices.
+    Keys are hashed using SHA256 before storage.
+
+    Attributes:
+        id: Primary key
+        name: Friendly name for the key (e.g., "Laptop", "Desktop")
+        key_hash: SHA256 hash of the API key
+        description: Optional description
+        is_active: Whether the key is active
+        created_at: Timestamp of key creation
+        last_used_at: Timestamp of last usage (for monitoring)
+    """
+
+    __tablename__ = "api_keys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    key_hash = Column(String(64), unique=True, index=True, nullable=False)  # SHA256 = 64 hex chars
+    description = Column(String(500), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    last_used_at = Column(DateTime, nullable=True)
+
+    def __repr__(self) -> str:
+        """String representation of APIKey."""
+        return f"<APIKey(id={self.id}, name='{self.name}', is_active={self.is_active})>"

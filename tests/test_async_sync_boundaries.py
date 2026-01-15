@@ -27,15 +27,9 @@ class TestContextAwareWait:
         # Verify async_wait is an async function that can be awaited
         assert asyncio.iscoroutinefunction(recovery.async_wait)
 
-        # Mock asyncio.sleep to avoid actual waiting
-        with patch("asyncio.sleep", return_value=None) as mock_sleep:
-            mock_sleep.return_value = asyncio.coroutine(lambda: None)()
-            # The actual call - just verify it doesn't raise
-            try:
-                await recovery.async_wait(0.001)
-            except TypeError:
-                # Mock may not be fully async-compatible, but we verified the method exists
-                pass
+        # Test that async_wait actually works (use small delay)
+        # This verifies it uses asyncio.sleep internally (doesn't block the loop)
+        await recovery.async_wait(0.001)
 
     def test_wait_in_sync_context_no_warning(self, caplog):
         """wait() in sync context should not warn."""

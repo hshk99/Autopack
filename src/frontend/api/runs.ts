@@ -1,6 +1,9 @@
 /**
  * API client for runs endpoints (GAP-8.10)
+ * Uses shared apiFetch client for auth header injection and error handling
  */
+
+import { apiFetch, extractErrorMessage } from './client';
 
 export interface RunSummary {
   id: string;
@@ -69,25 +72,31 @@ export interface BrowserArtifactsResponse {
   total_count: number;
 }
 
-const API_BASE = '/api';
+/**
+ * Helper to normalize API errors with consistent formatting
+ */
+async function normalizeError(response: Response): Promise<Error> {
+  const message = await extractErrorMessage(response);
+  return new Error(`${response.status}: ${message}`);
+}
 
 export async function fetchRuns(
   limit: number = 20,
   offset: number = 0
 ): Promise<RunsListResponse> {
-  const response = await fetch(
-    `${API_BASE}/runs?limit=${limit}&offset=${offset}`
+  const response = await apiFetch(
+    `/runs?limit=${limit}&offset=${offset}`
   );
   if (!response.ok) {
-    throw new Error(`Failed to fetch runs: ${response.statusText}`);
+    throw await normalizeError(response);
   }
   return response.json();
 }
 
 export async function fetchRunProgress(runId: string): Promise<RunProgress> {
-  const response = await fetch(`${API_BASE}/runs/${runId}/progress`);
+  const response = await apiFetch(`/runs/${runId}/progress`);
   if (!response.ok) {
-    throw new Error(`Failed to fetch run progress: ${response.statusText}`);
+    throw await normalizeError(response);
   }
   return response.json();
 }
@@ -95,9 +104,9 @@ export async function fetchRunProgress(runId: string): Promise<RunProgress> {
 export async function fetchArtifactsIndex(
   runId: string
 ): Promise<ArtifactsIndexResponse> {
-  const response = await fetch(`${API_BASE}/runs/${runId}/artifacts/index`);
+  const response = await apiFetch(`/runs/${runId}/artifacts/index`);
   if (!response.ok) {
-    throw new Error(`Failed to fetch artifacts: ${response.statusText}`);
+    throw await normalizeError(response);
   }
   return response.json();
 }
@@ -106,11 +115,11 @@ export async function fetchArtifactFile(
   runId: string,
   path: string
 ): Promise<string> {
-  const response = await fetch(
-    `${API_BASE}/runs/${runId}/artifacts/file?path=${encodeURIComponent(path)}`
+  const response = await apiFetch(
+    `/runs/${runId}/artifacts/file?path=${encodeURIComponent(path)}`
   );
   if (!response.ok) {
-    throw new Error(`Failed to fetch artifact file: ${response.statusText}`);
+    throw await normalizeError(response);
   }
   return response.text();
 }
@@ -118,11 +127,9 @@ export async function fetchArtifactFile(
 export async function fetchBrowserArtifacts(
   runId: string
 ): Promise<BrowserArtifactsResponse> {
-  const response = await fetch(`${API_BASE}/runs/${runId}/browser/artifacts`);
+  const response = await apiFetch(`/runs/${runId}/browser/artifacts`);
   if (!response.ok) {
-    throw new Error(
-      `Failed to fetch browser artifacts: ${response.statusText}`
-    );
+    throw await normalizeError(response);
   }
   return response.json();
 }

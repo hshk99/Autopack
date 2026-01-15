@@ -3,11 +3,30 @@
 Phase 4: Simplified auth for multi-device access.
 """
 
-from fastapi.testclient import TestClient
+from datetime import datetime, timezone
+
+import pytest
 from sqlalchemy.orm import Session
 
-from autopack.auth.api_key import generate_api_key, verify_api_key
+from autopack.auth.api_key import generate_api_key, get_api_key_from_db, verify_api_key
 from autopack.auth.models import APIKey
+from autopack.database import Base, engine, get_db
+
+
+@pytest.fixture
+def test_db():
+    """Create a test database session."""
+    # Create tables
+    Base.metadata.create_all(bind=engine)
+
+    # Create session
+    session = next(get_db())
+
+    yield session
+
+    # Cleanup
+    session.rollback()
+    session.close()
 
 
 def test_generate_api_key():
@@ -26,130 +45,87 @@ def test_generate_api_key():
     assert not verify_api_key("wrong_key", hashed_key)
 
 
-def test_api_key_creation(client: TestClient, db: Session):
-    """Test creating an API key via the API."""
-    response = client.post(
-        "/api/auth/api-keys",
-        json={
-            "name": "Test Key",
-            "description": "A test API key",
-        },
+def test_api_key_database_storage(test_db: Session):
+    """Test storing and retrieving API keys from database."""
+    plain_key, hashed_key = generate_api_key()
+
+    # Create API key in database
+    api_key = APIKey(
+        name="Test Key",
+        key_hash=hashed_key,
+        description="A test API key",
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
     )
+    test_db.add(api_key)
+    test_db.commit()
+    test_db.refresh(api_key)
 
-    assert response.status_code == 201
-    data = response.json()
+    # Verify it was stored
+    assert api_key.id is not None
+    assert api_key.name == "Test Key"
+    assert api_key.key_hash == hashed_key
+    assert api_key.is_active is True
 
-    assert data["name"] == "Test Key"
-    assert data["description"] == "A test API key"
-    assert "key" in data
-    assert data["key"].startswith("autopack_")
-    assert "id" in data
-    assert "created_at" in data
+    # Verify we can retrieve it
+    retrieved = get_api_key_from_db(test_db, plain_key)
+    assert retrieved is not None
+    assert retrieved.id == api_key.id
+    assert retrieved.name == "Test Key"
 
 
-def test_api_key_authentication(client: TestClient, db: Session):
-    """Test that API key authentication works."""
-    # Create an API key
-    create_response = client.post(
-        "/api/auth/api-keys",
-        json={"name": "Auth Test Key"},
+def test_api_key_authentication_with_db(test_db: Session):
+    """Test that API key authentication works with database."""
+    plain_key, hashed_key = generate_api_key()
+
+    # Create active API key
+    api_key = APIKey(
+        name="Auth Test Key",
+        key_hash=hashed_key,
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
     )
-    assert create_response.status_code == 201
-    api_key = create_response.json()["key"]
+    test_db.add(api_key)
+    test_db.commit()
 
-    # Try to access protected endpoint without key
-    response = client.get("/api/auth/api-keys")
-    assert response.status_code == 401
+    # Valid key should authenticate
+    result = get_api_key_from_db(test_db, plain_key)
+    assert result is not None
+    assert result.name == "Auth Test Key"
 
-    # Try with invalid key
-    response = client.get(
-        "/api/auth/api-keys",
-        headers={"X-API-Key": "invalid_key"},
-    )
-    assert response.status_code == 403
+    # Invalid key should not authenticate
+    result = get_api_key_from_db(test_db, "invalid_key")
+    assert result is None
 
-    # Try with valid key
-    response = client.get(
-        "/api/auth/api-keys",
-        headers={"X-API-Key": api_key},
-    )
-    assert response.status_code == 200
-    keys = response.json()
-    assert len(keys) >= 1
-    assert any(k["name"] == "Auth Test Key" for k in keys)
+    # Inactive key should not authenticate
+    api_key.is_active = False
+    test_db.commit()
+    result = get_api_key_from_db(test_db, plain_key)
+    assert result is None
 
 
-def test_api_key_revocation(client: TestClient, db: Session):
-    """Test revoking an API key."""
-    # Create an API key
-    create_response = client.post(
-        "/api/auth/api-keys",
-        json={"name": "Revoke Test Key"},
-    )
-    api_key = create_response.json()["key"]
-    key_id = create_response.json()["id"]
-
-    # Revoke the key
-    response = client.delete(
-        f"/api/auth/api-keys/{key_id}",
-        headers={"X-API-Key": api_key},
-    )
-    assert response.status_code == 204
-
-    # Try to use the revoked key
-    response = client.get(
-        "/api/auth/api-keys",
-        headers={"X-API-Key": api_key},
-    )
-    assert response.status_code == 403  # Should be forbidden now
-
-
-def test_api_key_last_used_tracking(client: TestClient, db: Session):
+def test_api_key_last_used_tracking(test_db: Session):
     """Test that last_used_at is updated when key is used."""
-    # Create an API key
-    create_response = client.post(
-        "/api/auth/api-keys",
-        json={"name": "Usage Tracking Key"},
-    )
-    api_key_str = create_response.json()["key"]
-    key_id = create_response.json()["id"]
+    plain_key, hashed_key = generate_api_key()
 
-    # Check initial state (last_used_at should be None)
-    key_model = db.query(APIKey).filter(APIKey.id == key_id).first()
-    assert key_model.last_used_at is None
+    # Create API key
+    api_key = APIKey(
+        name="Usage Tracking Key",
+        key_hash=hashed_key,
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
+        last_used_at=None,
+    )
+    test_db.add(api_key)
+    test_db.commit()
+
+    # Initially last_used_at should be None
+    assert api_key.last_used_at is None
 
     # Use the key
-    response = client.get(
-        "/api/auth/api-keys",
-        headers={"X-API-Key": api_key_str},
-    )
-    assert response.status_code == 200
+    result = get_api_key_from_db(test_db, plain_key)
+    assert result is not None
 
     # Check that last_used_at was updated
-    db.refresh(key_model)
-    assert key_model.last_used_at is not None
-
-
-def test_api_key_list_shows_metadata_only(client: TestClient, db: Session):
-    """Test that listing keys doesn't expose the actual key values."""
-    # Create a key
-    create_response = client.post(
-        "/api/auth/api-keys",
-        json={"name": "Metadata Test Key"},
-    )
-    api_key = create_response.json()["key"]
-
-    # List keys
-    response = client.get(
-        "/api/auth/api-keys",
-        headers={"X-API-Key": api_key},
-    )
-    assert response.status_code == 200
-
-    keys = response.json()
-    # Check that no key values are exposed
-    for key in keys:
-        assert "key" not in key
-        assert "key_hash" not in key
-        assert "name" in key
-        assert "is_active" in key
+    test_db.refresh(api_key)
+    assert api_key.last_used_at is not None

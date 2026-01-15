@@ -55,7 +55,7 @@ Note: SOT→DB sync (`scripts/tidy/sot_db_sync.py`) exists as a derived index (`
 
 **Version**: 0.5.1
 
-**Distribution intent**: Autopack is **for personal/internal use only** (not distributed). Projects built using Autopack **may be published and monetized**; treat supply-chain, release, and security practices accordingly for those downstream projects.
+**Distribution intent**: Autopack is **for personal/internal use only** (not distributed). No external contributions are accepted. Projects built using Autopack **may be published and monetized**; downstream projects must implement their own security posture (threat modeling, secure hosting, release pipeline, monitoring) appropriate to their distribution model.
 
 <!-- SOT_SUMMARY_START -->
 **Last Updated**: 2026-01-11 17:43

@@ -2,14 +2,21 @@
  * Run Artifacts page component (GAP-8.10.1)
  *
  * Displays artifact files for a run with file browser and content viewer.
+ * Shows badges for truncated or redacted artifacts.
  */
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   fetchArtifactsIndex,
   fetchArtifactFile,
+  ArtifactFileResponse,
   Artifact,
 } from '../api/runs';
+
+interface ArtifactMetadata {
+  truncated: boolean;
+  redacted: boolean;
+}
 
 const RunArtifacts: React.FC = () => {
   const { runId } = useParams<{ runId: string }>();
@@ -17,6 +24,7 @@ const RunArtifacts: React.FC = () => {
   const [totalSize, setTotalSize] = useState(0);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string | null>(null);
+  const [fileMetadata, setFileMetadata] = useState<ArtifactMetadata | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,13 +49,19 @@ const RunArtifacts: React.FC = () => {
   const handleFileClick = async (path: string) => {
     if (!runId) return;
     setSelectedFile(path);
+    setFileMetadata(null);
     try {
-      const content = await fetchArtifactFile(runId, path);
-      setFileContent(content);
+      const response: ArtifactFileResponse = await fetchArtifactFile(runId, path);
+      setFileContent(response.content);
+      setFileMetadata({
+        truncated: response.truncated,
+        redacted: response.redacted,
+      });
     } catch (e) {
       setFileContent(
         `Error loading file: ${e instanceof Error ? e.message : 'Unknown error'}`
       );
+      setFileMetadata(null);
     }
   };
 
@@ -60,6 +74,27 @@ const RunArtifacts: React.FC = () => {
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString();
   };
+
+  const Badge: React.FC<{ label: string; color: string }> = ({
+    label,
+    color,
+  }) => (
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '4px 8px',
+        marginRight: '8px',
+        marginBottom: '12px',
+        backgroundColor: color,
+        color: '#fff',
+        borderRadius: '4px',
+        fontSize: '12px',
+        fontWeight: 500,
+      }}
+    >
+      {label}
+    </span>
+  );
 
   return (
     <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
@@ -116,19 +151,37 @@ const RunArtifacts: React.FC = () => {
           <div style={{ flex: 1 }}>
             <h3>Content: {selectedFile || 'Select a file'}</h3>
             {selectedFile && fileContent !== null ? (
-              <pre
-                style={{
-                  backgroundColor: '#f8f9fa',
-                  padding: '16px',
-                  borderRadius: '4px',
-                  overflow: 'auto',
-                  maxHeight: '500px',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                }}
-              >
-                {fileContent}
-              </pre>
+              <>
+                {fileMetadata && (fileMetadata.truncated || fileMetadata.redacted) && (
+                  <div style={{ marginBottom: '12px' }}>
+                    {fileMetadata.truncated && (
+                      <Badge
+                        label="⚠️ Truncated"
+                        color="#ff9800"
+                      />
+                    )}
+                    {fileMetadata.redacted && (
+                      <Badge
+                        label="🔒 Redacted"
+                        color="#f44336"
+                      />
+                    )}
+                  </div>
+                )}
+                <pre
+                  style={{
+                    backgroundColor: '#f8f9fa',
+                    padding: '16px',
+                    borderRadius: '4px',
+                    overflow: 'auto',
+                    maxHeight: '500px',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {fileContent}
+                </pre>
+              </>
             ) : (
               <p style={{ color: '#666' }}>
                 Click on a file to view its content

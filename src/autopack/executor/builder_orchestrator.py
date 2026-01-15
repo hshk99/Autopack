@@ -105,7 +105,7 @@ class BuilderOrchestrator:
 
         # 1F-1G: Prepare phase spec with deliverables and protected paths
         phase_with_constraints, use_full_file_mode = self._prepare_phase_spec(
-            phase_id, phase, context_info
+            phase_id, phase, context_info, attempt_index
         )
 
         # 1H-1J: Invoke Builder with auto-fallback to structured edits
@@ -375,7 +375,7 @@ class BuilderOrchestrator:
             logger.warning(f"[{phase_id}] Failed to record Phase 6 telemetry: {e}")
 
     def _prepare_phase_spec(
-        self, phase_id: str, phase: Dict, context_info: Dict
+        self, phase_id: str, phase: Dict, context_info: Dict, attempt_index: int = 0
     ) -> Tuple[Dict, bool]:
         """Prepare phase spec with deliverables contract and constraints.
 
@@ -387,6 +387,7 @@ class BuilderOrchestrator:
             phase_id: Phase identifier
             phase: Phase specification
             context_info: Context info with file_context
+            attempt_index: Current attempt number for telemetry tracking
 
         Returns:
             Tuple of (phase_with_constraints, use_full_file_mode)
@@ -410,7 +411,7 @@ class BuilderOrchestrator:
         }
 
         # Deliverables manifest gate
-        self._run_deliverables_manifest_gate(phase_id, phase, phase_with_constraints)
+        self._run_deliverables_manifest_gate(phase_id, phase, phase_with_constraints, attempt_index)
 
         return phase_with_constraints, use_full_file_mode
 
@@ -477,7 +478,7 @@ class BuilderOrchestrator:
         return use_full_file_mode
 
     def _run_deliverables_manifest_gate(
-        self, phase_id: str, phase: Dict, phase_with_constraints: Dict
+        self, phase_id: str, phase: Dict, phase_with_constraints: Dict, attempt_index: int = 0
     ) -> None:
         """Run deliverables manifest gate (BUILD-065).
 
@@ -488,6 +489,7 @@ class BuilderOrchestrator:
             phase_id: Phase identifier
             phase: Phase specification
             phase_with_constraints: Phase spec with constraints to update
+            attempt_index: Current attempt number for telemetry tracking
 
         Raises:
             None - failures are logged but don't crash executor
@@ -545,8 +547,7 @@ class BuilderOrchestrator:
                         expanded.append(root)
                 allowed_roots = expanded
 
-            # Generate manifest (this is a separate step now - just prepares the attempt_index)
-            attempt_index = 0  # TODO: Pass from caller if needed
+            # Generate manifest with attempt_index for accurate telemetry
             ok_manifest, manifest_paths, manifest_error, _raw = (
                 self.llm_service.generate_deliverables_manifest(
                     expected_paths=list(expected_set),

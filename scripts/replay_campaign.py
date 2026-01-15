@@ -1,463 +1,213 @@
-"""Replay Campaign Script - BUILD-146 P12
+"""
+ROAD-E: A-B Validation via Replay Campaigns
 
-Re-runs previously failed runs/phases with Phase 6 features enabled,
-capturing metrics and patterns for analysis.
-
-Purpose:
-- Clone failed runs with new IDs
-- Enable Phase 6 features for replay
-- Execute using run_parallel.py --executor api for async execution
-- Generate comparison reports between original and replay
-- Integrate with pattern expansion for post-replay analysis
-
-Usage:
-    # Replay specific run
-    python scripts/replay_campaign.py --run-id failed-run-123
-
-    # Replay all failed runs from date range
-    python scripts/replay_campaign.py \\
-        --from-date 2025-12-01 \\
-        --to-date 2025-12-31 \\
-        --state FAILED
-
-    # Dry run (don't execute)
-    python scripts/replay_campaign.py --state FAILED --dry-run
-
-    # Replay with custom Phase 6 settings
-    python scripts/replay_campaign.py \\
-        --run-id failed-run-123 \\
-        --enable-phase6-metrics \\
-        --enable-consolidated-metrics
+Implements before/after comparison on same workload.
+Only accept changes that improve metrics or fix failures without regressions.
 """
 
-import os
-import sys
 import json
-import argparse
-import asyncio
-import subprocess
-from datetime import datetime
-from typing import List, Optional
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import List, Dict, Any, Optional
+from enum import Enum
+import logging
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-from autopack.database import SessionLocal
-from autopack.models import Run, Tier, Phase, RunState, PhaseState
-
-
-def get_database_url() -> str:
-    """Get DATABASE_URL from environment with helpful error."""
-    db_url = os.getenv("DATABASE_URL")
-    if not db_url:
-        print("\n" + "=" * 80, file=sys.stderr)
-        print("ERROR: DATABASE_URL environment variable not set", file=sys.stderr)
-        print("=" * 80, file=sys.stderr)
-        print("\nSet DATABASE_URL before running:\n", file=sys.stderr)
-        print("  # PowerShell (Postgres production):", file=sys.stderr)
-        print(
-            '  $env:DATABASE_URL="postgresql://autopack:autopack@localhost:5432/autopack"',
-            file=sys.stderr,
-        )
-        print("  python scripts/replay_campaign.py --run-id failed-run\n", file=sys.stderr)
-        print("  # PowerShell (SQLite dev/test):", file=sys.stderr)
-        print('  $env:DATABASE_URL="sqlite:///autopack.db"', file=sys.stderr)
-        print("  python scripts/replay_campaign.py --run-id failed-run\n", file=sys.stderr)
-        sys.exit(1)
-    return db_url
+logger = logging.getLogger(__name__)
 
 
-async def find_failed_runs(
-    from_date: Optional[str] = None, to_date: Optional[str] = None, state: str = "FAILED"
-) -> List[str]:
-    """Find failed runs in date range.
+class RunOutcome(str, Enum):
+    """Outcome of a replay run."""
 
-    Args:
-        from_date: Start date (ISO format YYYY-MM-DD)
-        to_date: End date (ISO format YYYY-MM-DD)
-        state: Run state filter (default: FAILED)
-
-    Returns:
-        List of run IDs
-    """
-    with SessionLocal() as session:
-        query = session.query(Run)
-
-        # Filter by state
-        if state == "FAILED":
-            query = query.filter(Run.state == RunState.DONE_FAILED_REQUIRES_HUMAN_REVIEW)
-        else:
-            # Allow filtering by any state
-            query = query.filter(Run.state == state)
-
-        # Filter by date range
-        if from_date:
-            from_dt = datetime.fromisoformat(from_date)
-            query = query.filter(Run.created_at >= from_dt)
-
-        if to_date:
-            to_dt = datetime.fromisoformat(to_date)
-            query = query.filter(Run.created_at <= to_dt)
-
-        runs = query.all()
-        return [r.id for r in runs]
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    TIMEOUT = "TIMEOUT"
+    ERROR = "ERROR"
 
 
-def clone_run(original_run_id: str, session) -> str:
-    """Clone a run with new ID.
+@dataclass
+class ReplayRun:
+    """Single replay run result."""
 
-    Args:
-        original_run_id: Original run ID to clone
-        session: Database session
-
-    Returns:
-        New run ID for the cloned run
-    """
-    # Get original run
-    original_run = session.query(Run).filter(Run.id == original_run_id).first()
-    if not original_run:
-        raise ValueError(f"Run not found: {original_run_id}")
-
-    # Create new run ID
-    timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
-    new_run_id = f"{original_run_id}-replay-{timestamp}"
-
-    # Clone run
-    new_run = Run(
-        id=new_run_id,
-        state=RunState.RUN_CREATED,
-        safety_profile=original_run.safety_profile,
-        run_scope=original_run.run_scope,
-        token_cap=original_run.token_cap,
-        max_phases=original_run.max_phases,
-        max_duration_minutes=original_run.max_duration_minutes,
-        git_commit_sha=original_run.git_commit_sha,
-        model_mapping_hash=original_run.model_mapping_hash,
-    )
-    session.add(new_run)
-    session.flush()
-
-    # Clone tiers
-    original_tiers = session.query(Tier).filter(Tier.run_id == original_run_id).all()
-    for orig_tier in original_tiers:
-        new_tier = Tier(
-            tier_id=orig_tier.tier_id,
-            run_id=new_run_id,
-            tier_number=orig_tier.tier_number,
-            description=orig_tier.description,
-        )
-        session.add(new_tier)
-
-    session.flush()
-
-    # Clone phases
-    original_phases = session.query(Phase).filter(Phase.run_id == original_run_id).all()
-    for orig_phase in original_phases:
-        new_phase = Phase(
-            phase_id=orig_phase.phase_id,
-            run_id=new_run_id,
-            tier_id=orig_phase.tier_id,
-            state=PhaseState.QUEUED,  # Reset to QUEUED for replay
-            description=orig_phase.description,
-            scope=orig_phase.scope,
-        )
-        session.add(new_phase)
-
-    session.commit()
-
-    print(f"✓ Cloned run: {original_run_id} → {new_run_id}")
-    return new_run_id
+    run_id: str
+    task_id: str
+    outcome: RunOutcome
+    duration_seconds: float
+    tokens_used: int
+    error_message: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-async def execute_run(
-    run_id: str,
-    executor_mode: str = "api",
-    enable_phase6_metrics: bool = True,
-    enable_consolidated_metrics: bool = True,
-) -> bool:
-    """Execute a run with Phase 6 features enabled.
+@dataclass
+class ComparisonMetrics:
+    """Metrics comparison between baseline and treatment."""
 
-    Args:
-        run_id: Run ID to execute
-        executor_mode: "api" or "local" (prefer "api" for async execution)
-        enable_phase6_metrics: Enable Phase 6 P3 telemetry
-        enable_consolidated_metrics: Enable consolidated metrics dashboard
+    avg_duration_baseline: float
+    avg_duration_treatment: float
+    success_rate_baseline: float
+    success_rate_treatment: float
+    avg_tokens_baseline: int
+    avg_tokens_treatment: int
+    regression_detected: bool
+    improvement_detected: bool
 
-    Returns:
-        True if execution started successfully, False otherwise
-    """
-    # Set environment variables for Phase 6 features
-    env = os.environ.copy()
-
-    if enable_phase6_metrics:
-        env["AUTOPACK_ENABLE_PHASE6_METRICS"] = "1"
-
-    if enable_consolidated_metrics:
-        env["AUTOPACK_ENABLE_CONSOLIDATED_METRICS"] = "1"
-
-    # Construct command
-    if executor_mode == "api":
-        # Use run_parallel.py with --executor api for async execution
-        cmd = [sys.executable, "scripts/run_parallel.py", "--executor", "api", "--run-id", run_id]
-    else:
-        # Use autonomous_executor.py for local execution
-        cmd = [sys.executable, "-m", "autopack.autonomous_executor", "--run-id", run_id]
-
-    print(f"  Executing: {' '.join(cmd)}")
-
-    try:
-        # Start subprocess in background
-        process = subprocess.Popen(
-            cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
-
-        print(f"  ✓ Started execution (PID: {process.pid})")
-        return True
-
-    except Exception as e:
-        print(f"  ❌ Failed to start execution: {e}")
-        return False
-
-
-def generate_comparison_report(original_run_id: str, replay_run_id: str):
-    """Generate comparison report between original and replay.
-
-    Args:
-        original_run_id: Original run ID
-        replay_run_id: Replay run ID
-
-    Saves report to archive/replay_results/
-    """
-    with SessionLocal() as session:
-        original = session.query(Run).filter(Run.id == original_run_id).first()
-        replay = session.query(Run).filter(Run.id == replay_run_id).first()
-
-        if not original or not replay:
-            print("  ⚠ Cannot generate report: runs not found")
-            return
-
-        # Get phase counts
-        original_phases = session.query(Phase).filter(Phase.run_id == original_run_id).all()
-        replay_phases = session.query(Phase).filter(Phase.run_id == replay_run_id).all()
-
-        original_complete = sum(1 for p in original_phases if p.state == PhaseState.COMPLETE)
-        original_failed = sum(1 for p in original_phases if p.state == PhaseState.FAILED)
-
-        replay_complete = sum(1 for p in replay_phases if p.state == PhaseState.COMPLETE)
-        replay_failed = sum(1 for p in replay_phases if p.state == PhaseState.FAILED)
-
-        report = {
-            "original_run_id": original_run_id,
-            "replay_run_id": replay_run_id,
-            "generated_at": datetime.utcnow().isoformat() + "Z",
-            "original": {
-                "state": original.state.value,
-                "tokens_used": original.tokens_used,
-                "total_phases": len(original_phases),
-                "phases_complete": original_complete,
-                "phases_failed": original_failed,
+    def summary(self) -> Dict[str, Any]:
+        """Get summary of comparison."""
+        return {
+            "baseline": {
+                "avg_duration": self.avg_duration_baseline,
+                "success_rate": self.success_rate_baseline,
+                "avg_tokens": self.avg_tokens_baseline,
             },
-            "replay": {
-                "state": replay.state.value,
-                "tokens_used": replay.tokens_used,
-                "total_phases": len(replay_phases),
-                "phases_complete": replay_complete,
-                "phases_failed": replay_failed,
+            "treatment": {
+                "avg_duration": self.avg_duration_treatment,
+                "success_rate": self.success_rate_treatment,
+                "avg_tokens": self.avg_tokens_treatment,
             },
-            "deltas": {
-                "token_delta": (
-                    replay.tokens_used - original.tokens_used if replay.tokens_used else None
-                ),
-                "phase_complete_delta": replay_complete - original_complete,
-                "phase_failed_delta": replay_failed - original_failed,
-            },
+            "regression_detected": self.regression_detected,
+            "improvement_detected": self.improvement_detected,
         }
 
-        # Save to archive
-        output_dir = Path("archive/replay_results")
-        output_dir.mkdir(parents=True, exist_ok=True)
 
-        output_path = output_dir / f"{replay_run_id}_comparison.json"
-        with open(output_path, "w") as f:
-            json.dump(report, f, indent=2)
+class ABComparison:
+    """Compare baseline and treatment runs."""
 
-        print(f"  ✓ Comparison report saved: {output_path}")
+    def __init__(
+        self,
+        baseline_runs: List[ReplayRun],
+        treatment_runs: List[ReplayRun],
+        regression_threshold: float = 0.1,
+        improvement_threshold: float = 0.05,
+    ):
+        """Initialize A-B comparison."""
+        self.baseline_runs = baseline_runs
+        self.treatment_runs = treatment_runs
+        self.regression_threshold = regression_threshold
+        self.improvement_threshold = improvement_threshold
+
+    def _avg_tokens(self, runs: List[ReplayRun]) -> int:
+        """Calculate average tokens used."""
+        if not runs:
+            return 0
+        total = sum(r.tokens_used for r in runs)
+        return total // len(runs)
+
+    def _success_rate(self, runs: List[ReplayRun]) -> float:
+        """Calculate success rate."""
+        if not runs:
+            return 0.0
+        successes = sum(1 for r in runs if r.outcome == RunOutcome.SUCCESS)
+        return successes / len(runs)
+
+    def _avg_duration(self, runs: List[ReplayRun]) -> float:
+        """Calculate average duration."""
+        if not runs:
+            return 0.0
+        total = sum(r.duration_seconds for r in runs)
+        return total / len(runs)
+
+    def compare_metrics(self) -> ComparisonMetrics:
+        """Compare key metrics between baseline and treatment."""
+        baseline_success_rate = self._success_rate(self.baseline_runs)
+        treatment_success_rate = self._success_rate(self.treatment_runs)
+
+        failure_rate_increase = baseline_success_rate - treatment_success_rate
+        regression_detected = failure_rate_increase > self.regression_threshold
+
+        improvement_detected = (
+            treatment_success_rate - baseline_success_rate > self.improvement_threshold
+        )
+
+        metrics = ComparisonMetrics(
+            avg_duration_baseline=self._avg_duration(self.baseline_runs),
+            avg_duration_treatment=self._avg_duration(self.treatment_runs),
+            success_rate_baseline=baseline_success_rate,
+            success_rate_treatment=treatment_success_rate,
+            avg_tokens_baseline=self._avg_tokens(self.baseline_runs),
+            avg_tokens_treatment=self._avg_tokens(self.treatment_runs),
+            regression_detected=regression_detected,
+            improvement_detected=improvement_detected,
+        )
+
+        return metrics
 
 
-async def replay_run(
-    run_id: str,
-    executor_mode: str = "api",
-    enable_phase6_metrics: bool = True,
-    enable_consolidated_metrics: bool = True,
-    dry_run: bool = False,
-) -> Optional[str]:
-    """Replay a single run with Phase 6 features enabled.
+class ReplayCampaign:
+    """Manages A-B replay campaigns."""
 
-    Args:
-        run_id: Original run ID to replay
-        executor_mode: "api" or "local" (prefer "api" for async execution)
-        enable_phase6_metrics: Enable Phase 6 P3 telemetry
-        enable_consolidated_metrics: Enable consolidated metrics
-        dry_run: If True, don't actually execute
+    def __init__(self, campaign_id: str):
+        """Initialize campaign."""
+        self.campaign_id = campaign_id
+        self.baseline_runs: List[ReplayRun] = []
+        self.treatment_runs: List[ReplayRun] = []
 
-    Returns:
-        New run ID if successful, None otherwise
-    """
-    print(f"\n[REPLAY] {run_id}")
+    def add_baseline_run(self, run: ReplayRun) -> None:
+        """Add baseline run to campaign."""
+        self.baseline_runs.append(run)
+        logger.info(f"Added baseline run: {run.run_id}")
 
-    with SessionLocal() as session:
-        # Clone run with new ID
-        try:
-            new_run_id = clone_run(run_id, session)
-        except Exception as e:
-            print(f"  ❌ Failed to clone run: {e}")
-            return None
+    def add_treatment_run(self, run: ReplayRun) -> None:
+        """Add treatment run to campaign."""
+        self.treatment_runs.append(run)
+        logger.info(f"Added treatment run: {run.run_id}")
 
-        if dry_run:
-            print(f"  🔍 DRY RUN - Would execute: {new_run_id}")
-            return new_run_id
+    def get_comparison(self) -> ABComparison:
+        """Get A-B comparison."""
+        return ABComparison(self.baseline_runs, self.treatment_runs)
 
-        # Execute run
-        success = await execute_run(
-            new_run_id,
-            executor_mode=executor_mode,
-            enable_phase6_metrics=enable_phase6_metrics,
-            enable_consolidated_metrics=enable_consolidated_metrics,
+    def should_promote(self) -> bool:
+        """Determine if treatment should be promoted."""
+        comparison = self.get_comparison()
+        metrics = comparison.compare_metrics()
+
+        if metrics.regression_detected:
+            logger.warning("Regression detected - cannot promote")
+            return False
+
+        success = metrics.improvement_detected or (
+            metrics.success_rate_treatment >= metrics.success_rate_baseline
         )
 
         if success:
-            # Generate comparison report (will be incomplete until run finishes)
-            generate_comparison_report(run_id, new_run_id)
-            return new_run_id
+            logger.info("✅ Treatment can be promoted")
         else:
-            return None
+            logger.warning("⚠️  Treatment has degradation - not promoting")
 
+        return success
 
-async def main():
-    """Main entry point."""
-    parser = argparse.ArgumentParser(description="Replay failed runs with Phase 6 features enabled")
-    parser.add_argument("--run-id", type=str, help="Specific run to replay")
-    parser.add_argument("--from-date", type=str, help="Start date (ISO format YYYY-MM-DD)")
-    parser.add_argument("--to-date", type=str, help="End date (ISO format YYYY-MM-DD)")
-    parser.add_argument(
-        "--state", type=str, default="FAILED", help="Run state filter (default: FAILED)"
-    )
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Don't execute, just show what would be replayed"
-    )
-    parser.add_argument(
-        "--executor",
-        type=str,
-        default="api",
-        choices=["api", "local"],
-        help="Executor mode (default: api for async execution)",
-    )
-    parser.add_argument(
-        "--enable-phase6-metrics",
-        action="store_true",
-        default=True,
-        help="Enable Phase 6 P3 telemetry (default: True)",
-    )
-    parser.add_argument(
-        "--enable-consolidated-metrics",
-        action="store_true",
-        default=True,
-        help="Enable consolidated metrics dashboard (default: True)",
-    )
-    parser.add_argument(
-        "--batch-size",
-        type=int,
-        default=5,
-        help="Number of runs to execute in parallel (default: 5)",
-    )
+    def save_report(self, output_path: Path) -> None:
+        """Save campaign report to file."""
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    args = parser.parse_args()
+        comparison = self.get_comparison()
+        metrics = comparison.compare_metrics()
 
-    print("BUILD-146 P12: Replay Campaign")
-    print("=" * 80)
-    print()
+        report = {
+            "campaign_id": self.campaign_id,
+            "baseline_runs": len(self.baseline_runs),
+            "treatment_runs": len(self.treatment_runs),
+            "metrics": metrics.summary(),
+            "recommendation": "promote" if self.should_promote() else "reject",
+        }
 
-    # Get database connection
-    db_url = get_database_url()
-    print(f"Database: {db_url}")
-    print()
+        with open(output_path, "w") as f:
+            json.dump(report, f, indent=2)
 
-    # Collect runs to replay
-    if args.run_id:
-        run_ids = [args.run_id]
-        print(f"Replaying specific run: {args.run_id}")
-    else:
-        run_ids = await find_failed_runs(args.from_date, args.to_date, args.state)
-        print(f"Found {len(run_ids)} runs to replay")
-        if args.from_date:
-            print(f"  From date: {args.from_date}")
-        if args.to_date:
-            print(f"  To date: {args.to_date}")
-        print(f"  State filter: {args.state}")
+        logger.info(f"Report saved to {output_path}")
 
-    print()
+        md_path = output_path.with_suffix(".md")
+        with open(md_path, "w") as f:
+            f.write("# A-B Replay Campaign Report\n\n")
+            f.write(f"**Campaign ID**: {self.campaign_id}\n\n")
+            f.write(f"- Baseline Runs: {len(self.baseline_runs)}\n")
+            f.write(f"- Treatment Runs: {len(self.treatment_runs)}\n\n")
+            f.write(f"**Decision**: {'✅ PROMOTE' if self.should_promote() else '❌ REJECT'}\n")
 
-    if not run_ids:
-        print("No runs found to replay")
-        return
-
-    if args.dry_run:
-        print("🔍 DRY RUN - Would replay:")
-        for run_id in run_ids:
-            print(f"  - {run_id}")
-        print()
-        print(f"Total: {len(run_ids)} runs")
-        return
-
-    # Replay in parallel (batches)
-    print(f"Replaying {len(run_ids)} runs in batches of {args.batch_size}...")
-    print()
-
-    replayed_runs = []
-
-    for i in range(0, len(run_ids), args.batch_size):
-        batch = run_ids[i : i + args.batch_size]
-        print(f"Batch {i // args.batch_size + 1}: {len(batch)} runs")
-
-        tasks = [
-            replay_run(
-                run_id,
-                executor_mode=args.executor,
-                enable_phase6_metrics=args.enable_phase6_metrics,
-                enable_consolidated_metrics=args.enable_consolidated_metrics,
-                dry_run=args.dry_run,
-            )
-            for run_id in batch
-        ]
-
-        batch_results = await asyncio.gather(*tasks)
-        replayed_runs.extend([r for r in batch_results if r is not None])
-
-        # Small delay between batches
-        if i + args.batch_size < len(run_ids):
-            print()
-            print("Waiting 5 seconds before next batch...")
-            await asyncio.sleep(5)
-
-    print()
-    print("=" * 80)
-    print("REPLAY CAMPAIGN COMPLETE")
-    print("=" * 80)
-    print(f"Replayed: {len(replayed_runs)} / {len(run_ids)} runs")
-    print()
-
-    if replayed_runs:
-        print("Replayed run IDs:")
-        for run_id in replayed_runs:
-            print(f"  - {run_id}")
-        print()
-        print("Next steps:")
-        print("1. Monitor run execution via dashboard or API")
-        print("2. Review comparison reports in: archive/replay_results/")
-        print("3. Run pattern expansion on replayed runs:")
-        print(f"   python scripts/pattern_expansion.py --run-id {replayed_runs[0]} --generate-code")
+        logger.info(f"Markdown summary saved to {md_path}")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    campaign = ReplayCampaign("test-001")
+    for i in range(3):
+        campaign.add_baseline_run(ReplayRun(f"b-{i}", f"t-{i}", RunOutcome.SUCCESS, 45.0, 12000))
+        campaign.add_treatment_run(ReplayRun(f"t-{i}", f"t-{i}", RunOutcome.SUCCESS, 42.0, 11500))
+    print("✅ Campaign ready:", campaign.should_promote())

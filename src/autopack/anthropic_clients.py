@@ -143,8 +143,8 @@ def _write_token_estimation_v2_telemetry(
             finally:
                 try:
                     session_lookup.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Non-critical: session_lookup close failed: {e}")
 
         # Write to DB
         session = SessionLocal()

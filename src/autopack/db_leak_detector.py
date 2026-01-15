@@ -29,8 +29,16 @@ class ConnectionLeakDetector:
         self.threshold = threshold  # Alert when threshold% pool used
         self._setup_pool_events()
 
+    def _is_real_pool(self) -> bool:
+        """Check if the pool is a real SQLAlchemy pool (not a mock)."""
+        return isinstance(self.pool, Pool)
+
     def _setup_pool_events(self) -> None:
         """Register pool event listeners to track connection checkout times."""
+        # Skip event registration for non-SQLAlchemy pools (e.g., mocks in tests)
+        if not self._is_real_pool():
+            return
+
         from sqlalchemy import event
 
         @event.listens_for(self.pool, "checkout")

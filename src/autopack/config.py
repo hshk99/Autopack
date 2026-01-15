@@ -216,6 +216,49 @@ class Settings(BaseSettings):
     run_max_phases: int = 25
     run_max_duration_minutes: int = 120
 
+    # IMP-COST-002: Per-phase budget controls
+    # Default max tokens per phase (10% of run cap)
+    phase_token_cap_default: int = Field(
+        default=500_000,
+        validation_alias=AliasChoices("AUTOPACK_PHASE_TOKEN_CAP", "PHASE_TOKEN_CAP_DEFAULT"),
+        description="Default max tokens per phase (10% of run cap)",
+    )
+
+    # Phase type multipliers (some phases need more budget)
+    # Format: "research:1.5,implementation:1.0,verification:0.5,audit:0.3"
+    phase_token_cap_multipliers_str: str = Field(
+        default="research:1.5,implementation:1.0,verification:0.5,audit:0.3",
+        validation_alias=AliasChoices(
+            "AUTOPACK_PHASE_TOKEN_MULTIPLIERS", "PHASE_TOKEN_CAP_MULTIPLIERS"
+        ),
+        description="Per-phase type budget multipliers (comma-separated key:value pairs)",
+    )
+
+    @property
+    def phase_token_cap_multipliers(self) -> dict[str, float]:
+        """Parse phase token cap multipliers from string config."""
+        result = {}
+        for pair in self.phase_token_cap_multipliers_str.split(","):
+            if ":" in pair:
+                key, value = pair.strip().split(":", 1)
+                try:
+                    result[key.strip()] = float(value.strip())
+                except ValueError:
+                    pass  # Skip invalid entries
+        return result
+
+    def get_phase_token_cap(self, phase_type: str) -> int:
+        """Calculate token cap for specific phase type.
+
+        Args:
+            phase_type: Phase type (e.g., 'research', 'implementation', 'verification')
+
+        Returns:
+            Token cap for this phase type based on default and multipliers
+        """
+        multiplier = self.phase_token_cap_multipliers.get(phase_type, 1.0)
+        return int(self.phase_token_cap_default * multiplier)
+
     # BUILD-145: Git-based executor rollback (opt-in, disabled by default)
     # When enabled, creates git savepoints before applying patches and rolls back on failure
     # Set via environment variable: AUTOPACK_ROLLBACK_ENABLED=true or EXECUTOR_ROLLBACK_ENABLED=true

@@ -14,6 +14,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+class PhaseTokenBudgetExceededError(Exception):
+    """Raised when a phase exceeds its allocated token budget."""
+
+    pass
+
+
 @dataclass(frozen=True)
 class BudgetInputs:
     """
@@ -63,3 +69,36 @@ def compute_budget_remaining(inputs: BudgetInputs) -> float:
 
     # Return minimum (most constraining dimension)
     return min(token_fraction, context_fraction, sot_fraction)
+
+
+def is_phase_budget_exceeded(phase_tokens_used: int, phase_token_cap: int) -> bool:
+    """Check if phase has exceeded its allocated token budget.
+
+    Args:
+        phase_tokens_used: Total tokens used by this phase so far
+        phase_token_cap: Maximum tokens allocated for this phase
+
+    Returns:
+        True if phase budget exceeded, False otherwise
+    """
+    if phase_token_cap is None or phase_token_cap <= 0:
+        return False
+    return phase_tokens_used >= phase_token_cap
+
+
+def get_phase_budget_remaining_pct(phase_tokens_used: int, phase_token_cap: int) -> float:
+    """Get percentage of phase budget remaining (0.0 = exhausted, 1.0 = full).
+
+    Args:
+        phase_tokens_used: Total tokens used by this phase so far
+        phase_token_cap: Maximum tokens allocated for this phase
+
+    Returns:
+        Percentage of phase budget remaining as float [0.0, 1.0]
+    """
+    if phase_token_cap is None:
+        return 1.0
+    if phase_token_cap <= 0:
+        return 0.0
+    remaining = max(0.0, (phase_token_cap - phase_tokens_used) / phase_token_cap)
+    return remaining

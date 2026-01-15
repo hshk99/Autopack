@@ -48,7 +48,7 @@ pytest tests/test_integration.py
 
 ### Stuck Run Recovery
 
-1. Check executor logs: `tail -f .autonomous_runs/<run-id>/executor.log`
+1. Check executor logs: `tail -f .autonomous_runs/<project>/runs/<family>/<run-id>/executor.log`
 2. Identify stuck phase: `sqlite3 autopack.db "SELECT * FROM phases WHERE status='EXECUTING'"`
 3. Force phase timeout: `echo "timeout:<phase-id>" > .autonomous_runs/.force_timeout`
 

@@ -52,6 +52,7 @@ class AutonomousLoop:
             sleep_time = min(interval * self.idle_backoff_multiplier, self.max_idle_sleep)
         else:
             sleep_time = interval
+        # NOTE: time.sleep() intentional - autonomous loop runs in sync context
         time.sleep(sleep_time)
         return sleep_time
 

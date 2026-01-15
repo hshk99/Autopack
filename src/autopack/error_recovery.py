@@ -17,6 +17,7 @@ Key Features:
 - Comprehensive error logging
 """
 
+import asyncio
 import logging
 import threading
 import time
@@ -690,6 +691,7 @@ class ErrorRecoverySystem:
         # Exponential backoff: 1s, 2s, 4s, 8s...
         wait_time = 2**error_ctx.retry_count
         logger.info(f"[Recovery] Network error - waiting {wait_time}s before retry...")
+        # NOTE: time.sleep() intentional - recovery runs in sync context
         time.sleep(wait_time)
         return True  # Signal that retry should be attempted
 
@@ -806,6 +808,7 @@ class ErrorRecoverySystem:
                 if attempt < max_retries:
                     wait_time = 2**attempt  # Exponential backoff
                     logger.info(f"[Recovery] Waiting {wait_time}s before retry...")
+                    # NOTE: time.sleep() intentional - execute_with_retry runs in sync context
                     time.sleep(wait_time)
 
         # All retries failed
@@ -853,6 +856,50 @@ class ErrorRecoverySystem:
             sev = ctx.severity.value
             counts[sev] = counts.get(sev, 0) + 1
         return counts
+
+    # IMP-032: Context-aware wait methods for async/sync boundary safety
+
+    def sync_wait(self, seconds: float) -> None:
+        """Synchronous wait using time.sleep.
+
+        Use this when you know you're in a synchronous context.
+
+        Args:
+            seconds: Number of seconds to wait
+        """
+        time.sleep(seconds)
+
+    async def async_wait(self, seconds: float) -> None:
+        """Asynchronous wait using asyncio.sleep.
+
+        Use this when you're in an async context.
+
+        Args:
+            seconds: Number of seconds to wait
+        """
+        await asyncio.sleep(seconds)
+
+    def wait(self, seconds: float) -> None:
+        """Context-aware wait that warns if called from async context.
+
+        Detects if running in an async context and logs a warning,
+        as time.sleep() would block the event loop.
+
+        Args:
+            seconds: Number of seconds to wait
+        """
+        try:
+            asyncio.get_running_loop()
+            # We're in an async context but using sync wait
+            logger.warning(
+                f"[Recovery] wait() called with time.sleep({seconds}s) from async context. "
+                "Consider using async_wait() instead to avoid blocking the event loop."
+            )
+        except RuntimeError:
+            # No running event loop - we're in sync context, this is fine
+            pass
+
+        time.sleep(seconds)
 
 
 # Global error recovery instance

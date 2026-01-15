@@ -882,6 +882,7 @@ class BuilderOrchestrator:
                 except Exception as e:
                     logger.warning(f"[{phase_id}] Failed to disable provider {provider}: {e}")
 
+        # NOTE: time.sleep() intentional - orchestrator runs in sync context
         time.sleep(backoff)
         return False, "INFRA_RETRY"
 

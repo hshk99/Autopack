@@ -137,6 +137,55 @@ class StorageScanner:
 
         return results
 
+    def scan_drive(
+        self,
+        drive_letter: str,
+        max_depth: Optional[int] = None,
+        max_items: int = 10000,
+        admin_mode: bool = False,
+    ) -> List[ScanResult]:
+        """
+        Scan an entire drive starting from its root.
+
+        Wraps scan_directory for drive root paths. Handles both Windows drive
+        letters (C, D, etc.) and Unix-style roots (/).
+
+        Args:
+            drive_letter: Drive letter (e.g., "C") or Unix root ("/")
+            max_depth: Maximum directory depth (overrides instance max_depth if provided)
+            max_items: Maximum items to return (default: 10000)
+            admin_mode: Ignored for Python scanner (included for API compatibility)
+
+        Returns:
+            List of ScanResult objects from the drive scan
+        """
+        # Handle Unix root path
+        if drive_letter == "/" or drive_letter == "":
+            drive_path = "/"
+        # Handle Windows drive letter (single letter or with colon/backslash)
+        elif len(drive_letter) == 1 and drive_letter.isalpha():
+            drive_path = f"{drive_letter.upper()}:\\"
+        elif drive_letter.endswith(":\\") or drive_letter.endswith(":/"):
+            drive_path = drive_letter
+        elif drive_letter.endswith(":"):
+            drive_path = f"{drive_letter}\\"
+        else:
+            # Assume it's already a valid path
+            drive_path = drive_letter
+
+        # Temporarily override max_depth if provided
+        original_max_depth = self.max_depth
+        if max_depth is not None:
+            self.max_depth = max_depth
+
+        try:
+            results = self.scan_directory(drive_path, max_items=max_items)
+        finally:
+            # Restore original max_depth
+            self.max_depth = original_max_depth
+
+        return results
+
     def scan_high_value_directories(
         self, drive_letter: str = "C", max_items: int = 10000
     ) -> List[ScanResult]:

@@ -1047,21 +1047,18 @@ class AnthropicPhaseExecutor:
                         max_tokens = max(max_tokens or 0, token_selected_budget)
                         logger.info(f"[BUILD-129:P4] Retry max_tokens enforcement: {max_tokens}")
 
-                    # Note: This uses self.client.client for the Anthropic client
-                    # TODO: This should use transport, but keeping original behavior for now
-                    with self.client.client.messages.stream(
+                    # IMP-003: Use transport wrapper for consistent circuit breaker,
+                    # typed error handling, and telemetry during retries
+                    retry_response = self.transport.send_request(
+                        messages=[{"role": "user", "content": user_prompt_retry}],
                         model=model,
                         max_tokens=min(max_tokens or 64000, 64000),
                         system=system_prompt,
-                        messages=[{"role": "user", "content": user_prompt_retry}],
                         temperature=0.2,
-                    ) as stream:
-                        retry_content = ""
-                        for text in stream.text_stream:
-                            retry_content += text
-                        retry_response = stream.get_final_message()
-
-                    retry_stop_reason = getattr(retry_response, "stop_reason", None)
+                        stream=True,
+                    )
+                    retry_content = retry_response.content
+                    retry_stop_reason = retry_response.stop_reason
                     retry_was_truncated = retry_stop_reason == "max_tokens"
 
                     if use_ndjson_format:

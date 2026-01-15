@@ -14,11 +14,31 @@ logger = logging.getLogger(__name__)
 # Enable pool_pre_ping so dropped/closed connections are detected and re-established.
 # pool_recycle guards against server-side timeouts on long-lived processes.
 # Use get_database_url() for runtime binding (respects DATABASE_URL env var)
-engine = create_engine(
-    get_database_url(),
-    pool_pre_ping=True,
-    pool_recycle=1800,
-)
+
+_db_url = get_database_url()
+_is_postgres = _db_url.startswith("postgresql")
+
+# Pool configuration only applies to PostgreSQL (SQLite uses SingletonThreadPool)
+_engine_kwargs = {
+    "pool_pre_ping": True,
+    "pool_recycle": 1800,
+}
+
+if _is_postgres:
+    # Explicit pool configuration for PostgreSQL to prevent exhaustion under high load
+    # SQLite's SingletonThreadPool doesn't support these options
+    #   - pool_size=20: Base pool size for normal operations
+    #   - max_overflow=10: Allow 10 additional connections under peak load
+    #   - pool_timeout=30: Wait max 30s for connection before raising TimeoutError
+    _engine_kwargs.update(
+        {
+            "pool_size": 20,
+            "max_overflow": 10,
+            "pool_timeout": 30,
+        }
+    )
+
+engine = create_engine(_db_url, **_engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

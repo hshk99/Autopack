@@ -14,6 +14,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+class BudgetExhaustedError(Exception):
+    """Raised when per-run token budget is exhausted."""
+
+    pass
+
+
 class PhaseTokenBudgetExceededError(Exception):
     """Raised when a phase exceeds its allocated token budget."""
 
@@ -34,6 +40,39 @@ class BudgetInputs:
     context_chars_used: int  # From measured context construction
     max_sot_chars: int  # From IntentionAnchor.budgets.max_sot_chars
     sot_chars_used: int  # From measured SOT retrieval
+
+
+def is_budget_exhausted(token_cap: int, tokens_used: int) -> bool:
+    """Check if run has exceeded token budget.
+
+    Args:
+        token_cap: Maximum tokens allowed for the run
+        tokens_used: Total tokens used so far
+
+    Returns:
+        True if budget is exhausted, False otherwise
+    """
+    if token_cap is None:
+        return False
+    return tokens_used >= token_cap
+
+
+def get_budget_remaining_pct(token_cap: int, tokens_used: int) -> float:
+    """Get percentage of budget remaining (0.0 = exhausted, 1.0 = full).
+
+    Args:
+        token_cap: Maximum tokens allowed for the run
+        tokens_used: Total tokens used so far
+
+    Returns:
+        Percentage of budget remaining as float [0.0, 1.0]
+    """
+    if token_cap is None:
+        return 1.0
+    if token_cap <= 0:
+        return 0.0
+    remaining = max(0.0, (token_cap - tokens_used) / token_cap)
+    return remaining
 
 
 def compute_budget_remaining(inputs: BudgetInputs) -> float:

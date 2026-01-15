@@ -6,6 +6,7 @@ Provides:
 - Alert routing
 - Self-healing engine (ROAD-J)
 - Telemetry-driven model selection optimization (ROAD-L)
+- Meta-metrics for feedback loop quality (ROAD-K)
 - Causal analysis for change impact assessment (ROAD-H)
 """
 
@@ -20,6 +21,14 @@ from autopack.telemetry.auto_healer import AutoHealingEngine, HealingAction, Hea
 from autopack.telemetry.model_performance_tracker import (
     TelemetryDrivenModelOptimizer,
     ModelPerformance,
+)
+from autopack.telemetry.meta_metrics import (
+    MetaMetricsTracker,
+    FeedbackLoopHealth,
+    ComponentStatus,
+    MetricTrend,
+    ComponentHealthReport,
+    FeedbackLoopHealthReport,
 )
 from autopack.telemetry.causal_analysis import (
     CausalAnalyzer,
@@ -42,6 +51,12 @@ __all__ = [
     "HealingDecision",
     "TelemetryDrivenModelOptimizer",
     "ModelPerformance",
+    "MetaMetricsTracker",
+    "FeedbackLoopHealth",
+    "ComponentStatus",
+    "MetricTrend",
+    "ComponentHealthReport",
+    "FeedbackLoopHealthReport",
     "CausalAnalyzer",
     "CausalStrength",
     "ChangeEvent",

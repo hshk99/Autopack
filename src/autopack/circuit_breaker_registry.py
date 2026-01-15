@@ -4,7 +4,9 @@ Provides centralized management and monitoring of circuit breakers
 across the application.
 """
 
+import json
 import threading
+from pathlib import Path
 from typing import Dict, Optional, List
 from dataclasses import dataclass
 import logging
@@ -233,6 +235,70 @@ class CircuitBreakerRegistry:
             self._breakers.clear()
             self._configs.clear()
             logger.info("Cleared all circuit breakers from registry")
+
+    def persist_all(self, path: Optional[Path] = None) -> bool:
+        """Persist all circuit breaker states to disk.
+
+        Args:
+            path: Path to persistence file. Defaults to ~/.autopack/circuit_breaker_state.json
+
+        Returns:
+            True if persistence succeeded, False otherwise
+        """
+        persistence_path = path or Path.home() / ".autopack" / "circuit_breaker_state.json"
+
+        with self._registry_lock:
+            try:
+                states = {name: cb.to_dict() for name, cb in self._breakers.items()}
+
+                persistence_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(persistence_path, "w", encoding="utf-8") as f:
+                    json.dump(states, f, indent=2)
+
+                logger.info(f"Persisted {len(states)} circuit breakers to {persistence_path}")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to persist circuit breakers: {e}")
+                return False
+
+    def restore_all(self, path: Optional[Path] = None) -> int:
+        """Restore circuit breaker states from disk.
+
+        Args:
+            path: Path to persistence file. Defaults to ~/.autopack/circuit_breaker_state.json
+
+        Returns:
+            Number of circuit breakers restored
+        """
+        persistence_path = path or Path.home() / ".autopack" / "circuit_breaker_state.json"
+
+        if not persistence_path.exists():
+            logger.debug(f"No persistence file found at {persistence_path}")
+            return 0
+
+        with self._registry_lock:
+            try:
+                with open(persistence_path, "r", encoding="utf-8") as f:
+                    states = json.load(f)
+
+                restored_count = 0
+                for name, state_data in states.items():
+                    try:
+                        cb = CircuitBreaker.from_dict(state_data)
+                        self._breakers[name] = cb
+                        self._configs[name] = cb.config
+                        restored_count += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to restore circuit breaker '{name}': {e}")
+
+                logger.info(f"Restored {restored_count} circuit breakers from {persistence_path}")
+                return restored_count
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON in persistence file: {e}")
+                return 0
+            except Exception as e:
+                logger.error(f"Failed to restore circuit breakers: {e}")
+                return 0
 
 
 # Global registry instance

@@ -424,6 +424,33 @@ flags:
     notes: "PR-06: Prevents rate limit bypass via spoofed X-Forwarded-For headers"
 
   # ============================================================================
+  # Bind Address Security (IMP-SEC-001)
+  # ============================================================================
+  AUTOPACK_BIND_ADDRESS:
+    description: "IP address to bind the API server to"
+    category: security
+    default: "127.0.0.1"
+    values: "IP address (e.g., 127.0.0.1, 0.0.0.0, 192.168.1.100)"
+    affects: ["config.py", "main.py"]
+    aliases: ["BIND_ADDRESS"]
+    security_implications:
+      localhost: "API only accessible locally (safe default)"
+      non_local: "API exposed to network (requires AUTOPACK_ALLOW_NON_LOCAL=true)"
+    notes: "IMP-SEC-001: Prevents accidental network exposure by defaulting to localhost"
+
+  AUTOPACK_ALLOW_NON_LOCAL:
+    description: "Allow binding to non-local addresses (requires explicit opt-in)"
+    category: security
+    default: "false"
+    values: ["true", "false", "1", "0"]
+    affects: ["config.py"]
+    aliases: ["ALLOW_NON_LOCAL_BIND"]
+    security_implications:
+      enabled: "Allows binding to any IP address (use with caution)"
+      disabled: "Only localhost/loopback addresses allowed (safe default)"
+    notes: "IMP-SEC-001: Security guardrail - must be explicitly enabled to bind to non-local addresses"
+
+  # ============================================================================
   # Outbound Egress / SSRF Guardrails (Phase 5)
   # ============================================================================
   AUTOPACK_ALLOWED_EXTERNAL_HOSTS:

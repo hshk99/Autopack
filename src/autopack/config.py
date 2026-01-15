@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from pydantic import AliasChoices, Field, field_validator, model_validator
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .exceptions import ConfigurationError
@@ -390,38 +390,6 @@ class Settings(BaseSettings):
         description="Allow binding to non-local addresses (requires explicit opt-in)",
     )
 
-    @field_validator("autopack_bind_address")
-    @classmethod
-    def validate_bind_address(cls, v: str, info) -> str:
-        """Validate bind address to prevent accidental external exposure.
-
-        Rejects non-local addresses unless autopack_allow_non_local=True.
-        This is a security guardrail to prevent accidentally exposing the API
-        to the network when DATABASE_URL or other config might suggest a
-        non-localhost host.
-        """
-        # Normalize the address for comparison
-        normalized = v.strip().lower()
-
-        # Always allow local/loopback addresses
-        if normalized in _LOCAL_ADDRESSES:
-            return v
-
-        # For non-local addresses, check if explicitly allowed
-        # Note: info.data contains already-validated fields at this point
-        # We need to check the raw value since autopack_allow_non_local may not be validated yet
-        allow_non_local = info.data.get("autopack_allow_non_local", False)
-
-        if not allow_non_local:
-            raise ValueError(
-                f"Non-local bind address '{v}' is not allowed by default. "
-                f"This is a security guardrail to prevent accidental network exposure. "
-                f"To bind to non-local addresses, set AUTOPACK_ALLOW_NON_LOCAL=true "
-                f"or use a local address (127.0.0.1, localhost, ::1)."
-            )
-
-        return v
-
     @model_validator(mode="before")
     @classmethod
     def parse_allowed_hosts(cls, values):
@@ -438,6 +406,27 @@ class Settings(BaseSettings):
             elif hosts is None:
                 values["allowed_external_hosts"] = []
         return values
+
+    @model_validator(mode="after")
+    def validate_bind_address_security(self) -> "Settings":
+        """Validate bind address after all fields are set.
+
+        Rejects non-local addresses unless autopack_allow_non_local=True.
+        This is a security guardrail to prevent accidentally exposing the API
+        to the network.
+        """
+        normalized = self.autopack_bind_address.strip().lower()
+
+        if normalized in _LOCAL_ADDRESSES:
+            return self
+
+        if not self.autopack_allow_non_local:
+            raise ValueError(
+                f"Non-local bind address '{self.autopack_bind_address}' is not allowed. "
+                f"Set AUTOPACK_ALLOW_NON_LOCAL=true to enable."
+            )
+
+        return self
 
     @model_validator(mode="after")
     def validate_jwt_algorithm(self) -> "Settings":

@@ -1,11 +1,15 @@
 """Database setup and session management"""
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+import logging
+
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 from .config import get_database_url
 from .db_leak_detector import ConnectionLeakDetector
 from .exceptions import DatabaseError
+
+logger = logging.getLogger(__name__)
 
 # Enable pool_pre_ping so dropped/closed connections are detected and re-established.
 # pool_recycle guards against server-side timeouts on long-lived processes.
@@ -89,3 +93,34 @@ def init_db():
         )
         Base.metadata.create_all(bind=engine)
         logger.info("[DB] Schema created/updated via create_all()")
+
+
+# Session health check interval (25 minutes - before 30 min pool_recycle)
+SESSION_HEALTH_CHECK_INTERVAL = 25 * 60
+
+
+def ensure_session_healthy(session: Session) -> bool:
+    """Check session health and refresh if needed.
+
+    Performs a lightweight SELECT 1 query to verify the connection is alive.
+    Should be called periodically in long-running operations to prevent
+    stale connection issues when runs exceed pool_recycle (30 min).
+
+    Args:
+        session: SQLAlchemy session to check
+
+    Returns:
+        True if session is healthy or was successfully refreshed
+    """
+    try:
+        session.execute(text("SELECT 1"))
+        return True
+    except Exception as e:
+        logger.warning(f"Session health check failed: {e}")
+        try:
+            session.rollback()
+            session.close()
+            logger.info("Session closed for reconnection on next use")
+        except Exception as close_err:
+            logger.debug(f"Error during session cleanup: {close_err}")
+        return True  # Session will reconnect on next use

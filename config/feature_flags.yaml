@@ -120,6 +120,14 @@ flags:
     values: ["true", "false", "1", "0"]
     affects: ["autonomous_executor.py"]
 
+  AUTOPACK_TELEMETRY_MODEL_OPTIMIZATION:
+    description: "Enable telemetry-driven model selection optimization"
+    category: feature_toggle
+    default: "0"
+    values: ["1"]
+    affects: ["model_router.py", "telemetry/model_performance_tracker.py"]
+    notes: "ROAD-L: System learns which models perform best for each phase type and automatically downgrades to cheaper models (when success rate >95%) or escalates to more capable models (when failure rate >15%). Requires minimum 20 samples before adjusting."
+
   # ============================================================================
   # Developer/Debug Overrides
   # ============================================================================

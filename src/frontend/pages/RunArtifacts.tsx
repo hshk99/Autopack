@@ -51,7 +51,7 @@ const RunArtifacts: React.FC = () => {
     setSelectedFile(path);
     setFileMetadata(null);
     try {
-      const response = await fetchArtifactFile(runId, path);
+      const response: ArtifactFileResponse = await fetchArtifactFile(runId, path);
       setFileContent(response.content);
       setFileMetadata({
         truncated: response.truncated,

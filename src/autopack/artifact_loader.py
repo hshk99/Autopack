@@ -39,6 +39,41 @@ from autopack.file_layout import RunFileLayout
 logger = logging.getLogger(__name__)
 
 
+def _read_capped(path: Path, max_bytes: Optional[int] = None) -> Tuple[str, bool]:
+    """Read file with size cap, returning content and truncation indicator.
+
+    Args:
+        path: Path to file to read
+        max_bytes: Maximum bytes to read. If None, uses settings.artifact_read_size_cap_bytes.
+                   0 means unlimited.
+
+    Returns:
+        Tuple of (content, was_truncated)
+        - content: File content (truncated if exceeds cap)
+        - was_truncated: True if content was truncated, False otherwise
+    """
+    if max_bytes is None:
+        max_bytes = settings.artifact_read_size_cap_bytes
+
+    try:
+        # Read full content first to check size
+        full_content = path.read_text(encoding="utf-8", errors="ignore")
+
+        # If no cap (0) or content is within cap, return as-is
+        if max_bytes == 0 or len(full_content) <= max_bytes:
+            return full_content, False
+
+        # Truncate and add indicator
+        truncated_content = full_content[:max_bytes]
+        truncation_indicator = (
+            "\n\n... [TRUNCATED - content exceeded size cap of " f"{max_bytes} bytes] ..."
+        )
+        return truncated_content + truncation_indicator, True
+    except Exception as e:
+        logger.debug(f"[ArtifactLoader] Could not read {path}: {e}")
+        return "", False
+
+
 def estimate_tokens(content: str) -> int:
     """Estimate token count for content using conservative 4 chars/token ratio.
 
@@ -154,13 +189,12 @@ class ArtifactLoader:
             return results
 
         for phase_file in sorted(phases_dir.glob("phase_*.md"), reverse=True):
-            try:
-                content = phase_file.read_text(encoding="utf-8", errors="ignore")
-                # Simple heuristic: if file path appears in summary, it's relevant
-                if file_path in content or Path(file_path).name in content:
-                    results.append(content)
-            except Exception as e:
-                logger.debug(f"[ArtifactLoader] Could not read {phase_file}: {e}")
+            content, _ = _read_capped(phase_file)
+            if not content:
+                continue
+            # Simple heuristic: if file path appears in summary, it's relevant
+            if file_path in content or Path(file_path).name in content:
+                results.append(content)
 
         return results
 
@@ -180,12 +214,11 @@ class ArtifactLoader:
             return results
 
         for tier_file in sorted(tiers_dir.glob("tier_*.md"), reverse=True):
-            try:
-                content = tier_file.read_text(encoding="utf-8", errors="ignore")
-                if file_path in content or Path(file_path).name in content:
-                    results.append(content)
-            except Exception as e:
-                logger.debug(f"[ArtifactLoader] Could not read {tier_file}: {e}")
+            content, _ = _read_capped(tier_file)
+            if not content:
+                continue
+            if file_path in content or Path(file_path).name in content:
+                results.append(content)
 
         return results
 
@@ -206,23 +239,23 @@ class ArtifactLoader:
         # Check diagnostic_summary.json if exists
         summary_json = diagnostics_dir / "diagnostic_summary.json"
         if summary_json.exists():
-            try:
-                content = summary_json.read_text(encoding="utf-8", errors="ignore")
-                data = json.loads(content)
-                # Convert to readable summary
-                if file_path in content or Path(file_path).name in content:
-                    return f"Diagnostics Summary:\n{json.dumps(data, indent=2)}"
-            except Exception as e:
-                logger.debug(f"[ArtifactLoader] Could not parse diagnostic_summary.json: {e}")
+            content, _ = _read_capped(summary_json)
+            if content:
+                try:
+                    data = json.loads(content)
+                    # Convert to readable summary
+                    if file_path in content or Path(file_path).name in content:
+                        return f"Diagnostics Summary:\n{json.dumps(data, indent=2)}"
+                except Exception as e:
+                    logger.debug(f"[ArtifactLoader] Could not parse diagnostic_summary.json: {e}")
 
         # Check handoff bundles
         for handoff_file in sorted(diagnostics_dir.glob("handoff_*.md"), reverse=True):
-            try:
-                content = handoff_file.read_text(encoding="utf-8", errors="ignore")
-                if file_path in content or Path(file_path).name in content:
-                    return content
-            except Exception as e:
-                logger.debug(f"[ArtifactLoader] Could not read {handoff_file}: {e}")
+            content, _ = _read_capped(handoff_file)
+            if not content:
+                continue
+            if file_path in content or Path(file_path).name in content:
+                return content
 
         return None
 
@@ -237,11 +270,8 @@ class ArtifactLoader:
         if not run_summary.exists():
             return None
 
-        try:
-            return run_summary.read_text(encoding="utf-8", errors="ignore")
-        except Exception as e:
-            logger.debug(f"[ArtifactLoader] Could not read run_summary.md: {e}")
-            return None
+        content, _ = _read_capped(run_summary)
+        return content if content else None
 
     def load_with_artifacts(
         self, file_path: str, full_content: str, prefer_artifacts: bool = True
@@ -314,11 +344,9 @@ class ArtifactLoader:
             tier_files = sorted(tiers_dir.glob("tier_*.md"), reverse=True)
             tier_files = tier_files[: settings.artifact_history_pack_max_tiers]
             for tier_file in tier_files:
-                try:
-                    content = tier_file.read_text(encoding="utf-8", errors="ignore")
+                content, _ = _read_capped(tier_file)
+                if content:
                     sections.append(f"# Tier: {tier_file.stem}\n\n{content}")
-                except Exception as e:
-                    logger.debug(f"[ArtifactLoader] Could not read {tier_file}: {e}")
 
         # Add recent phase summaries
         phases_dir = self.artifacts_dir / "phases"
@@ -326,11 +354,9 @@ class ArtifactLoader:
             phase_files = sorted(phases_dir.glob("phase_*.md"), reverse=True)
             phase_files = phase_files[: settings.artifact_history_pack_max_phases]
             for phase_file in phase_files:
-                try:
-                    content = phase_file.read_text(encoding="utf-8", errors="ignore")
+                content, _ = _read_capped(phase_file)
+                if content:
                     sections.append(f"# Phase: {phase_file.stem}\n\n{content}")
-                except Exception as e:
-                    logger.debug(f"[ArtifactLoader] Could not read {phase_file}: {e}")
 
         if not sections:
             return None
@@ -442,16 +468,10 @@ class ArtifactLoader:
                     if phases_dir.exists():
                         phase_files = sorted(phases_dir.glob(f"phase_{int(phase_num):02d}_*.md"))
                         if phase_files:
-                            try:
-                                phase_content = phase_files[0].read_text(
-                                    encoding="utf-8", errors="ignore"
-                                )
+                            phase_content, _ = _read_capped(phase_files[0])
+                            if phase_content:
                                 summary_parts.append(
                                     f"## Phase {phase_num}\n{phase_content[:500]}..."
-                                )
-                            except Exception as e:
-                                logger.debug(
-                                    f"[ArtifactLoader] Could not read phase {phase_num}: {e}"
                                 )
 
                 for tier_num in tier_refs[:2]:  # Limit to 2 most recent
@@ -459,15 +479,9 @@ class ArtifactLoader:
                     if tiers_dir.exists():
                         tier_files = sorted(tiers_dir.glob(f"tier_{int(tier_num):02d}_*.md"))
                         if tier_files:
-                            try:
-                                tier_content = tier_files[0].read_text(
-                                    encoding="utf-8", errors="ignore"
-                                )
+                            tier_content, _ = _read_capped(tier_files[0])
+                            if tier_content:
                                 summary_parts.append(f"## Tier {tier_num}\n{tier_content[:500]}...")
-                            except Exception as e:
-                                logger.debug(
-                                    f"[ArtifactLoader] Could not read tier {tier_num}: {e}"
-                                )
 
                 if summary_parts:
                     consolidated = "\n\n".join(summary_parts)
@@ -480,7 +494,6 @@ class ArtifactLoader:
                         return consolidated, tokens_saved, f"artifact:{context_type}"
 
         return content, 0, "original"
-        return None
 
 
 def get_artifact_substitution_stats(

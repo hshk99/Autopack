@@ -1,3 +1,4 @@
+from uuid import uuid4
 from autopack.research.models.research_session import ResearchSession
 from autopack.research.models.research_intent import ResearchIntent
 from autopack.research.models.enums import ValidationStatus
@@ -14,11 +15,11 @@ class ResearchOrchestrator:
         """Start a new research session."""
         intent = ResearchIntent(intent_title, intent_description, intent_objectives)
         session = ResearchSession(intent)
-        session_id = id(session)
+        session_id = str(uuid4())
         self.sessions[session_id] = session
         return session_id
 
-    def validate_session(self, session_id: int) -> str:
+    def validate_session(self, session_id: str) -> str:
         """Validate the research session."""
         session = self.sessions.get(session_id)
         if not session:
@@ -40,7 +41,7 @@ class ResearchOrchestrator:
             session.validation_status = ValidationStatus.FAILED
             return "Session validation failed."
 
-    def publish_session(self, session_id: int) -> bool:
+    def publish_session(self, session_id: str) -> bool:
         """Publish the research findings."""
         session = self.sessions.get(session_id)
         if not session or session.validation_status != ValidationStatus.VALIDATED:

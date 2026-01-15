@@ -280,3 +280,158 @@ class TestRunIdTracking:
         assert pipeline2.get_hint_count() == 1
         assert pipeline1.get_all_hints()[0].hint_type == "auditor_reject"
         assert pipeline2.get_all_hints()[0].hint_type == "ci_fail"
+
+
+class TestTaskCategoryTracking:
+    """Test task_category tracking in hints"""
+
+    def test_task_category_recorded_when_present(self):
+        """Test task_category is recorded when provided in phase"""
+        pipeline = LearningPipeline(run_id="test-run")
+        phase = {
+            "phase_id": "test",
+            "name": "Test Phase",
+            "task_category": "refactoring",
+        }
+
+        pipeline.record_hint(phase, "auditor_reject", "Details")
+
+        hints = pipeline.get_all_hints()
+        assert hints[0].task_category == "refactoring"
+
+    def test_task_category_none_when_absent(self):
+        """Test task_category is None when not provided in phase"""
+        pipeline = LearningPipeline(run_id="test-run")
+        phase = {"phase_id": "test", "name": "Test Phase"}
+
+        pipeline.record_hint(phase, "auditor_reject", "Details")
+
+        hints = pipeline.get_all_hints()
+        assert hints[0].task_category is None
+
+    def test_hints_filtered_by_category(self):
+        """Test hints are retrieved for same task category"""
+        pipeline = LearningPipeline(run_id="test-run")
+
+        phase1 = {
+            "phase_id": "phase-1",
+            "name": "Phase 1",
+            "task_category": "refactoring",
+        }
+        phase2 = {
+            "phase_id": "phase-2",
+            "name": "Phase 2",
+            "task_category": "bugfix",
+        }
+        phase3 = {
+            "phase_id": "phase-3",
+            "name": "Phase 3",
+            "task_category": "refactoring",
+        }
+
+        pipeline.record_hint(phase1, "auditor_reject", "Details 1")
+        pipeline.record_hint(phase2, "ci_fail", "Details 2")
+        pipeline.record_hint(phase3, "patch_apply_error", "Details 3")
+
+        # Query for phase with refactoring category
+        query_phase = {
+            "phase_id": "query-phase",
+            "task_category": "refactoring",
+        }
+        hints = pipeline.get_hints_for_phase(query_phase)
+
+        # Should get hints from phase1 and phase3 (same category)
+        assert len(hints) == 2
+        # Verify hints are from refactoring category
+        hint_texts = [h for h in hints]
+        assert "Details 1" in str(hint_texts)
+        assert "Details 3" in str(hint_texts)
+
+    def test_hints_for_phase_include_same_phase_hints(self):
+        """Test hints include those from same phase_id regardless of category"""
+        pipeline = LearningPipeline(run_id="test-run")
+
+        phase1 = {
+            "phase_id": "phase-1",
+            "name": "Phase 1",
+            "task_category": "refactoring",
+        }
+        phase2 = {
+            "phase_id": "query-phase",
+            "name": "Query Phase",
+            "task_category": "bugfix",
+        }
+
+        pipeline.record_hint(phase1, "auditor_reject", "Details 1")
+        pipeline.record_hint(phase2, "ci_fail", "Details 2")
+
+        # Query same phase_id as phase2
+        hints = pipeline.get_hints_for_phase(phase2)
+
+        # Should get hint from phase2 (same phase_id)
+        assert len(hints) == 1
+        assert "Details 2" in hints[0]
+
+    def test_category_filtering_requires_both_non_none(self):
+        """Test category filtering only applies when both are non-None"""
+        pipeline = LearningPipeline(run_id="test-run")
+
+        phase1 = {
+            "phase_id": "phase-1",
+            "name": "Phase 1",
+            "task_category": "refactoring",
+        }
+        # phase2 has no task_category
+        phase2 = {"phase_id": "phase-2", "name": "Phase 2"}
+
+        pipeline.record_hint(phase1, "auditor_reject", "Details 1")
+        pipeline.record_hint(phase2, "ci_fail", "Details 2")
+
+        # Query with refactoring category but no matching phase
+        query_phase = {
+            "phase_id": "query-phase",
+            "task_category": "refactoring",
+        }
+        hints = pipeline.get_hints_for_phase(query_phase)
+
+        # Should not get hint from phase2 (it has no task_category)
+        assert len(hints) == 1
+        assert "Details 1" in hints[0]
+
+    def test_multiple_categories_handled(self):
+        """Test handling of multiple different categories"""
+        pipeline = LearningPipeline(run_id="test-run")
+
+        phases = [
+            {
+                "phase_id": "phase-1",
+                "name": "Phase 1",
+                "task_category": "refactoring",
+            },
+            {
+                "phase_id": "phase-2",
+                "name": "Phase 2",
+                "task_category": "bugfix",
+            },
+            {
+                "phase_id": "phase-3",
+                "name": "Phase 3",
+                "task_category": "feature",
+            },
+            {
+                "phase_id": "phase-4",
+                "name": "Phase 4",
+                "task_category": "refactoring",
+            },
+        ]
+
+        for i, phase in enumerate(phases):
+            pipeline.record_hint(phase, "auditor_reject", f"Details {i + 1}")
+
+        # Query for bugfix category
+        query_phase = {"phase_id": "query-phase", "task_category": "bugfix"}
+        hints = pipeline.get_hints_for_phase(query_phase)
+
+        # Should get only bugfix hint
+        assert len(hints) == 1
+        assert "Details 2" in hints[0]

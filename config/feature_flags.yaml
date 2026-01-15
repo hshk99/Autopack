@@ -372,6 +372,36 @@ flags:
     affects: ["autonomous_executor.py"]
 
   # ============================================================================
+  # Configurable Timeouts (IMP-033)
+  # ============================================================================
+  AUTOPACK_HEALTH_CHECK_TIMEOUT:
+    description: "Timeout for health check operations"
+    category: tuning
+    default: "2.0"
+    values: "Float (seconds)"
+    affects: ["config.py", "database.py"]
+    aliases: ["HEALTH_CHECK_TIMEOUT"]
+    notes: "IMP-033: Configurable timeout to prevent indefinite hangs during health checks"
+
+  AUTOPACK_APPROVAL_CHECK_INTERVAL:
+    description: "Interval between approval status checks"
+    category: tuning
+    default: "60.0"
+    values: "Float (seconds)"
+    affects: ["config.py", "approvals/service.py"]
+    aliases: ["APPROVAL_CHECK_INTERVAL"]
+    notes: "IMP-033: Configurable interval for polling approval status"
+
+  AUTOPACK_DB_OPERATION_TIMEOUT:
+    description: "Timeout for database operations"
+    category: tuning
+    default: "30.0"
+    values: "Float (seconds)"
+    affects: ["config.py", "database.py"]
+    aliases: ["DB_OPERATION_TIMEOUT"]
+    notes: "IMP-033: Configurable timeout to prevent indefinite hangs during DB operations"
+
+  # ============================================================================
   # Rate Limiting (PR-06)
   # ============================================================================
   AUTOPACK_TRUSTED_PROXIES:

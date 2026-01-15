@@ -102,6 +102,7 @@ class TestRegistryPersistence:
         registry._breakers = {}
         registry._configs = {}
         registry._registry_lock = __import__("threading").RLock()
+        registry._persistence = None  # Required for persist_all/restore_all methods
         registry._initialized = True
         return registry
 

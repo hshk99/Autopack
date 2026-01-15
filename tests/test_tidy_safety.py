@@ -98,11 +98,20 @@ class TestTidySafety:
 
 
 class TestIdenticalSOTDuplicate:
-    """Test A2: Tidy routes identical root SOT duplicates."""
+    """Test A2: Tidy protects SOT files from being moved (even identical ones).
 
-    def test_identical_sot_routed_to_superseded(self, tmp_path):
+    NOTE: As of commit 84934e34, SOT files are ALWAYS protected from being moved
+    by the execute_moves safety layer. While route_root_files may plan to move
+    identical SOT files to archive/superseded, execute_moves blocks all SOT file
+    moves as a defense-in-depth safety measure.
+    """
+
+    def test_identical_sot_planned_for_superseded(self, tmp_path):
         """
-        A2: Test that identical root SOT duplicates are routed to archive/superseded.
+        A2: Test that route_root_files plans to move identical SOT duplicates to superseded.
+
+        Note: While route_root_files plans the move, execute_moves blocks it.
+        This test verifies the routing logic, while the next test verifies the safety layer.
         """
         # Setup
         docs_dir = tmp_path / "docs"
@@ -118,22 +127,27 @@ class TestIdenticalSOTDuplicate:
         # Run
         moves, blocked = route_root_files(tmp_path, dry_run=False, verbose=True)
 
-        # Assert: no blocked files (identical content)
-        assert len(blocked) == 0, "Identical SOT files should not be blocked"
+        # Assert: identical SOT file is NOT blocked by route_root_files (divergent ones are)
+        blocked_names = {f.name for f in blocked}
+        assert (
+            "BUILD_HISTORY.md" not in blocked_names
+        ), "Identical SOT files should not be blocked by route_root_files"
 
-        # Assert: BUILD_HISTORY.md should be in moves
+        # Assert: BUILD_HISTORY.md is planned to move to superseded
         moved_sot = [dest for src, dest in moves if src.name == "BUILD_HISTORY.md"]
-        assert len(moved_sot) == 1, "Identical root SOT duplicate should be moved"
+        assert len(moved_sot) == 1, "Identical root SOT duplicate should be planned for move"
 
         # Assert: destination is archive/superseded/root_sot_duplicates/
         dest = moved_sot[0]
-        assert "superseded" in str(dest), "Should move to archive/superseded"
-        assert "root_sot_duplicates" in str(dest), "Should move to root_sot_duplicates subdirectory"
-        assert dest.name == "BUILD_HISTORY.md", "Filename should be preserved"
+        assert "superseded" in str(dest), "Should plan to move to archive/superseded"
+        assert "root_sot_duplicates" in str(dest), "Should plan to move to root_sot_duplicates"
 
-    def test_identical_sot_actually_moves(self, tmp_path):
+    def test_identical_sot_blocked_by_execute_safety_layer(self, tmp_path, capsys):
         """
-        A2: Test that executing moves actually relocates the identical duplicate.
+        A2: Test that execute_moves safety layer blocks all SOT file moves.
+
+        This is the critical test: even though route_root_files plans the move,
+        execute_moves blocks it with a defense-in-depth safety layer (84934e34).
         """
         # Setup
         docs_dir = tmp_path / "docs"
@@ -146,31 +160,31 @@ class TestIdenticalSOTDuplicate:
         # Run (execute mode)
         moves, blocked = route_root_files(tmp_path, dry_run=False, verbose=False)
 
-        # Assert: no blocked files
-        assert len(blocked) == 0, "Identical files should not be blocked"
+        # Verify route_root_files planned to move the file
+        assert any(
+            src.name == "DEBUG_LOG.md" for src, dest in moves
+        ), "route_root_files should plan to move identical SOT file"
 
-        # Execute the moves
+        # Execute the moves (safety layer should block SOT file moves)
         from tidy_up import execute_moves
 
         execute_moves(moves, dry_run=False)
 
-        # Assert: root file removed
-        assert not (
+        # Assert: root file STILL exists (protected by execute_moves safety layer)
+        assert (
             tmp_path / "DEBUG_LOG.md"
-        ).exists(), "Root duplicate should be removed after move"
+        ).exists(), "Root SOT file should remain (protected by execute_moves safety layer)"
 
-        # Assert: file exists in archive/superseded
-        superseded_file = (
-            tmp_path / "archive" / "superseded" / "root_sot_duplicates" / "DEBUG_LOG.md"
-        )
-        assert (
-            superseded_file.exists()
-        ), "File should exist in archive/superseded/root_sot_duplicates/"
+        # Assert: docs version unchanged
+        assert (docs_dir / "DEBUG_LOG.md").read_text(
+            encoding="utf-8"
+        ) == content, "Docs version should be unchanged"
 
-        # Assert: content preserved
+        # Check output mentions protection
+        captured = capsys.readouterr()
         assert (
-            superseded_file.read_text(encoding="utf-8") == content
-        ), "Content should be preserved in archive"
+            "BLOCKED" in captured.out or "SOT file protection" in captured.out
+        ), "Should indicate SOT file protection"
 
 
 class TestFailFastBehavior:

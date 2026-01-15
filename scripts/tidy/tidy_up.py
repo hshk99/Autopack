@@ -1025,6 +1025,12 @@ def check_docs_hygiene(
     # Check files in docs/
     for item in docs_dir.iterdir():
         if item.is_file():
+            # CRITICAL SAFETY: Double-check that SOT files are NEVER moved, even if classification logic fails
+            if item.name in DOCS_SOT_FILES:
+                if verbose:
+                    print(f"[DOCS-HYGIENE][PROTECTED] SOT file preserved: {item.name}")
+                continue
+
             if not is_docs_file_allowed(item.name):
                 if reduce_to_sot:
                     # Move to archive
@@ -1213,6 +1219,24 @@ def execute_moves(
     if not moves:
         return 0, 0
 
+    # CRITICAL SAFETY: Filter out any SOT files that somehow made it to the move list
+    # This is a final defense-in-depth layer to prevent data loss
+    blocked_moves = []
+    safe_moves = []
+    for src, dest in moves:
+        if src.name in DOCS_SOT_FILES or dest.name in DOCS_SOT_FILES:
+            blocked_moves.append((src, dest))
+            print(f"[BLOCKED] SOT file protection: {src.name} will NOT be moved (safety override)")
+        else:
+            safe_moves.append((src, dest))
+
+    if blocked_moves:
+        print(
+            f"\n[SAFETY] Blocked {len(blocked_moves)} SOT file move(s) - these files are protected and must stay in docs/"
+        )
+
+    moves = safe_moves
+
     succeeded = 0
     failed = 0
     failed_moves = []
@@ -1377,7 +1401,9 @@ def main():
     # Scope
     parser.add_argument("--project", default="autopack", help="Project scope (default: autopack)")
     parser.add_argument(
-        "--scope", nargs="+", help="Additional roots to tidy (overrides tidy_scope.yaml)"
+        "--scope",
+        nargs="+",
+        help="Additional archive roots to consolidate (e.g., .autonomous_runs, archive). NEVER include docs/ - it has its own phase.",
     )
 
     # Docs hygiene
@@ -1575,6 +1601,43 @@ def main():
         docs_dir = repo_root / "docs"
     else:
         docs_dir = repo_root / ".autonomous_runs" / args.project / "docs"
+
+    # SAFETY: Validate --scope parameter early to prevent protected directories from being tidied
+    if args.scope:
+        PROTECTED_FROM_SCOPE = {
+            "docs",
+            "docs/",
+            "src",
+            "src/",
+            "tests",
+            "tests/",
+            ".git",
+            ".git/",
+            ".github",
+            ".github/",
+        }
+        invalid_roots = [
+            r
+            for r in args.scope
+            if r.rstrip("/") in PROTECTED_FROM_SCOPE
+            or r.rstrip("/").split("/")[-1] in PROTECTED_FROM_SCOPE
+        ]
+        if invalid_roots:
+            print(f"\n{'='*70}")
+            print("[ERROR] Invalid --scope: Cannot include protected directories")
+            print(f"{'='*70}")
+            print(f"\nProtected directories: {', '.join(sorted(PROTECTED_FROM_SCOPE))}")
+            print(f"You specified: {', '.join(invalid_roots)}")
+            print("\nThese directories have dedicated phases and should NEVER be in --scope:")
+            print("  - docs/       -> Phase 2 (Docs Hygiene) - use --docs-reduce-to-sot if needed")
+            print("  - src/tests/  -> Never tidied (source code)")
+            print("  - .git/       -> Never tidied (version control)")
+            print("\n--scope is ONLY for archive consolidation roots like:")
+            print("  - .autonomous_runs")
+            print("  - archive")
+            print("  - .autonomous_runs/<project-name>")
+            print(f"{'='*70}\n")
+            return 1
 
     # BUILD-161: Early exit for lock status/break commands (before lease acquisition)
     # BUILD-162: Added --ascii/--unicode and --all support

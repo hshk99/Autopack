@@ -16,6 +16,7 @@ import os
 import subprocess
 import csv
 import logging
+import tempfile
 from pathlib import Path
 from typing import List, Optional
 from datetime import datetime, timezone
@@ -114,10 +115,10 @@ class WizTreeScanner:
             return self.fallback_scanner.scan_drive(drive_letter, max_depth, max_items)
 
         try:
-            # Create temp CSV file
+            # Create temp CSV file in OS temp directory
             timestamp = int(datetime.now().timestamp())
-            csv_path = Path(f"c:/temp/wiztree_scan_{drive_letter}_{timestamp}.csv")
-            csv_path.parent.mkdir(parents=True, exist_ok=True)
+            temp_dir = Path(tempfile.gettempdir())
+            csv_path = temp_dir / f"wiztree_scan_{drive_letter}_{timestamp}.csv"
 
             # Build command
             # Note: WizTree CLI returns exit code 0 even on some errors, so we check CSV validity
@@ -294,8 +295,8 @@ class WizTreeScanner:
 
         try:
             timestamp = int(datetime.now().timestamp())
-            csv_path = Path(f"c:/temp/wiztree_scan_dir_{timestamp}.csv")
-            csv_path.parent.mkdir(parents=True, exist_ok=True)
+            temp_dir = Path(tempfile.gettempdir())
+            csv_path = temp_dir / f"wiztree_scan_dir_{timestamp}.csv"
 
             # Build command
             cmd = [

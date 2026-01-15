@@ -185,7 +185,12 @@ class DeepRetrieval:
     def _retrieve_sot_files(
         self, phase_id: str, handoff_bundle: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
-        """Retrieve SOT files with relevance ranking.
+        """Retrieve SOT files with relevance ranking using capped reads.
+
+        To avoid expensive full-file reads:
+        1. Rank using capped chunk (first 16KB) for score only
+        2. Extract targeted context windows around keyword hits
+        3. Fall back to head+tail sample if no keyword hits
 
         Args:
             phase_id: Current phase identifier
@@ -212,7 +217,7 @@ class DeepRetrieval:
             for pattern in ["**/*.md", "**/*.py"]:
                 candidate_files.extend(sot_dir.glob(pattern))
 
-        # Rank by relevance (keyword matches)
+        # Rank by relevance (keyword matches using capped reads)
         ranked_files = self._rank_by_relevance(candidate_files, keywords)
 
         for sot_file, score in ranked_files[: self.MAX_SOT_FILES]:
@@ -220,8 +225,10 @@ class DeepRetrieval:
                 break
 
             try:
-                content = sot_file.read_text(encoding="utf-8")
-                # Truncate if needed
+                # Extract context window (targeted extraction, not full file)
+                content = self._extract_context_window(sot_file, keywords)
+
+                # Truncate if needed to stay within budget
                 remaining_budget = self.MAX_SOT_FILES_SIZE - total_size
                 if len(content) > remaining_budget:
                     content = content[:remaining_budget]
@@ -289,7 +296,12 @@ class DeepRetrieval:
     def _rank_by_relevance(
         self, files: List[Path], keywords: List[str]
     ) -> List[Tuple[Path, float]]:
-        """Rank files by keyword relevance.
+        """Rank files by keyword relevance using capped reads.
+
+        To avoid expensive full-file reads, we:
+        1. Score using only first 16KB of file (for ranking)
+        2. Extract targeted context windows around keyword hits
+        3. Fall back to head+tail sample if no keywords match
 
         Args:
             files: List of candidate files
@@ -305,9 +317,10 @@ class DeepRetrieval:
         scored_files = []
         for file in files:
             try:
-                content = file.read_text(encoding="utf-8").lower()
-                # Count keyword matches
-                score = sum(content.count(kw) for kw in keywords)
+                # Step 1: Score using capped chunk (first 16KB for ranking only)
+                chunk = self._read_capped_chunk(file, 16 * 1024)  # 16KB
+                chunk_lower = chunk.lower()
+                score = sum(chunk_lower.count(kw) for kw in keywords)
                 scored_files.append((file, float(score)))
             except Exception as e:
                 self.logger.debug(f"Could not score file {file}: {e}")
@@ -316,6 +329,101 @@ class DeepRetrieval:
         # Sort by score descending
         scored_files.sort(key=lambda x: x[1], reverse=True)
         return scored_files
+
+    def _read_capped_chunk(self, file: Path, max_bytes: int) -> str:
+        """Read a capped chunk of file for scoring (not full context).
+
+        Args:
+            file: File to read
+            max_bytes: Maximum bytes to read
+
+        Returns:
+            File content (up to max_bytes)
+
+        Raises:
+            Exception: If file cannot be read
+        """
+        content = file.read_text(encoding="utf-8")
+        if len(content) > max_bytes:
+            content = content[:max_bytes]
+        return content
+
+    def _extract_context_window(
+        self, file: Path, keywords: List[str], window_size: int = 256
+    ) -> str:
+        """Extract targeted context windows around keyword hits.
+
+        If keywords are found, returns text chunks around each hit.
+        If no keywords found, returns head+tail sample instead of full file.
+
+        Args:
+            file: File to extract context from
+            keywords: Keywords to search for
+            window_size: Bytes of context around each keyword hit
+
+        Returns:
+            Extracted context string
+        """
+        try:
+            content = file.read_text(encoding="utf-8")
+            content_lower = content.lower()
+
+            # Find all keyword hit positions
+            hit_positions = []
+            for keyword in keywords:
+                search_pos = 0
+                while True:
+                    pos = content_lower.find(keyword, search_pos)
+                    if pos == -1:
+                        break
+                    hit_positions.append(pos)
+                    search_pos = pos + 1
+
+            if not hit_positions:
+                # No keyword hits - use head+tail sample instead of full file
+                return self._extract_head_tail_sample(content)
+
+            # Extract windows around hits
+            hit_positions.sort()
+            windows = []
+            last_end = -1
+
+            for pos in hit_positions:
+                start = max(0, pos - window_size)
+                end = min(len(content), pos + window_size)
+
+                # Avoid duplicate/overlapping windows
+                if start <= last_end:
+                    continue
+
+                windows.append(content[start:end])
+                last_end = end
+
+            return "\n...\n".join(windows)
+
+        except Exception as e:
+            self.logger.debug(f"Could not extract context window from {file}: {e}")
+            return ""
+
+    def _extract_head_tail_sample(
+        self, content: str, head_size: int = 512, tail_size: int = 512
+    ) -> str:
+        """Extract head+tail sample when no keyword hits found.
+
+        Args:
+            content: Full file content
+            head_size: Bytes to extract from start
+            tail_size: Bytes to extract from end
+
+        Returns:
+            Head + tail sample string
+        """
+        if len(content) <= (head_size + tail_size):
+            return content
+
+        head = content[:head_size]
+        tail = content[-tail_size:]
+        return f"{head}\n...\n{tail}"
 
 
 # -------------------------------------------------------------------------------------------------

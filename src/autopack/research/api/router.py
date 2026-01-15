@@ -16,7 +16,9 @@ See: docs/guides/RESEARCH_QUARANTINE.md for resolution path.
 
 import logging
 import os
+from datetime import datetime
 from functools import wraps
+from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
 from typing import List
@@ -86,9 +88,9 @@ async def create_research_session(session: CreateResearchSession):
     QUARANTINE: This endpoint is disabled in production.
     """
     new_session = ResearchSession(
-        session_id="session_" + str(len(research_sessions) + 1),
+        session_id=str(uuid4()),
         status="active",
-        created_at="2025-12-20T12:00:00Z",
+        created_at=datetime.utcnow().isoformat() + "Z",
         topic=session.topic,
         description=session.description,
     )

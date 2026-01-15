@@ -11,6 +11,8 @@ Phase 5: Outbound egress allowlist / SSRF guardrails
 
 from __future__ import annotations
 
+import fnmatch
+import ipaddress
 import logging
 from typing import Optional
 from urllib.parse import urlparse
@@ -19,6 +21,49 @@ from autopack.config import settings
 from autopack.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
+
+
+def _is_host_allowed(host: str, allowed_entries: list[str]) -> bool:
+    """Check if a host matches any entries in the allowlist.
+
+    Supports:
+    - Exact matches: "api.anthropic.com"
+    - Wildcard patterns: "*.anthropic.com" (uses fnmatch)
+    - CIDR ranges: "192.168.0.0/16" (requires numeric IP hosts)
+
+    Args:
+        host: The hostname to check (FQDN or IP address)
+        allowed_entries: List of allowed hostnames, wildcards, or CIDR ranges
+
+    Returns:
+        True if host matches any entry, False otherwise
+    """
+    for entry in allowed_entries:
+        # Try exact match first (most common case)
+        if host == entry:
+            return True
+
+        # Try wildcard pattern (e.g., "*.domain.com")
+        if fnmatch.fnmatch(host, entry):
+            return True
+
+        # Try CIDR notation (e.g., "192.168.0.0/16")
+        try:
+            # Only attempt CIDR parsing if entry contains "/" and host is an IP
+            if "/" in entry:
+                try:
+                    host_ip = ipaddress.ip_address(host)
+                    network = ipaddress.ip_network(entry, strict=False)
+                    if host_ip in network:
+                        return True
+                except (ValueError, ipaddress.NetmaskValueError):
+                    # host is not a valid IP or entry is not a valid CIDR
+                    pass
+        except Exception:
+            # Skip malformed CIDR entries
+            pass
+
+    return False
 
 
 def validate_outbound_host(url: str, operation: Optional[str] = None) -> None:
@@ -54,8 +99,8 @@ def validate_outbound_host(url: str, operation: Optional[str] = None) -> None:
             )
             return
 
-        # Check if host is in allowlist
-        if host not in settings.allowed_external_hosts:
+        # Check if host is in allowlist (supports exact, wildcard, and CIDR matching)
+        if not _is_host_allowed(host, settings.allowed_external_hosts):
             msg = (
                 f"Outbound call to {host} blocked by egress allowlist. "
                 f"Allowed hosts: {', '.join(settings.allowed_external_hosts)}"

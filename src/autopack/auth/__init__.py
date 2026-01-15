@@ -17,7 +17,9 @@ Exports:
 
 from .router import router
 from .oauth_router import router as oauth_router
-from .models import User
+from .api_key_router import router as api_key_router
+from .models import User, APIKey
+from .api_key import require_api_key, optional_api_key, generate_api_key
 from .schemas import (
     Token,
     UserCreate,
@@ -51,8 +53,14 @@ __all__ = [
     # Routers
     "router",
     "oauth_router",
-    # Model
+    "api_key_router",
+    # Models
     "User",
+    "APIKey",
+    # API Key Auth
+    "require_api_key",
+    "optional_api_key",
+    "generate_api_key",
     # Schemas
     "Token",
     "UserCreate",

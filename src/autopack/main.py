@@ -111,9 +111,10 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_exception_handler(Exception, global_exception_handler)
 
 # Mount authentication router (BUILD-146 P12 Phase 5: migrated to autopack.auth)
-from autopack.auth import router as auth_router
+from autopack.auth import router as auth_router, api_key_router
 
 app.include_router(auth_router, tags=["authentication"])
+app.include_router(api_key_router, tags=["api-keys"])
 
 # Mount research router
 from autopack.research.api.router import research_router

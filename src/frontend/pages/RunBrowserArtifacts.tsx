@@ -2,16 +2,141 @@
  * Run Browser Artifacts page component (GAP-8.10.3)
  *
  * Displays browser-specific artifacts (screenshots, HTML) for a run.
+ * Images are loaded via authenticated fetch using apiFetch client.
  */
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { fetchBrowserArtifacts, BrowserArtifact } from '../api/runs';
+import { apiFetch } from '../api/client';
+import { useAuthenticatedImage } from '../hooks/useAuthenticatedImage';
 
 const RunBrowserArtifacts: React.FC = () => {
   const { runId } = useParams<{ runId: string }>();
   const [artifacts, setArtifacts] = useState<BrowserArtifact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Component to render a single screenshot with authenticated loading
+   */
+  const ScreenshotCard: React.FC<{ artifact: BrowserArtifact }> = ({ artifact }) => {
+    const imagePath = `/runs/${runId}/artifacts/file?path=${encodeURIComponent(artifact.path)}`;
+    const { objectUrl, loading: imageLoading, error: imageError } = useAuthenticatedImage(imagePath);
+
+    return (
+      <div
+        style={{
+          border: '1px solid #dee2e6',
+          borderRadius: '8px',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            height: '200px',
+            backgroundColor: '#f8f9fa',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {imageLoading && <p style={{ color: '#666' }}>Loading...</p>}
+          {imageError && <p style={{ color: '#dc3545', textAlign: 'center' }}>Error: {imageError}</p>}
+          {objectUrl && (
+            <img
+              src={objectUrl}
+              alt={artifact.path}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '100%',
+                objectFit: 'contain',
+              }}
+            />
+          )}
+        </div>
+        <div style={{ padding: '12px' }}>
+          <div
+            style={{
+              fontWeight: 500,
+              marginBottom: '4px',
+              wordBreak: 'break-word',
+            }}
+          >
+            {artifact.path}
+          </div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            {formatSize(artifact.size_bytes)} |{' '}
+            {formatDate(artifact.modified_at)}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /**
+   * Component to render HTML file row with authenticated view link
+   */
+  const HtmlFileRow: React.FC<{ artifact: BrowserArtifact }> = ({ artifact }) => {
+    const [htmlUrl, setHtmlUrl] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleViewClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+      e.preventDefault();
+
+      if (htmlUrl) {
+        // Already loaded, open in new tab
+        window.open(htmlUrl, '_blank');
+        return;
+      }
+
+      try {
+        // Fetch HTML with authenticated client
+        const response = await apiFetch(
+          `/runs/${runId}/artifacts/file?path=${encodeURIComponent(artifact.path)}`
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to load HTML: ${response.statusText}`);
+        }
+
+        const htmlText = await response.text();
+        const htmlBlob = new Blob([htmlText], { type: 'text/html' });
+        const url = URL.createObjectURL(htmlBlob);
+        setHtmlUrl(url);
+
+        // Open in new tab after creating URL
+        window.open(url, '_blank');
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to load HTML';
+        setError(errorMsg);
+      }
+    };
+
+    return (
+      <tr style={{ borderBottom: '1px solid #dee2e6' }}>
+        <td style={{ padding: '12px' }}>{artifact.path}</td>
+        <td style={{ padding: '12px', textAlign: 'right' }}>
+          {formatSize(artifact.size_bytes)}
+        </td>
+        <td style={{ padding: '12px' }}>
+          {formatDate(artifact.modified_at)}
+        </td>
+        <td style={{ padding: '12px', textAlign: 'center' }}>
+          {error ? (
+            <span style={{ color: '#dc3545', fontSize: '12px' }}>Error: {error}</span>
+          ) : (
+            <a
+              href="#"
+              onClick={handleViewClick}
+              style={{ cursor: 'pointer' }}
+            >
+              View
+            </a>
+          )}
+        </td>
+      </tr>
+    );
+  };
 
   useEffect(() => {
     const loadArtifacts = async () => {
@@ -73,49 +198,7 @@ const RunBrowserArtifacts: React.FC = () => {
                     }}
                   >
                     {screenshots.map((artifact) => (
-                      <div
-                        key={artifact.path}
-                        style={{
-                          border: '1px solid #dee2e6',
-                          borderRadius: '8px',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <div
-                          style={{
-                            height: '200px',
-                            backgroundColor: '#f8f9fa',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <img
-                            src={`/api/runs/${runId}/artifacts/file?path=${encodeURIComponent(artifact.path)}`}
-                            alt={artifact.path}
-                            style={{
-                              maxWidth: '100%',
-                              maxHeight: '100%',
-                              objectFit: 'contain',
-                            }}
-                          />
-                        </div>
-                        <div style={{ padding: '12px' }}>
-                          <div
-                            style={{
-                              fontWeight: 500,
-                              marginBottom: '4px',
-                              wordBreak: 'break-word',
-                            }}
-                          >
-                            {artifact.path}
-                          </div>
-                          <div style={{ fontSize: '12px', color: '#666' }}>
-                            {formatSize(artifact.size_bytes)} |{' '}
-                            {formatDate(artifact.modified_at)}
-                          </div>
-                        </div>
-                      </div>
+                      <ScreenshotCard key={artifact.path} artifact={artifact} />
                     ))}
                   </div>
                 </section>
@@ -154,27 +237,7 @@ const RunBrowserArtifacts: React.FC = () => {
                     </thead>
                     <tbody>
                       {htmlFiles.map((artifact) => (
-                        <tr
-                          key={artifact.path}
-                          style={{ borderBottom: '1px solid #dee2e6' }}
-                        >
-                          <td style={{ padding: '12px' }}>{artifact.path}</td>
-                          <td style={{ padding: '12px', textAlign: 'right' }}>
-                            {formatSize(artifact.size_bytes)}
-                          </td>
-                          <td style={{ padding: '12px' }}>
-                            {formatDate(artifact.modified_at)}
-                          </td>
-                          <td style={{ padding: '12px', textAlign: 'center' }}>
-                            <a
-                              href={`/api/runs/${runId}/artifacts/file?path=${encodeURIComponent(artifact.path)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              View
-                            </a>
-                          </td>
-                        </tr>
+                        <HtmlFileRow key={artifact.path} artifact={artifact} />
                       ))}
                     </tbody>
                   </table>

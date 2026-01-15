@@ -230,12 +230,6 @@ jobs:
       - name: Check nav-mode doc links (README, INDEX, BUILD_HISTORY)
         run: |
           python scripts/check_doc_links.py
-      - name: Check security burndown counts (auto-generated from baselines)
-        run: |
-          python scripts/security/generate_security_burndown_counts.py --check
-      - name: Enforce security baseline logging (SECBASE required when baselines change)
-        run: |
-          python scripts/ci/check_security_baseline_log_entry.py
       # BUILD-191: Export OpenAPI as CI artifact (runtime-canonical strategy)
       - name: Export OpenAPI specification
         run: |

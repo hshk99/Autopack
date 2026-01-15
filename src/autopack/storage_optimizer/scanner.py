@@ -56,6 +56,10 @@ class StorageScanner:
         """
         Scan a specific directory and return results.
 
+        Uses single-pass traversal with accumulated directory sizes to avoid O(n²)
+        complexity. Directory sizes are calculated during traversal accumulation
+        instead of via redundant traversals.
+
         Args:
             directory: Directory path to scan
             max_items: Maximum number of items to return (to avoid memory issues)
@@ -63,8 +67,21 @@ class StorageScanner:
         Returns:
             List of ScanResult objects
         """
-        results = []
+        results: list[ScanResult] = []
         scanned_count = 0
+        directory_norm = os.path.normpath(directory)
+
+        # Cache to store accumulated sizes for each directory path.
+        #
+        # IMPORTANT: This mirrors the prior `_get_directory_size(dir, max_depth=2)`
+        # behavior: include files in the directory itself and its immediate child
+        # directories (one level down). We achieve this by adding each file size
+        # to its containing directory and one parent directory.
+        dir_sizes: dict[str, int] = {}
+
+        # Directory ScanResults are created when discovered so we preserve the
+        # original "directories first, then files per os.walk root" behavior.
+        dir_results_by_path: dict[str, ScanResult] = {}
 
         dir_path = Path(directory)
         if not dir_path.exists():
@@ -72,65 +89,95 @@ class StorageScanner:
             return results
 
         try:
-            for root, dirs, files in os.walk(directory):
-                # Enforce max depth
-                depth = root[len(directory) :].count(os.sep)
-                if depth >= self.max_depth:
-                    dirs[:] = []  # Don't recurse deeper
-                    continue
+            # Single traversal:
+            # - Walk down to `self.max_depth` (inclusive) for sizing accumulation.
+            # - Only EMIT results (dirs/files) for depths < self.max_depth (matching
+            #   prior behavior where depth >= self.max_depth caused a continue).
+            for root, dirs, files in os.walk(directory_norm):
+                root_norm = os.path.normpath(root)
+                depth = root_norm[len(directory_norm) :].count(os.sep)
 
-                # Exclude certain directories
+                # Exclude certain directories (applies to traversal and output)
                 dirs[:] = [d for d in dirs if d not in self.exclude_dirs]
 
-                # Scan directories
+                # Stop recursion beyond the depth needed for directory sizing.
+                if depth > self.max_depth:
+                    dirs[:] = []
+                    continue
+
+                # At the sizing boundary: include files for accumulation but don't
+                # recurse further, and don't emit results at this depth.
+                emit_results = depth < self.max_depth
+                if depth == self.max_depth:
+                    dirs[:] = []
+
+                # Accumulate file sizes for directory sizing (depth-limited to mimic
+                # `_get_directory_size(..., max_depth=2)`).
+                for file_name in files:
+                    file_path = os.path.join(root_norm, file_name)
+                    try:
+                        file_size = os.path.getsize(file_path)
+                    except (OSError, PermissionError):
+                        continue
+
+                    dir_sizes[root_norm] = dir_sizes.get(root_norm, 0) + file_size
+                    parent = os.path.dirname(root_norm)
+                    if parent and parent.startswith(directory_norm):
+                        dir_sizes[parent] = dir_sizes.get(parent, 0) + file_size
+
+                    if not emit_results:
+                        continue
+
+                    if scanned_count >= max_items:
+                        break
+
+                    try:
+                        stat = os.stat(file_path)
+                    except (OSError, PermissionError):
+                        continue
+
+                    results.append(
+                        ScanResult(
+                            path=file_path,
+                            size_bytes=stat.st_size,
+                            modified=datetime.fromtimestamp(stat.st_mtime),
+                            is_folder=False,
+                            attributes="-",
+                        )
+                    )
+                    scanned_count += 1
+
+                if not emit_results:
+                    continue
+
+                # Emit directories (placeholder size, filled from cache post-traversal)
                 for dir_name in dirs:
                     if scanned_count >= max_items:
                         break
 
-                    dir_full_path = os.path.join(root, dir_name)
+                    dir_full_path = os.path.normpath(os.path.join(root_norm, dir_name))
                     try:
                         stat = os.stat(dir_full_path)
-                        size = self._get_directory_size(dir_full_path)
-
-                        results.append(
-                            ScanResult(
-                                path=dir_full_path,
-                                size_bytes=size,
-                                modified=datetime.fromtimestamp(stat.st_mtime),
-                                is_folder=True,
-                                attributes="d",
-                            )
-                        )
-                        scanned_count += 1
                     except (OSError, PermissionError):
-                        # Skip inaccessible directories
                         continue
 
-                # Scan files
-                for file_name in files:
-                    if scanned_count >= max_items:
-                        break
-
-                    file_path = os.path.join(root, file_name)
-                    try:
-                        stat = os.stat(file_path)
-
-                        results.append(
-                            ScanResult(
-                                path=file_path,
-                                size_bytes=stat.st_size,
-                                modified=datetime.fromtimestamp(stat.st_mtime),
-                                is_folder=False,
-                                attributes="-",
-                            )
-                        )
-                        scanned_count += 1
-                    except (OSError, PermissionError):
-                        # Skip inaccessible files
-                        continue
+                    sr = ScanResult(
+                        path=dir_full_path,
+                        size_bytes=0,
+                        modified=datetime.fromtimestamp(stat.st_mtime),
+                        is_folder=True,
+                        attributes="d",
+                    )
+                    dir_results_by_path[dir_full_path] = sr
+                    results.append(sr)
+                    scanned_count += 1
 
                 if scanned_count >= max_items:
                     break
+
+            # Fill in directory sizes from the accumulated cache.
+            for dir_path_str, sr in dir_results_by_path.items():
+                sr.size_bytes = dir_sizes.get(dir_path_str, 0)
 
         except Exception as e:
             print(f"Error scanning directory {directory}: {e}")

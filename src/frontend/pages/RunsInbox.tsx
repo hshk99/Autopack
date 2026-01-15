@@ -39,9 +39,31 @@ const RunsInbox: React.FC = () => {
   };
 
   const getStateColor = (state: string): string => {
-    if (state.includes('SUCCESS') || state === 'COMPLETED') return '#28a745';
-    if (state.includes('FAILED') || state === 'FAILED') return '#dc3545';
-    if (state === 'IN_PROGRESS' || state === 'RUNNING') return '#007bff';
+    // Success states (green)
+    if (state === 'DONE_SUCCESS' || state === 'COMPLETED') return '#28a745';
+
+    // Failed states (red)
+    if (state === 'DONE_FAILED_BUDGET_EXHAUSTED' ||
+        state === 'DONE_FAILED_POLICY_VIOLATION' ||
+        state === 'DONE_FAILED_REQUIRES_HUMAN_REVIEW' ||
+        state === 'DONE_FAILED_ENVIRONMENT' ||
+        state === 'FAILED') return '#dc3545';
+
+    // In-progress/execution states (blue)
+    if (state === 'PHASE_EXECUTION' ||
+        state === 'PHASE_QUEUEING' ||
+        state === 'CI_RUNNING' ||
+        state === 'IN_PROGRESS' ||
+        state === 'RUNNING' ||
+        state === 'EXECUTING') return '#007bff';
+
+    // Bootstrap/planning states (yellow/warning)
+    if (state === 'PLAN_BOOTSTRAP' ||
+        state === 'RUN_CREATED' ||
+        state === 'GATE' ||
+        state === 'SNAPSHOT_CREATED') return '#ffc107';
+
+    // Default/queued states (grey)
     return '#6c757d';
   };
 

@@ -16,6 +16,11 @@ from autopack.database import ensure_session_healthy, SESSION_HEALTH_CHECK_INTER
 from autopack.memory import extract_goal_from_description
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.telemetry.analyzer import TelemetryAnalyzer
+from autopack.autonomous.budgeting import (
+    BudgetExhaustedError,
+    is_budget_exhausted,
+    get_budget_remaining_pct,
+)
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
@@ -377,6 +382,26 @@ class AutonomousLoop:
             phase_id = next_phase.get("phase_id")
             phase_type = next_phase.get("phase_type")
             logger.info(f"[BUILD-041] Next phase: {phase_id}")
+
+            # IMP-COST-001: Check budget exhaustion BEFORE phase execution
+            tokens_used = getattr(self.executor, "_run_tokens_used", 0)
+            token_cap = settings.run_token_cap
+            if is_budget_exhausted(token_cap, tokens_used):
+                budget_remaining = get_budget_remaining_pct(token_cap, tokens_used)
+                error_msg = (
+                    f"Run aborted: token budget exhausted ({tokens_used}/{token_cap} tokens used). "
+                    f"Budget remaining: {budget_remaining:.1%}. "
+                    f"Increase run_token_cap in config or review phase efficiency."
+                )
+                logger.critical(f"[BUDGET_EXHAUSTED] {error_msg}")
+                stop_reason = "budget_exhausted"
+                raise BudgetExhaustedError(error_msg)
+
+            # Log budget status before each phase
+            budget_pct = get_budget_remaining_pct(token_cap, tokens_used) * 100
+            logger.info(
+                f"Phase {phase_id}: Budget remaining {budget_pct:.1f}% ({tokens_used}/{token_cap} tokens)"
+            )
 
             # Telemetry-driven phase adjustments (IMP-TEL-002)
             phase_adjustments = self._get_telemetry_adjustments(phase_type)

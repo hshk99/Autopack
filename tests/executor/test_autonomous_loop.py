@@ -301,6 +301,7 @@ class TestExecuteLoopPhaseHandling:
         mock_executor = Mock()
         mock_executor.run_id = "test-run"
         mock_executor._phase_failure_counts = {}
+        mock_executor._run_tokens_used = 0  # IMP-COST-001: Budget check needs integer
         mock_executor.get_run_status.return_value = {"phases": [{"phase_id": "phase-1"}]}
         mock_executor.get_next_queued_phase.return_value = {"phase_id": "phase-1"}
         mock_executor.execute_phase.return_value = (True, "COMPLETE")
@@ -319,6 +320,7 @@ class TestExecuteLoopPhaseHandling:
         mock_executor = Mock()
         mock_executor.run_id = "test-run"
         mock_executor._phase_failure_counts = {}
+        mock_executor._run_tokens_used = 0  # IMP-COST-001: Budget check needs integer
         mock_executor.get_run_status.return_value = {}
         mock_executor.get_next_queued_phase.return_value = None
         mock_executor._detect_and_reset_stale_phases = Mock(

@@ -8,6 +8,7 @@ Provides:
 - Telemetry-driven model selection optimization (ROAD-L)
 - Meta-metrics for feedback loop quality (ROAD-K)
 - Causal analysis for change impact assessment (ROAD-H)
+- Regression protection to prevent fixed issues from reoccurring (ROAD-I)
 """
 
 from autopack.telemetry.analyzer import TelemetryAnalyzer, RankedIssue
@@ -38,6 +39,14 @@ from autopack.telemetry.causal_analysis import (
     CausalRelationship,
     CausalAnalysisReport,
 )
+from autopack.telemetry.regression_protector import (
+    RegressionProtector,
+    IssueFix,
+    IssueType,
+    RegressionSeverity,
+    RegressionDetection,
+    FixStabilityReport,
+)
 
 __all__ = [
     "TelemetryAnalyzer",
@@ -63,4 +72,10 @@ __all__ = [
     "OutcomeMetric",
     "CausalRelationship",
     "CausalAnalysisReport",
+    "RegressionProtector",
+    "IssueFix",
+    "IssueType",
+    "RegressionSeverity",
+    "RegressionDetection",
+    "FixStabilityReport",
 ]

@@ -254,3 +254,70 @@ class CircuitBreaker:
         with self._lock:
             self._update_state()
             return self.state != CircuitState.OPEN
+
+    def to_dict(self) -> dict:
+        """Serialize circuit breaker state to dictionary.
+
+        Returns:
+            Dictionary representation of circuit breaker state for persistence.
+        """
+        with self._lock:
+            return {
+                "name": self.name,
+                "state": self.state.value,
+                "failure_count": self.failure_count,
+                "success_count": self.success_count,
+                "last_failure_time": self.last_failure_time,
+                "last_state_change": self.last_state_change,
+                "config": {
+                    "failure_threshold": self.config.failure_threshold,
+                    "success_threshold": self.config.success_threshold,
+                    "timeout": self.config.timeout,
+                    "half_open_timeout": self.config.half_open_timeout,
+                },
+                "metrics": {
+                    "total_calls": self.metrics.total_calls,
+                    "successful_calls": self.metrics.successful_calls,
+                    "failed_calls": self.metrics.failed_calls,
+                    "rejected_calls": self.metrics.rejected_calls,
+                    "state_transitions": self.metrics.state_transitions.copy(),
+                },
+            }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CircuitBreaker":
+        """Restore circuit breaker from dictionary.
+
+        Args:
+            data: Dictionary from to_dict()
+
+        Returns:
+            Restored CircuitBreaker instance
+        """
+        config_data = data.get("config", {})
+        config = CircuitBreakerConfig(
+            failure_threshold=config_data.get("failure_threshold", 5),
+            success_threshold=config_data.get("success_threshold", 2),
+            timeout=config_data.get("timeout", 60.0),
+            half_open_timeout=config_data.get("half_open_timeout", 30.0),
+        )
+
+        cb = cls(name=data["name"], config=config)
+
+        # Restore state
+        cb.state = CircuitState(data.get("state", "closed"))
+        cb.failure_count = data.get("failure_count", 0)
+        cb.success_count = data.get("success_count", 0)
+        cb.last_failure_time = data.get("last_failure_time")
+        cb.last_state_change = data.get("last_state_change", time.time())
+
+        # Restore metrics
+        metrics_data = data.get("metrics", {})
+        cb.metrics.total_calls = metrics_data.get("total_calls", 0)
+        cb.metrics.successful_calls = metrics_data.get("successful_calls", 0)
+        cb.metrics.failed_calls = metrics_data.get("failed_calls", 0)
+        cb.metrics.rejected_calls = metrics_data.get("rejected_calls", 0)
+        cb.metrics.state_transitions = metrics_data.get("state_transitions", {}).copy()
+
+        logger.debug(f"Restored circuit breaker '{cb.name}' in state {cb.state.value}")
+        return cb

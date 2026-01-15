@@ -12,6 +12,7 @@ from typing import Dict, Optional, TYPE_CHECKING
 
 from autopack.config import settings
 from autopack.archive_consolidator import log_build_event
+from autopack.database import ensure_session_healthy, SESSION_HEALTH_CHECK_INTERVAL
 from autopack.memory import extract_goal_from_description
 from autopack.learned_rules import promote_hints_to_rules
 
@@ -36,6 +37,7 @@ class AutonomousLoop:
         self.poll_interval = 0.5  # Base polling interval
         self.idle_backoff_multiplier = 2.0  # Backoff when idle
         self.max_idle_sleep = 5.0  # Maximum sleep time when idle
+        self._last_session_health_check = time.time()  # Track last health check
 
     def _adaptive_sleep(self, is_idle: bool = False, base_interval: Optional[float] = None):
         """Sleep with adaptive backoff when idle to reduce CPU usage.
@@ -215,6 +217,14 @@ class AutonomousLoop:
                     stop_signal_file.unlink()  # Remove signal file
                     stop_reason = "stop_signal"
                     break
+
+            # Periodic database session health check (prevents stale connections in long runs)
+            current_time = time.time()
+            if current_time - self._last_session_health_check >= SESSION_HEALTH_CHECK_INTERVAL:
+                if hasattr(self.executor, "db_session") and self.executor.db_session:
+                    ensure_session_healthy(self.executor.db_session)
+                    self._last_session_health_check = current_time
+                    logger.debug("[SessionHealth] Periodic session health check completed")
 
             # Check iteration limit
             if max_iterations and iteration >= max_iterations:

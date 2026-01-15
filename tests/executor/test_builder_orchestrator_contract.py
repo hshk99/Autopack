@@ -322,6 +322,26 @@ class TestPreparePhaseSpec:
 
         mock_gate.assert_called_once()
 
+    def test_prepare_phase_spec_propagates_attempt_index(self, tmp_path: Path):
+        """Test that _prepare_phase_spec propagates attempt_index to manifest gate."""
+        orchestrator = make_builder_orchestrator(tmp_path)
+        context_info = {
+            "file_context": {"existing_files": {}},
+            "project_rules": [],
+            "run_hints": [],
+            "retrieved_context": "",
+        }
+
+        with patch.object(orchestrator.context_preflight, "decide_read_only") as mock_decide:
+            mock_decide.return_value = Mock(read_only=False, oversized_files=[])
+            with patch.object(orchestrator, "_run_deliverables_manifest_gate") as mock_gate:
+                orchestrator._prepare_phase_spec("phase-1", {}, context_info, attempt_index=2)
+
+        # Verify attempt_index was passed to the gate
+        mock_gate.assert_called_once()
+        call_args = mock_gate.call_args[0]
+        assert call_args[3] == 2  # attempt_index is 4th positional argument
+
     def test_prepare_phase_spec_adds_protected_paths(self, tmp_path: Path):
         """Test that _prepare_phase_spec adds protected paths."""
         orchestrator = make_builder_orchestrator(tmp_path)
@@ -394,6 +414,34 @@ class TestPreparePhaseSpec:
 
         # Should not call llm_service
         assert not orchestrator.llm_service.generate_deliverables_manifest.called
+
+    def test_run_deliverables_manifest_gate_uses_attempt_index(self, tmp_path: Path):
+        """Test that _run_deliverables_manifest_gate uses attempt_index in manifest generation."""
+        orchestrator = make_builder_orchestrator(tmp_path)
+        orchestrator.llm_service.generate_deliverables_manifest.return_value = (
+            True,
+            ["src/autopack/research/test.py"],
+            None,
+            "raw",
+        )
+
+        phase = {"scope": {"paths": ["src/autopack/research/"]}}
+        phase_with_constraints = {
+            "scope": {"paths": ["src/autopack/research/"]},
+            "deliverables_contract": {"required": []},
+        }
+
+        with patch(
+            "autopack.deliverables_validator.extract_deliverables_from_scope",
+            return_value=["src/autopack/research/test.py"],
+        ):
+            orchestrator._run_deliverables_manifest_gate(
+                "phase-1", phase, phase_with_constraints, attempt_index=3
+            )
+
+        # Verify generate_deliverables_manifest was called with attempt_index=3
+        call_kwargs = orchestrator.llm_service.generate_deliverables_manifest.call_args[1]
+        assert call_kwargs["attempt_index"] == 3
 
     def test_run_deliverables_manifest_gate_generates_manifest(self, tmp_path: Path):
         """Test that _run_deliverables_manifest_gate generates manifest."""

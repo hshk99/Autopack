@@ -226,6 +226,15 @@ class Settings(BaseSettings):
     run_max_phases: int = 25
     run_max_duration_minutes: int = 120
 
+    # IMP-STUCK-001: Per-phase wall-clock timeout (prevents runaway phases)
+    # Default: 15 minutes per phase (hard timeout)
+    # Soft warning at 50% (7.5 min) to prompt early intervention
+    phase_timeout_minutes: int = Field(
+        default=15,
+        validation_alias=AliasChoices("AUTOPACK_PHASE_TIMEOUT_MINUTES", "PHASE_TIMEOUT_MINUTES"),
+        description="Maximum wall-clock time per phase in minutes (hard timeout)",
+    )
+
     # IMP-COST-002: Per-phase budget controls
     # Default max tokens per phase (10% of run cap)
     phase_token_cap_default: int = Field(

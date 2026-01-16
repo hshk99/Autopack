@@ -64,6 +64,7 @@ class ExecutionContext:
     intention_wiring: Optional[Any] = None
     intention_anchor: Optional[Any] = None
     manifest_generator: Optional[Any] = None
+    time_watchdog: Optional[Any] = None  # IMP-STUCK-001: Wall-clock timeout tracking
 
     # State counters
     run_total_failures: int = 0
@@ -145,6 +146,11 @@ class PhaseOrchestrator:
         if phase_budget_result:
             return phase_budget_result
 
+        # IMP-STUCK-001: Check phase wall-clock timeout before execution
+        phase_timeout_result = self._check_phase_timeout(context)
+        if phase_timeout_result:
+            return phase_timeout_result
+
         # Check if already exhausted attempts
         if context.attempt_index >= self.max_retry_attempts:
             return self._create_exhausted_result(context)
@@ -170,8 +176,17 @@ class PhaseOrchestrator:
         Initialize goal anchoring and tracking for the phase.
 
         Tracks phase state for intention-first loop (BUILD-161 Phase A).
+        IMP-STUCK-001: Start phase timeout tracking.
         """
         phase_id = context.phase.get("phase_id")
+
+        # IMP-STUCK-001: Start tracking phase wall-clock time
+        if hasattr(context, "time_watchdog") and context.time_watchdog is not None:
+            context.time_watchdog.track_phase_start(phase_id)
+            timeout_min = settings.phase_timeout_minutes
+            logger.debug(
+                f"[IMP-STUCK-001] Phase {phase_id}: timeout tracking started ({timeout_min} min limit)"
+            )
 
         # INSERTION POINT 2: Track phase state for intention-first loop (BUILD-161 Phase A)
         if context.intention_wiring is not None:
@@ -293,6 +308,78 @@ class PhaseOrchestrator:
 
         return None  # Budget OK, proceed with execution
 
+    def _check_phase_timeout(self, context: ExecutionContext) -> Optional[ExecutionResult]:
+        """IMP-STUCK-001: Check if phase has exceeded wall-clock timeout.
+
+        Returns ExecutionResult if timeout exceeded, None if time OK to proceed.
+        Logs soft warning at 50% threshold without failing.
+        """
+        if not hasattr(context, "time_watchdog") or context.time_watchdog is None:
+            return None  # No watchdog configured, skip check
+
+        phase_id = context.phase.get("phase_id")
+        timeout_sec = settings.phase_timeout_minutes * 60
+
+        exceeded, elapsed, soft_warning = context.time_watchdog.check_phase_timeout(
+            phase_id, timeout_sec
+        )
+
+        if exceeded:
+            # Hard timeout - fail phase
+            elapsed_str = context.time_watchdog.format_elapsed(elapsed)
+            timeout_min = settings.phase_timeout_minutes
+            error_msg = (
+                f"Phase {phase_id} exceeded wall-clock timeout: {elapsed_str} > {timeout_min} min. "
+                f"This indicates a runaway phase burning run budget. "
+                f"Consider: 1) Reduce phase scope/complexity, 2) Check for infinite loops, "
+                f"3) Request timeout extension if legitimately needed."
+            )
+            logger.error(f"[PHASE_TIMEOUT_EXCEEDED] {error_msg}")
+
+            if context.mark_phase_failed_in_db:
+                context.mark_phase_failed_in_db(phase_id, "PHASE_WALL_CLOCK_TIMEOUT")
+
+            # Record telemetry for timeout
+            self._record_phase_outcome(
+                phase_id=phase_id,
+                run_id=context.run_id,
+                outcome="FAILED",
+                stop_reason="phase_wall_clock_timeout",
+                rationale=f"Exceeded {timeout_min}min timeout after {elapsed_str}",
+                tokens_used=getattr(context, "phase_tokens_used", None),
+                duration_seconds=elapsed,
+                model_used=getattr(context, "model_used", None),
+                phase_type=context.phase.get("category"),
+            )
+
+            return ExecutionResult(
+                success=False,
+                status="PHASE_WALL_CLOCK_TIMEOUT",
+                phase_result=PhaseResult.FAILED,
+                updated_counters={
+                    "total_failures": context.run_total_failures,
+                    "http_500_count": context.run_http_500_count,
+                    "patch_failure_count": context.run_patch_failure_count,
+                    "doctor_calls": context.run_doctor_calls,
+                    "replan_count": context.run_replan_count,
+                },
+                should_continue=False,
+            )
+
+        if soft_warning:
+            # Soft warning at 50% - log but continue
+            elapsed_str = context.time_watchdog.format_elapsed(elapsed)
+            remaining_sec = context.time_watchdog.get_phase_remaining_sec(phase_id, timeout_sec)
+            remaining_str = context.time_watchdog.format_elapsed(remaining_sec)
+            timeout_min = settings.phase_timeout_minutes
+            logger.warning(
+                f"[PHASE_TIMEOUT_WARNING] Phase {phase_id} has used {elapsed_str} "
+                f"(50% of {timeout_min} min timeout). Remaining: {remaining_str}. "
+                f"Consider wrapping up to avoid hard timeout."
+            )
+
+        return None  # Time OK, proceed with execution
+
     def _create_exhausted_result(self, context: ExecutionContext) -> ExecutionResult:
         """Create result when max attempts are exhausted."""
         phase_id = context.phase.get("phase_id")
@@ -413,6 +500,10 @@ class PhaseOrchestrator:
         logger.info(
             f"[{phase_id}] Phase completed successfully on attempt {context.attempt_index + 1}"
         )
+
+        # IMP-STUCK-001: Clear phase timer for completed phase
+        if hasattr(context, "time_watchdog") and context.time_watchdog is not None:
+            context.time_watchdog.clear_phase_timer(phase_id)
 
         return ExecutionResult(
             success=True,

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
-from sqlalchemy import Column, DateTime, Integer, String, Boolean, JSON, Index
+from sqlalchemy import Column, DateTime, Integer, String, Boolean, JSON, Index, Float
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -150,6 +150,14 @@ class Phase6Metrics(Base):
     plan_normalization_warnings = Column(Integer, nullable=False, default=0)
     plan_deliverables_count = Column(Integer, nullable=True)
     plan_scope_size_bytes = Column(Integer, nullable=True)
+
+    # IMP-INTENT-002: Intention effectiveness outcome tracking
+    # Nullable for backward compatibility with existing records
+    phase_success = Column(Boolean, nullable=True)  # Phase completion success
+    goal_drift_score = Column(Float, nullable=True)  # 0.0 = no drift, 1.0 = complete drift
+    completion_time_sec = Column(Float, nullable=True)  # Phase duration in seconds
+    error_count = Column(Integer, nullable=True, default=0)  # Errors during phase
+    retry_count = Column(Integer, nullable=True, default=0)  # Retries during phase
 
     created_at = Column(
         DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
@@ -592,6 +600,11 @@ def record_phase6_metrics(
     plan_normalization_warnings: int = 0,
     plan_deliverables_count: Optional[int] = None,
     plan_scope_size_bytes: Optional[int] = None,
+    phase_success: Optional[bool] = None,
+    goal_drift_score: Optional[float] = None,
+    completion_time_sec: Optional[float] = None,
+    error_count: int = 0,
+    retry_count: int = 0,
 ) -> Phase6Metrics:
     """
     Record Phase 6 True Autonomy feature effectiveness metrics.
@@ -615,6 +628,11 @@ def record_phase6_metrics(
         plan_normalization_warnings: Number of normalization warnings
         plan_deliverables_count: Number of deliverables in normalized plan
         plan_scope_size_bytes: Size of normalized plan scope in bytes
+        phase_success: Whether the phase completed successfully
+        goal_drift_score: Goal drift score (0.0-1.0) for intention effectiveness
+        completion_time_sec: Phase completion time in seconds
+        error_count: Number of errors during phase
+        retry_count: Number of retries during phase
 
     Returns:
         Created Phase6Metrics record
@@ -637,6 +655,11 @@ def record_phase6_metrics(
         plan_normalization_warnings=plan_normalization_warnings,
         plan_deliverables_count=plan_deliverables_count,
         plan_scope_size_bytes=plan_scope_size_bytes,
+        phase_success=phase_success,
+        goal_drift_score=goal_drift_score,
+        completion_time_sec=completion_time_sec,
+        error_count=error_count,
+        retry_count=retry_count,
     )
 
     db.add(metrics)

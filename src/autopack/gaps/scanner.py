@@ -28,6 +28,7 @@ from .doc_drift import (
     run_doc_tests,
 )
 from .gap_plugin import PluginRegistry, GapResult
+from .gap_telemetry import GapTelemetryRecorder, GapDetectionEvent
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,21 @@ class GapScanner:
 
         elapsed_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
         logger.info(f"Gap scan completed in {elapsed_ms}ms: {len(self.gaps)} gaps found")
+
+        # Record telemetry for each detected gap (best-effort, never raises)
+        recorder = GapTelemetryRecorder()
+        for gap in self.gaps:
+            event = GapDetectionEvent(
+                gap_id=gap.gap_id,
+                gap_type=gap.gap_type,
+                detected_at=datetime.now(timezone.utc),
+                file_path=(
+                    gap.evidence.file_paths[0] if gap.evidence and gap.evidence.file_paths else None
+                ),
+                risk_classification=gap.risk_classification,
+                blocks_autopilot=gap.blocks_autopilot,
+            )
+            recorder.record_detection(event)
 
         return self.gaps
 

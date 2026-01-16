@@ -1,3 +1,19 @@
+tier_cost_ratios:
+  haiku: 1.0
+  sonnet: 3.0
+  opus: 15.0
+
+tier_budget_strategy:
+  mode: "cost_equivalent"
+  cost_equivalent:
+    haiku_baseline_tokens: 4000
+    sonnet_adjusted_tokens: 1333
+    opus_adjusted_tokens: 266
+  min_tokens_per_tier:
+    haiku: 1000
+    sonnet: 500
+    opus: 200
+
 complexity_models:
   low:
     # Default low tier: Claude Sonnet 4.5 (Anthropic) for all low-complexity phases

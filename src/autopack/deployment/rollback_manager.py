@@ -5,9 +5,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from src.autopack.database import SessionLocal
-from src.autopack.models import PolicyPromotion
-from src.autopack.telemetry.meta_metrics import MetaMetricsTracker
+from autopack.database import SessionLocal
+from autopack.models import PolicyPromotion
+from autopack.telemetry.meta_metrics import MetaMetricsTracker
 
 
 class RollbackManager:

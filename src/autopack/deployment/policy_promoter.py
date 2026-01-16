@@ -6,8 +6,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from src.autopack.database import SessionLocal
-from src.autopack.models import ABTestResult, PolicyPromotion
+from autopack.database import SessionLocal
+from autopack.models import ABTestResult, PolicyPromotion
 
 
 class PolicyPromoter:

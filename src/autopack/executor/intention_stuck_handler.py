@@ -189,9 +189,19 @@ class IntentionStuckHandler:
             current_tier = phase_spec.get("_current_tier", "haiku")  # Default to haiku
 
             # BUILD-188 P5.5: Derive safety profile from intention anchor
-            safety_profile = (
-                derive_safety_profile(anchor) if anchor is not None else "strict"  # Fail-safe
-            )
+            # Validate anchor exists and is usable before passing to derive_safety_profile
+            if anchor is None:
+                logger.debug("No anchor provided, using default safety profile")
+                safety_profile = "strict"  # Fail-safe default
+            else:
+                is_valid, errors = anchor.validate_for_consumption()
+                if not is_valid:
+                    logger.warning(
+                        f"Anchor validation failed: {errors}, using default safety profile"
+                    )
+                    safety_profile = "strict"
+                else:
+                    safety_profile = derive_safety_profile(anchor)
 
             escalated_entry = apply_model_escalation(
                 wiring=wiring,

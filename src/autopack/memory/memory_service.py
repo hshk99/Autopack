@@ -21,7 +21,7 @@ import subprocess
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import hashlib
 import yaml
 
@@ -289,6 +289,13 @@ class MemoryService:
 
     Wraps FaissStore and provides semantic search + insert for Autopack use cases.
     """
+
+    store: Union[NullStore, "FaissStore", "QdrantStore"]
+    backend: str
+    enabled: bool
+    top_k: int
+    max_embed_chars: int
+    planning_collection: str
 
     def __init__(
         self,
@@ -783,6 +790,73 @@ class MemoryService:
         )
         logger.info(f"[MemoryService] Wrote doctor hint: {action} in {phase_id}")
         return point_id
+
+    def write_telemetry_insight(
+        self,
+        insight: Dict[str, Any],
+        project_id: Optional[str] = None,
+    ) -> str:
+        """Write a telemetry insight to appropriate memory collection.
+
+        This is a convenience method that routes to write_phase_summary, write_error,
+        or write_doctor_hint based on insight type.
+
+        Args:
+            insight: TelemetryInsight object to persist
+            project_id: Optional project ID for namespacing
+
+        Returns:
+            Document ID of written insight
+        """
+        if not self.enabled:
+            return ""
+
+        insight_type = insight.get("insight_type", "unknown")
+        description = insight.get("description", "")
+        phase_id = insight.get("phase_id", "unknown")
+        run_id = insight.get("run_id", "telemetry")
+        suggested_action = insight.get("suggested_action")
+
+        # Route to appropriate write method based on insight type
+        if insight_type == "cost_sink":
+            return self.write_phase_summary(
+                run_id=run_id,
+                phase_id=phase_id,
+                project_id=project_id or "default",
+                summary=f"Cost sink detected: {description}",
+                changes=[],
+                ci_result=None,
+                task_type="telemetry_insight",
+            )
+        elif insight_type == "failure_mode":
+            return self.write_error(
+                run_id=run_id,
+                phase_id=phase_id,
+                project_id=project_id or "default",
+                error_text=f"Recurring failure: {suggested_action or description}",
+                error_type=description,
+                test_name=None,
+            )
+        elif insight_type == "retry_cause":
+            return self.write_doctor_hint(
+                run_id=run_id,
+                phase_id=phase_id,
+                project_id=project_id or "default",
+                hint=suggested_action or description,
+                action="telemetry_insight",
+                outcome="pending",
+            )
+        else:
+            # Generic write to phase summary
+            return self.write_phase_summary(
+                run_id=run_id,
+                phase_id=phase_id,
+                project_id=project_id or "default",
+                summary=f"Telemetry insight: {description}",
+                changes=[],
+                ci_result=None,
+                task_type="telemetry_insight",
+            )
 
     def search_doctor_hints(
         self,
@@ -1309,7 +1383,7 @@ class MemoryService:
             }
 
         # Initialize results with all possible keys (consistent structure)
-        results = {
+        results: Dict[str, List[Dict[str, Any]]] = {
             "code": [],
             "summaries": [],
             "errors": [],

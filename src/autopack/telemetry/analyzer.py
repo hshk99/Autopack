@@ -1,5 +1,6 @@
 """Automated telemetry analysis for issue prioritization."""
 
+import os
 import logging
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
@@ -26,8 +27,13 @@ class RankedIssue:
 class TelemetryAnalyzer:
     """Analyze telemetry data and generate ranked issues."""
 
-    def __init__(self, db_session: Session):
+    def __init__(self, db_session: Session, memory_service=None):
         self.db = db_session
+        self.memory_service = memory_service
+        self.run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        self._telemetry_to_memory_enabled = (
+            os.getenv("AUTOPACK_TELEMETRY_TO_MEMORY_ENABLED", "false").lower() == "true"
+        )
 
     def aggregate_telemetry(self, window_days: int = 7) -> Dict[str, List[RankedIssue]]:
         """Analyze recent runs and generate ranked issue list.
@@ -44,11 +50,80 @@ class TelemetryAnalyzer:
         """
         cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
 
+        # Find ranked issues
+        cost_sinks = self._find_cost_sinks(cutoff)
+        failure_modes = self._find_failure_modes(cutoff)
+        retry_causes = self._find_retry_causes(cutoff)
+        phase_type_stats = self._compute_phase_type_stats(cutoff)
+
+        # NEW: Persist to memory for future retrieval
+        if self.memory_service and self.memory_service.enabled:
+            from src.autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
+
+            bridge = TelemetryToMemoryBridge(
+                self.memory_service, enabled=self._telemetry_to_memory_enabled
+            )
+            # Convert RankedIssue objects to dicts for bridge
+            flat_issues = []
+            for issue in cost_sinks:
+                flat_issues.append(
+                    {
+                        "issue_type": "cost_sink",
+                        "insight_id": f"{issue.rank}",
+                        "rank": issue.rank,
+                        "phase_id": issue.phase_id,
+                        "phase_type": issue.phase_type,
+                        "severity": "high",
+                        "description": f"Phase {issue.phase_id} consuming {issue.metric_value:,.0f} tokens",
+                        "metric_value": issue.metric_value,
+                        "occurrences": issue.details.get("count", 1),
+                        "details": issue.details,
+                        "suggested_action": f"Optimize token usage for {issue.phase_type}",
+                    }
+                )
+            for issue in failure_modes:
+                flat_issues.append(
+                    {
+                        "issue_type": "failure_mode",
+                        "insight_id": f"{issue.rank}",
+                        "rank": issue.rank,
+                        "phase_id": issue.phase_id,
+                        "phase_type": issue.phase_type,
+                        "severity": "high",
+                        "description": f"Failure: {issue.details.get('outcome', '')} - {issue.details.get('stop_reason', '')}",
+                        "metric_value": issue.metric_value,
+                        "occurrences": issue.details.get("count", 1),
+                        "details": issue.details,
+                        "suggested_action": f"Fix {issue.phase_type} failure pattern",
+                    }
+                )
+            for issue in retry_causes:
+                flat_issues.append(
+                    {
+                        "issue_type": "retry_cause",
+                        "insight_id": f"{issue.rank}",
+                        "rank": issue.rank,
+                        "phase_id": issue.phase_id,
+                        "phase_type": issue.phase_type,
+                        "severity": "medium",
+                        "description": f"Retry cause: {issue.details.get('stop_reason', '')}",
+                        "metric_value": issue.metric_value,
+                        "occurrences": issue.details.get("count", 1),
+                        "details": issue.details,
+                        "suggested_action": f"Increase timeout or optimize {issue.phase_type}",
+                    }
+                )
+            bridge.persist_insights(
+                flat_issues,
+                run_id=self.run_id,
+                project_id=None,
+            )
+
         return {
-            "top_cost_sinks": self._find_cost_sinks(cutoff),
-            "top_failure_modes": self._find_failure_modes(cutoff),
-            "top_retry_causes": self._find_retry_causes(cutoff),
-            "phase_type_stats": self._compute_phase_type_stats(cutoff),  # For ROAD-L
+            "top_cost_sinks": cost_sinks,
+            "top_failure_modes": failure_modes,
+            "top_retry_causes": retry_causes,
+            "phase_type_stats": phase_type_stats,  # For ROAD-L
         }
 
     def _find_cost_sinks(self, cutoff: datetime) -> List[RankedIssue]:

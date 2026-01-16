@@ -18,6 +18,7 @@ Key principles:
 import hashlib
 import json
 import logging
+import warnings
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,6 +40,9 @@ INTENTION_SCHEMA_VERSION = "v1"
 @dataclass
 class ProjectIntention:
     """Project Intention v1 schema.
+
+    .. deprecated:: IMP-INTENT-003
+        ProjectIntention (v1 schema) is deprecated. Use IntentionAnchorV2 (v2 schema) instead.
 
     Compact, semantic representation of project goals, constraints, and hypotheses.
     Designed to be stable, queryable, and safe for prompt injection.
@@ -102,11 +106,28 @@ class ProjectIntentionManager:
     ):
         """Initialize intention manager.
 
+        .. deprecated:: IMP-INTENT-003
+            ProjectIntentionManager (v1) is deprecated. Use IntentionAnchorV2 instead.
+            See docs/INTENTION_MIGRATION_GUIDE.md for migration instructions.
+
         Args:
             run_id: Run identifier
             project_id: Project identifier (auto-detected if not provided)
             memory_service: Memory service instance (optional)
         """
+        # IMP-INTENT-003: Deprecation warning for old intention system (v1)
+        warnings.warn(
+            "ProjectIntentionManager (v1 intention system) is deprecated and will be removed "
+            "in a future release. Please migrate to IntentionAnchorV2 (v2 system). "
+            "See docs/INTENTION_MIGRATION_GUIDE.md for migration instructions.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        logger.warning(
+            "[IMP-INTENT-003] Using deprecated ProjectIntentionManager (v1). "
+            "Migrate to IntentionAnchorV2 (v2) - see docs/INTENTION_MIGRATION_GUIDE.md"
+        )
+
         self.run_id = run_id
         self.layout = RunFileLayout(run_id=run_id, project_id=project_id)
         self.project_id = self.layout.project_id

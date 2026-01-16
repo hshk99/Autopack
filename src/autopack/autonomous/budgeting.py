@@ -5,13 +5,21 @@ Implements:
 - Budget remaining computation from Intention Anchor budgets + measured usage
 - Deterministic fraction (0..1) clamped from token/context/SOT budgets
 - No guessing; always explicit inputs
+- Tier-aware token budget redistribution (IMP-TIER-001)
 
 All budget calculations are reproducible and grounded in authoritative sources.
 """
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+# Base token budget per phase (haiku baseline)
+BASE_BUDGET_PER_PHASE = 4000
 
 
 class BudgetExhaustedError(Exception):
@@ -40,6 +48,68 @@ class BudgetInputs:
     context_chars_used: int  # From measured context construction
     max_sot_chars: int  # From IntentionAnchor.budgets.max_sot_chars
     sot_chars_used: int  # From measured SOT retrieval
+
+
+# Tier cost ratios for budget redistribution (IMP-TIER-001)
+TIER_COST_RATIOS = {
+    "haiku": 1.0,
+    "sonnet": 3.0,
+    "opus": 15.0,
+}
+
+# Minimum tokens per tier to ensure reasonable capacity
+MIN_TOKENS_PER_TIER = {
+    "haiku": 1000,
+    "sonnet": 500,
+    "opus": 200,
+}
+
+
+def adjust_budget_for_tier(base_budget: int, tier: str) -> int:
+    """
+    Adjust token budget based on model tier cost.
+
+    For cost equivalence, we divide the base budget by the tier's cost ratio.
+    For example, Opus costs 15x more than Haiku, so it gets 1/15 the tokens
+    to maintain equivalent spending.
+
+    Args:
+        base_budget: Base token budget (e.g., 4000 for Haiku)
+        tier: Model tier ("haiku", "sonnet", or "opus")
+
+    Returns:
+        Adjusted budget for the tier, respecting minimum tokens
+    """
+    cost_ratio = TIER_COST_RATIOS.get(tier, 1.0)
+    adjusted = int(base_budget / cost_ratio)
+
+    min_tokens = MIN_TOKENS_PER_TIER.get(tier, 100)
+    return max(adjusted, min_tokens)
+
+
+def allocate_phase_budget(phase_type: str, tier: Optional[str] = None) -> int:
+    """
+    Allocate token budget for a phase, adjusted for model tier.
+
+    Args:
+        phase_type: Phase type identifier
+        tier: Model tier ("haiku", "sonnet", "opus"). Defaults to "haiku"
+
+    Returns:
+        Token budget for the phase
+    """
+    if tier is None:
+        tier = "haiku"
+
+    base_budget = BASE_BUDGET_PER_PHASE
+    adjusted_budget = adjust_budget_for_tier(base_budget, tier)
+
+    logger.info(
+        f"Allocated {adjusted_budget} tokens for {phase_type} (tier={tier}, "
+        f"cost_ratio={TIER_COST_RATIOS.get(tier, 1.0)})"
+    )
+
+    return adjusted_budget
 
 
 def is_budget_exhausted(token_cap: int, tokens_used: int) -> bool:

@@ -1,6 +1,16 @@
 """
 Intention Anchor module - canonical, versioned intent representation for runs.
 
+Also known as: Intentions Framework v2 (from BUILD-178)
+See: docs/BUILD_HISTORY.md "Phase 6" Naming Clarification section
+     docs/PHASE_NAMING.md for full clarification
+
+This module provides the intention anchoring system for guiding autonomous execution.
+Previously documented as "Phase 6 Intentions" in BUILD-178.
+
+NOT to be confused with "Execution Hardening" from BUILD-146 (src/autopack/executor/)
+which covers failure recovery, plan normalization, and retry budget management.
+
 Public API exports (v1 - existing):
     - IntentionAnchor: main schema
     - IntentionConstraints, IntentionScope, IntentionBudgets, IntentionRiskProfile: sub-schemas

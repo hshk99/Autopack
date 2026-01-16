@@ -300,6 +300,7 @@ class TestExecuteLoopPhaseHandling:
         """Verify loop processes available queued phases."""
         mock_executor = Mock()
         mock_executor.run_id = "test-run"
+        mock_executor.project_root = "."  # IMP-SOT-001: SOT drift check needs valid path
         mock_executor._phase_failure_counts = {}
         mock_executor._run_tokens_used = 0  # IMP-COST-001: Budget check needs integer
         mock_executor.get_run_status.return_value = {"phases": [{"phase_id": "phase-1"}]}
@@ -319,6 +320,7 @@ class TestExecuteLoopPhaseHandling:
         """Verify loop handles stale phase detection gracefully."""
         mock_executor = Mock()
         mock_executor.run_id = "test-run"
+        mock_executor.project_root = "."  # IMP-SOT-001: SOT drift check needs valid path
         mock_executor._phase_failure_counts = {}
         mock_executor._run_tokens_used = 0  # IMP-COST-001: Budget check needs integer
         mock_executor.get_run_status.return_value = {}

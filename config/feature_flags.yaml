@@ -428,6 +428,17 @@ flags:
     values: "Float (seconds)"
     affects: ["config.py", "database.py"]
     aliases: ["DB_OPERATION_TIMEOUT"]
+    notes: "IMP-033: Configurable timeout to prevent indefinite database hangs"
+
+  AUTOPACK_PHASE_TIMEOUT_MINUTES:
+    description: "Maximum wall-clock time per phase before hard timeout"
+    category: tuning
+    default: "15"
+    values: "Integer (minutes)"
+    affects: ["config.py", "executor/phase_orchestrator.py", "time_watchdog.py"]
+    aliases: ["PHASE_TIMEOUT_MINUTES"]
+    notes: "IMP-STUCK-001: Per-phase timeout enforcement to prevent runaway phases from consuming entire run budget. 50% soft warning issued at halfway point."
+    aliases: ["DB_OPERATION_TIMEOUT"]
     notes: "IMP-033: Configurable timeout to prevent indefinite hangs during DB operations"
 
   # ============================================================================

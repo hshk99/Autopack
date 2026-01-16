@@ -30,7 +30,7 @@ from autopack.error_recovery import (
 logger = logging.getLogger(__name__)
 
 
-# Doctor system prompt (per GPT_RESPONSE8 + Phase 3 execute_fix)
+# Doctor system prompt (per GPT_RESPONSE8 + Phase 3 execute_fix + IMP-DOCTOR-003 intention-aware diagnosis)
 DOCTOR_SYSTEM_PROMPT = """You are the Autopack Doctor, an expert at diagnosing build failures.
 
 Your role is to analyze phase failures and recommend the best action to recover. You receive:
@@ -39,6 +39,20 @@ Your role is to analyze phase failures and recommend the best action to recover.
 - Recent patch content (if any)
 - Patch validation errors (if any)
 - Log excerpts
+- Project Intentions (if available) - CRITICAL CONSTRAINTS you MUST respect
+
+IMP-DOCTOR-003: INTENTION-AWARE DIAGNOSIS
+When project intentions are provided, your diagnosis MUST respect them:
+- If intentions specify "never_allow" constraints, NEVER recommend actions that violate them
+- If intentions specify "requires_approval" actions, suggest them but flag as needing approval
+- If intentions specify "hard_blocks" (verification gates), ensure fixes align with verification requirements
+- If intentions specify scope boundaries, ensure fixes stay within allowed paths
+- Align your recommendations with the project's north_star (desired outcomes) and non_goals
+
+If a fix would violate project intentions:
+- Choose an alternative action that respects intentions
+- Include intention violation warning in your rationale
+- Suggest manual intervention if no intention-compliant fix exists
 
 CRITICAL: You MUST respond with ONLY a JSON object. No explanatory text, no markdown, no code blocks.
 Start your response with { and end with }. Nothing else.
@@ -55,7 +69,9 @@ JSON response format:
   "verify_command": "<optional: command to verify the fix worked>",
   "error_type": "<optional: dominant failure type, e.g. infra_error|patch_apply_error|auditor_reject|isolation_blocked>",
   "disable_providers": ["<optional: providers to disable for this run, e.g. zhipu_glm, google_gemini, anthropic>"],
-  "maintenance_phase": "<optional: suggested maintenance phase id to schedule, e.g. phase3-provider-maintenance>"
+  "maintenance_phase": "<optional: suggested maintenance phase id to schedule, e.g. phase3-provider-maintenance>",
+  "intention_compliant": <boolean, true if fix respects project intentions, false if violates>,
+  "intention_warnings": ["<optional: list of intention constraints that might be affected>"]
 }
 
 IMPORTANT:
@@ -124,11 +140,35 @@ Example response for repeated failures:
   "confidence": 0.7,
   "rationale": "3 consecutive failures with different error types suggests the phase specification is ambiguous or incomplete.",
   "builder_hint": null,
-  "suggested_patch": null
+  "suggested_patch": null,
+  "intention_compliant": true
+}
+
+Example intention-aware response (IMP-DOCTOR-003):
+{
+  "action": "retry_with_fix",
+  "confidence": 0.75,
+  "rationale": "Phase attempted to modify protected path 'src/core/auth.py'. Project intentions mark this as protected.",
+  "builder_hint": "Modify only files in 'src/features/' directory. The auth module is protected per project intentions.",
+  "suggested_patch": null,
+  "intention_compliant": true,
+  "intention_warnings": ["Attempted modification of protected path: src/core/auth.py"]
+}
+
+Example intention violation detection:
+{
+  "action": "mark_fatal",
+  "confidence": 0.9,
+  "rationale": "Phase requires database migration, but project intentions have hard_block: 'no database schema changes during deployment'. This violates a critical project constraint.",
+  "builder_hint": null,
+  "suggested_patch": null,
+  "intention_compliant": false,
+  "intention_warnings": ["Violates hard_block: no database schema changes during deployment"]
 }
 
 IMPORTANT: Never apply patches directly. All code changes go through: Builder -> Auditor -> QualityGate -> governed_apply.
-IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues should use retry_with_fix or replan."""
+IMPORTANT: execute_fix is for INFRASTRUCTURE fixes only. Code logic issues should use retry_with_fix or replan.
+IMPORTANT (IMP-DOCTOR-003): ALWAYS check if your recommended fix respects project intentions. Set intention_compliant=false if it violates any intention constraints."""
 
 
 @dataclass(frozen=True)
@@ -177,6 +217,7 @@ def build_doctor_user_message(request: DoctorRequest) -> str:
         f"- Total cap: {request.health_budget.get('total_cap', 25)}",
     ]
 
+    # IMP-DOCTOR-003: Inject intention anchor with explicit constraint emphasis
     # Milestone 2: Inject intention anchor (original goal context for error recovery)
     if request.run_id:
         from autopack.intention_anchor import load_and_render_for_doctor
@@ -187,7 +228,20 @@ def build_doctor_user_message(request: DoctorRequest) -> str:
         )
         if anchor_section:
             message_parts.append("")
+            message_parts.append("### ⚠️ Project Intentions (CRITICAL CONSTRAINTS)")
+            message_parts.append("")
+            message_parts.append(
+                "**IMPORTANT**: Your diagnosis MUST respect these project intentions."
+            )
+            message_parts.append(
+                "Any recommended fix that violates these constraints is unacceptable."
+            )
+            message_parts.append("")
             message_parts.append(anchor_section)
+            message_parts.append("")
+            message_parts.append(
+                "**Reminder**: Set `intention_compliant: false` if your fix would violate any of the above constraints."
+            )
 
     if request.patch_errors:
         message_parts.append("")

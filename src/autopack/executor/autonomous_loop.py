@@ -28,6 +28,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class SOTDriftError(Exception):
+    """Raised when SOT drift is detected and drift_blocks_execution is enabled."""
+
+    pass
+
+
 class AutonomousLoop:
     """Main autonomous execution loop.
 
@@ -408,6 +414,14 @@ class AutonomousLoop:
                     self.executor._run_goal_anchor = goal_anchor
                     logger.info(f"[GoalAnchor] Initialized: {goal_anchor[:100]}...")
 
+            # IMP-SOT-001: Check SOT drift at runtime during autonomous execution
+            try:
+                self._check_sot_drift()
+            except SOTDriftError as e:
+                logger.critical(f"[IMP-SOT-001] {str(e)}")
+                stop_reason = "sot_drift_detected"
+                raise
+
             # Phase 1.6-1.7: Detect and reset stale EXECUTING phases
             try:
                 self.executor._detect_and_reset_stale_phases(run_data)
@@ -579,6 +593,39 @@ class AutonomousLoop:
                 )
             except Exception as e:
                 logger.warning(f"Failed to log run pause: {e}")
+
+    def _check_sot_drift(self) -> None:
+        """Check for SOT drift at runtime.
+
+        Implements IMP-SOT-001: Runtime validation that SOT documents (BUILD_HISTORY, DEBUG_LOG)
+        remain consistent throughout autonomous execution. Detects drift early to prevent
+        accumulation of stale documentation.
+
+        Raises:
+            SOTDriftError: If drift is detected and sot_drift_blocks_execution is enabled
+        """
+        # Import here to avoid circular imports
+        from autopack.gaps.doc_drift import SOTDriftDetector
+
+        # Check if runtime enforcement is enabled
+        if not settings.sot_runtime_enforcement_enabled:
+            return
+
+        # Get project root (use executor's root if available)
+        project_root = getattr(self.executor, "project_root", ".")
+
+        # Run quick SOT consistency check
+        detector = SOTDriftDetector(project_root=project_root)
+        is_consistent, issues = detector.quick_check()
+
+        if not is_consistent:
+            issue_msg = "\n  - ".join(issues)
+            warning_msg = f"SOT drift detected:\n  - {issue_msg}"
+            logger.warning(f"[IMP-SOT-001] {warning_msg}")
+
+            # Check if drift blocks execution
+            if settings.sot_drift_blocks_execution:
+                raise SOTDriftError(f"SOT drift blocking execution: {issues}")
 
     def _invoke_autopilot_session(self):
         """Invoke autopilot to scan for gaps and execute approved improvements.

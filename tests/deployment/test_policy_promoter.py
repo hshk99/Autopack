@@ -51,12 +51,12 @@ class TestPolicyPromoter:
 
         # Note: This test is a placeholder showing intended usage
         # For now, just verify the promoter can be instantiated
-        promoter = PolicyPromoter(config_path=temp_config_file)
+        promoter = PolicyPromoter(config_path=temp_config_file, session=db_session)
         assert promoter.config_path == temp_config_file
 
     def test_list_active_promotions(self, db_session, temp_config_file):
         """Test listing active promotions."""
-        promoter = PolicyPromoter(config_path=temp_config_file)
+        promoter = PolicyPromoter(config_path=temp_config_file, session=db_session)
 
         # Initially no active promotions
         active = promoter.list_active_promotions()
@@ -64,7 +64,7 @@ class TestPolicyPromoter:
 
     def test_mark_promotion_stable(self, db_session, temp_config_file):
         """Test marking promotion as stable."""
-        promoter = PolicyPromoter(config_path=temp_config_file)
+        promoter = PolicyPromoter(config_path=temp_config_file, session=db_session)
 
         # Create a promotion manually
         promotion = PolicyPromotion(
@@ -90,7 +90,7 @@ class TestPolicyPromoter:
 
     def test_get_promotion_history(self, db_session, temp_config_file):
         """Test getting promotion history."""
-        promoter = PolicyPromoter(config_path=temp_config_file)
+        promoter = PolicyPromoter(config_path=temp_config_file, session=db_session)
 
         # Create some promotions
         for i in range(3):

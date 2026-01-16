@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from sqlalchemy.orm import Session
+
 from autopack.database import SessionLocal
 from autopack.models import PolicyPromotion
 from autopack.telemetry.meta_metrics import MetaMetricsTracker
@@ -26,10 +28,12 @@ class RollbackManager:
         config_path: Optional[Path] = None,
         degradation_threshold: float = 0.10,
         meta_metrics_tracker: Optional[MetaMetricsTracker] = None,
+        session: Optional[Session] = None,
     ):
         self.config_path = config_path or Path("config/autopack_config.json")
         self.degradation_threshold = degradation_threshold
         self.meta_metrics_tracker = meta_metrics_tracker
+        self._session = session  # If provided, use this session instead of creating new ones
 
     def monitor_promotion(
         self,
@@ -48,7 +52,8 @@ class RollbackManager:
         Returns:
             (should_rollback, reason): True if rollback needed, reason string
         """
-        session = SessionLocal()
+        session = self._session or SessionLocal()
+        should_close = self._session is None
 
         try:
             promotion = session.query(PolicyPromotion).filter_by(promotion_id=promotion_id).first()
@@ -99,7 +104,8 @@ class RollbackManager:
             return False, None
 
         finally:
-            session.close()
+            if should_close:
+                session.close()
 
     def trigger_rollback(self, promotion_id: str, reason: str, restore_config: bool = True) -> bool:
         """
@@ -113,7 +119,8 @@ class RollbackManager:
         Returns:
             True if rollback successful
         """
-        session = SessionLocal()
+        session = self._session or SessionLocal()
+        should_close = self._session is None
 
         try:
             promotion = session.query(PolicyPromotion).filter_by(promotion_id=promotion_id).first()
@@ -138,7 +145,8 @@ class RollbackManager:
             session.rollback()
             raise e
         finally:
-            session.close()
+            if should_close:
+                session.close()
 
     def auto_rollback_check_all(self) -> List[Dict[str, Any]]:
         """
@@ -147,7 +155,8 @@ class RollbackManager:
         Returns:
             List of rollback actions taken: [{"promotion_id": ..., "reason": ..., "rolled_back": bool}]
         """
-        session = SessionLocal()
+        session = self._session or SessionLocal()
+        should_close = self._session is None
         actions = []
 
         try:
@@ -182,7 +191,8 @@ class RollbackManager:
             return actions
 
         finally:
-            session.close()
+            if should_close:
+                session.close()
 
     def _check_metric_degradation(
         self, metric: str, baseline: float, current: float
@@ -225,7 +235,8 @@ class RollbackManager:
 
     def _get_baseline_metrics(self, ab_test_result_id: int) -> Optional[Dict[str, float]]:
         """Get baseline metrics from A-B test result."""
-        session = SessionLocal()
+        session = self._session or SessionLocal()
+        should_close = self._session is None
         try:
             from autopack.models import ABTestResult
 
@@ -253,7 +264,8 @@ class RollbackManager:
             return baseline if baseline else None
 
         finally:
-            session.close()
+            if should_close:
+                session.close()
 
     def _restore_config(self, promotion: PolicyPromotion) -> None:
         """Restore configuration to pre-promotion state."""
@@ -282,7 +294,8 @@ class RollbackManager:
         Returns:
             List of rolled back promotions
         """
-        session = SessionLocal()
+        session = self._session or SessionLocal()
+        should_close = self._session is None
         try:
             rollbacks = (
                 session.query(PolicyPromotion)
@@ -293,4 +306,5 @@ class RollbackManager:
             )
             return rollbacks
         finally:
-            session.close()
+            if should_close:
+                session.close()

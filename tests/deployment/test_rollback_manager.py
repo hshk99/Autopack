@@ -44,7 +44,7 @@ class TestRollbackManager:
         db_session.add(promotion)
         db_session.commit()
 
-        manager = RollbackManager(config_path=temp_config_file)
+        manager = RollbackManager(config_path=temp_config_file, session=db_session)
 
         # Trigger rollback
         result = manager.trigger_rollback(
@@ -78,7 +78,7 @@ class TestRollbackManager:
 
     def test_get_rollback_history(self, db_session, temp_config_file):
         """Test getting rollback history."""
-        manager = RollbackManager(config_path=temp_config_file)
+        manager = RollbackManager(config_path=temp_config_file, session=db_session)
 
         # Create rolled back promotions
         for i in range(3):
@@ -118,7 +118,7 @@ class TestRollbackManager:
         db_session.add(promotion)
         db_session.commit()
 
-        manager = RollbackManager(config_path=temp_config_file)
+        manager = RollbackManager(config_path=temp_config_file, session=db_session)
 
         # Run auto-rollback check
         actions = manager.auto_rollback_check_all()

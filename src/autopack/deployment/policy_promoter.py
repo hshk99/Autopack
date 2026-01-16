@@ -6,6 +6,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy.orm import Session
+
 from autopack.database import SessionLocal
 from autopack.models import ABTestResult, PolicyPromotion
 
@@ -26,10 +28,12 @@ class PolicyPromoter:
         config_path: Optional[Path] = None,
         monitoring_hours: int = 24,
         degradation_threshold: float = 0.10,  # 10% degradation triggers rollback
+        session: Optional[Session] = None,
     ):
         self.config_path = config_path or Path("config/autopack_config.json")
         self.monitoring_hours = monitoring_hours
         self.degradation_threshold = degradation_threshold
+        self._session = session  # If provided, use this session instead of creating new ones
 
     def promote_improvement(
         self,
@@ -53,7 +57,9 @@ class PolicyPromoter:
         Raises:
             ValueError: If A-B test not validated or already promoted
         """
-        session = SessionLocal()
+        # Use injected session if provided (for tests), otherwise create new session
+        session = self._session or SessionLocal()
+        should_close = self._session is None  # Only close if we created it
 
         try:
             # Verify A-B test is validated
@@ -113,11 +119,13 @@ class PolicyPromoter:
             session.rollback()
             raise e
         finally:
-            session.close()
+            if should_close:
+                session.close()
 
     def list_active_promotions(self) -> List[PolicyPromotion]:
         """List all active promotions being monitored."""
-        session = SessionLocal()
+        session = self._session or SessionLocal()
+        should_close = self._session is None
         try:
             now = datetime.now(timezone.utc)
             promotions = (
@@ -130,7 +138,8 @@ class PolicyPromoter:
             )
             return promotions
         finally:
-            session.close()
+            if should_close:
+                session.close()
 
     def mark_promotion_stable(self, promotion_id: str) -> bool:
         """
@@ -142,7 +151,8 @@ class PolicyPromoter:
         Returns:
             True if marked stable
         """
-        session = SessionLocal()
+        session = self._session or SessionLocal()
+        should_close = self._session is None
         try:
             promotion = session.query(PolicyPromotion).filter_by(promotion_id=promotion_id).first()
             if not promotion:
@@ -155,7 +165,8 @@ class PolicyPromoter:
             session.rollback()
             return False
         finally:
-            session.close()
+            if should_close:
+                session.close()
 
     def _read_config(self) -> Dict[str, Any]:
         """Read current configuration."""
@@ -188,7 +199,8 @@ class PolicyPromoter:
         Returns:
             List of recent promotions
         """
-        session = SessionLocal()
+        session = self._session or SessionLocal()
+        should_close = self._session is None
         try:
             promotions = (
                 session.query(PolicyPromotion)
@@ -198,11 +210,13 @@ class PolicyPromoter:
             )
             return promotions
         finally:
-            session.close()
+            if should_close:
+                session.close()
 
     def get_promotion_by_task(self, improvement_task_id: str) -> Optional[PolicyPromotion]:
         """Get promotion for a specific improvement task."""
-        session = SessionLocal()
+        session = self._session or SessionLocal()
+        should_close = self._session is None
         try:
             promotion = (
                 session.query(PolicyPromotion)
@@ -212,4 +226,5 @@ class PolicyPromoter:
             )
             return promotion
         finally:
-            session.close()
+            if should_close:
+                session.close()

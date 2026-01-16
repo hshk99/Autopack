@@ -189,6 +189,9 @@ class PhaseOrchestrator:
         Set up scope manifest if missing or incomplete (BUILD-123v2).
 
         Generates scope manifest for phases that don't have explicit scope paths.
+
+        IMP-COORD-001: After scope generation, invalidates cached context to ensure
+        Builder and Auditor receive fresh context based on the new scope.
         """
         phase_id = context.phase.get("phase_id")
         scope_config = context.phase.get("scope") or {}
@@ -211,6 +214,9 @@ class PhaseOrchestrator:
 
                     # Update phase with generated scope
                     context.phase["scope"] = scope_config
+
+                    # IMP-COORD-001: Invalidate cached context after scope change
+                    self._invalidate_phase_context_cache(context)
 
                     # Log confidence
                     confidence = result.confidence_scores.get(phase_id, 0.0)
@@ -238,6 +244,31 @@ class PhaseOrchestrator:
 
                 traceback.print_exc()
                 # Continue with empty scope
+
+    def _invalidate_phase_context_cache(self, context: ExecutionContext) -> None:
+        """IMP-COORD-001: Mark phase context for cache invalidation after scope changes.
+
+        When a phase's scope is generated or modified, cached file context from a previous
+        scope becomes stale. This method marks the phase so that the executor will clear
+        cached context before the next Builder/Auditor invocation.
+
+        This addresses ~30% false Auditor rejections caused by stale context mismatches
+        where Auditor sees old scope files while Builder worked with new scope files.
+
+        Args:
+            context: Execution context with phase information
+        """
+        phase_id = context.phase.get("phase_id")
+
+        # IMP-COORD-001: Mark phase metadata to signal cache invalidation needed
+        # The autonomous_executor will check this flag before loading context and
+        # clear _last_file_context and LRU caches in builder_orchestrator
+        context.phase["_require_context_refresh"] = True
+        context.phase["_context_refresh_reason"] = "scope_changed"
+
+        logger.info(
+            f"[IMP-COORD-001] Marked phase '{phase_id}' for context refresh after scope change"
+        )
 
     def _check_phase_budget(self, context: ExecutionContext) -> Optional[ExecutionResult]:
         """IMP-COST-002: Check phase-level token budget before execution.

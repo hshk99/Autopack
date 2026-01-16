@@ -2917,6 +2917,32 @@ class AutonomousExecutor:
             # =====================================================================
             logger.info(f"[{phase_id}] Step 1/5: Generating code with Builder...")
 
+            # IMP-COORD-001: Clear cached context if scope changed
+            # PhaseOrchestrator marks phases with _require_context_refresh when scope is generated/modified
+            # This ensures Builder and Auditor receive fresh context matching the new scope
+            if phase.get("_require_context_refresh"):
+                refresh_reason = phase.get("_context_refresh_reason", "unknown")
+                logger.info(
+                    f"[IMP-COORD-001] Clearing cached context for '{phase_id}' (reason: {refresh_reason})"
+                )
+
+                # Clear the _last_file_context cache used by BuilderOrchestrator (builder_orchestrator.py:211)
+                if hasattr(self, "_last_file_context"):
+                    self._last_file_context = None
+                    logger.debug(f"[IMP-COORD-001] Cleared _last_file_context for '{phase_id}'")
+
+                # Clear the LRU file cache in ScopedContextLoader to force disk re-reads
+                try:
+                    from autopack.executor.scoped_context_loader import clear_file_cache
+
+                    clear_file_cache()
+                    logger.debug(f"[IMP-COORD-001] Cleared LRU file cache for '{phase_id}'")
+                except Exception as e:
+                    logger.debug(f"[IMP-COORD-001] Failed to clear LRU cache (non-critical): {e}")
+
+                # Clear the flag so we don't clear again on retry
+                phase["_require_context_refresh"] = False
+
             # Execute Builder with full validation pipeline
             builder_result, context_info = (
                 self.builder_orchestrator.execute_builder_with_validation(

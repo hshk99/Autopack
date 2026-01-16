@@ -420,6 +420,7 @@ class AutonomousLoop:
                     hasattr(self.executor, "autopilot")
                     and self.executor.autopilot
                     and hasattr(self.executor, "_autopilot_phase_count")
+                    and isinstance(self.executor._autopilot_phase_count, int)
                 ):
                     self.executor._autopilot_phase_count += 1
                     if (

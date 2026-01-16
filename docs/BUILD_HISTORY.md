@@ -4054,6 +4054,30 @@ Implemented comprehensive "Pivot Intentions → Gap Taxonomy → Autonomy Loop +
 
 ---
 
+### ⚠️ "Phase 6" Naming Clarification
+
+There are TWO distinct systems both referred to as "Phase 6":
+
+**Phase 6 (Intentions Framework v2)** - BUILD-178
+- Pivot Intentions v2 schema
+- AutopilotController integration
+- IntentionAnchorV2 with 8 pivot types
+- Located: src/autopack/intentions/
+
+**Phase 6 (Execution Hardening)** - BUILD-146
+- Failure recovery hardening
+- Plan normalization
+- Retry budget management
+- Located: src/autopack/executor/
+
+**Recommendation**: Rename one to avoid confusion:
+- Option A: Rename BUILD-146 work to "Execution Hardening Phase"
+- Option B: Rename BUILD-178 work to "Intentions Framework v2"
+
+This IMP (IMP-PHASE6-001) implements Option B for clarity.
+
+---
+
 ## BUILD-177: Security Baseline Automation - Operational Status Tracker (2026-01-06) ✅ COMPLETE
 
 **Status**: 100% Complete

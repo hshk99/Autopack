@@ -161,7 +161,9 @@ mypy-extensions==1.1.0
     #   black
     #   mypy
 numpy==2.2.6
-    # via qdrant-client
+    # via
+    #   qdrant-client
+    #   scipy
 openai==2.14.0
     # via autopack (pyproject.toml)
 packaging==25.0
@@ -252,8 +254,6 @@ python-dotenv==1.2.1
     #   uvicorn
 python-jose[cryptography]==3.5.0
     # via autopack (pyproject.toml)
-python-magic==0.4.27 ; sys_platform != "win32"
-    # via autopack (pyproject.toml)
 python-magic-bin==0.4.14 ; sys_platform == "win32"
     # via autopack (pyproject.toml)
 python-multipart==0.0.21
@@ -288,6 +288,8 @@ rsa==4.9.1
     #   google-auth
     #   python-jose
 ruff==0.14.10
+    # via autopack (pyproject.toml)
+scipy==1.17.0
     # via autopack (pyproject.toml)
 send2trash==2.0.0
     # via autopack (pyproject.toml)

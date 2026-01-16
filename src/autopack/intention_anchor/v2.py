@@ -200,6 +200,34 @@ class IntentionAnchorV2(BaseModel):
         registry.load_from_config("config/phase_type_pivots.yaml")
         return registry.validate_anchor_for_phase(self, phase_type)
 
+    def validate_for_consumption(self) -> tuple[bool, list[str]]:
+        """Validate anchor is ready for consumption at runtime.
+
+        This performs runtime validation to ensure critical fields are present
+        when the anchor is being used, not just at creation time.
+
+        Returns:
+            Tuple of (is_valid, error_messages)
+        """
+        from .validators import AnchorValidator
+
+        return AnchorValidator.validate(self)
+
+    def get_safe(self, field: str, default: Any = None) -> Any:
+        """Safely get field value with default.
+
+        Useful for optional fields that may be None. Returns the default
+        if the field doesn't exist or is None.
+
+        Args:
+            field: Field name to access
+            default: Default value if field is missing or None
+
+        Returns:
+            Field value or default
+        """
+        return getattr(self, field, default) or default
+
     @classmethod
     def from_json_dict(cls, data: Dict[str, Any]) -> IntentionAnchorV2:
         """Create IntentionAnchorV2 from JSON dict.

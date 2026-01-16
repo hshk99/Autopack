@@ -245,3 +245,91 @@ def run_all_doc_drift_checks(workspace_root: Path) -> list[DocDriftResult]:
     results.append(run_doc_tests(workspace_root))
 
     return results
+
+
+class SOTDriftDetector:
+    """Detects drift between SOT documents and code reality.
+
+    Provides quick runtime validation for SOT consistency during autonomous execution.
+    Implements IMP-SOT-001 runtime enforcement.
+    """
+
+    def __init__(self, project_root: str = "."):
+        self.project_root = Path(project_root)
+
+    def quick_check(self) -> tuple[bool, list[str]]:
+        """Quick SOT consistency check for runtime use.
+
+        Fast validation that checks for critical SOT document presence and basic integrity.
+        Designed for use during autonomous execution where speed is important.
+
+        Returns:
+            Tuple of (is_consistent, issues_list)
+            - is_consistent: True if no issues found, False otherwise
+            - issues_list: List of issue descriptions found
+        """
+        issues = []
+
+        # Check BUILD_HISTORY exists and has recent entries
+        build_history = self.project_root / "docs" / "BUILD_HISTORY.md"
+        if not build_history.exists():
+            issues.append("BUILD_HISTORY.md not found")
+        else:
+            # Check that BUILD_HISTORY has content (at least one build entry)
+            try:
+                content = build_history.read_text()
+                if not content.strip() or "BUILD-" not in content:
+                    issues.append("BUILD_HISTORY.md exists but has no build entries")
+            except Exception as e:
+                issues.append(f"BUILD_HISTORY.md read error: {str(e)}")
+
+        # Check DEBUG_LOG references valid BUILD entries
+        debug_log = self.project_root / "docs" / "DEBUG_LOG.md"
+        if debug_log.exists():
+            # Quick scan for orphaned references
+            orphans = self._find_orphaned_references(build_history, debug_log)
+            if orphans:
+                issues.append(f"Found {len(orphans)} orphaned BUILD references in DEBUG_LOG")
+
+        return len(issues) == 0, issues
+
+    def _find_orphaned_references(self, build_history: Path, debug_log: Path) -> list[str]:
+        """Find DEBUG_LOG references to non-existent BUILD entries.
+
+        Scans DEBUG_LOG for BUILD-XXX references and checks if they exist in BUILD_HISTORY.
+
+        Args:
+            build_history: Path to BUILD_HISTORY.md
+            debug_log: Path to DEBUG_LOG.md
+
+        Returns:
+            List of orphaned BUILD references found
+        """
+        orphans = []
+
+        if not build_history.exists() or not debug_log.exists():
+            return orphans
+
+        try:
+            import re
+
+            # Extract all BUILD-XXX references from BUILD_HISTORY
+            build_history_content = build_history.read_text()
+            build_entries = set(re.findall(r"BUILD-\d+", build_history_content))
+
+            # Extract all BUILD-XXX references from DEBUG_LOG
+            debug_log_content = debug_log.read_text()
+            debug_references = re.findall(r"BUILD-\d+", debug_log_content)
+
+            # Check for references that don't exist in BUILD_HISTORY
+            for ref in debug_references:
+                if ref not in build_entries:
+                    orphans.append(ref)
+
+            # Remove duplicates while preserving list type
+            orphans = list(set(orphans))
+
+        except Exception as e:
+            logger.warning(f"[SOTDriftDetector] Error scanning for orphaned references: {e}")
+
+        return orphans

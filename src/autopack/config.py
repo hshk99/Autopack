@@ -451,6 +451,28 @@ class Settings(BaseSettings):
         description="Comma-separated list of allowed external hosts (empty=all allowed)",
     )
 
+    # IMP-SOT-001: SOT Runtime Enforcement
+    # Enable runtime detection of SOT drift during autonomous execution
+    # Checks for consistency between BUILD_HISTORY and DEBUG_LOG documents
+    sot_runtime_enforcement_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "AUTOPACK_SOT_RUNTIME_ENFORCEMENT_ENABLED", "SOT_RUNTIME_ENFORCEMENT_ENABLED"
+        ),
+        description="Enable SOT drift detection during autonomous execution",
+    )
+
+    # IMP-SOT-001: Block execution on detected SOT drift
+    # When True, detected SOT drift raises SOTDriftError and stops execution
+    # When False (default), drift is logged as warning (non-blocking)
+    sot_drift_blocks_execution: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "AUTOPACK_SOT_DRIFT_BLOCKS_EXECUTION", "SOT_DRIFT_BLOCKS_EXECUTION"
+        ),
+        description="Block execution when SOT drift is detected (default: non-blocking)",
+    )
+
     # IMP-SEC-001: Explicit bind address configuration
     # Prevents accidental exposure by defaulting to localhost-only binding
     autopack_bind_address: str = Field(

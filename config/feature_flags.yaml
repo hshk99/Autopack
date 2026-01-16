@@ -123,6 +123,25 @@ flags:
     affects: ["executor/autonomous_loop.py"]
     requires: ["AUTOPACK_AUTOPILOT_ENABLED=true"]
 
+  # ============================================================================
+  # SOT Runtime Enforcement (IMP-SOT-001)
+  # ============================================================================
+  AUTOPACK_SOT_RUNTIME_ENFORCEMENT_ENABLED:
+    description: "Enable SOT drift detection during autonomous execution (IMP-SOT-001)"
+    category: feature_toggle
+    default: "true"
+    values: ["true", "false"]
+    affects: ["executor/autonomous_loop.py", "gaps/doc_drift.py"]
+    notes: "Runtime detection of SOT drift between BUILD_HISTORY and DEBUG_LOG during autonomous runs"
+
+  AUTOPACK_SOT_DRIFT_BLOCKS_EXECUTION:
+    description: "Block execution when SOT drift is detected (IMP-SOT-001)"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["executor/autonomous_loop.py"]
+    notes: "When true, detected SOT drift raises SOTDriftError and stops execution. When false, drift is logged as warning (non-blocking)"
+
   AUTOPACK_ENABLE_CONSOLIDATED_METRICS:
     description: "Enable consolidated metrics endpoint"
     category: feature_toggle

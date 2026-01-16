@@ -128,6 +128,15 @@ flags:
     affects: ["model_router.py", "telemetry/model_performance_tracker.py"]
     notes: "ROAD-L: System learns which models perform best for each phase type and automatically downgrades to cheaper models (when success rate >95%) or escalates to more capable models (when failure rate >15%). Requires minimum 20 samples before adjusting."
 
+  AUTOPACK_TELEMETRY_TO_MEMORY_ENABLED:
+    description: "Enable automatic persistence of telemetry insights to vector memory"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["telemetry/analyzer.py", "telemetry/telemetry_to_memory_bridge.py"]
+    requires: ["AUTOPACK_ENABLE_MEMORY=true"]
+    notes: "When enabled, telemetry insights (anomalies, retry causes) are automatically indexed in vector memory for retrieval during future runs"
+
   # ============================================================================
   # Developer/Debug Overrides
   # ============================================================================
@@ -428,7 +437,16 @@ flags:
     values: "Float (seconds)"
     affects: ["config.py", "database.py"]
     aliases: ["DB_OPERATION_TIMEOUT"]
-    notes: "IMP-033: Configurable timeout to prevent indefinite hangs during DB operations"
+    notes: "IMP-033: Configurable timeout to prevent indefinite database hangs"
+
+  AUTOPACK_PHASE_TIMEOUT_MINUTES:
+    description: "Maximum wall-clock time per phase before hard timeout"
+    category: tuning
+    default: "15"
+    values: "Integer (minutes)"
+    affects: ["config.py", "executor/phase_orchestrator.py", "time_watchdog.py"]
+    aliases: ["PHASE_TIMEOUT_MINUTES"]
+    notes: "IMP-STUCK-001: Per-phase timeout enforcement to prevent runaway phases from consuming entire run budget. 50% soft warning issued at halfway point."
 
   # ============================================================================
   # Rate Limiting (PR-06)

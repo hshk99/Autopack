@@ -935,3 +935,52 @@ class LearnedRule(Base):
     # Notes
     description = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
+
+
+class PolicyPromotion(Base):
+    """
+    Policy promotion records for validated improvements (IMP-ARCH-006).
+
+    Tracks automated promotion of A-B tested improvements to production configuration
+    with rollback protection and monitoring.
+    """
+
+    __tablename__ = "policy_promotions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    promotion_id = Column(String(128), nullable=False, unique=True, index=True)
+    created_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+    # Source
+    ab_test_result_id = Column(
+        Integer, ForeignKey("ab_test_results.id"), nullable=False, index=True
+    )
+    improvement_task_id = Column(String(128), nullable=False, index=True)
+
+    # Configuration changes
+    config_changes = Column(JSON, nullable=False)  # {"key": {"old": val1, "new": val2}}
+    promoted_version = Column(String(128), nullable=False)
+    previous_version = Column(String(128), nullable=False)
+
+    # Promotion lifecycle
+    promoted_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    monitoring_until = Column(DateTime, nullable=True)  # 24hr monitoring window
+
+    # Rollback
+    rollback_triggered = Column(Boolean, nullable=False, default=False, index=True)
+    rollback_reason = Column(Text, nullable=True)
+    rollback_at = Column(DateTime, nullable=True)
+
+    # Post-promotion metrics
+    post_promotion_metrics = Column(JSON, nullable=True)  # Tracked during monitoring period
+    degradation_detected = Column(Boolean, nullable=False, default=False)
+
+    # Status
+    status = Column(
+        String(20), nullable=False, default="active", index=True
+    )  # 'active', 'stable', 'rolled_back'
+
+    # Relationship
+    ab_test_result = relationship("ABTestResult", backref="promotions")

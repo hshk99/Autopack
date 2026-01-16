@@ -1,5 +1,5 @@
 import click
-from src.autopack.research.orchestrator import ResearchOrchestrator
+from autopack.research.orchestrator import ResearchOrchestrator
 
 
 @click.group()

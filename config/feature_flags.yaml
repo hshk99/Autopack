@@ -99,6 +99,30 @@ flags:
     values: ["true", "false"]
     affects: ["autonomous_executor.py"]
 
+  AUTOPACK_AUTOPILOT_ENABLED:
+    description: "Enable autopilot periodic invocation during autonomous execution (IMP-AUTOPILOT-001)"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["autonomous_executor.py", "executor/autonomous_loop.py"]
+    notes: "Autopilot scans for gaps and executes auto-approved improvement proposals"
+
+  AUTOPACK_AUTOPILOT_FREQUENCY:
+    description: "Invoke autopilot every N phases (IMP-AUTOPILOT-001)"
+    category: tuning
+    default: "5"
+    values: "Positive integer (recommended: 3-10)"
+    affects: ["executor/autonomous_loop.py"]
+    requires: ["AUTOPACK_AUTOPILOT_ENABLED=true"]
+
+  AUTOPACK_AUTOPILOT_MAX_PROPOSALS:
+    description: "Max improvement proposals per autopilot session (IMP-AUTOPILOT-001)"
+    category: tuning
+    default: "3"
+    values: "Positive integer (recommended: 1-5)"
+    affects: ["executor/autonomous_loop.py"]
+    requires: ["AUTOPACK_AUTOPILOT_ENABLED=true"]
+
   AUTOPACK_ENABLE_CONSOLIDATED_METRICS:
     description: "Enable consolidated metrics endpoint"
     category: feature_toggle
@@ -620,6 +644,24 @@ external_env_vars:
     category: service_config
     default: "sqlite:///autopack.db (development)"
     affects: ["database.py"]
+
+  AUTOPILOT_ENABLED:
+    description: "Alias for AUTOPACK_AUTOPILOT_ENABLED (IMP-AUTOPILOT-001)"
+    category: feature_toggle
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_AUTOPILOT_ENABLED"
+
+  AUTOPILOT_GAP_SCAN_FREQUENCY:
+    description: "Alias for AUTOPACK_AUTOPILOT_FREQUENCY (IMP-AUTOPILOT-001)"
+    category: tuning
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_AUTOPILOT_FREQUENCY"
+
+  AUTOPILOT_MAX_PROPOSALS_PER_SESSION:
+    description: "Alias for AUTOPACK_AUTOPILOT_MAX_PROPOSALS (IMP-AUTOPILOT-001)"
+    category: tuning
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_AUTOPILOT_MAX_PROPOSALS"
 
   TESTING:
     description: "Skip DB initialization in test mode"

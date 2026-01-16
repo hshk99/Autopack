@@ -41,7 +41,6 @@ class TestPolicyPromoter:
             control_model_hash="hash1",
             treatment_model_hash="hash2",
             is_valid=True,
-            validated=True,
             token_delta=-200000,
             time_delta_seconds=-300,
             control_total_tokens=1000000,

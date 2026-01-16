@@ -11,7 +11,7 @@ import logging
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List
+from typing import List, Literal
 
 from .models import (
     Gap,
@@ -27,6 +27,7 @@ from .doc_drift import (
     run_sot_summary_check,
     run_doc_tests,
 )
+from .gap_plugin import PluginRegistry, GapResult
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,9 @@ class GapScanner:
         self.gaps.extend(self._detect_protected_path_violations())
         self.gaps.extend(self._detect_db_lock_contention())
         self.gaps.extend(self._detect_git_state_corruption())
+
+        # Run plugin detectors
+        self.gaps.extend(self._run_plugin_detectors())
 
         elapsed_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
         logger.info(f"Gap scan completed in {elapsed_ms}ms: {len(self.gaps)} gaps found")
@@ -599,6 +603,89 @@ class GapScanner:
                 )
         except Exception as e:
             logger.debug(f"Failed to check git fsck: {e}")
+
+        return gaps
+
+    def _run_plugin_detectors(self) -> List[Gap]:
+        """Run all registered plugin detectors.
+
+        Returns:
+            List of gaps detected by plugins
+        """
+        gaps = []
+
+        # Load plugins from config
+        config_path = self.workspace_root / "config" / "gap_plugins.yaml"
+        registry = PluginRegistry()
+        registry.load_from_config(config_path)
+
+        # Run each plugin
+        for plugin in registry.get_all():
+            try:
+                plugin_gaps = plugin.detect(context={"project_root": str(self.workspace_root)})
+                gaps.extend(self._convert_plugin_results(plugin_gaps, plugin.name))
+            except Exception as e:
+                logger.warning(f"Plugin {plugin.name} failed: {e}")
+
+        return gaps
+
+    def _convert_plugin_results(self, plugin_gaps: List[GapResult], plugin_name: str) -> List[Gap]:
+        """Convert plugin GapResult objects to Gap model objects.
+
+        Args:
+            plugin_gaps: List of GapResult objects from plugin
+            plugin_name: Name of the plugin that detected these gaps
+
+        Returns:
+            List of Gap objects
+        """
+        gaps = []
+
+        for result in plugin_gaps:
+            # Generate gap ID from plugin name, gap type, and file path
+            gap_id = self._generate_gap_id(
+                result.gap_type,
+                [plugin_name, result.file_path or ""] if result.file_path else [plugin_name],
+            )
+
+            # Map severity to risk classification
+            severity_map: dict[str, Literal["critical", "high", "medium", "low", "info"]] = {
+                "critical": "critical",
+                "high": "high",
+                "medium": "medium",
+                "low": "low",
+                "info": "info",
+            }
+            risk_classification: Literal["critical", "high", "medium", "low", "info"] = (
+                severity_map.get(result.severity, "medium")
+            )
+
+            # Build evidence
+            evidence = GapEvidence()
+            if result.file_path:
+                evidence.file_paths = [result.file_path]
+
+            # Create Gap object
+            gap = Gap(
+                gap_id=gap_id,
+                gap_type="unknown",  # Using unknown for plugin-detected gaps
+                title=result.description,
+                description=f"[{plugin_name}] {result.description}",
+                detection_signals=[result.description],
+                evidence=evidence,
+                risk_classification=risk_classification,
+                blocks_autopilot=risk_classification in ("critical", "high"),
+                safe_remediation=(
+                    SafeRemediation(
+                        approach=result.suggested_fix,
+                        requires_approval=risk_classification in ("critical", "high"),
+                        estimated_actions=1,
+                    )
+                    if result.suggested_fix
+                    else None
+                ),
+            )
+            gaps.append(gap)
 
         return gaps
 

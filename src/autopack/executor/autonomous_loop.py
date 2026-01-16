@@ -539,6 +539,12 @@ class AutonomousLoop:
         # If we stop due to max-iterations/stop-signal/stop-on-failure, the run should remain resumable
         # (i.e., do NOT force it into a DONE_* state).
         if stop_reason == "no_more_executable_phases":
+            # IMP-ARCH-001: Persist telemetry insights to memory after run completion
+            try:
+                self._persist_telemetry_insights()
+            except Exception as e:
+                logger.warning(f"Failed to persist telemetry insights: {e}")
+
             # Log run completion summary to CONSOLIDATED_BUILD.md
             try:
                 log_build_event(
@@ -699,3 +705,28 @@ class AutonomousLoop:
                 # Continue with next proposal (non-blocking)
 
         logger.info("[IMP-AUTOPILOT-001] Autopilot session completed")
+
+    def _persist_telemetry_insights(self) -> None:
+        """Analyze and persist telemetry insights to memory after run completion.
+
+        Implements IMP-ARCH-001: Wire Telemetry Analyzer to Memory Service.
+        Closes the ROAD-B feedback loop by persisting ranked issues to vector memory
+        for retrieval in future runs.
+        """
+        analyzer = self._get_telemetry_analyzer()
+        if not analyzer:
+            logger.debug("[IMP-ARCH-001] No telemetry analyzer available")
+            return
+
+        try:
+            # Analyze telemetry from the run and aggregate issues
+            ranked_issues = analyzer.aggregate_telemetry(window_days=7)
+            logger.info(
+                f"[IMP-ARCH-001] Analyzed telemetry: "
+                f"{len(ranked_issues.get('top_cost_sinks', []))} cost sinks, "
+                f"{len(ranked_issues.get('top_failure_modes', []))} failure modes, "
+                f"{len(ranked_issues.get('top_retry_causes', []))} retry causes"
+            )
+        except Exception as e:
+            logger.warning(f"[IMP-ARCH-001] Failed to analyze telemetry: {e}")
+            return

@@ -74,55 +74,8 @@ class TelemetryToMemoryBridge:
         if not self.memory_service:
             return
 
-        insight_type = insight.get("insight_type", "unknown")
-
-        if insight_type == "cost_sink":
-            # Write as phase summary with cost warning
-            self.memory_service.write_phase_summary(
-                phase_id=insight.get("phase_id") or "global",
-                summary=insight.get("description", ""),
-                metrics={
-                    "cost_tokens": insight.get("metric_value", 0),
-                    "occurrences": insight.get("occurrences", 1),
-                },
-                tags=["telemetry", "cost_sink", insight.get("severity", "medium")],
-            )
-
-        elif insight_type == "failure_mode":
-            # Write as error with failure pattern
-            self.memory_service.write_error(
-                error_type=insight.get("description", ""),
-                message=f"Recurring failure: {insight.get('suggested_action') or insight.get('description')}",
-                context={
-                    "phase_id": insight.get("phase_id"),
-                    "occurrences": insight.get("occurrences", 1),
-                },
-                severity=insight.get("severity", "medium"),
-                project_id=project_id,
-            )
-
-        elif insight_type == "retry_cause":
-            # Write as doctor hint with resolution strategy
-            self.memory_service.write_doctor_hint(
-                hint=insight.get("suggested_action") or insight.get("description", ""),
-                context={
-                    "issue": insight.get("description"),
-                    "occurrences": insight.get("occurrences", 1),
-                },
-                tags=["telemetry", "retry", insight.get("severity", "medium")],
-            )
-
-        else:
-            # Generic write to phase summary
-            self.memory_service.write_phase_summary(
-                phase_id=insight.get("phase_id") or "unknown",
-                summary=f"Telemetry insight: {insight.get('description')}",
-                metrics={
-                    "value": insight.get("metric_value", 0),
-                    "occurrences": insight.get("occurrences", 1),
-                },
-                tags=["telemetry", insight_type, insight.get("severity", "medium")],
-            )
+        # Use the unified write_telemetry_insight method that routes appropriately
+        self.memory_service.write_telemetry_insight(insight, project_id)
 
     def clear_cache(self) -> None:
         """Clear deduplication cache (call between runs)."""

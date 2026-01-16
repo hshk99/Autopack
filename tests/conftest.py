@@ -27,7 +27,9 @@ from sqlalchemy.orm import sessionmaker
 
 from autopack.database import Base, get_db
 from autopack.main import app
-from autopack.models import PolicyPromotion  # noqa: F401 - ensure model registered
+
+# Import entire models module to ensure all model classes are registered with SQLAlchemy
+import autopack.models  # noqa: F401
 from autopack.usage_recorder import LlmUsageEvent  # noqa: F401 - ensure model registered
 
 

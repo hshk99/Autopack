@@ -134,6 +134,11 @@ class BuilderOrchestrator:
         # 1K: Validate output (empty patch check)
         builder_result = self._validate_output(phase_id, builder_result)
 
+        # 1K+: Validate deliverables against intention anchor constraints
+        builder_result = self._validate_deliverable_against_intentions(
+            phase_id, builder_result, context_info
+        )
+
         # Return builder result and context for caller to handle posting/validation
         return builder_result, context_info
 
@@ -1525,6 +1530,94 @@ class BuilderOrchestrator:
 
         # Return original validation state if repair failed or was skipped
         return False, [], json_details
+
+    def _validate_deliverable_against_intentions(
+        self, phase_id: str, builder_result: BuilderResult, context_info: Dict[str, Any]
+    ) -> BuilderResult:
+        """Validate builder deliverables against intention anchor constraints.
+
+        Performs post-hoc validation that builder output respects intention
+        constraints (must_not, hard_blocks, success_criteria).
+
+        Args:
+            phase_id: Phase identifier for logging
+            builder_result: Builder result with deliverable content
+            context_info: Context info containing intention context
+
+        Returns:
+            BuilderResult (possibly modified with warnings if validation fails)
+        """
+        # Skip if builder already failed
+        if not builder_result.success:
+            return builder_result
+
+        # Skip if no patch content to validate
+        if not builder_result.patch_content or not builder_result.patch_content.strip():
+            return builder_result
+
+        try:
+            # Try to load intention anchor from executor if available
+            intention_anchor = getattr(self.executor, "_intention_anchor", None)
+
+            if not intention_anchor:
+                # Try to load from storage
+                try:
+                    from autopack.intention_anchor.storage import IntentionAnchorStorage
+
+                    intention_anchor = IntentionAnchorStorage.load_anchor(self.run_id)
+                except Exception:
+                    intention_anchor = None
+
+            # If no anchor available, skip validation with no warning
+            if not intention_anchor:
+                return builder_result
+
+            # Validate deliverable against intention anchor
+            from autopack.builder import DeliverableValidator
+
+            validator = DeliverableValidator(anchor=intention_anchor)
+            result = validator.validate(
+                builder_result.patch_content,
+                metadata={"phase": phase_id},
+            )
+
+            # Log validation results
+            if result.violations:
+                logger.error(
+                    f"[{phase_id}] Deliverable validation FAILED: {len(result.violations)} violations"
+                )
+                for violation in result.violations:
+                    logger.error(f"  - {violation}")
+
+                # Add violations to builder messages
+                messages = builder_result.builder_messages or []
+                messages.extend([f"Validation violation: {v}" for v in result.violations])
+                builder_result = BuilderResult(
+                    success=False,
+                    patch_content=builder_result.patch_content,
+                    builder_messages=messages,
+                    tokens_used=builder_result.tokens_used,
+                    model_used=getattr(builder_result, "model_used", None),
+                    error="deliverable_validation_failed: constraint violations detected",
+                )
+
+            if result.warnings:
+                logger.warning(
+                    f"[{phase_id}] Deliverable validation WARNINGS: {len(result.warnings)} issues"
+                )
+                for warning in result.warnings:
+                    logger.warning(f"  - {warning}")
+
+                # Add warnings to builder messages
+                messages = builder_result.builder_messages or []
+                messages.extend([f"Validation warning: {w}" for w in result.warnings])
+                builder_result.builder_messages = messages
+
+        except Exception as e:
+            logger.warning(f"[{phase_id}] Intention validation error (continuing): {e}")
+            # Don't fail the phase on validation errors - log and continue
+
+        return builder_result
 
     def post_builder_result(
         self, phase_id: str, builder_result: BuilderResult, allowed_paths: Optional[List[str]]

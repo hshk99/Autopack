@@ -498,6 +498,32 @@ class AutonomousExecutor:
         self.auditor_orchestrator = AuditorOrchestrator(self)
         logger.info("[PR-EXE-11] Builder/Auditor pipeline orchestrators initialized")
 
+        # IMP-AUTOPILOT-001: Initialize autopilot for periodic gap scanning and improvement proposals
+        self.autopilot = None
+        self._autopilot_phase_count = 0  # Track phases for periodic invocation
+        if settings.autopilot_enabled:
+            try:
+                from autopack.autonomy.autopilot import AutopilotController
+
+                self.autopilot = AutopilotController(
+                    workspace_root=Path(self.workspace),
+                    project_id=self.project_id,
+                    run_id=self.run_id,
+                    enabled=True,
+                )
+                logger.info(
+                    f"[IMP-AUTOPILOT-001] Autopilot enabled "
+                    f"(frequency: every {settings.autopilot_gap_scan_frequency} phases, "
+                    f"max_proposals: {settings.autopilot_max_proposals_per_session})"
+                )
+            except Exception as e:
+                logger.warning(f"[IMP-AUTOPILOT-001] Autopilot initialization failed: {e}")
+                self.autopilot = None
+        else:
+            logger.info(
+                "[IMP-AUTOPILOT-001] Autopilot disabled (set AUTOPILOT_ENABLED=true to enable)"
+            )
+
         # [Run-Level Health Budget] Prevent infinite retry loops (GPT_RESPONSE5 recommendation)
         self._run_http_500_count: int = 0  # Count of HTTP 500 errors in this run
         self._run_patch_failure_count: int = 0  # Count of patch failures in this run

@@ -414,6 +414,23 @@ class AutonomousLoop:
                 phases_executed += 1
                 # Reset failure count on success
                 self.executor._phase_failure_counts[phase_id] = 0
+
+                # IMP-AUTOPILOT-001: Periodic autopilot invocation after successful phases
+                if hasattr(self.executor, "autopilot") and self.executor.autopilot:
+                    self.executor._autopilot_phase_count += 1
+                    if (
+                        self.executor._autopilot_phase_count % settings.autopilot_gap_scan_frequency
+                        == 0
+                    ):
+                        logger.info(
+                            f"[IMP-AUTOPILOT-001] Invoking autopilot after {self.executor._autopilot_phase_count} phases"
+                        )
+                        try:
+                            self._invoke_autopilot_session()
+                        except Exception as e:
+                            logger.warning(
+                                f"[IMP-AUTOPILOT-001] Autopilot session failed (non-blocking): {e}"
+                            )
             else:
                 logger.warning(f"Phase {phase_id} finished with status: {status}")
                 phases_failed += 1
@@ -513,3 +530,76 @@ class AutonomousLoop:
                 )
             except Exception as e:
                 logger.warning(f"Failed to log run pause: {e}")
+
+    def _invoke_autopilot_session(self):
+        """Invoke autopilot to scan for gaps and execute approved improvements.
+
+        IMP-AUTOPILOT-001: Periodic autopilot invocation during autonomous execution.
+        Runs gap scanning, proposes improvements, and executes auto-approved actions.
+        """
+        from autopack.intention_anchor.storage import IntentionAnchorStorage
+
+        logger.info("[IMP-AUTOPILOT-001] Starting autopilot gap scan session...")
+
+        # Load intention anchor for this run (provides constraints for autopilot)
+        try:
+            intention_anchor = IntentionAnchorStorage.load_anchor(self.executor.run_id)
+            if intention_anchor is None:
+                logger.warning(
+                    f"[IMP-AUTOPILOT-001] No intention anchor found for run {self.executor.run_id}, "
+                    f"using cached anchor or defaults"
+                )
+                # Fall back to cached anchor if available
+                intention_anchor = getattr(self.executor, "_intention_anchor", None)
+        except Exception as e:
+            logger.warning(f"[IMP-AUTOPILOT-001] Failed to load intention anchor: {e}")
+            intention_anchor = getattr(self.executor, "_intention_anchor", None)
+
+        # Run autopilot session (gap scanning + proposal generation)
+        try:
+            proposals = self.executor.autopilot.run_session(
+                intention_anchor=intention_anchor,
+                max_proposals=settings.autopilot_max_proposals_per_session,
+            )
+            logger.info(
+                f"[IMP-AUTOPILOT-001] Autopilot generated {len(proposals)} improvement proposals"
+            )
+        except Exception as e:
+            logger.error(f"[IMP-AUTOPILOT-001] Autopilot session failed: {e}")
+            return
+
+        # Filter for auto-approved proposals
+        auto_approved = [p for p in proposals if p.get("auto_approved", False)]
+        if not auto_approved:
+            logger.info(
+                "[IMP-AUTOPILOT-001] No auto-approved proposals. "
+                f"{len(proposals)} proposals require manual approval (see IMP-AUTOPILOT-002)."
+            )
+            return
+
+        logger.info(
+            f"[IMP-AUTOPILOT-001] Executing {len(auto_approved)} auto-approved improvement proposals"
+        )
+
+        # Execute auto-approved proposals
+        for i, proposal in enumerate(auto_approved, 1):
+            proposal_id = proposal.get("proposal_id", f"autopilot-{i}")
+            gap_type = proposal.get("gap_type", "unknown")
+            description = proposal.get("description", "No description")
+
+            logger.info(
+                f"[IMP-AUTOPILOT-001] [{i}/{len(auto_approved)}] Executing proposal {proposal_id}: "
+                f"{gap_type} - {description[:80]}"
+            )
+
+            try:
+                # Execute proposal through autopilot controller
+                self.executor.autopilot.execute_proposal(proposal)
+                logger.info(f"[IMP-AUTOPILOT-001] ✅ Proposal {proposal_id} executed successfully")
+            except Exception as e:
+                logger.warning(
+                    f"[IMP-AUTOPILOT-001] ⚠️ Proposal {proposal_id} execution failed: {e}"
+                )
+                # Continue with next proposal (non-blocking)
+
+        logger.info("[IMP-AUTOPILOT-001] Autopilot session completed")

@@ -278,6 +278,31 @@ class Settings(BaseSettings):
         multiplier = self.phase_token_cap_multipliers.get(phase_type, 1.0)
         return int(self.phase_token_cap_default * multiplier)
 
+    # IMP-AUTOPILOT-001: Autopilot executor wiring
+    # Controls periodic autopilot invocation during autonomous execution
+    # Autopilot scans for gaps, proposes improvements, executes auto-approved actions
+    autopilot_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("AUTOPACK_AUTOPILOT_ENABLED", "AUTOPILOT_ENABLED"),
+        description="Enable autopilot periodic invocation (default: disabled for safety)",
+    )
+
+    autopilot_gap_scan_frequency: int = Field(
+        default=5,
+        validation_alias=AliasChoices(
+            "AUTOPACK_AUTOPILOT_FREQUENCY", "AUTOPILOT_GAP_SCAN_FREQUENCY"
+        ),
+        description="Invoke autopilot every N phases (default: 5)",
+    )
+
+    autopilot_max_proposals_per_session: int = Field(
+        default=3,
+        validation_alias=AliasChoices(
+            "AUTOPACK_AUTOPILOT_MAX_PROPOSALS", "AUTOPILOT_MAX_PROPOSALS_PER_SESSION"
+        ),
+        description="Max improvement proposals per autopilot session (default: 3)",
+    )
+
     # BUILD-145: Git-based executor rollback (opt-in, disabled by default)
     # When enabled, creates git savepoints before applying patches and rolls back on failure
     # Set via environment variable: AUTOPACK_ROLLBACK_ENABLED=true or EXECUTOR_ROLLBACK_ENABLED=true

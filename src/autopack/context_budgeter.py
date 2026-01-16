@@ -14,11 +14,14 @@ import os
 import re
 import threading
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from autopack.memory.embeddings import sync_embed_texts, semantic_embeddings_enabled
 from autopack.file_hashing import compute_cache_key
 from autopack.config import settings
+
+if TYPE_CHECKING:
+    from autopack.telemetry.cost_tracker import ContextPrepTracker
 
 # Thread safety lock for embedding cache access
 _CACHE_LOCK = threading.Lock()
@@ -137,6 +140,7 @@ def select_files_for_context(
     budget_tokens: int,
     semantic: bool = True,
     per_file_embed_chars: int = 4000,
+    prep_tracker: Optional[ContextPrepTracker] = None,
 ) -> BudgetSelection:
     """Select files for context within a rough token budget.
 
@@ -144,6 +148,16 @@ def select_files_for_context(
     - Ranks remaining files by relevance, then by size.
     - Uses cached embeddings when available.
     - Falls back to lexical ranking if cache misses exceed per-phase cap.
+
+    Args:
+        files: Dict of file paths to contents
+        scope_metadata: File categories and metadata
+        deliverables: Files to always include
+        query: Search query for relevance ranking
+        budget_tokens: Token limit for context
+        semantic: Whether to use semantic ranking with embeddings
+        per_file_embed_chars: Characters to embed per file
+        prep_tracker: Optional tracker for recording context prep costs
     """
     global _PHASE_CALL_COUNT
 
@@ -154,6 +168,9 @@ def select_files_for_context(
     for path, content in (files or {}).items():
         if not isinstance(path, str) or not isinstance(content, str):
             continue
+        # Track file reads
+        if prep_tracker:
+            prep_tracker.record_file_read(path, len(content))
         meta = scope_metadata.get(path) or {}
         cat = meta.get("category") if isinstance(meta, dict) else None
         priority = 0 if path in deliverables_set else (1 if cat == "modifiable" else 2)
@@ -226,6 +243,11 @@ def select_files_for_context(
                 if use_semantic:
                     # Make API call and update cache
                     vecs = sync_embed_texts(texts_to_embed)
+                    # Track embedding call
+                    if prep_tracker:
+                        prep_tracker.record_embedding_call(
+                            len(texts_to_embed) * 256
+                        )  # Rough estimate
                     with _CACHE_LOCK:
                         _PHASE_CALL_COUNT += 1
 

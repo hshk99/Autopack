@@ -19,6 +19,7 @@ from autopack.telemetry.anomaly_detector import (
 )
 from autopack.telemetry.alerts import AlertRouter
 from autopack.telemetry.auto_healer import AutoHealingEngine, HealingAction, HealingDecision
+from autopack.telemetry.cost_tracker import ContextPrepCost, ContextPrepTracker
 from autopack.telemetry.model_performance_tracker import (
     TelemetryDrivenModelOptimizer,
     ModelPerformance,
@@ -62,6 +63,8 @@ __all__ = [
     "AutoHealingEngine",
     "HealingAction",
     "HealingDecision",
+    "ContextPrepCost",
+    "ContextPrepTracker",
     "TelemetryDrivenModelOptimizer",
     "ModelPerformance",
     "MetaMetricsTracker",

@@ -160,6 +160,7 @@ class IntentionAnchorV2(BaseModel):
     raw_input_digest: str
     pivot_intentions: PivotIntentions = Field(default_factory=PivotIntentions)
     metadata: Optional[IntentionMetadata] = None
+    custom_pivots: Dict[str, Any] = Field(default_factory=dict)
 
     def to_json_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dict with ISO datetime formatting.
@@ -183,6 +184,21 @@ class IntentionAnchorV2(BaseModel):
         """
         data = self.to_json_dict()
         validate_intention_anchor_v2(data)
+
+    def validate_for_phase(self, phase_type: str) -> tuple[bool, List[str]]:
+        """Validate anchor is appropriate for given phase type.
+
+        Args:
+            phase_type: The phase type to validate against (e.g., 'build', 'test', 'tidy')
+
+        Returns:
+            Tuple of (is_valid, error_messages) where error_messages is empty if valid
+        """
+        from .phase_type_registry import PhaseTypeRegistry
+
+        registry = PhaseTypeRegistry()
+        registry.load_from_config("config/phase_type_pivots.yaml")
+        return registry.validate_anchor_for_phase(self, phase_type)
 
     @classmethod
     def from_json_dict(cls, data: Dict[str, Any]) -> IntentionAnchorV2:

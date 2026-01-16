@@ -1,0 +1,55 @@
+phase_types:
+  - name: build
+    required_pivots: [north_star, scope_boundaries, budget_cost]
+    optional_pivots: [evidence_verification, memory_continuity, parallelism_isolation]
+    custom_pivots: []
+
+  - name: audit
+    required_pivots: [north_star, scope_boundaries, evidence_verification]
+    optional_pivots: [safety_risk, governance_review]
+    custom_pivots: []
+
+  - name: test
+    required_pivots: [north_star, scope_boundaries]
+    optional_pivots: [evidence_verification, parallelism_isolation]
+    custom_pivots: []
+
+  - name: tidy
+    required_pivots: [north_star, scope_boundaries]
+    optional_pivots: []
+    custom_pivots:
+      - name: cleanliness_threshold
+        type: float
+        default: 0.8
+        description: "Minimum cleanliness score to achieve (0.0-1.0)"
+      - name: preserve_patterns
+        type: list
+        default: []
+        description: "File patterns to preserve during cleanup (glob patterns)"
+
+  - name: doctor
+    required_pivots: [north_star, scope_boundaries, safety_risk]
+    optional_pivots: [evidence_verification, memory_continuity]
+    custom_pivots:
+      - name: diagnosis_depth
+        type: string
+        default: surface
+        description: "How deep to diagnose: surface, moderate, deep"
+
+  - name: format
+    required_pivots: [north_star, scope_boundaries]
+    optional_pivots: []
+    custom_pivots:
+      - name: style_guide
+        type: string
+        default: ""
+        description: "Reference to style guide or formatter rules"
+
+  - name: lint
+    required_pivots: [north_star, scope_boundaries, evidence_verification]
+    optional_pivots: [governance_review]
+    custom_pivots:
+      - name: severity_level
+        type: string
+        default: error
+        description: "Minimum severity to fail on: warning, error"

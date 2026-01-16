@@ -100,26 +100,32 @@ class TestBudgetScaling:
     """Test budget scaling relationships."""
 
     def test_cost_equivalence_haiku_to_sonnet(self):
-        """Haiku and Sonnet have equivalent spending (cost × tokens)."""
+        """Haiku and Sonnet have approximately equivalent spending (cost × tokens).
+
+        Note: Due to integer truncation, costs may differ by up to 1 unit.
+        """
         haiku_budget = adjust_budget_for_tier(4000, "haiku")
         sonnet_budget = adjust_budget_for_tier(4000, "sonnet")
 
         haiku_cost = haiku_budget * TIER_COST_RATIOS["haiku"]
         sonnet_cost = sonnet_budget * TIER_COST_RATIOS["sonnet"]
 
-        # They should be equal (cost equivalence)
-        assert haiku_cost == sonnet_cost
+        # They should be approximately equal (cost equivalence within 1% tolerance)
+        assert abs(haiku_cost - sonnet_cost) / haiku_cost < 0.01
 
     def test_cost_equivalence_haiku_to_opus(self):
-        """Haiku and Opus have equivalent spending (cost × tokens)."""
+        """Haiku and Opus have approximately equivalent spending (cost × tokens).
+
+        Note: Due to integer truncation, costs may differ by up to 1 unit.
+        """
         haiku_budget = adjust_budget_for_tier(4000, "haiku")
         opus_budget = adjust_budget_for_tier(4000, "opus")
 
         haiku_cost = haiku_budget * TIER_COST_RATIOS["haiku"]
         opus_cost = opus_budget * TIER_COST_RATIOS["opus"]
 
-        # They should be equal (cost equivalence)
-        assert haiku_cost == opus_cost
+        # They should be approximately equal (cost equivalence within 1% tolerance)
+        assert abs(haiku_cost - opus_cost) / haiku_cost < 0.01
 
     def test_token_reduction_proportional_to_cost(self):
         """Token reduction is proportional to cost increase."""

@@ -11,9 +11,7 @@ def mock_memory_service():
     """Mock memory service."""
     mock = Mock(spec=MemoryService)
     mock.enabled = True
-    mock.write_phase_summary.return_value = "doc-001"
-    mock.write_error.return_value = "doc-002"
-    mock.write_doctor_hint.return_value = "doc-003"
+    mock.write_telemetry_insight.return_value = "doc-001"
     return mock
 
 
@@ -62,7 +60,7 @@ def test_persist_insights_cost_sink(bridge, mock_memory_service, sample_ranked_i
     count = bridge.persist_insights([sample_ranked_issues[0]], run_id="test-run")
 
     assert count == 1
-    mock_memory_service.write_phase_summary.assert_called_once()
+    mock_memory_service.write_telemetry_insight.assert_called_once()
 
 
 def test_persist_insights_failure_mode(bridge, mock_memory_service, sample_ranked_issues):
@@ -70,7 +68,7 @@ def test_persist_insights_failure_mode(bridge, mock_memory_service, sample_ranke
     count = bridge.persist_insights([sample_ranked_issues[1]], run_id="test-run")
 
     assert count == 1
-    mock_memory_service.write_error.assert_called_once()
+    mock_memory_service.write_telemetry_insight.assert_called_once()
 
 
 def test_persist_insights_retry_cause(bridge, mock_memory_service, sample_ranked_issues):
@@ -78,7 +76,7 @@ def test_persist_insights_retry_cause(bridge, mock_memory_service, sample_ranked
     count = bridge.persist_insights([sample_ranked_issues[2]], run_id="test-run")
 
     assert count == 1
-    mock_memory_service.write_doctor_hint.assert_called_once()
+    mock_memory_service.write_telemetry_insight.assert_called_once()
 
 
 def test_deduplication(bridge, mock_memory_service, sample_ranked_issues):
@@ -87,10 +85,8 @@ def test_deduplication(bridge, mock_memory_service, sample_ranked_issues):
     count_1 = bridge.persist_insights(sample_ranked_issues, run_id="test-run")
 
     assert count_1 == 0  # All duplicates, no new insights
-    # Only first call should have persisted
-    assert mock_memory_service.write_phase_summary.call_count == 1
-    assert mock_memory_service.write_error.call_count == 1
-    assert mock_memory_service.write_doctor_hint.call_count == 1
+    # Only first call should have persisted (3 total for first call)
+    assert mock_memory_service.write_telemetry_insight.call_count == 3
 
 
 def test_disabled_service(bridge, mock_memory_service, sample_ranked_issues):
@@ -99,7 +95,7 @@ def test_disabled_service(bridge, mock_memory_service, sample_ranked_issues):
     count = bridge.persist_insights(sample_ranked_issues, run_id="test-run")
 
     assert count == 0
-    mock_memory_service.write_phase_summary.assert_not_called()
+    mock_memory_service.write_telemetry_insight.assert_not_called()
 
 
 def test_clear_cache(bridge, mock_memory_service, sample_ranked_issues):
@@ -109,4 +105,4 @@ def test_clear_cache(bridge, mock_memory_service, sample_ranked_issues):
     count = bridge.persist_insights(sample_ranked_issues, run_id="test-run")
 
     assert count == 3  # All re-persisted after cache clear
-    assert mock_memory_service.write_phase_summary.call_count == 2
+    assert mock_memory_service.write_telemetry_insight.call_count == 6  # 3 + 3

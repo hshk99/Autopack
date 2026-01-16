@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from src.autopack.deployment.rollback_manager import RollbackManager
-from src.autopack.models import PolicyPromotion
+from autopack.deployment.rollback_manager import RollbackManager
+from autopack.models import PolicyPromotion
 
 
 @pytest.fixture

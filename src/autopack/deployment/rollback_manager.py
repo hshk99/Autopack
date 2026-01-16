@@ -227,7 +227,7 @@ class RollbackManager:
         """Get baseline metrics from A-B test result."""
         session = SessionLocal()
         try:
-            from src.autopack.models import ABTestResult
+            from autopack.models import ABTestResult
 
             ab_test = session.query(ABTestResult).filter_by(id=ab_test_result_id).first()
             if not ab_test or not ab_test.metrics:

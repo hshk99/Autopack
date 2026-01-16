@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from src.autopack.deployment.policy_promoter import PolicyPromoter
-from src.autopack.models import ABTestResult, PolicyPromotion
+from autopack.deployment.policy_promoter import PolicyPromoter
+from autopack.models import ABTestResult, PolicyPromotion
 
 
 @pytest.fixture

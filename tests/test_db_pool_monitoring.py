@@ -249,7 +249,7 @@ class TestAutonomousLoopPoolHealthLogging:
         with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
             mock_settings.db_pool_monitoring_enabled = True
 
-            with patch("autopack.executor.autonomous_loop.get_pool_health") as mock_health:
+            with patch("autopack.database.get_pool_health") as mock_health:
                 mock_health.return_value = healthy_stats
 
                 with patch("autopack.executor.autonomous_loop.logger") as mock_logger:
@@ -296,7 +296,7 @@ class TestAutonomousLoopPoolHealthLogging:
         with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
             mock_settings.db_pool_monitoring_enabled = True
 
-            with patch("autopack.executor.autonomous_loop.get_pool_health") as mock_health:
+            with patch("autopack.database.get_pool_health") as mock_health:
                 mock_health.return_value = high_util_stats
 
                 with patch("autopack.executor.autonomous_loop.logger") as mock_logger:

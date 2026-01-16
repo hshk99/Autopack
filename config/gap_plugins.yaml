@@ -1,0 +1,16 @@
+# Gap detector plugin configuration
+# Add custom gap detector plugins here
+
+plugins:
+  - name: api_routes_without_tests
+    module: autopack.gaps.plugins.api_routes_plugin
+    class: ApiRoutesWithoutTestsPlugin
+    enabled: true
+    description: "Detects API routes that don't have corresponding tests"
+
+  # Template for adding more plugins:
+  # - name: plugin_name
+  #   module: autopack.gaps.plugins.plugin_module
+  #   class: PluginClassName
+  #   enabled: true
+  #   description: "Plugin description"

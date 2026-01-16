@@ -18,8 +18,9 @@ Collections (per plan):
 
 import hashlib
 import logging
+import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,8 @@ class QdrantStore:
             )
 
         self._unavailable_logged = False
+        self.host = host
+        self.port = port
         self.client = QdrantClient(
             host=host,
             port=port,
@@ -87,14 +90,15 @@ class QdrantStore:
             timeout=timeout,
         )
         self._default_dim = 1536  # OpenAI text-embedding-ada-002 dimension
-        # Validate connectivity up front so callers can fall back cleanly.
-        try:
-            self.client.get_collections()
-        except Exception as e:
-            logger.warning(f"[Qdrant] Connection check failed for {host}:{port}: {e}")
-            raise
 
-        logger.info(f"[Qdrant] Connected to {host}:{port}")
+        # IMP-MEM-001: Enhanced health check with HTTP API validation and retry logic
+        # Validate connectivity up front so callers can fall back cleanly.
+        is_healthy, error_msg = self._check_qdrant_health()
+        if not is_healthy:
+            logger.warning(f"[Qdrant] Health check failed for {host}:{port}: {error_msg}")
+            raise RuntimeError(f"Qdrant health check failed: {error_msg}")
+
+        logger.info(f"[Qdrant] Connected to {host}:{port} (health check passed)")
 
     def _log_unavailable(self, message: str, exc: Exception) -> None:
         """Log Qdrant connection issues without spamming."""
@@ -103,6 +107,117 @@ class QdrantStore:
             logger.warning(f"[Qdrant] {message}: {exc}")
         else:
             logger.debug(f"[Qdrant] {message}: {exc}")
+
+    def _check_qdrant_health(
+        self, max_retries: int = 3, retry_delay: float = 1.0
+    ) -> Tuple[bool, str]:
+        """IMP-MEM-001: Check Qdrant health with HTTP API validation and retry logic.
+
+        Problem: Memory service previously only checked TCP port 6333, which could be open
+        while the HTTP API is still initializing. This caused "Connection refused" errors
+        when qdrant-client tried to make HTTP requests immediately after port check.
+
+        Solution: Perform multi-layer health validation with retries:
+        1. Test basic connectivity via get_collections() (validates TCP + initial API)
+        2. Query HTTP /health endpoint for detailed status (validates full API readiness)
+        3. Retry up to max_retries times with exponential backoff if not ready
+
+        This ensures the Qdrant API is fully initialized before marking it as healthy.
+
+        Args:
+            max_retries: Maximum number of retry attempts
+            retry_delay: Initial delay between retries (doubled on each retry)
+
+        Returns:
+            Tuple of (is_healthy: bool, error_msg: str)
+            - (True, "") if healthy
+            - (False, "error message") if unhealthy after all retries
+
+        Note: This method is called during __init__, so exceptions should be caught
+        by the caller and converted to connection failures.
+        """
+        attempt = 0
+        last_error = ""
+
+        while attempt < max_retries:
+            attempt += 1
+
+            try:
+                # Step 1: Basic connectivity check via Qdrant client
+                # This validates TCP connection and basic API responsiveness
+                logger.debug(
+                    f"[IMP-MEM-001] Health check attempt {attempt}/{max_retries}: Testing basic connectivity"
+                )
+                self.client.get_collections()
+                logger.debug("[IMP-MEM-001] Basic connectivity check passed")
+
+                # Step 2: HTTP /health endpoint check for full API readiness
+                # Some Qdrant versions may pass get_collections but not be fully ready
+                # The /health endpoint provides more detailed status
+                try:
+                    # Use requests library for direct HTTP health check
+                    import requests
+
+                    health_url = f"http://{self.host}:{self.port}/health"
+                    logger.debug(f"[IMP-MEM-001] Checking HTTP health endpoint: {health_url}")
+
+                    response = requests.get(health_url, timeout=5)
+
+                    if response.status_code == 200:
+                        try:
+                            health_data = response.json()
+                            status = health_data.get("status", "unknown")
+                            logger.debug(
+                                f"[IMP-MEM-001] HTTP health check passed (status: {status})"
+                            )
+                        except Exception:
+                            # Some Qdrant versions return 200 without JSON body
+                            logger.debug(
+                                "[IMP-MEM-001] HTTP health check passed (status 200, no JSON)"
+                            )
+                        return True, ""
+                    else:
+                        last_error = f"HTTP health endpoint returned status {response.status_code}"
+                        logger.warning(f"[IMP-MEM-001] {last_error}")
+
+                except requests.exceptions.Timeout:
+                    last_error = "HTTP health endpoint timeout after 5s"
+                    logger.warning(f"[IMP-MEM-001] {last_error}")
+
+                except requests.exceptions.ConnectionError:
+                    last_error = (
+                        "HTTP health endpoint connection refused (API not fully initialized)"
+                    )
+                    logger.warning(f"[IMP-MEM-001] {last_error}")
+
+                except Exception as e:
+                    # If requests library not available, fall back to basic check
+                    logger.debug(
+                        f"[IMP-MEM-001] HTTP health check unavailable (requests not installed), "
+                        f"falling back to basic check: {e}"
+                    )
+                    # Basic check passed above, so treat as healthy
+                    return True, ""
+
+            except Exception as e:
+                last_error = f"Basic connectivity check failed: {type(e).__name__}: {e}"
+                logger.warning(f"[IMP-MEM-001] {last_error}")
+
+            # Retry with exponential backoff if not the last attempt
+            if attempt < max_retries:
+                wait_time = retry_delay * (2 ** (attempt - 1))
+                logger.info(
+                    f"[IMP-MEM-001] Qdrant not ready, retrying in {wait_time:.1f}s "
+                    f"(attempt {attempt}/{max_retries})"
+                )
+                time.sleep(wait_time)
+
+        # All retries exhausted
+        logger.error(
+            f"[IMP-MEM-001] Qdrant health check failed after {max_retries} attempts. "
+            f"Last error: {last_error}"
+        )
+        return False, last_error
 
     def _str_to_uuid(self, string_id: str) -> str:
         """

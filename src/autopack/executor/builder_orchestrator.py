@@ -80,6 +80,7 @@ class BuilderOrchestrator:
         phase: Dict,
         attempt_index: int,
         allowed_paths: Optional[List[str]] = None,
+        memory_context: Optional[str] = None,
     ) -> Tuple[BuilderResult, Dict[str, Any]]:
         """Execute Builder with full validation pipeline.
 
@@ -91,6 +92,7 @@ class BuilderOrchestrator:
             phase: Phase specification dict
             attempt_index: Current attempt number for model escalation
             allowed_paths: Optional list of allowed file paths
+            memory_context: Optional memory context to inject (IMP-ARCH-002)
 
         Returns:
             Tuple of (BuilderResult, context_info dict with file_context, learning_context, etc.)
@@ -101,7 +103,7 @@ class BuilderOrchestrator:
         logger.info(f"[{phase_id}] Step 1/4: Generating code with Builder (via LlmService)...")
 
         # 1A-1E: Load all context types
-        context_info = self._load_context(phase_id, phase)
+        context_info = self._load_context(phase_id, phase, memory_context=memory_context)
 
         # 1F-1G: Prepare phase spec with deliverables and protected paths
         phase_with_constraints, use_full_file_mode = self._prepare_phase_spec(
@@ -142,19 +144,22 @@ class BuilderOrchestrator:
         # Return builder result and context for caller to handle posting/validation
         return builder_result, context_info
 
-    def _load_context(self, phase_id: str, phase: Dict) -> Dict[str, Any]:
+    def _load_context(
+        self, phase_id: str, phase: Dict, memory_context: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Load all context types for Builder.
 
         Loads:
         - 1A: File context from repository
         - 1B: Scope validation
         - 1C: Learning context (rules and hints)
-        - 1D: Vector memory retrieval
+        - 1D: Vector memory retrieval (or use injected memory_context from IMP-ARCH-002)
         - 1E: Intention context injection
 
         Args:
             phase_id: Phase identifier for logging
             phase: Phase specification
+            memory_context: Optional memory context from autonomous loop (IMP-ARCH-002)
 
         Returns:
             Dict with file_context, learning_context, retrieved_context, intention_context
@@ -177,8 +182,14 @@ class BuilderOrchestrator:
                 f"[{phase_id}] Learning context: {len(project_rules)} rules, {len(run_hints)} hints"
             )
 
-        # 1D: Retrieve supplemental context from vector memory
-        retrieved_context = self._retrieve_memory_context(phase_id, phase)
+        # 1D: Retrieve supplemental context from vector memory or use injected memory_context
+        if memory_context:
+            # IMP-ARCH-002: Use memory context injected from autonomous loop
+            retrieved_context = memory_context
+            logger.info(f"[{phase_id}] Using injected memory context from autonomous loop")
+        else:
+            # Standard path: retrieve from vector memory
+            retrieved_context = self._retrieve_memory_context(phase_id, phase)
 
         # 1E: Intention context injection
         intention_context = self._inject_intention_context(phase_id, retrieved_context)

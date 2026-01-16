@@ -41,6 +41,7 @@ def run_single_attempt_with_recovery(
     phase: dict,
     attempt_index: int,
     allowed_paths: list[str] | None,
+    memory_context: str | None = None,
 ) -> AttemptRunResult:
     """Run a single phase attempt with error recovery.
 
@@ -53,6 +54,7 @@ def run_single_attempt_with_recovery(
         phase: Phase data dictionary with at least "phase_id".
         attempt_index: Current 0-based attempt number.
         allowed_paths: List of allowed file paths for scope enforcement, or None.
+        memory_context: Optional memory context to inject (IMP-ARCH-002).
 
     Returns:
         AttemptRunResult with success flag and status string.
@@ -64,6 +66,7 @@ def run_single_attempt_with_recovery(
             phase,
             attempt_index=attempt_index,
             allowed_paths=allowed_paths,
+            memory_context=memory_context,
         )
 
     success, status = executor.error_recovery.execute_with_retry(

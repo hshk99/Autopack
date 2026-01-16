@@ -47,6 +47,10 @@ from autopack.telemetry.regression_protector import (
     RegressionDetection,
     FixStabilityReport,
 )
+from autopack.telemetry.cost_aggregator import (
+    CostAggregator,
+    CostAggregation,
+)
 
 __all__ = [
     "TelemetryAnalyzer",
@@ -78,4 +82,6 @@ __all__ = [
     "RegressionSeverity",
     "RegressionDetection",
     "FixStabilityReport",
+    "CostAggregator",
+    "CostAggregation",
 ]

@@ -45,6 +45,12 @@ class LlmUsageEvent(Base):
     doctor_model = Column(String, nullable=True)  # cheap or strong
     doctor_action = Column(String, nullable=True)  # retry_with_fix, replan, skip_phase, etc.
 
+    # IMP-COST-005: Cost attribution dimensions
+    # phase_type: build, audit, test, tidy, doctor, etc.
+    phase_type = Column(String, nullable=True, index=True)
+    # intent: feature, bugfix, refactor, docs, etc.
+    intent = Column(String, nullable=True, index=True)
+
     # Composite index for client usage queries over time ranges
     __table_args__ = (Index("ix_client_created", "client_id", "created_at"),)
 
@@ -187,6 +193,10 @@ class UsageEventData:
     doctor_model: Optional[str] = None  # "cheap" or "strong"
     doctor_action: Optional[str] = None  # action type recommended
 
+    # IMP-COST-005: Cost attribution dimensions
+    phase_type: Optional[str] = None  # build, audit, test, tidy, doctor, etc.
+    intent: Optional[str] = None  # feature, bugfix, refactor, docs, etc.
+
 
 def record_usage(db: Session, event: UsageEventData) -> LlmUsageEvent:
     """
@@ -212,6 +222,8 @@ def record_usage(db: Session, event: UsageEventData) -> LlmUsageEvent:
         is_doctor_call=event.is_doctor_call,
         doctor_model=event.doctor_model,
         doctor_action=event.doctor_action,
+        phase_type=event.phase_type,
+        intent=event.intent,
     )
 
     db.add(usage_record)

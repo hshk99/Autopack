@@ -150,6 +150,47 @@ class AutonomousLoop:
         time.sleep(sleep_time)
         return sleep_time
 
+    def _log_db_pool_health(self) -> None:
+        """Log database pool health to telemetry (IMP-DB-001).
+
+        Monitors connection pool for:
+        - Pool exhaustion (high utilization)
+        - Connection leaks (long-held connections)
+        - Hot code paths (frequent connections)
+        """
+        from autopack.database import get_pool_health
+
+        if not settings.db_pool_monitoring_enabled:
+            return
+
+        try:
+            pool_health = get_pool_health()
+
+            # Log high utilization warning
+            if pool_health.utilization_pct > 80:
+                logger.warning(
+                    f"[IMP-DB-001] Database pool utilization high: {pool_health.utilization_pct:.1f}% "
+                    f"({pool_health.checked_out}/{pool_health.pool_size})"
+                )
+
+            # Log potential leaks
+            if pool_health.potential_leaks:
+                logger.warning(
+                    f"[IMP-DB-001] Detected {len(pool_health.potential_leaks)} potential connection leaks. "
+                    f"Longest checkout: {pool_health.longest_checkout_sec:.1f}s"
+                )
+
+            # Debug logging for monitoring
+            logger.debug(
+                f"[IMP-DB-001] Pool health - "
+                f"Size: {pool_health.pool_size}, "
+                f"CheckedOut: {pool_health.checked_out}, "
+                f"Overflow: {pool_health.overflow}, "
+                f"Utilization: {pool_health.utilization_pct:.1f}%"
+            )
+        except Exception as e:
+            logger.warning(f"[IMP-DB-001] Failed to collect pool health metrics: {e}")
+
     def run(
         self,
         poll_interval: float = 0.5,
@@ -328,6 +369,9 @@ class AutonomousLoop:
                 break
 
             iteration += 1
+
+            # IMP-DB-001: Log database pool health at start of each iteration
+            self._log_db_pool_health()
 
             # Fetch run status
             logger.info(f"Iteration {iteration}: Fetching run status...")

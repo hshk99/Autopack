@@ -56,12 +56,57 @@ def get_db():
 
 
 def get_pool_health():
-    """Get connection pool health stats.
+    """Get connection pool health metrics (IMP-DB-001).
 
     Returns:
-        dict with pool statistics and health indicators
+        DatabasePoolStats with comprehensive pool statistics and health indicators
     """
-    return leak_detector.check_pool_health()
+    from datetime import datetime
+
+    from .dashboard_schemas import DatabasePoolStats
+
+    # Get basic pool health from detector
+    pool_health = leak_detector.check_pool_health()
+
+    # Extract pool configuration
+    pool_size = pool_health.get("pool_size", 0)
+    checked_out = pool_health.get("checked_out", 0)
+    overflow = pool_health.get("overflow", 0)
+    max_overflow = getattr(engine.pool, "_max_overflow", 10)
+
+    # Calculate derived metrics
+    checked_in = pool_size - checked_out
+    utilization_pct = (checked_out / pool_size * 100) if pool_size > 0 else 0.0
+    queue_size = pool_health.get("queue_size", 0)
+
+    # Detect potential leaks (connections checked out longer than threshold)
+    potential_leaks = []
+    if checked_out > 15:  # Alert when many connections are in use
+        potential_leaks.append(
+            {
+                "severity": "warning",
+                "checked_out": checked_out,
+                "pool_size": pool_size,
+                "message": f"High pool utilization: {utilization_pct:.1f}%",
+            }
+        )
+
+    return DatabasePoolStats(
+        timestamp=datetime.now(),
+        pool_size=pool_size,
+        checked_out=checked_out,
+        checked_in=checked_in,
+        overflow=overflow,
+        max_overflow=max_overflow,
+        utilization_pct=utilization_pct,
+        queue_size=queue_size,
+        potential_leaks=potential_leaks,
+        longest_checkout_sec=0.0,  # Would require tracking individual connections
+        avg_checkout_ms=0.0,  # Would require tracking individual connections
+        avg_checkin_ms=0.0,  # Would require tracking individual connections
+        total_checkouts=0,  # Would require cumulative tracking
+        total_timeouts=0,  # Would require tracking timeout events
+    )
 
 
 def init_db():

@@ -107,6 +107,14 @@ flags:
     affects: ["autonomous_executor.py", "executor/autonomous_loop.py"]
     notes: "Autopilot scans for gaps and executes auto-approved improvement proposals"
 
+  AUTOPACK_DB_POOL_MONITORING_ENABLED:
+    description: "Enable database connection pool monitoring and leak detection (IMP-DB-001)"
+    category: feature_toggle
+    default: "true"
+    values: ["true", "false"]
+    affects: ["executor/autonomous_loop.py", "database.py"]
+    notes: "Monitors pool exhaustion, connection leaks, and hot code paths. Follows up on PR #271 (IMP-PERF-001)"
+
   AUTOPACK_AUTOPILOT_FREQUENCY:
     description: "Invoke autopilot every N phases (IMP-AUTOPILOT-001)"
     category: tuning

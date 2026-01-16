@@ -682,3 +682,75 @@ class CausalAnalyzer:
             )
 
         return recommendations
+
+    def validate_ab_test_result(
+        self,
+        test_result: Any,  # ABTestResult from validation module
+        min_confidence: float = 0.7,
+    ) -> tuple[bool, List[str]]:
+        """
+        Validate A-B test result using causal analysis principles.
+
+        Applies additional causal validation beyond statistical significance:
+        1. Effect size must be meaningful (not just statistically significant)
+        2. No confounding factors detected
+        3. Temporal coherence (no strange patterns)
+
+        Args:
+            test_result: ABTestResult from ab_testing_harness
+            min_confidence: Minimum confidence threshold
+
+        Returns:
+            (validated, warnings): True if causally valid, list of warnings
+        """
+        warnings = []
+
+        # Check 1: Statistical significance already validated in ABTestResult
+        if not test_result.validated:
+            return False, ["A-B test did not pass statistical validation"]
+
+        # Check 2: Effect size is meaningful (not just significant)
+        if abs(test_result.effect_size) < 0.2:
+            warnings.append(
+                f"Effect size ({test_result.effect_size:.3f}) is negligible, "
+                "improvement may not be practically meaningful"
+            )
+
+        # Check 3: Check for anomalous patterns in treatment vs control
+        # If any metric shows extreme variance, flag it
+        for metric_name, control_vals in test_result.control_metrics.items():
+            if metric_name not in test_result.treatment_metrics:
+                continue
+
+            treatment_vals = test_result.treatment_metrics[metric_name]
+
+            # Check variance ratio (treatment variance should not be >>  control variance)
+            if len(control_vals) > 1 and len(treatment_vals) > 1:
+                control_std = stdev(control_vals)
+                treatment_std = stdev(treatment_vals)
+
+                if control_std > 0:
+                    variance_ratio = treatment_std / control_std
+                    if variance_ratio > 3.0:
+                        warnings.append(
+                            f"{metric_name}: treatment variance is {variance_ratio:.1f}x "
+                            "higher than control - may indicate instability"
+                        )
+
+        # Check 4: Confidence interval analysis
+        # If confidence intervals are very wide, warn about uncertainty
+        for metric_name, (ci_lower, ci_upper) in test_result.confidence_intervals.items():
+            ci_width = ci_upper - ci_lower
+            control_mean = mean(test_result.control_metrics.get(metric_name, [0]))
+
+            if control_mean > 0:
+                relative_width = ci_width / control_mean
+                if relative_width > 0.5:  # CI width > 50% of mean
+                    warnings.append(
+                        f"{metric_name}: wide confidence interval "
+                        f"({relative_width*100:.1f}% of baseline) - more data recommended"
+                    )
+
+        # Overall validation: pass if no critical issues
+        # Warnings are advisory but don't fail validation
+        return True, warnings

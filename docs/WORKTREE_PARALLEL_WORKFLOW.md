@@ -26,6 +26,110 @@ git add .
 
 ---
 
+## 🚨 CRITICAL: Environment Variable Documentation (IMP-LEARNED RULE)
+
+**MANDATORY**: All `AUTOPACK_*` environment variables MUST be documented in `config/feature_flags.yaml`.
+
+**Why This Rule Exists**:
+- CI enforces this via `test_all_autopack_vars_documented` and `test_settings_env_vars_documented`
+- These tests scan for undocumented env vars in code and will FAIL the build
+- `config/feature_flags.yaml` is the single source of truth for all environment variables
+
+**When to Document**:
+- **Immediately** after adding ANY new field to `config.py` with `AUTOPACK_*` or external env var aliases
+- **Before** your first commit containing the new config field
+
+**How to Document** (see `config/feature_flags.yaml` for format):
+
+```yaml
+flags:
+  AUTOPACK_YOUR_NEW_FLAG:
+    description: "What this flag does (include IMP reference)"
+    category: feature_toggle|tuning|observability
+    default: "false"|"value"
+    values: ["true", "false"]|"Positive integer (recommended: X-Y)"
+    affects: ["file1.py", "file2.py"]
+    notes: "Additional context"
+    requires: ["OTHER_FLAG=true"]  # Optional
+
+external_env_vars:
+  YOUR_FLAG_ALIAS:
+    description: "Alias for AUTOPACK_YOUR_NEW_FLAG (IMP reference)"
+    category: feature_toggle|tuning
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_YOUR_NEW_FLAG"
+```
+
+**Example from IMP-AUTOPILOT-001**:
+```yaml
+flags:
+  AUTOPACK_AUTOPILOT_ENABLED:
+    description: "Enable autopilot periodic invocation during autonomous execution (IMP-AUTOPILOT-001)"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["autonomous_executor.py", "executor/autonomous_loop.py"]
+
+external_env_vars:
+  AUTOPILOT_ENABLED:
+    description: "Alias for AUTOPACK_AUTOPILOT_ENABLED (IMP-AUTOPILOT-001)"
+    category: feature_toggle
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_AUTOPILOT_ENABLED"
+```
+
+**Common Mistake**: Adding config fields without documenting them → CI failure → 15-30min wasted debugging
+
+---
+
+## 🚨 CRITICAL: Mock Object Testing (IMP-LEARNED RULE)
+
+**MANDATORY**: When adding code that accesses executor/service attributes, guard against Mock objects in tests.
+
+**Why This Rule Exists**:
+- Unit tests use `Mock()` objects that auto-create attributes on access
+- `hasattr(mock_obj, "attr")` returns `True` even if the attr is also a Mock
+- Operations like `mock_attr += 1` fail with `TypeError: unsupported operand type(s) for +=: 'Mock' and 'int'`
+
+**When to Add Guards**:
+- **Any time** you access dynamic attributes on `self.executor` or similar service objects
+- **Especially** when performing numeric operations (`+=`, `-=`, etc.)
+
+**How to Guard** (defensive attribute access pattern):
+
+```python
+# ❌ BAD - Will fail with Mock objects in tests
+if hasattr(self.executor, "autopilot") and self.executor.autopilot:
+    self.executor._autopilot_phase_count += 1  # TypeError if Mock!
+
+# ✅ GOOD - Handles Mock objects correctly
+if (
+    hasattr(self.executor, "autopilot")
+    and self.executor.autopilot
+    and hasattr(self.executor, "_autopilot_phase_count")
+    and isinstance(self.executor._autopilot_phase_count, int)  # Type guard!
+):
+    self.executor._autopilot_phase_count += 1
+```
+
+**Alternative Pattern** (skip entirely for Mock):
+```python
+from unittest.mock import Mock
+
+# Skip logic if executor is a Mock (for tests)
+if not isinstance(self.executor, Mock) and hasattr(self.executor, "autopilot"):
+    # Safe to access real executor attributes
+    self.executor._autopilot_phase_count += 1
+```
+
+**Example from IMP-AUTOPILOT-001**:
+- Initial code: `hasattr()` check only → test failure
+- Fixed code: Added `isinstance(self.executor._autopilot_phase_count, int)` → tests pass
+
+**Common Mistake**: Using `hasattr()` alone without type checking → test failures in `test_execute_loop_*`
+
+---
+
 ## 🎯 Overview: Parallel Run Groups
 
 **Total Improvements**: 20
@@ -52,6 +156,8 @@ git add .
 - Temp file commits → rebase conflicts (10-15min wasted)
 - Formatting discrepancies → CI failures (25min+ wasted)
 - Dirty working tree → rebase errors (20-30min wasted)
+- Missing env var docs → CI test failures (15-30min wasted)
+- Mock test failures → debugging loops (20-40min wasted)
 
 ```bash
 # 1. Clean git state (remove temp files, check for unintended changes)
@@ -59,22 +165,33 @@ git status
 rm -f tmpclaude-*-cwd 2>/dev/null || true
 git status  # Verify no temp files remain
 
-# 2. Run formatting (MANDATORY - CI will fail without this)
+# 2. ⚠️ NEW: Document environment variables (if you added any to config.py)
+# If you added AUTOPACK_* vars, edit config/feature_flags.yaml BEFORE committing
+# Run: pytest tests/config/test_feature_flags.py -v -k "documented"
+
+# 3. ⚠️ NEW: Check for Mock-sensitive code (if you access executor attributes)
+# Search your changes for patterns like:
+#   self.executor._some_attr += 1
+# Add isinstance() guards:
+#   isinstance(self.executor._some_attr, int)
+
+# 4. Run formatting (MANDATORY - CI will fail without this)
 pre-commit run --all-files
 # If pre-commit modifies files, stage them:
 git add .
 
-# 3. Verify clean state before commit
+# 5. Verify clean state before commit
 git status
 # Should show only your intended changes
 
-# 4. Run local tests (optional but recommended for critical changes)
+# 6. Run local tests (HIGHLY RECOMMENDED for IMP implementations)
 pytest tests/path/to/your_tests.py -v
+# Also run any tests that touch files you modified
 
-# 5. Commit with clear message
+# 7. Commit with clear message
 git commit -m "your commit message"
 
-# 6. Push to trigger CI
+# 8. Push to trigger CI
 git push
 ```
 
@@ -83,6 +200,8 @@ git push
 - ❌ Leaving temp files (tmpclaude-*-cwd) in commits (causes rebase conflicts)
 - ❌ Committing with dirty working tree (causes rebase errors)
 - ❌ Skipping git status verification (commits unintended changes)
+- ❌ **NEW**: Adding config fields without documenting in feature_flags.yaml (causes CI test failures)
+- ❌ **NEW**: Accessing executor attributes without isinstance() guards (causes Mock test failures)
 
 **Why This Matters**:
 - Evidence from ref3.md: Cursor #1 spent 30+ minutes investigating temp file issues (preventable)
@@ -1101,6 +1220,98 @@ Start implementation now.
 **After all 3 PRs merge:**
 - ✅ Phase 5 complete
 - ⏭️ Proceed to Final Cleanup
+
+---
+
+## 🚨 LINT FAILURE RECOVERY GUIDE (IMP-LEARNED PROCEDURES)
+
+**Use this when pre-commit hooks auto-modify your files or tests fail unexpectedly.**
+
+### Black/Ruff Auto-Formatting
+
+**Symptom**: `black....Failed - files were modified by this hook`
+
+**Why It Happens**: Black reformats code to match style rules (line length, spacing, etc.)
+
+**Recovery Steps** (EXPECTED BEHAVIOR - NOT AN ERROR):
+```bash
+# Step 1: Black already modified your files - just stage them
+git add .
+
+# Step 2: Run pre-commit again to verify
+pre-commit run --all-files
+
+# Step 3: If it passes, commit normally
+git commit -m "your message"
+```
+
+**Important**: This is NORMAL and EXPECTED. Black auto-fixing is a feature, not a bug.
+
+---
+
+### Feature Flags Documentation Test Failure
+
+**Symptom**:
+```
+AssertionError: Undocumented AUTOPACK_* environment variables found in code:
+    ['AUTOPACK_YOUR_NEW_VAR']
+Add these to config/feature_flags.yaml to maintain single source of truth.
+```
+
+**Why It Happens**: You added a new config field but didn't document it in `config/feature_flags.yaml`
+
+**Recovery Steps**:
+```bash
+# Step 1: Edit config/feature_flags.yaml
+# Add your AUTOPACK_* vars to the 'flags' section
+# Add any external aliases to 'external_env_vars' section
+
+# Step 2: Run the test locally to verify
+pytest tests/config/test_feature_flags.py -v -k "test_all_autopack_vars_documented"
+
+# Step 3: Commit and push
+git add config/feature_flags.yaml
+git commit --amend --no-edit  # Or create new commit
+git push --force-with-lease
+```
+
+**Prevention**: Add env vars to feature_flags.yaml IMMEDIATELY after adding them to config.py
+
+---
+
+### Mock Object TypeError in Tests
+
+**Symptom**:
+```
+TypeError: unsupported operand type(s) for +=: 'Mock' and 'int'
+  File: src/autopack/executor/autonomous_loop.py, line X
+    self.executor._autopilot_phase_count += 1
+```
+
+**Why It Happens**: Your code accesses executor attributes that are Mock objects in tests
+
+**Recovery Steps**:
+```bash
+# Step 1: Add isinstance type guard to your code
+# Change:
+if hasattr(self.executor, "autopilot"):
+    self.executor._phase_count += 1
+
+# To:
+if (hasattr(self.executor, "autopilot")
+    and isinstance(self.executor._phase_count, int)):
+    self.executor._phase_count += 1
+
+# Step 2: Run the failing test locally
+pytest tests/executor/test_autonomous_loop.py -v -k "test_execute_loop"
+
+# Step 3: Commit and push
+git add src/autopack/executor/autonomous_loop.py
+git commit -m "fix: Add isinstance guard for Mock objects in tests"
+git push
+```
+
+**Prevention**: Always add `isinstance()` checks when accessing dynamic executor attributes
 
 ---
 

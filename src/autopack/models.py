@@ -984,3 +984,52 @@ class PolicyPromotion(Base):
 
     # Relationship
     ab_test_result = relationship("ABTestResult", backref="promotions")
+
+
+class GapDetection(Base):
+    """Records gap detection events for telemetry and analysis."""
+
+    __tablename__ = "gap_detections"
+    __table_args__ = (
+        Index("ix_gap_detection_run_id", "run_id"),
+        Index("ix_gap_detection_gap_type", "gap_type"),
+        Index("ix_gap_detection_risk", "risk_classification"),
+        Index("ix_gap_detection_timestamp", "detected_at"),
+        Index("ix_gap_detection_blocks", "blocks_autopilot"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True, name="event_id")
+    gap_id = Column(String(12), nullable=False, index=True)
+    gap_type = Column(String(50), nullable=False, index=True)
+    detected_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
+    file_path = Column(String(500), nullable=True)
+    risk_classification = Column(String(20), nullable=False, default="medium", index=True)
+    blocks_autopilot = Column(Boolean, nullable=False, default=False, index=True)
+    run_id = Column(String(36), nullable=True, index=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
+class GapRemediation(Base):
+    """Records gap remediation attempts and outcomes."""
+
+    __tablename__ = "gap_remediations"
+    __table_args__ = (
+        Index("ix_gap_remediation_run_id", "run_id"),
+        Index("ix_gap_remediation_gap_type", "gap_type"),
+        Index("ix_gap_remediation_success", "success"),
+        Index("ix_gap_remediation_timestamp", "detected_at"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True, name="event_id")
+    gap_id = Column(String(12), nullable=False, index=True)
+    gap_type = Column(String(50), nullable=False, index=True)
+    detected_at = Column(DateTime, nullable=False)
+    remediated_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
+    success = Column(Boolean, nullable=False, index=True)
+    method = Column(String(20), nullable=False)  # "auto", "manual", "ignored"
+    run_id = Column(String(36), nullable=True, index=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))

@@ -622,6 +622,78 @@ class SOTRetrievalEvent(Base):
     )
 
 
+class DoctorOutcomeEvent(Base):
+    """
+    Doctor diagnostic outcome telemetry - IMP-DOCTOR-002.
+
+    Tracks Doctor invocations and outcomes to measure effectiveness:
+    - Was Doctor's recommendation followed?
+    - Did the phase succeed after Doctor intervention?
+    - What actions did Doctor recommend?
+
+    Enables success rate tracking and Doctor effectiveness analysis.
+    """
+
+    __tablename__ = "doctor_outcome_events"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["run_id", "phase_id"],
+            ["phases.run_id", "phases.phase_id"],
+            ondelete="CASCADE",
+            name="fk_doctor_outcome_run_phase",
+        ),
+        # Composite indexes for Doctor outcome queries
+        Index("ix_doctor_outcome_run_id", "run_id"),
+        Index("ix_doctor_outcome_phase_id", "phase_id"),
+        Index("ix_doctor_outcome_action", "doctor_action"),
+        Index("ix_doctor_outcome_timestamp", "timestamp"),
+        Index("ix_doctor_outcome_success", "phase_succeeded_after_doctor"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    run_id = Column(String, nullable=False, index=True)
+    phase_id = Column(String, nullable=False, index=True)
+
+    timestamp = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+    # Doctor invocation context
+    error_category = Column(String, nullable=False)  # e.g., "auditor_reject", "ci_failure"
+    builder_attempts = Column(Integer, nullable=False)  # Attempts before Doctor called
+
+    # Doctor recommendation
+    doctor_action = Column(
+        String, nullable=False, index=True
+    )  # e.g., "retry_with_hint", "replan", "skip"
+    doctor_rationale = Column(String, nullable=True)  # Doctor's reasoning
+    doctor_confidence = Column(Float, nullable=True)  # Doctor's confidence (0-1)
+    builder_hint_provided = Column(
+        Boolean, nullable=False, default=False
+    )  # Did Doctor provide hint?
+
+    # Follow-through tracking
+    recommendation_followed = Column(
+        Boolean, nullable=False, default=True, index=True
+    )  # Was Doctor's action taken?
+
+    # Outcome tracking (NULL if phase still in progress)
+    phase_succeeded_after_doctor = Column(
+        Boolean, nullable=True, index=True
+    )  # Did phase eventually succeed?
+    attempts_after_doctor = Column(Integer, nullable=True)  # Additional attempts after Doctor
+    final_phase_outcome = Column(
+        String, nullable=True
+    )  # Final status: "COMPLETE", "FAILED", "SKIPPED", etc.
+
+    # Cost tracking
+    doctor_tokens_used = Column(Integer, nullable=True)  # Tokens used by Doctor call
+    model_used = Column(String, nullable=True)  # Model used for Doctor (haiku/sonnet/opus)
+
+
 class ABTestResult(Base):
     """A/B test comparison results - BUILD-146 P12.
 

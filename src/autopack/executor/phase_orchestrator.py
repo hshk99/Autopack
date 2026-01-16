@@ -649,6 +649,21 @@ class PhaseOrchestrator:
         )
 
         if doctor_response:
+            # IMP-DOCTOR-002: Record Doctor outcome (initial invocation)
+            doctor_integration.record_doctor_outcome(
+                run_id=context.run_id,
+                phase_id=phase_id,
+                error_category=failure_outcome,
+                builder_attempts=context.attempt_index + 1,
+                doctor_response=doctor_response,
+                recommendation_followed=True,  # Will update if action not taken
+                phase_succeeded=None,  # Not known yet
+                attempts_after_doctor=None,
+                final_outcome=None,
+                doctor_tokens_used=None,  # Could extract from llm_service if available
+                model_used=None,  # Could extract from llm_service if available
+            )
+
             # Handle Doctor's recommended action
             action_taken, should_continue = doctor_integration.handle_doctor_action(
                 phase=context.phase,

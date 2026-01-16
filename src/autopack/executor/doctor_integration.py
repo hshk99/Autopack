@@ -361,6 +361,124 @@ class DoctorIntegration:
             logger.error(f"[Doctor] Invocation failed: {e}")
             return None
 
+    def record_doctor_outcome(
+        self,
+        run_id: str,
+        phase_id: str,
+        error_category: str,
+        builder_attempts: int,
+        doctor_response: DoctorResponse,
+        recommendation_followed: bool = True,
+        phase_succeeded: Optional[bool] = None,
+        attempts_after_doctor: Optional[int] = None,
+        final_outcome: Optional[str] = None,
+        doctor_tokens_used: Optional[int] = None,
+        model_used: Optional[str] = None,
+    ):
+        """Record Doctor outcome telemetry (IMP-DOCTOR-002).
+
+        Args:
+            run_id: Run identifier
+            phase_id: Phase identifier
+            error_category: Error category that triggered Doctor
+            builder_attempts: Builder attempts before Doctor was called
+            doctor_response: Doctor's response
+            recommendation_followed: Whether Doctor's recommendation was followed
+            phase_succeeded: Whether phase succeeded after Doctor (None if still in progress)
+            attempts_after_doctor: Additional attempts after Doctor
+            final_outcome: Final phase outcome ("COMPLETE", "FAILED", etc.)
+            doctor_tokens_used: Tokens used by Doctor call
+            model_used: Model used for Doctor invocation
+        """
+        if os.getenv("TELEMETRY_DB_ENABLED", "false").lower() != "true":
+            return
+
+        try:
+            from autopack.models import DoctorOutcomeEvent
+            from autopack.database import SessionLocal
+
+            db = SessionLocal()
+            try:
+                event = DoctorOutcomeEvent(
+                    run_id=run_id,
+                    phase_id=phase_id,
+                    error_category=error_category,
+                    builder_attempts=builder_attempts,
+                    doctor_action=doctor_response.action,
+                    doctor_rationale=doctor_response.rationale,
+                    doctor_confidence=doctor_response.confidence,
+                    builder_hint_provided=bool(doctor_response.builder_hint),
+                    recommendation_followed=recommendation_followed,
+                    phase_succeeded_after_doctor=phase_succeeded,
+                    attempts_after_doctor=attempts_after_doctor,
+                    final_phase_outcome=final_outcome,
+                    doctor_tokens_used=doctor_tokens_used,
+                    model_used=model_used,
+                )
+                db.add(event)
+                db.commit()
+                logger.debug(
+                    f"[IMP-DOCTOR-002] Recorded Doctor outcome: {phase_id} -> {doctor_response.action}"
+                )
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"[IMP-DOCTOR-002] Failed to record Doctor outcome: {e}")
+
+    def update_doctor_outcome(
+        self,
+        run_id: str,
+        phase_id: str,
+        phase_succeeded: bool,
+        final_outcome: str,
+        attempts_after_doctor: int,
+    ):
+        """Update Doctor outcome with final phase result (IMP-DOCTOR-002).
+
+        Called after phase completes to record whether Doctor's intervention was successful.
+
+        Args:
+            run_id: Run identifier
+            phase_id: Phase identifier
+            phase_succeeded: Whether phase succeeded
+            final_outcome: Final phase status ("COMPLETE", "FAILED", etc.)
+            attempts_after_doctor: Number of attempts after Doctor intervention
+        """
+        if os.getenv("TELEMETRY_DB_ENABLED", "false").lower() != "true":
+            return
+
+        try:
+            from autopack.models import DoctorOutcomeEvent
+            from autopack.database import SessionLocal
+            from sqlalchemy import desc
+
+            db = SessionLocal()
+            try:
+                # Find most recent Doctor outcome for this phase
+                event = (
+                    db.query(DoctorOutcomeEvent)
+                    .filter(
+                        DoctorOutcomeEvent.run_id == run_id,
+                        DoctorOutcomeEvent.phase_id == phase_id,
+                    )
+                    .order_by(desc(DoctorOutcomeEvent.timestamp))
+                    .first()
+                )
+
+                if event and event.phase_succeeded_after_doctor is None:
+                    # Update with final outcome
+                    event.phase_succeeded_after_doctor = phase_succeeded
+                    event.final_phase_outcome = final_outcome
+                    event.attempts_after_doctor = attempts_after_doctor
+                    db.commit()
+                    logger.debug(
+                        f"[IMP-DOCTOR-002] Updated Doctor outcome: {phase_id} -> success={phase_succeeded}"
+                    )
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"[IMP-DOCTOR-002] Failed to update Doctor outcome: {e}")
+
     def handle_doctor_action(
         self,
         phase: Dict,

@@ -107,7 +107,9 @@ class TestExecuteBuilderWithValidation:
                     attempt_index=0,
                 )
 
-        mock_load_context.assert_called_once_with("phase-1", {"description": "Test phase"})
+        mock_load_context.assert_called_once_with(
+            "phase-1", {"description": "Test phase"}, memory_context=None
+        )
 
     def test_execute_builder_prepares_phase_spec(self, tmp_path: Path):
         """Test that execute_builder_with_validation prepares phase spec with constraints."""

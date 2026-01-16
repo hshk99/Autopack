@@ -1689,7 +1689,7 @@ class AutonomousExecutor:
             logger.error(f"[{self.run_id}] Failed to query executable phases from database: {e}")
             return None
 
-    def execute_phase(self, phase: Dict) -> Tuple[bool, str]:
+    def execute_phase(self, phase: Dict, **kwargs) -> Tuple[bool, str]:
         """Execute Builder -> Auditor -> QualityGate pipeline for a phase
 
         Delegates to PhaseOrchestrator for execution flow (PR-EXE-8).
@@ -1701,11 +1701,18 @@ class AutonomousExecutor:
 
         Args:
             phase: Phase data from API or database
+            **kwargs: Optional adjustments:
+                - memory_context: Memory context to inject (IMP-ARCH-002)
+                - context_reduction_factor: Factor to reduce context by
+                - model_downgrade: Model to downgrade to
+                - timeout_increase_factor: Factor to increase timeout by
 
         Returns:
             Tuple of (success: bool, status: str)
             status can be: "COMPLETE", "FAILED", "BLOCKED"
         """
+        # Extract optional parameters
+        memory_context = kwargs.get("memory_context")
         from autopack.executor.phase_orchestrator import (
             PhaseOrchestrator,
             ExecutionContext,
@@ -1774,6 +1781,7 @@ class AutonomousExecutor:
             last_builder_result=getattr(self, "_last_builder_result", None),
             workspace_root=getattr(self, "workspace_root", None),
             run_budget_tokens=getattr(self, "run_budget_tokens", 0),
+            memory_context=memory_context,  # IMP-ARCH-002: Memory context injection
         )
 
         # Execute phase via orchestrator
@@ -2913,7 +2921,11 @@ class AutonomousExecutor:
             logger.warning(f"[RunCheckpoint] Failed to write run rollback audit log: {e}")
 
     def _execute_phase_with_recovery(
-        self, phase: Dict, attempt_index: int = 0, allowed_paths: Optional[List[str]] = None
+        self,
+        phase: Dict,
+        attempt_index: int = 0,
+        allowed_paths: Optional[List[str]] = None,
+        memory_context: Optional[str] = None,
     ) -> Tuple[bool, str]:
         """Inner phase execution with error handling and model escalation support"""
         # PR-D: Local import to reduce import-time weight and avoid E402
@@ -2976,6 +2988,7 @@ class AutonomousExecutor:
                     phase=phase,
                     attempt_index=attempt_index,
                     allowed_paths=allowed_paths,
+                    memory_context=memory_context,  # IMP-ARCH-002: Memory context injection
                 )
             )
 

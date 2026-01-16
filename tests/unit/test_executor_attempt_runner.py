@@ -54,12 +54,14 @@ class FakeExecutor:
         phase: dict,
         attempt_index: int,
         allowed_paths: list[str] | None,
+        memory_context: str | None = None,  # IMP-ARCH-002: memory context injection
     ) -> Tuple[bool, str]:
         self.execute_phase_calls.append(
             {
                 "phase": phase,
                 "attempt_index": attempt_index,
                 "allowed_paths": allowed_paths,
+                "memory_context": memory_context,
             }
         )
         return (True, "COMPLETE")

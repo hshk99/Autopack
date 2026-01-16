@@ -14,6 +14,7 @@ from autopack.config import settings
 from autopack.archive_consolidator import log_build_event
 from autopack.database import ensure_session_healthy, SESSION_HEALTH_CHECK_INTERVAL
 from autopack.memory import extract_goal_from_description
+from autopack.memory.context_injector import ContextInjector
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.telemetry.analyzer import TelemetryAnalyzer
 from autopack.autonomous.budgeting import (
@@ -138,6 +139,45 @@ class AutonomousLoop:
                 )
 
         return adjustments
+
+    def _get_memory_context(self, phase_type: str, goal: str) -> str:
+        """Retrieve memory context for builder injection.
+
+        Queries vector memory for historical context (past errors, successful strategies,
+        doctor hints) related to the phase and injects it into the builder prompt.
+
+        Args:
+            phase_type: Type of phase (e.g., 'build', 'test', 'deploy')
+            goal: Phase goal/description
+
+        Returns:
+            Formatted context string for prompt injection, or empty string if memory disabled
+        """
+        # Get project ID for memory queries
+        project_id = getattr(self.executor, "_get_project_slug", lambda: "default")()
+
+        try:
+            injector = ContextInjector()
+            injection = injector.get_context_for_phase(
+                phase_type=phase_type,
+                current_goal=goal,
+                project_id=project_id,
+                max_tokens=500,
+            )
+
+            if injection.total_token_estimate > 0:
+                logger.info(
+                    f"[IMP-ARCH-002] Injecting {injection.total_token_estimate} tokens of memory context "
+                    f"({len(injection.past_errors)} errors, "
+                    f"{len(injection.successful_strategies)} strategies, "
+                    f"{len(injection.doctor_hints)} hints, "
+                    f"{len(injection.relevant_insights)} insights)"
+                )
+
+            return injector.format_for_prompt(injection)
+        except Exception as e:
+            logger.warning(f"[IMP-ARCH-002] Failed to retrieve memory context: {e}")
+            return ""
 
     def _adaptive_sleep(self, is_idle: bool = False, base_interval: Optional[float] = None):
         """Sleep with adaptive backoff when idle to reduce CPU usage.
@@ -464,7 +504,13 @@ class AutonomousLoop:
             # Telemetry-driven phase adjustments (IMP-TEL-002)
             phase_adjustments = self._get_telemetry_adjustments(phase_type)
 
-            # Execute phase (with any telemetry-driven adjustments)
+            # IMP-ARCH-002: Retrieve memory context for builder injection
+            phase_goal = next_phase.get("description", "")
+            memory_context = self._get_memory_context(phase_type, phase_goal)
+            if memory_context:
+                phase_adjustments["memory_context"] = memory_context
+
+            # Execute phase (with any telemetry-driven adjustments and memory context)
             success, status = self.executor.execute_phase(next_phase, **phase_adjustments)
 
             if success:

@@ -93,6 +93,7 @@ class ExecutionContext:
     last_builder_result: Optional[Any] = None
     workspace_root: Optional[str] = None
     run_budget_tokens: int = 0
+    memory_context: Optional[str] = None  # IMP-ARCH-002: Memory context for builder injection
 
 
 @dataclass
@@ -488,6 +489,7 @@ class PhaseOrchestrator:
             phase=context.phase,
             attempt_index=context.attempt_index,
             allowed_paths=context.allowed_paths,
+            memory_context=context.memory_context,  # IMP-ARCH-002: Memory context injection
         )
 
         return result

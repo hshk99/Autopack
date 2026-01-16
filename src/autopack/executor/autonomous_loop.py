@@ -416,7 +416,11 @@ class AutonomousLoop:
                 self.executor._phase_failure_counts[phase_id] = 0
 
                 # IMP-AUTOPILOT-001: Periodic autopilot invocation after successful phases
-                if hasattr(self.executor, "autopilot") and self.executor.autopilot:
+                if (
+                    hasattr(self.executor, "autopilot")
+                    and self.executor.autopilot
+                    and hasattr(self.executor, "_autopilot_phase_count")
+                ):
                     self.executor._autopilot_phase_count += 1
                     if (
                         self.executor._autopilot_phase_count % settings.autopilot_gap_scan_frequency

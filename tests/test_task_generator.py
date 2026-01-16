@@ -168,7 +168,7 @@ class TestAutonomousTaskGenerator:
 
         pattern = {
             "type": "timeout",
-            "occurrences": 5,
+            "occurrences": 6,
             "confidence": 0.8,
             "examples": [
                 {

@@ -1,0 +1,21 @@
+task_generation:
+  enabled: true
+  max_tasks_per_run: 10
+  min_confidence: 0.7
+
+  # Patterns to prioritize
+  priority_patterns:
+    - error
+    - failure
+    - timeout
+    - crash
+
+  # Patterns to ignore
+  ignore_patterns:
+    - deprecation_warning
+    - style_violation
+
+  # Auto-execution settings
+  auto_execute:
+    enabled: false  # Start with manual review
+    max_priority: "medium"  # Only auto-execute up to this priority

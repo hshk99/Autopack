@@ -776,3 +776,50 @@ class AutonomousLoop:
         except Exception as e:
             logger.warning(f"[IMP-ARCH-001] Failed to analyze telemetry: {e}")
             return
+
+    def _generate_improvement_tasks(self) -> list:
+        """Generate improvement tasks from telemetry (ROAD-C).
+
+        Implements IMP-ARCH-004: Autonomous Task Generator.
+        Converts telemetry insights into improvement tasks for self-improvement feedback loop.
+
+        Returns:
+            List of GeneratedTask objects
+        """
+        try:
+            from autopack.roadc import AutonomousTaskGenerator
+            from autopack.config import settings as config_settings
+        except ImportError:
+            logger.debug("[IMP-ARCH-004] ROAD-C module not available")
+            return []
+
+        # Load task generation configuration
+        try:
+            # Try to load from settings if available
+            task_gen_config = getattr(config_settings, "task_generation", {})
+            if not task_gen_config:
+                task_gen_config = {"enabled": False}
+        except Exception:
+            task_gen_config = {"enabled": False}
+
+        if not task_gen_config.get("enabled", False):
+            logger.debug("[IMP-ARCH-004] Task generation not enabled")
+            return []
+
+        try:
+            generator = AutonomousTaskGenerator()
+            result = generator.generate_tasks(
+                max_tasks=task_gen_config.get("max_tasks_per_run", 10),
+                min_confidence=task_gen_config.get("min_confidence", 0.7),
+            )
+
+            logger.info(
+                f"[IMP-ARCH-004] Generated {len(result.tasks_generated)} tasks "
+                f"from {result.insights_processed} insights "
+                f"({result.generation_time_ms:.0f}ms)"
+            )
+
+            return result.tasks_generated
+        except Exception as e:
+            logger.warning(f"[IMP-ARCH-004] Failed to generate improvement tasks: {e}")
+            return []

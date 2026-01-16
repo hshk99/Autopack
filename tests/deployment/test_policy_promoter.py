@@ -36,7 +36,12 @@ class TestPolicyPromoter:
             test_id="test-123",
             control_run_id="run-control",
             treatment_run_id="run-treatment",
+            control_commit_sha="abc123",
+            treatment_commit_sha="abc123",
+            control_model_hash="hash1",
+            treatment_model_hash="hash2",
             is_valid=True,
+            validated=True,
             token_delta=-200000,
             time_delta_seconds=-300,
             control_total_tokens=1000000,
@@ -45,11 +50,7 @@ class TestPolicyPromoter:
         db_session.add(ab_test)
         db_session.flush()
 
-        # Mark as validated (simulate successful A-B test)
-        ab_test.is_valid = True
-
         # Note: This test is a placeholder showing intended usage
-        # The actual promotion would require ABTestResult to have 'validated' field
         # For now, just verify the promoter can be instantiated
         promoter = PolicyPromoter(config_path=temp_config_file)
         assert promoter.config_path == temp_config_file

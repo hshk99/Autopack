@@ -1,5 +1,6 @@
 """Pydantic schemas for dashboard API endpoints"""
 
+from datetime import datetime
 from typing import Dict, Literal, Optional
 
 from pydantic import BaseModel
@@ -72,6 +73,25 @@ class Phase6Stats(BaseModel):
     total_intention_context_chars: int
     avg_intention_context_chars_per_phase: float = 0.0
     plan_normalization_used: bool = False
+
+
+class DatabasePoolStats(BaseModel):
+    """Database connection pool health metrics (IMP-DB-001)."""
+
+    timestamp: datetime
+    pool_size: int
+    checked_out: int
+    checked_in: int
+    overflow: int
+    max_overflow: int
+    utilization_pct: float
+    queue_size: int
+    potential_leaks: list[dict]
+    longest_checkout_sec: float
+    avg_checkout_ms: float
+    avg_checkin_ms: float
+    total_checkouts: int
+    total_timeouts: int
 
 
 class ProviderUsage(BaseModel):

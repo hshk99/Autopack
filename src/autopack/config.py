@@ -303,6 +303,15 @@ class Settings(BaseSettings):
         description="Max improvement proposals per autopilot session (default: 3)",
     )
 
+    # IMP-DB-001: Database connection pool monitoring
+    # Monitors pool health for exhaustion, leaks, and hot code paths
+    # Default: True (enabled for observability)
+    db_pool_monitoring_enabled: bool = Field(
+        default=True,
+        validation_alias="AUTOPACK_DB_POOL_MONITORING_ENABLED",
+        description="Enable database connection pool monitoring and leak detection",
+    )
+
     # BUILD-145: Git-based executor rollback (opt-in, disabled by default)
     # When enabled, creates git savepoints before applying patches and rolls back on failure
     # Set via environment variable: AUTOPACK_ROLLBACK_ENABLED=true or EXECUTOR_ROLLBACK_ENABLED=true

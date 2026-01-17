@@ -29,8 +29,42 @@ You MUST:
 2. **NO "already passing" claims** - Each cycle must re-verify from scratch
 3. **NO surface-level scanning** - Reading file names is not scanning; you must read file CONTENTS
 4. **NO premature EXIT_SIGNAL** - You can only exit after scanning ALL 10 areas and finding ZERO gaps
+5. **NO "method exists" = "it works"** - A method existing does NOT mean it's called or wired correctly
 
 **If you output EXIT_SIGNAL without completing ALL scan areas, the loop will reject it and force you to continue.**
+
+---
+
+## ⛔ EXECUTION FLOW TRACING REQUIRED ⛔
+
+**CRITICAL: "Method exists" ≠ "Method is called" ≠ "Data flows end-to-end"**
+
+You MUST trace ACTUAL EXECUTION PATHS, not just verify files exist.
+
+**WRONG approach (surface scanning):**
+```
+✗ "retrieve_insights() method exists in memory_service.py" → PASS
+✗ "TelemetryAnalyzer class exists" → PASS
+✗ "Found persist_tasks in task_generator.py" → PASS
+```
+
+**CORRECT approach (execution flow tracing):**
+```
+✓ Start at entry point: autonomous_loop.py run()
+✓ Trace: run() calls _execute_phase() at line 234
+✓ Trace: _execute_phase() calls _finalize_execution() at line 456
+✓ Trace: _finalize_execution() calls task_generator.generate_tasks() at line 478
+✓ Trace: generate_tasks() calls memory.retrieve_insights() at line 89
+✓ VERIFY: Is the return value actually USED? (not just called and ignored)
+✓ VERIFY: Does data flow to the NEXT step? (not dead-ended)
+```
+
+**For each scan area, you must answer:**
+1. **Entry Point**: Where does execution START?
+2. **Call Chain**: What functions call what? (show line numbers)
+3. **Data Flow**: Does data actually PASS between components? (or is it called but ignored?)
+4. **Wiring**: Are components actually CONNECTED at runtime? (or just defined separately?)
+5. **End-to-End**: Can you trace from INPUT to OUTPUT without broken links?
 
 ---
 
@@ -122,289 +156,843 @@ VALIDATION_COMPLETE: true
 
 ---
 
-### SCAN AREA 1: Self-Improvement Loop
+### SCAN AREA 1: Self-Improvement Loop (EXECUTION FLOW TRACE)
 
-**Deep trace required - read actual code, not just grep.**
+**You MUST trace the complete data flow, not just verify methods exist.**
 
-#### 1.1 Telemetry → Memory
+The self-improvement loop has 5 stages. Trace EACH stage's execution path:
+
 ```
-Read: src/autopack/telemetry/analyzer.py
-Show: Full __init__ method (does it accept memory_service?)
-Show: Full analyze() method (does it call memory write methods?)
-
-Read: src/autopack/executor/autonomous_loop.py
-Find: Where TelemetryAnalyzer is instantiated
-Show: The actual instantiation code (is memory_service passed?)
-```
-
-#### 1.2 Memory → Task Generation
-```
-Read: src/autopack/memory/memory_service.py
-Show: Full retrieve_insights() method
-Question: What collections does it query?
-
-Read: src/autopack/roadc/task_generator.py
-Show: Where retrieve_insights() is called
-Question: Is it actually used to generate tasks?
+Stage 1: Telemetry Collection
+Stage 2: Telemetry → Memory Persistence
+Stage 3: Memory → Task Generation
+Stage 4: Task Persistence
+Stage 5: Task Retrieval → Influencing Next Run
 ```
 
-#### 1.3 Task Persistence
-```
-Read: src/autopack/roadc/task_generator.py
-Show: Full persist_tasks() method
-Question: Does it session.add() and commit()?
+#### 1.1 TRACE: Telemetry Collection
 
-Read: src/autopack/executor/autonomous_loop.py
-Find: Where persist_tasks() is called
-Show: The actual call site
+**Start at the entry point and follow the execution:**
+
+```
+STEP 1: Find where Autopack execution STARTS
+- Read: src/autopack/executor/autonomous_loop.py
+- Find: The main run() method or entry point
+- Show: The actual code (lines X-Y)
+
+STEP 2: Trace WHERE telemetry data is created
+- From run(), what method collects phase outcomes?
+- Show: The call site (not just "method exists")
+- Show: What data structure is returned?
+
+STEP 3: Verify TelemetryAnalyzer is INSTANTIATED with dependencies
+- Find: Where TelemetryAnalyzer() is created
+- Show: The actual constructor call
+- Question: Is memory_service passed in? (show the argument)
+- If NOT passed: THIS IS A GAP (data can't flow to memory)
 ```
 
-#### 1.4 Task Retrieval
+**Output format:**
 ```
-Read: src/autopack/roadc/task_generator.py
-Show: Full get_pending_tasks() method
-
-Read: src/autopack/executor/autonomous_loop.py
-Find: Where pending tasks are loaded at startup
-Show: The actual loading code
+TRACE_1_1_TELEMETRY_COLLECTION:
+  entry_point: autonomous_loop.py:run() at line [X]
+  telemetry_creation: [method name] at line [Y]
+  analyzer_instantiation: line [Z] - memory_service passed: [yes/no]
+  data_flows_to_next_stage: [yes/no]
+  broken_link: [describe if yes, or "none"]
 ```
 
-#### 1.5 Run Pytest
+#### 1.2 TRACE: Telemetry → Memory Persistence
+
+**Follow the data from TelemetryAnalyzer to MemoryService:**
+
+```
+STEP 1: Read TelemetryAnalyzer.analyze() method
+- Read: src/autopack/telemetry/analyzer.py
+- Show: The FULL analyze() method body
+- Find: Where does it call memory write methods?
+
+STEP 2: Verify the write actually happens
+- Does analyze() call self.memory_service.store_insight() or similar?
+- Show: The exact line where data is written to memory
+- If it DOESN'T write to memory: THIS IS A GAP
+
+STEP 3: Verify the caller USES the result
+- Go back to autonomous_loop.py
+- Find: Where analyze() is called
+- Show: Is the return value used? Or called and ignored?
+- If ignored: Data flows nowhere → THIS IS A GAP
+```
+
+**Output format:**
+```
+TRACE_1_2_TELEMETRY_TO_MEMORY:
+  analyze_method_writes_to_memory: [yes/no] at line [X]
+  memory_write_method_called: [method name] or "none"
+  caller_uses_return_value: [yes/no]
+  data_flows_to_next_stage: [yes/no]
+  broken_link: [describe if yes, or "none"]
+```
+
+#### 1.3 TRACE: Memory → Task Generation
+
+**Follow data from MemoryService to TaskGenerator:**
+
+```
+STEP 1: Find where TaskGenerator gets insights
+- Read: src/autopack/roadc/task_generator.py
+- Find: The generate_tasks() or similar method
+- Show: Where does it call retrieve_insights()?
+
+STEP 2: Verify retrieve_insights() returns useful data
+- Read: src/autopack/memory/memory_service.py
+- Show: The FULL retrieve_insights() method
+- Does it query the SAME collection that telemetry wrote to?
+- If collections don't match: Data is lost → THIS IS A GAP
+
+STEP 3: Verify TaskGenerator USES the insights
+- In task_generator.py, after retrieve_insights() is called:
+- Show: How are the insights transformed into tasks?
+- If insights are fetched but not used: THIS IS A GAP
+```
+
+**Output format:**
+```
+TRACE_1_3_MEMORY_TO_TASK_GENERATION:
+  task_generator_calls_retrieve_insights: [yes/no] at line [X]
+  memory_service_queries_correct_collection: [yes/no] - collection: [name]
+  insights_actually_used_to_create_tasks: [yes/no]
+  data_flows_to_next_stage: [yes/no]
+  broken_link: [describe if yes, or "none"]
+```
+
+#### 1.4 TRACE: Task Persistence
+
+**Follow tasks from generation to database:**
+
+```
+STEP 1: Find where tasks are persisted
+- Read: src/autopack/roadc/task_generator.py
+- Find: persist_tasks() or similar method
+- Show: The FULL method body
+
+STEP 2: Verify it actually writes to database
+- Does it call session.add()? session.commit()?
+- Show: The exact database write line
+- If no DB write: Tasks are lost → THIS IS A GAP
+
+STEP 3: Verify persist_tasks() is CALLED
+- Read: src/autopack/executor/autonomous_loop.py
+- Find: Where is persist_tasks() called?
+- Show: The call site with surrounding context
+- If NEVER called: Tasks are generated but lost → THIS IS A GAP
+```
+
+**Output format:**
+```
+TRACE_1_4_TASK_PERSISTENCE:
+  persist_tasks_exists: [yes/no]
+  persist_tasks_writes_to_db: [yes/no] - method: [session.add/commit/etc]
+  persist_tasks_called_from_executor: [yes/no] at line [X]
+  data_flows_to_next_stage: [yes/no]
+  broken_link: [describe if yes, or "none"]
+```
+
+#### 1.5 TRACE: Task Retrieval → Influencing Next Run
+
+**Follow tasks from database back to executor:**
+
+```
+STEP 1: Find where pending tasks are loaded
+- Read: src/autopack/roadc/task_generator.py
+- Find: get_pending_tasks() or similar
+- Show: The FULL method - does it query the DB?
+
+STEP 2: Verify executor loads tasks at startup
+- Read: src/autopack/executor/autonomous_loop.py
+- Find: Where get_pending_tasks() is called (should be in __init__ or run())
+- Show: The call site
+
+STEP 3: Verify loaded tasks INFLUENCE execution
+- After tasks are loaded, are they actually USED?
+- Show: Where task priorities affect phase planning
+- If loaded but not used: Loop is incomplete → THIS IS A GAP
+```
+
+**Output format:**
+```
+TRACE_1_5_TASK_RETRIEVAL:
+  get_pending_tasks_exists: [yes/no]
+  get_pending_tasks_queries_db: [yes/no]
+  executor_calls_get_pending_tasks: [yes/no] at line [X]
+  tasks_influence_execution: [yes/no] - how: [description]
+  broken_link: [describe if yes, or "none"]
+```
+
+#### 1.6 RUN INTEGRATION TEST
+
+**Verify end-to-end with actual test:**
+
 ```bash
-pytest tests/telemetry/ -v --tb=short 2>&1 | head -50
-pytest tests/ -k "task_generator" -v --tb=short 2>&1 | head -50
+# Run tests that verify the self-improvement loop
+pytest tests/telemetry/ tests/roadc/ -v --tb=short -k "improvement or task_generator" 2>&1 | head -100
+
+# If no specific tests exist, this itself is a gap
 ```
 
-**Output for Scan Area 1:**
+#### 1.7 FINAL SCAN AREA 1 SUMMARY
+
+**Compile all traces into gap assessment:**
+
 ```
 SCAN_AREA_1_SELF_IMPROVEMENT_LOOP:
-  files_read: [list all files you actually read]
-  code_shown: [yes/no - did you show actual code snippets?]
-  pytest_run: [yes/no - did you run pytest?]
-  gaps_found: [list any gaps, or "none"]
+
+  EXECUTION_FLOW_TRACED:
+    1_telemetry_collection: [CONNECTED/BROKEN] at [file:line]
+    2_telemetry_to_memory: [CONNECTED/BROKEN] at [file:line]
+    3_memory_to_task_gen: [CONNECTED/BROKEN] at [file:line]
+    4_task_persistence: [CONNECTED/BROKEN] at [file:line]
+    5_task_retrieval: [CONNECTED/BROKEN] at [file:line]
+
+  END_TO_END_DATA_FLOW: [COMPLETE/BROKEN]
+
+  BROKEN_LINKS_FOUND:
+    - [List each broken link with file:line and description]
+    - Or "none" if fully connected
+
+  GAPS_FOUND: [count] - [list IMP-worthy gaps]
+
+  pytest_run: [yes/no]
+  pytest_result: [X passed, Y failed]
+
   status: COMPLETE
 ```
 
 ---
 
-### SCAN AREA 2: Performance
+### SCAN AREA 2: Performance (EXECUTION FLOW TRACE)
 
-**Look for actual bottlenecks by reading code.**
+**Trace actual execution paths to find real bottlenecks, not theoretical ones.**
+
+#### 2.1 TRACE: Main Execution Hot Path
 
 ```
-Read: src/autopack/executor/autonomous_executor.py
-Look for: Loops, database queries, LLM calls
-Question: Are there any O(n²) patterns? Unbounded loops? Missing caching?
+STEP 1: Find the main loop
+- Read: src/autopack/executor/autonomous_loop.py
+- Find: The main execution loop (while loop, for loop)
+- Show: The actual loop code
 
-Read: src/autopack/llm_service.py
-Look for: Token counting, context management
-Question: Is context being re-sent unnecessarily?
+STEP 2: Trace what happens INSIDE the loop
+- For each iteration, what gets called?
+- Show: Call chain with line numbers
+- Count: How many LLM calls per iteration? DB queries?
 
-Read: src/autopack/anthropic_clients.py
-Look for: Retry logic, timeout handling
-Question: Are there runaway retries? Missing circuit breakers?
+STEP 3: Identify O(n²) or worse patterns
+- Look for nested loops
+- Look for queries inside loops
+- Show: Specific code if found
 ```
 
-**Output for Scan Area 2:**
+#### 2.2 TRACE: LLM Call Path
+
+```
+STEP 1: Find where LLM is called
+- Read: src/autopack/llm_service.py or anthropic_clients.py
+- Find: The actual API call to Claude/Anthropic
+- Show: The call site
+
+STEP 2: Trace what data is sent
+- Is the full context re-sent every call?
+- Is there token counting before sending?
+- Show: How prompts are constructed
+
+STEP 3: Check for runaway retries
+- Find: Retry logic
+- Show: Is there a max retry limit?
+- Is there exponential backoff?
+```
+
+#### 2.3 TRACE: Database Query Path
+
+```
+STEP 1: Find database queries in hot paths
+- Grep for session.query, session.execute in executor/
+- Are there N+1 query patterns?
+- Show: Specific query code
+
+STEP 2: Check for missing indexes
+- Do queries filter on non-indexed columns?
+- Are there full table scans?
+```
+
+**Output format:**
 ```
 SCAN_AREA_2_PERFORMANCE:
-  files_read: [list]
-  bottlenecks_found: [list specific issues with file:line references]
-  gaps_found: [list any CRITICAL/HIGH gaps]
+
+  HOT_PATH_TRACED:
+    main_loop_location: [file:line]
+    iterations_traced: [yes/no]
+    llm_calls_per_iteration: [count]
+    db_queries_per_iteration: [count]
+
+  BOTTLENECKS_FOUND:
+    - [Specific issue at file:line with explanation]
+    - Or "none"
+
+  GAPS_FOUND: [count] - [list IMP-worthy CRITICAL/HIGH gaps]
+
   status: COMPLETE
 ```
 
 ---
 
-### SCAN AREA 3: Cost + Token Efficiency
+### SCAN AREA 3: Cost + Token Efficiency (EXECUTION FLOW TRACE)
+
+**Trace where tokens are spent and whether there's waste.**
+
+#### 3.1 TRACE: Prompt Construction Path
 
 ```
-Read: src/autopack/llm_service.py
-Look for: Token estimation, context truncation, model selection
-Question: Is there cost tracking? Budget limits?
+STEP 1: Find where prompts are built
+- Read: src/autopack/executor/autonomous_loop.py
+- Find: Where the prompt/context is assembled before LLM call
+- Show: The actual prompt construction code
 
-Read: src/autopack/executor/autonomous_loop.py
-Look for: How prompts are constructed
-Question: Is context growing unbounded? Are prompts duplicated?
+STEP 2: Trace what gets included in context
+- Is conversation history included? How much?
+- Is system prompt re-sent every time?
+- Show: The data flow into the prompt
 
-Grep: "model" in src/autopack/
-Question: Where is model selection happening? Is it cost-aware?
+STEP 3: Check for unbounded growth
+- Does context grow with each iteration?
+- Is there truncation/summarization?
+- If NO truncation exists: Context will eventually exceed limits → GAP
 ```
 
-**Output for Scan Area 3:**
+#### 3.2 TRACE: Model Selection Path
+
+```
+STEP 1: Find where model is chosen
+- Grep for model selection in src/autopack/
+- Show: The actual model selection code
+- Is it hardcoded or configurable?
+
+STEP 2: Check for cost-aware routing
+- Are cheaper models used for simple tasks?
+- Is there any cost tracking?
+- Show: Evidence of cost awareness (or lack thereof)
+```
+
+#### 3.3 TRACE: Token Counting Path
+
+```
+STEP 1: Find token counting
+- Is there any token estimation before sending?
+- Show: Token counting code if exists
+- If NO token counting: Can't know if approaching limits → potential GAP
+```
+
+**Output format:**
 ```
 SCAN_AREA_3_COST_TOKEN_EFFICIENCY:
-  files_read: [list]
-  inefficiencies_found: [list with file:line]
-  gaps_found: [list any CRITICAL/HIGH gaps]
+
+  PROMPT_PATH_TRACED:
+    prompt_construction_location: [file:line]
+    context_growth_bounded: [yes/no]
+    truncation_exists: [yes/no]
+
+  MODEL_SELECTION_TRACED:
+    model_selection_location: [file:line]
+    cost_aware_routing: [yes/no]
+    cost_tracking_exists: [yes/no]
+
+  TOKEN_COUNTING:
+    token_estimation_exists: [yes/no]
+    location: [file:line] or "none"
+
+  INEFFICIENCIES_FOUND:
+    - [Specific issue at file:line]
+    - Or "none"
+
+  GAPS_FOUND: [count] - [list IMP-worthy gaps]
+
   status: COMPLETE
 ```
 
 ---
 
-### SCAN AREA 4: Reliability
+### SCAN AREA 4: Reliability (EXECUTION FLOW TRACE)
+
+**Trace error handling paths and failure modes.**
+
+#### 4.1 TRACE: Error Handling in Main Loop
 
 ```
-Read: tests/ directory structure
-Question: What's the test coverage pattern?
+STEP 1: Find try/except blocks in executor
+- Read: src/autopack/executor/autonomous_loop.py
+- Find ALL try/except blocks
+- Show: Each exception handler
 
-Run: pytest tests/ --collect-only 2>&1 | grep "test session starts" -A 5
-Question: How many tests exist?
+STEP 2: Check for swallowed errors
+- Are exceptions caught and logged but not re-raised?
+- Are there bare "except:" clauses?
+- Show: Specific problematic handlers if found
 
-Read: src/autopack/executor/autonomous_loop.py
-Look for: Error handling, try/except blocks
-Question: Are errors being swallowed? Missing error handling?
+STEP 3: Trace what happens on LLM failure
+- If Claude API returns error, what happens?
+- Is there retry logic? Does it eventually fail gracefully?
+- Show: The error path for LLM failures
 ```
 
-**Output for Scan Area 4:**
+#### 4.2 TRACE: Database Transaction Safety
+
+```
+STEP 1: Find database writes
+- Grep for session.commit() in src/autopack/
+- Show: Commit locations
+
+STEP 2: Check for rollback handling
+- If commit fails, is there rollback?
+- Are transactions properly scoped?
+- Show: Evidence of transaction safety (or gaps)
+```
+
+#### 4.3 RUN: Actual Test Suite
+
+```bash
+# Get actual test count and status
+pytest tests/ --collect-only 2>&1 | tail -5
+
+# Run a quick smoke test
+pytest tests/ -x -q --tb=line 2>&1 | tail -30
+```
+
+**Output format:**
 ```
 SCAN_AREA_4_RELIABILITY:
-  files_read: [list]
-  test_count: [number]
-  error_handling_gaps: [list]
-  gaps_found: [list any CRITICAL/HIGH gaps]
+
+  ERROR_HANDLING_TRACED:
+    try_except_blocks_found: [count]
+    swallowed_errors: [list file:line or "none"]
+    bare_except_clauses: [list file:line or "none"]
+    llm_failure_handled: [yes/no]
+
+  TRANSACTION_SAFETY:
+    commits_found: [count]
+    rollback_handling: [yes/no]
+
+  TEST_COVERAGE:
+    total_tests: [count]
+    quick_run_result: [X passed, Y failed]
+
+  GAPS_FOUND: [count] - [list IMP-worthy gaps]
+
   status: COMPLETE
 ```
 
 ---
 
-### SCAN AREA 5: Security (Personal Use Scope)
+### SCAN AREA 5: Security (EXECUTION FLOW TRACE - Personal Use Scope)
+
+**Trace sensitive data paths - this is personal use, so enterprise security is out of scope.**
+
+#### 5.1 TRACE: API Key Handling Path
 
 ```
-Read: src/autopack/auth/
-Question: Is auth properly implemented for personal use?
+STEP 1: Find where API keys are loaded
+- Grep for ANTHROPIC_API_KEY, API_KEY in src/
+- Show: Where keys are read from environment/config
+- Show: The actual loading code
 
-Grep: "localhost" or "0.0.0.0" in src/
-Question: Are there any accidental exposures?
+STEP 2: Trace where keys are used
+- Follow the key from load to API call
+- Is the key ever logged? Written to file?
+- Show: Evidence of key exposure (or none)
 
-Grep: "password" or "secret" or "key" in src/
-Question: Are secrets being logged or exposed?
+STEP 3: Check for key in error messages
+- If an API call fails, is the key included in the error?
+- Show: Error handling code for API calls
 ```
 
-**Output for Scan Area 5:**
+#### 5.2 TRACE: Network Exposure Path
+
+```
+STEP 1: Find network listeners
+- Grep for "0.0.0.0", "localhost", "bind", "listen" in src/
+- Is there a web server? API endpoint?
+- Show: Any network binding code
+
+STEP 2: For personal use scope
+- If binding to localhost only: OK
+- If binding to 0.0.0.0 without auth: potential issue
+- Show: Specific bindings found
+```
+
+#### 5.3 TRACE: Logging Path for Secrets
+
+```
+STEP 1: Find logging statements
+- Grep for logger.info, logger.debug, print in hot paths
+- Are any sensitive values logged?
+- Show: Problematic logging if found
+```
+
+**Output format:**
 ```
 SCAN_AREA_5_SECURITY:
-  files_read: [list]
-  exposure_risks: [list any accidental exposures]
-  gaps_found: [list any CRITICAL/HIGH gaps]
+
+  API_KEY_HANDLING:
+    key_load_location: [file:line]
+    key_exposure_in_logs: [yes/no]
+    key_exposure_in_errors: [yes/no]
+
+  NETWORK_EXPOSURE:
+    network_bindings_found: [list or "none"]
+    binds_to_public_interface: [yes/no]
+    auth_required_for_public: [yes/no/N/A]
+
+  LOGGING_SAFETY:
+    sensitive_data_logged: [yes/no]
+    problematic_logs: [list file:line or "none"]
+
+  GAPS_FOUND: [count] - [list IMP-worthy CRITICAL/HIGH gaps]
+
   status: COMPLETE
 ```
 
 ---
 
-### SCAN AREA 6: Feature Completeness
+### SCAN AREA 6: Feature Completeness (EXECUTION FLOW TRACE)
+
+**Trace whether promised features actually WORK, not just exist.**
+
+#### 6.1 TRACE: README Promises vs Reality
 
 ```
-Read: README.md
-Extract: List of promised features
+STEP 1: Extract promised features from README
+- Read: README.md
+- List: All features/capabilities claimed
+- Show: Specific quotes
 
-Read: src/autopack/road*/
-Question: Are all ROAD components implemented?
-
-Compare: README promises vs actual implementation
-Question: What's missing?
+STEP 2: For EACH claimed feature, verify it works
+- Don't just check if file exists
+- Trace: Is it called from the main execution path?
+- Show: The call site or "NOT CALLED"
 ```
 
-**Output for Scan Area 6:**
+#### 6.2 TRACE: ROAD Component Activation
+
+```
+STEP 1: List ROAD directories
+- ls src/autopack/road*/
+- Show: What components exist
+
+STEP 2: For EACH ROAD component, trace if it's USED
+- Read: src/autopack/executor/autonomous_loop.py
+- Find: Where is ROAD-A called? ROAD-B? etc.
+- Show: Call sites with line numbers
+- If NOT called: Component is dead code → GAP
+```
+
+#### 6.3 TRACE: Feature Entry Points
+
+```
+For each major feature:
+1. Find: Entry point function
+2. Trace: Is it reachable from main()?
+3. Show: The call chain OR "UNREACHABLE"
+```
+
+**Output format:**
 ```
 SCAN_AREA_6_FEATURE_COMPLETENESS:
-  readme_features: [list from README]
-  implemented_features: [list what exists]
-  missing_features: [list gaps]
-  gaps_found: [list any CRITICAL/HIGH gaps]
+
+  README_CLAIMS:
+    - [Feature 1]: VERIFIED at [file:line] / NOT IMPLEMENTED / DEAD CODE
+    - [Feature 2]: ...
+    - ...
+
+  ROAD_COMPONENTS:
+    ROAD-A: [ACTIVE at file:line / DEAD CODE]
+    ROAD-B: [ACTIVE at file:line / DEAD CODE]
+    ROAD-C: [ACTIVE at file:line / DEAD CODE]
+    ... (all ROAD components)
+
+  DEAD_CODE_FOUND:
+    - [List features that exist but are never called]
+    - Or "none"
+
+  GAPS_FOUND: [count] - [list CRITICAL/HIGH missing features]
+
   status: COMPLETE
 ```
 
 ---
 
-### SCAN AREA 7: Testing
+### SCAN AREA 7: Testing (EXECUTION FLOW TRACE)
+
+**Verify tests actually TEST the critical paths, not just exist.**
+
+#### 7.1 RUN: Actual Test Suite
+
+```bash
+# Get test inventory
+pytest tests/ --collect-only 2>&1 | tail -30
+
+# Run tests and capture result
+pytest tests/ -v --tb=short 2>&1 | tail -50
+```
+
+#### 7.2 TRACE: Critical Path Coverage
 
 ```
-Run: pytest tests/ --collect-only 2>&1 | tail -20
-Question: What's the test structure?
+STEP 1: Identify critical paths from previous scans
+- Self-improvement loop: Is it tested end-to-end?
+- LLM integration: Are failures handled in tests?
+- Database operations: Are transactions tested?
 
-Read: tests/test_autonomous_executor.py (if exists)
-Question: Are critical paths tested?
+STEP 2: For each critical path, find its test
+- Grep for test functions covering that path
+- Show: Test name and location
+- If NO test exists: THIS IS A GAP
 
-Read: tests/test_llm_service.py (if exists)
-Question: Are LLM integrations tested?
+STEP 3: Verify tests actually exercise the path
+- Read the test code
+- Does it mock everything? (bad - doesn't test real flow)
+- Does it test the actual integration? (good)
 ```
 
-**Output for Scan Area 7:**
+#### 7.3 TRACE: Test Quality
+
+```
+STEP 1: Check for integration tests
+- Are there tests that run multiple components together?
+- Or are all tests unit tests with heavy mocking?
+
+STEP 2: Check for edge case coverage
+- Are failure paths tested?
+- Are boundary conditions tested?
+```
+
+**Output format:**
 ```
 SCAN_AREA_7_TESTING:
-  test_files_found: [list]
-  critical_path_coverage: [good/partial/missing]
-  gaps_found: [list any CRITICAL/HIGH gaps]
+
+  TEST_INVENTORY:
+    total_tests: [count]
+    test_result: [X passed, Y failed, Z errors]
+
+  CRITICAL_PATH_COVERAGE:
+    self_improvement_loop: [TESTED at tests/xxx.py / NOT TESTED]
+    llm_integration: [TESTED / NOT TESTED]
+    database_operations: [TESTED / NOT TESTED]
+    error_handling: [TESTED / NOT TESTED]
+
+  TEST_QUALITY:
+    integration_tests_exist: [yes/no]
+    over_mocked: [yes/no]
+    edge_cases_covered: [yes/no]
+
+  GAPS_FOUND: [count] - [list CRITICAL/HIGH testing gaps]
+
   status: COMPLETE
 ```
 
 ---
 
-### SCAN AREA 8: Automation Safety
+### SCAN AREA 8: Automation Safety (EXECUTION FLOW TRACE)
+
+**Trace paths where dangerous actions can occur - ensure there are gates.**
+
+#### 8.1 TRACE: Dangerous Action Paths
 
 ```
-Read: src/autopack/executor/
-Look for: Approval gates, confirmation prompts
-Question: Can high-impact actions run without approval?
+STEP 1: Identify potentially dangerous operations
+- File deletion/modification
+- Git operations (push, force push)
+- Database modifications
+- External API calls with side effects
 
-Grep: "dangerous" or "irreversible" or "approval" in src/
-Question: Are there safety checks?
+STEP 2: For each dangerous operation, trace the path
+- Find: Where is the operation performed?
+- Trace: What checks happen BEFORE execution?
+- Show: The guard/gate code (or absence)
 ```
 
-**Output for Scan Area 8:**
+#### 8.2 TRACE: Approval Gate Implementation
+
+```
+STEP 1: Find approval mechanisms
+- Grep for "approve", "confirm", "dangerous", "irreversible" in src/
+- Show: Any approval gate code found
+
+STEP 2: Verify gates are in execution path
+- Are approval gates actually CALLED before dangerous actions?
+- Show: Call chain from action to gate
+- If gate exists but not called: FALSE SAFETY → GAP
+```
+
+#### 8.3 TRACE: Circuit Breakers
+
+```
+STEP 1: Find iteration/loop limits
+- Is there a max iterations limit?
+- Is there a cost/spending limit?
+- Show: Circuit breaker code if exists
+
+STEP 2: Verify circuit breakers are enforced
+- Trace: Where is the limit checked?
+- What happens when limit is hit?
+```
+
+**Output format:**
 ```
 SCAN_AREA_8_AUTOMATION_SAFETY:
-  files_read: [list]
-  safety_mechanisms: [list what exists]
-  gaps_found: [list any CRITICAL/HIGH gaps]
+
+  DANGEROUS_ACTIONS_FOUND:
+    - [Action 1]: protected by [gate] at [file:line] / UNPROTECTED
+    - [Action 2]: ...
+
+  APPROVAL_GATES:
+    gates_exist: [yes/no]
+    gates_actually_called: [yes/no]
+    gate_locations: [list file:line]
+
+  CIRCUIT_BREAKERS:
+    iteration_limit: [yes/no] - value: [X] at [file:line]
+    cost_limit: [yes/no] - value: [X] at [file:line]
+    breakers_enforced: [yes/no]
+
+  GAPS_FOUND: [count] - [list CRITICAL/HIGH safety gaps]
+
   status: COMPLETE
 ```
 
 ---
 
-### SCAN AREA 9: Operational Readiness
+### SCAN AREA 9: Operational Readiness (EXECUTION FLOW TRACE)
+
+**Trace startup, configuration, and recovery paths.**
+
+#### 9.1 TRACE: Startup Path
 
 ```
-Read: src/autopack/config.py
-Question: Are there safe defaults?
+STEP 1: Find the entry point
+- What is main()? Where does Autopack start?
+- Show: The startup sequence
 
-Grep: "backup" or "restore" in src/
-Question: Is there backup/restore capability?
+STEP 2: Trace configuration loading
+- Read: src/autopack/config.py
+- Show: How config is loaded
+- Are there safe defaults if env vars missing?
 
-Read: Any deployment or ops documentation
-Question: Is there operational guidance?
+STEP 3: Verify graceful startup failures
+- If required config is missing, what happens?
+- Show: Error handling for missing config
 ```
 
-**Output for Scan Area 9:**
+#### 9.2 TRACE: Recovery Paths
+
+```
+STEP 1: Find backup/restore capabilities
+- Grep for "backup", "restore", "snapshot" in src/
+- Show: Any backup code found
+
+STEP 2: Check for state recovery
+- If Autopack crashes mid-execution, can it resume?
+- Is there state persistence?
+- Show: Recovery code or "NONE"
+```
+
+#### 9.3 TRACE: Monitoring/Observability
+
+```
+STEP 1: Find logging setup
+- Is there structured logging?
+- Can you observe what Autopack is doing?
+- Show: Logging configuration
+
+STEP 2: Find health checks
+- Is there a health endpoint?
+- Can you tell if Autopack is stuck?
+```
+
+**Output format:**
 ```
 SCAN_AREA_9_OPERATIONAL_READINESS:
-  files_read: [list]
-  ops_capabilities: [list what exists]
-  gaps_found: [list any CRITICAL/HIGH gaps]
+
+  STARTUP_PATH:
+    entry_point: [file:function]
+    config_loading: [file:line]
+    safe_defaults: [yes/no]
+    graceful_failure_on_missing_config: [yes/no]
+
+  RECOVERY:
+    backup_capability: [yes/no] at [file:line]
+    crash_recovery: [yes/no] at [file:line]
+    state_persistence: [yes/no]
+
+  OBSERVABILITY:
+    structured_logging: [yes/no]
+    health_check: [yes/no]
+
+  GAPS_FOUND: [count] - [list CRITICAL/HIGH ops gaps]
+
   status: COMPLETE
 ```
 
 ---
 
-### SCAN AREA 10: Code Quality (Only if Blocking)
+### SCAN AREA 10: Code Quality (EXECUTION FLOW TRACE - Only if Blocking)
+
+**Only flag issues that are ACTIVELY CAUSING PROBLEMS. Skip pure refactoring.**
+
+#### 10.1 TRACE: Complexity Hot Spots
 
 ```
-Read: Any files with known complexity issues
-Question: Is there code so complex it's causing bugs?
+STEP 1: Identify files from previous scans with issues
+- Were there broken links in self-improvement loop?
+- Were there error handling gaps?
+- Focus on files that APPEARED in previous gaps
 
-Note: Only flag as gap if complexity is ACTIVELY causing problems.
-Skip pure refactoring suggestions.
+STEP 2: For problem files, assess complexity
+- Is the code so tangled that fixing bugs is hard?
+- Are there functions > 200 lines?
+- Are there deeply nested conditions (> 5 levels)?
+
+STEP 3: Only flag if complexity BLOCKS progress
+- "This function is messy" → NOT A GAP
+- "This function has a bug I can't fix due to complexity" → GAP
 ```
 
-**Output for Scan Area 10:**
+#### 10.2 CHECK: Known Issues
+
+```
+STEP 1: Check if any gaps from areas 1-9 were unfixable due to code quality
+- Were you blocked by spaghetti code?
+- Were you unable to trace execution due to indirection?
+
+STEP 2: Only if blocked, document the blocker
+```
+
+**Output format:**
 ```
 SCAN_AREA_10_CODE_QUALITY:
-  files_read: [list]
-  blocking_complexity: [list any complexity causing bugs]
-  gaps_found: [list any CRITICAL/HIGH gaps]
+
+  COMPLEXITY_BLOCKING_PROGRESS:
+    - [file:function] - blocks [what] - reason: [why]
+    - Or "none" if not blocking
+
+  UNFIXABLE_GAPS_DUE_TO_COMPLEXITY:
+    - [List any gaps from areas 1-9 that couldn't be fixed]
+    - Or "none"
+
+  GAPS_FOUND: [count] - [ONLY list if complexity actively blocks something]
+
   status: COMPLETE
 ```
+
+**REMINDER: Don't invent code quality gaps. Only flag if complexity prevented fixing a real issue.**
 
 ---
 
@@ -414,9 +1002,27 @@ SCAN_AREA_10_CODE_QUALITY:
 
 1. ✅ Architecture validation completed and output shown
 2. ✅ All 10 scan areas have status: COMPLETE
-3. ✅ Each scan area lists files_read (actual files, not "various")
-4. ✅ Each scan area shows code_shown or specific findings
-5. ✅ Pytest was actually run (not just claimed)
+3. ✅ **EXECUTION FLOWS TRACED** - Not just "files read" but actual call chains shown
+4. ✅ **BROKEN LINKS IDENTIFIED** - Every scan area shows connected/broken status
+5. ✅ Pytest was actually run (not just claimed) - show output
+6. ✅ Each gap has file:line reference (not vague descriptions)
+
+**CRITICAL: You must show CALL CHAINS, not just "method exists"**
+
+Example of INSUFFICIENT output:
+```
+❌ files_read: [memory_service.py, task_generator.py]
+❌ methods_found: retrieve_insights, generate_tasks
+❌ status: COMPLETE
+```
+
+Example of REQUIRED output:
+```
+✓ TRACE: autonomous_loop.py:run():234 → _finalize():456 → task_generator.generate_tasks():478
+✓ TRACE: generate_tasks():89 calls memory.retrieve_insights():123
+✓ VERIFY: Return value IS used at line 95 to create tasks
+✓ WIRING: CONNECTED - data flows end-to-end
+```
 
 **Output Discovery Summary:**
 ```
@@ -424,19 +1030,20 @@ SCAN_AREA_10_CODE_QUALITY:
 DISCOVERY_COMPLETE: true
 ARCHITECTURE_VALIDATION: completed
 
-SCAN_AREAS_COMPLETED:
-  1_self_improvement_loop: COMPLETE - gaps: [count]
-  2_performance: COMPLETE - gaps: [count]
-  3_cost_token_efficiency: COMPLETE - gaps: [count]
-  4_reliability: COMPLETE - gaps: [count]
-  5_security: COMPLETE - gaps: [count]
-  6_feature_completeness: COMPLETE - gaps: [count]
-  7_testing: COMPLETE - gaps: [count]
-  8_automation_safety: COMPLETE - gaps: [count]
-  9_operational_readiness: COMPLETE - gaps: [count]
-  10_code_quality: COMPLETE - gaps: [count]
+EXECUTION_FLOW_SUMMARY:
+  1_self_improvement_loop: [X/5 stages CONNECTED] - broken_links: [list or none]
+  2_performance: hot_path_traced: [yes/no] - bottlenecks: [count]
+  3_cost_token_efficiency: paths_traced: [yes/no] - inefficiencies: [count]
+  4_reliability: error_paths_traced: [yes/no] - swallowed_errors: [count]
+  5_security: sensitive_paths_traced: [yes/no] - exposures: [count]
+  6_feature_completeness: features_verified: [X/Y active] - dead_code: [count]
+  7_testing: critical_paths_covered: [yes/no] - untested: [count]
+  8_automation_safety: danger_paths_traced: [yes/no] - unprotected: [count]
+  9_operational_readiness: startup_traced: [yes/no] - gaps: [count]
+  10_code_quality: blocking_complexity: [yes/no] - blockers: [count]
 
 TOTAL_GAPS_FOUND: [sum of all gaps]
+TOTAL_BROKEN_LINKS: [sum of broken execution flows]
 PROCEEDING_TO: [implementation if gaps > 0, ideal_state_check if gaps == 0]
 ```
 

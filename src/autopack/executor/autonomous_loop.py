@@ -194,7 +194,8 @@ class AutonomousLoop:
             Formatted context string, or empty string if no tasks
         """
         improvement_tasks = getattr(self.executor, "_improvement_tasks", [])
-        if not improvement_tasks:
+        # Ensure it's a proper list (not a Mock or other non-list type)
+        if not improvement_tasks or not isinstance(improvement_tasks, list):
             return ""
 
         # Format tasks for injection
@@ -230,7 +231,8 @@ class AutonomousLoop:
         tasks were successfully addressed.
         """
         improvement_tasks = getattr(self.executor, "_improvement_tasks", [])
-        if not improvement_tasks:
+        # Ensure it's a proper list (not a Mock or other non-list type)
+        if not improvement_tasks or not isinstance(improvement_tasks, list):
             return
 
         try:

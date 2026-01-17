@@ -1033,3 +1033,51 @@ class GapRemediation(Base):
     method = Column(String(20), nullable=False)  # "auto", "manual", "ignored"
     run_id = Column(String(36), nullable=True, index=True)
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
+# ==============================================================================
+# Self-Improvement Loop Models (IMP-ARCH-011)
+# ==============================================================================
+
+
+class GeneratedTaskModel(Base):
+    """Database model for persisting generated improvement tasks (IMP-ARCH-011).
+
+    Part of the self-improvement feedback loop:
+    1. Telemetry is collected during runs
+    2. ROAD-C generates improvement tasks from telemetry insights
+    3. Tasks are persisted here for retrieval in subsequent runs
+    4. Executor loads pending tasks and incorporates them into planning
+
+    This enables continuity across runs - generated tasks survive restarts
+    and can be prioritized, tracked, and executed autonomously.
+    """
+
+    __tablename__ = "generated_tasks"
+    __table_args__ = (
+        Index("ix_generated_tasks_status", "status"),
+        Index("ix_generated_tasks_priority", "priority"),
+        Index("ix_generated_tasks_run_id", "run_id"),
+        Index("ix_generated_tasks_created_at", "created_at"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    task_id = Column(String(50), unique=True, nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    # Indexes defined in __table_args__ to avoid duplicates
+    priority = Column(String(20), nullable=False, default="medium")  # critical, high, medium, low
+    source_insights = Column(JSON, nullable=True)  # List of insight IDs that led to this task
+    suggested_files = Column(JSON, nullable=True)  # List of file paths to modify
+    estimated_effort = Column(String(10), nullable=True)  # S, M, L, XL
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    status = Column(
+        String(20), nullable=False, default="pending"
+    )  # pending, in_progress, completed, skipped
+    run_id = Column(String(50), nullable=True)  # Run that generated this task
+    completed_at = Column(DateTime, nullable=True)
+    executed_in_run_id = Column(String(50), nullable=True)  # Run that executed this task
+
+    def __repr__(self) -> str:
+        title_preview = self.title[:30] if self.title else ""
+        return f"<GeneratedTask(task_id={self.task_id}, title={title_preview}..., status={self.status})>"

@@ -191,6 +191,48 @@ flags:
     notes: "When enabled, telemetry insights (anomalies, retry causes) are automatically indexed in vector memory for retrieval during future runs"
 
   # ============================================================================
+  # ROAD-C Task Generation (IMP-ARCH-009/011/012)
+  # ============================================================================
+  AUTOPACK_TASK_GENERATION_ENABLED:
+    description: "Enable autonomous task generation from telemetry insights (ROAD-C)"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["config.py", "roadc/task_generator.py", "executor/autonomous_loop.py"]
+    aliases: ["TASK_GENERATION_ENABLED"]
+    notes: "IMP-ARCH-009: When enabled, system analyzes telemetry insights and generates improvement tasks automatically"
+
+  AUTOPACK_TASK_GENERATION_MAX_TASKS:
+    description: "Maximum improvement tasks to generate per run"
+    category: tuning
+    default: "10"
+    values: "Positive integer (recommended: 5-20)"
+    affects: ["config.py", "roadc/task_generator.py"]
+    aliases: ["TASK_GENERATION_MAX_TASKS_PER_RUN"]
+    requires: ["AUTOPACK_TASK_GENERATION_ENABLED=true"]
+    notes: "IMP-ARCH-011: Limits the number of tasks generated from telemetry patterns per run"
+
+  AUTOPACK_TASK_GENERATION_MIN_CONFIDENCE:
+    description: "Minimum confidence threshold for generating tasks (0.0-1.0)"
+    category: tuning
+    default: "0.7"
+    values: "Float between 0.0 and 1.0 (recommended: 0.6-0.9)"
+    affects: ["config.py", "roadc/task_generator.py"]
+    aliases: ["TASK_GENERATION_MIN_CONFIDENCE"]
+    requires: ["AUTOPACK_TASK_GENERATION_ENABLED=true"]
+    notes: "IMP-ARCH-011: Patterns with confidence below this threshold won't generate tasks"
+
+  AUTOPACK_TASK_GENERATION_AUTO_EXECUTE:
+    description: "Enable auto-execution of generated improvement tasks"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["config.py", "roadc/task_generator.py", "executor/autonomous_loop.py"]
+    aliases: ["TASK_GENERATION_AUTO_EXECUTE"]
+    requires: ["AUTOPACK_TASK_GENERATION_ENABLED=true"]
+    notes: "IMP-ARCH-012: When enabled, generated tasks are automatically picked up and executed in subsequent runs"
+
+  # ============================================================================
   # Developer/Debug Overrides
   # ============================================================================
   AUTOPACK_PUBLIC_READ:
@@ -691,6 +733,30 @@ external_env_vars:
     category: tuning
     affects: ["config.py"]
     alias_of: "AUTOPACK_AUTOPILOT_MAX_PROPOSALS"
+
+  TASK_GENERATION_ENABLED:
+    description: "Alias for AUTOPACK_TASK_GENERATION_ENABLED (IMP-ARCH-009)"
+    category: feature_toggle
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_TASK_GENERATION_ENABLED"
+
+  TASK_GENERATION_MAX_TASKS_PER_RUN:
+    description: "Alias for AUTOPACK_TASK_GENERATION_MAX_TASKS (IMP-ARCH-011)"
+    category: tuning
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_TASK_GENERATION_MAX_TASKS"
+
+  TASK_GENERATION_MIN_CONFIDENCE:
+    description: "Alias for AUTOPACK_TASK_GENERATION_MIN_CONFIDENCE (IMP-ARCH-011)"
+    category: tuning
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_TASK_GENERATION_MIN_CONFIDENCE"
+
+  TASK_GENERATION_AUTO_EXECUTE:
+    description: "Alias for AUTOPACK_TASK_GENERATION_AUTO_EXECUTE (IMP-ARCH-012)"
+    category: feature_toggle
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_TASK_GENERATION_AUTO_EXECUTE"
 
   TESTING:
     description: "Skip DB initialization in test mode"

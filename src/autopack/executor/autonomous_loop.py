@@ -8,7 +8,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Dict, Optional, TYPE_CHECKING
+from typing import Dict, List, Optional, TYPE_CHECKING
 
 from autopack.config import settings
 from autopack.archive_consolidator import log_build_event
@@ -317,10 +317,70 @@ class AutonomousLoop:
             logger.warning(f"Could not verify run existence: {e}")
             # Continue anyway - don't block execution on sanity check failure
 
+    def _load_improvement_tasks(self) -> List[dict]:
+        """Load pending improvement tasks from previous runs (IMP-ARCH-012).
+
+        Part of the self-improvement feedback loop:
+        - Tasks are generated from telemetry insights (IMP-ARCH-009)
+        - Tasks are persisted to database (IMP-ARCH-011)
+        - This method retrieves pending tasks for execution
+
+        Returns:
+            List of task dicts compatible with phase planning
+        """
+        # Check if task generation is enabled
+        if not getattr(settings, "task_generation_enabled", False):
+            return []
+
+        try:
+            from autopack.roadc.task_generator import AutonomousTaskGenerator
+
+            generator = AutonomousTaskGenerator()
+            max_tasks = getattr(settings, "task_generation_max_tasks_per_run", 5)
+            pending_tasks = generator.get_pending_tasks(status="pending", limit=max_tasks)
+
+            if not pending_tasks:
+                logger.debug("[IMP-ARCH-012] No pending improvement tasks found")
+                return []
+
+            # Convert to planning-compatible format
+            task_items = []
+            for task in pending_tasks:
+                task_items.append(
+                    {
+                        "task_id": task.task_id,
+                        "title": task.title,
+                        "description": task.description,
+                        "priority": task.priority,
+                        "suggested_files": task.suggested_files,
+                        "source": "self_improvement",
+                        "estimated_effort": task.estimated_effort,
+                    }
+                )
+                # Mark as in_progress
+                generator.mark_task_status(
+                    task.task_id, "in_progress", executed_in_run_id=self.executor.run_id
+                )
+
+            logger.info(f"[IMP-ARCH-012] Loaded {len(task_items)} improvement tasks for this run")
+            return task_items
+
+        except Exception as e:
+            logger.warning(f"[IMP-ARCH-012] Failed to load improvement tasks: {e}")
+            return []
+
     def _initialize_intention_loop(self):
         """Initialize intention-first loop for the run."""
         from autopack.autonomous.executor_wiring import initialize_intention_first_loop
         from autopack.intention_anchor.storage import IntentionAnchorStorage
+
+        # IMP-ARCH-012: Load pending improvement tasks from self-improvement loop
+        improvement_tasks = self._load_improvement_tasks()
+        if improvement_tasks:
+            # Store improvement tasks for injection into phase planning
+            self.executor._improvement_tasks = improvement_tasks
+        else:
+            self.executor._improvement_tasks = []
 
         # Load intention anchor for this run
         try:
@@ -590,6 +650,12 @@ class AutonomousLoop:
                 self._persist_telemetry_insights()
             except Exception as e:
                 logger.warning(f"Failed to persist telemetry insights: {e}")
+
+            # IMP-ARCH-009: Generate improvement tasks from telemetry for self-improvement loop
+            try:
+                self._generate_improvement_tasks()
+            except Exception as e:
+                logger.warning(f"Failed to generate improvement tasks: {e}")
 
             # Log run completion summary to CONSOLIDATED_BUILD.md
             try:

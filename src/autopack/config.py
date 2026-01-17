@@ -498,6 +498,53 @@ class Settings(BaseSettings):
         description="Allow binding to non-local addresses (requires explicit opt-in)",
     )
 
+    # IMP-ARCH-009/011/012: Self-improvement task generation configuration
+    # Enable autonomous task generation from telemetry insights (ROAD-C)
+    task_generation_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "AUTOPACK_TASK_GENERATION_ENABLED", "TASK_GENERATION_ENABLED"
+        ),
+        description="Enable autonomous task generation from telemetry insights",
+    )
+
+    # Maximum tasks to generate per run
+    task_generation_max_tasks_per_run: int = Field(
+        default=10,
+        validation_alias=AliasChoices(
+            "AUTOPACK_TASK_GENERATION_MAX_TASKS", "TASK_GENERATION_MAX_TASKS_PER_RUN"
+        ),
+        description="Maximum improvement tasks to generate per run",
+    )
+
+    # Minimum confidence threshold for task generation
+    task_generation_min_confidence: float = Field(
+        default=0.7,
+        validation_alias=AliasChoices(
+            "AUTOPACK_TASK_GENERATION_MIN_CONFIDENCE", "TASK_GENERATION_MIN_CONFIDENCE"
+        ),
+        description="Minimum confidence threshold for generating tasks (0.0-1.0)",
+    )
+
+    # Enable auto-execution of generated tasks (IMP-ARCH-012)
+    task_generation_auto_execute: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "AUTOPACK_TASK_GENERATION_AUTO_EXECUTE", "TASK_GENERATION_AUTO_EXECUTE"
+        ),
+        description="Enable auto-execution of generated improvement tasks",
+    )
+
+    @property
+    def task_generation(self) -> dict:
+        """Return task generation configuration as a dict for backward compatibility."""
+        return {
+            "enabled": self.task_generation_enabled,
+            "max_tasks_per_run": self.task_generation_max_tasks_per_run,
+            "min_confidence": self.task_generation_min_confidence,
+            "auto_execute": {"enabled": self.task_generation_auto_execute},
+        }
+
     @model_validator(mode="before")
     @classmethod
     def parse_allowed_hosts(cls, values):

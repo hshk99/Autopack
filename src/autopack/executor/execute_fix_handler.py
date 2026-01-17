@@ -235,10 +235,12 @@ class ExecuteFixHandler:
         for i, cmd in enumerate(fix_commands):
             logger.info(f"[Doctor] Executing [{i + 1}/{len(fix_commands)}]: {cmd}")
             try:
+                # Parse command string into argument list safely (prevents shell injection)
+                args = shlex.split(cmd)
                 # Execute in workspace directory
                 result = subprocess.run(
-                    cmd,
-                    shell=True,  # Required for complex commands
+                    args,
+                    shell=False,
                     cwd=str(self.executor.workspace),
                     capture_output=True,
                     text=True,
@@ -265,9 +267,11 @@ class ExecuteFixHandler:
         if all_succeeded and verify_command:
             logger.info(f"[Doctor] Running verify command: {verify_command}")
             try:
+                # Parse command string into argument list safely (prevents shell injection)
+                verify_args = shlex.split(verify_command)
                 verify_result = subprocess.run(
-                    verify_command,
-                    shell=True,
+                    verify_args,
+                    shell=False,
                     cwd=str(self.executor.workspace),
                     capture_output=True,
                     text=True,

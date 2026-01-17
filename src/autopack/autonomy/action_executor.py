@@ -5,6 +5,7 @@ Unsafe actions are classified and returned without execution.
 """
 
 import logging
+import shlex
 import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -135,9 +136,11 @@ class SafeActionExecutor(ActionExecutor):
 
         try:
             logger.info(f"[SafeActionExecutor] Executing: {command[:100]}")
+            # Parse command string into argument list safely (prevents shell injection)
+            args = shlex.split(command)
             result = subprocess.run(
-                command,
-                shell=True,
+                args,
+                shell=False,
                 cwd=self.workspace_root,
                 capture_output=True,
                 text=True,

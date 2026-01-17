@@ -101,8 +101,8 @@ REQUIRES_APPROVAL_PATTERNS: List[str] = [
 RUN_LOCAL_ARTIFACT_PATTERN = r"^\.autonomous_runs/"
 
 # Shell metacharacters that enable command chaining / redirection.
-# Since SafeActionExecutor currently executes with shell=True, we must treat any command
-# containing these as requiring approval (never auto-execute).
+# SafeActionExecutor uses shlex.split() + shell=False, but we still treat commands
+# containing these metacharacters as requiring approval for defense in depth.
 SHELL_METACHAR_PATTERN = r"[;&|><`]"
 
 

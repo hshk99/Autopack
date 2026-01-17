@@ -7,7 +7,6 @@ from typing import List, Optional
 
 from ..memory.memory_service import MemoryService
 from ..roadi import RegressionProtector
-from ..telemetry.analyzer import TelemetryAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -44,11 +43,12 @@ class AutonomousTaskGenerator:
     def __init__(
         self,
         memory_service: Optional[MemoryService] = None,
-        analyzer: Optional[TelemetryAnalyzer] = None,
         regression_protector: Optional[RegressionProtector] = None,
     ):
         self._memory = memory_service or MemoryService()
-        self._analyzer = analyzer or TelemetryAnalyzer()
+        # NOTE: TelemetryAnalyzer removed (IMP-ARCH-017) - it was never used and
+        # requires db_session which isn't available at AutonomousTaskGenerator init time.
+        # Task generation relies on MemoryService.retrieve_insights() instead.
         self._regression = regression_protector or RegressionProtector()
 
     def generate_tasks(

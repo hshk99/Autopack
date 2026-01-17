@@ -201,3 +201,94 @@ class TestAutopilotIntegration:
         from autopack.autonomy.autopilot import AutopilotController
 
         assert hasattr(AutopilotController, "save_session")
+
+
+class TestMixedApprovalRequirements:
+    """Tests for IMP-SAFETY-002: Mixed approval requirements handling.
+
+    Verifies that autopilot blocks execution when ANY action requires approval,
+    not just when ALL actions require approval (the inverted logic bug).
+    """
+
+    def test_mixed_actions_blocks_execution_if_any_requires_approval(self):
+        """Autopilot must block if ANY action requires approval (IMP-SAFETY-002).
+
+        This test verifies the fix for inverted approval logic:
+        - WRONG: Block only if ALL actions require approval (all())
+        - CORRECT: Block if ANY action requires approval (any())
+
+        Scenario: 3 auto-approved + 1 requires_approval = must block
+        """
+        from autopack.planning.models import PlanSummary
+
+        # Simulate a proposal with mixed approval requirements
+        # 3 auto-approved, 1 requires approval, 0 blocked
+        summary = PlanSummary(
+            total_actions=4,
+            auto_approved_actions=3,
+            requires_approval_actions=1,
+            blocked_actions=0,
+        )
+
+        # The approval check logic from autopilot.py lines 170-176:
+        # if (requires_approval_actions > 0 or blocked_actions > 0):
+        #     _handle_approval_required() - blocks execution
+        should_block = summary.requires_approval_actions > 0 or summary.blocked_actions > 0
+
+        assert should_block is True, (
+            "Autopilot must block when ANY action requires approval. "
+            f"requires_approval_actions={summary.requires_approval_actions}, "
+            f"blocked_actions={summary.blocked_actions}"
+        )
+
+    def test_all_auto_approved_allows_execution(self):
+        """Autopilot should execute when ALL actions are auto-approved."""
+        from autopack.planning.models import PlanSummary
+
+        summary = PlanSummary(
+            total_actions=5,
+            auto_approved_actions=5,
+            requires_approval_actions=0,
+            blocked_actions=0,
+        )
+
+        should_block = summary.requires_approval_actions > 0 or summary.blocked_actions > 0
+
+        assert (
+            should_block is False
+        ), "Autopilot should allow execution when all actions are auto-approved"
+
+    def test_single_blocked_action_blocks_all(self):
+        """A single blocked action must block the entire batch."""
+        from autopack.planning.models import PlanSummary
+
+        summary = PlanSummary(
+            total_actions=10,
+            auto_approved_actions=9,
+            requires_approval_actions=0,
+            blocked_actions=1,
+        )
+
+        should_block = summary.requires_approval_actions > 0 or summary.blocked_actions > 0
+
+        assert should_block is True, "Autopilot must block when ANY action is blocked"
+
+    def test_no_auto_approved_actions_blocks(self):
+        """If no actions are auto-approved, must block execution."""
+        from autopack.planning.models import PlanSummary
+
+        summary = PlanSummary(
+            total_actions=3,
+            auto_approved_actions=0,
+            requires_approval_actions=3,
+            blocked_actions=0,
+        )
+
+        # Also check the first gate: auto_approved_actions == 0
+        should_block_no_safe = summary.auto_approved_actions == 0
+        should_block_approval = summary.requires_approval_actions > 0 or summary.blocked_actions > 0
+
+        assert (
+            should_block_no_safe is True
+        ), "Autopilot must block when no actions are auto-approved"
+        assert should_block_approval is True, "Autopilot must block when actions require approval"

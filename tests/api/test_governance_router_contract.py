@@ -92,6 +92,18 @@ class TestGetPendingGovernanceRequestsContract:
         assert "Failed to fetch pending requests" in exc_info.value.detail
 
 
+def _create_mock_user(username: str = "admin"):
+    """Create a mock user object for testing."""
+    from unittest.mock import MagicMock
+
+    mock_user = MagicMock()
+    mock_user.id = 1
+    mock_user.username = username
+    mock_user.email = f"{username}@example.com"
+    mock_user.is_active = True
+    return mock_user
+
+
 class TestApproveGovernanceRequestContract:
     """Contract tests for approve_governance_request endpoint."""
 
@@ -103,12 +115,13 @@ class TestApproveGovernanceRequestContract:
         from autopack.api.routes.governance import approve_governance_request
 
         mock_db = MagicMock()
+        mock_user = _create_mock_user("admin")
 
         with patch("autopack.governance_requests.approve_request") as mock_approve:
             mock_approve.return_value = True
 
             result = await approve_governance_request(
-                request_id="req-123", approved=True, user_id="admin", db=mock_db
+                request_id="req-123", approved=True, db=mock_db, current_user=mock_user
             )
 
         assert result["status"] == "approved"
@@ -123,12 +136,13 @@ class TestApproveGovernanceRequestContract:
         from autopack.api.routes.governance import approve_governance_request
 
         mock_db = MagicMock()
+        mock_user = _create_mock_user("admin")
 
         with patch("autopack.governance_requests.deny_request") as mock_deny:
             mock_deny.return_value = True
 
             result = await approve_governance_request(
-                request_id="req-456", approved=False, user_id="admin", db=mock_db
+                request_id="req-456", approved=False, db=mock_db, current_user=mock_user
             )
 
         assert result["status"] == "denied"
@@ -145,13 +159,14 @@ class TestApproveGovernanceRequestContract:
         from autopack.api.routes.governance import approve_governance_request
 
         mock_db = MagicMock()
+        mock_user = _create_mock_user("admin")
 
         with patch("autopack.governance_requests.approve_request") as mock_approve:
             mock_approve.return_value = False
 
             with pytest.raises(HTTPException) as exc_info:
                 await approve_governance_request(
-                    request_id="nonexistent", approved=True, user_id="admin", db=mock_db
+                    request_id="nonexistent", approved=True, db=mock_db, current_user=mock_user
                 )
 
         assert exc_info.value.status_code == 404
@@ -167,31 +182,35 @@ class TestApproveGovernanceRequestContract:
         from autopack.api.routes.governance import approve_governance_request
 
         mock_db = MagicMock()
+        mock_user = _create_mock_user("admin")
 
         with patch("autopack.governance_requests.approve_request") as mock_approve:
             mock_approve.side_effect = Exception("Database error")
 
             with pytest.raises(HTTPException) as exc_info:
                 await approve_governance_request(
-                    request_id="req-123", approved=True, user_id="admin", db=mock_db
+                    request_id="req-123", approved=True, db=mock_db, current_user=mock_user
                 )
 
         assert exc_info.value.status_code == 500
         assert "Failed to update request" in exc_info.value.detail
 
     @pytest.mark.asyncio
-    async def test_approve_defaults_to_human_user(self):
-        """Contract: /governance/approve/{request_id} defaults user_id to 'human'."""
+    async def test_approve_uses_authenticated_username(self):
+        """Contract: /governance/approve/{request_id} uses authenticated user's username (IMP-SEC-005)."""
         from unittest.mock import MagicMock, patch
 
         from autopack.api.routes.governance import approve_governance_request
 
         mock_db = MagicMock()
+        mock_user = _create_mock_user("authenticated_admin")
 
         with patch("autopack.governance_requests.approve_request") as mock_approve:
             mock_approve.return_value = True
 
-            # Call without specifying user_id
-            await approve_governance_request(request_id="req-123", db=mock_db)
+            await approve_governance_request(
+                request_id="req-123", db=mock_db, current_user=mock_user
+            )
 
-        mock_approve.assert_called_once_with(mock_db, "req-123", approved_by="human")
+        # Verify the authenticated user's username is used, not a user-provided value
+        mock_approve.assert_called_once_with(mock_db, "req-123", approved_by="authenticated_admin")

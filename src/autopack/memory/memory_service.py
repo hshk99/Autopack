@@ -1339,18 +1339,22 @@ class MemoryService:
     def retrieve_insights(
         self,
         query: str,
-        namespace: str = "telemetry_insights",
         limit: int = 10,
+        project_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """Retrieve insights from memory for task generation (IMP-ARCH-010).
+        """Retrieve insights from memory for task generation (IMP-ARCH-010/016).
 
         This method is called by the ROAD-C AutonomousTaskGenerator to retrieve
         telemetry insights that can be converted into improvement tasks.
 
+        IMP-ARCH-016: Fixed to query across collections where telemetry insights
+        are actually written (run_summaries, errors_ci, doctor_hints) and filter
+        for task_type="telemetry_insight".
+
         Args:
             query: Search query to find relevant insights
-            namespace: Memory namespace to search (default: telemetry_insights)
             limit: Maximum number of results to return
+            project_id: Optional project ID to filter by
 
         Returns:
             List of insight dictionaries with content, metadata, and score
@@ -1360,29 +1364,57 @@ class MemoryService:
             return []
 
         try:
-            # Use the vector store to search for insights
-            results = self._safe_store_call(
-                f"retrieve_insights/{namespace}",
-                lambda: self.store.search(
-                    collection_name=namespace,
-                    query_text=query,
-                    limit=limit,
-                ),
-                [],
-            )
+            # Embed the query text
+            query_vector = sync_embed_text(query)
 
-            insights = []
-            for result in results:
-                insight = {
-                    "id": getattr(result, "id", None),
-                    "content": getattr(result, "payload", {}).get("content", ""),
-                    "metadata": getattr(result, "payload", {}),
-                    "score": getattr(result, "score", 0.0),
-                    "issue_type": getattr(result, "payload", {}).get("issue_type", "unknown"),
-                    "severity": getattr(result, "payload", {}).get("severity", "medium"),
-                    "file_path": getattr(result, "payload", {}).get("file_path"),
-                }
-                insights.append(insight)
+            # Collections where write_telemetry_insight routes data
+            insight_collections = [
+                COLLECTION_RUN_SUMMARIES,  # cost_sink and generic insights
+                COLLECTION_ERRORS_CI,  # failure_mode insights
+                COLLECTION_DOCTOR_HINTS,  # retry_cause insights
+            ]
+
+            all_insights = []
+            per_collection_limit = max(limit // len(insight_collections), 3)
+
+            for collection in insight_collections:
+                # Build filter for telemetry insights
+                search_filter = {"task_type": "telemetry_insight"}
+                if project_id:
+                    search_filter["project_id"] = project_id
+
+                results = self._safe_store_call(
+                    f"retrieve_insights/{collection}",
+                    lambda col=collection, flt=search_filter: self.store.search(
+                        collection=col,
+                        query_vector=query_vector,
+                        filter=flt,
+                        limit=per_collection_limit,
+                    ),
+                    [],
+                )
+
+                for result in results:
+                    payload = getattr(result, "payload", {}) or {}
+                    # Only include telemetry insights
+                    if payload.get("task_type") != "telemetry_insight":
+                        continue
+
+                    insight = {
+                        "id": getattr(result, "id", None),
+                        "content": payload.get("content", payload.get("summary", "")),
+                        "metadata": payload,
+                        "score": getattr(result, "score", 0.0),
+                        "issue_type": payload.get("issue_type", "unknown"),
+                        "severity": payload.get("severity", "medium"),
+                        "file_path": payload.get("file_path"),
+                        "collection": collection,
+                    }
+                    all_insights.append(insight)
+
+            # Sort by score and limit
+            all_insights.sort(key=lambda x: x.get("score", 0), reverse=True)
+            insights = all_insights[:limit]
 
             logger.debug(
                 f"[MemoryService] Retrieved {len(insights)} insights for query: {query[:50]}..."

@@ -61,7 +61,12 @@ class AutonomousLoop:
         """
         if self._telemetry_analyzer is None:
             if hasattr(self.executor, "db_session") and self.executor.db_session:
-                self._telemetry_analyzer = TelemetryAnalyzer(self.executor.db_session)
+                # IMP-ARCH-015: Pass memory_service to enable telemetry -> memory bridge
+                memory_service = getattr(self.executor, "memory_service", None)
+                self._telemetry_analyzer = TelemetryAnalyzer(
+                    self.executor.db_session,
+                    memory_service=memory_service,
+                )
         return self._telemetry_analyzer
 
     def _get_telemetry_adjustments(self, phase_type: Optional[str]) -> Dict:
@@ -884,6 +889,15 @@ class AutonomousLoop:
                 f"from {result.insights_processed} insights "
                 f"({result.generation_time_ms:.0f}ms)"
             )
+
+            # IMP-ARCH-014: Persist generated tasks to database
+            if result.tasks_generated:
+                try:
+                    run_id = getattr(self.executor, "run_id", None)
+                    persisted_count = generator.persist_tasks(result.tasks_generated, run_id)
+                    logger.info(f"[IMP-ARCH-014] Persisted {persisted_count} tasks to database")
+                except Exception as persist_err:
+                    logger.warning(f"[IMP-ARCH-014] Failed to persist tasks: {persist_err}")
 
             return result.tasks_generated
         except Exception as e:

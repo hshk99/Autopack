@@ -58,9 +58,10 @@ class AutonomousTaskGenerator:
         start_time = datetime.now()
 
         # Retrieve recent high-signal insights
+        # IMP-ARCH-016: Removed namespace parameter - retrieve_insights now queries
+        # across run_summaries, errors_ci, doctor_hints collections
         insights = self._memory.retrieve_insights(
             query="error failure bottleneck improvement opportunity",
-            namespace="telemetry_insights",
             limit=100,
         )
 

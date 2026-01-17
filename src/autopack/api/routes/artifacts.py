@@ -94,11 +94,15 @@ async def get_artifact_file(
         X-Artifact-Original-Size: Original file size in bytes
     """
     from autopack.artifacts.redaction import ArtifactRedactor
+    from pathlib import Path
 
-    # URL-decode path to catch encoded traversal attempts (e.g., %2e%2e = ..)
-    decoded_path = unquote(path)
+    # IMP-SEC-003: Strengthen path traversal defense
+    # Decode URL encoding first - decode twice to catch double-encoded attacks
+    # (e.g., %252e%252e -> %2e%2e -> ..)
+    decoded_path = unquote(unquote(path))
 
-    # Security checks FIRST (defense in depth) - before any DB lookup
+    # Quick rejection for obvious traversal attempts (defense in depth)
+    # These are fast checks before the more expensive path resolution
     if ".." in decoded_path or "\\.." in decoded_path:
         raise HTTPException(status_code=400, detail="Path traversal not allowed")
     if decoded_path.startswith("/"):
@@ -112,13 +116,31 @@ async def get_artifact_file(
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
 
     file_layout = RunFileLayout(run_id)
-    file_path = file_layout.base_dir / decoded_path
 
-    # Additional check: ensure resolved path is within base_dir
+    # IMP-SEC-003: Use Path.resolve() for canonicalization (PRIMARY security check)
+    base_path = Path(file_layout.base_dir).resolve()
+
+    # Validate path components individually to ensure no traversal
+    # This approach explicitly sanitizes each component before using it
+    path_parts = Path(decoded_path).parts
+    for part in path_parts:
+        if part in (".", "..", "") or part.startswith(".."):
+            raise HTTPException(
+                status_code=400, detail="Invalid file path: path traversal detected"
+            )
+
+    # Construct the file path from validated components only
+    # Each component has been verified to not contain traversal sequences
+    file_path = base_path
+    for part in path_parts:
+        file_path = file_path / part
+    file_path = file_path.resolve()
+
+    # Final containment check: verify resolved path is within base_path
     try:
-        file_path.resolve().relative_to(file_layout.base_dir.resolve())
+        file_path.relative_to(base_path)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Path traversal not allowed")
+        raise HTTPException(status_code=400, detail="Invalid file path: path traversal detected")
 
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"File not found: {path}")

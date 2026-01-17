@@ -6,6 +6,7 @@ Runs targeted tests (if provided) and summarizes results for auditor input.
 
 from __future__ import annotations
 
+import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,9 +27,11 @@ def run_tests(
     results: List[TestExecResult] = []
     for cmd in test_commands:
         try:
+            # Parse command string into argument list safely (prevents shell injection)
+            args = shlex.split(cmd)
             proc = subprocess.run(
-                cmd,
-                shell=True,
+                args,
+                shell=False,
                 cwd=str(workspace),
                 capture_output=True,
                 text=True,

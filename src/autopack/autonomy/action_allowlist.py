@@ -4,9 +4,12 @@ Defines which actions can be auto-executed by autopilot without approval.
 Only read-only commands and run-local artifact writes are allowed.
 """
 
+import logging
+import re
 from enum import Enum
 from typing import List
-import re
+
+logger = logging.getLogger(__name__)
 
 
 class ActionType(Enum):
@@ -181,10 +184,13 @@ def _classify_command(command: str) -> ActionClassification:
         ActionClassification
     """
     # Block auto-execution for any shell metacharacters / chaining.
-    # Example: "git status && echo hi" must NOT be considered safe.
+    # SECURITY: This check MUST happen FIRST, before pattern matching.
+    # Otherwise "git status && rm -rf /" could match "git status" as safe.
     if re.search(SHELL_METACHAR_PATTERN, command):
+        logger.warning(f"Blocked action with shell metacharacters: {command}")
         return ActionClassification.REQUIRES_APPROVAL
     if "$(" in command:
+        logger.warning(f"Blocked action with command substitution: {command}")
         return ActionClassification.REQUIRES_APPROVAL
 
     # Check for requires-approval patterns first (higher priority)

@@ -318,14 +318,14 @@ class AutonomousLoop:
     def run(
         self,
         poll_interval: float = 0.5,
-        max_iterations: Optional[int] = None,
+        max_iterations: int = 50,
         stop_on_first_failure: bool = False,
     ):
         """Run autonomous execution loop.
 
         Args:
             poll_interval: Seconds to wait between polling for next phase (default: 0.5s, reduced from 1.0s for better performance)
-            max_iterations: Maximum number of phases to execute (None = unlimited)
+            max_iterations: Maximum number of phases to execute (default: 50 to prevent runaway execution)
             stop_on_first_failure: If True, stop immediately when any phase fails
 
         Returns:
@@ -514,7 +514,7 @@ class AutonomousLoop:
             self.executor._intention_anchor = None
 
     def _execute_loop(
-        self, poll_interval: float, max_iterations: Optional[int], stop_on_first_failure: bool
+        self, poll_interval: float, max_iterations: int, stop_on_first_failure: bool
     ) -> Dict:
         """Execute the main autonomous loop.
 
@@ -705,7 +705,7 @@ class AutonomousLoop:
                     break
 
             # Wait before next iteration
-            if max_iterations is None or iteration < max_iterations:
+            if iteration < max_iterations:
                 logger.info(f"Waiting {poll_interval}s before next phase...")
                 self._adaptive_sleep(is_idle=False, base_interval=poll_interval)
 

@@ -1333,6 +1333,67 @@ class MemoryService:
             return False
 
     # -------------------------------------------------------------------------
+    # Insights Retrieval (for ROAD-C task generation)
+    # -------------------------------------------------------------------------
+
+    def retrieve_insights(
+        self,
+        query: str,
+        namespace: str = "telemetry_insights",
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve insights from memory for task generation (IMP-ARCH-010).
+
+        This method is called by the ROAD-C AutonomousTaskGenerator to retrieve
+        telemetry insights that can be converted into improvement tasks.
+
+        Args:
+            query: Search query to find relevant insights
+            namespace: Memory namespace to search (default: telemetry_insights)
+            limit: Maximum number of results to return
+
+        Returns:
+            List of insight dictionaries with content, metadata, and score
+        """
+        if not self.enabled:
+            logger.debug("[MemoryService] Memory disabled, returning empty insights")
+            return []
+
+        try:
+            # Use the vector store to search for insights
+            results = self._safe_store_call(
+                f"retrieve_insights/{namespace}",
+                lambda: self.store.search(
+                    collection_name=namespace,
+                    query_text=query,
+                    limit=limit,
+                ),
+                [],
+            )
+
+            insights = []
+            for result in results:
+                insight = {
+                    "id": getattr(result, "id", None),
+                    "content": getattr(result, "payload", {}).get("content", ""),
+                    "metadata": getattr(result, "payload", {}),
+                    "score": getattr(result, "score", 0.0),
+                    "issue_type": getattr(result, "payload", {}).get("issue_type", "unknown"),
+                    "severity": getattr(result, "payload", {}).get("severity", "medium"),
+                    "file_path": getattr(result, "payload", {}).get("file_path"),
+                }
+                insights.append(insight)
+
+            logger.debug(
+                f"[MemoryService] Retrieved {len(insights)} insights for query: {query[:50]}..."
+            )
+            return insights
+
+        except Exception as e:
+            logger.warning(f"[MemoryService] Failed to retrieve insights: {e}")
+            return []
+
+    # -------------------------------------------------------------------------
     # Combined Retrieval (for prompts)
     # -------------------------------------------------------------------------
 

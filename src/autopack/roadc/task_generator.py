@@ -1,10 +1,13 @@
 """ROAD-C: Autonomous Task Generator - converts insights to tasks."""
 
+import logging
 from typing import List, Optional
 from dataclasses import dataclass
 from datetime import datetime
 from ..memory.memory_service import MemoryService
 from ..telemetry.analyzer import TelemetryAnalyzer
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -19,6 +22,8 @@ class GeneratedTask:
     suggested_files: List[str]
     estimated_effort: str  # S, M, L, XL
     created_at: datetime
+    run_id: Optional[str] = None  # Run that generated this task
+    status: str = "pending"  # pending, in_progress, completed, skipped
 
 
 @dataclass
@@ -169,3 +174,167 @@ Analyze the pattern and implement a fix to prevent recurrence.
         elif occurrences > 2:
             return "M"
         return "S"
+
+    # =========================================================================
+    # Task Persistence (IMP-ARCH-011)
+    # =========================================================================
+
+    def persist_tasks(self, tasks: List[GeneratedTask], run_id: Optional[str] = None) -> int:
+        """Persist generated tasks to database (IMP-ARCH-011).
+
+        Args:
+            tasks: List of GeneratedTask dataclass instances
+            run_id: Optional run ID to associate with tasks
+
+        Returns:
+            Number of tasks persisted
+        """
+        from ..models import GeneratedTaskModel
+        from ..database import SessionLocal
+
+        session = SessionLocal()
+        persisted_count = 0
+
+        try:
+            for task in tasks:
+                # Check if task already exists (by task_id)
+                existing = session.query(GeneratedTaskModel).filter_by(task_id=task.task_id).first()
+
+                if existing:
+                    logger.debug(f"[ROAD-C] Task {task.task_id} already exists, skipping")
+                    continue
+
+                db_task = GeneratedTaskModel(
+                    task_id=task.task_id,
+                    title=task.title,
+                    description=task.description,
+                    priority=task.priority,
+                    source_insights=task.source_insights,
+                    suggested_files=task.suggested_files,
+                    estimated_effort=task.estimated_effort,
+                    run_id=run_id or task.run_id,
+                    status="pending",
+                )
+                session.add(db_task)
+                persisted_count += 1
+
+            session.commit()
+            logger.info(f"[ROAD-C] Persisted {persisted_count} new tasks to database")
+            return persisted_count
+
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[ROAD-C] Failed to persist tasks: {e}")
+            raise
+        finally:
+            session.close()
+
+    # =========================================================================
+    # Task Retrieval (IMP-ARCH-012)
+    # =========================================================================
+
+    def get_pending_tasks(
+        self,
+        status: str = "pending",
+        limit: int = 10,
+    ) -> List[GeneratedTask]:
+        """Retrieve pending tasks from database (IMP-ARCH-012).
+
+        Args:
+            status: Task status to filter by (default: pending)
+            limit: Maximum number of tasks to return
+
+        Returns:
+            List of GeneratedTask dataclass instances
+        """
+        from ..models import GeneratedTaskModel
+        from ..database import SessionLocal
+        from sqlalchemy import case
+
+        session = SessionLocal()
+
+        try:
+            db_tasks = (
+                session.query(GeneratedTaskModel)
+                .filter_by(status=status)
+                .order_by(
+                    # Priority order: critical > high > medium > low
+                    case(
+                        (GeneratedTaskModel.priority == "critical", 1),
+                        (GeneratedTaskModel.priority == "high", 2),
+                        (GeneratedTaskModel.priority == "medium", 3),
+                        (GeneratedTaskModel.priority == "low", 4),
+                        else_=5,
+                    ),
+                    GeneratedTaskModel.created_at.asc(),
+                )
+                .limit(limit)
+                .all()
+            )
+
+            tasks = []
+            for db_task in db_tasks:
+                task = GeneratedTask(
+                    task_id=db_task.task_id,
+                    title=db_task.title,
+                    description=db_task.description or "",
+                    priority=db_task.priority,
+                    source_insights=db_task.source_insights or [],
+                    suggested_files=db_task.suggested_files or [],
+                    estimated_effort=db_task.estimated_effort or "M",
+                    created_at=db_task.created_at,
+                    run_id=db_task.run_id,
+                    status=db_task.status,
+                )
+                tasks.append(task)
+
+            logger.info(f"[ROAD-C] Retrieved {len(tasks)} {status} tasks from database")
+            return tasks
+
+        finally:
+            session.close()
+
+    def mark_task_status(
+        self,
+        task_id: str,
+        status: str,
+        executed_in_run_id: Optional[str] = None,
+    ) -> bool:
+        """Update task status in database (IMP-ARCH-012).
+
+        Args:
+            task_id: ID of task to update
+            status: New status (pending, in_progress, completed, skipped)
+            executed_in_run_id: Run ID that executed/is executing this task
+
+        Returns:
+            True if task was updated, False if not found
+        """
+        from ..models import GeneratedTaskModel
+        from ..database import SessionLocal
+
+        session = SessionLocal()
+
+        try:
+            db_task = session.query(GeneratedTaskModel).filter_by(task_id=task_id).first()
+
+            if not db_task:
+                logger.warning(f"[ROAD-C] Task {task_id} not found for status update")
+                return False
+
+            db_task.status = status
+            if status == "completed":
+                db_task.completed_at = datetime.now()
+            if executed_in_run_id:
+                db_task.executed_in_run_id = executed_in_run_id
+
+            session.commit()
+            logger.debug(f"[ROAD-C] Updated task {task_id} status to {status}")
+            return True
+
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[ROAD-C] Failed to update task status: {e}")
+            return False
+        finally:
+            session.close()

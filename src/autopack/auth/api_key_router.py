@@ -60,15 +60,13 @@ class APIKeyCreated(BaseModel):
 async def create_api_key(
     key_data: APIKeyCreate,
     db: Session = Depends(get_db),
+    _current_key: APIKey = Depends(require_api_key),  # Require authentication
 ):
     """
-    Create a new API key for multi-device access.
+    Create a new API key for multi-device access. Requires authentication.
 
     **IMPORTANT**: The API key is only shown once in the response.
     Save it securely - it cannot be retrieved later.
-
-    For personal/internal use, this endpoint is unprotected to allow
-    initial setup. In production, you'd protect this with existing auth.
     """
     plain_key, hashed_key = generate_api_key()
 

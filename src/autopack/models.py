@@ -1065,19 +1065,16 @@ class GeneratedTaskModel(Base):
     task_id = Column(String(50), unique=True, nullable=False, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    priority = Column(
-        String(20), nullable=False, default="medium", index=True
-    )  # critical, high, medium, low
+    # Indexes defined in __table_args__ to avoid duplicates
+    priority = Column(String(20), nullable=False, default="medium")  # critical, high, medium, low
     source_insights = Column(JSON, nullable=True)  # List of insight IDs that led to this task
     suggested_files = Column(JSON, nullable=True)  # List of file paths to modify
     estimated_effort = Column(String(10), nullable=True)  # S, M, L, XL
-    created_at = Column(
-        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
-    )
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     status = Column(
-        String(20), nullable=False, default="pending", index=True
+        String(20), nullable=False, default="pending"
     )  # pending, in_progress, completed, skipped
-    run_id = Column(String(50), nullable=True, index=True)  # Run that generated this task
+    run_id = Column(String(50), nullable=True)  # Run that generated this task
     completed_at = Column(DateTime, nullable=True)
     executed_in_run_id = Column(String(50), nullable=True)  # Run that executed this task
 

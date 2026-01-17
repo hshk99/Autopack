@@ -3,7 +3,7 @@
 from typing import List, Dict, Any, Optional
 
 try:
-    from src.autopack.memory.memory_service import MemoryService
+    from autopack.memory.memory_service import MemoryService
 except ImportError:
     MemoryService = None
 

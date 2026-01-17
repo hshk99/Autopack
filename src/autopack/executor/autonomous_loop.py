@@ -184,6 +184,79 @@ class AutonomousLoop:
             logger.warning(f"[IMP-ARCH-002] Failed to retrieve memory context: {e}")
             return ""
 
+    def _get_improvement_task_context(self) -> str:
+        """Get improvement tasks as context for phase execution (IMP-ARCH-019).
+
+        Formats loaded improvement tasks into a context string that guides
+        the Builder to address self-improvement opportunities.
+
+        Returns:
+            Formatted context string, or empty string if no tasks
+        """
+        improvement_tasks = getattr(self.executor, "_improvement_tasks", [])
+        # Ensure it's a proper list (not a Mock or other non-list type)
+        if not improvement_tasks or not isinstance(improvement_tasks, list):
+            return ""
+
+        # Format tasks for injection
+        lines = ["## Self-Improvement Tasks (from previous runs)"]
+        lines.append("The following improvement opportunities were identified from telemetry:")
+        lines.append("")
+
+        for i, task in enumerate(improvement_tasks[:5], 1):  # Limit to 5 tasks
+            priority = task.get("priority", "medium")
+            title = task.get("title", "Unknown task")
+            description = task.get("description", "")[:200]  # Truncate long descriptions
+            files = task.get("suggested_files", [])
+
+            lines.append(f"### {i}. [{priority.upper()}] {title}")
+            if description:
+                lines.append(f"{description}")
+            if files:
+                lines.append(f"Suggested files: {', '.join(files[:3])}")
+            lines.append("")
+
+        lines.append("Consider addressing these issues if relevant to the current phase.")
+
+        context = "\n".join(lines)
+        logger.info(
+            f"[IMP-ARCH-019] Injecting {len(improvement_tasks)} improvement tasks into phase context"
+        )
+        return context
+
+    def _mark_improvement_tasks_completed(self) -> None:
+        """Mark improvement tasks as completed after successful run (IMP-ARCH-019).
+
+        Called when run finishes with no failed phases, indicating the improvement
+        tasks were successfully addressed.
+        """
+        improvement_tasks = getattr(self.executor, "_improvement_tasks", [])
+        # Ensure it's a proper list (not a Mock or other non-list type)
+        if not improvement_tasks or not isinstance(improvement_tasks, list):
+            return
+
+        try:
+            from autopack.roadc.task_generator import AutonomousTaskGenerator
+
+            generator = AutonomousTaskGenerator()
+            completed_count = 0
+
+            for task in improvement_tasks:
+                task_id = task.get("task_id")
+                if task_id:
+                    if generator.mark_task_status(
+                        task_id, "completed", executed_in_run_id=self.executor.run_id
+                    ):
+                        completed_count += 1
+
+            if completed_count > 0:
+                logger.info(
+                    f"[IMP-ARCH-019] Marked {completed_count} improvement tasks as completed"
+                )
+
+        except Exception as e:
+            logger.warning(f"[IMP-ARCH-019] Failed to mark tasks completed: {e}")
+
     def _adaptive_sleep(self, is_idle: bool = False, base_interval: Optional[float] = None):
         """Sleep with adaptive backoff when idle to reduce CPU usage.
 
@@ -575,6 +648,16 @@ class AutonomousLoop:
             if memory_context:
                 phase_adjustments["memory_context"] = memory_context
 
+            # IMP-ARCH-019: Inject improvement tasks into phase context
+            improvement_context = self._get_improvement_task_context()
+            if improvement_context:
+                existing_context = phase_adjustments.get("memory_context", "")
+                phase_adjustments["memory_context"] = (
+                    existing_context + "\n\n" + improvement_context
+                    if existing_context
+                    else improvement_context
+                )
+
             # Execute phase (with any telemetry-driven adjustments and memory context)
             success, status = self.executor.execute_phase(next_phase, **phase_adjustments)
 
@@ -683,6 +766,13 @@ class AutonomousLoop:
             self.executor._best_effort_write_run_summary(
                 phases_failed=phases_failed, allow_run_state_mutation=True
             )
+
+            # IMP-ARCH-019: Mark improvement tasks as completed when run finishes successfully
+            if phases_failed == 0:
+                try:
+                    self._mark_improvement_tasks_completed()
+                except Exception as e:
+                    logger.warning(f"Failed to mark improvement tasks as completed: {e}")
 
             # Learning Pipeline: Promote hints to persistent rules (Stage 0B)
             try:

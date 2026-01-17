@@ -42,9 +42,7 @@ class TestAutonomousLoopRecovery:
                         # Call run - should handle failure and continue
                         mock_executor._ensure_api_server_running.return_value = True
                         mock_executor._init_infrastructure = Mock()
-                        loop.run(
-                            poll_interval=0.5, max_iterations=None, stop_on_first_failure=False
-                        )
+                        loop.run(poll_interval=0.5, max_iterations=10, stop_on_first_failure=False)
 
         # Verify it processed despite failure
         # Check finalize was called (indicating successful run completion)
@@ -107,7 +105,7 @@ class TestAutonomousLoopRecovery:
         def mock_execute_loop(poll_interval, max_iterations, stop_on_first_failure):
             """Simulate loop respecting max_iterations."""
             nonlocal iteration_count
-            iteration_count = max_iterations or 5
+            iteration_count = max_iterations
             return {
                 "iteration": iteration_count,
                 "phases_executed": 0,
@@ -122,6 +120,40 @@ class TestAutonomousLoopRecovery:
                         loop.run(poll_interval=0.5, max_iterations=3)
 
         assert iteration_count == 3  # Should stop at max_iterations
+
+    def test_autonomous_loop_default_max_iterations_is_50(self):
+        """Verify max_iterations defaults to 50 to prevent runaway execution (IMP-SAFETY-001)."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run-123"
+        mock_executor._ensure_api_server_running.return_value = True
+        mock_executor._init_infrastructure = Mock()
+
+        loop = AutonomousLoop(mock_executor)
+
+        received_max_iterations = None
+
+        def mock_execute_loop(poll_interval, max_iterations, stop_on_first_failure):
+            """Capture max_iterations to verify default value."""
+            nonlocal received_max_iterations
+            received_max_iterations = max_iterations
+            return {
+                "iteration": 1,
+                "phases_executed": 0,
+                "phases_failed": 0,
+                "stop_reason": "max_iterations",
+            }
+
+        with patch.object(loop, "_execute_loop", side_effect=mock_execute_loop):
+            with patch.object(loop, "_finalize_execution"):
+                with patch.object(loop, "_verify_run_exists"):
+                    with patch.object(loop, "_initialize_intention_loop"):
+                        # Call run without specifying max_iterations
+                        loop.run(poll_interval=0.5)
+
+        # IMP-SAFETY-001: Default must be 50 to prevent infinite execution
+        assert (
+            received_max_iterations == 50
+        ), f"Expected default max_iterations=50, got {received_max_iterations}"
 
     def test_autonomous_loop_stop_on_first_failure_saves_tokens(self):
         """Verify stop_on_first_failure flag stops immediately on failure."""

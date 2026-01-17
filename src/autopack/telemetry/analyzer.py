@@ -31,8 +31,9 @@ class TelemetryAnalyzer:
         self.db = db_session
         self.memory_service = memory_service
         self.run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        # IMP-ARCH-018: Changed default to "true" to enable self-improvement loop
         self._telemetry_to_memory_enabled = (
-            os.getenv("AUTOPACK_TELEMETRY_TO_MEMORY_ENABLED", "false").lower() == "true"
+            os.getenv("AUTOPACK_TELEMETRY_TO_MEMORY_ENABLED", "true").lower() == "true"
         )
 
     def aggregate_telemetry(self, window_days: int = 7) -> Dict[str, List[RankedIssue]]:

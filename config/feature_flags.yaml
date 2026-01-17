@@ -73,7 +73,7 @@ flags:
   AUTOPACK_ENABLE_MEMORY:
     description: "Enable the memory/vector search subsystem"
     category: feature_toggle
-    default: "false"
+    default: "true"  # IMP-ARCH-018: Changed default to enable self-improvement loop
     values: ["true", "false", "1", "0"]
     affects: ["memory/memory_service.py", "health_checks.py"]
 
@@ -184,7 +184,7 @@ flags:
   AUTOPACK_TELEMETRY_TO_MEMORY_ENABLED:
     description: "Enable automatic persistence of telemetry insights to vector memory"
     category: feature_toggle
-    default: "false"
+    default: "true"  # IMP-ARCH-018: Changed default to enable self-improvement loop
     values: ["true", "false"]
     affects: ["telemetry/analyzer.py", "telemetry/telemetry_to_memory_bridge.py"]
     requires: ["AUTOPACK_ENABLE_MEMORY=true"]
@@ -196,7 +196,7 @@ flags:
   AUTOPACK_TASK_GENERATION_ENABLED:
     description: "Enable autonomous task generation from telemetry insights (ROAD-C)"
     category: feature_toggle
-    default: "false"
+    default: "true"  # IMP-ARCH-018: Changed default to enable self-improvement loop
     values: ["true", "false"]
     affects: ["config.py", "roadc/task_generator.py", "executor/autonomous_loop.py"]
     aliases: ["TASK_GENERATION_ENABLED"]
@@ -225,7 +225,7 @@ flags:
   AUTOPACK_TASK_GENERATION_AUTO_EXECUTE:
     description: "Enable auto-execution of generated improvement tasks"
     category: feature_toggle
-    default: "false"
+    default: "true"  # IMP-ARCH-018: Changed default to enable self-improvement loop
     values: ["true", "false"]
     affects: ["config.py", "roadc/task_generator.py", "executor/autonomous_loop.py"]
     aliases: ["TASK_GENERATION_AUTO_EXECUTE"]

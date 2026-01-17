@@ -500,8 +500,9 @@ class Settings(BaseSettings):
 
     # IMP-ARCH-009/011/012: Self-improvement task generation configuration
     # Enable autonomous task generation from telemetry insights (ROAD-C)
+    # IMP-ARCH-018: Changed default to True to enable self-improvement loop
     task_generation_enabled: bool = Field(
-        default=False,
+        default=True,
         validation_alias=AliasChoices(
             "AUTOPACK_TASK_GENERATION_ENABLED", "TASK_GENERATION_ENABLED"
         ),
@@ -527,8 +528,9 @@ class Settings(BaseSettings):
     )
 
     # Enable auto-execution of generated tasks (IMP-ARCH-012)
+    # IMP-ARCH-018: Changed default to True to enable self-improvement loop
     task_generation_auto_execute: bool = Field(
-        default=False,
+        default=True,
         validation_alias=AliasChoices(
             "AUTOPACK_TASK_GENERATION_AUTO_EXECUTE", "TASK_GENERATION_AUTO_EXECUTE"
         ),

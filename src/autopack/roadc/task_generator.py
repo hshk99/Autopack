@@ -1,10 +1,12 @@
 """ROAD-C: Autonomous Task Generator - converts insights to tasks."""
 
 import logging
-from typing import List, Optional
 from dataclasses import dataclass
 from datetime import datetime
+from typing import List, Optional
+
 from ..memory.memory_service import MemoryService
+from ..roadi import RegressionProtector
 from ..telemetry.analyzer import TelemetryAnalyzer
 
 logger = logging.getLogger(__name__)
@@ -43,9 +45,11 @@ class AutonomousTaskGenerator:
         self,
         memory_service: Optional[MemoryService] = None,
         analyzer: Optional[TelemetryAnalyzer] = None,
+        regression_protector: Optional[RegressionProtector] = None,
     ):
         self._memory = memory_service or MemoryService()
         self._analyzer = analyzer or TelemetryAnalyzer()
+        self._regression = regression_protector or RegressionProtector()
 
     def generate_tasks(
         self, max_tasks: int = 10, min_confidence: float = 0.7
@@ -69,6 +73,9 @@ class AutonomousTaskGenerator:
             if pattern["confidence"] >= min_confidence:
                 task = self._pattern_to_task(pattern)
                 tasks.append(task)
+
+                # Add regression protection for each task
+                self._ensure_regression_protection(task)
 
         return TaskGenerationResult(
             tasks_generated=tasks,
@@ -174,6 +181,23 @@ Analyze the pattern and implement a fix to prevent recurrence.
         elif occurrences > 2:
             return "M"
         return "S"
+
+    def _ensure_regression_protection(self, task: GeneratedTask) -> None:
+        """Ensure regression protection exists for task's issue pattern.
+
+        Args:
+            task: The generated task to add protection for.
+        """
+        # Check if already protected
+        result = self._regression.check_protection(task.title)
+
+        if not result.is_protected:
+            # Add protection
+            test = self._regression.add_protection(
+                task_id=task.task_id,
+                issue_pattern=task.title,
+            )
+            logger.info(f"Added regression protection: {test.test_id} for {task.title}")
 
     # =========================================================================
     # Task Persistence (IMP-ARCH-011)

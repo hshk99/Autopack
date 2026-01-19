@@ -86,30 +86,46 @@ function Record-UnresolvedIssue {
 }
 
 # Send message to cursor window via Claude Chat (clipboard paste)
+# Requires at least one Cursor window to be open
 function Send-MessageToCursorWindow {
     param(
-        [string]$Message,
-        [int]$DelayMs = 500
+        [string]$Message
     )
 
     try {
-        # Copy message to clipboard
-        Add-Type -AssemblyName System.Windows.Forms
-        [System.Windows.Forms.Clipboard]::SetText($Message)
-
-        # Get focused window and paste (Ctrl+V)
-        Add-Type @"
+        # Add keyboard helper class if not already loaded
+        if (-not ([System.Management.Automation.PSTypeName]'KeyboardEvent').Type) {
+            Add-Type @"
 using System;
 using System.Runtime.InteropServices;
 
-public class KeyboardHelper {
+public class KeyboardEvent {
     [DllImport("user32.dll")]
     public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
+    [DllImport("user32.dll")]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+
     public const int VK_CONTROL = 0x11;
+    public const int VK_SHIFT = 0x10;
+    public const int VK_9 = 0x39;
     public const int VK_V = 0x56;
+    public const int VK_RETURN = 0x0D;
     public const int KEYEVENTF_KEYDOWN = 0x0000;
     public const int KEYEVENTF_KEYUP = 0x0002;
+
+    public static void SendCtrlShift9() {
+        // Ctrl+Shift+9 to open Claude Chat
+        keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
+        keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
+        keybd_event(VK_9, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
+        keybd_event(VK_9, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+    }
 
     public static void SendCtrlV() {
         keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
@@ -117,15 +133,48 @@ public class KeyboardHelper {
         keybd_event(VK_V, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
         keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
     }
+
+    public static void SendEnter() {
+        keybd_event(VK_RETURN, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
+        keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+    }
 }
 "@
+        }
 
-        Start-Sleep -Milliseconds $DelayMs
-        [KeyboardHelper]::SendCtrlV()
+        # Copy message to clipboard
+        Add-Type -AssemblyName System.Windows.Forms
+        [System.Windows.Forms.Clipboard]::SetText($Message)
+
+        # Get any Cursor window
+        $cursorProcess = Get-Process -Name "cursor" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($null -eq $cursorProcess) {
+            Write-Host "    ⚠️  No Cursor window found"
+            return $false
+        }
+
+        # Focus the window
+        $mainWindowHandle = $cursorProcess.MainWindowHandle
+        if ($mainWindowHandle -ne 0) {
+            [KeyboardEvent]::SetForegroundWindow($mainWindowHandle)
+            Start-Sleep -Milliseconds 300
+        }
+
+        # Open Claude Chat (Ctrl+Shift+9)
+        [KeyboardEvent]::SendCtrlShift9()
+        Start-Sleep -Milliseconds 1500  # Wait for Claude Chat to open
+
+        # Paste message (Ctrl+V)
+        [KeyboardEvent]::SendCtrlV()
+        Start-Sleep -Milliseconds 300
+
+        # Send message (Enter)
+        [KeyboardEvent]::SendEnter()
+        Start-Sleep -Milliseconds 300
 
         return $true
     } catch {
-        Write-Host "  ⚠️  Could not send message: $_"
+        Write-Host "    ⚠️  Could not send message: $_"
         return $false
     }
 }
@@ -229,8 +278,15 @@ if ($unresolvedCount -gt 0) {
     Write-Host "Phases with unresolved issues: $($unresolvedIssues -join ', ')"
     Write-Host ""
     Write-Host "Sending messages to Cursor windows..."
+    $messageSent = 0
     foreach ($phaseId in $unresolvedIssues) {
-        Send-MessageToCursorWindow "ready to merge (unrelated CI issue)"
+        Write-Host "  Sending to first Cursor window..."
+        if (Send-MessageToCursorWindow "ready to merge (unrelated CI issue)") {
+            $messageSent++
+            Write-Host "    ✅ Message sent"
+        } else {
+            Write-Host "    ❌ Failed to send message"
+        }
     }
     Write-Host ""
     Write-Host "📋 Issues have been recorded in: $(Get-UnresolvedIssuesFile $waveNumber)"
@@ -240,8 +296,15 @@ if ($unresolvedCount -gt 0) {
 if ($mergedPRs.Count -gt 0) {
     Write-Host ""
     Write-Host "Merged PRs detected - sending completion messages..."
+    $messageSent = 0
     foreach ($phaseId in $mergedPRs) {
-        Send-MessageToCursorWindow "PR merged - phase complete!"
+        Write-Host "  Sending to first Cursor window..."
+        if (Send-MessageToCursorWindow "PR merged - phase complete!") {
+            $messageSent++
+            Write-Host "    ✅ Message sent"
+        } else {
+            Write-Host "    ❌ Failed to send message"
+        }
     }
 
     Write-Host ""

@@ -1,0 +1,256 @@
+================================================================================
+                    STREAM DECK HANDLER BUTTON SETUP
+================================================================================
+
+Add these 4 buttons to Stream Deck for complete handler management
+
+================================================================================
+                         BUTTON 1: RESET BASELINES
+================================================================================
+
+Purpose: Delete corrupted baselines and prompt for clean recapture
+When to use: First time setup, or if baselines get corrupted again
+
+Setup in Stream Deck:
+  1. Add "Open" action to button
+  2. Click "Choose..."
+  3. Select: C:\dev\Autopack\scripts\reset_baselines.bat
+  4. Label: "🔄 Reset Baselines"
+  5. Press OK
+
+What it does:
+  • Deletes old baselines
+  • Shows critical instructions
+  • Pauses so you can read (press any key to close)
+
+When pressed:
+  → Window opens with reset instructions
+  → Follow the steps shown
+  → When done, close the window
+
+================================================================================
+                      BUTTON 2: CLEAN ERRORS (Phase 1)
+================================================================================
+
+Purpose: Manually recover from connection errors before baseline capture
+When to use: Before starting handler, if any errors are visible
+
+Setup in Stream Deck:
+  1. Add "Open" action to button
+  2. Click "Choose..."
+  3. Select: C:\dev\Autopack\scripts\handle_connection_errors.bat
+  4. Label: "🛠️ Clean Errors (Phase 1)"
+  5. Press OK
+
+What it does:
+  • Launches Phase 1 manual handler
+  • Prompts you to enter slot number with error
+  • Clicks Resume button in that slot
+
+When pressed:
+  → Window opens asking for slot number
+  → Type 1-9 and press Enter
+  → Handler clicks Resume in that slot
+  → Repeat for any other error slots
+  → Type 'q' to quit when done
+
+================================================================================
+                    BUTTON 3: START HANDLER (Phase 2)
+================================================================================
+
+Purpose: Start automated error detection and recovery
+When to use: After baselines are captured in clean state
+
+Setup in Stream Deck:
+  1. Add "Open" action to button
+  2. Click "Choose..."
+  3. Select: C:\dev\Autopack\scripts\handle_connection_errors_automated.bat
+  4. Label: "⚡ Start Auto Handler"
+  5. Press OK
+
+What it does:
+  • Launches Phase 2 automated handler
+  • Captures baseline (if needed) or starts monitoring
+  • Continuously watches for errors and clicks Resume
+
+When pressed:
+  → New window opens
+  → Shows: "Ready. Monitoring grid for connection errors..."
+  → Handler runs continuously (keep window open)
+  → To stop: Close window or press Ctrl+C
+
+================================================================================
+                       BUTTON 4: RUN DIAGNOSTIC
+================================================================================
+
+Purpose: Test if handler detection is working
+When to use: When handler doesn't seem to detect errors
+
+Setup in Stream Deck:
+  1. Add "Open" action to button
+  2. Click "Choose..."
+  3. Select: C:\dev\Autopack\scripts\diagnose_connection_errors.bat
+  4. Label: "🔍 Diagnose Handler"
+  5. Press OK
+
+What it does:
+  • Monitors handler for 60 seconds
+  • Captures detailed pixel change metrics
+  • Shows if detection is working
+  • Creates log file with results
+
+When pressed:
+  → Window opens
+  → Shows: "Monitoring for 60 seconds. Trigger a connection error now!"
+  → Trigger error in Cursor within 60 seconds
+  → Waits, then reports:
+    - If error was detected
+    - What pixel changes occurred
+    - Detailed metrics for analysis
+
+================================================================================
+                      COMPLETE WORKFLOW
+================================================================================
+
+FIRST TIME SETUP (5 minutes):
+════════════════════════════════════════════════════════════════════════
+
+1. Click: "🔄 Reset Baselines"
+   ├─ Follow instructions shown
+   ├─ Read the critical info
+   └─ Close window when done
+
+2. If ANY Cursor slots show "Connection Error":
+   ├─ Click: "🛠️ Clean Errors (Phase 1)"
+   ├─ Type slot number
+   ├─ Press Enter (handler clicks Resume)
+   ├─ Repeat for all error slots
+   └─ Type 'q' to quit
+
+3. Ensure ALL 9 slots show clean editor (no errors)
+
+4. Click: "⚡ Start Auto Handler"
+   ├─ New window opens and starts monitoring
+   ├─ Keep this window open
+   └─ Shows: "Ready. Monitoring..."
+
+DONE! Handler is now watching for errors.
+
+
+ONGOING USE (Automatic):
+════════════════════════════════════════════════════════════════════════
+
+Handler (Button 3) is running in background:
+  • Continuously monitors all 9 slots
+  • Detects when connection error appears
+  • Automatically clicks Resume button
+  • Cursor recovers
+  • Continues monitoring
+
+No action needed - handler works automatically!
+
+
+TROUBLESHOOTING:
+════════════════════════════════════════════════════════════════════════
+
+If handler doesn't seem to detect errors:
+
+1. Click: "🔍 Diagnose Handler"
+   ├─ Trigger connection error when it prompts
+   ├─ Wait 60 seconds
+   └─ Shows if detection working
+
+2. If diagnostic shows errors NOT detected:
+   ├─ Likely need fresh baselines
+   ├─ Click: "🔄 Reset Baselines" again
+   ├─ Clean any visible errors (Button 2)
+   └─ Start handler again (Button 3)
+
+================================================================================
+                    STREAM DECK LAYOUT SUGGESTION
+================================================================================
+
+Recommended button arrangement:
+
+Row 1:
+  [🔄 Reset]    [🛠️ Clean]     [⚡ Start]
+  Baselines     Errors         Handler
+
+Row 2 (optional):
+  [🔍 Diag]     [?]            [?]
+  Diagnose      (other)        (other)
+
+
+Or single row:
+  [🔄] [🛠️] [⚡] [🔍]
+
+
+Color coding (optional):
+  • 🔄 Reset Baselines: Blue (setup)
+  • 🛠️ Clean Errors: Yellow (manual recovery)
+  • ⚡ Start Handler: Green (automatic)
+  • 🔍 Diagnose: Purple (troubleshooting)
+
+================================================================================
+                         KEY FILES
+================================================================================
+
+Button 1 (Reset Baselines):
+  C:\dev\Autopack\scripts\reset_baselines.bat
+
+Button 2 (Clean Errors - Phase 1):
+  C:\dev\Autopack\scripts\handle_connection_errors.bat
+
+Button 3 (Start Handler - Phase 2):
+  C:\dev\Autopack\scripts\handle_connection_errors_automated.bat
+
+Button 4 (Diagnose Handler):
+  C:\dev\Autopack\scripts\diagnose_connection_errors.bat
+
+================================================================================
+                         QUICK SETUP (2 min)
+================================================================================
+
+In Stream Deck:
+
+1. Add Button #1:
+   File: C:\dev\Autopack\scripts\reset_baselines.bat
+   Label: 🔄 Reset Baselines
+
+2. Add Button #2:
+   File: C:\dev\Autopack\scripts\handle_connection_errors.bat
+   Label: 🛠️ Clean Errors
+
+3. Add Button #3:
+   File: C:\dev\Autopack\scripts\handle_connection_errors_automated.bat
+   Label: ⚡ Start Handler
+
+4. Add Button #4:
+   File: C:\dev\Autopack\scripts\diagnose_connection_errors.bat
+   Label: 🔍 Diagnose
+
+DONE! Ready to use!
+
+================================================================================
+                          IMPORTANT NOTES
+================================================================================
+
+✓ Reset baselines BEFORE starting handler (first time only)
+✓ Keep handler window open while monitoring
+✓ Phase 1 (Clean Errors) is for manual recovery if needed
+✓ Phase 2 (Start Handler) is for automatic recovery
+✓ Diagnostic helps troubleshoot if detection not working
+✓ All buttons save to error log for analysis
+
+================================================================================
+                         STATUS
+================================================================================
+
+✅ All 4 buttons configured and ready
+✅ Batch files created for Stream Deck compatibility
+✅ Complete workflow documented
+✅ Troubleshooting guide included
+
+READY FOR STREAM DECK DEPLOYMENT!
+
+================================================================================

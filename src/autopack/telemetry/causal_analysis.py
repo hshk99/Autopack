@@ -748,7 +748,7 @@ class CausalAnalyzer:
                 if relative_width > 0.5:  # CI width > 50% of mean
                     warnings.append(
                         f"{metric_name}: wide confidence interval "
-                        f"({relative_width * 100:.1f}% of baseline) - more data recommended"
+                        f"({relative_width*100:.1f}% of baseline) - more data recommended"
                     )
 
         # Overall validation: pass if no critical issues

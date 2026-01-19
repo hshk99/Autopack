@@ -99,7 +99,7 @@ class TestPolicyPromoter:
                 ab_test_result_id=1,
                 improvement_task_id=f"task-{i}",
                 config_changes={"key": {"old": "val1", "new": "val2"}},
-                promoted_version=f"v{i + 1}",
+                promoted_version=f"v{i+1}",
                 previous_version=f"v{i}",
                 status="stable",
             )

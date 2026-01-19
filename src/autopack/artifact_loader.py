@@ -66,7 +66,7 @@ def _read_capped(path: Path, max_bytes: Optional[int] = None) -> Tuple[str, bool
         # Truncate and add indicator
         truncated_content = full_content[:max_bytes]
         truncation_indicator = (
-            f"\n\n... [TRUNCATED - content exceeded size cap of {max_bytes} bytes] ..."
+            "\n\n... [TRUNCATED - content exceeded size cap of " f"{max_bytes} bytes] ..."
         )
         return truncated_content + truncation_indicator, True
     except Exception as e:

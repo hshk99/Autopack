@@ -87,7 +87,7 @@ class WorkspaceLease:
 
             # Write current executor info for debugging (only if lock acquired)
             try:
-                debug_info = f"{self.executor_id}\n{self.workspace_path}\n{os.getcwd()}\n"
+                debug_info = f"{self.executor_id}\n" f"{self.workspace_path}\n" f"{os.getcwd()}\n"
                 with open(self.lock_file_path, "w") as f:
                     f.write(debug_info)
             except Exception as e:

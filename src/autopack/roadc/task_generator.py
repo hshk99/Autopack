@@ -138,7 +138,7 @@ class AutonomousTaskGenerator:
         """Generate task description from pattern."""
         examples = pattern["examples"]
         return f"""## Problem
-Detected {pattern["occurrences"]} occurrences of {pattern["type"]} issues.
+Detected {pattern['occurrences']} occurrences of {pattern['type']} issues.
 
 ## Examples
 {chr(10).join(f"- {e.get('content', '')[:100]}" for e in examples[:3])}

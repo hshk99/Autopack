@@ -85,6 +85,51 @@ function Record-UnresolvedIssue {
     return $false
 }
 
+# Send message to cursor window via Claude Chat (clipboard paste)
+function Send-MessageToCursorWindow {
+    param(
+        [string]$Message,
+        [int]$DelayMs = 500
+    )
+
+    try {
+        # Copy message to clipboard
+        Add-Type -AssemblyName System.Windows.Forms
+        [System.Windows.Forms.Clipboard]::SetText($Message)
+
+        # Get focused window and paste (Ctrl+V)
+        Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+
+public class KeyboardHelper {
+    [DllImport("user32.dll")]
+    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+    public const int VK_CONTROL = 0x11;
+    public const int VK_V = 0x56;
+    public const int KEYEVENTF_KEYDOWN = 0x0000;
+    public const int KEYEVENTF_KEYUP = 0x0002;
+
+    public static void SendCtrlV() {
+        keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
+        keybd_event(VK_V, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
+        keybd_event(VK_V, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+    }
+}
+"@
+
+        Start-Sleep -Milliseconds $DelayMs
+        [KeyboardHelper]::SendCtrlV()
+
+        return $true
+    } catch {
+        Write-Host "  ⚠️  Could not send message: $_"
+        return $false
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($WaveFile)) {
     $WaveFile = Get-DynamicFilePath "Wave*_All_Phases.md"
 
@@ -183,11 +228,22 @@ if ($unresolvedCount -gt 0) {
     Write-Host "✅ READY TO MERGE (with unresolved issues to address separately)"
     Write-Host "Phases with unresolved issues: $($unresolvedIssues -join ', ')"
     Write-Host ""
+    Write-Host "Sending messages to Cursor windows..."
+    foreach ($phaseId in $unresolvedIssues) {
+        Send-MessageToCursorWindow "ready to merge (unrelated CI issue)"
+    }
+    Write-Host ""
     Write-Host "📋 Issues have been recorded in: $(Get-UnresolvedIssuesFile $waveNumber)"
     Write-Host "   These issues will be included in wave cleanup summary."
 }
 
 if ($mergedPRs.Count -gt 0) {
+    Write-Host ""
+    Write-Host "Merged PRs detected - sending completion messages..."
+    foreach ($phaseId in $mergedPRs) {
+        Send-MessageToCursorWindow "PR merged - phase complete!"
+    }
+
     Write-Host ""
     Write-Host "Marking phases as COMPLETED..."
 

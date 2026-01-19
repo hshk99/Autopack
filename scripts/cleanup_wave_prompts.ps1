@@ -3,6 +3,7 @@
 #   1. Wave[N]_All_Phases.md
 #   2. AUTOPACK_IMPS_MASTER.json
 #   3. AUTOPACK_WAVE_PLAN.json
+#   4. AUTOPACK_WORKFLOW.md (removes detailed prompt sections for completed phases)
 # Also appends unresolved issues from Wave[N]_Unresolved_Issues.json to wave file
 # Usage: .\cleanup_wave_prompts.ps1 -WaveNumber 1
 
@@ -268,6 +269,50 @@ Please investigate and fix the issue:
 
 Write-Host ""
 
+# ============ CLEANUP 5: Remove completed phase details from AUTOPACK_WORKFLOW.md ============
+Write-Host "CLEANUP 5: Removing completed phase details from AUTOPACK_WORKFLOW.md" -ForegroundColor Yellow
+
+$workflowFile = Join-Path $backupDir "AUTOPACK_WORKFLOW.md"
+
+if (Test-Path $workflowFile) {
+    $workflowContent = Get-Content $workflowFile -Raw
+
+    $removedSections = 0
+    foreach ($prompt in $completedPrompts) {
+        $phaseId = $prompt.ID
+
+        # Map phaseId to IMP identifier pattern
+        # e.g., "sec001" -> "IMP-SEC-001", "feat003" -> "IMP-FEAT-003"
+        $impPattern = $phaseId -replace '([a-z]+)(\d+)', 'IMP-$1-$2'
+        $impPattern = $impPattern.ToUpper()
+
+        # Pattern to match the entire phase section:
+        # Starts with "## 🔵 WAVE N: Cursor #X (IMP-XXX-NNN" and ends at the next "---" separator
+        # This captures the header + all content until the next section divider
+        $sectionPattern = "(?s)## [^\r\n]*\($impPattern[^\)]*\)[^\r\n]*\r?\n\r?\n\*\*Cursor Prompt:\*\*\r?\n\r?\n```.*?```\r?\n\r?\n---"
+
+        if ($workflowContent -match $sectionPattern) {
+            $workflowContent = $workflowContent -replace $sectionPattern, "---"
+            $removedSections++
+            Write-Host "  [OK] Removed section for $phaseId ($impPattern)"
+        }
+    }
+
+    # Clean up multiple consecutive "---" separators (leave just one)
+    $workflowContent = $workflowContent -replace '(---\s*\r?\n\s*){2,}', "---`n`n"
+
+    if ($removedSections -gt 0) {
+        Set-Content $workflowFile $workflowContent -Encoding UTF8
+        Write-Host "  [OK] Removed $removedSections phase section(s) from AUTOPACK_WORKFLOW.md"
+    } else {
+        Write-Host "  [INFO] No matching sections found to remove"
+    }
+} else {
+    Write-Host "  [WARN] AUTOPACK_WORKFLOW.md not found (skipping)"
+}
+
+Write-Host ""
+
 # ============ Final Summary ============
 Write-Host "============ CLEANUP COMPLETE ============" -ForegroundColor Green
 Write-Host ""
@@ -275,6 +320,7 @@ Write-Host "Files cleaned:"
 Write-Host "  [OK] Wave${WaveNumber}_All_Phases.md"
 Write-Host "  [OK] AUTOPACK_IMPS_MASTER.json"
 Write-Host "  [OK] AUTOPACK_WAVE_PLAN.json"
+Write-Host "  [OK] AUTOPACK_WORKFLOW.md"
 if ($null -ne $unresolvedData -and $unresolvedData.issues.Count -gt 0) {
     Write-Host "  [OK] Unresolved issues appended to Wave${WaveNumber}_All_Phases.md"
 }

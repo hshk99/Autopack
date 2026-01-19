@@ -1,4 +1,5 @@
 # Send message to a specific Cursor window in the 3x3 grid
+# Uses SetForegroundWindow to focus the window at the target slot, then sends keyboard events
 # Usage: .\send_message_to_cursor_slot.ps1 -SlotNumber 1 -Message "test message"
 
 param(
@@ -16,59 +17,97 @@ if ([string]::IsNullOrWhiteSpace($Message)) {
     exit 1
 }
 
-# Grid coordinates for chat input boxes (from STREAMDECK_COMPLETE_SETUP.md)
-# These are the positions where the chat input field is located for each slot
-$chatCoordinates = @(
-    @{ Slot = 1; X = 3121; Y = 337 },   # Top-left
-    @{ Slot = 2; X = 3979; Y = 337 },   # Top-center
-    @{ Slot = 3; X = 4833; Y = 337 },   # Top-right
-    @{ Slot = 4; X = 3121; Y = 801 },   # Mid-left
-    @{ Slot = 5; X = 3979; Y = 801 },   # Mid-center
-    @{ Slot = 6; X = 4833; Y = 801 },   # Mid-right
-    @{ Slot = 7; X = 3121; Y = 1264 },  # Bot-left
-    @{ Slot = 8; X = 3979; Y = 1264 },  # Bot-center
-    @{ Slot = 9; X = 4833; Y = 1264 }   # Bot-right
-)
+# Add window and keyboard helper classes
+if (-not ([System.Management.Automation.PSTypeName]'WindowHelper').Type) {
+    Add-Type @"
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text;
 
-# Find coordinates for this slot
-$coords = $chatCoordinates | Where-Object { $_.Slot -eq $SlotNumber }
-if ($null -eq $coords) {
-    Write-Host "[ERROR] Could not find coordinates for slot $SlotNumber" -ForegroundColor Red
-    exit 1
+public class WindowHelper {
+    [DllImport("user32.dll")]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern int GetWindowTextLength(IntPtr hWnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    [DllImport("user32.dll")]
+    public static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    public static List<IntPtr> GetWindowsByProcessName(string processName) {
+        var windows = new List<IntPtr>();
+        var processIds = new HashSet<uint>();
+
+        foreach (var proc in System.Diagnostics.Process.GetProcessesByName(processName)) {
+            processIds.Add((uint)proc.Id);
+        }
+
+        EnumWindows((hWnd, lParam) => {
+            uint procId;
+            GetWindowThreadProcessId(hWnd, out procId);
+            if (processIds.Contains(procId) && IsWindowVisible(hWnd)) {
+                windows.Add(hWnd);
+            }
+            return true;
+        }, IntPtr.Zero);
+
+        return windows;
+    }
+
+    public static string GetWindowTitle(IntPtr hWnd) {
+        var length = GetWindowTextLength(hWnd);
+        if (length == 0) return "";
+        var sb = new StringBuilder(length + 1);
+        GetWindowText(hWnd, sb, length + 1);
+        return sb.ToString();
+    }
+
+    public static RECT GetWindowRect(IntPtr hWnd) {
+        RECT rect;
+        GetWindowRect(hWnd, out rect);
+        return rect;
+    }
+}
+"@
 }
 
-$targetX = $coords.X
-$targetY = $coords.Y
-
-# Set up clipboard with message
-$Message | Set-Clipboard
-Start-Sleep -Milliseconds 200
-
-# Add keyboard helper class for sending keys
-if (-not ([System.Management.Automation.PSTypeName]'KeyboardInput').Type) {
+if (-not ([System.Management.Automation.PSTypeName]'KeyboardHelper').Type) {
     Add-Type @"
 using System;
 using System.Runtime.InteropServices;
 
-public class KeyboardInput {
+public class KeyboardHelper {
     [DllImport("user32.dll")]
     public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
-
-    [DllImport("user32.dll")]
-    public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint cButtons, uint dwExtraInfo);
-
-    [DllImport("user32.dll")]
-    public static extern bool SetCursorPos(int X, int Y);
 
     public const byte VK_CONTROL = 0x11;
     public const byte VK_V = 0x56;
     public const byte VK_RETURN = 0x0D;
     public const uint KEYEVENTF_KEYDOWN = 0x0000;
     public const uint KEYEVENTF_KEYUP = 0x0002;
-
-    public const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
-    public const uint MOUSEEVENTF_LEFTUP = 0x0004;
-    public const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
 
     public static void PasteAndEnter() {
         // Ctrl+V to paste
@@ -82,26 +121,58 @@ public class KeyboardInput {
         keybd_event(VK_RETURN, 0, KEYEVENTF_KEYDOWN, 0);
         keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0);
     }
-
-    public static void ClickPosition(int x, int y) {
-        // Move cursor to position and click
-        SetCursorPos(x, y);
-        System.Threading.Thread.Sleep(100);
-        mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_LEFTDOWN, (uint)x, (uint)y, 0, 0);
-        System.Threading.Thread.Sleep(50);
-        mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_LEFTUP, (uint)x, (uint)y, 0, 0);
-    }
 }
 "@
 }
 
 try {
-    # Click on the chat input box at the target coordinates to focus it
-    [KeyboardInput]::ClickPosition($targetX, $targetY)
-    Start-Sleep -Milliseconds 300
+    # Step 1: Find all Cursor windows
+    $cursorWindows = [WindowHelper]::GetWindowsByProcessName("cursor")
+    if ($cursorWindows.Count -eq 0) {
+        Write-Host "[ERROR] No Cursor windows found" -ForegroundColor Red
+        exit 1
+    }
 
-    # Paste and send the message
-    [KeyboardInput]::PasteAndEnter()
+    # Step 2: Map slot number to expected grid position
+    # Slot 1-3: Row 1 (Y=0), Slot 4-6: Row 2 (Y=463), Slot 7-9: Row 3 (Y=926)
+    # Slot 1,4,7: Col 1 (X=2560), Slot 2,5,8: Col 2 (X=3413), Slot 3,6,9: Col 3 (X=4266)
+    $yRow = [Math]::Ceiling($SlotNumber / 3)
+    $xCol = (($SlotNumber - 1) % 3) + 1
+
+    $expectedYStart = ($yRow - 1) * 463
+    $expectedYEnd = $expectedYStart + 463
+    $expectedX = @{ 1 = 2560; 2 = 3413; 3 = 4266 }[$xCol]
+
+    # Step 3: Find the window at the target slot position
+    $targetWindow = $null
+    $tolerance = 100
+
+    foreach ($window in $cursorWindows) {
+        $rect = [WindowHelper]::GetWindowRect($window)
+
+        # Check if window is in the expected position for this slot
+        if ($rect.Left -ge ($expectedX - $tolerance) -and $rect.Left -le ($expectedX + $tolerance) -and
+            $rect.Top -ge ($expectedYStart - $tolerance) -and $rect.Top -le ($expectedYEnd + $tolerance)) {
+            $targetWindow = $window
+            break
+        }
+    }
+
+    if ($null -eq $targetWindow) {
+        Write-Host "[ERROR] No Cursor window found at slot $SlotNumber position (X~$expectedX, Y~$expectedYStart-$expectedYEnd)" -ForegroundColor Red
+        exit 1
+    }
+
+    # Step 4: Focus the window
+    [WindowHelper]::SetForegroundWindow($targetWindow) | Out-Null
+    Start-Sleep -Milliseconds 500
+
+    # Step 5: Set clipboard and paste
+    $Message | Set-Clipboard
+    Start-Sleep -Milliseconds 200
+
+    # Step 6: Send Ctrl+V and Enter to the focused window
+    [KeyboardHelper]::PasteAndEnter()
     Start-Sleep -Milliseconds 500
 
     Write-Host "[OK] Message sent to slot $SlotNumber" -ForegroundColor Green

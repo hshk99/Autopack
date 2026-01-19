@@ -278,7 +278,10 @@ async def lifespan(app: FastAPI):
     - Production API key validation (security requirement)
     - Database initialization (skipped in testing)
     - Background task lifecycle with supervision (IMP-OPS-001)
+    - IMP-OPS-004: Readiness state signaling for /ready endpoint
     """
+    from .routes.health import mark_app_initialized, mark_initialization_failed
+
     # P0 Security: In production mode, require AUTOPACK_API_KEY to be set
     # This prevents accidentally running an unauthenticated API in production
     # PR-03 (R-03 G4): get_api_key() supports AUTOPACK_API_KEY_FILE for Docker secrets
@@ -289,6 +292,7 @@ async def lifespan(app: FastAPI):
         api_key = get_api_key()
     except RuntimeError as e:
         logger.critical(str(e))
+        mark_initialization_failed(f"API key validation failed: {e}")
         raise
 
     if autopack_env == "production" and not api_key:
@@ -299,11 +303,16 @@ async def lifespan(app: FastAPI):
             "or use AUTOPACK_ENV=development."
         )
         logger.critical(error_msg)
+        mark_initialization_failed("Missing API key in production mode")
         raise RuntimeError(error_msg)
 
     # Skip DB init during testing (tests use their own DB setup)
     if os.getenv("TESTING") != "1":
-        init_db()
+        try:
+            init_db()
+        except Exception as e:
+            mark_initialization_failed(f"Database initialization failed: {e}")
+            raise
 
     # IMP-OPS-001: Create supervisor for background tasks with automatic restart
     supervisor = BackgroundTaskSupervisor(max_restarts=5)
@@ -312,6 +321,10 @@ async def lifespan(app: FastAPI):
     timeout_task = asyncio.create_task(
         supervisor.supervise("approval_timeout_cleanup", approval_timeout_cleanup)
     )
+
+    # IMP-OPS-004: Mark application as ready for traffic
+    mark_app_initialized()
+    logger.info("[LIFESPAN] Application initialization complete, ready for traffic")
 
     yield
 

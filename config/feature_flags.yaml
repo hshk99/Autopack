@@ -417,6 +417,27 @@ flags:
     aliases: ["TELEGRAM_CHAT_ID"]
 
   # ============================================================================
+  # Dual Audit Configuration (IMP-COST-001)
+  # ============================================================================
+  AUTOPACK_DUAL_AUDIT_ENABLED:
+    description: "Enable/disable dual audit (primary+secondary+judge LLM calls)"
+    category: feature_toggle
+    default: "true"
+    values: ["true", "false"]
+    affects: ["config.py", "llm_service.py"]
+    aliases: ["DUAL_AUDIT_ENABLED"]
+    notes: "IMP-COST-001: When disabled, uses only primary auditor for 3x token cost reduction"
+
+  AUTOPACK_DUAL_AUDIT_SECONDARY_MODEL:
+    description: "Optional cheaper model for secondary auditor (e.g., claude-haiku-4-5)"
+    category: tuning
+    default: "null"
+    values: "Model name string (e.g., claude-haiku-4-5, claude-sonnet-4-5)"
+    affects: ["config.py", "llm_service.py"]
+    aliases: ["DUAL_AUDIT_SECONDARY_MODEL"]
+    notes: "IMP-COST-001: When set, uses this model instead of primary model for secondary auditor. Falls back to category policy if not set"
+
+  # ============================================================================
   # Per-Phase Budget Controls (IMP-COST-002)
   # ============================================================================
   AUTOPACK_PHASE_TOKEN_CAP:

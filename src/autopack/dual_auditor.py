@@ -16,10 +16,13 @@ Usage:
     # with effective_severity = max(severity_from_each)
 """
 
+import logging
 from typing import List, Dict, Optional
 from dataclasses import dataclass
 
 from .llm_client import AuditorResult
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -351,22 +354,138 @@ class DualAuditor:
         return (self.disagreement_count / self.total_dual_audits) * 100
 
 
+class AnthropicAuditorClientWrapper:
+    """Wrapper for AnthropicAuditorClient with fallback handling.
+
+    This class provides a cleaner interface for using AnthropicAuditorClient
+    from autopack.anthropic_clients in the dual auditor system. It handles
+    cases where the client might not be available (e.g., missing ANTHROPIC_API_KEY).
+
+    Usage:
+        from autopack.dual_auditor import AnthropicAuditorClientWrapper
+
+        # Attempt to initialize with API key
+        auditor = AnthropicAuditorClientWrapper(
+            api_key=os.getenv("ANTHROPIC_API_KEY")
+        )
+
+        # Check if real auditor is available
+        if not auditor.is_available():
+            logger.warning("Anthropic auditor not available - dual audit disabled")
+        else:
+            result = auditor.review_patch(...)
+    """
+
+    def __init__(self, api_key: Optional[str] = None):
+        """Initialize Anthropic auditor client.
+
+        Args:
+            api_key: Anthropic API key (defaults to ANTHROPIC_API_KEY env var)
+        """
+        self._api_key = api_key
+        self._client = None
+        self._load_client()
+
+    def _load_client(self):
+        """Load AnthropicAuditorClient if available."""
+        try:
+            # Try to import and initialize the real client
+            from .anthropic_clients import AnthropicBuilderClient
+
+            # AnthropicBuilderClient has review_patch method
+            self._client = AnthropicBuilderClient(api_key=self._api_key)
+            logger.info("[AnthropicAuditorClientWrapper] Real Anthropic auditor initialized")
+        except (ImportError, Exception) as e:
+            self._client = None
+            logger.warning(
+                f"[AnthropicAuditorClientWrapper] Failed to initialize Anthropic auditor: {e}. "
+                "Dual audit will be disabled. Set ANTHROPIC_API_KEY to enable Claude-based auditing."
+            )
+
+    def is_available(self) -> bool:
+        """Check if real Anthropic auditor is available.
+
+        Returns:
+            True if client is initialized and can make API calls
+        """
+        return self._client is not None
+
+    def review_patch(
+        self,
+        patch_content: str,
+        phase_spec: Dict,
+        file_context: Optional[Dict] = None,
+        max_tokens: Optional[int] = None,
+        model: str = "claude-sonnet-4-5",
+        project_rules: Optional[List] = None,
+        run_hints: Optional[List] = None,
+    ) -> AuditorResult:
+        """Review patch using Anthropic Claude.
+
+        Args:
+            patch_content: Git diff format patch
+            phase_spec: Phase specification
+            file_context: Repository context
+            max_tokens: Token budget
+            model: Claude model
+            project_rules: Learned rules
+            run_hints: Within-run hints from earlier phases
+
+        Returns:
+            AuditorResult with issues found
+        """
+        if not self.is_available():
+            # Return stub result if client not available
+            return AuditorResult(
+                approved=True,
+                issues_found=[],
+                auditor_messages=[
+                    "⚠️  Anthropic auditor not available - dual audit disabled.",
+                    "Set ANTHROPIC_API_KEY to enable Claude-based auditing.",
+                ],
+                tokens_used=0,
+                model_used=f"{model}-stub",
+            )
+
+        # Use real Anthropic client
+        return self._client.review_patch(
+            patch_content=patch_content,
+            phase_spec=phase_spec,
+            file_context=file_context,
+            max_tokens=max_tokens,
+            model=model,
+            project_rules=project_rules,
+            run_hints=run_hints,
+        )
+
+
 # DEPRECATED: Stub Claude auditor for testing
 # ⚠️  WARNING: This stub returns empty results and should NOT be used in production.
 #
-# For real Claude-based auditing, use AnthropicAuditorClient instead:
+# For real Claude-based auditing, use AnthropicAuditorClientWrapper instead:
 #
-#   from autopack.anthropic_clients import AnthropicAuditorClient
-#   auditor = AnthropicAuditorClient(api_key=os.getenv("ANTHROPIC_API_KEY"))
+#   from autopack.dual_auditor import AnthropicAuditorClientWrapper
+#   auditor = AnthropicAuditorClientWrapper(api_key=os.getenv("ANTHROPIC_API_KEY"))
+#
+#   if not auditor.is_available():
+#       logger.warning("Anthropic auditor not available - dual audit disabled")
 #
 # This stub is retained for backward compatibility only and will be removed
 # in a future release.
 class StubClaudeAuditor:
     """DEPRECATED: Stub Claude auditor for testing dual auditor logic.
 
-    ⚠️  This is a stub that returns empty results. Use AnthropicAuditorClient
-    from autopack.anthropic_clients for real Claude-based auditing.
+    ⚠️  This is a stub that returns empty results. Use AnthropicAuditorClientWrapper
+    from autopack.dual_auditor for real Claude-based auditing.
     """
+
+    def __init__(self):
+        """Initialize stub with warning log."""
+        logger.warning(
+            "[StubClaudeAuditor] WARNING: This stub returns empty results. "
+            "Auditing is NON-FUNCTIONAL. Use AnthropicAuditorClientWrapper from "
+            "autopack.dual_auditor for real Claude-based auditing."
+        )
 
     def review_patch(
         self,
@@ -381,19 +500,27 @@ class StubClaudeAuditor:
         import warnings
 
         warnings.warn(
-            "StubClaudeAuditor is deprecated. Use AnthropicAuditorClient from "
-            "autopack.anthropic_clients for real Claude-based auditing.",
+            "StubClaudeAuditor is deprecated. Use AnthropicAuditorClientWrapper from "
+            "autopack.dual_auditor for real Claude-based auditing.",
             DeprecationWarning,
             stacklevel=2,
         )
+
         # Always append "-stub" to make it clear this is not a real audit
-        model_name = (model or "claude-sonnet-3-5") + "-stub"
+        model_name = (model or "claude-sonnet-4-5") + "-stub"
+
+        logger.warning(
+            f"[StubClaudeAuditor] Stub review called for phase {phase_spec.get('phase_id', 'unknown')}. "
+            "No real auditing performed - auditing is NON-FUNCTIONAL."
+        )
+
         return AuditorResult(
             approved=True,
             issues_found=[],
             auditor_messages=[
                 "⚠️  Claude audit stub called (no real auditing performed).",
-                "Use AnthropicAuditorClient for production auditing.",
+                "Auditing is NON-FUNCTIONAL with this stub.",
+                "Use AnthropicAuditorClientWrapper for production auditing.",
             ],
             tokens_used=0,  # Stub - no actual API call
             model_used=model_name,

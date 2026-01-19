@@ -6,6 +6,7 @@ Handles Builder LLM invocation, context loading, validation, and retry logic.
 
 import logging
 import os
+import re
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
@@ -191,6 +192,12 @@ class BuilderOrchestrator:
             # Standard path: retrieve from vector memory
             retrieved_context = self._retrieve_memory_context(phase_id, phase)
 
+        # IMP-PERF-003: Deduplicate memory context against file context
+        if retrieved_context and file_context:
+            retrieved_context = self._deduplicate_memory_context(
+                phase_id, retrieved_context, file_context
+            )
+
         # 1E: Intention context injection
         intention_context = self._inject_intention_context(phase_id, retrieved_context)
 
@@ -304,6 +311,114 @@ class BuilderOrchestrator:
                 )
         except Exception as e:
             logger.warning(f"[{phase_id}] Memory retrieval failed: {e}")
+
+        return retrieved_context
+
+    def _deduplicate_memory_context(
+        self, phase_id: str, retrieved_context: str, file_context: Dict[str, Any]
+    ) -> str:
+        """Deduplicate memory context against file context (IMP-PERF-003).
+
+        Memory and file contexts often contain the same file references, leading to
+        redundant context being sent to the Builder LLM. This method identifies and
+        removes file content blocks from memory context that are already present in
+        file context.
+
+        Args:
+            phase_id: Phase identifier for logging
+            retrieved_context: Memory context string that may contain file references
+            file_context: File context dict with existing_files key
+
+        Returns:
+            Deduplicated memory context string with redundant file blocks removed
+        """
+        if not retrieved_context or not file_context:
+            return retrieved_context
+
+        existing_files = file_context.get("existing_files", {})
+        if not existing_files:
+            return retrieved_context
+
+        # Build set of file paths that are already in file context
+        file_paths_in_context = set(existing_files.keys())
+
+        # Also include normalized versions (with/without leading slash, forward/back slashes)
+        normalized_paths = set()
+        for path in file_paths_in_context:
+            normalized_paths.add(path)
+            normalized_paths.add(path.lstrip("/").lstrip("\\"))
+            normalized_paths.add(path.replace("\\", "/"))
+            normalized_paths.add(path.replace("/", "\\"))
+
+        # Track deduplication stats
+        original_len = len(retrieved_context)
+        blocks_removed = 0
+
+        # Pattern 1: Remove file content blocks in format:
+        # --- FILE: path/to/file.py ---
+        # <content>
+        # --- END FILE ---
+        file_block_pattern = re.compile(
+            r"---\s*FILE:\s*([^\n-]+?)\s*---\n.*?---\s*END\s*FILE\s*---\n?",
+            re.DOTALL | re.IGNORECASE,
+        )
+
+        def should_remove_block(match: re.Match) -> bool:
+            file_path = match.group(1).strip()
+            # Check if this file path (or normalized version) is in file context
+            if file_path in normalized_paths:
+                return True
+            if file_path.lstrip("/").lstrip("\\") in normalized_paths:
+                return True
+            if file_path.replace("\\", "/") in normalized_paths:
+                return True
+            return False
+
+        def replace_block(match: re.Match) -> str:
+            nonlocal blocks_removed
+            if should_remove_block(match):
+                blocks_removed += 1
+                return ""
+            return match.group(0)
+
+        retrieved_context = file_block_pattern.sub(replace_block, retrieved_context)
+
+        # Pattern 2: Remove code snippet blocks in format:
+        # ```path/to/file.py
+        # <content>
+        # ```
+        code_block_pattern = re.compile(
+            r"```([^\n`]+)\n.*?```\n?",
+            re.DOTALL,
+        )
+
+        def replace_code_block(match: re.Match) -> str:
+            nonlocal blocks_removed
+            header = match.group(1).strip()
+            # Check if header looks like a file path and is in context
+            if "/" in header or "\\" in header or header.endswith((".py", ".ts", ".js", ".json")):
+                if header in normalized_paths:
+                    blocks_removed += 1
+                    return ""
+                if header.lstrip("/").lstrip("\\") in normalized_paths:
+                    blocks_removed += 1
+                    return ""
+            return match.group(0)
+
+        retrieved_context = code_block_pattern.sub(replace_code_block, retrieved_context)
+
+        # Clean up multiple consecutive newlines left by removed blocks
+        retrieved_context = re.sub(r"\n{3,}", "\n\n", retrieved_context)
+        retrieved_context = retrieved_context.strip()
+
+        # Log deduplication results
+        if blocks_removed > 0:
+            new_len = len(retrieved_context)
+            chars_saved = original_len - new_len
+            logger.info(
+                f"[{phase_id}] IMP-PERF-003: Deduplicated memory context - "
+                f"removed {blocks_removed} blocks ({chars_saved} chars saved)"
+            )
 
         return retrieved_context
 

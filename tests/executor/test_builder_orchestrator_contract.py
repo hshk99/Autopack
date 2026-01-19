@@ -1081,3 +1081,166 @@ class TestIntegrationScenarios:
         assert should_retry is False
         assert reason == "TOKEN_ESCALATION"
         assert phase.get("_escalated_once") is True
+
+
+class TestDeduplicateMemoryContext:
+    """Test _deduplicate_memory_context (IMP-PERF-003)."""
+
+    def test_deduplicate_returns_unchanged_when_no_file_context(self, tmp_path: Path):
+        """Test that deduplication returns context unchanged when no file context."""
+        orchestrator = make_builder_orchestrator(tmp_path)
+        memory_context = "--- FILE: test.py ---\nprint('hello')\n--- END FILE ---"
+
+        result = orchestrator._deduplicate_memory_context("phase-1", memory_context, {})
+
+        assert result == memory_context
+
+    def test_deduplicate_returns_unchanged_when_no_existing_files(self, tmp_path: Path):
+        """Test that deduplication returns context unchanged when no existing files."""
+        orchestrator = make_builder_orchestrator(tmp_path)
+        memory_context = "--- FILE: test.py ---\nprint('hello')\n--- END FILE ---"
+
+        result = orchestrator._deduplicate_memory_context(
+            "phase-1", memory_context, {"existing_files": {}}
+        )
+
+        assert result == memory_context
+
+    def test_deduplicate_removes_file_block_matching_context(self, tmp_path: Path):
+        """Test that file blocks matching file context are removed."""
+        orchestrator = make_builder_orchestrator(tmp_path)
+        memory_context = (
+            "Some intro text\n"
+            "--- FILE: src/test.py ---\n"
+            "print('hello')\n"
+            "--- END FILE ---\n"
+            "Some outro text"
+        )
+        file_context = {"existing_files": {"src/test.py": "content"}}
+
+        result = orchestrator._deduplicate_memory_context("phase-1", memory_context, file_context)
+
+        assert "--- FILE: src/test.py ---" not in result
+        assert "Some intro text" in result
+        assert "Some outro text" in result
+
+    def test_deduplicate_preserves_file_blocks_not_in_context(self, tmp_path: Path):
+        """Test that file blocks not in file context are preserved."""
+        orchestrator = make_builder_orchestrator(tmp_path)
+        memory_context = "--- FILE: other.py ---\n" "print('other')\n" "--- END FILE ---"
+        file_context = {"existing_files": {"src/test.py": "content"}}
+
+        result = orchestrator._deduplicate_memory_context("phase-1", memory_context, file_context)
+
+        assert "--- FILE: other.py ---" in result
+        assert "print('other')" in result
+
+    def test_deduplicate_handles_code_block_format(self, tmp_path: Path):
+        """Test that code blocks with file paths are deduplicated."""
+        orchestrator = make_builder_orchestrator(tmp_path)
+        memory_context = (
+            "Some context\n" "```src/test.py\n" "def hello():\n" "    pass\n" "```\n" "More context"
+        )
+        file_context = {"existing_files": {"src/test.py": "content"}}
+
+        result = orchestrator._deduplicate_memory_context("phase-1", memory_context, file_context)
+
+        assert "```src/test.py" not in result
+        assert "def hello():" not in result
+        assert "Some context" in result
+        assert "More context" in result
+
+    def test_deduplicate_handles_normalized_paths(self, tmp_path: Path):
+        """Test that paths are normalized for comparison."""
+        orchestrator = make_builder_orchestrator(tmp_path)
+        memory_context = "--- FILE: /src/test.py ---\n" "content\n" "--- END FILE ---"
+        # File context has path without leading slash
+        file_context = {"existing_files": {"src/test.py": "content"}}
+
+        result = orchestrator._deduplicate_memory_context("phase-1", memory_context, file_context)
+
+        # Should be deduplicated due to normalization
+        assert "--- FILE:" not in result
+
+    def test_deduplicate_handles_windows_paths(self, tmp_path: Path):
+        """Test that Windows-style paths are handled."""
+        orchestrator = make_builder_orchestrator(tmp_path)
+        memory_context = "--- FILE: src\\test.py ---\n" "content\n" "--- END FILE ---"
+        # File context has forward slash
+        file_context = {"existing_files": {"src/test.py": "content"}}
+
+        result = orchestrator._deduplicate_memory_context("phase-1", memory_context, file_context)
+
+        # Should be deduplicated due to path normalization
+        assert "--- FILE:" not in result
+
+    def test_deduplicate_cleans_consecutive_newlines(self, tmp_path: Path):
+        """Test that consecutive newlines are cleaned up after deduplication."""
+        orchestrator = make_builder_orchestrator(tmp_path)
+        memory_context = (
+            "Intro\n\n\n"
+            "--- FILE: src/test.py ---\n"
+            "content\n"
+            "--- END FILE ---\n\n\n\n"
+            "Outro"
+        )
+        file_context = {"existing_files": {"src/test.py": "content"}}
+
+        result = orchestrator._deduplicate_memory_context("phase-1", memory_context, file_context)
+
+        # Should not have more than 2 consecutive newlines
+        assert "\n\n\n" not in result
+
+    def test_deduplicate_multiple_blocks(self, tmp_path: Path):
+        """Test deduplication of multiple file blocks."""
+        orchestrator = make_builder_orchestrator(tmp_path)
+        memory_context = (
+            "--- FILE: src/a.py ---\ncontent a\n--- END FILE ---\n"
+            "--- FILE: src/b.py ---\ncontent b\n--- END FILE ---\n"
+            "--- FILE: src/c.py ---\ncontent c\n--- END FILE ---"
+        )
+        # Only a.py and c.py are in file context
+        file_context = {
+            "existing_files": {
+                "src/a.py": "content",
+                "src/c.py": "content",
+            }
+        }
+
+        result = orchestrator._deduplicate_memory_context("phase-1", memory_context, file_context)
+
+        # b.py should remain, a.py and c.py should be removed
+        assert "--- FILE: src/b.py ---" in result
+        assert "content b" in result
+        assert "--- FILE: src/a.py ---" not in result
+        assert "--- FILE: src/c.py ---" not in result
+
+    def test_deduplicate_returns_empty_when_all_removed(self, tmp_path: Path):
+        """Test that empty string is returned when all content is deduplicated."""
+        orchestrator = make_builder_orchestrator(tmp_path)
+        memory_context = "--- FILE: src/test.py ---\nprint('hello')\n--- END FILE ---"
+        file_context = {"existing_files": {"src/test.py": "content"}}
+
+        result = orchestrator._deduplicate_memory_context("phase-1", memory_context, file_context)
+
+        assert result == ""
+
+    def test_deduplicate_preserves_non_file_content(self, tmp_path: Path):
+        """Test that non-file content is preserved."""
+        orchestrator = make_builder_orchestrator(tmp_path)
+        memory_context = (
+            "## Summary\n"
+            "This is important context about the task.\n\n"
+            "## Related Decisions\n"
+            "- Decision 1: Use approach A\n"
+            "- Decision 2: Avoid pattern B\n"
+        )
+        file_context = {"existing_files": {"src/test.py": "content"}}
+
+        result = orchestrator._deduplicate_memory_context("phase-1", memory_context, file_context)
+
+        # All content should be preserved
+        assert "## Summary" in result
+        assert "important context" in result
+        assert "## Related Decisions" in result
+        assert "Decision 1" in result

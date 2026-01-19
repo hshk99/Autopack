@@ -86,7 +86,8 @@ function Record-UnresolvedIssue {
 }
 
 # Send message to cursor window via Claude Chat (clipboard paste)
-# Requires at least one Cursor window to be open
+# Assumes Claude Chat is already the default interface in the window
+# Uses the working approach from paste_prompts_to_cursor_single_window.ps1
 function Send-MessageToCursorWindow {
     param(
         [string]$Message
@@ -148,82 +149,37 @@ using System;
 using System.Runtime.InteropServices;
 
 public class KeyboardInput {
-    [StructLayout(LayoutKind.Sequential)]
-    public struct INPUT {
-        public uint type;
-        public MOUSEKEYBDHARDWAREINPUT ki;
-    }
-
-    [StructLayout(LayoutKind.Explicit)]
-    public struct MOUSEKEYBDHARDWAREINPUT {
-        [FieldOffset(0)]
-        public KEYBDINPUT ki;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    public struct KEYBDINPUT {
-        public ushort wVk;
-        public ushort wScan;
-        public uint dwFlags;
-        public uint time;
-        public IntPtr dwExtraInfo;
-    }
-
-    [DllImport("user32.dll", SetLastError = true)]
-    public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+    [DllImport("user32.dll")]
+    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
 
     [DllImport("user32.dll")]
     public static extern bool SetForegroundWindow(IntPtr hWnd);
 
-    public const int INPUT_KEYBOARD = 1;
-    public const uint KEYEVENTF_KEYDOWN = 0;
-    public const uint KEYEVENTF_KEYUP = 2;
-    public const uint KEYEVENTF_UNICODE = 4;
+    public const byte VK_CONTROL = 0x11;
+    public const byte VK_V = 0x56;
+    public const byte VK_RETURN = 0x0D;
+    public const uint KEYEVENTF_KEYDOWN = 0x0000;
+    public const uint KEYEVENTF_KEYUP = 0x0002;
 
-    public const ushort VK_CONTROL = 0x11;
-    public const ushort VK_SHIFT = 0x10;
-    public const ushort VK_9 = 0x39;
-    public const ushort VK_V = 0x56;
-    public const ushort VK_RETURN = 0x0D;
+    public static void PasteAndEnter() {
+        // Ctrl+V to paste
+        keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYDOWN, 0);
+        keybd_event(VK_V, 0, KEYEVENTF_KEYDOWN, 0);
+        keybd_event(VK_V, 0, KEYEVENTF_KEYUP, 0);
+        keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0);
+        System.Threading.Thread.Sleep(200);
 
-    public static void SendKey(ushort vk, uint flags) {
-        INPUT[] inputs = new INPUT[1];
-        inputs[0].type = INPUT_KEYBOARD;
-        inputs[0].ki.wVk = vk;
-        inputs[0].ki.dwFlags = flags;
-        SendInput(1, inputs, Marshal.SizeOf(typeof(INPUT)));
-    }
-
-    public static void SendCtrlShift9() {
-        SendKey(VK_CONTROL, KEYEVENTF_KEYDOWN);
-        SendKey(VK_SHIFT, KEYEVENTF_KEYDOWN);
-        SendKey(VK_9, KEYEVENTF_KEYDOWN);
-        System.Threading.Thread.Sleep(50);
-        SendKey(VK_9, KEYEVENTF_KEYUP);
-        SendKey(VK_SHIFT, KEYEVENTF_KEYUP);
-        SendKey(VK_CONTROL, KEYEVENTF_KEYUP);
-    }
-
-    public static void SendCtrlV() {
-        SendKey(VK_CONTROL, KEYEVENTF_KEYDOWN);
-        SendKey(VK_V, KEYEVENTF_KEYDOWN);
-        System.Threading.Thread.Sleep(50);
-        SendKey(VK_V, KEYEVENTF_KEYUP);
-        SendKey(VK_CONTROL, KEYEVENTF_KEYUP);
-    }
-
-    public static void SendEnter() {
-        SendKey(VK_RETURN, KEYEVENTF_KEYDOWN);
-        System.Threading.Thread.Sleep(50);
-        SendKey(VK_RETURN, KEYEVENTF_KEYUP);
+        // Enter to send
+        keybd_event(VK_RETURN, 0, KEYEVENTF_KEYDOWN, 0);
+        keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0);
     }
 }
 "@
         }
 
-        # Copy message to clipboard
-        Add-Type -AssemblyName System.Windows.Forms
-        [System.Windows.Forms.Clipboard]::SetText($Message)
+        # Copy message to clipboard using PowerShell Set-Clipboard
+        $Message | Set-Clipboard
+        Start-Sleep -Milliseconds 200
 
         # Get first actual Cursor window using proper enumeration
         $cursorWindowHandle = [WindowEnumerator]::GetFirstCursorWindow()
@@ -236,17 +192,9 @@ public class KeyboardInput {
         [KeyboardInput]::SetForegroundWindow($cursorWindowHandle)
         Start-Sleep -Milliseconds 500
 
-        # Open Claude Chat (Ctrl+Shift+9)
-        [KeyboardInput]::SendCtrlShift9()
-        Start-Sleep -Milliseconds 2000  # Wait for Claude Chat to open and input focus
-
-        # Paste message (Ctrl+V)
-        [KeyboardInput]::SendCtrlV()
-        Start-Sleep -Milliseconds 500
-
-        # Send message (Enter)
-        [KeyboardInput]::SendEnter()
-        Start-Sleep -Milliseconds 500
+        # Paste and send (Claude Chat assumed to be default interface, Ctrl+Shift+9 disabled)
+        [KeyboardInput]::PasteAndEnter()
+        Start-Sleep -Milliseconds 1000
 
         return $true
     } catch {

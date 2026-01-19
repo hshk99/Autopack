@@ -142,49 +142,80 @@ public class WindowEnumerator {
         }
 
         # Add keyboard helper class if not already loaded
-        if (-not ([System.Management.Automation.PSTypeName]'KeyboardEvent').Type) {
+        if (-not ([System.Management.Automation.PSTypeName]'KeyboardInput').Type) {
             Add-Type @"
 using System;
 using System.Runtime.InteropServices;
 
-public class KeyboardEvent {
-    [DllImport("user32.dll")]
-    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+public class KeyboardInput {
+    [StructLayout(LayoutKind.Sequential)]
+    public struct INPUT {
+        public uint type;
+        public MOUSEKEYBDHARDWAREINPUT ki;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    public struct MOUSEKEYBDHARDWAREINPUT {
+        [FieldOffset(0)]
+        public KEYBDINPUT ki;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct KEYBDINPUT {
+        public ushort wVk;
+        public ushort wScan;
+        public uint dwFlags;
+        public uint time;
+        public IntPtr dwExtraInfo;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
     [DllImport("user32.dll")]
     public static extern bool SetForegroundWindow(IntPtr hWnd);
 
-    [DllImport("user32.dll")]
-    public static extern IntPtr GetForegroundWindow();
+    public const int INPUT_KEYBOARD = 1;
+    public const uint KEYEVENTF_KEYDOWN = 0;
+    public const uint KEYEVENTF_KEYUP = 2;
+    public const uint KEYEVENTF_UNICODE = 4;
 
-    public const int VK_CONTROL = 0x11;
-    public const int VK_SHIFT = 0x10;
-    public const int VK_9 = 0x39;
-    public const int VK_V = 0x56;
-    public const int VK_RETURN = 0x0D;
-    public const int KEYEVENTF_KEYDOWN = 0x0000;
-    public const int KEYEVENTF_KEYUP = 0x0002;
+    public const ushort VK_CONTROL = 0x11;
+    public const ushort VK_SHIFT = 0x10;
+    public const ushort VK_9 = 0x39;
+    public const ushort VK_V = 0x56;
+    public const ushort VK_RETURN = 0x0D;
+
+    public static void SendKey(ushort vk, uint flags) {
+        INPUT[] inputs = new INPUT[1];
+        inputs[0].type = INPUT_KEYBOARD;
+        inputs[0].ki.wVk = vk;
+        inputs[0].ki.dwFlags = flags;
+        SendInput(1, inputs, Marshal.SizeOf(typeof(INPUT)));
+    }
 
     public static void SendCtrlShift9() {
-        // Ctrl+Shift+9 to open Claude Chat
-        keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
-        keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
-        keybd_event(VK_9, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
-        keybd_event(VK_9, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-        keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-        keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        SendKey(VK_CONTROL, KEYEVENTF_KEYDOWN);
+        SendKey(VK_SHIFT, KEYEVENTF_KEYDOWN);
+        SendKey(VK_9, KEYEVENTF_KEYDOWN);
+        System.Threading.Thread.Sleep(50);
+        SendKey(VK_9, KEYEVENTF_KEYUP);
+        SendKey(VK_SHIFT, KEYEVENTF_KEYUP);
+        SendKey(VK_CONTROL, KEYEVENTF_KEYUP);
     }
 
     public static void SendCtrlV() {
-        keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
-        keybd_event(VK_V, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
-        keybd_event(VK_V, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-        keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        SendKey(VK_CONTROL, KEYEVENTF_KEYDOWN);
+        SendKey(VK_V, KEYEVENTF_KEYDOWN);
+        System.Threading.Thread.Sleep(50);
+        SendKey(VK_V, KEYEVENTF_KEYUP);
+        SendKey(VK_CONTROL, KEYEVENTF_KEYUP);
     }
 
     public static void SendEnter() {
-        keybd_event(VK_RETURN, 0, KEYEVENTF_KEYDOWN, UIntPtr.Zero);
-        keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        SendKey(VK_RETURN, KEYEVENTF_KEYDOWN);
+        System.Threading.Thread.Sleep(50);
+        SendKey(VK_RETURN, KEYEVENTF_KEYUP);
     }
 }
 "@
@@ -202,20 +233,20 @@ public class KeyboardEvent {
         }
 
         # Focus the window
-        [KeyboardEvent]::SetForegroundWindow($cursorWindowHandle)
-        Start-Sleep -Milliseconds 300
+        [KeyboardInput]::SetForegroundWindow($cursorWindowHandle)
+        Start-Sleep -Milliseconds 500
 
         # Open Claude Chat (Ctrl+Shift+9)
-        [KeyboardEvent]::SendCtrlShift9()
-        Start-Sleep -Milliseconds 1500  # Wait for Claude Chat to open
+        [KeyboardInput]::SendCtrlShift9()
+        Start-Sleep -Milliseconds 2000  # Wait for Claude Chat to open and input focus
 
         # Paste message (Ctrl+V)
-        [KeyboardEvent]::SendCtrlV()
-        Start-Sleep -Milliseconds 300
+        [KeyboardInput]::SendCtrlV()
+        Start-Sleep -Milliseconds 500
 
         # Send message (Enter)
-        [KeyboardEvent]::SendEnter()
-        Start-Sleep -Milliseconds 300
+        [KeyboardInput]::SendEnter()
+        Start-Sleep -Milliseconds 500
 
         return $true
     } catch {

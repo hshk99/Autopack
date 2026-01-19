@@ -112,8 +112,8 @@ class TestRollbackSafetyGuardrails:
         # Should not be protected (we want to clean these)
         assert has_protected is False or "normal.txt" not in protected_files
 
-    def test_rollback_skips_clean_with_protected_files(self, rollback_manager, temp_git_repo):
-        """Rollback with safe_clean=True should skip git clean when protected files exist"""
+    def test_rollback_blocks_with_protected_files(self, rollback_manager, temp_git_repo):
+        """Rollback with safe_clean=True should BLOCK when protected files exist"""
         rollback_manager.create_savepoint()
 
         # Create tracked file change
@@ -124,13 +124,15 @@ class TestRollbackSafetyGuardrails:
         env_file = temp_git_repo / ".env"
         env_file.write_text("SECRET=value\n")
 
-        # Rollback with safe_clean=True (default)
+        # Rollback with safe_clean=True (default) should fail
         success, error = rollback_manager.rollback_to_savepoint("Test rollback")
 
-        assert success is True
-        # Tracked file should be restored
-        assert test_file.read_text() == "Initial content\n"
-        # Protected file should still exist (not cleaned)
+        # Should fail due to protected files
+        assert success is False
+        assert error == "Protected files would be deleted"
+        # Tracked file should NOT be reverted (rollback was blocked)
+        assert test_file.read_text() == "Modified\n"
+        # Protected file should still exist
         assert env_file.exists()
 
     def test_rollback_cleans_normal_files_when_no_protected(self, rollback_manager, temp_git_repo):

@@ -85,122 +85,59 @@ function Record-UnresolvedIssue {
     return $false
 }
 
-# Send message to cursor window via Claude Chat (clipboard paste)
-# Assumes Claude Chat is already the default interface in the window
-# Uses the working approach from paste_prompts_to_cursor_single_window.ps1
-function Send-MessageToCursorWindow {
+# Send message to cursor window at specific grid slot
+# Maps phase to window slot and sends message to correct grid position
+function Send-MessageToCursorWindowSlot {
     param(
-        [string]$Message
+        [string]$Message,
+        [int]$SlotNumber
     )
 
+    # Delegate to send_message_to_cursor_slot.ps1 which handles slot-specific messaging
     try {
-        # Add window enumeration helper class if not already loaded
-        if (-not ([System.Management.Automation.PSTypeName]'WindowEnumerator').Type) {
-            Add-Type @"
-using System;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using System.Text;
+        $result = & "C:\dev\Autopack\scripts\send_message_to_cursor_slot.ps1" -SlotNumber $SlotNumber -Message $Message 2>&1
 
-public class WindowEnumerator {
-    [DllImport("user32.dll")]
-    public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
-
-    [DllImport("user32.dll")]
-    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
-
-    [DllImport("user32.dll")]
-    public static extern bool IsWindowVisible(IntPtr hWnd);
-
-    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-
-    public static IntPtr GetFirstCursorWindow() {
-        IntPtr firstWindow = IntPtr.Zero;
-        var procesIds = new HashSet<uint>();
-
-        foreach (var proc in System.Diagnostics.Process.GetProcessesByName("cursor")) {
-            procesIds.Add((uint)proc.Id);
-        }
-
-        EnumWindows((hWnd, lParam) => {
-            uint procId;
-            GetWindowThreadProcessId(hWnd, out procId);
-            if (procesIds.Contains(procId) && IsWindowVisible(hWnd)) {
-                if (firstWindow == IntPtr.Zero) {
-                    firstWindow = hWnd;
-                }
-            }
-            return true;
-        }, IntPtr.Zero);
-
-        return firstWindow;
-    }
-}
-"@
-        }
-
-        # Add keyboard helper class if not already loaded
-        if (-not ([System.Management.Automation.PSTypeName]'KeyboardInput').Type) {
-            Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-
-public class KeyboardInput {
-    [DllImport("user32.dll")]
-    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
-
-    [DllImport("user32.dll")]
-    public static extern bool SetForegroundWindow(IntPtr hWnd);
-
-    public const byte VK_CONTROL = 0x11;
-    public const byte VK_V = 0x56;
-    public const byte VK_RETURN = 0x0D;
-    public const uint KEYEVENTF_KEYDOWN = 0x0000;
-    public const uint KEYEVENTF_KEYUP = 0x0002;
-
-    public static void PasteAndEnter() {
-        // Ctrl+V to paste
-        keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYDOWN, 0);
-        keybd_event(VK_V, 0, KEYEVENTF_KEYDOWN, 0);
-        keybd_event(VK_V, 0, KEYEVENTF_KEYUP, 0);
-        keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0);
-        System.Threading.Thread.Sleep(200);
-
-        // Enter to send
-        keybd_event(VK_RETURN, 0, KEYEVENTF_KEYDOWN, 0);
-        keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0);
-    }
-}
-"@
-        }
-
-        # Copy message to clipboard using PowerShell Set-Clipboard
-        $Message | Set-Clipboard
-        Start-Sleep -Milliseconds 200
-
-        # Get first actual Cursor window using proper enumeration
-        $cursorWindowHandle = [WindowEnumerator]::GetFirstCursorWindow()
-        if ($cursorWindowHandle -eq [IntPtr]::Zero) {
-            Write-Host "    [WARN] No Cursor window found"
-            return $false
-        }
-
-        # Focus the window
-        [KeyboardInput]::SetForegroundWindow($cursorWindowHandle)
-        Start-Sleep -Milliseconds 500
-
-        # Paste and send (Claude Chat assumed to be default interface, Ctrl+Shift+9 disabled)
-        [KeyboardInput]::PasteAndEnter()
-        Start-Sleep -Milliseconds 1000
-
-        return $true
+        # Check if script succeeded (look for [OK] in output)
+        $success = $result -match "\[OK\]|\[SUCCESS\]|True"
+        return $success
     } catch {
-        Write-Host "    [WARN] Could not send message: $_"
+        Write-Host "    [WARN] Could not send message to slot $SlotNumber : $_"
         return $false
     }
+}
+
+# Helper function to map window positions to grid slots
+function Get-WindowSlotNumber {
+    param([int]$WindowX, [int]$WindowY)
+
+    # Grid coordinates (from position_cursors.ps1):
+    # Row 1: Y=144,  Row 2: Y=610,  Row 3: Y=1264
+    # Col 1: X=3121, Col 2: X=3979, Col 3: X=4833
+
+    # Note: These are absolute screen coordinates where the grid is positioned
+    # We check which grid cell the window center falls into
+
+    $tolerance = 500  # Tolerance for window position matching
+
+    # Determine column
+    $col = 0
+    if ($WindowX -gt 2622 -and $WindowX -lt 3622) { $col = 1 }  # Around X=3121
+    elseif ($WindowX -gt 3479 -and $WindowX -lt 4479) { $col = 2 }  # Around X=3979
+    elseif ($WindowX -gt 4333 -and $WindowX -lt 5333) { $col = 3 }  # Around X=4833
+
+    # Determine row
+    $row = 0
+    if ($WindowY -gt -356 -and $WindowY -lt 644) { $row = 1 }    # Around Y=144
+    elseif ($WindowY -gt 110 -and $WindowY -lt 1110) { $row = 2 }  # Around Y=610
+    elseif ($WindowY -gt 764 -and $WindowY -lt 1764) { $row = 3 }  # Around Y=1264
+
+    if ($col -eq 0 -or $row -eq 0) {
+        return 0  # Not in grid
+    }
+
+    # Convert row/col to slot number (1-9)
+    $slot = ($row - 1) * 3 + $col
+    return $slot
 }
 
 if ([string]::IsNullOrWhiteSpace($WaveFile)) {
@@ -229,6 +166,97 @@ $completedCount = 0
 $mergedPRs = @()
 $unresolvedCount = 0
 $unresolvedIssues = @()
+
+# Build window slot mapping for sending messages to correct grid positions
+$windowSlotMap = @{}  # Maps phaseId to slot number
+
+# Get all Cursor windows and map them to grid slots
+if (-not ([System.Management.Automation.PSTypeName]'WindowHelper').Type) {
+    Add-Type @"
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text;
+
+public class WindowHelper {
+    [DllImport("user32.dll")]
+    public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [DllImport("user32.dll")]
+    public static extern int GetWindowTextLength(IntPtr hWnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    [DllImport("user32.dll")]
+    public static extern bool IsWindowVisible(IntPtr hWnd);
+
+    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    public struct RECT {
+        public int Left, Top, Right, Bottom;
+    }
+
+    public static List<IntPtr> GetWindowsByProcessName(string processName) {
+        var windows = new List<IntPtr>();
+        var processIds = new HashSet<uint>();
+
+        foreach (var proc in System.Diagnostics.Process.GetProcessesByName(processName)) {
+            processIds.Add((uint)proc.Id);
+        }
+
+        EnumWindows((hWnd, lParam) => {
+            uint processId;
+            GetWindowThreadProcessId(hWnd, out processId);
+            if (processIds.Contains(processId) && IsWindowVisible(hWnd)) {
+                windows.Add(hWnd);
+            }
+            return true;
+        }, IntPtr.Zero);
+
+        return windows;
+    }
+
+    public static string GetWindowTitle(IntPtr hWnd) {
+        var length = GetWindowTextLength(hWnd);
+        if (length == 0) return "";
+        var sb = new StringBuilder(length + 1);
+        GetWindowText(hWnd, sb, length + 1);
+        return sb.ToString();
+    }
+
+    public static RECT GetWindowRect(IntPtr hWnd) {
+        RECT rect;
+        GetWindowRect(hWnd, out rect);
+        return rect;
+    }
+}
+"@
+}
+
+# Enumerate Cursor windows and map to slots
+$cursorWindows = [WindowHelper]::GetWindowsByProcessName("cursor")
+foreach ($window in $cursorWindows) {
+    $title = [WindowHelper]::GetWindowTitle($window)
+    $rect = [WindowHelper]::GetWindowRect($window)
+
+    # Extract phase ID from window title (format: "Autopack_w<wave>_<phaseId> ...")
+    if ($title -match "Autopack_w\d+_([^\s]+)") {
+        $phaseId = $Matches[1]
+
+        # Determine grid slot from window coordinates
+        $slot = Invoke-Expression (Get-WindowSlotNumber -WindowX $rect.Left -WindowY $rect.Top)
+        if ($slot -gt 0) {
+            $windowSlotMap[$phaseId] = $slot
+        }
+    }
+}
 
 # Check first 9 phases (sec001-006, safety001-003)
 foreach ($prompt in $pendingPrompts | Select-Object -First 9) {
@@ -316,12 +344,17 @@ if ($unresolvedCount -gt 0) {
     Write-Host "Sending messages to Cursor windows..."
     $messageSent = 0
     foreach ($phaseId in $unresolvedIssues) {
-        Write-Host "  Sending to first Cursor window..."
-        if (Send-MessageToCursorWindow "ready to merge (unrelated CI issue)") {
-            $messageSent++
-            Write-Host "    [OK] Message sent"
+        $slot = $windowSlotMap[$phaseId]
+        if ($null -ne $slot -and $slot -gt 0) {
+            Write-Host "  Sending to slot $slot..."
+            if (Send-MessageToCursorWindowSlot "ready to merge (unrelated CI issue)" $slot) {
+                $messageSent++
+                Write-Host "    [OK] Message sent"
+            } else {
+                Write-Host "    [FAIL] Failed to send message to slot $slot"
+            }
         } else {
-            Write-Host "    [FAIL] Failed to send message"
+            Write-Host "  [WARN] Phase $phaseId not found in grid, skipping message"
         }
     }
     Write-Host ""
@@ -334,12 +367,17 @@ if ($mergedPRs.Count -gt 0) {
     Write-Host "PRs ready - sending messages..."
     $messageSent = 0
     foreach ($phaseId in $mergedPRs) {
-        Write-Host "  Sending to first Cursor window..."
-        if (Send-MessageToCursorWindow "proceed to merge") {
-            $messageSent++
-            Write-Host "    [OK] Message sent"
+        $slot = $windowSlotMap[$phaseId]
+        if ($null -ne $slot -and $slot -gt 0) {
+            Write-Host "  Sending to slot $slot..."
+            if (Send-MessageToCursorWindowSlot "proceed to merge" $slot) {
+                $messageSent++
+                Write-Host "    [OK] Message sent"
+            } else {
+                Write-Host "    [FAIL] Failed to send message to slot $slot"
+            }
         } else {
-            Write-Host "    [FAIL] Failed to send message"
+            Write-Host "  [WARN] Phase $phaseId not found in grid, skipping message"
         }
     }
 

@@ -273,14 +273,18 @@ foreach ($prompt in $pendingPrompts | Select-Object -First 9) {
         } elseif ($state -eq "OPEN") {
             Write-Host "  -> OPEN PR #$prNumber"
 
-            # Check for CI/lint failures
+            # Check for CI status
             $hasChecks = $null -ne $pr.statusCheckRollup -and $pr.statusCheckRollup -is [array]
 
             if ($hasChecks) {
-                # Look for status check failures
+                # Analyze status checks
                 $failedChecks = $pr.statusCheckRollup | Where-Object { $_.status -eq "FAILURE" }
+                $runningChecks = $pr.statusCheckRollup | Where-Object { $_.status -eq "IN_PROGRESS" }
 
-                if ($failedChecks) {
+                if ($runningChecks) {
+                    # CI is still running
+                    Write-Host "  -> [INFO] CI tests running..."
+                } elseif ($failedChecks) {
                     # Determine if failures are PR-related or unrelated
                     $prRelatedFailure = $false
 
@@ -301,7 +305,15 @@ foreach ($prompt in $pendingPrompts | Select-Object -First 9) {
                     } else {
                         Write-Host "  -> [FAIL] PR needs fixes (code-related CI failures)"
                     }
+                } else {
+                    # All CI checks passed
+                    Write-Host "  -> [OK] CI PASSING - ready to merge"
+                    $mergedPRs += $phaseId
+                    $completedCount++
                 }
+            } else {
+                # No checks present yet
+                Write-Host "  -> [INFO] No CI checks found yet"
             }
         } else {
             Write-Host "  -> PR state: $state"
@@ -340,11 +352,11 @@ if ($unresolvedCount -gt 0) {
 
 if ($mergedPRs.Count -gt 0) {
     Write-Host ""
-    Write-Host "Merged PRs detected - sending completion messages..."
+    Write-Host "PRs ready - sending messages..."
     $messageSent = 0
     foreach ($phaseId in $mergedPRs) {
         Write-Host "  Sending to first Cursor window..."
-        if (Send-MessageToCursorWindow "PR merged - phase complete!") {
+        if (Send-MessageToCursorWindow "proceed to merge") {
             $messageSent++
             Write-Host "    [OK] Message sent"
         } else {

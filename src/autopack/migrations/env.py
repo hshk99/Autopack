@@ -7,7 +7,6 @@ For more information, see: https://alembic.sqlalchemy.org/en/latest/cookbook.htm
 """
 
 import asyncio
-from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
@@ -23,15 +22,6 @@ from autopack.usage_recorder import (  # noqa: F401 - Import to register usage m
     DoctorUsageStats,
     TokenEfficiencyMetrics,
 )
-
-# this is the Alembic Config object
-config = context.config
-
-# Interpret the config file for Python logging
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
-
-config.set_main_option("sqlalchemy.url", get_database_url())
 
 # Add your model's MetaData object here for 'autogenerate' support
 target_metadata = Base.metadata
@@ -52,6 +42,7 @@ def run_migrations_offline() -> None:
     Calls to context.execute() here emit the given string to the
     script output.
     """
+    config = context.config
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -81,6 +72,7 @@ def do_run_migrations(connection):
 
 async def run_async_migrations():
     """Run migrations asynchronously."""
+    config = context.config
     configuration = config.get_section(config.config_ini_section)
     configuration["sqlalchemy.url"] = get_database_url()
 
@@ -102,6 +94,12 @@ def run_migrations_online() -> None:
     In this scenario we need to create an Engine and associate a connection
     with the context.
     """
+    config = context.config
+
+    # Ensure database URL is set
+    if not config.get_main_option("sqlalchemy.url"):
+        config.set_main_option("sqlalchemy.url", get_database_url())
+
     # Try to use async migrations if the database URL suggests async
     db_url = get_database_url()
     if "+asyncpg" in db_url or "+aiosqlite" in db_url:

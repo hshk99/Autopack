@@ -1,0 +1,218 @@
+================================================================================
+                        STREAM DECK BUTTON SETUP
+                    Capture All 9 Cursor Windows
+================================================================================
+
+QUICK SETUP (2 minutes):
+================================================================================
+
+Step 1: Open Stream Deck software
+  - Launch Stream Deck application on your computer
+
+Step 2: Find an empty button
+  - Select the button slot where you want to add capture tool
+
+Step 3: Add action
+  - Look for "System" or "Open" action in left panel
+  - Drag "Open" action to your button
+
+Step 4: Configure action
+  - In the action settings, click "Choose..." or file picker
+  - Navigate to: C:\dev\Autopack\scripts\capture_all_slots.bat
+  - Select capture_all_slots.bat and confirm
+
+Step 5: Label the button (optional but recommended)
+  - Double-click button title area
+  - Type: "📸 Capture All" or "Capture Errors" or similar
+  - Press Enter
+
+Step 6: Set icon (optional)
+  - Right-click button
+  - Select "Edit Title & Icon"
+  - Choose camera or screenshot icon
+  - Press Enter
+
+DONE! Your button is ready.
+
+================================================================================
+                            USING THE BUTTON
+================================================================================
+
+When Connection Error Appears:
+  1. Click the Stream Deck button
+  2. Wait 1-2 seconds for capture to complete
+  3. Console window shows status
+  4. All 9 screenshots saved to: C:\dev\Autopack\error_analysis\
+
+Full Workflow:
+  1. Notice error in Cursor window(s)
+  2. Click Stream Deck button immediately
+  3. All 9 windows captured with error visible
+  4. Review screenshots in error_analysis folder
+  5. Share with me for Phase 2 analysis
+
+================================================================================
+                          ADVANCED SETUP
+================================================================================
+
+MULTI-ACTION BUTTON (Press once, multiple things happen):
+
+In Stream Deck:
+  1. Right-click button
+  2. Select "Add Action"
+  3. Select "Multi Action"
+  4. Inside multi-action, add these actions in order:
+
+    Action 1: Open
+      File: C:\dev\Autopack\scripts\capture_all_slots.bat
+      (This captures all 9 slots)
+
+    Action 2: Hotkey
+      Press: Ctrl+Alt+Shift+C  (or your preferred hotkey)
+      (This can trigger external scripts if desired)
+
+    Action 3: Open File
+      Path: C:\dev\Autopack\error_analysis
+      (Optional: Opens folder automatically after capture)
+
+Result:
+  Click button once → Captures all 9 slots → Opens error_analysis folder
+
+================================================================================
+                            BATCH FILES
+================================================================================
+
+Main Tool:
+  Path: C:\dev\Autopack\scripts\capture_all_slots.bat
+  Purpose: Capture all 9 grid slots simultaneously
+  Use: Stream Deck button (this is the one to use!)
+
+Alternative (if needed):
+  Path: C:\dev\Autopack\scripts\capture_error_screenshot.bat
+  Purpose: Capture single slot (use specific slot number)
+  Use: Command line or advanced scripts (not for Stream Deck)
+
+================================================================================
+                          OUTPUT LOCATION
+================================================================================
+
+Screenshots saved to:
+  C:\dev\Autopack\error_analysis\
+
+Files created:
+  error_snapshot_slot_1_TIMESTAMP.png
+  error_snapshot_slot_2_TIMESTAMP.png
+  ... (all 9 slots)
+  error_snapshot_slot_9_TIMESTAMP.png
+
+Example full path:
+  C:\dev\Autopack\error_analysis\error_snapshot_slot_3_20260119_142345.png
+
+All 9 files get SAME timestamp (meaning they were captured together).
+
+================================================================================
+                        STREAM DECK FILE PATH
+================================================================================
+
+Exact path to use in Stream Deck "Open" action:
+
+C:\dev\Autopack\scripts\capture_all_slots.bat
+
+Don't forget the .bat extension!
+
+If using Windows file picker:
+  1. Navigate to: C:\dev\Autopack\scripts\
+  2. Find: capture_all_slots.bat
+  3. Double-click or select and confirm
+
+================================================================================
+                          TROUBLESHOOTING
+================================================================================
+
+Problem: Button doesn't do anything
+  → Make sure full path is correct: C:\dev\Autopack\scripts\capture_all_slots.bat
+  → Try running directly from file explorer first to test
+
+Problem: Can't find the file
+  → Open File Explorer
+  → Navigate to: C:\dev\Autopack\scripts\
+  → Look for: capture_all_slots.bat
+  → If not there, check if it was created properly
+
+Problem: Screenshots not saved
+  → Check if C:\dev\Autopack\error_analysis\ folder exists
+  → Run capture tool directly to test
+  → Make sure at least one Cursor window is visible
+
+Problem: Button appears but does nothing
+  → Right-click button
+  → Select "Show Actions"
+  → Verify path shows: ...capture_all_slots.bat
+  → Try re-selecting the file
+
+================================================================================
+                          QUICK REFERENCE
+================================================================================
+
+Stream Deck Button Configuration:
+  └─ Action Type: Open
+  └─ File: C:\dev\Autopack\scripts\capture_all_slots.bat
+  └─ Label: "📸 Capture All" (or similar)
+  └─ Icon: Camera icon (optional)
+
+Output Folder:
+  C:\dev\Autopack\error_analysis\
+
+What It Does:
+  ✓ Captures all 9 Cursor windows simultaneously
+  ✓ Creates 9 PNG screenshots with matching timestamps
+  ✓ Saves to error_analysis folder
+  ✓ Shows completion status in console
+
+When to Use:
+  → When connection errors appear
+  → Click button immediately
+  → All 9 slots captured with error state
+  → Perfect for Phase 2 analysis
+
+================================================================================
+                        NEXT STEPS
+================================================================================
+
+1. SETUP (Now):
+   Add capture_all_slots.bat to Stream Deck button
+
+2. TEST (Optional):
+   Click button to verify it works
+   Check if screenshots appear in error_analysis folder
+
+3. USE (When error occurs):
+   Click Stream Deck button
+   All 9 windows captured
+   Share screenshots for Phase 2 analysis
+
+4. PHASE 2 IMPROVEMENT:
+   Once I analyze multiple error captures:
+   → Build accurate detection
+   → Phase 2 becomes reliable
+   → Automatic recovery works!
+
+================================================================================
+                      SUPPORT & DOCUMENTATION
+================================================================================
+
+For detailed guide:
+  → CAPTURE_ALL_SLOTS_GUIDE.md (in project root)
+
+For general error handling:
+  → PHASE2_ISSUE_AND_SOLUTION.md
+  → IMMEDIATE_ACTION_PHASE2_FIX.txt
+
+For Phase 1 recovery:
+  → IMMEDIATE_SOLUTION_WORKING.md
+
+================================================================================
+
+Ready to setup! Let me know if you need help with Stream Deck button setup.
+
+================================================================================

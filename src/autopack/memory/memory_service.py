@@ -55,6 +55,13 @@ _BOOL_FALSE = {"0", "false", "no", "n", "off"}
 class NullStore:
     """No-op store used when memory is disabled."""
 
+    def __init__(self) -> None:
+        logger.warning(
+            "[MemoryService] NullStore initialized: Memory is disabled. "
+            "All memory operations will return empty results. "
+            "Set enable_memory=true to enable persistence."
+        )
+
     def ensure_collection(self, name: str, size: int = 1536) -> None:  # noqa: ARG002
         return None
 

@@ -149,7 +149,7 @@ public class KeyboardEvent {
         # Get any Cursor window
         $cursorProcess = Get-Process -Name "cursor" -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($null -eq $cursorProcess) {
-            Write-Host "    ⚠️  No Cursor window found"
+            Write-Host "    [WARN] No Cursor window found"
             return $false
         }
 
@@ -174,7 +174,7 @@ public class KeyboardEvent {
 
         return $true
     } catch {
-        Write-Host "    ⚠️  Could not send message: $_"
+        Write-Host "    [WARN] Could not send message: $_"
         return $false
     }
 }
@@ -249,12 +249,12 @@ foreach ($prompt in $pendingPrompts | Select-Object -First 9) {
                     }
 
                     if (-not $prRelatedFailure) {
-                        Write-Host "  -> ⚠️  CI failures detected (unrelated to this PR)"
+                        Write-Host "  -> [WARN] CI failures detected (unrelated to this PR)"
                         Record-UnresolvedIssue -WaveNumber $waveNumber -PhaseId $phaseId -Issue "CI/lint failure" -PRNumber $prNumber
                         $unresolvedCount++
                         $unresolvedIssues += $phaseId
                     } else {
-                        Write-Host "  -> ❌ PR needs fixes (code-related CI failures)"
+                        Write-Host "  -> [FAIL] PR needs fixes (code-related CI failures)"
                     }
                 }
             }
@@ -274,7 +274,7 @@ Write-Host "Unresolved issues recorded: $unresolvedCount"
 
 if ($unresolvedCount -gt 0) {
     Write-Host ""
-    Write-Host "✅ READY TO MERGE (with unresolved issues to address separately)"
+    Write-Host "[OK] READY TO MERGE (with unresolved issues to address separately)"
     Write-Host "Phases with unresolved issues: $($unresolvedIssues -join ', ')"
     Write-Host ""
     Write-Host "Sending messages to Cursor windows..."
@@ -283,13 +283,13 @@ if ($unresolvedCount -gt 0) {
         Write-Host "  Sending to first Cursor window..."
         if (Send-MessageToCursorWindow "ready to merge (unrelated CI issue)") {
             $messageSent++
-            Write-Host "    ✅ Message sent"
+            Write-Host "    [OK] Message sent"
         } else {
-            Write-Host "    ❌ Failed to send message"
+            Write-Host "    [FAIL] Failed to send message"
         }
     }
     Write-Host ""
-    Write-Host "📋 Issues have been recorded in: $(Get-UnresolvedIssuesFile $waveNumber)"
+    Write-Host "[INFO] Issues have been recorded in: $(Get-UnresolvedIssuesFile $waveNumber)"
     Write-Host "   These issues will be included in wave cleanup summary."
 }
 
@@ -301,9 +301,9 @@ if ($mergedPRs.Count -gt 0) {
         Write-Host "  Sending to first Cursor window..."
         if (Send-MessageToCursorWindow "PR merged - phase complete!") {
             $messageSent++
-            Write-Host "    ✅ Message sent"
+            Write-Host "    [OK] Message sent"
         } else {
-            Write-Host "    ❌ Failed to send message"
+            Write-Host "    [FAIL] Failed to send message"
         }
     }
 
@@ -324,10 +324,10 @@ if ($mergedPRs.Count -gt 0) {
             if ($null -ne $masterJson.improvements) {
                 $masterJson.improvements = @($masterJson.improvements | Where-Object { $_.id -notin $mergedPRs })
                 $masterJson | ConvertTo-Json -Depth 10 | Set-Content $masterFile -Encoding UTF8
-                Write-Host "  ✅ Removed $($mergedPRs.Count) completed phases from improvements"
+                Write-Host "  [OK] Removed $($mergedPRs.Count) completed phases from improvements"
             }
         } catch {
-            Write-Host "  ⚠️  Could not update AUTOPACK_IMPS_MASTER.json: $_"
+            Write-Host "  [WARN] Could not update AUTOPACK_IMPS_MASTER.json: $_"
         }
     }
 
@@ -350,11 +350,11 @@ if ($mergedPRs.Count -gt 0) {
                         Where-Object { $_.id -notin $mergedPRs }
                     )
                     $planJson | ConvertTo-Json -Depth 10 | Set-Content $planFile -Encoding UTF8
-                    Write-Host "  ✅ Removed $($mergedPRs.Count) completed phases from Wave $waveNumber plan"
+                    Write-Host "  [OK] Removed $($mergedPRs.Count) completed phases from Wave $waveNumber plan"
                 }
             }
         } catch {
-            Write-Host "  ⚠️  Could not update AUTOPACK_WAVE_PLAN.json: $_"
+            Write-Host "  [WARN] Could not update AUTOPACK_WAVE_PLAN.json: $_"
         }
     }
 }

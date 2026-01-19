@@ -515,8 +515,7 @@ class AutopilotController:
         """
         if not self.enabled:
             raise RuntimeError(
-                "Autopilot is disabled. "
-                "Set enabled=True explicitly to execute approved proposals."
+                "Autopilot is disabled. Set enabled=True explicitly to execute approved proposals."
             )
 
         from .approval_service import ApprovalService

@@ -93,7 +93,7 @@ class RollbackManager:
 
                 if degraded:
                     degradations.append(
-                        f"{metric}: {pct_change*100:.1f}% degradation "
+                        f"{metric}: {pct_change * 100:.1f}% degradation "
                         f"(baseline={baseline:.2f}, current={current:.2f})"
                     )
 

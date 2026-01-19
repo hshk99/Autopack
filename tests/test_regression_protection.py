@@ -85,7 +85,7 @@ class TestRegressionProtector:
 
         # Create existing test with different case
         (tests_dir / "test_regression_case.py").write_text(
-            '"""Tests for TIMEOUT ERROR pattern."""\n' "def test_timeout():\n" "    pass\n"
+            '"""Tests for TIMEOUT ERROR pattern."""\ndef test_timeout():\n    pass\n'
         )
 
         protector = RegressionProtector(tests_root=tests_dir)
@@ -100,7 +100,7 @@ class TestRegressionProtector:
 
         # Create existing test for different pattern
         (tests_dir / "test_regression_different.py").write_text(
-            '"""Tests for memory leak pattern."""\n' "def test_memory_leak():\n" "    pass\n"
+            '"""Tests for memory leak pattern."""\ndef test_memory_leak():\n    pass\n'
         )
 
         protector = RegressionProtector(tests_root=tests_dir)

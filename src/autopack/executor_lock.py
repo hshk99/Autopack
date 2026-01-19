@@ -91,7 +91,7 @@ class ExecutorLockManager:
             # Write current executor info for debugging (only if lock acquired)
             try:
                 debug_info = (
-                    f"{self.executor_id}\n" f"{os.getcwd()}\n" f"{os.getenv('PYTHONPATH', 'N/A')}\n"
+                    f"{self.executor_id}\n{os.getcwd()}\n{os.getenv('PYTHONPATH', 'N/A')}\n"
                 )
                 with open(self.lock_file_path, "w") as f:
                     f.write(debug_info)

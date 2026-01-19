@@ -30,8 +30,16 @@ $GRID_POSITIONS = @{
 # Configuration
 $MONITOR_INTERVAL_MS = 2000          # Check every 2 seconds
 $ERROR_DEBOUNCE_MS = 5000            # Wait 5 seconds between actions in same slot
-$CHANGE_THRESHOLD = 0.15             # 15% pixel change threshold = error detected
 $BASELINE_DIR = "C:\dev\Autopack\error_baselines"
+
+# Enhanced detection thresholds
+# Modal dialogs overlay typically cause:
+# - Very high percentage change (>75%, since they cover most of window)
+# - High brightness differences (dialogs are usually light-colored)
+# - Consistent color patterns (not random cursor/text changes)
+$PERCENT_CHANGE_THRESHOLD = 75       # Must be >75% changed (very significant overlay)
+$COLOR_DIFF_THRESHOLD = 80           # RGB difference must be high (dialog vs editor)
+$BRIGHT_PIXEL_RATIO = 0.6            # Dialog pixels should be bright (>60% are bright)
 
 Write-Host ""
 Write-Host "========== CONNECTION ERROR HANDLER (AUTOMATED) ==========" -ForegroundColor Cyan
@@ -195,6 +203,7 @@ function Detect-ErrorDialog {
             $totalSamples = 0
 
             # Sample every 10th pixel to reduce computation (still accurate enough)
+            $brightPixels = 0
             for ($x = 0; $x -lt $baselineBmp.Width; $x += 10) {
                 for ($y = 0; $y -lt $baselineBmp.Height; $y += 10) {
                     $totalSamples++
@@ -206,21 +215,28 @@ function Detect-ErrorDialog {
                     $rDiff = [Math]::Abs($baselineColor.R - $currentColor.R)
                     $gDiff = [Math]::Abs($baselineColor.G - $currentColor.G)
                     $bDiff = [Math]::Abs($baselineColor.B - $currentColor.B)
-                    $avgDiff = ($rDiff + $gDiff + $bDiff) / 3
+                    $maxDiff = [Math]::Max($rDiff, [Math]::Max($gDiff, $bDiff))
 
-                    # If pixel changed significantly (not just cursor/typing)
-                    if ($avgDiff -gt 50) {
+                    # If pixel changed significantly (high threshold to ignore normal activity)
+                    if ($maxDiff -gt $COLOR_DIFF_THRESHOLD) {
                         $changedPixels++
+
+                        # Check if changed pixel is bright (error dialogs are usually light)
+                        $currentBrightness = ($currentColor.R + $currentColor.G + $currentColor.B) / 3
+                        if ($currentBrightness -gt 150) {  # Bright threshold
+                            $brightPixels++
+                        }
                     }
                 }
             }
 
             $percentChanged = ($changedPixels / $totalSamples) * 100
+            $brightRatio = if ($changedPixels -gt 0) { $brightPixels / $changedPixels } else { 0 }
 
-            # Modal dialog overlay = VERY significant portion of window changed (>60%)
-            # This filters out cursor blinks, typing, tab switches, etc.
-            # Only actual modal overlays cause this much change
-            $isError = $percentChanged -gt 60
+            # Error dialog detection: must meet BOTH criteria
+            # 1. Very high percentage change (>75% = major overlay, not just typing)
+            # 2. Changed pixels are bright (dialogs typically have light backgrounds)
+            $isError = ($percentChanged -gt $PERCENT_CHANGE_THRESHOLD) -and ($brightRatio -gt $BRIGHT_PIXEL_RATIO)
 
             # Clean up
             $baselineBmp.Dispose()

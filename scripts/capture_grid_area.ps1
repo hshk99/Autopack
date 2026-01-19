@@ -4,19 +4,20 @@
 $OUTPUT_DIR = "C:\dev\Autopack\error_analysis"
 $TIMESTAMP = Get-Date -Format "yyyyMMdd_HHmmss"
 
-# Grid area coordinates
-# Rightmost grid position: x: 3414, width: 1707 = 5121
-# Bottommost grid position: y: 960, height: 480 = 1440
+# Grid area coordinates - RIGHT HALF OF MONITOR
+# Monitor is 5120 wide, grid is in right half (2560-5120)
+# Grid dimensions: 5121 wide (3 slots x 1707 each), 1440 tall (3 rows x 480 each)
+# Physical monitor position: x starts at 2560 (right half), y starts at 0
 
-$GRID_START_X = 0
-$GRID_START_Y = 0
-$GRID_WIDTH = 5121
-$GRID_HEIGHT = 1440
+$GRID_START_X = 2560      # Right half of 5120-wide monitor (2560 is center)
+$GRID_START_Y = 0        # Top of monitor
+$GRID_WIDTH = 2560       # Capture right half: from 2560 to 5120 = 2560 wide
+$GRID_HEIGHT = 1440      # Full height: 1440 pixels
 
 Write-Host ""
-Write-Host "========== CAPTURE GRID AREA (ALL 9 SLOTS) ==========" -ForegroundColor Cyan
+Write-Host "========== CAPTURE GRID AREA (RIGHT HALF - ALL 9 SLOTS) ==========" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Capturing 9-slot grid area ($($GRID_WIDTH)x$($GRID_HEIGHT))..."
+Write-Host "Capturing right half of monitor ($($GRID_WIDTH)x$($GRID_HEIGHT))..."
 Write-Host "Shows all 9 Cursor windows in one screenshot"
 Write-Host ""
 
@@ -71,7 +72,7 @@ try {
         Write-Host ""
         Write-Host "File: error_grid_$TIMESTAMP.png" -ForegroundColor Yellow
         Write-Host "Size: $([Math]::Round($fileSize, 2)) MB" -ForegroundColor Yellow
-        Write-Host "Dimensions: $($GRID_WIDTH)x$($GRID_HEIGHT) pixels" -ForegroundColor Yellow
+        Write-Host "Dimensions: $($GRID_WIDTH)x$($GRID_HEIGHT) pixels (right half only)" -ForegroundColor Yellow
         Write-Host "Location: $outputPath" -ForegroundColor Cyan
         Write-Host ""
         Write-Host "This screenshot shows:" -ForegroundColor Green

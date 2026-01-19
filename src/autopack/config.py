@@ -460,6 +460,25 @@ class Settings(BaseSettings):
         description="Comma-separated list of allowed external hosts (empty=all allowed)",
     )
 
+    # IMP-COST-001: Dual audit configuration
+    # Enable/disable dual audit (primary + secondary + judge LLM calls)
+    # When False, uses only primary auditor (3x token cost reduction)
+    dual_audit_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("AUTOPACK_DUAL_AUDIT_ENABLED", "DUAL_AUDIT_ENABLED"),
+        description="Enable dual audit (primary+secondary+judge) for cost reduction",
+    )
+
+    # Optional cheaper model for secondary auditor (e.g., "claude-haiku-4-5")
+    # If not set, uses same model as primary auditor
+    dual_audit_secondary_model: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "AUTOPACK_DUAL_AUDIT_SECONDARY_MODEL", "DUAL_AUDIT_SECONDARY_MODEL"
+        ),
+        description="Cheaper model for secondary auditor (optional)",
+    )
+
     # IMP-SOT-001: SOT Runtime Enforcement
     # Enable runtime detection of SOT drift during autonomous execution
     # Checks for consistency between BUILD_HISTORY and DEBUG_LOG documents

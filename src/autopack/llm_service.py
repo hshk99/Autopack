@@ -477,12 +477,28 @@ class LlmService:
             logger.warning(f"[{budget_warning['level'].upper()}] {budget_warning['message']}")
 
         # Check for dual audit configuration
-        if self._should_use_dual_audit(task_category):
+        # IMP-COST-001: Check global dual_audit_enabled flag first
+        from .config import settings
+
+        if settings.dual_audit_enabled and self._should_use_dual_audit(task_category):
             secondary_model = self._get_secondary_auditor_model(task_category)
             logger.info(
                 f"[DUAL-AUDIT] Dual audit enabled for category={task_category}, "
                 f"primary={model}, secondary={secondary_model}"
             )
+        elif not settings.dual_audit_enabled:
+            logger.info(
+                f"[DUAL-AUDIT] Dual audit disabled globally (dual_audit_enabled=False), "
+                f"using single auditor: {model}"
+            )
+            # Fall through to standard single-auditor path below
+        else:
+            # dual_audit_enabled=True but no dual_audit config for this category
+            # Fall through to standard single-auditor path below
+            pass
+
+        # Run dual audit only if enabled and configured for this category
+        if settings.dual_audit_enabled and self._should_use_dual_audit(task_category):
 
             # Run dual audit
             primary_result, secondary_result = self._run_dual_audit(
@@ -826,7 +842,10 @@ class LlmService:
         return policy.get("dual_audit", False) is True
 
     def _get_secondary_auditor_model(self, task_category: str) -> str:
-        """Get the secondary auditor model from config.
+        """Get secondary auditor model from config.
+
+        IMP-COST-001: Uses settings.dual_audit_secondary_model if configured,
+        otherwise falls back to category-specific policy or default.
 
         Args:
             task_category: The task category from phase_spec
@@ -834,9 +853,29 @@ class LlmService:
         Returns:
             Secondary auditor model name (defaults to claude-sonnet-4-5)
         """
+        from .config import settings
+
+        # Check global secondary model config first (IMP-COST-001)
+        if settings.dual_audit_secondary_model:
+            logger.debug(
+                f"[DUAL-AUDIT] Using global secondary model: {settings.dual_audit_secondary_model}"
+            )
+            return settings.dual_audit_secondary_model
+
+        # Fall back to category-specific policy
         routing_policies = self.model_router.config.get("llm_routing_policies", {})
         policy = routing_policies.get(task_category, {})
-        return policy.get("secondary_auditor", "claude-sonnet-4-5")
+        category_secondary = policy.get("secondary_auditor")
+
+        if category_secondary:
+            logger.debug(
+                f"[DUAL-AUDIT] Using category-specific secondary model for {task_category}: {category_secondary}"
+            )
+            return category_secondary
+
+        # Default fallback
+        logger.debug("[DUAL-AUDIT] No secondary model configured, using default: claude-sonnet-4-5")
+        return "claude-sonnet-4-5"
 
     def _run_dual_audit(
         self,

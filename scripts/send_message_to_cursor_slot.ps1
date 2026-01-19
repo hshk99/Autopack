@@ -134,14 +134,23 @@ try {
     }
 
     # Step 2: Map slot number to expected grid position
-    # Slot 1-3: Row 1 (Y=0), Slot 4-6: Row 2 (Y=463), Slot 7-9: Row 3 (Y=926)
-    # Slot 1,4,7: Col 1 (X=2560), Slot 2,5,8: Col 2 (X=3413), Slot 3,6,9: Col 3 (X=4266)
-    $yRow = [Math]::Ceiling($SlotNumber / 3)
-    $xCol = (($SlotNumber - 1) % 3) + 1
+    # Grid coordinates (from STREAMDECK_REFERENCE.md, verified 2026-01-19):
+    # Window LEFT positions: X=2560, 3413, 4266
+    # Window TOP positions:  Y=0, 463, 926
+    $gridPositions = @{
+        1 = @{ X = 2560; Y = 0 }    # Top-Left
+        2 = @{ X = 3413; Y = 0 }    # Top-Center
+        3 = @{ X = 4266; Y = 0 }    # Top-Right
+        4 = @{ X = 2560; Y = 463 }  # Mid-Left
+        5 = @{ X = 3413; Y = 463 }  # Mid-Center
+        6 = @{ X = 4266; Y = 463 }  # Mid-Right
+        7 = @{ X = 2560; Y = 926 }  # Bot-Left
+        8 = @{ X = 3413; Y = 926 }  # Bot-Center
+        9 = @{ X = 4266; Y = 926 }  # Bot-Right
+    }
 
-    $expectedYStart = ($yRow - 1) * 463
-    $expectedYEnd = $expectedYStart + 463
-    $expectedX = @{ 1 = 2560; 2 = 3413; 3 = 4266 }[$xCol]
+    $expectedX = $gridPositions[$SlotNumber].X
+    $expectedY = $gridPositions[$SlotNumber].Y
 
     # Step 3: Find the window at the target slot position
     $targetWindow = $null
@@ -150,16 +159,16 @@ try {
     foreach ($window in $cursorWindows) {
         $rect = [WindowHelper]::GetWindowRect($window)
 
-        # Check if window is in the expected position for this slot
+        # Check if window is in the expected position for this slot (exact match with tolerance)
         if ($rect.Left -ge ($expectedX - $tolerance) -and $rect.Left -le ($expectedX + $tolerance) -and
-            $rect.Top -ge ($expectedYStart - $tolerance) -and $rect.Top -le ($expectedYEnd + $tolerance)) {
+            $rect.Top -ge ($expectedY - $tolerance) -and $rect.Top -le ($expectedY + $tolerance)) {
             $targetWindow = $window
             break
         }
     }
 
     if ($null -eq $targetWindow) {
-        Write-Host "[ERROR] No Cursor window found at slot $SlotNumber position (X~$expectedX, Y~$expectedYStart-$expectedYEnd)" -ForegroundColor Red
+        Write-Host "[ERROR] No Cursor window found at slot $SlotNumber position (X~$expectedX, Y~$expectedY)" -ForegroundColor Red
         exit 1
     }
 

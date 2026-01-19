@@ -197,36 +197,71 @@ if ($null -ne $planFile -and (Test-Path $planFile)) {
 
 Write-Host ""
 
-# ============ CLEANUP 4: Append Unresolved Issues to Wave File ============
-Write-Host "CLEANUP 4: Appending unresolved issues summary" -ForegroundColor Yellow
+# ============ CLEANUP 4: Append Unresolved Issues as Actionable Prompts ============
+Write-Host "CLEANUP 4: Appending unresolved issues as actionable prompts" -ForegroundColor Yellow
 
 $unresolvedData = Get-UnresolvedIssuesSummary $WaveNumber
 
 if ($null -ne $unresolvedData -and $unresolvedData.issues.Count -gt 0) {
     Write-Host "  [INFO] Found $($unresolvedData.issues.Count) unresolved issue(s)"
 
-    # Create unresolved issues section
+    # Create unresolved issues section with actionable prompts
     $issuesSummary = @"
 
 ---
 
 ## Unresolved Issues (Wave $WaveNumber)
 
-**Summary**: The following phases have CI/lint failures unrelated to code changes. These should be addressed separately.
+**Summary**: The following phases have CI failures that need to be fixed. Each phase below is formatted as an actionable prompt.
 
-| Phase | Issue | PR | Recorded |
-|-------|-------|----|-----------|
 "@
 
     foreach ($issue in $unresolvedData.issues) {
-        $issuesSummary += "`n| $($issue.phaseId) | $($issue.issue) | #$($issue.prNumber) | $($issue.recorded) |"
+        $phaseId = $issue.phaseId
+        $prNumber = $issue.prNumber
+        $issueDesc = $issue.issue
+        $recorded = $issue.recorded
+
+        # Format as actionable prompt following the same template as regular phases
+        $issuesSummary += @"
+
+---
+
+## Phase: $phaseId [UNRESOLVED]
+
+**Title**: Fix CI Failure for $phaseId
+**PR**: #$prNumber
+**Issue**: $issueDesc
+**Recorded**: $recorded
+
+I'm working in this git worktree to fix the CI failure.
+
+Task: Fix the CI failure for PR #$prNumber
+
+The CI run has failed with: $issueDesc
+
+Please investigate and fix the issue:
+
+1. Check the CI logs for PR #$prNumber to identify the specific failure
+2. If it's a "Core Tests (Must Pass)" failure:
+   - Review the test output to find which tests failed
+   - Fix the code to make tests pass
+   - Run tests locally before pushing
+3. If it's a lint/verify-structure failure:
+   - Run the linter locally to see the issues
+   - Fix formatting/style issues
+   - Ensure file structure is correct
+4. Push the fix and verify CI passes
+5. Once CI passes, the PR can be merged
+
+"@
     }
 
-    $issuesSummary += "`n`n**Last Updated**: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    $issuesSummary += "`n**Last Updated**: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 
     # Append to wave file
     Add-Content -Path $WaveFile -Value $issuesSummary -Encoding UTF8
-    Write-Host "  [OK] Appended $($unresolvedData.issues.Count) issue(s) to wave file"
+    Write-Host "  [OK] Appended $($unresolvedData.issues.Count) issue(s) as actionable prompts"
 } else {
     Write-Host "  [INFO] No unresolved issues to append"
 }

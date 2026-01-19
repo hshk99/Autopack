@@ -57,6 +57,7 @@ function Save-UnresolvedIssues {
 }
 
 # Record an unresolved issue
+# Only records if phaseId doesn't already exist (prevents duplicates)
 function Record-UnresolvedIssue {
     param(
         [int]$WaveNumber,
@@ -67,8 +68,8 @@ function Record-UnresolvedIssue {
 
     $issues = Load-UnresolvedIssues $WaveNumber
 
-    # Check if this issue already exists
-    $existing = $issues.issues | Where-Object { $_.phaseId -eq $PhaseId -and $_.issue -eq $Issue }
+    # Check if this phaseId already exists (skip if so - prevents duplicates)
+    $existing = $issues.issues | Where-Object { $_.phaseId -eq $PhaseId }
 
     if (-not $existing) {
         $issues.issues += @{
@@ -95,11 +96,8 @@ function Send-MessageToCursorWindowSlot {
 
     # Delegate to send_message_to_cursor_slot.ps1 which handles slot-specific messaging
     try {
-        $result = & "C:\dev\Autopack\scripts\send_message_to_cursor_slot.ps1" -SlotNumber $SlotNumber -Message $Message 2>&1
-
-        # Check if script succeeded (look for [OK] in output)
-        $success = $result -match "\[OK\]|\[SUCCESS\]|True"
-        return $success
+        & "C:\dev\Autopack\scripts\send_message_to_cursor_slot.ps1" -SlotNumber $SlotNumber -Message $Message 2>&1 | Out-Null
+        return ($LASTEXITCODE -eq 0)
     } catch {
         Write-Host "    [WARN] Could not send message to slot $SlotNumber : $_"
         return $false
@@ -110,26 +108,24 @@ function Send-MessageToCursorWindowSlot {
 function Get-WindowSlotNumber {
     param([int]$WindowX, [int]$WindowY)
 
-    # Grid coordinates (from position_cursors.ps1):
-    # Row 1: Y=144,  Row 2: Y=610,  Row 3: Y=1264
-    # Col 1: X=3121, Col 2: X=3979, Col 3: X=4833
+    # Grid coordinates (from STREAMDECK_REFERENCE.md, verified 2026-01-19):
+    # Window LEFT positions: X=2560, 3413, 4266
+    # Window TOP positions:  Y=0, 463, 926
+    # Window size: ~853x463
 
-    # Note: These are absolute screen coordinates where the grid is positioned
-    # We check which grid cell the window center falls into
+    $tolerance = 100  # Tolerance for window position matching
 
-    $tolerance = 500  # Tolerance for window position matching
-
-    # Determine column
+    # Determine column based on window LEFT position
     $col = 0
-    if ($WindowX -gt 2622 -and $WindowX -lt 3622) { $col = 1 }  # Around X=3121
-    elseif ($WindowX -gt 3479 -and $WindowX -lt 4479) { $col = 2 }  # Around X=3979
-    elseif ($WindowX -gt 4333 -and $WindowX -lt 5333) { $col = 3 }  # Around X=4833
+    if ($WindowX -ge (2560 - $tolerance) -and $WindowX -le (2560 + $tolerance)) { $col = 1 }
+    elseif ($WindowX -ge (3413 - $tolerance) -and $WindowX -le (3413 + $tolerance)) { $col = 2 }
+    elseif ($WindowX -ge (4266 - $tolerance) -and $WindowX -le (4266 + $tolerance)) { $col = 3 }
 
-    # Determine row
+    # Determine row based on window TOP position
     $row = 0
-    if ($WindowY -gt -356 -and $WindowY -lt 644) { $row = 1 }    # Around Y=144
-    elseif ($WindowY -gt 110 -and $WindowY -lt 1110) { $row = 2 }  # Around Y=610
-    elseif ($WindowY -gt 764 -and $WindowY -lt 1764) { $row = 3 }  # Around Y=1264
+    if ($WindowY -ge (0 - $tolerance) -and $WindowY -le (0 + $tolerance)) { $row = 1 }
+    elseif ($WindowY -ge (463 - $tolerance) -and $WindowY -le (463 + $tolerance)) { $row = 2 }
+    elseif ($WindowY -ge (926 - $tolerance) -and $WindowY -le (926 + $tolerance)) { $row = 3 }
 
     if ($col -eq 0 -or $row -eq 0) {
         return 0  # Not in grid
@@ -164,8 +160,8 @@ Write-Host ""
 
 $completedCount = 0
 $mergedPRs = @()
-$unresolvedCount = 0
-$unresolvedIssues = @()
+$ciFailedCount = 0
+$ciFailedPhases = @()
 
 # Build window slot mapping for sending messages to correct grid positions
 $windowSlotMap = @{}  # Maps phaseId to slot number
@@ -179,6 +175,9 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 public class WindowHelper {
+    [DllImport("user32.dll")]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
+
     [DllImport("user32.dll")]
     public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
@@ -199,8 +198,12 @@ public class WindowHelper {
     [DllImport("user32.dll")]
     public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
 
+    [StructLayout(LayoutKind.Sequential)]
     public struct RECT {
-        public int Left, Top, Right, Bottom;
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
     }
 
     public static List<IntPtr> GetWindowsByProcessName(string processName) {
@@ -251,7 +254,7 @@ foreach ($window in $cursorWindows) {
         $phaseId = $Matches[1]
 
         # Determine grid slot from window coordinates
-        $slot = Invoke-Expression (Get-WindowSlotNumber -WindowX $rect.Left -WindowY $rect.Top)
+        $slot = Get-WindowSlotNumber -WindowX $rect.Left -WindowY $rect.Top
         if ($slot -gt 0) {
             $windowSlotMap[$phaseId] = $slot
         }
@@ -285,33 +288,48 @@ foreach ($prompt in $pendingPrompts | Select-Object -First 9) {
 
             if ($hasChecks) {
                 # Analyze status checks
-                $failedChecks = $pr.statusCheckRollup | Where-Object { $_.status -eq "FAILURE" }
-                $runningChecks = $pr.statusCheckRollup | Where-Object { $_.status -eq "IN_PROGRESS" }
+                # Note: GitHub API uses 'conclusion' for result (SUCCESS/FAILURE) and 'status' for state (COMPLETED/IN_PROGRESS)
+                $failedChecks = @($pr.statusCheckRollup | Where-Object { $_.conclusion -eq "FAILURE" })
+                $runningChecks = @($pr.statusCheckRollup | Where-Object { $_.status -eq "IN_PROGRESS" })
 
-                if ($runningChecks) {
+                # Separate critical failures from unrelated failures
+                # Critical: "Core Tests (Must Pass)" - these MUST pass for merge
+                # Unrelated: "lint", "verify-structure" - pre-existing issues, don't block merge
+                $unrelatedCheckNames = @("lint", "verify-structure")
+                $criticalFailures = @($failedChecks | Where-Object { $_.name -notin $unrelatedCheckNames })
+                $unrelatedFailures = @($failedChecks | Where-Object { $_.name -in $unrelatedCheckNames })
+
+                if ($runningChecks.Count -gt 0) {
                     # CI is still running
                     Write-Host "  -> [INFO] CI tests running..."
-                } elseif ($failedChecks) {
-                    # Determine if failures are PR-related or unrelated
-                    $prRelatedFailure = $false
+                } elseif ($criticalFailures.Count -gt 0) {
+                    # Critical CI failures (Core Tests failed) - MUST FIX before merge
+                    $criticalNames = ($criticalFailures | ForEach-Object { $_.name }) -join ", "
+                    Write-Host "  -> [FAIL] Critical CI failed: $criticalNames" -ForegroundColor Red
+                    $ciFailedCount++
+                    $ciFailedPhases += $phaseId
 
-                    foreach ($check in $failedChecks) {
-                        $checkName = $check.name -as [string]
-                        # These are typically unrelated to code changes (infrastructure, environment issues)
-                        if ($checkName -match "lint|format|type|build" -and -not ($checkName -match "code|security")) {
-                            $prRelatedFailure = $true
-                            break
-                        }
+                    # Record as unresolved issue
+                    $allFailedNames = ($failedChecks | ForEach-Object { $_.name }) -join ", "
+                    $recorded = Record-UnresolvedIssue -WaveNumber $waveNumber -PhaseId $phaseId -Issue "CI failed: $allFailedNames" -PRNumber $prNumber
+                    if ($recorded) {
+                        Write-Host "  -> [INFO] Recorded unresolved issue"
+                    }
+                } elseif ($unrelatedFailures.Count -gt 0) {
+                    # Only unrelated failures (lint, verify-structure) - these don't block merge
+                    $unrelatedNames = ($unrelatedFailures | ForEach-Object { $_.name }) -join ", "
+                    Write-Host "  -> [INFO] Unrelated CI failures (skipping): $unrelatedNames" -ForegroundColor Yellow
+                    Write-Host "  -> [OK] Core Tests PASSED - ready to merge"
+
+                    # Record unrelated failures for tracking but allow merge
+                    $recorded = Record-UnresolvedIssue -WaveNumber $waveNumber -PhaseId $phaseId -Issue "Unrelated CI: $unrelatedNames" -PRNumber $prNumber
+                    if ($recorded) {
+                        Write-Host "  -> [INFO] Recorded unrelated issue for tracking"
                     }
 
-                    if (-not $prRelatedFailure) {
-                        Write-Host "  -> [WARN] CI failures detected (unrelated to this PR)"
-                        Record-UnresolvedIssue -WaveNumber $waveNumber -PhaseId $phaseId -Issue "CI/lint failure" -PRNumber $prNumber
-                        $unresolvedCount++
-                        $unresolvedIssues += $phaseId
-                    } else {
-                        Write-Host "  -> [FAIL] PR needs fixes (code-related CI failures)"
-                    }
+                    # Allow merge since Core Tests passed
+                    $mergedPRs += $phaseId
+                    $completedCount++
                 } else {
                     # All CI checks passed
                     Write-Host "  -> [OK] CI PASSING - ready to merge"
@@ -333,21 +351,18 @@ foreach ($prompt in $pendingPrompts | Select-Object -First 9) {
 Write-Host ""
 Write-Host "RESULTS:"
 Write-Host "========="
-Write-Host "Merged PRs ready to mark COMPLETED: $completedCount"
-Write-Host "Unresolved issues recorded: $unresolvedCount"
+Write-Host "PRs ready to merge: $completedCount"
+Write-Host "PRs with CI failures: $ciFailedCount"
 
-if ($unresolvedCount -gt 0) {
+if ($ciFailedCount -gt 0) {
     Write-Host ""
-    Write-Host "[OK] READY TO MERGE (with unresolved issues to address separately)"
-    Write-Host "Phases with unresolved issues: $($unresolvedIssues -join ', ')"
-    Write-Host ""
-    Write-Host "Sending messages to Cursor windows..."
+    Write-Host "[ACTION] Sending CI failure messages to Cursor windows..."
     $messageSent = 0
-    foreach ($phaseId in $unresolvedIssues) {
+    foreach ($phaseId in $ciFailedPhases) {
         $slot = $windowSlotMap[$phaseId]
         if ($null -ne $slot -and $slot -gt 0) {
-            Write-Host "  Sending to slot $slot..."
-            if (Send-MessageToCursorWindowSlot "ready to merge (unrelated CI issue)" $slot) {
+            Write-Host "  Sending to slot $slot ($phaseId)..."
+            if (Send-MessageToCursorWindowSlot "CI run has failed. Please fix and re-run" $slot) {
                 $messageSent++
                 Write-Host "    [OK] Message sent"
             } else {
@@ -358,8 +373,7 @@ if ($unresolvedCount -gt 0) {
         }
     }
     Write-Host ""
-    Write-Host "[INFO] Issues have been recorded in: $(Get-UnresolvedIssuesFile $waveNumber)"
-    Write-Host "   These issues will be included in wave cleanup summary."
+    Write-Host "[INFO] $messageSent CI failure messages sent"
 }
 
 if ($mergedPRs.Count -gt 0) {

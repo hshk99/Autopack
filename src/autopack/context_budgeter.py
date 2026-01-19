@@ -5,10 +5,12 @@ Supports:
 - Semantic relevance ranking (OpenAI embeddings) when available
 - Lexical relevance fallback (keywords + path signals) when embeddings are offline
 - Local embedding cache with per-phase call cap
+- Cross-phase cache persistence for cost optimization
 """
 
 from __future__ import annotations
 
+import logging
 import math
 import os
 import re
@@ -19,6 +21,8 @@ from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 from autopack.memory.embeddings import sync_embed_texts, semantic_embeddings_enabled
 from autopack.file_hashing import compute_cache_key
 from autopack.config import settings
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from autopack.telemetry.cost_tracker import ContextPrepTracker
@@ -32,15 +36,27 @@ _EMBEDDING_CACHE: Dict[str, List[float]] = {}
 # Per-phase call counter (reset via reset_embedding_cache)
 _PHASE_CALL_COUNT: int = 0
 
+# Cross-phase cache persistence (default True for cost optimization)
+_PERSIST_CACHE: bool = True
+
 
 def reset_embedding_cache() -> None:
     """Reset embedding cache and call counter.
 
     Should be called at the start of each phase to enforce per-phase limits.
+    If cross-phase cache persistence is enabled, only the call counter is reset.
     """
     global _EMBEDDING_CACHE, _PHASE_CALL_COUNT
     with _CACHE_LOCK:
-        _EMBEDDING_CACHE.clear()
+        if not _PERSIST_CACHE:
+            cache_size = len(_EMBEDDING_CACHE)
+            _EMBEDDING_CACHE.clear()
+            logger.debug(f"Reset embedding cache (cleared {cache_size} entries)")
+        else:
+            cache_size = len(_EMBEDDING_CACHE)
+            logger.debug(
+                f"Phase start: preserving cache with {cache_size} entries (cross-phase persistence enabled)"
+            )
         _PHASE_CALL_COUNT = 0
 
 
@@ -48,13 +64,26 @@ def get_embedding_stats() -> Dict[str, int]:
     """Get current embedding cache statistics.
 
     Returns:
-        Dict with cache_size and call_count
+        Dict with cache_size, call_count, and persist_cache
     """
     with _CACHE_LOCK:
         return {
             "cache_size": len(_EMBEDDING_CACHE),
             "call_count": _PHASE_CALL_COUNT,
+            "persist_cache": _PERSIST_CACHE,
         }
+
+
+def set_cache_persistence(persist: bool) -> None:
+    """Configure whether embedding cache persists across phases.
+
+    Args:
+        persist: If True, cache persists across phases (default, cost-efficient).
+                 If False, cache is reset at each phase start.
+    """
+    global _PERSIST_CACHE
+    with _CACHE_LOCK:
+        _PERSIST_CACHE = persist
 
 
 def _get_embedding_call_cap() -> int:
@@ -216,6 +245,8 @@ def select_files_for_context(
             texts_to_embed.append(query)
 
             # File embeddings (check cache - thread-safe)
+            cache_hits = 0
+            cache_misses = 0
             with _CACHE_LOCK:
                 for _, _, path, content in remaining:
                     snippet = f"Path: {path}\n\n{content[:per_file_embed_chars]}"
@@ -224,10 +255,19 @@ def select_files_for_context(
                     if cache_key in _EMBEDDING_CACHE:
                         # Cache hit - no need to embed
                         cache_keys.append(cache_key)
+                        cache_hits += 1
                     else:
                         # Cache miss - need to embed
                         texts_to_embed.append(snippet)
                         cache_keys.append(cache_key)
+                        cache_misses += 1
+
+            if cache_hits > 0 or cache_misses > 0:
+                logger.info(
+                    f"Embedding cache: {cache_hits} hits, {cache_misses} misses "
+                    f"({(cache_hits / (cache_hits + cache_misses) * 100):.1f}% hit rate) "
+                    f"out of {len(remaining)} files"
+                )
 
             # Check if we need to make API call
             needs_api_call = len(texts_to_embed) > 1  # More than just query
@@ -256,11 +296,18 @@ def select_files_for_context(
 
                         # Store file vectors in cache
                         vec_idx = 1
+                        new_entries = 0
                         for i, (_, _, path, content) in enumerate(remaining):
                             cache_key = cache_keys[i + 1]  # +1 to skip query
                             if cache_key and cache_key not in _EMBEDDING_CACHE:
                                 _EMBEDDING_CACHE[cache_key] = vecs[vec_idx]
                                 vec_idx += 1
+                                new_entries += 1
+
+                    if new_entries > 0:
+                        logger.info(
+                            f"Added {new_entries} new embeddings to cache (cross-phase persistence)"
+                        )
             else:
                 # All cached - just get query embedding
                 vecs = sync_embed_texts([query])

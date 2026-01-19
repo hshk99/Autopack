@@ -209,14 +209,13 @@ class RollbackManager:
             if safe_clean:
                 has_protected, protected_files = self._check_protected_untracked_files()
                 if has_protected:
-                    logger.warning(
-                        "[Rollback] Protected untracked files detected - skipping git clean"
+                    logger.error("[Rollback] Blocking rollback - protected files would be affected")
+                    logger.error(f"[Rollback] Protected files: {', '.join(protected_files)}")
+                    logger.error(
+                        "[Rollback] Protected files cannot be deleted during rollback. "
+                        "Use safe_clean=False to force rollback, or manually remove protected files first."
                     )
-                    logger.warning(f"[Rollback] Protected files: {', '.join(protected_files)}")
-                    logger.info(
-                        "[Rollback] These files will NOT be deleted: .env, *.db, .autonomous_runs/, etc."
-                    )
-                    # Continue with reset, but skip clean
+                    return False, "Protected files would be deleted"
 
             # Reset working tree to savepoint tag (hard reset discards all changes)
             result = subprocess.run(

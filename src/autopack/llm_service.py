@@ -779,6 +779,9 @@ class LlmService:
         The doctor module was extracted from llm_service.py as part of Item 1.1
         god file refactoring (PR-SVC-3).
 
+        IMP-COST-007: Doctor diagnosis responses are cached by error type to avoid
+        redundant LLM calls when the same error patterns occur across phases.
+
         Args:
             request: Doctor diagnostic request with failure context
             ctx_summary: Optional summary of phase-level error context
@@ -789,22 +792,33 @@ class LlmService:
         Returns:
             DoctorResponse with action, confidence, rationale, and optional hints
         """
+        from .error_recovery import get_diagnosis_with_cache
+
+        # Create a cache key based on error type and category
+        # This enables cross-phase reuse of diagnostics for similar error patterns
+        cache_error_message = f"{request.error_category}:{phase_id or 'generic'}"
+
         # Resolve client for the doctor module
         # Doctor uses builder role for client resolution (historical behavior)
         model, _ = choose_doctor_model(request, ctx_summary)
         client, _ = self._resolve_client_and_model("builder", model)
 
-        # Delegate to doctor module with usage recording callbacks
-        return doctor.execute_doctor(
-            client=client,
-            request=request,
-            ctx_summary=ctx_summary,
-            run_id=run_id,
+        # Delegate to doctor module with usage recording callbacks via cache wrapper
+        return get_diagnosis_with_cache(
+            error_category=request.error_category,
+            error_message=cache_error_message,
             phase_id=phase_id,
-            allow_escalation=allow_escalation,
-            model_to_provider_fn=self._model_to_provider,
-            record_usage_fn=self._record_usage,
-            record_usage_total_only_fn=self._record_usage_total_only,
+            doctor_call_fn=lambda: doctor.execute_doctor(
+                client=client,
+                request=request,
+                ctx_summary=ctx_summary,
+                run_id=run_id,
+                phase_id=phase_id,
+                allow_escalation=allow_escalation,
+                model_to_provider_fn=self._model_to_provider,
+                record_usage_fn=self._record_usage,
+                record_usage_total_only_fn=self._record_usage_total_only,
+            ),
         )
 
     # =========================================================================

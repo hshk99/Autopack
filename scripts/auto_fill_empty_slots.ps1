@@ -8,7 +8,8 @@ param(
     [int]$WaveNumber = 0,  # 0 = auto-detect from Wave*_All_Phases.md
     [string]$WaveFile = "",
     [switch]$DryRun,
-    [switch]$Interactive
+    [switch]$Interactive,
+    [switch]$Kill  # Kill all running Cursor processes and cleanup
 )
 
 # Define WindowHelper if not already loaded
@@ -139,6 +140,30 @@ Write-Host "[INFO] Wave: $WaveNumber"
 Write-Host "[INFO] File: $WaveFile"
 Write-Host ""
 
+# ============ KILL MODE: Terminate all running Cursor processes ============
+if ($Kill) {
+    Write-Host "KILL MODE: Terminating all Cursor processes..." -ForegroundColor Red
+
+    try {
+        Get-Process -Name "cursor" -ErrorAction SilentlyContinue | Stop-Process -Force
+        Write-Host "[OK] All Cursor processes killed" -ForegroundColor Green
+    } catch {
+        Write-Host "[WARN] Error killing Cursor processes: $_" -ForegroundColor Yellow
+    }
+
+    Write-Host "Cleanup: Closing PowerShell instances..."
+    try {
+        Get-Process -Name "powershell" -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne $PID } | Stop-Process -Force
+        Write-Host "[OK] Cleanup complete" -ForegroundColor Green
+    } catch {
+        Write-Host "[WARN] Partial cleanup: $_" -ForegroundColor Yellow
+    }
+
+    Write-Host ""
+    Write-Host "All processes terminated. Exiting..." -ForegroundColor Green
+    exit 0
+}
+
 # ============ STEP 1: Detect Empty Slots ============
 Write-Host "STEP 1: Detecting empty slots..." -ForegroundColor Yellow
 $emptySlots = & "C:\dev\Autopack\scripts\detect_empty_slots.ps1"
@@ -250,9 +275,9 @@ for ($i = 0; $i -lt $promptsToFill.Count; $i++) {
 
         # Step C: Switch LLM model
         Write-Host "  [3/5] Switching model..."
-        # Commented out GLM-4.7 due to concurrency issues - switching to Claude
+        # Using Claude chat method (default) - GLM-4.7 has concurrency issues
         # & "C:\dev\Autopack\scripts\switch_cursor_models_single_window.ps1" -SlotNumber $slot -ModelName "glm-4.7" 2>&1 | Out-Null
-        & "C:\dev\Autopack\scripts\switch_cursor_models_single_window.ps1" -SlotNumber $slot -ModelName "claude-opus" 2>&1 | Out-Null
+        & "C:\dev\Autopack\scripts\switch_cursor_models_single_window.ps1" -SlotNumber $slot -ModelName "claude" 2>&1 | Out-Null
         if ($LASTEXITCODE -ne 0) {
             Write-Host "    ⚠️  Model switch exited with code $LASTEXITCODE" -ForegroundColor Yellow
         }

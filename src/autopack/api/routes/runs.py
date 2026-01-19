@@ -11,8 +11,9 @@ Provides endpoints for:
 """
 
 import logging
+import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.exc import OperationalError
@@ -25,8 +26,56 @@ from autopack.database import get_db
 from autopack.file_layout import RunFileLayout
 from autopack.issue_tracker import IssueTracker
 from autopack.strategy_engine import StrategyEngine
+from autopack.telemetry import AlertRouter, AlertSeverity, AnomalyAlert
 
 logger = logging.getLogger(__name__)
+
+# Singleton alert router for DB connectivity alerts
+_alert_router: Optional[AlertRouter] = None
+
+
+def _get_alert_router() -> AlertRouter:
+    """Get or create the alert router singleton."""
+    global _alert_router
+    if _alert_router is None:
+        _alert_router = AlertRouter()
+    return _alert_router
+
+
+def _send_db_connectivity_alert(
+    error: OperationalError,
+    operation: str,
+    run_id: Optional[str] = None,
+) -> None:
+    """Send a critical alert for database connectivity failures.
+
+    Args:
+        error: The OperationalError that was caught
+        operation: Description of the operation that failed (e.g., "run_start", "run_fetch")
+        run_id: Optional run_id associated with the failed operation
+    """
+    alert = AnomalyAlert(
+        alert_id=f"db_conn_{uuid.uuid4().hex[:8]}",
+        severity=AlertSeverity.CRITICAL,
+        metric="db_connectivity",
+        phase_id=run_id,
+        current_value=0.0,  # 0 = unavailable
+        threshold=1.0,  # 1 = available
+        baseline=1.0,
+        recommendation=(
+            f"Database connectivity failure during {operation}. "
+            f"Error: {str(error)[:200]}. "
+            "Check: (1) Database server status, (2) Network connectivity, "
+            "(3) Connection pool status at /health/database"
+        ),
+    )
+    router = _get_alert_router()
+    router.route_alert(alert)
+    logger.critical(
+        f"[ALERT:DB_CONNECTIVITY] Database unavailable during {operation}. "
+        f"Run: {run_id or 'N/A'}. Error: {error}"
+    )
+
 
 router = APIRouter(tags=["runs"])
 
@@ -55,6 +104,7 @@ def start_run(
         existing_run = db.query(models.Run).filter(models.Run.id == request_data.run.run_id).first()
     except OperationalError as e:
         logger.error(f"[API] DB OperationalError during run start: {e}")
+        _send_db_connectivity_alert(e, "run_start", run_id=request_data.run.run_id)
         db.rollback()
         raise HTTPException(status_code=503, detail="Database unavailable, please retry") from e
     if existing_run:
@@ -212,6 +262,7 @@ def get_run(
     except OperationalError as e:
         # Avoid opaque 500s when the API is pointed at the wrong DB (common during local validation).
         logger.error(f"[RUNS] Database error while fetching run {run_id}: {e}", exc_info=True)
+        _send_db_connectivity_alert(e, "run_fetch", run_id=run_id)
         raise HTTPException(
             status_code=503,
             detail=(

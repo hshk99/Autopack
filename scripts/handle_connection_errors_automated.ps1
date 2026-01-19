@@ -33,13 +33,13 @@ $ERROR_DEBOUNCE_MS = 5000            # Wait 5 seconds between actions in same sl
 $BASELINE_DIR = "C:\dev\Autopack\error_baselines"
 
 # Enhanced detection thresholds
-# Modal dialogs overlay typically cause:
-# - Very high percentage change (>75%, since they cover most of window)
-# - High brightness differences (dialogs are usually light-colored)
-# - Consistent color patterns (not random cursor/text changes)
-$PERCENT_CHANGE_THRESHOLD = 75       # Must be >75% changed (very significant overlay)
-$COLOR_DIFF_THRESHOLD = 80           # RGB difference must be high (dialog vs editor)
-$BRIGHT_PIXEL_RATIO = 0.6            # Dialog pixels should be bright (>60% are bright)
+# Based on ACTUAL error dialogs captured from Cursor:
+# - Error dialogs cause 20-40% pixel change (visible but not full-screen)
+# - Text and borders have moderate color differences (RGB diff ~45)
+# - Only 2-4% of changed pixels are bright (error text is sparse)
+$PERCENT_CHANGE_THRESHOLD = 15       # Must be >15% changed (error dialog visible)
+$COLOR_DIFF_THRESHOLD = 45           # RGB difference threshold (error text/border colors)
+$BRIGHT_PIXEL_RATIO = 0.02           # At least 2% of changes are bright (error text)
 
 Write-Host ""
 Write-Host "========== CONNECTION ERROR HANDLER (AUTOMATED) ==========" -ForegroundColor Cyan
@@ -233,9 +233,10 @@ function Detect-ErrorDialog {
             $percentChanged = ($changedPixels / $totalSamples) * 100
             $brightRatio = if ($changedPixels -gt 0) { $brightPixels / $changedPixels } else { 0 }
 
-            # Error dialog detection: must meet BOTH criteria
-            # 1. Very high percentage change (>75% = major overlay, not just typing)
-            # 2. Changed pixels are bright (dialogs typically have light backgrounds)
+            # Error dialog detection: check both criteria to reduce false positives
+            # 1. Significant percentage change (>30% = error dialog visible)
+            # 2. Some bright pixels (error text/accents are usually bright)
+            # Both must be true to avoid triggering on normal typing/tab switches
             $isError = ($percentChanged -gt $PERCENT_CHANGE_THRESHOLD) -and ($brightRatio -gt $BRIGHT_PIXEL_RATIO)
 
             # Clean up

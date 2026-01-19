@@ -107,6 +107,36 @@ public class WindowHelper {
         GetWindowText(hWnd, sb, length + 1);
         return sb.ToString();
     }
+
+    [DllImport("user32.dll")]
+    public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [DllImport("user32.dll")]
+    public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, int dwExtraInfo);
+
+    public const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
+    public const uint MOUSEEVENTF_LEFTUP = 0x0004;
+    public const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
+
+    public static void ClickCenter(IntPtr hWnd) {
+        RECT rect;
+        GetWindowRect(hWnd, out rect);
+        int centerX = (rect.Left + rect.Right) / 2;
+        int centerY = (rect.Top + rect.Bottom) / 2;
+
+        // Move to center and click
+        mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_LEFTDOWN, (uint)centerX, (uint)centerY, 0, 0);
+        System.Threading.Thread.Sleep(100);
+        mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_LEFTUP, (uint)centerX, (uint)centerY, 0, 0);
+    }
 }
 "@
 }
@@ -121,6 +151,8 @@ public class KeyboardHelper {
     public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
 
     public const byte VK_CONTROL = 0x11;
+    public const byte VK_SHIFT = 0x10;
+    public const byte VK_9 = 0x39;
     public const byte VK_V = 0x56;
     public const byte VK_RETURN = 0x0D;
     public const byte VK_M = 0x4D;
@@ -212,24 +244,34 @@ Write-Host "[ACTION] Setting window to foreground..."
 [WindowHelper]::SetForegroundWindow($targetWindow) | Out-Null
 Start-Sleep -Milliseconds 500
 
-# ============ Step 2: Open project folder FIRST ============
-Write-Host "[ACTION] Opening project folder (Ctrl+M+O)..."
-[KeyboardHelper]::OpenProjectFolder()
-Write-Host "[OK] Project folder opened - file structure now visible"
-Start-Sleep -Milliseconds 1500
+# ============ Step 2: Open Claude Chat (Ctrl+Shift+9) ============
+# TEMPORARILY COMMENTED OUT FOR TESTING
+Write-Host "[ACTION] Claude Chat should be default (Ctrl+Shift+9 temporarily disabled)..."
 
-# ============ Step 3: Set clipboard and paste prompt ============
-Write-Host "[ACTION] Pasting prompt to window..."
+# Send Ctrl+Shift+9 to open Claude Chat
+# [KeyboardHelper]::keybd_event([KeyboardHelper]::VK_CONTROL, 0, [KeyboardHelper]::KEYEVENTF_KEYDOWN, 0)
+# [KeyboardHelper]::keybd_event([KeyboardHelper]::VK_SHIFT, 0, [KeyboardHelper]::KEYEVENTF_KEYDOWN, 0)
+# [KeyboardHelper]::keybd_event([KeyboardHelper]::VK_9, 0, [KeyboardHelper]::KEYEVENTF_KEYDOWN, 0)
+# [KeyboardHelper]::keybd_event([KeyboardHelper]::VK_9, 0, [KeyboardHelper]::KEYEVENTF_KEYUP, 0)
+# [KeyboardHelper]::keybd_event([KeyboardHelper]::VK_SHIFT, 0, [KeyboardHelper]::KEYEVENTF_KEYUP, 0)
+# [KeyboardHelper]::keybd_event([KeyboardHelper]::VK_CONTROL, 0, [KeyboardHelper]::KEYEVENTF_KEYUP, 0)
 
-# Copy prompt to clipboard
+Write-Host "[OK] Ready to paste"
+Write-Host "[INFO] Waiting for window to fully settle (5 seconds)..."
+Start-Sleep -Milliseconds 5000
+
+# ============ Step 3: Set clipboard and paste prompt to Chat ============
+Write-Host "[ACTION] Pasting prompt to Claude Chat..."
+
+# Copy prompt to clipboard (use simple prompt, like the original script)
 $phasePrompt | Set-Clipboard
 Start-Sleep -Milliseconds 200
 
-# Paste and send
+# Paste and send to Chat
 [KeyboardHelper]::PasteAndEnter()
 
-Write-Host "[OK] Prompt pasted and sent"
-Start-Sleep -Milliseconds 1000
+Write-Host "[OK] Prompt pasted to Claude Chat and sent"
+Start-Sleep -Milliseconds 2000
 
 Write-Host ""
 

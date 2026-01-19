@@ -273,14 +273,10 @@ for ($i = 0; $i -lt $promptsToFill.Count; $i++) {
         Write-Host "  [2/5] Window positioning..."
         Write-Host "  [OK] Window already positioned by launch script"
 
-        # Step C: Switch LLM model
-        Write-Host "  [3/5] Switching model..."
-        # Using Claude chat method (default) - GLM-4.7 has concurrency issues
-        # & "C:\dev\Autopack\scripts\switch_cursor_models_single_window.ps1" -SlotNumber $slot -ModelName "glm-4.7" 2>&1 | Out-Null
-        & "C:\dev\Autopack\scripts\switch_cursor_models_single_window.ps1" -SlotNumber $slot -ModelName "claude" 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "    ⚠️  Model switch exited with code $LASTEXITCODE" -ForegroundColor Yellow
-        }
+        # Step C: Skip model switching - use Cursor's default configured model
+        Write-Host "  [3/5] Model configuration..."
+        Write-Host "  [INFO] Using Cursor's configured Claude API (or default model)"
+        Write-Host "  [INFO] Ensure your Claude API key is set in Cursor Settings"
 
         # Step D: Paste prompt (with Ctrl+M+O for project folder)
         Write-Host "  [4/5] Pasting prompt..."
@@ -299,6 +295,12 @@ for ($i = 0; $i -lt $promptsToFill.Count; $i++) {
     }
 
     Write-Host ""
+
+    # Add minimal delay between slots (pasting script already waits 3 seconds)
+    if ($i -lt ($promptsToFill.Count - 1)) {
+        Write-Host "[INFO] Proceeding to next slot..."
+        Start-Sleep -Milliseconds 500
+    }
 }
 
 # ============ STEP 5: Summary ============

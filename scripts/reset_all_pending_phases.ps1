@@ -1,6 +1,6 @@
-# Reset ALL [PENDING] phases back to [UNIMPLEMENTED] for re-running Button 2
+# Reset ALL [PENDING] phases back to [READY] for re-running Button 2
 # Usage: .\reset_all_pending_phases.ps1
-# This removes phases that haven't been started yet so you can re-run Button 2
+# This marks phases as READY (not started) so you can re-run Button 2
 
 param(
     [string]$WaveFile = ""
@@ -42,17 +42,17 @@ if ($pendingPrompts.Count -eq 0) {
 Write-Host "[OK] Found $($pendingPrompts.Count) [PENDING] phase(s) to reset"
 Write-Host ""
 
-# Reset each pending phase to UNIMPLEMENTED
+# Reset each pending phase to READY
 $resetCount = 0
 foreach ($phase in $pendingPrompts) {
     $phaseId = $phase.ID
     Write-Host "Resetting $phaseId..."
 
-    & "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Update -WaveFile $WaveFile -PhaseId $phaseId -NewStatus "UNIMPLEMENTED" | Out-Null
+    & "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Update -WaveFile $WaveFile -PhaseId $phaseId -NewStatus "READY" | Out-Null
 
     if ($?) {
         $resetCount++
-        Write-Host "  ✅ $phaseId → [UNIMPLEMENTED]"
+        Write-Host "  ✅ $phaseId → [READY]"
     } else {
         Write-Host "  ❌ Failed to reset $phaseId" -ForegroundColor Red
     }
@@ -61,7 +61,7 @@ foreach ($phase in $pendingPrompts) {
 Write-Host ""
 Write-Host "============ RESET COMPLETE ============" -ForegroundColor Green
 Write-Host ""
-Write-Host "Reset $resetCount phases from [PENDING] → [UNIMPLEMENTED]"
+Write-Host "Reset $resetCount phases from [PENDING] → [READY]"
 Write-Host ""
 
 # Reload and display new status

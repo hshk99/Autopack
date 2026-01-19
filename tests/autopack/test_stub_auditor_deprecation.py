@@ -1,4 +1,7 @@
-"""Test that StubClaudeAuditor emits proper deprecation warnings."""
+"""Test that StubClaudeAuditor emits proper deprecation warnings.
+
+Per IMP-FEAT-005: Verify stub logs clear warnings about non-functional auditing.
+"""
 
 import warnings
 
@@ -17,21 +20,21 @@ def test_stub_claude_auditor_emits_deprecation_warning():
             patch_content="diff --git a/foo.py b/foo.py",
             phase_spec={"goal": "test"},
             max_tokens=1000,
-            model="claude-sonnet-3-5",
+            model="claude-sonnet-4-5",
         )
 
         # Check warning was raised
         assert len(w) == 1
         assert issubclass(w[0].category, DeprecationWarning)
         assert "StubClaudeAuditor is deprecated" in str(w[0].message)
-        assert "AnthropicAuditorClient" in str(w[0].message)
+        assert "AnthropicAuditorClientWrapper" in str(w[0].message)
 
     # Verify result contains deprecation messages
     assert result.approved is True
     assert result.tokens_used == 0  # Stub doesn't call API
-    assert result.model_used == "claude-sonnet-3-5-stub"
+    assert result.model_used == "claude-sonnet-4-5-stub"
     assert any("stub called" in msg.lower() for msg in result.auditor_messages)
-    assert any("AnthropicAuditorClient" in msg for msg in result.auditor_messages)
+    assert any("NON-FUNCTIONAL" in msg for msg in result.auditor_messages)
 
 
 def test_stub_returns_empty_issues():

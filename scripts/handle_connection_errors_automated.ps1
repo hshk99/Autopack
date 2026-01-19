@@ -157,6 +157,7 @@ function Capture-Baseline {
 }
 
 # Detect error by comparing current screenshot to baseline
+# Uses pixel-level comparison to detect modal dialogs (not cursor blinks or typing)
 function Detect-ErrorDialog {
     param([int]$Slot)
 
@@ -169,24 +170,70 @@ function Detect-ErrorDialog {
             return $false
         }
 
-        # Get current hash
-        $currentHash = Get-ImageHash -FilePath $tempPath
+        # Open baseline and current images to compare pixel data
+        Add-Type -AssemblyName System.Drawing
 
-        # Get baseline hash
-        $baselineHash = $baselineImages[$Slot]
+        try {
+            $baselinePath = "$BASELINE_DIR\baseline_slot_$Slot.png"
+            $baselineImg = [System.Drawing.Image]::FromFile($baselinePath)
+            $currentImg = [System.Drawing.Image]::FromFile($tempPath)
 
-        if ($null -eq $baselineHash) {
+            if ($baselineImg.Width -ne $currentImg.Width -or $baselineImg.Height -ne $currentImg.Height) {
+                $baselineImg.Dispose()
+                $currentImg.Dispose()
+                Remove-Item $tempPath -ErrorAction SilentlyContinue
+                return $false
+            }
+
+            # Convert to bitmaps for pixel access
+            $baselineBmp = New-Object System.Drawing.Bitmap($baselineImg)
+            $currentBmp = New-Object System.Drawing.Bitmap($currentImg)
+
+            # Sample multiple points to detect modal dialog overlay
+            # Error dialogs typically create significant pixel changes across many areas
+            $changedPixels = 0
+            $totalSamples = 0
+
+            # Sample every 10th pixel to reduce computation (still accurate enough)
+            for ($x = 0; $x -lt $baselineBmp.Width; $x += 10) {
+                for ($y = 0; $y -lt $baselineBmp.Height; $y += 10) {
+                    $totalSamples++
+
+                    $baselineColor = $baselineBmp.GetPixel($x, $y)
+                    $currentColor = $currentBmp.GetPixel($x, $y)
+
+                    # Calculate color difference
+                    $rDiff = [Math]::Abs($baselineColor.R - $currentColor.R)
+                    $gDiff = [Math]::Abs($baselineColor.G - $currentColor.G)
+                    $bDiff = [Math]::Abs($baselineColor.B - $currentColor.B)
+                    $avgDiff = ($rDiff + $gDiff + $bDiff) / 3
+
+                    # If pixel changed significantly (not just cursor/typing)
+                    if ($avgDiff -gt 50) {
+                        $changedPixels++
+                    }
+                }
+            }
+
+            $percentChanged = ($changedPixels / $totalSamples) * 100
+
+            # Modal dialog overlay = VERY significant portion of window changed (>60%)
+            # This filters out cursor blinks, typing, tab switches, etc.
+            # Only actual modal overlays cause this much change
+            $isError = $percentChanged -gt 60
+
+            # Clean up
+            $baselineBmp.Dispose()
+            $currentBmp.Dispose()
+            $baselineImg.Dispose()
+            $currentImg.Dispose()
+            Remove-Item $tempPath -ErrorAction SilentlyContinue
+
+            return $isError
+        } catch {
             Remove-Item $tempPath -ErrorAction SilentlyContinue
             return $false
         }
-
-        # Compare hashes (simple change detection)
-        $changed = $currentHash -ne $baselineHash
-
-        # Clean up temp file
-        Remove-Item $tempPath -ErrorAction SilentlyContinue
-
-        return $changed
     } catch {
         return $false
     }
@@ -273,14 +320,7 @@ try {
                         if (Click-ResumeButton -Slot $slot) {
                             $handledCount++
                             Write-Host "  [+] Recovery action sent" -ForegroundColor Green
-
-                            # Update baseline with current (recovered) state
-                            Start-Sleep -Milliseconds 1000
-                            $gridInfo = $GRID_POSITIONS[$slot]
-                            $baselinePath = "$BASELINE_DIR\baseline_slot_$slot.png"
-                            if (Take-ScreenshotOfArea -X $gridInfo.x -Y $gridInfo.y -Width $gridInfo.width -Height $gridInfo.height -OutputPath $baselinePath) {
-                                $baselineImages[$slot] = Get-ImageHash -FilePath $baselinePath
-                            }
+                            Write-Host "  [+] Cursor should recover now" -ForegroundColor Green
                         } else {
                             Write-Host "  [!] Failed to click Resume button" -ForegroundColor Red
                         }

@@ -1,26 +1,97 @@
 """Health check and root endpoints.
 
 Extracted from main.py as part of PR-API-3a.
+
+IMP-OPS-004: Added /ready endpoint for Kubernetes readiness probes.
 """
 
 import hashlib
 import logging
 import os
 import re
+import threading
 from datetime import datetime, timezone
+from typing import Dict, List
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from autopack import models
-from autopack.database import get_db, get_pool_health
+from autopack.database import engine, get_db, get_pool_health
 from autopack.version import __version__
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
+
+
+# Module-level initialization state tracking for readiness probe
+class _InitializationState:
+    """Thread-safe tracking of application initialization state.
+
+    Used by /ready endpoint to determine if the app is ready to serve traffic.
+    """
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._initialized = False
+        self._initialization_errors: List[str] = []
+
+    def mark_initialized(self) -> None:
+        """Mark the application as fully initialized."""
+        with self._lock:
+            self._initialized = True
+            logger.info("[READY] Application marked as initialized")
+
+    def mark_failed(self, error: str) -> None:
+        """Record an initialization error."""
+        with self._lock:
+            self._initialization_errors.append(error)
+            logger.error(f"[READY] Initialization error recorded: {error}")
+
+    def is_initialized(self) -> bool:
+        """Check if initialization is complete."""
+        with self._lock:
+            return self._initialized
+
+    def get_errors(self) -> List[str]:
+        """Get list of initialization errors."""
+        with self._lock:
+            return list(self._initialization_errors)
+
+    def reset(self) -> None:
+        """Reset state (for testing)."""
+        with self._lock:
+            self._initialized = False
+            self._initialization_errors = []
+
+
+# Global initialization state singleton
+_init_state = _InitializationState()
+
+
+def mark_app_initialized() -> None:
+    """Mark the application as fully initialized.
+
+    Called by lifespan context manager after all startup tasks complete.
+    """
+    _init_state.mark_initialized()
+
+
+def mark_initialization_failed(error: str) -> None:
+    """Record an initialization failure.
+
+    Args:
+        error: Description of the initialization error
+    """
+    _init_state.mark_failed(error)
+
+
+def reset_initialization_state() -> None:
+    """Reset initialization state (for testing only)."""
+    _init_state.reset()
 
 
 @router.get("/")
@@ -170,3 +241,169 @@ def database_pool_health():
         "pool": pool_health,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def _check_schema_initialized() -> Dict[str, object]:
+    """Check if database schema is properly initialized.
+
+    Returns:
+        Dict with 'ready' bool and 'details' about schema state
+    """
+    try:
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+
+        # Core tables that must exist for the app to function
+        required_tables = {"runs", "phases", "events"}
+        missing_tables = required_tables - set(existing_tables)
+
+        if missing_tables:
+            return {
+                "ready": False,
+                "details": f"missing required tables: {sorted(missing_tables)}",
+                "table_count": len(existing_tables),
+            }
+
+        return {
+            "ready": True,
+            "details": "schema initialized",
+            "table_count": len(existing_tables),
+        }
+    except Exception as e:
+        return {
+            "ready": False,
+            "details": f"schema check failed: {str(e)[:100]}",
+            "table_count": 0,
+        }
+
+
+def _check_database_ready(db: Session) -> Dict[str, object]:
+    """Check if database connection is ready for queries.
+
+    Args:
+        db: Database session
+
+    Returns:
+        Dict with 'ready' bool and connection details
+    """
+    try:
+        # Basic connectivity check
+        db.execute(text("SELECT 1"))
+
+        # Verify we can query a core table
+        db.query(models.Run).limit(1).all()
+
+        return {
+            "ready": True,
+            "details": "database connected and queryable",
+        }
+    except Exception as e:
+        return {
+            "ready": False,
+            "details": f"database error: {str(e)[:100]}",
+        }
+
+
+def _check_dependencies_ready() -> Dict[str, Dict[str, object]]:
+    """Check if optional dependencies are ready or properly disabled.
+
+    Returns:
+        Dict mapping dependency name to readiness status
+    """
+    dependencies = {}
+
+    # Qdrant (optional vector database)
+    qdrant_host = os.getenv("QDRANT_HOST")
+    if not qdrant_host:
+        dependencies["qdrant"] = {"ready": True, "details": "disabled (no QDRANT_HOST)"}
+    else:
+        qdrant_status = _check_qdrant_connection()
+        dependencies["qdrant"] = {
+            "ready": qdrant_status in ("connected", "disabled"),
+            "details": qdrant_status,
+        }
+
+    return dependencies
+
+
+@router.get("/ready")
+def readiness_check(db: Session = Depends(get_db)):
+    """
+    Readiness probe endpoint for Kubernetes/container orchestration.
+
+    IMP-OPS-004: Unlike /health (liveness), this endpoint returns 503 until
+    all initialization is complete. Use this for readiness probes to prevent
+    routing traffic to instances that haven't finished starting up.
+
+    Checks performed:
+    1. Application initialization flag is set (lifespan completed)
+    2. Database schema is properly initialized
+    3. Database connection is ready for queries
+    4. Optional dependencies are ready or disabled
+
+    Response (200 when ready):
+        {
+            "ready": true,
+            "status": "ready",
+            "timestamp": ISO8601 timestamp,
+            "checks": {
+                "initialization": {"ready": true, ...},
+                "schema": {"ready": true, ...},
+                "database": {"ready": true, ...},
+                "dependencies": {...}
+            },
+            "version": str
+        }
+
+    Response (503 when not ready):
+        Same structure but ready=false and status="not_ready"
+    """
+    checks: Dict[str, object] = {}
+    all_ready = True
+
+    # Check 1: Application initialization state
+    app_initialized = _init_state.is_initialized()
+    init_errors = _init_state.get_errors()
+    checks["initialization"] = {
+        "ready": app_initialized,
+        "details": "lifespan completed" if app_initialized else "initializing",
+        "errors": init_errors if init_errors else None,
+    }
+    if not app_initialized:
+        all_ready = False
+
+    # Check 2: Database schema
+    schema_check = _check_schema_initialized()
+    checks["schema"] = schema_check
+    if not schema_check["ready"]:
+        all_ready = False
+
+    # Check 3: Database connectivity
+    db_check = _check_database_ready(db)
+    checks["database"] = db_check
+    if not db_check["ready"]:
+        all_ready = False
+
+    # Check 4: Optional dependencies
+    dep_checks = _check_dependencies_ready()
+    checks["dependencies"] = dep_checks
+    for dep_name, dep_status in dep_checks.items():
+        if not dep_status.get("ready", False):
+            all_ready = False
+
+    # Build response
+    payload = {
+        "ready": all_ready,
+        "status": "ready" if all_ready else "not_ready",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "checks": checks,
+        "version": __version__,
+        "service": "autopack",
+        "component": "supervisor_api",
+    }
+
+    # Return 503 if not ready, 200 if ready
+    if not all_ready:
+        return JSONResponse(status_code=503, content=payload)
+
+    return payload

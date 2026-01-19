@@ -140,9 +140,15 @@ class TestEmbeddingCachePerPhaseReset:
         assert context_budgeter._PHASE_CALL_COUNT == 5
 
     def test_per_phase_reset_cache(self):
-        """Test that embedding cache dict clears on reset."""
-        from autopack.context_budgeter import reset_embedding_cache
+        """Test that embedding cache respects persistence setting."""
+        from autopack.context_budgeter import (
+            reset_embedding_cache,
+            set_cache_persistence,
+        )
         from autopack import context_budgeter
+
+        # Disable cross-phase persistence for this test (old behavior)
+        set_cache_persistence(False)
 
         # Reset to start clean
         reset_embedding_cache()
@@ -156,3 +162,6 @@ class TestEmbeddingCachePerPhaseReset:
         # Reset for next phase
         reset_embedding_cache()
         assert len(context_budgeter._EMBEDDING_CACHE) == 0
+
+        # Re-enable cross-phase persistence for other tests
+        set_cache_persistence(True)

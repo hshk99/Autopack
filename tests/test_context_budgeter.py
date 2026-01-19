@@ -1,4 +1,9 @@
-from autopack.context_budgeter import select_files_for_context
+from autopack.context_budgeter import (
+    select_files_for_context,
+    reset_embedding_cache,
+    get_embedding_stats,
+    set_cache_persistence,
+)
 
 
 def test_budgeter_pins_deliverables_and_respects_budget():
@@ -52,3 +57,94 @@ def test_budgeter_prefers_relevant_file_in_lexical_mode():
 
     assert "src/db.py" in sel.kept
     assert "src/ui.tsx" not in sel.kept
+
+
+def test_cache_persists_across_phases_when_enabled():
+    """Verify embedding cache persists across phases when persistence is enabled."""
+    # Ensure persistence is enabled (default)
+    set_cache_persistence(True)
+
+    # Reset cache
+    reset_embedding_cache()
+
+    # Phase 1: Select files (in lexical mode to avoid embedding API calls in tests)
+    files1 = {
+        "src/module1.py": "def func1():\n    pass\n" * 10,
+    }
+    select_files_for_context(
+        files=files1,
+        scope_metadata={},
+        deliverables=[],
+        query="function",
+        budget_tokens=500,
+        semantic=False,  # Use lexical mode to avoid API calls in tests
+    )
+
+    stats1 = get_embedding_stats()
+    cache_size_after_phase1 = stats1["cache_size"]
+
+    # Phase 2: Reset cache (should preserve cache when persistence is enabled)
+    reset_embedding_cache()
+
+    stats2 = get_embedding_stats()
+    # Cache should be preserved
+    assert stats2["cache_size"] == cache_size_after_phase1
+    assert stats2["persist_cache"] is True
+
+    # Cleanup: reset persistence to default
+    set_cache_persistence(True)
+
+
+def test_cache_reset_when_persistence_disabled():
+    """Verify embedding cache is reset when persistence is disabled."""
+    # Disable persistence
+    set_cache_persistence(False)
+
+    # Reset cache
+    reset_embedding_cache()
+
+    stats1 = get_embedding_stats()
+    assert stats1["persist_cache"] is False
+
+    # Phase 1: Select files (lexical mode)
+    files1 = {
+        "src/module1.py": "def func1():\n    pass\n" * 10,
+    }
+    select_files_for_context(
+        files=files1,
+        scope_metadata={},
+        deliverables=[],
+        query="function",
+        budget_tokens=500,
+        semantic=False,
+    )
+
+    # Phase 2: Reset cache (should clear cache when persistence is disabled)
+    reset_embedding_cache()
+
+    stats2 = get_embedding_stats()
+    # Cache should be cleared
+    assert stats2["cache_size"] == 0
+
+    # Cleanup: reset persistence to default
+    set_cache_persistence(True)
+
+
+def test_cache_persistence_can_be_toggled():
+    """Verify cache persistence can be toggled on and off."""
+    # Start with persistence enabled
+    set_cache_persistence(True)
+    reset_embedding_cache()
+
+    stats = get_embedding_stats()
+    assert stats["persist_cache"] is True
+
+    # Toggle to disabled
+    set_cache_persistence(False)
+    stats = get_embedding_stats()
+    assert stats["persist_cache"] is False
+
+    # Toggle back to enabled
+    set_cache_persistence(True)
+    stats = get_embedding_stats()
+    assert stats["persist_cache"] is True

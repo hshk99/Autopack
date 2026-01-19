@@ -14,20 +14,30 @@ Write-Host ""
 Write-Host "============ CLEANUP COMPLETED PHASES ============" -ForegroundColor Cyan
 Write-Host ""
 
+$backupDir = "C:\Users\hshk9\OneDrive\Backup\Desktop"
+
+# Helper function to find dynamically generated files
+function Get-DynamicFilePath {
+    param([string]$Pattern)
+    $files = @(Get-ChildItem -Path $backupDir -Filter $Pattern -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)
+    if ($files.Count -gt 0) {
+        return $files[0].FullName
+    }
+    return $null
+}
+
 # Auto-detect wave number and file if not provided
 if ([string]::IsNullOrWhiteSpace($WaveFile)) {
-    $backupDir = "C:\Users\hshk9\OneDrive\Backup\Desktop"
-    $waveFiles = @(Get-ChildItem -Path $backupDir -Filter "Wave*_All_Phases.md" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)
+    $WaveFile = Get-DynamicFilePath "Wave*_All_Phases.md"
 
-    if ($waveFiles.Count -eq 0) {
+    if ([string]::IsNullOrWhiteSpace($WaveFile)) {
         Write-Host "[ERROR] No Wave*_All_Phases.md file found" -ForegroundColor Red
         exit 1
     }
 
-    $WaveFile = $waveFiles[0].FullName
-    Write-Host "[AUTO-DETECT] Using: $($waveFiles[0].Name)"
+    Write-Host "[AUTO-DETECT] Using: $(Split-Path -Leaf $WaveFile)"
 
-    if ($waveFiles[0].Name -match "Wave(\d)_") {
+    if ((Split-Path -Leaf $WaveFile) -match "Wave(\d)_") {
         $WaveNumber = [int]$Matches[1]
     }
 }
@@ -94,9 +104,9 @@ Write-Host ""
 # ============ CLEANUP 2: AUTOPACK_IMPS_MASTER.json ============
 Write-Host "CLEANUP 2: Cleaning AUTOPACK_IMPS_MASTER.json" -ForegroundColor Yellow
 
-$masterFile = "C:\Users\hshk9\OneDrive\Backup\Desktop\AUTOPACK_IMPS_MASTER.json"
+$masterFile = Get-DynamicFilePath "AUTOPACK_IMPS_MASTER.json"
 
-if (Test-Path $masterFile) {
+if ($null -ne $masterFile -and (Test-Path $masterFile)) {
     $masterJson = Get-Content $masterFile -Raw | ConvertFrom-Json
     $originalCount = @($masterJson.improvements).Count
 
@@ -122,9 +132,9 @@ Write-Host ""
 # ============ CLEANUP 3: AUTOPACK_WAVE_PLAN.json ============
 Write-Host "CLEANUP 3: Cleaning AUTOPACK_WAVE_PLAN.json" -ForegroundColor Yellow
 
-$planFile = "C:\Users\hshk9\OneDrive\Backup\Desktop\AUTOPACK_WAVE_PLAN.json"
+$planFile = Get-DynamicFilePath "AUTOPACK_WAVE_PLAN.json"
 
-if (Test-Path $planFile) {
+if ($null -ne $planFile -and (Test-Path $planFile)) {
     $planJson = Get-Content $planFile -Raw | ConvertFrom-Json
 
     # Find the wave key

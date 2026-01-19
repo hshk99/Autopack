@@ -6,6 +6,6 @@ REM Usage: handle_connection_errors.bat
 cd /d "C:\dev\Autopack"
 
 REM Launch PowerShell script in new window with visible output
-start "Connection Error Handler" cmd /k "powershell.exe -ExecutionPolicy Bypass -NoProfile -File \"C:\dev\Autopack\scripts\handle_connection_errors.ps1\""
+start "Connection Error Handler" powershell.exe -ExecutionPolicy Bypass -NoProfile -File "C:\dev\Autopack\scripts\handle_connection_errors.ps1"
 
 exit /b 0

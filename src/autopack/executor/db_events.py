@@ -158,6 +158,10 @@ def try_record_token_budget_escalation_event(
             session.add(evt)
             session.commit()
             return True
+        except Exception as e:
+            logger.error(f"Failed to persist token budget escalation event: {e}")
+            session.rollback()
+            raise
         finally:
             try:
                 session.close()

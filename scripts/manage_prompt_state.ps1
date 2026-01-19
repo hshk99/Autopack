@@ -1,7 +1,7 @@
 # Manage prompt state (load, save, update status)
 # Tracks prompt status: [READY], [PENDING], [COMPLETED]
-# Stores state in Wave[N]_All_Phases.md file
-# Usage: .\manage_prompt_state.ps1 -Action Load -WaveFile "Wave1_All_Phases.md"
+# Stores state in Prompts_All_Waves.md file
+# Usage: .\manage_prompt_state.ps1 -Action Load -WaveFile "Prompts_All_Waves.md"
 
 param(
     [ValidateSet("Load", "Save", "Update")]
@@ -14,14 +14,22 @@ param(
 # Determine wave file if not provided
 if ([string]::IsNullOrWhiteSpace($WaveFile)) {
     $backupDir = "C:\Users\hshk9\OneDrive\Backup\Desktop"
-    $waveFiles = @(Get-ChildItem -Path $backupDir -Filter "Wave*_All_Phases.md" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)
+    $promptsFile = Join-Path $backupDir "Prompts_All_Waves.md"
 
-    if ($waveFiles.Count -gt 0) {
-        $WaveFile = $waveFiles[0].FullName
-        Write-Host "[AUTO-DETECT] Using: $($waveFiles[0].Name)"
+    if (Test-Path $promptsFile) {
+        $WaveFile = $promptsFile
+        Write-Host "[AUTO-DETECT] Using: Prompts_All_Waves.md"
     } else {
-        Write-Host "[ERROR] No Wave*_All_Phases.md file found" -ForegroundColor Red
-        exit 1
+        # Fallback to old Wave*_All_Phases.md format for backwards compatibility
+        $waveFiles = @(Get-ChildItem -Path $backupDir -Filter "Wave*_All_Phases.md" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)
+
+        if ($waveFiles.Count -gt 0) {
+            $WaveFile = $waveFiles[0].FullName
+            Write-Host "[AUTO-DETECT] Using: $($waveFiles[0].Name) (legacy format)"
+        } else {
+            Write-Host "[ERROR] No Prompts_All_Waves.md or Wave*_All_Phases.md file found" -ForegroundColor Red
+            exit 1
+        }
     }
 }
 
@@ -38,7 +46,7 @@ if ($Action -eq "Load") {
 
     # Extract all phases with their status, path, and branch name
     # Pattern: ## Phase: <id> [<status>] ... **Path**: <path> ... Branch: <branch>
-    $phasePattern = "## Phase: (\S+) \[(READY|PENDING|COMPLETED|UNIMPLEMENTED)\].*?\*\*Path\*\*: (.+?)(?=\n|`n).*?Branch: (\S+)"
+    $phasePattern = "## Phase: (\S+) \[(READY|UNRESOLVED|PENDING|COMPLETED|UNIMPLEMENTED)\].*?\*\*Path\*\*: (.+?)(?=\n|`n).*?Branch: (\S+)"
     $matches = [regex]::Matches($content, $phasePattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
 
     $phases = @()
@@ -60,10 +68,11 @@ if ($Action -eq "Load") {
 
     # Count statuses
     $readyCount = ($phases | Where-Object { $_.Status -eq "READY" }).Count
+    $unresolvedCount = ($phases | Where-Object { $_.Status -eq "UNRESOLVED" }).Count
     $pendingCount = ($phases | Where-Object { $_.Status -eq "PENDING" }).Count
     $completedCount = ($phases | Where-Object { $_.Status -eq "COMPLETED" }).Count
 
-    Write-Host "Status: $readyCount READY | $pendingCount PENDING | $completedCount COMPLETED"
+    Write-Host "Status: $readyCount READY | $unresolvedCount UNRESOLVED | $pendingCount PENDING | $completedCount COMPLETED"
 
     # Return as objects for pipeline
     $phases
@@ -76,8 +85,8 @@ elseif ($Action -eq "Update") {
         exit 1
     }
 
-    if ($NewStatus -notmatch "READY|PENDING|COMPLETED|UNIMPLEMENTED") {
-        Write-Host "[ERROR] Status must be [READY], [PENDING], [COMPLETED], or [UNIMPLEMENTED]" -ForegroundColor Red
+    if ($NewStatus -notmatch "READY|UNRESOLVED|PENDING|COMPLETED|UNIMPLEMENTED") {
+        Write-Host "[ERROR] Status must be [READY], [UNRESOLVED], [PENDING], [COMPLETED], or [UNIMPLEMENTED]" -ForegroundColor Red
         exit 1
     }
 
@@ -97,19 +106,20 @@ elseif ($Action -eq "Update") {
     }
 
     # Update header status counts
-    $readyCount = ([regex]::Matches($newContent, '\[READY').Count)
-    $pendingCount = ([regex]::Matches($newContent, '\[PENDING').Count)
-    $completedCount = ([regex]::Matches($newContent, '\[COMPLETED').Count)
-    $unimplementedCount = ([regex]::Matches($newContent, '\[UNIMPLEMENTED').Count)
+    $readyCount = ([regex]::Matches($newContent, '\[READY\]').Count)
+    $unresolvedCount = ([regex]::Matches($newContent, '\[UNRESOLVED\]').Count)
+    $pendingCount = ([regex]::Matches($newContent, '\[PENDING\]').Count)
+    $completedCount = ([regex]::Matches($newContent, '\[COMPLETED\]').Count)
+    $unimplementedCount = ([regex]::Matches($newContent, '\[UNIMPLEMENTED\]').Count)
 
     # Try both header formats (old and new style)
     $headerPattern1 = 'READY: \d+, PENDING: \d+, COMPLETED: \d+, UNIMPLEMENTED: \d+'
-    $headerReplacement1 = "READY: $readyCount, PENDING: $pendingCount, COMPLETED: $completedCount, UNIMPLEMENTED: $unimplementedCount"
+    $headerReplacement1 = "READY: $readyCount, UNRESOLVED: $unresolvedCount, PENDING: $pendingCount, COMPLETED: $completedCount, UNIMPLEMENTED: $unimplementedCount"
     $newContent = $newContent -replace $headerPattern1, $headerReplacement1
 
-    # Also try alternate format if present
-    $headerPattern2 = '\*\*Status\*\*: \d+ READY \| \d+ PENDING \| \d+ COMPLETED'
-    $headerReplacement2 = "**Status**: $readyCount READY | $pendingCount PENDING | $completedCount COMPLETED"
+    # Also try alternate format if present (with optional UNRESOLVED)
+    $headerPattern2 = '\*\*Status\*\*: \d+ READY( \| \d+ UNRESOLVED)? \| \d+ PENDING \| \d+ COMPLETED'
+    $headerReplacement2 = "**Status**: $readyCount READY | $unresolvedCount UNRESOLVED | $pendingCount PENDING | $completedCount COMPLETED"
     $newContent = $newContent -replace $headerPattern2, $headerReplacement2
 
     # Also update "Last Updated" field
@@ -121,7 +131,7 @@ elseif ($Action -eq "Update") {
     Set-Content $WaveFile $newContent -Encoding UTF8
 
     Write-Host "[OK] Updated $PhaseId to [$NewStatus]"
-    Write-Host "Status: $readyCount READY | $pendingCount PENDING | $completedCount COMPLETED"
+    Write-Host "Status: $readyCount READY | $unresolvedCount UNRESOLVED | $pendingCount PENDING | $completedCount COMPLETED"
 }
 
 # ============ SAVE ACTION ============

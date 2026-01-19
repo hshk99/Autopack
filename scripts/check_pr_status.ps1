@@ -137,11 +137,18 @@ function Get-WindowSlotNumber {
 }
 
 if ([string]::IsNullOrWhiteSpace($WaveFile)) {
-    $WaveFile = Get-DynamicFilePath "Wave*_All_Phases.md"
+    $promptsFile = Join-Path $backupDir "Prompts_All_Waves.md"
 
-    if ([string]::IsNullOrWhiteSpace($WaveFile)) {
-        Write-Host "ERROR: No Wave file found"
-        exit 1
+    if (Test-Path $promptsFile) {
+        $WaveFile = $promptsFile
+    } else {
+        # Fallback to old Wave*_All_Phases.md format for backwards compatibility
+        $WaveFile = Get-DynamicFilePath "Wave*_All_Phases.md"
+
+        if ([string]::IsNullOrWhiteSpace($WaveFile)) {
+            Write-Host "ERROR: No Prompts_All_Waves.md or Wave*_All_Phases.md file found"
+            exit 1
+        }
     }
 }
 

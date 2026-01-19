@@ -1,5 +1,5 @@
 # Paste prompt to a specific Cursor window in the grid and update phase status
-# Usage: .\paste_prompts_to_cursor_single_window.ps1 -SlotNumber 1 -PhaseId "sec001" -WaveFile "Wave1_All_Phases.md"
+# Usage: .\paste_prompts_to_cursor_single_window.ps1 -SlotNumber 1 -PhaseId "sec001" -WaveFile "Prompts_All_Waves.md"
 
 param(
     [int]$SlotNumber = 1,

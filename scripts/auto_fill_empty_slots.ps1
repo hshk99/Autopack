@@ -5,7 +5,7 @@
 # StreamDeck: Use auto_fill_empty_slots.ps1 (no .bat wrapper needed for PowerShell)
 
 param(
-    [int]$WaveNumber = 0,  # 0 = auto-detect from Wave*_All_Phases.md
+    [int]$WaveNumber = 0,  # 0 = auto-detect from Prompts_All_Waves.md
     [string]$WaveFile = "",
     [switch]$DryRun,
     [switch]$Interactive,
@@ -114,20 +114,28 @@ Write-Host ""
 # Auto-detect wave file if not provided
 if ([string]::IsNullOrWhiteSpace($WaveFile)) {
     $backupDir = "C:\Users\hshk9\OneDrive\Backup\Desktop"
-    $waveFiles = @(Get-ChildItem -Path $backupDir -Filter "Wave*_All_Phases.md" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)
+    $promptsFile = Join-Path $backupDir "Prompts_All_Waves.md"
 
-    if ($waveFiles.Count -eq 0) {
-        Write-Host "[ERROR] No Wave*_All_Phases.md file found" -ForegroundColor Red
-        Write-Host "First run: .\\generate_wave_prompts.ps1"
-        exit 1
-    }
+    if (Test-Path $promptsFile) {
+        $WaveFile = $promptsFile
+        Write-Host "[AUTO-DETECT] Using: Prompts_All_Waves.md"
+    } else {
+        # Fallback to old Wave*_All_Phases.md format for backwards compatibility
+        $waveFiles = @(Get-ChildItem -Path $backupDir -Filter "Wave*_All_Phases.md" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)
 
-    $WaveFile = $waveFiles[0].FullName
-    Write-Host "[AUTO-DETECT] Using: $($waveFiles[0].Name)"
+        if ($waveFiles.Count -eq 0) {
+            Write-Host "[ERROR] No Prompts_All_Waves.md or Wave*_All_Phases.md file found" -ForegroundColor Red
+            Write-Host "First run: .\\generate_wave_prompts.ps1"
+            exit 1
+        }
 
-    # Extract wave number from filename
-    if ($waveFiles[0].Name -match "Wave(\d)_") {
-        $WaveNumber = [int]$Matches[1]
+        $WaveFile = $waveFiles[0].FullName
+        Write-Host "[AUTO-DETECT] Using: $($waveFiles[0].Name) (legacy format)"
+
+        # Extract wave number from filename
+        if ($waveFiles[0].Name -match "Wave(\d)_") {
+            $WaveNumber = [int]$Matches[1]
+        }
     }
 }
 
@@ -181,13 +189,15 @@ Write-Host ""
 Write-Host "STEP 2: Loading wave prompts..." -ForegroundColor Yellow
 
 $prompts = & "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -WaveFile $WaveFile
-$readyPrompts = @($prompts | Where-Object { $_.Status -eq "READY" })
+# Include both [READY] and [UNRESOLVED] phases - UNRESOLVED are CI failures that need fixing
+$readyPrompts = @($prompts | Where-Object { $_.Status -eq "READY" -or $_.Status -eq "UNRESOLVED" })
 
 Write-Host "[OK] Loaded $($prompts.Count) total prompts"
 $readyCount = @($prompts | Where-Object {$_.Status -eq 'READY'}).Count
+$unresolvedCount = @($prompts | Where-Object {$_.Status -eq 'UNRESOLVED'}).Count
 $pendingCount = @($prompts | Where-Object {$_.Status -eq 'PENDING'}).Count
 $completedCount = @($prompts | Where-Object {$_.Status -eq 'COMPLETED'}).Count
-Write-Host "Status: $readyCount READY | $pendingCount PENDING | $completedCount COMPLETED"
+Write-Host "Status: $readyCount READY | $unresolvedCount UNRESOLVED | $pendingCount PENDING | $completedCount COMPLETED"
 Write-Host ""
 
 # ============ STEP 3: Wave Boundary Protection ============
@@ -314,17 +324,21 @@ Write-Host "Wave Summary:"
 # Reload prompts to get updated statuses from file
 $promptsUpdated = & "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -WaveFile $WaveFile
 $readyCount = @($promptsUpdated | Where-Object { $_.Status -eq "READY" }).Count
+$unresolvedCount = @($promptsUpdated | Where-Object { $_.Status -eq "UNRESOLVED" }).Count
 $pendingCount = @($promptsUpdated | Where-Object { $_.Status -eq "PENDING" }).Count
 $completedCount = @($promptsUpdated | Where-Object { $_.Status -eq "COMPLETED" }).Count
-Write-Host "  Status: $readyCount READY | $pendingCount PENDING | $completedCount COMPLETED"
+Write-Host "  Status: $readyCount READY | $unresolvedCount UNRESOLVED | $pendingCount PENDING | $completedCount COMPLETED"
 Write-Host ""
 
-if ($readyCount -eq 0 -and $pendingCount -gt 0) {
-    Write-Host "[INFO] No more [READY] phases in Wave $WaveNumber"
+if ($readyCount -eq 0 -and $unresolvedCount -eq 0 -and $pendingCount -gt 0) {
+    Write-Host "[INFO] No more [READY] or [UNRESOLVED] phases in Wave $WaveNumber"
     Write-Host "[INFO] Wait for PRs to merge, then use Button 2 again to refill"
-} elseif ($readyCount -eq 0 -and $pendingCount -eq 0) {
+} elseif ($readyCount -eq 0 -and $unresolvedCount -eq 0 -and $pendingCount -eq 0) {
     Write-Host "[INFO] Wave $WaveNumber complete! All phases finished."
     Write-Host "[INFO] Use Button 4 to cleanup, then Button 1 for Wave $($WaveNumber + 1)"
+} elseif ($unresolvedCount -gt 0) {
+    Write-Host "[INFO] $unresolvedCount [UNRESOLVED] phase(s) need CI failure fixes"
+    Write-Host "[INFO] Use Button 2 again to fill slots with unresolved phases"
 }
 
 Write-Host ""

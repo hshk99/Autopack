@@ -1,6 +1,6 @@
-# Cleanup completed phases from Wave[N]_All_Phases.md and JSON files
+# Cleanup completed phases from Prompts_All_Waves.md and JSON files
 # Removes [COMPLETED] phases from:
-#   1. Wave[N]_All_Phases.md
+#   1. Prompts_All_Waves.md
 #   2. AUTOPACK_IMPS_MASTER.json
 #   3. AUTOPACK_WAVE_PLAN.json
 #   4. AUTOPACK_WORKFLOW.md (removes detailed prompt sections for completed phases)
@@ -58,17 +58,25 @@ function Get-UnresolvedIssuesSummary {
 
 # Auto-detect wave number and file if not provided
 if ([string]::IsNullOrWhiteSpace($WaveFile)) {
-    $WaveFile = Get-DynamicFilePath "Wave*_All_Phases.md"
+    $promptsFile = Join-Path $backupDir "Prompts_All_Waves.md"
 
-    if ([string]::IsNullOrWhiteSpace($WaveFile)) {
-        Write-Host "[ERROR] No Wave*_All_Phases.md file found" -ForegroundColor Red
-        exit 1
-    }
+    if (Test-Path $promptsFile) {
+        $WaveFile = $promptsFile
+        Write-Host "[AUTO-DETECT] Using: Prompts_All_Waves.md"
+    } else {
+        # Fallback to old Wave*_All_Phases.md format for backwards compatibility
+        $WaveFile = Get-DynamicFilePath "Wave*_All_Phases.md"
 
-    Write-Host "[AUTO-DETECT] Using: $(Split-Path -Leaf $WaveFile)"
+        if ([string]::IsNullOrWhiteSpace($WaveFile)) {
+            Write-Host "[ERROR] No Prompts_All_Waves.md or Wave*_All_Phases.md file found" -ForegroundColor Red
+            exit 1
+        }
 
-    if ((Split-Path -Leaf $WaveFile) -match "Wave(\d)_") {
-        $WaveNumber = [int]$Matches[1]
+        Write-Host "[AUTO-DETECT] Using: $(Split-Path -Leaf $WaveFile) (legacy format)"
+
+        if ((Split-Path -Leaf $WaveFile) -match "Wave(\d)_") {
+            $WaveNumber = [int]$Matches[1]
+        }
     }
 }
 
@@ -96,8 +104,8 @@ if ($completedPrompts.Count -eq 0) {
 Write-Host "[OK] Found $($completedPrompts.Count) [COMPLETED] phase(s)"
 Write-Host ""
 
-# ============ CLEANUP 1: Wave[N]_All_Phases.md ============
-Write-Host "CLEANUP 1: Cleaning Wave${WaveNumber}_All_Phases.md" -ForegroundColor Yellow
+# ============ CLEANUP 1: Prompts_All_Waves.md ============
+Write-Host "CLEANUP 1: Cleaning Prompts_All_Waves.md" -ForegroundColor Yellow
 
 $content = Get-Content $WaveFile -Raw
 
@@ -107,18 +115,19 @@ $regex = New-Object System.Text.RegularExpressions.Regex('## Phase: \S+ \[COMPLE
 $content = $regex.Replace($content, '')
 
 # Update status counts in header
-$readyCount = ([regex]::Matches($content, '\[READY').Count)
-$pendingCount = ([regex]::Matches($content, '\[PENDING').Count)
-$completedCount = ([regex]::Matches($content, '\[COMPLETED').Count)
+$readyCount = ([regex]::Matches($content, '\[READY\]').Count)
+$unresolvedCount = ([regex]::Matches($content, '\[UNRESOLVED\]').Count)
+$pendingCount = ([regex]::Matches($content, '\[PENDING\]').Count)
+$completedCount = ([regex]::Matches($content, '\[COMPLETED\]').Count)
 
 # Try both header formats (old and new style)
 $headerPattern1 = 'READY: \d+, PENDING: \d+, COMPLETED: \d+, UNIMPLEMENTED: \d+'
-$headerReplacement1 = "READY: $readyCount, PENDING: $pendingCount, COMPLETED: $completedCount, UNIMPLEMENTED: 0"
+$headerReplacement1 = "READY: $readyCount, UNRESOLVED: $unresolvedCount, PENDING: $pendingCount, COMPLETED: $completedCount, UNIMPLEMENTED: 0"
 $content = $content -replace $headerPattern1, $headerReplacement1
 
-# Also try alternate format if present
-$headerPattern2 = '\*\*Status\*\*: \d+ READY \| \d+ PENDING \| \d+ COMPLETED'
-$headerReplacement2 = "**Status**: $readyCount READY | $pendingCount PENDING | $completedCount COMPLETED"
+# Also try alternate format if present (with optional UNRESOLVED)
+$headerPattern2 = '\*\*Status\*\*: \d+ READY( \| \d+ UNRESOLVED)? \| \d+ PENDING \| \d+ COMPLETED'
+$headerReplacement2 = "**Status**: $readyCount READY | $unresolvedCount UNRESOLVED | $pendingCount PENDING | $completedCount COMPLETED"
 $content = $content -replace $headerPattern2, $headerReplacement2
 
 # Update "Last Updated"
@@ -128,7 +137,7 @@ $content = $content -replace $datePattern, $dateReplacement
 
 Set-Content $WaveFile $content -Encoding UTF8
 Write-Host "  [OK] Removed $($completedPrompts.Count) [COMPLETED] sections"
-Write-Host "  [OK] Updated header: $readyCount READY | $pendingCount PENDING | 0 COMPLETED"
+Write-Host "  [OK] Updated header: $readyCount READY | $unresolvedCount UNRESOLVED | $pendingCount PENDING | 0 COMPLETED"
 Write-Host ""
 
 # ============ CLEANUP 2: AUTOPACK_IMPS_MASTER.json ============
@@ -138,17 +147,43 @@ $masterFile = Get-DynamicFilePath "AUTOPACK_IMPS_MASTER.json"
 
 if ($null -ne $masterFile -and (Test-Path $masterFile)) {
     $masterJson = Get-Content $masterFile -Raw | ConvertFrom-Json
-    $originalCount = @($masterJson.improvements).Count
 
-    # Get completed phase IDs
-    $completedIds = $completedPrompts | ForEach-Object { $_.ID }
+    # Get the array - could be "improvements" or "unimplemented_imps"
+    $impsArray = if ($null -ne $masterJson.improvements) { $masterJson.improvements }
+                 elseif ($null -ne $masterJson.unimplemented_imps) { $masterJson.unimplemented_imps }
+                 else { @() }
 
-    # Filter out completed phases
-    if ($null -ne $masterJson.improvements) {
-        $masterJson.improvements = @($masterJson.improvements | Where-Object { $_.id -notin $completedIds })
+    $originalCount = @($impsArray).Count
+
+    # Get completed IMP IDs (convert phase ID like "sec001" to IMP ID like "IMP-SEC-001")
+    $completedImpIds = @()
+    foreach ($prompt in $completedPrompts) {
+        # Phase ID format: "sec001" -> IMP ID format: "IMP-SEC-001"
+        if ($prompt.ID -match '^([a-z]+)(\d+)$') {
+            $prefix = $Matches[1].ToUpper()
+            $num = $Matches[2].PadLeft(3, '0')
+            $completedImpIds += "IMP-$prefix-$num"
+        }
+        # Also add the raw ID in case it's already in IMP format
+        $completedImpIds += $prompt.ID
     }
 
-    $newCount = @($masterJson.improvements).Count
+    Write-Host "  [DEBUG] Looking for IMP IDs: $($completedImpIds -join ', ')"
+
+    # Filter out completed phases - check both 'id' and 'imp_id' fields
+    $filteredArray = @($impsArray | Where-Object {
+        $itemId = if ($_.imp_id) { $_.imp_id } else { $_.id }
+        $itemId -notin $completedImpIds
+    })
+
+    # Update the correct property
+    if ($null -ne $masterJson.improvements) {
+        $masterJson.improvements = $filteredArray
+    } elseif ($null -ne $masterJson.unimplemented_imps) {
+        $masterJson.unimplemented_imps = $filteredArray
+    }
+
+    $newCount = @($filteredArray).Count
     $removedCount = $originalCount - $newCount
 
     $masterJson | ConvertTo-Json -Depth 10 | Set-Content $masterFile -Encoding UTF8
@@ -167,31 +202,37 @@ $planFile = Get-DynamicFilePath "AUTOPACK_WAVE_PLAN.json"
 if ($null -ne $planFile -and (Test-Path $planFile)) {
     $planJson = Get-Content $planFile -Raw | ConvertFrom-Json
 
-    # Find the wave key
-    $waveKey = "wave_$WaveNumber"
+    # Get completed phase IDs
+    $completedIds = $completedPrompts | ForEach-Object { $_.ID }
 
-    if ($planJson.PSObject.Properties[$waveKey]) {
-        $beforeCount = @($planJson.PSObject.Properties[$waveKey].Value.phases).Count
+    Write-Host "  [DEBUG] Looking for phase IDs: $($completedIds -join ', ')"
 
-        # Get completed phase IDs
-        $completedIds = $completedPrompts | ForEach-Object { $_.ID }
+    # Find all wave keys (wave_1, wave_2, etc.) and clean each
+    $waveKeys = $planJson.PSObject.Properties.Name | Where-Object { $_ -match '^wave_\d+$' }
+    $totalRemoved = 0
 
-        # Filter out completed phases
-        if ($null -ne $planJson.PSObject.Properties[$waveKey].Value.phases) {
-            $planJson.PSObject.Properties[$waveKey].Value.phases = @(
-                $planJson.PSObject.Properties[$waveKey].Value.phases |
+    foreach ($waveKey in $waveKeys) {
+        if ($null -ne $planJson.$waveKey.phases) {
+            $beforeCount = @($planJson.$waveKey.phases).Count
+
+            # Filter out completed phases
+            $planJson.$waveKey.phases = @(
+                $planJson.$waveKey.phases |
                 Where-Object { $_.id -notin $completedIds }
             )
+
+            $afterCount = @($planJson.$waveKey.phases).Count
+            $removedCount = $beforeCount - $afterCount
+
+            if ($removedCount -gt 0) {
+                Write-Host "  [OK] Removed $removedCount phase(s) from $waveKey"
+                $totalRemoved += $removedCount
+            }
         }
-
-        $afterCount = @($planJson.PSObject.Properties[$waveKey].Value.phases).Count
-        $removedCount = $beforeCount - $afterCount
-
-        $planJson | ConvertTo-Json -Depth 10 | Set-Content $planFile -Encoding UTF8
-        Write-Host "  [OK] Removed $removedCount phase entries from Wave $WaveNumber"
-    } else {
-        Write-Host "  [WARN] Wave $WaveNumber not found in plan (skipping)"
     }
+
+    $planJson | ConvertTo-Json -Depth 10 | Set-Content $planFile -Encoding UTF8
+    Write-Host "  [OK] Total removed from WAVE_PLAN: $totalRemoved phase(s)"
 } else {
     Write-Host "  [WARN] File not found (skipping): $planFile"
 }
@@ -283,29 +324,41 @@ if (Test-Path $workflowFile) {
 
         # Map phaseId to IMP identifier pattern
         # e.g., "sec001" -> "IMP-SEC-001", "feat003" -> "IMP-FEAT-003"
-        $impPattern = $phaseId -replace '([a-z]+)(\d+)', 'IMP-$1-$2'
-        $impPattern = $impPattern.ToUpper()
+        $impId = $phaseId -replace '([a-z]+)(\d+)', 'IMP-$1-$2'
+        $impId = $impId.ToUpper()
 
-        # Pattern to match the entire phase section:
-        # Starts with "## 🔵 WAVE N: Cursor #X (IMP-XXX-NNN" and ends at the next "---" separator
-        # This captures the header + all content until the next section divider
-        $sectionPattern = "(?s)## [^\r\n]*\($impPattern[^\)]*\)[^\r\n]*\r?\n\r?\n\*\*Cursor Prompt:\*\*\r?\n\r?\n```.*?```\r?\n\r?\n---"
+        Write-Host "  [DEBUG] Looking for $impId in WORKFLOW..."
 
-        if ($workflowContent -match $sectionPattern) {
-            $workflowContent = $workflowContent -replace $sectionPattern, "---"
+        # Try multiple patterns to match different workflow formats
+        # Pattern 1: ## 🔵 WAVE N: Cursor #X ([IMP-XXX-NNN] Title) ... until next ## or ---
+        $pattern1 = "(?s)##[^\r\n]*\[?$impId\]?[^\r\n]*\r?\n.*?(?=\r?\n##|\r?\n---|\Z)"
+
+        # Pattern 2: Just look for the IMP ID in a header and remove that section
+        $pattern2 = "(?s)##[^\r\n]*$impId[^\r\n]*\r?\n.*?(?=\r?\n##[^#]|\r?\n---|\Z)"
+
+        $beforeLen = $workflowContent.Length
+        $workflowContent = $workflowContent -replace $pattern1, ""
+
+        if ($workflowContent.Length -eq $beforeLen) {
+            # Pattern 1 didn't match, try pattern 2
+            $workflowContent = $workflowContent -replace $pattern2, ""
+        }
+
+        if ($workflowContent.Length -lt $beforeLen) {
             $removedSections++
-            Write-Host "  [OK] Removed section for $phaseId ($impPattern)"
+            Write-Host "  [OK] Removed section for $phaseId ($impId)"
         }
     }
 
-    # Clean up multiple consecutive "---" separators (leave just one)
-    $workflowContent = $workflowContent -replace '(---\s*\r?\n\s*){2,}', "---`n`n"
+    # Clean up multiple consecutive "---" separators and blank lines
+    $workflowContent = $workflowContent -replace '(\r?\n---\s*){2,}', "`n---`n"
+    $workflowContent = $workflowContent -replace '(\r?\n){3,}', "`n`n"
 
     if ($removedSections -gt 0) {
         Set-Content $workflowFile $workflowContent -Encoding UTF8
         Write-Host "  [OK] Removed $removedSections phase section(s) from AUTOPACK_WORKFLOW.md"
     } else {
-        Write-Host "  [INFO] No matching sections found to remove"
+        Write-Host "  [INFO] No matching sections found to remove (checked $($completedPrompts.Count) phases)"
     }
 } else {
     Write-Host "  [WARN] AUTOPACK_WORKFLOW.md not found (skipping)"
@@ -317,12 +370,12 @@ Write-Host ""
 Write-Host "============ CLEANUP COMPLETE ============" -ForegroundColor Green
 Write-Host ""
 Write-Host "Files cleaned:"
-Write-Host "  [OK] Wave${WaveNumber}_All_Phases.md"
+Write-Host "  [OK] Prompts_All_Waves.md"
 Write-Host "  [OK] AUTOPACK_IMPS_MASTER.json"
 Write-Host "  [OK] AUTOPACK_WAVE_PLAN.json"
 Write-Host "  [OK] AUTOPACK_WORKFLOW.md"
 if ($null -ne $unresolvedData -and $unresolvedData.issues.Count -gt 0) {
-    Write-Host "  [OK] Unresolved issues appended to Wave${WaveNumber}_All_Phases.md"
+    Write-Host "  [OK] Unresolved issues appended to Prompts_All_Waves.md"
 }
 Write-Host ""
 Write-Host "Completed phases removed: $($completedPrompts.Count)"
@@ -334,9 +387,10 @@ Write-Host ""
 # Reload and display new status
 $promptsAfter = & "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -WaveFile $WaveFile
 $readyAfter = @($promptsAfter | Where-Object { $_.Status -eq "READY" }).Count
+$unresolvedAfter = @($promptsAfter | Where-Object { $_.Status -eq "UNRESOLVED" }).Count
 $pendingAfter = @($promptsAfter | Where-Object { $_.Status -eq "PENDING" }).Count
 
-Write-Host "Remaining phases: $readyAfter READY | $pendingAfter PENDING | 0 COMPLETED"
+Write-Host "Remaining phases: $readyAfter READY | $unresolvedAfter UNRESOLVED | $pendingAfter PENDING | 0 COMPLETED"
 Write-Host ""
 
 if ($pendingAfter -gt 0) {

@@ -49,7 +49,7 @@ function Get-UnresolvedIssuesSummary {
             return $issues
         }
     } catch {
-        Write-Host "  ⚠️  Could not load unresolved issues: $_"
+        Write-Host "  [WARN] Could not load unresolved issues: $_"
     }
 
     return $null
@@ -126,8 +126,8 @@ $dateReplacement = "**Last Updated**: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 $content = $content -replace $datePattern, $dateReplacement
 
 Set-Content $WaveFile $content -Encoding UTF8
-Write-Host "  ✅ Removed $($completedPrompts.Count) [COMPLETED] sections"
-Write-Host "  ✅ Updated header: $readyCount READY | $pendingCount PENDING | 0 COMPLETED"
+Write-Host "  [OK] Removed $($completedPrompts.Count) [COMPLETED] sections"
+Write-Host "  [OK] Updated header: $readyCount READY | $pendingCount PENDING | 0 COMPLETED"
 Write-Host ""
 
 # ============ CLEANUP 2: AUTOPACK_IMPS_MASTER.json ============
@@ -151,9 +151,9 @@ if ($null -ne $masterFile -and (Test-Path $masterFile)) {
     $removedCount = $originalCount - $newCount
 
     $masterJson | ConvertTo-Json -Depth 10 | Set-Content $masterFile -Encoding UTF8
-    Write-Host "  ✅ Removed $removedCount entries from improvements list"
+    Write-Host "  [OK] Removed $removedCount entries from improvements list"
 } else {
-    Write-Host "  ⚠️  File not found (skipping): $masterFile"
+    Write-Host "  [WARN] File not found (skipping): $masterFile"
 }
 
 Write-Host ""
@@ -187,12 +187,12 @@ if ($null -ne $planFile -and (Test-Path $planFile)) {
         $removedCount = $beforeCount - $afterCount
 
         $planJson | ConvertTo-Json -Depth 10 | Set-Content $planFile -Encoding UTF8
-        Write-Host "  ✅ Removed $removedCount phase entries from Wave $WaveNumber"
+        Write-Host "  [OK] Removed $removedCount phase entries from Wave $WaveNumber"
     } else {
-        Write-Host "  ⚠️  Wave $WaveNumber not found in plan (skipping)"
+        Write-Host "  [WARN] Wave $WaveNumber not found in plan (skipping)"
     }
 } else {
-    Write-Host "  ⚠️  File not found (skipping): $planFile"
+    Write-Host "  [WARN] File not found (skipping): $planFile"
 }
 
 Write-Host ""
@@ -203,7 +203,7 @@ Write-Host "CLEANUP 4: Appending unresolved issues summary" -ForegroundColor Yel
 $unresolvedData = Get-UnresolvedIssuesSummary $WaveNumber
 
 if ($null -ne $unresolvedData -and $unresolvedData.issues.Count -gt 0) {
-    Write-Host "  📋 Found $($unresolvedData.issues.Count) unresolved issue(s)"
+    Write-Host "  [INFO] Found $($unresolvedData.issues.Count) unresolved issue(s)"
 
     # Create unresolved issues section
     $issuesSummary = @"
@@ -226,9 +226,9 @@ if ($null -ne $unresolvedData -and $unresolvedData.issues.Count -gt 0) {
 
     # Append to wave file
     Add-Content -Path $WaveFile -Value $issuesSummary -Encoding UTF8
-    Write-Host "  ✅ Appended $($unresolvedData.issues.Count) issue(s) to wave file"
+    Write-Host "  [OK] Appended $($unresolvedData.issues.Count) issue(s) to wave file"
 } else {
-    Write-Host "  ℹ️  No unresolved issues to append"
+    Write-Host "  [INFO] No unresolved issues to append"
 }
 
 Write-Host ""
@@ -237,11 +237,11 @@ Write-Host ""
 Write-Host "============ CLEANUP COMPLETE ============" -ForegroundColor Green
 Write-Host ""
 Write-Host "Files cleaned:"
-Write-Host "  ✅ Wave${WaveNumber}_All_Phases.md"
-Write-Host "  ✅ AUTOPACK_IMPS_MASTER.json"
-Write-Host "  ✅ AUTOPACK_WAVE_PLAN.json"
+Write-Host "  [OK] Wave${WaveNumber}_All_Phases.md"
+Write-Host "  [OK] AUTOPACK_IMPS_MASTER.json"
+Write-Host "  [OK] AUTOPACK_WAVE_PLAN.json"
 if ($null -ne $unresolvedData -and $unresolvedData.issues.Count -gt 0) {
-    Write-Host "  ✅ Unresolved issues appended to Wave${WaveNumber}_All_Phases.md"
+    Write-Host "  [OK] Unresolved issues appended to Wave${WaveNumber}_All_Phases.md"
 }
 Write-Host ""
 Write-Host "Completed phases removed: $($completedPrompts.Count)"
@@ -265,7 +265,7 @@ if ($pendingAfter -gt 0) {
     Write-Host "[INFO] Wave $WaveNumber has $readyAfter [READY] phase(s) remaining"
     Write-Host "[INFO] Use Button 2 to continue filling slots"
 } else {
-    Write-Host "[INFO] ✅ Wave $WaveNumber complete!"
+    Write-Host "[OK] Wave $WaveNumber complete!"
     Write-Host "[INFO] Ready for Wave $($WaveNumber + 1)"
     Write-Host "[INFO] Use Button 1 to generate Wave $($WaveNumber + 1) prompts"
 }

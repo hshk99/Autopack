@@ -93,6 +93,54 @@ function Send-MessageToCursorWindow {
     )
 
     try {
+        # Add window enumeration helper class if not already loaded
+        if (-not ([System.Management.Automation.PSTypeName]'WindowEnumerator').Type) {
+            Add-Type @"
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text;
+
+public class WindowEnumerator {
+    [DllImport("user32.dll")]
+    public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+    [DllImport("user32.dll")]
+    public static extern bool IsWindowVisible(IntPtr hWnd);
+
+    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    public static IntPtr GetFirstCursorWindow() {
+        IntPtr firstWindow = IntPtr.Zero;
+        var procesIds = new HashSet<uint>();
+
+        foreach (var proc in System.Diagnostics.Process.GetProcessesByName("cursor")) {
+            procesIds.Add((uint)proc.Id);
+        }
+
+        EnumWindows((hWnd, lParam) => {
+            uint procId;
+            GetWindowThreadProcessId(hWnd, out procId);
+            if (procesIds.Contains(procId) && IsWindowVisible(hWnd)) {
+                if (firstWindow == IntPtr.Zero) {
+                    firstWindow = hWnd;
+                }
+            }
+            return true;
+        }, IntPtr.Zero);
+
+        return firstWindow;
+    }
+}
+"@
+        }
+
         # Add keyboard helper class if not already loaded
         if (-not ([System.Management.Automation.PSTypeName]'KeyboardEvent').Type) {
             Add-Type @"
@@ -146,19 +194,16 @@ public class KeyboardEvent {
         Add-Type -AssemblyName System.Windows.Forms
         [System.Windows.Forms.Clipboard]::SetText($Message)
 
-        # Get any Cursor window
-        $cursorProcess = Get-Process -Name "cursor" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($null -eq $cursorProcess) {
+        # Get first actual Cursor window using proper enumeration
+        $cursorWindowHandle = [WindowEnumerator]::GetFirstCursorWindow()
+        if ($cursorWindowHandle -eq [IntPtr]::Zero) {
             Write-Host "    [WARN] No Cursor window found"
             return $false
         }
 
         # Focus the window
-        $mainWindowHandle = $cursorProcess.MainWindowHandle
-        if ($mainWindowHandle -ne 0) {
-            [KeyboardEvent]::SetForegroundWindow($mainWindowHandle)
-            Start-Sleep -Milliseconds 300
-        }
+        [KeyboardEvent]::SetForegroundWindow($cursorWindowHandle)
+        Start-Sleep -Milliseconds 300
 
         # Open Claude Chat (Ctrl+Shift+9)
         [KeyboardEvent]::SendCtrlShift9()

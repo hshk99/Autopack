@@ -110,13 +110,14 @@ def get_pool_health():
 
 
 def init_db():
-    """Initialize database tables with P0.4 safety guardrails.
+    """Initialize database tables with P0.4 safety guardrails and migrations.
 
     Behavior:
-    - If AUTOPACK_DB_BOOTSTRAP=1: Creates missing tables (dev/test mode)
-    - If AUTOPACK_DB_BOOTSTRAP=0 (default): Fails fast if schema missing (production safe)
+    - If AUTOPACK_DB_BOOTSTRAP=1: Creates missing tables via create_all (dev/test mode)
+    - If AUTOPACK_DB_BOOTSTRAP=0 (default): Runs Alembic migrations (production safe)
 
     This prevents silent schema drift between SQLite/Postgres environments.
+    Alembic migrations provide version-controlled, reversible schema changes.
     """
     from .config import settings
     import logging
@@ -132,25 +133,9 @@ def init_db():
     )
     from .auth.models import User  # noqa: F401  # BUILD-146 P12 Phase 5
 
-    # P0.4: Guard against accidental schema creation in production
-    if not settings.db_bootstrap_enabled:
-        # Verify schema exists (check for a known core table)
-        from sqlalchemy import inspect
-
-        inspector = inspect(engine)
-        existing_tables = inspector.get_table_names()
-
-        if not existing_tables or "runs" not in existing_tables:
-            error_msg = (
-                "DATABASE SCHEMA MISSING: No tables found (or 'runs' table missing).\n"
-                "To bootstrap schema, set environment variable: AUTOPACK_DB_BOOTSTRAP=1\n"
-                "For production, run migrations instead of using create_all()."
-            )
-            logger.error(error_msg)
-            raise DatabaseError(error_msg)
-
-        logger.info(f"[DB] Schema validation passed: {len(existing_tables)} tables found")
-    else:
+    # Bootstrap mode: create missing tables via create_all (for dev/test)
+    # Migration mode: use Alembic (for production - IMP-OPS-002)
+    if settings.db_bootstrap_enabled:
         # Bootstrap mode: create missing tables
         logger.warning(
             "[DB] Bootstrap mode enabled (AUTOPACK_DB_BOOTSTRAP=1). "
@@ -158,6 +143,10 @@ def init_db():
         )
         Base.metadata.create_all(bind=engine)
         logger.info("[DB] Schema created/updated via create_all()")
+    else:
+        # Production mode: run Alembic migrations (IMP-OPS-002)
+        logger.info("[DB] Running Alembic migrations for schema management")
+        run_migrations()
 
 
 # Session health check interval (25 minutes - before 30 min pool_recycle)
@@ -189,3 +178,48 @@ def ensure_session_healthy(session: Session) -> bool:
         except Exception as close_err:
             logger.debug(f"Error during session cleanup: {close_err}")
         return True  # Session will reconnect on next use
+
+
+def run_migrations() -> None:
+    """Run Alembic database migrations.
+
+    This function upgrades the database schema to the latest migration version.
+    It uses the Alembic command API to execute migrations.
+
+    This should be called during application startup to ensure the database
+    schema is up to date before any other database operations are performed.
+
+    Raises:
+        Exception: If migration fails. Database may be left in an inconsistent state.
+    """
+    from alembic import command
+    from alembic.config import Config
+    import os
+
+    # Create Alembic config
+    alembic_cfg = Config()
+
+    # Set script location relative to this file
+    script_dir = os.path.join(os.path.dirname(__file__), "migrations")
+    alembic_cfg.set_main_option("script_location", script_dir)
+
+    # Set database URL from environment
+    db_url = get_database_url()
+    alembic_cfg.set_main_option("sqlalchemy.url", db_url)
+
+    # Check if this is a development environment (for logging)
+    import sys
+
+    is_dev = "--dev" in sys.argv or os.getenv("AUTOPACK_ENV") == "development"
+
+    if is_dev:
+        logger.info(f"[DB] Running Alembic migrations from: {script_dir}")
+        logger.info(f"[DB] Database URL: {db_url[:20]}...")  # Truncated for security
+
+    try:
+        # Run migrations to head (latest version)
+        command.upgrade(alembic_cfg, "head")
+        logger.info("[DB] Database migrations completed successfully")
+    except Exception as e:
+        logger.error(f"[DB] Failed to run migrations: {e}")
+        raise DatabaseError(f"Database migration failed: {e}") from e

@@ -5,6 +5,7 @@ from autopack.context_budgeter import (
     select_files_for_context,
     reset_embedding_cache,
     get_embedding_stats,
+    set_cache_persistence,
     _lexical_score,
 )
 
@@ -210,7 +211,10 @@ class TestContextBudgeter:
         assert "src/deliverable.py" in result.kept
 
     def test_reset_cache_clears_state(self):
-        """Test that reset_embedding_cache clears all state."""
+        """Test that reset_embedding_cache respects persistence setting."""
+        # Disable cross-phase persistence for this test (old behavior)
+        set_cache_persistence(False)
+
         # Populate cache
         with patch("autopack.context_budgeter.semantic_embeddings_enabled", return_value=True):
             with patch(
@@ -229,6 +233,7 @@ class TestContextBudgeter:
         stats_before = get_embedding_stats()
         assert stats_before["cache_size"] > 0
         assert stats_before["call_count"] > 0
+        assert stats_before["persist_cache"] is False
 
         # Reset
         reset_embedding_cache()
@@ -236,6 +241,9 @@ class TestContextBudgeter:
         stats_after = get_embedding_stats()
         assert stats_after["cache_size"] == 0
         assert stats_after["call_count"] == 0
+
+        # Re-enable cross-phase persistence for other tests
+        set_cache_persistence(True)
 
     @patch("autopack.context_budgeter.semantic_embeddings_enabled")
     @patch("autopack.context_budgeter.sync_embed_texts")

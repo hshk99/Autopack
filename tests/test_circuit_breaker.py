@@ -2,6 +2,8 @@
 
 import pytest
 import time
+import tempfile
+import os
 from unittest.mock import Mock
 
 from autopack.circuit_breaker import (
@@ -11,6 +13,14 @@ from autopack.circuit_breaker import (
     CircuitBreakerOpenError,
     CircuitBreakerMetrics,
 )
+
+
+@pytest.fixture
+def temp_persistence_file():
+    """Provide a temporary persistence file for each test."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        state_file = os.path.join(tmpdir, "circuit_breaker_state.json")
+        yield state_file
 
 
 class TestCircuitBreakerConfig:
@@ -82,19 +92,21 @@ class TestCircuitBreakerMetrics:
 class TestCircuitBreaker:
     """Tests for CircuitBreaker."""
 
-    def test_initialization(self):
+    def test_initialization(self, temp_persistence_file):
         """Test circuit breaker initialization."""
         config = CircuitBreakerConfig(failure_threshold=3)
-        breaker = CircuitBreaker(name="test", config=config)
+        breaker = CircuitBreaker(
+            name="test_init", config=config, persistence_path=temp_persistence_file
+        )
 
-        assert breaker.name == "test"
+        assert breaker.name == "test_init"
         assert breaker.state == CircuitState.CLOSED
         assert breaker.failure_count == 0
         assert breaker.success_count == 0
 
-    def test_successful_call_in_closed_state(self):
+    def test_successful_call_in_closed_state(self, temp_persistence_file):
         """Test successful call when circuit is closed."""
-        breaker = CircuitBreaker(name="test")
+        breaker = CircuitBreaker(name="test_success", persistence_path=temp_persistence_file)
         mock_func = Mock(return_value="success")
 
         result = breaker.call(mock_func)
@@ -104,10 +116,12 @@ class TestCircuitBreaker:
         assert breaker.metrics.successful_calls == 1
         mock_func.assert_called_once()
 
-    def test_failed_call_in_closed_state(self):
+    def test_failed_call_in_closed_state(self, temp_persistence_file):
         """Test failed call when circuit is closed."""
         config = CircuitBreakerConfig(failure_threshold=3)
-        breaker = CircuitBreaker(name="test", config=config)
+        breaker = CircuitBreaker(
+            name="test_fail", config=config, persistence_path=temp_persistence_file
+        )
         mock_func = Mock(side_effect=Exception("error"))
 
         with pytest.raises(Exception, match="error"):
@@ -117,10 +131,12 @@ class TestCircuitBreaker:
         assert breaker.failure_count == 1
         assert breaker.metrics.failed_calls == 1
 
-    def test_transition_to_open_on_threshold(self):
+    def test_transition_to_open_on_threshold(self, temp_persistence_file):
         """Test transition to OPEN state when failure threshold is reached."""
         config = CircuitBreakerConfig(failure_threshold=3)
-        breaker = CircuitBreaker(name="test", config=config)
+        breaker = CircuitBreaker(
+            name="test_threshold", config=config, persistence_path=temp_persistence_file
+        )
         mock_func = Mock(side_effect=Exception("error"))
 
         # Fail 3 times to reach threshold
@@ -131,10 +147,12 @@ class TestCircuitBreaker:
         assert breaker.state == CircuitState.OPEN
         assert breaker.metrics.failed_calls == 3
 
-    def test_reject_calls_when_open(self):
+    def test_reject_calls_when_open(self, temp_persistence_file):
         """Test that calls are rejected when circuit is open."""
         config = CircuitBreakerConfig(failure_threshold=2)
-        breaker = CircuitBreaker(name="test", config=config)
+        breaker = CircuitBreaker(
+            name="test_reject", config=config, persistence_path=temp_persistence_file
+        )
         mock_func = Mock(side_effect=Exception("error"))
 
         # Open the circuit
@@ -148,10 +166,12 @@ class TestCircuitBreaker:
 
         assert breaker.metrics.rejected_calls == 1
 
-    def test_transition_to_half_open_after_timeout(self):
+    def test_transition_to_half_open_after_timeout(self, temp_persistence_file):
         """Test transition to HALF_OPEN state after timeout."""
         config = CircuitBreakerConfig(failure_threshold=2, timeout=0.1)
-        breaker = CircuitBreaker(name="test", config=config)
+        breaker = CircuitBreaker(
+            name="test_half_open", config=config, persistence_path=temp_persistence_file
+        )
         mock_func = Mock(side_effect=Exception("error"))
 
         # Open the circuit
@@ -172,10 +192,12 @@ class TestCircuitBreaker:
         assert result == "success"
         assert breaker.state == CircuitState.HALF_OPEN
 
-    def test_recovery_in_half_open_state(self):
+    def test_recovery_in_half_open_state(self, temp_persistence_file):
         """Test recovery to CLOSED state from HALF_OPEN."""
         config = CircuitBreakerConfig(failure_threshold=2, success_threshold=2, timeout=0.1)
-        breaker = CircuitBreaker(name="test", config=config)
+        breaker = CircuitBreaker(
+            name="test_recovery", config=config, persistence_path=temp_persistence_file
+        )
         mock_func = Mock(side_effect=Exception("error"))
 
         # Open the circuit
@@ -196,10 +218,12 @@ class TestCircuitBreaker:
         breaker.call(mock_func)
         assert breaker.state == CircuitState.CLOSED
 
-    def test_failure_in_half_open_reopens_circuit(self):
+    def test_failure_in_half_open_reopens_circuit(self, temp_persistence_file):
         """Test that failure in HALF_OPEN immediately reopens circuit."""
         config = CircuitBreakerConfig(failure_threshold=2, timeout=0.1)
-        breaker = CircuitBreaker(name="test", config=config)
+        breaker = CircuitBreaker(
+            name="test_reopen", config=config, persistence_path=temp_persistence_file
+        )
         mock_func = Mock(side_effect=Exception("error"))
 
         # Open the circuit
@@ -216,10 +240,12 @@ class TestCircuitBreaker:
 
         assert breaker.state == CircuitState.OPEN
 
-    def test_manual_reset(self):
+    def test_manual_reset(self, temp_persistence_file):
         """Test manual reset of circuit breaker."""
         config = CircuitBreakerConfig(failure_threshold=2)
-        breaker = CircuitBreaker(name="test", config=config)
+        breaker = CircuitBreaker(
+            name="test_reset", config=config, persistence_path=temp_persistence_file
+        )
         mock_func = Mock(side_effect=Exception("error"))
 
         # Open the circuit
@@ -235,10 +261,12 @@ class TestCircuitBreaker:
         assert breaker.state == CircuitState.CLOSED
         assert breaker.failure_count == 0
 
-    def test_is_available(self):
+    def test_is_available(self, temp_persistence_file):
         """Test is_available method."""
         config = CircuitBreakerConfig(failure_threshold=2)
-        breaker = CircuitBreaker(name="test", config=config)
+        breaker = CircuitBreaker(
+            name="test_available", config=config, persistence_path=temp_persistence_file
+        )
 
         assert breaker.is_available() is True
 
@@ -250,14 +278,14 @@ class TestCircuitBreaker:
 
         assert breaker.is_available() is False
 
-    def test_get_state(self):
+    def test_get_state(self, temp_persistence_file):
         """Test get_state method."""
-        breaker = CircuitBreaker(name="test")
+        breaker = CircuitBreaker(name="test_state", persistence_path=temp_persistence_file)
         assert breaker.get_state() == CircuitState.CLOSED
 
-    def test_get_metrics(self):
+    def test_get_metrics(self, temp_persistence_file):
         """Test get_metrics method."""
-        breaker = CircuitBreaker(name="test")
+        breaker = CircuitBreaker(name="test_metrics", persistence_path=temp_persistence_file)
         mock_func = Mock(return_value="success")
 
         breaker.call(mock_func)
@@ -266,11 +294,11 @@ class TestCircuitBreaker:
         assert metrics.total_calls == 1
         assert metrics.successful_calls == 1
 
-    def test_thread_safety(self):
+    def test_thread_safety(self, temp_persistence_file):
         """Test thread safety of circuit breaker."""
         import threading
 
-        breaker = CircuitBreaker(name="test")
+        breaker = CircuitBreaker(name="test_thread", persistence_path=temp_persistence_file)
         results = []
         errors = []
 

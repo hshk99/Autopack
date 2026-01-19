@@ -15,6 +15,9 @@ import logging
 
 if TYPE_CHECKING:
     from .circuit_breaker_persistence import CircuitBreakerPersistence
+    from .circuit_breaker_file_persistence import FileBasedCircuitBreakerPersistence
+else:
+    from .circuit_breaker_file_persistence import FileBasedCircuitBreakerPersistence
 
 logger = logging.getLogger(__name__)
 
@@ -108,13 +111,16 @@ class CircuitBreaker:
         name: str,
         config: Optional[CircuitBreakerConfig] = None,
         persistence: Optional["CircuitBreakerPersistence"] = None,
+        persistence_path: str = ".autopack/circuit_breaker_state.json",
     ):
         """Initialize circuit breaker.
 
         Args:
             name: Identifier for this circuit breaker
             config: Configuration settings
-            persistence: Optional persistence layer for state recovery
+            persistence: Optional custom persistence layer for state recovery.
+                       If None, uses file-based persistence with default path.
+            persistence_path: Path for file-based persistence (default: .autopack/circuit_breaker_state.json)
         """
         self.name = name
         self.config = config or CircuitBreakerConfig()
@@ -125,13 +131,42 @@ class CircuitBreaker:
         self.last_state_change: float = time.time()
         self.metrics = CircuitBreakerMetrics()
         self._lock = threading.RLock()
-        self._persistence = persistence
+
+        # Persistence is now mandatory - use file-based by default
+        if persistence is None:
+            self._persistence = FileBasedCircuitBreakerPersistence(persistence_path)
+            logger.info(
+                f"Circuit breaker '{name}' initialized with file-based persistence: "
+                f"{persistence_path}"
+            )
+        else:
+            self._persistence = persistence
+            logger.info(f"Circuit breaker '{name}' initialized with custom persistence layer")
+
+        # Try to restore previous state
+        self._try_restore_state()
 
         logger.info(
-            f"Circuit breaker '{name}' initialized: "
+            f"Circuit breaker '{name}' fully initialized: "
             f"failure_threshold={self.config.failure_threshold}, "
-            f"timeout={self.config.timeout}s"
+            f"timeout={self.config.timeout}s, "
+            f"state={self.state.value}"
         )
+
+    def _try_restore_state(self):
+        """Try to restore circuit breaker state from persistence.
+
+        Logs but continues on failure to prevent startup issues.
+        """
+        try:
+            saved_state = self._persistence.load_state(self.name)
+            if saved_state is not None:
+                self._restore_state(saved_state)
+        except Exception as e:
+            logger.warning(
+                f"Failed to restore circuit breaker '{self.name}' state: {e}. "
+                f"Starting with default CLOSED state."
+            )
 
     def call(self, func: Callable[[], Any], *args, **kwargs) -> Any:
         """Execute function with circuit breaker protection.

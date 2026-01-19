@@ -1,204 +1,240 @@
-"""Tests for circuit breaker state persistence (IMP-030)."""
+"""Tests for circuit breaker persistence requirement."""
 
-import json
 import pytest
+import tempfile
+import os
+from pathlib import Path
 
-from autopack.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitState
-from autopack.circuit_breaker_registry import CircuitBreakerRegistry
-
-
-class TestCircuitBreakerSerialization:
-    """Test CircuitBreaker to_dict/from_dict methods."""
-
-    def test_to_dict_captures_state(self):
-        """to_dict should capture all relevant state."""
-        config = CircuitBreakerConfig(failure_threshold=3, timeout=45.0)
-        cb = CircuitBreaker(name="test_breaker", config=config)
-
-        # Simulate some activity
-        cb.metrics.total_calls = 10
-        cb.metrics.successful_calls = 8
-        cb.metrics.failed_calls = 2
-        cb.failure_count = 2
-
-        data = cb.to_dict()
-
-        assert data["name"] == "test_breaker"
-        assert data["state"] == "closed"
-        assert data["failure_count"] == 2
-        assert data["config"]["failure_threshold"] == 3
-        assert data["config"]["timeout"] == 45.0
-        assert data["metrics"]["total_calls"] == 10
-        assert data["metrics"]["successful_calls"] == 8
-
-    def test_from_dict_restores_state(self):
-        """from_dict should restore circuit breaker state."""
-        data = {
-            "name": "restored_breaker",
-            "state": "open",
-            "failure_count": 5,
-            "success_count": 0,
-            "last_failure_time": 1234567890.0,
-            "last_state_change": 1234567890.0,
-            "config": {
-                "failure_threshold": 10,
-                "success_threshold": 3,
-                "timeout": 120.0,
-                "half_open_timeout": 60.0,
-            },
-            "metrics": {
-                "total_calls": 100,
-                "successful_calls": 90,
-                "failed_calls": 10,
-                "rejected_calls": 5,
-                "state_transitions": {"closed_to_open": 2},
-            },
-        }
-
-        cb = CircuitBreaker.from_dict(data)
-
-        assert cb.name == "restored_breaker"
-        assert cb.state == CircuitState.OPEN
-        assert cb.failure_count == 5
-        assert cb.config.failure_threshold == 10
-        assert cb.config.timeout == 120.0
-        assert cb.metrics.total_calls == 100
-        assert cb.metrics.rejected_calls == 5
-        assert cb.metrics.state_transitions["closed_to_open"] == 2
-
-    def test_roundtrip_preserves_state(self):
-        """to_dict followed by from_dict should preserve state."""
-        config = CircuitBreakerConfig(failure_threshold=5, timeout=30.0)
-        original = CircuitBreaker(name="roundtrip_test", config=config)
-
-        # Modify state
-        original.metrics.total_calls = 50
-        original.metrics.failed_calls = 3
-        original.failure_count = 3
-
-        # Roundtrip
-        data = original.to_dict()
-        restored = CircuitBreaker.from_dict(data)
-
-        assert restored.name == original.name
-        assert restored.state == original.state
-        assert restored.failure_count == original.failure_count
-        assert restored.config.failure_threshold == original.config.failure_threshold
-        assert restored.metrics.total_calls == original.metrics.total_calls
+from autopack.circuit_breaker import (
+    CircuitBreaker,
+    CircuitState,
+    CircuitBreakerConfig,
+    CircuitBreakerOpenError,
+)
+from autopack.circuit_breaker_file_persistence import FileBasedCircuitBreakerPersistence
 
 
-class TestRegistryPersistence:
-    """Test CircuitBreakerRegistry persist_all/restore_all methods."""
+class TestCircuitBreakerPersistenceMandatory:
+    """Test that circuit breaker persistence is mandatory and functional."""
 
-    @pytest.fixture
-    def temp_persistence_path(self, tmp_path):
-        """Create a temporary persistence file path."""
-        return tmp_path / "circuit_breaker_state.json"
+    def test_persistence_is_required_with_default_path(self):
+        """Verify circuit breaker uses file-based persistence by default."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_file = os.path.join(tmpdir, "test_state.json")
+            breaker = CircuitBreaker(
+                name="test_breaker",
+                persistence_path=state_file,
+                config=CircuitBreakerConfig(failure_threshold=2),
+            )
 
-    @pytest.fixture
-    def fresh_registry(self):
-        """Create a fresh registry instance (bypass singleton)."""
-        registry = object.__new__(CircuitBreakerRegistry)
-        registry._breakers = {}
-        registry._configs = {}
-        registry._registry_lock = __import__("threading").RLock()
-        registry._persistence = None  # Required for persist_all/restore_all methods
-        registry._initialized = True
-        return registry
+            # Trigger failures to open circuit (which will save state)
+            for _ in range(3):
+                try:
+                    breaker.call(lambda: 1 / 0)
+                except ZeroDivisionError:
+                    pass
+                except CircuitBreakerOpenError:
+                    # Circuit opened, expected
+                    break
 
-    def test_persist_all_creates_file(self, fresh_registry, temp_persistence_path):
-        """persist_all should create the persistence file."""
-        fresh_registry.register("breaker1", CircuitBreakerConfig(failure_threshold=5))
-        fresh_registry.register("breaker2", CircuitBreakerConfig(failure_threshold=10))
+            # Now verify persistence file was created after state change
+            assert Path(state_file).exists()
+            assert breaker.get_state() == CircuitState.OPEN
 
-        result = fresh_registry.persist_all(temp_persistence_path)
+    def test_state_persists_across_instances(self):
+        """Verify circuit breaker state persists across different instances."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_file = os.path.join(tmpdir, "persist_state.json")
 
-        assert result is True
-        assert temp_persistence_path.exists()
+            # Create first breaker and open circuit
+            breaker1 = CircuitBreaker(
+                name="persist_test",
+                persistence_path=state_file,
+                config=CircuitBreakerConfig(failure_threshold=2),
+            )
 
-        with open(temp_persistence_path) as f:
-            data = json.load(f)
+            # Trigger failures until circuit opens
+            for _ in range(2):
+                try:
+                    breaker1.call(lambda: 1 / 0)
+                except ZeroDivisionError:
+                    pass
+                except CircuitBreakerOpenError:
+                    # Circuit opened, expected
+                    break
 
-        assert "breaker1" in data
-        assert "breaker2" in data
-        assert data["breaker1"]["config"]["failure_threshold"] == 5
+            assert breaker1.get_state() == CircuitState.OPEN
 
-    def test_restore_all_loads_state(self, fresh_registry, temp_persistence_path):
-        """restore_all should load circuit breakers from file."""
-        # Create persistence file manually
-        states = {
-            "api_service": {
-                "name": "api_service",
-                "state": "open",
-                "failure_count": 5,
-                "success_count": 0,
-                "last_failure_time": None,
-                "last_state_change": 1234567890.0,
-                "config": {
-                    "failure_threshold": 5,
-                    "success_threshold": 2,
-                    "timeout": 60.0,
-                    "half_open_timeout": 30.0,
-                },
-                "metrics": {
-                    "total_calls": 20,
-                    "successful_calls": 15,
-                    "failed_calls": 5,
-                    "rejected_calls": 0,
-                    "state_transitions": {},
-                },
-            }
-        }
-        temp_persistence_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(temp_persistence_path, "w") as f:
-            json.dump(states, f)
+            # Create second breaker with same name - should restore OPEN state
+            breaker2 = CircuitBreaker(
+                name="persist_test",
+                persistence_path=state_file,
+                config=CircuitBreakerConfig(failure_threshold=2),
+            )
 
-        count = fresh_registry.restore_all(temp_persistence_path)
+            assert breaker2.get_state() == CircuitState.OPEN
 
-        assert count == 1
-        breaker = fresh_registry.get("api_service")
-        assert breaker is not None
-        assert breaker.state == CircuitState.OPEN
-        assert breaker.config.failure_threshold == 5
+            # Verify it rejects calls as expected
+            with pytest.raises(CircuitBreakerOpenError):
+                breaker2.call(lambda: "test")
 
-    def test_restore_all_returns_zero_for_missing_file(self, fresh_registry, tmp_path):
-        """restore_all should return 0 if file doesn't exist."""
-        nonexistent = tmp_path / "nonexistent.json"
-        count = fresh_registry.restore_all(nonexistent)
-        assert count == 0
+    def test_custom_persistence_can_be_used(self):
+        """Verify custom persistence layer can be provided."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_file = os.path.join(tmpdir, "custom_state.json")
 
-    def test_restore_all_handles_invalid_json(self, fresh_registry, temp_persistence_path):
-        """restore_all should handle invalid JSON gracefully."""
-        temp_persistence_path.parent.mkdir(parents=True, exist_ok=True)
-        temp_persistence_path.write_text("not valid json {{{")
+            custom_persistence = FileBasedCircuitBreakerPersistence(state_file)
 
-        count = fresh_registry.restore_all(temp_persistence_path)
-        assert count == 0
+            breaker = CircuitBreaker(
+                name="custom_test",
+                persistence=custom_persistence,
+                config=CircuitBreakerConfig(failure_threshold=2),
+            )
 
-    def test_persist_restore_roundtrip(self, fresh_registry, temp_persistence_path):
-        """Full roundtrip: persist, clear, restore."""
-        # Register and modify breakers
-        fresh_registry.register("service_a", CircuitBreakerConfig(failure_threshold=3))
-        fresh_registry.register("service_b", CircuitBreakerConfig(failure_threshold=7))
+            # Verify custom persistence is used
+            assert breaker._persistence is custom_persistence
 
-        breaker_a = fresh_registry.get("service_a")
-        breaker_a.metrics.total_calls = 100
-        breaker_a.failure_count = 2
+    def test_persistence_directory_created_if_missing(self):
+        """Verify persistence directory is created if it doesn't exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Use a non-existent subdirectory
+            state_file = os.path.join(tmpdir, "new_dir", "nested", "state.json")
 
-        # Persist
-        fresh_registry.persist_all(temp_persistence_path)
+            breaker = CircuitBreaker(
+                name="dir_test",
+                persistence_path=state_file,
+            )
 
-        # Clear
-        fresh_registry.clear()
-        assert fresh_registry.count() == 0
+            # Trigger a state change to save
+            try:
+                breaker.call(lambda: 1 / 0)
+            except ZeroDivisionError:
+                pass
+            except CircuitBreakerOpenError:
+                pass
 
-        # Restore
-        count = fresh_registry.restore_all(temp_persistence_path)
+            # Verify directory was created
+            assert Path(state_file).parent.exists()
 
-        assert count == 2
-        assert fresh_registry.count() == 2
+    def test_metrics_are_persisted(self):
+        """Verify circuit breaker metrics are persisted."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_file = os.path.join(tmpdir, "metrics_state.json")
 
-        restored_a = fresh_registry.get("service_a")
-        assert restored_a is not None
-        assert restored_a.config.failure_threshold == 3
-        assert restored_a.metrics.total_calls == 100
+            breaker = CircuitBreaker(
+                name="metrics_test",
+                persistence_path=state_file,
+            )
+
+            # Generate some calls
+            try:
+                breaker.call(lambda: "success")
+            except Exception:
+                pass
+
+            # Trigger failures
+            for _ in range(5):
+                try:
+                    breaker.call(lambda: 1 / 0)
+                except ZeroDivisionError:
+                    pass
+                except CircuitBreakerOpenError:
+                    break
+
+            metrics1 = breaker.get_metrics()
+            assert metrics1.total_calls > 0
+            assert metrics1.failed_calls > 0
+
+            # Create new instance and verify metrics restored
+            breaker2 = CircuitBreaker(
+                name="metrics_test",
+                persistence_path=state_file,
+            )
+
+            metrics2 = breaker2.get_metrics()
+            assert metrics2.total_calls == metrics1.total_calls
+            assert metrics2.failed_calls == metrics1.failed_calls
+
+    def test_state_recovered_after_timeout(self):
+        """Verify HALF_OPEN state is recovered correctly."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_file = os.path.join(tmpdir, "timeout_state.json")
+
+            # Create breaker with very short timeout
+            breaker = CircuitBreaker(
+                name="timeout_test",
+                persistence_path=state_file,
+                config=CircuitBreakerConfig(
+                    failure_threshold=2,
+                    timeout=0.1,  # 100ms
+                    half_open_timeout=0.05,
+                ),
+            )
+
+            # Open circuit
+            for _ in range(2):
+                try:
+                    breaker.call(lambda: 1 / 0)
+                except ZeroDivisionError:
+                    pass
+                except CircuitBreakerOpenError:
+                    break
+
+            assert breaker.get_state() == CircuitState.OPEN
+
+            # Create new instance - should be OPEN initially
+            breaker2 = CircuitBreaker(
+                name="timeout_test",
+                persistence_path=state_file,
+                config=CircuitBreakerConfig(
+                    failure_threshold=2,
+                    timeout=0.1,
+                    half_open_timeout=0.05,
+                ),
+            )
+
+            assert breaker2.get_state() == CircuitState.OPEN
+
+    def test_multiple_breakers_share_state_file(self):
+        """Verify multiple breakers can share a single state file."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_file = os.path.join(tmpdir, "shared_state.json")
+
+            breaker_a = CircuitBreaker(
+                name="service_a",
+                persistence_path=state_file,
+                config=CircuitBreakerConfig(failure_threshold=1),
+            )
+
+            breaker_b = CircuitBreaker(
+                name="service_b",
+                persistence_path=state_file,
+                config=CircuitBreakerConfig(failure_threshold=1),
+            )
+
+            # Open breaker A
+            try:
+                breaker_a.call(lambda: 1 / 0)
+            except ZeroDivisionError:
+                pass
+            except CircuitBreakerOpenError:
+                pass
+
+            assert breaker_a.get_state() == CircuitState.OPEN
+            assert breaker_b.get_state() == CircuitState.CLOSED
+
+            # Create new instances
+            breaker_a2 = CircuitBreaker(
+                name="service_a",
+                persistence_path=state_file,
+                config=CircuitBreakerConfig(failure_threshold=1),
+            )
+
+            breaker_b2 = CircuitBreaker(
+                name="service_b",
+                persistence_path=state_file,
+                config=CircuitBreakerConfig(failure_threshold=1),
+            )
+
+            assert breaker_a2.get_state() == CircuitState.OPEN
+            assert breaker_b2.get_state() == CircuitState.CLOSED

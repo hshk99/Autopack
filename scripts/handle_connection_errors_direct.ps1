@@ -92,13 +92,14 @@ Write-Host ""
 
 while ($true) {
     Write-Host -NoNewline "Slot [1-9] or (q)uit? > " -ForegroundColor Yellow
-    $input = Read-Host
+    $userInput = Read-Host
 
-    if ($input -eq "q") {
+    if ($userInput -eq "q") {
         break
     }
 
-    if ([int]::TryParse($input, [ref]$slot)) {
+    $slot = $null
+    if ([int]::TryParse($userInput, [ref]$slot)) {
         if ($slot -ge 1 -and $slot -le 9) {
             Click-ResumeButton -Slot $slot
             Write-Host ""

@@ -36,6 +36,20 @@ from autopack.usage_recorder import LlmUsageEvent  # noqa: F401 - ensure model r
 from autopack.models import PolicyPromotion  # noqa: F401
 
 
+@pytest.fixture(scope="function", autouse=True)
+def clear_diagnosis_cache():
+    """Clear Doctor diagnosis cache before each test (IMP-COST-007)
+
+    The cache is global and persists between tests. This fixture ensures
+    each test starts with a clean cache to avoid cache hits from previous tests.
+    """
+    from autopack.error_recovery import clear_diagnosis_cache as _clear_cache
+
+    _clear_cache()
+    yield
+    _clear_cache()
+
+
 @pytest.fixture(scope="function")
 def db_engine():
     """Create a fresh database engine for each test"""

@@ -338,6 +338,8 @@ class DoctorIntegration:
 
         try:
             # Invoke Doctor via LlmService
+            # IMP-COST-007: LlmService.execute_doctor() already uses get_diagnosis_with_cache()
+            # to avoid redundant LLM calls for the same error patterns across phases.
             response = llm_service.execute_doctor(
                 request=request,
                 ctx_summary=ctx_summary,

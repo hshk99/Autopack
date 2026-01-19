@@ -18,6 +18,7 @@ Key Features:
 """
 
 import asyncio
+import hashlib
 import logging
 import threading
 import time
@@ -209,6 +210,12 @@ class DoctorResponse:
 
 # Doctor invocation thresholds (per GPT_RESPONSE6 constraints)
 DOCTOR_MIN_BUILDER_ATTEMPTS = 2  # Only invoke Doctor after N failures
+
+# Diagnosis cache (IMP-COST-007: Cache doctor diagnosis by error type)
+_diagnosis_cache: Dict[str, DoctorResponse] = {}
+_diagnosis_cache_hits: int = 0
+_diagnosis_cache_misses: int = 0
+_diagnosis_cache_limit: int = 1000  # Maximum cache entries to prevent unbounded growth
 
 # Doctor model routing thresholds - loaded from config/models.yaml doctor_models section
 # These are module-level aliases for backward compatibility
@@ -403,6 +410,210 @@ def should_escalate_doctor_model(
         f"builder_attempts={builder_attempts} -> escalating to strong model"
     )
     return True
+
+
+# =============================================================================
+# DIAGNOSIS CACHE FUNCTIONS (IMP-COST-007)
+# =============================================================================
+# IMP-COST-007: Cache doctor diagnosis by error type
+#
+# Problem: Same error types trigger independent Doctor LLM calls across phases,
+# leading to redundant API calls and token spend.
+#
+# Solution: Cache Doctor diagnoses keyed by error type (error_category + error_message).
+# This enables cross-phase reuse of diagnostic patterns.
+#
+# Cache Strategy:
+# - Cache key includes error_category and phase_id for specificity
+# - Error message first 200 chars used for differentiation
+# - LRU eviction at 1000 entries to prevent unbounded growth
+# - Thread-safe global cache with hits/misses tracking
+#
+# Integration:
+# - llm_service.execute_doctor() wraps doctor.execute_doctor() with cache check
+# - First request for error type → calls Doctor LLM → caches response
+# - Subsequent requests for same error type → returns cached response
+# - Cache statistics available via get_diagnosis_cache_stats()
+# =============================================================================
+
+
+def _get_diagnosis_cache_key(
+    error_category: str,
+    error_message: str,
+    phase_id: Optional[str] = None,
+) -> str:
+    """
+    Generate cache key for Doctor diagnosis.
+
+    The key includes:
+    - error_category: High-level classification (network, encoding, etc.)
+    - error_message: First 200 chars of error message (for specificity)
+    - phase_id: Optional phase context for phase-specific patterns
+
+    Hash is used to avoid huge keys and ensure consistent length.
+
+    Per IMP-COST-007: Enables cross-phase reuse of diagnostics for similar
+    error patterns, reducing Doctor LLM calls and token spend.
+
+    Args:
+        error_category: Category of error (from ErrorCategory enum value)
+        error_message: Error message string
+        phase_id: Optional phase identifier for context
+
+    Returns:
+        MD5 hash string used as cache key
+    """
+    content = f"{error_category}:{error_message[:200]}:{phase_id or ''}"
+    return hashlib.md5(content.encode()).hexdigest()
+
+
+def get_diagnosis_from_cache(
+    error_category: str,
+    error_message: str,
+    phase_id: Optional[str] = None,
+) -> Optional[DoctorResponse]:
+    """
+    Retrieve cached Doctor diagnosis if available.
+
+    Args:
+        error_category: Category of error
+        error_message: Error message string
+        phase_id: Optional phase identifier
+
+    Returns:
+        Cached DoctorResponse if found, None otherwise
+    """
+    global _diagnosis_cache_hits, _diagnosis_cache_misses
+
+    cache_key = _get_diagnosis_cache_key(error_category, error_message, phase_id)
+
+    if cache_key in _diagnosis_cache:
+        _diagnosis_cache_hits += 1
+        logger.info(
+            f"[DoctorCache] HIT for {error_category} error "
+            f"(hits={_diagnosis_cache_hits}, misses={_diagnosis_cache_misses})"
+        )
+        return _diagnosis_cache[cache_key]
+
+    _diagnosis_cache_misses += 1
+    logger.debug(
+        f"[DoctorCache] MISS for {error_category} error "
+        f"(hits={_diagnosis_cache_hits}, misses={_diagnosis_cache_misses})"
+    )
+    return None
+
+
+def cache_diagnosis(
+    error_category: str,
+    error_message: str,
+    diagnosis: DoctorResponse,
+    phase_id: Optional[str] = None,
+) -> None:
+    """
+    Cache a Doctor diagnosis for future reuse.
+
+    Args:
+        error_category: Category of error
+        error_message: Error message string
+        diagnosis: DoctorResponse to cache
+        phase_id: Optional phase identifier
+    """
+    global _diagnosis_cache
+
+    cache_key = _get_diagnosis_cache_key(error_category, error_message, phase_id)
+
+    # Enforce cache size limit (LRU-like eviction)
+    if len(_diagnosis_cache) >= _diagnosis_cache_limit:
+        # Evict oldest entries (simplistic LRU)
+        keys_to_remove = list(_diagnosis_cache.keys())[:10]
+        for key in keys_to_remove:
+            del _diagnosis_cache[key]
+        logger.warning(
+            f"[DoctorCache] Evicted {len(keys_to_remove)} entries to maintain limit "
+            f"({_diagnosis_cache_limit} entries)"
+        )
+
+    _diagnosis_cache[cache_key] = diagnosis
+    logger.info(
+        f"[DoctorCache] Cached diagnosis for {error_category} error "
+        f"(action={diagnosis.action}, confidence={diagnosis.confidence:.2f})"
+    )
+
+
+def get_diagnosis_cache_stats() -> Dict[str, Any]:
+    """
+    Get cache statistics for monitoring.
+
+    Returns:
+        Dictionary with cache statistics (hits, misses, size, hit_rate)
+    """
+    total_requests = _diagnosis_cache_hits + _diagnosis_cache_misses
+    hit_rate = (_diagnosis_cache_hits / total_requests) * 100 if total_requests > 0 else 0.0
+
+    return {
+        "hits": _diagnosis_cache_hits,
+        "misses": _diagnosis_cache_misses,
+        "size": len(_diagnosis_cache),
+        "hit_rate": f"{hit_rate:.2f}%",
+        "limit": _diagnosis_cache_limit,
+    }
+
+
+def clear_diagnosis_cache() -> None:
+    """Clear the Doctor diagnosis cache."""
+    global _diagnosis_cache, _diagnosis_cache_hits, _diagnosis_cache_misses
+
+    size = len(_diagnosis_cache)
+    _diagnosis_cache.clear()
+    _diagnosis_cache_hits = 0
+    _diagnosis_cache_misses = 0
+    logger.info(f"[DoctorCache] Cleared cache ({size} entries removed)")
+
+
+def get_diagnosis_with_cache(
+    error_category: str,
+    error_message: str,
+    phase_id: Optional[str],
+    doctor_call_fn: Callable[[], DoctorResponse],
+) -> DoctorResponse:
+    """
+    Get Doctor diagnosis with automatic caching.
+
+    This is a wrapper function that checks cache before calling Doctor LLM.
+    Usage pattern:
+
+        response = get_diagnosis_with_cache(
+            error_category="network",
+            error_message=str(error),
+            phase_id=phase_id,
+            doctor_call_fn=lambda: llm_service.execute_doctor(request, ...)
+        )
+
+    Args:
+        error_category: Category of error (from ErrorCategory enum value)
+        error_message: Error message string
+        phase_id: Optional phase identifier
+        doctor_call_fn: Callable that executes actual Doctor LLM call (only called on cache miss)
+
+    Returns:
+        DoctorResponse from cache or from fresh Doctor LLM call
+    """
+    # Check cache first
+    cached = get_diagnosis_from_cache(error_category, error_message, phase_id)
+    if cached:
+        return cached
+
+    # Cache miss - call Doctor LLM
+    logger.info(
+        f"[DoctorCache] Calling Doctor LLM for {error_category} error "
+        f"({phase_id or 'no phase'})"
+    )
+    diagnosis = doctor_call_fn()
+
+    # Cache the result for future reuse
+    cache_diagnosis(error_category, error_message, diagnosis, phase_id)
+
+    return diagnosis
 
 
 class ErrorRecoverySystem:
@@ -832,6 +1043,7 @@ class ErrorRecoverySystem:
             "total_errors": len(self.error_history),
             "by_category": self._count_by_category(),
             "by_severity": self._count_by_severity(),
+            "doctor_diagnosis_cache": get_diagnosis_cache_stats(),
             "recent_errors": [
                 {
                     "type": ctx.error_type,

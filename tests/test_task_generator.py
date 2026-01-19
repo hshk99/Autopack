@@ -255,3 +255,83 @@ class TestAutonomousTaskGenerator:
         assert result.insights_processed == 2
         assert result.patterns_detected >= 0
         assert result.generation_time_ms >= 0
+
+    def test_persist_tasks_count_only_after_commit_success(self, mock_memory_service):
+        """Test that persisted_count is only returned after successful commit (IMP-LOOP-002)."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        tasks = [
+            GeneratedTask(
+                task_id="TASK-TEST001",
+                title="Test task 1",
+                description="Description 1",
+                priority="high",
+                source_insights=["i1"],
+                suggested_files=["f1.py"],
+                estimated_effort="M",
+                created_at=datetime.now(),
+            ),
+            GeneratedTask(
+                task_id="TASK-TEST002",
+                title="Test task 2",
+                description="Description 2",
+                priority="medium",
+                source_insights=["i2"],
+                suggested_files=["f2.py"],
+                estimated_effort="S",
+                created_at=datetime.now(),
+            ),
+        ]
+
+        # Mock database session and commit failure
+        mock_session = Mock()
+        mock_session.query.return_value.filter_by.return_value.first.return_value = None
+        mock_session.commit.side_effect = Exception("Database commit failed")
+
+        with patch("autopack.database.SessionLocal", return_value=mock_session):
+            # Should raise exception on commit failure
+            with pytest.raises(Exception, match="Database commit failed"):
+                generator.persist_tasks(tasks)
+
+        # Verify rollback was called
+        mock_session.rollback.assert_called_once()
+        mock_session.close.assert_called_once()
+
+    def test_persist_tasks_returns_correct_count_on_success(self, mock_memory_service):
+        """Test that persist_tasks returns correct count after successful commit."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        tasks = [
+            GeneratedTask(
+                task_id="TASK-TEST001",
+                title="Test task 1",
+                description="Description 1",
+                priority="high",
+                source_insights=["i1"],
+                suggested_files=["f1.py"],
+                estimated_effort="M",
+                created_at=datetime.now(),
+            ),
+            GeneratedTask(
+                task_id="TASK-TEST002",
+                title="Test task 2",
+                description="Description 2",
+                priority="medium",
+                source_insights=["i2"],
+                suggested_files=["f2.py"],
+                estimated_effort="S",
+                created_at=datetime.now(),
+            ),
+        ]
+
+        # Mock database session with successful commit
+        mock_session = Mock()
+        mock_session.query.return_value.filter_by.return_value.first.return_value = None
+
+        with patch("autopack.database.SessionLocal", return_value=mock_session):
+            count = generator.persist_tasks(tasks)
+
+        # Should return count of persisted tasks
+        assert count == 2
+        mock_session.commit.assert_called_once()
+        assert mock_session.add.call_count == 2

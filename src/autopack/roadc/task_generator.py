@@ -218,7 +218,7 @@ Analyze the pattern and implement a fix to prevent recurrence.
         from ..database import SessionLocal
 
         session = SessionLocal()
-        persisted_count = 0
+        tasks_to_persist = []
 
         try:
             for task in tasks:
@@ -241,9 +241,11 @@ Analyze the pattern and implement a fix to prevent recurrence.
                     status="pending",
                 )
                 session.add(db_task)
-                persisted_count += 1
+                tasks_to_persist.append(db_task)
 
             session.commit()
+            # Only count after successful commit
+            persisted_count = len(tasks_to_persist)
             logger.info(f"[ROAD-C] Persisted {persisted_count} new tasks to database")
             return persisted_count
 

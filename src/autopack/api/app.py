@@ -21,6 +21,7 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from typing import Callable
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -36,6 +37,87 @@ from ..version import __version__
 from .deps import limiter
 
 logger = logging.getLogger(__name__)
+
+
+class BackgroundTaskSupervisor:
+    """Supervisor for background tasks with automatic restart on failure.
+
+    Implements IMP-OPS-001: Background task supervision with restart on failure.
+    Prevents background tasks from dying permanently after a single error.
+
+    Features:
+    - Automatic task restart on failure with exponential backoff
+    - Maximum restart limit to prevent infinite restart loops
+    - Detailed logging of restart attempts and failures
+    - Graceful shutdown on task cancellation
+    """
+
+    def __init__(self, max_restarts: int = 5):
+        """Initialize task supervisor.
+
+        Args:
+            max_restarts: Maximum number of restart attempts before giving up
+        """
+        self._tasks: dict[str, asyncio.Task] = {}
+        self._restart_counts: dict[str, int] = {}
+        self._max_restarts = max_restarts
+
+    async def supervise(self, name: str, coro_factory: Callable) -> None:
+        """Supervise a background task, restarting on failure.
+
+        Args:
+            name: Unique identifier for the task (used in logs)
+            coro_factory: Callable that returns an awaitable coroutine to execute
+        """
+        while self._restart_counts.get(name, 0) < self._max_restarts:
+            try:
+                logger.info(f"[TASK-SUPERVISOR] Starting task: {name}")
+                await coro_factory()
+                logger.info(f"[TASK-SUPERVISOR] Task completed normally: {name}")
+                break  # Task completed normally, exit supervision loop
+
+            except asyncio.CancelledError:
+                logger.info(f"[TASK-SUPERVISOR] Task cancelled: {name}")
+                raise  # Propagate cancellation for graceful shutdown
+
+            except Exception:
+                self._restart_counts[name] = self._restart_counts.get(name, 0) + 1
+                attempt = self._restart_counts[name]
+
+                logger.error(
+                    f"[TASK-SUPERVISOR] Task failed (attempt {attempt}/{self._max_restarts}): {name}",
+                    exc_info=True,
+                )
+
+                # Exponential backoff: 2s, 4s, 8s, 16s, 32s (capped at 60s)
+                backoff_seconds = min(2**attempt, 60)
+                logger.info(f"[TASK-SUPERVISOR] Restarting task {name} in {backoff_seconds}s...")
+                await asyncio.sleep(backoff_seconds)
+
+        # Check if we exceeded max restarts
+        if self._restart_counts.get(name, 0) >= self._max_restarts:
+            logger.critical(
+                f"[TASK-SUPERVISOR] Task {name} exceeded max restarts "
+                f"({self._max_restarts}). Giving up."
+            )
+
+    def get_status(self) -> dict[str, dict]:
+        """Get status of all supervised tasks.
+
+        Returns:
+            Dictionary mapping task names to their restart counts
+        """
+        return dict(self._restart_counts)
+
+    def reset_restart_count(self, name: str) -> None:
+        """Reset restart count for a specific task.
+
+        Args:
+            name: Task name to reset
+        """
+        if name in self._restart_counts:
+            self._restart_counts[name] = 0
+            logger.info(f"[TASK-SUPERVISOR] Reset restart count for task: {name}")
 
 
 async def correlation_id_middleware(request: Request, call_next):
@@ -195,7 +277,7 @@ async def lifespan(app: FastAPI):
     Handles:
     - Production API key validation (security requirement)
     - Database initialization (skipped in testing)
-    - Background task lifecycle (approval timeout cleanup)
+    - Background task lifecycle with supervision (IMP-OPS-001)
     """
     # P0 Security: In production mode, require AUTOPACK_API_KEY to be set
     # This prevents accidentally running an unauthenticated API in production
@@ -223,8 +305,13 @@ async def lifespan(app: FastAPI):
     if os.getenv("TESTING") != "1":
         init_db()
 
-    # Start background task for approval timeout cleanup
-    timeout_task = asyncio.create_task(approval_timeout_cleanup())
+    # IMP-OPS-001: Create supervisor for background tasks with automatic restart
+    supervisor = BackgroundTaskSupervisor(max_restarts=5)
+
+    # Start supervised background task for approval timeout cleanup
+    timeout_task = asyncio.create_task(
+        supervisor.supervise("approval_timeout_cleanup", approval_timeout_cleanup)
+    )
 
     yield
 
@@ -234,6 +321,9 @@ async def lifespan(app: FastAPI):
         await timeout_task
     except asyncio.CancelledError:
         pass
+
+    # Log supervisor status on shutdown
+    logger.info(f"[TASK-SUPERVISOR] Status: {supervisor.get_status()}")
 
 
 async def global_exception_handler(request: Request, exc: Exception):

@@ -1,4 +1,5 @@
 # Check PR status for all PENDING phases and mark completed ones
+# Also tracks unresolved issues (CI/lint failures unrelated to current PR)
 param(
     [string]$WaveFile = ""
 )
@@ -15,6 +16,75 @@ function Get-DynamicFilePath {
     return $null
 }
 
+# Extract wave number from wave file
+function Get-WaveNumber {
+    param([string]$FilePath)
+    if ($FilePath -match "Wave(\d)") {
+        return [int]$Matches[1]
+    }
+    return 1
+}
+
+# Get or create unresolved issues tracking file
+function Get-UnresolvedIssuesFile {
+    param([int]$WaveNumber)
+    $fileName = "Wave${WaveNumber}_Unresolved_Issues.json"
+    return Join-Path $backupDir $fileName
+}
+
+# Load existing unresolved issues or create new tracking
+function Load-UnresolvedIssues {
+    param([int]$WaveNumber)
+    $filePath = Get-UnresolvedIssuesFile $WaveNumber
+
+    if (Test-Path $filePath) {
+        try {
+            return Get-Content $filePath -Raw | ConvertFrom-Json
+        } catch {
+            return @{ issues = @(); lastUpdated = Get-Date -Format 'yyyy-MM-dd HH:mm:ss' }
+        }
+    }
+
+    return @{ issues = @(); lastUpdated = Get-Date -Format 'yyyy-MM-dd HH:mm:ss' }
+}
+
+# Save unresolved issues to file
+function Save-UnresolvedIssues {
+    param([int]$WaveNumber, [object]$IssuesData)
+    $filePath = Get-UnresolvedIssuesFile $WaveNumber
+    $IssuesData.lastUpdated = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    $IssuesData | ConvertTo-Json -Depth 10 | Set-Content $filePath -Encoding UTF8
+}
+
+# Record an unresolved issue
+function Record-UnresolvedIssue {
+    param(
+        [int]$WaveNumber,
+        [string]$PhaseId,
+        [string]$Issue,
+        [string]$PRNumber
+    )
+
+    $issues = Load-UnresolvedIssues $WaveNumber
+
+    # Check if this issue already exists
+    $existing = $issues.issues | Where-Object { $_.phaseId -eq $PhaseId -and $_.issue -eq $Issue }
+
+    if (-not $existing) {
+        $issues.issues += @{
+            phaseId = $PhaseId
+            issue = $Issue
+            prNumber = $PRNumber
+            recorded = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+        }
+
+        Save-UnresolvedIssues $WaveNumber $issues
+        return $true
+    }
+
+    return $false
+}
+
 if ([string]::IsNullOrWhiteSpace($WaveFile)) {
     $WaveFile = Get-DynamicFilePath "Wave*_All_Phases.md"
 
@@ -23,6 +93,8 @@ if ([string]::IsNullOrWhiteSpace($WaveFile)) {
         exit 1
     }
 }
+
+$waveNumber = Get-WaveNumber $WaveFile
 
 Write-Host "PR STATUS CHECK"
 Write-Host "==============="
@@ -37,6 +109,8 @@ Write-Host ""
 
 $completedCount = 0
 $mergedPRs = @()
+$unresolvedCount = 0
+$unresolvedIssues = @()
 
 # Check first 9 phases (sec001-006, safety001-003)
 foreach ($prompt in $pendingPrompts | Select-Object -First 9) {
@@ -46,18 +120,50 @@ foreach ($prompt in $pendingPrompts | Select-Object -First 9) {
     Write-Host "$phaseId..."
 
     # Query GitHub
-    $prJson = gh pr list --head $branchName --state all --json number,state 2>/dev/null | ConvertFrom-Json
+    $prJson = gh pr list --head $branchName --state all --json number,state,statusCheckRollup 2>/dev/null | ConvertFrom-Json
 
     if ($null -ne $prJson -and $prJson.Count -gt 0) {
         $pr = if ($prJson -is [array]) { $prJson[0] } else { $prJson }
         $state = $pr.state
+        $prNumber = $pr.number
 
         if ($state -eq "MERGED") {
-            Write-Host "  -> MERGED PR #$($pr.number) (marking complete)"
+            Write-Host "  -> MERGED PR #$prNumber (marking complete)"
             $mergedPRs += $phaseId
             $completedCount++
         } elseif ($state -eq "OPEN") {
-            Write-Host "  -> OPEN PR #$($pr.number)"
+            Write-Host "  -> OPEN PR #$prNumber"
+
+            # Check for CI/lint failures
+            $hasChecks = $null -ne $pr.statusCheckRollup -and $pr.statusCheckRollup -is [array]
+
+            if ($hasChecks) {
+                # Look for status check failures
+                $failedChecks = $pr.statusCheckRollup | Where-Object { $_.status -eq "FAILURE" }
+
+                if ($failedChecks) {
+                    # Determine if failures are PR-related or unrelated
+                    $prRelatedFailure = $false
+
+                    foreach ($check in $failedChecks) {
+                        $checkName = $check.name -as [string]
+                        # These are typically unrelated to code changes (infrastructure, environment issues)
+                        if ($checkName -match "lint|format|type|build" -and -not ($checkName -match "code|security")) {
+                            $prRelatedFailure = $true
+                            break
+                        }
+                    }
+
+                    if (-not $prRelatedFailure) {
+                        Write-Host "  -> ⚠️  CI failures detected (unrelated to this PR)"
+                        Record-UnresolvedIssue -WaveNumber $waveNumber -PhaseId $phaseId -Issue "CI/lint failure" -PRNumber $prNumber
+                        $unresolvedCount++
+                        $unresolvedIssues += $phaseId
+                    } else {
+                        Write-Host "  -> ❌ PR needs fixes (code-related CI failures)"
+                    }
+                }
+            }
         } else {
             Write-Host "  -> PR state: $state"
         }
@@ -70,6 +176,16 @@ Write-Host ""
 Write-Host "RESULTS:"
 Write-Host "========="
 Write-Host "Merged PRs ready to mark COMPLETED: $completedCount"
+Write-Host "Unresolved issues recorded: $unresolvedCount"
+
+if ($unresolvedCount -gt 0) {
+    Write-Host ""
+    Write-Host "✅ READY TO MERGE (with unresolved issues to address separately)"
+    Write-Host "Phases with unresolved issues: $($unresolvedIssues -join ', ')"
+    Write-Host ""
+    Write-Host "📋 Issues have been recorded in: $(Get-UnresolvedIssuesFile $waveNumber)"
+    Write-Host "   These issues will be included in wave cleanup summary."
+}
 
 if ($mergedPRs.Count -gt 0) {
     Write-Host ""

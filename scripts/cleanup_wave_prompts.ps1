@@ -3,6 +3,7 @@
 #   1. Wave[N]_All_Phases.md
 #   2. AUTOPACK_IMPS_MASTER.json
 #   3. AUTOPACK_WAVE_PLAN.json
+# Also appends unresolved issues from Wave[N]_Unresolved_Issues.json to wave file
 # Usage: .\cleanup_wave_prompts.ps1 -WaveNumber 1
 
 param(
@@ -23,6 +24,34 @@ function Get-DynamicFilePath {
     if ($files.Count -gt 0) {
         return $files[0].FullName
     }
+    return $null
+}
+
+# Get unresolved issues file path
+function Get-UnresolvedIssuesFile {
+    param([int]$WaveNumber)
+    $fileName = "Wave${WaveNumber}_Unresolved_Issues.json"
+    return Join-Path $backupDir $fileName
+}
+
+# Load and format unresolved issues summary
+function Get-UnresolvedIssuesSummary {
+    param([int]$WaveNumber)
+    $filePath = Get-UnresolvedIssuesFile $WaveNumber
+
+    if (-not (Test-Path $filePath)) {
+        return $null
+    }
+
+    try {
+        $issues = Get-Content $filePath -Raw | ConvertFrom-Json
+        if ($null -ne $issues.issues -and $issues.issues.Count -gt 0) {
+            return $issues
+        }
+    } catch {
+        Write-Host "  ⚠️  Could not load unresolved issues: $_"
+    }
+
     return $null
 }
 
@@ -168,6 +197,42 @@ if ($null -ne $planFile -and (Test-Path $planFile)) {
 
 Write-Host ""
 
+# ============ CLEANUP 4: Append Unresolved Issues to Wave File ============
+Write-Host "CLEANUP 4: Appending unresolved issues summary" -ForegroundColor Yellow
+
+$unresolvedData = Get-UnresolvedIssuesSummary $WaveNumber
+
+if ($null -ne $unresolvedData -and $unresolvedData.issues.Count -gt 0) {
+    Write-Host "  📋 Found $($unresolvedData.issues.Count) unresolved issue(s)"
+
+    # Create unresolved issues section
+    $issuesSummary = @"
+
+---
+
+## Unresolved Issues (Wave $WaveNumber)
+
+**Summary**: The following phases have CI/lint failures unrelated to code changes. These should be addressed separately.
+
+| Phase | Issue | PR | Recorded |
+|-------|-------|----|-----------|
+"@
+
+    foreach ($issue in $unresolvedData.issues) {
+        $issuesSummary += "`n| $($issue.phaseId) | $($issue.issue) | #$($issue.prNumber) | $($issue.recorded) |"
+    }
+
+    $issuesSummary += "`n`n**Last Updated**: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+
+    # Append to wave file
+    Add-Content -Path $WaveFile -Value $issuesSummary -Encoding UTF8
+    Write-Host "  ✅ Appended $($unresolvedData.issues.Count) issue(s) to wave file"
+} else {
+    Write-Host "  ℹ️  No unresolved issues to append"
+}
+
+Write-Host ""
+
 # ============ Final Summary ============
 Write-Host "============ CLEANUP COMPLETE ============" -ForegroundColor Green
 Write-Host ""
@@ -175,8 +240,14 @@ Write-Host "Files cleaned:"
 Write-Host "  ✅ Wave${WaveNumber}_All_Phases.md"
 Write-Host "  ✅ AUTOPACK_IMPS_MASTER.json"
 Write-Host "  ✅ AUTOPACK_WAVE_PLAN.json"
+if ($null -ne $unresolvedData -and $unresolvedData.issues.Count -gt 0) {
+    Write-Host "  ✅ Unresolved issues appended to Wave${WaveNumber}_All_Phases.md"
+}
 Write-Host ""
 Write-Host "Completed phases removed: $($completedPrompts.Count)"
+if ($null -ne $unresolvedData -and $unresolvedData.issues.Count -gt 0) {
+    Write-Host "Unresolved issues documented: $($unresolvedData.issues.Count)"
+}
 Write-Host ""
 
 # Reload and display new status

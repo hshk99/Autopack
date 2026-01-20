@@ -94,7 +94,7 @@ foreach ($ws in $workspaces) {
     }
 
     try {
-        Remove-Item -Path $ws.FullPath -Recurse -Force -ErrorAction Stop
+        Remove-Item -Path $ws.FullName -Recurse -Force -ErrorAction Stop
         Write-Host "[OK] Deleted $($ws.Name)"
         $deleted++
     } catch {

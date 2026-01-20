@@ -20,7 +20,6 @@ from autopack.usage_recorder import get_token_efficiency_stats
 
 logger = logging.getLogger(__name__)
 
-
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
@@ -41,12 +40,10 @@ def get_dashboard_run_status(
     _auth: str = Depends(verify_read_access),
 ):
     """Get run status for dashboard display"""
-    logger.info("[API] GET /dashboard/runs/%r/status - request received", run_id)
     from autopack.run_progress import calculate_run_progress
 
     run = db.query(models.Run).filter(models.Run.id == run_id).first()
     if not run:
-        logger.warning("[API] GET /dashboard/runs/%r/status - run not found", run_id)
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
 
     # Calculate progress
@@ -68,18 +65,8 @@ def get_dashboard_run_status(
         if efficiency_stats and efficiency_stats.get("total_phases", 0) > 0:
             token_efficiency = efficiency_stats
     except Exception as e:
-        logger.warning(
-            "[DASHBOARD] Failed to load token efficiency stats for %r: %s", run_id, e
-        )
+        logger.warning(f"[DASHBOARD] Failed to load token efficiency stats for {run_id}: {e}")
 
-    logger.info(
-        "[API] GET /dashboard/runs/%r/status - success state=%s progress=%.1f%% tokens=%d/%d",
-        run_id,
-        run.state.value,
-        progress.percent_complete,
-        tokens_used,
-        token_cap,
-    )
     return dashboard_schemas.DashboardRunStatus(
         run_id=run.id,
         state=run.state.value,
@@ -119,7 +106,6 @@ def get_dashboard_usage(
     _auth: str = Depends(verify_read_access),
 ):
     """Get token usage statistics for dashboard display"""
-    logger.info("[API] GET /dashboard/usage - request received period=%r", period)
     from datetime import timedelta
 
     from autopack.usage_recorder import LlmUsageEvent
@@ -166,9 +152,6 @@ def get_dashboard_usage(
 
     # Early return if no results
     if not provider_results and not model_results:
-        logger.info(
-            "[API] GET /dashboard/usage - success period=%r providers=0 models=0", period
-        )
         return dashboard_schemas.UsageResponse(providers=[], models=[])
 
     # Convert provider results to dict for serialization
@@ -212,12 +195,6 @@ def get_dashboard_usage(
 
     models_list = [dashboard_schemas.ModelUsage(**stats) for stats in model_stats.values()]
 
-    logger.info(
-        "[API] GET /dashboard/usage - success period=%r providers=%d models=%d",
-        period,
-        len(providers),
-        len(models_list),
-    )
     return dashboard_schemas.UsageResponse(providers=providers, models=models_list)
 
 
@@ -236,7 +213,6 @@ def get_dashboard_models(
     _auth: str = Depends(verify_read_access),
 ):
     """Get current model mappings for dashboard display"""
-    logger.info("[API] GET /dashboard/models - request received")
     from autopack.model_router import ModelRouter
 
     # Create router instance
@@ -256,7 +232,6 @@ def get_dashboard_models(
                 )
             )
 
-    logger.info("[API] GET /dashboard/models - success mappings=%d", len(result))
     return result
 
 
@@ -276,11 +251,6 @@ def add_dashboard_human_note(
     api_key: str = Depends(verify_api_key),
 ):
     """Add a human note to the notes file"""
-    logger.info(
-        "[API] POST /dashboard/human-notes - request received run_id=%r note_length=%d",
-        note_request.run_id,
-        len(note_request.note) if note_request.note else 0,
-    )
     notes_file = Path(settings.autonomous_runs_dir) / ".." / ".autopack" / "human_notes.md"
     notes_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -294,11 +264,6 @@ def add_dashboard_human_note(
     with open(notes_file, "a", encoding="utf-8") as f:
         f.write(note_entry)
 
-    logger.info(
-        "[API] POST /dashboard/human-notes - success timestamp=%s run_id=%r",
-        timestamp,
-        note_request.run_id,
-    )
     return {
         "message": "Note added successfully",
         "timestamp": timestamp,
@@ -327,20 +292,12 @@ def get_run_token_efficiency(
     - Context budget usage and mode distribution
     - Files kept vs omitted across all phases
     """
-    logger.info("[API] GET /dashboard/runs/%r/token-efficiency - request received", run_id)
     # Verify run exists
     run = db.query(models.Run).filter(models.Run.id == run_id).first()
     if not run:
-        logger.warning("[API] GET /dashboard/runs/%r/token-efficiency - run not found", run_id)
         raise HTTPException(status_code=404, detail="Run not found")
 
     stats = get_token_efficiency_stats(db, run_id)
-    logger.info(
-        "[API] GET /dashboard/runs/%r/token-efficiency - success phases=%d tokens_saved=%d",
-        run_id,
-        stats.get("total_phases", 0),
-        stats.get("total_tokens_saved", 0),
-    )
     return dashboard_schemas.TokenEfficiencyStats(**stats)
 
 
@@ -366,21 +323,14 @@ def get_run_phase6_stats(
     - Intention context injection statistics
     - Plan normalization usage
     """
-    logger.info("[API] GET /dashboard/runs/%r/phase6-stats - request received", run_id)
     # Verify run exists
     run = db.query(models.Run).filter(models.Run.id == run_id).first()
     if not run:
-        logger.warning("[API] GET /dashboard/runs/%r/phase6-stats - run not found", run_id)
         raise HTTPException(status_code=404, detail="Run not found")
 
     from autopack.usage_recorder import get_phase6_metrics_summary
 
     stats = get_phase6_metrics_summary(db, run_id)
-    logger.info(
-        "[API] GET /dashboard/runs/%r/phase6-stats - success doctor_skipped=%d",
-        run_id,
-        stats.get("doctor_calls_skipped", 0),
-    )
     return dashboard_schemas.Phase6Stats(run_id=run_id, **stats)
 
 
@@ -425,18 +375,8 @@ def get_dashboard_consolidated_metrics(
     Raises:
         HTTPException: 503 if kill switch disabled, 404 if run not found, 400 if bad pagination
     """
-    logger.info(
-        "[API] GET /dashboard/runs/%r/consolidated-metrics - request received limit=%d offset=%d",
-        run_id,
-        limit,
-        offset,
-    )
     # BUILD-146 P12: Kill switch check (default: OFF)
     if os.getenv("AUTOPACK_ENABLE_CONSOLIDATED_METRICS") != "1":
-        logger.warning(
-            "[API] GET /dashboard/runs/%r/consolidated-metrics - feature disabled",
-            run_id,
-        )
         raise HTTPException(
             status_code=503,
             detail="Consolidated metrics disabled. Set AUTOPACK_ENABLE_CONSOLIDATED_METRICS=1 to enable.",
@@ -444,26 +384,13 @@ def get_dashboard_consolidated_metrics(
 
     # Validate pagination parameters
     if limit > 10000:
-        logger.warning(
-            "[API] GET /dashboard/runs/%r/consolidated-metrics - invalid limit=%d",
-            run_id,
-            limit,
-        )
         raise HTTPException(status_code=400, detail="Limit cannot exceed 10000")
     if offset < 0:
-        logger.warning(
-            "[API] GET /dashboard/runs/%r/consolidated-metrics - invalid offset=%d",
-            run_id,
-            offset,
-        )
         raise HTTPException(status_code=400, detail="Offset cannot be negative")
 
     # Verify run exists
     run = db.query(models.Run).filter(models.Run.id == run_id).first()
     if not run:
-        logger.warning(
-            "[API] GET /dashboard/runs/%r/consolidated-metrics - run not found", run_id
-        )
         raise HTTPException(status_code=404, detail=f"Run not found: {run_id}")
 
     # Category 1: Actual spend from llm_usage_events
@@ -559,16 +486,6 @@ def get_dashboard_consolidated_metrics(
     total_phases = phase_counts[0] if phase_counts else 0
     completed_phases = phase_counts[1] if phase_counts else 0
 
-    logger.info(
-        "[API] GET /dashboard/runs/%r/consolidated-metrics - success "
-        "tokens_spent=%d artifact_avoided=%d doctor_avoided=%d phases=%d/%d",
-        run_id,
-        total_tokens_spent,
-        artifact_tokens_avoided,
-        doctor_tokens_avoided_estimate,
-        completed_phases,
-        total_phases,
-    )
     # Build response
     return {
         "run_id": run_id,
@@ -606,22 +523,9 @@ def add_dashboard_model_override(
     api_key: str = Depends(verify_api_key),
 ):
     """Add a model override (global or per-run)"""
-    logger.info(
-        "[API] POST /dashboard/models/override - request received "
-        "scope=%r role=%r category=%r complexity=%r model=%r",
-        override_request.scope,
-        override_request.role,
-        override_request.category,
-        override_request.complexity,
-        override_request.model,
-    )
     if override_request.scope == "global":
         # For global scope, we would update config file
         # For now, return success message
-        logger.info(
-            "[API] POST /dashboard/models/override - success scope=global model=%r",
-            override_request.model,
-        )
         return {
             "message": "Global model mapping updated",
             "scope": "global",
@@ -633,18 +537,10 @@ def add_dashboard_model_override(
     elif override_request.scope == "run":
         # For run scope, we would update run context
         # For now, return "coming soon" message per test expectations
-        logger.info(
-            "[API] POST /dashboard/models/override - success scope=run run_id=%r",
-            override_request.run_id,
-        )
         return {
             "message": "Run-scoped model overrides coming soon",
             "scope": "run",
             "run_id": override_request.run_id,
         }
     else:
-        logger.warning(
-            "[API] POST /dashboard/models/override - invalid scope=%r",
-            override_request.scope,
-        )
         raise HTTPException(status_code=400, detail="Invalid scope. Must be 'global' or 'run'")

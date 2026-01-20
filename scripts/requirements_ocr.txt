@@ -1,0 +1,20 @@
+# Requirements for OCR-based Connection Error Handler
+# Install with: pip install -r requirements_ocr.txt
+
+# EasyOCR - Primary OCR engine (much better accuracy than Tesseract)
+# Supports 80+ languages, GPU acceleration with PyTorch
+easyocr>=1.7.0
+
+# Image processing
+Pillow>=9.0.0
+numpy>=1.20.0
+
+# Fast screen capture (faster than PIL.ImageGrab)
+mss>=9.0.0
+
+# Mouse/keyboard automation for clicking buttons
+pyautogui>=0.9.54
+
+# Note: EasyOCR will automatically install PyTorch as a dependency
+# For GPU acceleration, you may want to install PyTorch with CUDA support first:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118

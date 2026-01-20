@@ -1,0 +1,219 @@
+================================================================================
+                      HANDLER DIAGNOSTIC GUIDE
+================================================================================
+
+USE THIS TO DEBUG WHY THE HANDLER ISN'T DETECTING ERRORS
+
+================================================================================
+                         QUICK START
+================================================================================
+
+Step 1: Start the handler in one terminal
+  C:\dev\Autopack\scripts\handle_connection_errors_automated.bat
+
+Step 2: Wait for message: "Ready. Monitoring grid for connection errors..."
+
+Step 3: In a SECOND terminal, start the diagnostic
+  C:\dev\Autopack\scripts\diagnose_connection_errors.bat
+
+Step 4: In the first terminal (handler), trigger a connection error:
+  - Disconnect internet
+  - Or manually trigger error in Cursor
+  - Error dialog should appear in one or more slots
+
+Step 5: Diagnostic will monitor for 60 seconds and report:
+  - If error was detected
+  - What pixel changes occurred
+  - Detailed detection metrics
+
+Step 6: If not detected, share the log file:
+  C:\dev\Autopack\error_analysis\handler_diagnostic_*.log
+
+================================================================================
+                        WHAT IT SHOWS
+================================================================================
+
+When diagnostic runs, you'll see output like:
+
+[16:35:12] Baseline files OK. Starting detection analysis...
+[16:35:12] Monitoring for 60 seconds. Trigger a connection error now!
+
+[16:35:15] [DETECTION] Slot 3 - 28.5% changed, 4.2% bright - ERROR DETECTED
+[16:35:17] [MONITOR] Slot 7 - 8.3% changed, 1.2% bright - OK
+
+[16:36:12] ========== DIAGNOSTIC COMPLETE ==========
+[16:36:12] Results:
+[16:36:12]   Detections: 1
+[16:36:12]   Duration: 60 seconds
+
+================================================================================
+                      WHAT EACH LINE MEANS
+================================================================================
+
+[DETECTION] message:
+  • Slot X: Which grid slot (1-9)
+  • 28.5% changed: Percentage of pixels different from baseline
+  • 4.2% bright: Percentage of changed pixels that are bright
+  • ERROR DETECTED: Handler detected this as connection error
+
+[MONITOR] message:
+  • Shows slots with small changes (normal Cursor activity)
+  • Changes <15%: Usually just cursor movement, typing
+
+Key metrics:
+  • % changed > 15%: Significant change (potential error)
+  • % bright > 2%: Some bright pixels (error text/accents)
+  • Both true → ERROR DETECTED
+
+================================================================================
+                      TROUBLESHOOTING
+================================================================================
+
+ISSUE: "Missing baseline files"
+  CAUSE: Handler hasn't started yet or didn't create baselines
+  FIX: Run handle_connection_errors_automated.bat first
+       Wait for "Ready. Monitoring grid..." message
+       Then run diagnostic
+
+ISSUE: "No errors detected during monitoring period"
+  CAUSE: No connection error occurred, or error didn't happen during scan
+  FIX: Make sure to trigger error AFTER diagnostic starts
+       Diagnostic runs for 60 seconds
+       Trigger error within that window
+
+ISSUE: Error appeared but "MONITOR" shows 0% change
+  CAUSE: Error appeared in different slot than monitored
+         OR baseline was captured WITH error visible
+  FIX: Delete baselines and restart:
+       powershell Remove-Item -Path C:\dev\Autopack\error_baselines -Recurse -Force
+       Run handler again to create fresh baselines
+
+ISSUE: Shows high % change but still says "OK" (not detected)
+  CAUSE: Bright ratio too low (changed pixels aren't bright enough)
+  FIX: This means detection thresholds need adjustment
+       Share the log file showing actual detection values
+       Handler can be tuned based on real data
+
+================================================================================
+                       LOG FILE LOCATION
+================================================================================
+
+Diagnostic creates a log file each time it runs:
+
+C:\dev\Autopack\error_analysis\handler_diagnostic_YYYYMMDD_HHMMSS.log
+
+Example:
+  C:\dev\Autopack\error_analysis\handler_diagnostic_20260119_163512.log
+
+Each run creates a new log with timestamp (doesn't overwrite previous logs).
+
+To see all diagnostic logs:
+  dir C:\dev\Autopack\error_analysis\handler_diagnostic_*.log
+
+================================================================================
+                         WORKFLOW
+================================================================================
+
+To properly debug handler issues:
+
+1. SETUP:
+   ├─ Terminal 1: Start handler
+   │  └─ C:\dev\Autopack\scripts\handle_connection_errors_automated.bat
+   │
+   ├─ Terminal 2: Start diagnostic
+   │  └─ C:\dev\Autopack\scripts\diagnose_connection_errors.bat
+   │
+   └─ Watch for: "Ready. Monitoring grid..." in Terminal 1
+
+2. TRIGGER ERROR:
+   ├─ In Terminal 1 (handler window):
+   │  └─ Trigger connection error in Cursor
+   │     (disconnect internet, or manually trigger)
+   │
+   └─ Diagnostic monitors for this in Terminal 2
+
+3. REVIEW RESULTS:
+   ├─ Wait for diagnostic to complete (60 seconds)
+   └─ Check Terminal 2 output for detection results
+
+4. ANALYZE:
+   ├─ If detected → Handler should work (test clicking)
+   ├─ If not detected → Share log for threshold tuning
+   └─ Log location: C:\dev\Autopack\error_analysis\handler_diagnostic_*.log
+
+================================================================================
+                      SAMPLE GOOD OUTPUT
+================================================================================
+
+When everything works:
+
+[16:35:12] Baseline files OK. Starting detection analysis...
+[16:35:12] Monitoring for 60 seconds. Trigger a connection error now!
+
+[16:35:17] [DETECTION] Slot 3 - 31.2% changed, 4.8% bright - ERROR DETECTED
+[16:35:22] [DETECTION] Slot 5 - 24.7% changed, 3.1% bright - ERROR DETECTED
+[16:35:27] [MONITOR] Slot 1 - 8.5% changed, 1.2% bright - OK
+
+[16:36:12] ========== DIAGNOSTIC COMPLETE ==========
+
+[16:36:12] Results:
+[16:36:12]   Detections: 2
+[16:36:12]   Duration: 60 seconds
+[16:36:12]
+[16:36:12] [SUCCESS] Handler detected error(s)!
+
+================================================================================
+                   SAMPLE PROBLEM OUTPUT
+================================================================================
+
+When handler isn't detecting:
+
+[16:35:12] Baseline files OK. Starting detection analysis...
+[16:35:12] Monitoring for 60 seconds. Trigger a connection error now!
+
+[16:35:17] [MONITOR] Slot 3 - 22.3% changed, 1.2% bright - OK
+[16:35:22] [MONITOR] Slot 3 - 25.8% changed, 0.8% bright - OK
+
+[16:36:12] ========== DIAGNOSTIC COMPLETE ==========
+
+[16:36:12] Results:
+[16:36:12]   Detections: 0
+[16:36:12]   Duration: 60 seconds
+[16:36:12]
+[16:36:12] [INFO] No errors detected during monitoring period
+
+This shows changes happening (>15%) but bright ratio too low (<2%).
+This means thresholds need tuning - share the log for analysis.
+
+================================================================================
+                         KEY COMMANDS
+================================================================================
+
+Start handler:
+  C:\dev\Autopack\scripts\handle_connection_errors_automated.bat
+
+Run diagnostic:
+  C:\dev\Autopack\scripts\diagnose_connection_errors.bat
+
+View latest diagnostic log:
+  Get the newest file in: C:\dev\Autopack\error_analysis\handler_diagnostic_*.log
+
+Delete old baselines:
+  powershell Remove-Item -Path C:\dev\Autopack\error_baselines -Recurse -Force
+
+Fresh capture (after deleting baselines):
+  C:\dev\Autopack\scripts\handle_connection_errors_automated.bat
+
+================================================================================
+                         NEXT STEPS
+================================================================================
+
+1. Run diagnostic as described above
+2. Share the output (either copy-paste or log file)
+3. I will:
+   ├─ Analyze detection metrics
+   ├─ Determine if thresholds need adjustment
+   ├─ Verify handler logic
+   └─ Provide fix based on actual data
+
+================================================================================

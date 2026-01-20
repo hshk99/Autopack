@@ -258,6 +258,30 @@ Write-Host "CLEANUP 4: Appending unresolved issues as actionable prompts" -Foreg
 if ($hasUnresolvedToAppend) {
     Write-Host "  [INFO] Found $($unresolvedData.issues.Count) unresolved issue(s)"
 
+    # First, remove any existing "Unresolved Issues" sections to avoid duplicates
+    $currentContent = Get-Content $WaveFile -Raw
+    $unresolvedSectionPattern = '(?s)\r?\n---\s*\r?\n+## Unresolved Issues \(Wave \d+\).*?(?=\r?\n## Phase: [^\[]*\[(?:READY|PENDING|COMPLETED)\]|\Z)'
+    $currentContent = $currentContent -replace $unresolvedSectionPattern, ''
+
+    # Also remove orphaned "Unresolved Issues" headers without phases
+    $orphanedHeaderPattern = '(?s)\r?\n---\s*\r?\n+## Unresolved Issues \(Wave \d+\)\s*\r?\n+\*\*Summary\*\*:[^\r\n]*\r?\n+'
+    $currentContent = $currentContent -replace $orphanedHeaderPattern, ''
+
+    # Clean up multiple consecutive separators and blank lines
+    $currentContent = $currentContent -replace '(\r?\n---\s*){2,}', "`n---`n"
+    $currentContent = $currentContent -replace '(\r?\n){3,}', "`n`n"
+    $currentContent = $currentContent.TrimEnd()
+
+    # Write cleaned content back
+    Set-Content $WaveFile $currentContent -Encoding UTF8
+    Write-Host "  [OK] Removed any existing Unresolved Issues sections to avoid duplicates"
+
+    # Re-read prompts after cleaning to get fresh list
+    $prompts = & "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -WaveFile $WaveFile
+
+    # Get existing phase IDs to avoid duplicates (only count READY/PENDING/COMPLETED phases)
+    $existingPhaseIds = @($prompts | Where-Object { $_.Status -ne "UNRESOLVED" } | ForEach-Object { $_.ID })
+
     # Create unresolved issues section with actionable prompts
     $issuesSummary = @"
 
@@ -265,24 +289,30 @@ if ($hasUnresolvedToAppend) {
 
 ## Unresolved Issues (Wave $WaveNumber)
 
-**Summary**: The following phases have CI failures that need to be fixed. Each phase below is formatted as an actionable prompt.
+**Summary**: The following phases have CI failures that need to be fixed. Each issue requires a **NEW separate PR** - do NOT push fixes to the original PR.
 
 "@
 
-    # Get existing phase IDs to avoid duplicates
-    $existingPhaseIds = @($prompts | ForEach-Object { $_.ID })
-
     $appendedCount = 0
+    $seenPhaseIds = @{}  # Track seen phase IDs within this run to avoid duplicates
+
     foreach ($issue in $unresolvedData.issues) {
         $phaseId = $issue.phaseId
         $prNumber = $issue.prNumber
         $issueDesc = $issue.issue
 
-        # Skip if phase already exists in the file (any status)
+        # Skip if phase already exists as READY/PENDING/COMPLETED in the file
         if ($existingPhaseIds -contains $phaseId) {
-            Write-Host "  [SKIP] Phase $phaseId already exists in file"
+            Write-Host "  [SKIP] Phase $phaseId already exists as active phase"
             continue
         }
+
+        # Skip if we've already processed this phaseId in this run (duplicate in JSON)
+        if ($seenPhaseIds.ContainsKey($phaseId)) {
+            Write-Host "  [SKIP] Phase $phaseId already processed (duplicate in JSON)"
+            continue
+        }
+        $seenPhaseIds[$phaseId] = $true
 
         # Derive worktree path and branch from phaseId
         # Path format: C:\dev\Autopack_w[N]_[phaseId]
@@ -311,7 +341,10 @@ if ($hasUnresolvedToAppend) {
             }
         }
 
-        # Format as actionable prompt following the same template as regular phases
+        # Create a fix branch name (separate from the original PR branch)
+        $fixBranchName = "${branchName}-fix"
+
+        # Format as actionable prompt - REQUIRES SEPARATE PR
         # MUST include **Path**: and Branch: for manage_prompt_state.ps1 regex to match
         $issuesSummary += @"
 
@@ -319,29 +352,52 @@ if ($hasUnresolvedToAppend) {
 
 ## Phase: $phaseId [UNRESOLVED]
 
-**Title**: Fix CI Failure for $phaseId (PR #$prNumber)
+**Title**: Fix CI Failure for $phaseId (Original PR #$prNumber)
 **Path**: $worktreePath
 
 I'm working in git worktree: $worktreePath
-Branch: $branchName
+Branch: $fixBranchName
 
-Task: Fix the CI failure for PR #$prNumber
+**IMPORTANT**: This fix requires a **NEW separate PR**. Do NOT push to the original PR #$prNumber.
 
-The CI run has failed with: $issueDesc
+Task: Create a new PR to fix the CI failure from original PR #$prNumber
+
+The original CI run failed with: $issueDesc
 
 Please investigate and fix the issue:
 
-1. Check the CI logs for PR #$prNumber to identify the specific failure
-2. If it's a "Core Tests (Must Pass)" failure:
+1. First, sync with main branch:
+   ``````
+   git fetch origin main
+   git checkout main
+   git pull origin main
+   ``````
+
+2. Create a new fix branch from main:
+   ``````
+   git checkout -b $fixBranchName
+   ``````
+
+3. Check the CI logs for PR #$prNumber to identify the specific failure
+
+4. If it's a "Core Tests (Must Pass)" failure:
    - Review the test output to find which tests failed
    - Fix the code to make tests pass
    - Run tests locally before pushing: pytest tests/ -v
-3. If it's a lint/verify-structure failure:
+
+5. If it's a lint/verify-structure failure:
    - Run the linter locally to see the issues
    - Fix formatting/style issues
    - Ensure file structure is correct
-4. Push the fix and verify CI passes
-5. Once CI passes, the PR can be merged
+
+6. Commit and push to create a NEW PR:
+   ``````
+   git add .
+   git commit -m "fix($phaseId): Fix CI failure from PR #$prNumber"
+   git push -u origin $fixBranchName
+   ``````
+
+7. Create the new PR and verify CI passes
 
 "@
         $appendedCount++
@@ -352,9 +408,9 @@ Please investigate and fix the issue:
 
         # Append to wave file
         Add-Content -Path $WaveFile -Value $issuesSummary -Encoding UTF8
-        Write-Host "  [OK] Appended $appendedCount issue(s) as actionable prompts"
+        Write-Host "  [OK] Appended $appendedCount issue(s) as actionable prompts (requiring separate PRs)"
     } else {
-        Write-Host "  [INFO] All unresolved issues already exist in file"
+        Write-Host "  [INFO] All unresolved issues already exist or were duplicates"
     }
 } else {
     Write-Host "  [INFO] No unresolved issues to append"

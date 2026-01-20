@@ -21,6 +21,8 @@ Usage:
 import sys
 import time
 import argparse
+import subprocess
+import os
 from datetime import datetime
 from typing import Optional, Dict, List, Tuple
 import threading
@@ -107,6 +109,18 @@ APPROVAL_KEYWORDS = [
     "grant",
 ]
 
+# Merge completion keywords - indicates PR was merged successfully
+MERGE_KEYWORDS = [
+    "merged",
+    "pull request merged",
+    "pr merged",
+    "successfully merged",
+    "branch deleted",
+    "merged into main",
+    "merged into master",
+    "merge completed",
+]
+
 
 # ============================================================================
 # GLOBAL STATE
@@ -119,10 +133,13 @@ class MonitorState:
     def __init__(self):
         self.error_count = 0
         self.handled_count = 0
+        self.merge_count = 0
         self.session_start = datetime.now()
         self.last_error_time: Dict[int, datetime] = {}
+        self.last_merge_time: Dict[int, datetime] = {}
         self.running = True
         self.verbose = False
+        self.auto_fill_enabled = True  # Enable auto-fill after merge detection
 
 
 state = MonitorState()
@@ -436,11 +453,235 @@ def handle_approval(
 
 
 # ============================================================================
+# MERGE DETECTION AND AUTO-FILL
+# ============================================================================
+
+
+def detect_merge_in_slot(
+    ocr: OCREngine, capture: ScreenCapture, slot: int, verbose: bool = False
+) -> bool:
+    """
+    Detect if a merge completion message is present in the given grid slot.
+
+    Returns:
+        True if merge completion detected
+    """
+    try:
+        image = capture.capture_slot(slot)
+        texts = ocr.extract_text(image)
+
+        if verbose and texts:
+            print(f"  [Slot {slot}] Merge check - Detected text: {[t for t, _ in texts[:5]]}")
+
+        return ocr.contains_keywords(texts, MERGE_KEYWORDS)
+
+    except Exception as e:
+        if verbose:
+            print(f"[ERROR] Merge detection failed for slot {slot}: {e}")
+        return False
+
+
+def close_cursor_window_in_slot(slot: int, verbose: bool = False) -> bool:
+    """
+    Close the Cursor window in the specified grid slot.
+
+    Uses PowerShell to find and close the window based on its position.
+
+    Returns:
+        True if window was closed successfully
+    """
+    try:
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"[{timestamp}] Closing Cursor window in slot {slot}...")
+
+        # Get grid position for this slot
+        pos = GRID_POSITIONS[slot]
+
+        # PowerShell script to close window at specific position
+        ps_script = f'''
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Collections.Generic;
+
+public class WindowCloser {{
+    [DllImport("user32.dll")]
+    public static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern int GetWindowTextLength(IntPtr hWnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+    [DllImport("user32.dll")]
+    public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [DllImport("user32.dll")]
+    public static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT {{
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }}
+
+    public const uint WM_CLOSE = 0x0010;
+
+    public static List<IntPtr> windows = new List<IntPtr>();
+
+    public static bool EnumCallback(IntPtr hWnd, IntPtr lParam) {{
+        if (IsWindowVisible(hWnd)) {{
+            int length = GetWindowTextLength(hWnd);
+            if (length > 0) {{
+                StringBuilder sb = new StringBuilder(length + 1);
+                GetWindowText(hWnd, sb, sb.Capacity);
+                string title = sb.ToString();
+                if (title.Contains("Cursor") || title.Contains("cursor")) {{
+                    windows.Add(hWnd);
+                }}
+            }}
+        }}
+        return true;
+    }}
+
+    public static void CloseWindowAtPosition(int targetX, int targetY, int tolerance) {{
+        windows.Clear();
+        EnumWindows(EnumCallback, IntPtr.Zero);
+
+        foreach (IntPtr hWnd in windows) {{
+            RECT rect;
+            if (GetWindowRect(hWnd, out rect)) {{
+                if (Math.Abs(rect.Left - targetX) < tolerance && Math.Abs(rect.Top - targetY) < tolerance) {{
+                    PostMessage(hWnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                    Console.WriteLine("Closed window at position");
+                    return;
+                }}
+            }}
+        }}
+        Console.WriteLine("No matching window found");
+    }}
+}}
+"@
+
+[WindowCloser]::CloseWindowAtPosition({pos["x"]}, {pos["y"]}, 50)
+'''
+
+        result = subprocess.run(
+            ["powershell", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        if verbose:
+            if result.stdout:
+                print(f"  [DEBUG] {result.stdout.strip()}")
+            if result.stderr:
+                print(f"  [DEBUG] stderr: {result.stderr.strip()}")
+
+        print(f"  [OK] Window close command sent for slot {slot}")
+        return True
+
+    except subprocess.TimeoutExpired:
+        print(f"  [WARN] Window close timed out for slot {slot}")
+        return False
+    except Exception as e:
+        print(f"  [ERROR] Failed to close window in slot {slot}: {e}")
+        return False
+
+
+def trigger_auto_fill(verbose: bool = False) -> bool:
+    """
+    Trigger the auto-fill script to fill empty slots with next available phases.
+
+    Returns:
+        True if auto-fill was triggered successfully
+    """
+    try:
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"\n[{timestamp}] TRIGGERING AUTO-FILL...")
+
+        script_path = r"C:\dev\Autopack\scripts\auto_fill_empty_slots.ps1"
+
+        if not os.path.exists(script_path):
+            print(f"  [ERROR] Auto-fill script not found: {script_path}")
+            return False
+
+        # Run auto-fill in background (non-blocking)
+        subprocess.Popen(
+            ["powershell", "-ExecutionPolicy", "Bypass", "-File", script_path],
+            creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
+        )
+
+        print("  [OK] Auto-fill triggered in new window")
+        return True
+
+    except Exception as e:
+        print(f"  [ERROR] Failed to trigger auto-fill: {e}")
+        return False
+
+
+def handle_merge(
+    ocr: OCREngine, capture: ScreenCapture, slot: int, verbose: bool = False
+) -> bool:
+    """
+    Handle a detected merge completion in the given grid slot.
+
+    Actions:
+    1. Close the Cursor window for this slot
+    2. Trigger auto-fill to fill the empty slot
+
+    Returns:
+        True if merge was handled
+    """
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    print(f"\n[{timestamp}] MERGE COMPLETION DETECTED IN GRID SLOT {slot}")
+
+    state.merge_count += 1
+
+    # Check cooldown (don't handle same slot within 30 seconds)
+    last_time = state.last_merge_time.get(slot)
+    if last_time and (datetime.now() - last_time).total_seconds() < 30:
+        if verbose:
+            print(f"  [SKIP] Slot {slot} merge handled recently, cooling down...")
+        return False
+
+    # Step 1: Close the window
+    print("  [1/2] Closing completed window...")
+    if close_cursor_window_in_slot(slot, verbose):
+        state.last_merge_time[slot] = datetime.now()
+    else:
+        print("  [WARN] Window close may have failed, continuing...")
+
+    # Small delay to let window close
+    time.sleep(1)
+
+    # Step 2: Trigger auto-fill if enabled
+    if state.auto_fill_enabled:
+        print("  [2/2] Triggering auto-fill...")
+        trigger_auto_fill(verbose)
+    else:
+        print("  [2/2] Auto-fill disabled, skipping...")
+
+    print(f"  [OK] Merge handling complete for slot {slot}")
+    return True
+
+
+# ============================================================================
 # MAIN MONITORING LOOP
 # ============================================================================
 
 
-def print_banner():
+def print_banner(check_merges: bool = True):
     """Print startup banner."""
     print()
     print("=" * 60)
@@ -456,6 +697,9 @@ def print_banner():
     print("  [+] Takes screenshots of 9 grid windows")
     print("  [+] Uses OCR to detect error/approval text")
     print("  [+] Clicks Resume/Approve buttons automatically")
+    if check_merges:
+        print("  [+] Detects merge completions")
+        print("  [+] Closes completed windows and triggers auto-fill")
     print()
     print("=" * 60)
     print()
@@ -473,17 +717,20 @@ def print_summary():
     print(" SESSION SUMMARY")
     print("=" * 60)
     print()
-    print(f"  Session Duration: {hours}h {minutes}m {seconds}s")
-    print(f"  Errors Detected:  {state.error_count}")
-    print(f"  Errors Handled:   {state.handled_count}")
+    print(f"  Session Duration:  {hours}h {minutes}m {seconds}s")
+    print(f"  Errors Detected:   {state.error_count}")
+    print(f"  Errors Handled:    {state.handled_count}")
+    print(f"  Merges Detected:   {state.merge_count}")
     print()
     print("Monitor stopped.")
     print()
 
 
-def monitor_loop(ocr: OCREngine, capture: ScreenCapture, verbose: bool = False):
+def monitor_loop(ocr: OCREngine, capture: ScreenCapture, verbose: bool = False, check_merges: bool = True):
     """Main monitoring loop."""
     print("Ready. Monitoring grid for connection errors...")
+    if check_merges:
+        print("  Also checking for merge completions (auto-fill enabled)")
     print(f"  Checking every {MONITOR_INTERVAL} seconds")
     print()
 
@@ -494,7 +741,7 @@ def monitor_loop(ocr: OCREngine, capture: ScreenCapture, verbose: bool = False):
                 if not state.running:
                     break
 
-                # Check for error dialogs
+                # Check for error dialogs (highest priority)
                 if detect_error_in_slot(ocr, capture, slot, verbose):
                     handle_error(ocr, capture, slot, verbose)
                     continue
@@ -502,6 +749,11 @@ def monitor_loop(ocr: OCREngine, capture: ScreenCapture, verbose: bool = False):
                 # Check for approval dialogs
                 if detect_approval_in_slot(ocr, capture, slot, verbose):
                     handle_approval(ocr, capture, slot, verbose)
+                    continue
+
+                # Check for merge completions (if enabled)
+                if check_merges and detect_merge_in_slot(ocr, capture, slot, verbose):
+                    handle_merge(ocr, capture, slot, verbose)
 
             # Wait before next scan
             time.sleep(MONITOR_INTERVAL)
@@ -529,12 +781,25 @@ def main():
         default=MONITOR_INTERVAL,
         help=f"Monitor interval in seconds (default: {MONITOR_INTERVAL})",
     )
+    parser.add_argument(
+        "--no-merge-detection",
+        action="store_true",
+        help="Disable merge detection and auto-fill (only handle errors)",
+    )
+    parser.add_argument(
+        "--no-auto-fill",
+        action="store_true",
+        help="Detect merges but don't trigger auto-fill",
+    )
     args = parser.parse_args()
 
     MONITOR_INTERVAL = args.interval
     state.verbose = args.verbose
+    state.auto_fill_enabled = not args.no_auto_fill
 
-    print_banner()
+    check_merges = not args.no_merge_detection
+
+    print_banner(check_merges)
 
     try:
         # Initialize components
@@ -549,7 +814,7 @@ def main():
         print()
 
         # Start monitoring
-        monitor_loop(ocr, capture, args.verbose)
+        monitor_loop(ocr, capture, args.verbose, check_merges)
 
     except KeyboardInterrupt:
         pass

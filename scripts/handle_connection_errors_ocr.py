@@ -49,16 +49,17 @@ except ImportError as e:
 MONITOR_INTERVAL = 2.0
 
 # Grid configuration for 5120x1440 monitor with 3x3 grid
+# Right half of monitor (X starts at 2560), with verified slot positions
 GRID_POSITIONS = {
-    1: {"x": 0, "y": 0, "width": 1707, "height": 480},
-    2: {"x": 1707, "y": 0, "width": 1707, "height": 480},
-    3: {"x": 3414, "y": 0, "width": 1707, "height": 480},
-    4: {"x": 0, "y": 480, "width": 1707, "height": 480},
-    5: {"x": 1707, "y": 480, "width": 1707, "height": 480},
-    6: {"x": 3414, "y": 480, "width": 1707, "height": 480},
-    7: {"x": 0, "y": 960, "width": 1707, "height": 480},
-    8: {"x": 1707, "y": 960, "width": 1707, "height": 480},
-    9: {"x": 3414, "y": 960, "width": 1707, "height": 480},
+    1: {"x": 2560, "y": 0, "width": 853, "height": 463},  # Top-Left
+    2: {"x": 3413, "y": 0, "width": 853, "height": 463},  # Top-Center
+    3: {"x": 4266, "y": 0, "width": 854, "height": 463},  # Top-Right
+    4: {"x": 2560, "y": 463, "width": 853, "height": 463},  # Mid-Left
+    5: {"x": 3413, "y": 463, "width": 853, "height": 463},  # Mid-Center
+    6: {"x": 4266, "y": 463, "width": 854, "height": 463},  # Mid-Right
+    7: {"x": 2560, "y": 926, "width": 853, "height": 464},  # Bot-Left
+    8: {"x": 3413, "y": 926, "width": 853, "height": 464},  # Bot-Center
+    9: {"x": 4266, "y": 926, "width": 854, "height": 464},  # Bot-Right
 }
 
 # Resume button coordinates (absolute screen positions) - provided by user
@@ -107,6 +108,22 @@ APPROVAL_KEYWORDS = [
     "accept",
     "confirm",
     "grant",
+]
+
+# Permission dialog keywords (Cursor's "Allow this bash command?" dialogs)
+PERMISSION_DIALOG_KEYWORDS = [
+    "allow this bash command",
+    "allow this command",
+    "bash command",
+    "allow this",
+]
+
+# Permission button keywords (what to click to approve)
+PERMISSION_BUTTON_KEYWORDS = [
+    "yes, allow",
+    "yes allow",
+    "for this session",
+    "for this project",
 ]
 
 # Merge completion keywords - indicates PR was merged successfully
@@ -452,6 +469,76 @@ def handle_approval(
     return False
 
 
+def detect_permission_dialog_in_slot(
+    ocr: OCREngine, capture: ScreenCapture, slot: int, verbose: bool = False
+) -> bool:
+    """
+    Detect if a permission dialog ("Allow this bash command?") is present.
+
+    Returns:
+        True if permission dialog detected
+    """
+    try:
+        image = capture.capture_slot(slot)
+        texts = ocr.extract_text(image)
+
+        if verbose and texts:
+            print(f"  [Slot {slot}] Permission check - Detected text: {[t for t, _ in texts[:8]]}")
+
+        return ocr.contains_keywords(texts, PERMISSION_DIALOG_KEYWORDS)
+
+    except Exception as e:
+        if verbose:
+            print(f"[ERROR] Permission detection failed for slot {slot}: {e}")
+        return False
+
+
+def handle_permission_dialog(
+    ocr: OCREngine, capture: ScreenCapture, slot: int, verbose: bool = False
+) -> bool:
+    """
+    Handle a permission dialog ("Allow this bash command?") in the given grid slot.
+
+    Strategy:
+    1. Try to find and click "Yes, allow for this session" or similar
+    2. Fall back to clicking "Yes" if specific button not found
+
+    Returns:
+        True if permission was granted
+    """
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    print(f"\n[{timestamp}] PERMISSION DIALOG DETECTED IN GRID SLOT {slot}")
+    print("  Dialog: 'Allow this bash command?'")
+
+    state.error_count += 1  # Track as handled event
+
+    # Check cooldown (don't handle same slot within 3 seconds)
+    last_time = state.last_error_time.get(slot)
+    if last_time and (datetime.now() - last_time).total_seconds() < 3:
+        if verbose:
+            print(f"  [SKIP] Slot {slot} handled recently, cooling down...")
+        return False
+
+    # Try to find "Yes, allow for this session" or "Yes, allow for this project"
+    print("  Looking for 'Yes, allow for this session' button...")
+    if click_detected_button(ocr, capture, slot, PERMISSION_BUTTON_KEYWORDS, verbose):
+        state.handled_count += 1
+        state.last_error_time[slot] = datetime.now()
+        print("  [OK] Permission granted (session/project scope)")
+        return True
+
+    # Fall back to just clicking "Yes"
+    print("  Falling back to 'Yes' button...")
+    if click_detected_button(ocr, capture, slot, ["yes"], verbose):
+        state.handled_count += 1
+        state.last_error_time[slot] = datetime.now()
+        print("  [OK] Permission granted (single command)")
+        return True
+
+    print(f"  [WARN] Could not find permission button in slot {slot}")
+    return False
+
+
 # ============================================================================
 # MERGE DETECTION AND AUTO-FILL
 # ============================================================================
@@ -498,7 +585,7 @@ def close_cursor_window_in_slot(slot: int, verbose: bool = False) -> bool:
         pos = GRID_POSITIONS[slot]
 
         # PowerShell script to close window at specific position
-        ps_script = f'''
+        ps_script = f"""
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -573,13 +660,13 @@ public class WindowCloser {{
 "@
 
 [WindowCloser]::CloseWindowAtPosition({pos["x"]}, {pos["y"]}, 50)
-'''
+"""
 
         result = subprocess.run(
             ["powershell", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
 
         if verbose:
@@ -619,7 +706,7 @@ def trigger_auto_fill(verbose: bool = False) -> bool:
         # Run auto-fill in background (non-blocking)
         subprocess.Popen(
             ["powershell", "-ExecutionPolicy", "Bypass", "-File", script_path],
-            creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
+            creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0,
         )
 
         print("  [OK] Auto-fill triggered in new window")
@@ -630,9 +717,7 @@ def trigger_auto_fill(verbose: bool = False) -> bool:
         return False
 
 
-def handle_merge(
-    ocr: OCREngine, capture: ScreenCapture, slot: int, verbose: bool = False
-) -> bool:
+def handle_merge(ocr: OCREngine, capture: ScreenCapture, slot: int, verbose: bool = False) -> bool:
     """
     Handle a detected merge completion in the given grid slot.
 
@@ -697,6 +782,8 @@ def print_banner(check_merges: bool = True):
     print("  [+] Takes screenshots of 9 grid windows")
     print("  [+] Uses OCR to detect error/approval text")
     print("  [+] Clicks Resume/Approve buttons automatically")
+    print("  [+] Auto-clicks 'Yes' on permission dialogs")
+    print("      ('Allow this bash command?' prompts)")
     if check_merges:
         print("  [+] Detects merge completions")
         print("  [+] Closes completed windows and triggers auto-fill")
@@ -726,9 +813,12 @@ def print_summary():
     print()
 
 
-def monitor_loop(ocr: OCREngine, capture: ScreenCapture, verbose: bool = False, check_merges: bool = True):
+def monitor_loop(
+    ocr: OCREngine, capture: ScreenCapture, verbose: bool = False, check_merges: bool = True
+):
     """Main monitoring loop."""
     print("Ready. Monitoring grid for connection errors...")
+    print("  Also checking for permission dialogs ('Allow this bash command?')")
     if check_merges:
         print("  Also checking for merge completions (auto-fill enabled)")
     print(f"  Checking every {MONITOR_INTERVAL} seconds")
@@ -741,7 +831,12 @@ def monitor_loop(ocr: OCREngine, capture: ScreenCapture, verbose: bool = False, 
                 if not state.running:
                     break
 
-                # Check for error dialogs (highest priority)
+                # Check for permission dialogs (highest priority - blocks execution)
+                if detect_permission_dialog_in_slot(ocr, capture, slot, verbose):
+                    handle_permission_dialog(ocr, capture, slot, verbose)
+                    continue
+
+                # Check for error dialogs
                 if detect_error_in_slot(ocr, capture, slot, verbose):
                     handle_error(ocr, capture, slot, verbose)
                     continue

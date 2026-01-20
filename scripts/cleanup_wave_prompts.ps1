@@ -67,10 +67,16 @@ if ([string]::IsNullOrWhiteSpace($WaveFile)) {
         $WaveFile = $promptsFile
         Write-Host "[AUTO-DETECT] Using: Prompts_All_Waves.md"
 
-        # Auto-detect wave number from file content (look for "# Wave N" header)
+        # Auto-detect wave number from file content (look for "# [W1] WAVE 1" or "# Wave N" header)
         if ($WaveNumber -eq 0) {
             $fileContent = Get-Content $promptsFile -Raw
-            if ($fileContent -match '# Wave (\d+)') {
+            # Try new format first: "# [W1] WAVE 1 (27 phases)"
+            if ($fileContent -match '# \[W(\d+)\] WAVE \d+') {
+                $WaveNumber = [int]$Matches[1]
+                Write-Host "[AUTO-DETECT] Wave number: $WaveNumber (from [WN] format)"
+            }
+            # Try old format: "# Wave N"
+            elseif ($fileContent -match '# Wave (\d+)') {
                 $WaveNumber = [int]$Matches[1]
                 Write-Host "[AUTO-DETECT] Wave number: $WaveNumber"
             } else {
@@ -107,7 +113,8 @@ Write-Host ""
 
 # ============ Load Current State ============
 Write-Host "Loading prompt state..." -ForegroundColor Yellow
-$prompts = & "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -WaveFile $WaveFile
+# Filter out string output (Write-Host) to get only phase hashtables
+$prompts = @(& "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -WaveFile $WaveFile 2>&1 | Where-Object { $_ -ne $null -and -not ($_ -is [string]) })
 
 $completedPrompts = @($prompts | Where-Object { $_.Status -eq "COMPLETED" })
 
@@ -141,6 +148,14 @@ Write-Host "CLEANUP 1: Cleaning Prompts_All_Waves.md" -ForegroundColor Yellow
 
 $content = Get-Content $WaveFile -Raw
 
+# CLEANUP 1a: Remove any orphaned content between header and first ## section
+# This fixes malformed files where prompt content exists before the first ## Phase: or ## Unresolved header
+$orphanedContentPattern = '(?s)(# Wave \d+\s*\r?\n+READY: \d+.*?UNRESOLVED: \d+\s*\r?\n+)---\s*\r?\n.*?(?=## )'
+if ($content -match $orphanedContentPattern) {
+    Write-Host "  [FIX] Removing orphaned content between header and first section"
+    $content = $content -replace $orphanedContentPattern, '$1'
+}
+
 # Remove all [COMPLETED] phase sections
 # Pattern: ## Phase: <ID> [COMPLETED] ... followed by everything until next ## Phase or end
 $regex = New-Object System.Text.RegularExpressions.Regex('## Phase: \S+ \[COMPLETED\].*?(?=## Phase:|\Z)', [System.Text.RegularExpressions.RegexOptions]::Singleline)
@@ -152,15 +167,21 @@ $unresolvedCount = ([regex]::Matches($content, '\[UNRESOLVED\]').Count)
 $pendingCount = ([regex]::Matches($content, '\[PENDING\]').Count)
 $completedCount = ([regex]::Matches($content, '\[COMPLETED\]').Count)
 
-# Try both header formats (old and new style)
-$headerPattern1 = 'READY: \d+, PENDING: \d+, COMPLETED: \d+, UNIMPLEMENTED: \d+'
-$headerReplacement1 = "READY: $readyCount, UNRESOLVED: $unresolvedCount, PENDING: $pendingCount, COMPLETED: $completedCount, UNIMPLEMENTED: 0"
+# Try multiple header formats:
+# Format 1 (current): "READY: 70 | PENDING: 0 | COMPLETED: 0 | UNIMPLEMENTED: 0"
+$headerPattern1 = 'READY: \d+ \| PENDING: \d+ \| COMPLETED: \d+ \| UNIMPLEMENTED: \d+'
+$headerReplacement1 = "READY: $readyCount | PENDING: $pendingCount | COMPLETED: $completedCount | UNIMPLEMENTED: $unresolvedCount"
 $content = $content -replace $headerPattern1, $headerReplacement1
 
-# Also try alternate format if present (with optional UNRESOLVED)
-$headerPattern2 = '\*\*Status\*\*: \d+ READY( \| \d+ UNRESOLVED)? \| \d+ PENDING \| \d+ COMPLETED'
-$headerReplacement2 = "**Status**: $readyCount READY | $unresolvedCount UNRESOLVED | $pendingCount PENDING | $completedCount COMPLETED"
+# Format 2 (old comma style): "READY: N, PENDING: N, COMPLETED: N, UNIMPLEMENTED: N"
+$headerPattern2 = 'READY: \d+, PENDING: \d+, COMPLETED: \d+, UNIMPLEMENTED: \d+'
+$headerReplacement2 = "READY: $readyCount, PENDING: $pendingCount, COMPLETED: $completedCount, UNIMPLEMENTED: $unresolvedCount"
 $content = $content -replace $headerPattern2, $headerReplacement2
+
+# Format 3 (alternate with UNRESOLVED): "**Status**: N READY | N UNRESOLVED | N PENDING | N COMPLETED"
+$headerPattern3 = '\*\*Status\*\*: \d+ READY( \| \d+ UNRESOLVED)? \| \d+ PENDING \| \d+ COMPLETED'
+$headerReplacement3 = "**Status**: $readyCount READY | $unresolvedCount UNRESOLVED | $pendingCount PENDING | $completedCount COMPLETED"
+$content = $content -replace $headerPattern3, $headerReplacement3
 
 # Update "Last Updated"
 $datePattern = '\*\*Last Updated\*\*: [^\n]+'
@@ -322,8 +343,8 @@ if ($hasUnresolvedToAppend) {
     Set-Content $WaveFile $currentContent -Encoding UTF8
     Write-Host "  [OK] Removed any existing Unresolved Issues sections to avoid duplicates"
 
-    # Re-read prompts after cleaning to get fresh list
-    $prompts = & "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -WaveFile $WaveFile
+    # Re-read prompts after cleaning to get fresh list (filter strings)
+    $prompts = @(& "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -WaveFile $WaveFile 2>&1 | Where-Object { $_ -ne $null -and -not ($_ -is [string]) })
 
     # Get existing phase IDs to avoid duplicates (only count READY/PENDING/COMPLETED phases)
     $existingPhaseIds = @($prompts | Where-Object { $_.Status -ne "UNRESOLVED" } | ForEach-Object { $_.ID })
@@ -370,9 +391,15 @@ if ($hasUnresolvedToAppend) {
             $prList = ($phasesToInclude | ForEach-Object { "#$($_.prNumber)" }) -join ", "
             $phaseList = ($phasesToInclude | ForEach-Object { $_.phaseId }) -join ", "
 
-            # Work from main repo for consolidated fixes
-            $worktreePath = "C:\dev\Autopack"
+            # Create worktree directory for consolidated fix (unique per failure type)
+            $worktreePath = "C:\dev\Autopack_w${WaveNumber}_fix-${failureType}"
             $fixBranchName = "wave${WaveNumber}/fix-${failureType}"
+
+            # Create the worktree directory if it doesn't exist
+            if (-not (Test-Path $worktreePath)) {
+                New-Item -ItemType Directory -Path $worktreePath -Force | Out-Null
+                Write-Host "    [INFO] Created worktree directory: $worktreePath"
+            }
 
             # Create consolidated prompt for this failure type
             # Use a synthetic phaseId for the group (for manage_prompt_state.ps1 regex matching)
@@ -483,9 +510,17 @@ Please investigate and fix the issue:
             $failureTitle = Get-FailureTypeTitle $category
             $prList = ($phasesToInclude | ForEach-Object { "#$($_.prNumber)" }) -join ", "
             $phaseList = ($phasesToInclude | ForEach-Object { $_.phaseId }) -join ", "
-            $worktreePath = "C:\dev\Autopack"
+
+            # Create worktree directory for consolidated fix (unique per failure type)
+            $worktreePath = "C:\dev\Autopack_w${WaveNumber}_fix-${category}"
             $fixBranchName = "wave${WaveNumber}/fix-${category}"
             $groupPhaseId = "fix-${category}"
+
+            # Create the worktree directory if it doesn't exist
+            if (-not (Test-Path $worktreePath)) {
+                New-Item -ItemType Directory -Path $worktreePath -Force | Out-Null
+                Write-Host "    [INFO] Created worktree directory: $worktreePath"
+            }
 
             $issuesSummary += @"
 
@@ -636,8 +671,8 @@ if ($null -ne $unresolvedData -and $unresolvedData.issues.Count -gt 0) {
 }
 Write-Host ""
 
-# Reload and display new status
-$promptsAfter = & "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -WaveFile $WaveFile
+# Reload and display new status (filter strings)
+$promptsAfter = @(& "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -WaveFile $WaveFile 2>&1 | Where-Object { $_ -ne $null -and -not ($_ -is [string]) })
 $readyAfter = @($promptsAfter | Where-Object { $_.Status -eq "READY" }).Count
 $unresolvedAfter = @($promptsAfter | Where-Object { $_.Status -eq "UNRESOLVED" }).Count
 $pendingAfter = @($promptsAfter | Where-Object { $_.Status -eq "PENDING" }).Count

@@ -45,8 +45,11 @@ except ImportError as e:
 # CONFIGURATION
 # ============================================================================
 
-# Monitor interval in seconds
-MONITOR_INTERVAL = 2.0
+# Monitor interval in seconds (delay after scanning all slots)
+MONITOR_INTERVAL = 1.0
+
+# Delay between checking each slot (in seconds) - keep low for responsiveness
+SLOT_CHECK_DELAY = 0.1
 
 # Grid configuration for 5120x1440 monitor with 3x3 grid
 # Right half of monitor (X starts at 2560), with verified slot positions
@@ -127,15 +130,22 @@ PERMISSION_BUTTON_KEYWORDS = [
 ]
 
 # Merge completion keywords - indicates PR was merged successfully
-MERGE_KEYWORDS = [
-    "merged",
+# DISABLED: Auto-closing on merge detection caused false positives
+# The OCR was detecting "merged" text in chat/logs before PR was actually merged
+# Now using check_pr_status.ps1 to verify actual PR state via GitHub API instead
+MERGE_KEYWORDS_DISABLED = [
     "pull request merged",
     "pr merged",
     "successfully merged",
-    "branch deleted",
     "merged into main",
     "merged into master",
-    "merge completed",
+]
+
+# Active merge keywords - only very specific phrases that indicate completion
+# These are intentionally strict to avoid false positives
+MERGE_KEYWORDS = [
+    # Intentionally empty - merge detection disabled
+    # Use check_pr_status.ps1 instead which checks GitHub API for actual MERGED state
 ]
 
 
@@ -157,6 +167,8 @@ class MonitorState:
         self.running = True
         self.verbose = False
         self.auto_fill_enabled = True  # Enable auto-fill after merge detection
+        self.active_slots: set = set()  # Slots with active Cursor windows
+        self.last_slot_scan: datetime = None  # Last time we scanned for active windows
 
 
 state = MonitorState()
@@ -283,6 +295,123 @@ class ScreenCapture:
 
 
 # ============================================================================
+# ACTIVE WINDOW DETECTION
+# ============================================================================
+
+
+def get_active_cursor_slots(verbose: bool = False) -> set:
+    """
+    Detect which grid slots have active Cursor windows.
+
+    Uses PowerShell to enumerate Cursor windows and map them to grid slots
+    based on their screen position.
+
+    Returns:
+        Set of slot numbers (1-9) that have active Cursor windows
+    """
+    try:
+        ps_script = """
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Collections.Generic;
+
+public class WindowEnumerator {
+    [DllImport("user32.dll")]
+    public static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern int GetWindowTextLength(IntPtr hWnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+    [DllImport("user32.dll")]
+    public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    public static List<int[]> cursorWindows = new List<int[]>();
+
+    public static bool EnumCallback(IntPtr hWnd, IntPtr lParam) {
+        if (IsWindowVisible(hWnd)) {
+            int length = GetWindowTextLength(hWnd);
+            if (length > 0) {
+                StringBuilder sb = new StringBuilder(length + 1);
+                GetWindowText(hWnd, sb, sb.Capacity);
+                string title = sb.ToString();
+                if (title.Contains("Cursor") || title.Contains("cursor")) {
+                    RECT rect;
+                    if (GetWindowRect(hWnd, out rect)) {
+                        cursorWindows.Add(new int[] { rect.Left, rect.Top });
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    public static void FindCursorWindows() {
+        cursorWindows.Clear();
+        EnumWindows(EnumCallback, IntPtr.Zero);
+    }
+}
+"@
+
+[WindowEnumerator]::FindCursorWindows()
+foreach ($pos in [WindowEnumerator]::cursorWindows) {
+    Write-Output "$($pos[0]),$($pos[1])"
+}
+"""
+        result = subprocess.run(
+            ["powershell", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+
+        active_slots = set()
+        tolerance = 100
+
+        for line in result.stdout.strip().split("\n"):
+            if "," not in line:
+                continue
+            try:
+                x, y = map(int, line.split(","))
+
+                # Map window position to slot number
+                for slot, pos in GRID_POSITIONS.items():
+                    if abs(x - pos["x"]) < tolerance and abs(y - pos["y"]) < tolerance:
+                        active_slots.add(slot)
+                        break
+            except ValueError:
+                continue
+
+        if verbose:
+            print(f"  [DEBUG] Active Cursor windows in slots: {sorted(active_slots)}")
+
+        return active_slots
+
+    except Exception as e:
+        if verbose:
+            print(f"  [ERROR] Failed to detect active windows: {e}")
+        # Return all slots as fallback
+        return set(range(1, 10))
+
+
+# ============================================================================
 # ERROR DETECTION AND HANDLING
 # ============================================================================
 
@@ -369,13 +498,22 @@ def click_resume_button(slot: int, verbose: bool = False) -> bool:
 
 
 def click_detected_button(
-    ocr: OCREngine, capture: ScreenCapture, slot: int, keywords: List[str], verbose: bool = False
+    ocr: OCREngine,
+    capture: ScreenCapture,
+    slot: int,
+    keywords: List[str],
+    verbose: bool = False,
+    y_offset: int = 0,
 ) -> bool:
     """
     Find and click a button with text matching keywords in the given slot.
 
     This is an alternative to using pre-mapped coordinates - it dynamically
     finds the button location using OCR.
+
+    Args:
+        y_offset: Additional Y offset to add (positive = down, negative = up)
+                  Useful for buttons where OCR bbox center is slightly off
 
     Returns:
         True if button found and clicked
@@ -392,7 +530,7 @@ def click_detected_button(
         # Convert relative position to absolute screen position
         pos = GRID_POSITIONS[slot]
         abs_x = pos["x"] + location[0]
-        abs_y = pos["y"] + location[1]
+        abs_y = pos["y"] + location[1] + y_offset
 
         timestamp = datetime.now().strftime("%H:%M:%S")
         print(f"[{timestamp}] Clicking detected button at ({abs_x}, {abs_y}) for slot {slot}")
@@ -520,8 +658,9 @@ def handle_permission_dialog(
         return False
 
     # Try to find "Yes, allow for this session" or "Yes, allow for this project"
+    # Add small Y offset (+5) to click more towards center of button
     print("  Looking for 'Yes, allow for this session' button...")
-    if click_detected_button(ocr, capture, slot, PERMISSION_BUTTON_KEYWORDS, verbose):
+    if click_detected_button(ocr, capture, slot, PERMISSION_BUTTON_KEYWORDS, verbose, y_offset=5):
         state.handled_count += 1
         state.last_error_time[slot] = datetime.now()
         print("  [OK] Permission granted (session/project scope)")
@@ -529,7 +668,7 @@ def handle_permission_dialog(
 
     # Fall back to just clicking "Yes"
     print("  Falling back to 'Yes' button...")
-    if click_detected_button(ocr, capture, slot, ["yes"], verbose):
+    if click_detected_button(ocr, capture, slot, ["yes"], verbose, y_offset=5):
         state.handled_count += 1
         state.last_error_time[slot] = datetime.now()
         print("  [OK] Permission granted (single command)")
@@ -779,7 +918,8 @@ def print_banner(check_merges: bool = True):
     print("Press Ctrl+C to stop")
     print()
     print("This handler:")
-    print("  [+] Takes screenshots of 9 grid windows")
+    print("  [+] Detects which slots have active Cursor windows")
+    print("  [+] Only scans slots with active windows (skips empty slots)")
     print("  [+] Uses OCR to detect error/approval text")
     print("  [+] Clicks Resume/Approve buttons automatically")
     print("  [+] Auto-clicks 'Yes' on permission dialogs")
@@ -822,35 +962,60 @@ def monitor_loop(
     if check_merges:
         print("  Also checking for merge completions (auto-fill enabled)")
     print(f"  Checking every {MONITOR_INTERVAL} seconds")
+    print("  Only scanning slots with active Cursor windows")
     print()
+
+    # How often to refresh the active window list (seconds)
+    WINDOW_SCAN_INTERVAL = 10.0
 
     while state.running:
         try:
-            # Check each grid slot
-            for slot in range(1, 10):
+            # Periodically refresh which slots have active Cursor windows
+            now = datetime.now()
+            if (
+                state.last_slot_scan is None
+                or (now - state.last_slot_scan).total_seconds() >= WINDOW_SCAN_INTERVAL
+            ):
+                state.active_slots = get_active_cursor_slots(verbose)
+                state.last_slot_scan = now
+                if state.active_slots:
+                    print(
+                        f"[{now.strftime('%H:%M:%S')}] Active slots: {sorted(state.active_slots)}"
+                    )
+                else:
+                    print(f"[{now.strftime('%H:%M:%S')}] No active Cursor windows detected")
+
+            # Only check slots with active Cursor windows
+            for slot in sorted(state.active_slots):
                 if not state.running:
                     break
 
                 # Check for permission dialogs (highest priority - blocks execution)
                 if detect_permission_dialog_in_slot(ocr, capture, slot, verbose):
                     handle_permission_dialog(ocr, capture, slot, verbose)
+                    time.sleep(SLOT_CHECK_DELAY)
                     continue
 
                 # Check for error dialogs
                 if detect_error_in_slot(ocr, capture, slot, verbose):
                     handle_error(ocr, capture, slot, verbose)
+                    time.sleep(SLOT_CHECK_DELAY)
                     continue
 
                 # Check for approval dialogs
                 if detect_approval_in_slot(ocr, capture, slot, verbose):
                     handle_approval(ocr, capture, slot, verbose)
+                    time.sleep(SLOT_CHECK_DELAY)
                     continue
 
                 # Check for merge completions (if enabled)
                 if check_merges and detect_merge_in_slot(ocr, capture, slot, verbose):
                     handle_merge(ocr, capture, slot, verbose)
 
-            # Wait before next scan
+                # Small delay between slots to avoid hammering CPU
+                time.sleep(SLOT_CHECK_DELAY)
+
+            # Wait before next full scan cycle
             time.sleep(MONITOR_INTERVAL)
 
         except KeyboardInterrupt:

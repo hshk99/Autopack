@@ -30,7 +30,14 @@ Write-Host ""
 
 # Read the wave file to get the prompt
 $waveContent = Get-Content $WaveFile -Raw
-$phasePattern = "## Phase: $PhaseId \[.*?\].*?\*\*Title\*\*: (.*?)`n.*?\*\*Path\*\*: (.*?)`n(?:\*\*Branch\*\*: (.*?)`n)?`n(.*?)(?=---|\Z)"
+
+# Pattern handles multiple formats:
+# - New format: ## Phase: <id> [STATUS] -> **Wave**: -> **IMP**: -> **Title**: -> **Path**: -> **Branch**: -> <prompt>
+# - Old format: ## Phase: <id> [STATUS] -> **Title**: -> **Path**: -> **Branch**: -> <prompt>
+# The prompt content is everything from the blank line after metadata until the next "---"
+
+# Updated regex: Skip optional **Wave**: and **IMP**: fields before **Title**:
+$phasePattern = "## Phase: $PhaseId \[.*?\](?:.*?\*\*Wave\*\*:.*?(?:\r?\n))?(?:.*?\*\*IMP\*\*:.*?(?:\r?\n))?.*?\*\*Title\*\*: (.*?)(?:\r?\n).*?\*\*Path\*\*: (.*?)(?:\r?\n)(?:\*\*Branch\*\*: (.*?)(?:\r?\n))?(?:\r?\n)+(.*?)(?=\r?\n---|\Z)"
 $match = [regex]::Match($waveContent, $phasePattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
 
 if (-not $match.Success) {
@@ -141,6 +148,9 @@ public class WindowHelper {
 "@
 }
 
+# Load Windows Forms for SendKeys (works better with Electron/web apps)
+Add-Type -AssemblyName System.Windows.Forms
+
 if (-not ([System.Management.Automation.PSTypeName]'KeyboardHelper').Type) {
 Add-Type @"
 using System;
@@ -160,7 +170,8 @@ public class KeyboardHelper {
     public const uint KEYEVENTF_KEYDOWN = 0x0000;
     public const uint KEYEVENTF_KEYUP = 0x0002;
 
-    public static void PasteAndEnter() {
+    // Keep old method as fallback
+    public static void PasteAndEnterLegacy() {
         // Ctrl+V to paste
         keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYDOWN, 0);
         keybd_event(VK_V, 0, KEYEVENTF_KEYDOWN, 0);
@@ -184,6 +195,16 @@ public class KeyboardHelper {
 
         keybd_event(VK_O, 0, KEYEVENTF_KEYDOWN, 0);
         keybd_event(VK_O, 0, KEYEVENTF_KEYUP, 0);
+    }
+
+    // SendKeys method for Ctrl+Shift+9 (works better with web UIs)
+    public static void SendCtrlShift9() {
+        keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYDOWN, 0);
+        keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYDOWN, 0);
+        keybd_event(VK_9, 0, KEYEVENTF_KEYDOWN, 0);
+        keybd_event(VK_9, 0, KEYEVENTF_KEYUP, 0);
+        keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, 0);
+        keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0);
     }
 }
 "@
@@ -242,36 +263,37 @@ if ($null -eq $targetWindow) {
 # Set foreground window
 Write-Host "[ACTION] Setting window to foreground..."
 [WindowHelper]::SetForegroundWindow($targetWindow) | Out-Null
-Start-Sleep -Milliseconds 500
+Start-Sleep -Milliseconds 5000
 
 # ============ Step 2: Open Claude Chat (Ctrl+Shift+9) ============
-# TEMPORARILY COMMENTED OUT FOR TESTING
-Write-Host "[ACTION] Claude Chat should be default (Ctrl+Shift+9 temporarily disabled)..."
+Write-Host "[ACTION] Opening Claude Chat with Ctrl+Shift+9..."
 
-# Send Ctrl+Shift+9 to open Claude Chat
-# [KeyboardHelper]::keybd_event([KeyboardHelper]::VK_CONTROL, 0, [KeyboardHelper]::KEYEVENTF_KEYDOWN, 0)
-# [KeyboardHelper]::keybd_event([KeyboardHelper]::VK_SHIFT, 0, [KeyboardHelper]::KEYEVENTF_KEYDOWN, 0)
-# [KeyboardHelper]::keybd_event([KeyboardHelper]::VK_9, 0, [KeyboardHelper]::KEYEVENTF_KEYDOWN, 0)
-# [KeyboardHelper]::keybd_event([KeyboardHelper]::VK_9, 0, [KeyboardHelper]::KEYEVENTF_KEYUP, 0)
-# [KeyboardHelper]::keybd_event([KeyboardHelper]::VK_SHIFT, 0, [KeyboardHelper]::KEYEVENTF_KEYUP, 0)
-# [KeyboardHelper]::keybd_event([KeyboardHelper]::VK_CONTROL, 0, [KeyboardHelper]::KEYEVENTF_KEYUP, 0)
+# Use SendKeys for better compatibility with Electron/web apps
+[System.Windows.Forms.SendKeys]::SendWait("^+9")
 
-Write-Host "[OK] Ready to paste"
-Write-Host "[INFO] Waiting for window to fully settle (5 seconds)..."
-Start-Sleep -Milliseconds 5000
+Write-Host "[OK] Claude Chat shortcut sent (via SendKeys)"
+Write-Host "[INFO] Waiting for Claude Chat panel to open..."
+Start-Sleep -Milliseconds 2500
 
 # ============ Step 3: Set clipboard and paste prompt to Chat ============
 Write-Host "[ACTION] Pasting prompt to Claude Chat..."
 
-# Copy prompt to clipboard (use simple prompt, like the original script)
+# Copy prompt to clipboard
 $phasePrompt | Set-Clipboard
-Start-Sleep -Milliseconds 200
+Write-Host "[INFO] Clipboard set with prompt ($($phasePrompt.Length) chars)"
+Start-Sleep -Milliseconds 500
 
-# Paste and send to Chat
-[KeyboardHelper]::PasteAndEnter()
+# Use SendKeys for paste - works better with web-based UIs in Electron apps
+# ^v = Ctrl+V, {ENTER} = Enter key
+Write-Host "[INFO] Sending Ctrl+V via SendKeys..."
+[System.Windows.Forms.SendKeys]::SendWait("^v")
+Start-Sleep -Milliseconds 500
 
-Write-Host "[OK] Prompt pasted to Claude Chat and sent"
-Start-Sleep -Milliseconds 2000
+Write-Host "[INFO] Sending Enter via SendKeys..."
+[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+
+Write-Host "[OK] Prompt pasted to Claude Chat and sent (via SendKeys)"
+Start-Sleep -Milliseconds 500
 
 Write-Host ""
 

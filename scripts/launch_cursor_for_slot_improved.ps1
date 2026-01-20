@@ -137,22 +137,34 @@ Write-Host ""
 $beforeProcs = Get-Process -Name "cursor" -ErrorAction SilentlyContinue
 $beforeProcIds = @($beforeProcs | ForEach-Object { $_.Id })
 
-# Launch Cursor
+# Launch Cursor using the CLI command (cursor.cmd) which properly handles --new-window
 Write-Host "[ACTION] Launching Cursor..."
 try {
-    $cursorExe = "$env:LOCALAPPDATA\Programs\cursor\Cursor.exe"
-    if (-not (Test-Path $cursorExe)) {
-        $cursorExe = "cursor"
+    # Use cursor.cmd CLI instead of Cursor.exe - it handles --new-window properly
+    $cursorCmd = "$env:LOCALAPPDATA\Programs\cursor\resources\app\bin\cursor.cmd"
+    if (-not (Test-Path $cursorCmd)) {
+        # Fallback to system-wide installation
+        $cursorCmd = "C:\Program Files\cursor\resources\app\bin\cursor.cmd"
+        if (-not (Test-Path $cursorCmd)) {
+            $cursorCmd = "cursor"  # Final fallback to PATH
+        }
     }
-    Write-Host "[INFO] Executable: $cursorExe"
+    Write-Host "[INFO] CLI: $cursorCmd"
 
-    if ([string]::IsNullOrWhiteSpace($ProjectPath)) {
-        Write-Host "[INFO] Launching without project"
-        Start-Process -FilePath $cursorExe -ArgumentList "--new-window" -ErrorAction Stop
-    } else {
-        Write-Host "[INFO] Opening project: $ProjectPath"
-        Start-Process -FilePath $cursorExe -ArgumentList "--new-window", $ProjectPath -ErrorAction Stop
+    # Build arguments with --new-window flag
+    $launchArgs = @("--new-window")
+    if (-not [string]::IsNullOrWhiteSpace($ProjectPath)) {
+        $launchArgs += $ProjectPath
     }
+
+    Write-Host "[INFO] Launching new window for slot $SlotNumber"
+    if (-not [string]::IsNullOrWhiteSpace($ProjectPath)) {
+        Write-Host "[INFO] Project: $ProjectPath"
+    }
+    Write-Host "[INFO] Args: $($launchArgs -join ' ')"
+
+    # Start Cursor CLI with --new-window flag
+    Start-Process -FilePath $cursorCmd -ArgumentList $launchArgs -ErrorAction Stop
 
     Write-Host "[OK] Launch command executed"
 } catch {
@@ -168,18 +180,37 @@ $newWindow = $null
 $elapsedSeconds = 0
 $checkInterval = 400  # milliseconds
 
+# Extract project folder name for title matching
+$projectFolderName = ""
+if (-not [string]::IsNullOrWhiteSpace($ProjectPath)) {
+    $projectFolderName = [System.IO.Path]::GetFileName($ProjectPath)
+    Write-Host "[INFO] Looking for window with title containing: $projectFolderName"
+}
+
 while ($elapsedSeconds -lt $MaxWaitSeconds) {
     Start-Sleep -Milliseconds $checkInterval
     $currentWindows = [WindowHelper]::GetAllCursorWindowHandles()
 
-    # Find NEW window(s) - one that's NOT in the existing list
+    # First try: Find NEW window by handle
     foreach ($window in $currentWindows) {
         $handle = $window.GetHashCode()
         if ($beforeHandles -notcontains $handle) {
             $newWindow = $window
             $title = [WindowHelper]::GetWindowTitle($newWindow)
-            Write-Host "[FOUND] New window detected: $title"
+            Write-Host "[FOUND] New window detected by handle: $title"
             break
+        }
+    }
+
+    # Second try: If no new handle, look for window with project name in title
+    if ($null -eq $newWindow -and $projectFolderName -ne "") {
+        foreach ($window in $currentWindows) {
+            $title = [WindowHelper]::GetWindowTitle($window)
+            if ($title -like "*$projectFolderName*") {
+                $newWindow = $window
+                Write-Host "[FOUND] Window with project name in title: $title"
+                break
+            }
         }
     }
 
@@ -267,6 +298,11 @@ Write-Host "[ACTION] Bringing window to foreground..."
 Start-Sleep -Milliseconds 500
 
 Write-Host "[OK] Window brought to foreground"
+Write-Host ""
+
+# Project was already opened via command line args with --user-data-dir
+# No need for keyboard shortcuts - the isolated instance opens directly with the project
+
 Write-Host ""
 
 Write-Host "============ LAUNCH COMPLETE ============" -ForegroundColor Green

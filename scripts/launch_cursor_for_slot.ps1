@@ -132,7 +132,7 @@ Write-Host "Target Slot: $SlotNumber"
 Write-Host ""
 
 # CRITICAL: Get window handles BEFORE launch to identify new windows later
-$existingWindows = [WindowHelper]::GetWindowsByProcessName("cursor")
+$existingWindows = [WindowHelper]::GetWindowsByProcessName("Cursor")
 $existingWindowHandles = @($existingWindows | ForEach-Object { $_.GetHashCode() })
 Write-Host "[INFO] Current Cursor windows: $($existingWindows.Count)"
 Write-Host "[CRITICAL] Existing window IDs (will NOT touch these): $($existingWindowHandles -join ', ')"
@@ -140,13 +140,20 @@ Write-Host "[CRITICAL] Existing window IDs (will NOT touch these): $($existingWi
 # Launch Cursor application
 Write-Host "[ACTION] Launching Cursor..."
 try {
+    # Use direct path to Cursor.exe for reliable new window
+    $cursorExe = "$env:LOCALAPPDATA\Programs\cursor\Cursor.exe"
+    if (-not (Test-Path $cursorExe)) {
+        $cursorExe = "cursor"  # fallback
+    }
+    Write-Host "[INFO] Using: $cursorExe"
+
     if ([string]::IsNullOrWhiteSpace($ProjectPath)) {
-        # Force new window with -n flag
-        Start-Process -FilePath "cursor" -ArgumentList "-n" -ErrorAction Stop
+        # Force new window with --new-window flag
+        Start-Process -FilePath $cursorExe -ArgumentList "--new-window" -ErrorAction Stop
     } else {
         Write-Host "[INFO] Opening project: $ProjectPath"
-        # Force new window with -n flag, then specify path
-        Start-Process -FilePath "cursor" -ArgumentList "-n", $ProjectPath -ErrorAction Stop
+        # Force new window with --new-window flag, then specify path
+        Start-Process -FilePath $cursorExe -ArgumentList "--new-window", $ProjectPath -ErrorAction Stop
     }
 } catch {
     Write-Host "[ERROR] Failed to launch Cursor: $_" -ForegroundColor Red
@@ -162,7 +169,7 @@ $checkInterval = 200  # milliseconds
 
 while ($elapsedSeconds -lt $MaxWaitSeconds) {
     Start-Sleep -Milliseconds $checkInterval
-    $currentWindows = [WindowHelper]::GetWindowsByProcessName("cursor")
+    $currentWindows = [WindowHelper]::GetWindowsByProcessName("Cursor")
 
     # Find the NEW window(s) - one that's NOT in the existing list
     foreach ($window in $currentWindows) {
@@ -188,7 +195,7 @@ if ($null -eq $newWindow) {
 
     # Give it more time and try once more
     Start-Sleep -Seconds 2
-    $currentWindows = [WindowHelper]::GetWindowsByProcessName("cursor")
+    $currentWindows = [WindowHelper]::GetWindowsByProcessName("Cursor")
 
     foreach ($window in $currentWindows) {
         $windowId = $window.GetHashCode()

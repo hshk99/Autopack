@@ -54,14 +54,14 @@ class TestDashboardAPILogging:
 
                 get_dashboard_run_status(run_id="test-run-123", db=mock_db, _auth="test")
 
-        # Verify request log
+        # Verify request log (uses %r so run_id is quoted)
         assert any(
-            "[API] GET /dashboard/runs/test-run-123/status - request received" in record.message
+            "[API] GET /dashboard/runs/'test-run-123'/status - request received" in record.message
             for record in caplog.records
         )
-        # Verify response log
+        # Verify response log (uses %r so run_id is quoted)
         assert any(
-            "[API] GET /dashboard/runs/test-run-123/status - success" in record.message
+            "[API] GET /dashboard/runs/'test-run-123'/status - success" in record.message
             for record in caplog.records
         )
 
@@ -101,9 +101,9 @@ class TestDashboardAPILogging:
 
         get_dashboard_usage(period="week", db=mock_db, _auth="test")
 
-        # Verify request log
+        # Verify request log (uses %r so period is quoted)
         assert any(
-            "[API] GET /dashboard/usage - request received period=week" in record.message
+            "[API] GET /dashboard/usage - request received period='week'" in record.message
             for record in caplog.records
         )
         # Verify response log
@@ -206,15 +206,15 @@ class TestDashboardAPILogging:
 
             get_run_token_efficiency(run_id="test-run-123", db=mock_db, api_key="test-key")
 
-        # Verify request log
+        # Verify request log (uses %r so run_id is quoted)
         assert any(
-            "[API] GET /dashboard/runs/test-run-123/token-efficiency - request received"
+            "[API] GET /dashboard/runs/'test-run-123'/token-efficiency - request received"
             in record.message
             for record in caplog.records
         )
-        # Verify response log
+        # Verify response log (uses %r so run_id is quoted)
         assert any(
-            "[API] GET /dashboard/runs/test-run-123/token-efficiency - success" in record.message
+            "[API] GET /dashboard/runs/'test-run-123'/token-efficiency - success" in record.message
             for record in caplog.records
         )
 
@@ -247,15 +247,15 @@ class TestDashboardAPILogging:
 
             get_run_phase6_stats(run_id="test-run-123", db=mock_db, api_key="test-key")
 
-        # Verify request log
+        # Verify request log (uses %r so run_id is quoted)
         assert any(
-            "[API] GET /dashboard/runs/test-run-123/phase6-stats - request received"
+            "[API] GET /dashboard/runs/'test-run-123'/phase6-stats - request received"
             in record.message
             for record in caplog.records
         )
-        # Verify response log
+        # Verify response log (uses %r so run_id is quoted)
         assert any(
-            "[API] GET /dashboard/runs/test-run-123/phase6-stats - success" in record.message
+            "[API] GET /dashboard/runs/'test-run-123'/phase6-stats - success" in record.message
             for record in caplog.records
         )
 
@@ -312,9 +312,9 @@ class TestDashboardAPILogging:
                 get_dashboard_consolidated_metrics(run_id="test-run-123", db=mock_db, _auth="test")
 
         assert exc_info.value.status_code == 503
-        # Verify request log
+        # Verify request log (uses %r so run_id is quoted)
         assert any(
-            "[API] GET /dashboard/runs/test-run-123/consolidated-metrics - request received"
+            "[API] GET /dashboard/runs/'test-run-123'/consolidated-metrics - request received"
             in record.message
             for record in caplog.records
         )

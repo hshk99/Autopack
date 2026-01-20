@@ -391,7 +391,9 @@ if ($mergedPRs.Count -gt 0) {
         $slot = $windowSlotMap[$phaseId]
         if ($null -ne $slot -and $slot -gt 0) {
             Write-Host "  Sending to slot $slot..."
-            if (Send-MessageToCursorWindowSlot "proceed to merge" $slot) {
+            # Send clear instruction to Cursor to merge the PR
+            $mergeInstruction = "Your PR has passed all CI checks and is ready. Please merge it now using: gh pr merge --squash --delete-branch"
+            if (Send-MessageToCursorWindowSlot $mergeInstruction $slot) {
                 $messageSent++
                 Write-Host "    [OK] Message sent"
             } else {
@@ -453,3 +455,31 @@ if ($mergedPRs.Count -gt 0) {
         }
     }
 }
+
+# ============ UPDATE HEADER COUNTS ============
+# Always update header to reflect current phase counts
+Write-Host ""
+Write-Host "Updating header counts..."
+
+$content = Get-Content $WaveFile -Raw
+
+# Count current statuses
+$readyCount = ([regex]::Matches($content, '\[READY\]')).Count
+$unresolvedCount = ([regex]::Matches($content, '\[UNRESOLVED\]')).Count
+$pendingCount = ([regex]::Matches($content, '\[PENDING\]')).Count
+$completedCount = ([regex]::Matches($content, '\[COMPLETED\]')).Count
+
+# Update header - try multiple formats
+$headerPattern1 = 'READY: \d+, PENDING: \d+, COMPLETED: \d+, UNRESOLVED: \d+'
+$headerReplacement1 = "READY: $readyCount, PENDING: $pendingCount, COMPLETED: $completedCount, UNRESOLVED: $unresolvedCount"
+$content = $content -replace $headerPattern1, $headerReplacement1
+
+# Also try alternate format (with UNRESOLVED in different position)
+$headerPattern2 = 'READY: \d+, UNRESOLVED: \d+, PENDING: \d+, COMPLETED: \d+'
+$headerReplacement2 = "READY: $readyCount, UNRESOLVED: $unresolvedCount, PENDING: $pendingCount, COMPLETED: $completedCount"
+$content = $content -replace $headerPattern2, $headerReplacement2
+
+Set-Content $WaveFile $content -Encoding UTF8
+
+Write-Host "[OK] Header updated: $readyCount READY | $unresolvedCount UNRESOLVED | $pendingCount PENDING | $completedCount COMPLETED"
+Write-Host ""

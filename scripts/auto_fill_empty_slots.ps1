@@ -266,9 +266,9 @@ for ($i = 0; $i -lt $promptsToFill.Count; $i++) {
         $projectPath = $prompt.Path
         Write-Host "    Project: $projectPath"
 
-        $launchOutput = & "C:\dev\Autopack\scripts\launch_cursor_for_slot.ps1" -SlotNumber $slot -ProjectPath $projectPath 2>&1
+        $launchOutput = & "C:\dev\Autopack\scripts\launch_cursor_for_slot_improved.ps1" -SlotNumber $slot -ProjectPath $projectPath 2>&1
         # Check if launch was successful by looking for success indicators in output
-        $launchSuccess = $launchOutput | Select-String -Pattern "Window positioned successfully|DONE.*launched" -Quiet
+        $launchSuccess = $launchOutput | Select-String -Pattern "LAUNCH COMPLETE|positioned successfully" -Quiet
         if (-not $launchSuccess) {
             Write-Host "    ⚠️  Launch may have failed" -ForegroundColor Yellow
             Write-Host "    Output: $($launchOutput -join "`n")"

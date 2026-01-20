@@ -95,9 +95,11 @@ ROOT_ALLOWED_DIRS = {
     ".pytest_cache",
     ".autopack",
     ".claude",
+    ".cursor",
     ".autonomous_runs",
     "__pycache__",
     "node_modules",
+    ".ruff_cache",
     "src",
     "tests",
     "scripts",
@@ -110,6 +112,7 @@ ROOT_ALLOWED_DIRS = {
     ".venv",
     "dist",
     "build",
+    "ralph",
     # BUILD-183: security/ is allowed at root by design - contains security
     # baselines, threat models, and audit artifacts for visibility.
     "security",
@@ -290,6 +293,9 @@ def verify_root_structure(repo_root: Path) -> Tuple[bool, List[str], List[str]]:
     # Check for disallowed files
     for item in repo_root.iterdir():
         if item.is_file():
+            # Special case: .git file is allowed in worktrees (it's a pointer file, not a directory)
+            if item.name == ".git":
+                continue
             if not is_root_file_allowed(item.name):
                 # Check if this file is already queued for retry
                 if item.name in pending_srcs or str(item.name).replace("\\", "/") in pending_srcs:

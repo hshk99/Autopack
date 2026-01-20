@@ -33,19 +33,94 @@ function Get-UnresolvedIssuesFile {
 }
 
 # Load existing unresolved issues or create new tracking
+# New format groups issues by failure type category
 function Load-UnresolvedIssues {
     param([int]$WaveNumber)
     $filePath = Get-UnresolvedIssuesFile $WaveNumber
 
     if (Test-Path $filePath) {
         try {
-            return Get-Content $filePath -Raw | ConvertFrom-Json
+            $data = Get-Content $filePath -Raw | ConvertFrom-Json
+            # Check if it's old format (has 'issues' with phaseId) or new format (has 'failureGroups')
+            if ($null -ne $data.failureGroups) {
+                return $data  # New format
+            } elseif ($null -ne $data.issues) {
+                # Migrate old format to new format
+                return Migrate-OldFormatToNew $data
+            }
         } catch {
-            return @{ issues = @(); lastUpdated = Get-Date -Format 'yyyy-MM-dd HH:mm:ss' }
+            return @{ failureGroups = @(); lastUpdated = Get-Date -Format 'yyyy-MM-dd HH:mm:ss' }
         }
     }
 
-    return @{ issues = @(); lastUpdated = Get-Date -Format 'yyyy-MM-dd HH:mm:ss' }
+    return @{ failureGroups = @(); lastUpdated = Get-Date -Format 'yyyy-MM-dd HH:mm:ss' }
+}
+
+# Migrate old format (per-phase) to new format (grouped by failure type)
+function Migrate-OldFormatToNew {
+    param([object]$OldData)
+
+    $newData = @{
+        failureGroups = @()
+        lastUpdated = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    }
+
+    if ($null -eq $OldData.issues -or $OldData.issues.Count -eq 0) {
+        return $newData
+    }
+
+    # Group old issues by their failure type category
+    $grouped = @{}
+    foreach ($issue in $OldData.issues) {
+        $category = Get-FailureCategory $issue.issue
+        if (-not $grouped.ContainsKey($category)) {
+            $grouped[$category] = @{
+                failureType = $category
+                description = $issue.issue
+                affectedPhases = @()
+            }
+        }
+        $grouped[$category].affectedPhases += @{
+            phaseId = $issue.phaseId
+            prNumber = $issue.prNumber
+            recorded = $issue.recorded
+        }
+    }
+
+    $newData.failureGroups = @($grouped.Values)
+    return $newData
+}
+
+# Categorize failure type from the issue description
+# Returns a normalized category name for grouping
+function Get-FailureCategory {
+    param([string]$IssueDescription)
+
+    $desc = $IssueDescription.ToLower()
+
+    # Check for Core Tests failure (critical - needs its own fix)
+    if ($desc -match "core tests") {
+        return "core-tests"
+    }
+
+    # Check for CodeQL (security scanning)
+    if ($desc -match "codeql") {
+        return "codeql"
+    }
+
+    # Check for lint/verify-structure (common systemic issues)
+    if ($desc -match "lint" -and $desc -match "verify-structure") {
+        return "lint-verify-structure"
+    }
+    if ($desc -match "verify-structure") {
+        return "verify-structure"
+    }
+    if ($desc -match "lint") {
+        return "lint"
+    }
+
+    # Default: use the full description as category (unique issue)
+    return "other"
 }
 
 # Save unresolved issues to file
@@ -56,8 +131,8 @@ function Save-UnresolvedIssues {
     $IssuesData | ConvertTo-Json -Depth 10 | Set-Content $filePath -Encoding UTF8
 }
 
-# Record an unresolved issue
-# Only records if phaseId doesn't already exist (prevents duplicates)
+# Record an unresolved issue (grouped by failure type)
+# Groups similar failures together instead of creating separate entries per phase
 function Record-UnresolvedIssue {
     param(
         [int]$WaveNumber,
@@ -66,24 +141,45 @@ function Record-UnresolvedIssue {
         [string]$PRNumber
     )
 
-    $issues = Load-UnresolvedIssues $WaveNumber
+    $data = Load-UnresolvedIssues $WaveNumber
+    $category = Get-FailureCategory $Issue
 
-    # Check if this phaseId already exists (skip if so - prevents duplicates)
-    $existing = $issues.issues | Where-Object { $_.phaseId -eq $PhaseId }
+    # Check if this phaseId already exists in ANY group (prevents duplicates)
+    foreach ($group in $data.failureGroups) {
+        $existingPhase = $group.affectedPhases | Where-Object { $_.phaseId -eq $PhaseId }
+        if ($existingPhase) {
+            return $false  # Phase already recorded
+        }
+    }
 
-    if (-not $existing) {
-        $issues.issues += @{
+    # Find existing group for this failure category
+    $existingGroup = $data.failureGroups | Where-Object { $_.failureType -eq $category }
+
+    if ($existingGroup) {
+        # Add phase to existing group
+        $existingGroup.affectedPhases += @{
             phaseId = $PhaseId
-            issue = $Issue
             prNumber = $PRNumber
             recorded = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
         }
-
-        Save-UnresolvedIssues $WaveNumber $issues
-        return $true
+    } else {
+        # Create new group for this failure type
+        $newGroup = @{
+            failureType = $category
+            description = $Issue
+            affectedPhases = @(
+                @{
+                    phaseId = $PhaseId
+                    prNumber = $PRNumber
+                    recorded = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+                }
+            )
+        }
+        $data.failureGroups += $newGroup
     }
 
-    return $false
+    Save-UnresolvedIssues $WaveNumber $data
+    return $true
 }
 
 # Send message to cursor window at specific grid slot

@@ -148,27 +148,24 @@ Write-Host "[INFO] Wave: $WaveNumber"
 Write-Host "[INFO] File: $WaveFile"
 Write-Host ""
 
-# ============ KILL MODE: Terminate all running Cursor processes ============
+# ============ KILL MODE: Safely close background Cursor windows ============
 if ($Kill) {
-    Write-Host "KILL MODE: Terminating all Cursor processes..." -ForegroundColor Red
+    Write-Host "KILL MODE: Safely closing background Cursor windows..." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "[IMPORTANT] This will:"
+    Write-Host "  ✓ Close all BACKGROUND Cursor windows (those opened by auto_fill)"
+    Write-Host "  ✓ KEEP your OLDEST/MAIN Cursor window intact"
+    Write-Host "  ✓ NOT close VSCode or Claude Code"
+    Write-Host ""
 
     try {
-        Get-Process -Name "cursor" -ErrorAction SilentlyContinue | Stop-Process -Force
-        Write-Host "[OK] All Cursor processes killed" -ForegroundColor Green
+        & "C:\dev\Autopack\scripts\safe_cleanup_background_cursors.ps1"
     } catch {
-        Write-Host "[WARN] Error killing Cursor processes: $_" -ForegroundColor Yellow
-    }
-
-    Write-Host "Cleanup: Closing PowerShell instances..."
-    try {
-        Get-Process -Name "powershell" -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne $PID } | Stop-Process -Force
-        Write-Host "[OK] Cleanup complete" -ForegroundColor Green
-    } catch {
-        Write-Host "[WARN] Partial cleanup: $_" -ForegroundColor Yellow
+        Write-Host "[WARN] Error during cleanup: $_" -ForegroundColor Yellow
     }
 
     Write-Host ""
-    Write-Host "All processes terminated. Exiting..." -ForegroundColor Green
+    Write-Host "Cleanup complete. Exiting..." -ForegroundColor Green
     exit 0
 }
 

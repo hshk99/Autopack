@@ -406,18 +406,15 @@ foreach ($prompt in $pendingPrompts | Select-Object -First 9) {
                     # CI is still running
                     Write-Host "  -> [INFO] CI tests running..."
                 } elseif ($criticalFailures.Count -gt 0) {
-                    # Critical CI failures (Core Tests failed) - MUST FIX before merge
+                    # Critical CI failures (Core Tests failed) - MUST FIX on the SAME branch
+                    # Do NOT record as unresolved issue - the fix goes to the original PR
                     $criticalNames = ($criticalFailures | ForEach-Object { $_.name }) -join ", "
                     Write-Host "  -> [FAIL] Critical CI failed: $criticalNames" -ForegroundColor Red
+                    Write-Host "  -> [INFO] Fix should be pushed to the SAME branch/PR (not a new PR)"
                     $ciFailedCount++
                     $ciFailedPhases += $phaseId
-
-                    # Record as unresolved issue
-                    $allFailedNames = ($failedChecks | ForEach-Object { $_.name }) -join ", "
-                    $recorded = Record-UnresolvedIssue -WaveNumber $waveNumber -PhaseId $phaseId -Issue "CI failed: $allFailedNames" -PRNumber $prNumber
-                    if ($recorded) {
-                        Write-Host "  -> [INFO] Recorded unresolved issue"
-                    }
+                    # NOTE: Core Tests failures are NOT recorded as unresolved issues
+                    # They stay PENDING and the Cursor window gets a message to fix on the same branch
                 } elseif ($unrelatedFailures.Count -gt 0) {
                     # Only unrelated failures (lint, verify-structure) - these don't block merge
                     $unrelatedNames = ($unrelatedFailures | ForEach-Object { $_.name }) -join ", "

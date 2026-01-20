@@ -348,6 +348,16 @@ if ($hasUnresolvedToAppend) {
             $description = $group.description
             $affectedPhases = @($group.affectedPhases)
 
+            # SPECIAL CASE: core-tests failures should NOT be here
+            # They should be fixed on the SAME branch, not a new PR
+            # Skip them and warn - they shouldn't have been recorded as unresolved
+            if ($failureType -eq "core-tests") {
+                Write-Host "  [WARN] Skipping 'core-tests' failures - these should be fixed on the original branch"
+                Write-Host "  [INFO] Core Tests failures for phases: $(($affectedPhases | ForEach-Object { $_.phaseId }) -join ', ')"
+                Write-Host "  [INFO] Fix by pushing to the original PR, not creating a new PR"
+                continue
+            }
+
             # Filter out phases that already exist as READY/PENDING/COMPLETED
             $phasesToInclude = @($affectedPhases | Where-Object { $_.phaseId -notin $existingPhaseIds })
 
@@ -407,7 +417,6 @@ Please investigate and fix the issue:
 3. Check the CI logs for any of the affected PRs ($prList) to identify the specific failure
 
 4. Fix the root cause:
-   - For "Core Tests" failure: Fix the failing tests, run locally with `pytest tests/ -v`
    - For "lint" failure: Run linter locally, fix formatting issues
    - For "verify-structure" failure: Ensure file structure matches expected layout
    - For "CodeQL" failure: Address security findings in the code
@@ -454,6 +463,16 @@ Please investigate and fix the issue:
         }
 
         foreach ($category in $groupedIssues.Keys) {
+            # SPECIAL CASE: core-tests failures should NOT be here
+            # They should be fixed on the SAME branch, not a new PR
+            if ($category -eq "core-tests") {
+                $coreTestPhases = $groupedIssues[$category].phases
+                Write-Host "  [WARN] Skipping 'core-tests' failures - these should be fixed on the original branch"
+                Write-Host "  [INFO] Core Tests failures for phases: $(($coreTestPhases | ForEach-Object { $_.phaseId }) -join ', ')"
+                Write-Host "  [INFO] Fix by pushing to the original PR, not creating a new PR"
+                continue
+            }
+
             $groupData = $groupedIssues[$category]
             $phasesToInclude = @($groupData.phases | Where-Object { $_.phaseId -notin $existingPhaseIds })
 
@@ -507,7 +526,6 @@ Please investigate and fix the issue:
 3. Check the CI logs for any of the affected PRs ($prList) to identify the specific failure
 
 4. Fix the root cause:
-   - For "Core Tests" failure: Fix the failing tests, run locally with `pytest tests/ -v`
    - For "lint" failure: Run linter locally, fix formatting issues
    - For "verify-structure" failure: Ensure file structure matches expected layout
    - For "CodeQL" failure: Address security findings in the code

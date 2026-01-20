@@ -95,13 +95,25 @@ $prompts = & "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -Wav
 
 $completedPrompts = @($prompts | Where-Object { $_.Status -eq "COMPLETED" })
 
-if ($completedPrompts.Count -eq 0) {
+# Check for unresolved issues that need to be appended
+$unresolvedData = Get-UnresolvedIssuesSummary $WaveNumber
+$hasUnresolvedToAppend = ($null -ne $unresolvedData -and $unresolvedData.issues.Count -gt 0)
+
+if ($completedPrompts.Count -eq 0 -and -not $hasUnresolvedToAppend) {
     Write-Host "[INFO] No [COMPLETED] phases found"
+    Write-Host "[INFO] No unresolved issues to append"
     Write-Host "[INFO] Nothing to cleanup"
     exit 0
 }
 
-Write-Host "[OK] Found $($completedPrompts.Count) [COMPLETED] phase(s)"
+if ($completedPrompts.Count -gt 0) {
+    Write-Host "[OK] Found $($completedPrompts.Count) [COMPLETED] phase(s)"
+} else {
+    Write-Host "[INFO] No [COMPLETED] phases found"
+}
+if ($hasUnresolvedToAppend) {
+    Write-Host "[OK] Found $($unresolvedData.issues.Count) unresolved issue(s) to append"
+}
 Write-Host ""
 
 # ============ CLEANUP 1: Prompts_All_Waves.md ============
@@ -242,9 +254,8 @@ Write-Host ""
 # ============ CLEANUP 4: Append Unresolved Issues as Actionable Prompts ============
 Write-Host "CLEANUP 4: Appending unresolved issues as actionable prompts" -ForegroundColor Yellow
 
-$unresolvedData = Get-UnresolvedIssuesSummary $WaveNumber
-
-if ($null -ne $unresolvedData -and $unresolvedData.issues.Count -gt 0) {
+# $unresolvedData already loaded at start of script
+if ($hasUnresolvedToAppend) {
     Write-Host "  [INFO] Found $($unresolvedData.issues.Count) unresolved issue(s)"
 
     # Create unresolved issues section with actionable prompts
@@ -258,25 +269,61 @@ if ($null -ne $unresolvedData -and $unresolvedData.issues.Count -gt 0) {
 
 "@
 
+    # Get existing phase IDs to avoid duplicates
+    $existingPhaseIds = @($prompts | ForEach-Object { $_.ID })
+
+    $appendedCount = 0
     foreach ($issue in $unresolvedData.issues) {
         $phaseId = $issue.phaseId
         $prNumber = $issue.prNumber
         $issueDesc = $issue.issue
-        $recorded = $issue.recorded
+
+        # Skip if phase already exists in the file (any status)
+        if ($existingPhaseIds -contains $phaseId) {
+            Write-Host "  [SKIP] Phase $phaseId already exists in file"
+            continue
+        }
+
+        # Derive worktree path and branch from phaseId
+        # Path format: C:\dev\Autopack_w[N]_[phaseId]
+        # Branch format: wave[N]/[category]-[number]-[slug]
+        $worktreePath = "C:\dev\Autopack_w${WaveNumber}_$phaseId"
+
+        # Try to get branch name from the worktree if it exists
+        $branchName = ""
+        if (Test-Path $worktreePath) {
+            try {
+                $branchName = (git -C $worktreePath branch --show-current 2>$null)
+            } catch {
+                $branchName = ""
+            }
+        }
+
+        # If branch not found, try to construct from phaseId pattern
+        if ([string]::IsNullOrWhiteSpace($branchName)) {
+            # Extract category and number from phaseId (e.g., "ops008" -> "ops", "008")
+            if ($phaseId -match "^([a-z]+)(\d+)$") {
+                $category = $Matches[1]
+                $number = $Matches[2]
+                $branchName = "wave${WaveNumber}/${category}-${number}"
+            } else {
+                $branchName = "wave${WaveNumber}/$phaseId"
+            }
+        }
 
         # Format as actionable prompt following the same template as regular phases
+        # MUST include **Path**: and Branch: for manage_prompt_state.ps1 regex to match
         $issuesSummary += @"
 
 ---
 
 ## Phase: $phaseId [UNRESOLVED]
 
-**Title**: Fix CI Failure for $phaseId
-**PR**: #$prNumber
-**Issue**: $issueDesc
-**Recorded**: $recorded
+**Title**: Fix CI Failure for $phaseId (PR #$prNumber)
+**Path**: $worktreePath
 
-I'm working in this git worktree to fix the CI failure.
+I'm working in git worktree: $worktreePath
+Branch: $branchName
 
 Task: Fix the CI failure for PR #$prNumber
 
@@ -288,7 +335,7 @@ Please investigate and fix the issue:
 2. If it's a "Core Tests (Must Pass)" failure:
    - Review the test output to find which tests failed
    - Fix the code to make tests pass
-   - Run tests locally before pushing
+   - Run tests locally before pushing: pytest tests/ -v
 3. If it's a lint/verify-structure failure:
    - Run the linter locally to see the issues
    - Fix formatting/style issues
@@ -297,13 +344,18 @@ Please investigate and fix the issue:
 5. Once CI passes, the PR can be merged
 
 "@
+        $appendedCount++
     }
 
-    $issuesSummary += "`n**Last Updated**: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    if ($appendedCount -gt 0) {
+        $issuesSummary += "`n**Last Updated**: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 
-    # Append to wave file
-    Add-Content -Path $WaveFile -Value $issuesSummary -Encoding UTF8
-    Write-Host "  [OK] Appended $($unresolvedData.issues.Count) issue(s) as actionable prompts"
+        # Append to wave file
+        Add-Content -Path $WaveFile -Value $issuesSummary -Encoding UTF8
+        Write-Host "  [OK] Appended $appendedCount issue(s) as actionable prompts"
+    } else {
+        Write-Host "  [INFO] All unresolved issues already exist in file"
+    }
 } else {
     Write-Host "  [INFO] No unresolved issues to append"
 }

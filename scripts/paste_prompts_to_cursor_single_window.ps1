@@ -281,13 +281,18 @@ Write-Host "[ACTION] Updating phase status to PENDING..."
 # Read current file
 $fileContent = Get-Content $WaveFile -Raw
 
-# Try to replace READY → PENDING
+# Try to replace READY or UNRESOLVED → PENDING
 $updatedContent = $fileContent -replace "## Phase: $PhaseId \[READY\]", "## Phase: $PhaseId [PENDING]"
+$updatedContent = $updatedContent -replace "## Phase: $PhaseId \[UNRESOLVED\]", "## Phase: $PhaseId [PENDING]"
 
 if ($updatedContent -ne $fileContent) {
     # Content changed, write it back
     Set-Content $WaveFile $updatedContent -Encoding UTF8
-    Write-Host "[OK] Status updated: READY → PENDING"
+    if ($fileContent -match "## Phase: $PhaseId \[UNRESOLVED\]") {
+        Write-Host "[OK] Status updated: UNRESOLVED → PENDING"
+    } else {
+        Write-Host "[OK] Status updated: READY → PENDING"
+    }
 } else {
     # Check if already in another state
     if ($fileContent -match "## Phase: $PhaseId \[(PENDING|COMPLETED)\]") {

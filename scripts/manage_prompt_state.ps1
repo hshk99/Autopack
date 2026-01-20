@@ -94,8 +94,8 @@ elseif ($Action -eq "Update") {
 
     $content = Get-Content $WaveFile -Raw
 
-    # Find and replace phase status
-    $oldPattern = "## Phase: $PhaseId \[(READY|PENDING|COMPLETED|UNIMPLEMENTED)\]"
+    # Find and replace phase status (including UNRESOLVED for CI failure fixes)
+    $oldPattern = "## Phase: $PhaseId \[(READY|UNRESOLVED|PENDING|COMPLETED|UNIMPLEMENTED)\]"
     $newText = "## Phase: $PhaseId [$NewStatus]"
 
     $newContent = $content -replace $oldPattern, $newText

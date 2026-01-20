@@ -265,18 +265,141 @@ Write-Host "[ACTION] Setting window to foreground..."
 [WindowHelper]::SetForegroundWindow($targetWindow) | Out-Null
 Start-Sleep -Milliseconds 5000
 
-# ============ Step 2: Open Claude Chat (Ctrl+Shift+9) ============
-Write-Host "[ACTION] Opening Claude Chat with Ctrl+Shift+9..."
+# ============ Step 2: Open LLM Chat (configurable: Claude or GLM-4.7) ============
+# Load LLM config to determine which shortcut to use
+$llmConfigPath = Join-Path $PSScriptRoot "llm_config.json"
+$llmShortcut = "^+9"  # Default to Claude (Ctrl+Shift+9)
+$llmName = "Claude"
+$llmShortcutDisplay = "Ctrl+Shift+9"
+
+if (Test-Path $llmConfigPath) {
+    try {
+        $llmConfig = Get-Content $llmConfigPath -Raw | ConvertFrom-Json
+        $activeModel = $llmConfig.active_model
+        $modelInfo = $llmConfig.models.$activeModel
+        $llmShortcut = $modelInfo.shortcut_sendkeys
+        $llmName = $modelInfo.name
+        $llmShortcutDisplay = $modelInfo.shortcut
+        Write-Host "[CONFIG] Using $llmName ($llmShortcutDisplay)"
+    } catch {
+        Write-Host "[WARN] Could not load LLM config, using Claude default" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "[INFO] No LLM config found, using Claude default (Ctrl+Shift+9)"
+}
+
+Write-Host "[ACTION] Opening $llmName Chat with $llmShortcutDisplay..."
 
 # Use SendKeys for better compatibility with Electron/web apps
-[System.Windows.Forms.SendKeys]::SendWait("^+9")
+[System.Windows.Forms.SendKeys]::SendWait($llmShortcut)
 
-Write-Host "[OK] Claude Chat shortcut sent (via SendKeys)"
-Write-Host "[INFO] Waiting for Claude Chat panel to open..."
+Write-Host "[OK] $llmName Chat shortcut sent (via SendKeys)"
+Write-Host "[INFO] Waiting for $llmName Chat panel to open..."
 Start-Sleep -Milliseconds 2500
 
+# ============ Step 2b: Select model from dropdown if required (GLM-4.7) ============
+$requiresModelSelection = $false
+$modelSelectionTarget = ""
+$modelSelectionMethod = "ocr"
+
+if (Test-Path $llmConfigPath) {
+    try {
+        $modelInfo = $llmConfig.models.$activeModel
+        if ($modelInfo.requires_model_selection -eq $true) {
+            $requiresModelSelection = $true
+            $modelSelectionTarget = $modelInfo.model_selection_target
+            $modelSelectionMethod = $modelInfo.model_selection_method
+        }
+    } catch {
+        Write-Host "[WARN] Could not read model selection config" -ForegroundColor Yellow
+    }
+}
+
+if ($requiresModelSelection) {
+    Write-Host "[ACTION] Selecting $modelSelectionTarget from dropdown..."
+
+    $ocrScriptPath = Join-Path $PSScriptRoot "select_llm_model_ocr.py"
+    $ocrSuccess = $false
+
+    if ($modelSelectionMethod -eq "ocr" -and (Test-Path $ocrScriptPath)) {
+        Write-Host "[INFO] Using OCR-based model selection..."
+        try {
+            $ocrResult = python $ocrScriptPath --slot $SlotNumber --model $modelSelectionTarget 2>&1
+            Write-Host $ocrResult
+            if ($LASTEXITCODE -eq 0) {
+                $ocrSuccess = $true
+                Write-Host "[OK] Model selected via OCR"
+            } else {
+                Write-Host "[WARN] OCR selection failed, trying fallback coordinates..." -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Host "[WARN] OCR script error: $_" -ForegroundColor Yellow
+        }
+    }
+
+    # Fallback to coordinates if OCR fails or not available
+    if (-not $ocrSuccess) {
+        Write-Host "[INFO] Using fallback coordinates for model selection..."
+        try {
+            $fallbackCoords = $llmConfig.models.$activeModel.fallback_coordinates
+            $slotKey = $SlotNumber.ToString()
+
+            if ($fallbackCoords.dropdown_click.$slotKey) {
+                $dropdownX = $fallbackCoords.dropdown_click.$slotKey.x
+                $dropdownY = $fallbackCoords.dropdown_click.$slotKey.y
+
+                Write-Host "[ACTION] Clicking dropdown at ($dropdownX, $dropdownY)..."
+
+                # Use Add-Type for mouse click
+                Add-Type -AssemblyName System.Windows.Forms
+                [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point($dropdownX, $dropdownY)
+                Start-Sleep -Milliseconds 100
+
+                # Simulate click using mouse_event
+                Add-Type @"
+                    using System;
+                    using System.Runtime.InteropServices;
+                    public class MouseClick {
+                        [DllImport("user32.dll")]
+                        public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, int dwExtraInfo);
+                        public const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
+                        public const uint MOUSEEVENTF_LEFTUP = 0x0004;
+                        public static void Click() {
+                            mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+                            System.Threading.Thread.Sleep(50);
+                            mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+                        }
+                    }
+"@
+                [MouseClick]::Click()
+                Start-Sleep -Milliseconds 800
+
+                # Click GLM option
+                if ($fallbackCoords.glm_option_click.$slotKey) {
+                    $glmX = $fallbackCoords.glm_option_click.$slotKey.x
+                    $glmY = $fallbackCoords.glm_option_click.$slotKey.y
+
+                    Write-Host "[ACTION] Clicking GLM option at ($glmX, $glmY)..."
+                    [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point($glmX, $glmY)
+                    Start-Sleep -Milliseconds 100
+                    [MouseClick]::Click()
+                    Start-Sleep -Milliseconds 500
+
+                    Write-Host "[OK] Model selected via fallback coordinates"
+                }
+            } else {
+                Write-Host "[WARN] No fallback coordinates for slot $SlotNumber" -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Host "[ERROR] Fallback coordinate selection failed: $_" -ForegroundColor Red
+        }
+    }
+
+    Start-Sleep -Milliseconds 500
+}
+
 # ============ Step 3: Set clipboard and paste prompt to Chat ============
-Write-Host "[ACTION] Pasting prompt to Claude Chat..."
+Write-Host "[ACTION] Pasting prompt to $llmName Chat..."
 
 # Copy prompt to clipboard
 $phasePrompt | Set-Clipboard
@@ -292,7 +415,7 @@ Start-Sleep -Milliseconds 500
 Write-Host "[INFO] Sending Enter via SendKeys..."
 [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
 
-Write-Host "[OK] Prompt pasted to Claude Chat and sent (via SendKeys)"
+Write-Host "[OK] Prompt pasted to $llmName Chat and sent (via SendKeys)"
 Start-Sleep -Milliseconds 500
 
 Write-Host ""

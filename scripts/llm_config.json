@@ -1,0 +1,55 @@
+{
+    "active_model": "glm",
+    "models": {
+        "claude": {
+            "name": "Claude",
+            "shortcut": "ctrl+shift+9",
+            "shortcut_sendkeys": "^+9",
+            "description": "Claude API via Cursor (default for existing projects)",
+            "chat_focus_method": "keyboard",
+            "requires_model_selection": false
+        },
+        "glm": {
+            "name": "GLM-4.7",
+            "shortcut": "ctrl+l",
+            "shortcut_sendkeys": "^l",
+            "description": "GLM-4.7 model (use when Claude tokens exhausted)",
+            "chat_focus_method": "keyboard",
+            "requires_model_selection": true,
+            "model_selection_method": "ocr",
+            "model_selection_target": "glm-4.7",
+            "fallback_coordinates": {
+                "dropdown_click": {
+                    "1": {"x": 2903, "y": 210},
+                    "2": {"x": 3757, "y": 210},
+                    "3": {"x": 4608, "y": 210},
+                    "4": {"x": 2903, "y": 676},
+                    "5": {"x": 3757, "y": 676},
+                    "6": {"x": 4608, "y": 676},
+                    "7": {"x": 2903, "y": 1140},
+                    "8": {"x": 3757, "y": 1140},
+                    "9": {"x": 4608, "y": 1283}
+                },
+                "glm_option_click": {
+                    "1": {"x": 2903, "y": 353},
+                    "2": {"x": 3757, "y": 353},
+                    "3": {"x": 4608, "y": 353},
+                    "4": {"x": 2903, "y": 817},
+                    "5": {"x": 3757, "y": 817},
+                    "6": {"x": 4608, "y": 817},
+                    "7": {"x": 2903, "y": 1283},
+                    "8": {"x": 3757, "y": 1283},
+                    "9": {"x": 4608, "y": 1283}
+                }
+            }
+        }
+    },
+    "notes": {
+        "toggle_command": "Run: .\\switch_llm_model.ps1 -Model claude|glm",
+        "check_command": "Run: .\\switch_llm_model.ps1 -Status",
+        "claude_tokens_exhausted": "Set active_model to 'glm' when Claude tokens run out",
+        "claude_tokens_refreshed": "Set active_model to 'claude' when tokens refresh",
+        "glm_model_selection": "GLM requires selecting from dropdown after Ctrl+L (default is GPT-5.2)",
+        "ocr_script": "select_llm_model_ocr.py uses OCR to find and click GLM-4.7 in dropdown"
+    }
+}

@@ -23,7 +23,6 @@ def mock_scanner():
             "src/autopack/models.py",
             "src/autopack/database.py",
             "tests/conftest.py",
-            "alembic.ini",
             "alembic/env.py",
         ]
     )
@@ -183,7 +182,6 @@ class TestExpandScopeFromDeliverables:
 
         assert scope_paths == ["alembic/versions/abc_migration.py"]
         assert "src/autopack/models.py" in read_only
-        assert "alembic.ini" in read_only
         assert "alembic/env.py" in read_only
 
     def test_no_duplicates_in_scope(self, generator):

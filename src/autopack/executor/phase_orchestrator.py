@@ -32,8 +32,34 @@ from autopack.autonomous.budgeting import (
     is_phase_budget_exceeded,
     get_phase_budget_remaining_pct,
 )
+from autopack.time_watchdog import TimeWatchdog
 
 logger = logging.getLogger(__name__)
+
+
+def create_default_time_watchdog() -> TimeWatchdog:
+    """IMP-SAFETY-004: Factory function to create TimeWatchdog with config defaults.
+
+    This function ensures that TimeWatchdog is always instantiated with proper
+    configuration values. It MUST be used when creating ExecutionContext to
+    guarantee phase timeout enforcement.
+
+    Returns:
+        TimeWatchdog configured with:
+        - Run timeout from settings.run_max_duration_minutes
+        - Phase timeout from settings.phase_timeout_minutes
+
+    Example:
+        context = ExecutionContext(
+            phase=phase_spec,
+            time_watchdog=create_default_time_watchdog(),
+            ...
+        )
+    """
+    return TimeWatchdog(
+        max_run_wall_clock_sec=settings.run_max_duration_minutes * 60,
+        max_phase_wall_clock_sec=settings.phase_timeout_minutes * 60,
+    )
 
 
 class PhaseResult(Enum):
@@ -59,12 +85,15 @@ class ExecutionContext:
 
     # Dependencies passed by executor
     llm_service: Any
+    # IMP-SAFETY-004: time_watchdog is mandatory for phase timeout enforcement
+    # Phases can run indefinitely if no watchdog is provided, burning entire run budget.
+    # Use create_default_time_watchdog() factory to create with config defaults.
+    time_watchdog: Any  # Required: TimeWatchdog instance for phase timeout
     diagnostics_agent: Optional[Any] = None
     iterative_investigator: Optional[Any] = None
     intention_wiring: Optional[Any] = None
     intention_anchor: Optional[Any] = None
     manifest_generator: Optional[Any] = None
-    time_watchdog: Optional[Any] = None  # IMP-STUCK-001: Wall-clock timeout tracking
 
     # State counters
     run_total_failures: int = 0
@@ -181,13 +210,12 @@ class PhaseOrchestrator:
         """
         phase_id = context.phase.get("phase_id")
 
-        # IMP-STUCK-001: Start tracking phase wall-clock time
-        if hasattr(context, "time_watchdog") and context.time_watchdog is not None:
-            context.time_watchdog.track_phase_start(phase_id)
-            timeout_min = settings.phase_timeout_minutes
-            logger.debug(
-                f"[IMP-STUCK-001] Phase {phase_id}: timeout tracking started ({timeout_min} min limit)"
-            )
+        # IMP-SAFETY-004: Start tracking phase wall-clock time (time_watchdog is mandatory)
+        context.time_watchdog.track_phase_start(phase_id)
+        timeout_min = settings.phase_timeout_minutes
+        logger.debug(
+            f"[IMP-SAFETY-004] Phase {phase_id}: timeout tracking started ({timeout_min} min limit)"
+        )
 
         # INSERTION POINT 2: Track phase state for intention-first loop (BUILD-161 Phase A)
         if context.intention_wiring is not None:
@@ -341,14 +369,14 @@ class PhaseOrchestrator:
         return None  # Budget OK, proceed with execution
 
     def _check_phase_timeout(self, context: ExecutionContext) -> Optional[ExecutionResult]:
-        """IMP-STUCK-001: Check if phase has exceeded wall-clock timeout.
+        """IMP-SAFETY-004: Check if phase has exceeded wall-clock timeout.
 
         Returns ExecutionResult if timeout exceeded, None if time OK to proceed.
         Logs soft warning at 50% threshold without failing.
-        """
-        if not hasattr(context, "time_watchdog") or context.time_watchdog is None:
-            return None  # No watchdog configured, skip check
 
+        Note: time_watchdog is mandatory per IMP-SAFETY-004 - phases cannot run
+        indefinitely. The watchdog must be provided when creating ExecutionContext.
+        """
         phase_id = context.phase.get("phase_id")
         timeout_sec = settings.phase_timeout_minutes * 60
 
@@ -534,9 +562,8 @@ class PhaseOrchestrator:
             f"[{phase_id}] Phase completed successfully on attempt {context.attempt_index + 1}"
         )
 
-        # IMP-STUCK-001: Clear phase timer for completed phase
-        if hasattr(context, "time_watchdog") and context.time_watchdog is not None:
-            context.time_watchdog.clear_phase_timer(phase_id)
+        # IMP-SAFETY-004: Clear phase timer for completed phase (time_watchdog is mandatory)
+        context.time_watchdog.clear_phase_timer(phase_id)
 
         return ExecutionResult(
             success=True,

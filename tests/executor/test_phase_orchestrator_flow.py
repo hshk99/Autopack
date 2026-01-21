@@ -2,9 +2,13 @@
 Tests for Phase Orchestrator Flow (PR-EXE-8)
 
 These tests verify the phase orchestration logic extracted from autonomous_executor.py.
+
+Updated for IMP-SAFETY-004: time_watchdog is now mandatory for ExecutionContext.
 """
 
 from unittest.mock import Mock
+
+from autopack.executor.phase_orchestrator import create_default_time_watchdog
 
 
 def test_orchestrator_imports():
@@ -14,12 +18,14 @@ def test_orchestrator_imports():
         ExecutionContext,
         ExecutionResult,
         PhaseResult,
+        create_default_time_watchdog,
     )
 
     assert PhaseOrchestrator is not None
     assert ExecutionContext is not None
     assert ExecutionResult is not None
     assert PhaseResult is not None
+    assert create_default_time_watchdog is not None
 
 
 def test_phase_result_enum():
@@ -37,6 +43,7 @@ def test_execution_context_creation():
     from autopack.executor.phase_orchestrator import ExecutionContext
 
     phase = {"phase_id": "test-phase", "description": "Test phase"}
+    watchdog = create_default_time_watchdog()
 
     context = ExecutionContext(
         phase=phase,
@@ -46,12 +53,14 @@ def test_execution_context_creation():
         allowed_paths=[],
         run_id="test-run-123",
         llm_service=Mock(),
+        time_watchdog=watchdog,  # IMP-SAFETY-004: Required
     )
 
     assert context.phase == phase
     assert context.attempt_index == 0
     assert context.max_attempts == 5
     assert context.run_id == "test-run-123"
+    assert context.time_watchdog is watchdog
 
 
 def test_orchestrator_instantiation():
@@ -86,6 +95,7 @@ def test_create_exhausted_result():
     from autopack.executor.phase_orchestrator import PhaseOrchestrator, ExecutionContext
 
     orchestrator = PhaseOrchestrator(max_retry_attempts=5)
+    watchdog = create_default_time_watchdog()
 
     phase = {"phase_id": "test-phase"}
     context = ExecutionContext(
@@ -97,6 +107,7 @@ def test_create_exhausted_result():
         run_id="test-run-123",
         llm_service=Mock(),
         mark_phase_failed_in_db=Mock(),
+        time_watchdog=watchdog,  # IMP-SAFETY-004: Required
     )
 
     result = orchestrator._create_exhausted_result(context)
@@ -115,6 +126,7 @@ def test_orchestrator_with_mock_context():
     )
 
     orchestrator = PhaseOrchestrator(max_retry_attempts=5)
+    watchdog = create_default_time_watchdog()
 
     phase = {"phase_id": "test-phase", "description": "Test"}
     context = ExecutionContext(
@@ -126,6 +138,7 @@ def test_orchestrator_with_mock_context():
         run_id="test-run",
         llm_service=Mock(),
         mark_phase_failed_in_db=Mock(),
+        time_watchdog=watchdog,  # IMP-SAFETY-004: Required
     )
 
     # Should return exhausted result immediately
@@ -144,6 +157,7 @@ def test_successful_phase_execution_mock():
 
     # This is a smoke test - just verify the structure works
     PhaseOrchestrator(max_retry_attempts=5)
+    watchdog = create_default_time_watchdog()
 
     # Create minimal context
     phase = {"phase_id": "test-phase", "scope": {"paths": ["test.py"]}}
@@ -158,6 +172,7 @@ def test_successful_phase_execution_mock():
         mark_phase_complete_in_db=Mock(),
         record_learning_hint=Mock(),
         record_token_efficiency_telemetry=Mock(),
+        time_watchdog=watchdog,  # IMP-SAFETY-004: Required
     )
 
     # Note: This will fail without full setup, but verifies structure
@@ -181,6 +196,7 @@ def test_max_attempts_exhausted():
     )
 
     orchestrator = PhaseOrchestrator(max_retry_attempts=3)
+    watchdog = create_default_time_watchdog()
 
     phase = {"phase_id": "exhausted-phase"}
     context = ExecutionContext(
@@ -192,6 +208,7 @@ def test_max_attempts_exhausted():
         run_id="test-run",
         llm_service=Mock(),
         mark_phase_failed_in_db=Mock(),
+        time_watchdog=watchdog,  # IMP-SAFETY-004: Required
     )
 
     result = orchestrator.execute_phase_attempt(context)

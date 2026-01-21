@@ -109,3 +109,7 @@ archive/diagnostics/doc_link_fix_backup_*.zip
 # Workspace verification output
 workspace-verification.json
 workspace-verification.md
+
+# Workspace verification output
+workspace-verification.json
+workspace-verification.md

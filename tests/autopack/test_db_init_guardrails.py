@@ -7,7 +7,7 @@ Validates that init_db() enforces schema safety:
 """
 
 import os
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String
@@ -19,37 +19,32 @@ from autopack.exceptions import DatabaseError
 class TestDBInitGuardrails:
     """Test that DB initialization enforces safety guardrails."""
 
-    def test_init_db_fails_fast_on_missing_schema(self):
+    def test_init_db_fails_fast_on_missing_schema(self, monkeypatch):
         """init_db() should fail fast when schema is missing (bootstrap disabled)."""
         # Use in-memory database for isolation (empty - no tables)
         db_url = "sqlite:///:memory:"
         test_engine = create_engine(db_url)
 
-        # Replace the engine object directly for reliable SQLAlchemy inspect() behavior
+        # Use monkeypatch for reliable test isolation in parallel execution
         import autopack.database
+        import autopack.config
 
-        original_engine = autopack.database.engine
+        monkeypatch.setattr(autopack.database, "engine", test_engine)
 
-        autopack.database.engine = test_engine
+        # Create mock settings with bootstrap disabled
+        mock_settings = MagicMock()
+        mock_settings.db_bootstrap_enabled = False
+        monkeypatch.setattr(autopack.config, "settings", mock_settings)
 
-        try:
-            with patch("autopack.config.settings") as mock_settings:
-                # Mock settings: bootstrap DISABLED
-                mock_settings.db_bootstrap_enabled = False
+        from autopack.database import init_db
 
-                # Import init_db after patching
-                from autopack.database import init_db
+        # Should raise DatabaseError with clear message
+        with pytest.raises(DatabaseError) as exc_info:
+            init_db()
 
-                # Should raise DatabaseError with clear message
-                with pytest.raises(DatabaseError) as exc_info:
-                    init_db()
-
-                error_msg = str(exc_info.value)
-                assert "DATABASE SCHEMA MISSING" in error_msg
-                assert "AUTOPACK_DB_BOOTSTRAP=1" in error_msg
-        finally:
-            # Restore original engine
-            autopack.database.engine = original_engine
+        error_msg = str(exc_info.value)
+        assert "DATABASE SCHEMA MISSING" in error_msg
+        assert "AUTOPACK_DB_BOOTSTRAP=1" in error_msg
 
     def test_init_db_bootstrap_mode_creates_tables(self):
         """init_db() should create tables when bootstrap mode enabled."""
@@ -133,7 +128,7 @@ class TestDBInitGuardrails:
             settings = Settings()
             assert settings.db_bootstrap_enabled is False
 
-    def test_missing_runs_table_triggers_error(self):
+    def test_missing_runs_table_triggers_error(self, monkeypatch):
         """Even if some tables exist, missing 'runs' table should fail."""
         # Use in-memory database with partial schema
         db_url = "sqlite:///:memory:"
@@ -145,28 +140,24 @@ class TestDBInitGuardrails:
         Table("users", metadata, Column("id", Integer, primary_key=True))
         metadata.create_all(test_engine)
 
-        # Replace the engine object directly for reliable SQLAlchemy inspect() behavior
+        # Use monkeypatch for reliable test isolation in parallel execution
         import autopack.database
+        import autopack.config
 
-        original_engine = autopack.database.engine
+        monkeypatch.setattr(autopack.database, "engine", test_engine)
 
-        autopack.database.engine = test_engine
+        # Create mock settings with bootstrap disabled
+        mock_settings = MagicMock()
+        mock_settings.db_bootstrap_enabled = False
+        monkeypatch.setattr(autopack.config, "settings", mock_settings)
 
-        try:
-            with patch("autopack.config.settings") as mock_settings:
-                mock_settings.db_bootstrap_enabled = False
+        from autopack.database import init_db
 
-                # Import init_db after patching
-                from autopack.database import init_db
+        # Should raise DatabaseError
+        with pytest.raises(DatabaseError) as exc_info:
+            init_db()
 
-                # Should raise DatabaseError
-                with pytest.raises(DatabaseError) as exc_info:
-                    init_db()
-
-                assert "runs" in str(exc_info.value).lower()
-        finally:
-            # Restore original engine
-            autopack.database.engine = original_engine
+        assert "runs" in str(exc_info.value).lower()
 
 
 if __name__ == "__main__":

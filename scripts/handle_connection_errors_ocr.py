@@ -126,12 +126,23 @@ APPROVAL_KEYWORDS = [
     "grant",
 ]
 
-# Permission dialog keywords (Cursor's "Allow this bash command?" dialogs)
+# Permission dialog keywords (Cursor's permission request dialogs)
+# These match the actual dialog text shown in Cursor:
+# - "Allow reading from <file>?"
+# - "Allow write to <file>?"
+# - "Allow glob search in <path>?"
+# - "Allow access to <path>?"
+# - "Make this edit to <file>?"
+# - "Allow this bash command?"
 PERMISSION_DIALOG_KEYWORDS = [
-    "allow this bash command",
+    "allow reading from",
+    "allow write to",
+    "allow glob search",
+    "allow access to",
+    "make this edit",
+    "allow this bash",
     "allow this command",
-    "bash command",
-    "allow this",
+    "yes, allow",
 ]
 
 # Permission button keywords (what to click to approve)

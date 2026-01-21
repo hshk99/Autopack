@@ -11,7 +11,7 @@ import os
 from unittest.mock import patch, MagicMock
 
 import pytest
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String
+from sqlalchemy import create_engine
 
 from autopack.config import Settings
 from autopack.exceptions import DatabaseError

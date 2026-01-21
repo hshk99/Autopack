@@ -18,6 +18,7 @@ Contract guarantees (tested in tests/api/test_app_wiring_contract.py):
 import asyncio
 import logging
 import os
+import threading
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -37,6 +38,141 @@ from ..version import __version__
 from .deps import limiter
 
 logger = logging.getLogger(__name__)
+
+
+class GracefulShutdownManager:
+    """Manager for coordinating graceful shutdown of database operations.
+
+    Implements IMP-OPS-003: Graceful shutdown for DB sessions.
+    Ensures pending transactions complete before shutdown to prevent data loss.
+
+    Features:
+    - Tracks active database transactions
+    - Signals shutdown to background tasks
+    - Waits for pending transactions with configurable timeout
+    - Prevents new transactions from starting during shutdown
+    """
+
+    def __init__(self, shutdown_timeout: float = 30.0):
+        """Initialize the shutdown manager.
+
+        Args:
+            shutdown_timeout: Maximum seconds to wait for pending transactions
+        """
+        self._shutdown_timeout = shutdown_timeout
+        self._shutdown_event = asyncio.Event()
+        self._active_transactions = 0
+        self._transaction_lock = threading.Lock()
+        self._all_transactions_done = asyncio.Event()
+        self._all_transactions_done.set()  # Initially no transactions
+
+    def is_shutting_down(self) -> bool:
+        """Check if shutdown has been initiated.
+
+        Returns:
+            True if shutdown is in progress
+        """
+        return self._shutdown_event.is_set()
+
+    def begin_transaction(self) -> bool:
+        """Register that a new transaction is starting.
+
+        Should be called before starting a database transaction.
+        Returns False if shutdown is in progress (transaction should not start).
+
+        Returns:
+            True if transaction can proceed, False if shutdown is in progress
+        """
+        with self._transaction_lock:
+            if self._shutdown_event.is_set():
+                logger.warning("[GRACEFUL-SHUTDOWN] Rejecting new transaction during shutdown")
+                return False
+
+            self._active_transactions += 1
+            self._all_transactions_done.clear()
+            logger.debug(
+                f"[GRACEFUL-SHUTDOWN] Transaction started, "
+                f"active count: {self._active_transactions}"
+            )
+            return True
+
+    def end_transaction(self) -> None:
+        """Register that a transaction has completed.
+
+        Should be called after a database transaction commits or rolls back.
+        """
+        with self._transaction_lock:
+            self._active_transactions = max(0, self._active_transactions - 1)
+            logger.debug(
+                f"[GRACEFUL-SHUTDOWN] Transaction ended, active count: {self._active_transactions}"
+            )
+            if self._active_transactions == 0:
+                self._all_transactions_done.set()
+
+    def get_active_transaction_count(self) -> int:
+        """Get the current number of active transactions.
+
+        Returns:
+            Number of active transactions
+        """
+        with self._transaction_lock:
+            return self._active_transactions
+
+    async def initiate_shutdown(self) -> bool:
+        """Initiate graceful shutdown and wait for pending transactions.
+
+        Sets the shutdown flag and waits for all active transactions to complete,
+        up to the configured timeout.
+
+        Returns:
+            True if all transactions completed, False if timeout occurred
+        """
+        logger.info(
+            f"[GRACEFUL-SHUTDOWN] Initiating shutdown, waiting up to "
+            f"{self._shutdown_timeout}s for pending transactions"
+        )
+
+        self._shutdown_event.set()
+
+        active_count = self.get_active_transaction_count()
+        if active_count > 0:
+            logger.info(f"[GRACEFUL-SHUTDOWN] Waiting for {active_count} active transactions")
+
+        try:
+            await asyncio.wait_for(
+                self._all_transactions_done.wait(),
+                timeout=self._shutdown_timeout,
+            )
+            logger.info("[GRACEFUL-SHUTDOWN] All transactions completed successfully")
+            return True
+        except asyncio.TimeoutError:
+            remaining = self.get_active_transaction_count()
+            logger.warning(
+                f"[GRACEFUL-SHUTDOWN] Timeout waiting for transactions. "
+                f"{remaining} transactions may be interrupted."
+            )
+            return False
+
+
+# Global shutdown manager instance
+_shutdown_manager: GracefulShutdownManager | None = None
+
+
+def get_shutdown_manager() -> GracefulShutdownManager:
+    """Get the global shutdown manager instance.
+
+    Returns:
+        The GracefulShutdownManager instance
+
+    Raises:
+        RuntimeError: If called before lifespan initialization
+    """
+    global _shutdown_manager
+    if _shutdown_manager is None:
+        raise RuntimeError(
+            "Shutdown manager not initialized. This should only be called after app startup."
+        )
+    return _shutdown_manager
 
 
 class BackgroundTaskSupervisor:
@@ -201,6 +337,9 @@ async def approval_timeout_cleanup():
 
     Runs every minute to check for expired approval requests and apply
     the configured default behavior (approve or reject).
+
+    IMP-OPS-003: Respects graceful shutdown by checking shutdown flag
+    and registering active transactions to prevent data loss.
     """
     from ..notifications.telegram_notifier import TelegramNotifier
     from .. import models
@@ -209,7 +348,23 @@ async def approval_timeout_cleanup():
 
     while True:
         try:
+            # IMP-OPS-003: Check shutdown flag before sleeping
+            shutdown_mgr = get_shutdown_manager()
+            if shutdown_mgr.is_shutting_down():
+                logger.info("[APPROVAL-TIMEOUT] Shutdown detected, exiting cleanly")
+                break
+
             await asyncio.sleep(60)  # Check every minute
+
+            # IMP-OPS-003: Check shutdown again after sleep
+            if shutdown_mgr.is_shutting_down():
+                logger.info("[APPROVAL-TIMEOUT] Shutdown detected, exiting cleanly")
+                break
+
+            # IMP-OPS-003: Register transaction start, reject if shutting down
+            if not shutdown_mgr.begin_transaction():
+                logger.info("[APPROVAL-TIMEOUT] Shutdown in progress, skipping cleanup cycle")
+                break
 
             # Get database session
             db = next(get_db())
@@ -263,9 +418,17 @@ async def approval_timeout_cleanup():
 
             finally:
                 db.close()
+                # IMP-OPS-003: Signal transaction complete
+                shutdown_mgr.end_transaction()
 
         except Exception as e:
             logger.error(f"[APPROVAL-TIMEOUT] Error in cleanup task: {e}", exc_info=True)
+            # IMP-OPS-003: Ensure transaction counter is decremented on error
+            try:
+                shutdown_mgr = get_shutdown_manager()
+                shutdown_mgr.end_transaction()
+            except RuntimeError:
+                pass  # Shutdown manager not initialized yet
             # Continue running despite errors
             await asyncio.sleep(60)
 
@@ -278,8 +441,10 @@ async def lifespan(app: FastAPI):
     - Production API key validation (security requirement)
     - Database initialization (skipped in testing)
     - Background task lifecycle with supervision (IMP-OPS-001)
+    - IMP-OPS-003: Graceful shutdown for DB sessions
     - IMP-OPS-004: Readiness state signaling for /ready endpoint
     """
+    global _shutdown_manager
     from .routes.health import mark_app_initialized, mark_initialization_failed
 
     # P0 Security: In production mode, require AUTOPACK_API_KEY to be set
@@ -314,6 +479,12 @@ async def lifespan(app: FastAPI):
             mark_initialization_failed(f"Database initialization failed: {e}")
             raise
 
+    # IMP-OPS-003: Initialize graceful shutdown manager
+    # Configurable via GRACEFUL_SHUTDOWN_TIMEOUT env var (default 30 seconds)
+    shutdown_timeout = float(os.getenv("GRACEFUL_SHUTDOWN_TIMEOUT", "30"))
+    _shutdown_manager = GracefulShutdownManager(shutdown_timeout=shutdown_timeout)
+    logger.info(f"[LIFESPAN] Graceful shutdown manager initialized (timeout={shutdown_timeout}s)")
+
     # IMP-OPS-001: Create supervisor for background tasks with automatic restart
     supervisor = BackgroundTaskSupervisor(max_restarts=5)
 
@@ -328,6 +499,13 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    # IMP-OPS-003: Graceful shutdown - wait for pending DB transactions
+    logger.info("[LIFESPAN] Initiating graceful shutdown...")
+    shutdown_success = await _shutdown_manager.initiate_shutdown()
+
+    if not shutdown_success:
+        logger.warning("[LIFESPAN] Graceful shutdown timed out, some transactions may be lost")
+
     # Stop background tasks
     timeout_task.cancel()
     try:
@@ -337,6 +515,10 @@ async def lifespan(app: FastAPI):
 
     # Log supervisor status on shutdown
     logger.info(f"[TASK-SUPERVISOR] Status: {supervisor.get_status()}")
+
+    # IMP-OPS-003: Cleanup shutdown manager
+    _shutdown_manager = None
+    logger.info("[LIFESPAN] Shutdown complete")
 
 
 async def global_exception_handler(request: Request, exc: Exception):

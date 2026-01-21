@@ -557,6 +557,21 @@ class AutonomousLoop:
             # IMP-DB-001: Log database pool health at start of each iteration
             self._log_db_pool_health()
 
+            # IMP-SAFETY-005: Check budget exhaustion EARLY, before any token-consuming operations
+            # This prevents operations like context loading from consuming tokens when budget is already exhausted
+            tokens_used = getattr(self.executor, "_run_tokens_used", 0)
+            token_cap = settings.run_token_cap
+            if is_budget_exhausted(token_cap, tokens_used):
+                budget_remaining = get_budget_remaining_pct(token_cap, tokens_used)
+                error_msg = (
+                    f"Run aborted: token budget exhausted ({tokens_used}/{token_cap} tokens used). "
+                    f"Budget remaining: {budget_remaining:.1%}. "
+                    f"Increase run_token_cap in config or review phase efficiency."
+                )
+                logger.critical(f"[BUDGET_EXHAUSTED] {error_msg}")
+                stop_reason = "budget_exhausted"
+                raise BudgetExhaustedError(error_msg)
+
             # Fetch run status
             logger.info(f"Iteration {iteration}: Fetching run status...")
             try:
@@ -619,21 +634,9 @@ class AutonomousLoop:
             phase_type = next_phase.get("phase_type")
             logger.info(f"[BUILD-041] Next phase: {phase_id}")
 
-            # IMP-COST-001: Check budget exhaustion BEFORE phase execution
+            # Log budget status before each phase (budget check moved to top of loop per IMP-SAFETY-005)
             tokens_used = getattr(self.executor, "_run_tokens_used", 0)
             token_cap = settings.run_token_cap
-            if is_budget_exhausted(token_cap, tokens_used):
-                budget_remaining = get_budget_remaining_pct(token_cap, tokens_used)
-                error_msg = (
-                    f"Run aborted: token budget exhausted ({tokens_used}/{token_cap} tokens used). "
-                    f"Budget remaining: {budget_remaining:.1%}. "
-                    f"Increase run_token_cap in config or review phase efficiency."
-                )
-                logger.critical(f"[BUDGET_EXHAUSTED] {error_msg}")
-                stop_reason = "budget_exhausted"
-                raise BudgetExhaustedError(error_msg)
-
-            # Log budget status before each phase
             budget_pct = get_budget_remaining_pct(token_cap, tokens_used) * 100
             logger.info(
                 f"Phase {phase_id}: Budget remaining {budget_pct:.1f}% ({tokens_used}/{token_cap} tokens)"

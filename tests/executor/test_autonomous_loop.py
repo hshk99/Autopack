@@ -151,9 +151,9 @@ class TestAutonomousLoopRecovery:
                         loop.run(poll_interval=0.5)
 
         # IMP-SAFETY-001: Default must be 50 to prevent infinite execution
-        assert (
-            received_max_iterations == 50
-        ), f"Expected default max_iterations=50, got {received_max_iterations}"
+        assert received_max_iterations == 50, (
+            f"Expected default max_iterations=50, got {received_max_iterations}"
+        )
 
     def test_autonomous_loop_stop_on_first_failure_saves_tokens(self):
         """Verify stop_on_first_failure flag stops immediately on failure."""
@@ -369,6 +369,108 @@ class TestExecuteLoopPhaseHandling:
 
         # Should complete despite stale detection error
         assert "stop_reason" in stats
+
+
+class TestBudgetExhaustionCheck:
+    """Test budget exhaustion check ordering (IMP-SAFETY-005)."""
+
+    def test_budget_check_happens_before_context_loading(self):
+        """Verify budget exhaustion is checked BEFORE context loading operations.
+
+        IMP-SAFETY-005: Budget check was happening after context loading,
+        which meant tokens were consumed before checking if budget was exceeded.
+        The fix moves the check to the start of each iteration.
+        """
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+        mock_executor.project_root = "."
+        mock_executor._phase_failure_counts = {}
+        # Set tokens used to exceed budget
+        mock_executor._run_tokens_used = 100_000
+
+        loop = AutonomousLoop(mock_executor)
+
+        # Track call order
+        call_order = []
+
+        def mock_get_run_status():
+            call_order.append("get_run_status")
+            return {"phases": []}
+
+        def mock_get_memory_context(*args, **kwargs):
+            call_order.append("get_memory_context")
+            return None
+
+        mock_executor.get_run_status = mock_get_run_status
+
+        # Patch settings to have a lower budget cap
+        with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
+            mock_settings.run_token_cap = 50_000  # Less than tokens_used
+
+            from autopack.autonomous.budgeting import BudgetExhaustedError
+
+            with pytest.raises(BudgetExhaustedError):
+                loop._execute_loop(
+                    poll_interval=0.01, max_iterations=1, stop_on_first_failure=False
+                )
+
+        # Budget check should happen before get_run_status (which could consume tokens)
+        assert "get_run_status" not in call_order, (
+            "get_run_status should not be called when budget is exhausted"
+        )
+        assert "get_memory_context" not in call_order, (
+            "get_memory_context should not be called when budget is exhausted"
+        )
+
+    def test_budget_check_allows_iteration_when_budget_available(self):
+        """Verify loop continues when budget is not exhausted."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+        mock_executor.project_root = "."
+        mock_executor._phase_failure_counts = {}
+        mock_executor._run_tokens_used = 1_000  # Well under budget
+        mock_executor.get_run_status.return_value = {"phases": []}
+        mock_executor.get_next_queued_phase.return_value = None
+
+        loop = AutonomousLoop(mock_executor)
+
+        with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
+            mock_settings.run_token_cap = 50_000  # Plenty of budget remaining
+
+            # Mock SOT drift check to avoid file system interactions
+            with patch.object(loop, "_check_sot_drift"):
+                stats = loop._execute_loop(
+                    poll_interval=0.01, max_iterations=1, stop_on_first_failure=False
+                )
+
+        # Should complete iteration and check for phases
+        assert stats["stop_reason"] == "no_more_executable_phases"
+        mock_executor.get_run_status.assert_called()
+
+    def test_budget_exhausted_error_includes_usage_details(self):
+        """Verify budget exhausted error includes usage and cap details."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+        mock_executor.project_root = "."
+        mock_executor._phase_failure_counts = {}
+        mock_executor._run_tokens_used = 60_000  # Over budget
+
+        loop = AutonomousLoop(mock_executor)
+
+        with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
+            mock_settings.run_token_cap = 50_000
+
+            from autopack.autonomous.budgeting import BudgetExhaustedError
+
+            with pytest.raises(BudgetExhaustedError) as exc_info:
+                loop._execute_loop(
+                    poll_interval=0.01, max_iterations=1, stop_on_first_failure=False
+                )
+
+        error_msg = str(exc_info.value)
+        assert "60000" in error_msg or "60,000" in error_msg  # tokens used
+        assert "50000" in error_msg or "50,000" in error_msg  # token cap
+        assert "budget exhausted" in error_msg.lower()
 
 
 if __name__ == "__main__":

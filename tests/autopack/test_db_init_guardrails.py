@@ -17,6 +17,9 @@ from autopack.config import Settings
 from autopack.exceptions import DatabaseError
 
 
+# These tests modify global state (autopack.database.engine and autopack.config.settings)
+# so they must run on the same worker to avoid race conditions with pytest-xdist
+@pytest.mark.xdist_group(name="db_guardrails_global_state")
 class TestDBInitGuardrails:
     """Test that DB initialization enforces safety guardrails."""
 

@@ -18,7 +18,6 @@ from autopack.service.usage_recording import (
     UsageRecordingResult,
 )
 
-
 # ============================================================================
 # estimate_tokens tests
 # ============================================================================

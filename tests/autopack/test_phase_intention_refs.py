@@ -12,7 +12,6 @@ from autopack.intention_anchor import IntentionConstraints, create_anchor
 from autopack.plan_utils import validate_intention_refs
 from autopack.schemas import IntentionRefs, PhaseCreate, PhaseResponse
 
-
 # =============================================================================
 # Schema Tests: IntentionRefs model
 # =============================================================================

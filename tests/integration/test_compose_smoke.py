@@ -26,7 +26,6 @@ import pytest
 import requests
 import subprocess
 
-
 # Configuration - can be overridden via environment variables
 NGINX_BASE = "http://localhost:80"
 BACKEND_BASE = "http://localhost:8000"

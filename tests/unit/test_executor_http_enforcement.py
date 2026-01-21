@@ -22,7 +22,6 @@ Allowed raw HTTP zones:
 import re
 from pathlib import Path
 
-
 RAW_HTTP_PATTERN = re.compile(r"\brequests\.(get|post|put|patch|delete|request)\s*\(")
 
 

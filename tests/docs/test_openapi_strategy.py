@@ -12,7 +12,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-
 # Repository root for file existence checks
 REPO_ROOT = Path(__file__).parent.parent.parent
 

@@ -23,7 +23,6 @@ from .models import (
 )
 from .sentiment_ingest import compute_sentiment_score
 
-
 # Scoring weights (per section 4.3 of plan)
 WEIGHT_PRICE = 0.35
 WEIGHT_BENCHMARK = 0.40

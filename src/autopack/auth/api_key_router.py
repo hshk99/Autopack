@@ -14,7 +14,6 @@ from autopack.database import get_db
 from .models import APIKey
 from .api_key import generate_api_key, require_api_key
 
-
 router = APIRouter(
     prefix="/api/auth/api-keys",
     tags=["api-keys"],

@@ -16,7 +16,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # Table of all migrated handler modules
 MIGRATED_HANDLERS = [
     "batched_diagnostics_deep_retrieval",

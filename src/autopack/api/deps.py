@@ -25,7 +25,6 @@ from slowapi import Limiter
 
 from ..config import get_api_key
 
-
 # Security: API Key authentication
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 

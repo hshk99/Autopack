@@ -21,32 +21,35 @@ class TestDBInitGuardrails:
 
     def test_init_db_fails_fast_on_missing_schema(self):
         """init_db() should fail fast when schema is missing (bootstrap disabled)."""
-        # Use in-memory database for isolation
+        # Use in-memory database for isolation (empty - no tables)
         db_url = "sqlite:///:memory:"
+        test_engine = create_engine(db_url)
 
-        # Patch both engine creation and config.settings (imported inside init_db)
-        with (
-            patch("autopack.database.engine") as mock_engine,
-            patch("autopack.config.settings") as mock_settings,
-        ):
-            # Mock settings: bootstrap DISABLED
-            mock_settings.db_bootstrap_enabled = False
+        # Replace the engine object directly for reliable SQLAlchemy inspect() behavior
+        import autopack.database
 
-            # Create empty engine
-            test_engine = create_engine(db_url)
-            mock_engine.url = test_engine.url
-            mock_engine.connect = test_engine.connect
+        original_engine = autopack.database.engine
 
-            # Import init_db after patching
-            from autopack.database import init_db
+        autopack.database.engine = test_engine
 
-            # Should raise DatabaseError with clear message
-            with pytest.raises(DatabaseError) as exc_info:
-                init_db()
+        try:
+            with patch("autopack.config.settings") as mock_settings:
+                # Mock settings: bootstrap DISABLED
+                mock_settings.db_bootstrap_enabled = False
 
-            error_msg = str(exc_info.value)
-            assert "DATABASE SCHEMA MISSING" in error_msg
-            assert "AUTOPACK_DB_BOOTSTRAP=1" in error_msg
+                # Import init_db after patching
+                from autopack.database import init_db
+
+                # Should raise DatabaseError with clear message
+                with pytest.raises(DatabaseError) as exc_info:
+                    init_db()
+
+                error_msg = str(exc_info.value)
+                assert "DATABASE SCHEMA MISSING" in error_msg
+                assert "AUTOPACK_DB_BOOTSTRAP=1" in error_msg
+        finally:
+            # Restore original engine
+            autopack.database.engine = original_engine
 
     def test_init_db_bootstrap_mode_creates_tables(self):
         """init_db() should create tables when bootstrap mode enabled."""
@@ -142,24 +145,28 @@ class TestDBInitGuardrails:
         Table("users", metadata, Column("id", Integer, primary_key=True))
         metadata.create_all(test_engine)
 
-        with (
-            patch("autopack.database.engine") as mock_engine,
-            patch("autopack.config.settings") as mock_settings,
-        ):
-            mock_settings.db_bootstrap_enabled = False
+        # Replace the engine object directly for reliable SQLAlchemy inspect() behavior
+        import autopack.database
 
-            # Use the partial-schema engine
-            mock_engine.url = test_engine.url
-            mock_engine.connect = test_engine.connect
+        original_engine = autopack.database.engine
 
-            # Import init_db after patching
-            from autopack.database import init_db
+        autopack.database.engine = test_engine
 
-            # Should raise DatabaseError
-            with pytest.raises(DatabaseError) as exc_info:
-                init_db()
+        try:
+            with patch("autopack.config.settings") as mock_settings:
+                mock_settings.db_bootstrap_enabled = False
 
-            assert "runs" in str(exc_info.value).lower()
+                # Import init_db after patching
+                from autopack.database import init_db
+
+                # Should raise DatabaseError
+                with pytest.raises(DatabaseError) as exc_info:
+                    init_db()
+
+                assert "runs" in str(exc_info.value).lower()
+        finally:
+            # Restore original engine
+            autopack.database.engine = original_engine
 
 
 if __name__ == "__main__":

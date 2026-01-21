@@ -18,7 +18,6 @@ import os
 import pytest
 from unittest.mock import patch, MagicMock
 
-
 # Set testing mode before imports
 os.environ.setdefault("TESTING", "1")
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")

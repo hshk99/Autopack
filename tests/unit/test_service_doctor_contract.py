@@ -23,7 +23,6 @@ from autopack.service.doctor import (
 )
 from autopack.error_recovery import DoctorRequest, DoctorResponse
 
-
 # ============================================================================
 # Fixtures
 # ============================================================================

@@ -6,7 +6,6 @@ configuration for source evaluation.
 
 from typing import Dict, List
 
-
 # Trust tier definitions
 TRUST_TIERS: Dict[str, List[str]] = {
     # Tier 1: Official documentation and authoritative sources

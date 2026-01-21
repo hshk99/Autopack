@@ -29,7 +29,6 @@ from autopack.intention_anchor.v2 import (
     SafetyRiskIntention,
 )
 
-
 # =============================================================================
 # Helper functions to create valid model instances
 # =============================================================================

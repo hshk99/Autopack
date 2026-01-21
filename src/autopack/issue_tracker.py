@@ -23,7 +23,6 @@ from .issue_schemas import (
     RunIssueIndexEntry,
 )
 
-
 logger = logging.getLogger(__name__)
 
 

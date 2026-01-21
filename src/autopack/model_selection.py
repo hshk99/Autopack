@@ -245,15 +245,38 @@ class ModelSelector:
                     return policy.get("auditor_primary")
 
         elif strategy == "cheap_first":
-            # Start cheap, escalate after failures
+            # IMP-COST-004: Enhanced cheap_first strategy
+            # Start with cheap model, escalate to mid-tier after initial attempts,
+            # then to strong tier after additional failures
             escalate_config = policy.get("escalate_to", {})
-            escalate_after = escalate_config.get("after_attempts", 3)
+            escalate_after = escalate_config.get("after_attempts", 1)
 
+            final_escalation = policy.get("final_escalation", {})
+            final_escalate_after = final_escalation.get("after_attempts", 3)
+
+            # Check if we need final escalation (strongest model)
+            if attempt_index >= final_escalate_after:
+                if role == "builder" and "builder" in final_escalation:
+                    logger.info(
+                        f"[ModelSelector] IMP-COST-004: Final escalation to {final_escalation['builder']} "
+                        f"after {attempt_index} attempts"
+                    )
+                    return final_escalation.get("builder")
+                elif role == "auditor" and "auditor" in final_escalation:
+                    return final_escalation.get("auditor")
+
+            # Check if we need mid-tier escalation
             if attempt_index >= escalate_after:
-                if role == "builder":
+                if role == "builder" and "builder" in escalate_config:
+                    logger.info(
+                        f"[ModelSelector] IMP-COST-004: Escalating to {escalate_config['builder']} "
+                        f"after {attempt_index} attempts"
+                    )
                     return escalate_config.get("builder")
-                # auditor usually doesn't have escalation in cheap_first
+                elif role == "auditor" and "auditor" in escalate_config:
+                    return escalate_config.get("auditor")
 
+            # Use cheap primary model for first attempt(s)
             if role == "builder":
                 return policy.get("builder_primary")
             else:

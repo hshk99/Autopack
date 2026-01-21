@@ -186,11 +186,17 @@ class BacklogMaintenance:
                             "error": "auto_apply_low_risk_tests_guard",
                         }
                     else:
+                        # IMP-SAFETY-008: Extract scope_paths from phase for Layer 2 validation
+                        scope_config = phase.get("scope", {})
+                        scope_paths = (
+                            scope_config.get("paths", []) if isinstance(scope_config, dict) else []
+                        )
                         gap = GovernedApplyPath(
                             workspace=Path(self.executor.workspace),
                             allowed_paths=default_allowed,
                             protected_paths=protected_paths,
                             run_type="project_build",
+                            scope_paths=scope_paths,
                         )
                         success, err = gap.apply_patch(
                             patch_path.read_text(encoding="utf-8", errors="ignore")
@@ -208,11 +214,17 @@ class BacklogMaintenance:
 
                                 revert_to_checkpoint(Path(self.executor.workspace), checkpoint_hash)
                 else:
+                    # IMP-SAFETY-008: Extract scope_paths from phase for Layer 2 validation
+                    scope_config = phase.get("scope", {})
+                    scope_paths = (
+                        scope_config.get("paths", []) if isinstance(scope_config, dict) else []
+                    )
                     gap = GovernedApplyPath(
                         workspace=Path(self.executor.workspace),
                         allowed_paths=default_allowed,
                         protected_paths=protected_paths,
                         run_type="project_build",
+                        scope_paths=scope_paths,
                     )
                     success, err = gap.apply_patch(
                         patch_path.read_text(encoding="utf-8", errors="ignore")

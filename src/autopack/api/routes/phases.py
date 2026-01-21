@@ -420,11 +420,16 @@ def submit_builder_result(
             if builder_result.status == "success":
                 phase.state = models.PhaseState.GATE
         else:
+            # IMP-SAFETY-008: Extract scope_paths from phase for Layer 2 validation
+            scope_config = phase.scope if hasattr(phase, "scope") and phase.scope else {}
+            scope_paths = scope_config.get("paths", []) if isinstance(scope_config, dict) else []
+
             apply_path = GovernedApplyPath(
                 workspace=workspace,
                 run_type=run_type,
                 autopack_internal_mode=run_type in GovernedApplyPath.MAINTENANCE_RUN_TYPES,
                 allowed_paths=builder_result.allowed_paths or None,
+                scope_paths=scope_paths,
             )
 
             # Patch application with exception handling per GPT_RESPONSE16 Q2

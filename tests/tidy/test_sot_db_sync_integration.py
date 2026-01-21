@@ -31,7 +31,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "tidy")
 
 from sot_db_sync import SOTDBSync, SyncMode
 
-
 # Skip all tests in this file if external dependencies not configured
 requires_postgres = pytest.mark.skipif(
     not os.getenv("DATABASE_URL", "").startswith("postgresql://"),

@@ -14,7 +14,6 @@ Only operator-facing "living docs" are scanned. Historical ledgers
 import re
 from pathlib import Path
 
-
 # Operator-facing living docs that should use canonical run layout.
 # These docs are instructional and should always show the current path structure.
 OPERATOR_FACING_DOCS = [

@@ -18,7 +18,6 @@ from autopack.intention_anchor import (
 from autopack.plan_utils import validate_intention_refs
 from autopack.schemas import IntentionRefs, PhaseCreate
 
-
 # =============================================================================
 # End-to-End Integration Tests
 # =============================================================================

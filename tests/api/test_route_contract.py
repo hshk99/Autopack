@@ -18,7 +18,6 @@ Usage:
 import os
 import pytest
 
-
 # Required for testing - set before importing app
 os.environ.setdefault("TESTING", "1")
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")

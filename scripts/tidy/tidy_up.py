@@ -119,9 +119,11 @@ ROOT_ALLOWED_DIRS = {
     ".pytest_cache",
     ".autopack",
     ".claude",
+    ".cursor",
     ".autonomous_runs",
     "__pycache__",
     "node_modules",
+    ".ruff_cache",
     "src",
     "tests",
     "scripts",
@@ -134,6 +136,10 @@ ROOT_ALLOWED_DIRS = {
     ".venv",
     "dist",
     "build",
+    "ralph",
+    # BUILD-183: security/ is allowed at root by design - contains security
+    # baselines, threat models, and audit artifacts for visibility.
+    "security",
 }
 
 
@@ -901,6 +907,10 @@ def route_root_files(
     for item in repo_root.iterdir():
         # Skip allowed directories
         if item.is_dir() and item.name in ROOT_ALLOWED_DIRS:
+            continue
+
+        # Skip .git file in worktrees (it's a pointer file, not a directory)
+        if item.is_file() and item.name == ".git":
             continue
 
         # Skip allowed files

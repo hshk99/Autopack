@@ -31,7 +31,6 @@ from dataclasses import dataclass, field
 from .debug_journal import log_error, log_fix, log_escalation
 from .config_loader import doctor_config as _doctor_config
 
-
 logger = logging.getLogger(__name__)
 
 

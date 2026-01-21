@@ -9,7 +9,6 @@ import json
 import tempfile
 from pathlib import Path
 
-
 # Import the script functions directly
 import sys
 
@@ -27,7 +26,6 @@ from consolidate_intention_anchors import (
 sys.path.insert(0, str(project_root / "src"))
 
 from autopack.intention_anchor import create_anchor, save_anchor
-
 
 # =============================================================================
 # Idempotency Hash Tests

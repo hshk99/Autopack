@@ -2,15 +2,16 @@
 P0.4 Reliability Test: DB initialization guardrails.
 
 Validates that init_db() enforces schema safety:
-- Fails fast when schema is missing (unless bootstrap enabled)
+- Bootstrap mode uses create_all() directly (dev/test)
+- Production mode uses Alembic migrations (IMP-OPS-002)
 - Prevents accidental schema drift between SQLite/Postgres
 """
 
 import os
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String
+from sqlalchemy import create_engine
 
 from autopack.config import Settings
 from autopack.exceptions import DatabaseError
@@ -19,34 +20,34 @@ from autopack.exceptions import DatabaseError
 class TestDBInitGuardrails:
     """Test that DB initialization enforces safety guardrails."""
 
-    def test_init_db_fails_fast_on_missing_schema(self):
-        """init_db() should fail fast when schema is missing (bootstrap disabled)."""
+    def test_init_db_runs_migrations_when_bootstrap_disabled(self, monkeypatch):
+        """init_db() should run Alembic migrations when bootstrap is disabled (IMP-OPS-002)."""
         # Use in-memory database for isolation
         db_url = "sqlite:///:memory:"
+        test_engine = create_engine(db_url)
 
-        # Patch both engine creation and config.settings (imported inside init_db)
-        with (
-            patch("autopack.database.engine") as mock_engine,
-            patch("autopack.config.settings") as mock_settings,
-        ):
-            # Mock settings: bootstrap DISABLED
-            mock_settings.db_bootstrap_enabled = False
+        # Use monkeypatch for reliable test isolation in parallel execution
+        import autopack.database
+        import autopack.config
 
-            # Create empty engine
-            test_engine = create_engine(db_url)
-            mock_engine.url = test_engine.url
-            mock_engine.connect = test_engine.connect
+        monkeypatch.setattr(autopack.database, "engine", test_engine)
 
-            # Import init_db after patching
-            from autopack.database import init_db
+        # Create mock settings with bootstrap disabled
+        mock_settings = MagicMock()
+        mock_settings.db_bootstrap_enabled = False
+        monkeypatch.setattr(autopack.config, "settings", mock_settings)
 
-            # Should raise DatabaseError with clear message
-            with pytest.raises(DatabaseError) as exc_info:
-                init_db()
+        # Mock run_migrations to verify it gets called
+        mock_run_migrations = MagicMock()
+        monkeypatch.setattr(autopack.database, "run_migrations", mock_run_migrations)
 
-            error_msg = str(exc_info.value)
-            assert "DATABASE SCHEMA MISSING" in error_msg
-            assert "AUTOPACK_DB_BOOTSTRAP=1" in error_msg
+        from autopack.database import init_db
+
+        # Should call run_migrations (not raise)
+        init_db()
+
+        # Verify migrations were called
+        mock_run_migrations.assert_called_once()
 
     def test_init_db_bootstrap_mode_creates_tables(self):
         """init_db() should create tables when bootstrap mode enabled."""
@@ -74,42 +75,37 @@ class TestDBInitGuardrails:
             # Verify create_all was called
             mock_create.assert_called_once()
 
-    def test_init_db_validates_existing_schema(self):
-        """init_db() should pass validation when schema exists (bootstrap disabled)."""
-        # Use in-memory database with pre-populated schema
+    def test_init_db_uses_migrations_not_create_all_when_bootstrap_disabled(self, monkeypatch):
+        """init_db() should use run_migrations, not create_all, when bootstrap disabled."""
+        # Use in-memory database for isolation
         db_url = "sqlite:///:memory:"
         test_engine = create_engine(db_url)
 
-        # Create a minimal schema with 'runs' table
-        metadata = MetaData()
-        Table("runs", metadata, Column("id", String, primary_key=True), Column("status", String))
-        metadata.create_all(test_engine)
-
-        # Replace the engine object itself with our pre-populated test engine
+        # Use monkeypatch for reliable test isolation in parallel execution
         import autopack.database
+        import autopack.config
 
-        original_engine = autopack.database.engine
-        autopack.database.engine = test_engine
+        monkeypatch.setattr(autopack.database, "engine", test_engine)
 
-        try:
-            with (
-                patch("autopack.config.settings") as mock_settings,
-                patch("autopack.database.Base.metadata.create_all") as mock_create,
-            ):
-                # Mock settings: bootstrap DISABLED
-                mock_settings.db_bootstrap_enabled = False
+        # Create mock settings with bootstrap disabled
+        mock_settings = MagicMock()
+        mock_settings.db_bootstrap_enabled = False
+        monkeypatch.setattr(autopack.config, "settings", mock_settings)
 
-                # Import init_db after patching
-                from autopack.database import init_db
+        # Mock both run_migrations and create_all to track which gets called
+        mock_run_migrations = MagicMock()
+        mock_create_all = MagicMock()
+        monkeypatch.setattr(autopack.database, "run_migrations", mock_run_migrations)
+        monkeypatch.setattr(autopack.database.Base.metadata, "create_all", mock_create_all)
 
-                # Should succeed without calling create_all
-                init_db()  # Should not raise
+        from autopack.database import init_db
 
-                # Verify create_all was NOT called
-                mock_create.assert_not_called()
-        finally:
-            # Restore original engine
-            autopack.database.engine = original_engine
+        # Should succeed
+        init_db()
+
+        # Verify run_migrations was called, not create_all
+        mock_run_migrations.assert_called_once()
+        mock_create_all.assert_not_called()
 
     def test_bootstrap_flag_env_variable_aliases(self):
         """Test that both AUTOPACK_DB_BOOTSTRAP and DB_BOOTSTRAP_ENABLED work."""
@@ -130,36 +126,36 @@ class TestDBInitGuardrails:
             settings = Settings()
             assert settings.db_bootstrap_enabled is False
 
-    def test_missing_runs_table_triggers_error(self):
-        """Even if some tables exist, missing 'runs' table should fail."""
-        # Use in-memory database with partial schema
+    def test_migration_failure_raises_database_error(self, monkeypatch):
+        """Migration failure should raise DatabaseError (IMP-OPS-002)."""
+        # Use in-memory database for isolation
         db_url = "sqlite:///:memory:"
         test_engine = create_engine(db_url)
 
-        # Create some tables but NOT 'runs'
-        metadata = MetaData()
-        Table("llm_usage_events", metadata, Column("id", Integer, primary_key=True))
-        Table("users", metadata, Column("id", Integer, primary_key=True))
-        metadata.create_all(test_engine)
+        # Use monkeypatch for reliable test isolation in parallel execution
+        import autopack.database
+        import autopack.config
 
-        with (
-            patch("autopack.database.engine") as mock_engine,
-            patch("autopack.config.settings") as mock_settings,
-        ):
-            mock_settings.db_bootstrap_enabled = False
+        monkeypatch.setattr(autopack.database, "engine", test_engine)
 
-            # Use the partial-schema engine
-            mock_engine.url = test_engine.url
-            mock_engine.connect = test_engine.connect
+        # Create mock settings with bootstrap disabled
+        mock_settings = MagicMock()
+        mock_settings.db_bootstrap_enabled = False
+        monkeypatch.setattr(autopack.config, "settings", mock_settings)
 
-            # Import init_db after patching
-            from autopack.database import init_db
+        # Mock run_migrations to raise an exception (simulating migration failure)
+        def failing_migrations():
+            raise DatabaseError("Database migration failed: alembic error")
 
-            # Should raise DatabaseError
-            with pytest.raises(DatabaseError) as exc_info:
-                init_db()
+        monkeypatch.setattr(autopack.database, "run_migrations", failing_migrations)
 
-            assert "runs" in str(exc_info.value).lower()
+        from autopack.database import init_db
+
+        # Should raise DatabaseError from migration failure
+        with pytest.raises(DatabaseError) as exc_info:
+            init_db()
+
+        assert "migration" in str(exc_info.value).lower()
 
 
 if __name__ == "__main__":

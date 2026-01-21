@@ -105,3 +105,11 @@ backend.log
 # Diagnostic archives (BUILD-167+)
 archive/diagnostics/doc_link_fix_backup_*.zip
 .claude/settings.local.json
+
+# Workspace verification output
+workspace-verification.json
+workspace-verification.md
+
+# Workspace verification output
+workspace-verification.json
+workspace-verification.md

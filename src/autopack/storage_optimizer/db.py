@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 
 from ..models import ApprovalDecision, CleanupCandidateDB, StorageScan
 
-
 # ==============================================================================
 # Query Helpers - Scan History
 # ==============================================================================

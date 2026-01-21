@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import click
 
-
 # Guidance message for migration to supervisor-side API
 MIGRATION_MESSAGE = """
 ⚠️  This is a test shim. For production phase management:

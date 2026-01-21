@@ -54,7 +54,6 @@ from autopack.repo_scanner import RepoScanner
 from autopack.pattern_matcher import PatternMatcher, MatchResult
 from autopack.preflight_validator import PreflightValidator
 
-
 logger = logging.getLogger(__name__)
 
 # BUILD-124 Phase D:

@@ -17,7 +17,6 @@ from autopack.auth import router, hash_password, User
 from autopack.database import Base, get_db
 from fastapi import FastAPI
 
-
 # Test database setup
 TEST_DATABASE_URL = "sqlite:///:memory:"
 

@@ -1,7 +1,6 @@
 import pytest
 from autopack.sql_sanitizer import SQLSanitizer
 
-
 SQL_INJECTION_PAYLOADS = [
     "'; DROP TABLE users--",
     "1' OR '1'='1",

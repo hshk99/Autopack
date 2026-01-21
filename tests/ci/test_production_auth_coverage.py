@@ -19,7 +19,6 @@ from fastapi.routing import APIRoute
 os.environ.setdefault("TESTING", "1")  # Prevent production checks during import
 from autopack.main import app
 
-
 # ============================================================================
 # ALLOWLIST: Endpoints that MAY be unauthenticated
 # ============================================================================

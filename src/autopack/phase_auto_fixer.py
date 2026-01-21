@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any, Dict, List, Tuple
 
-
 _RE_ANNOTATION = re.compile(r"\s*\([^)]*\)\s*$")  # "path (10+ tests)" -> "path"
 
 

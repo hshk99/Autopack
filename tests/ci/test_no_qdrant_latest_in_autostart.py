@@ -17,7 +17,6 @@ from pathlib import Path
 
 import pytest
 
-
 # Files that contain autostart fallback logic
 AUTOSTART_FILES = [
     Path("src/autopack/health_checks.py"),

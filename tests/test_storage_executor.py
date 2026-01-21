@@ -26,7 +26,6 @@ from autopack.models import StorageScan, CleanupCandidateDB
 from autopack.storage_optimizer.executor import CleanupExecutor, ExecutionStatus
 from autopack.storage_optimizer.policy import StoragePolicy, CategoryPolicy
 
-
 # ==============================================================================
 # Fixtures
 # ==============================================================================

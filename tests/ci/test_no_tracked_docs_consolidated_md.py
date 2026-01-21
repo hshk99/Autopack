@@ -11,7 +11,6 @@ from pathlib import Path
 
 import pytest
 
-
 # Add scripts/ci to path for import
 import sys
 

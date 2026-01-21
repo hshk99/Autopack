@@ -51,6 +51,19 @@ MONITOR_INTERVAL = 1.0
 # Delay between checking each slot (in seconds) - keep low for responsiveness
 SLOT_CHECK_DELAY = 0.1
 
+# Stagnant detection timing
+STAGNANT_INITIAL_SUSPECT_SECONDS = 15  # First observation before starting countdown
+STAGNANT_CONFIRMATION_SECONDS = 210    # 3.5 minutes confirmation before nudge
+
+# Nudge message to send to stagnant cursors
+CONTINUE_INSTRUCTION = """If there's any option to choose, choose the one that best preserves the intention of
+AUTOPACK_WAVE_PLAN.json in C:\\Users\\hshk9\\OneDrive\\Backup\\Desktop or README.md in C:\\dev\\Autopack.
+
+If context overflowed, continue from your last summary.
+
+Resolve any issues and continue until you complete the prompt you were initially given.
+When done, create PR and run CI."""
+
 # Grid configuration for 5120x1440 monitor with 3x3 grid
 # Right half of monitor (X starts at 2560), with verified slot positions
 GRID_POSITIONS = {
@@ -148,6 +161,29 @@ MERGE_KEYWORDS = [
     # Use check_pr_status.ps1 instead which checks GitHub API for actual MERGED state
 ]
 
+# WIP (Work In Progress) detection keywords - indicates Claude is actively working
+# These words appear in the Cursor status area when Claude is processing
+WIP_KEYWORDS = [
+    "thinking",
+    "pondering",
+    "generating",
+    "writing",
+    "analyzing",
+    "reading",
+    "searching",
+    "working",
+    "processing",
+    "loading",
+]
+
+# Words that indicate Claude has finished and is idle/waiting
+IDLE_KEYWORDS = [
+    "send a message",
+    "type a message",
+    "ask claude",
+    "ask anything",
+]
+
 
 # ============================================================================
 # GLOBAL STATE
@@ -170,8 +206,284 @@ class MonitorState:
         self.active_slots: set = set()  # Slots with active Cursor windows
         self.last_slot_scan: datetime = None  # Last time we scanned for active windows
 
+        # Round-robin slot scanning - remember where we left off
+        self.last_scanned_slot: int = 0  # Last slot we fully scanned
+
+        # Stagnant detection state
+        self.slot_first_idle: Dict[int, datetime] = {}  # When slot first appeared idle
+        self.slot_last_working: Dict[int, datetime] = {}  # When slot was last seen working
+        self.slot_nudge_count: Dict[int, int] = {}  # Number of nudges sent to each slot
+        self.slot_awaiting_summary: Dict[int, bool] = {}  # Slots waiting for LLM summary response
+
 
 state = MonitorState()
+
+
+# ============================================================================
+# SHARED STAGNANT STATE FILE (for coordination with check_pr_status.ps1)
+# ============================================================================
+
+import json
+
+STAGNANT_STATE_FILE = os.path.join(os.path.dirname(__file__), "stagnant_state.json")
+
+
+def load_stagnant_state() -> dict:
+    """Load the shared stagnant state from file."""
+    try:
+        if os.path.exists(STAGNANT_STATE_FILE):
+            with open(STAGNANT_STATE_FILE, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        if state.verbose:
+            print(f"[WARN] Could not load stagnant state: {e}")
+    return {"slots": {}, "last_updated": None}
+
+
+def save_stagnant_state(state_data: dict) -> None:
+    """Save the shared stagnant state to file."""
+    try:
+        state_data["last_updated"] = datetime.now().isoformat()
+        with open(STAGNANT_STATE_FILE, 'w') as f:
+            json.dump(state_data, f, indent=2)
+    except Exception as e:
+        if state.verbose:
+            print(f"[WARN] Could not save stagnant state: {e}")
+
+
+def get_slot_stagnant_info(slot: int) -> Optional[dict]:
+    """Get stagnant info for a specific slot from shared state."""
+    data = load_stagnant_state()
+    return data.get("slots", {}).get(str(slot))
+
+
+def update_slot_stagnant_state(slot: int, nudge_count: int = -1,
+                                first_suspected: str = "", last_nudge: str = "") -> None:
+    """Update the shared stagnant state for a slot."""
+    data = load_stagnant_state()
+    if "slots" not in data:
+        data["slots"] = {}
+
+    slot_key = str(slot)
+    if slot_key not in data["slots"]:
+        data["slots"][slot_key] = {}
+
+    if nudge_count >= 0:
+        data["slots"][slot_key]["nudge_count"] = nudge_count
+    if first_suspected:
+        data["slots"][slot_key]["first_suspected"] = first_suspected
+    if last_nudge:
+        data["slots"][slot_key]["last_nudge"] = last_nudge
+
+    save_stagnant_state(data)
+
+
+def increment_slot_nudge_count(slot: int) -> int:
+    """Increment nudge count for a slot and return the new count."""
+    data = load_stagnant_state()
+    slot_key = str(slot)
+
+    if "slots" not in data:
+        data["slots"] = {}
+    if slot_key not in data["slots"]:
+        data["slots"][slot_key] = {"nudge_count": 0}
+
+    current = data["slots"][slot_key].get("nudge_count", 0)
+    new_count = current + 1
+    data["slots"][slot_key]["nudge_count"] = new_count
+    data["slots"][slot_key]["last_nudge"] = datetime.now().isoformat()
+
+    save_stagnant_state(data)
+    return new_count
+
+
+def get_slot_nudge_count(slot: int) -> int:
+    """Get the current nudge count for a slot."""
+    info = get_slot_stagnant_info(slot)
+    return info.get("nudge_count", 0) if info else 0
+
+
+def clear_slot_stagnant_state(slot: int) -> None:
+    """Clear stagnant state for a slot (when it becomes active or PR created)."""
+    data = load_stagnant_state()
+    slot_key = str(slot)
+    if "slots" in data and slot_key in data["slots"]:
+        del data["slots"][slot_key]
+        save_stagnant_state(data)
+
+
+def reset_slot_nudge_count(slot: int) -> None:
+    """Reset the nudge count for a slot (called when PR is created or task completes)."""
+    if slot in state.slot_nudge_count:
+        del state.slot_nudge_count[slot]
+    if slot in state.slot_awaiting_summary:
+        del state.slot_awaiting_summary[slot]
+    if slot in state.slot_first_idle:
+        del state.slot_first_idle[slot]
+    # Also clear the shared stagnant state file so check_pr_status.ps1 sees reset
+    clear_slot_stagnant_state(slot)
+
+
+# ============================================================================
+# WIP DETECTION AND STAGNANT HANDLING
+# ============================================================================
+
+
+def detect_wip_in_slot(
+    ocr: "OCREngine", capture: "ScreenCapture", slot: int, verbose: bool = False
+) -> bool:
+    """
+    Detect if Claude is actively working in the given slot (WIP = Work In Progress).
+
+    Checks the footer/status area of the window for WIP keywords like
+    "thinking", "generating", "writing", etc.
+
+    Returns:
+        True if slot shows Claude is actively working
+    """
+    try:
+        # Capture the footer area where status text appears
+        image = capture.capture_slot_footer(slot, footer_height=100)
+        texts = ocr.extract_text(image)
+
+        if verbose and texts:
+            text_strs = [t for t, _ in texts[:5]]
+            print(f"  [Slot {slot}] WIP check - Footer text: {text_strs}")
+
+        # Check for WIP keywords
+        return ocr.contains_keywords(texts, WIP_KEYWORDS)
+
+    except Exception as e:
+        if verbose:
+            print(f"[ERROR] WIP detection failed for slot {slot}: {e}")
+        return False
+
+
+def detect_idle_in_slot(
+    ocr: "OCREngine", capture: "ScreenCapture", slot: int, verbose: bool = False
+) -> bool:
+    """
+    Detect if the slot is idle (showing chat input prompt).
+
+    Returns:
+        True if slot appears to be idle/waiting for input
+    """
+    try:
+        image = capture.capture_slot_footer(slot, footer_height=100)
+        texts = ocr.extract_text(image)
+
+        if verbose and texts:
+            text_strs = [t for t, _ in texts[:5]]
+            print(f"  [Slot {slot}] Idle check - Footer text: {text_strs}")
+
+        return ocr.contains_keywords(texts, IDLE_KEYWORDS)
+
+    except Exception as e:
+        if verbose:
+            print(f"[ERROR] Idle detection failed for slot {slot}: {e}")
+        return False
+
+
+def check_slot_has_pr(slot: int, verbose: bool = False) -> bool:
+    """
+    Check if a slot has an open PR by calling check_pr_status.ps1.
+
+    Returns:
+        True if PR exists for the slot
+    """
+    try:
+        script_dir = os.path.dirname(__file__)
+        check_script = os.path.join(script_dir, "check_pr_status.ps1")
+
+        result = subprocess.run(
+            ["powershell", "-ExecutionPolicy", "Bypass", "-File", check_script, "-CheckSlotPR", str(slot)],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        # Exit code 0 = PR exists, 1 = no PR
+        has_pr = result.returncode == 0
+
+        if verbose:
+            print(f"  [Slot {slot}] PR check: {'PR exists' if has_pr else 'No PR'}")
+
+        return has_pr
+
+    except Exception as e:
+        if verbose:
+            print(f"[WARN] PR check failed for slot {slot}: {e}")
+        return False
+
+
+def send_nudge_to_slot(slot: int, message: str, verbose: bool = False) -> bool:
+    """
+    Send a nudge message to a stagnant slot using send_message_to_cursor_slot.ps1.
+
+    Args:
+        slot: Slot number (1-9)
+        message: Message to send
+
+    Returns:
+        True if nudge was sent successfully
+    """
+    try:
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"\n[{timestamp}] SENDING NUDGE TO SLOT {slot}")
+
+        script_dir = os.path.dirname(__file__)
+        send_script = os.path.join(script_dir, "send_message_to_cursor_slot.ps1")
+
+        result = subprocess.run(
+            ["powershell", "-ExecutionPolicy", "Bypass", "-File", send_script,
+             "-SlotNumber", str(slot), "-Message", message],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        if result.returncode == 0:
+            print(f"  [OK] Nudge sent to slot {slot}")
+            return True
+        else:
+            print(f"  [WARN] Nudge failed for slot {slot}: {result.stderr}")
+            return False
+
+    except Exception as e:
+        print(f"[ERROR] Nudge to slot {slot} failed: {e}")
+        return False
+
+
+def process_stagnant_slot(
+    slot: int, ocr: "OCREngine", capture: "ScreenCapture", verbose: bool = False
+) -> None:
+    """
+    Process a slot that has been confirmed stagnant.
+
+    Implements tiered nudging:
+    - Nudge 1-2: Send CONTINUE_INSTRUCTION
+    - Nudge 3+: Flag for main LLM consultation (not implemented yet)
+    """
+    # First check if PR exists - if so, stop nudging and let PR monitor handle it
+    if check_slot_has_pr(slot, verbose):
+        print(f"  [INFO] Slot {slot} has PR - stopping nudge, PR monitor will handle")
+        reset_slot_nudge_count(slot)
+        return
+
+    # Increment nudge count
+    nudge_count = increment_slot_nudge_count(slot)
+
+    timestamp = datetime.now().strftime("%H:%M:%S")
+
+    if nudge_count <= 2:
+        # Standard nudge
+        print(f"[{timestamp}] Slot {slot} stagnant - sending nudge #{nudge_count}")
+        send_nudge_to_slot(slot, CONTINUE_INSTRUCTION, verbose)
+    else:
+        # Too many nudges - flag for LLM consultation
+        print(f"[{timestamp}] Slot {slot} stuck after {nudge_count} nudges - needs LLM intervention")
+        state.slot_awaiting_summary[slot] = True
+        # Future: could send a message to main Cursor (slot 0) to investigate
 
 
 # ============================================================================
@@ -292,6 +604,32 @@ class ScreenCapture:
         """Capture a specific grid slot."""
         pos = GRID_POSITIONS[slot]
         return self.capture_region(pos["x"], pos["y"], pos["width"], pos["height"])
+
+    def capture_slot_bottom_portion(self, slot: int, portion: float = 0.67) -> np.ndarray:
+        """Capture the bottom portion of a grid slot (for dialog detection)."""
+        pos = GRID_POSITIONS[slot]
+        skip_height = int(pos["height"] * (1 - portion))
+        return self.capture_region(
+            pos["x"],
+            pos["y"] + skip_height,
+            pos["width"],
+            pos["height"] - skip_height
+        )
+
+    def capture_slot_footer(self, slot: int, footer_height: int = 80) -> np.ndarray:
+        """Capture just the footer area of a slot (for status bar detection)."""
+        pos = GRID_POSITIONS[slot]
+        return self.capture_region(
+            pos["x"],
+            pos["y"] + pos["height"] - footer_height,
+            pos["width"],
+            footer_height
+        )
+
+    def capture_permission_area(self, slot: int) -> np.ndarray:
+        """Capture the area where permission dialogs typically appear."""
+        # Permission dialogs appear in the bottom 2/3 of the window
+        return self.capture_slot_bottom_portion(slot, portion=0.67)
 
 
 # ============================================================================
@@ -953,15 +1291,122 @@ def print_summary():
     print()
 
 
+def get_round_robin_slots(active_slots: set, last_slot: int) -> List[int]:
+    """
+    Return active slots in round-robin order starting after last_slot.
+
+    This ensures fair attention to all slots instead of always starting from slot 1.
+    """
+    sorted_slots = sorted(active_slots)
+    if not sorted_slots:
+        return []
+
+    # Find where to start in the sorted list
+    start_idx = 0
+    for i, slot in enumerate(sorted_slots):
+        if slot > last_slot:
+            start_idx = i
+            break
+    else:
+        # All slots are <= last_slot, wrap around to start
+        start_idx = 0
+
+    # Return slots in round-robin order
+    return sorted_slots[start_idx:] + sorted_slots[:start_idx]
+
+
+def check_stagnant_status(
+    ocr: OCREngine, capture: ScreenCapture, slot: int, verbose: bool = False
+) -> None:
+    """
+    Check and update stagnant status for a slot.
+
+    Stagnant detection flow:
+    1. If WIP detected: slot is working, clear any stagnant state
+    2. If idle for first time: record first_idle timestamp
+    3. If idle for > STAGNANT_INITIAL_SUSPECT_SECONDS: start confirmation countdown
+    4. If idle for > STAGNANT_CONFIRMATION_SECONDS: trigger nudge
+
+    Total time before nudge = STAGNANT_INITIAL_SUSPECT_SECONDS + STAGNANT_CONFIRMATION_SECONDS
+    """
+    now = datetime.now()
+
+    # Check if Claude is actively working (WIP)
+    is_working = detect_wip_in_slot(ocr, capture, slot, verbose)
+
+    if is_working:
+        # Slot is working - clear any stagnant state
+        if slot in state.slot_first_idle:
+            if verbose:
+                print(f"  [Slot {slot}] Now working - clearing stagnant state")
+            del state.slot_first_idle[slot]
+        state.slot_last_working[slot] = now
+        # Also clear shared state file
+        clear_slot_stagnant_state(slot)
+        return
+
+    # Slot is not showing WIP - check if idle
+    is_idle = detect_idle_in_slot(ocr, capture, slot, verbose)
+
+    if not is_idle:
+        # Neither working nor idle - might be in transition, skip
+        if verbose:
+            print(f"  [Slot {slot}] Neither WIP nor idle - skipping stagnant check")
+        return
+
+    # Slot is idle
+    if slot not in state.slot_first_idle:
+        # First observation of idle
+        state.slot_first_idle[slot] = now
+        if verbose:
+            print(f"  [Slot {slot}] First observation: idle (starting suspect timer)")
+
+        # Update shared state with first suspected time
+        update_slot_stagnant_state(slot, first_suspected=now.isoformat())
+        return
+
+    # Calculate how long slot has been idle
+    idle_duration = (now - state.slot_first_idle[slot]).total_seconds()
+
+    # Phase 1: Initial suspect period (15 seconds)
+    if idle_duration < STAGNANT_INITIAL_SUSPECT_SECONDS:
+        if verbose:
+            remaining = STAGNANT_INITIAL_SUSPECT_SECONDS - idle_duration
+            print(f"  [Slot {slot}] Suspect phase: {idle_duration:.0f}s idle ({remaining:.0f}s to confirm)")
+        return
+
+    # Phase 2: Confirmation period (210 seconds)
+    confirmation_duration = idle_duration - STAGNANT_INITIAL_SUSPECT_SECONDS
+
+    if confirmation_duration < STAGNANT_CONFIRMATION_SECONDS:
+        # Still in confirmation period
+        remaining = STAGNANT_CONFIRMATION_SECONDS - confirmation_duration
+        if verbose or (int(confirmation_duration) % 30 == 0):  # Log every 30s
+            print(f"  [Slot {slot}] Confirmation: {confirmation_duration:.0f}s / {STAGNANT_CONFIRMATION_SECONDS}s ({remaining:.0f}s until nudge)")
+        return
+
+    # Stagnant confirmed! Time to nudge
+    total_idle = idle_duration
+    print(f"\n[STAGNANT] Slot {slot} confirmed stagnant after {total_idle:.0f}s idle")
+
+    # Process the stagnant slot (sends nudge or escalates)
+    process_stagnant_slot(slot, ocr, capture, verbose)
+
+    # Reset first_idle to start fresh countdown for next nudge
+    state.slot_first_idle[slot] = now
+
+
 def monitor_loop(
     ocr: OCREngine, capture: ScreenCapture, verbose: bool = False, check_merges: bool = True
 ):
-    """Main monitoring loop."""
+    """Main monitoring loop with round-robin scanning and stagnant detection."""
     print("Ready. Monitoring grid for connection errors...")
     print("  Also checking for permission dialogs ('Allow this bash command?')")
+    print("  Also checking for stagnant cursors (nudge after 3.5 min idle)")
     if check_merges:
         print("  Also checking for merge completions (auto-fill enabled)")
     print(f"  Checking every {MONITOR_INTERVAL} seconds")
+    print("  Using round-robin slot scanning for fairness")
     print("  Only scanning slots with active Cursor windows")
     print()
 
@@ -985,32 +1430,53 @@ def monitor_loop(
                 else:
                     print(f"[{now.strftime('%H:%M:%S')}] No active Cursor windows detected")
 
-            # Only check slots with active Cursor windows
-            for slot in sorted(state.active_slots):
+            # Get slots in round-robin order (fair scanning)
+            slots_to_check = get_round_robin_slots(state.active_slots, state.last_scanned_slot)
+
+            for slot in slots_to_check:
                 if not state.running:
                     break
+
+                # Update last scanned slot for round-robin
+                state.last_scanned_slot = slot
 
                 # Check for permission dialogs (highest priority - blocks execution)
                 if detect_permission_dialog_in_slot(ocr, capture, slot, verbose):
                     handle_permission_dialog(ocr, capture, slot, verbose)
+                    # Permission granted = slot is working, clear stagnant state
+                    if slot in state.slot_first_idle:
+                        del state.slot_first_idle[slot]
+                    clear_slot_stagnant_state(slot)
                     time.sleep(SLOT_CHECK_DELAY)
                     continue
 
                 # Check for error dialogs
                 if detect_error_in_slot(ocr, capture, slot, verbose):
                     handle_error(ocr, capture, slot, verbose)
+                    # Error handled = give slot fresh start
+                    if slot in state.slot_first_idle:
+                        del state.slot_first_idle[slot]
                     time.sleep(SLOT_CHECK_DELAY)
                     continue
 
                 # Check for approval dialogs
                 if detect_approval_in_slot(ocr, capture, slot, verbose):
                     handle_approval(ocr, capture, slot, verbose)
+                    # Approval granted = slot is working
+                    if slot in state.slot_first_idle:
+                        del state.slot_first_idle[slot]
+                    clear_slot_stagnant_state(slot)
                     time.sleep(SLOT_CHECK_DELAY)
                     continue
 
                 # Check for merge completions (if enabled)
                 if check_merges and detect_merge_in_slot(ocr, capture, slot, verbose):
                     handle_merge(ocr, capture, slot, verbose)
+                    time.sleep(SLOT_CHECK_DELAY)
+                    continue
+
+                # Check stagnant status (WIP detection + idle countdown)
+                check_stagnant_status(ocr, capture, slot, verbose)
 
                 # Small delay between slots to avoid hammering CPU
                 time.sleep(SLOT_CHECK_DELAY)

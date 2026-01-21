@@ -1,0 +1,156 @@
+================================================================================
+                      QUICK ACTION PLAN
+================================================================================
+
+ISSUE FOUND: Handler baselines captured with errors visible
+FIX: Recapture baselines in clean state
+
+================================================================================
+                    IMMEDIATE ACTIONS (5 MINUTES)
+================================================================================
+
+STEP 1: Reset old baselines
+=============================
+
+Run in PowerShell:
+  powershell.exe -NoProfile -File "C:\dev\Autopack\scripts\reset_baselines.ps1"
+
+What it does:
+  ✓ Deletes corrupted baselines
+  ✓ Shows important instructions
+
+STEP 2: Clean all error slots (if needed)
+==========================================
+
+If ANY Cursor slots show "Connection Error" dialog:
+
+  1. Run Phase 1 handler:
+     C:\dev\Autopack\scripts\handle_connection_errors.bat
+
+  2. For EACH error slot:
+     - Type the slot number (1-9)
+     - Press Enter
+     - Wait for Resume button to be clicked
+
+  3. Repeat until ALL 9 slots show normal editor
+
+  4. Verify: All slots should show clean code editor, no error dialogs
+
+STEP 3: Capture fresh baselines
+================================
+
+Now that all slots are clean, run:
+  C:\dev\Autopack\scripts\handle_connection_errors_automated.bat
+
+Wait for message:
+  "Ready. Monitoring grid for connection errors..."
+
+DONE! Handler is now ready to use.
+
+================================================================================
+                        THEN TEST IT
+================================================================================
+
+1. Keep handler running from Step 3
+
+2. Trigger a connection error:
+   - Disconnect internet, OR
+   - Manually trigger error in Cursor
+
+3. Watch handler output for:
+   [HH:mm:ss] [!] CONNECTION ERROR DETECTED IN GRID SLOT X
+   [HH:mm:ss] [+] Clicking Resume button in SLOT X
+
+4. Mouse cursor should move to button and click
+   (if not, check diagnostic log)
+
+5. Cursor recovers automatically
+
+6. Handler continues monitoring
+
+================================================================================
+                    IF STILL NOT WORKING
+================================================================================
+
+Run diagnostic:
+  C:\dev\Autopack\scripts\diagnose_connection_errors.bat
+
+Then:
+  1. Trigger a connection error
+  2. Diagnostic monitors for 60 seconds
+  3. Captures real pixel change data
+  4. Shows if detection is working
+
+Share the diagnostic output for analysis.
+
+================================================================================
+                        KEY POINTS
+================================================================================
+
+✓ Detection algorithm is CORRECT
+✓ Thresholds are CORRECT (15%, 45, 2%)
+✓ Click coordinates are CORRECT (same as Phase 1)
+✓ Only issue: baseline captured with errors
+
+Once baselines recaptured in clean state:
+✓ Handler WILL detect errors
+✓ Handler WILL click Resume
+✓ Cursor WILL recover
+
+================================================================================
+                      FILES YOU'll USE
+================================================================================
+
+Reset baselines:
+  C:\dev\Autopack\scripts\reset_baselines.ps1
+
+Phase 1 (to clean errors):
+  C:\dev\Autopack\scripts\handle_connection_errors.bat
+
+Handler (to monitor):
+  C:\dev\Autopack\scripts\handle_connection_errors_automated.bat
+
+Diagnostic (to verify):
+  C:\dev\Autopack\scripts\diagnose_connection_errors.bat
+
+================================================================================
+                        EXPECTED WORKFLOW
+================================================================================
+
+TIME: ~5 minutes setup, then continuous monitoring
+
+Terminal 1: Reset baselines
+  > powershell.exe -NoProfile -File "C:\dev\Autopack\scripts\reset_baselines.ps1"
+  > Read instructions, follow them
+
+Terminal 2: Clean any errors (if present)
+  > C:\dev\Autopack\scripts\handle_connection_errors.bat
+  > Type slot numbers with errors, recover them
+
+Terminal 1: Start handler
+  > C:\dev\Autopack\scripts\handle_connection_errors_automated.bat
+  > Waits for "Ready..." message
+  > Keeps running, watching for errors
+
+Terminal 3: Optional - run diagnostic while handler runs
+  > C:\dev\Autopack\scripts\diagnose_connection_errors.bat
+  > Monitors for 60 seconds
+  > Shows what detection found
+
+Result:
+  Handler automatically detects and recovers from connection errors!
+
+================================================================================
+                      SUPPORT
+================================================================================
+
+Full details:
+  Read: C:\dev\Autopack\HANDLER_ISSUE_IDENTIFIED_AND_FIXED.md
+
+Diagnostic guide:
+  Read: C:\dev\Autopack\HANDLER_DIAGNOSTIC_GUIDE.txt
+
+Phase 2 complete info:
+  Read: C:\dev\Autopack\PHASE2_AUTOMATED_HANDLER_COMPLETE.md
+
+================================================================================

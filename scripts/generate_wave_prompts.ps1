@@ -27,6 +27,41 @@ if ($waveKeys.Count -eq 0) {
 
 Write-Host "[INFO] Found $($waveKeys.Count) waves in wave plan"
 
+# Helper function to convert IMP ID to phase ID and derive other metadata
+# e.g., "IMP-SEC-001" -> phaseId: "sec001", branch: "wave1/sec-001-...", path: "C:\dev\Autopack_w1_sec001"
+function Convert-ImpToPhase {
+    param(
+        [string]$ImpId,
+        [int]$WaveNumber
+    )
+
+    # Parse IMP ID: "IMP-SEC-001" -> prefix="SEC", num="001"
+    if ($ImpId -match '^IMP-([A-Z]+)-(\d+)$') {
+        $prefix = $Matches[1].ToLower()
+        $numPadded = $Matches[2]
+
+        # Generate phase ID: "sec001"
+        $phaseId = "$prefix$numPadded"
+
+        # Generate worktree path: "C:\dev\Autopack_w1_sec001"
+        $worktreePath = "C:\dev\Autopack_w$($WaveNumber)_$phaseId"
+
+        # Generate branch name: "wave1/sec-001-..."
+        # We'll use a simplified branch name since full names are in AUTOPACK_WORKFLOW.md
+        $branchName = "wave$WaveNumber/$prefix-$numPadded"
+
+        return @{
+            PhaseId = $phaseId
+            ImpId = $ImpId
+            WorktreePath = $worktreePath
+            Branch = $branchName
+            Prefix = $prefix
+            Number = $numPadded
+        }
+    }
+    return $null
+}
+
 # Collect all prompts across all waves
 $allPrompts = @()
 $totalDirsCreated = 0
@@ -36,25 +71,34 @@ foreach ($waveKey in $waveKeys) {
     $waveNumber = [int]($waveKey -replace 'wave_', '')
     $waveData = $wavePlan.$waveKey
 
-    if (-not $waveData.phases) {
-        Write-Host "[WARN] No phases array found for $waveKey - skipping" -ForegroundColor Yellow
+    # Support both 'imps' array (actual format) and 'phases' array (legacy)
+    $impsList = $null
+    if ($waveData.imps) {
+        $impsList = $waveData.imps
+    } elseif ($waveData.phases) {
+        # Legacy format with full phase objects
+        $impsList = $waveData.phases | ForEach-Object { $_.imp_id }
+    }
+
+    if (-not $impsList -or $impsList.Count -eq 0) {
+        Write-Host "[WARN] No imps found for $waveKey - skipping" -ForegroundColor Yellow
         continue
     }
 
-    Write-Host "[INFO] Processing Wave $waveNumber ($($waveData.phases.Count) phases)..."
+    Write-Host "[INFO] Processing Wave $waveNumber ($($impsList.Count) IMPs)..."
 
-    foreach ($phase in $waveData.phases) {
-        $phaseId = $phase.id
-        $impId = $phase.imp_id
-        $title = $phase.title
-        $worktreePath = $phase.worktree_path
-        $branch = $phase.branch
-        $files = if ($phase.files) { $phase.files -join ", " } else { "" }
+    foreach ($impId in $impsList) {
+        $phaseInfo = Convert-ImpToPhase -ImpId $impId -WaveNumber $waveNumber
+
+        if ($null -eq $phaseInfo) {
+            Write-Host "  [WARN] Could not parse IMP ID: $impId" -ForegroundColor Yellow
+            continue
+        }
 
         # Create worktree directory if it doesn't exist
-        if (-not (Test-Path $worktreePath)) {
-            New-Item -ItemType Directory -Path $worktreePath -Force | Out-Null
-            Write-Host "  Created: $worktreePath"
+        if (-not (Test-Path $phaseInfo.WorktreePath)) {
+            New-Item -ItemType Directory -Path $phaseInfo.WorktreePath -Force | Out-Null
+            Write-Host "  Created: $($phaseInfo.WorktreePath)"
             $totalDirsCreated++
         } else {
             $totalDirsExist++
@@ -62,17 +106,18 @@ foreach ($waveKey in $waveKeys) {
 
         $allPrompts += @{
             Wave = $waveNumber
-            ID = $phaseId
+            ID = $phaseInfo.PhaseId
             ImpId = $impId
-            Title = $title
-            Path = $worktreePath
-            Branch = $branch
-            Files = $files
+            Title = $impId  # Title will reference AUTOPACK_WORKFLOW.md for details
+            Path = $phaseInfo.WorktreePath
+            Branch = $phaseInfo.Branch
+            Files = ""
         }
     }
 }
 
-$prompts = $allPrompts
+# Convert hashtables to PSObjects for proper grouping
+$prompts = $allPrompts | ForEach-Object { [PSCustomObject]$_ }
 
 if ($prompts.Count -eq 0) {
     Write-Host "[ERROR] No phases found" -ForegroundColor Red
@@ -138,18 +183,18 @@ foreach ($waveGroup in $promptsByWave) {
     $waveNum = $waveGroup.Name
     $wavePrompts = $waveGroup.Group
 
-    # Wave header
-    $waveEmoji = switch ($waveNum) {
-        "1" { "🔵" }
-        "2" { "🟢" }
-        "3" { "🟠" }
-        "4" { "🔴" }
-        "5" { "🟣" }
-        "6" { "🟤" }
-        default { "⚪" }
+    # Wave header - use ASCII-safe markers to avoid encoding issues
+    $waveMarker = switch ($waveNum) {
+        "1" { "[W1]" }
+        "2" { "[W2]" }
+        "3" { "[W3]" }
+        "4" { "[W4]" }
+        "5" { "[W5]" }
+        "6" { "[W6]" }
+        default { "[W?]" }
     }
 
-    $markdown += "# $waveEmoji WAVE $waveNum ($($wavePrompts.Count) phases)`n`n"
+    $markdown += "# $waveMarker WAVE $waveNum ($($wavePrompts.Count) phases)`n`n"
 
     foreach ($prompt in $wavePrompts) {
         # Preserve existing status or default to READY
@@ -158,18 +203,24 @@ foreach ($waveGroup in $promptsByWave) {
         $markdown += "## Phase: $($prompt.ID) [$status]`n`n"
         $markdown += "**Wave**: $($prompt.Wave)`n"
         $markdown += "**IMP**: $($prompt.ImpId)`n"
-        $markdown += "**Title**: $($prompt.Title)`n"
+        $markdown += "**Title**: $($prompt.ImpId)`n"
         $markdown += "**Path**: $($prompt.Path)`n"
         $markdown += "**Branch**: $($prompt.Branch)`n"
-        if ($prompt.Files) {
-            $markdown += "**Files**: $($prompt.Files)`n"
-        }
         $markdown += "`n"
-        # Shortened prompt - references AUTOPACK_WORKFLOW.md for full details
+        # Shortened prompt - references AUTOPACK_WORKFLOW.md for full implementation details
+        # This keeps Prompts_All_Waves.md small while providing all info needed by automation scripts
         $markdown += "I'm working in git worktree: $($prompt.Path)`n"
         $markdown += "Branch: $($prompt.Branch)`n`n"
-        $markdown += "Task: Implement [$($prompt.ImpId)] $($prompt.Title)`n`n"
-        $markdown += "See full details in AUTOPACK_WORKFLOW.md`n`n"
+        $markdown += "Task: Implement $($prompt.ImpId)`n`n"
+        $markdown += "**IMPORTANT**: Read the full implementation details for this IMP in:`n"
+        $markdown += "C:\Users\hshk9\OneDrive\Backup\Desktop\AUTOPACK_WORKFLOW.md`n`n"
+        $markdown += "Search for ``$($prompt.ImpId)`` in that file to find the complete prompt with:`n"
+        $markdown += "- Specific files to modify`n"
+        $markdown += "- Before/After code examples`n"
+        $markdown += "- Step-by-step implementation instructions`n"
+        $markdown += "- Test requirements`n"
+        $markdown += "- Commit message format`n"
+        $markdown += "- PR creation command`n`n"
         $markdown += "---`n`n"
     }
 }

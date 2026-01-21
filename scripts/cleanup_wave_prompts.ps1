@@ -45,9 +45,12 @@ function Get-UnresolvedIssuesSummary {
     }
 
     try {
-        $issues = Get-Content $filePath -Raw | ConvertFrom-Json
-        if ($null -ne $issues.issues -and $issues.issues.Count -gt 0) {
-            return $issues
+        $data = Get-Content $filePath -Raw | ConvertFrom-Json
+        # Check both old format (issues) and new format (failureGroups)
+        $hasOldFormat = ($null -ne $data.issues -and $data.issues.Count -gt 0)
+        $hasNewFormat = ($null -ne $data.failureGroups -and $data.failureGroups.Count -gt 0)
+        if ($hasOldFormat -or $hasNewFormat) {
+            return $data
         }
     } catch {
         Write-Host "  [WARN] Could not load unresolved issues: $_"
@@ -63,6 +66,25 @@ if ([string]::IsNullOrWhiteSpace($WaveFile)) {
     if (Test-Path $promptsFile) {
         $WaveFile = $promptsFile
         Write-Host "[AUTO-DETECT] Using: Prompts_All_Waves.md"
+
+        # Auto-detect wave number from file content (look for "# [W1] WAVE 1" or "# Wave N" header)
+        if ($WaveNumber -eq 0) {
+            $fileContent = Get-Content $promptsFile -Raw
+            # Try new format first: "# [W1] WAVE 1 (27 phases)"
+            if ($fileContent -match '# \[W(\d+)\] WAVE \d+') {
+                $WaveNumber = [int]$Matches[1]
+                Write-Host "[AUTO-DETECT] Wave number: $WaveNumber (from [WN] format)"
+            }
+            # Try old format: "# Wave N"
+            elseif ($fileContent -match '# Wave (\d+)') {
+                $WaveNumber = [int]$Matches[1]
+                Write-Host "[AUTO-DETECT] Wave number: $WaveNumber"
+            } else {
+                # Default to wave 1 if not found
+                $WaveNumber = 1
+                Write-Host "[AUTO-DETECT] Wave number defaulting to: $WaveNumber"
+            }
+        }
     } else {
         # Fallback to old Wave*_All_Phases.md format for backwards compatibility
         $WaveFile = Get-DynamicFilePath "Wave*_All_Phases.md"
@@ -91,23 +113,48 @@ Write-Host ""
 
 # ============ Load Current State ============
 Write-Host "Loading prompt state..." -ForegroundColor Yellow
-$prompts = & "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -WaveFile $WaveFile
+# Filter out string output (Write-Host) to get only phase hashtables
+$prompts = @(& "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -WaveFile $WaveFile 2>&1 | Where-Object { $_ -ne $null -and -not ($_ -is [string]) })
 
 $completedPrompts = @($prompts | Where-Object { $_.Status -eq "COMPLETED" })
 
-if ($completedPrompts.Count -eq 0) {
+# Check for unresolved issues that need to be appended
+$unresolvedData = Get-UnresolvedIssuesSummary $WaveNumber
+# Check both old format (issues) and new format (failureGroups)
+$hasUnresolvedToAppend = ($null -ne $unresolvedData -and (
+    ($null -ne $unresolvedData.issues -and $unresolvedData.issues.Count -gt 0) -or
+    ($null -ne $unresolvedData.failureGroups -and $unresolvedData.failureGroups.Count -gt 0)
+))
+
+if ($completedPrompts.Count -eq 0 -and -not $hasUnresolvedToAppend) {
     Write-Host "[INFO] No [COMPLETED] phases found"
+    Write-Host "[INFO] No unresolved issues to append"
     Write-Host "[INFO] Nothing to cleanup"
     exit 0
 }
 
-Write-Host "[OK] Found $($completedPrompts.Count) [COMPLETED] phase(s)"
+if ($completedPrompts.Count -gt 0) {
+    Write-Host "[OK] Found $($completedPrompts.Count) [COMPLETED] phase(s)"
+} else {
+    Write-Host "[INFO] No [COMPLETED] phases found"
+}
+if ($hasUnresolvedToAppend) {
+    Write-Host "[OK] Found $($unresolvedData.issues.Count) unresolved issue(s) to append"
+}
 Write-Host ""
 
 # ============ CLEANUP 1: Prompts_All_Waves.md ============
 Write-Host "CLEANUP 1: Cleaning Prompts_All_Waves.md" -ForegroundColor Yellow
 
 $content = Get-Content $WaveFile -Raw
+
+# CLEANUP 1a: Remove any orphaned content between header and first ## section
+# This fixes malformed files where prompt content exists before the first ## Phase: or ## Unresolved header
+$orphanedContentPattern = '(?s)(# Wave \d+\s*\r?\n+READY: \d+.*?UNRESOLVED: \d+\s*\r?\n+)---\s*\r?\n.*?(?=## )'
+if ($content -match $orphanedContentPattern) {
+    Write-Host "  [FIX] Removing orphaned content between header and first section"
+    $content = $content -replace $orphanedContentPattern, '$1'
+}
 
 # Remove all [COMPLETED] phase sections
 # Pattern: ## Phase: <ID> [COMPLETED] ... followed by everything until next ## Phase or end
@@ -120,15 +167,21 @@ $unresolvedCount = ([regex]::Matches($content, '\[UNRESOLVED\]').Count)
 $pendingCount = ([regex]::Matches($content, '\[PENDING\]').Count)
 $completedCount = ([regex]::Matches($content, '\[COMPLETED\]').Count)
 
-# Try both header formats (old and new style)
-$headerPattern1 = 'READY: \d+, PENDING: \d+, COMPLETED: \d+, UNIMPLEMENTED: \d+'
-$headerReplacement1 = "READY: $readyCount, UNRESOLVED: $unresolvedCount, PENDING: $pendingCount, COMPLETED: $completedCount, UNIMPLEMENTED: 0"
+# Try multiple header formats:
+# Format 1 (current): "READY: 70 | PENDING: 0 | COMPLETED: 0 | UNIMPLEMENTED: 0"
+$headerPattern1 = 'READY: \d+ \| PENDING: \d+ \| COMPLETED: \d+ \| UNIMPLEMENTED: \d+'
+$headerReplacement1 = "READY: $readyCount | PENDING: $pendingCount | COMPLETED: $completedCount | UNIMPLEMENTED: $unresolvedCount"
 $content = $content -replace $headerPattern1, $headerReplacement1
 
-# Also try alternate format if present (with optional UNRESOLVED)
-$headerPattern2 = '\*\*Status\*\*: \d+ READY( \| \d+ UNRESOLVED)? \| \d+ PENDING \| \d+ COMPLETED'
-$headerReplacement2 = "**Status**: $readyCount READY | $unresolvedCount UNRESOLVED | $pendingCount PENDING | $completedCount COMPLETED"
+# Format 2 (old comma style): "READY: N, PENDING: N, COMPLETED: N, UNIMPLEMENTED: N"
+$headerPattern2 = 'READY: \d+, PENDING: \d+, COMPLETED: \d+, UNIMPLEMENTED: \d+'
+$headerReplacement2 = "READY: $readyCount, PENDING: $pendingCount, COMPLETED: $completedCount, UNIMPLEMENTED: $unresolvedCount"
 $content = $content -replace $headerPattern2, $headerReplacement2
+
+# Format 3 (alternate with UNRESOLVED): "**Status**: N READY | N UNRESOLVED | N PENDING | N COMPLETED"
+$headerPattern3 = '\*\*Status\*\*: \d+ READY( \| \d+ UNRESOLVED)? \| \d+ PENDING \| \d+ COMPLETED'
+$headerReplacement3 = "**Status**: $readyCount READY | $unresolvedCount UNRESOLVED | $pendingCount PENDING | $completedCount COMPLETED"
+$content = $content -replace $headerPattern3, $headerReplacement3
 
 # Update "Last Updated"
 $datePattern = '\*\*Last Updated\*\*: [^\n]+'
@@ -242,68 +295,302 @@ Write-Host ""
 # ============ CLEANUP 4: Append Unresolved Issues as Actionable Prompts ============
 Write-Host "CLEANUP 4: Appending unresolved issues as actionable prompts" -ForegroundColor Yellow
 
-$unresolvedData = Get-UnresolvedIssuesSummary $WaveNumber
+# Helper function to get human-readable title for failure type
+function Get-FailureTypeTitle {
+    param([string]$FailureType)
+    switch ($FailureType) {
+        "core-tests" { return "Core Tests Failure" }
+        "codeql" { return "CodeQL Security Scan Failure" }
+        "lint-verify-structure" { return "Lint and Verify-Structure Failure" }
+        "verify-structure" { return "Verify-Structure Failure" }
+        "lint" { return "Lint Failure" }
+        default { return "CI Failure" }
+    }
+}
 
-if ($null -ne $unresolvedData -and $unresolvedData.issues.Count -gt 0) {
-    Write-Host "  [INFO] Found $($unresolvedData.issues.Count) unresolved issue(s)"
+# $unresolvedData already loaded at start of script
+# Support both old format (issues array) and new format (failureGroups array)
+$hasNewFormat = ($null -ne $unresolvedData.failureGroups -and $unresolvedData.failureGroups.Count -gt 0)
+$hasOldFormat = ($null -ne $unresolvedData.issues -and $unresolvedData.issues.Count -gt 0)
+$hasUnresolvedToAppend = $hasNewFormat -or $hasOldFormat
 
-    # Create unresolved issues section with actionable prompts
+if ($hasUnresolvedToAppend) {
+    if ($hasNewFormat) {
+        $totalPhases = ($unresolvedData.failureGroups | ForEach-Object { $_.affectedPhases.Count } | Measure-Object -Sum).Sum
+        Write-Host "  [INFO] Found $($unresolvedData.failureGroups.Count) failure group(s) affecting $totalPhases phase(s)"
+    } else {
+        Write-Host "  [INFO] Found $($unresolvedData.issues.Count) unresolved issue(s) (old format)"
+    }
+
+    # First, remove any existing "Unresolved Issues" sections to avoid duplicates
+    $currentContent = Get-Content $WaveFile -Raw
+
+    # Remove everything from "## Unresolved Issues" to end of file
+    # This includes all [UNRESOLVED] phases that come after it
+    $unresolvedSectionPattern = '(?s)\r?\n---\s*\r?\n+## Unresolved Issues \(Wave \d+\).*$'
+    $currentContent = $currentContent -replace $unresolvedSectionPattern, ''
+
+    # Also remove any standalone [UNRESOLVED] phase sections that might be scattered
+    $unresolvedPhasePattern = '(?s)\r?\n---\s*\r?\n+## Phase: [^\]]+\[UNRESOLVED\].*?(?=\r?\n---\s*\r?\n+## Phase:|\Z)'
+    $currentContent = $currentContent -replace $unresolvedPhasePattern, ''
+
+    # Clean up multiple consecutive separators and blank lines
+    $currentContent = $currentContent -replace '(\r?\n---\s*){2,}', "`n---`n"
+    $currentContent = $currentContent -replace '(\r?\n){3,}', "`n`n"
+    $currentContent = $currentContent.TrimEnd()
+
+    # Write cleaned content back
+    Set-Content $WaveFile $currentContent -Encoding UTF8
+    Write-Host "  [OK] Removed any existing Unresolved Issues sections to avoid duplicates"
+
+    # Re-read prompts after cleaning to get fresh list (filter strings)
+    $prompts = @(& "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -WaveFile $WaveFile 2>&1 | Where-Object { $_ -ne $null -and -not ($_ -is [string]) })
+
+    # Get existing phase IDs to avoid duplicates (only count READY/PENDING/COMPLETED phases)
+    $existingPhaseIds = @($prompts | Where-Object { $_.Status -ne "UNRESOLVED" } | ForEach-Object { $_.ID })
+
+    # Create unresolved issues section header
     $issuesSummary = @"
 
 ---
 
 ## Unresolved Issues (Wave $WaveNumber)
 
-**Summary**: The following phases have CI failures that need to be fixed. Each phase below is formatted as an actionable prompt.
+**Summary**: CI failures grouped by type. Similar failures are consolidated into a single fix PR.
 
 "@
 
-    foreach ($issue in $unresolvedData.issues) {
-        $phaseId = $issue.phaseId
-        $prNumber = $issue.prNumber
-        $issueDesc = $issue.issue
-        $recorded = $issue.recorded
+    $appendedCount = 0
 
-        # Format as actionable prompt following the same template as regular phases
-        $issuesSummary += @"
+    # Handle NEW FORMAT: failureGroups (grouped by failure type)
+    if ($hasNewFormat) {
+        foreach ($group in $unresolvedData.failureGroups) {
+            $failureType = $group.failureType
+            $description = $group.description
+            $affectedPhases = @($group.affectedPhases)
+
+            # SPECIAL CASE: core-tests failures should NOT be here
+            # They should be fixed on the SAME branch, not a new PR
+            # Skip them and warn - they shouldn't have been recorded as unresolved
+            if ($failureType -eq "core-tests") {
+                Write-Host "  [WARN] Skipping 'core-tests' failures - these should be fixed on the original branch"
+                Write-Host "  [INFO] Core Tests failures for phases: $(($affectedPhases | ForEach-Object { $_.phaseId }) -join ', ')"
+                Write-Host "  [INFO] Fix by pushing to the original PR, not creating a new PR"
+                continue
+            }
+
+            # Filter out phases that already exist as READY/PENDING/COMPLETED
+            $phasesToInclude = @($affectedPhases | Where-Object { $_.phaseId -notin $existingPhaseIds })
+
+            if ($phasesToInclude.Count -eq 0) {
+                Write-Host "  [SKIP] All phases in '$failureType' group already exist as active phases"
+                continue
+            }
+
+            $failureTitle = Get-FailureTypeTitle $failureType
+            $prList = ($phasesToInclude | ForEach-Object { "#$($_.prNumber)" }) -join ", "
+            $phaseList = ($phasesToInclude | ForEach-Object { $_.phaseId }) -join ", "
+
+            # Create worktree directory for consolidated fix (unique per failure type)
+            $worktreePath = "C:\dev\Autopack_w${WaveNumber}_fix-${failureType}"
+            $fixBranchName = "wave${WaveNumber}/fix-${failureType}"
+
+            # Create the worktree directory if it doesn't exist
+            if (-not (Test-Path $worktreePath)) {
+                New-Item -ItemType Directory -Path $worktreePath -Force | Out-Null
+                Write-Host "    [INFO] Created worktree directory: $worktreePath"
+            }
+
+            # Create consolidated prompt for this failure type
+            # Use a synthetic phaseId for the group (for manage_prompt_state.ps1 regex matching)
+            $groupPhaseId = "fix-${failureType}"
+
+            $issuesSummary += @"
 
 ---
 
-## Phase: $phaseId [UNRESOLVED]
+## Phase: $groupPhaseId [UNRESOLVED]
 
-**Title**: Fix CI Failure for $phaseId
-**PR**: #$prNumber
-**Issue**: $issueDesc
-**Recorded**: $recorded
+**Title**: $failureTitle (Affects $($phasesToInclude.Count) PRs)
+**Path**: $worktreePath
 
-I'm working in this git worktree to fix the CI failure.
+I'm working in: $worktreePath
+Branch: $fixBranchName
 
-Task: Fix the CI failure for PR #$prNumber
+**CONSOLIDATED FIX**: This single PR will fix the same issue across multiple original PRs.
 
-The CI run has failed with: $issueDesc
+**Affected PRs**: $prList
+**Affected Phases**: $phaseList
+
+Task: Create ONE PR to fix the "$failureType" failure affecting all listed PRs
+
+The CI runs failed with: $description
 
 Please investigate and fix the issue:
 
-1. Check the CI logs for PR #$prNumber to identify the specific failure
-2. If it's a "Core Tests (Must Pass)" failure:
-   - Review the test output to find which tests failed
-   - Fix the code to make tests pass
-   - Run tests locally before pushing
-3. If it's a lint/verify-structure failure:
-   - Run the linter locally to see the issues
-   - Fix formatting/style issues
-   - Ensure file structure is correct
-4. Push the fix and verify CI passes
-5. Once CI passes, the PR can be merged
+1. First, sync with main branch:
+   ``````
+   cd $worktreePath
+   git fetch origin main
+   git checkout main
+   git pull origin main
+   ``````
+
+2. Create a consolidated fix branch:
+   ``````
+   git checkout -b $fixBranchName
+   ``````
+
+3. Check the CI logs for any of the affected PRs ($prList) to identify the specific failure
+
+4. Fix the root cause:
+   - For "lint" failure: Run linter locally, fix formatting issues
+   - For "verify-structure" failure: Ensure file structure matches expected layout
+   - For "CodeQL" failure: Address security findings in the code
+
+5. Commit and push to create ONE consolidated PR:
+   ``````
+   git add .
+   git commit -m "fix: Resolve $failureType failure affecting PRs $prList"
+   git push -u origin $fixBranchName
+   ``````
+
+6. Create the PR with title: "fix: Resolve $failureType failure"
+   - In the PR description, list all affected original PRs
+   - Verify CI passes on this fix PR
 
 "@
+            $appendedCount++
+            Write-Host "  [OK] Added consolidated prompt for '$failureType' ($($phasesToInclude.Count) phases)"
+        }
+    }
+    # Handle OLD FORMAT: issues array (per-phase, for backwards compatibility)
+    elseif ($hasOldFormat) {
+        Write-Host "  [INFO] Processing old format - will be migrated on next check_pr_status run"
+
+        # Group old issues by failure type for consolidated prompts
+        $groupedIssues = @{}
+        foreach ($issue in $unresolvedData.issues) {
+            $desc = $issue.issue.ToLower()
+            $category = "other"
+
+            if ($desc -match "core tests") { $category = "core-tests" }
+            elseif ($desc -match "codeql") { $category = "codeql" }
+            elseif ($desc -match "lint" -and $desc -match "verify-structure") { $category = "lint-verify-structure" }
+            elseif ($desc -match "verify-structure") { $category = "verify-structure" }
+            elseif ($desc -match "lint") { $category = "lint" }
+
+            if (-not $groupedIssues.ContainsKey($category)) {
+                $groupedIssues[$category] = @{
+                    description = $issue.issue
+                    phases = @()
+                }
+            }
+            $groupedIssues[$category].phases += $issue
+        }
+
+        foreach ($category in $groupedIssues.Keys) {
+            # SPECIAL CASE: core-tests failures should NOT be here
+            # They should be fixed on the SAME branch, not a new PR
+            if ($category -eq "core-tests") {
+                $coreTestPhases = $groupedIssues[$category].phases
+                Write-Host "  [WARN] Skipping 'core-tests' failures - these should be fixed on the original branch"
+                Write-Host "  [INFO] Core Tests failures for phases: $(($coreTestPhases | ForEach-Object { $_.phaseId }) -join ', ')"
+                Write-Host "  [INFO] Fix by pushing to the original PR, not creating a new PR"
+                continue
+            }
+
+            $groupData = $groupedIssues[$category]
+            $phasesToInclude = @($groupData.phases | Where-Object { $_.phaseId -notin $existingPhaseIds })
+
+            if ($phasesToInclude.Count -eq 0) {
+                continue
+            }
+
+            $failureTitle = Get-FailureTypeTitle $category
+            $prList = ($phasesToInclude | ForEach-Object { "#$($_.prNumber)" }) -join ", "
+            $phaseList = ($phasesToInclude | ForEach-Object { $_.phaseId }) -join ", "
+
+            # Create worktree directory for consolidated fix (unique per failure type)
+            $worktreePath = "C:\dev\Autopack_w${WaveNumber}_fix-${category}"
+            $fixBranchName = "wave${WaveNumber}/fix-${category}"
+            $groupPhaseId = "fix-${category}"
+
+            # Create the worktree directory if it doesn't exist
+            if (-not (Test-Path $worktreePath)) {
+                New-Item -ItemType Directory -Path $worktreePath -Force | Out-Null
+                Write-Host "    [INFO] Created worktree directory: $worktreePath"
+            }
+
+            $issuesSummary += @"
+
+---
+
+## Phase: $groupPhaseId [UNRESOLVED]
+
+**Title**: $failureTitle (Affects $($phasesToInclude.Count) PRs)
+**Path**: $worktreePath
+
+I'm working in: $worktreePath
+Branch: $fixBranchName
+
+**CONSOLIDATED FIX**: This single PR will fix the same issue across multiple original PRs.
+
+**Affected PRs**: $prList
+**Affected Phases**: $phaseList
+
+Task: Create ONE PR to fix the "$category" failure affecting all listed PRs
+
+The CI runs failed with: $($groupData.description)
+
+Please investigate and fix the issue:
+
+1. First, sync with main branch:
+   ``````
+   cd $worktreePath
+   git fetch origin main
+   git checkout main
+   git pull origin main
+   ``````
+
+2. Create a consolidated fix branch:
+   ``````
+   git checkout -b $fixBranchName
+   ``````
+
+3. Check the CI logs for any of the affected PRs ($prList) to identify the specific failure
+
+4. Fix the root cause:
+   - For "lint" failure: Run linter locally, fix formatting issues
+   - For "verify-structure" failure: Ensure file structure matches expected layout
+   - For "CodeQL" failure: Address security findings in the code
+
+5. Commit and push to create ONE consolidated PR:
+   ``````
+   git add .
+   git commit -m "fix: Resolve $category failure affecting PRs $prList"
+   git push -u origin $fixBranchName
+   ``````
+
+6. Create the PR with title: "fix: Resolve $category failure"
+   - In the PR description, list all affected original PRs
+   - Verify CI passes on this fix PR
+
+"@
+            $appendedCount++
+            Write-Host "  [OK] Added consolidated prompt for '$category' ($($phasesToInclude.Count) phases)"
+        }
     }
 
-    $issuesSummary += "`n**Last Updated**: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    if ($appendedCount -gt 0) {
+        $issuesSummary += "`n**Last Updated**: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 
-    # Append to wave file
-    Add-Content -Path $WaveFile -Value $issuesSummary -Encoding UTF8
-    Write-Host "  [OK] Appended $($unresolvedData.issues.Count) issue(s) as actionable prompts"
+        # Append to wave file
+        Add-Content -Path $WaveFile -Value $issuesSummary -Encoding UTF8
+        Write-Host "  [OK] Appended $appendedCount consolidated prompt(s)"
+    } else {
+        Write-Host "  [INFO] All unresolved issues already exist or were duplicates"
+    }
 } else {
     Write-Host "  [INFO] No unresolved issues to append"
 }
@@ -384,8 +671,8 @@ if ($null -ne $unresolvedData -and $unresolvedData.issues.Count -gt 0) {
 }
 Write-Host ""
 
-# Reload and display new status
-$promptsAfter = & "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -WaveFile $WaveFile
+# Reload and display new status (filter strings)
+$promptsAfter = @(& "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -WaveFile $WaveFile 2>&1 | Where-Object { $_ -ne $null -and -not ($_ -is [string]) })
 $readyAfter = @($promptsAfter | Where-Object { $_.Status -eq "READY" }).Count
 $unresolvedAfter = @($promptsAfter | Where-Object { $_.Status -eq "UNRESOLVED" }).Count
 $pendingAfter = @($promptsAfter | Where-Object { $_.Status -eq "PENDING" }).Count

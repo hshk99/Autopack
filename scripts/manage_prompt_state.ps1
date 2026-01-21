@@ -44,21 +44,24 @@ if ($Action -eq "Load") {
 
     $content = Get-Content $WaveFile -Raw
 
-    # Extract all phases with their status, path, and branch name
-    # Pattern: ## Phase: <id> [<status>] ... **Path**: <path> ... Branch: <branch>
-    $phasePattern = "## Phase: (\S+) \[(READY|UNRESOLVED|PENDING|COMPLETED|UNIMPLEMENTED)\].*?\*\*Path\*\*: (.+?)(?=\n|`n).*?Branch: (\S+)"
+    # Extract all phases with their status, wave, path, and optional branch name
+    # Pattern: ## Phase: <id> [<status>] ... **Wave**: <wave> ... **Path**: <path> ... (optional Branch: <branch>)
+    # Wave field is critical for wave boundary enforcement
+    $phasePattern = "## Phase: (\S+) \[(READY|UNRESOLVED|PENDING|COMPLETED|UNIMPLEMENTED)\].*?\*\*Wave\*\*: (\d+).*?\*\*Path\*\*: (.+?)(?=\r?\n)(?:.*?Branch: (\S+))?"
     $matches = [regex]::Matches($content, $phasePattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
 
     $phases = @()
     foreach ($match in $matches) {
         $phaseId = $match.Groups[1].Value
         $status = $match.Groups[2].Value
-        $path = $match.Groups[3].Value.Trim()
-        $branch = $match.Groups[4].Value.Trim()
+        $wave = [int]$match.Groups[3].Value
+        $path = $match.Groups[4].Value.Trim()
+        $branch = if ($match.Groups[5].Success) { $match.Groups[5].Value.Trim() } else { "" }
 
         $phases += @{
             ID = $phaseId
             Status = $status
+            Wave = $wave
             Path = $path
             Branch = $branch
         }
@@ -94,8 +97,8 @@ elseif ($Action -eq "Update") {
 
     $content = Get-Content $WaveFile -Raw
 
-    # Find and replace phase status
-    $oldPattern = "## Phase: $PhaseId \[(READY|PENDING|COMPLETED|UNIMPLEMENTED)\]"
+    # Find and replace phase status (including UNRESOLVED for CI failure fixes)
+    $oldPattern = "## Phase: $PhaseId \[(READY|UNRESOLVED|PENDING|COMPLETED|UNIMPLEMENTED)\]"
     $newText = "## Phase: $PhaseId [$NewStatus]"
 
     $newContent = $content -replace $oldPattern, $newText
@@ -112,15 +115,21 @@ elseif ($Action -eq "Update") {
     $completedCount = ([regex]::Matches($newContent, '\[COMPLETED\]').Count)
     $unimplementedCount = ([regex]::Matches($newContent, '\[UNIMPLEMENTED\]').Count)
 
-    # Try both header formats (old and new style)
-    $headerPattern1 = 'READY: \d+, PENDING: \d+, COMPLETED: \d+, UNIMPLEMENTED: \d+'
-    $headerReplacement1 = "READY: $readyCount, UNRESOLVED: $unresolvedCount, PENDING: $pendingCount, COMPLETED: $completedCount, UNIMPLEMENTED: $unimplementedCount"
+    # Try multiple header formats:
+    # Format 1 (current): "READY: 70 | PENDING: 0 | COMPLETED: 0 | UNIMPLEMENTED: 0"
+    $headerPattern1 = 'READY: \d+ \| PENDING: \d+ \| COMPLETED: \d+ \| UNIMPLEMENTED: \d+'
+    $headerReplacement1 = "READY: $readyCount | PENDING: $pendingCount | COMPLETED: $completedCount | UNIMPLEMENTED: $unimplementedCount"
     $newContent = $newContent -replace $headerPattern1, $headerReplacement1
 
-    # Also try alternate format if present (with optional UNRESOLVED)
-    $headerPattern2 = '\*\*Status\*\*: \d+ READY( \| \d+ UNRESOLVED)? \| \d+ PENDING \| \d+ COMPLETED'
-    $headerReplacement2 = "**Status**: $readyCount READY | $unresolvedCount UNRESOLVED | $pendingCount PENDING | $completedCount COMPLETED"
+    # Format 2 (old comma style): "READY: N, PENDING: N, COMPLETED: N, UNIMPLEMENTED: N"
+    $headerPattern2 = 'READY: \d+, PENDING: \d+, COMPLETED: \d+, UNIMPLEMENTED: \d+'
+    $headerReplacement2 = "READY: $readyCount, PENDING: $pendingCount, COMPLETED: $completedCount, UNIMPLEMENTED: $unimplementedCount"
     $newContent = $newContent -replace $headerPattern2, $headerReplacement2
+
+    # Format 3 (alternate with UNRESOLVED): "**Status**: N READY | N UNRESOLVED | N PENDING | N COMPLETED"
+    $headerPattern3 = '\*\*Status\*\*: \d+ READY( \| \d+ UNRESOLVED)? \| \d+ PENDING \| \d+ COMPLETED'
+    $headerReplacement3 = "**Status**: $readyCount READY | $unresolvedCount UNRESOLVED | $pendingCount PENDING | $completedCount COMPLETED"
+    $newContent = $newContent -replace $headerPattern3, $headerReplacement3
 
     # Also update "Last Updated" field
     $datePattern = '\*\*Last Updated\*\*: [^\n]+'

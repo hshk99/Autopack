@@ -384,10 +384,12 @@ class Settings(BaseSettings):
 
     # SOT (Source of Truth) Memory Indexing Configuration
     # Enable indexing of SOT ledgers (BUILD_HISTORY, DEBUG_LOG, ARCHITECTURE_DECISIONS) into vector memory
-    autopack_enable_sot_memory_indexing: bool = False
+    # IMP-FEAT-002: Changed default to True to enable feature by default (was invisible to users)
+    autopack_enable_sot_memory_indexing: bool = True
 
     # Enable retrieval of SOT context at runtime (requires indexing to be enabled)
-    autopack_sot_retrieval_enabled: bool = False
+    # IMP-FEAT-002: Enabled by default since indexing is now enabled
+    autopack_sot_retrieval_enabled: bool = True
 
     # Maximum characters to return from SOT retrieval (to prevent prompt bloat)
     autopack_sot_retrieval_max_chars: int = 4000

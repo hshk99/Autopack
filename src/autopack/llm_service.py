@@ -219,6 +219,103 @@ class LlmService:
             glm_client=glm_client,
         )
 
+    def _check_pre_call_budget(
+        self,
+        *,
+        phase_spec: Dict,
+        file_context: Optional[Dict],
+        project_rules: Optional[List],
+        run_hints: Optional[List],
+        retrieved_context: Optional[str],
+        run_token_budget: int,
+        tokens_used_so_far: int,
+        max_output_tokens: Optional[int] = None,
+    ) -> Dict:
+        """
+        IMP-COST-002: Pre-call token budget validation.
+
+        Estimates the input tokens for the upcoming LLM call and checks if
+        the call would exceed the remaining budget. This prevents wasting
+        tokens on calls that are likely to fail or cause budget overruns.
+
+        Args:
+            phase_spec: Phase specification dict
+            file_context: Repository file context dict
+            project_rules: List of project rules
+            run_hints: List of run hints
+            retrieved_context: Retrieved context string from vector memory
+            run_token_budget: Total token budget for the run
+            tokens_used_so_far: Tokens already consumed in this run
+            max_output_tokens: Expected max output tokens (default: 4000)
+
+        Returns:
+            Dict with:
+                - within_budget: bool - True if call should proceed
+                - estimated_input_tokens: int - Estimated input token count
+                - estimated_output_tokens: int - Expected output tokens
+                - budget_remaining: int - Tokens remaining in budget
+                - reason: str - Human-readable reason if budget exceeded
+        """
+        # Default expected output tokens if not specified
+        expected_output = max_output_tokens or 4000
+
+        # Estimate input tokens from all text components
+        estimated_input = 0
+
+        # Phase spec (convert to JSON string for estimation)
+        if phase_spec:
+            phase_text = json.dumps(phase_spec, default=str)
+            estimated_input += estimate_tokens(phase_text)
+
+        # File context
+        if file_context:
+            # File context can be a dict with file contents
+            context_text = json.dumps(file_context, default=str)
+            estimated_input += estimate_tokens(context_text)
+
+        # Project rules
+        if project_rules:
+            rules_text = "\n".join(str(r) for r in project_rules)
+            estimated_input += estimate_tokens(rules_text)
+
+        # Run hints
+        if run_hints:
+            hints_text = "\n".join(str(h) for h in run_hints)
+            estimated_input += estimate_tokens(hints_text)
+
+        # Retrieved context (already a string)
+        if retrieved_context:
+            estimated_input += estimate_tokens(retrieved_context)
+
+        # Add overhead for system prompts, formatting, etc. (~500 tokens)
+        estimated_input += 500
+
+        # Calculate budget
+        budget_remaining = run_token_budget - tokens_used_so_far
+        total_estimated = estimated_input + expected_output
+
+        # Check if within budget
+        # Use 90% threshold to leave buffer for estimation errors
+        effective_budget = int(budget_remaining * 0.9)
+
+        if total_estimated > effective_budget:
+            return {
+                "within_budget": False,
+                "estimated_input_tokens": estimated_input,
+                "estimated_output_tokens": expected_output,
+                "budget_remaining": budget_remaining,
+                "reason": f"Estimated call ({estimated_input} input + {expected_output} output = "
+                f"{total_estimated} total) exceeds 90% of remaining budget ({effective_budget})",
+            }
+
+        return {
+            "within_budget": True,
+            "estimated_input_tokens": estimated_input,
+            "estimated_output_tokens": expected_output,
+            "budget_remaining": budget_remaining,
+            "reason": "Within budget",
+        }
+
     def generate_deliverables_manifest(
         self,
         *,
@@ -274,6 +371,8 @@ class LlmService:
         use_full_file_mode: bool = True,  # NEW: Pass mode from pre-flight check
         config=None,  # NEW: Pass BuilderOutputConfig for consistency
         retrieved_context: Optional[str] = None,  # NEW: Vector memory context
+        run_token_budget: Optional[int] = None,  # IMP-COST-002: Run-level token budget
+        tokens_used_so_far: Optional[int] = None,  # IMP-COST-002: Tokens already used
     ) -> BuilderResult:
         """
         Execute builder phase with automatic model selection and usage tracking.
@@ -291,10 +390,43 @@ class LlmService:
             use_full_file_mode: Use full-file mode (True) or diff mode (False)
             config: BuilderOutputConfig instance
             retrieved_context: Retrieved context from vector memory (formatted string)
+            run_token_budget: Optional run-level token budget for pre-call validation
+            tokens_used_so_far: Optional tokens already consumed in this run
 
         Returns:
             BuilderResult with patch and metadata
         """
+        # IMP-COST-002: Pre-call token budget validation
+        if run_token_budget is not None and tokens_used_so_far is not None:
+            budget_check = self._check_pre_call_budget(
+                phase_spec=phase_spec,
+                file_context=file_context,
+                project_rules=project_rules,
+                run_hints=run_hints,
+                retrieved_context=retrieved_context,
+                run_token_budget=run_token_budget,
+                tokens_used_so_far=tokens_used_so_far,
+                max_output_tokens=max_tokens,
+            )
+            if not budget_check["within_budget"]:
+                # Use module-level logger (defined at top of file)
+                logger.warning(
+                    f"[BUDGET-GATE] Skipping LLM call: {budget_check['reason']} "
+                    f"(run_id={run_id}, phase_id={phase_id}, "
+                    f"estimated_input={budget_check['estimated_input_tokens']}, "
+                    f"budget_remaining={budget_check['budget_remaining']})"
+                )
+                return BuilderResult(
+                    success=False,
+                    patch_content="",
+                    builder_messages=[f"budget_exceeded: {budget_check['reason']}"],
+                    tokens_used=0,
+                    model_used="none",
+                    error=f"budget_exceeded: Estimated {budget_check['estimated_input_tokens']} input tokens "
+                    f"+ {budget_check['estimated_output_tokens']} output tokens would exceed "
+                    f"remaining budget of {budget_check['budget_remaining']} tokens",
+                )
+
         # Select model using ModelRouter with escalation support
         task_category = phase_spec.get("task_category", "general")
         complexity = phase_spec.get("complexity", "medium")
@@ -312,9 +444,7 @@ class LlmService:
         )
 
         # Log model selection (always, for observability per GPT recommendation)
-        import logging
-
-        logger = logging.getLogger(__name__)
+        # Note: Uses module-level logger defined at top of file
         logger.info(
             f"[MODEL-SELECT] Builder: model={model}, complexity={complexity}->{effective_complexity}, "
             f"attempt={attempt_index}, category={task_category}"
@@ -499,7 +629,6 @@ class LlmService:
 
         # Run dual audit only if enabled and configured for this category
         if settings.dual_audit_enabled and self._should_use_dual_audit(task_category):
-
             # Run dual audit
             primary_result, secondary_result = self._run_dual_audit(
                 patch_content=patch_content,

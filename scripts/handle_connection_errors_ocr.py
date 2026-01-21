@@ -55,6 +55,37 @@ SLOT_CHECK_DELAY = 0.1
 STAGNANT_INITIAL_SUSPECT_SECONDS = 15  # First observation before starting countdown
 STAGNANT_CONFIRMATION_SECONDS = 210    # 3.5 minutes confirmation before nudge
 
+# ============================================================================
+# ESCALATION / LOOP DETECTION CONFIGURATION
+# ============================================================================
+# Failsafe system to detect and handle endless loops in Cursor windows
+#
+# Escalation Levels:
+#   0 = Normal operation (OCR handler manages)
+#   1 = Nudge 3+ triggered (main Cursor consulted)
+#   2 = Main Cursor intervention failed (comprehensive log analysis)
+#   3 = Level 2 failed (kill specific Cursor, refill slot)
+#   4 = Multiple Level 3 failures (kill all Cursors, MANUAL investigation required)
+#
+# Flow: Each level gives the system a chance to self-correct before escalating
+
+# Thresholds for escalation
+ESCALATION_MAX_NUDGES_BEFORE_MAIN_CURSOR = 3      # Nudges before consulting main Cursor (Level 1)
+ESCALATION_MAX_MAIN_CURSOR_INTERVENTIONS = 2      # Main Cursor attempts before Level 2
+ESCALATION_MINUTES_UNCHANGED_FOR_LEVEL2 = 15      # Minutes unchanged after intervention = Level 2
+ESCALATION_MAX_LEVEL2_FAILURES = 2                # Level 2 failures before Level 3 (kill slot)
+ESCALATION_MAX_LEVEL3_SLOTS = 3                   # Slots at Level 3 = Level 4 (kill all)
+
+# History tracking
+SLOT_HISTORY_MAX_ENTRIES = 50  # Max history entries per slot (rolling window)
+SLOT_HISTORY_FILE = "slot_history.json"
+ESCALATION_REPORT_PREFIX = "escalation_report_slot_"
+MAIN_CURSOR_ATTENTION_FILE = "needs_main_cursor_attention.json"
+
+# Patterns that indicate a loop (for detection)
+LOOP_PATTERN_MIN_REPETITIONS = 5  # Same state N times = potential loop
+LOOP_PATTERN_CYCLE_LENGTH = 3     # Detect cycles of this length (e.g., idle->nudge->idle)
+
 # Nudge message to send to stagnant cursors
 CONTINUE_INSTRUCTION = """If there's any option to choose, choose the one that best preserves the intention of
 AUTOPACK_WAVE_PLAN.json in C:\\Users\\hshk9\\OneDrive\\Backup\\Desktop or README.md in C:\\dev\\Autopack.
@@ -336,6 +367,464 @@ def reset_slot_nudge_count(slot: int) -> None:
 
 
 # ============================================================================
+# LOOP DETECTION AND ESCALATION SYSTEM
+# ============================================================================
+# Failsafe to detect endless loops and escalate appropriately
+# Uses accumulated pattern history rather than single-point detection
+
+
+def load_slot_history() -> dict:
+    """Load slot history from JSON file."""
+    script_dir = os.path.dirname(__file__)
+    history_file = os.path.join(script_dir, SLOT_HISTORY_FILE)
+    try:
+        if os.path.exists(history_file):
+            with open(history_file, "r") as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"[WARN] Failed to load slot history: {e}")
+    return {"slots": {}, "global": {"level4_triggered": False}}
+
+
+def save_slot_history(data: dict) -> None:
+    """Save slot history to JSON file."""
+    script_dir = os.path.dirname(__file__)
+    history_file = os.path.join(script_dir, SLOT_HISTORY_FILE)
+    try:
+        data["last_updated"] = datetime.now().isoformat()
+        with open(history_file, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        print(f"[ERROR] Failed to save slot history: {e}")
+
+
+def record_slot_event(slot: int, state_name: str, action: str, details: str = "") -> None:
+    """
+    Record an event in slot history for loop detection.
+
+    Args:
+        slot: Slot number (1-9)
+        state_name: Current state (e.g., "idle_no_pr", "working", "permission_dialog")
+        action: Action taken (e.g., "nudge_1", "main_cursor_consulted", "permission_clicked")
+        details: Optional details for debugging
+    """
+    data = load_slot_history()
+    slot_key = str(slot)
+
+    if slot_key not in data["slots"]:
+        data["slots"][slot_key] = {
+            "history": [],
+            "escalation_level": 0,
+            "main_cursor_interventions": 0,
+            "last_state_change": datetime.now().isoformat(),
+            "level2_failures": 0,
+        }
+
+    slot_data = data["slots"][slot_key]
+
+    # Check if state actually changed
+    if slot_data["history"]:
+        last_state = slot_data["history"][-1].get("state")
+        if last_state != state_name:
+            slot_data["last_state_change"] = datetime.now().isoformat()
+
+    # Add new entry
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "state": state_name,
+        "action": action,
+        "details": details,
+    }
+    slot_data["history"].append(entry)
+
+    # Keep only last N entries (rolling window)
+    if len(slot_data["history"]) > SLOT_HISTORY_MAX_ENTRIES:
+        slot_data["history"] = slot_data["history"][-SLOT_HISTORY_MAX_ENTRIES:]
+
+    save_slot_history(data)
+
+
+def detect_loop_pattern(slot: int) -> Optional[str]:
+    """
+    Analyze slot history to detect loop patterns.
+
+    Returns:
+        Pattern name if loop detected, None otherwise
+        Patterns: "repeated_state", "nudge_cycle", "intervention_failed"
+    """
+    data = load_slot_history()
+    slot_key = str(slot)
+
+    if slot_key not in data["slots"]:
+        return None
+
+    history = data["slots"][slot_key].get("history", [])
+    if len(history) < LOOP_PATTERN_MIN_REPETITIONS:
+        return None
+
+    recent = history[-LOOP_PATTERN_MIN_REPETITIONS:]
+
+    # Pattern 1: Same state repeated N times
+    states = [e["state"] for e in recent]
+    if len(set(states)) == 1:
+        return "repeated_state"
+
+    # Pattern 2: Cycle detection (e.g., idle->nudge->idle->nudge)
+    if len(history) >= LOOP_PATTERN_CYCLE_LENGTH * 2:
+        recent_cycle = history[-(LOOP_PATTERN_CYCLE_LENGTH * 2):]
+        first_half = [e["state"] for e in recent_cycle[:LOOP_PATTERN_CYCLE_LENGTH]]
+        second_half = [e["state"] for e in recent_cycle[LOOP_PATTERN_CYCLE_LENGTH:]]
+        if first_half == second_half:
+            return "nudge_cycle"
+
+    # Pattern 3: Main cursor intervention didn't help
+    slot_data = data["slots"][slot_key]
+    if slot_data.get("main_cursor_interventions", 0) >= ESCALATION_MAX_MAIN_CURSOR_INTERVENTIONS:
+        # Check if state unchanged for X minutes after intervention
+        last_change = slot_data.get("last_state_change")
+        if last_change:
+            last_change_time = datetime.fromisoformat(last_change)
+            minutes_unchanged = (datetime.now() - last_change_time).total_seconds() / 60
+            if minutes_unchanged >= ESCALATION_MINUTES_UNCHANGED_FOR_LEVEL2:
+                return "intervention_failed"
+
+    return None
+
+
+def get_slot_escalation_level(slot: int) -> int:
+    """Get current escalation level for a slot."""
+    data = load_slot_history()
+    slot_key = str(slot)
+    if slot_key in data["slots"]:
+        return data["slots"][slot_key].get("escalation_level", 0)
+    return 0
+
+
+def set_slot_escalation_level(slot: int, level: int) -> None:
+    """Set escalation level for a slot."""
+    data = load_slot_history()
+    slot_key = str(slot)
+
+    if slot_key not in data["slots"]:
+        data["slots"][slot_key] = {
+            "history": [],
+            "escalation_level": level,
+            "main_cursor_interventions": 0,
+            "last_state_change": datetime.now().isoformat(),
+            "level2_failures": 0,
+        }
+    else:
+        data["slots"][slot_key]["escalation_level"] = level
+
+    save_slot_history(data)
+    print(f"  [Slot {slot}] Escalation level set to {level}")
+
+
+def increment_main_cursor_interventions(slot: int) -> int:
+    """Increment and return the main cursor intervention count for a slot."""
+    data = load_slot_history()
+    slot_key = str(slot)
+
+    if slot_key not in data["slots"]:
+        data["slots"][slot_key] = {
+            "history": [],
+            "escalation_level": 0,
+            "main_cursor_interventions": 1,
+            "last_state_change": datetime.now().isoformat(),
+            "level2_failures": 0,
+        }
+    else:
+        data["slots"][slot_key]["main_cursor_interventions"] = \
+            data["slots"][slot_key].get("main_cursor_interventions", 0) + 1
+
+    count = data["slots"][slot_key]["main_cursor_interventions"]
+    save_slot_history(data)
+    return count
+
+
+def clear_slot_history(slot: int) -> None:
+    """Clear history for a slot (when slot becomes healthy)."""
+    data = load_slot_history()
+    slot_key = str(slot)
+    if slot_key in data["slots"]:
+        del data["slots"][slot_key]
+        save_slot_history(data)
+
+
+def generate_escalation_report(slot: int, reason: str) -> str:
+    """
+    Generate a structured escalation report for main Cursor to analyze.
+
+    Returns:
+        Path to the generated report file
+    """
+    data = load_slot_history()
+    slot_key = str(slot)
+    slot_data = data["slots"].get(slot_key, {})
+
+    # Get recent OCR samples from state if available
+    ocr_samples = []
+
+    report = {
+        "slot": slot,
+        "escalation_time": datetime.now().isoformat(),
+        "reason": reason,
+        "summary": {
+            "total_history_entries": len(slot_data.get("history", [])),
+            "main_cursor_interventions": slot_data.get("main_cursor_interventions", 0),
+            "current_escalation_level": slot_data.get("escalation_level", 0),
+            "level2_failures": slot_data.get("level2_failures", 0),
+            "last_state_change": slot_data.get("last_state_change", "unknown"),
+            "pattern_detected": detect_loop_pattern(slot),
+        },
+        "recent_history": slot_data.get("history", [])[-10:],  # Last 10 entries
+        "recommended_actions": [],
+    }
+
+    # Add recommendations based on escalation level
+    level = slot_data.get("escalation_level", 0)
+    if level >= 3:
+        report["recommended_actions"].append("kill_and_refill_slot")
+    elif level >= 2:
+        report["recommended_actions"].append("deep_analysis_required")
+        report["recommended_actions"].append("consider_killing_slot")
+    else:
+        report["recommended_actions"].append("continue_monitoring")
+
+    # Save report
+    script_dir = os.path.dirname(__file__)
+    report_file = os.path.join(script_dir, f"{ESCALATION_REPORT_PREFIX}{slot}.json")
+    try:
+        with open(report_file, "w") as f:
+            json.dump(report, f, indent=2)
+        print(f"  [Slot {slot}] Escalation report saved to: {report_file}")
+    except Exception as e:
+        print(f"[ERROR] Failed to save escalation report: {e}")
+
+    return report_file
+
+
+def notify_main_cursor_attention(slots: list, reason: str, action_required: str) -> None:
+    """
+    Write a notification file for main Cursor to read.
+    Main Cursor can poll this file to know when attention is needed.
+    """
+    script_dir = os.path.dirname(__file__)
+    attention_file = os.path.join(script_dir, MAIN_CURSOR_ATTENTION_FILE)
+
+    notification = {
+        "timestamp": datetime.now().isoformat(),
+        "slots_needing_attention": slots,
+        "reason": reason,
+        "action_required": action_required,
+        "escalation_reports": [
+            os.path.join(script_dir, f"{ESCALATION_REPORT_PREFIX}{s}.json")
+            for s in slots
+        ],
+        "acknowledged": False,
+    }
+
+    try:
+        with open(attention_file, "w") as f:
+            json.dump(notification, f, indent=2)
+        print(f"\n[ESCALATION] Main Cursor attention required!")
+        print(f"  Slots: {slots}")
+        print(f"  Reason: {reason}")
+        print(f"  Action: {action_required}")
+        print(f"  Notification file: {attention_file}")
+    except Exception as e:
+        print(f"[ERROR] Failed to write attention notification: {e}")
+
+
+def check_level4_trigger() -> bool:
+    """
+    Check if Level 4 (kill all) should be triggered.
+    Returns True if multiple slots are at Level 3.
+    """
+    data = load_slot_history()
+    level3_slots = []
+
+    for slot_key, slot_data in data.get("slots", {}).items():
+        if slot_data.get("escalation_level", 0) >= 3:
+            level3_slots.append(int(slot_key))
+
+    return len(level3_slots) >= ESCALATION_MAX_LEVEL3_SLOTS
+
+
+def kill_cursor_slot(slot: int, verbose: bool = False) -> bool:
+    """
+    Kill the Cursor window for a specific slot.
+
+    Returns:
+        True if kill was successful
+    """
+    try:
+        script_dir = os.path.dirname(__file__)
+        # Use the existing close script
+        close_script = os.path.join(script_dir, "close_cursor_window_slot.ps1")
+
+        if os.path.exists(close_script):
+            result = subprocess.run(
+                ["powershell", "-ExecutionPolicy", "Bypass", "-File", close_script, str(slot)],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if result.returncode == 0:
+                print(f"  [Slot {slot}] Cursor window killed successfully")
+                return True
+            else:
+                print(f"  [Slot {slot}] Failed to kill: {result.stderr}")
+        else:
+            # Fallback: try to kill via taskkill with window title matching
+            print(f"  [Slot {slot}] close_cursor_window_slot.ps1 not found, using fallback")
+            # This is a simplified fallback - may need adjustment
+
+        return False
+
+    except Exception as e:
+        print(f"[ERROR] Failed to kill slot {slot}: {e}")
+        return False
+
+
+def kill_all_cursor_slots(verbose: bool = False) -> bool:
+    """
+    Kill all Cursor windows (Level 4 action).
+    Does NOT restart workflow - requires manual investigation.
+
+    Returns:
+        True if kill was successful
+    """
+    try:
+        script_dir = os.path.dirname(__file__)
+        kill_all_script = os.path.join(script_dir, "kill_all_cursor.bat")
+
+        if os.path.exists(kill_all_script):
+            print("\n" + "=" * 60)
+            print("[LEVEL 4 ESCALATION] Killing all Cursor windows!")
+            print("=" * 60)
+            print("MANUAL INVESTIGATION REQUIRED after this action.")
+            print("The system detected multiple slots in endless loops.")
+            print("Check escalation reports for details.")
+            print("=" * 60 + "\n")
+
+            result = subprocess.run(
+                [kill_all_script],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                shell=True
+            )
+
+            # Mark Level 4 as triggered in history
+            data = load_slot_history()
+            data["global"]["level4_triggered"] = True
+            data["global"]["level4_timestamp"] = datetime.now().isoformat()
+            data["global"]["level4_reason"] = "Multiple slots reached Level 3"
+            save_slot_history(data)
+
+            # TODO: Future enhancement - auto-open main Cursor, navigate to Autopack,
+            # paste investigation prompt. For now, just notify and stop.
+            # This would require:
+            # 1. Opening main Cursor window
+            # 2. Navigating to C:\dev\Autopack
+            # 3. Pasting a prompt like "Investigate the escalation reports in scripts/"
+            # 4. But this is complex and risky - better to require manual intervention
+
+            return result.returncode == 0
+        else:
+            print(f"[ERROR] kill_all_cursor.bat not found at {kill_all_script}")
+            return False
+
+    except Exception as e:
+        print(f"[ERROR] Failed to kill all Cursors: {e}")
+        return False
+
+
+def handle_escalation(slot: int, nudge_count: int, verbose: bool = False) -> str:
+    """
+    Handle escalation based on current state and history.
+
+    Returns:
+        Action taken: "nudge", "consult_main_cursor", "kill_slot", "kill_all", "none"
+    """
+    current_level = get_slot_escalation_level(slot)
+    loop_pattern = detect_loop_pattern(slot)
+
+    if verbose:
+        print(f"  [Slot {slot}] Escalation check: level={current_level}, nudges={nudge_count}, pattern={loop_pattern}")
+
+    # Check for Level 4 first (multiple Level 3 slots)
+    if check_level4_trigger():
+        notify_main_cursor_attention(
+            list(range(1, 10)),
+            "Multiple slots reached Level 3 - system-wide failure",
+            "KILL_ALL_MANUAL_INVESTIGATION"
+        )
+        # Generate reports for all affected slots
+        data = load_slot_history()
+        for slot_key, slot_data in data.get("slots", {}).items():
+            if slot_data.get("escalation_level", 0) >= 3:
+                generate_escalation_report(int(slot_key), "level4_trigger")
+
+        kill_all_cursor_slots(verbose)
+        return "kill_all"
+
+    # Level 3: Kill specific slot
+    if current_level >= 3 or (loop_pattern == "intervention_failed" and current_level >= 2):
+        set_slot_escalation_level(slot, 3)
+        generate_escalation_report(slot, f"level3_kill_slot_{loop_pattern or 'escalation'}")
+
+        if kill_cursor_slot(slot, verbose):
+            record_slot_event(slot, "killed", "level3_kill", f"Pattern: {loop_pattern}")
+            # Note: auto_fill_empty_slots will refill this slot on next run
+            return "kill_slot"
+
+    # Level 2: Generate comprehensive report for main Cursor
+    if current_level >= 2 or loop_pattern in ["intervention_failed", "repeated_state"]:
+        set_slot_escalation_level(slot, 2)
+
+        # Increment level2 failures
+        data = load_slot_history()
+        slot_key = str(slot)
+        if slot_key in data["slots"]:
+            data["slots"][slot_key]["level2_failures"] = \
+                data["slots"][slot_key].get("level2_failures", 0) + 1
+
+            if data["slots"][slot_key]["level2_failures"] >= ESCALATION_MAX_LEVEL2_FAILURES:
+                set_slot_escalation_level(slot, 3)
+                save_slot_history(data)
+                return handle_escalation(slot, nudge_count, verbose)  # Re-check for Level 3
+
+            save_slot_history(data)
+
+        report_path = generate_escalation_report(slot, f"level2_{loop_pattern or 'analysis'}")
+        notify_main_cursor_attention(
+            [slot],
+            f"Slot {slot} needs deep analysis - pattern: {loop_pattern}",
+            "READ_ESCALATION_REPORT"
+        )
+        return "consult_main_cursor"
+
+    # Level 1: Consult main Cursor (nudge 3+)
+    if nudge_count >= ESCALATION_MAX_NUDGES_BEFORE_MAIN_CURSOR:
+        intervention_count = increment_main_cursor_interventions(slot)
+        set_slot_escalation_level(slot, 1)
+
+        if intervention_count >= ESCALATION_MAX_MAIN_CURSOR_INTERVENTIONS:
+            # Too many interventions, escalate to Level 2
+            set_slot_escalation_level(slot, 2)
+            return handle_escalation(slot, nudge_count, verbose)
+
+        record_slot_event(slot, "idle_no_pr", f"main_cursor_intervention_{intervention_count}", "")
+        return "consult_main_cursor"
+
+    # Normal nudge
+    record_slot_event(slot, "idle_no_pr", f"nudge_{nudge_count}", "")
+    return "nudge"
+
+
+# ============================================================================
 # WIP DETECTION AND STAGNANT HANDLING
 # ============================================================================
 
@@ -471,30 +960,52 @@ def process_stagnant_slot(
     """
     Process a slot that has been confirmed stagnant.
 
-    Implements tiered nudging:
+    Implements tiered nudging with escalation failsafe:
     - Nudge 1-2: Send CONTINUE_INSTRUCTION
-    - Nudge 3+: Flag for main LLM consultation (not implemented yet)
+    - Nudge 3+: Escalation system takes over (Level 1+)
+
+    Escalation Levels:
+      Level 0: Normal operation (OCR handler manages via nudges)
+      Level 1: Main Cursor consulted (nudge 3+)
+      Level 2: Main Cursor intervention failed (comprehensive log analysis)
+      Level 3: Level 2 failed (kill specific Cursor, refill slot)
+      Level 4: Multiple Level 3 failures (kill all Cursors, MANUAL investigation required)
     """
     # First check if PR exists - if so, stop nudging and let PR monitor handle it
     if check_slot_has_pr(slot, verbose):
         print(f"  [INFO] Slot {slot} has PR - stopping nudge, PR monitor will handle")
         reset_slot_nudge_count(slot)
+        # Clear escalation state since PR exists
+        set_slot_escalation_level(slot, 0)
         return
 
     # Increment nudge count
     nudge_count = increment_slot_nudge_count(slot)
-
     timestamp = datetime.now().strftime("%H:%M:%S")
 
-    if nudge_count <= 2:
-        # Standard nudge
+    # Use escalation system to determine action
+    action = handle_escalation(slot, nudge_count, verbose)
+
+    if action == "nudge":
+        # Standard nudge (Level 0)
         print(f"[{timestamp}] Slot {slot} stagnant - sending nudge #{nudge_count}")
         send_nudge_to_slot(slot, CONTINUE_INSTRUCTION, verbose)
-    else:
-        # Too many nudges - flag for LLM consultation
-        print(f"[{timestamp}] Slot {slot} stuck after {nudge_count} nudges - needs LLM intervention")
+    elif action == "consult_main_cursor":
+        # Level 1 or 2: Flag for main LLM consultation
+        print(f"[{timestamp}] Slot {slot} escalated to main Cursor after {nudge_count} nudges")
         state.slot_awaiting_summary[slot] = True
-        # Future: could send a message to main Cursor (slot 0) to investigate
+        # Main Cursor will poll needs_main_cursor_attention.json for details
+    elif action == "kill_slot":
+        # Level 3: Slot was killed, will be refilled by auto_fill_empty_slots
+        print(f"[{timestamp}] Slot {slot} killed due to repeated failures - will be refilled")
+        state.slot_awaiting_summary[slot] = False
+        reset_slot_nudge_count(slot)
+    elif action == "kill_all":
+        # Level 4: All slots killed, requires MANUAL investigation
+        print(f"[{timestamp}] === LEVEL 4 ESCALATION: ALL SLOTS KILLED ===")
+        print(f"[{timestamp}] MANUAL INVESTIGATION REQUIRED - Check escalation reports")
+        print(f"[{timestamp}] Reports in: C:\\dev\\Autopack\\scripts\\escalation_report_slot_*.json")
+        print(f"[{timestamp}] OCR handler stopping - restart manually after investigation")
 
 
 # ============================================================================

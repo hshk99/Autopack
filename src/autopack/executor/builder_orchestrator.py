@@ -745,6 +745,7 @@ class BuilderOrchestrator:
         retrieved_context = context_info["retrieved_context"]
 
         # Primary Builder invocation
+        # IMP-COST-002: Pass run-level budget for pre-call validation
         builder_result = self.llm_service.execute_builder_phase(
             phase_spec=phase_with_constraints,
             file_context=file_context,
@@ -758,6 +759,8 @@ class BuilderOrchestrator:
             use_full_file_mode=use_full_file_mode,
             config=self.builder_output_config,
             retrieved_context=retrieved_context,
+            run_token_budget=getattr(self.executor, "run_budget_tokens", None),
+            tokens_used_so_far=getattr(self.executor, "_run_tokens_used", None),
         )
 
         # Sync metadata back to phase
@@ -791,6 +794,7 @@ class BuilderOrchestrator:
                 "deliverables_contract": phase_with_constraints.get("deliverables_contract"),
             }
 
+            # IMP-COST-002: Pass run-level budget for pre-call validation (fallback path)
             builder_result = self.llm_service.execute_builder_phase(
                 phase_spec=phase_structured,
                 file_context=file_context,
@@ -804,6 +808,8 @@ class BuilderOrchestrator:
                 use_full_file_mode=False,
                 config=self.builder_output_config,
                 retrieved_context=retrieved_context,
+                run_token_budget=getattr(self.executor, "run_budget_tokens", None),
+                tokens_used_so_far=getattr(self.executor, "_run_tokens_used", None),
             )
 
             # Sync metadata from fallback attempt

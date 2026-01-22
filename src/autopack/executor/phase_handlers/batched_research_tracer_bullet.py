@@ -232,6 +232,7 @@ def execute(
             )
 
         # Run Builder for this batch
+        # IMP-COST-002: Pass run-level budget for pre-call validation
         builder_result = executor.llm_service.execute_builder_phase(
             phase_spec=phase_with_constraints,
             file_context=file_context,
@@ -245,6 +246,8 @@ def execute(
             use_full_file_mode=use_full_file_mode,
             config=executor.builder_output_config,
             retrieved_context=retrieved_context,
+            run_token_budget=getattr(executor, "run_budget_tokens", None),
+            tokens_used_so_far=getattr(executor, "_run_tokens_used", None),
         )
 
         if not builder_result.success:

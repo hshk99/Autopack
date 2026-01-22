@@ -165,12 +165,52 @@ Implemented comprehensive observability features including:
 
         return tmp_path
 
-    def test_index_sot_docs_disabled_by_default(self, memory_service, workspace_with_sot):
-        """Test that SOT indexing is disabled by default."""
-        result = memory_service.index_sot_docs("autopack", workspace_with_sot)
+    def test_index_sot_docs_enabled_by_default(self, workspace_with_sot):
+        """Test that SOT indexing is enabled by default (IMP-FEAT-002)."""
+        with patch.dict(os.environ, {"AUTOPACK_ENABLE_MEMORY": "true"}):
+            # Reload settings to get fresh defaults
+            import sys
+            import importlib
 
-        assert result["skipped"] is True
-        assert result["reason"] == "sot_indexing_disabled"
+            if "autopack.config" in sys.modules:
+                importlib.reload(sys.modules["autopack.config"])
+            from autopack.config import settings
+
+            # Verify the default is now True (IMP-FEAT-002)
+            assert settings.autopack_enable_sot_memory_indexing is True
+            assert settings.autopack_sot_retrieval_enabled is True
+
+            service = MemoryService(enabled=True, use_qdrant=False)
+            result = service.index_sot_docs("autopack", workspace_with_sot)
+
+            # Should not be skipped - indexing is now enabled by default
+            assert result["skipped"] is False
+            assert result["indexed"] > 0
+
+    def test_index_sot_docs_disabled_via_env(self, workspace_with_sot):
+        """Test that SOT indexing can be disabled via environment variable."""
+        with patch.dict(
+            os.environ,
+            {
+                "AUTOPACK_ENABLE_MEMORY": "true",
+                "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "false",
+            },
+        ):
+            # Reload settings to pick up environment changes
+            import sys
+            import importlib
+
+            if "autopack.config" in sys.modules:
+                importlib.reload(sys.modules["autopack.config"])
+            from autopack.config import settings
+
+            assert settings.autopack_enable_sot_memory_indexing is False
+
+            service = MemoryService(enabled=True, use_qdrant=False)
+            result = service.index_sot_docs("autopack", workspace_with_sot)
+
+            assert result["skipped"] is True
+            assert result["reason"] == "sot_indexing_disabled"
 
     def test_index_sot_docs_enabled(self, workspace_with_sot):
         """Test SOT indexing when enabled."""
@@ -224,18 +264,40 @@ Implemented comprehensive observability features including:
             # Should find chunks from BUILD_HISTORY
             assert len(results) > 0
 
-    def test_retrieve_context_with_sot_disabled(self, memory_service):
-        """Test that SOT retrieval requires explicit opt-in."""
-        # SOT retrieval disabled by default
-        results = memory_service.retrieve_context(
-            query="test query",
-            project_id="autopack",
-            include_sot=True,
-        )
+    def test_retrieve_context_with_sot_disabled_via_env(self, workspace_with_sot):
+        """Test that SOT retrieval can be disabled via environment variable."""
+        with patch.dict(
+            os.environ,
+            {
+                "AUTOPACK_ENABLE_MEMORY": "true",
+                "AUTOPACK_ENABLE_SOT_MEMORY_INDEXING": "true",
+                "AUTOPACK_SOT_RETRIEVAL_ENABLED": "false",  # Explicitly disabled
+            },
+        ):
+            # Reload settings to pick up environment changes
+            import sys
+            import importlib
 
-        # Should not return SOT results when disabled
-        assert "sot" in results
-        assert len(results["sot"]) == 0
+            if "autopack.config" in sys.modules:
+                importlib.reload(sys.modules["autopack.config"])
+            from autopack.config import settings
+
+            assert settings.autopack_sot_retrieval_enabled is False
+
+            service = MemoryService(enabled=True, use_qdrant=False)
+            # Index docs first
+            service.index_sot_docs("autopack", workspace_with_sot)
+
+            # Retrieval should not return SOT results when explicitly disabled
+            results = service.retrieve_context(
+                query="test query",
+                project_id="autopack",
+                include_sot=True,
+            )
+
+            # Should not return SOT results when disabled
+            assert "sot" in results
+            assert len(results["sot"]) == 0
 
     def test_retrieve_context_with_sot_enabled(self, workspace_with_sot):
         """Test SOT retrieval when enabled."""

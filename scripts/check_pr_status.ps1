@@ -232,6 +232,47 @@ function Get-WindowSlotNumber {
     return $slot
 }
 
+# Start OCR handler in background if not already running
+# Returns $true if handler was started or is already running
+function Start-OCRHandler {
+    $scriptDir = "C:\dev\Autopack\scripts"
+    $ocrScript = Join-Path $scriptDir "handle_connection_errors_ocr.py"
+
+    # Check if OCR handler is already running
+    $existingProcess = Get-Process -Name "python*" -ErrorAction SilentlyContinue | Where-Object {
+        try {
+            $cmdLine = (Get-CimInstance Win32_Process -Filter "ProcessId = $($_.Id)" -ErrorAction SilentlyContinue).CommandLine
+            $cmdLine -match "handle_connection_errors_ocr"
+        } catch {
+            $false
+        }
+    }
+
+    if ($existingProcess) {
+        Write-Host "[INFO] OCR handler already running (PID: $($existingProcess.Id))"
+        return $true
+    }
+
+    # Start OCR handler in background
+    if (Test-Path $ocrScript) {
+        Write-Host "[ACTION] Starting OCR handler in background..."
+        try {
+            $process = Start-Process -FilePath "python" -ArgumentList "`"$ocrScript`"" -WindowStyle Minimized -PassThru
+            Write-Host "[OK] OCR handler started (PID: $($process.Id))"
+
+            # Give it a moment to initialize
+            Start-Sleep -Seconds 2
+            return $true
+        } catch {
+            Write-Host "[WARN] Failed to start OCR handler: $_"
+            return $false
+        }
+    } else {
+        Write-Host "[WARN] OCR handler script not found: $ocrScript"
+        return $false
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($WaveFile)) {
     $promptsFile = Join-Path $backupDir "Prompts_All_Waves.md"
 
@@ -253,6 +294,10 @@ $waveNumber = Get-WaveNumber $WaveFile
 Write-Host "PR STATUS CHECK"
 Write-Host "==============="
 Write-Host ""
+
+# Start OCR handler early - it runs continuously and adapts to windows appearing/disappearing
+# No need to wait for auto_fill to finish - OCR handler dynamically detects active slots
+Start-OCRHandler | Out-Null
 
 # Load all prompts - manage_prompt_state returns phase objects
 $prompts = @(& "C:\dev\Autopack\scripts\manage_prompt_state.ps1" -Action Load -WaveFile $WaveFile 2>&1 | Where-Object { $_ -ne $null -and -not ($_ -is [string]) })

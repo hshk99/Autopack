@@ -221,6 +221,10 @@ foreach ($waveGroup in $promptsByWave) {
         $markdown += "- Test requirements`n"
         $markdown += "- Commit message format`n"
         $markdown += "- PR creation command`n`n"
+        $markdown += "**CRITICAL - Branch and PR Naming**:`n"
+        $markdown += "- Branch: Use EXACTLY ``$($prompt.Branch)`` - do NOT add any suffix`n"
+        $markdown += "- PR Title: ``[$($prompt.ImpId)] <brief description>```n"
+        $markdown += "- Example: ``git push -u origin $($prompt.Branch) && gh pr create --title `"[$($prompt.ImpId)] Add feature X`" --body `"...`"```n`n"
         $markdown += "---`n`n"
     }
 }

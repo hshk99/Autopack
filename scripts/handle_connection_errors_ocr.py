@@ -93,7 +93,13 @@ AUTOPACK_WAVE_PLAN.json in C:\\Users\\hshk9\\OneDrive\\Backup\\Desktop or README
 If context overflowed, continue from your last summary.
 
 Resolve any issues and continue until you complete the prompt you were initially given.
-When done, create PR and run CI."""
+
+When done, create PR using EXACTLY this format:
+- Branch: Use the EXACT branch name from your prompt (e.g., wave2/sec-004) - DO NOT add suffixes
+- PR Title: [IMP-XXX-NNN] followed by a brief description
+- Command: git push -u origin <branch-from-prompt> && gh pr create --title "[IMP-XXX-NNN] ..." --body "..."
+
+Run CI after PR creation."""
 
 # Grid configuration for 5120x1440 monitor with 3x3 grid + main cursor
 # Slot 0 = Main Cursor on left side of grid (supervisory)

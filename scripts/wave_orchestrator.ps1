@@ -114,24 +114,26 @@ function Get-WaveCursors {
 }
 
 # Check if PR already exists and is merged for a branch
+# Uses prefix match: branch "wave2/sec-004" matches PR branch "wave2/sec-004-api-key-ownership"
 function Test-PRMerged {
     param($BranchName)
 
-    $result = gh pr list --state merged --head $BranchName --json number 2>$null
+    $result = gh pr list --state merged --json number,headRefName 2>$null
     if ($result) {
-        $prs = $result | ConvertFrom-Json
+        $prs = $result | ConvertFrom-Json | Where-Object { $_.headRefName -like "$BranchName*" }
         return $prs.Count -gt 0
     }
     return $false
 }
 
 # Check if PR exists (open or merged)
+# Uses prefix match: branch "wave2/sec-004" matches PR branch "wave2/sec-004-api-key-ownership"
 function Test-PRExists {
     param($BranchName)
 
-    $result = gh pr list --state all --head $BranchName --json number,state 2>$null
+    $result = gh pr list --state all --json number,state,headRefName 2>$null
     if ($result) {
-        $prs = $result | ConvertFrom-Json
+        $prs = $result | ConvertFrom-Json | Where-Object { $_.headRefName -like "$BranchName*" }
         return $prs.Count -gt 0
     }
     return $false
@@ -343,11 +345,11 @@ function Watch-WavePRs {
         foreach ($cursor in $Cursors) {
             $branch = $cursor.BranchName
 
-            # Check PR status
-            $prResult = gh pr list --state all --head $branch --json number,state,title,mergeable,statusCheckRollup 2>$null
+            # Check PR status - use prefix match for branch names
+            $prResult = gh pr list --state all --json number,state,title,mergeable,statusCheckRollup,headRefName 2>$null
 
             if ($prResult) {
-                $pr = ($prResult | ConvertFrom-Json) | Select-Object -First 1
+                $pr = ($prResult | ConvertFrom-Json) | Where-Object { $_.headRefName -like "$branch*" } | Select-Object -First 1
 
                 if ($pr) {
                     $status = $pr.state

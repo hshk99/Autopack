@@ -454,8 +454,11 @@ foreach ($prompt in $pendingPrompts | Select-Object -First 9) {
 
     Write-Host "$phaseId..."
 
-    # Query GitHub
-    $prJson = gh pr list --head $branchName --state all --json number,state,statusCheckRollup 2>/dev/null | ConvertFrom-Json
+    # Query GitHub - use search to find PRs where branch starts with our prefix
+    # Branch names in Prompts_All_Waves.md are short form (e.g., "wave2/sec-004")
+    # but actual PR branches have longer names (e.g., "wave2/sec-004-api-key-ownership")
+    # So we search for all PRs and filter by prefix match
+    $prJson = gh pr list --state all --json number,state,statusCheckRollup,headRefName 2>/dev/null | ConvertFrom-Json | Where-Object { $_.headRefName -like "$branchName*" }
 
     if ($null -ne $prJson -and $prJson.Count -gt 0) {
         $pr = if ($prJson -is [array]) { $prJson[0] } else { $prJson }

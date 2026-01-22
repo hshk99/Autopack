@@ -455,9 +455,12 @@ Please investigate and fix the issue:
    git push -u origin $fixBranchName
    ``````
 
-6. Create the PR with title: "fix: Resolve $failureType failure"
-   - In the PR description, list all affected original PRs
-   - Verify CI passes on this fix PR
+6. **CRITICAL - Branch and PR Naming**:
+   - Branch: Use EXACTLY ``$fixBranchName`` - do NOT add any suffix
+   - PR Title: ``fix: Resolve $failureType failure``
+   - Example: ``gh pr create --title "fix: Resolve $failureType failure" --body "Fixes $prList"``
+
+7. In the PR description, list all affected original PRs. Verify CI passes.
 
 "@
             $appendedCount++
@@ -572,9 +575,12 @@ Please investigate and fix the issue:
    git push -u origin $fixBranchName
    ``````
 
-6. Create the PR with title: "fix: Resolve $category failure"
-   - In the PR description, list all affected original PRs
-   - Verify CI passes on this fix PR
+6. **CRITICAL - Branch and PR Naming**:
+   - Branch: Use EXACTLY ``$fixBranchName`` - do NOT add any suffix
+   - PR Title: ``fix: Resolve $category failure``
+   - Example: ``gh pr create --title "fix: Resolve $category failure" --body "Fixes $prList"``
+
+7. In the PR description, list all affected original PRs. Verify CI passes.
 
 "@
             $appendedCount++

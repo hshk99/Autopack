@@ -265,3 +265,202 @@ class TestLifespanContract:
                     await asyncio.sleep(0.01)
                     # Task should have started
                     assert cleanup_was_called, "approval_timeout_cleanup task should be started"
+
+
+class TestGracefulShutdownManagerContract:
+    """Contract tests for graceful shutdown manager (IMP-OPS-003)."""
+
+    def test_initial_state_not_shutting_down(self):
+        """Contract: Manager starts in non-shutdown state."""
+        from autopack.api.app import GracefulShutdownManager
+
+        manager = GracefulShutdownManager()
+        assert not manager.is_shutting_down()
+        assert manager.get_active_transaction_count() == 0
+
+    def test_begin_transaction_increments_count(self):
+        """Contract: begin_transaction increases active count."""
+        from autopack.api.app import GracefulShutdownManager
+
+        manager = GracefulShutdownManager()
+        assert manager.begin_transaction() is True
+        assert manager.get_active_transaction_count() == 1
+        assert manager.begin_transaction() is True
+        assert manager.get_active_transaction_count() == 2
+
+    def test_end_transaction_decrements_count(self):
+        """Contract: end_transaction decreases active count."""
+        from autopack.api.app import GracefulShutdownManager
+
+        manager = GracefulShutdownManager()
+        manager.begin_transaction()
+        manager.begin_transaction()
+        assert manager.get_active_transaction_count() == 2
+
+        manager.end_transaction()
+        assert manager.get_active_transaction_count() == 1
+
+        manager.end_transaction()
+        assert manager.get_active_transaction_count() == 0
+
+    def test_end_transaction_does_not_go_negative(self):
+        """Contract: Active count cannot go below zero."""
+        from autopack.api.app import GracefulShutdownManager
+
+        manager = GracefulShutdownManager()
+        # End without begin should not cause negative count
+        manager.end_transaction()
+        manager.end_transaction()
+        assert manager.get_active_transaction_count() == 0
+
+    def test_begin_transaction_rejected_during_shutdown(self):
+        """Contract: New transactions rejected after shutdown initiated."""
+        from autopack.api.app import GracefulShutdownManager
+
+        manager = GracefulShutdownManager()
+
+        # Manually set shutdown flag
+        manager._shutdown_event.set()
+
+        # New transactions should be rejected
+        assert manager.begin_transaction() is False
+        assert manager.get_active_transaction_count() == 0
+
+    @pytest.mark.asyncio
+    async def test_initiate_shutdown_sets_flag(self):
+        """Contract: initiate_shutdown sets the shutdown flag."""
+        from autopack.api.app import GracefulShutdownManager
+
+        manager = GracefulShutdownManager(shutdown_timeout=1.0)
+        assert not manager.is_shutting_down()
+
+        await manager.initiate_shutdown()
+        assert manager.is_shutting_down()
+
+    @pytest.mark.asyncio
+    async def test_initiate_shutdown_waits_for_transactions(self):
+        """Contract: Shutdown waits for active transactions to complete."""
+        import asyncio
+        from autopack.api.app import GracefulShutdownManager
+
+        manager = GracefulShutdownManager(shutdown_timeout=5.0)
+
+        # Start a transaction
+        manager.begin_transaction()
+
+        # Start shutdown in background
+        shutdown_task = asyncio.create_task(manager.initiate_shutdown())
+
+        # Give it time to start waiting
+        await asyncio.sleep(0.1)
+
+        # Should still be waiting
+        assert not shutdown_task.done()
+
+        # Complete the transaction
+        manager.end_transaction()
+
+        # Shutdown should complete quickly now
+        result = await asyncio.wait_for(shutdown_task, timeout=1.0)
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_initiate_shutdown_times_out(self):
+        """Contract: Shutdown returns False on timeout with pending transactions."""
+        from autopack.api.app import GracefulShutdownManager
+
+        # Short timeout for testing
+        manager = GracefulShutdownManager(shutdown_timeout=0.1)
+
+        # Start a transaction that won't complete
+        manager.begin_transaction()
+
+        # Initiate shutdown - should timeout
+        result = await manager.initiate_shutdown()
+
+        assert result is False
+        # Transaction count should still be 1
+        assert manager.get_active_transaction_count() == 1
+
+    @pytest.mark.asyncio
+    async def test_initiate_shutdown_immediate_when_no_transactions(self):
+        """Contract: Shutdown completes immediately when no active transactions."""
+        import asyncio
+        from autopack.api.app import GracefulShutdownManager
+
+        manager = GracefulShutdownManager(shutdown_timeout=30.0)
+
+        # No transactions active
+        start = asyncio.get_event_loop().time()
+        result = await manager.initiate_shutdown()
+        elapsed = asyncio.get_event_loop().time() - start
+
+        assert result is True
+        # Should complete almost instantly, not wait for timeout
+        assert elapsed < 1.0
+
+
+class TestLifespanGracefulShutdownContract:
+    """Contract tests for graceful shutdown integration in lifespan."""
+
+    @pytest.mark.asyncio
+    async def test_lifespan_initializes_shutdown_manager(self):
+        """Contract: Lifespan initializes the global shutdown manager."""
+        import asyncio
+        from autopack.api.app import lifespan, get_shutdown_manager
+        from fastapi import FastAPI
+
+        app = FastAPI()
+
+        async def mock_cleanup():
+            try:
+                await asyncio.sleep(3600)
+            except asyncio.CancelledError:
+                pass
+
+        with patch.dict(os.environ, {"TESTING": "1"}, clear=False):
+            with patch("autopack.api.app.approval_timeout_cleanup", mock_cleanup):
+                async with lifespan(app):
+                    # Should be able to get the shutdown manager
+                    manager = get_shutdown_manager()
+                    assert manager is not None
+                    assert not manager.is_shutting_down()
+
+    @pytest.mark.asyncio
+    async def test_lifespan_uses_env_timeout(self):
+        """Contract: Lifespan uses GRACEFUL_SHUTDOWN_TIMEOUT env var."""
+        import asyncio
+        from autopack.api.app import lifespan, get_shutdown_manager
+        from fastapi import FastAPI
+
+        app = FastAPI()
+
+        async def mock_cleanup():
+            try:
+                await asyncio.sleep(3600)
+            except asyncio.CancelledError:
+                pass
+
+        with patch.dict(
+            os.environ, {"TESTING": "1", "GRACEFUL_SHUTDOWN_TIMEOUT": "60"}, clear=False
+        ):
+            with patch("autopack.api.app.approval_timeout_cleanup", mock_cleanup):
+                async with lifespan(app):
+                    manager = get_shutdown_manager()
+                    assert manager._shutdown_timeout == 60.0
+
+    @pytest.mark.asyncio
+    async def test_get_shutdown_manager_raises_before_init(self):
+        """Contract: get_shutdown_manager raises if called before lifespan."""
+        from autopack.api import app as app_module
+
+        # Reset the global manager
+        original = app_module._shutdown_manager
+        app_module._shutdown_manager = None
+
+        try:
+            with pytest.raises(RuntimeError, match="not initialized"):
+                app_module.get_shutdown_manager()
+        finally:
+            # Restore
+            app_module._shutdown_manager = original

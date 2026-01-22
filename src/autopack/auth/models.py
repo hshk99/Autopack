@@ -68,6 +68,7 @@ class APIKey(Base):
         is_active: Whether the key is active
         created_at: Timestamp of key creation
         last_used_at: Timestamp of last usage (for monitoring)
+        created_by_key_id: ID of the API key that created this key (for ownership tracking)
     """
 
     __tablename__ = "api_keys"
@@ -79,6 +80,8 @@ class APIKey(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     last_used_at = Column(DateTime, nullable=True)
+    # IMP-SEC-004: Track which key created this key for ownership-based access control
+    created_by_key_id = Column(Integer, nullable=True, index=True)
 
     def __repr__(self) -> str:
         """String representation of APIKey."""

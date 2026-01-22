@@ -59,13 +59,15 @@ class APIKeyCreated(BaseModel):
 async def create_api_key(
     key_data: APIKeyCreate,
     db: Session = Depends(get_db),
-    _current_key: APIKey = Depends(require_api_key),  # Require authentication
+    current_key: APIKey = Depends(require_api_key),  # Require authentication
 ):
     """
     Create a new API key for multi-device access. Requires authentication.
 
     **IMPORTANT**: The API key is only shown once in the response.
     Save it securely - it cannot be retrieved later.
+
+    The new key will be owned by the key used to create it (IMP-SEC-004).
     """
     plain_key, hashed_key = generate_api_key()
 
@@ -75,6 +77,8 @@ async def create_api_key(
         description=key_data.description,
         is_active=True,
         created_at=datetime.now(timezone.utc),
+        # IMP-SEC-004: Track ownership - new key is owned by the creating key
+        created_by_key_id=current_key.id,
     )
 
     db.add(api_key)
@@ -96,14 +100,31 @@ async def create_api_key(
 )
 async def list_api_keys(
     db: Session = Depends(get_db),
-    api_key: APIKey = Depends(require_api_key),
+    current_key: APIKey = Depends(require_api_key),
 ):
     """
-    List all API keys (requires authentication).
+    List API keys owned by the current key (requires authentication).
+
+    IMP-SEC-004: Only returns keys that were created by the current key,
+    plus the current key itself. This prevents users from seeing all API keys
+    in the system.
 
     The actual key values are never returned, only metadata.
     """
-    keys = db.query(APIKey).order_by(APIKey.created_at.desc()).all()
+    from sqlalchemy import or_
+
+    # Return the current key and any keys it created
+    keys = (
+        db.query(APIKey)
+        .filter(
+            or_(
+                APIKey.id == current_key.id,  # The current key itself
+                APIKey.created_by_key_id == current_key.id,  # Keys created by current key
+            )
+        )
+        .order_by(APIKey.created_at.desc())
+        .all()
+    )
     return keys
 
 
@@ -114,19 +135,29 @@ async def list_api_keys(
 async def revoke_api_key(
     key_id: int,
     db: Session = Depends(get_db),
-    api_key: APIKey = Depends(require_api_key),
+    current_key: APIKey = Depends(require_api_key),
 ):
     """
     Revoke (deactivate) an API key.
 
     The key is not deleted, just marked as inactive.
     Requires authentication with a valid API key.
+
+    IMP-SEC-004: Users can only revoke keys they own (keys they created).
     """
     key_to_revoke = db.query(APIKey).filter(APIKey.id == key_id).first()
     if not key_to_revoke:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="API key not found",
+        )
+
+    # IMP-SEC-004: Verify ownership before allowing revocation
+    # A key can revoke itself or any key it created
+    if key_to_revoke.id != current_key.id and key_to_revoke.created_by_key_id != current_key.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only revoke API keys you own",
         )
 
     key_to_revoke.is_active = False

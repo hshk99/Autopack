@@ -292,3 +292,368 @@ class TestMixedApprovalRequirements:
             should_block_no_safe is True
         ), "Autopilot must block when no actions are auto-approved"
         assert should_block_approval is True, "Autopilot must block when actions require approval"
+
+
+class TestLoadProposalImplementation:
+    """Tests for IMP-FEAT-004: Complete autopilot load proposal implementation.
+
+    Validates that:
+    1. _persist_run_local_artifacts saves full PlanProposalV1
+    2. execute_approved_proposals can load and execute approved actions
+    """
+
+    def test_persist_run_local_artifacts_saves_full_proposal(self):
+        """IMP-FEAT-004: Verify full PlanProposalV1 is saved for later loading."""
+        import tempfile
+        from datetime import datetime, timezone
+        from pathlib import Path
+
+        from autopack.autonomy.autopilot import AutopilotController
+        from autopack.file_layout import RunFileLayout
+        from autopack.planning.models import PlanProposalV1, PlanSummary, Action
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+
+            # Create controller with mocked layout that uses workspace
+            controller = AutopilotController(
+                workspace_root=workspace,
+                project_id="test-project",
+                run_id="test-run",
+                enabled=True,
+            )
+
+            # Override layout to use temp dir
+            controller.layout = RunFileLayout(
+                run_id="test-run",
+                project_id="test-project",
+                base_dir=workspace,
+            )
+
+            # Create a mock session
+            from autopack.autonomy.models import AutopilotSessionV1
+
+            controller.session = AutopilotSessionV1(
+                format_version="v1",
+                project_id="test-project",
+                run_id="test-run",
+                session_id="test-session",
+                started_at=datetime.now(timezone.utc),
+                status="running",
+                anchor_id="test-anchor",
+                gap_report_id="test-gaps",
+                plan_proposal_id="test-plan-001",
+            )
+
+            # Create a test proposal with full action details
+            proposal = PlanProposalV1(
+                format_version="v1",
+                project_id="test-project",
+                run_id="test-run",
+                generated_at=datetime.now(timezone.utc),
+                anchor_id="test-anchor",
+                gap_report_id="test-gaps",  # Required by schema
+                actions=[
+                    Action(
+                        action_id="action-001",
+                        action_type="doc_update",
+                        target_gap_ids=["gap-1"],
+                        risk_score=0.3,
+                        approval_status="requires_approval",
+                        approval_reason="Modifies documentation",
+                        target_paths=["docs/README.md"],
+                    ),
+                    Action(
+                        action_id="action-002",
+                        action_type="config_update",
+                        target_gap_ids=["gap-2"],
+                        risk_score=0.5,
+                        approval_status="auto_approved",
+                        target_paths=["config/settings.yaml"],
+                    ),
+                ],
+                summary=PlanSummary(
+                    total_actions=2,
+                    auto_approved_actions=1,
+                    requires_approval_actions=1,
+                    blocked_actions=0,
+                ),
+            )
+
+            # Persist artifacts
+            controller._persist_run_local_artifacts(proposal)
+
+            # Verify full proposal was saved
+            plan_path = (
+                controller.layout.base_dir
+                / "plans"
+                / f"plan_proposal_{controller.session.plan_proposal_id}.json"
+            )
+            assert plan_path.exists(), f"Plan proposal file should exist at {plan_path}"
+
+            # Load and verify contents
+            loaded_proposal = PlanProposalV1.load_from_file(plan_path)
+            assert loaded_proposal.project_id == "test-project"
+            assert len(loaded_proposal.actions) == 2
+            assert loaded_proposal.actions[0].action_id == "action-001"
+            assert loaded_proposal.actions[0].approval_status == "requires_approval"
+            assert loaded_proposal.actions[1].action_id == "action-002"
+
+    def test_execute_approved_proposals_loads_proposal_and_filters_actions(self):
+        """IMP-FEAT-004: Verify execute_approved_proposals loads proposal and filters to approved actions."""
+        import tempfile
+        from datetime import datetime, timezone
+        from pathlib import Path
+        from unittest.mock import MagicMock, patch
+
+        from autopack.autonomy.autopilot import AutopilotController
+        from autopack.autonomy.models import AutopilotSessionV1
+        from autopack.file_layout import RunFileLayout
+        from autopack.planning.models import PlanProposalV1, PlanSummary, Action
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            controller = AutopilotController(
+                workspace_root=workspace,
+                project_id="test-project",
+                run_id="test-run",
+                enabled=True,
+            )
+
+            # Override layout to use temp dir
+            controller.layout = RunFileLayout(
+                run_id="test-run",
+                project_id="test-project",
+                base_dir=workspace,
+            )
+
+            # Create directories
+            autonomy_dir = controller.layout.base_dir / "autonomy"
+            autonomy_dir.mkdir(parents=True, exist_ok=True)
+            plans_dir = controller.layout.base_dir / "plans"
+            plans_dir.mkdir(parents=True, exist_ok=True)
+
+            # Create and save a session
+            session = AutopilotSessionV1(
+                format_version="v1",
+                project_id="test-project",
+                run_id="test-run",
+                session_id="test-session-001",
+                started_at=datetime.now(timezone.utc),
+                status="blocked_approval_required",
+                anchor_id="test-anchor",
+                gap_report_id="test-gaps",
+                plan_proposal_id="plan-abc123",
+            )
+            session.save_to_file(autonomy_dir / "test-session-001.json")
+
+            # Create and save a proposal
+            # Use run-local path (.autonomous_runs) so SafeActionExecutor allows the write
+            proposal = PlanProposalV1(
+                format_version="v1",
+                project_id="test-project",
+                run_id="test-run",
+                generated_at=datetime.now(timezone.utc),
+                anchor_id="test-anchor",
+                gap_report_id="test-gaps",  # Required by schema
+                actions=[
+                    Action(
+                        action_id="action-001",
+                        action_type="custom",  # Custom type with no target_paths
+                        target_gap_ids=["gap-1"],
+                        risk_score=0.3,
+                        approval_status="requires_approval",
+                        # No target_paths - will passthrough as no execution needed
+                    ),
+                    Action(
+                        action_id="action-002",
+                        action_type="config_update",
+                        target_gap_ids=["gap-2"],
+                        risk_score=0.5,
+                        approval_status="requires_approval",
+                        target_paths=["config/settings.yaml"],
+                    ),
+                    Action(
+                        action_id="action-003",
+                        action_type="custom",
+                        target_gap_ids=["gap-3"],
+                        risk_score=0.2,
+                        approval_status="auto_approved",
+                    ),
+                ],
+                summary=PlanSummary(
+                    total_actions=3,
+                    auto_approved_actions=1,
+                    requires_approval_actions=2,
+                    blocked_actions=0,
+                ),
+            )
+            proposal.save_to_file(plans_dir / "plan_proposal_plan-abc123.json")
+
+            # Mock ApprovalService to return approved action IDs
+            mock_approval_svc = MagicMock()
+            mock_approval_svc.get_approved_actions.return_value = ["action-001"]
+
+            with patch(
+                "autopack.autonomy.approval_service.ApprovalService",
+                return_value=mock_approval_svc,
+            ):
+                # Execute approved proposals
+                result = controller.execute_approved_proposals("test-session-001")
+
+            # action-001 has no target_paths and no command, so it passes through successfully
+            assert result == 1, f"Expected 1 executed action (passthrough), got {result}"
+
+    def test_execute_approved_proposals_returns_zero_when_no_approved_actions(self):
+        """IMP-FEAT-004: Verify returns 0 when no actions are approved."""
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import MagicMock, patch
+
+        from autopack.autonomy.autopilot import AutopilotController
+        from autopack.file_layout import RunFileLayout
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            controller = AutopilotController(
+                workspace_root=workspace,
+                project_id="test-project",
+                run_id="test-run",
+                enabled=True,
+            )
+
+            # Override layout to use temp dir
+            controller.layout = RunFileLayout(
+                run_id="test-run",
+                project_id="test-project",
+                base_dir=workspace,
+            )
+
+            # Mock ApprovalService to return no approved actions
+            mock_approval_svc = MagicMock()
+            mock_approval_svc.get_approved_actions.return_value = []
+
+            with patch(
+                "autopack.autonomy.approval_service.ApprovalService",
+                return_value=mock_approval_svc,
+            ):
+                result = controller.execute_approved_proposals("test-session-001")
+
+            assert result == 0
+
+    def test_execute_approved_proposals_handles_missing_session(self):
+        """IMP-FEAT-004: Verify graceful handling when session file not found."""
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import MagicMock, patch
+
+        from autopack.autonomy.autopilot import AutopilotController
+        from autopack.file_layout import RunFileLayout
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            controller = AutopilotController(
+                workspace_root=workspace,
+                project_id="test-project",
+                run_id="test-run",
+                enabled=True,
+            )
+
+            # Override layout to use temp dir
+            controller.layout = RunFileLayout(
+                run_id="test-run",
+                project_id="test-project",
+                base_dir=workspace,
+            )
+
+            # Ensure autonomy dir exists but no session file
+            (controller.layout.base_dir / "autonomy").mkdir(parents=True, exist_ok=True)
+
+            # Mock ApprovalService to return approved actions
+            mock_approval_svc = MagicMock()
+            mock_approval_svc.get_approved_actions.return_value = ["action-001"]
+
+            with patch(
+                "autopack.autonomy.approval_service.ApprovalService",
+                return_value=mock_approval_svc,
+            ):
+                result = controller.execute_approved_proposals("nonexistent-session")
+
+            assert result == 0, "Should return 0 when session file not found"
+
+    def test_execute_approved_proposals_handles_missing_proposal(self):
+        """IMP-FEAT-004: Verify graceful handling when proposal file not found."""
+        import tempfile
+        from datetime import datetime, timezone
+        from pathlib import Path
+        from unittest.mock import MagicMock, patch
+
+        from autopack.autonomy.autopilot import AutopilotController
+        from autopack.autonomy.models import AutopilotSessionV1
+        from autopack.file_layout import RunFileLayout
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            controller = AutopilotController(
+                workspace_root=workspace,
+                project_id="test-project",
+                run_id="test-run",
+                enabled=True,
+            )
+
+            # Override layout to use temp dir
+            controller.layout = RunFileLayout(
+                run_id="test-run",
+                project_id="test-project",
+                base_dir=workspace,
+            )
+
+            # Create session file but no proposal file
+            autonomy_dir = controller.layout.base_dir / "autonomy"
+            autonomy_dir.mkdir(parents=True, exist_ok=True)
+
+            session = AutopilotSessionV1(
+                format_version="v1",
+                project_id="test-project",
+                run_id="test-run",
+                session_id="test-session-001",
+                started_at=datetime.now(timezone.utc),
+                status="blocked_approval_required",
+                anchor_id="test-anchor",
+                gap_report_id="test-gaps",
+                plan_proposal_id="nonexistent-plan",
+            )
+            session.save_to_file(autonomy_dir / "test-session-001.json")
+
+            # Mock ApprovalService to return approved actions
+            mock_approval_svc = MagicMock()
+            mock_approval_svc.get_approved_actions.return_value = ["action-001"]
+
+            with patch(
+                "autopack.autonomy.approval_service.ApprovalService",
+                return_value=mock_approval_svc,
+            ):
+                result = controller.execute_approved_proposals("test-session-001")
+
+            assert result == 0, "Should return 0 when proposal file not found"
+
+    def test_execute_approved_proposals_requires_enabled(self):
+        """IMP-FEAT-004: Verify RuntimeError when autopilot not enabled."""
+        import tempfile
+        from pathlib import Path
+
+        import pytest
+
+        from autopack.autonomy.autopilot import AutopilotController
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace = Path(tmpdir)
+            controller = AutopilotController(
+                workspace_root=workspace,
+                project_id="test-project",
+                run_id="test-run",
+                enabled=False,  # Disabled
+            )
+
+            with pytest.raises(RuntimeError, match="Autopilot is disabled"):
+                controller.execute_approved_proposals("test-session-001")

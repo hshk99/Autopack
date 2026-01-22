@@ -455,11 +455,11 @@ class AutopilotController:
     def _persist_run_local_artifacts(self, proposal: PlanProposalV1) -> None:
         """Persist run-local artifacts (gap report, plan proposal).
 
+        IMP-FEAT-004: Save full PlanProposalV1 to enable loading for approved action execution.
+
         Args:
             proposal: Plan proposal to persist
         """
-        import json
-
         # Ensure autonomy directory exists
         autonomy_dir = self.layout.base_dir / "autonomy"
         autonomy_dir.mkdir(parents=True, exist_ok=True)
@@ -471,44 +471,35 @@ class AutopilotController:
             # Gap report would be saved by the scanner; just log
             logger.debug(f"[Autopilot] Gap report ID: {self.session.gap_report_id}")
 
-        # Save plan proposal
+        # Save plan proposal - IMP-FEAT-004: Save full proposal for later loading
         plans_dir = self.layout.base_dir / "plans"
         plans_dir.mkdir(parents=True, exist_ok=True)
         plan_path = plans_dir / f"plan_proposal_{self.session.plan_proposal_id}.json"
 
         try:
-            plan_data = {
-                "proposal_id": self.session.plan_proposal_id,
-                "summary": {
-                    "total_actions": proposal.summary.total_actions,
-                    "auto_approved": proposal.summary.auto_approved_actions,
-                    "requires_approval": proposal.summary.requires_approval_actions,
-                    "blocked": proposal.summary.blocked_actions,
-                },
-                "actions": [
-                    {
-                        "action_id": a.action_id,
-                        "action_type": a.action_type,
-                        "approval_status": a.approval_status,
-                    }
-                    for a in proposal.actions
-                ],
-            }
-            plan_path.write_text(json.dumps(plan_data, indent=2), encoding="utf-8")
-            logger.info(f"[Autopilot] Saved plan proposal: {plan_path}")
+            # Save full PlanProposalV1 using its built-in serialization
+            proposal.save_to_file(plan_path)
+            logger.info(f"[Autopilot] Saved full plan proposal: {plan_path}")
         except Exception as e:
             logger.warning(f"[Autopilot] Failed to save plan proposal: {e}")
 
     def execute_approved_proposals(self, session_id: str) -> int:
         """Execute proposals that have been approved via approval workflow.
 
-        IMP-AUTOPILOT-002: Execute actions approved by human reviewers.
+        IMP-FEAT-004: Complete implementation for loading and executing approved proposals.
+
+        This method:
+        1. Loads the autopilot session to get the plan_proposal_id
+        2. Loads the full PlanProposalV1 from the plans directory
+        3. Filters actions to only those that have been approved
+        4. Executes each approved action via SafeActionExecutor
+        5. Records results and updates the session
 
         Args:
             session_id: Session ID to execute approved actions for
 
         Returns:
-            Number of approved actions executed
+            Number of approved actions successfully executed
 
         Raises:
             RuntimeError: If autopilot is not enabled
@@ -521,7 +512,7 @@ class AutopilotController:
 
         from .approval_service import ApprovalService
 
-        logger.info(f"[IMP-AUTOPILOT-002] Executing approved proposals for session {session_id}")
+        logger.info(f"[IMP-FEAT-004] Executing approved proposals for session {session_id}")
 
         # Load approval service
         approval_svc = ApprovalService(
@@ -534,32 +525,115 @@ class AutopilotController:
         approved_ids = approval_svc.get_approved_actions(session_id=session_id)
 
         if not approved_ids:
-            logger.info("[IMP-AUTOPILOT-002] No approved actions to execute")
+            logger.info("[IMP-FEAT-004] No approved actions to execute")
             return 0
 
-        logger.info(f"[IMP-AUTOPILOT-002] Found {len(approved_ids)} approved actions")
+        logger.info(f"[IMP-FEAT-004] Found {len(approved_ids)} approved actions")
 
-        # Load the original session to get action details
+        # Step 1: Load the original session to get plan_proposal_id
         session_path = self.layout.base_dir / "autonomy" / f"{session_id}.json"
         if not session_path.exists():
-            logger.error(f"[IMP-AUTOPILOT-002] Session file not found: {session_path}")
+            logger.error(f"[IMP-FEAT-004] Session file not found: {session_path}")
             return 0
 
-        # TODO: Load proposal from session and execute approved actions
-        # This would require loading the plan proposal and filtering to approved actions
-        # For now, just log that we would execute them
-        logger.info(
-            f"[IMP-AUTOPILOT-002] Would execute {len(approved_ids)} approved actions: "
-            f"{approved_ids[:3]}{'...' if len(approved_ids) > 3 else ''}"
+        try:
+            original_session = AutopilotSessionV1.load_from_file(session_path)
+            plan_proposal_id = original_session.plan_proposal_id
+            logger.info(f"[IMP-FEAT-004] Loaded session with plan_proposal_id: {plan_proposal_id}")
+        except Exception as e:
+            logger.error(f"[IMP-FEAT-004] Failed to load session: {e}")
+            return 0
+
+        # Step 2: Load the full PlanProposalV1
+        plan_path = self.layout.base_dir / "plans" / f"plan_proposal_{plan_proposal_id}.json"
+        if not plan_path.exists():
+            logger.error(f"[IMP-FEAT-004] Plan proposal file not found: {plan_path}")
+            return 0
+
+        try:
+            proposal = PlanProposalV1.load_from_file(plan_path)
+            logger.info(f"[IMP-FEAT-004] Loaded plan proposal with {len(proposal.actions)} actions")
+        except Exception as e:
+            logger.error(f"[IMP-FEAT-004] Failed to load plan proposal: {e}")
+            return 0
+
+        # Step 3: Filter to approved actions only
+        approved_actions = [a for a in proposal.actions if a.action_id in approved_ids]
+
+        if not approved_actions:
+            logger.warning(
+                f"[IMP-FEAT-004] No matching actions found in proposal for approved IDs: "
+                f"{approved_ids[:3]}{'...' if len(approved_ids) > 3 else ''}"
+            )
+            return 0
+
+        logger.info(f"[IMP-FEAT-004] Executing {len(approved_actions)} approved actions")
+
+        # Step 4: Execute approved actions via SafeActionExecutor
+        executor = SafeActionExecutor(
+            workspace_root=self.workspace_root,
+            command_timeout=30,
+            dry_run=False,
         )
 
-        # In a full implementation, this would:
-        # 1. Load the PlanProposalV1 associated with this session
-        # 2. Filter actions to only approved_ids
-        # 3. Execute each action via SafeActionExecutor
-        # 4. Record results and update approval service
+        executed_count = 0
+        successful_count = 0
+        failed_count = 0
 
-        return len(approved_ids)
+        for action in approved_actions:
+            logger.info(
+                f"[IMP-FEAT-004] Executing approved action: {action.action_id} ({action.action_type})"
+            )
+
+            result = None
+
+            # Execute based on action type
+            if action.action_type in ["check_doc_drift", "run_lint", "run_test_collect"]:
+                # Read-only command actions
+                command = self._get_command_for_action(action)
+                if command:
+                    result = executor.execute_command(command)
+            elif action.action_type == "write_artifact":
+                # Artifact write
+                artifact_path = getattr(action, "artifact_path", None) or (
+                    action.target_paths[0] if action.target_paths else None
+                )
+                artifact_content = getattr(action, "artifact_content", "{}")
+                if artifact_path:
+                    result = executor.write_artifact(artifact_path, artifact_content)
+            elif action.command:
+                # Action with explicit command
+                result = executor.execute_command(action.command)
+            elif action.target_paths:
+                # File-based action
+                for target_path in action.target_paths:
+                    result = executor.write_artifact(
+                        target_path, getattr(action, "content", "")
+                    )
+
+            if result:
+                executed_count += 1
+                if result.success:
+                    successful_count += 1
+                    logger.info(f"[IMP-FEAT-004] Action {action.action_id} executed successfully")
+                else:
+                    failed_count += 1
+                    logger.warning(
+                        f"[IMP-FEAT-004] Action {action.action_id} failed: {result.reason}"
+                    )
+            else:
+                # No result means passthrough (action type not requiring execution)
+                executed_count += 1
+                successful_count += 1
+                logger.info(f"[IMP-FEAT-004] Action {action.action_id} passed through")
+
+        # Step 5: Log final results
+        logger.info(
+            f"[IMP-FEAT-004] Execution complete: "
+            f"{executed_count} executed, {successful_count} successful, {failed_count} failed"
+        )
+
+        return successful_count
 
     def save_session(self) -> Path:
         """Save autopilot session to run-local artifact.

@@ -20,6 +20,7 @@ from autopack.executor.phase_orchestrator import (
     PhaseOrchestrator,
     ExecutionContext,
     PhaseResult,
+    create_default_time_watchdog,
 )
 
 
@@ -466,6 +467,7 @@ class TestPhaseOrchestratorIntegration:
             allowed_paths=["src/"],
             run_id="test-run-015",
             llm_service=Mock(),
+            time_watchdog=create_default_time_watchdog(),  # IMP-SAFETY-004: Required
         )
 
         # Create orchestrator

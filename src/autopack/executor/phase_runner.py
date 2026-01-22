@@ -69,7 +69,7 @@ class PhaseRunner:
         ci_flow: Any,
         phase_state_mgr: Any,
         manifest_generator: Optional[Any] = None,
-        time_watchdog: Optional[Any] = None,
+        time_watchdog: Any = None,  # IMP-SAFETY-004: Required but typed as Any for flexibility
     ):
         """Initialize PhaseRunner with dependencies.
 
@@ -82,8 +82,15 @@ class PhaseRunner:
             ci_flow: CI execution flow
             phase_state_mgr: Phase state manager for DB updates
             manifest_generator: Optional manifest generator
-            time_watchdog: Optional watchdog for timeout enforcement
+            time_watchdog: TimeWatchdog instance for timeout enforcement (IMP-SAFETY-004: mandatory)
         """
+        # IMP-SAFETY-004: Validate time_watchdog is provided
+        if time_watchdog is None:
+            raise ValueError(
+                "time_watchdog is required per IMP-SAFETY-004. "
+                "Phases cannot run indefinitely. Use create_default_time_watchdog() "
+                "from autopack.executor.phase_orchestrator to create with config defaults."
+            )
         self.llm_service = llm_service
         self.builder_orchestrator = builder_orchestrator
         self.auditor_orchestrator = auditor_orchestrator

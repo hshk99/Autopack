@@ -95,9 +95,11 @@ If context overflowed, continue from your last summary.
 Resolve any issues and continue until you complete the prompt you were initially given.
 When done, create PR and run CI."""
 
-# Grid configuration for 5120x1440 monitor with 3x3 grid
-# Right half of monitor (X starts at 2560), with verified slot positions
+# Grid configuration for 5120x1440 monitor with 3x3 grid + main cursor
+# Slot 0 = Main Cursor on left side of grid (supervisory)
+# Slots 1-9 = Right half of monitor (X starts at 2560), with verified slot positions
 GRID_POSITIONS = {
+    0: {"x": 1280, "y": 0, "width": 1280, "height": 926},  # Main Cursor (left of grid)
     1: {"x": 2560, "y": 0, "width": 853, "height": 463},  # Top-Left
     2: {"x": 3413, "y": 0, "width": 853, "height": 463},  # Top-Center
     3: {"x": 4266, "y": 0, "width": 854, "height": 463},  # Top-Right
@@ -111,6 +113,7 @@ GRID_POSITIONS = {
 
 # Resume button coordinates (absolute screen positions) - provided by user
 RESUME_BUTTON_COORDS = {
+    0: {"x": 1920, "y": 463},  # Slot 0 (main cursor)
     1: {"x": 3121, "y": 337},  # Slot 1 (top-left)
     2: {"x": 3979, "y": 337},  # Slot 2 (top-center)
     3: {"x": 4833, "y": 337},  # Slot 3 (top-right)
@@ -1248,8 +1251,8 @@ foreach ($pos in [WindowEnumerator]::cursorWindows) {
     except Exception as e:
         if verbose:
             print(f"  [ERROR] Failed to detect active windows: {e}")
-        # Return all slots as fallback
-        return set(range(1, 10))
+        # Return all slots as fallback (0-9 includes main cursor)
+        return set(range(0, 10))
 
 
 # ============================================================================

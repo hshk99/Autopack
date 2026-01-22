@@ -28,6 +28,7 @@ class ModelRouter:
     - Per-run model overrides
     - Quota-aware fallback logic
     - Fail-fast for critical categories
+    - IMP-COST-004: Cheap model first strategy for non-critical tasks
     """
 
     def __init__(self, db: Session, config_path: str = "config/models.yaml"):
@@ -51,6 +52,9 @@ class ModelRouter:
         self.fallback_strategy = self.config.get("fallback_strategy", {})
         self.quota_routing = self.config.get("quota_routing", {})
 
+        # IMP-COST-004: Cheap-first optimization configuration
+        self.cheap_first_config = self.config.get("cheap_first_optimization", {})
+
         # Initialize model selector for escalation support
         self.model_selector = get_model_selector(config_path)
         self._phase_histories: Dict[str, PhaseHistory] = {}
@@ -71,6 +75,7 @@ class ModelRouter:
         complexity: str,
         run_context: Optional[Dict] = None,
         phase_id: Optional[str] = None,
+        attempt_index: int = 0,
     ) -> tuple[str, Optional[Dict]]:
         """
         Select appropriate model based on task and quota state.
@@ -81,6 +86,7 @@ class ModelRouter:
             complexity: Complexity level (low/medium/high)
             run_context: Optional run context with model_overrides
             phase_id: Optional phase ID for budget tracking
+            attempt_index: Current attempt number (IMP-COST-004: for cheap-first escalation)
 
         Returns:
             Tuple of (model_name, budget_warning)
@@ -95,6 +101,19 @@ class ModelRouter:
             key = f"{task_category}:{complexity}"
             if key in overrides:
                 return overrides[key], budget_warning
+
+        # IMP-COST-004: Apply cheap-first optimization for eligible categories
+        cheap_model = self._get_cheap_first_model(task_category, attempt_index)
+        if cheap_model:
+            logger.info(
+                f"[ModelRouter] IMP-COST-004: Using cheap model {cheap_model} "
+                f"for category={task_category}, attempt={attempt_index}"
+            )
+            budget_warning = {
+                "level": "info",
+                "message": f"Cheap-first optimization: using {cheap_model} for {task_category}",
+            }
+            return cheap_model, budget_warning
 
         # 2. Get baseline model from config
         baseline_model = self._get_baseline_model(role, task_category, complexity)
@@ -283,6 +302,65 @@ class ModelRouter:
         """Check if the provider for a model has been disabled."""
         provider = self._model_to_provider(model)
         return provider in self.disabled_providers
+
+    def _get_cheap_first_model(
+        self, task_category: Optional[str], attempt_index: int
+    ) -> Optional[str]:
+        """
+        IMP-COST-004: Get cheap model for first attempts on eligible categories.
+
+        For non-critical task categories (docs, tests, etc.), returns a cheap model
+        for the first N attempts before escalating to more expensive models.
+
+        Args:
+            task_category: Task category (e.g., "docs", "tests")
+            attempt_index: Current attempt number (0-based)
+
+        Returns:
+            Cheap model name if eligible, None otherwise
+        """
+        if not self.cheap_first_config.get("enabled", False):
+            return None
+
+        if task_category is None:
+            return None
+
+        # Check if category is eligible for cheap-first optimization
+        eligible_categories = self.cheap_first_config.get("eligible_categories", [])
+        if task_category not in eligible_categories:
+            return None
+
+        # Check if we should still use cheap model based on attempt count
+        max_cheap_attempts = self.cheap_first_config.get("cheap_attempts_before_escalation", 1)
+        if attempt_index >= max_cheap_attempts:
+            logger.debug(
+                f"[ModelRouter] IMP-COST-004: Escalating from cheap model "
+                f"after {attempt_index} attempts for {task_category}"
+            )
+            return None
+
+        # Return the cheap model
+        cheap_model = self.cheap_first_config.get("cheap_model", "claude-3-haiku-20240307")
+        return cheap_model
+
+    def is_cheap_first_eligible(self, task_category: Optional[str]) -> bool:
+        """
+        IMP-COST-004: Check if a task category is eligible for cheap-first optimization.
+
+        Args:
+            task_category: Task category to check
+
+        Returns:
+            True if category can use cheap-first strategy
+        """
+        if not self.cheap_first_config.get("enabled", False):
+            return False
+
+        if task_category is None:
+            return False
+
+        eligible_categories = self.cheap_first_config.get("eligible_categories", [])
+        return task_category in eligible_categories
 
     def _get_baseline_model(self, role: str, task_category: Optional[str], complexity: str) -> str:
         """

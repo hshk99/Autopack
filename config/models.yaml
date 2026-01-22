@@ -14,6 +14,26 @@ tier_budget_strategy:
     sonnet: 500
     opus: 200
 
+# IMP-COST-004: Cheap model first strategy for token efficiency
+# Non-critical tasks start with cheaper models before escalating to expensive ones
+cheap_first_optimization:
+  enabled: true
+  # Task categories eligible for cheap-first strategy (NOT high-risk)
+  eligible_categories:
+    - docs
+    - tests
+    - refactor
+    - cleanup
+    - formatting
+    - lint_fix
+    - comment_update
+  # Model to use for first attempt on eligible categories
+  cheap_model: claude-3-haiku-20240307
+  # Number of cheap model attempts before escalating
+  cheap_attempts_before_escalation: 1
+  # Maximum token savings tracking
+  track_savings: true
+
 complexity_models:
   low:
     # Default low tier: Claude Sonnet 4.5 (Anthropic) for all low-complexity phases
@@ -84,23 +104,31 @@ llm_routing_policies:
       after_attempts: 2
     description: Large refactors, complex features (non-security, non-schema)
   docs:
-    strategy: progressive
-    # Docs: Claude Sonnet 4.5 for reliable documentation generation
-    builder_primary: claude-sonnet-4-5
-    auditor_primary: claude-sonnet-4-5
+    strategy: cheap_first
+    # IMP-COST-004: Docs start with Haiku for cost efficiency
+    builder_primary: claude-3-haiku-20240307
+    auditor_primary: claude-3-haiku-20240307
     escalate_to:
+      builder: claude-sonnet-4-5
+      auditor: claude-sonnet-4-5
+      after_attempts: 1
+    final_escalation:
       builder: claude-opus-4-5
       after_attempts: 3
-    description: Documentation generation, README updates
+    description: Documentation generation, README updates (cheap-first for cost savings)
   tests:
-    strategy: progressive
-    # Tests: Claude Sonnet 4.5 for reliable test generation
-    builder_primary: claude-sonnet-4-5
-    auditor_primary: claude-sonnet-4-5
+    strategy: cheap_first
+    # IMP-COST-004: Tests start with Haiku for cost efficiency
+    builder_primary: claude-3-haiku-20240307
+    auditor_primary: claude-3-haiku-20240307
     escalate_to:
+      builder: claude-sonnet-4-5
+      auditor: claude-sonnet-4-5
+      after_attempts: 1
+    final_escalation:
       builder: claude-opus-4-5
-      after_attempts: 2
-    description: Test code generation, test refactoring
+      after_attempts: 3
+    description: Test code generation, test refactoring (cheap-first for cost savings)
 category_models:
   external_feature_reuse:
     description: 'DEPRECATED: Use external_feature_reuse_remote or _internal'
@@ -160,6 +188,7 @@ defaults:
 model_aliases:
   sonnet: claude-sonnet-4-5
   opus: claude-opus-4-5
+  haiku: claude-3-haiku-20240307  # IMP-COST-004: Added haiku alias for cheap-first strategy
   gemini-flash: gemini-2.5-flash
   gemini-lite: gemini-2.5-flash-lite
   # Zhipu GLM aliases (used by tidy tooling and optional legacy utilities)
@@ -174,7 +203,8 @@ escalation_chains:
   builder:
     low:
       models:
-      # Low tier: Claude Sonnet 4.5 first, then Opus as escalation
+      # IMP-COST-004: Low tier starts with Haiku for cost efficiency, escalates to Sonnet then Opus
+      - claude-3-haiku-20240307
       - claude-sonnet-4-5
       - claude-opus-4-5
     medium:
@@ -189,7 +219,8 @@ escalation_chains:
   auditor:
     low:
       models:
-      # Low tier auditor: Claude Sonnet 4.5 first, then Opus for tougher reviews
+      # IMP-COST-004: Low tier auditor starts with Haiku, escalates to Sonnet then Opus
+      - claude-3-haiku-20240307
       - claude-sonnet-4-5
       - claude-opus-4-5
     medium:

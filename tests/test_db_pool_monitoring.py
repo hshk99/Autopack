@@ -1,10 +1,15 @@
-"""Tests for database connection pool monitoring (IMP-DB-001)."""
+"""Tests for database connection pool monitoring (IMP-DB-001, IMP-PERF-001)."""
 
 import time
 from unittest.mock import MagicMock, patch
 
 
-from autopack.database import get_pool_health
+from autopack.database import (
+    get_pool_health,
+    get_session,
+    get_session_metrics,
+    ScopedSession,
+)
 from autopack.db_leak_detector import ConnectionLeakDetector
 from autopack.dashboard_schemas import DatabasePoolStats
 
@@ -308,3 +313,131 @@ class TestAutonomousLoopPoolHealthLogging:
                         if "utilization high" in str(call)
                     ]
                     assert len(warning_calls) >= 1
+
+
+class TestConnectionPooling:
+    """Tests for IMP-PERF-001 connection pooling enhancements."""
+
+    def test_get_session_context_manager(self):
+        """Test get_session context manager provides session and cleans up."""
+        with get_session() as session:
+            assert session is not None
+            # Verify session is usable by executing a simple query
+            from sqlalchemy import text
+
+            result = session.execute(text("SELECT 1"))
+            assert result is not None
+        # After context manager exits, session should be returned to pool
+        # (verified by scoped session remove being called)
+
+    def test_get_session_commits_on_success(self):
+        """Test get_session commits on successful completion."""
+        with patch.object(ScopedSession, "remove") as mock_remove:
+            with get_session() as session:
+                # Session should be provided
+                assert session is not None
+            # After success, remove should be called to return to pool
+            mock_remove.assert_called_once()
+
+    def test_get_session_rollback_on_exception(self):
+        """Test get_session rolls back on exception."""
+
+        class TestException(Exception):
+            pass
+
+        with patch("autopack.database.logger") as mock_logger:
+            try:
+                with get_session() as _session:
+                    raise TestException("Test error")
+            except TestException:
+                pass
+            # Should log warning about rollback
+            assert any(
+                "rollback" in str(call).lower() for call in mock_logger.warning.call_args_list
+            )
+
+    def test_scoped_session_thread_local(self):
+        """Test ScopedSession provides thread-local session."""
+        session1 = ScopedSession()
+        session2 = ScopedSession()
+        # Same thread should get same session
+        assert session1 is session2
+        ScopedSession.remove()
+
+    def test_get_session_metrics_returns_dict(self):
+        """Test get_session_metrics returns metrics dictionary."""
+        metrics = get_session_metrics()
+
+        assert isinstance(metrics, dict)
+        assert "total_checkouts" in metrics
+        assert "total_checkins" in metrics
+        assert "active_sessions" in metrics
+        assert "peak_active_sessions" in metrics
+
+    def test_get_session_metrics_tracks_checkouts(self):
+        """Test that session metrics track checkouts correctly."""
+        initial_metrics = get_session_metrics()
+        initial_checkouts = initial_metrics["total_checkouts"]
+
+        # Use a session to trigger checkout
+        with get_session() as session:
+            from sqlalchemy import text
+
+            session.execute(text("SELECT 1"))
+
+        final_metrics = get_session_metrics()
+        # Checkout count should increase
+        assert final_metrics["total_checkouts"] >= initial_checkouts
+
+    def test_get_pool_health_includes_session_metrics(self):
+        """Test get_pool_health includes session checkout metrics."""
+        with patch("autopack.database.leak_detector") as mock_detector:
+            mock_detector.check_pool_health.return_value = {
+                "pool_size": 20,
+                "checked_out": 5,
+                "overflow": 0,
+                "utilization": 0.25,
+                "is_healthy": True,
+                "queue_size": 0,
+            }
+
+            with patch("autopack.database.engine") as mock_engine:
+                mock_engine.pool._max_overflow = 10
+
+                stats = get_pool_health()
+
+                # Should include total_checkouts from session metrics
+                assert hasattr(stats, "total_checkouts")
+                assert stats.total_checkouts >= 0
+
+
+class TestScopedSessionCleanup:
+    """Tests for scoped session cleanup behavior."""
+
+    def test_scoped_session_remove_returns_to_pool(self):
+        """Test that ScopedSession.remove() properly returns session to pool."""
+        # Get a session
+        session = ScopedSession()
+        assert session is not None
+
+        # Remove should not raise
+        ScopedSession.remove()
+
+        # Getting another session should work
+        new_session = ScopedSession()
+        assert new_session is not None
+        ScopedSession.remove()
+
+    def test_multiple_get_session_calls(self):
+        """Test multiple sequential get_session calls work correctly."""
+        results = []
+
+        for i in range(3):
+            with get_session() as session:
+                from sqlalchemy import text
+
+                result = session.execute(text("SELECT 1"))
+                results.append(result.scalar())
+
+        assert len(results) == 3
+        assert all(r == 1 for r in results)

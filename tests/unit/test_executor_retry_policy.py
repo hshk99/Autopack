@@ -10,6 +10,7 @@ import pytest
 from autopack.executor.retry_policy import (
     AttemptContext,
     AttemptDecision,
+    choose_model_for_attempt,
     next_attempt_state,
     should_escalate,
     should_run_diagnostics,
@@ -203,3 +204,46 @@ class TestNextAttemptStateEdgeCases:
         assert result.next_retry_attempt == 5
         assert result.should_run_diagnostics is False
         assert result.terminal is True
+
+
+# ============================================================================
+# Test: choose_model_for_attempt
+# ============================================================================
+class TestChooseModelForAttempt:
+    """Tests for choose_model_for_attempt function.
+
+    Currently this function always returns None, deferring to ModelRouter.
+    These tests document the expected behavior and guard against regressions.
+    """
+
+    @pytest.mark.parametrize(
+        "attempt_index,max_attempts,escalation_level",
+        [
+            (0, 5, 0),  # First attempt, base level
+            (1, 5, 0),  # Mid attempt, base level
+            (4, 5, 0),  # Last attempt, base level
+            (0, 5, 1),  # First attempt, escalated level
+            (2, 5, 2),  # Mid attempt, higher escalation
+            (0, 1, 0),  # Single attempt scenario
+            (0, 10, 3),  # High escalation level
+        ],
+    )
+    def test_choose_model_for_attempt_returns_none(
+        self, attempt_index: int, max_attempts: int, escalation_level: int
+    ) -> None:
+        """Verify choose_model_for_attempt defers to ModelRouter (returns None)."""
+        ctx = AttemptContext(
+            attempt_index=attempt_index,
+            max_attempts=max_attempts,
+            escalation_level=escalation_level,
+        )
+        result = choose_model_for_attempt(ctx)
+        assert result is None
+
+    def test_choose_model_for_attempt_is_pure_function(self) -> None:
+        """Verify function is pure: same input always produces same output."""
+        ctx = AttemptContext(attempt_index=2, max_attempts=5, escalation_level=1)
+        result1 = choose_model_for_attempt(ctx)
+        result2 = choose_model_for_attempt(ctx)
+        assert result1 == result2
+        assert result1 is None

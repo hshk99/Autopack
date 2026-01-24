@@ -49,20 +49,56 @@ complexity_models:
     auditor: claude-sonnet-4-5
     escalation_builder: claude-sonnet-4-5
     escalation_auditor: claude-opus-4-5
+# =============================================================================
+# DUAL AUDIT CONFIGURATION
+# =============================================================================
+# WARNING: Enabling dual_audit increases token usage by approximately 3x
+#
+# How dual audit works:
+#   - Each phase is reviewed by TWO separate auditors (primary + secondary)
+#   - If auditors disagree, a third "judge" model (dual_audit_judge) resolves
+#   - This provides higher quality review but at significant cost
+#
+# Cost impact (approximate, at current Claude pricing):
+#   - Single audit:  ~$0.03 per phase
+#   - Dual audit:    ~$0.09 per phase (3x increase)
+#   - With judge:    ~$0.12 per phase (if disagreement triggers judge)
+#
+# Token multiplier breakdown:
+#   - 1x: Builder generates code
+#   - 1x: Primary auditor reviews
+#   - 1x: Secondary auditor reviews (dual_audit: true)
+#   - +1x: Judge resolves conflicts (only when auditors disagree)
+#
+# Recommended for:
+#   - Production deployments with high-stakes changes
+#   - Security-sensitive code (authentication, authorization)
+#   - Destructive database migrations
+#   - External dependency integration from unvetted sources
+#
+# Not recommended for:
+#   - Development and testing environments
+#   - Cost-sensitive workloads
+#   - Low-risk changes (docs, formatting, simple refactors)
+#   - High-volume batch processing
+#
+# To disable dual audit for a category, set dual_audit: false or remove the key
+# =============================================================================
+
 llm_routing_policies:
   security_auth_change:
     strategy: best_first
     builder_primary: claude-sonnet-4-5
     auditor_primary: claude-opus-4-5
     secondary_auditor: claude-sonnet-4-5
-    dual_audit: true
+    dual_audit: true  # 3x token cost - justified for security changes
     description: Authentication, authorization, security code changes
   external_feature_reuse_remote:
     strategy: best_first
     builder_primary: claude-sonnet-4-5
     auditor_primary: claude-opus-4-5
     secondary_auditor: claude-sonnet-4-5
-    dual_audit: true
+    dual_audit: true  # 3x token cost - justified for external/unvetted code
     allow_auto_apply: false
     description: Pull code from unvetted GitHub/NPM/PyPI/external sources
   schema_contract_change_destructive:
@@ -70,7 +106,7 @@ llm_routing_policies:
     builder_primary: claude-sonnet-4-5
     auditor_primary: claude-opus-4-5
     secondary_auditor: claude-sonnet-4-5
-    dual_audit: true
+    dual_audit: true  # 3x token cost - justified for destructive DB changes
     max_attempts: 2
     description: Drop columns/tables, change constraints, destructive migrations
   external_feature_reuse_internal:
@@ -253,11 +289,20 @@ replan:
   - wrong_tech_stack
   - schema_mismatch
   - api_contract_wrong
-# Dual-audit judge model: resolves disagreements when two auditors conflict
-# Used by llm_service._run_judge_audit() when dual_audit: true categories have
-# approval_mismatch, severity_mismatch, or category_miss between auditors
+# =============================================================================
+# DUAL AUDIT JUDGE MODEL
+# =============================================================================
+# Resolves disagreements when two auditors conflict in dual_audit: true phases
+# Used by llm_service._run_judge_audit() when auditors have:
+#   - approval_mismatch: One approves, one rejects
+#   - severity_mismatch: Different severity assessments
+#   - category_miss: Different risk categorizations
+#
+# Cost impact: Adds ~$0.03 per conflict resolution (only when triggered)
+# The judge is NOT called if both auditors agree - no additional cost in that case
+# =============================================================================
 dual_audit_judge:
-  model: claude-opus-4-5  # Top-tier model for tie-breaking
+  model: claude-opus-4-5  # Top-tier model for tie-breaking critical decisions
 
 doctor_models:
   # Doctor now uses Claude Sonnet 4.5 for both cheap and strong analysis

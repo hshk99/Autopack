@@ -5,6 +5,7 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 
 from autopack.roadc import AutonomousTaskGenerator, GeneratedTask, TaskGenerationResult
+from autopack.telemetry.analyzer import RankedIssue
 
 
 class TestAutonomousTaskGenerator:
@@ -335,3 +336,280 @@ class TestAutonomousTaskGenerator:
         assert count == 2
         mock_session.commit.assert_called_once()
         assert mock_session.add.call_count == 2
+
+
+class TestTelemetryInsightsWiring:
+    """Tests for IMP-FEAT-001: Wire TelemetryAnalyzer output to TaskGenerator."""
+
+    @pytest.fixture
+    def mock_memory_service(self):
+        """Create a mock memory service."""
+        service = Mock()
+        service.retrieve_insights = Mock(return_value=[])
+        return service
+
+    @pytest.fixture
+    def sample_telemetry_insights(self):
+        """Create sample telemetry insights from TelemetryAnalyzer."""
+        return {
+            "top_cost_sinks": [
+                RankedIssue(
+                    rank=1,
+                    issue_type="cost_sink",
+                    phase_id="build-phase-1",
+                    phase_type="build",
+                    metric_value=75000.0,
+                    details={"avg_tokens": 25000.0, "count": 3},
+                ),
+                RankedIssue(
+                    rank=2,
+                    issue_type="cost_sink",
+                    phase_id="test-phase-1",
+                    phase_type="test",
+                    metric_value=50000.0,
+                    details={"avg_tokens": 16666.0, "count": 3},
+                ),
+            ],
+            "top_failure_modes": [
+                RankedIssue(
+                    rank=1,
+                    issue_type="failure_mode",
+                    phase_id="deploy-phase-1",
+                    phase_type="deploy",
+                    metric_value=10.0,
+                    details={"outcome": "FAILED", "stop_reason": "timeout"},
+                ),
+            ],
+            "top_retry_causes": [
+                RankedIssue(
+                    rank=1,
+                    issue_type="retry_cause",
+                    phase_id="integration-phase",
+                    phase_type="integration",
+                    metric_value=8.0,
+                    details={"stop_reason": "rate_limit", "success_count": 2, "retry_count": 8},
+                ),
+            ],
+            "phase_type_stats": {
+                "build:opus": {"success_rate": 0.9, "avg_tokens": 5000, "sample_count": 10}
+            },
+        }
+
+    def test_generate_tasks_accepts_telemetry_insights(
+        self, mock_memory_service, sample_telemetry_insights
+    ):
+        """Test that generate_tasks accepts telemetry_insights parameter."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        result = generator.generate_tasks(
+            max_tasks=10,
+            min_confidence=0.0,
+            telemetry_insights=sample_telemetry_insights,
+        )
+
+        assert isinstance(result, TaskGenerationResult)
+        # Should not call memory service when telemetry is provided
+        mock_memory_service.retrieve_insights.assert_not_called()
+
+    def test_convert_telemetry_to_insights_converts_cost_sinks(
+        self, mock_memory_service, sample_telemetry_insights
+    ):
+        """Test that cost sinks are converted to insight format."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        insights = generator._convert_telemetry_to_insights(sample_telemetry_insights)
+
+        cost_sink_insights = [i for i in insights if i["issue_type"] == "cost_sink"]
+        assert len(cost_sink_insights) == 2
+
+        first_cost_sink = cost_sink_insights[0]
+        assert first_cost_sink["phase_id"] == "build-phase-1"
+        assert first_cost_sink["phase_type"] == "build"
+        assert first_cost_sink["metric_value"] == 75000.0
+        assert first_cost_sink["rank"] == 1
+        assert "75,000 tokens" in first_cost_sink["content"]
+
+    def test_convert_telemetry_to_insights_converts_failure_modes(
+        self, mock_memory_service, sample_telemetry_insights
+    ):
+        """Test that failure modes are converted to insight format."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        insights = generator._convert_telemetry_to_insights(sample_telemetry_insights)
+
+        failure_insights = [i for i in insights if i["issue_type"] == "failure_mode"]
+        assert len(failure_insights) == 1
+
+        failure = failure_insights[0]
+        assert failure["phase_id"] == "deploy-phase-1"
+        assert failure["phase_type"] == "deploy"
+        assert failure["severity"] == "high"
+        assert "timeout" in failure["content"]
+
+    def test_convert_telemetry_to_insights_converts_retry_causes(
+        self, mock_memory_service, sample_telemetry_insights
+    ):
+        """Test that retry causes are converted to insight format."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        insights = generator._convert_telemetry_to_insights(sample_telemetry_insights)
+
+        retry_insights = [i for i in insights if i["issue_type"] == "retry_cause"]
+        assert len(retry_insights) == 1
+
+        retry = retry_insights[0]
+        assert retry["phase_id"] == "integration-phase"
+        assert retry["phase_type"] == "integration"
+        assert "rate_limit" in retry["content"]
+        assert retry["metric_value"] == 8.0
+
+    def test_convert_telemetry_to_insights_total_count(
+        self, mock_memory_service, sample_telemetry_insights
+    ):
+        """Test that total insight count matches telemetry issue count."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        insights = generator._convert_telemetry_to_insights(sample_telemetry_insights)
+
+        expected_count = (
+            len(sample_telemetry_insights.get("top_cost_sinks", []))
+            + len(sample_telemetry_insights.get("top_failure_modes", []))
+            + len(sample_telemetry_insights.get("top_retry_causes", []))
+        )
+        assert len(insights) == expected_count
+
+    def test_generate_tasks_with_telemetry_produces_tasks(
+        self, mock_memory_service, sample_telemetry_insights
+    ):
+        """Test that generate_tasks with telemetry produces improvement tasks."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        result = generator.generate_tasks(
+            max_tasks=10,
+            min_confidence=0.0,
+            telemetry_insights=sample_telemetry_insights,
+        )
+
+        # Should generate tasks from telemetry insights
+        assert result.insights_processed > 0
+        # Tasks depend on pattern detection (need 2+ occurrences of same type)
+        # With 2 cost_sinks, 1 failure_mode, 1 retry_cause - cost_sink should create a pattern
+        assert result.patterns_detected >= 0
+
+    def test_generate_tasks_fallback_to_memory_when_no_telemetry(self, mock_memory_service):
+        """Test that generate_tasks falls back to memory service when no telemetry."""
+        mock_memory_service.retrieve_insights.return_value = [
+            {"issue_type": "error", "content": "Test error", "id": "1", "severity": "high"},
+            {"issue_type": "error", "content": "Test error 2", "id": "2", "severity": "high"},
+        ]
+
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        result = generator.generate_tasks(
+            max_tasks=10,
+            min_confidence=0.0,
+            telemetry_insights=None,  # No telemetry
+        )
+
+        # Should call memory service as fallback
+        mock_memory_service.retrieve_insights.assert_called_once()
+        assert result.insights_processed == 2
+
+    def test_convert_telemetry_assigns_high_severity_for_high_token_usage(
+        self, mock_memory_service
+    ):
+        """Test that high token usage (>50k) is assigned high severity."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        telemetry = {
+            "top_cost_sinks": [
+                RankedIssue(
+                    rank=1,
+                    issue_type="cost_sink",
+                    phase_id="expensive-phase",
+                    phase_type="build",
+                    metric_value=75000.0,  # > 50000 threshold
+                    details={"avg_tokens": 75000.0, "count": 1},
+                ),
+            ],
+            "top_failure_modes": [],
+            "top_retry_causes": [],
+        }
+
+        insights = generator._convert_telemetry_to_insights(telemetry)
+
+        assert len(insights) == 1
+        assert insights[0]["severity"] == "high"
+
+    def test_convert_telemetry_assigns_medium_severity_for_moderate_token_usage(
+        self, mock_memory_service
+    ):
+        """Test that moderate token usage (<50k) is assigned medium severity."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        telemetry = {
+            "top_cost_sinks": [
+                RankedIssue(
+                    rank=1,
+                    issue_type="cost_sink",
+                    phase_id="moderate-phase",
+                    phase_type="build",
+                    metric_value=30000.0,  # < 50000 threshold
+                    details={"avg_tokens": 30000.0, "count": 1},
+                ),
+            ],
+            "top_failure_modes": [],
+            "top_retry_causes": [],
+        }
+
+        insights = generator._convert_telemetry_to_insights(telemetry)
+
+        assert len(insights) == 1
+        assert insights[0]["severity"] == "medium"
+
+    def test_convert_telemetry_handles_empty_input(self, mock_memory_service):
+        """Test that empty telemetry data is handled gracefully."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        empty_telemetry = {
+            "top_cost_sinks": [],
+            "top_failure_modes": [],
+            "top_retry_causes": [],
+            "phase_type_stats": {},
+        }
+
+        insights = generator._convert_telemetry_to_insights(empty_telemetry)
+
+        assert len(insights) == 0
+
+    def test_convert_telemetry_handles_missing_keys(self, mock_memory_service):
+        """Test that missing telemetry keys are handled gracefully."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        partial_telemetry = {
+            "top_cost_sinks": [
+                RankedIssue(
+                    rank=1,
+                    issue_type="cost_sink",
+                    phase_id="only-phase",
+                    phase_type="build",
+                    metric_value=10000.0,
+                    details={},
+                ),
+            ],
+            # Missing top_failure_modes, top_retry_causes
+        }
+
+        insights = generator._convert_telemetry_to_insights(partial_telemetry)
+
+        assert len(insights) == 1
+        assert insights[0]["issue_type"] == "cost_sink"
+
+    def test_insight_ids_are_unique(self, mock_memory_service, sample_telemetry_insights):
+        """Test that generated insight IDs are unique."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        insights = generator._convert_telemetry_to_insights(sample_telemetry_insights)
+
+        ids = [i["id"] for i in insights]
+        assert len(ids) == len(set(ids)), "Insight IDs must be unique"

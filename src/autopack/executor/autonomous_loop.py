@@ -945,7 +945,12 @@ class AutonomousLoop:
         """Generate improvement tasks from telemetry (ROAD-C).
 
         Implements IMP-ARCH-004: Autonomous Task Generator.
+        Implements IMP-FEAT-001: Wire TelemetryAnalyzer output to TaskGenerator.
+
         Converts telemetry insights into improvement tasks for self-improvement feedback loop.
+        The ROAD-C pipeline connects:
+        1. TelemetryAnalyzer.aggregate_telemetry() -> ranked issues
+        2. AutonomousTaskGenerator.generate_tasks(telemetry_insights=...) -> improvement tasks
 
         Returns:
             List of GeneratedTask objects
@@ -971,10 +976,33 @@ class AutonomousLoop:
             return []
 
         try:
+            # IMP-FEAT-001: Get telemetry insights to wire to task generation
+            telemetry_insights = None
+            analyzer = self._get_telemetry_analyzer()
+            if analyzer:
+                try:
+                    telemetry_insights = analyzer.aggregate_telemetry(window_days=7)
+                    total_issues = (
+                        len(telemetry_insights.get("top_cost_sinks", []))
+                        + len(telemetry_insights.get("top_failure_modes", []))
+                        + len(telemetry_insights.get("top_retry_causes", []))
+                    )
+                    logger.info(
+                        f"[IMP-FEAT-001] Retrieved {total_issues} telemetry issues for task generation"
+                    )
+                except Exception as tel_err:
+                    logger.warning(
+                        f"[IMP-FEAT-001] Failed to get telemetry insights, "
+                        f"falling back to memory retrieval: {tel_err}"
+                    )
+                    telemetry_insights = None
+
+            # IMP-FEAT-001: Pass telemetry insights directly to task generator
             generator = AutonomousTaskGenerator()
             result = generator.generate_tasks(
                 max_tasks=task_gen_config.get("max_tasks_per_run", 10),
                 min_confidence=task_gen_config.get("min_confidence", 0.7),
+                telemetry_insights=telemetry_insights,
             )
 
             logger.info(

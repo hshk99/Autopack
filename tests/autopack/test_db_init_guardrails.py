@@ -5,6 +5,7 @@ Validates that init_db() enforces schema safety:
 - Bootstrap mode uses create_all() directly (dev/test)
 - Production mode uses Alembic migrations (IMP-OPS-002)
 - Prevents accidental schema drift between SQLite/Postgres
+- Concurrent bootstrap protection via advisory locks (IMP-OPS-006)
 """
 
 import os
@@ -159,6 +160,166 @@ class TestDBInitGuardrails:
             init_db()
 
         assert "migration" in str(exc_info.value).lower()
+
+
+@pytest.mark.xdist_group(name="db_guardrails_global_state")
+class TestBootstrapConcurrencyControl:
+    """Test migration concurrency control (IMP-OPS-006).
+
+    Validates that PostgreSQL bootstrap uses advisory locks to prevent
+    database corruption during concurrent startup.
+    """
+
+    def test_bootstrap_uses_advisory_lock_for_postgres(self, monkeypatch):
+        """Bootstrap should acquire advisory lock before create_all on PostgreSQL (IMP-OPS-006)."""
+        import autopack.database
+
+        # Mock PostgreSQL detection
+        monkeypatch.setattr(autopack.database, "_is_postgres", True)
+
+        # Track executed SQL
+        executed_sql = []
+
+        # Create mock connection with execute tracking
+        mock_conn = MagicMock()
+
+        def track_execute(sql):
+            executed_sql.append(str(sql))
+
+        mock_conn.execute = track_execute
+        mock_conn.__enter__ = lambda self: mock_conn
+        mock_conn.__exit__ = lambda self, *args: None
+
+        # Mock engine.connect() to return our tracking connection
+        mock_engine = MagicMock()
+        mock_engine.connect.return_value = mock_conn
+        monkeypatch.setattr(autopack.database, "engine", mock_engine)
+
+        # Mock create_all to avoid actual schema creation
+        mock_create_all = MagicMock()
+        monkeypatch.setattr(autopack.database.Base.metadata, "create_all", mock_create_all)
+
+        # Call _bootstrap_with_lock directly
+        from autopack.database import _bootstrap_with_lock
+
+        _bootstrap_with_lock()
+
+        # Verify advisory lock was acquired
+        lock_acquired = any("pg_advisory_lock" in sql for sql in executed_sql)
+        assert lock_acquired, f"Advisory lock not acquired. SQL executed: {executed_sql}"
+
+        # Verify advisory lock was released
+        lock_released = any("pg_advisory_unlock" in sql for sql in executed_sql)
+        assert lock_released, f"Advisory lock not released. SQL executed: {executed_sql}"
+
+        # Verify create_all was called
+        mock_create_all.assert_called_once()
+
+    def test_bootstrap_releases_lock_on_exception(self, monkeypatch):
+        """Advisory lock should be released even if create_all fails (IMP-OPS-006)."""
+        import autopack.database
+
+        # Mock PostgreSQL detection
+        monkeypatch.setattr(autopack.database, "_is_postgres", True)
+
+        # Track executed SQL
+        executed_sql = []
+
+        # Create mock connection with execute tracking
+        mock_conn = MagicMock()
+
+        def track_execute(sql):
+            executed_sql.append(str(sql))
+
+        mock_conn.execute = track_execute
+        mock_conn.__enter__ = lambda self: mock_conn
+        mock_conn.__exit__ = lambda self, *args: None
+
+        # Mock engine.connect() to return our tracking connection
+        mock_engine = MagicMock()
+        mock_engine.connect.return_value = mock_conn
+        monkeypatch.setattr(autopack.database, "engine", mock_engine)
+
+        # Mock create_all to raise an exception
+        def failing_create_all(**kwargs):
+            raise RuntimeError("Schema creation failed")
+
+        monkeypatch.setattr(autopack.database.Base.metadata, "create_all", failing_create_all)
+
+        # Call _bootstrap_with_lock directly
+        from autopack.database import _bootstrap_with_lock
+
+        with pytest.raises(RuntimeError):
+            _bootstrap_with_lock()
+
+        # Verify advisory lock was still released despite exception
+        lock_released = any("pg_advisory_unlock" in sql for sql in executed_sql)
+        assert lock_released, "Advisory lock not released after exception"
+
+    def test_bootstrap_skips_lock_for_sqlite(self, monkeypatch):
+        """SQLite bootstrap should not attempt advisory lock (IMP-OPS-006)."""
+        import autopack.database
+
+        # Mock SQLite detection (not PostgreSQL)
+        monkeypatch.setattr(autopack.database, "_is_postgres", False)
+
+        # Track if engine.connect() is called
+        connect_called = []
+
+        def track_connect():
+            connect_called.append(True)
+            raise AssertionError("Should not call connect for SQLite")
+
+        mock_engine = MagicMock()
+        mock_engine.connect = track_connect
+        monkeypatch.setattr(autopack.database, "engine", mock_engine)
+
+        # Mock create_all to succeed
+        mock_create_all = MagicMock()
+        monkeypatch.setattr(autopack.database.Base.metadata, "create_all", mock_create_all)
+
+        # Call _bootstrap_with_lock directly
+        from autopack.database import _bootstrap_with_lock
+
+        _bootstrap_with_lock()
+
+        # Verify connect was not called (no advisory lock for SQLite)
+        assert len(connect_called) == 0, "Should not attempt advisory lock for SQLite"
+
+        # Verify create_all was still called
+        mock_create_all.assert_called_once()
+
+    def test_init_db_calls_bootstrap_with_lock_in_bootstrap_mode(self, monkeypatch):
+        """init_db should use _bootstrap_with_lock when bootstrap enabled (IMP-OPS-006)."""
+        import autopack.database
+        import autopack.config
+
+        # Create mock settings with bootstrap enabled
+        mock_settings = MagicMock()
+        mock_settings.db_bootstrap_enabled = True
+        monkeypatch.setattr(autopack.config, "settings", mock_settings)
+
+        # Mock _bootstrap_with_lock to track if it gets called
+        mock_bootstrap = MagicMock()
+        monkeypatch.setattr(autopack.database, "_bootstrap_with_lock", mock_bootstrap)
+
+        from autopack.database import init_db
+
+        init_db()
+
+        # Verify _bootstrap_with_lock was called
+        mock_bootstrap.assert_called_once()
+
+    def test_advisory_lock_id_is_consistent(self):
+        """Advisory lock ID should be constant to ensure proper locking (IMP-OPS-006)."""
+        from autopack.database import _BOOTSTRAP_ADVISORY_LOCK_ID
+
+        # Verify the lock ID is a non-zero integer
+        assert isinstance(_BOOTSTRAP_ADVISORY_LOCK_ID, int)
+        assert _BOOTSTRAP_ADVISORY_LOCK_ID != 0
+
+        # Verify it fits in PostgreSQL's bigint range
+        assert -9223372036854775808 <= _BOOTSTRAP_ADVISORY_LOCK_ID <= 9223372036854775807
 
 
 if __name__ == "__main__":

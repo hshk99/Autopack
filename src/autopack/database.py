@@ -118,6 +118,10 @@ def init_db():
 
     This prevents silent schema drift between SQLite/Postgres environments.
     Alembic migrations provide version-controlled, reversible schema changes.
+
+    Concurrency Control (IMP-OPS-006):
+    - PostgreSQL: Uses advisory lock to prevent corruption during concurrent bootstrap
+    - SQLite: No locking needed (file-level locking is inherent)
     """
     from .config import settings
     import logging
@@ -141,12 +145,41 @@ def init_db():
             "[DB] Bootstrap mode enabled (AUTOPACK_DB_BOOTSTRAP=1). "
             "This should ONLY be used in dev/test environments."
         )
-        Base.metadata.create_all(bind=engine)
+        _bootstrap_with_lock()
         logger.info("[DB] Schema created/updated via create_all()")
     else:
         # Production mode: run Alembic migrations (IMP-OPS-002)
         logger.info("[DB] Running Alembic migrations for schema management")
         run_migrations()
+
+
+# Advisory lock ID for database bootstrap operations (IMP-OPS-006)
+# Using a unique 64-bit integer to prevent conflicts with other advisory locks
+_BOOTSTRAP_ADVISORY_LOCK_ID = 0x4155544F5041434B  # 'AUTOPACK' in hex
+
+
+def _bootstrap_with_lock():
+    """Bootstrap database with concurrency control (IMP-OPS-006).
+
+    For PostgreSQL: Acquires an advisory lock before running create_all()
+    to prevent corruption when multiple instances start simultaneously with
+    AUTOPACK_DB_BOOTSTRAP=1.
+
+    For SQLite: Runs create_all() directly (SQLite has inherent file-level locking).
+    """
+    if _is_postgres:
+        # PostgreSQL: Use advisory lock to prevent concurrent schema modifications
+        with engine.connect() as conn:
+            logger.info("[DB] Acquiring advisory lock for bootstrap")
+            conn.execute(text(f"SELECT pg_advisory_lock({_BOOTSTRAP_ADVISORY_LOCK_ID})"))
+            try:
+                Base.metadata.create_all(bind=engine)
+            finally:
+                conn.execute(text(f"SELECT pg_advisory_unlock({_BOOTSTRAP_ADVISORY_LOCK_ID})"))
+                logger.info("[DB] Released advisory lock after bootstrap")
+    else:
+        # SQLite: No advisory lock needed (inherent file-level locking)
+        Base.metadata.create_all(bind=engine)
 
 
 # Session health check interval (25 minutes - before 30 min pool_recycle)

@@ -607,9 +607,7 @@ class AutopilotController:
             elif action.target_paths:
                 # File-based action
                 for target_path in action.target_paths:
-                    result = executor.write_artifact(
-                        target_path, getattr(action, "content", "")
-                    )
+                    result = executor.write_artifact(target_path, getattr(action, "content", ""))
 
             if result:
                 executed_count += 1

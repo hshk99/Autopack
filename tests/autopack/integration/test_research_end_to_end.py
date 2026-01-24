@@ -14,13 +14,11 @@ def integration_setup(tmp_path):
     """Set up integration test environment."""
     # Create BUILD_HISTORY
     history_file = tmp_path / "BUILD_HISTORY.md"
-    history_file.write_text(
-        """
+    history_file.write_text("""
 ## Phase: IMPLEMENT_FEATURE - Feature A (SUCCESS) [2024-01-01T10:00:00]
 ## Phase: IMPLEMENT_FEATURE - Feature B (FAILED) [2024-01-02T11:00:00]
 ## Phase: FIX_BUG - Bug fix (SUCCESS) [2024-01-03T12:00:00]
-    """
-    )
+    """)
 
     # Create directories
     research_dir = tmp_path / "research"

@@ -118,9 +118,7 @@ class TestRunMaintenanceWithPhases:
         self, mock_audit, mock_executor, sample_plan, tmp_path
     ):
         """Single phase is processed through diagnostics and audit."""
-        mock_audit.return_value = AuditorDecision(
-            verdict="approve", reasons=["All checks passed"]
-        )
+        mock_audit.return_value = AuditorDecision(verdict="approve", reasons=["All checks passed"])
 
         bm = BacklogMaintenance(mock_executor)
         bm.run_maintenance(plan_path=sample_plan, apply=False)
@@ -135,9 +133,7 @@ class TestRunMaintenanceWithPhases:
         mock_executor._record_decision_entry.assert_called_once()
 
     @patch("autopack.executor.backlog_maintenance.audit_evaluate")
-    def test_run_maintenance_records_audit_decision(
-        self, mock_audit, mock_executor, sample_plan
-    ):
+    def test_run_maintenance_records_audit_decision(self, mock_audit, mock_executor, sample_plan):
         """Audit decision is recorded via executor."""
         mock_audit.return_value = AuditorDecision(
             verdict="require_human", reasons=["Large change size"]
@@ -158,9 +154,7 @@ class TestRunMaintenanceWithPhases:
     ):
         """Git checkpoint is created when apply=True and checkpoint=True."""
         mock_checkpoint.return_value = (True, "abc123")
-        mock_audit.return_value = AuditorDecision(
-            verdict="approve", reasons=["All checks passed"]
-        )
+        mock_audit.return_value = AuditorDecision(verdict="approve", reasons=["All checks passed"])
 
         bm = BacklogMaintenance(mock_executor)
         bm.run_maintenance(plan_path=sample_plan, apply=True, checkpoint=True)
@@ -173,9 +167,7 @@ class TestRunMaintenanceWithPhases:
         self, mock_audit, mock_executor, sample_plan, tmp_path
     ):
         """Apply is not attempted when no patch file exists."""
-        mock_audit.return_value = AuditorDecision(
-            verdict="approve", reasons=["All checks passed"]
-        )
+        mock_audit.return_value = AuditorDecision(verdict="approve", reasons=["All checks passed"])
 
         bm = BacklogMaintenance(mock_executor)
         bm.run_maintenance(
@@ -294,9 +286,7 @@ class TestRunMaintenanceSummaryWriting:
         return executor
 
     @patch("autopack.executor.backlog_maintenance.audit_evaluate")
-    def test_run_maintenance_completes_without_error(
-        self, mock_audit, mock_executor, tmp_path
-    ):
+    def test_run_maintenance_completes_without_error(self, mock_audit, mock_executor, tmp_path):
         """Summary processing completes without error."""
         plan = {"phases": [{"id": "test-phase", "description": "Test"}]}
         plan_path = tmp_path / "plan.json"
@@ -330,9 +320,7 @@ class TestRunMaintenanceMultiplePhases:
         return executor
 
     @patch("autopack.executor.backlog_maintenance.audit_evaluate")
-    def test_run_maintenance_processes_all_phases(
-        self, mock_audit, mock_executor, tmp_path
-    ):
+    def test_run_maintenance_processes_all_phases(self, mock_audit, mock_executor, tmp_path):
         """All phases in plan are processed."""
         plan = {
             "phases": [
@@ -396,9 +384,7 @@ class TestRunMaintenanceDefaultPaths:
         assert "src/autopack/" in auditor_input.allowed_paths
 
     @patch("autopack.executor.backlog_maintenance.audit_evaluate")
-    def test_custom_allowed_paths_override_defaults(
-        self, mock_audit, mock_executor, tmp_path
-    ):
+    def test_custom_allowed_paths_override_defaults(self, mock_audit, mock_executor, tmp_path):
         """Custom allowed paths override defaults."""
         plan = {"phases": [{"id": "test", "description": "Test"}]}
         plan_path = tmp_path / "plan.json"

@@ -40,6 +40,67 @@ from .deps import limiter
 logger = logging.getLogger(__name__)
 
 
+async def alert_critical_failure(
+    task_name: str,
+    error: str,
+    severity: str = "critical",
+    restart_count: int | None = None,
+) -> None:
+    """Send alert for critical background task failure.
+
+    IMP-OPS-005: Alerting for background task failures.
+    This function is called when background tasks fail critically
+    (e.g., exceed max restarts or encounter unrecoverable errors).
+
+    Args:
+        task_name: Name of the failed background task
+        error: Error message or description
+        severity: Alert severity level (critical, high, warning)
+        restart_count: Number of restart attempts if applicable
+
+    Alert channels:
+        1. Critical log message (always)
+        2. Telegram notification (if configured)
+    """
+    from ..notifications.telegram_notifier import TelegramNotifier
+
+    # Format alert message
+    restart_info = f" (after {restart_count} restart attempts)" if restart_count else ""
+    alert_message = (
+        f"🚨 CRITICAL: Background task '{task_name}' failed{restart_info}\nError: {error}"
+    )
+
+    # Always log at critical level
+    logger.critical(
+        f"[ALERT] {alert_message}",
+        extra={
+            "task_name": task_name,
+            "error": error,
+            "severity": severity,
+            "restart_count": restart_count,
+        },
+    )
+
+    # Send Telegram notification if configured
+    notifier = TelegramNotifier()
+    if notifier.is_configured():
+        try:
+            # Use send_completion_notice with a custom status for alerts
+            notifier.send_completion_notice(
+                phase_id=f"task:{task_name}",
+                status="error",
+                message=f"🚨 *Critical Task Failure*\n\n"
+                f"*Task*: `{task_name}`\n"
+                f"*Severity*: {severity.upper()}\n"
+                f"*Restarts*: {restart_count or 'N/A'}\n"
+                f"*Error*: {error[:200]}{'...' if len(error) > 200 else ''}\n\n"
+                f"_Immediate attention required_",
+            )
+            logger.info(f"[ALERT] Telegram notification sent for {task_name} failure")
+        except Exception as telegram_error:
+            logger.warning(f"[ALERT] Failed to send Telegram notification: {telegram_error}")
+
+
 class GracefulShutdownManager:
     """Manager for coordinating graceful shutdown of database operations.
 
@@ -423,6 +484,13 @@ class BackgroundTaskSupervisor:
                 f"[TASK-SUPERVISOR] Task {name} exceeded max restarts "
                 f"({self._max_restarts}). Giving up."
             )
+            # IMP-OPS-005: Alert on max restarts exceeded
+            await alert_critical_failure(
+                task_name=name,
+                error=f"Task exceeded maximum restart attempts ({self._max_restarts})",
+                severity="critical",
+                restart_count=self._max_restarts,
+            )
 
     def get_status(self) -> dict[str, dict]:
         """Get status of all supervised tasks.
@@ -619,6 +687,12 @@ async def approval_timeout_cleanup():
 
         except Exception as e:
             logger.error(f"[APPROVAL-TIMEOUT] Error in cleanup task: {e}", exc_info=True)
+            # IMP-OPS-005: Alert on background task failure
+            await alert_critical_failure(
+                task_name="approval_timeout_cleanup",
+                error=str(e),
+                severity="high",
+            )
             # IMP-OPS-007: Record failure
             try:
                 monitor = get_task_monitor()

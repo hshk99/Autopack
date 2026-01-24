@@ -653,6 +653,132 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
+def validate_config(config: Settings) -> list[str]:
+    """Validate configuration and return list of errors.
+
+    Performs comprehensive validation of all configuration values at startup
+    to catch invalid values early instead of obscure runtime errors.
+
+    Args:
+        config: The Settings instance to validate.
+
+    Returns:
+        List of validation error messages. Empty list if valid.
+    """
+    errors = []
+
+    # Token budget validations
+    if config.run_token_cap < 1000:
+        errors.append(f"run_token_cap must be >= 1000, got {config.run_token_cap}")
+
+    if config.phase_token_cap_default < 100:
+        errors.append(
+            f"phase_token_cap_default must be >= 100, got {config.phase_token_cap_default}"
+        )
+
+    if config.context_budget_tokens < 1000:
+        errors.append(f"context_budget_tokens must be >= 1000, got {config.context_budget_tokens}")
+
+    # Phase/run limit validations
+    if config.run_max_phases < 1:
+        errors.append(f"run_max_phases must be >= 1, got {config.run_max_phases}")
+
+    if config.run_max_duration_minutes < 1:
+        errors.append(
+            f"run_max_duration_minutes must be >= 1, got {config.run_max_duration_minutes}"
+        )
+
+    if config.phase_timeout_minutes < 1:
+        errors.append(f"phase_timeout_minutes must be >= 1, got {config.phase_timeout_minutes}")
+
+    # Timeout validations (must be positive)
+    if config.health_check_timeout <= 0:
+        errors.append(f"health_check_timeout must be > 0, got {config.health_check_timeout}")
+
+    if config.approval_check_interval <= 0:
+        errors.append(f"approval_check_interval must be > 0, got {config.approval_check_interval}")
+
+    if config.db_operation_timeout <= 0:
+        errors.append(f"db_operation_timeout must be > 0, got {config.db_operation_timeout}")
+
+    # SOT retrieval validations
+    if config.autopack_sot_retrieval_max_chars < 100:
+        errors.append(
+            f"autopack_sot_retrieval_max_chars must be >= 100, got "
+            f"{config.autopack_sot_retrieval_max_chars}"
+        )
+
+    if config.autopack_sot_retrieval_top_k < 1:
+        errors.append(
+            f"autopack_sot_retrieval_top_k must be >= 1, got {config.autopack_sot_retrieval_top_k}"
+        )
+
+    if config.autopack_sot_chunk_max_chars < 100:
+        errors.append(
+            f"autopack_sot_chunk_max_chars must be >= 100, got {config.autopack_sot_chunk_max_chars}"
+        )
+
+    # Autopilot validations
+    if config.autopilot_gap_scan_frequency < 1:
+        errors.append(
+            f"autopilot_gap_scan_frequency must be >= 1, got {config.autopilot_gap_scan_frequency}"
+        )
+
+    if config.autopilot_max_proposals_per_session < 0:
+        errors.append(
+            f"autopilot_max_proposals_per_session must be >= 0, got "
+            f"{config.autopilot_max_proposals_per_session}"
+        )
+
+    # Task generation validations
+    if config.task_generation_max_tasks_per_run < 0:
+        errors.append(
+            f"task_generation_max_tasks_per_run must be >= 0, got "
+            f"{config.task_generation_max_tasks_per_run}"
+        )
+
+    if not 0.0 <= config.task_generation_min_confidence <= 1.0:
+        errors.append(
+            f"task_generation_min_confidence must be between 0.0 and 1.0, got "
+            f"{config.task_generation_min_confidence}"
+        )
+
+    # Token expiration validation
+    if config.access_token_expire_minutes < 1:
+        errors.append(
+            f"access_token_expire_minutes must be >= 1, got {config.access_token_expire_minutes}"
+        )
+
+    # Production-specific validations
+    if config.autopack_env.lower() == "production":
+        # Check for API key (already validated in lifespan, but include for completeness)
+        api_key = os.getenv("AUTOPACK_API_KEY") or os.getenv("AUTOPACK_API_KEY_FILE")
+        if not api_key:
+            errors.append("AUTOPACK_API_KEY is required in production mode")
+
+    return errors
+
+
+def validate_startup_config() -> None:
+    """Validate configuration at startup and fail fast on errors.
+
+    Calls validate_config() and raises SystemExit if any validation errors
+    are found. This ensures the application fails fast with clear error
+    messages instead of obscure runtime errors.
+
+    Raises:
+        SystemExit: If configuration validation fails.
+    """
+    errors = validate_config(settings)
+
+    if errors:
+        for error in errors:
+            logger.error(f"Config validation failed: {error}")
+        raise SystemExit(f"Invalid configuration: {len(errors)} error(s)")
+
+    logger.info("Configuration validated successfully")
+
+
 def is_production() -> bool:
     """Check if running in production mode.
 

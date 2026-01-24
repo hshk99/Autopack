@@ -613,3 +613,149 @@ class TestTelemetryInsightsWiring:
 
         ids = [i["id"] for i in insights]
         assert len(ids) == len(set(ids)), "Insight IDs must be unique"
+
+
+class TestCleanupStaleTasks:
+    """Tests for stale in_progress task cleanup (IMP-REL-003)."""
+
+    @pytest.fixture
+    def mock_memory_service(self):
+        """Create a mock memory service."""
+        service = Mock()
+        service.retrieve_insights = Mock(return_value=[])
+        return service
+
+    def test_cleanup_stale_tasks_marks_old_tasks_as_failed(self, mock_memory_service):
+        """Test that tasks in_progress for too long are marked as failed."""
+        from datetime import timedelta
+
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        # Create mock stale task (updated 48 hours ago)
+        stale_task = Mock()
+        stale_task.task_id = "TASK-STALE001"
+        stale_task.status = "in_progress"
+        stale_task.updated_at = datetime.now() - timedelta(hours=48)
+        stale_task.created_at = datetime.now() - timedelta(hours=50)
+
+        # Create mock recent task (updated 1 hour ago)
+        recent_task = Mock()
+        recent_task.task_id = "TASK-RECENT001"
+        recent_task.status = "in_progress"
+        recent_task.updated_at = datetime.now() - timedelta(hours=1)
+        recent_task.created_at = datetime.now() - timedelta(hours=2)
+
+        mock_session = Mock()
+        mock_session.query.return_value.filter.return_value.all.return_value = [
+            stale_task,
+            recent_task,
+        ]
+
+        with patch("autopack.database.SessionLocal", return_value=mock_session):
+            count = generator.cleanup_stale_tasks(threshold_hours=24)
+
+        # Should only clean up the stale task
+        assert count == 1
+        assert stale_task.status == "failed"
+        assert "24 hours" in stale_task.failure_reason
+        # Recent task should not be modified
+        assert recent_task.status == "in_progress"
+        mock_session.commit.assert_called_once()
+
+    def test_cleanup_stale_tasks_uses_created_at_as_fallback(self, mock_memory_service):
+        """Test that cleanup uses created_at when updated_at is None."""
+        from datetime import timedelta
+
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        # Create mock stale task with no updated_at (old migration data)
+        stale_task = Mock()
+        stale_task.task_id = "TASK-OLD001"
+        stale_task.status = "in_progress"
+        stale_task.updated_at = None
+        stale_task.created_at = datetime.now() - timedelta(hours=48)
+
+        mock_session = Mock()
+        mock_session.query.return_value.filter.return_value.all.return_value = [stale_task]
+
+        with patch("autopack.database.SessionLocal", return_value=mock_session):
+            count = generator.cleanup_stale_tasks(threshold_hours=24)
+
+        assert count == 1
+        assert stale_task.status == "failed"
+
+    def test_cleanup_stale_tasks_respects_custom_threshold(self, mock_memory_service):
+        """Test that cleanup respects custom threshold_hours parameter."""
+        from datetime import timedelta
+
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        # Create mock task updated 6 hours ago
+        task = Mock()
+        task.task_id = "TASK-BORDER001"
+        task.status = "in_progress"
+        task.updated_at = datetime.now() - timedelta(hours=6)
+        task.created_at = datetime.now() - timedelta(hours=8)
+
+        mock_session = Mock()
+        mock_session.query.return_value.filter.return_value.all.return_value = [task]
+
+        # With 4-hour threshold, task should be stale
+        with patch("autopack.database.SessionLocal", return_value=mock_session):
+            count = generator.cleanup_stale_tasks(threshold_hours=4)
+
+        assert count == 1
+        assert task.status == "failed"
+        assert "4 hours" in task.failure_reason
+
+    def test_cleanup_stale_tasks_returns_zero_when_no_stale_tasks(self, mock_memory_service):
+        """Test that cleanup returns 0 when there are no stale tasks."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        mock_session = Mock()
+        mock_session.query.return_value.filter.return_value.all.return_value = []
+
+        with patch("autopack.database.SessionLocal", return_value=mock_session):
+            count = generator.cleanup_stale_tasks()
+
+        assert count == 0
+        mock_session.commit.assert_called_once()
+
+    def test_cleanup_stale_tasks_sets_updated_at_on_cleanup(self, mock_memory_service):
+        """Test that cleanup sets updated_at when marking tasks as failed."""
+        from datetime import timedelta
+
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        stale_task = Mock()
+        stale_task.task_id = "TASK-STALE001"
+        stale_task.status = "in_progress"
+        stale_task.updated_at = datetime.now() - timedelta(hours=48)
+        stale_task.created_at = datetime.now() - timedelta(hours=50)
+
+        mock_session = Mock()
+        mock_session.query.return_value.filter.return_value.all.return_value = [stale_task]
+
+        before_cleanup = datetime.now()
+
+        with patch("autopack.database.SessionLocal", return_value=mock_session):
+            generator.cleanup_stale_tasks()
+
+        # updated_at should be set to current time
+        assert stale_task.updated_at >= before_cleanup
+
+    def test_cleanup_stale_tasks_raises_on_db_error(self, mock_memory_service):
+        """Test that cleanup raises exception on database error."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        mock_session = Mock()
+        mock_session.query.return_value.filter.return_value.all.side_effect = Exception(
+            "Database connection failed"
+        )
+
+        with patch("autopack.database.SessionLocal", return_value=mock_session):
+            with pytest.raises(Exception, match="Database connection failed"):
+                generator.cleanup_stale_tasks()
+
+        mock_session.rollback.assert_called_once()
+        mock_session.close.assert_called_once()

@@ -21,21 +21,15 @@ def test_engine(test_db_url):
     # Create minimal schema for testing
     with engine.begin() as conn:
         # Create tables that indexes depend on
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS runs (
                 id TEXT PRIMARY KEY,
                 state TEXT,
                 created_at TIMESTAMP
             )
-        """
-            )
-        )
+        """))
 
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS phases (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 phase_id TEXT,
@@ -43,13 +37,9 @@ def test_engine(test_db_url):
                 state TEXT,
                 created_at TIMESTAMP
             )
-        """
-            )
-        )
+        """))
 
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS phase_metrics (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 run_id TEXT,
@@ -57,52 +47,36 @@ def test_engine(test_db_url):
                 total_tokens INTEGER,
                 created_at TIMESTAMP
             )
-        """
-            )
-        )
+        """))
 
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS dashboard_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 run_id TEXT,
                 event_type TEXT,
                 created_at TIMESTAMP
             )
-        """
-            )
-        )
+        """))
 
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS llm_usage_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 run_id TEXT,
                 total_tokens INTEGER,
                 created_at TIMESTAMP
             )
-        """
-            )
-        )
+        """))
 
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS token_efficiency_metrics (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 run_id TEXT,
                 tokens_saved_artifacts INTEGER,
                 created_at TIMESTAMP
             )
-        """
-            )
-        )
+        """))
 
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS phase6_metrics (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 run_id TEXT,
@@ -110,9 +84,7 @@ def test_engine(test_db_url):
                 failure_hardening_triggered BOOLEAN,
                 created_at TIMESTAMP
             )
-        """
-            )
-        )
+        """))
 
     yield engine
 
@@ -245,25 +217,17 @@ def test_query_uses_index(test_engine):
         conn.execute(text("CREATE INDEX idx_phase_metrics_run_id ON phase_metrics(run_id)"))
 
         # Insert test data
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             INSERT INTO phase_metrics (run_id, phase_id, total_tokens, created_at)
             VALUES ('test-run', 'test-phase', 1000, datetime('now'))
-        """
-            )
-        )
+        """))
 
     # Query with EXPLAIN QUERY PLAN
     with test_engine.connect() as conn:
-        result = conn.execute(
-            text(
-                """
+        result = conn.execute(text("""
             EXPLAIN QUERY PLAN
             SELECT * FROM phase_metrics WHERE run_id = 'test-run'
-        """
-            )
-        )
+        """))
 
         plan = result.fetchall()
         plan_text = " ".join([str(row) for row in plan])
@@ -280,27 +244,19 @@ def test_composite_index_covers_query(test_engine):
 
         # Insert test data
         for i in range(10):
-            conn.execute(
-                text(
-                    f"""
+            conn.execute(text(f"""
                 INSERT INTO phase_metrics (run_id, phase_id, total_tokens, created_at)
                 VALUES ('test-run', 'phase-{i}', {i * 1000}, datetime('now', '+{i} seconds'))
-            """
-                )
-            )
+            """))
 
     # Query should use composite index
     with test_engine.connect() as conn:
-        result = conn.execute(
-            text(
-                """
+        result = conn.execute(text("""
             SELECT * FROM phase_metrics
             WHERE run_id = 'test-run'
             ORDER BY created_at DESC
             LIMIT 5
-        """
-            )
-        )
+        """))
 
         rows = result.fetchall()
         assert len(rows) == 5

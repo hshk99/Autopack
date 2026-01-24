@@ -2,7 +2,7 @@
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
 from ..memory.memory_service import MemoryService
@@ -10,6 +10,9 @@ from ..roadi import RegressionProtector
 from ..telemetry.analyzer import RankedIssue
 
 logger = logging.getLogger(__name__)
+
+# Stale task threshold: tasks in_progress for longer than this are considered stale (IMP-REL-003)
+STALE_TASK_THRESHOLD_HOURS = 24
 
 
 @dataclass
@@ -25,7 +28,7 @@ class GeneratedTask:
     estimated_effort: str  # S, M, L, XL
     created_at: datetime
     run_id: Optional[str] = None  # Run that generated this task
-    status: str = "pending"  # pending, in_progress, completed, skipped
+    status: str = "pending"  # pending, in_progress, completed, skipped, failed
 
 
 @dataclass
@@ -447,7 +450,7 @@ Analyze the pattern and implement a fix to prevent recurrence.
 
         Args:
             task_id: ID of task to update
-            status: New status (pending, in_progress, completed, skipped)
+            status: New status (pending, in_progress, completed, skipped, failed)
             executed_in_run_id: Run ID that executed/is executing this task
 
         Returns:
@@ -466,6 +469,7 @@ Analyze the pattern and implement a fix to prevent recurrence.
                 return False
 
             db_task.status = status
+            db_task.updated_at = datetime.now()  # Track status change time (IMP-REL-003)
             if status == "completed":
                 db_task.completed_at = datetime.now()
             if executed_in_run_id:
@@ -479,5 +483,74 @@ Analyze the pattern and implement a fix to prevent recurrence.
             session.rollback()
             logger.error(f"[ROAD-C] Failed to update task status: {e}")
             return False
+        finally:
+            session.close()
+
+    # =========================================================================
+    # Stale Task Cleanup (IMP-REL-003)
+    # =========================================================================
+
+    def cleanup_stale_tasks(
+        self,
+        threshold_hours: int = STALE_TASK_THRESHOLD_HOURS,
+    ) -> int:
+        """Clean up tasks stuck in in_progress state for too long (IMP-REL-003).
+
+        Tasks that remain in_progress beyond the threshold are considered stale
+        (likely due to a run failure) and are marked as failed.
+
+        Args:
+            threshold_hours: Hours after which in_progress tasks are considered stale.
+                            Defaults to STALE_TASK_THRESHOLD_HOURS (24).
+
+        Returns:
+            Number of stale tasks cleaned up.
+        """
+        from ..models import GeneratedTaskModel
+        from ..database import SessionLocal
+
+        session = SessionLocal()
+        threshold = datetime.now() - timedelta(hours=threshold_hours)
+
+        try:
+            # Query tasks stuck in in_progress state
+            # Use updated_at if available, fall back to created_at for older tasks
+            stale_tasks = (
+                session.query(GeneratedTaskModel)
+                .filter(
+                    GeneratedTaskModel.status == "in_progress",
+                )
+                .all()
+            )
+
+            # Filter stale tasks based on updated_at or created_at
+            tasks_to_cleanup = []
+            for task in stale_tasks:
+                # Use updated_at if set, otherwise use created_at
+                check_time = task.updated_at or task.created_at
+                if check_time < threshold:
+                    tasks_to_cleanup.append(task)
+
+            # Mark stale tasks as failed
+            for task in tasks_to_cleanup:
+                logger.warning(
+                    f"[ROAD-C] Marking stale task {task.task_id} as failed "
+                    f"(in_progress for over {threshold_hours} hours)"
+                )
+                task.status = "failed"
+                task.updated_at = datetime.now()
+                task.failure_reason = f"Stale: in_progress for over {threshold_hours} hours"
+
+            session.commit()
+
+            if tasks_to_cleanup:
+                logger.info(f"[ROAD-C] Cleaned up {len(tasks_to_cleanup)} stale tasks")
+
+            return len(tasks_to_cleanup)
+
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[ROAD-C] Failed to cleanup stale tasks: {e}")
+            raise
         finally:
             session.close()

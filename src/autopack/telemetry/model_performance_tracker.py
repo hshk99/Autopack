@@ -78,8 +78,7 @@ class TelemetryDrivenModelOptimizer:
         cutoff = datetime.now(timezone.utc) - timedelta(days=self.lookback_days)
 
         result = self.db.execute(
-            text(
-                """
+            text("""
             SELECT phase_type, model_used,
                    COUNT(*) as total,
                    SUM(CASE WHEN phase_outcome = 'SUCCESS' THEN 1 ELSE 0 END) as successes,
@@ -91,8 +90,7 @@ class TelemetryDrivenModelOptimizer:
               AND phase_type IS NOT NULL
               AND model_used IS NOT NULL
             GROUP BY phase_type, model_used
-        """
-            ),
+        """),
             {"cutoff": cutoff},
         )
 

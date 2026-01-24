@@ -44,8 +44,7 @@ def mock_repo_structure(temp_dir):
 
     # BUILD_HISTORY.md
     build_history = docs_dir / "BUILD_HISTORY.md"
-    build_history.write_text(
-        """# Build History
+    build_history.write_text("""# Build History
 
 ## INDEX
 
@@ -65,13 +64,11 @@ This is the detailed content for BUILD-001.
 ## BUILD-002: Second Build
 
 This is BUILD-002 detailed content.
-"""
-    )
+""")
 
     # ARCHITECTURE_DECISIONS.md
     arch_decisions = docs_dir / "ARCHITECTURE_DECISIONS.md"
-    arch_decisions.write_text(
-        """# Architecture Decisions
+    arch_decisions.write_text("""# Architecture Decisions
 
 ## INDEX
 
@@ -89,13 +86,11 @@ Decision to use SQLite as default database.
 ## DEC-002: Add Qdrant
 
 Proposal to add vector search with Qdrant.
-"""
-    )
+""")
 
     # DEBUG_LOG.md
     debug_log = docs_dir / "DEBUG_LOG.md"
-    debug_log.write_text(
-        """# Debug Log
+    debug_log.write_text("""# Debug Log
 
 ## INDEX
 
@@ -113,8 +108,7 @@ High severity test error.
 ## DBG-002: Warning Test
 
 Low severity warning for testing.
-"""
-    )
+""")
 
     return temp_dir
 

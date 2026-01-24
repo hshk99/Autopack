@@ -86,6 +86,40 @@ class TestFailureHardeningRegistry:
         for pattern_id in expected_ids:
             assert pattern_id in registry.patterns
 
+    def test_list_patterns(self):
+        """Test list_patterns returns pattern IDs sorted by priority."""
+        registry = FailureHardeningRegistry()
+
+        pattern_ids = registry.list_patterns()
+
+        # Should return all pattern IDs
+        assert len(pattern_ids) == 6
+
+        # Should be sorted by priority (lowest first)
+        priorities = [registry.patterns[pid].priority for pid in pattern_ids]
+        assert priorities == sorted(priorities)
+
+    def test_list_patterns_with_custom_pattern(self):
+        """Test list_patterns includes custom patterns in priority order."""
+        registry = FailureHardeningRegistry()
+
+        # Add a high-priority custom pattern
+        custom_pattern = FailurePattern(
+            pattern_id="custom_highest",
+            name="Custom Highest Priority",
+            description="Test",
+            detector=lambda e, c: False,
+            mitigation=lambda c: {},
+            priority=0,  # Highest priority
+        )
+        registry.register_pattern(custom_pattern)
+
+        pattern_ids = registry.list_patterns()
+
+        # Custom pattern should be first (highest priority = lowest number)
+        assert pattern_ids[0] == "custom_highest"
+        assert len(pattern_ids) == 7
+
     def test_register_pattern(self):
         """Test registering a custom pattern."""
         registry = FailureHardeningRegistry()
@@ -219,6 +253,15 @@ class TestPythonMissingDep:
 
         assert registry._detect_missing_python_dep(error_text, context) is True
 
+    def test_detect_import_error_no_module_named(self):
+        """Test detecting ImportError: No module named."""
+        registry = FailureHardeningRegistry()
+
+        error_text = "ImportError: No module named mypackage"
+        context = {}
+
+        assert registry._detect_missing_python_dep(error_text, context) is True
+
     def test_no_match(self):
         """Test non-matching error."""
         registry = FailureHardeningRegistry()
@@ -285,6 +328,47 @@ class TestPythonMissingDep:
         assert result["success"] is True
         assert "pip install -e ." in result["suggestions"]
 
+    def test_mitigate_with_pyproject_no_poetry_or_uv(self, tmp_path):
+        """Test mitigation with pyproject.toml without poetry or uv."""
+        registry = FailureHardeningRegistry()
+
+        # Create pyproject.toml without poetry or uv markers
+        (tmp_path / "pyproject.toml").write_text("[project]\nname = 'test'\nversion = '1.0.0'\n")
+
+        context = {"workspace": tmp_path}
+
+        result = registry._mitigate_missing_python_dep(context)
+
+        assert result["success"] is True
+        assert "pip install -e ." in result["suggestions"]
+
+    def test_mitigate_with_detected_module(self, tmp_path):
+        """Test mitigation suggests specific module install when detected."""
+        registry = FailureHardeningRegistry()
+
+        context = {"workspace": tmp_path, "detected_module": "requests"}
+
+        result = registry._mitigate_missing_python_dep(context)
+
+        assert result["success"] is True
+        assert "pip install requests" in result["suggestions"]
+
+    def test_detect_and_mitigate_extracts_module_name(self, tmp_path):
+        """Test that detect_and_mitigate extracts module name for Python deps."""
+        registry = FailureHardeningRegistry()
+
+        (tmp_path / "requirements.txt").write_text("requests==2.28.0\n")
+
+        error_text = "ModuleNotFoundError: No module named 'requests'"
+        context = {"workspace": tmp_path}
+
+        result = registry.detect_and_mitigate(error_text, context)
+
+        assert result is not None
+        assert result.pattern_id == "python_missing_dep"
+        # The specific module install suggestion should be first
+        assert "pip install requests" in result.suggestions
+
 
 class TestWrongWorkingDir:
     """Test wrong working directory pattern."""
@@ -303,6 +387,33 @@ class TestWrongWorkingDir:
         registry = FailureHardeningRegistry()
 
         error_text = "ENOENT: no such file or directory, open 'requirements.txt'"
+        context = {}
+
+        assert registry._detect_wrong_working_dir(error_text, context) is True
+
+    def test_detect_cargo_toml(self):
+        """Test detecting FileNotFoundError for Cargo.toml (Rust)."""
+        registry = FailureHardeningRegistry()
+
+        error_text = "FileNotFoundError: [Errno 2] No such file or directory: 'Cargo.toml'"
+        context = {}
+
+        assert registry._detect_wrong_working_dir(error_text, context) is True
+
+    def test_detect_go_mod(self):
+        """Test detecting FileNotFoundError for go.mod (Go)."""
+        registry = FailureHardeningRegistry()
+
+        error_text = "FileNotFoundError: [Errno 2] No such file or directory: 'go.mod'"
+        context = {}
+
+        assert registry._detect_wrong_working_dir(error_text, context) is True
+
+    def test_detect_pom_xml(self):
+        """Test detecting FileNotFoundError for pom.xml (Maven/Java)."""
+        registry = FailureHardeningRegistry()
+
+        error_text = "FileNotFoundError: [Errno 2] No such file or directory: 'pom.xml'"
         context = {}
 
         assert registry._detect_wrong_working_dir(error_text, context) is True
@@ -359,6 +470,24 @@ class TestMissingTestDiscovery:
 
         assert registry._detect_missing_test_discovery(error_text, context) is True
 
+    def test_detect_error_not_found_test(self):
+        """Test detecting 'ERROR: not found test'."""
+        registry = FailureHardeningRegistry()
+
+        error_text = "ERROR: not found: test_example.py"
+        context = {}
+
+        assert registry._detect_missing_test_discovery(error_text, context) is True
+
+    def test_no_match_normal_errors(self):
+        """Test no match for normal errors without test keywords."""
+        registry = FailureHardeningRegistry()
+
+        error_text = "AttributeError: 'NoneType' object has no attribute 'items'"
+        context = {}
+
+        assert registry._detect_missing_test_discovery(error_text, context) is False
+
     def test_mitigate_with_tests_dir(self, tmp_path):
         """Test mitigation when tests/ directory exists."""
         registry = FailureHardeningRegistry()
@@ -384,6 +513,48 @@ class TestMissingTestDiscovery:
         assert result["success"] is True
         assert any("Create tests/" in s for s in result["suggestions"])
 
+    def test_mitigate_with_test_dir(self, tmp_path):
+        """Test mitigation when test/ directory exists (singular)."""
+        registry = FailureHardeningRegistry()
+
+        # Create test directory (singular, common in some projects)
+        (tmp_path / "test").mkdir()
+
+        context = {"workspace": tmp_path}
+
+        result = registry._mitigate_missing_test_discovery(context)
+
+        assert result["success"] is True
+        assert any("pytest test/" in s for s in result["suggestions"])
+
+    def test_mitigate_with_jest_tests_dir(self, tmp_path):
+        """Test mitigation when __tests__/ directory exists (Jest convention)."""
+        registry = FailureHardeningRegistry()
+
+        # Create __tests__ directory (Jest convention)
+        (tmp_path / "__tests__").mkdir()
+
+        context = {"workspace": tmp_path}
+
+        result = registry._mitigate_missing_test_discovery(context)
+
+        assert result["success"] is True
+        assert any("pytest __tests__/" in s for s in result["suggestions"])
+
+    def test_mitigate_with_spec_dir(self, tmp_path):
+        """Test mitigation when spec/ directory exists (Ruby/RSpec convention)."""
+        registry = FailureHardeningRegistry()
+
+        # Create spec directory (common in Ruby projects)
+        (tmp_path / "spec").mkdir()
+
+        context = {"workspace": tmp_path}
+
+        result = registry._mitigate_missing_test_discovery(context)
+
+        assert result["success"] is True
+        assert any("pytest spec/" in s for s in result["suggestions"])
+
 
 class TestScopeMismatch:
     """Test scope mismatch pattern."""
@@ -402,6 +573,15 @@ class TestScopeMismatch:
         registry = FailureHardeningRegistry()
 
         error_text = "not in governed scope"
+        context = {}
+
+        assert registry._detect_scope_mismatch(error_text, context) is True
+
+    def test_detect_blocked_scope(self):
+        """Test detecting 'blocked by scope'."""
+        registry = FailureHardeningRegistry()
+
+        error_text = "Action blocked by scope restrictions"
         context = {}
 
         assert registry._detect_scope_mismatch(error_text, context) is True
@@ -427,6 +607,31 @@ class TestScopeMismatch:
 
         assert result["success"] is True
         assert any("No scope defined" in s for s in result["suggestions"])
+
+    def test_mitigate_with_many_scope_paths(self):
+        """Test mitigation truncates long scope path lists."""
+        registry = FailureHardeningRegistry()
+
+        # More than 5 paths - should be truncated with '...'
+        context = {
+            "scope_paths": [
+                "src/a.py",
+                "src/b.py",
+                "src/c.py",
+                "src/d.py",
+                "src/e.py",
+                "src/f.py",
+                "src/g.py",
+            ]
+        }
+
+        result = registry._mitigate_scope_mismatch(context)
+
+        assert result["success"] is True
+        # Should contain truncation indicator
+        assert any("..." in s for s in result["suggestions"])
+        # First 5 paths should be shown
+        assert any("src/a.py" in s for s in result["suggestions"])
 
 
 class TestNodeMissingDep:
@@ -488,6 +693,60 @@ class TestNodeMissingDep:
 
         assert result["success"] is True
         assert "npm install" in result["suggestions"]
+
+    def test_mitigate_with_detected_module_yarn(self, tmp_path):
+        """Test specific module install suggestion with yarn."""
+        registry = FailureHardeningRegistry()
+
+        (tmp_path / "yarn.lock").write_text("# yarn lockfile v1\n")
+
+        context = {"workspace": tmp_path, "detected_module": "express"}
+
+        result = registry._mitigate_missing_node_dep(context)
+
+        assert result["success"] is True
+        assert "yarn add express" in result["suggestions"]
+        assert "yarn install" in result["suggestions"]
+
+    def test_mitigate_with_detected_module_pnpm(self, tmp_path):
+        """Test specific module install suggestion with pnpm."""
+        registry = FailureHardeningRegistry()
+
+        (tmp_path / "pnpm-lock.yaml").write_text("lockfileVersion: 5.3\n")
+
+        context = {"workspace": tmp_path, "detected_module": "lodash"}
+
+        result = registry._mitigate_missing_node_dep(context)
+
+        assert result["success"] is True
+        assert "pnpm add lodash" in result["suggestions"]
+        assert "pnpm install" in result["suggestions"]
+
+    def test_mitigate_with_detected_module_npm(self, tmp_path):
+        """Test specific module install suggestion with npm."""
+        registry = FailureHardeningRegistry()
+
+        context = {"workspace": tmp_path, "detected_module": "axios"}
+
+        result = registry._mitigate_missing_node_dep(context)
+
+        assert result["success"] is True
+        assert "npm install axios" in result["suggestions"]
+        assert "npm install" in result["suggestions"]
+
+    def test_detect_and_mitigate_extracts_node_module_name(self, tmp_path):
+        """Test that detect_and_mitigate extracts module name for Node.js deps."""
+        registry = FailureHardeningRegistry()
+
+        error_text = "Error: Cannot find module 'express'"
+        context = {"workspace": tmp_path}
+
+        result = registry.detect_and_mitigate(error_text, context)
+
+        assert result is not None
+        assert result.pattern_id == "node_missing_dep"
+        # The specific module install suggestion should be present
+        assert "npm install express" in result.suggestions
 
 
 class TestPermissionError:

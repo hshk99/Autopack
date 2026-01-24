@@ -153,13 +153,12 @@ class APIServerLifecycle:
             api_log_path = log_dir / f"api_server_{host}_{port}.log"
             log_fp = None
             try:
-                log_fp = open(api_log_path, "ab")
-                # Store the file handle so it can be closed later
-                self.log_file_handle = log_fp
-            except Exception:
-                log_fp = None
+                try:
+                    log_fp = open(api_log_path, "ab")
+                    self.log_file_handle = log_fp
+                except Exception:
+                    log_fp = None
 
-            try:
                 api_cmd = [
                     sys.executable,
                     "-m",
@@ -198,29 +197,19 @@ class APIServerLifecycle:
 
                 self.server_process = process
 
-                # Close the parent's copy of the file handle after subprocess inherits it
-                # The subprocess maintains its own reference to the file descriptor
-                if log_fp is not None:
-                    try:
-                        log_fp.close()
-                        self.log_file_handle = None
-                    except Exception:
-                        pass
-
                 # Wait a bit for server to start
                 return self.check_server_health(
                     host, port, startup_timeout_s, api_log_path, process
                 )
-
-            except Exception:
-                # Ensure file handle is closed if subprocess creation fails
+            finally:
+                # Always close file handle after subprocess has inherited it (or on failure)
+                # The subprocess maintains its own reference to the file descriptor
                 if log_fp is not None:
                     try:
                         log_fp.close()
-                        self.log_file_handle = None
                     except Exception:
                         pass
-                raise
+                    self.log_file_handle = None
 
         except Exception as e:
             logger.error(f"Failed to start API server: {e}")

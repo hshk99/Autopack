@@ -25,13 +25,11 @@ class TestPackageDetectorEdgeCases:
     def test_comments_only_requirements(self, temp_project_dir):
         """Test requirements file with only comments"""
         req_file = temp_project_dir / "requirements.txt"
-        req_file.write_text(
-            """# This is a comment
+        req_file.write_text("""# This is a comment
 # Another comment
 
 # More comments
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -41,8 +39,7 @@ class TestPackageDetectorEdgeCases:
     def test_comments_and_whitespace(self, temp_project_dir):
         """Test requirements with comments and excessive whitespace"""
         req_file = temp_project_dir / "requirements.txt"
-        req_file.write_text(
-            """# This is a comment
+        req_file.write_text("""# This is a comment
 requests==2.28.0
 
 # Another comment
@@ -50,8 +47,7 @@ numpy  # inline comment
 
 
 pandas>=1.0.0  # trailing comment
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -64,12 +60,10 @@ pandas>=1.0.0  # trailing comment
     def test_git_urls(self, temp_project_dir):
         """Test handling of git URLs in requirements"""
         req_file = temp_project_dir / "requirements.txt"
-        req_file.write_text(
-            """git+https://github.com/user/repo.git@v1.0#egg=mypackage
+        req_file.write_text("""git+https://github.com/user/repo.git@v1.0#egg=mypackage
 git+ssh://git@github.com/user/another.git#egg=anotherpackage
 requests==2.28.0
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -96,14 +90,12 @@ requests==2.28.0
     def test_complex_version_specifiers(self, temp_project_dir):
         """Test various complex version specifiers"""
         req_file = temp_project_dir / "requirements.txt"
-        req_file.write_text(
-            """package1>=1.0.0,<2.0.0
+        req_file.write_text("""package1>=1.0.0,<2.0.0
 package2~=1.4.2
 package3===1.0.0
 package4!=1.5.0
 package5>=1.0.0,!=1.2.0,<2.0.0
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -133,13 +125,11 @@ package5>=1.0.0,!=1.2.0,<2.0.0
     def test_environment_markers(self, temp_project_dir):
         """Test packages with environment markers"""
         req_file = temp_project_dir / "requirements.txt"
-        req_file.write_text(
-            """requests==2.28.0
+        req_file.write_text("""requests==2.28.0
 pywin32>=1.0; sys_platform == 'win32'
 uvloop; platform_system != 'Windows'
 colorama; os_name == 'nt'
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -153,15 +143,13 @@ colorama; os_name == 'nt'
     def test_malformed_lines(self, temp_project_dir):
         """Test handling of malformed lines in requirements"""
         req_file = temp_project_dir / "requirements.txt"
-        req_file.write_text(
-            """requests==2.28.0
+        req_file.write_text("""requests==2.28.0
 ===invalid===
 numpy
 @@@malformed@@@
 pandas>=1.0.0
 !!!
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -177,12 +165,10 @@ pandas>=1.0.0
     def test_url_dependencies(self, temp_project_dir):
         """Test handling of URL-based dependencies"""
         req_file = temp_project_dir / "requirements.txt"
-        req_file.write_text(
-            """https://github.com/user/repo/archive/master.zip
+        req_file.write_text("""https://github.com/user/repo/archive/master.zip
 https://files.pythonhosted.org/packages/.../package-1.0.tar.gz
 requests==2.28.0
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -193,15 +179,13 @@ requests==2.28.0
     def test_options_and_flags(self, temp_project_dir):
         """Test handling of pip options and flags"""
         req_file = temp_project_dir / "requirements.txt"
-        req_file.write_text(
-            """--index-url https://pypi.org/simple
+        req_file.write_text("""--index-url https://pypi.org/simple
 --extra-index-url https://custom.pypi.org/simple
 --trusted-host custom.pypi.org
 requests==2.28.0
 -i https://another.index.org/simple
 numpy
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -300,12 +284,10 @@ numpy
     def test_corrupted_toml_file(self, temp_project_dir):
         """Test handling of corrupted TOML file"""
         pyproject = temp_project_dir / "pyproject.toml"
-        pyproject.write_text(
-            """[tool.poetry
+        pyproject.write_text("""[tool.poetry
 this is not valid toml
 [[[broken
-"""
-        )
+""")
 
         detector = PackageDetector()
         # Should not crash, just return empty or skip the file
@@ -317,8 +299,7 @@ this is not valid toml
     def test_corrupted_setup_py(self, temp_project_dir):
         """Test handling of corrupted setup.py"""
         setup_file = temp_project_dir / "setup.py"
-        setup_file.write_text(
-            """from setuptools import setup
+        setup_file.write_text("""from setuptools import setup
 
 setup(
     name='test',
@@ -326,8 +307,7 @@ setup(
         'flask',
         # Missing closing bracket
 )
-"""
-        )
+""")
 
         detector = PackageDetector()
         # Should not crash

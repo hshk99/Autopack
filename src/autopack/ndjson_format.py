@@ -145,7 +145,8 @@ class NDJSONParser:
                     if isinstance(lit, (dict, list)):
                         obj = lit
                         salvaged = True
-                except Exception:
+                except (ValueError, SyntaxError):
+                    # Expected when content is not valid Python literal
                     salvaged = False
 
                 # As a last resort, try to coerce "loose JSON" to valid JSON:
@@ -170,7 +171,8 @@ class NDJSONParser:
                         obj2 = json.loads(candidate)
                         obj = obj2
                         salvaged = True
-                    except Exception:
+                    except (json.JSONDecodeError, ValueError):
+                        # Coercion attempt failed - content is not recoverable as JSON
                         salvaged = False
 
                 if salvaged:
@@ -233,7 +235,8 @@ class NDJSONParser:
                         obj, end = decoder.raw_decode(text[start:])
                         recovered_objs.append(obj)
                         idx = start + end
-                    except Exception:
+                    except (json.JSONDecodeError, ValueError) as e:
+                        logger.debug(f"[NDJSON:Parse] raw_decode attempt failed at idx {start}: {e}")
                         idx = start + 1
 
                 recovered_ops: List[NDJSONOperation] = []
@@ -280,8 +283,9 @@ class NDJSONParser:
                         lines_parsed=len(recovered_objs),
                         lines_failed=lines_failed,
                     )
-            except Exception:
-                pass
+            except (json.JSONDecodeError, ValueError, TypeError) as e:
+                # Multi-line JSON recovery failed - will try balanced-object scan next
+                logger.debug(f"[NDJSON:Parse] Multi-line JSON recovery failed: {e}")
 
         # Fallback: If the model emitted pretty-printed / truncated JSON, the overall structure may be invalid,
         # but many *inner* objects can still be complete. Recover any balanced `{...}` objects from the stream
@@ -299,14 +303,14 @@ class NDJSONParser:
                     try:
                         obj = json.loads(s)
                         return obj if isinstance(obj, dict) else None
-                    except Exception:
-                        pass
+                    except (json.JSONDecodeError, ValueError):
+                        pass  # Expected - fall through to next strategy
                     # Try python literal dict
                     try:
                         obj = ast.literal_eval(s)
                         return obj if isinstance(obj, dict) else None
-                    except Exception:
-                        pass
+                    except (ValueError, SyntaxError):
+                        pass  # Expected - fall through to next strategy
                     # Try loose-json coercion (unquoted keys / single quotes / python literals)
                     try:
                         candidate = s
@@ -320,8 +324,8 @@ class NDJSONParser:
                             candidate = candidate.replace("'", '"')
                         obj = json.loads(candidate)
                         return obj if isinstance(obj, dict) else None
-                    except Exception:
-                        return None
+                    except (json.JSONDecodeError, ValueError):
+                        return None  # All strategies exhausted
 
                 def _extract_json_string_value(
                     s: str, start_quote_idx: int
@@ -458,8 +462,9 @@ class NDJSONParser:
                         lines_parsed=len(recovered_ops),
                         lines_failed=lines_failed,
                     )
-            except Exception:
-                pass
+            except (json.JSONDecodeError, ValueError, TypeError) as e:
+                # Balanced-object scan recovery failed - will return empty result
+                logger.debug(f"[NDJSON:Parse] Balanced-object scan recovery failed: {e}")
 
         return NDJSONParseResult(
             operations=operations,

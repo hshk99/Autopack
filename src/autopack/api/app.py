@@ -22,6 +22,7 @@ import threading
 import time
 import uuid
 from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Callable
 
@@ -529,6 +530,146 @@ class BackgroundTaskSupervisor:
             logger.info(f"[TASK-SUPERVISOR] Reset restart count for task: {name}")
 
 
+class StartupError(Exception):
+    """Exception raised when a startup phase fails.
+
+    Implements IMP-OPS-012: Provides clear error context for debugging
+    initialization failures.
+    """
+
+    def __init__(self, phase: str, message: str, cause: Exception | None = None):
+        self.phase = phase
+        self.message = message
+        self.cause = cause
+        super().__init__(f"Startup phase '{phase}' failed: {message}")
+
+
+@dataclass
+class StartupPhaseResult:
+    """Result of a startup phase execution."""
+
+    name: str
+    success: bool
+    duration_seconds: float
+    error: str | None = None
+
+
+@dataclass
+class StartupPhaseLogger:
+    """Logger for tracking startup phase execution with timing.
+
+    Implements IMP-OPS-012: Add startup initialization logging.
+    Provides structured logging for each startup phase to make
+    initialization failures easier to debug.
+
+    Features:
+    - Times each startup phase
+    - Logs success/failure with duration
+    - Tracks all phase results for summary
+    - Raises StartupError on phase failure with clear context
+    """
+
+    phases: list[StartupPhaseResult] = field(default_factory=list)
+    _start_time: float = field(default=0.0, init=False)
+
+    def begin_startup(self) -> None:
+        """Mark the beginning of the startup sequence."""
+        self._start_time = time.time()
+        logger.info("[STARTUP] Beginning application initialization sequence")
+
+    def run_phase(self, phase_name: str, phase_func: Callable[[], None]) -> None:
+        """Execute a synchronous startup phase with timing and logging.
+
+        Args:
+            phase_name: Human-readable name for the phase
+            phase_func: Synchronous function to execute
+
+        Raises:
+            StartupError: If the phase fails
+        """
+        start = time.time()
+        logger.info(f"[STARTUP] Starting phase: {phase_name}")
+
+        try:
+            phase_func()
+            duration = time.time() - start
+            self.phases.append(
+                StartupPhaseResult(name=phase_name, success=True, duration_seconds=duration)
+            )
+            logger.info(f"[STARTUP] Phase '{phase_name}' completed in {duration:.3f}s")
+
+        except Exception as e:
+            duration = time.time() - start
+            error_msg = str(e)
+            self.phases.append(
+                StartupPhaseResult(
+                    name=phase_name, success=False, duration_seconds=duration, error=error_msg
+                )
+            )
+            logger.error(
+                f"[STARTUP] Phase '{phase_name}' FAILED after {duration:.3f}s: {error_msg}",
+                exc_info=True,
+            )
+            raise StartupError(phase_name, error_msg, e) from e
+
+    async def run_phase_async(self, phase_name: str, phase_func: Callable[[], None]) -> None:
+        """Execute a startup phase with timing and logging (async wrapper).
+
+        Args:
+            phase_name: Human-readable name for the phase
+            phase_func: Function to execute (can be sync or return awaitable)
+
+        Raises:
+            StartupError: If the phase fails
+        """
+        start = time.time()
+        logger.info(f"[STARTUP] Starting phase: {phase_name}")
+
+        try:
+            result = phase_func()
+            if asyncio.iscoroutine(result):
+                await result
+            duration = time.time() - start
+            self.phases.append(
+                StartupPhaseResult(name=phase_name, success=True, duration_seconds=duration)
+            )
+            logger.info(f"[STARTUP] Phase '{phase_name}' completed in {duration:.3f}s")
+
+        except Exception as e:
+            duration = time.time() - start
+            error_msg = str(e)
+            self.phases.append(
+                StartupPhaseResult(
+                    name=phase_name, success=False, duration_seconds=duration, error=error_msg
+                )
+            )
+            logger.error(
+                f"[STARTUP] Phase '{phase_name}' FAILED after {duration:.3f}s: {error_msg}",
+                exc_info=True,
+            )
+            raise StartupError(phase_name, error_msg, e) from e
+
+    def complete_startup(self) -> None:
+        """Log startup completion summary."""
+        total_duration = time.time() - self._start_time
+        total = len(self.phases)
+
+        phase_summary = ", ".join(f"{p.name}={p.duration_seconds:.3f}s" for p in self.phases)
+
+        logger.info(
+            f"[STARTUP] All {total} startup phases completed successfully "
+            f"in {total_duration:.3f}s ({phase_summary})"
+        )
+
+    def get_phase_timings(self) -> dict[str, float]:
+        """Get timing data for all phases.
+
+        Returns:
+            Dictionary mapping phase names to duration in seconds
+        """
+        return {p.name: p.duration_seconds for p in self.phases}
+
+
 async def correlation_id_middleware(request: Request, call_next):
     """Add correlation ID to request context for distributed tracing.
 
@@ -809,91 +950,133 @@ async def lifespan(app: FastAPI):
     - IMP-OPS-003: Graceful shutdown for DB sessions
     - IMP-OPS-004: Readiness state signaling for /ready endpoint
     - IMP-OPS-007: Background task health monitoring
+    - IMP-OPS-012: Structured startup logging with timing for each phase
     """
     global _shutdown_manager, _task_monitor
     from .routes.health import mark_app_initialized, mark_initialization_failed
 
-    # P0 Security: In production mode, require AUTOPACK_API_KEY to be set
-    # This prevents accidentally running an unauthenticated API in production
-    # PR-03 (R-03 G4): get_api_key() supports AUTOPACK_API_KEY_FILE for Docker secrets
-    autopack_env = os.getenv("AUTOPACK_ENV", "development").lower()
+    # IMP-OPS-012: Initialize startup phase logger for structured initialization logging
+    startup_logger = StartupPhaseLogger()
+    startup_logger.begin_startup()
 
-    # get_api_key() will raise RuntimeError if required in production and not set
+    # Variables for cleanup in shutdown
+    supervisor = None
+    timeout_task = None
+
     try:
-        api_key = get_api_key()
+        # Phase 1: Configuration validation
+        def validate_config():
+            nonlocal autopack_env, api_key
+            # P0 Security: In production mode, require AUTOPACK_API_KEY to be set
+            # This prevents accidentally running an unauthenticated API in production
+            # PR-03 (R-03 G4): get_api_key() supports AUTOPACK_API_KEY_FILE for Docker secrets
+            autopack_env = os.getenv("AUTOPACK_ENV", "development").lower()
+
+            # get_api_key() will raise RuntimeError if required in production and not set
+            api_key = get_api_key()
+
+            if autopack_env == "production" and not api_key:
+                raise RuntimeError(
+                    "FATAL: AUTOPACK_ENV=production but AUTOPACK_API_KEY is not set. "
+                    "For security, the API requires authentication in production mode. "
+                    "Set AUTOPACK_API_KEY or AUTOPACK_API_KEY_FILE environment variable, "
+                    "or use AUTOPACK_ENV=development."
+                )
+
+        autopack_env = None
+        api_key = None
+        startup_logger.run_phase("config_validation", validate_config)
+
+        # Phase 2: Database initialization (skipped in testing)
+        def init_database():
+            if os.getenv("TESTING") != "1":
+                init_db()
+            else:
+                logger.info("[STARTUP] Skipping database init in TESTING mode")
+
+        startup_logger.run_phase("database", init_database)
+
+        # Phase 3: Shutdown manager initialization
+        def init_shutdown_manager():
+            global _shutdown_manager
+            # IMP-OPS-003: Initialize graceful shutdown manager
+            # Configurable via GRACEFUL_SHUTDOWN_TIMEOUT env var (default 30 seconds)
+            shutdown_timeout = float(os.getenv("GRACEFUL_SHUTDOWN_TIMEOUT", "30"))
+            _shutdown_manager = GracefulShutdownManager(shutdown_timeout=shutdown_timeout)
+            logger.debug(f"Shutdown timeout configured: {shutdown_timeout}s")
+
+        startup_logger.run_phase("shutdown_manager", init_shutdown_manager)
+
+        # Phase 4: Task monitor initialization
+        def init_task_monitor():
+            global _task_monitor
+            # IMP-OPS-007: Initialize background task health monitor
+            # Configurable via TASK_MONITOR_MAX_AGE env var (default 300 seconds / 5 minutes)
+            task_monitor_max_age = float(os.getenv("TASK_MONITOR_MAX_AGE", "300"))
+            task_monitor_max_failures = int(os.getenv("TASK_MONITOR_MAX_FAILURES", "3"))
+            _task_monitor = BackgroundTaskMonitor(
+                max_age_seconds=task_monitor_max_age,
+                max_failures=task_monitor_max_failures,
+            )
+            logger.debug(
+                f"Task monitor configured: max_age={task_monitor_max_age}s, "
+                f"max_failures={task_monitor_max_failures}"
+            )
+
+        startup_logger.run_phase("task_monitor", init_task_monitor)
+
+        # Phase 5: Background tasks initialization
+        def init_background_tasks():
+            nonlocal supervisor, timeout_task
+            # IMP-OPS-001: Create supervisor for background tasks with automatic restart
+            supervisor = BackgroundTaskSupervisor(max_restarts=5)
+
+            # Start supervised background task for approval timeout cleanup
+            timeout_task = asyncio.create_task(
+                supervisor.supervise("approval_timeout_cleanup", approval_timeout_cleanup)
+            )
+
+        startup_logger.run_phase("background_tasks", init_background_tasks)
+
+        # IMP-OPS-012: Log startup completion summary
+        startup_logger.complete_startup()
+
+        # IMP-OPS-004: Mark application as ready for traffic
+        mark_app_initialized()
+        logger.info("[STARTUP] Application ready for traffic")
+
+    except StartupError as e:
+        mark_initialization_failed(f"Startup phase '{e.phase}' failed: {e.message}")
+        raise
     except RuntimeError as e:
         logger.critical(str(e))
-        mark_initialization_failed(f"API key validation failed: {e}")
+        mark_initialization_failed(f"Configuration validation failed: {e}")
         raise
-
-    if autopack_env == "production" and not api_key:
-        error_msg = (
-            "FATAL: AUTOPACK_ENV=production but AUTOPACK_API_KEY is not set. "
-            "For security, the API requires authentication in production mode. "
-            "Set AUTOPACK_API_KEY or AUTOPACK_API_KEY_FILE environment variable, "
-            "or use AUTOPACK_ENV=development."
-        )
-        logger.critical(error_msg)
-        mark_initialization_failed("Missing API key in production mode")
-        raise RuntimeError(error_msg)
-
-    # Skip DB init during testing (tests use their own DB setup)
-    if os.getenv("TESTING") != "1":
-        try:
-            init_db()
-        except Exception as e:
-            mark_initialization_failed(f"Database initialization failed: {e}")
-            raise
-
-    # IMP-OPS-003: Initialize graceful shutdown manager
-    # Configurable via GRACEFUL_SHUTDOWN_TIMEOUT env var (default 30 seconds)
-    shutdown_timeout = float(os.getenv("GRACEFUL_SHUTDOWN_TIMEOUT", "30"))
-    _shutdown_manager = GracefulShutdownManager(shutdown_timeout=shutdown_timeout)
-    logger.info(f"[LIFESPAN] Graceful shutdown manager initialized (timeout={shutdown_timeout}s)")
-
-    # IMP-OPS-007: Initialize background task health monitor
-    # Configurable via TASK_MONITOR_MAX_AGE env var (default 300 seconds / 5 minutes)
-    task_monitor_max_age = float(os.getenv("TASK_MONITOR_MAX_AGE", "300"))
-    task_monitor_max_failures = int(os.getenv("TASK_MONITOR_MAX_FAILURES", "3"))
-    _task_monitor = BackgroundTaskMonitor(
-        max_age_seconds=task_monitor_max_age,
-        max_failures=task_monitor_max_failures,
-    )
-    logger.info(
-        f"[LIFESPAN] Task monitor initialized "
-        f"(max_age={task_monitor_max_age}s, max_failures={task_monitor_max_failures})"
-    )
-
-    # IMP-OPS-001: Create supervisor for background tasks with automatic restart
-    supervisor = BackgroundTaskSupervisor(max_restarts=5)
-
-    # Start supervised background task for approval timeout cleanup
-    timeout_task = asyncio.create_task(
-        supervisor.supervise("approval_timeout_cleanup", approval_timeout_cleanup)
-    )
-
-    # IMP-OPS-004: Mark application as ready for traffic
-    mark_app_initialized()
-    logger.info("[LIFESPAN] Application initialization complete, ready for traffic")
+    except Exception as e:
+        mark_initialization_failed(f"Unexpected startup error: {e}")
+        raise
 
     yield
 
     # IMP-OPS-003: Graceful shutdown - wait for pending DB transactions
-    logger.info("[LIFESPAN] Initiating graceful shutdown...")
-    shutdown_success = await _shutdown_manager.initiate_shutdown()
+    logger.info("[SHUTDOWN] Initiating graceful shutdown...")
+    if _shutdown_manager is not None:
+        shutdown_success = await _shutdown_manager.initiate_shutdown()
 
-    if not shutdown_success:
-        logger.warning("[LIFESPAN] Graceful shutdown timed out, some transactions may be lost")
+        if not shutdown_success:
+            logger.warning("[SHUTDOWN] Graceful shutdown timed out, some transactions may be lost")
 
     # Stop background tasks
-    timeout_task.cancel()
-    try:
-        await timeout_task
-    except asyncio.CancelledError:
-        pass
+    if timeout_task is not None:
+        timeout_task.cancel()
+        try:
+            await timeout_task
+        except asyncio.CancelledError:
+            pass
 
     # Log supervisor status on shutdown
-    logger.info(f"[TASK-SUPERVISOR] Status: {supervisor.get_status()}")
+    if supervisor is not None:
+        logger.info(f"[SHUTDOWN] Task supervisor status: {supervisor.get_status()}")
 
     # IMP-OPS-007: Log task monitor status on shutdown
     if _task_monitor:
@@ -903,7 +1086,7 @@ async def lifespan(app: FastAPI):
     _shutdown_manager = None
     # IMP-OPS-007: Cleanup task monitor
     _task_monitor = None
-    logger.info("[LIFESPAN] Shutdown complete")
+    logger.info("[SHUTDOWN] Application shutdown complete")
 
 
 async def global_exception_handler(request: Request, exc: Exception):

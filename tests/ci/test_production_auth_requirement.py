@@ -8,7 +8,7 @@ This prevents accidentally running an unauthenticated API in production.
 import os
 import pytest
 from unittest.mock import patch
-from autopack.exceptions import ConfigurationError
+from autopack.api.app import StartupError
 
 
 class TestProductionAuthRequirement:
@@ -28,7 +28,8 @@ class TestProductionAuthRequirement:
             os.environ["AUTOPACK_ENV"] = "production"
             os.environ.pop("AUTOPACK_API_KEY", None)
 
-            # The lifespan function should raise ConfigurationError
+            # The lifespan function should raise StartupError (IMP-OPS-012)
+            # which wraps the ConfigurationError from config validation
             from autopack.main import lifespan
 
             async def check_lifespan_fails():
@@ -37,12 +38,14 @@ class TestProductionAuthRequirement:
 
             import asyncio
 
-            with pytest.raises(ConfigurationError) as excinfo:
+            with pytest.raises(StartupError) as excinfo:
                 asyncio.get_event_loop().run_until_complete(check_lifespan_fails())
 
-            # PR-03: Error message now comes from get_api_key() which mentions *_FILE support
-            assert "AUTOPACK_API_KEY" in str(excinfo.value)
-            assert "production" in str(excinfo.value).lower()
+            # IMP-OPS-012: Error is now wrapped in StartupError
+            # The original ConfigurationError message is included in the StartupError message
+            error_str = str(excinfo.value)
+            assert "AUTOPACK_API_KEY" in error_str
+            assert "production" in error_str.lower()
 
             # Restore environment
             os.environ.clear()

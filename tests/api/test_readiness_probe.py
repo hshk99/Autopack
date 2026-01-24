@@ -343,4 +343,5 @@ class TestLifespanIntegration:
         # Should have recorded the error
         errors = _init_state.get_errors()
         assert len(errors) == 1
-        assert "Database initialization failed" in errors[0]
+        # IMP-OPS-012: Error now comes from StartupError wrapper
+        assert "database" in errors[0].lower() and "failed" in errors[0].lower()

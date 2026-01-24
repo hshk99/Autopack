@@ -137,8 +137,7 @@ class TelemetryAnalyzer:
             List of RankedIssue objects for top 10 cost sinks
         """
         result = self.db.execute(
-            text(
-                """
+            text("""
             SELECT phase_id, phase_type, SUM(tokens_used) as total_tokens,
                    AVG(tokens_used) as avg_tokens, COUNT(*) as count
             FROM phase_outcome_events
@@ -146,8 +145,7 @@ class TelemetryAnalyzer:
             GROUP BY phase_id, phase_type
             ORDER BY total_tokens DESC
             LIMIT 10
-        """
-            ),
+        """),
             {"cutoff": cutoff},
         )
 
@@ -173,8 +171,7 @@ class TelemetryAnalyzer:
             List of RankedIssue objects for top 10 failure modes
         """
         result = self.db.execute(
-            text(
-                """
+            text("""
             SELECT phase_id, phase_type, phase_outcome, stop_reason,
                    COUNT(*) as count
             FROM phase_outcome_events
@@ -182,8 +179,7 @@ class TelemetryAnalyzer:
             GROUP BY phase_id, phase_type, phase_outcome, stop_reason
             ORDER BY count DESC
             LIMIT 10
-        """
-            ),
+        """),
             {"cutoff": cutoff},
         )
 
@@ -210,8 +206,7 @@ class TelemetryAnalyzer:
         """
         # Find phases with multiple attempts (retries)
         result = self.db.execute(
-            text(
-                """
+            text("""
             SELECT phase_id, phase_type, stop_reason,
                    COUNT(*) as retry_count,
                    SUM(CASE WHEN phase_outcome = 'SUCCESS' THEN 1 ELSE 0 END) as success_count
@@ -221,8 +216,7 @@ class TelemetryAnalyzer:
             HAVING COUNT(*) > 1
             ORDER BY retry_count DESC
             LIMIT 10
-        """
-            ),
+        """),
             {"cutoff": cutoff},
         )
 
@@ -255,8 +249,7 @@ class TelemetryAnalyzer:
             - sample_count: Number of samples
         """
         result = self.db.execute(
-            text(
-                """
+            text("""
             SELECT phase_type, model_used,
                    COUNT(*) as total,
                    SUM(CASE WHEN phase_outcome = 'SUCCESS' THEN 1 ELSE 0 END) as successes,
@@ -264,8 +257,7 @@ class TelemetryAnalyzer:
             FROM phase_outcome_events
             WHERE timestamp >= :cutoff AND phase_type IS NOT NULL
             GROUP BY phase_type, model_used
-        """
-            ),
+        """),
             {"cutoff": cutoff},
         )
 
@@ -375,14 +367,12 @@ class TelemetryAnalyzer:
 
         # Check for high failure rates (triggers model downgrade or prompt optimization)
         failure_result = self.db.execute(
-            text(
-                """
+            text("""
             SELECT COUNT(*) as total,
                    SUM(CASE WHEN phase_outcome != 'SUCCESS' THEN 1 ELSE 0 END) as failures
             FROM phase_outcome_events
             WHERE timestamp >= :cutoff AND phase_type = :phase_type
-            """
-            ),
+            """),
             {"cutoff": cutoff, "phase_type": phase_type},
         )
         failure_row = failure_result.fetchone()
@@ -409,13 +399,11 @@ class TelemetryAnalyzer:
 
         # Check for high token usage (triggers context size reduction)
         token_result = self.db.execute(
-            text(
-                """
+            text("""
             SELECT AVG(tokens_used) as avg_tokens, MAX(tokens_used) as max_tokens
             FROM phase_outcome_events
             WHERE timestamp >= :cutoff AND phase_type = :phase_type AND tokens_used IS NOT NULL
-            """
-            ),
+            """),
             {"cutoff": cutoff, "phase_type": phase_type},
         )
         token_row = token_result.fetchone()
@@ -443,14 +431,12 @@ class TelemetryAnalyzer:
 
         # Check for timeout patterns (triggers timeout increase)
         timeout_result = self.db.execute(
-            text(
-                """
+            text("""
             SELECT COUNT(*) as timeout_count
             FROM phase_outcome_events
             WHERE timestamp >= :cutoff AND phase_type = :phase_type
                   AND (stop_reason LIKE '%timeout%' OR stop_reason LIKE '%TIMEOUT%')
-            """
-            ),
+            """),
             {"cutoff": cutoff, "phase_type": phase_type},
         )
         timeout_row = timeout_result.fetchone()

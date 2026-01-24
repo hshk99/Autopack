@@ -33,8 +33,7 @@ class TestPackageDetectorBasic:
     def test_detect_pyproject_toml_poetry(self, temp_project_dir):
         """Test detection of Poetry-style pyproject.toml"""
         pyproject = temp_project_dir / "pyproject.toml"
-        pyproject.write_text(
-            """[tool.poetry]
+        pyproject.write_text("""[tool.poetry]
 name = "test-project"
 version = "0.1.0"
 
@@ -45,8 +44,7 @@ fastapi = ">=0.95.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.0.0"
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -60,8 +58,7 @@ pytest = "^7.0.0"
     def test_detect_setup_py(self, temp_project_dir):
         """Test detection of setup.py with install_requires"""
         setup_file = temp_project_dir / "setup.py"
-        setup_file.write_text(
-            """from setuptools import setup
+        setup_file.write_text("""from setuptools import setup
 
 setup(
     name='test-package',
@@ -75,8 +72,7 @@ setup(
         'dev': ['pytest', 'black'],
     },
 )
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -90,8 +86,7 @@ setup(
     def test_detect_pipfile(self, temp_project_dir):
         """Test detection of Pipfile"""
         pipfile = temp_project_dir / "Pipfile"
-        pipfile.write_text(
-            """[[source]]
+        pipfile.write_text("""[[source]]
 url = "https://pypi.org/simple"
 verify_ssl = true
 name = "pypi"
@@ -102,8 +97,7 @@ celery = ">=5.0.0"
 
 [dev-packages]
 pylint = "*"
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -115,8 +109,7 @@ pylint = "*"
     def test_detect_pyproject_toml_pep621(self, temp_project_dir):
         """Test detection of PEP 621 style pyproject.toml"""
         pyproject = temp_project_dir / "pyproject.toml"
-        pyproject.write_text(
-            """[project]
+        pyproject.write_text("""[project]
 name = "test-project"
 version = "0.1.0"
 dependencies = [
@@ -127,8 +120,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest", "black"]
 test = ["coverage"]
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -160,13 +152,11 @@ test = ["coverage"]
     def test_version_specifiers_stripped(self, temp_project_dir):
         """Test that version specifiers are properly stripped"""
         req_file = temp_project_dir / "requirements.txt"
-        req_file.write_text(
-            """requests==2.28.0
+        req_file.write_text("""requests==2.28.0
 numpy>=1.20.0,<2.0.0
 pandas~=1.4.0
 flask===2.0.0
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))

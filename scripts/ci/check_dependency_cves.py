@@ -20,6 +20,9 @@ def check_cves():
       treats this side‑channel issue as accepted risk (see CVE remediation plan).
       We explicitly ignore it here to prevent a permanent CI failure while still
       blocking all other vulnerabilities.
+    - CVE-2026-0994 (protobuf) is a DoS vulnerability in json_format.ParseDict()
+      where max_recursion_depth can be bypassed with nested Any messages.
+      No fix available yet; accepted risk as we don't parse untrusted protobuf JSON.
     """
     print("Running CVE scan with pip-audit...")
 
@@ -30,6 +33,9 @@ def check_cves():
         # Accepted risk (no upstream fix available)
         "--ignore-vuln",
         "CVE-2024-23342",
+        # Accepted risk (DoS via recursion, no fix available, we don't parse untrusted protobuf JSON)
+        "--ignore-vuln",
+        "CVE-2026-0994",
     ]
 
     result = subprocess.run(audit_cmd, capture_output=True, text=True)

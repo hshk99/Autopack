@@ -151,3 +151,9 @@ class DataIntegrityError(AutopackError):
     """Exception raised when data integrity is compromised."""
 
     pass
+
+
+class ScopeReductionError(AutopackError):
+    """Exception raised when scope reduction operation fails."""
+
+    pass

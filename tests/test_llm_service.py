@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
-
 # =============================================================================
 # Tests for estimate_tokens (module-level function)
 # =============================================================================
@@ -666,7 +665,7 @@ class TestExecuteDoctor:
         )
 
         mock_response = DoctorResponse(
-            action="retry_with_hints",
+            action="retry_with_fix",
             confidence=0.8,
             rationale="Likely transient error",
             builder_hint="Try again with more context",
@@ -687,7 +686,7 @@ class TestExecuteDoctor:
             phase_id="phase-1",
         )
 
-        assert result.action == "retry_with_hints"
+        assert result.action == "retry_with_fix"
         assert result.confidence == 0.8
 
     @patch("autopack.error_recovery.get_diagnosis_with_cache")
@@ -995,26 +994,39 @@ class TestGenerateScopeReductionProposal:
         assert result["run_id"] == "test-run"
         assert result["diff"]["kept_deliverables"] == ["task-1"]
 
-    def test_generate_proposal_failure_returns_none(self):
-        """Scope reduction returns None on failure."""
+    def test_generate_proposal_failure_raises_exception(self):
+        """Scope reduction raises ScopeReductionError on failure."""
+        import pytest
+
+        from autopack.exceptions import ScopeReductionError
+
         service = self._create_mock_service()
 
+        # Use spec to control which attributes exist on the mock client
+        mock_inner_client = MagicMock(spec=["messages"])
+        mock_inner_client.messages.create.side_effect = Exception("API error")
+
         mock_client = MagicMock()
-        mock_client.client.messages.create.side_effect = Exception("API error")
+        mock_client.client = mock_inner_client
 
         service._resolve_client_and_model = MagicMock(
             return_value=(mock_client, "claude-sonnet-4-5")
         )
 
-        result = service.generate_scope_reduction_proposal(
-            prompt="Test prompt",
-            run_id="test-run",
-        )
+        with pytest.raises(ScopeReductionError) as excinfo:
+            service.generate_scope_reduction_proposal(
+                prompt="Test prompt",
+                run_id="test-run",
+            )
 
-        assert result is None
+        assert "API error" in str(excinfo.value)
 
-    def test_generate_proposal_invalid_json_returns_none(self):
-        """Scope reduction returns None on invalid JSON response."""
+    def test_generate_proposal_invalid_json_raises_exception(self):
+        """Scope reduction raises ScopeReductionError on invalid JSON response."""
+        import pytest
+
+        from autopack.exceptions import ScopeReductionError
+
         service = self._create_mock_service()
 
         mock_inner_client = MagicMock(spec=["messages"])
@@ -1032,11 +1044,12 @@ class TestGenerateScopeReductionProposal:
         service._model_to_provider = MagicMock(return_value="anthropic")
         service._record_usage = MagicMock()
 
-        result = service.generate_scope_reduction_proposal(
-            prompt="Test prompt",
-        )
+        with pytest.raises(ScopeReductionError) as excinfo:
+            service.generate_scope_reduction_proposal(
+                prompt="Test prompt",
+            )
 
-        assert result is None
+        assert "parse" in str(excinfo.value).lower()
 
 
 # =============================================================================

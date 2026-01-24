@@ -131,7 +131,9 @@ class APIServerLifecycle:
             try:
                 startup_timeout_s = int(os.getenv("AUTOPACK_API_STARTUP_TIMEOUT_SECONDS", "30"))
             except (ValueError, TypeError) as e:
-                logger.debug(f"Invalid AUTOPACK_API_STARTUP_TIMEOUT_SECONDS, using default 30s: {e}")
+                logger.debug(
+                    f"Invalid AUTOPACK_API_STARTUP_TIMEOUT_SECONDS, using default 30s: {e}"
+                )
                 startup_timeout_s = 30
             startup_timeout_s = max(5, min(300, startup_timeout_s))
 

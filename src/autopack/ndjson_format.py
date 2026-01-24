@@ -236,7 +236,9 @@ class NDJSONParser:
                         recovered_objs.append(obj)
                         idx = start + end
                     except (json.JSONDecodeError, ValueError) as e:
-                        logger.debug(f"[NDJSON:Parse] raw_decode attempt failed at idx {start}: {e}")
+                        logger.debug(
+                            f"[NDJSON:Parse] raw_decode attempt failed at idx {start}: {e}"
+                        )
                         idx = start + 1
 
                 recovered_ops: List[NDJSONOperation] = []

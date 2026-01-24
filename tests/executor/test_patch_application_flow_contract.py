@@ -22,7 +22,6 @@ import pytest
 
 from autopack.executor.patch_application_flow import PatchApplicationFlow
 
-
 # =============================================================================
 # Shared Fixtures - Reduces mock duplication across tests
 # =============================================================================

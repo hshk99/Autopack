@@ -115,8 +115,7 @@ class CheckpointLogger:
 
             # Create table if needed (best-effort, idempotent).
             cursor = self.pg.cursor()
-            cursor.execute(
-                """
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS execution_checkpoints (
                     id SERIAL PRIMARY KEY,
                     run_id TEXT NOT NULL,
@@ -131,8 +130,7 @@ class CheckpointLogger:
                     retry_count INTEGER NOT NULL DEFAULT 0,
                     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 );
-                """
-            )
+                """)
             self.pg.commit()
             cursor.close()
         except Exception as e:

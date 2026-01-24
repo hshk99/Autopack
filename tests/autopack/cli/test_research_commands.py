@@ -212,15 +212,13 @@ def test_insights_command(cli_runner, tmp_path):
     """Test insights command."""
     # Create sample BUILD_HISTORY
     build_history = tmp_path / "BUILD_HISTORY.md"
-    build_history.write_text(
-        """
+    build_history.write_text("""
 # Build History
 
 ## Phase 1: Test Feature
 Category: IMPLEMENT_FEATURE
 Status: COMPLETE
-    """
-    )
+    """)
 
     result = cli_runner.invoke(
         research_cli,

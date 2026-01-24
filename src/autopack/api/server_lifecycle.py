@@ -75,8 +75,10 @@ class APIServerLifecycle:
             else:
                 logger.info("API server is already running")
                 return True
-        except Exception:
-            pass  # Server not responding, continue to start it
+        except (ConnectionError, TimeoutError, OSError) as e:
+            logger.debug(f"API server health check failed (expected if not running): {e}")
+        except Exception as e:
+            logger.debug(f"Unexpected error checking API server health: {e}")
 
         # Try to connect to port to see if something is listening
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -91,8 +93,8 @@ class APIServerLifecycle:
                     "Stop the conflicting process or set AUTOPACK_API_URL to a different port."
                 )
                 return False
-        except Exception:
-            pass
+        except OSError as e:
+            logger.debug(f"Socket connection check failed for {host}:{port}: {e}")
         finally:
             sock.close()
 
@@ -128,7 +130,10 @@ class APIServerLifecycle:
             # Default: 30s. Override with AUTOPACK_API_STARTUP_TIMEOUT_SECONDS.
             try:
                 startup_timeout_s = int(os.getenv("AUTOPACK_API_STARTUP_TIMEOUT_SECONDS", "30"))
-            except Exception:
+            except (ValueError, TypeError) as e:
+                logger.debug(
+                    f"Invalid AUTOPACK_API_STARTUP_TIMEOUT_SECONDS, using default 30s: {e}"
+                )
                 startup_timeout_s = 30
             startup_timeout_s = max(5, min(300, startup_timeout_s))
 
@@ -140,26 +145,26 @@ class APIServerLifecycle:
                 existing = env.get("PYTHONPATH", "")
                 if src_path and (src_path not in existing.split(os.pathsep)):
                     env["PYTHONPATH"] = src_path + (os.pathsep + existing if existing else "")
-            except Exception:
-                pass
+            except (OSError, ValueError) as e:
+                logger.debug(f"Could not set PYTHONPATH for subprocess: {e}")
             env.setdefault("PYTHONUTF8", "1")
 
             # Capture uvicorn logs for RCA (previously discarded to DEVNULL).
             log_dir = Path(".autonomous_runs") / self.executor.run_id / "diagnostics"
             try:
                 log_dir.mkdir(parents=True, exist_ok=True)
-            except Exception:
-                pass
+            except OSError as e:
+                logger.debug(f"Could not create diagnostics log directory {log_dir}: {e}")
             api_log_path = log_dir / f"api_server_{host}_{port}.log"
             log_fp = None
             try:
-                log_fp = open(api_log_path, "ab")
-                # Store the file handle so it can be closed later
-                self.log_file_handle = log_fp
-            except Exception:
-                log_fp = None
+                try:
+                    log_fp = open(api_log_path, "ab")
+                    self.log_file_handle = log_fp
+                except OSError as e:
+                    logger.debug(f"Could not open API server log file {api_log_path}: {e}")
+                    log_fp = None
 
-            try:
                 api_cmd = [
                     sys.executable,
                     "-m",
@@ -198,29 +203,19 @@ class APIServerLifecycle:
 
                 self.server_process = process
 
-                # Close the parent's copy of the file handle after subprocess inherits it
-                # The subprocess maintains its own reference to the file descriptor
-                if log_fp is not None:
-                    try:
-                        log_fp.close()
-                        self.log_file_handle = None
-                    except Exception:
-                        pass
-
                 # Wait a bit for server to start
                 return self.check_server_health(
                     host, port, startup_timeout_s, api_log_path, process
                 )
-
-            except Exception:
-                # Ensure file handle is closed if subprocess creation fails
+            finally:
+                # Always close file handle after subprocess has inherited it (or on failure)
+                # The subprocess maintains its own reference to the file descriptor
                 if log_fp is not None:
                     try:
                         log_fp.close()
-                        self.log_file_handle = None
-                    except Exception:
-                        pass
-                raise
+                    except OSError as e:
+                        logger.debug(f"Could not close log file handle: {e}")
+                    self.log_file_handle = None
 
         except Exception as e:
             logger.error(f"Failed to start API server: {e}")
@@ -262,8 +257,8 @@ class APIServerLifecycle:
                         f"See log: {log_path}"
                     )
                     return False
-            except Exception:
-                pass
+            except OSError as e:
+                logger.debug(f"Could not poll process status: {e}")
             try:
                 self.executor.api_client.check_health(timeout=1)
                 logger.info("✅ API server started successfully")
@@ -289,8 +284,8 @@ class APIServerLifecycle:
                     except Exception as _e:
                         logger.warning(f"Run existence check skipped due to error: {_e}")
                 return True
-            except Exception:
-                pass
+            except (ConnectionError, TimeoutError, OSError) as e:
+                logger.debug(f"Health check attempt {i + 1}/{timeout_s} failed: {e}")
             if i < timeout_s - 1:
                 logger.info(f"  Still waiting... ({i + 1}/{timeout_s})")
 

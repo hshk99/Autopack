@@ -2,6 +2,8 @@
 
 Provides a bounded executor that only runs safe actions.
 Unsafe actions are classified and returned without execution.
+
+IMP-SAFETY-007: Adds disk space check before artifact writes.
 """
 
 import logging
@@ -17,6 +19,8 @@ from .action_allowlist import (
     ActionClassification,
     classify_action,
 )
+from ..disk_space import check_disk_space
+from ..exceptions import DiskSpaceError
 
 logger = logging.getLogger(__name__)
 
@@ -193,6 +197,8 @@ class SafeActionExecutor(ActionExecutor):
 
         Returns:
             ActionExecutionResult
+
+        IMP-SAFETY-007: Checks disk space before writing to prevent disk exhaustion.
         """
         classification = classify_action(ActionType.FILE_WRITE, path)
 
@@ -220,6 +226,16 @@ class SafeActionExecutor(ActionExecutor):
 
         try:
             full_path = self.workspace_root / path
+
+            # IMP-SAFETY-007: Check disk space before writing
+            content_bytes = len(content.encode("utf-8"))
+            if not check_disk_space(full_path, required_bytes=content_bytes):
+                raise DiskSpaceError(
+                    f"Insufficient disk space to write artifact: {path}",
+                    required_bytes=content_bytes,
+                    path=str(full_path),
+                )
+
             full_path.parent.mkdir(parents=True, exist_ok=True)
             full_path.write_text(content, encoding="utf-8")
 
@@ -230,6 +246,18 @@ class SafeActionExecutor(ActionExecutor):
                 classification=classification,
                 executed=True,
                 success=True,
+            )
+
+        except DiskSpaceError as e:
+            logger.error(f"[SafeActionExecutor] Disk space error: {e}")
+            return ActionExecutionResult(
+                action_type=ActionType.FILE_WRITE,
+                target=path,
+                classification=classification,
+                executed=False,
+                success=False,
+                reason=str(e),
+                error="DiskSpaceError",
             )
 
         except Exception as e:

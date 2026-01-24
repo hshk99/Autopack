@@ -222,15 +222,29 @@ class Settings(BaseSettings):
     repo_path: str = "/workspace"
 
     # Run defaults (per §9.1 of v7 playbook)
-    run_token_cap: int = 5_000_000
-    run_max_phases: int = 25
-    run_max_duration_minutes: int = 120
+    # IMP-SAFETY-009: All numeric limits validated > 0 to prevent invalid configurations
+    run_token_cap: int = Field(
+        default=5_000_000,
+        gt=0,
+        description="Maximum total tokens for a run (must be positive)",
+    )
+    run_max_phases: int = Field(
+        default=25,
+        gt=0,
+        description="Maximum number of phases per run (must be positive)",
+    )
+    run_max_duration_minutes: int = Field(
+        default=120,
+        gt=0,
+        description="Maximum run duration in minutes (must be positive)",
+    )
 
     # IMP-STUCK-001: Per-phase wall-clock timeout (prevents runaway phases)
     # Default: 15 minutes per phase (hard timeout)
     # Soft warning at 50% (7.5 min) to prompt early intervention
     phase_timeout_minutes: int = Field(
         default=15,
+        gt=0,
         validation_alias=AliasChoices("AUTOPACK_PHASE_TIMEOUT_MINUTES", "PHASE_TIMEOUT_MINUTES"),
         description="Maximum wall-clock time per phase in minutes (hard timeout)",
     )
@@ -239,6 +253,7 @@ class Settings(BaseSettings):
     # Default max tokens per phase (10% of run cap)
     phase_token_cap_default: int = Field(
         default=500_000,
+        gt=0,
         validation_alias=AliasChoices("AUTOPACK_PHASE_TOKEN_CAP", "PHASE_TOKEN_CAP_DEFAULT"),
         description="Default max tokens per phase (10% of run cap)",
     )
@@ -567,6 +582,15 @@ class Settings(BaseSettings):
             "min_confidence": self.task_generation_min_confidence,
             "auto_execute": {"enabled": self.task_generation_auto_execute},
         }
+
+    # IMP-SAFETY-007: Disk space check before artifact writes
+    # Minimum free disk space required before writing artifacts (bytes)
+    # Default: 100MB - prevents disk exhaustion crashes
+    min_disk_space_bytes: int = Field(
+        default=100_000_000,  # 100MB
+        validation_alias=AliasChoices("AUTOPACK_MIN_DISK_SPACE_BYTES", "MIN_DISK_SPACE_BYTES"),
+        description="Minimum free disk space required before artifact writes (bytes)",
+    )
 
     @model_validator(mode="before")
     @classmethod

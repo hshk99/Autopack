@@ -2,13 +2,17 @@
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
-from typing import List, Optional
+from datetime import datetime, timedelta
+from typing import List, Dict, Any, Optional
 
 from ..memory.memory_service import MemoryService
 from ..roadi import RegressionProtector
+from ..telemetry.analyzer import RankedIssue
 
 logger = logging.getLogger(__name__)
+
+# Stale task threshold: tasks in_progress for longer than this are considered stale (IMP-REL-003)
+STALE_TASK_THRESHOLD_HOURS = 24
 
 
 @dataclass
@@ -24,7 +28,7 @@ class GeneratedTask:
     estimated_effort: str  # S, M, L, XL
     created_at: datetime
     run_id: Optional[str] = None  # Run that generated this task
-    status: str = "pending"  # pending, in_progress, completed, skipped
+    status: str = "pending"  # pending, in_progress, completed, skipped, failed
 
 
 @dataclass
@@ -49,21 +53,136 @@ class AutonomousTaskGenerator:
         # NOTE: TelemetryAnalyzer removed (IMP-ARCH-017) - it was never used and
         # requires db_session which isn't available at AutonomousTaskGenerator init time.
         # Task generation relies on MemoryService.retrieve_insights() instead.
+        # IMP-FEAT-001: Telemetry can now be passed directly via generate_tasks().
         self._regression = regression_protector or RegressionProtector()
 
+    def _convert_telemetry_to_insights(
+        self, telemetry_data: Dict[str, List[RankedIssue]]
+    ) -> List[Dict[str, Any]]:
+        """Convert TelemetryAnalyzer output to insight format for pattern detection.
+
+        Implements IMP-FEAT-001: Wires TelemetryAnalyzer.aggregate_telemetry() output
+        to the task generation pipeline by converting RankedIssue objects to the
+        insight dict format expected by _detect_patterns().
+
+        Args:
+            telemetry_data: Output from TelemetryAnalyzer.aggregate_telemetry() containing:
+                - top_cost_sinks: List[RankedIssue]
+                - top_failure_modes: List[RankedIssue]
+                - top_retry_causes: List[RankedIssue]
+                - phase_type_stats: Dict (ignored for task generation)
+
+        Returns:
+            List of insight dicts compatible with _detect_patterns()
+        """
+        insights = []
+
+        # Convert cost sinks
+        for issue in telemetry_data.get("top_cost_sinks", []):
+            insights.append(
+                {
+                    "id": f"cost_sink_{issue.phase_id}_{issue.rank}",
+                    "issue_type": "cost_sink",
+                    "severity": "high" if issue.metric_value > 50000 else "medium",
+                    "content": (
+                        f"Phase {issue.phase_id} ({issue.phase_type}) consuming "
+                        f"{issue.metric_value:,.0f} tokens. "
+                        f"Avg: {issue.details.get('avg_tokens', 0):,.0f} tokens, "
+                        f"Count: {issue.details.get('count', 0)}"
+                    ),
+                    "phase_id": issue.phase_id,
+                    "phase_type": issue.phase_type,
+                    "metric_value": issue.metric_value,
+                    "rank": issue.rank,
+                    "details": issue.details,
+                }
+            )
+
+        # Convert failure modes
+        for issue in telemetry_data.get("top_failure_modes", []):
+            insights.append(
+                {
+                    "id": f"failure_{issue.phase_id}_{issue.rank}",
+                    "issue_type": "failure_mode",
+                    "severity": "high" if issue.metric_value > 5 else "medium",
+                    "content": (
+                        f"Phase {issue.phase_id} ({issue.phase_type}) failed "
+                        f"{int(issue.metric_value)} times. "
+                        f"Outcome: {issue.details.get('outcome', 'unknown')}, "
+                        f"Reason: {issue.details.get('stop_reason', 'unknown')}"
+                    ),
+                    "phase_id": issue.phase_id,
+                    "phase_type": issue.phase_type,
+                    "metric_value": issue.metric_value,
+                    "rank": issue.rank,
+                    "details": issue.details,
+                }
+            )
+
+        # Convert retry causes
+        for issue in telemetry_data.get("top_retry_causes", []):
+            insights.append(
+                {
+                    "id": f"retry_{issue.phase_id}_{issue.rank}",
+                    "issue_type": "retry_cause",
+                    "severity": "high" if issue.metric_value > 5 else "medium",
+                    "content": (
+                        f"Phase {issue.phase_id} ({issue.phase_type}) required "
+                        f"{int(issue.metric_value)} retries. "
+                        f"Reason: {issue.details.get('stop_reason', 'unknown')}, "
+                        f"Success count: {issue.details.get('success_count', 0)}"
+                    ),
+                    "phase_id": issue.phase_id,
+                    "phase_type": issue.phase_type,
+                    "metric_value": issue.metric_value,
+                    "rank": issue.rank,
+                    "details": issue.details,
+                }
+            )
+
+        logger.debug(
+            f"[IMP-FEAT-001] Converted telemetry to {len(insights)} insights: "
+            f"{len(telemetry_data.get('top_cost_sinks', []))} cost sinks, "
+            f"{len(telemetry_data.get('top_failure_modes', []))} failure modes, "
+            f"{len(telemetry_data.get('top_retry_causes', []))} retry causes"
+        )
+
+        return insights
+
     def generate_tasks(
-        self, max_tasks: int = 10, min_confidence: float = 0.7
+        self,
+        max_tasks: int = 10,
+        min_confidence: float = 0.7,
+        telemetry_insights: Optional[Dict[str, List[RankedIssue]]] = None,
     ) -> TaskGenerationResult:
-        """Generate improvement tasks from recent telemetry insights."""
+        """Generate improvement tasks from recent telemetry insights.
+
+        Args:
+            max_tasks: Maximum number of tasks to generate
+            min_confidence: Minimum confidence threshold for pattern detection
+            telemetry_insights: Optional telemetry data from TelemetryAnalyzer.aggregate_telemetry().
+                               If provided, uses this directly instead of querying MemoryService.
+                               This enables the ROAD-C self-improvement pipeline (IMP-FEAT-001).
+
+        Returns:
+            TaskGenerationResult containing generated tasks and statistics
+        """
         start_time = datetime.now()
 
-        # Retrieve recent high-signal insights
-        # IMP-ARCH-016: Removed namespace parameter - retrieve_insights now queries
-        # across run_summaries, errors_ci, doctor_hints collections
-        insights = self._memory.retrieve_insights(
-            query="error failure bottleneck improvement opportunity",
-            limit=100,
-        )
+        # IMP-FEAT-001: Use telemetry insights directly if provided
+        if telemetry_insights:
+            insights = self._convert_telemetry_to_insights(telemetry_insights)
+            logger.info(
+                f"[IMP-FEAT-001] Using {len(insights)} telemetry insights for task generation"
+            )
+        else:
+            # Fallback: Retrieve recent high-signal insights from memory
+            # IMP-ARCH-016: Removed namespace parameter - retrieve_insights now queries
+            # across run_summaries, errors_ci, doctor_hints collections
+            insights = self._memory.retrieve_insights(
+                query="error failure bottleneck improvement opportunity",
+                limit=100,
+            )
 
         # Detect patterns across insights
         patterns = self._detect_patterns(insights)
@@ -138,7 +257,7 @@ class AutonomousTaskGenerator:
         """Generate task description from pattern."""
         examples = pattern["examples"]
         return f"""## Problem
-Detected {pattern['occurrences']} occurrences of {pattern['type']} issues.
+Detected {pattern["occurrences"]} occurrences of {pattern["type"]} issues.
 
 ## Examples
 {chr(10).join(f"- {e.get('content', '')[:100]}" for e in examples[:3])}
@@ -331,7 +450,7 @@ Analyze the pattern and implement a fix to prevent recurrence.
 
         Args:
             task_id: ID of task to update
-            status: New status (pending, in_progress, completed, skipped)
+            status: New status (pending, in_progress, completed, skipped, failed)
             executed_in_run_id: Run ID that executed/is executing this task
 
         Returns:
@@ -350,6 +469,7 @@ Analyze the pattern and implement a fix to prevent recurrence.
                 return False
 
             db_task.status = status
+            db_task.updated_at = datetime.now()  # Track status change time (IMP-REL-003)
             if status == "completed":
                 db_task.completed_at = datetime.now()
             if executed_in_run_id:
@@ -363,5 +483,74 @@ Analyze the pattern and implement a fix to prevent recurrence.
             session.rollback()
             logger.error(f"[ROAD-C] Failed to update task status: {e}")
             return False
+        finally:
+            session.close()
+
+    # =========================================================================
+    # Stale Task Cleanup (IMP-REL-003)
+    # =========================================================================
+
+    def cleanup_stale_tasks(
+        self,
+        threshold_hours: int = STALE_TASK_THRESHOLD_HOURS,
+    ) -> int:
+        """Clean up tasks stuck in in_progress state for too long (IMP-REL-003).
+
+        Tasks that remain in_progress beyond the threshold are considered stale
+        (likely due to a run failure) and are marked as failed.
+
+        Args:
+            threshold_hours: Hours after which in_progress tasks are considered stale.
+                            Defaults to STALE_TASK_THRESHOLD_HOURS (24).
+
+        Returns:
+            Number of stale tasks cleaned up.
+        """
+        from ..models import GeneratedTaskModel
+        from ..database import SessionLocal
+
+        session = SessionLocal()
+        threshold = datetime.now() - timedelta(hours=threshold_hours)
+
+        try:
+            # Query tasks stuck in in_progress state
+            # Use updated_at if available, fall back to created_at for older tasks
+            stale_tasks = (
+                session.query(GeneratedTaskModel)
+                .filter(
+                    GeneratedTaskModel.status == "in_progress",
+                )
+                .all()
+            )
+
+            # Filter stale tasks based on updated_at or created_at
+            tasks_to_cleanup = []
+            for task in stale_tasks:
+                # Use updated_at if set, otherwise use created_at
+                check_time = task.updated_at or task.created_at
+                if check_time < threshold:
+                    tasks_to_cleanup.append(task)
+
+            # Mark stale tasks as failed
+            for task in tasks_to_cleanup:
+                logger.warning(
+                    f"[ROAD-C] Marking stale task {task.task_id} as failed "
+                    f"(in_progress for over {threshold_hours} hours)"
+                )
+                task.status = "failed"
+                task.updated_at = datetime.now()
+                task.failure_reason = f"Stale: in_progress for over {threshold_hours} hours"
+
+            session.commit()
+
+            if tasks_to_cleanup:
+                logger.info(f"[ROAD-C] Cleaned up {len(tasks_to_cleanup)} stale tasks")
+
+            return len(tasks_to_cleanup)
+
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[ROAD-C] Failed to cleanup stale tasks: {e}")
+            raise
         finally:
             session.close()

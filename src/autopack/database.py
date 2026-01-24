@@ -1,15 +1,67 @@
-"""Database setup and session management"""
+"""Database setup and session management.
+
+IMP-PERF-001: Connection Pooling for DB Sessions
+-------------------------------------------------
+This module provides connection pooling and session management for the database.
+
+Connection Pool Configuration (PostgreSQL):
+    - pool_size: 20 base connections
+    - max_overflow: 10 additional connections under peak load
+    - pool_timeout: 30 seconds max wait for connection
+    - pool_pre_ping: Validate connections before use
+    - pool_recycle: Refresh connections every 30 minutes
+
+Session Management Patterns:
+    1. get_session() - Context manager for scoped session access (RECOMMENDED)
+       ```
+       with get_session() as session:
+           result = session.query(Model).all()
+       # Session automatically returned to pool
+       ```
+
+    2. ScopedSession - Thread-local session registry for session reuse
+       ```
+       session = ScopedSession()
+       # ... use session ...
+       ScopedSession.remove()  # Return to pool when done
+       ```
+
+    3. get_db() - FastAPI dependency (for API endpoints only)
+       Used automatically by FastAPI's dependency injection.
+
+    4. SessionLocal() - Direct session creation (AVOID in loops)
+       Creates a new session each call. Use get_session() instead.
+"""
 
 import logging
+from contextlib import contextmanager
+from typing import Any, Generator
 
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy import create_engine, text, event
+from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session, Session
 
 from .config import get_database_url
 from .db_leak_detector import ConnectionLeakDetector
 from .exceptions import DatabaseError
 
 logger = logging.getLogger(__name__)
+
+# -----------------------------------------------------------------------------
+# IMP-OPS-011: Connection Pool Health Metrics
+# These metrics are designed to be compatible with Prometheus-style monitoring.
+# They can be exposed via a /metrics endpoint or integrated with prometheus_client.
+# -----------------------------------------------------------------------------
+
+# Pool metrics storage (updated by get_pool_stats())
+# These are module-level for easy access by monitoring systems
+_pool_metrics: dict[str, Any] = {
+    "pool_size": 0,
+    "checked_out": 0,
+    "checked_in": 0,
+    "overflow": 0,
+    "max_overflow": 0,
+    "utilization_pct": 0.0,
+}
 
 # Enable pool_pre_ping so dropped/closed connections are detected and re-established.
 # pool_recycle guards against server-side timeouts on long-lived processes.
@@ -42,8 +94,79 @@ engine = create_engine(_db_url, **_engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+# IMP-PERF-001: Scoped session for thread-local session management
+# This ensures the same thread reuses the same session, reducing connection churn
+ScopedSession = scoped_session(SessionLocal)
+
 # Initialize connection pool leak detector
 leak_detector = ConnectionLeakDetector(engine.pool)
+
+# IMP-PERF-001: Track session checkout/checkin metrics
+_session_metrics = {
+    "total_checkouts": 0,
+    "total_checkins": 0,
+    "active_sessions": 0,
+    "peak_active_sessions": 0,
+}
+
+
+@event.listens_for(engine, "checkout")
+def _on_checkout(dbapi_conn, connection_record, connection_proxy):
+    """Track connection checkouts from pool."""
+    _session_metrics["total_checkouts"] += 1
+    _session_metrics["active_sessions"] += 1
+    if _session_metrics["active_sessions"] > _session_metrics["peak_active_sessions"]:
+        _session_metrics["peak_active_sessions"] = _session_metrics["active_sessions"]
+
+
+@event.listens_for(engine, "checkin")
+def _on_checkin(dbapi_conn, connection_record):
+    """Track connection checkins to pool."""
+    _session_metrics["total_checkins"] += 1
+    _session_metrics["active_sessions"] = max(0, _session_metrics["active_sessions"] - 1)
+
+
+def get_session_metrics() -> dict:
+    """Get session pool metrics for monitoring.
+
+    Returns:
+        Dict with checkout/checkin counts, active sessions, and peak usage.
+    """
+    return dict(_session_metrics)
+
+
+@contextmanager
+def get_session() -> Generator[Session, None, None]:
+    """Context manager for database session access (IMP-PERF-001).
+
+    This is the RECOMMENDED way to access database sessions. It:
+    - Uses scoped_session for thread-local session reuse
+    - Automatically commits on success
+    - Rolls back on exception
+    - Returns session to pool on exit
+
+    Usage:
+        with get_session() as session:
+            result = session.query(Model).filter_by(id=1).first()
+            session.add(new_record)
+        # Commits automatically, session returned to pool
+
+    Yields:
+        SQLAlchemy Session from the thread-local scoped session.
+
+    Raises:
+        DatabaseError: If session operations fail.
+    """
+    session = ScopedSession()
+    try:
+        yield session
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.warning(f"Session rollback due to: {e}")
+        raise
+    finally:
+        ScopedSession.remove()  # Return session to pool
 
 
 def get_db():
@@ -91,6 +214,9 @@ def get_pool_health():
             }
         )
 
+    # IMP-PERF-001: Include session metrics from event tracking
+    session_stats = get_session_metrics()
+
     return DatabasePoolStats(
         timestamp=datetime.now(),
         pool_size=pool_size,
@@ -104,9 +230,79 @@ def get_pool_health():
         longest_checkout_sec=0.0,  # Would require tracking individual connections
         avg_checkout_ms=0.0,  # Would require tracking individual connections
         avg_checkin_ms=0.0,  # Would require tracking individual connections
-        total_checkouts=0,  # Would require cumulative tracking
+        total_checkouts=session_stats["total_checkouts"],  # IMP-PERF-001: Now tracked
         total_timeouts=0,  # Would require tracking timeout events
     )
+
+
+def get_pool_stats() -> dict[str, Any]:
+    """Get connection pool statistics for monitoring (IMP-OPS-011).
+
+    Returns pool statistics in a format suitable for Prometheus-style metrics.
+    Updates module-level _pool_metrics for external monitoring access.
+
+    Returns:
+        dict with keys:
+            - pool_size: Total connections in pool
+            - checked_out: Connections currently in use
+            - checked_in: Connections available in pool
+            - overflow: Extra connections created beyond pool_size
+            - max_overflow: Maximum allowed overflow connections
+            - utilization_pct: Percentage of pool in use (0-100)
+
+    Warning:
+        Logs warning when pool utilization >= 80% (near exhaustion)
+    """
+    global _pool_metrics
+
+    pool = engine.pool
+    pool_size = pool.size()
+    checked_out = pool.checkedout()
+    overflow = pool.overflow()
+    max_overflow = getattr(pool, "_max_overflow", 10)
+    checked_in = pool_size - checked_out
+
+    # Calculate utilization percentage
+    utilization_pct = (checked_out / pool_size * 100) if pool_size > 0 else 0.0
+
+    # Update module-level metrics for external monitoring
+    _pool_metrics.update(
+        {
+            "pool_size": pool_size,
+            "checked_out": checked_out,
+            "checked_in": checked_in,
+            "overflow": overflow,
+            "max_overflow": max_overflow,
+            "utilization_pct": utilization_pct,
+        }
+    )
+
+    # IMP-OPS-011: Log warning when pool near exhaustion
+    if checked_out >= pool_size:
+        logger.warning(
+            f"[IMP-OPS-011] Connection pool near exhaustion: "
+            f"checked_out={checked_out}, pool_size={pool_size}, "
+            f"overflow={overflow}, utilization={utilization_pct:.1f}%"
+        )
+    elif utilization_pct >= 80:
+        logger.warning(
+            f"[IMP-OPS-011] Connection pool utilization high: "
+            f"{utilization_pct:.1f}% ({checked_out}/{pool_size} connections)"
+        )
+
+    return dict(_pool_metrics)
+
+
+def get_pool_metrics() -> dict[str, Any]:
+    """Get the current pool metrics without querying the pool.
+
+    Returns the last cached metrics from get_pool_stats(). Useful for
+    Prometheus scraping without additional database pool queries.
+
+    Returns:
+        dict: Current pool metrics (may be stale if get_pool_stats() not called recently)
+    """
+    return dict(_pool_metrics)
 
 
 def init_db():
@@ -118,6 +314,10 @@ def init_db():
 
     This prevents silent schema drift between SQLite/Postgres environments.
     Alembic migrations provide version-controlled, reversible schema changes.
+
+    Concurrency Control (IMP-OPS-006):
+    - PostgreSQL: Uses advisory lock to prevent corruption during concurrent bootstrap
+    - SQLite: No locking needed (file-level locking is inherent)
     """
     from .config import settings
     import logging
@@ -141,12 +341,43 @@ def init_db():
             "[DB] Bootstrap mode enabled (AUTOPACK_DB_BOOTSTRAP=1). "
             "This should ONLY be used in dev/test environments."
         )
-        Base.metadata.create_all(bind=engine)
+        _bootstrap_with_lock()
         logger.info("[DB] Schema created/updated via create_all()")
     else:
         # Production mode: run Alembic migrations (IMP-OPS-002)
         logger.info("[DB] Running Alembic migrations for schema management")
         run_migrations()
+
+
+# Advisory lock ID for database bootstrap operations (IMP-OPS-006)
+# Using a unique 64-bit integer to prevent conflicts with other advisory locks
+_BOOTSTRAP_ADVISORY_LOCK_ID = 0x4155544F5041434B  # 'AUTOPACK' in hex
+
+
+def _bootstrap_with_lock():
+    """Bootstrap database with concurrency control (IMP-OPS-006).
+
+    For PostgreSQL: Acquires an advisory lock before running create_all()
+    to prevent corruption when multiple instances start simultaneously with
+    AUTOPACK_DB_BOOTSTRAP=1.
+
+    For SQLite: Runs create_all() directly (SQLite has inherent file-level locking).
+    """
+    # Check dialect at runtime (not module-level) to support test mocking
+    is_postgres = engine.dialect.name == "postgresql"
+    if is_postgres:
+        # PostgreSQL: Use advisory lock to prevent concurrent schema modifications
+        with engine.connect() as conn:
+            logger.info("[DB] Acquiring advisory lock for bootstrap")
+            conn.execute(text(f"SELECT pg_advisory_lock({_BOOTSTRAP_ADVISORY_LOCK_ID})"))
+            try:
+                Base.metadata.create_all(bind=engine)
+            finally:
+                conn.execute(text(f"SELECT pg_advisory_unlock({_BOOTSTRAP_ADVISORY_LOCK_ID})"))
+                logger.info("[DB] Released advisory lock after bootstrap")
+    else:
+        # SQLite: No advisory lock needed (inherent file-level locking)
+        Base.metadata.create_all(bind=engine)
 
 
 # Session health check interval (25 minutes - before 30 min pool_recycle)

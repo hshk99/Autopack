@@ -506,8 +506,7 @@ class AutopilotController:
         """
         if not self.enabled:
             raise RuntimeError(
-                "Autopilot is disabled. "
-                "Set enabled=True explicitly to execute approved proposals."
+                "Autopilot is disabled. Set enabled=True explicitly to execute approved proposals."
             )
 
         from .approval_service import ApprovalService
@@ -556,6 +555,26 @@ class AutopilotController:
         except Exception as e:
             logger.error(f"[IMP-FEAT-004] Failed to load plan proposal: {e}")
             return 0
+
+        # IMP-SAFETY-011: Validate approved action IDs against proposal actions
+        # This prevents execution of actions that were never proposed
+        pending_ids = {action.action_id for action in proposal.actions}
+        approved_ids_set = set(approved_ids)
+        invalid_ids = approved_ids_set - pending_ids
+
+        if invalid_ids:
+            logger.warning(
+                f"[IMP-SAFETY-011] Rejected {len(invalid_ids)} invalid action IDs not found in proposal: "
+                f"{sorted(invalid_ids)[:5]}{'...' if len(invalid_ids) > 5 else ''}"
+            )
+            # Filter out invalid IDs - only execute actions that exist in the proposal
+            approved_ids = [aid for aid in approved_ids if aid in pending_ids]
+
+            if not approved_ids:
+                logger.error(
+                    "[IMP-SAFETY-011] All approved action IDs were invalid. No actions to execute."
+                )
+                return 0
 
         # Step 3: Filter to approved actions only
         approved_actions = [a for a in proposal.actions if a.action_id in approved_ids]
@@ -607,9 +626,7 @@ class AutopilotController:
             elif action.target_paths:
                 # File-based action
                 for target_path in action.target_paths:
-                    result = executor.write_artifact(
-                        target_path, getattr(action, "content", "")
-                    )
+                    result = executor.write_artifact(target_path, getattr(action, "content", ""))
 
             if result:
                 executed_count += 1

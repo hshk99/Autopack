@@ -46,8 +46,7 @@ def test_find_referenced_builds():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         history_path = Path(tmpdir) / "BUILD_HISTORY.md"
-        history_path.write_text(
-            """# Build History
+        history_path.write_text("""# Build History
 
 ## Recent Builds
 - BUILD-001: Initial setup
@@ -56,8 +55,7 @@ def test_find_referenced_builds():
 
 ## Older Builds
 - BUILD-100
-"""
-        )
+""")
 
         result = find_referenced_builds(history_path)
 

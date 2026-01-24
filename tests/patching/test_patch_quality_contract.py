@@ -316,12 +316,10 @@ index 1234567..89abcdef 100644
         # Create a large but valid patch
         hunks = []
         for i in range(50):
-            hunks.append(
-                f"""@@ -{i},1 +{i},1 @@
+            hunks.append(f"""@@ -{i},1 +{i},1 @@
 -old_line_{i}
 +new_line_{i}
-"""
-            )
+""")
 
         patch = f"""diff --git a/test.py b/test.py
 index 1234567..89abcdef 100644

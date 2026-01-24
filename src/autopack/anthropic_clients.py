@@ -46,6 +46,11 @@ from .llm.anthropic.parsers import (
 
 logger = logging.getLogger(__name__)
 
+# IMP-COST-006: Size limits for project rules in auditor prompts
+# These prevent large rulesets from adding excessive tokens
+MAX_RULE_CHARS = 500  # Max characters per individual rule
+MAX_TOTAL_RULES_TOKENS = 2000  # Max total tokens for all rules (~4 chars per token)
+
 
 def _write_token_estimation_v2_telemetry(
     run_id: str,
@@ -887,7 +892,8 @@ class AnthropicBuilderClient:
             )
 
         except Exception as e:
-            # Return error result
+            # Log error before returning error result
+            logger.error(f"Auditor review failed: {e}", exc_info=True)
             return AuditorResult(
                 approved=False,
                 issues_found=[
@@ -938,9 +944,15 @@ Approval Criteria:
             prevention_rules = get_prevention_prompt_injection()
             if prevention_rules:
                 base_prompt += "\n\n" + prevention_rules
-        except Exception:
-            # Gracefully continue if prevention rules can't be loaded
-            pass
+        except (FileNotFoundError, IOError) as e:
+            # File not available - this is expected in some environments
+            logger.debug(f"Prevention rules file not available: {e}")
+        except (ValueError, KeyError) as e:
+            # Malformed prevention rules - log and continue
+            logger.warning(f"Could not parse prevention rules: {e}")
+        except Exception as e:
+            # Unexpected error - log for debugging but don't fail the build
+            logger.warning(f"Unexpected error loading prevention rules: {e}")
 
         return base_prompt
 
@@ -963,8 +975,40 @@ Approval Criteria:
 
         if project_rules:
             prompt_parts.append("\n# Project Rules (check compliance):")
-            for rule in project_rules[:10]:
-                prompt_parts.append(f"- {rule.get('rule_text', '')}")
+            # IMP-COST-006: Apply size limits to prevent excessive token usage
+            total_chars = 0
+            max_total_chars = MAX_TOTAL_RULES_TOKENS * 4  # ~4 chars per token
+            rules_truncated = 0
+            rules_added = 0
+
+            for rule in project_rules:
+                rule_text = rule.get("rule_text", "")
+                if not rule_text:
+                    continue
+
+                # Truncate individual rules exceeding max chars
+                if len(rule_text) > MAX_RULE_CHARS:
+                    rule_text = rule_text[:MAX_RULE_CHARS] + "..."
+                    rules_truncated += 1
+
+                # Stop adding rules if total char budget exceeded
+                if total_chars + len(rule_text) > max_total_chars:
+                    rules_skipped = len(project_rules) - rules_added
+                    logger.info(
+                        f"Project rules truncated: {rules_skipped} rules skipped "
+                        f"(total chars {total_chars} approaching limit {max_total_chars})"
+                    )
+                    break
+
+                prompt_parts.append(f"- {rule_text}")
+                total_chars += len(rule_text)
+                rules_added += 1
+
+            if rules_truncated > 0:
+                logger.info(
+                    f"Project rules: {rules_truncated} individual rules truncated "
+                    f"to {MAX_RULE_CHARS} chars"
+                )
 
         if run_hints:
             prompt_parts.append("\n# Recent Run Hints:")

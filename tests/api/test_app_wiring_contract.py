@@ -464,3 +464,183 @@ class TestLifespanGracefulShutdownContract:
         finally:
             # Restore
             app_module._shutdown_manager = original
+
+
+class TestAlertCriticalFailureContract:
+    """Contract tests for background task alerting (IMP-OPS-005)."""
+
+    @pytest.mark.asyncio
+    async def test_alert_logs_critical_message(self):
+        """Contract: alert_critical_failure logs at critical level."""
+        from autopack.api.app import alert_critical_failure
+
+        with patch("autopack.api.app.logger") as mock_logger:
+            with patch(
+                "autopack.notifications.telegram_notifier.TelegramNotifier"
+            ) as mock_notifier_class:
+                mock_notifier = MagicMock()
+                mock_notifier.is_configured.return_value = False
+                mock_notifier_class.return_value = mock_notifier
+
+                await alert_critical_failure(
+                    task_name="test_task",
+                    error="Test error message",
+                    severity="critical",
+                    restart_count=5,
+                )
+
+        # Verify critical log was called
+        mock_logger.critical.assert_called_once()
+        call_args = mock_logger.critical.call_args
+        assert "test_task" in call_args[0][0]
+        assert "Test error message" in call_args[0][0]
+
+    @pytest.mark.asyncio
+    async def test_alert_sends_telegram_when_configured(self):
+        """Contract: alert_critical_failure sends Telegram notification when configured."""
+        from autopack.api.app import alert_critical_failure
+
+        with patch(
+            "autopack.notifications.telegram_notifier.TelegramNotifier"
+        ) as mock_notifier_class:
+            mock_notifier = MagicMock()
+            mock_notifier.is_configured.return_value = True
+            mock_notifier_class.return_value = mock_notifier
+
+            await alert_critical_failure(
+                task_name="test_task",
+                error="Test error",
+                severity="critical",
+            )
+
+        # Verify Telegram notification was sent
+        mock_notifier.send_completion_notice.assert_called_once()
+        call_kwargs = mock_notifier.send_completion_notice.call_args[1]
+        assert call_kwargs["status"] == "error"
+        assert "test_task" in call_kwargs["message"]
+
+    @pytest.mark.asyncio
+    async def test_alert_skips_telegram_when_not_configured(self):
+        """Contract: alert_critical_failure skips Telegram when not configured."""
+        from autopack.api.app import alert_critical_failure
+
+        with patch(
+            "autopack.notifications.telegram_notifier.TelegramNotifier"
+        ) as mock_notifier_class:
+            mock_notifier = MagicMock()
+            mock_notifier.is_configured.return_value = False
+            mock_notifier_class.return_value = mock_notifier
+
+            await alert_critical_failure(
+                task_name="test_task",
+                error="Test error",
+            )
+
+        # Verify Telegram notification was NOT sent
+        mock_notifier.send_completion_notice.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_alert_handles_telegram_failure_gracefully(self):
+        """Contract: alert_critical_failure handles Telegram errors without raising."""
+        from autopack.api.app import alert_critical_failure
+
+        with patch(
+            "autopack.notifications.telegram_notifier.TelegramNotifier"
+        ) as mock_notifier_class:
+            mock_notifier = MagicMock()
+            mock_notifier.is_configured.return_value = True
+            mock_notifier.send_completion_notice.side_effect = Exception("Network error")
+            mock_notifier_class.return_value = mock_notifier
+
+            # Should not raise
+            await alert_critical_failure(
+                task_name="test_task",
+                error="Test error",
+            )
+
+    @pytest.mark.asyncio
+    async def test_alert_includes_restart_count_when_provided(self):
+        """Contract: alert message includes restart count when provided."""
+        from autopack.api.app import alert_critical_failure
+
+        with patch("autopack.api.app.logger") as mock_logger:
+            with patch(
+                "autopack.notifications.telegram_notifier.TelegramNotifier"
+            ) as mock_notifier_class:
+                mock_notifier = MagicMock()
+                mock_notifier.is_configured.return_value = True
+                mock_notifier_class.return_value = mock_notifier
+
+                await alert_critical_failure(
+                    task_name="test_task",
+                    error="Test error",
+                    restart_count=3,
+                )
+
+        # Verify restart count is in the log message
+        call_args = mock_logger.critical.call_args
+        assert "3 restart attempts" in call_args[0][0]
+
+
+class TestBackgroundTaskSupervisorAlertingContract:
+    """Contract tests for supervisor alerting on max restarts (IMP-OPS-005)."""
+
+    @pytest.mark.asyncio
+    async def test_supervisor_alerts_on_max_restarts(self):
+        """Contract: Supervisor calls alert_critical_failure when max restarts exceeded."""
+        from autopack.api.app import BackgroundTaskSupervisor
+
+        failure_count = 0
+
+        async def failing_task():
+            nonlocal failure_count
+            failure_count += 1
+            raise ValueError("Always fails")
+
+        with patch("autopack.api.app.alert_critical_failure") as mock_alert:
+            supervisor = BackgroundTaskSupervisor(max_restarts=2)
+            await supervisor.supervise("test_failing_task", failing_task)
+
+        # Should have alerted after exceeding max restarts
+        mock_alert.assert_called_once()
+        call_kwargs = mock_alert.call_args[1]
+        assert call_kwargs["task_name"] == "test_failing_task"
+        assert call_kwargs["severity"] == "critical"
+        assert call_kwargs["restart_count"] == 2
+
+    @pytest.mark.asyncio
+    async def test_supervisor_does_not_alert_on_normal_completion(self):
+        """Contract: Supervisor does not alert when task completes normally."""
+        from autopack.api.app import BackgroundTaskSupervisor
+
+        async def successful_task():
+            pass  # Completes normally
+
+        with patch("autopack.api.app.alert_critical_failure") as mock_alert:
+            supervisor = BackgroundTaskSupervisor(max_restarts=3)
+            await supervisor.supervise("test_success_task", successful_task)
+
+        # Should not have called alert
+        mock_alert.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_supervisor_does_not_alert_on_cancel(self):
+        """Contract: Supervisor does not alert on task cancellation."""
+        import asyncio
+        from autopack.api.app import BackgroundTaskSupervisor
+
+        async def cancellable_task():
+            await asyncio.sleep(3600)  # Wait to be cancelled
+
+        with patch("autopack.api.app.alert_critical_failure") as mock_alert:
+            supervisor = BackgroundTaskSupervisor(max_restarts=3)
+            task = asyncio.create_task(supervisor.supervise("test_cancel_task", cancellable_task))
+            await asyncio.sleep(0.01)
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+        # Should not have called alert on cancellation
+        mock_alert.assert_not_called()

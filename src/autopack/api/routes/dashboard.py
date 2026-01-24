@@ -460,10 +460,7 @@ def get_dashboard_consolidated_metrics(
         raise HTTPException(status_code=404, detail=f"Run not found: {run_id}")
 
     # Category 1: Actual spend from llm_usage_events
-    actual_spend = (
-        db.query(
-            text(
-                """
+    actual_spend = db.query(text("""
             SELECT
                 COALESCE(SUM(total_tokens), 0) as total_tokens,
                 COALESCE(SUM(prompt_tokens), 0) as prompt_tokens,
@@ -471,12 +468,7 @@ def get_dashboard_consolidated_metrics(
                 COALESCE(SUM(CASE WHEN is_doctor_call = 1 THEN total_tokens ELSE 0 END), 0) as doctor_tokens
             FROM llm_usage_events
             WHERE run_id = :run_id
-        """
-            )
-        )
-        .params(run_id=run_id)
-        .first()
-    )
+        """)).params(run_id=run_id).first()
 
     total_tokens_spent = actual_spend[0] if actual_spend else 0
     total_prompt_tokens = actual_spend[1] if actual_spend else 0
@@ -484,30 +476,19 @@ def get_dashboard_consolidated_metrics(
     doctor_tokens_spent = actual_spend[3] if actual_spend else 0
 
     # Category 2: Artifact efficiency from token_efficiency_metrics
-    artifact_efficiency = (
-        db.query(
-            text(
-                """
+    artifact_efficiency = db.query(text("""
             SELECT
                 COALESCE(SUM(tokens_saved_artifacts), 0) as tokens_saved,
                 COALESCE(SUM(artifact_substitutions), 0) as substitutions
             FROM token_efficiency_metrics
             WHERE run_id = :run_id
-        """
-            )
-        )
-        .params(run_id=run_id)
-        .first()
-    )
+        """)).params(run_id=run_id).first()
 
     artifact_tokens_avoided = artifact_efficiency[0] if artifact_efficiency else 0
     artifact_substitutions_count = artifact_efficiency[1] if artifact_efficiency else 0
 
     # Category 3: Doctor counterfactual from phase6_metrics
-    doctor_counterfactual = (
-        db.query(
-            text(
-                """
+    doctor_counterfactual = db.query(text("""
             SELECT
                 COALESCE(SUM(doctor_tokens_avoided_estimate), 0) as total_estimate,
                 COALESCE(SUM(CASE WHEN doctor_call_skipped = 1 THEN 1 ELSE 0 END), 0) as skipped_count,
@@ -515,12 +496,7 @@ def get_dashboard_consolidated_metrics(
                 MAX(estimate_source) as last_source
             FROM phase6_metrics
             WHERE run_id = :run_id
-        """
-            )
-        )
-        .params(run_id=run_id)
-        .first()
-    )
+        """)).params(run_id=run_id).first()
 
     doctor_tokens_avoided_estimate = doctor_counterfactual[0] if doctor_counterfactual else 0
     doctor_calls_skipped_count = doctor_counterfactual[1] if doctor_counterfactual else 0
@@ -533,21 +509,13 @@ def get_dashboard_consolidated_metrics(
     ab_treatment_run_id = None
 
     # Metadata: Phase counts
-    phase_counts = (
-        db.query(
-            text(
-                """
+    phase_counts = db.query(text("""
             SELECT
                 COUNT(*) as total_phases,
                 COALESCE(SUM(CASE WHEN state = 'COMPLETE' THEN 1 ELSE 0 END), 0) as completed_phases
             FROM phases
             WHERE run_id = :run_id
-        """
-            )
-        )
-        .params(run_id=run_id)
-        .first()
-    )
+        """)).params(run_id=run_id).first()
 
     total_phases = phase_counts[0] if phase_counts else 0
     completed_phases = phase_counts[1] if phase_counts else 0

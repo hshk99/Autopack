@@ -34,21 +34,17 @@ class TestPackageDetectorIntegration:
         (temp_project_dir / "requirements.txt").write_text("requests==2.28.0\n")
 
         # pyproject.toml
-        (temp_project_dir / "pyproject.toml").write_text(
-            """[tool.poetry.dependencies]
+        (temp_project_dir / "pyproject.toml").write_text("""[tool.poetry.dependencies]
 fastapi = "^0.95.0"
-"""
-        )
+""")
 
         # setup.py
-        (temp_project_dir / "setup.py").write_text(
-            """from setuptools import setup
+        (temp_project_dir / "setup.py").write_text("""from setuptools import setup
 setup(
     name='test',
     install_requires=['flask'],
 )
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -132,8 +128,7 @@ setup(
     def test_poetry_with_groups(self, temp_project_dir):
         """Test Poetry pyproject.toml with dependency groups"""
         pyproject = temp_project_dir / "pyproject.toml"
-        pyproject.write_text(
-            """[tool.poetry]
+        pyproject.write_text("""[tool.poetry]
 name = "test-project"
 version = "0.1.0"
 
@@ -148,8 +143,7 @@ black = "^23.0.0"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^5.0.0"
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -164,8 +158,7 @@ sphinx = "^5.0.0"
     def test_setup_cfg(self, temp_project_dir):
         """Test detection from setup.cfg"""
         setup_cfg = temp_project_dir / "setup.cfg"
-        setup_cfg.write_text(
-            """[metadata]
+        setup_cfg.write_text("""[metadata]
 name = test-package
 version = 1.0.0
 
@@ -179,8 +172,7 @@ install_requires =
 dev =
     pytest
     black
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -194,8 +186,7 @@ dev =
     def test_conda_environment_yml(self, temp_project_dir):
         """Test detection from conda environment.yml"""
         env_file = temp_project_dir / "environment.yml"
-        env_file.write_text(
-            """name: test-env
+        env_file.write_text("""name: test-env
 channels:
   - conda-forge
   - defaults
@@ -206,8 +197,7 @@ dependencies:
   - pip:
     - requests
     - fastapi
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -221,24 +211,20 @@ dependencies:
     def test_real_world_django_project(self, temp_project_dir):
         """Test detection in a realistic Django project structure"""
         # Main requirements
-        (temp_project_dir / "requirements.txt").write_text(
-            """Django>=4.0.0
+        (temp_project_dir / "requirements.txt").write_text("""Django>=4.0.0
 django-environ
 psycopg2-binary
 celery[redis]
 gunicorn
-"""
-        )
+""")
 
         # Dev requirements
-        (temp_project_dir / "requirements-dev.txt").write_text(
-            """-r requirements.txt
+        (temp_project_dir / "requirements-dev.txt").write_text("""-r requirements.txt
 pytest-django
 black
 flake8
 ipython
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))
@@ -259,8 +245,7 @@ ipython
     def test_real_world_fastapi_project(self, temp_project_dir):
         """Test detection in a realistic FastAPI project structure"""
         pyproject = temp_project_dir / "pyproject.toml"
-        pyproject.write_text(
-            """[tool.poetry]
+        pyproject.write_text("""[tool.poetry]
 name = "fastapi-app"
 version = "0.1.0"
 
@@ -280,8 +265,7 @@ pytest-asyncio = "^0.20.0"
 httpx = "^0.23.0"
 black = "^23.0.0"
 mypy = "^1.0.0"
-"""
-        )
+""")
 
         detector = PackageDetector()
         packages = detector.detect_packages(str(temp_project_dir))

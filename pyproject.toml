@@ -50,6 +50,8 @@ dependencies = [
     "redis>=5.0.0",
     # Scientific computing for A-B testing statistical validation
     "scipy>=1.11.0",
+    # Prometheus metrics for API observability (IMP-OPS-010)
+    "prometheus-client>=0.17.0",
 ]
 
 [project.optional-dependencies]

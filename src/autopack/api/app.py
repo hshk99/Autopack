@@ -19,17 +19,20 @@ import asyncio
 import logging
 import os
 import threading
+import time
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Callable
+
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi.responses import JSONResponse, Response
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from ..config import get_api_key, is_production
 from ..database import get_db, init_db
@@ -38,6 +41,21 @@ from ..version import __version__
 from .deps import limiter
 
 logger = logging.getLogger(__name__)
+
+# IMP-OPS-010: Prometheus metrics for API observability
+# These metrics enable monitoring of API performance and request patterns
+REQUEST_COUNT = Counter(
+    "autopack_http_requests_total",
+    "Total HTTP requests processed by the API",
+    ["method", "endpoint", "status"],
+)
+
+REQUEST_LATENCY = Histogram(
+    "autopack_http_request_duration_seconds",
+    "HTTP request latency in seconds",
+    ["method", "endpoint"],
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
+)
 
 
 async def alert_critical_failure(
@@ -543,6 +561,77 @@ async def correlation_id_middleware(request: Request, call_next):
     return response
 
 
+async def metrics_middleware(request: Request, call_next):
+    """Record Prometheus metrics for each HTTP request.
+
+    Implements IMP-OPS-010: API metrics collection for observability.
+
+    Tracks:
+    - Total request count by method, endpoint, and status code
+    - Request latency distribution by method and endpoint
+
+    Args:
+        request: FastAPI request object
+        call_next: Next middleware/handler in chain
+
+    Returns:
+        Response from the next handler, with metrics recorded
+    """
+    # Skip metrics endpoint to avoid self-instrumentation noise
+    if request.url.path == "/metrics":
+        return await call_next(request)
+
+    # Normalize endpoint path to reduce cardinality
+    # Replace numeric IDs with placeholders
+    endpoint = _normalize_endpoint(request.url.path)
+
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+
+    # Record metrics
+    REQUEST_COUNT.labels(
+        method=request.method,
+        endpoint=endpoint,
+        status=str(response.status_code),
+    ).inc()
+
+    REQUEST_LATENCY.labels(
+        method=request.method,
+        endpoint=endpoint,
+    ).observe(duration)
+
+    return response
+
+
+def _normalize_endpoint(path: str) -> str:
+    """Normalize endpoint path to reduce metric cardinality.
+
+    Replaces variable path segments (UUIDs, numeric IDs) with placeholders
+    to prevent high-cardinality metrics explosion.
+
+    Args:
+        path: Raw request path like /runs/abc-123/phases/1
+
+    Returns:
+        Normalized path like /runs/{id}/phases/{id}
+    """
+    import re
+
+    # Replace UUIDs (with or without hyphens)
+    path = re.sub(
+        r"[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}",
+        "{id}",
+        path,
+        flags=re.IGNORECASE,
+    )
+
+    # Replace numeric IDs in path segments
+    path = re.sub(r"/\d+(?=/|$)", "/{id}", path)
+
+    return path
+
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Add security headers to all responses.
 
@@ -923,6 +1012,22 @@ def create_app() -> FastAPI:
     async def add_correlation_id_middleware(request: Request, call_next):
         """Middleware wrapper for correlation ID handling."""
         return await correlation_id_middleware(request, call_next)
+
+    # IMP-OPS-010: Add metrics middleware for API observability
+    @app.middleware("http")
+    async def add_metrics_middleware(request: Request, call_next):
+        """Middleware wrapper for Prometheus metrics collection."""
+        return await metrics_middleware(request, call_next)
+
+    # IMP-OPS-010: Add /metrics endpoint for Prometheus scraping
+    @app.get("/metrics", include_in_schema=False)
+    async def prometheus_metrics():
+        """Expose Prometheus metrics for scraping.
+
+        Returns metrics in Prometheus text format for monitoring systems.
+        This endpoint is excluded from the OpenAPI schema to reduce clutter.
+        """
+        return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     # BUILD-188 P5.3: CORS configuration
     # Default: deny all cross-origin requests. Configure CORS_ALLOWED_ORIGINS in env for frontend needs.

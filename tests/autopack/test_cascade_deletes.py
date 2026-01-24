@@ -25,10 +25,23 @@ from src.autopack.models import (
 @pytest.fixture
 def db_session():
     """Provide a database session for testing."""
+    from sqlalchemy.exc import IntegrityError, ProgrammingError
     from src.autopack.database import SessionLocal, Base, engine
 
-    # Create tables
-    Base.metadata.create_all(bind=engine)
+    # Create tables - handle race condition when parallel workers try to create
+    # PostgreSQL ENUM types simultaneously (e.g., 'runstate' enum)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except (IntegrityError, ProgrammingError) as e:
+        # Ignore "duplicate key value violates unique constraint" errors for
+        # PostgreSQL type creation - this happens when parallel test workers
+        # race to create the same ENUM type. The type already exists, so we
+        # can safely continue.
+        error_msg = str(e).lower()
+        if "pg_type_typname_nsp_index" in error_msg or "already exists" in error_msg:
+            pass  # Type already created by another worker, safe to continue
+        else:
+            raise
 
     # Enable foreign key constraints for SQLite (required for CASCADE deletes)
     if engine.dialect.name == "sqlite":

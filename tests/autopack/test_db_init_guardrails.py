@@ -174,9 +174,6 @@ class TestBootstrapConcurrencyControl:
         """Bootstrap should acquire advisory lock before create_all on PostgreSQL (IMP-OPS-006)."""
         import autopack.database
 
-        # Mock PostgreSQL detection
-        monkeypatch.setattr(autopack.database, "_is_postgres", True)
-
         # Track executed SQL
         executed_sql = []
 
@@ -190,8 +187,9 @@ class TestBootstrapConcurrencyControl:
         mock_conn.__enter__ = lambda self: mock_conn
         mock_conn.__exit__ = lambda self, *args: None
 
-        # Mock engine.connect() to return our tracking connection
+        # Mock engine with PostgreSQL dialect
         mock_engine = MagicMock()
+        mock_engine.dialect.name = "postgresql"
         mock_engine.connect.return_value = mock_conn
         monkeypatch.setattr(autopack.database, "engine", mock_engine)
 
@@ -219,9 +217,6 @@ class TestBootstrapConcurrencyControl:
         """Advisory lock should be released even if create_all fails (IMP-OPS-006)."""
         import autopack.database
 
-        # Mock PostgreSQL detection
-        monkeypatch.setattr(autopack.database, "_is_postgres", True)
-
         # Track executed SQL
         executed_sql = []
 
@@ -235,8 +230,9 @@ class TestBootstrapConcurrencyControl:
         mock_conn.__enter__ = lambda self: mock_conn
         mock_conn.__exit__ = lambda self, *args: None
 
-        # Mock engine.connect() to return our tracking connection
+        # Mock engine with PostgreSQL dialect
         mock_engine = MagicMock()
+        mock_engine.dialect.name = "postgresql"
         mock_engine.connect.return_value = mock_conn
         monkeypatch.setattr(autopack.database, "engine", mock_engine)
 
@@ -260,9 +256,6 @@ class TestBootstrapConcurrencyControl:
         """SQLite bootstrap should not attempt advisory lock (IMP-OPS-006)."""
         import autopack.database
 
-        # Mock SQLite detection (not PostgreSQL)
-        monkeypatch.setattr(autopack.database, "_is_postgres", False)
-
         # Track if engine.connect() is called
         connect_called = []
 
@@ -270,7 +263,9 @@ class TestBootstrapConcurrencyControl:
             connect_called.append(True)
             raise AssertionError("Should not call connect for SQLite")
 
+        # Mock engine with SQLite dialect
         mock_engine = MagicMock()
+        mock_engine.dialect.name = "sqlite"
         mock_engine.connect = track_connect
         monkeypatch.setattr(autopack.database, "engine", mock_engine)
 

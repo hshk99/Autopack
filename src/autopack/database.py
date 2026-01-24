@@ -167,7 +167,9 @@ def _bootstrap_with_lock():
 
     For SQLite: Runs create_all() directly (SQLite has inherent file-level locking).
     """
-    if _is_postgres:
+    # Check dialect at runtime (not module-level) to support test mocking
+    is_postgres = engine.dialect.name == "postgresql"
+    if is_postgres:
         # PostgreSQL: Use advisory lock to prevent concurrent schema modifications
         with engine.connect() as conn:
             logger.info("[DB] Acquiring advisory lock for bootstrap")

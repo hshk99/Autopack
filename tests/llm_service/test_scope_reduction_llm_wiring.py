@@ -3,7 +3,8 @@
 These tests verify:
 - LlmService.generate_scope_reduction_proposal method exists and is callable
 - Returns dict matching ScopeReductionProposal schema on success
-- Returns None on LLM call failure
+- Raises ScopeReductionError on LLM call failure (IMP-REL-002)
+- Raises ScopeReductionError on JSON parse failure (IMP-REL-002)
 - Records usage correctly
 """
 
@@ -12,6 +13,8 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestLlmServiceScopeReductionWiring:
@@ -84,30 +87,75 @@ class TestLlmServiceScopeReductionWiring:
             assert result["diff"]["kept_deliverables"] == ["task-1", "task-2"]
             assert result["diff"]["dropped_deliverables"] == ["task-3"]
 
-    def test_generate_scope_reduction_proposal_returns_none_on_failure(self):
-        """generate_scope_reduction_proposal returns None on LLM failure."""
+    def test_generate_scope_reduction_proposal_raises_on_api_failure(self):
+        """generate_scope_reduction_proposal raises ScopeReductionError on LLM failure."""
         from autopack.llm_service import LlmService
+        from autopack.exceptions import ScopeReductionError
 
         # Create mock service with failing LLM
         with patch.object(LlmService, "__init__", lambda self, *args, **kwargs: None):
             service = LlmService.__new__(LlmService)
             service.db = MagicMock()
 
-            # Mock client that raises exception
+            # Mock Anthropic client that raises exception on messages.create
+            # Need to properly setup spec so hasattr checks work correctly
+            mock_inner_client = MagicMock(spec=["messages"])  # Only has "messages", not "chat"
+            mock_inner_client.messages.create.side_effect = Exception("API error")
+
             mock_client = MagicMock()
-            mock_client.client.messages.create.side_effect = Exception("API error")
+            mock_client.client = mock_inner_client
 
             service._resolve_client_and_model = MagicMock(
                 return_value=(mock_client, "claude-sonnet-4-5")
             )
 
-            # Call method
-            result = service.generate_scope_reduction_proposal(
-                prompt="Test prompt", run_id="test-run"
-            )
+            # Verify raises ScopeReductionError with context
+            with pytest.raises(ScopeReductionError) as exc_info:
+                service.generate_scope_reduction_proposal(
+                    prompt="Test prompt", run_id="test-run", phase_id="phase-1"
+                )
 
-            # Verify returns None on failure
-            assert result is None
+            # Verify exception contains context
+            assert exc_info.value.run_id == "test-run"
+            assert exc_info.value.phase_id == "phase-1"
+            assert exc_info.value.component == "scope_reduction"
+            assert "API error" in str(exc_info.value)
+
+    def test_generate_scope_reduction_proposal_raises_on_json_parse_failure(self):
+        """generate_scope_reduction_proposal raises ScopeReductionError on JSON parse failure."""
+        from autopack.llm_service import LlmService
+        from autopack.exceptions import ScopeReductionError
+
+        with patch.object(LlmService, "__init__", lambda self, *args, **kwargs: None):
+            service = LlmService.__new__(LlmService)
+            service.db = MagicMock()
+
+            # Mock client that returns invalid JSON
+            mock_inner_client = MagicMock(spec=["messages"])
+            mock_completion = MagicMock()
+            mock_completion.content = [MagicMock(text="not valid json")]
+            mock_completion.usage = type("Usage", (), {"input_tokens": 100, "output_tokens": 200})()
+            mock_inner_client.messages.create.return_value = mock_completion
+
+            mock_client = MagicMock()
+            mock_client.client = mock_inner_client
+
+            service._resolve_client_and_model = MagicMock(
+                return_value=(mock_client, "claude-sonnet-4-5")
+            )
+            service._model_to_provider = MagicMock(return_value="anthropic")
+            service._record_usage = MagicMock()
+
+            # Verify raises ScopeReductionError for JSON parsing errors
+            with pytest.raises(ScopeReductionError) as exc_info:
+                service.generate_scope_reduction_proposal(
+                    prompt="Test prompt", run_id="test-run", phase_id="phase-1"
+                )
+
+            # Verify exception contains context
+            assert exc_info.value.run_id == "test-run"
+            assert exc_info.value.phase_id == "phase-1"
+            assert "parse" in str(exc_info.value).lower()
 
     def test_generate_scope_reduction_proposal_records_usage(self):
         """generate_scope_reduction_proposal records LLM usage."""

@@ -344,3 +344,286 @@ class TestIntegration:
 """
         backlog_file = tmp_path / "backlog.md"
         backlog_file.write_text(backlog_content)
+
+        # Parse backlog
+        items = parse_backlog_markdown(backlog_file)
+        assert len(items) == 2
+
+        # Convert to phases
+        plan = backlog_items_to_phases(
+            items, default_allowed_paths=["src/"], max_commands=10, max_seconds=300
+        )
+        assert len(plan["phases"]) == 2
+
+        # Write plan
+        plan_path = tmp_path / "output" / "plan.json"
+        write_plan(plan, plan_path)
+
+        # Verify written plan
+        loaded = json.loads(plan_path.read_text())
+        assert loaded == plan
+        assert loaded["phases"][0]["description"] == "Fix authentication timeout"
+        assert loaded["phases"][1]["description"] == "Add rate limiting"
+
+
+class TestSlugGeneration:
+    """Tests for slug generation from titles.
+
+    The _slug helper function generates URL-safe identifiers from item titles.
+    """
+
+    def test_slug_simple_title(self, tmp_path: Path):
+        """Simple title generates clean slug."""
+        backlog_file = tmp_path / "backlog.md"
+        backlog_file.write_text("- Fix Bug\n")
+
+        items = parse_backlog_markdown(backlog_file)
+        assert items[0].id == "backlog-fix-bug"
+
+    def test_slug_special_characters_removed(self, tmp_path: Path):
+        """Special characters are replaced with hyphens."""
+        backlog_file = tmp_path / "backlog.md"
+        backlog_file.write_text("- Fix: the @#$ bug!!!\n")
+
+        items = parse_backlog_markdown(backlog_file)
+        # Special chars become hyphens, leading/trailing stripped
+        assert "backlog-" in items[0].id
+        assert "@" not in items[0].id
+        assert "#" not in items[0].id
+
+    def test_slug_long_title_truncated(self, tmp_path: Path):
+        """Long titles are truncated with hash suffix."""
+        long_title = "A" * 100  # Very long title
+        backlog_file = tmp_path / "backlog.md"
+        backlog_file.write_text(f"- {long_title}\n")
+
+        items = parse_backlog_markdown(backlog_file)
+        # Slug should be truncated but still unique (has hash)
+        assert len(items[0].id) <= 40 + len("backlog-")  # max_len=32 for slug + prefix
+
+    def test_slug_whitespace_only_title_not_parsed(self, tmp_path: Path):
+        """Line with only '- ' and whitespace is not parsed as item.
+
+        Note: After rstrip(), '- \\n' becomes '-' which doesn't match '- '.
+        """
+        backlog_file = tmp_path / "backlog.md"
+        backlog_file.write_text("- \n  Some description\n")
+
+        items = parse_backlog_markdown(backlog_file)
+        # Line '- ' followed by only whitespace becomes '-' after rstrip
+        # and doesn't start with '- ', so no item is created
+        assert items == []
+
+    def test_slug_minimal_title_uses_fallback(self, tmp_path: Path):
+        """Minimal title (single char) still generates valid ID."""
+        backlog_file = tmp_path / "backlog.md"
+        # Use a minimal but valid title
+        backlog_file.write_text("- x\n  Some description\n")
+
+        items = parse_backlog_markdown(backlog_file)
+        assert len(items) == 1
+        assert items[0].id.startswith("backlog-")
+        assert "x" in items[0].id
+
+    def test_slug_case_insensitive(self, tmp_path: Path):
+        """Slugs are lowercase."""
+        backlog_file = tmp_path / "backlog.md"
+        backlog_file.write_text("- FIX THE BUG\n")
+
+        items = parse_backlog_markdown(backlog_file)
+        assert items[0].id == items[0].id.lower()
+
+    def test_slug_preserves_numbers(self, tmp_path: Path):
+        """Numbers are preserved in slugs."""
+        backlog_file = tmp_path / "backlog.md"
+        backlog_file.write_text("- Fix bug 123\n")
+
+        items = parse_backlog_markdown(backlog_file)
+        assert "123" in items[0].id
+
+
+class TestEdgeCases:
+    """Edge case tests for backlog maintenance functions."""
+
+    def test_parse_summary_truncated_at_500_chars(self, tmp_path: Path):
+        """Summary is truncated at 500 characters."""
+        long_summary = "x" * 1000
+        backlog_file = tmp_path / "backlog.md"
+        backlog_file.write_text(f"- Title\n  {long_summary}\n")
+
+        items = parse_backlog_markdown(backlog_file)
+        assert len(items[0].summary) <= 500
+
+    def test_parse_handles_blank_lines_in_summary(self, tmp_path: Path):
+        """Blank lines between summary parts are handled."""
+        content = """- Title
+  First part.
+
+  Second part after blank.
+- Next item
+"""
+        backlog_file = tmp_path / "backlog.md"
+        backlog_file.write_text(content)
+
+        items = parse_backlog_markdown(backlog_file)
+        assert len(items) == 2
+        # Summary should include both parts (without blank line)
+        assert "First part" in items[0].summary
+        assert "Second part" in items[0].summary
+
+    def test_parse_no_summary(self, tmp_path: Path):
+        """Item without summary description works."""
+        backlog_file = tmp_path / "backlog.md"
+        backlog_file.write_text("- Just a title\n- Another title\n")
+
+        items = parse_backlog_markdown(backlog_file)
+        assert len(items) == 2
+        assert items[0].summary == ""
+        assert items[1].summary == ""
+
+    def test_parse_mixed_indentation(self, tmp_path: Path):
+        """Mixed indentation in summary is normalized."""
+        content = """- Title
+  First line with 2 spaces.
+    Second line with 4 spaces.
+\tThird line with tab.
+- Next item
+"""
+        backlog_file = tmp_path / "backlog.md"
+        backlog_file.write_text(content)
+
+        items = parse_backlog_markdown(backlog_file)
+        assert len(items) == 2
+        # All indented lines should be captured
+        assert "First line" in items[0].summary
+
+    def test_parse_file_with_only_comments(self, tmp_path: Path):
+        """File with only headers/comments returns empty list."""
+        content = """# Backlog Header
+## Section 1
+Some text without bullets.
+### Subsection
+More text.
+"""
+        backlog_file = tmp_path / "backlog.md"
+        backlog_file.write_text(content)
+
+        items = parse_backlog_markdown(backlog_file)
+        assert items == []
+
+    def test_phases_merge_default_and_item_paths(self):
+        """Default and item-specific paths are merged without duplicates."""
+        items = [
+            BacklogItem(
+                id="test",
+                title="Test",
+                summary="",
+                allowed_paths=["src/", "custom/"],
+            )
+        ]
+
+        result = backlog_items_to_phases(items, default_allowed_paths=["src/", "tests/"])
+
+        paths = result["phases"][0]["scope"]["paths"]
+        # src/ should appear only once
+        assert paths.count("src/") == 1
+        assert "custom/" in paths
+        assert "tests/" in paths
+
+    def test_phases_acceptance_criteria_present(self):
+        """Phases include acceptance criteria."""
+        items = [BacklogItem(id="test", title="Test", summary="")]
+
+        result = backlog_items_to_phases(items)
+        phase = result["phases"][0]
+
+        assert "acceptance_criteria" in phase
+        assert len(phase["acceptance_criteria"]) > 0
+
+    def test_phases_no_default_paths(self):
+        """Phases work without default allowed paths."""
+        items = [BacklogItem(id="test", title="Test", summary="")]
+
+        result = backlog_items_to_phases(items, default_allowed_paths=None)
+
+        phase = result["phases"][0]
+        assert phase["scope"]["paths"] == []
+
+
+class TestParsePatchStatsEdgeCases:
+    """Additional edge case tests for patch stats parsing."""
+
+    def test_patch_with_context_lines(self):
+        """Context lines (starting with space) are not counted."""
+        patch = """--- a/file.py
++++ b/file.py
+@@ -1,5 +1,5 @@
+ context line 1
+-deleted line
++added line
+ context line 2
+ context line 3
+"""
+        stats = parse_patch_stats(patch)
+
+        assert stats.lines_added == 1
+        assert stats.lines_deleted == 1
+
+    def test_patch_with_binary_file_marker(self):
+        """Binary file markers don't affect counts."""
+        patch = """--- a/image.png
++++ b/image.png
+Binary files differ
+"""
+        stats = parse_patch_stats(patch)
+
+        # Binary file should still be tracked
+        assert "image.png" in stats.files_changed
+        assert stats.lines_added == 0
+        assert stats.lines_deleted == 0
+
+    def test_patch_new_file_creation(self):
+        """New file creation patch counts correctly."""
+        patch = """--- /dev/null
++++ b/newfile.py
+@@ -0,0 +1,3 @@
++line 1
++line 2
++line 3
+"""
+        stats = parse_patch_stats(patch)
+
+        assert "newfile.py" in stats.files_changed
+        assert stats.lines_added == 3
+        assert stats.lines_deleted == 0
+
+    def test_patch_file_deletion(self):
+        """File deletion patch counts correctly."""
+        patch = """--- a/oldfile.py
++++ /dev/null
+@@ -1,2 +0,0 @@
+-line 1
+-line 2
+"""
+        stats = parse_patch_stats(patch)
+
+        assert "oldfile.py" in stats.files_changed
+        assert stats.lines_added == 0
+        assert stats.lines_deleted == 2
+
+    def test_patch_with_rename(self):
+        """Renamed file patch includes both old and new paths."""
+        patch = """--- a/old_name.py
++++ b/new_name.py
+@@ -1,3 +1,3 @@
+ line 1
+-old line
++new line
+ line 3
+"""
+        stats = parse_patch_stats(patch)
+
+        assert "old_name.py" in stats.files_changed
+        assert "new_name.py" in stats.files_changed
+        assert stats.lines_added == 1
+        assert stats.lines_deleted == 1

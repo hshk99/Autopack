@@ -1073,10 +1073,12 @@ class GeneratedTaskModel(Base):
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     status = Column(
         String(20), nullable=False, default="pending"
-    )  # pending, in_progress, completed, skipped
+    )  # pending, in_progress, completed, skipped, failed
     run_id = Column(String(50), nullable=True)  # Run that generated this task
     completed_at = Column(DateTime, nullable=True)
     executed_in_run_id = Column(String(50), nullable=True)  # Run that executed this task
+    updated_at = Column(DateTime, nullable=True)  # Last status update time (IMP-REL-003)
+    failure_reason = Column(Text, nullable=True)  # Reason for failure (IMP-REL-003)
 
     def __repr__(self) -> str:
         title_preview = self.title[:30] if self.title else ""

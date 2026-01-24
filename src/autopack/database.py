@@ -1,9 +1,44 @@
-"""Database setup and session management"""
+"""Database setup and session management.
+
+IMP-PERF-001: Connection Pooling for DB Sessions
+-------------------------------------------------
+This module provides connection pooling and session management for the database.
+
+Connection Pool Configuration (PostgreSQL):
+    - pool_size: 20 base connections
+    - max_overflow: 10 additional connections under peak load
+    - pool_timeout: 30 seconds max wait for connection
+    - pool_pre_ping: Validate connections before use
+    - pool_recycle: Refresh connections every 30 minutes
+
+Session Management Patterns:
+    1. get_session() - Context manager for scoped session access (RECOMMENDED)
+       ```
+       with get_session() as session:
+           result = session.query(Model).all()
+       # Session automatically returned to pool
+       ```
+
+    2. ScopedSession - Thread-local session registry for session reuse
+       ```
+       session = ScopedSession()
+       # ... use session ...
+       ScopedSession.remove()  # Return to pool when done
+       ```
+
+    3. get_db() - FastAPI dependency (for API endpoints only)
+       Used automatically by FastAPI's dependency injection.
+
+    4. SessionLocal() - Direct session creation (AVOID in loops)
+       Creates a new session each call. Use get_session() instead.
+"""
 
 import logging
+from contextlib import contextmanager
+from typing import Generator
 
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy import create_engine, text, event
+from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session, Session
 
 from .config import get_database_url
 from .db_leak_detector import ConnectionLeakDetector
@@ -42,8 +77,79 @@ engine = create_engine(_db_url, **_engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+# IMP-PERF-001: Scoped session for thread-local session management
+# This ensures the same thread reuses the same session, reducing connection churn
+ScopedSession = scoped_session(SessionLocal)
+
 # Initialize connection pool leak detector
 leak_detector = ConnectionLeakDetector(engine.pool)
+
+# IMP-PERF-001: Track session checkout/checkin metrics
+_session_metrics = {
+    "total_checkouts": 0,
+    "total_checkins": 0,
+    "active_sessions": 0,
+    "peak_active_sessions": 0,
+}
+
+
+@event.listens_for(engine, "checkout")
+def _on_checkout(dbapi_conn, connection_record, connection_proxy):
+    """Track connection checkouts from pool."""
+    _session_metrics["total_checkouts"] += 1
+    _session_metrics["active_sessions"] += 1
+    if _session_metrics["active_sessions"] > _session_metrics["peak_active_sessions"]:
+        _session_metrics["peak_active_sessions"] = _session_metrics["active_sessions"]
+
+
+@event.listens_for(engine, "checkin")
+def _on_checkin(dbapi_conn, connection_record):
+    """Track connection checkins to pool."""
+    _session_metrics["total_checkins"] += 1
+    _session_metrics["active_sessions"] = max(0, _session_metrics["active_sessions"] - 1)
+
+
+def get_session_metrics() -> dict:
+    """Get session pool metrics for monitoring.
+
+    Returns:
+        Dict with checkout/checkin counts, active sessions, and peak usage.
+    """
+    return dict(_session_metrics)
+
+
+@contextmanager
+def get_session() -> Generator[Session, None, None]:
+    """Context manager for database session access (IMP-PERF-001).
+
+    This is the RECOMMENDED way to access database sessions. It:
+    - Uses scoped_session for thread-local session reuse
+    - Automatically commits on success
+    - Rolls back on exception
+    - Returns session to pool on exit
+
+    Usage:
+        with get_session() as session:
+            result = session.query(Model).filter_by(id=1).first()
+            session.add(new_record)
+        # Commits automatically, session returned to pool
+
+    Yields:
+        SQLAlchemy Session from the thread-local scoped session.
+
+    Raises:
+        DatabaseError: If session operations fail.
+    """
+    session = ScopedSession()
+    try:
+        yield session
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.warning(f"Session rollback due to: {e}")
+        raise
+    finally:
+        ScopedSession.remove()  # Return session to pool
 
 
 def get_db():
@@ -91,6 +197,9 @@ def get_pool_health():
             }
         )
 
+    # IMP-PERF-001: Include session metrics from event tracking
+    session_stats = get_session_metrics()
+
     return DatabasePoolStats(
         timestamp=datetime.now(),
         pool_size=pool_size,
@@ -104,7 +213,7 @@ def get_pool_health():
         longest_checkout_sec=0.0,  # Would require tracking individual connections
         avg_checkout_ms=0.0,  # Would require tracking individual connections
         avg_checkin_ms=0.0,  # Would require tracking individual connections
-        total_checkouts=0,  # Would require cumulative tracking
+        total_checkouts=session_stats["total_checkouts"],  # IMP-PERF-001: Now tracked
         total_timeouts=0,  # Would require tracking timeout events
     )
 

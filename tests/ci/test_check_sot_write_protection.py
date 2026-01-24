@@ -53,12 +53,10 @@ def test_scan_file_detects_write_to_protected_path():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         test_file = Path(tmpdir) / "test_module.py"
-        test_file.write_text(
-            """
+        test_file.write_text("""
 def bad_function():
     Path("docs/BUILD_HISTORY.md").write_text("bad")
-"""
-        )
+""")
 
         findings = _scan_file(test_file)
         assert len(findings) == 1
@@ -71,13 +69,11 @@ def test_scan_file_detects_write_to_json_sot():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         test_file = Path(tmpdir) / "test_module.py"
-        test_file.write_text(
-            """
+        test_file.write_text("""
 def save_index():
     with open("docs/PROJECT_INDEX.json", "w") as f:
         f.write("{}")
-"""
-        )
+""")
 
         findings = _scan_file(test_file)
         assert len(findings) >= 1
@@ -94,13 +90,11 @@ def test_scan_file_detects_path_constructor_with_sot():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         test_file = Path(tmpdir) / "test_module.py"
-        test_file.write_text(
-            """
+        test_file.write_text("""
 def read_history():
     content = Path("docs/BUILD_HISTORY.md").read_text()
     return content
-"""
-        )
+""")
 
         findings = _scan_file(test_file)
         # Path() with SOT is flagged as a potential risk (conservative)
@@ -113,14 +107,12 @@ def test_scan_file_no_findings_for_clean_code():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         test_file = Path(tmpdir) / "clean_module.py"
-        test_file.write_text(
-            """
+        test_file.write_text("""
 def process_data():
     # This is clean code with no SOT writes
     result = {"status": "ok"}
     return result
-"""
-        )
+""")
 
         findings = _scan_file(test_file)
         assert len(findings) == 0

@@ -16,7 +16,7 @@ from autopack.database import ensure_session_healthy, SESSION_HEALTH_CHECK_INTER
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
 from autopack.learned_rules import promote_hints_to_rules
-from autopack.telemetry.analyzer import TelemetryAnalyzer
+from autopack.telemetry.analyzer import TelemetryAnalyzer, CostRecommendation
 from autopack.autonomous.budgeting import (
     BudgetExhaustedError,
     is_budget_exhausted,
@@ -144,6 +144,74 @@ class AutonomousLoop:
                 )
 
         return adjustments
+
+    def _check_cost_recommendations(self) -> CostRecommendation:
+        """Check if telemetry recommends pausing for cost reasons (IMP-COST-005).
+
+        Queries the telemetry analyzer for cost recommendations based on
+        current token usage against the run's budget cap.
+
+        Returns:
+            CostRecommendation with pause decision and details
+        """
+        analyzer = self._get_telemetry_analyzer()
+        tokens_used = getattr(self.executor, "_run_tokens_used", 0)
+        token_cap = settings.run_token_cap
+
+        if not analyzer:
+            # No analyzer available, create a basic recommendation
+            if token_cap > 0:
+                usage_pct = tokens_used / token_cap
+                budget_remaining_pct = max(0.0, (1.0 - usage_pct) * 100)
+                should_pause = usage_pct >= 0.95
+                return CostRecommendation(
+                    should_pause=should_pause,
+                    reason="Basic cost check (no telemetry analyzer)",
+                    current_spend=float(tokens_used),
+                    budget_remaining_pct=budget_remaining_pct,
+                    severity="critical" if should_pause else "info",
+                )
+            return CostRecommendation(
+                should_pause=False,
+                reason="No token cap configured",
+                current_spend=float(tokens_used),
+                budget_remaining_pct=100.0,
+                severity="info",
+            )
+
+        return analyzer.get_cost_recommendations(tokens_used, token_cap)
+
+    def _pause_for_cost_limit(self, recommendation: CostRecommendation) -> None:
+        """Handle pause when cost limits are approached (IMP-COST-005).
+
+        Logs the cost pause event and could trigger notifications or
+        graceful shutdown procedures in the future.
+
+        Args:
+            recommendation: The CostRecommendation that triggered the pause
+        """
+        logger.warning(
+            f"[IMP-COST-005] Cost pause triggered: {recommendation.reason}. "
+            f"Current spend: {recommendation.current_spend:,.0f} tokens. "
+            f"Budget remaining: {recommendation.budget_remaining_pct:.1f}%"
+        )
+
+        # Log to build event for visibility
+        try:
+            from autopack.archive_consolidator import log_build_event
+
+            log_build_event(
+                event_type="COST_PAUSE",
+                description=f"Execution paused due to cost limits: {recommendation.reason}",
+                deliverables=[
+                    f"Tokens used: {recommendation.current_spend:,.0f}",
+                    f"Budget remaining: {recommendation.budget_remaining_pct:.1f}%",
+                    f"Severity: {recommendation.severity}",
+                ],
+                project_slug=self.executor._get_project_slug(),
+            )
+        except Exception as e:
+            logger.warning(f"[IMP-COST-005] Failed to log cost pause event: {e}")
 
     def _get_memory_context(self, phase_type: str, goal: str) -> str:
         """Retrieve memory context for builder injection.
@@ -571,6 +639,18 @@ class AutonomousLoop:
                 logger.critical(f"[BUDGET_EXHAUSTED] {error_msg}")
                 stop_reason = "budget_exhausted"
                 raise BudgetExhaustedError(error_msg)
+
+            # IMP-COST-005: Check cost recommendations before proceeding
+            # This provides a softer pause at 95% budget to prevent reaching hard stop
+            cost_recommendation = self._check_cost_recommendations()
+            if cost_recommendation.should_pause:
+                logger.warning(
+                    f"[IMP-COST-005] Cost pause recommended: {cost_recommendation.reason}. "
+                    f"Current spend: {cost_recommendation.current_spend:,.0f} tokens"
+                )
+                self._pause_for_cost_limit(cost_recommendation)
+                stop_reason = "cost_limit_reached"
+                break
 
             # Fetch run status
             logger.info(f"Iteration {iteration}: Fetching run status...")

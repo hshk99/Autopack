@@ -24,6 +24,17 @@ class RankedIssue:
     details: Dict[str, Any]
 
 
+@dataclass
+class CostRecommendation:
+    """Cost recommendation from telemetry analysis (IMP-COST-005)."""
+
+    should_pause: bool
+    reason: str
+    current_spend: float  # Total tokens used (expressed as cost proxy)
+    budget_remaining_pct: float  # Percentage of budget remaining
+    severity: str  # "warning", "critical"
+
+
 class TelemetryAnalyzer:
     """Analyze telemetry data and generate ranked issues."""
 
@@ -460,3 +471,68 @@ class TelemetryAnalyzer:
             )
 
         return recommendations
+
+    def get_cost_recommendations(
+        self,
+        tokens_used: int,
+        token_cap: int,
+        warning_threshold_pct: float = 0.80,
+        critical_threshold_pct: float = 0.95,
+    ) -> CostRecommendation:
+        """Get cost recommendations based on current token usage (IMP-COST-005).
+
+        Analyzes current spend against budget and recommends whether to pause
+        execution to prevent budget overruns.
+
+        Args:
+            tokens_used: Total tokens consumed so far in this run
+            token_cap: Maximum token budget for this run
+            warning_threshold_pct: Percentage at which to issue warning (default: 80%)
+            critical_threshold_pct: Percentage at which to recommend pause (default: 95%)
+
+        Returns:
+            CostRecommendation with pause decision and details
+        """
+        if token_cap <= 0:
+            # No cap set, don't recommend pause
+            return CostRecommendation(
+                should_pause=False,
+                reason="No token cap configured",
+                current_spend=float(tokens_used),
+                budget_remaining_pct=100.0,
+                severity="info",
+            )
+
+        usage_pct = tokens_used / token_cap
+        budget_remaining_pct = max(0.0, (1.0 - usage_pct) * 100)
+
+        # Critical: Above critical threshold - recommend pause
+        if usage_pct >= critical_threshold_pct:
+            return CostRecommendation(
+                should_pause=True,
+                reason=f"Token usage at {usage_pct:.1%} of budget ({tokens_used:,}/{token_cap:,} tokens). "
+                f"Approaching budget exhaustion.",
+                current_spend=float(tokens_used),
+                budget_remaining_pct=budget_remaining_pct,
+                severity="critical",
+            )
+
+        # Warning: Above warning threshold but below critical
+        if usage_pct >= warning_threshold_pct:
+            return CostRecommendation(
+                should_pause=False,
+                reason=f"Token usage at {usage_pct:.1%} of budget ({tokens_used:,}/{token_cap:,} tokens). "
+                f"Consider wrapping up current work.",
+                current_spend=float(tokens_used),
+                budget_remaining_pct=budget_remaining_pct,
+                severity="warning",
+            )
+
+        # Normal: Below warning threshold
+        return CostRecommendation(
+            should_pause=False,
+            reason="Token usage within normal limits",
+            current_spend=float(tokens_used),
+            budget_remaining_pct=budget_remaining_pct,
+            severity="info",
+        )

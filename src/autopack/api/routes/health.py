@@ -3,6 +3,7 @@
 Extracted from main.py as part of PR-API-3a.
 
 IMP-OPS-004: Added /ready endpoint for Kubernetes readiness probes.
+IMP-OPS-007: Added background task health monitoring to /health endpoint.
 """
 
 import hashlib
@@ -136,6 +137,40 @@ def _check_qdrant_connection() -> str:
         return f"error: {str(e)[:50]}"
 
 
+def _check_background_tasks() -> Dict[str, object]:
+    """Check health of background tasks.
+
+    IMP-OPS-007: Returns health status of all monitored background tasks.
+
+    Returns:
+        Dict with overall status and per-task details
+    """
+    try:
+        from ..app import get_task_monitor
+
+        monitor = get_task_monitor()
+        all_status = monitor.get_all_status()
+        all_healthy = monitor.is_all_healthy()
+
+        return {
+            "status": "healthy" if all_healthy else "degraded",
+            "tasks": all_status,
+        }
+    except RuntimeError:
+        # Monitor not initialized yet (app still starting)
+        return {
+            "status": "initializing",
+            "tasks": {},
+        }
+    except Exception as e:
+        logger.warning(f"Background task health check failed: {e}")
+        return {
+            "status": "error",
+            "error": str(e)[:100],
+            "tasks": {},
+        }
+
+
 @router.get("/health")
 def health_check(db: Session = Depends(get_db)):
     """
@@ -169,8 +204,17 @@ def health_check(db: Session = Depends(get_db)):
         "consolidated_metrics": os.getenv("AUTOPACK_ENABLE_CONSOLIDATED_METRICS") == "1",
     }
 
+    # IMP-OPS-007: Check background task health
+    background_tasks = _check_background_tasks()
+
     # Determine overall status
-    overall_status = "healthy" if db_status == "connected" else "degraded"
+    # Status is degraded if DB or background tasks have issues
+    if db_status != "connected":
+        overall_status = "degraded"
+    elif background_tasks.get("status") == "degraded":
+        overall_status = "degraded"
+    else:
+        overall_status = "healthy"
 
     # Get version
     version = os.getenv("AUTOPACK_VERSION", "unknown")
@@ -182,6 +226,7 @@ def health_check(db: Session = Depends(get_db)):
         "database_identity": _get_database_identity(),
         "database": db_status,
         "qdrant": qdrant_status,
+        "background_tasks": background_tasks,
         "kill_switches": kill_switches,
         "version": version,
         "service": "autopack",
@@ -239,6 +284,45 @@ def database_pool_health():
     return {
         "status": "healthy" if pool_health["is_healthy"] else "degraded",
         "pool": pool_health,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.get("/health/tasks")
+def background_task_health():
+    """
+    Background task health check endpoint.
+
+    IMP-OPS-007: Returns detailed health status of all monitored background tasks.
+    Useful for detecting hung, failing, or stuck background tasks.
+
+    Response:
+        {
+            "status": "healthy" | "degraded" | "initializing" | "error",
+            "tasks": {
+                "task_name": {
+                    "healthy": bool,
+                    "last_run": ISO8601 timestamp or null,
+                    "age_seconds": float or null,
+                    "failure_count": int,
+                    "max_age_seconds": float,
+                    "max_failures": int
+                },
+                ...
+            },
+            "timestamp": ISO8601 timestamp
+        }
+
+    A task is considered unhealthy if:
+    - It hasn't run within max_age_seconds (default 300s / 5 minutes)
+    - It has failed max_failures times consecutively (default 3)
+    """
+    bg_tasks = _check_background_tasks()
+
+    return {
+        "status": bg_tasks.get("status", "unknown"),
+        "tasks": bg_tasks.get("tasks", {}),
+        "error": bg_tasks.get("error"),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -390,6 +474,17 @@ def readiness_check(db: Session = Depends(get_db)):
     for dep_name, dep_status in dep_checks.items():
         if not dep_status.get("ready", False):
             all_ready = False
+
+    # Check 5: Background tasks (IMP-OPS-007)
+    bg_tasks = _check_background_tasks()
+    checks["background_tasks"] = {
+        "ready": bg_tasks.get("status") in ("healthy", "initializing"),
+        "status": bg_tasks.get("status"),
+        "tasks": bg_tasks.get("tasks", {}),
+    }
+    # Note: We don't fail readiness if background tasks are degraded
+    # They may recover, and the app can still serve traffic
+    # However, we do include the status for visibility
 
     # Build response
     payload = {

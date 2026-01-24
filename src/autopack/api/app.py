@@ -175,6 +175,193 @@ def get_shutdown_manager() -> GracefulShutdownManager:
     return _shutdown_manager
 
 
+class BackgroundTaskMonitor:
+    """Health monitor for background tasks.
+
+    Implements IMP-OPS-007: Background task health monitoring.
+    Provides visibility into whether background tasks are running, hung, or failing.
+
+    Features:
+    - Tracks last successful run time for each task
+    - Tracks consecutive failure counts
+    - Configurable max age threshold for stale detection
+    - Health status check for integration with /health endpoint
+    """
+
+    def __init__(self, max_age_seconds: float = 300.0, max_failures: int = 3):
+        """Initialize task monitor.
+
+        Args:
+            max_age_seconds: Maximum seconds since last run before task is unhealthy
+            max_failures: Maximum consecutive failures before task is unhealthy
+        """
+        self._last_run: dict[str, datetime] = {}
+        self._failure_counts: dict[str, int] = {}
+        self._max_age_seconds = max_age_seconds
+        self._max_failures = max_failures
+        self._lock = threading.Lock()
+
+    def record_run(self, task_name: str) -> None:
+        """Record a successful task run.
+
+        Args:
+            task_name: Name of the task that completed successfully
+        """
+        with self._lock:
+            self._last_run[task_name] = datetime.now(timezone.utc)
+            self._failure_counts[task_name] = 0
+            logger.debug(f"[TASK-MONITOR] Task {task_name} run recorded")
+
+    def record_failure(self, task_name: str) -> None:
+        """Record a task failure.
+
+        Args:
+            task_name: Name of the task that failed
+        """
+        with self._lock:
+            self._failure_counts[task_name] = self._failure_counts.get(task_name, 0) + 1
+            logger.warning(
+                f"[TASK-MONITOR] Task {task_name} failure recorded "
+                f"(count: {self._failure_counts[task_name]})"
+            )
+
+    def _is_healthy_unlocked(self, task_name: str) -> bool:
+        """Check if a specific task is healthy (internal, no lock).
+
+        Must be called while holding self._lock.
+
+        Args:
+            task_name: Name of the task to check
+
+        Returns:
+            True if task is healthy, False otherwise
+        """
+        # Check failure count
+        failures = self._failure_counts.get(task_name, 0)
+        if failures >= self._max_failures:
+            return False
+
+        # Check last run time (if never run, consider healthy - not yet expected)
+        last = self._last_run.get(task_name)
+        if last is None:
+            return True
+
+        age = (datetime.now(timezone.utc) - last).total_seconds()
+        return age < self._max_age_seconds
+
+    def is_healthy(self, task_name: str) -> bool:
+        """Check if a specific task is healthy.
+
+        A task is healthy if:
+        - It has run within max_age_seconds, OR has never been expected to run yet
+        - It has fewer than max_failures consecutive failures
+
+        Args:
+            task_name: Name of the task to check
+
+        Returns:
+            True if task is healthy, False otherwise
+        """
+        with self._lock:
+            return self._is_healthy_unlocked(task_name)
+
+    def get_task_status(self, task_name: str) -> dict:
+        """Get detailed status for a specific task.
+
+        Args:
+            task_name: Name of the task
+
+        Returns:
+            Dict with health status, last run time, and failure count
+        """
+        with self._lock:
+            last = self._last_run.get(task_name)
+            failures = self._failure_counts.get(task_name, 0)
+
+            if last is None:
+                age_seconds = None
+            else:
+                age_seconds = (datetime.now(timezone.utc) - last).total_seconds()
+
+            return {
+                "healthy": self._is_healthy_unlocked(task_name),
+                "last_run": last.isoformat() if last else None,
+                "age_seconds": round(age_seconds, 1) if age_seconds is not None else None,
+                "failure_count": failures,
+                "max_age_seconds": self._max_age_seconds,
+                "max_failures": self._max_failures,
+            }
+
+    def _get_task_status_unlocked(self, task_name: str) -> dict:
+        """Get detailed status for a specific task (internal, no lock).
+
+        Must be called while holding self._lock.
+
+        Args:
+            task_name: Name of the task
+
+        Returns:
+            Dict with health status, last run time, and failure count
+        """
+        last = self._last_run.get(task_name)
+        failures = self._failure_counts.get(task_name, 0)
+
+        if last is None:
+            age_seconds = None
+        else:
+            age_seconds = (datetime.now(timezone.utc) - last).total_seconds()
+
+        return {
+            "healthy": self._is_healthy_unlocked(task_name),
+            "last_run": last.isoformat() if last else None,
+            "age_seconds": round(age_seconds, 1) if age_seconds is not None else None,
+            "failure_count": failures,
+            "max_age_seconds": self._max_age_seconds,
+            "max_failures": self._max_failures,
+        }
+
+    def get_all_status(self) -> dict[str, dict]:
+        """Get status for all monitored tasks.
+
+        Returns:
+            Dict mapping task names to their status dicts
+        """
+        with self._lock:
+            all_tasks = set(self._last_run.keys()) | set(self._failure_counts.keys())
+            return {name: self._get_task_status_unlocked(name) for name in all_tasks}
+
+    def is_all_healthy(self) -> bool:
+        """Check if all monitored tasks are healthy.
+
+        Returns:
+            True if all tasks are healthy, False otherwise
+        """
+        with self._lock:
+            all_tasks = set(self._last_run.keys()) | set(self._failure_counts.keys())
+            return all(self._is_healthy_unlocked(name) for name in all_tasks)
+
+
+# Global task monitor instance
+_task_monitor: BackgroundTaskMonitor | None = None
+
+
+def get_task_monitor() -> BackgroundTaskMonitor:
+    """Get the global task monitor instance.
+
+    Returns:
+        The BackgroundTaskMonitor instance
+
+    Raises:
+        RuntimeError: If called before lifespan initialization
+    """
+    global _task_monitor
+    if _task_monitor is None:
+        raise RuntimeError(
+            "Task monitor not initialized. This should only be called after app startup."
+        )
+    return _task_monitor
+
+
 class BackgroundTaskSupervisor:
     """Supervisor for background tasks with automatic restart on failure.
 
@@ -340,6 +527,8 @@ async def approval_timeout_cleanup():
 
     IMP-OPS-003: Respects graceful shutdown by checking shutdown flag
     and registering active transactions to prevent data loss.
+
+    IMP-OPS-007: Records run success/failure for health monitoring.
     """
     from ..notifications.telegram_notifier import TelegramNotifier
     from .. import models
@@ -416,6 +605,13 @@ async def approval_timeout_cleanup():
 
                     db.commit()
 
+                # IMP-OPS-007: Record successful run
+                try:
+                    monitor = get_task_monitor()
+                    monitor.record_run("approval_timeout_cleanup")
+                except RuntimeError:
+                    pass  # Monitor not initialized yet
+
             finally:
                 db.close()
                 # IMP-OPS-003: Signal transaction complete
@@ -423,6 +619,12 @@ async def approval_timeout_cleanup():
 
         except Exception as e:
             logger.error(f"[APPROVAL-TIMEOUT] Error in cleanup task: {e}", exc_info=True)
+            # IMP-OPS-007: Record failure
+            try:
+                monitor = get_task_monitor()
+                monitor.record_failure("approval_timeout_cleanup")
+            except RuntimeError:
+                pass  # Monitor not initialized yet
             # IMP-OPS-003: Ensure transaction counter is decremented on error
             try:
                 shutdown_mgr = get_shutdown_manager()
@@ -443,8 +645,9 @@ async def lifespan(app: FastAPI):
     - Background task lifecycle with supervision (IMP-OPS-001)
     - IMP-OPS-003: Graceful shutdown for DB sessions
     - IMP-OPS-004: Readiness state signaling for /ready endpoint
+    - IMP-OPS-007: Background task health monitoring
     """
-    global _shutdown_manager
+    global _shutdown_manager, _task_monitor
     from .routes.health import mark_app_initialized, mark_initialization_failed
 
     # P0 Security: In production mode, require AUTOPACK_API_KEY to be set
@@ -485,6 +688,19 @@ async def lifespan(app: FastAPI):
     _shutdown_manager = GracefulShutdownManager(shutdown_timeout=shutdown_timeout)
     logger.info(f"[LIFESPAN] Graceful shutdown manager initialized (timeout={shutdown_timeout}s)")
 
+    # IMP-OPS-007: Initialize background task health monitor
+    # Configurable via TASK_MONITOR_MAX_AGE env var (default 300 seconds / 5 minutes)
+    task_monitor_max_age = float(os.getenv("TASK_MONITOR_MAX_AGE", "300"))
+    task_monitor_max_failures = int(os.getenv("TASK_MONITOR_MAX_FAILURES", "3"))
+    _task_monitor = BackgroundTaskMonitor(
+        max_age_seconds=task_monitor_max_age,
+        max_failures=task_monitor_max_failures,
+    )
+    logger.info(
+        f"[LIFESPAN] Task monitor initialized "
+        f"(max_age={task_monitor_max_age}s, max_failures={task_monitor_max_failures})"
+    )
+
     # IMP-OPS-001: Create supervisor for background tasks with automatic restart
     supervisor = BackgroundTaskSupervisor(max_restarts=5)
 
@@ -516,8 +732,14 @@ async def lifespan(app: FastAPI):
     # Log supervisor status on shutdown
     logger.info(f"[TASK-SUPERVISOR] Status: {supervisor.get_status()}")
 
+    # IMP-OPS-007: Log task monitor status on shutdown
+    if _task_monitor:
+        logger.info(f"[TASK-MONITOR] Final status: {_task_monitor.get_all_status()}")
+
     # IMP-OPS-003: Cleanup shutdown manager
     _shutdown_manager = None
+    # IMP-OPS-007: Cleanup task monitor
+    _task_monitor = None
     logger.info("[LIFESPAN] Shutdown complete")
 
 

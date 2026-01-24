@@ -35,7 +35,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from ..config import get_api_key, is_production
+from ..config import get_api_key, is_production, validate_startup_config
 from ..database import get_db, init_db
 from ..logging_config import correlation_id_var
 from ..version import __version__
@@ -967,6 +967,10 @@ async def lifespan(app: FastAPI):
         # Phase 1: Configuration validation
         def validate_config():
             nonlocal autopack_env, api_key
+            # IMP-OPS-013: Validate configuration at startup
+            # This catches invalid config values early with clear error messages
+            validate_startup_config()
+
             # P0 Security: In production mode, require AUTOPACK_API_KEY to be set
             # This prevents accidentally running an unauthenticated API in production
             # PR-03 (R-03 G4): get_api_key() supports AUTOPACK_API_KEY_FILE for Docker secrets

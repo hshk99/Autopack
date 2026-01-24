@@ -48,6 +48,17 @@ flags:
       unset_production: "Server refuses to start in production mode"
       unset_development: "API is open (WARNING: not for shared networks)"
 
+  AUTOPACK_API_KEY_FILE:
+    description: "Path to file containing API key (Docker secrets support)"
+    category: security
+    default: null
+    values: "File path (e.g., /run/secrets/autopack_api_key)"
+    affects: ["config.py"]
+    security_implications:
+      set: "API key read from file at startup (preferred for containerized deployments)"
+      unset: "Falls back to AUTOPACK_API_KEY environment variable"
+    notes: "Alternative to AUTOPACK_API_KEY for Docker secrets or file-based credential management. File should contain only the API key with no trailing newline."
+
   TELEGRAM_WEBHOOK_SECRET:
     description: "Secret token for verifying Telegram webhook requests"
     category: security

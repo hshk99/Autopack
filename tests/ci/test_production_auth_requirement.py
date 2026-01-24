@@ -8,7 +8,6 @@ This prevents accidentally running an unauthenticated API in production.
 import os
 import pytest
 from unittest.mock import patch
-from autopack.exceptions import ConfigurationError
 from autopack.api.app import StartupError
 
 

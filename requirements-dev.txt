@@ -256,6 +256,8 @@ python-dotenv==1.2.1
     #   uvicorn
 python-jose[cryptography]==3.5.0
     # via autopack (pyproject.toml)
+python-magic==0.4.27 ; sys_platform != "win32"
+    # via autopack (pyproject.toml)
 python-magic-bin==0.4.14 ; sys_platform == "win32"
     # via autopack (pyproject.toml)
 python-multipart==0.0.21
@@ -353,6 +355,8 @@ urllib3==2.6.2
     #   requests
 uvicorn[standard]==0.40.0
     # via autopack (pyproject.toml)
+uvloop==0.22.1
+    # via uvicorn
 watchfiles==1.1.1
     # via uvicorn
 websocket-client==1.9.0

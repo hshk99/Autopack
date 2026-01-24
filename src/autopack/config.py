@@ -583,6 +583,15 @@ class Settings(BaseSettings):
             "auto_execute": {"enabled": self.task_generation_auto_execute},
         }
 
+    # IMP-SAFETY-007: Disk space check before artifact writes
+    # Minimum free disk space required before writing artifacts (bytes)
+    # Default: 100MB - prevents disk exhaustion crashes
+    min_disk_space_bytes: int = Field(
+        default=100_000_000,  # 100MB
+        validation_alias=AliasChoices("AUTOPACK_MIN_DISK_SPACE_BYTES", "MIN_DISK_SPACE_BYTES"),
+        description="Minimum free disk space required before artifact writes (bytes)",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def parse_allowed_hosts(cls, values):

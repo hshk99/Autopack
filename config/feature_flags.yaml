@@ -309,6 +309,18 @@ flags:
     affects: ["config.py"]
 
   # ============================================================================
+  # Disk Space Safety (IMP-SAFETY-007)
+  # ============================================================================
+  AUTOPACK_MIN_DISK_SPACE_BYTES:
+    description: "Minimum free disk space required before writing artifacts (bytes)"
+    category: tuning
+    default: "100000000"  # 100MB
+    values: "Integer (bytes)"
+    affects: ["config.py", "disk_space.py", "autonomy/action_executor.py"]
+    aliases: ["MIN_DISK_SPACE_BYTES"]
+    notes: "IMP-SAFETY-007: Prevents disk exhaustion crashes by checking available space before artifact writes. Raises DiskSpaceError if insufficient space."
+
+  # ============================================================================
   # Artifact Configuration (BUILD-145 P2 / PR-06)
   # ============================================================================
   AUTOPACK_ARTIFACT_EXTENDED_CONTEXTS:

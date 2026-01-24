@@ -35,7 +35,7 @@ Session Management Patterns:
 
 import logging
 from contextlib import contextmanager
-from typing import Generator
+from typing import Any, Generator
 
 from sqlalchemy import create_engine, text, event
 from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session, Session
@@ -45,6 +45,23 @@ from .db_leak_detector import ConnectionLeakDetector
 from .exceptions import DatabaseError
 
 logger = logging.getLogger(__name__)
+
+# -----------------------------------------------------------------------------
+# IMP-OPS-011: Connection Pool Health Metrics
+# These metrics are designed to be compatible with Prometheus-style monitoring.
+# They can be exposed via a /metrics endpoint or integrated with prometheus_client.
+# -----------------------------------------------------------------------------
+
+# Pool metrics storage (updated by get_pool_stats())
+# These are module-level for easy access by monitoring systems
+_pool_metrics: dict[str, Any] = {
+    "pool_size": 0,
+    "checked_out": 0,
+    "checked_in": 0,
+    "overflow": 0,
+    "max_overflow": 0,
+    "utilization_pct": 0.0,
+}
 
 # Enable pool_pre_ping so dropped/closed connections are detected and re-established.
 # pool_recycle guards against server-side timeouts on long-lived processes.
@@ -216,6 +233,76 @@ def get_pool_health():
         total_checkouts=session_stats["total_checkouts"],  # IMP-PERF-001: Now tracked
         total_timeouts=0,  # Would require tracking timeout events
     )
+
+
+def get_pool_stats() -> dict[str, Any]:
+    """Get connection pool statistics for monitoring (IMP-OPS-011).
+
+    Returns pool statistics in a format suitable for Prometheus-style metrics.
+    Updates module-level _pool_metrics for external monitoring access.
+
+    Returns:
+        dict with keys:
+            - pool_size: Total connections in pool
+            - checked_out: Connections currently in use
+            - checked_in: Connections available in pool
+            - overflow: Extra connections created beyond pool_size
+            - max_overflow: Maximum allowed overflow connections
+            - utilization_pct: Percentage of pool in use (0-100)
+
+    Warning:
+        Logs warning when pool utilization >= 80% (near exhaustion)
+    """
+    global _pool_metrics
+
+    pool = engine.pool
+    pool_size = pool.size()
+    checked_out = pool.checkedout()
+    overflow = pool.overflow()
+    max_overflow = getattr(pool, "_max_overflow", 10)
+    checked_in = pool_size - checked_out
+
+    # Calculate utilization percentage
+    utilization_pct = (checked_out / pool_size * 100) if pool_size > 0 else 0.0
+
+    # Update module-level metrics for external monitoring
+    _pool_metrics.update(
+        {
+            "pool_size": pool_size,
+            "checked_out": checked_out,
+            "checked_in": checked_in,
+            "overflow": overflow,
+            "max_overflow": max_overflow,
+            "utilization_pct": utilization_pct,
+        }
+    )
+
+    # IMP-OPS-011: Log warning when pool near exhaustion
+    if checked_out >= pool_size:
+        logger.warning(
+            f"[IMP-OPS-011] Connection pool near exhaustion: "
+            f"checked_out={checked_out}, pool_size={pool_size}, "
+            f"overflow={overflow}, utilization={utilization_pct:.1f}%"
+        )
+    elif utilization_pct >= 80:
+        logger.warning(
+            f"[IMP-OPS-011] Connection pool utilization high: "
+            f"{utilization_pct:.1f}% ({checked_out}/{pool_size} connections)"
+        )
+
+    return dict(_pool_metrics)
+
+
+def get_pool_metrics() -> dict[str, Any]:
+    """Get the current pool metrics without querying the pool.
+
+    Returns the last cached metrics from get_pool_stats(). Useful for
+    Prometheus scraping without additional database pool queries.
+
+    Returns:
+        dict: Current pool metrics (may be stale if get_pool_stats() not called recently)
+    """
+    return dict(_pool_metrics)
 
 
 def init_db():

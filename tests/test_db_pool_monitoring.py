@@ -441,3 +441,156 @@ class TestScopedSessionCleanup:
 
         assert len(results) == 3
         assert all(r == 1 for r in results)
+
+
+class TestGetPoolStats:
+    """Test get_pool_stats() function (IMP-OPS-011)."""
+
+    def test_get_pool_stats_returns_dict(self):
+        """Test that get_pool_stats returns a dictionary with correct keys."""
+        from autopack.database import get_pool_stats
+
+        with patch("autopack.database.engine") as mock_engine:
+            mock_pool = MagicMock()
+            mock_pool.size.return_value = 20
+            mock_pool.checkedout.return_value = 5
+            mock_pool.overflow.return_value = 0
+            mock_pool._max_overflow = 10
+            mock_engine.pool = mock_pool
+
+            stats = get_pool_stats()
+
+            assert isinstance(stats, dict)
+            assert stats["pool_size"] == 20
+            assert stats["checked_out"] == 5
+            assert stats["checked_in"] == 15
+            assert stats["overflow"] == 0
+            assert stats["max_overflow"] == 10
+            assert stats["utilization_pct"] == 25.0
+
+    def test_get_pool_stats_warns_on_high_utilization(self):
+        """Test that get_pool_stats logs warning when utilization >= 80%."""
+        from autopack.database import get_pool_stats
+
+        with patch("autopack.database.engine") as mock_engine:
+            mock_pool = MagicMock()
+            mock_pool.size.return_value = 20
+            mock_pool.checkedout.return_value = 17  # 85% utilization
+            mock_pool.overflow.return_value = 0
+            mock_pool._max_overflow = 10
+            mock_engine.pool = mock_pool
+
+            with patch("autopack.database.logger") as mock_logger:
+                stats = get_pool_stats()
+
+                assert stats["utilization_pct"] == 85.0
+                # Should log warning
+                mock_logger.warning.assert_called_once()
+                warning_msg = mock_logger.warning.call_args[0][0]
+                assert "IMP-OPS-011" in warning_msg
+                assert "utilization high" in warning_msg.lower()
+
+    def test_get_pool_stats_warns_on_pool_exhaustion(self):
+        """Test that get_pool_stats logs warning when pool is exhausted."""
+        from autopack.database import get_pool_stats
+
+        with patch("autopack.database.engine") as mock_engine:
+            mock_pool = MagicMock()
+            mock_pool.size.return_value = 20
+            mock_pool.checkedout.return_value = 20  # Pool exhausted
+            mock_pool.overflow.return_value = 3
+            mock_pool._max_overflow = 10
+            mock_engine.pool = mock_pool
+
+            with patch("autopack.database.logger") as mock_logger:
+                stats = get_pool_stats()
+
+                assert stats["checked_out"] == 20
+                assert stats["overflow"] == 3
+                # Should log exhaustion warning (not utilization warning)
+                mock_logger.warning.assert_called_once()
+                warning_msg = mock_logger.warning.call_args[0][0]
+                assert "IMP-OPS-011" in warning_msg
+                assert "near exhaustion" in warning_msg.lower()
+
+    def test_get_pool_stats_no_warning_on_healthy_pool(self):
+        """Test that get_pool_stats does not log warning when pool is healthy."""
+        from autopack.database import get_pool_stats
+
+        with patch("autopack.database.engine") as mock_engine:
+            mock_pool = MagicMock()
+            mock_pool.size.return_value = 20
+            mock_pool.checkedout.return_value = 5  # 25% utilization - healthy
+            mock_pool.overflow.return_value = 0
+            mock_pool._max_overflow = 10
+            mock_engine.pool = mock_pool
+
+            with patch("autopack.database.logger") as mock_logger:
+                stats = get_pool_stats()
+
+                assert stats["utilization_pct"] == 25.0
+                # Should NOT log warning
+                mock_logger.warning.assert_not_called()
+
+    def test_get_pool_stats_updates_module_metrics(self):
+        """Test that get_pool_stats updates the module-level _pool_metrics."""
+        from autopack.database import get_pool_stats, get_pool_metrics
+
+        with patch("autopack.database.engine") as mock_engine:
+            mock_pool = MagicMock()
+            mock_pool.size.return_value = 30
+            mock_pool.checkedout.return_value = 10
+            mock_pool.overflow.return_value = 2
+            mock_pool._max_overflow = 15
+            mock_engine.pool = mock_pool
+
+            # Call get_pool_stats to update metrics
+            get_pool_stats()
+
+            # Verify get_pool_metrics returns updated values
+            metrics = get_pool_metrics()
+            assert metrics["pool_size"] == 30
+            assert metrics["checked_out"] == 10
+            assert metrics["overflow"] == 2
+            assert metrics["max_overflow"] == 15
+
+    def test_get_pool_metrics_returns_cached_values(self):
+        """Test that get_pool_metrics returns cached values without querying pool."""
+        from autopack.database import get_pool_metrics, _pool_metrics
+
+        # Directly set module-level metrics
+        _pool_metrics.update(
+            {
+                "pool_size": 50,
+                "checked_out": 25,
+                "checked_in": 25,
+                "overflow": 5,
+                "max_overflow": 20,
+                "utilization_pct": 50.0,
+            }
+        )
+
+        # get_pool_metrics should return the cached values
+        metrics = get_pool_metrics()
+        assert metrics["pool_size"] == 50
+        assert metrics["checked_out"] == 25
+        assert metrics["utilization_pct"] == 50.0
+
+    def test_get_pool_stats_handles_zero_pool_size(self):
+        """Test that get_pool_stats handles zero pool size gracefully."""
+        from autopack.database import get_pool_stats
+
+        with patch("autopack.database.engine") as mock_engine:
+            mock_pool = MagicMock()
+            mock_pool.size.return_value = 0
+            mock_pool.checkedout.return_value = 0
+            mock_pool.overflow.return_value = 0
+            mock_pool._max_overflow = 10
+            mock_engine.pool = mock_pool
+
+            with patch("autopack.database.logger"):
+                stats = get_pool_stats()
+
+                # Should handle division by zero gracefully
+                assert stats["pool_size"] == 0
+                assert stats["utilization_pct"] == 0.0

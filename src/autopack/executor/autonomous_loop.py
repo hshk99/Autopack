@@ -816,11 +816,8 @@ class AutonomousLoop:
         # If we stop due to max-iterations/stop-signal/stop-on-failure, the run should remain resumable
         # (i.e., do NOT force it into a DONE_* state).
         if stop_reason == "no_more_executable_phases":
-            # IMP-ARCH-001: Persist telemetry insights to memory after run completion
-            try:
-                self._persist_telemetry_insights()
-            except Exception as e:
-                logger.warning(f"Failed to persist telemetry insights: {e}")
+            # IMP-LOOP-001: Persist telemetry insights with graceful error handling
+            self._persist_loop_insights()
 
             # IMP-ARCH-009: Generate improvement tasks from telemetry for self-improvement loop
             try:
@@ -1020,6 +1017,29 @@ class AutonomousLoop:
         except Exception as e:
             logger.warning(f"[IMP-ARCH-001] Failed to analyze telemetry: {e}")
             return
+
+    def _persist_loop_insights(self, insights: dict | None = None) -> None:
+        """Persist loop insights with graceful error handling.
+
+        IMP-LOOP-001: Wraps persist_insights call with try/except for graceful degradation.
+        Insight persistence is non-critical; failures should not crash the autonomous loop.
+
+        Args:
+            insights: Optional insights dictionary for logging context.
+        """
+        try:
+            self._persist_telemetry_insights()
+            logger.debug("Loop insights persisted successfully")
+        except Exception as e:
+            # Log warning with extra context but don't re-raise
+            extra = {}
+            if insights:
+                extra["insights_keys"] = list(insights.keys())
+            logger.warning(
+                f"Failed to persist loop insights (non-fatal): {e}",
+                extra=extra,
+            )
+            # Continue loop execution - insight persistence is non-critical
 
     def _generate_improvement_tasks(self) -> list:
         """Generate improvement tasks from telemetry (ROAD-C).

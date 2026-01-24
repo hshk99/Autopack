@@ -48,6 +48,7 @@ from .error_recovery import (
     choose_doctor_model,
 )
 from .dual_auditor import DualAuditor
+from .exceptions import ScopeReductionError
 from .llm.client_resolution import resolve_client_and_model
 from .llm import doctor
 
@@ -1544,8 +1545,35 @@ Required JSON structure:
             return proposal_data
 
         except json.JSONDecodeError as e:
-            logger.error(f"[SCOPE-REDUCTION] Failed to parse JSON response: {e}")
-            return None
+            logger.error(
+                f"[SCOPE-REDUCTION] Failed to parse JSON response: {e}",
+                exc_info=True,
+            )
+            raise ScopeReductionError(
+                f"Failed to parse scope reduction response: {e}",
+                run_id=run_id,
+                phase_id=phase_id,
+                component="scope_reduction",
+            ) from e
+        except RuntimeError as e:
+            logger.error(
+                f"[SCOPE-REDUCTION] Runtime error: {e}",
+                exc_info=True,
+            )
+            raise ScopeReductionError(
+                f"Scope reduction runtime error: {e}",
+                run_id=run_id,
+                phase_id=phase_id,
+                component="scope_reduction",
+            ) from e
         except Exception as e:
-            logger.error(f"[SCOPE-REDUCTION] LLM call failed: {e}")
-            return None
+            logger.error(
+                f"[SCOPE-REDUCTION] Unexpected error during LLM call: {e}",
+                exc_info=True,
+            )
+            raise ScopeReductionError(
+                f"Unexpected error during scope reduction: {e}",
+                run_id=run_id,
+                phase_id=phase_id,
+                component="scope_reduction",
+            ) from e

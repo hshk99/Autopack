@@ -58,8 +58,7 @@ def mock_repo_structure(temp_dir):
 
     # BUILD_HISTORY.md
     build_history = docs_dir / "BUILD_HISTORY.md"
-    build_history.write_text(
-        """# Build History
+    build_history.write_text("""# Build History
 
 ## BUILD-163: SOT DB Sync
 
@@ -69,13 +68,11 @@ This is a test build for integration testing.
 - PostgreSQL sync
 - Qdrant sync
 - Full sync mode
-"""
-    )
+""")
 
     # ARCHITECTURE_DECISIONS.md
     arch_decisions = docs_dir / "ARCHITECTURE_DECISIONS.md"
-    arch_decisions.write_text(
-        """# Architecture Decisions
+    arch_decisions.write_text("""# Architecture Decisions
 
 ## DEC-100: Integration Test Decision
 
@@ -83,13 +80,11 @@ Test decision for integration testing.
 
 **Status**: Active
 **Impact**: Medium
-"""
-    )
+""")
 
     # DEBUG_LOG.md
     debug_log = docs_dir / "DEBUG_LOG.md"
-    debug_log.write_text(
-        """# Debug Log
+    debug_log.write_text("""# Debug Log
 
 ## DBG-100: Integration Test Debug
 
@@ -97,8 +92,7 @@ Test debug entry for integration testing.
 
 **Severity**: LOW
 **Status**: Open
-"""
-    )
+""")
 
     return temp_dir
 
@@ -126,12 +120,10 @@ def test_postgres_sync(mock_repo_structure):
         # Cleanup: Remove test entries
         if syncer.db_conn:
             cursor = syncer.db_conn.cursor()
-            cursor.execute(
-                """
+            cursor.execute("""
                 DELETE FROM sot_entries
                 WHERE entry_id IN ('BUILD-163', 'DEC-100', 'DBG-100')
-            """
-            )
+            """)
             syncer.db_conn.commit()
 
 
@@ -184,12 +176,10 @@ def test_full_sync_mode(mock_repo_structure):
         # Cleanup PostgreSQL
         if syncer.db_conn:
             cursor = syncer.db_conn.cursor()
-            cursor.execute(
-                """
+            cursor.execute("""
                 DELETE FROM sot_entries
                 WHERE entry_id IN ('BUILD-163', 'DEC-100', 'DBG-100')
-            """
-            )
+            """)
             syncer.db_conn.commit()
 
 
@@ -222,12 +212,10 @@ def test_postgres_idempotent_upsert(mock_repo_structure):
         # Cleanup
         if syncer2.db_conn:
             cursor = syncer2.db_conn.cursor()
-            cursor.execute(
-                """
+            cursor.execute("""
                 DELETE FROM sot_entries
                 WHERE entry_id IN ('BUILD-163', 'DEC-100', 'DBG-100')
-            """
-            )
+            """)
             syncer2.db_conn.commit()
 
 
@@ -270,12 +258,10 @@ def test_postgres_content_update(mock_repo_structure):
             assert "MODIFIED" in row[0]
 
         # Cleanup
-        cursor.execute(
-            """
+        cursor.execute("""
             DELETE FROM sot_entries
             WHERE entry_id IN ('BUILD-163', 'DEC-100', 'DBG-100')
-        """
-        )
+        """)
         syncer2.db_conn.commit()
 
 
@@ -342,12 +328,10 @@ def test_performance_large_sync(mock_repo_structure):
         # Cleanup
         if syncer.db_conn:
             cursor = syncer.db_conn.cursor()
-            cursor.execute(
-                """
+            cursor.execute("""
                 DELETE FROM sot_entries
                 WHERE entry_id IN ('BUILD-163', 'DEC-100', 'DBG-100')
-            """
-            )
+            """)
             syncer.db_conn.commit()
 
 

@@ -47,16 +47,13 @@ def test_nav_mode_ignores_backticks():
     readme_file = Path(__file__).parents[2] / "README.md"
     original_content = readme_file.read_text(encoding="utf-8")
 
-    test_content = (
-        original_content
-        + """
+    test_content = original_content + """
 
 <!-- TEST MARKER: TEMPORARY TEST CONTENT -->
 This is a [test link to nonexistent file](docs/TEST_NONEXISTENT_FILE.md).
 
 And here is a backtick reference: `.autonomous_runs/test_fake_file.json`.
 """
-    )
 
     try:
         readme_file.write_text(test_content, encoding="utf-8")

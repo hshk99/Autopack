@@ -46,6 +46,11 @@ from .llm.anthropic.parsers import (
 
 logger = logging.getLogger(__name__)
 
+# IMP-COST-006: Size limits for project rules in auditor prompts
+# These prevent large rulesets from adding excessive tokens
+MAX_RULE_CHARS = 500  # Max characters per individual rule
+MAX_TOTAL_RULES_TOKENS = 2000  # Max total tokens for all rules (~4 chars per token)
+
 
 def _write_token_estimation_v2_telemetry(
     run_id: str,
@@ -963,8 +968,40 @@ Approval Criteria:
 
         if project_rules:
             prompt_parts.append("\n# Project Rules (check compliance):")
-            for rule in project_rules[:10]:
-                prompt_parts.append(f"- {rule.get('rule_text', '')}")
+            # IMP-COST-006: Apply size limits to prevent excessive token usage
+            total_chars = 0
+            max_total_chars = MAX_TOTAL_RULES_TOKENS * 4  # ~4 chars per token
+            rules_truncated = 0
+            rules_added = 0
+
+            for rule in project_rules:
+                rule_text = rule.get("rule_text", "")
+                if not rule_text:
+                    continue
+
+                # Truncate individual rules exceeding max chars
+                if len(rule_text) > MAX_RULE_CHARS:
+                    rule_text = rule_text[:MAX_RULE_CHARS] + "..."
+                    rules_truncated += 1
+
+                # Stop adding rules if total char budget exceeded
+                if total_chars + len(rule_text) > max_total_chars:
+                    rules_skipped = len(project_rules) - rules_added
+                    logger.info(
+                        f"Project rules truncated: {rules_skipped} rules skipped "
+                        f"(total chars {total_chars} approaching limit {max_total_chars})"
+                    )
+                    break
+
+                prompt_parts.append(f"- {rule_text}")
+                total_chars += len(rule_text)
+                rules_added += 1
+
+            if rules_truncated > 0:
+                logger.info(
+                    f"Project rules: {rules_truncated} individual rules truncated "
+                    f"to {MAX_RULE_CHARS} chars"
+                )
 
         if run_hints:
             prompt_parts.append("\n# Recent Run Hints:")

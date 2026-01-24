@@ -157,3 +157,32 @@ class ScopeReductionError(AutopackError):
     """Exception raised when scope reduction operation fails."""
 
     pass
+
+
+class DiskSpaceError(AutopackError):
+    """Exception raised when insufficient disk space is available.
+
+    IMP-SAFETY-007: Prevents disk exhaustion by checking available space before writes.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        required_bytes: int = 0,
+        available_bytes: int = 0,
+        path: Optional[str] = None,
+        **kwargs,
+    ):
+        """Initialize disk space error.
+
+        Args:
+            message: Error message
+            required_bytes: Bytes required for the operation
+            available_bytes: Bytes currently available
+            path: Path where the write was attempted
+            **kwargs: Additional context for AutopackError
+        """
+        super().__init__(message, **kwargs)
+        self.required_bytes = required_bytes
+        self.available_bytes = available_bytes
+        self.path = path

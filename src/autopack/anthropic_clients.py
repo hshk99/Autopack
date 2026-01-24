@@ -892,7 +892,8 @@ class AnthropicBuilderClient:
             )
 
         except Exception as e:
-            # Return error result
+            # Log error before returning error result
+            logger.error(f"Auditor review failed: {e}", exc_info=True)
             return AuditorResult(
                 approved=False,
                 issues_found=[
@@ -943,9 +944,15 @@ Approval Criteria:
             prevention_rules = get_prevention_prompt_injection()
             if prevention_rules:
                 base_prompt += "\n\n" + prevention_rules
-        except Exception:
-            # Gracefully continue if prevention rules can't be loaded
-            pass
+        except (FileNotFoundError, IOError) as e:
+            # File not available - this is expected in some environments
+            logger.debug(f"Prevention rules file not available: {e}")
+        except (ValueError, KeyError) as e:
+            # Malformed prevention rules - log and continue
+            logger.warning(f"Could not parse prevention rules: {e}")
+        except Exception as e:
+            # Unexpected error - log for debugging but don't fail the build
+            logger.warning(f"Unexpected error loading prevention rules: {e}")
 
         return base_prompt
 

@@ -9,11 +9,14 @@ Phase 1 Enhancement: Added ranking heuristics from chatbot_project
 - Type priority scoring (tests > core > misc)
 """
 
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional
 import re
 import subprocess
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 class ContextSelector:
@@ -144,9 +147,9 @@ class ContextSelector:
                 try:
                     content = path.read_text(encoding="utf-8")
                     files[str(path.relative_to(self.root))] = content
-                except Exception:
-                    # Skip files that can't be read
-                    pass
+                except (OSError, UnicodeDecodeError) as e:
+                    # Skip files that can't be read (permission issues, encoding errors)
+                    logger.debug(f"Could not read file {path}: {e}")
 
         return files
 
@@ -162,11 +165,11 @@ class ContextSelector:
                         content = path.read_text(encoding="utf-8")
                         files[str(path.relative_to(self.root))] = content
                         count += 1
-                    except Exception:
-                        # Skip files that can't be read
-                        pass
-        except Exception:
-            pass
+                    except (OSError, UnicodeDecodeError) as e:
+                        # Skip files that can't be read (permission issues, encoding errors)
+                        logger.debug(f"Could not read file {path}: {e}")
+        except OSError as e:
+            logger.debug(f"Glob pattern {pattern} failed: {e}")
 
         return files
 
@@ -361,15 +364,19 @@ class ContextSelector:
                 elif age_days < 90:
                     score += 5.0
 
-        except Exception:
-            # Git/filesystem error, use mtime only
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+            # Git command failed or timed out, use mtime only
+            logger.debug(f"Git recency check failed for {file_path}: {e}")
             try:
                 mtime = full_path.stat().st_mtime
                 age_days = (datetime.now().timestamp() - mtime) / 86400
                 if age_days < 30:
                     score += 10.0
-            except Exception:
-                pass
+            except OSError as stat_err:
+                logger.debug(f"Could not stat file {file_path}: {stat_err}")
+        except OSError as e:
+            # Filesystem error (mtime check in main try block)
+            logger.debug(f"Filesystem error checking recency for {file_path}: {e}")
 
         return min(score, 30.0)
 
@@ -453,9 +460,9 @@ class ContextSelector:
                     content = path.read_text(encoding="utf-8")
                     relative_path = str(path.relative_to(self.root))
                     context[relative_path] = content
-                except Exception as e:
+                except (OSError, UnicodeDecodeError) as e:
                     # Log but continue - missing scope files should be caught by validation
-                    print(f"[Context] Warning: Could not read scope file {path}: {e}")
+                    logger.warning(f"Could not read scope file {path}: {e}")
             elif path.exists() and path.is_dir():
                 # If scope path is a directory, load all files recursively
                 try:
@@ -464,8 +471,8 @@ class ContextSelector:
                             content = file_path.read_text(encoding="utf-8")
                             relative_path = str(file_path.relative_to(self.root))
                             context[relative_path] = content
-                except Exception as e:
-                    print(f"[Context] Warning: Could not read directory {path}: {e}")
+                except (OSError, UnicodeDecodeError) as e:
+                    logger.warning(f"Could not read scope directory {path}: {e}")
 
         # 2. Load read-only context (for reference, not modification)
         if readonly_context:
@@ -478,8 +485,8 @@ class ContextSelector:
                         # Don't overwrite modifiable files
                         if relative_path not in context:
                             context[relative_path] = content
-                    except Exception:
-                        pass
+                    except (OSError, UnicodeDecodeError) as e:
+                        logger.debug(f"Could not read read-only context file {path}: {e}")
                 elif path.exists() and path.is_dir():
                     # Load directory contents as read-only context
                     try:
@@ -489,8 +496,8 @@ class ContextSelector:
                                 relative_path = str(file_path.relative_to(self.root))
                                 if relative_path not in context:
                                     context[relative_path] = content
-                    except Exception:
-                        pass
+                    except (OSError, UnicodeDecodeError) as e:
+                        logger.debug(f"Could not read read-only context directory {path}: {e}")
 
         # 3. Apply token budget using ranking heuristics
         if token_budget and context:

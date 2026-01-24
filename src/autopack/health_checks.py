@@ -4,6 +4,7 @@ Implements T0 (quick) and T1 (comprehensive) health checks to validate
 system readiness before autonomous execution.
 """
 
+import logging
 import os
 import subprocess
 import time
@@ -15,6 +16,8 @@ from typing import List, Literal
 import yaml
 
 from autopack.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -261,7 +264,8 @@ class HealthChecker:
         try:
             with open(memory_path, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f) or {}
-        except Exception as e:
+        except (OSError, yaml.YAMLError) as e:
+            logger.warning(f"Failed to parse memory.yaml: {e}")
             return ("Vector Memory", True, f"Failed to parse memory.yaml (non-blocking): {e}")
 
         def _parse_bool_env(value: str | None) -> bool | None:
@@ -308,13 +312,13 @@ class HealthChecker:
             autostart_timeout = int(
                 os.getenv("AUTOPACK_QDRANT_AUTOSTART_TIMEOUT") or autostart_timeout
             )
-        except Exception:
-            pass
+        except (ValueError, TypeError) as e:
+            logger.debug(f"Invalid AUTOPACK_QDRANT_AUTOSTART_TIMEOUT, using default: {e}")
 
         # Optional dependency check
         try:
             import qdrant_client  # noqa: F401
-        except Exception:
+        except ImportError:
             if require_qdrant:
                 return (
                     "Vector Memory",
@@ -332,7 +336,7 @@ class HealthChecker:
             try:
                 with socket.create_connection((host, port), timeout=0.5):
                     return True
-            except Exception:
+            except (OSError, socket.timeout):
                 return False
 
         if tcp_ok():
@@ -354,7 +358,7 @@ class HealthChecker:
                         timeout=5,
                     )
                     return r.returncode == 0
-                except Exception:
+                except (subprocess.SubprocessError, OSError, FileNotFoundError):
                     return False
 
             def compose_cmd() -> List[str] | None:
@@ -367,8 +371,8 @@ class HealthChecker:
                     )
                     if r.returncode == 0:
                         return ["docker", "compose"]
-                except Exception:
-                    pass
+                except (subprocess.SubprocessError, OSError, FileNotFoundError):
+                    pass  # Try docker-compose fallback
                 try:
                     r = subprocess.run(
                         ["docker-compose", "version"],
@@ -378,8 +382,8 @@ class HealthChecker:
                     )
                     if r.returncode == 0:
                         return ["docker-compose"]
-                except Exception:
-                    pass
+                except (subprocess.SubprocessError, OSError, FileNotFoundError):
+                    pass  # No compose available
                 return None
 
             if docker_ok():
@@ -395,7 +399,8 @@ class HealthChecker:
                             timeout=60,
                         )
                         started = r.returncode == 0
-                    except Exception:
+                    except (subprocess.SubprocessError, OSError) as e:
+                        logger.debug(f"Docker compose up failed: {e}")
                         started = False
 
                 if not started:
@@ -433,7 +438,8 @@ class HealthChecker:
                                 timeout=60,
                             )
                             started = r.returncode == 0
-                    except Exception:
+                    except (subprocess.SubprocessError, OSError) as e:
+                        logger.debug(f"Docker container start/run failed: {e}")
                         started = False
 
                 if started:
@@ -512,7 +518,8 @@ class HealthChecker:
                 False,
                 "pytest not found - install test dependencies",
             )
-        except Exception as e:
+        except (OSError, subprocess.SubprocessError) as e:
+            logger.warning(f"Test suite check failed: {e}")
             return (
                 "Test Suite",
                 False,
@@ -549,7 +556,8 @@ class HealthChecker:
                 False,
                 "pip check timed out after 30s",
             )
-        except Exception as e:
+        except (OSError, subprocess.SubprocessError) as e:
+            logger.warning(f"Dependency check failed: {e}")
             return (
                 "Dependencies",
                 False,
@@ -581,7 +589,8 @@ class HealthChecker:
 
             return ("Git Clean", True, "Working directory clean")
 
-        except Exception as e:
+        except (OSError, subprocess.SubprocessError) as e:
+            logger.warning(f"Git clean check failed: {e}")
             return (
                 "Git Clean",
                 False,
@@ -623,7 +632,8 @@ class HealthChecker:
 
             return ("Git Remote", True, "Branch up to date with remote")
 
-        except Exception as e:
+        except (OSError, subprocess.SubprocessError) as e:
+            logger.warning(f"Git remote check failed: {e}")
             return (
                 "Git Remote",
                 False,

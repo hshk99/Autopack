@@ -28,6 +28,14 @@
     Which phase to trigger: "phase1", "phase2", or "all" (both phases).
     Defaults to "all".
 
+.PARAMETER CarryoverContextPath
+    Path where CARRYOVER_CONTEXT.json will be written when previous cycle data exists.
+    Defaults to the user's Desktop folder.
+
+.PARAMETER ImpsMasterPath
+    Path to the AUTOPACK_IMPS_MASTER.json file containing previous cycle improvements.
+    Defaults to the user's Desktop folder.
+
 .PARAMETER DryRun
     When enabled, shows what would be done without executing telemetry aggregation.
 
@@ -60,6 +68,10 @@ param(
 
     [ValidateSet("phase1", "phase2", "all")]
     [string]$Phase = "all",
+
+    [string]$CarryoverContextPath = "$env:USERPROFILE\OneDrive\Backup\Desktop\CARRYOVER_CONTEXT.json",
+
+    [string]$ImpsMasterPath = "$env:USERPROFILE\OneDrive\Backup\Desktop\AUTOPACK_IMPS_MASTER.json",
 
     [switch]$DryRun
 )
@@ -194,12 +206,84 @@ function Get-TelemetryContextPaths {
     return $context
 }
 
+function Get-CarryoverContext {
+    <#
+    .SYNOPSIS
+        Checks for existing cycle data and creates carryover context for Phase 1.
+    .DESCRIPTION
+        IMP-FEAT-001: Discovery Cycle Carryover
+        When AUTOPACK_IMPS_MASTER.json exists from a previous cycle, extracts
+        unimplemented improvements and creates CARRYOVER_CONTEXT.json for
+        incorporation into the next Discovery cycle.
+    #>
+    $context = @{
+        HasCarryover = $false
+        CarryoverPath = $null
+        ItemCount = 0
+    }
+
+    if (-not (Test-Path $ImpsMasterPath)) {
+        Write-Status "No previous cycle data found at: $ImpsMasterPath" -Color Yellow
+        return $context
+    }
+
+    try {
+        $existingImps = Get-Content $ImpsMasterPath -Raw | ConvertFrom-Json
+
+        # Check if unimplemented_imps array exists and has items
+        if (-not $existingImps.unimplemented_imps -or $existingImps.unimplemented_imps.Count -eq 0) {
+            Write-Status "No unimplemented improvements to carry over" -Color Yellow
+            return $context
+        }
+
+        # Create carryover context with source cycle info
+        $carryover = @{
+            source_cycle = "Discovery_Cycle_$(Get-Date -Format 'yyyy-MM-dd')"
+            created_at = (Get-Date -Format "o")
+            unimplemented_imps = @()
+        }
+
+        # Process each unimplemented improvement, adding carryover_from field
+        foreach ($imp in $existingImps.unimplemented_imps) {
+            # Convert to hashtable for modification
+            $impHash = @{}
+            $imp.PSObject.Properties | ForEach-Object {
+                $impHash[$_.Name] = $_.Value
+            }
+            $impHash["carryover_from"] = "previous_cycle"
+            $carryover.unimplemented_imps += $impHash
+        }
+
+        if ($DryRun) {
+            Write-Status "[DryRun] Would create carryover context with $($carryover.unimplemented_imps.Count) items at: $CarryoverContextPath" -Color Yellow
+        }
+        else {
+            # Write carryover context to file
+            $carryover | ConvertTo-Json -Depth 10 | Set-Content $CarryoverContextPath -Encoding UTF8
+            Write-Status "Created carryover context with $($carryover.unimplemented_imps.Count) items" -Color Green
+        }
+
+        $context.HasCarryover = $true
+        $context.CarryoverPath = $CarryoverContextPath
+        $context.ItemCount = $carryover.unimplemented_imps.Count
+
+        return $context
+    }
+    catch {
+        Write-Warning "Failed to process carryover context: $_"
+        return $context
+    }
+}
+
 function Build-Phase1Prompt {
     <#
     .SYNOPSIS
         Constructs the Phase 1 discovery prompt with optional telemetry context.
     #>
-    param([hashtable]$TelemetryContext)
+    param(
+        [hashtable]$TelemetryContext,
+        [hashtable]$CarryoverContext = @{ HasCarryover = $false }
+    )
 
     $prompt = "@phase1"
 
@@ -225,6 +309,20 @@ function Build-Phase1Prompt {
         }
 
         $prompt += "`n" + ($contextLines -join "`n")
+    }
+
+    # Add carryover context if available (IMP-FEAT-001)
+    if ($CarryoverContext.HasCarryover) {
+        $carryoverLines = @()
+        $carryoverLines += ""
+        $carryoverLines += "## Carryover Context (IMP-FEAT-001)"
+        $carryoverLines += ""
+        $carryoverLines += "CARRYOVER_CONTEXT: $($CarryoverContext.CarryoverPath)"
+        $carryoverLines += "- Contains $($CarryoverContext.ItemCount) unimplemented improvements from previous cycle"
+        $carryoverLines += "- Each item has 'carryover_from' field set to 'previous_cycle'"
+        $carryoverLines += "- Prioritize carryover items that have been waiting longest"
+        $carryoverLines += "- Preserve carryover_from field when incorporating into new cycle"
+        $prompt += "`n" + ($carryoverLines -join "`n")
     }
 
     return $prompt
@@ -268,13 +366,16 @@ function Build-Phase2Prompt {
 function Invoke-Phase1 {
     <#
     .SYNOPSIS
-        Triggers Phase 1 discovery with optional telemetry context.
+        Triggers Phase 1 discovery with optional telemetry and carryover context.
     #>
-    param([hashtable]$TelemetryContext)
+    param(
+        [hashtable]$TelemetryContext,
+        [hashtable]$CarryoverContext = @{ HasCarryover = $false }
+    )
 
     Write-Status "=== Phase 1: Discovery ===" -Color Magenta
 
-    $prompt = Build-Phase1Prompt -TelemetryContext $TelemetryContext
+    $prompt = Build-Phase1Prompt -TelemetryContext $TelemetryContext -CarryoverContext $CarryoverContext
 
     if ($DryRun) {
         Write-Status "[DryRun] Would send prompt:" -Color Yellow
@@ -365,16 +466,29 @@ function Main {
         Write-Host ""
     }
 
+    # Check for carryover context from previous cycle (IMP-FEAT-001)
+    $carryoverContext = @{ HasCarryover = $false }
+    if ($Phase -eq "phase1" -or $Phase -eq "all") {
+        Write-Status "Checking for previous cycle carryover data..."
+        $carryoverContext = Get-CarryoverContext
+        if ($carryoverContext.HasCarryover) {
+            Write-Status "Carryover context prepared:" -Color Green
+            Write-Status "  - Items to carry over: $($carryoverContext.ItemCount)"
+            Write-Status "  - Context file: $($carryoverContext.CarryoverPath)"
+        }
+        Write-Host ""
+    }
+
     # Execute requested phases
     switch ($Phase) {
         "phase1" {
-            Invoke-Phase1 -TelemetryContext $telemetryContext
+            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext
         }
         "phase2" {
             Invoke-Phase2 -TelemetryContext $telemetryContext
         }
         "all" {
-            Invoke-Phase1 -TelemetryContext $telemetryContext
+            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext
             Write-Host ""
             Invoke-Phase2 -TelemetryContext $telemetryContext
         }

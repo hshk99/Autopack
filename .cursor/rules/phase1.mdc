@@ -15,6 +15,48 @@ You are performing Phase 1 of the Autopack improvement workflow: **Discovery**.
 
 Analyze the codebase to identify potential improvements, bugs, and enhancements. Produce a prioritized list of actionable improvement items.
 
+## Carryover Context Integration (IMP-FEAT-001)
+
+When a `CARRYOVER_CONTEXT` path is provided in the prompt context, incorporate unimplemented improvements from the previous Discovery cycle:
+
+### Reading CARRYOVER_CONTEXT.json
+
+1. **Load the file** and parse its JSON structure
+2. **Check `unimplemented_imps`** array - These are improvements that were discovered but not implemented in the previous cycle
+3. **For each carryover item**:
+   - Preserve the `carryover_from` field (indicates this came from a previous cycle)
+   - Assess if the improvement is still relevant to the current codebase
+   - Check if dependencies have changed since original discovery
+   - Re-evaluate priority based on current state
+
+### Prioritization Rules for Carryover Items
+
+1. **Carryover items get priority boost** - Items waiting from previous cycles should be prioritized:
+   - If carryover item was `critical` or `high` priority, maintain or boost priority
+   - If carryover item was `medium` priority, consider boosting to `high` if still relevant
+   - Mark items that have been carried over multiple times for special attention
+
+2. **Staleness check** - Verify carryover items are still valid:
+   - Check if referenced files still exist
+   - Check if the issue has been addressed by other changes
+   - Check if dependencies are still relevant
+
+3. **Merge with new discoveries** - Combine carryover items with newly discovered improvements:
+   - Avoid duplicates (same improvement discovered again)
+   - Update carryover items if new information is available
+   - Preserve `carryover_from` field for tracking purposes
+
+### Output Format for Carryover Items
+
+When including carryover items in output, add a Historical Context section:
+
+```markdown
+### Historical Context
+- **Carryover**: Yes (from previous_cycle)
+- **Original Discovery**: [date from source_cycle]
+- **Status Update**: [any changes since original discovery]
+```
+
 ## Historical Context Integration (IMP-GEN-001)
 
 When telemetry context is provided, use historical data to inform your discovery:

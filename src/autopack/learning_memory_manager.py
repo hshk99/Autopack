@@ -300,6 +300,151 @@ class LearningMemoryManager:
         successes = sum(1 for o in matching if o.get("success"))
         return successes / len(matching)
 
+    def get_effectiveness_stats(self, imp_category: str | None = None) -> dict[str, Any]:
+        """Get effectiveness statistics for improvement outcomes.
+
+        Calculates metrics including:
+        - Average time from PR creation to merge
+        - Average CI pass rate during review
+        - Average number of review cycles
+        - Success rate by category
+
+        Args:
+            imp_category: Optional category prefix to filter by (e.g., "IMP-TEL").
+                          If None, returns stats for all improvements.
+
+        Returns:
+            Dictionary with effectiveness statistics:
+            {
+                "total_outcomes": int,
+                "successful": int,
+                "failed": int,
+                "success_rate": float,
+                "avg_merge_time_hours": float | None,
+                "avg_ci_pass_rate": float | None,
+                "avg_review_cycles": float | None,
+                "by_category": dict[str, dict]  # Per-category breakdown
+            }
+        """
+        outcomes = self._memory.get("improvement_outcomes", [])
+
+        # Filter by category if specified
+        if imp_category:
+            outcomes = [o for o in outcomes if o.get("imp_id", "").startswith(imp_category)]
+
+        if not outcomes:
+            return {
+                "total_outcomes": 0,
+                "successful": 0,
+                "failed": 0,
+                "success_rate": 0.0,
+                "avg_merge_time_hours": None,
+                "avg_ci_pass_rate": None,
+                "avg_review_cycles": None,
+                "by_category": {},
+            }
+
+        # Calculate basic stats
+        successful = sum(1 for o in outcomes if o.get("success"))
+        failed = len(outcomes) - successful
+        success_rate = successful / len(outcomes) if outcomes else 0.0
+
+        # Extract merge times from details
+        merge_times: list[float] = []
+        ci_pass_rates: list[float] = []
+        review_cycles_list: list[int] = []
+
+        for outcome in outcomes:
+            details = outcome.get("details", {})
+            if details:
+                if "merge_time_hours" in details:
+                    merge_times.append(float(details["merge_time_hours"]))
+                if "ci_pass_rate" in details:
+                    ci_pass_rates.append(float(details["ci_pass_rate"]))
+                if "review_cycles" in details:
+                    review_cycles_list.append(int(details["review_cycles"]))
+
+        # Calculate averages
+        avg_merge_time = sum(merge_times) / len(merge_times) if merge_times else None
+        avg_ci_pass_rate = sum(ci_pass_rates) / len(ci_pass_rates) if ci_pass_rates else None
+        avg_review_cycles = (
+            sum(review_cycles_list) / len(review_cycles_list) if review_cycles_list else None
+        )
+
+        # Build per-category breakdown
+        by_category: dict[str, dict[str, Any]] = {}
+        for outcome in outcomes:
+            imp_id = outcome.get("imp_id", "")
+            parts = imp_id.split("-")
+            if len(parts) >= 2:
+                category = f"{parts[0]}-{parts[1]}"
+            else:
+                category = imp_id or "UNKNOWN"
+
+            if category not in by_category:
+                by_category[category] = {
+                    "total": 0,
+                    "successful": 0,
+                    "merge_times": [],
+                    "ci_pass_rates": [],
+                    "review_cycles": [],
+                }
+
+            by_category[category]["total"] += 1
+            if outcome.get("success"):
+                by_category[category]["successful"] += 1
+
+            details = outcome.get("details", {})
+            if details:
+                if "merge_time_hours" in details:
+                    by_category[category]["merge_times"].append(float(details["merge_time_hours"]))
+                if "ci_pass_rate" in details:
+                    by_category[category]["ci_pass_rates"].append(float(details["ci_pass_rate"]))
+                if "review_cycles" in details:
+                    by_category[category]["review_cycles"].append(int(details["review_cycles"]))
+
+        # Finalize per-category stats
+        for category, stats in by_category.items():
+            stats["success_rate"] = (
+                stats["successful"] / stats["total"] if stats["total"] > 0 else 0.0
+            )
+            stats["avg_merge_time_hours"] = (
+                sum(stats["merge_times"]) / len(stats["merge_times"])
+                if stats["merge_times"]
+                else None
+            )
+            stats["avg_ci_pass_rate"] = (
+                sum(stats["ci_pass_rates"]) / len(stats["ci_pass_rates"])
+                if stats["ci_pass_rates"]
+                else None
+            )
+            stats["avg_review_cycles"] = (
+                sum(stats["review_cycles"]) / len(stats["review_cycles"])
+                if stats["review_cycles"]
+                else None
+            )
+            # Remove raw lists from output
+            del stats["merge_times"]
+            del stats["ci_pass_rates"]
+            del stats["review_cycles"]
+
+        return {
+            "total_outcomes": len(outcomes),
+            "successful": successful,
+            "failed": failed,
+            "success_rate": round(success_rate, 3),
+            "avg_merge_time_hours": (
+                round(avg_merge_time, 2) if avg_merge_time is not None else None
+            ),
+            "avg_ci_pass_rate": (
+                round(avg_ci_pass_rate, 3) if avg_ci_pass_rate is not None else None
+            ),
+            "avg_review_cycles": (
+                round(avg_review_cycles, 2) if avg_review_cycles is not None else None
+            ),
+            "by_category": by_category,
+        }
+
     def save(self) -> None:
         """Persist memory to LEARNING_MEMORY.json."""
         self._memory["last_updated"] = datetime.now(timezone.utc).isoformat()

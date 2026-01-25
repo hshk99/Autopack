@@ -33,6 +33,68 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# IMP-LOOP-003: Memory Retrieval Freshness Check
+# ---------------------------------------------------------------------------
+
+# Default maximum age for memory retrieval in task generation (hours)
+DEFAULT_MEMORY_FRESHNESS_HOURS = 72  # 3 days
+
+
+def _parse_timestamp(timestamp_str: Optional[str]) -> Optional[datetime]:
+    """Parse ISO timestamp string to datetime object.
+
+    Args:
+        timestamp_str: ISO format timestamp string (e.g., "2024-01-15T10:30:00+00:00")
+
+    Returns:
+        datetime object or None if parsing fails
+    """
+    if not timestamp_str:
+        return None
+    try:
+        # Handle ISO format with timezone
+        if timestamp_str.endswith("Z"):
+            timestamp_str = timestamp_str[:-1] + "+00:00"
+        return datetime.fromisoformat(timestamp_str)
+    except (ValueError, TypeError):
+        return None
+
+
+def _is_fresh(
+    timestamp_str: Optional[str],
+    max_age_hours: float,
+    now: Optional[datetime] = None,
+) -> bool:
+    """Check if a timestamp is within the freshness threshold.
+
+    Args:
+        timestamp_str: ISO format timestamp string
+        max_age_hours: Maximum age in hours for data to be considered fresh
+        now: Current time (defaults to UTC now)
+
+    Returns:
+        True if timestamp is within max_age_hours, False otherwise
+    """
+    if max_age_hours <= 0:
+        return True  # No freshness check if max_age_hours is 0 or negative
+
+    parsed_ts = _parse_timestamp(timestamp_str)
+    if parsed_ts is None:
+        return False  # Can't determine freshness without valid timestamp
+
+    now = now or datetime.now(timezone.utc)
+
+    # Ensure both datetimes are timezone-aware for comparison
+    if parsed_ts.tzinfo is None:
+        parsed_ts = parsed_ts.replace(tzinfo=timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+
+    age_hours = (now - parsed_ts).total_seconds() / 3600
+    return age_hours <= max_age_hours
+
+
+# ---------------------------------------------------------------------------
 # IMP-LOOP-002: Telemetry Feedback Validation
 # ---------------------------------------------------------------------------
 
@@ -1521,6 +1583,7 @@ class MemoryService:
         query: str,
         limit: int = 10,
         project_id: Optional[str] = None,
+        max_age_hours: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
         """Retrieve insights from memory for task generation (IMP-ARCH-010/016).
 
@@ -1531,10 +1594,16 @@ class MemoryService:
         are actually written (run_summaries, errors_ci, doctor_hints) and filter
         for task_type="telemetry_insight".
 
+        IMP-LOOP-003: Added freshness check to filter out stale insights based on
+        timestamp. Stale data can lead to outdated context being used for task creation.
+
         Args:
             query: Search query to find relevant insights
             limit: Maximum number of results to return
             project_id: Optional project ID to filter by
+            max_age_hours: Maximum age in hours for insights to be considered fresh.
+                          Defaults to DEFAULT_MEMORY_FRESHNESS_HOURS (72 hours).
+                          Set to 0 or negative to disable freshness filtering.
 
         Returns:
             List of insight dictionaries with content, metadata, and score
@@ -1542,6 +1611,11 @@ class MemoryService:
         if not self.enabled:
             logger.debug("[MemoryService] Memory disabled, returning empty insights")
             return []
+
+        # IMP-LOOP-003: Apply default freshness threshold if not specified
+        effective_max_age = (
+            max_age_hours if max_age_hours is not None else DEFAULT_MEMORY_FRESHNESS_HOURS
+        )
 
         try:
             # Embed the query text
@@ -1555,7 +1629,9 @@ class MemoryService:
             ]
 
             all_insights = []
-            per_collection_limit = max(limit // len(insight_collections), 3)
+            stale_count = 0
+            # Fetch more results to account for freshness filtering
+            per_collection_limit = max((limit * 2) // len(insight_collections), 5)
 
             for collection in insight_collections:
                 # Build filter for telemetry insights
@@ -1580,6 +1656,16 @@ class MemoryService:
                     if payload.get("task_type") != "telemetry_insight":
                         continue
 
+                    # IMP-LOOP-003: Apply freshness check
+                    timestamp = payload.get("timestamp")
+                    if effective_max_age > 0 and not _is_fresh(timestamp, effective_max_age):
+                        stale_count += 1
+                        logger.debug(
+                            f"[IMP-LOOP-003] Skipping stale insight (age > {effective_max_age}h): "
+                            f"id={getattr(result, 'id', 'unknown')}, timestamp={timestamp}"
+                        )
+                        continue
+
                     insight = {
                         "id": getattr(result, "id", None),
                         "content": payload.get("content", payload.get("summary", "")),
@@ -1589,6 +1675,7 @@ class MemoryService:
                         "severity": payload.get("severity", "medium"),
                         "file_path": payload.get("file_path"),
                         "collection": collection,
+                        "timestamp": timestamp,  # IMP-LOOP-003: Include timestamp in result
                     }
                     all_insights.append(insight)
 
@@ -1596,8 +1683,15 @@ class MemoryService:
             all_insights.sort(key=lambda x: x.get("score", 0), reverse=True)
             insights = all_insights[:limit]
 
+            # IMP-LOOP-003: Log freshness filtering stats
+            if stale_count > 0:
+                logger.info(
+                    f"[IMP-LOOP-003] Filtered {stale_count} stale insights "
+                    f"(max_age={effective_max_age}h)"
+                )
+
             logger.debug(
-                f"[MemoryService] Retrieved {len(insights)} insights for query: {query[:50]}..."
+                f"[MemoryService] Retrieved {len(insights)} fresh insights for query: {query[:50]}..."
             )
             return insights
 

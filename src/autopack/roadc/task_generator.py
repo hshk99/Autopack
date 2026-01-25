@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
 
-from ..memory.memory_service import MemoryService
+from ..memory.memory_service import MemoryService, DEFAULT_MEMORY_FRESHNESS_HOURS
 from ..roadi import RegressionProtector
 from ..telemetry.analyzer import RankedIssue
 
@@ -226,6 +226,7 @@ class AutonomousTaskGenerator:
         min_confidence: float = 0.7,
         telemetry_insights: Optional[Dict[str, List[RankedIssue]]] = None,
         run_id: Optional[str] = None,
+        max_age_hours: Optional[float] = None,
     ) -> TaskGenerationResult:
         """Generate improvement tasks from recent telemetry insights.
 
@@ -236,6 +237,10 @@ class AutonomousTaskGenerator:
                                If provided, uses this directly instead of querying MemoryService.
                                This enables the ROAD-C self-improvement pipeline (IMP-FEAT-001).
             run_id: Optional run ID for telemetry tracking (IMP-LOOP-004)
+            max_age_hours: Maximum age in hours for memory insights to be considered fresh.
+                          Only applies when retrieving from memory (not direct telemetry).
+                          Defaults to DEFAULT_MEMORY_FRESHNESS_HOURS (72 hours).
+                          IMP-LOOP-003: Ensures only recent data is used for task generation.
 
         Returns:
             TaskGenerationResult containing generated tasks and statistics
@@ -258,11 +263,20 @@ class AutonomousTaskGenerator:
                 # Fallback: Retrieve recent high-signal insights from memory
                 # IMP-ARCH-016: Removed namespace parameter - retrieve_insights now queries
                 # across run_summaries, errors_ci, doctor_hints collections
+                # IMP-LOOP-003: Apply freshness check to filter stale insights
+                effective_max_age = (
+                    max_age_hours if max_age_hours is not None else DEFAULT_MEMORY_FRESHNESS_HOURS
+                )
                 insights = self._memory.retrieve_insights(
                     query="error failure bottleneck improvement opportunity",
                     limit=100,
+                    max_age_hours=effective_max_age,
                 )
                 telemetry_source = "memory"
+                logger.debug(
+                    f"[IMP-LOOP-003] Retrieved {len(insights)} fresh insights "
+                    f"(max_age={effective_max_age}h)"
+                )
 
             # Detect patterns across insights
             patterns = self._detect_patterns(insights)

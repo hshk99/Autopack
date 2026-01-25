@@ -601,6 +601,44 @@ class Settings(BaseSettings):
         description="Minimum free disk space required before artifact writes (bytes)",
     )
 
+    # IMP-LOOP-006: Circuit breaker configuration
+    # Prevents runaway execution by tracking consecutive failures and tripping
+    # when threshold is exceeded. Auto-resets after timeout period.
+    circuit_breaker_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "AUTOPACK_CIRCUIT_BREAKER_ENABLED", "CIRCUIT_BREAKER_ENABLED"
+        ),
+        description="Enable circuit breaker protection for autonomous loop",
+    )
+
+    circuit_breaker_failure_threshold: int = Field(
+        default=5,
+        gt=0,
+        validation_alias=AliasChoices(
+            "AUTOPACK_CIRCUIT_BREAKER_FAILURE_THRESHOLD", "CIRCUIT_BREAKER_FAILURE_THRESHOLD"
+        ),
+        description="Number of consecutive failures before circuit breaker trips",
+    )
+
+    circuit_breaker_reset_timeout_seconds: int = Field(
+        default=300,
+        gt=0,
+        validation_alias=AliasChoices(
+            "AUTOPACK_CIRCUIT_BREAKER_RESET_TIMEOUT", "CIRCUIT_BREAKER_RESET_TIMEOUT_SECONDS"
+        ),
+        description="Seconds to wait before attempting to reset circuit breaker",
+    )
+
+    circuit_breaker_half_open_max_calls: int = Field(
+        default=1,
+        gt=0,
+        validation_alias=AliasChoices(
+            "AUTOPACK_CIRCUIT_BREAKER_HALF_OPEN_CALLS", "CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS"
+        ),
+        description="Max calls allowed in half-open state before deciding to close or re-open",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def parse_allowed_hosts(cls, values):
@@ -756,6 +794,25 @@ def validate_config(config: Settings) -> list[str]:
     if config.access_token_expire_minutes < 1:
         errors.append(
             f"access_token_expire_minutes must be >= 1, got {config.access_token_expire_minutes}"
+        )
+
+    # Circuit breaker validations (IMP-LOOP-006)
+    if config.circuit_breaker_failure_threshold < 1:
+        errors.append(
+            f"circuit_breaker_failure_threshold must be >= 1, got "
+            f"{config.circuit_breaker_failure_threshold}"
+        )
+
+    if config.circuit_breaker_reset_timeout_seconds < 1:
+        errors.append(
+            f"circuit_breaker_reset_timeout_seconds must be >= 1, got "
+            f"{config.circuit_breaker_reset_timeout_seconds}"
+        )
+
+    if config.circuit_breaker_half_open_max_calls < 1:
+        errors.append(
+            f"circuit_breaker_half_open_max_calls must be >= 1, got "
+            f"{config.circuit_breaker_half_open_max_calls}"
         )
 
     # Production-specific validations

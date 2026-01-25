@@ -21,16 +21,31 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Tuple, List
 
+# OCR dependencies are optional - only required for OCRModelSelector class
+# This allows telemetry functions to be imported without OCR packages
+_OCR_AVAILABLE = False
 try:
     import easyocr
     import numpy as np
     import mss
     import pyautogui
-except ImportError as e:
-    print(f"Missing required package: {e}")
-    print("\nPlease install required packages:")
-    print("  pip install easyocr pillow pyautogui mss numpy")
-    sys.exit(1)
+
+    _OCR_AVAILABLE = True
+except ImportError:
+    easyocr = None  # type: ignore[assignment]
+    np = None  # type: ignore[assignment]
+    mss = None  # type: ignore[assignment]
+    pyautogui = None  # type: ignore[assignment]
+
+
+def _check_ocr_dependencies() -> None:
+    """Check if OCR dependencies are available, exit if not."""
+    if not _OCR_AVAILABLE:
+        print("Missing required OCR packages.")
+        print("\nPlease install required packages:")
+        print("  pip install easyocr pillow pyautogui mss numpy")
+        sys.exit(1)
+
 
 # Grid configuration for 5120x1440 monitor with 3x3 grid
 GRID_POSITIONS = {
@@ -135,9 +150,10 @@ class OCRModelSelector:
         telemetry_dir: Optional[Path] = None,
         enable_telemetry: bool = True,
     ):
+        _check_ocr_dependencies()
         self.verbose = verbose
         self.reader = None
-        self.sct = mss.mss()
+        self.sct = mss.mss()  # type: ignore[union-attr]
         self.telemetry_dir = telemetry_dir
         self.enable_telemetry = enable_telemetry
         self._current_model: Optional[str] = None
@@ -147,11 +163,11 @@ class OCRModelSelector:
         if self.reader is None:
             if self.verbose:
                 print("[INFO] Initializing EasyOCR...")
-            self.reader = easyocr.Reader(["en"], gpu=True, verbose=False)
+            self.reader = easyocr.Reader(["en"], gpu=True, verbose=False)  # type: ignore[union-attr]
             if self.verbose:
                 print("[OK] EasyOCR initialized")
 
-    def capture_slot(self, slot: int) -> np.ndarray:
+    def capture_slot(self, slot: int):  # type: ignore[return]
         """Capture screenshot of a specific grid slot."""
         pos = GRID_POSITIONS[slot]
         monitor = {
@@ -161,14 +177,12 @@ class OCRModelSelector:
             "height": pos["height"],
         }
         screenshot = self.sct.grab(monitor)
-        img = np.array(screenshot)
+        img = np.array(screenshot)  # type: ignore[union-attr]
         img = img[:, :, :3]  # Remove alpha
         img = img[:, :, ::-1]  # BGR to RGB
         return img
 
-    def find_text_location(
-        self, image: np.ndarray, keywords: List[str]
-    ) -> Optional[Tuple[int, int]]:
+    def find_text_location(self, image, keywords: List[str]) -> Optional[Tuple[int, int]]:
         """Find the center location of text matching keywords."""
         self.initialize_ocr()
 
@@ -204,7 +218,7 @@ class OCRModelSelector:
         if self.verbose:
             print(f"  [CLICK] Absolute position: ({abs_x}, {abs_y})")
 
-        pyautogui.click(abs_x, abs_y)
+        pyautogui.click(abs_x, abs_y)  # type: ignore[union-attr]
 
     def _record_switch(
         self,

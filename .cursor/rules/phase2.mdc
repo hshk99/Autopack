@@ -109,6 +109,66 @@ IMP-002 (no deps) ─┘         │
 | Test coverage | Low | Medium | High |
 | Escalation frequency | High | Medium | Low |
 
+### Step 3.1: Adaptive Wave Sizing (IMP-GEN-002)
+
+**Read `wave_size_recommendation` from LEARNING_MEMORY.json** to dynamically adjust wave sizes based on historical completion rates.
+
+#### How It Works
+
+The `LearningMemoryManager.get_optimal_wave_size()` method analyzes the last 5 waves and returns:
+
+```json
+{
+  "recommended_size": 4,
+  "completion_rate": 0.85,
+  "rationale": "Good completion rate (85%) - maintaining size"
+}
+```
+
+#### Adaptive Sizing Thresholds
+
+| Completion Rate | Action | Rationale |
+|----------------|--------|-----------|
+| < 70% | Reduce wave size by 2 | Too many failures indicate overload |
+| 70% - 90% | Maintain current size | Optimal balance achieved |
+| > 90% | Increase wave size by 2 | Capacity for more parallel work |
+
+#### Integration Instructions
+
+1. **Read the recommendation** at the start of wave planning:
+   ```python
+   from autopack.learning_memory_manager import LearningMemoryManager
+   manager = LearningMemoryManager(Path("LEARNING_MEMORY.json"))
+   recommendation = manager.get_optimal_wave_size()
+   ```
+
+2. **Apply to wave planning**:
+   - Use `recommendation["recommended_size"]` as the target wave size
+   - Adjust individual waves based on dependencies and risk
+   - Never exceed recommended size for high-risk improvements
+
+3. **Log in AUTOPACK_WAVE_PLAN.json**:
+   ```json
+   {
+     "wave_sizing": {
+       "recommended_size": 4,
+       "completion_rate": 0.85,
+       "rationale": "Good completion rate (85%) - maintaining size",
+       "applied_adjustments": [
+         "Wave 1: Used size 3 due to high-risk items",
+         "Wave 2: Used size 4 as recommended"
+       ]
+     }
+   }
+   ```
+
+#### Example Application
+
+If `recommendation` returns:
+- `completion_rate: 0.65` (< 70%) → Reduce from default 3 to 1-2 items per wave
+- `completion_rate: 0.92` (> 90%) → Increase from default 3 to 5 items per wave
+- `completion_rate: 0.78` (70-90%) → Maintain default 3 items per wave
+
 ### Step 4: Risk Distribution
 
 For each wave, calculate risk score:

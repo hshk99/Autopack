@@ -215,56 +215,59 @@ class LearningMemoryManager:
             f"{completed}/{wave_size} ({wave_record['completion_rate']:.1%})"
         )
 
-    def get_optimal_wave_size(self) -> int:
+    def get_optimal_wave_size(self) -> dict[str, Any]:
         """Calculate optimal wave size based on historical completion rates.
 
-        Analyzes wave_history to find the wave size that maximizes throughput
-        while maintaining acceptable completion rates.
+        Analyzes the last 5 waves from wave_history and adjusts size recommendations
+        based on completion rate thresholds:
+        - Below 70%: Recommend reducing wave size by 2
+        - Above 90%: Recommend increasing wave size by 2
+        - 70-90%: Maintain current average size
 
         Returns:
-            Recommended wave size (default: 3 if no history).
+            Dictionary with:
+            - recommended_size: The recommended wave size
+            - completion_rate: The calculated completion rate (if available)
+            - rationale: Human-readable explanation of the recommendation
         """
         wave_history = self._memory.get("wave_history", [])
 
         if not wave_history:
             logger.debug("[LearningMemory] No wave history - returning default size of 3")
-            return 3
+            return {"recommended_size": 3, "rationale": "No history - using default"}
 
-        # Group by wave size and calculate average completion rate
-        size_stats: dict[int, list[float]] = {}
-        for wave in wave_history:
-            size = wave.get("wave_size", 0)
-            rate = wave.get("completion_rate", 0.0)
-            if size > 0:
-                if size not in size_stats:
-                    size_stats[size] = []
-                size_stats[size].append(rate)
+        # Calculate completion rate from last 5 waves
+        recent_waves = wave_history[-5:]
+        total_phases = sum(w.get("wave_size", 0) for w in recent_waves)
+        completed_phases = sum(w.get("completed", 0) for w in recent_waves)
 
-        if not size_stats:
-            return 3
+        if total_phases == 0:
+            logger.debug("[LearningMemory] No phase data - returning default size of 3")
+            return {"recommended_size": 3, "rationale": "No phase data - using default"}
 
-        # Calculate average completion rate per size
-        avg_rates = {size: sum(rates) / len(rates) for size, rates in size_stats.items()}
+        completion_rate = completed_phases / total_phases
+        current_avg_size = total_phases / len(recent_waves)
 
-        # Find optimal size: maximize throughput (size * completion_rate)
-        # with minimum completion rate threshold of 70%
-        min_acceptable_rate = 0.70
-        optimal_size = 3  # default
-        best_throughput = 0.0
+        if completion_rate < 0.70:
+            new_size = max(1, int(current_avg_size - 2))
+            rationale = f"Low completion rate ({completion_rate:.0%}) - reducing size"
+        elif completion_rate > 0.90:
+            new_size = int(current_avg_size + 2)
+            rationale = f"High completion rate ({completion_rate:.0%}) - increasing size"
+        else:
+            new_size = int(current_avg_size)
+            rationale = f"Good completion rate ({completion_rate:.0%}) - maintaining size"
 
-        for size, rate in avg_rates.items():
-            if rate >= min_acceptable_rate:
-                throughput = size * rate
-                if throughput > best_throughput:
-                    best_throughput = throughput
-                    optimal_size = size
+        logger.debug(
+            f"[LearningMemory] Adaptive wave size: {new_size} "
+            f"(completion_rate={completion_rate:.2%})"
+        )
 
-        # If no size meets the threshold, pick the one with highest completion rate
-        if best_throughput == 0.0:
-            optimal_size = max(avg_rates.keys(), key=lambda s: avg_rates[s])
-
-        logger.debug(f"[LearningMemory] Calculated optimal wave size: {optimal_size}")
-        return optimal_size
+        return {
+            "recommended_size": new_size,
+            "completion_rate": completion_rate,
+            "rationale": rationale,
+        }
 
     def get_improvement_history(self, imp_id: str) -> list[dict[str, Any]]:
         """Get historical outcomes for a specific improvement ID.

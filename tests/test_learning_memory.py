@@ -206,34 +206,46 @@ class TestWaveHistory:
 
     def test_optimal_wave_size_default_with_no_history(self, manager):
         """Test that default wave size is 3 with no history."""
-        optimal = manager.get_optimal_wave_size()
-        assert optimal == 3
+        result = manager.get_optimal_wave_size()
+        assert result["recommended_size"] == 3
+        assert "rationale" in result
+        assert "No history" in result["rationale"]
 
-    def test_optimal_wave_size_prefers_high_throughput(self, manager):
-        """Test that optimal size maximizes throughput above threshold."""
-        # Size 3 with 100% completion = throughput 3.0
-        manager.record_wave_completion(wave_size=3, completed=3, failed=0)
-        manager.record_wave_completion(wave_size=3, completed=3, failed=0)
+    def test_optimal_wave_size_high_completion_increases_size(self, manager):
+        """Test that high completion rate (>90%) increases wave size."""
+        # Record 5 waves with 100% completion rate at size 4
+        for _ in range(5):
+            manager.record_wave_completion(wave_size=4, completed=4, failed=0)
 
-        # Size 5 with 80% completion = throughput 4.0 (higher)
-        manager.record_wave_completion(wave_size=5, completed=4, failed=1)
-        manager.record_wave_completion(wave_size=5, completed=4, failed=1)
+        result = manager.get_optimal_wave_size()
+        # Should recommend increasing size by 2 (4 + 2 = 6)
+        assert result["recommended_size"] == 6
+        assert result["completion_rate"] == 1.0
+        assert "increasing" in result["rationale"].lower()
 
-        optimal = manager.get_optimal_wave_size()
-        # Should prefer size 5 due to higher throughput
-        assert optimal == 5
+    def test_optimal_wave_size_low_completion_reduces_size(self, manager):
+        """Test that low completion rate (<70%) reduces wave size."""
+        # Record 5 waves with 50% completion rate at size 6
+        for _ in range(5):
+            manager.record_wave_completion(wave_size=6, completed=3, failed=3)
 
-    def test_optimal_wave_size_avoids_low_completion_rate(self, manager):
-        """Test that sizes with low completion rates are avoided."""
-        # Size 3 with 100% completion
-        manager.record_wave_completion(wave_size=3, completed=3, failed=0)
+        result = manager.get_optimal_wave_size()
+        # Should recommend reducing size by 2 (6 - 2 = 4)
+        assert result["recommended_size"] == 4
+        assert result["completion_rate"] == 0.5
+        assert "reducing" in result["rationale"].lower()
 
-        # Size 10 with 50% completion (below 70% threshold)
-        manager.record_wave_completion(wave_size=10, completed=5, failed=5)
+    def test_optimal_wave_size_maintains_at_good_completion(self, manager):
+        """Test that good completion rate (70-90%) maintains wave size."""
+        # Record 5 waves with 80% completion rate at size 5
+        for _ in range(5):
+            manager.record_wave_completion(wave_size=5, completed=4, failed=1)
 
-        optimal = manager.get_optimal_wave_size()
-        # Should prefer size 3 (meets threshold) over size 10 (doesn't meet threshold)
-        assert optimal == 3
+        result = manager.get_optimal_wave_size()
+        # Should maintain current average size of 5
+        assert result["recommended_size"] == 5
+        assert result["completion_rate"] == 0.8
+        assert "maintaining" in result["rationale"].lower()
 
 
 class TestTypeSuccessRate:

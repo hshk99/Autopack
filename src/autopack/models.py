@@ -1040,6 +1040,64 @@ class GapRemediation(Base):
 # ==============================================================================
 
 
+class TaskGenerationEvent(Base):
+    """Task generation telemetry event (IMP-LOOP-004).
+
+    Tracks success/failure metrics for task generation operations to enable
+    monitoring and quality improvement of the self-improvement loop.
+
+    Captured metrics:
+    - Success/failure status of generation runs
+    - Number of insights processed and patterns detected
+    - Tasks generated count
+    - Generation duration for performance monitoring
+    - Error details for failure analysis
+    """
+
+    __tablename__ = "task_generation_events"
+    __table_args__ = (
+        Index("ix_task_gen_run_id", "run_id"),
+        Index("ix_task_gen_success", "success"),
+        Index("ix_task_gen_timestamp", "timestamp"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    run_id = Column(String(50), nullable=True, index=True)  # Run that triggered generation
+
+    timestamp = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+    # Generation outcome
+    success = Column(Boolean, nullable=False, index=True)
+    error_message = Column(Text, nullable=True)  # Error details if failed
+    error_type = Column(String(100), nullable=True)  # Exception type if failed
+
+    # Metrics
+    insights_processed = Column(Integer, nullable=False, default=0)
+    patterns_detected = Column(Integer, nullable=False, default=0)
+    tasks_generated = Column(Integer, nullable=False, default=0)
+    tasks_persisted = Column(Integer, nullable=False, default=0)
+    generation_time_ms = Column(Float, nullable=True)  # Duration in milliseconds
+
+    # Source tracking
+    telemetry_source = Column(
+        String(50), nullable=True
+    )  # "direct" (telemetry_insights param) or "memory" (MemoryService)
+    min_confidence = Column(Float, nullable=True)  # Confidence threshold used
+    max_tasks = Column(Integer, nullable=True)  # Max tasks limit used
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+
 class GeneratedTaskModel(Base):
     """Database model for persisting generated improvement tasks (IMP-ARCH-011).
 

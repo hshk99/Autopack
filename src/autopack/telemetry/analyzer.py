@@ -35,6 +35,22 @@ class CostRecommendation:
     severity: str  # "warning", "critical"
 
 
+@dataclass
+class TaskGenerationStats:
+    """Task generation statistics from telemetry (IMP-LOOP-004)."""
+
+    total_runs: int  # Total generation attempts
+    successful_runs: int  # Successful generation attempts
+    failed_runs: int  # Failed generation attempts
+    success_rate: float  # Success rate (0.0 - 1.0)
+    total_tasks_generated: int  # Total tasks generated
+    total_insights_processed: int  # Total insights processed
+    total_patterns_detected: int  # Total patterns detected
+    avg_generation_time_ms: float  # Average generation time in milliseconds
+    avg_tasks_per_run: float  # Average tasks per successful run
+    common_error_types: Dict[str, int]  # Error type -> count
+
+
 class TelemetryAnalyzer:
     """Analyze telemetry data and generate ranked issues."""
 
@@ -536,3 +552,121 @@ class TelemetryAnalyzer:
             budget_remaining_pct=budget_remaining_pct,
             severity="info",
         )
+
+    def get_task_generation_stats(self, window_days: int = 7) -> TaskGenerationStats:
+        """Get task generation success metrics (IMP-LOOP-004).
+
+        Aggregates task generation telemetry to provide visibility into
+        the health and effectiveness of the self-improvement loop.
+
+        Args:
+            window_days: Number of days to look back (default: 7)
+
+        Returns:
+            TaskGenerationStats with aggregated metrics
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+
+        # Query overall stats
+        overall_result = self.db.execute(
+            text("""
+            SELECT
+                COUNT(*) as total_runs,
+                SUM(CASE WHEN success = true THEN 1 ELSE 0 END) as successful_runs,
+                SUM(CASE WHEN success = false THEN 1 ELSE 0 END) as failed_runs,
+                SUM(tasks_generated) as total_tasks_generated,
+                SUM(insights_processed) as total_insights_processed,
+                SUM(patterns_detected) as total_patterns_detected,
+                AVG(generation_time_ms) as avg_generation_time_ms
+            FROM task_generation_events
+            WHERE timestamp >= :cutoff
+            """),
+            {"cutoff": cutoff},
+        )
+        row = overall_result.fetchone()
+
+        total_runs = row.total_runs or 0
+        successful_runs = row.successful_runs or 0
+        failed_runs = row.failed_runs or 0
+        total_tasks_generated = row.total_tasks_generated or 0
+        total_insights_processed = row.total_insights_processed or 0
+        total_patterns_detected = row.total_patterns_detected or 0
+        avg_generation_time_ms = row.avg_generation_time_ms or 0.0
+
+        # Calculate derived metrics
+        success_rate = successful_runs / total_runs if total_runs > 0 else 0.0
+        avg_tasks_per_run = total_tasks_generated / successful_runs if successful_runs > 0 else 0.0
+
+        # Query common error types
+        error_result = self.db.execute(
+            text("""
+            SELECT error_type, COUNT(*) as count
+            FROM task_generation_events
+            WHERE timestamp >= :cutoff AND success = false AND error_type IS NOT NULL
+            GROUP BY error_type
+            ORDER BY count DESC
+            LIMIT 10
+            """),
+            {"cutoff": cutoff},
+        )
+        common_error_types = {row.error_type: row.count for row in error_result}
+
+        logger.debug(
+            f"[IMP-LOOP-004] Task generation stats: {total_runs} runs, "
+            f"{success_rate:.1%} success rate, {total_tasks_generated} tasks generated"
+        )
+
+        return TaskGenerationStats(
+            total_runs=total_runs,
+            successful_runs=successful_runs,
+            failed_runs=failed_runs,
+            success_rate=success_rate,
+            total_tasks_generated=total_tasks_generated,
+            total_insights_processed=total_insights_processed,
+            total_patterns_detected=total_patterns_detected,
+            avg_generation_time_ms=avg_generation_time_ms,
+            avg_tasks_per_run=avg_tasks_per_run,
+            common_error_types=common_error_types,
+        )
+
+    def write_task_generation_report(self, stats: TaskGenerationStats, output_path: Path) -> None:
+        """Write task generation stats to artifact file (IMP-LOOP-004).
+
+        Args:
+            stats: TaskGenerationStats from get_task_generation_stats()
+            output_path: Path to write markdown report
+        """
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(output_path, "w") as f:
+            f.write("# Task Generation Metrics Report\n\n")
+            f.write(f"**Generated**: {datetime.now(timezone.utc).isoformat()}\n\n")
+
+            f.write("## Summary\n\n")
+            f.write("| Metric | Value |\n")
+            f.write("|--------|-------|\n")
+            f.write(f"| Total Runs | {stats.total_runs} |\n")
+            f.write(f"| Successful Runs | {stats.successful_runs} |\n")
+            f.write(f"| Failed Runs | {stats.failed_runs} |\n")
+            f.write(f"| Success Rate | {stats.success_rate:.1%} |\n")
+            f.write(f"| Total Tasks Generated | {stats.total_tasks_generated} |\n")
+            f.write(f"| Avg Tasks per Run | {stats.avg_tasks_per_run:.1f} |\n")
+            f.write(f"| Avg Generation Time | {stats.avg_generation_time_ms:.0f}ms |\n")
+
+            f.write("\n## Insights Processing\n\n")
+            f.write("| Metric | Value |\n")
+            f.write("|--------|-------|\n")
+            f.write(f"| Total Insights Processed | {stats.total_insights_processed} |\n")
+            f.write(f"| Total Patterns Detected | {stats.total_patterns_detected} |\n")
+
+            if stats.common_error_types:
+                f.write("\n## Common Error Types\n\n")
+                f.write("| Error Type | Count |\n")
+                f.write("|------------|-------|\n")
+                for error_type, count in stats.common_error_types.items():
+                    f.write(f"| {error_type} | {count} |\n")
+            else:
+                f.write("\n## Error Types\n\n")
+                f.write("*No errors recorded in analysis window*\n")
+
+        logger.info(f"[IMP-LOOP-004] Wrote task generation report to: {output_path}")

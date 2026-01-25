@@ -1,0 +1,18 @@
+{
+  "consolidated_summaries": [],
+  "metadata": {
+    "version": 1,
+    "description": "Archived slot history summaries. Each entry contains consolidated stats from 50 events.",
+    "schema": {
+      "slot": "int (1-9)",
+      "period_start": "ISO timestamp of earliest event",
+      "period_end": "ISO timestamp of latest event",
+      "total_events": "int count of consolidated events",
+      "event_type_counts": "dict mapping event_type to count",
+      "success_count": "int count of successful events",
+      "failure_count": "int count of failed events",
+      "avg_escalation_level": "float average escalation level",
+      "max_escalation_level": "int maximum escalation level seen"
+    }
+  }
+}

@@ -496,6 +496,15 @@ class Settings(BaseSettings):
         description="Cheaper model for secondary auditor (optional)",
     )
 
+    # IMP-PERF-002: Context injection ceiling
+    # Maximum total tokens for context injection across all phases in a run
+    # Prevents unbounded context accumulation (1500 tokens/phase x 100 phases = 150K tokens)
+    context_ceiling_tokens: int = Field(
+        default=50_000,
+        validation_alias=AliasChoices("AUTOPACK_CONTEXT_CEILING_TOKENS", "CONTEXT_CEILING_TOKENS"),
+        description="Maximum total tokens for context injection across all phases (default: 50K)",
+    )
+
     # IMP-SOT-001: SOT Runtime Enforcement
     # Enable runtime detection of SOT drift during autonomous execution
     # Checks for consistency between BUILD_HISTORY and DEBUG_LOG documents

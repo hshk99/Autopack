@@ -53,6 +53,11 @@ class AutonomousLoop:
         self._last_session_health_check = time.time()  # Track last health check
         self._telemetry_analyzer: Optional[TelemetryAnalyzer] = None
 
+        # IMP-PERF-002: Context ceiling tracking
+        # Prevents unbounded context injection across phases
+        self._total_context_tokens = 0
+        self._context_ceiling = settings.context_ceiling_tokens
+
     def _get_telemetry_analyzer(self) -> Optional[TelemetryAnalyzer]:
         """Get or create the telemetry analyzer instance.
 
@@ -289,6 +294,101 @@ class AutonomousLoop:
         context = "\n".join(lines)
         logger.info(
             f"[IMP-ARCH-019] Injecting {len(improvement_tasks)} improvement tasks into phase context"
+        )
+        return context
+
+    def _estimate_tokens(self, context: str) -> int:
+        """Estimate token count for a context string.
+
+        Uses a rough heuristic of ~4 characters per token (common for English text).
+        This is a fast approximation; actual token counts vary by model and content.
+
+        Args:
+            context: The context string to estimate tokens for.
+
+        Returns:
+            Estimated token count.
+        """
+        if not context:
+            return 0
+        # Rough estimate: ~4 characters per token (typical for English)
+        return len(context) // 4
+
+    def _truncate_to_budget(self, context: str, token_budget: int) -> str:
+        """Truncate context to fit within a token budget.
+
+        Prioritizes keeping the most recent content (end of string).
+        Truncates from the beginning to preserve recent context.
+
+        Args:
+            context: The context string to truncate.
+            token_budget: Maximum tokens allowed.
+
+        Returns:
+            Truncated context string that fits within budget.
+        """
+        if token_budget <= 0:
+            return ""
+
+        current_tokens = self._estimate_tokens(context)
+        if current_tokens <= token_budget:
+            return context
+
+        # Calculate approximate character limit (4 chars per token)
+        char_budget = token_budget * 4
+
+        # Truncate from beginning, keeping most recent content
+        truncated = context[-char_budget:]
+
+        # Try to find a clean break point (newline or space)
+        clean_break = truncated.find("\n")
+        if clean_break == -1:
+            clean_break = truncated.find(" ")
+
+        if clean_break > 0 and clean_break < len(truncated) // 2:
+            truncated = truncated[clean_break + 1 :]
+
+        return truncated
+
+    def _inject_context_with_ceiling(self, context: str) -> str:
+        """Inject context while enforcing the total context ceiling.
+
+        IMP-PERF-002: Prevents unbounded context accumulation across phases.
+        Tracks total context tokens injected and truncates when ceiling is reached.
+
+        Args:
+            context: The context string to inject.
+
+        Returns:
+            The context string (potentially truncated to fit within ceiling).
+        """
+        if not context:
+            return ""
+
+        context_tokens = self._estimate_tokens(context)
+
+        if self._total_context_tokens + context_tokens > self._context_ceiling:
+            remaining_budget = self._context_ceiling - self._total_context_tokens
+
+            if remaining_budget <= 0:
+                logger.warning(
+                    f"[IMP-PERF-002] Context ceiling reached ({self._context_ceiling} tokens). "
+                    f"Skipping context injection entirely."
+                )
+                return ""
+
+            logger.warning(
+                f"[IMP-PERF-002] Context ceiling approaching ({self._total_context_tokens}/{self._context_ceiling} tokens). "
+                f"Truncating injection from {context_tokens} to {remaining_budget} tokens."
+            )
+            # Prioritize most recent context
+            context = self._truncate_to_budget(context, remaining_budget)
+            context_tokens = self._estimate_tokens(context)
+
+        self._total_context_tokens += context_tokens
+        logger.debug(
+            f"[IMP-PERF-002] Context injected: {context_tokens} tokens "
+            f"(total: {self._total_context_tokens}/{self._context_ceiling})"
         )
         return context
 
@@ -728,18 +828,26 @@ class AutonomousLoop:
             # IMP-ARCH-002: Retrieve memory context for builder injection
             phase_goal = next_phase.get("description", "")
             memory_context = self._get_memory_context(phase_type, phase_goal)
-            if memory_context:
-                phase_adjustments["memory_context"] = memory_context
 
             # IMP-ARCH-019: Inject improvement tasks into phase context
             improvement_context = self._get_improvement_task_context()
+
+            # Combine all context sources
+            combined_context = ""
+            if memory_context:
+                combined_context = memory_context
             if improvement_context:
-                existing_context = phase_adjustments.get("memory_context", "")
-                phase_adjustments["memory_context"] = (
-                    existing_context + "\n\n" + improvement_context
-                    if existing_context
+                combined_context = (
+                    combined_context + "\n\n" + improvement_context
+                    if combined_context
                     else improvement_context
                 )
+
+            # IMP-PERF-002: Apply context ceiling enforcement
+            if combined_context:
+                combined_context = self._inject_context_with_ceiling(combined_context)
+                if combined_context:
+                    phase_adjustments["memory_context"] = combined_context
 
             # Execute phase (with any telemetry-driven adjustments and memory context)
             success, status = self.executor.execute_phase(next_phase, **phase_adjustments)

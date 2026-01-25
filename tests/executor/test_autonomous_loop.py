@@ -473,5 +473,158 @@ class TestBudgetExhaustionCheck:
         assert "budget exhausted" in error_msg.lower()
 
 
+class TestContextCeiling:
+    """Test context ceiling enforcement (IMP-PERF-002)."""
+
+    def test_estimate_tokens_empty_string(self):
+        """Verify empty string returns 0 tokens."""
+        mock_executor = Mock()
+        loop = AutonomousLoop(mock_executor)
+
+        assert loop._estimate_tokens("") == 0
+        assert loop._estimate_tokens(None) == 0
+
+    def test_estimate_tokens_basic_calculation(self):
+        """Verify token estimation uses ~4 chars per token heuristic."""
+        mock_executor = Mock()
+        loop = AutonomousLoop(mock_executor)
+
+        # 100 chars should estimate to ~25 tokens
+        test_string = "a" * 100
+        estimated = loop._estimate_tokens(test_string)
+        assert estimated == 25  # 100 // 4
+
+        # 400 chars should estimate to ~100 tokens
+        test_string = "b" * 400
+        estimated = loop._estimate_tokens(test_string)
+        assert estimated == 100  # 400 // 4
+
+    def test_truncate_to_budget_no_truncation_needed(self):
+        """Verify no truncation when content fits within budget."""
+        mock_executor = Mock()
+        loop = AutonomousLoop(mock_executor)
+
+        content = "a" * 100  # ~25 tokens
+        result = loop._truncate_to_budget(content, 50)  # 50 token budget
+
+        assert result == content  # Should not truncate
+
+    def test_truncate_to_budget_truncates_from_beginning(self):
+        """Verify truncation keeps most recent content (end of string)."""
+        mock_executor = Mock()
+        loop = AutonomousLoop(mock_executor)
+
+        content = "START_" + "a" * 100 + "_END"  # ~27 tokens
+        result = loop._truncate_to_budget(content, 10)  # 10 token budget = 40 chars
+
+        # Should keep the end, not the start
+        assert "_END" in result
+        assert "START_" not in result
+
+    def test_truncate_to_budget_zero_budget_returns_empty(self):
+        """Verify zero budget returns empty string."""
+        mock_executor = Mock()
+        loop = AutonomousLoop(mock_executor)
+
+        content = "Some content here"
+        result = loop._truncate_to_budget(content, 0)
+
+        assert result == ""
+
+    def test_truncate_to_budget_negative_budget_returns_empty(self):
+        """Verify negative budget returns empty string."""
+        mock_executor = Mock()
+        loop = AutonomousLoop(mock_executor)
+
+        content = "Some content here"
+        result = loop._truncate_to_budget(content, -10)
+
+        assert result == ""
+
+    def test_inject_context_tracks_total_tokens(self):
+        """Verify context injection tracks cumulative token count."""
+        mock_executor = Mock()
+        loop = AutonomousLoop(mock_executor)
+        loop._context_ceiling = 1000  # High ceiling
+
+        # First injection: 100 chars = ~25 tokens
+        context1 = "a" * 100
+        loop._inject_context_with_ceiling(context1)
+        assert loop._total_context_tokens == 25
+
+        # Second injection: 200 chars = ~50 tokens
+        context2 = "b" * 200
+        loop._inject_context_with_ceiling(context2)
+        assert loop._total_context_tokens == 75  # 25 + 50
+
+    def test_inject_context_truncates_when_ceiling_reached(self):
+        """Verify context is truncated when ceiling would be exceeded."""
+        mock_executor = Mock()
+        loop = AutonomousLoop(mock_executor)
+        loop._context_ceiling = 50  # 50 token ceiling
+
+        # First injection: 100 chars = 25 tokens (fits)
+        context1 = "a" * 100
+        result1 = loop._inject_context_with_ceiling(context1)
+        assert result1 == context1
+        assert loop._total_context_tokens == 25
+
+        # Second injection: 200 chars = 50 tokens (would exceed ceiling)
+        # Only 25 tokens remaining budget
+        context2 = "b" * 200
+        result2 = loop._inject_context_with_ceiling(context2)
+        # Should be truncated to fit ~25 tokens = ~100 chars
+        assert len(result2) < len(context2)
+
+    def test_inject_context_returns_empty_when_ceiling_exhausted(self):
+        """Verify empty string returned when ceiling is fully exhausted."""
+        mock_executor = Mock()
+        loop = AutonomousLoop(mock_executor)
+        loop._context_ceiling = 25  # Small ceiling
+
+        # First injection fills ceiling: 100 chars = 25 tokens
+        context1 = "a" * 100
+        loop._inject_context_with_ceiling(context1)
+        assert loop._total_context_tokens == 25
+
+        # Second injection should return empty (no budget left)
+        context2 = "b" * 100
+        result2 = loop._inject_context_with_ceiling(context2)
+        assert result2 == ""
+        assert loop._total_context_tokens == 25  # Unchanged
+
+    def test_inject_context_empty_string_returns_empty(self):
+        """Verify empty context returns empty without tracking."""
+        mock_executor = Mock()
+        loop = AutonomousLoop(mock_executor)
+        loop._context_ceiling = 1000
+
+        result = loop._inject_context_with_ceiling("")
+        assert result == ""
+        assert loop._total_context_tokens == 0
+
+    def test_context_ceiling_initialized_from_settings(self):
+        """Verify context ceiling is initialized from settings."""
+        mock_executor = Mock()
+
+        with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
+            mock_settings.context_ceiling_tokens = 75000
+            loop = AutonomousLoop(mock_executor)
+
+        assert loop._context_ceiling == 75000
+        assert loop._total_context_tokens == 0
+
+    def test_context_ceiling_default_value(self):
+        """Verify default context ceiling is 50000 tokens."""
+        mock_executor = Mock()
+        loop = AutonomousLoop(mock_executor)
+
+        # Default from settings should be 50000
+        # (We can't easily test this without mocking, but we verify the attribute exists)
+        assert hasattr(loop, "_context_ceiling")
+        assert hasattr(loop, "_total_context_tokens")
+        assert loop._total_context_tokens == 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -163,6 +163,48 @@ flags:
     notes: "When true, detected SOT drift raises SOTDriftError and stops execution. When false, drift is logged as warning (non-blocking)"
     aliases: ["SOT_DRIFT_BLOCKS_EXECUTION"]
 
+  # ============================================================================
+  # Circuit Breaker Configuration (IMP-LOOP-006)
+  # ============================================================================
+  AUTOPACK_CIRCUIT_BREAKER_ENABLED:
+    description: "Enable circuit breaker protection for autonomous loop (IMP-LOOP-006)"
+    category: feature_toggle
+    default: "true"
+    values: ["true", "false"]
+    affects: ["config.py", "executor/autonomous_loop.py"]
+    aliases: ["CIRCUIT_BREAKER_ENABLED"]
+    notes: "IMP-LOOP-006: Circuit breaker prevents runaway execution by tracking consecutive failures and temporarily halting execution when threshold is exceeded"
+
+  AUTOPACK_CIRCUIT_BREAKER_FAILURE_THRESHOLD:
+    description: "Number of consecutive failures before circuit breaker trips (IMP-LOOP-006)"
+    category: tuning
+    default: "5"
+    values: "Positive integer (recommended: 3-10)"
+    affects: ["config.py", "executor/autonomous_loop.py"]
+    aliases: ["CIRCUIT_BREAKER_FAILURE_THRESHOLD"]
+    requires: ["AUTOPACK_CIRCUIT_BREAKER_ENABLED=true"]
+    notes: "IMP-LOOP-006: Lower values trip sooner (more protective), higher values allow more retries"
+
+  AUTOPACK_CIRCUIT_BREAKER_RESET_TIMEOUT:
+    description: "Seconds to wait before attempting to reset circuit breaker (IMP-LOOP-006)"
+    category: tuning
+    default: "300"
+    values: "Positive integer (seconds, recommended: 60-600)"
+    affects: ["config.py", "executor/autonomous_loop.py"]
+    aliases: ["CIRCUIT_BREAKER_RESET_TIMEOUT_SECONDS"]
+    requires: ["AUTOPACK_CIRCUIT_BREAKER_ENABLED=true"]
+    notes: "IMP-LOOP-006: After this timeout, circuit transitions to HALF_OPEN state for testing"
+
+  AUTOPACK_CIRCUIT_BREAKER_HALF_OPEN_CALLS:
+    description: "Max calls allowed in half-open state before deciding to close or re-open (IMP-LOOP-006)"
+    category: tuning
+    default: "1"
+    values: "Positive integer (recommended: 1-3)"
+    affects: ["config.py", "executor/autonomous_loop.py"]
+    aliases: ["CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS"]
+    requires: ["AUTOPACK_CIRCUIT_BREAKER_ENABLED=true"]
+    notes: "IMP-LOOP-006: Number of successful calls needed in half-open state to close the circuit"
+
   AUTOPACK_ENABLE_CONSOLIDATED_METRICS:
     description: "Enable consolidated metrics endpoint"
     category: feature_toggle
@@ -810,6 +852,30 @@ external_env_vars:
     category: feature_toggle
     affects: ["config.py"]
     alias_of: "AUTOPACK_TASK_GENERATION_AUTO_EXECUTE"
+
+  CIRCUIT_BREAKER_ENABLED:
+    description: "Alias for AUTOPACK_CIRCUIT_BREAKER_ENABLED (IMP-LOOP-006)"
+    category: feature_toggle
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_CIRCUIT_BREAKER_ENABLED"
+
+  CIRCUIT_BREAKER_FAILURE_THRESHOLD:
+    description: "Alias for AUTOPACK_CIRCUIT_BREAKER_FAILURE_THRESHOLD (IMP-LOOP-006)"
+    category: tuning
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_CIRCUIT_BREAKER_FAILURE_THRESHOLD"
+
+  CIRCUIT_BREAKER_RESET_TIMEOUT_SECONDS:
+    description: "Alias for AUTOPACK_CIRCUIT_BREAKER_RESET_TIMEOUT (IMP-LOOP-006)"
+    category: tuning
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_CIRCUIT_BREAKER_RESET_TIMEOUT"
+
+  CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS:
+    description: "Alias for AUTOPACK_CIRCUIT_BREAKER_HALF_OPEN_CALLS (IMP-LOOP-006)"
+    category: tuning
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_CIRCUIT_BREAKER_HALF_OPEN_CALLS"
 
   TESTING:
     description: "Skip DB initialization in test mode"

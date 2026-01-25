@@ -1124,6 +1124,163 @@ class MemoryService:
         )
 
     # -------------------------------------------------------------------------
+    # Task Execution Feedback (IMP-LOOP-005)
+    # -------------------------------------------------------------------------
+
+    def write_task_execution_feedback(
+        self,
+        run_id: str,
+        phase_id: str,
+        project_id: str,
+        success: bool,
+        phase_type: Optional[str] = None,
+        execution_time_seconds: Optional[float] = None,
+        error_message: Optional[str] = None,
+        tokens_used: Optional[int] = None,
+        context_summary: Optional[str] = None,
+        learnings: Optional[List[str]] = None,
+    ) -> str:
+        """Write task execution feedback to memory for learning.
+
+        IMP-LOOP-005: Captures task execution results (success/failure) and stores
+        them in memory for future context enrichment. This enables the system to
+        learn from past executions and improve future task planning.
+
+        Args:
+            run_id: Run identifier
+            phase_id: Phase identifier
+            project_id: Project identifier
+            success: Whether the phase executed successfully
+            phase_type: Type of phase (e.g., 'build', 'test', 'deploy')
+            execution_time_seconds: How long the execution took
+            error_message: Error message if execution failed
+            tokens_used: Number of tokens consumed during execution
+            context_summary: Summary of the execution context
+            learnings: List of key learnings or observations from execution
+
+        Returns:
+            Point ID of the stored feedback
+        """
+        if not self.enabled:
+            return ""
+
+        # Build a rich text representation for embedding
+        status_str = "succeeded" if success else "failed"
+        text_parts = [
+            f"Task execution feedback for phase {phase_id}:",
+            f"Status: {status_str}",
+        ]
+
+        if phase_type:
+            text_parts.append(f"Phase type: {phase_type}")
+
+        if execution_time_seconds is not None:
+            text_parts.append(f"Execution time: {execution_time_seconds:.1f}s")
+
+        if error_message:
+            text_parts.append(f"Error: {error_message[:500]}")
+
+        if context_summary:
+            text_parts.append(f"Context: {context_summary[:500]}")
+
+        if learnings:
+            learnings_str = "; ".join(learnings[:5])
+            text_parts.append(f"Learnings: {learnings_str}")
+
+        text = "\n".join(text_parts)
+        vector = sync_embed_text(text)
+
+        # Create unique point ID
+        timestamp = datetime.now(timezone.utc)
+        point_id = f"exec_feedback:{run_id}:{phase_id}:{timestamp.strftime('%Y%m%d%H%M%S')}"
+
+        payload = {
+            "type": "execution_feedback",
+            "run_id": run_id,
+            "phase_id": phase_id,
+            "project_id": project_id,
+            "success": success,
+            "phase_type": phase_type,
+            "execution_time_seconds": execution_time_seconds,
+            "error_message": error_message[:2000] if error_message else None,
+            "tokens_used": tokens_used,
+            "context_summary": context_summary[:1000] if context_summary else None,
+            "learnings": learnings[:10] if learnings else None,
+            "timestamp": timestamp.isoformat(),
+            "task_type": "execution_feedback",  # For retrieval filtering
+        }
+
+        self._safe_store_call(
+            "write_task_execution_feedback/upsert",
+            lambda: self.store.upsert(
+                COLLECTION_RUN_SUMMARIES,
+                [{"id": point_id, "vector": vector, "payload": payload}],
+            ),
+            0,
+        )
+
+        logger.info(
+            f"[IMP-LOOP-005] Stored execution feedback for {phase_id} "
+            f"(success={success}, phase_type={phase_type})"
+        )
+        return point_id
+
+    def search_execution_feedback(
+        self,
+        query: str,
+        project_id: str,
+        success_only: Optional[bool] = None,
+        phase_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Search for similar past execution feedback.
+
+        IMP-LOOP-005: Enables retrieval of past execution outcomes for similar tasks,
+        helping inform future execution strategies.
+
+        Args:
+            query: Search query describing the current task/context
+            project_id: Project to search within
+            success_only: If True, only return successful executions;
+                         If False, only return failures; If None, return both
+            phase_type: Optional phase type filter
+            limit: Max results (default: top_k from config)
+
+        Returns:
+            List of {"id", "score", "payload"} dicts with execution feedback
+        """
+        if not self.enabled:
+            return []
+
+        limit = limit or self.top_k
+        query_vector = sync_embed_text(query)
+
+        # Build filter
+        filter_dict: Dict[str, Any] = {
+            "project_id": project_id,
+            "type": "execution_feedback",
+        }
+
+        if success_only is not None:
+            filter_dict["success"] = success_only
+
+        if phase_type:
+            filter_dict["phase_type"] = phase_type
+
+        results = self._safe_store_call(
+            "search_execution_feedback/search",
+            lambda: self.store.search(
+                COLLECTION_RUN_SUMMARIES,
+                query_vector,
+                filter=filter_dict,
+                limit=limit,
+            ),
+            [],
+        )
+
+        return results
+
+    # -------------------------------------------------------------------------
     # SOT (Source of Truth) Indexing
     # -------------------------------------------------------------------------
 

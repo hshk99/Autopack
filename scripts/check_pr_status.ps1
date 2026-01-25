@@ -13,6 +13,7 @@
 #   - Extracts IMP ID from PR title pattern [IMP-XXX-NNN]
 #   - Records outcome with PR metrics (merge time, CI status, review cycles)
 #   - Integrates with learning_memory_manager.py for persistence
+#   - Logs events to centralized telemetry system
 
 param(
     [Parameter(Mandatory=$true)]
@@ -241,6 +242,43 @@ print(json.dumps(templates))
     }
 }
 
+# Function to log events to centralized telemetry
+function Write-TelemetryEvent {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$EventType,
+        [Parameter(Mandatory=$true)]
+        [hashtable]$Data,
+        [Parameter(Mandatory=$false)]
+        [int]$Slot = -1
+    )
+
+    $dataJson = $Data | ConvertTo-Json -Compress
+
+    $slotArg = if ($Slot -ge 0) { "slot=$Slot" } else { "slot=None" }
+
+    $pythonScript = @"
+import sys
+import json
+sys.path.insert(0, 'src')
+from telemetry.event_logger import get_logger
+
+event_type = '$EventType'
+data = json.loads('$($dataJson -replace "'", "''")')
+$slotArg
+
+logger = get_logger()
+logger.log(event_type, data, slot)
+"@
+
+    try {
+        $env:PYTHONPATH = "src"
+        $null = python -c $pythonScript 2>&1
+    } catch {
+        # Silently continue if telemetry fails - don't block main workflow
+    }
+}
+
 # Check if gh CLI is available
 try {
     $null = gh --version
@@ -267,6 +305,14 @@ try {
 Write-Host "  Title: $($pr.title)" -ForegroundColor White
 Write-Host "  State: $($pr.state)" -ForegroundColor White
 Write-Host "  Branch: $($pr.headRefName)" -ForegroundColor White
+
+# Log PR status check event
+Write-TelemetryEvent -EventType "pr_status_check" -Data @{
+    pr_number = $pr.number
+    title = $pr.title
+    state = $pr.state
+    branch = $pr.headRefName
+}
 
 # Check for CI failures and categorize them
 $failedChecks = @()
@@ -300,6 +346,15 @@ if ($failedChecks.Count -gt 0) {
     }
 
     Write-Host "  Failed Jobs: $failedJobNames" -ForegroundColor White
+
+    # Log CI failure to telemetry
+    Write-TelemetryEvent -EventType "ci_failure" -Data @{
+        pr_number = $pr.number
+        phase_id = $phaseId
+        category = $failureCategory
+        failed_jobs = $failedJobNames
+        failed_count = $failedChecks.Count
+    }
 
     # Record to learning memory for pattern analysis
     Write-Host ""
@@ -365,6 +420,16 @@ if ($pr.statusCheckRollup -and $pr.statusCheckRollup.Count -gt 0) {
     }
 }
 Write-Host "  CI pass rate: $ciPassRate ($ciPassed/$ciTotal checks)" -ForegroundColor White
+
+# Log PR merged event to telemetry
+Write-TelemetryEvent -EventType "pr_merged" -Data @{
+    pr_number = $pr.number
+    imp_id = $impId
+    merge_time_hours = $mergeTimeHours
+    ci_pass_rate = $ciPassRate
+    review_cycles = $reviewCycles
+    branch = $pr.headRefName
+}
 
 # Build details JSON for Python
 $details = @{

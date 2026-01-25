@@ -43,6 +43,10 @@ DEFAULT_MEMORY_STRUCTURE: dict[str, Any] = {
         "flaky_test": {"count": 0, "phases": [], "last_seen": None},
     },
     "wave_history": [],
+    "nudge_effectiveness": {
+        "templates": {},
+        "pending_nudges": [],
+    },
     "last_updated": None,
 }
 
@@ -545,6 +549,192 @@ class LearningMemoryManager:
             ),
             "by_category": by_category,
         }
+
+    def record_nudge_sent(
+        self, template_id: str, slot_id: int, context: dict[str, Any] | None = None
+    ) -> None:
+        """Record that a nudge was sent for later effectiveness tracking.
+
+        Creates a pending nudge entry that can be correlated with slot recovery
+        to determine which nudge templates are most effective.
+
+        Args:
+            template_id: The nudge template identifier (e.g., "template_continue_task").
+            slot_id: The slot number that received the nudge.
+            context: Optional dictionary with additional context (phase_id, message, etc.).
+        """
+        # Ensure nudge_effectiveness structure exists
+        if "nudge_effectiveness" not in self._memory:
+            self._memory["nudge_effectiveness"] = {"templates": {}, "pending_nudges": []}
+
+        timestamp = datetime.now(timezone.utc).isoformat()
+
+        # Create pending nudge entry for correlation with recovery
+        pending_entry = {
+            "template_id": template_id,
+            "slot_id": slot_id,
+            "sent_at": timestamp,
+            "context": context or {},
+        }
+        self._memory["nudge_effectiveness"]["pending_nudges"].append(pending_entry)
+
+        # Initialize template stats if needed
+        templates = self._memory["nudge_effectiveness"]["templates"]
+        if template_id not in templates:
+            templates[template_id] = {
+                "times_used": 0,
+                "times_effective": 0,
+                "avg_recovery_time_seconds": None,
+                "total_recovery_time": 0,
+                "last_used": None,
+            }
+
+        # Update usage count
+        templates[template_id]["times_used"] += 1
+        templates[template_id]["last_used"] = timestamp
+
+        logger.debug(f"[LearningMemory] Recorded nudge sent: {template_id} for slot {slot_id}")
+
+    def record_nudge_effectiveness(
+        self, template_id: str, effective: bool, recovery_time_seconds: int | None = None
+    ) -> None:
+        """Record the effectiveness of a nudge template.
+
+        Should be called when a slot recovers (or fails to recover) after a nudge.
+        Updates the template's effectiveness statistics.
+
+        Args:
+            template_id: The nudge template identifier.
+            effective: True if the nudge led to recovery, False otherwise.
+            recovery_time_seconds: Time in seconds from nudge to recovery (if effective).
+        """
+        # Ensure nudge_effectiveness structure exists
+        if "nudge_effectiveness" not in self._memory:
+            self._memory["nudge_effectiveness"] = {"templates": {}, "pending_nudges": []}
+
+        templates = self._memory["nudge_effectiveness"]["templates"]
+
+        # Initialize template stats if needed
+        if template_id not in templates:
+            templates[template_id] = {
+                "times_used": 0,
+                "times_effective": 0,
+                "avg_recovery_time_seconds": None,
+                "total_recovery_time": 0,
+                "last_used": None,
+            }
+
+        if effective:
+            templates[template_id]["times_effective"] += 1
+
+            # Update recovery time statistics
+            if recovery_time_seconds is not None:
+                templates[template_id]["total_recovery_time"] += recovery_time_seconds
+                total_time = templates[template_id]["total_recovery_time"]
+                effective_count = templates[template_id]["times_effective"]
+                templates[template_id]["avg_recovery_time_seconds"] = round(
+                    total_time / effective_count, 2
+                )
+
+        logger.debug(
+            f"[LearningMemory] Recorded nudge effectiveness: {template_id} "
+            f"effective={effective}, recovery_time={recovery_time_seconds}s"
+        )
+
+    def resolve_pending_nudge(
+        self, slot_id: int, effective: bool, recovery_time_seconds: int | None = None
+    ) -> str | None:
+        """Resolve the most recent pending nudge for a slot and record its effectiveness.
+
+        Finds the most recent pending nudge for the given slot, removes it from
+        pending, and records its effectiveness. This is the primary method to call
+        when a slot recovers or times out.
+
+        Args:
+            slot_id: The slot number that recovered or timed out.
+            effective: True if recovery occurred, False if timeout/failure.
+            recovery_time_seconds: Time from nudge to recovery (if effective).
+
+        Returns:
+            The template_id that was resolved, or None if no pending nudge found.
+        """
+        if "nudge_effectiveness" not in self._memory:
+            return None
+
+        pending = self._memory["nudge_effectiveness"]["pending_nudges"]
+
+        # Find the most recent pending nudge for this slot
+        matching_indices = [i for i, entry in enumerate(pending) if entry.get("slot_id") == slot_id]
+
+        if not matching_indices:
+            return None
+
+        # Get the most recent one (last in list)
+        idx = matching_indices[-1]
+        entry = pending.pop(idx)
+        template_id = entry["template_id"]
+
+        # Record effectiveness
+        self.record_nudge_effectiveness(template_id, effective, recovery_time_seconds)
+
+        return template_id
+
+    def get_effective_templates(self) -> list[dict[str, Any]]:
+        """Return nudge templates ranked by effectiveness.
+
+        Calculates effectiveness rate (times_effective / times_used) and returns
+        templates sorted by this rate in descending order.
+
+        Returns:
+            List of template dictionaries with stats, sorted by effectiveness rate.
+            Each entry includes: template_id, times_used, times_effective,
+            effectiveness_rate, avg_recovery_time_seconds, last_used.
+        """
+        if "nudge_effectiveness" not in self._memory:
+            return []
+
+        templates = self._memory["nudge_effectiveness"].get("templates", {})
+
+        result = []
+        for template_id, stats in templates.items():
+            times_used = stats.get("times_used", 0)
+            times_effective = stats.get("times_effective", 0)
+            effectiveness_rate = times_effective / times_used if times_used > 0 else 0.0
+
+            result.append(
+                {
+                    "template_id": template_id,
+                    "times_used": times_used,
+                    "times_effective": times_effective,
+                    "effectiveness_rate": round(effectiveness_rate, 3),
+                    "avg_recovery_time_seconds": stats.get("avg_recovery_time_seconds"),
+                    "last_used": stats.get("last_used"),
+                }
+            )
+
+        # Sort by effectiveness rate descending, then by times_used descending
+        result.sort(key=lambda x: (-x["effectiveness_rate"], -x["times_used"]))
+
+        return result
+
+    def get_pending_nudges(self, slot_id: int | None = None) -> list[dict[str, Any]]:
+        """Get pending nudges awaiting effectiveness resolution.
+
+        Args:
+            slot_id: Optional slot to filter by. If None, returns all pending nudges.
+
+        Returns:
+            List of pending nudge entries.
+        """
+        if "nudge_effectiveness" not in self._memory:
+            return []
+
+        pending = self._memory["nudge_effectiveness"].get("pending_nudges", [])
+
+        if slot_id is not None:
+            return [e for e in pending if e.get("slot_id") == slot_id]
+
+        return list(pending)
 
     def save(self) -> None:
         """Persist memory to LEARNING_MEMORY.json."""

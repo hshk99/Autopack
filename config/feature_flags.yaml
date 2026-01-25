@@ -518,6 +518,15 @@ flags:
     values: "Integer or float"
     affects: ["anthropic_clients.py"]
 
+  AUTOPACK_CONTEXT_CEILING_TOKENS:
+    description: "Maximum total tokens for context injection across all phases in a run"
+    category: tuning
+    default: "50000"
+    values: "Integer (tokens)"
+    affects: ["config.py", "executor/autonomous_loop.py"]
+    aliases: ["CONTEXT_CEILING_TOKENS"]
+    notes: "IMP-PERF-002: Prevents unbounded context accumulation (e.g., 1500 tokens/phase x 100 phases = 150K tokens with no cap). Context is truncated to fit within ceiling, prioritizing most recent content."
+
   AUTOPACK_API_STARTUP_TIMEOUT_SECONDS:
     description: "Timeout for API startup health check"
     category: tuning

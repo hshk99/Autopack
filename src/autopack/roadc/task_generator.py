@@ -2,7 +2,7 @@
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
 
 from ..memory.memory_service import MemoryService
@@ -10,6 +10,77 @@ from ..roadi import RegressionProtector
 from ..telemetry.analyzer import RankedIssue
 
 logger = logging.getLogger(__name__)
+
+
+def _emit_task_generation_event(
+    success: bool,
+    insights_processed: int = 0,
+    patterns_detected: int = 0,
+    tasks_generated: int = 0,
+    tasks_persisted: int = 0,
+    generation_time_ms: float = 0.0,
+    run_id: Optional[str] = None,
+    telemetry_source: Optional[str] = None,
+    min_confidence: Optional[float] = None,
+    max_tasks: Optional[int] = None,
+    error_message: Optional[str] = None,
+    error_type: Optional[str] = None,
+) -> None:
+    """Emit a task generation telemetry event (IMP-LOOP-004).
+
+    Records task generation metrics to the database for monitoring
+    and quality analysis of the self-improvement loop.
+
+    Args:
+        success: Whether the generation completed successfully
+        insights_processed: Number of insights processed
+        patterns_detected: Number of patterns detected
+        tasks_generated: Number of tasks generated
+        tasks_persisted: Number of tasks persisted to database
+        generation_time_ms: Duration in milliseconds
+        run_id: Optional run ID that triggered generation
+        telemetry_source: "direct" or "memory"
+        min_confidence: Confidence threshold used
+        max_tasks: Max tasks limit used
+        error_message: Error details if failed
+        error_type: Exception type if failed
+    """
+    try:
+        from ..models import TaskGenerationEvent
+        from ..database import SessionLocal
+
+        session = SessionLocal()
+        try:
+            event = TaskGenerationEvent(
+                run_id=run_id,
+                success=success,
+                insights_processed=insights_processed,
+                patterns_detected=patterns_detected,
+                tasks_generated=tasks_generated,
+                tasks_persisted=tasks_persisted,
+                generation_time_ms=generation_time_ms,
+                telemetry_source=telemetry_source,
+                min_confidence=min_confidence,
+                max_tasks=max_tasks,
+                error_message=error_message,
+                error_type=error_type,
+                timestamp=datetime.now(timezone.utc),
+            )
+            session.add(event)
+            session.commit()
+            logger.debug(
+                f"[IMP-LOOP-004] Emitted task generation event: "
+                f"success={success}, tasks={tasks_generated}, patterns={patterns_detected}"
+            )
+        except Exception as e:
+            session.rollback()
+            logger.warning(f"[IMP-LOOP-004] Failed to emit task generation event: {e}")
+        finally:
+            session.close()
+    except ImportError:
+        # Database not available - skip telemetry
+        logger.debug("[IMP-LOOP-004] Database not available, skipping telemetry event")
+
 
 # Stale task threshold: tasks in_progress for longer than this are considered stale (IMP-REL-003)
 STALE_TASK_THRESHOLD_HOURS = 24
@@ -154,6 +225,7 @@ class AutonomousTaskGenerator:
         max_tasks: int = 10,
         min_confidence: float = 0.7,
         telemetry_insights: Optional[Dict[str, List[RankedIssue]]] = None,
+        run_id: Optional[str] = None,
     ) -> TaskGenerationResult:
         """Generate improvement tasks from recent telemetry insights.
 
@@ -163,46 +235,90 @@ class AutonomousTaskGenerator:
             telemetry_insights: Optional telemetry data from TelemetryAnalyzer.aggregate_telemetry().
                                If provided, uses this directly instead of querying MemoryService.
                                This enables the ROAD-C self-improvement pipeline (IMP-FEAT-001).
+            run_id: Optional run ID for telemetry tracking (IMP-LOOP-004)
 
         Returns:
             TaskGenerationResult containing generated tasks and statistics
         """
         start_time = datetime.now()
+        telemetry_source = None
+        insights: List[dict] = []
+        patterns: List[dict] = []
+        tasks: List[GeneratedTask] = []
 
-        # IMP-FEAT-001: Use telemetry insights directly if provided
-        if telemetry_insights:
-            insights = self._convert_telemetry_to_insights(telemetry_insights)
-            logger.info(
-                f"[IMP-FEAT-001] Using {len(insights)} telemetry insights for task generation"
+        try:
+            # IMP-FEAT-001: Use telemetry insights directly if provided
+            if telemetry_insights:
+                insights = self._convert_telemetry_to_insights(telemetry_insights)
+                telemetry_source = "direct"
+                logger.info(
+                    f"[IMP-FEAT-001] Using {len(insights)} telemetry insights for task generation"
+                )
+            else:
+                # Fallback: Retrieve recent high-signal insights from memory
+                # IMP-ARCH-016: Removed namespace parameter - retrieve_insights now queries
+                # across run_summaries, errors_ci, doctor_hints collections
+                insights = self._memory.retrieve_insights(
+                    query="error failure bottleneck improvement opportunity",
+                    limit=100,
+                )
+                telemetry_source = "memory"
+
+            # Detect patterns across insights
+            patterns = self._detect_patterns(insights)
+
+            # Generate tasks from patterns
+            for pattern in patterns[:max_tasks]:
+                if pattern["confidence"] >= min_confidence:
+                    task = self._pattern_to_task(pattern)
+                    tasks.append(task)
+
+                    # Add regression protection for each task
+                    self._ensure_regression_protection(task)
+
+            generation_time_ms = (datetime.now() - start_time).total_seconds() * 1000
+
+            # IMP-LOOP-004: Emit success metrics
+            _emit_task_generation_event(
+                success=True,
+                insights_processed=len(insights),
+                patterns_detected=len(patterns),
+                tasks_generated=len(tasks),
+                tasks_persisted=0,  # Updated by persist_tasks if called
+                generation_time_ms=generation_time_ms,
+                run_id=run_id,
+                telemetry_source=telemetry_source,
+                min_confidence=min_confidence,
+                max_tasks=max_tasks,
             )
-        else:
-            # Fallback: Retrieve recent high-signal insights from memory
-            # IMP-ARCH-016: Removed namespace parameter - retrieve_insights now queries
-            # across run_summaries, errors_ci, doctor_hints collections
-            insights = self._memory.retrieve_insights(
-                query="error failure bottleneck improvement opportunity",
-                limit=100,
+
+            return TaskGenerationResult(
+                tasks_generated=tasks,
+                insights_processed=len(insights),
+                patterns_detected=len(patterns),
+                generation_time_ms=generation_time_ms,
             )
 
-        # Detect patterns across insights
-        patterns = self._detect_patterns(insights)
+        except Exception as e:
+            generation_time_ms = (datetime.now() - start_time).total_seconds() * 1000
 
-        # Generate tasks from patterns
-        tasks = []
-        for pattern in patterns[:max_tasks]:
-            if pattern["confidence"] >= min_confidence:
-                task = self._pattern_to_task(pattern)
-                tasks.append(task)
-
-                # Add regression protection for each task
-                self._ensure_regression_protection(task)
-
-        return TaskGenerationResult(
-            tasks_generated=tasks,
-            insights_processed=len(insights),
-            patterns_detected=len(patterns),
-            generation_time_ms=(datetime.now() - start_time).total_seconds() * 1000,
-        )
+            # IMP-LOOP-004: Emit failure metrics
+            _emit_task_generation_event(
+                success=False,
+                insights_processed=len(insights),
+                patterns_detected=len(patterns),
+                tasks_generated=len(tasks),
+                tasks_persisted=0,
+                generation_time_ms=generation_time_ms,
+                run_id=run_id,
+                telemetry_source=telemetry_source,
+                min_confidence=min_confidence,
+                max_tasks=max_tasks,
+                error_message=str(e),
+                error_type=type(e).__name__,
+            )
+            logger.error(f"[IMP-LOOP-004] Task generation failed: {e}")
+            raise
 
     def _detect_patterns(self, insights: List[dict]) -> List[dict]:
         """Detect actionable patterns from insights."""

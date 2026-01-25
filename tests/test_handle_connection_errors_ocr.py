@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-# Add root to path for importing handle_connection_errors_ocr
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add scripts/utility to path for importing handle_connection_errors_ocr
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts" / "utility"))
 
 from handle_connection_errors_ocr import (
     CONSOLIDATION_THRESHOLD,

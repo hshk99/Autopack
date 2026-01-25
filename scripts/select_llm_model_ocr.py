@@ -172,7 +172,7 @@ class OCRModelSelector:
             dropdown_loc = self.find_text_location(image, MODEL_DROPDOWN_KEYWORDS)
 
             if dropdown_loc:
-                print(f"  [ACTION] Clicking model dropdown...")
+                print("  [ACTION] Clicking model dropdown...")
                 self.click_at_slot_relative(slot, dropdown_loc[0], dropdown_loc[1])
                 time.sleep(0.8)  # Wait for dropdown to open
 
@@ -187,9 +187,9 @@ class OCRModelSelector:
                     print(f"  [OK] Model '{target_model}' selected")
                     return True
                 else:
-                    print(f"  [WARN] Target model not found in dropdown")
+                    print("  [WARN] Target model not found in dropdown")
             else:
-                print(f"  [WARN] Could not find model dropdown button")
+                print("  [WARN] Could not find model dropdown button")
 
             # Wait before retry
             if attempt < max_attempts:

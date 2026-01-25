@@ -8,7 +8,6 @@ import time
 from unittest.mock import MagicMock, patch
 
 
-
 class TestWriteTaskExecutionFeedback:
     """Tests for MemoryService.write_task_execution_feedback method."""
 

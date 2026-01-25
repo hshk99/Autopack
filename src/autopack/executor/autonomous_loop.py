@@ -7,6 +7,7 @@ Handles the main autonomous execution loop that processes backlog phases.
 import logging
 import os
 import time
+from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, TYPE_CHECKING
 
@@ -35,6 +36,222 @@ class SOTDriftError(Exception):
     pass
 
 
+class CircuitBreakerState(Enum):
+    """States for the circuit breaker pattern.
+
+    IMP-LOOP-006: Circuit breaker prevents runaway execution by tracking
+    consecutive failures and temporarily halting execution when threshold
+    is exceeded.
+
+    States:
+        CLOSED: Normal operation, requests are allowed
+        OPEN: Circuit is tripped, requests are blocked
+        HALF_OPEN: Testing if service has recovered, limited requests allowed
+    """
+
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
+
+
+class CircuitBreakerOpenError(Exception):
+    """Raised when circuit breaker is open and execution is blocked.
+
+    IMP-LOOP-006: This exception signals that the autonomous loop has
+    experienced too many consecutive failures and execution has been
+    temporarily halted to prevent resource exhaustion.
+    """
+
+    def __init__(self, message: str, consecutive_failures: int, reset_time: float):
+        super().__init__(message)
+        self.consecutive_failures = consecutive_failures
+        self.reset_time = reset_time
+
+
+class CircuitBreaker:
+    """Circuit breaker pattern implementation for autonomous loop protection.
+
+    IMP-LOOP-006: Tracks consecutive failures and trips when threshold is exceeded.
+    Prevents runaway execution and resource exhaustion by temporarily blocking
+    execution until the circuit resets.
+
+    States:
+        CLOSED: Normal operation, failures are counted
+        OPEN: Circuit tripped, execution blocked until reset timeout
+        HALF_OPEN: After reset timeout, allow limited test calls
+
+    Attributes:
+        failure_threshold: Number of consecutive failures to trip circuit
+        reset_timeout_seconds: Time to wait before attempting reset
+        half_open_max_calls: Max calls in half-open state before decision
+    """
+
+    def __init__(
+        self,
+        failure_threshold: int = 5,
+        reset_timeout_seconds: int = 300,
+        half_open_max_calls: int = 1,
+    ):
+        """Initialize the circuit breaker.
+
+        Args:
+            failure_threshold: Consecutive failures before circuit trips (default: 5)
+            reset_timeout_seconds: Seconds to wait before reset attempt (default: 300)
+            half_open_max_calls: Max test calls in half-open state (default: 1)
+        """
+        self.failure_threshold = failure_threshold
+        self.reset_timeout_seconds = reset_timeout_seconds
+        self.half_open_max_calls = half_open_max_calls
+
+        self._state = CircuitBreakerState.CLOSED
+        self._consecutive_failures = 0
+        self._last_failure_time: Optional[float] = None
+        self._half_open_calls = 0
+        self._total_trips = 0  # Track total number of times circuit has tripped
+
+    @property
+    def state(self) -> CircuitBreakerState:
+        """Get current circuit breaker state, checking for timeout-based transitions."""
+        if self._state == CircuitBreakerState.OPEN:
+            # Check if reset timeout has elapsed
+            if self._last_failure_time is not None:
+                elapsed = time.time() - self._last_failure_time
+                if elapsed >= self.reset_timeout_seconds:
+                    logger.info(
+                        f"[IMP-LOOP-006] Circuit breaker transitioning to HALF_OPEN "
+                        f"after {elapsed:.1f}s timeout"
+                    )
+                    self._state = CircuitBreakerState.HALF_OPEN
+                    self._half_open_calls = 0
+        return self._state
+
+    @property
+    def consecutive_failures(self) -> int:
+        """Get current consecutive failure count."""
+        return self._consecutive_failures
+
+    @property
+    def total_trips(self) -> int:
+        """Get total number of times circuit has tripped."""
+        return self._total_trips
+
+    @property
+    def is_closed(self) -> bool:
+        """Check if circuit is closed (normal operation)."""
+        return self.state == CircuitBreakerState.CLOSED
+
+    @property
+    def is_open(self) -> bool:
+        """Check if circuit is open (blocking execution)."""
+        return self.state == CircuitBreakerState.OPEN
+
+    @property
+    def is_half_open(self) -> bool:
+        """Check if circuit is half-open (testing recovery)."""
+        return self.state == CircuitBreakerState.HALF_OPEN
+
+    def record_success(self) -> None:
+        """Record a successful operation, potentially closing the circuit.
+
+        In CLOSED state: Resets failure counter
+        In HALF_OPEN state: Transitions to CLOSED if success threshold met
+        """
+        if self._state == CircuitBreakerState.HALF_OPEN:
+            self._half_open_calls += 1
+            if self._half_open_calls >= self.half_open_max_calls:
+                logger.info(
+                    f"[IMP-LOOP-006] Circuit breaker closing after "
+                    f"{self._half_open_calls} successful half-open call(s)"
+                )
+                self._state = CircuitBreakerState.CLOSED
+                self._consecutive_failures = 0
+                self._last_failure_time = None
+                self._half_open_calls = 0
+        elif self._state == CircuitBreakerState.CLOSED:
+            # Reset consecutive failures on success in closed state
+            self._consecutive_failures = 0
+
+    def record_failure(self) -> None:
+        """Record a failed operation, potentially opening the circuit.
+
+        In CLOSED state: Increments failure counter, trips if threshold exceeded
+        In HALF_OPEN state: Immediately trips back to OPEN
+        """
+        self._consecutive_failures += 1
+        self._last_failure_time = time.time()
+
+        if self._state == CircuitBreakerState.HALF_OPEN:
+            # Any failure in half-open state trips back to open
+            logger.warning(
+                f"[IMP-LOOP-006] Circuit breaker re-opening after failure in HALF_OPEN state. "
+                f"Consecutive failures: {self._consecutive_failures}"
+            )
+            self._state = CircuitBreakerState.OPEN
+            self._total_trips += 1
+            self._half_open_calls = 0
+        elif self._state == CircuitBreakerState.CLOSED:
+            if self._consecutive_failures >= self.failure_threshold:
+                logger.critical(
+                    f"[IMP-LOOP-006] Circuit breaker TRIPPED! "
+                    f"{self._consecutive_failures} consecutive failures (threshold: {self.failure_threshold}). "
+                    f"Execution blocked for {self.reset_timeout_seconds}s."
+                )
+                self._state = CircuitBreakerState.OPEN
+                self._total_trips += 1
+
+    def check_state(self) -> None:
+        """Check if circuit allows execution, raising if blocked.
+
+        Raises:
+            CircuitBreakerOpenError: If circuit is open and blocking execution
+        """
+        current_state = self.state  # This triggers timeout-based transitions
+
+        if current_state == CircuitBreakerState.OPEN:
+            time_until_reset = 0.0
+            if self._last_failure_time is not None:
+                elapsed = time.time() - self._last_failure_time
+                time_until_reset = max(0, self.reset_timeout_seconds - elapsed)
+
+            raise CircuitBreakerOpenError(
+                f"Circuit breaker is OPEN. {self._consecutive_failures} consecutive failures. "
+                f"Retry in {time_until_reset:.0f}s.",
+                consecutive_failures=self._consecutive_failures,
+                reset_time=time_until_reset,
+            )
+
+    def reset(self) -> None:
+        """Manually reset the circuit breaker to closed state.
+
+        Use with caution - typically the circuit should auto-reset via timeout.
+        """
+        logger.info("[IMP-LOOP-006] Circuit breaker manually reset to CLOSED")
+        self._state = CircuitBreakerState.CLOSED
+        self._consecutive_failures = 0
+        self._last_failure_time = None
+        self._half_open_calls = 0
+
+    def get_stats(self) -> Dict:
+        """Get circuit breaker statistics for monitoring.
+
+        Returns:
+            Dictionary with state, failures, trips, and timing info
+        """
+        time_in_current_state = None
+        if self._last_failure_time is not None:
+            time_in_current_state = time.time() - self._last_failure_time
+
+        return {
+            "state": self.state.value,
+            "consecutive_failures": self._consecutive_failures,
+            "total_trips": self._total_trips,
+            "failure_threshold": self.failure_threshold,
+            "reset_timeout_seconds": self.reset_timeout_seconds,
+            "time_in_current_state_seconds": time_in_current_state,
+            "half_open_calls": self._half_open_calls,
+        }
+
+
 class AutonomousLoop:
     """Main autonomous execution loop.
 
@@ -57,6 +274,58 @@ class AutonomousLoop:
         # Prevents unbounded context injection across phases
         self._total_context_tokens = 0
         self._context_ceiling = settings.context_ceiling_tokens
+
+        # IMP-LOOP-006: Circuit breaker for runaway execution protection
+        # Tracks consecutive failures and trips when threshold exceeded
+        self._circuit_breaker: Optional[CircuitBreaker] = None
+        if settings.circuit_breaker_enabled:
+            self._circuit_breaker = CircuitBreaker(
+                failure_threshold=settings.circuit_breaker_failure_threshold,
+                reset_timeout_seconds=settings.circuit_breaker_reset_timeout_seconds,
+                half_open_max_calls=settings.circuit_breaker_half_open_max_calls,
+            )
+            logger.info(
+                f"[IMP-LOOP-006] Circuit breaker initialized "
+                f"(threshold={settings.circuit_breaker_failure_threshold}, "
+                f"reset={settings.circuit_breaker_reset_timeout_seconds}s)"
+            )
+
+        # IMP-LOOP-006: Iteration counter for loop tracking
+        self._iteration_count = 0
+        self._total_phases_executed = 0
+        self._total_phases_failed = 0
+
+    def get_loop_stats(self) -> Dict:
+        """Get current loop statistics for monitoring (IMP-LOOP-006).
+
+        Returns:
+            Dictionary with iteration count, phase counts, and circuit breaker stats
+        """
+        stats = {
+            "iteration_count": self._iteration_count,
+            "total_phases_executed": self._total_phases_executed,
+            "total_phases_failed": self._total_phases_failed,
+            "context_tokens_used": self._total_context_tokens,
+            "context_ceiling": self._context_ceiling,
+        }
+
+        if self._circuit_breaker is not None:
+            stats["circuit_breaker"] = self._circuit_breaker.get_stats()
+
+        return stats
+
+    def reset_circuit_breaker(self) -> bool:
+        """Manually reset the circuit breaker (IMP-LOOP-006).
+
+        Use with caution - typically the circuit should auto-reset via timeout.
+
+        Returns:
+            True if circuit breaker was reset, False if not enabled
+        """
+        if self._circuit_breaker is not None:
+            self._circuit_breaker.reset()
+            return True
+        return False
 
     def _get_telemetry_analyzer(self) -> Optional[TelemetryAnalyzer]:
         """Get or create the telemetry analyzer instance.
@@ -752,6 +1021,19 @@ class AutonomousLoop:
                 stop_reason = "cost_limit_reached"
                 break
 
+            # IMP-LOOP-006: Check circuit breaker state before proceeding
+            if self._circuit_breaker is not None:
+                try:
+                    self._circuit_breaker.check_state()
+                except CircuitBreakerOpenError as e:
+                    logger.critical(
+                        f"[IMP-LOOP-006] Circuit breaker OPEN - execution blocked. "
+                        f"{e.consecutive_failures} consecutive failures. "
+                        f"Reset in {e.reset_time:.0f}s."
+                    )
+                    stop_reason = "circuit_breaker_open"
+                    break
+
             # Fetch run status
             logger.info(f"Iteration {iteration}: Fetching run status...")
             try:
@@ -858,6 +1140,10 @@ class AutonomousLoop:
                 # Reset failure count on success
                 self.executor._phase_failure_counts[phase_id] = 0
 
+                # IMP-LOOP-006: Record success with circuit breaker
+                if self._circuit_breaker is not None:
+                    self._circuit_breaker.record_success()
+
                 # IMP-AUTOPILOT-001: Periodic autopilot invocation after successful phases
                 if (
                     hasattr(self.executor, "autopilot")
@@ -883,6 +1169,19 @@ class AutonomousLoop:
                 logger.warning(f"Phase {phase_id} finished with status: {status}")
                 phases_failed += 1
 
+                # IMP-LOOP-006: Record failure with circuit breaker
+                if self._circuit_breaker is not None:
+                    self._circuit_breaker.record_failure()
+                    # Check if circuit just tripped
+                    if self._circuit_breaker.is_open:
+                        logger.critical(
+                            f"[IMP-LOOP-006] Circuit breaker tripped after phase {phase_id} failure. "
+                            f"Total trips: {self._circuit_breaker.total_trips}. "
+                            f"Execution will be blocked until reset."
+                        )
+                        stop_reason = "circuit_breaker_tripped"
+                        break
+
                 # NEW: Stop on first failure if requested (saves token usage)
                 if stop_on_first_failure:
                     logger.critical(
@@ -902,12 +1201,24 @@ class AutonomousLoop:
 
         logger.info("Autonomous execution loop finished")
 
-        return {
+        # IMP-LOOP-006: Update instance-level counters
+        self._iteration_count = iteration
+        self._total_phases_executed = phases_executed
+        self._total_phases_failed = phases_failed
+
+        # Build stats with optional circuit breaker info
+        stats = {
             "iteration": iteration,
             "phases_executed": phases_executed,
             "phases_failed": phases_failed,
             "stop_reason": stop_reason,
         }
+
+        # IMP-LOOP-006: Include circuit breaker statistics
+        if self._circuit_breaker is not None:
+            stats["circuit_breaker"] = self._circuit_breaker.get_stats()
+
+        return stats
 
     def _finalize_execution(self, stats: Dict):
         """Finalize execution and handle cleanup.

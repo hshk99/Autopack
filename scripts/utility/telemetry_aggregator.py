@@ -27,6 +27,7 @@ class TelemetryAggregator:
     NUDGE_STATE_FILE = "nudge_state.json"
     CI_RETRY_STATE_FILE = "ci_retry_state.json"
     SLOT_HISTORY_FILE = "slot_history.json"
+    MODEL_SWITCH_LOG_FILE = "model_switch_log.json"
 
     def __init__(self, base_path: Path) -> None:
         """Initialize the aggregator with a base path for telemetry files.
@@ -38,6 +39,7 @@ class TelemetryAggregator:
         self._nudge_data: dict[str, Any] = {}
         self._ci_retry_data: dict[str, Any] = {}
         self._slot_history_data: dict[str, Any] = {}
+        self._model_switch_data: dict[str, Any] = {}
         self._aggregated: dict[str, Any] = {}
         self._metrics: dict[str, Any] = {}
 
@@ -70,7 +72,7 @@ class TelemetryAggregator:
     def aggregate(self) -> dict[str, Any]:
         """Consolidate all telemetry sources into a unified structure.
 
-        Reads nudge_state, ci_retry_state, and slot_history files,
+        Reads nudge_state, ci_retry_state, slot_history, and model_switch_log files,
         merging them into a single aggregated view.
 
         Returns:
@@ -80,6 +82,14 @@ class TelemetryAggregator:
         self._nudge_data = self._load_json_file(self.NUDGE_STATE_FILE)
         self._ci_retry_data = self._load_json_file(self.CI_RETRY_STATE_FILE)
         self._slot_history_data = self._load_json_file(self.SLOT_HISTORY_FILE)
+        self._model_switch_data = self._load_json_file(self.MODEL_SWITCH_LOG_FILE)
+
+        # Count model switch events
+        model_switch_count = 0
+        if isinstance(self._model_switch_data, dict):
+            events = self._model_switch_data.get("events", [])
+            if isinstance(events, list):
+                model_switch_count = len(events)
 
         # Build aggregated view
         self._aggregated = {
@@ -97,17 +107,23 @@ class TelemetryAggregator:
                     "loaded": bool(self._slot_history_data),
                     "entry_count": len(self._slot_history_data),
                 },
+                "model_switch_log": {
+                    "loaded": bool(self._model_switch_data),
+                    "entry_count": model_switch_count,
+                },
             },
             "nudge_state": self._nudge_data,
             "ci_retry_state": self._ci_retry_data,
             "slot_history": self._slot_history_data,
+            "model_switch_log": self._model_switch_data,
         }
 
         logger.info(
-            "Aggregated telemetry: nudge=%d, ci_retry=%d, slot_history=%d",
+            "Aggregated telemetry: nudge=%d, ci_retry=%d, slot_history=%d, model_switch=%d",
             len(self._nudge_data),
             len(self._ci_retry_data),
             len(self._slot_history_data),
+            model_switch_count,
         )
 
         return self._aggregated
@@ -136,6 +152,7 @@ class TelemetryAggregator:
             "failure_categories": {},
             "escalation_frequency": 0.0,
             "completion_time_metrics": {},
+            "model_switch_metrics": {},
             "totals": {
                 "total_operations": 0,
                 "successful_operations": 0,
@@ -248,6 +265,9 @@ class TelemetryAggregator:
 
         self._metrics["completion_time_metrics"] = completion_time_metrics
 
+        # Calculate model switch metrics
+        self._metrics["model_switch_metrics"] = self.get_model_switch_metrics()
+
         # Calculate final metrics
         if total_ops > 0:
             self._metrics["success_rate"] = round((successful_ops / total_ops) * 100, 2)
@@ -275,6 +295,68 @@ class TelemetryAggregator:
         )
 
         return self._metrics
+
+    def get_model_switch_metrics(self) -> dict[str, Any]:
+        """Compute metrics specific to model switches.
+
+        Analyzes model switch events to provide:
+        - total_switches: Total number of model switches
+        - switches_by_reason: Count of switches grouped by trigger reason
+        - model_usage_distribution: How often each model was switched to
+        - switches_by_phase: Count of switches grouped by phase_id (if available)
+
+        Returns:
+            Dictionary containing model switch metrics
+        """
+        metrics: dict[str, Any] = {
+            "total_switches": 0,
+            "switches_by_reason": {},
+            "model_usage_distribution": {},
+            "switches_by_phase": {},
+        }
+
+        if not isinstance(self._model_switch_data, dict):
+            return metrics
+
+        events = self._model_switch_data.get("events", [])
+        if not isinstance(events, list):
+            return metrics
+
+        metrics["total_switches"] = len(events)
+
+        switches_by_reason: dict[str, int] = {}
+        model_usage: dict[str, int] = {}
+        switches_by_phase: dict[str, int] = {}
+
+        for event in events:
+            if not isinstance(event, dict):
+                continue
+
+            # Count by trigger reason
+            reason = event.get("trigger_reason", "unknown")
+            switches_by_reason[reason] = switches_by_reason.get(reason, 0) + 1
+
+            # Count model usage (to_model)
+            to_model = event.get("to_model", "unknown")
+            model_usage[to_model] = model_usage.get(to_model, 0) + 1
+
+            # Count by phase_id if present
+            phase_id = event.get("phase_id")
+            if phase_id:
+                switches_by_phase[phase_id] = switches_by_phase.get(phase_id, 0) + 1
+
+        metrics["switches_by_reason"] = switches_by_reason
+        metrics["model_usage_distribution"] = model_usage
+        metrics["switches_by_phase"] = switches_by_phase
+
+        logger.debug(
+            "Model switch metrics: total=%d, reasons=%d, models=%d",
+            metrics["total_switches"],
+            len(switches_by_reason),
+            len(model_usage),
+        )
+
+        return metrics
 
     def save_summary(self, output_path: Path) -> None:
         """Write the telemetry summary to a JSON file.

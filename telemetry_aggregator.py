@@ -120,6 +120,7 @@ class TelemetryAggregator:
         - avg_completion_time: Average time to complete operations
         - failure_categories: Breakdown of failure types
         - escalation_frequency: How often escalations occur
+        - completion_time_metrics: Average completion time per improvement category
 
         Returns:
             Dictionary containing computed metrics
@@ -134,6 +135,7 @@ class TelemetryAggregator:
             "avg_completion_time": 0.0,
             "failure_categories": {},
             "escalation_frequency": 0.0,
+            "completion_time_metrics": {},
             "totals": {
                 "total_operations": 0,
                 "successful_operations": 0,
@@ -148,6 +150,8 @@ class TelemetryAggregator:
         escalated_ops = 0
         completion_times: list[float] = []
         failure_cats: dict[str, int] = {}
+        # Track completion times by improvement category
+        category_completion_times: dict[str, list[float]] = {}
 
         # Process slot history for success/failure metrics
         if isinstance(self._slot_history_data, dict):
@@ -207,6 +211,43 @@ class TelemetryAggregator:
             if isinstance(escalation_count, int):
                 escalated_ops += escalation_count
 
+        # Process phase data for completion time metrics per category
+        if isinstance(self._slot_history_data, dict):
+            phases = self._slot_history_data.get("phases", [])
+            if isinstance(phases, list):
+                for phase in phases:
+                    if not isinstance(phase, dict):
+                        continue
+                    started_at = phase.get("started_at")
+                    completed_at = phase.get("completed_at")
+                    category = phase.get("category", "uncategorized")
+
+                    if started_at and completed_at:
+                        try:
+                            start_time = datetime.fromisoformat(started_at.replace(" ", "T"))
+                            end_time = datetime.fromisoformat(completed_at.replace(" ", "T"))
+                            duration_minutes = (end_time - start_time).total_seconds() / 60.0
+
+                            if duration_minutes >= 0:
+                                if category not in category_completion_times:
+                                    category_completion_times[category] = []
+                                category_completion_times[category].append(duration_minutes)
+                        except (ValueError, TypeError):
+                            pass
+
+        # Calculate average completion time per category
+        completion_time_metrics: dict[str, dict[str, float]] = {}
+        for category, times in category_completion_times.items():
+            if times:
+                completion_time_metrics[category] = {
+                    "avg_completion_time_minutes": round(sum(times) / len(times), 2),
+                    "min_completion_time_minutes": round(min(times), 2),
+                    "max_completion_time_minutes": round(max(times), 2),
+                    "count": len(times),
+                }
+
+        self._metrics["completion_time_metrics"] = completion_time_metrics
+
         # Calculate final metrics
         if total_ops > 0:
             self._metrics["success_rate"] = round((successful_ops / total_ops) * 100, 2)
@@ -226,10 +267,11 @@ class TelemetryAggregator:
         }
 
         logger.info(
-            "Computed metrics: success_rate=%.2f%%, avg_time=%.2fs, escalations=%d",
+            "Computed metrics: success_rate=%.2f%%, avg_time=%.2fs, escalations=%d, categories=%d",
             self._metrics["success_rate"],
             self._metrics["avg_completion_time"],
             escalated_ops,
+            len(completion_time_metrics),
         )
 
         return self._metrics

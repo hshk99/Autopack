@@ -1,7 +1,6 @@
 """Tests for centralized event logger."""
 
 import json
-import os
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -30,7 +29,7 @@ class TestEventLogger:
     def test_init_creates_log_directory(self, temp_log_dir):
         """Test that initialization creates the log directory."""
         log_dir = Path(temp_log_dir) / "subdir" / "logs"
-        logger = EventLogger(log_dir=str(log_dir))
+        EventLogger(log_dir=str(log_dir))
 
         assert log_dir.exists()
         assert log_dir.is_dir()

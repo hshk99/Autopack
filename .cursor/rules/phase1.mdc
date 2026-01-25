@@ -1,0 +1,184 @@
+---
+description: Phase 1 - Discovery and Improvement Identification
+globs:
+  - "**/*.py"
+  - "**/*.md"
+  - "**/IMPROVEMENTS.md"
+alwaysApply: false
+---
+
+# Phase 1: Discovery and Improvement Identification
+
+You are performing Phase 1 of the Autopack improvement workflow: **Discovery**.
+
+## Objective
+
+Analyze the codebase to identify potential improvements, bugs, and enhancements. Produce a prioritized list of actionable improvement items.
+
+## Historical Context Integration (IMP-GEN-001)
+
+When telemetry context is provided, use historical data to inform your discovery:
+
+### Reading LEARNING_MEMORY.json
+
+If a `LEARNING_MEMORY` path is provided in the prompt context:
+
+1. **Load the file** and parse its JSON structure
+2. **Check `success_patterns`** - These are improvement types that have historically succeeded:
+   - Prioritize improvements matching successful patterns
+   - Note the `success_rate` and `avg_completion_time` for realistic planning
+   - Look for patterns like: category, complexity, file_count ranges
+
+3. **Check `failure_patterns`** - These are improvement types that have historically failed:
+   - De-prioritize or flag improvements matching failure patterns
+   - Note common `failure_reasons` to avoid similar pitfalls
+   - Consider if the failure cause has been addressed before recommending
+
+4. **Review `improvement_outcomes`** - Historical improvement results:
+   - Look for similar improvements that were attempted before
+   - Check if they succeeded, failed, or were abandoned
+   - Use outcomes to refine your recommendations
+
+5. **Examine `wave_history`** - How improvements were grouped in past cycles:
+   - Identify successful wave compositions
+   - Note wave sizes that worked well vs. those that caused issues
+
+### Reading TELEMETRY_SUMMARY.json
+
+If a `TELEMETRY_SUMMARY` path is provided:
+
+1. **Check `metrics.success_rate`** - Overall system health indicator
+2. **Review `completion_time_metrics`** by category:
+   - Use `avg_completion_time_minutes` for realistic estimates
+   - Note categories with high variance (max >> avg)
+3. **Examine `failure_categories`** - Common failure types to avoid
+4. **Consider `escalation_frequency`** - Indicates problematic areas
+
+## Discovery Process
+
+### Step 1: Codebase Analysis
+
+Scan the codebase for:
+- Code quality issues (lint, type errors, complexity)
+- Missing or outdated documentation
+- Test coverage gaps
+- Performance bottlenecks
+- Security vulnerabilities
+- Deprecated patterns or libraries
+
+### Step 2: Priority Assessment
+
+For each potential improvement, assess:
+
+1. **Impact** (High/Medium/Low)
+   - How much value does this add?
+   - How many users/systems are affected?
+
+2. **Effort** (High/Medium/Low)
+   - Estimated complexity
+   - Number of files affected
+   - Dependencies involved
+
+3. **Risk** (High/Medium/Low)
+   - Likelihood of introducing bugs
+   - Reversibility of changes
+   - Test coverage for affected areas
+
+4. **Historical Success** (if telemetry available)
+   - Does this match a success pattern? (boost priority)
+   - Does this match a failure pattern? (add caution flag)
+   - What was the actual completion time for similar work?
+
+### Step 3: Improvement Categorization
+
+Categorize improvements into:
+- `bug`: Fixing incorrect behavior
+- `feature`: Adding new functionality
+- `enhancement`: Improving existing functionality
+- `refactor`: Code structure improvements
+- `docs`: Documentation updates
+- `test`: Test coverage improvements
+- `perf`: Performance optimizations
+- `security`: Security improvements
+- `deps`: Dependency updates
+
+### Step 4: Output Format
+
+Generate improvements in this format:
+
+```markdown
+## Improvement: [IMP-XXX-NNN] Title
+
+**Category**: [category]
+**Priority**: [critical|high|medium|low]
+**Impact**: [High|Medium|Low]
+**Effort**: [High|Medium|Low]
+**Risk**: [High|Medium|Low]
+
+### Description
+[What needs to be done and why]
+
+### Files Affected
+- path/to/file1.py
+- path/to/file2.py
+
+### Dependencies
+- [Other improvements this depends on, if any]
+
+### Historical Context
+- [If telemetry available: similar past improvements and their outcomes]
+- [Success pattern match: Yes/No]
+- [Failure pattern match: Yes/No - with mitigation if Yes]
+
+### Acceptance Criteria
+- [ ] Criterion 1
+- [ ] Criterion 2
+```
+
+## Priority Guidelines
+
+### Critical Priority
+- Security vulnerabilities
+- Data integrity issues
+- Breaking changes blocking other work
+- Items matching high-success patterns with urgent need
+
+### High Priority
+- User-facing bugs
+- Performance issues affecting UX
+- Test failures
+- Items matching success patterns
+
+### Medium Priority
+- Code quality improvements
+- Documentation gaps
+- Minor enhancements
+- Items with mixed historical outcomes
+
+### Low Priority
+- Nice-to-have features
+- Minor refactoring
+- Items matching failure patterns (unless root cause addressed)
+
+## Telemetry-Informed Adjustments
+
+When historical data shows:
+
+| Pattern | Adjustment |
+|---------|------------|
+| Category has >80% success rate | Boost priority by one level |
+| Category has <50% success rate | Add caution flag, require mitigation plan |
+| Similar improvement failed before | Note failure reason, require different approach |
+| Avg completion time > 2x estimated | Flag as potentially underestimated |
+| High escalation frequency | Consider breaking into smaller items |
+
+## Output
+
+At the end of Phase 1, produce:
+
+1. **IMPROVEMENTS.md** - Complete list of discovered improvements
+2. **Summary statistics**:
+   - Total improvements found
+   - Breakdown by category
+   - Breakdown by priority
+   - Historical pattern matches (if telemetry available)

@@ -1101,10 +1101,91 @@ class AutonomousLoop:
 
         logger.info("[IMP-AUTOPILOT-001] Autopilot session completed")
 
+    def _validate_telemetry_feedback(
+        self,
+        ranked_issues: Dict,
+    ) -> tuple[bool, Dict, int]:
+        """Validate telemetry feedback data before memory storage.
+
+        IMP-LOOP-002: Ensures data integrity and proper feedback propagation
+        between telemetry collection and memory service.
+
+        Args:
+            ranked_issues: Dictionary containing telemetry analysis results with
+                          'top_cost_sinks', 'top_failure_modes', 'top_retry_causes'.
+
+        Returns:
+            Tuple of (is_valid, validated_issues, validation_error_count).
+        """
+        from autopack.memory.memory_service import TelemetryFeedbackValidator
+
+        if not isinstance(ranked_issues, dict):
+            logger.warning(
+                f"[IMP-LOOP-002] Invalid telemetry feedback type: {type(ranked_issues).__name__}"
+            )
+            return False, {}, 1
+
+        validated_issues: Dict = {}
+        total_errors = 0
+
+        issue_categories = ["top_cost_sinks", "top_failure_modes", "top_retry_causes"]
+        insight_type_map = {
+            "top_cost_sinks": "cost_sink",
+            "top_failure_modes": "failure_mode",
+            "top_retry_causes": "retry_cause",
+        }
+
+        for category in issue_categories:
+            issues = ranked_issues.get(category, [])
+            if not isinstance(issues, list):
+                logger.warning(
+                    f"[IMP-LOOP-002] Invalid {category} type: {type(issues).__name__}, expected list"
+                )
+                total_errors += 1
+                validated_issues[category] = []
+                continue
+
+            validated_list = []
+            for issue in issues:
+                # Convert issue to insight format for validation
+                insight = {
+                    "insight_type": insight_type_map.get(category, "unknown"),
+                    "description": issue.get("description", str(issue)),
+                    "phase_id": issue.get("phase_id"),
+                    "run_id": issue.get("run_id"),
+                    "suggested_action": issue.get("suggested_action"),
+                }
+
+                is_valid, errors = TelemetryFeedbackValidator.validate_insight(insight)
+                if is_valid:
+                    validated_list.append(issue)
+                else:
+                    total_errors += 1
+                    logger.debug(f"[IMP-LOOP-002] Skipping invalid {category} issue: {errors}")
+                    # Sanitize and include anyway for non-critical validation errors
+                    sanitized = TelemetryFeedbackValidator.sanitize_insight(insight)
+                    # Merge sanitized fields back into original issue
+                    issue_copy = dict(issue)
+                    issue_copy["description"] = sanitized.get("description", "")
+                    validated_list.append(issue_copy)
+
+            validated_issues[category] = validated_list
+
+        is_valid = total_errors == 0
+        if total_errors > 0:
+            logger.info(
+                f"[IMP-LOOP-002] Telemetry feedback validation: "
+                f"{total_errors} issues sanitized/corrected"
+            )
+
+        return is_valid, validated_issues, total_errors
+
     def _persist_telemetry_insights(self) -> None:
         """Analyze and persist telemetry insights to memory after run completion.
 
         Implements IMP-ARCH-001: Wire Telemetry Analyzer to Memory Service.
+        IMP-LOOP-002: Added validation to ensure data integrity before persistence.
+
         Closes the ROAD-B feedback loop by persisting ranked issues to vector memory
         for retrieval in future runs.
         """
@@ -1116,6 +1197,18 @@ class AutonomousLoop:
         try:
             # Analyze telemetry from the run and aggregate issues
             ranked_issues = analyzer.aggregate_telemetry(window_days=7)
+
+            # IMP-LOOP-002: Validate telemetry feedback before memory storage
+            is_valid, validated_issues, error_count = self._validate_telemetry_feedback(
+                ranked_issues
+            )
+            if not is_valid:
+                logger.info(
+                    f"[IMP-LOOP-002] Telemetry feedback validated with {error_count} corrections"
+                )
+            # Use validated issues for logging and further processing
+            ranked_issues = validated_issues
+
             logger.info(
                 f"[IMP-ARCH-001] Analyzed telemetry: "
                 f"{len(ranked_issues.get('top_cost_sinks', []))} cost sinks, "

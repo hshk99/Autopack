@@ -1131,8 +1131,26 @@ class AutonomousLoop:
                 if combined_context:
                     phase_adjustments["memory_context"] = combined_context
 
+            # IMP-LOOP-005: Record execution start time for feedback
+            execution_start_time = time.time()
+
             # Execute phase (with any telemetry-driven adjustments and memory context)
             success, status = self.executor.execute_phase(next_phase, **phase_adjustments)
+
+            # IMP-LOOP-005: Record execution feedback to memory for learning
+            try:
+                self._record_execution_feedback(
+                    phase=next_phase,
+                    success=success,
+                    status=status,
+                    execution_start_time=execution_start_time,
+                    memory_context=combined_context if combined_context else None,
+                )
+            except Exception as feedback_err:
+                # Non-fatal - continue execution even if feedback fails
+                logger.warning(
+                    f"[IMP-LOOP-005] Execution feedback recording failed (non-fatal): {feedback_err}"
+                )
 
             if success:
                 logger.info(f"Phase {phase_id} completed successfully")
@@ -1338,6 +1356,102 @@ class AutonomousLoop:
             # Check if drift blocks execution
             if settings.sot_drift_blocks_execution:
                 raise SOTDriftError(f"SOT drift blocking execution: {issues}")
+
+    def _record_execution_feedback(
+        self,
+        phase: Dict,
+        success: bool,
+        status: str,
+        execution_start_time: float,
+        memory_context: Optional[str] = None,
+    ) -> None:
+        """Record task execution feedback to memory for learning.
+
+        IMP-LOOP-005: Captures execution results (success/failure) and stores them
+        in memory to enable learning from past executions and improve future context.
+
+        Args:
+            phase: The phase dictionary with execution details
+            success: Whether the phase executed successfully
+            status: The final status string from execution
+            execution_start_time: Unix timestamp when execution started
+            memory_context: Optional memory context that was injected for this phase
+        """
+        # Check if memory service is available
+        memory_service = getattr(self.executor, "memory_service", None)
+        if memory_service is None:
+            logger.debug("[IMP-LOOP-005] Memory service not available, skipping feedback")
+            return
+
+        try:
+            phase_id = phase.get("phase_id", "unknown")
+            phase_type = phase.get("phase_type")
+            project_id = getattr(self.executor, "_get_project_slug", lambda: "default")()
+            run_id = getattr(self.executor, "run_id", "unknown")
+
+            # Calculate execution time
+            execution_time = time.time() - execution_start_time
+
+            # Get tokens used for this phase (approximate)
+            tokens_used = getattr(self.executor, "_run_tokens_used", 0)
+
+            # Build error message for failures
+            error_message = None
+            if not success:
+                error_message = f"Phase failed with status: {status}"
+                # Try to get more specific error info if available
+                phase_result = getattr(self.executor, "_last_phase_result", None)
+                if phase_result and isinstance(phase_result, dict):
+                    error_detail = phase_result.get("error") or phase_result.get("message")
+                    if error_detail:
+                        error_message = f"{error_message}. Detail: {error_detail}"
+
+            # Build context summary
+            context_summary = None
+            if memory_context:
+                # Summarize the context that was used
+                context_lines = memory_context.split("\n")[:10]
+                context_summary = "\n".join(context_lines)
+
+            # Extract learnings based on outcome
+            learnings = []
+            if success:
+                learnings.append(f"Phase type '{phase_type}' completed successfully")
+                if execution_time < 30:
+                    learnings.append("Fast execution - phase was efficient")
+                elif execution_time > 300:
+                    learnings.append("Long execution time - may need optimization")
+            else:
+                learnings.append(f"Phase type '{phase_type}' failed with status: {status}")
+                if "timeout" in status.lower():
+                    learnings.append(
+                        "Timeout occurred - consider increasing timeout or reducing scope"
+                    )
+                elif "budget" in status.lower():
+                    learnings.append("Budget exhausted - consider reducing token usage")
+
+            # Write feedback to memory
+            memory_service.write_task_execution_feedback(
+                run_id=run_id,
+                phase_id=phase_id,
+                project_id=project_id,
+                success=success,
+                phase_type=phase_type,
+                execution_time_seconds=execution_time,
+                error_message=error_message,
+                tokens_used=tokens_used,
+                context_summary=context_summary,
+                learnings=learnings,
+            )
+
+            logger.info(
+                f"[IMP-LOOP-005] Recorded execution feedback for phase {phase_id} "
+                f"(success={success}, time={execution_time:.1f}s)"
+            )
+
+        except Exception as e:
+            # Non-fatal error - log and continue
+            logger.warning(f"[IMP-LOOP-005] Failed to record execution feedback: {e}")
 
     def _invoke_autopilot_session(self):
         """Invoke autopilot to scan for gaps and execute approved improvements.

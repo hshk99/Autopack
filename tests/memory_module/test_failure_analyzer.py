@@ -1,12 +1,19 @@
 """Tests for failure pattern analyzer."""
 
 import os
+import sys
 import tempfile
+from pathlib import Path
 
 import pytest
 
-from memory.failure_analyzer import FailureAnalyzer
-from memory.metrics_db import MetricsDatabase
+# Ensure src is in path for memory module import
+_src_path = str(Path(__file__).resolve().parent.parent.parent / "src")
+if _src_path not in sys.path:
+    sys.path.insert(0, _src_path)
+
+from memory.failure_analyzer import FailureAnalyzer  # noqa: E402
+from memory.metrics_db import MetricsDatabase  # noqa: E402
 
 
 @pytest.fixture

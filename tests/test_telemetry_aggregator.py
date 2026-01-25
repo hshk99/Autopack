@@ -231,6 +231,129 @@ class TestSaveSummary:
         assert output_path.exists()
 
 
+class TestCompletionTimeMetrics:
+    """Tests for completion time metrics per category."""
+
+    def test_completion_time_metrics_empty(self, temp_telemetry_dir):
+        """Test completion time metrics with no phase data."""
+        aggregator = TelemetryAggregator(temp_telemetry_dir)
+        metrics = aggregator.compute_metrics()
+
+        assert metrics["completion_time_metrics"] == {}
+
+    def test_completion_time_metrics_with_phases(self, temp_telemetry_dir):
+        """Test completion time metrics with phase timestamps."""
+        slot_history = {
+            "slots": [],
+            "phases": [
+                {
+                    "name": "research",
+                    "category": "performance",
+                    "started_at": "2024-01-01 10:00:00",
+                    "completed_at": "2024-01-01 10:30:00",
+                },
+                {
+                    "name": "implementation",
+                    "category": "performance",
+                    "started_at": "2024-01-01 11:00:00",
+                    "completed_at": "2024-01-01 12:00:00",
+                },
+                {
+                    "name": "testing",
+                    "category": "reliability",
+                    "started_at": "2024-01-01 13:00:00",
+                    "completed_at": "2024-01-01 13:15:00",
+                },
+            ],
+        }
+        (temp_telemetry_dir / "slot_history.json").write_text(json.dumps(slot_history))
+
+        aggregator = TelemetryAggregator(temp_telemetry_dir)
+        metrics = aggregator.compute_metrics()
+
+        # Performance category: 30 min + 60 min = avg 45 min
+        assert "performance" in metrics["completion_time_metrics"]
+        assert (
+            metrics["completion_time_metrics"]["performance"]["avg_completion_time_minutes"] == 45.0
+        )
+        assert metrics["completion_time_metrics"]["performance"]["count"] == 2
+        assert (
+            metrics["completion_time_metrics"]["performance"]["min_completion_time_minutes"] == 30.0
+        )
+        assert (
+            metrics["completion_time_metrics"]["performance"]["max_completion_time_minutes"] == 60.0
+        )
+
+        # Reliability category: 15 min
+        assert "reliability" in metrics["completion_time_metrics"]
+        assert (
+            metrics["completion_time_metrics"]["reliability"]["avg_completion_time_minutes"] == 15.0
+        )
+        assert metrics["completion_time_metrics"]["reliability"]["count"] == 1
+
+    def test_completion_time_metrics_missing_timestamps(self, temp_telemetry_dir):
+        """Test completion time metrics ignores phases without timestamps."""
+        slot_history = {
+            "slots": [],
+            "phases": [
+                {"name": "phase1", "category": "test", "started_at": "2024-01-01 10:00:00"},
+                {"name": "phase2", "category": "test", "completed_at": "2024-01-01 11:00:00"},
+                {"name": "phase3", "category": "test"},
+            ],
+        }
+        (temp_telemetry_dir / "slot_history.json").write_text(json.dumps(slot_history))
+
+        aggregator = TelemetryAggregator(temp_telemetry_dir)
+        metrics = aggregator.compute_metrics()
+
+        # No valid phases, so no metrics
+        assert metrics["completion_time_metrics"] == {}
+
+    def test_completion_time_metrics_default_category(self, temp_telemetry_dir):
+        """Test phases without category default to 'uncategorized'."""
+        slot_history = {
+            "slots": [],
+            "phases": [
+                {
+                    "name": "unnamed",
+                    "started_at": "2024-01-01 10:00:00",
+                    "completed_at": "2024-01-01 10:20:00",
+                },
+            ],
+        }
+        (temp_telemetry_dir / "slot_history.json").write_text(json.dumps(slot_history))
+
+        aggregator = TelemetryAggregator(temp_telemetry_dir)
+        metrics = aggregator.compute_metrics()
+
+        assert "uncategorized" in metrics["completion_time_metrics"]
+        assert (
+            metrics["completion_time_metrics"]["uncategorized"]["avg_completion_time_minutes"]
+            == 20.0
+        )
+
+    def test_completion_time_metrics_iso_format(self, temp_telemetry_dir):
+        """Test completion time metrics with ISO format timestamps."""
+        slot_history = {
+            "slots": [],
+            "phases": [
+                {
+                    "name": "iso-phase",
+                    "category": "features",
+                    "started_at": "2024-01-01T10:00:00",
+                    "completed_at": "2024-01-01T10:45:00",
+                },
+            ],
+        }
+        (temp_telemetry_dir / "slot_history.json").write_text(json.dumps(slot_history))
+
+        aggregator = TelemetryAggregator(temp_telemetry_dir)
+        metrics = aggregator.compute_metrics()
+
+        assert "features" in metrics["completion_time_metrics"]
+        assert metrics["completion_time_metrics"]["features"]["avg_completion_time_minutes"] == 45.0
+
+
 class TestEdgeCases:
     """Tests for edge cases and error handling."""
 

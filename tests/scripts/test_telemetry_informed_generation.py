@@ -71,27 +71,27 @@ class TestTriggerScript:
     """Test the trigger_project_generation.ps1 script."""
 
     def test_trigger_script_exists(self):
-        """Trigger script should exist at project root."""
-        script_path = PROJECT_ROOT / "trigger_project_generation.ps1"
+        """Trigger script should exist in scripts/ directory."""
+        script_path = PROJECT_ROOT / "scripts" / "trigger_project_generation.ps1"
         assert script_path.exists(), f"Trigger script not found at {script_path}"
 
     def test_trigger_script_has_telemetry_flag(self):
         """Trigger script should have -UseTelemetryContext parameter."""
-        script_path = PROJECT_ROOT / "trigger_project_generation.ps1"
+        script_path = PROJECT_ROOT / "scripts" / "trigger_project_generation.ps1"
         content = script_path.read_text(encoding="utf-8")
 
         assert "UseTelemetryContext" in content, "Script should have UseTelemetryContext parameter"
 
     def test_trigger_script_references_aggregator(self):
         """Trigger script should reference telemetry_aggregator.py."""
-        script_path = PROJECT_ROOT / "trigger_project_generation.ps1"
+        script_path = PROJECT_ROOT / "scripts" / "trigger_project_generation.ps1"
         content = script_path.read_text(encoding="utf-8")
 
         assert "telemetry_aggregator" in content, "Script should reference telemetry aggregator"
 
     def test_trigger_script_references_learning_memory(self):
         """Trigger script should reference LEARNING_MEMORY.json."""
-        script_path = PROJECT_ROOT / "trigger_project_generation.ps1"
+        script_path = PROJECT_ROOT / "scripts" / "trigger_project_generation.ps1"
         content = script_path.read_text(encoding="utf-8")
 
         assert "LEARNING_MEMORY" in content, "Script should reference LEARNING_MEMORY"
@@ -102,7 +102,7 @@ class TestTriggerScript:
     )
     def test_trigger_script_valid_powershell_syntax(self):
         """Trigger script should have valid PowerShell syntax."""
-        script_path = PROJECT_ROOT / "trigger_project_generation.ps1"
+        script_path = PROJECT_ROOT / "scripts" / "trigger_project_generation.ps1"
 
         # Use PowerShell to parse the script without executing
         result = subprocess.run(

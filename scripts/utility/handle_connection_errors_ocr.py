@@ -24,6 +24,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+# Import learning memory manager for nudge tracking
+try:
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+    from autopack.learning_memory_manager import LearningMemoryManager
+
+    LEARNING_MEMORY_AVAILABLE = True
+except ImportError:
+    LEARNING_MEMORY_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 # Constants
@@ -288,6 +299,130 @@ def get_slot_stats(slot: int) -> dict[str, Any]:
     }
 
 
+# Default nudge templates for different recovery scenarios
+NUDGE_TEMPLATES = {
+    "template_continue_task": "Please continue with the current task.",
+    "template_resume_work": "Resume work on the pending task.",
+    "template_retry_action": "Please retry the previous action.",
+    "template_connection_recovery": "Connection restored. Please continue.",
+}
+
+# Learning memory path for nudge effectiveness tracking
+LEARNING_MEMORY_PATH = Path("LEARNING_MEMORY.json")
+
+
+def send_nudge(
+    slot_id: int,
+    message: str,
+    template_id: str = "template_continue_task",
+    phase_id: str | None = None,
+) -> None:
+    """Send a nudge message and track for effectiveness learning.
+
+    Records the nudge template with context to the learning memory for later
+    effectiveness analysis. When the slot recovers, call record_nudge_recovery
+    to complete the effectiveness tracking.
+
+    Args:
+        slot_id: The slot number receiving the nudge.
+        message: The nudge message text.
+        template_id: The template identifier for tracking.
+        phase_id: Optional phase ID for context.
+    """
+    if LEARNING_MEMORY_AVAILABLE:
+        try:
+            memory = LearningMemoryManager(LEARNING_MEMORY_PATH)
+            context = {
+                "message": message,
+                "phase_id": phase_id,
+            }
+            memory.record_nudge_sent(
+                template_id=template_id,
+                slot_id=slot_id,
+                context=context,
+            )
+            memory.save()
+            logger.info(f"Recorded nudge sent: {template_id} for slot {slot_id}")
+        except Exception as e:
+            logger.warning(f"Failed to record nudge to learning memory: {e}")
+    else:
+        logger.debug("Learning memory not available, skipping nudge tracking")
+
+    # Log the nudge action (actual nudge implementation would go here)
+    logger.info(f"[NUDGE] Slot {slot_id}: {message}")
+
+
+def record_nudge_recovery(
+    slot_id: int,
+    effective: bool,
+    recovery_time_seconds: int | None = None,
+) -> str | None:
+    """Record nudge effectiveness when a slot recovers or times out.
+
+    Should be called when a slot that received a nudge either recovers
+    or times out. This completes the nudge tracking cycle.
+
+    Args:
+        slot_id: The slot that recovered or timed out.
+        effective: True if recovery occurred, False if timeout.
+        recovery_time_seconds: Time from nudge to recovery (if effective).
+
+    Returns:
+        The template_id that was resolved, or None if no pending nudge.
+    """
+    if not LEARNING_MEMORY_AVAILABLE:
+        logger.debug("Learning memory not available, skipping recovery tracking")
+        return None
+
+    try:
+        memory = LearningMemoryManager(LEARNING_MEMORY_PATH)
+        template_id = memory.resolve_pending_nudge(
+            slot_id=slot_id,
+            effective=effective,
+            recovery_time_seconds=recovery_time_seconds,
+        )
+        memory.save()
+        if template_id:
+            logger.info(
+                f"Resolved nudge effectiveness: {template_id} "
+                f"effective={effective}, recovery_time={recovery_time_seconds}s"
+            )
+        return template_id
+    except Exception as e:
+        logger.warning(f"Failed to record nudge recovery: {e}")
+        return None
+
+
+def get_best_nudge_template() -> tuple[str, str]:
+    """Get the most effective nudge template based on historical data.
+
+    Returns:
+        Tuple of (template_id, message) for the most effective template,
+        or the default template if no history is available.
+    """
+    if not LEARNING_MEMORY_AVAILABLE:
+        default_id = "template_continue_task"
+        return default_id, NUDGE_TEMPLATES[default_id]
+
+    try:
+        memory = LearningMemoryManager(LEARNING_MEMORY_PATH)
+        effective_templates = memory.get_effective_templates()
+
+        if effective_templates:
+            best = effective_templates[0]
+            template_id = best["template_id"]
+            # Use known message or fall back to template_id
+            message = NUDGE_TEMPLATES.get(template_id, f"[{template_id}] Please continue.")
+            return template_id, message
+
+    except Exception as e:
+        logger.warning(f"Failed to get effective templates: {e}")
+
+    # Default fallback
+    default_id = "template_continue_task"
+    return default_id, NUDGE_TEMPLATES[default_id]
+
+
 class ConnectionErrorHandler:
     """OCR-based connection error handler for Cursor windows."""
 
@@ -371,13 +506,16 @@ class ConnectionErrorHandler:
 
         pyautogui.click(abs_x, abs_y)
 
-    def handle_slot_error(self, slot: int, escalation_level: int = 0) -> bool:
+    def handle_slot_error(
+        self, slot: int, escalation_level: int = 0, template_id: str | None = None
+    ) -> bool:
         """
         Check and handle connection error for a specific slot.
 
         Args:
             slot: Slot number (1-9)
             escalation_level: Current escalation level
+            template_id: Optional nudge template ID for tracking effectiveness
 
         Returns:
             True if error was found and handled
@@ -399,20 +537,57 @@ class ConnectionErrorHandler:
                 details={"button_position": button_loc},
             )
 
+            # Select nudge template for tracking (use best if not specified)
+            if template_id is None:
+                template_id, nudge_message = get_best_nudge_template()
+            else:
+                nudge_message = NUDGE_TEMPLATES.get(template_id, "Please continue with the task.")
+
+            # Record nudge sent for effectiveness tracking
+            send_nudge(
+                slot_id=slot,
+                message=nudge_message,
+                template_id=template_id,
+                phase_id=f"slot_{slot}_recovery",
+            )
+
             # Click the button
             self.click_at_slot_relative(slot, button_loc[0], button_loc[1])
             time.sleep(0.5)
 
-            # Record the click event
+            # Record the click event with template info
             record_slot_event(
                 slot=slot,
                 event_type="resume_clicked",
                 success=True,
                 escalation_level=escalation_level,
+                details={"template_id": template_id},
             )
 
             print("  [OK] Clicked recovery button")
             return True
+
+        # If no error found and there was a pending nudge, mark it as effective
+        # (slot recovered without needing manual intervention)
+        if LEARNING_MEMORY_AVAILABLE:
+            try:
+                memory = LearningMemoryManager(LEARNING_MEMORY_PATH)
+                pending = memory.get_pending_nudges(slot_id=slot)
+                if pending:
+                    # Calculate approximate recovery time based on last nudge
+                    for nudge in pending:
+                        sent_at = nudge.get("sent_at", "")
+                        if sent_at:
+                            from datetime import datetime
+
+                            sent_time = datetime.fromisoformat(sent_at.replace("Z", "+00:00"))
+                            now = datetime.now(timezone.utc)
+                            recovery_seconds = int((now - sent_time).total_seconds())
+                            record_nudge_recovery(
+                                slot, effective=True, recovery_time_seconds=recovery_seconds
+                            )
+            except Exception as e:
+                logger.debug(f"Failed to check pending nudges: {e}")
 
         if self.verbose:
             print("  [OK] No error dialog detected")

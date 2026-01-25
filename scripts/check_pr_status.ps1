@@ -104,6 +104,143 @@ print(f"Recorded {category} failure for {phase_id}")
     }
 }
 
+# Function to record a nudge sent to learning memory
+function Record-NudgeSent {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$TemplateId,
+        [Parameter(Mandatory=$true)]
+        [int]$SlotId,
+        [Parameter(Mandatory=$false)]
+        [hashtable]$Context = @{},
+        [Parameter(Mandatory=$false)]
+        [string]$MemoryPath = "LEARNING_MEMORY.json"
+    )
+
+    $contextJson = $Context | ConvertTo-Json -Compress
+
+    $pythonScript = @"
+import sys
+import json
+from pathlib import Path
+sys.path.insert(0, 'src')
+from autopack.learning_memory_manager import LearningMemoryManager
+
+template_id = '$TemplateId'
+slot_id = $SlotId
+context = json.loads('$($contextJson -replace "'", "''")')
+
+memory_path = Path('$MemoryPath')
+manager = LearningMemoryManager(memory_path)
+manager.record_nudge_sent(template_id, slot_id, context)
+manager.save()
+
+print(f"Recorded nudge sent: {template_id} for slot {slot_id}")
+"@
+
+    try {
+        $env:PYTHONPATH = "src"
+        $result = python -c $pythonScript 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  $result" -ForegroundColor Cyan
+            return $true
+        } else {
+            Write-Host "  Warning: Failed to record nudge sent: $result" -ForegroundColor Yellow
+            return $false
+        }
+    } catch {
+        Write-Host "  Warning: Failed to execute nudge recording: $_" -ForegroundColor Yellow
+        return $false
+    }
+}
+
+# Function to record nudge effectiveness when slot recovers
+function Record-NudgeEffectiveness {
+    param(
+        [Parameter(Mandatory=$true)]
+        [int]$SlotId,
+        [Parameter(Mandatory=$true)]
+        [bool]$Effective,
+        [Parameter(Mandatory=$false)]
+        [int]$RecoveryTimeSeconds = 0,
+        [Parameter(Mandatory=$false)]
+        [string]$MemoryPath = "LEARNING_MEMORY.json"
+    )
+
+    $effectivePython = if ($Effective) { "True" } else { "False" }
+
+    $pythonScript = @"
+import sys
+from pathlib import Path
+sys.path.insert(0, 'src')
+from autopack.learning_memory_manager import LearningMemoryManager
+
+slot_id = $SlotId
+effective = $effectivePython
+recovery_time = $RecoveryTimeSeconds if $RecoveryTimeSeconds > 0 else None
+
+memory_path = Path('$MemoryPath')
+manager = LearningMemoryManager(memory_path)
+template_id = manager.resolve_pending_nudge(slot_id, effective, recovery_time)
+manager.save()
+
+if template_id:
+    print(f"Resolved nudge effectiveness: {template_id} effective={effective}")
+else:
+    print(f"No pending nudge found for slot {slot_id}")
+"@
+
+    try {
+        $env:PYTHONPATH = "src"
+        $result = python -c $pythonScript 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  $result" -ForegroundColor Cyan
+            return $true
+        } else {
+            Write-Host "  Warning: Failed to record nudge effectiveness: $result" -ForegroundColor Yellow
+            return $false
+        }
+    } catch {
+        Write-Host "  Warning: Failed to execute effectiveness recording: $_" -ForegroundColor Yellow
+        return $false
+    }
+}
+
+# Function to get effective nudge templates
+function Get-EffectiveNudgeTemplates {
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$MemoryPath = "LEARNING_MEMORY.json"
+    )
+
+    $pythonScript = @"
+import sys
+import json
+from pathlib import Path
+sys.path.insert(0, 'src')
+from autopack.learning_memory_manager import LearningMemoryManager
+
+memory_path = Path('$MemoryPath')
+manager = LearningMemoryManager(memory_path)
+templates = manager.get_effective_templates()
+print(json.dumps(templates))
+"@
+
+    try {
+        $env:PYTHONPATH = "src"
+        $result = python -c $pythonScript 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            return $result | ConvertFrom-Json
+        } else {
+            Write-Host "  Warning: Failed to get effective templates: $result" -ForegroundColor Yellow
+            return @()
+        }
+    } catch {
+        Write-Host "  Warning: Failed to execute template query: $_" -ForegroundColor Yellow
+        return @()
+    }
+}
+
 # Check if gh CLI is available
 try {
     $null = gh --version

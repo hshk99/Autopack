@@ -5,7 +5,7 @@ import json
 import pytest
 from pathlib import Path
 
-from telemetry_dashboard import TelemetryDashboard
+from scripts.telemetry_dashboard import TelemetryDashboard
 
 
 @pytest.fixture

@@ -47,6 +47,10 @@ class MetricsDatabase:
         with sqlite3.connect(self.db_path) as conn:
             conn.executescript(self.SCHEMA)
 
+    def _get_connection(self) -> sqlite3.Connection:
+        """Get a database connection as a context manager."""
+        return sqlite3.connect(self.db_path)
+
     def store_daily_metrics(self, metrics: Dict[str, Any]) -> None:
         """Store daily aggregated metrics."""
         with sqlite3.connect(self.db_path) as conn:

@@ -29,6 +29,81 @@ Write-Host "PR Status Check & Effectiveness Tracker" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
 
+# Function to categorize CI failures based on failed job names and errors
+function Get-CIFailureCategory {
+    param(
+        [Parameter(Mandatory=$true)]
+        [array]$FailedChecks
+    )
+
+    $failedJobNames = $FailedChecks | ForEach-Object { $_.name.ToLower() }
+    $allJobNames = $failedJobNames -join " "
+
+    # Categorize based on job names and patterns
+    # flaky_test: Known flaky test patterns or intermittent failures
+    if ($allJobNames -match "flaky|intermittent|timeout|connection") {
+        return "flaky_test"
+    }
+
+    # unrelated_ci: Infrastructure/environment issues, not code-related
+    if ($allJobNames -match "setup|install|download|cache|network|artifact|deploy") {
+        return "unrelated_ci"
+    }
+
+    # code_failure: Default - actual code/test failures
+    return "code_failure"
+}
+
+# Function to record failure category to learning memory
+function Record-FailureCategoryToMemory {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Category,
+        [Parameter(Mandatory=$true)]
+        [string]$PhaseId,
+        [Parameter(Mandatory=$true)]
+        [hashtable]$Details,
+        [Parameter(Mandatory=$false)]
+        [string]$MemoryPath = "LEARNING_MEMORY.json"
+    )
+
+    $detailsJson = $Details | ConvertTo-Json -Compress
+
+    $pythonScript = @"
+import sys
+import json
+from pathlib import Path
+sys.path.insert(0, 'src')
+from autopack.learning_memory_manager import LearningMemoryManager
+
+category = '$Category'
+phase_id = '$PhaseId'
+details = json.loads('$($detailsJson -replace "'", "''")')
+
+memory_path = Path('$MemoryPath')
+manager = LearningMemoryManager(memory_path)
+manager.record_failure_category(category, phase_id, details)
+manager.save()
+
+print(f"Recorded {category} failure for {phase_id}")
+"@
+
+    try {
+        $env:PYTHONPATH = "src"
+        $result = python -c $pythonScript 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  $result" -ForegroundColor Yellow
+            return $true
+        } else {
+            Write-Host "  Warning: Failed to record failure category: $result" -ForegroundColor Yellow
+            return $false
+        }
+    } catch {
+        Write-Host "  Warning: Failed to execute failure recording: $_" -ForegroundColor Yellow
+        return $false
+    }
+}
+
 # Check if gh CLI is available
 try {
     $null = gh --version
@@ -55,6 +130,45 @@ try {
 Write-Host "  Title: $($pr.title)" -ForegroundColor White
 Write-Host "  State: $($pr.state)" -ForegroundColor White
 Write-Host "  Branch: $($pr.headRefName)" -ForegroundColor White
+
+# Check for CI failures and categorize them
+$failedChecks = @()
+if ($pr.statusCheckRollup -and $pr.statusCheckRollup.Count -gt 0) {
+    $failedChecks = $pr.statusCheckRollup | Where-Object { $_.conclusion -eq "FAILURE" -or $_.conclusion -eq "TIMED_OUT" }
+}
+
+if ($failedChecks.Count -gt 0) {
+    Write-Host ""
+    Write-Host "==> CI Failures Detected - Categorizing..." -ForegroundColor Yellow
+
+    # Extract IMP ID from PR title for phase tracking
+    $impIdPattern = '\[IMP-([A-Z]+)-(\d+)\]'
+    $match = [regex]::Match($pr.title, $impIdPattern)
+    $phaseId = if ($match.Success) { "IMP-$($match.Groups[1].Value)-$($match.Groups[2].Value)" } else { "PR-$($pr.number)" }
+
+    # Categorize the failure
+    $failureCategory = Get-CIFailureCategory -FailedChecks $failedChecks
+    Write-Host "  Category: $failureCategory" -ForegroundColor Cyan
+    Write-Host "  Phase ID: $phaseId" -ForegroundColor Cyan
+
+    # Build failure details
+    $failedJobNames = ($failedChecks | ForEach-Object { $_.name }) -join ", "
+    $failureDetails = @{
+        run_id = if ($failedChecks[0].detailsUrl -match "runs/(\d+)") { $Matches[1] } else { "" }
+        pr_number = $pr.number
+        phase_id = $phaseId
+        failed_jobs = $failedJobNames
+        failed_count = $failedChecks.Count
+        error_summary = "CI failure in: $failedJobNames"
+    }
+
+    Write-Host "  Failed Jobs: $failedJobNames" -ForegroundColor White
+
+    # Record to learning memory for pattern analysis
+    Write-Host ""
+    Write-Host "==> Recording failure category to learning memory..." -ForegroundColor Yellow
+    Record-FailureCategoryToMemory -Category $failureCategory -PhaseId $phaseId -Details $failureDetails -MemoryPath $MemoryPath
+}
 
 # Check if PR is merged
 if ($pr.state -ne "MERGED") {

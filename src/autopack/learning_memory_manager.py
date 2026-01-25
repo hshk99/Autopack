@@ -22,6 +22,7 @@ Example:
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 from collections import Counter
@@ -36,6 +37,11 @@ DEFAULT_MEMORY_STRUCTURE: dict[str, Any] = {
     "improvement_outcomes": [],
     "success_patterns": [],
     "failure_patterns": [],
+    "failure_categories": {
+        "code_failure": {"count": 0, "phases": [], "last_seen": None},
+        "unrelated_ci": {"count": 0, "phases": [], "last_seen": None},
+        "flaky_test": {"count": 0, "phases": [], "last_seen": None},
+    },
     "wave_history": [],
     "last_updated": None,
 }
@@ -68,11 +74,7 @@ class LearningMemoryManager:
                 # Ensure all required keys exist (forward compatibility)
                 for key, default_value in DEFAULT_MEMORY_STRUCTURE.items():
                     if key not in data:
-                        data[key] = (
-                            default_value.copy()
-                            if isinstance(default_value, (list, dict))
-                            else default_value
-                        )
+                        data[key] = copy.deepcopy(default_value)
 
                 return data
             except json.JSONDecodeError as e:
@@ -87,10 +89,7 @@ class LearningMemoryManager:
                 )
 
         logger.info(f"[LearningMemory] Creating new memory at {self.memory_path}")
-        return {
-            key: (value.copy() if isinstance(value, (list, dict)) else value)
-            for key, value in DEFAULT_MEMORY_STRUCTURE.items()
-        }
+        return copy.deepcopy(DEFAULT_MEMORY_STRUCTURE)
 
     def record_improvement_outcome(
         self, imp_id: str, success: bool, details: dict[str, Any] | None = None
@@ -193,6 +192,105 @@ class LearningMemoryManager:
             List of failure pattern dictionaries with type, count, and pattern info.
         """
         return self._memory.get("failure_patterns", [])
+
+    def record_failure_category(
+        self, category: str, phase_id: str, details: dict[str, Any] | None = None
+    ) -> None:
+        """Record a CI failure category for pattern analysis.
+
+        Tracks failure categories (code_failure, unrelated_ci, flaky_test) along with
+        which phases trigger them. This enables smarter wave planning by learning
+        from historical failure patterns.
+
+        Args:
+            category: The failure category (code_failure, unrelated_ci, flaky_test).
+            phase_id: The phase or improvement ID that triggered the failure.
+            details: Optional dictionary with additional context (run_id, pr_number,
+                     failed_jobs, error_summary, etc.).
+        """
+        # Ensure failure_categories structure exists
+        if "failure_categories" not in self._memory:
+            self._memory["failure_categories"] = {
+                "code_failure": {"count": 0, "phases": [], "last_seen": None},
+                "unrelated_ci": {"count": 0, "phases": [], "last_seen": None},
+                "flaky_test": {"count": 0, "phases": [], "last_seen": None},
+            }
+
+        # Initialize category if not present (forward compatibility)
+        if category not in self._memory["failure_categories"]:
+            self._memory["failure_categories"][category] = {
+                "count": 0,
+                "phases": [],
+                "last_seen": None,
+            }
+
+        timestamp = datetime.now(timezone.utc).isoformat()
+        category_data = self._memory["failure_categories"][category]
+
+        # Update category stats
+        category_data["count"] += 1
+        category_data["last_seen"] = timestamp
+
+        # Track phase if not already recorded (avoid duplicates in phases list)
+        if phase_id and phase_id not in category_data["phases"]:
+            category_data["phases"].append(phase_id)
+
+        # Also record as a failure pattern entry for detailed tracking
+        failure_entry = {
+            "category": category,
+            "phase_id": phase_id,
+            "timestamp": timestamp,
+            "details": details or {},
+        }
+        self._memory["failure_patterns"].append(failure_entry)
+
+        logger.debug(f"[LearningMemory] Recorded {category} failure for phase {phase_id}")
+
+    def get_failure_category_patterns(self) -> dict[str, Any]:
+        """Return aggregated failure category patterns for wave planning.
+
+        Analyzes failure categories to provide insights for smarter wave planning.
+        Returns frequency by category, which phases trigger each category, and
+        recent trends.
+
+        Returns:
+            Dictionary with:
+            - categories: Dict of category stats (count, phases, last_seen)
+            - total_failures: Total number of recorded failures
+            - most_common: The most frequently occurring failure category
+            - phase_failure_map: Mapping of phases to their failure categories
+        """
+        failure_categories = self._memory.get("failure_categories", {})
+        failure_patterns = self._memory.get("failure_patterns", [])
+
+        # Calculate total failures
+        total_failures = sum(cat.get("count", 0) for cat in failure_categories.values())
+
+        # Find most common category
+        most_common = None
+        max_count = 0
+        for category, data in failure_categories.items():
+            if data.get("count", 0) > max_count:
+                max_count = data["count"]
+                most_common = category
+
+        # Build phase-to-failure-categories map
+        phase_failure_map: dict[str, list[str]] = {}
+        for entry in failure_patterns:
+            phase_id = entry.get("phase_id", "")
+            category = entry.get("category", "")
+            if phase_id and category:
+                if phase_id not in phase_failure_map:
+                    phase_failure_map[phase_id] = []
+                if category not in phase_failure_map[phase_id]:
+                    phase_failure_map[phase_id].append(category)
+
+        return {
+            "categories": failure_categories,
+            "total_failures": total_failures,
+            "most_common": most_common,
+            "phase_failure_map": phase_failure_map,
+        }
 
     def record_wave_completion(self, wave_size: int, completed: int, failed: int) -> None:
         """Record wave completion statistics for optimal sizing analysis.
@@ -462,10 +560,7 @@ class LearningMemoryManager:
 
     def clear(self) -> None:
         """Clear all memory (for testing or reset)."""
-        self._memory = {
-            key: (value.copy() if isinstance(value, (list, dict)) else value)
-            for key, value in DEFAULT_MEMORY_STRUCTURE.items()
-        }
+        self._memory = copy.deepcopy(DEFAULT_MEMORY_STRUCTURE)
         logger.info("[LearningMemory] Cleared all memory")
 
     @property

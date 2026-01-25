@@ -643,8 +643,8 @@ class TelemetryAnalyzer:
             f.write(f"**Generated**: {datetime.now(timezone.utc).isoformat()}\n\n")
 
             f.write("## Summary\n\n")
-            f.write(f"| Metric | Value |\n")
-            f.write(f"|--------|-------|\n")
+            f.write("| Metric | Value |\n")
+            f.write("|--------|-------|\n")
             f.write(f"| Total Runs | {stats.total_runs} |\n")
             f.write(f"| Successful Runs | {stats.successful_runs} |\n")
             f.write(f"| Failed Runs | {stats.failed_runs} |\n")
@@ -654,8 +654,8 @@ class TelemetryAnalyzer:
             f.write(f"| Avg Generation Time | {stats.avg_generation_time_ms:.0f}ms |\n")
 
             f.write("\n## Insights Processing\n\n")
-            f.write(f"| Metric | Value |\n")
-            f.write(f"|--------|-------|\n")
+            f.write("| Metric | Value |\n")
+            f.write("|--------|-------|\n")
             f.write(f"| Total Insights Processed | {stats.total_insights_processed} |\n")
             f.write(f"| Total Patterns Detected | {stats.total_patterns_detected} |\n")
 

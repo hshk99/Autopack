@@ -1,13 +1,11 @@
 """Tests for task generation success metrics (IMP-LOOP-004)."""
 
 import pytest
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 from autopack.models import TaskGenerationEvent
 from autopack.roadc.task_generator import (
     AutonomousTaskGenerator,
-    TaskGenerationResult,
     _emit_task_generation_event,
 )
 from autopack.telemetry.analyzer import TelemetryAnalyzer, TaskGenerationStats, RankedIssue
@@ -143,7 +141,7 @@ class TestAutonomousTaskGeneratorMetrics:
             regression_protector=mock_regression_protector,
         )
 
-        result = generator.generate_tasks(
+        generator.generate_tasks(
             max_tasks=5,
             min_confidence=0.5,
             run_id="test-run-123",

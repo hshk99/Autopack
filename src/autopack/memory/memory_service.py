@@ -31,6 +31,159 @@ from .qdrant_store import QdrantStore, QDRANT_AVAILABLE
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# IMP-LOOP-002: Telemetry Feedback Validation
+# ---------------------------------------------------------------------------
+
+
+class TelemetryFeedbackValidationError(Exception):
+    """Raised when telemetry feedback data fails validation."""
+
+    pass
+
+
+class TelemetryFeedbackValidator:
+    """Validator for telemetry feedback data before memory storage.
+
+    IMP-LOOP-002: Ensures data integrity and proper feedback propagation
+    between telemetry collection and memory service.
+    """
+
+    # Required fields for telemetry insights
+    REQUIRED_FIELDS = {"insight_type", "description"}
+
+    # Valid insight types that can be stored
+    VALID_INSIGHT_TYPES = {"cost_sink", "failure_mode", "retry_cause", "unknown"}
+
+    # Maximum lengths for string fields
+    MAX_DESCRIPTION_LENGTH = 10000
+    MAX_SUGGESTED_ACTION_LENGTH = 5000
+
+    @classmethod
+    def validate_insight(
+        cls,
+        insight: Dict[str, Any],
+        strict: bool = False,
+    ) -> tuple[bool, List[str]]:
+        """Validate a telemetry insight before memory storage.
+
+        Args:
+            insight: The telemetry insight dictionary to validate.
+            strict: If True, raise exception on validation failure.
+                   If False, return validation result with error messages.
+
+        Returns:
+            Tuple of (is_valid, error_messages).
+
+        Raises:
+            TelemetryFeedbackValidationError: If strict=True and validation fails.
+        """
+        errors: List[str] = []
+
+        # Check if insight is a dict
+        if not isinstance(insight, dict):
+            errors.append(f"Insight must be a dict, got {type(insight).__name__}")
+            if strict:
+                raise TelemetryFeedbackValidationError("; ".join(errors))
+            return False, errors
+
+        # Check required fields
+        for field in cls.REQUIRED_FIELDS:
+            if field not in insight:
+                errors.append(f"Missing required field: {field}")
+            elif insight[field] is None:
+                errors.append(f"Required field '{field}' cannot be None")
+
+        # Validate insight_type
+        insight_type = insight.get("insight_type")
+        if insight_type is not None:
+            if not isinstance(insight_type, str):
+                errors.append(f"insight_type must be a string, got {type(insight_type).__name__}")
+            elif insight_type not in cls.VALID_INSIGHT_TYPES:
+                # Log warning but don't fail - allow extension
+                logger.warning(
+                    f"[IMP-LOOP-002] Unknown insight_type '{insight_type}', "
+                    f"valid types: {cls.VALID_INSIGHT_TYPES}"
+                )
+
+        # Validate description length
+        description = insight.get("description")
+        if description is not None:
+            if not isinstance(description, str):
+                errors.append(f"description must be a string, got {type(description).__name__}")
+            elif len(description) > cls.MAX_DESCRIPTION_LENGTH:
+                errors.append(
+                    f"description exceeds max length ({len(description)} > {cls.MAX_DESCRIPTION_LENGTH})"
+                )
+
+        # Validate suggested_action if present
+        suggested_action = insight.get("suggested_action")
+        if suggested_action is not None:
+            if not isinstance(suggested_action, str):
+                errors.append(
+                    f"suggested_action must be a string, got {type(suggested_action).__name__}"
+                )
+            elif len(suggested_action) > cls.MAX_SUGGESTED_ACTION_LENGTH:
+                errors.append(
+                    f"suggested_action exceeds max length "
+                    f"({len(suggested_action)} > {cls.MAX_SUGGESTED_ACTION_LENGTH})"
+                )
+
+        # Validate optional string fields
+        optional_string_fields = ["phase_id", "run_id", "project_id"]
+        for field in optional_string_fields:
+            value = insight.get(field)
+            if value is not None and not isinstance(value, str):
+                errors.append(f"{field} must be a string, got {type(value).__name__}")
+
+        is_valid = len(errors) == 0
+
+        if strict and not is_valid:
+            raise TelemetryFeedbackValidationError("; ".join(errors))
+
+        return is_valid, errors
+
+    @classmethod
+    def sanitize_insight(cls, insight: Dict[str, Any]) -> Dict[str, Any]:
+        """Sanitize a telemetry insight before storage.
+
+        Truncates oversized fields and sets defaults for missing optional fields.
+
+        Args:
+            insight: The telemetry insight to sanitize.
+
+        Returns:
+            Sanitized copy of the insight.
+        """
+        if not isinstance(insight, dict):
+            return {"insight_type": "unknown", "description": str(insight)}
+
+        sanitized = dict(insight)
+
+        # Ensure required fields have defaults
+        if "insight_type" not in sanitized or sanitized["insight_type"] is None:
+            sanitized["insight_type"] = "unknown"
+
+        if "description" not in sanitized or sanitized["description"] is None:
+            sanitized["description"] = ""
+
+        # Truncate oversized fields
+        if isinstance(sanitized.get("description"), str):
+            if len(sanitized["description"]) > cls.MAX_DESCRIPTION_LENGTH:
+                sanitized["description"] = (
+                    sanitized["description"][: cls.MAX_DESCRIPTION_LENGTH - 3] + "..."
+                )
+
+        if isinstance(sanitized.get("suggested_action"), str):
+            if len(sanitized["suggested_action"]) > cls.MAX_SUGGESTED_ACTION_LENGTH:
+                sanitized["suggested_action"] = (
+                    sanitized["suggested_action"][: cls.MAX_SUGGESTED_ACTION_LENGTH - 3] + "..."
+                )
+
+        return sanitized
+
+
 # Collection names (per plan)
 COLLECTION_CODE_DOCS = "code_docs"
 COLLECTION_RUN_SUMMARIES = "run_summaries"
@@ -802,21 +955,41 @@ class MemoryService:
         self,
         insight: Dict[str, Any],
         project_id: Optional[str] = None,
+        validate: bool = True,
+        strict: bool = False,
     ) -> str:
         """Write a telemetry insight to appropriate memory collection.
 
         This is a convenience method that routes to write_phase_summary, write_error,
         or write_doctor_hint based on insight type.
 
+        IMP-LOOP-002: Added validation support to ensure data integrity before storage.
+
         Args:
             insight: TelemetryInsight object to persist
             project_id: Optional project ID for namespacing
+            validate: If True, validate insight before storage (default: True)
+            strict: If True with validate=True, raise exception on validation failure
 
         Returns:
-            Document ID of written insight
+            Document ID of written insight, or empty string if validation fails
+
+        Raises:
+            TelemetryFeedbackValidationError: If strict=True and validation fails
         """
         if not self.enabled:
             return ""
+
+        # IMP-LOOP-002: Validate telemetry insight before storage
+        if validate:
+            is_valid, errors = TelemetryFeedbackValidator.validate_insight(insight, strict=strict)
+            if not is_valid:
+                logger.warning(
+                    f"[IMP-LOOP-002] Telemetry insight validation failed: {errors}. "
+                    f"Sanitizing and proceeding."
+                )
+                # Sanitize the insight to make it storable
+                insight = TelemetryFeedbackValidator.sanitize_insight(insight)
 
         insight_type = insight.get("insight_type", "unknown")
         description = insight.get("description", "")

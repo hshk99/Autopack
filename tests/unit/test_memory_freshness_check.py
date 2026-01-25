@@ -6,7 +6,7 @@ for task generation, ensuring only recent and relevant memories are used.
 
 import pytest
 from datetime import datetime, timezone, timedelta
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from autopack.memory.memory_service import (
     MemoryService,

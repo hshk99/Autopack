@@ -23,9 +23,8 @@ Rationale:
 """
 
 import json
-import sys
 from pathlib import Path
-from typing import List, Dict, Any, Set
+from typing import List, Dict, Any
 
 BASELINE_PATH = Path("security/baselines/codeql.python.json")
 

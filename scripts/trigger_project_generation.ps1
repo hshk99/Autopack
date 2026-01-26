@@ -140,6 +140,59 @@ function Write-Status {
     Write-Host "[Trigger] $Message" -ForegroundColor $Color
 }
 
+# Function to log structured decisions with reasoning (IMP-LOG-001)
+function Write-DecisionLog {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$DecisionType,
+        [Parameter(Mandatory=$true)]
+        [hashtable]$Context,
+        [Parameter(Mandatory=$true)]
+        [string[]]$OptionsConsidered,
+        [Parameter(Mandatory=$true)]
+        [string]$ChosenOption,
+        [Parameter(Mandatory=$true)]
+        [string]$Reasoning,
+        [Parameter(Mandatory=$false)]
+        [string]$Outcome = ""
+    )
+
+    $contextJson = $Context | ConvertTo-Json -Compress
+    $optionsJson = $OptionsConsidered | ConvertTo-Json -Compress
+    $outcomeArg = if ($Outcome) { "outcome='$($Outcome -replace "'", "''")'" } else { "outcome=None" }
+
+    $pythonScript = @"
+import sys
+import json
+sys.path.insert(0, 'src')
+from decision_logging.decision_logger import get_decision_logger
+
+decision_type = '$DecisionType'
+context = json.loads('$($contextJson -replace "'", "''")')
+options = json.loads('$($optionsJson -replace "'", "''")')
+chosen = '$($ChosenOption -replace "'", "''")'
+reasoning = '$($Reasoning -replace "'", "''")'
+$outcomeArg
+
+logger = get_decision_logger()
+logger.create_and_log_decision(
+    decision_type=decision_type,
+    context=context,
+    options_considered=options,
+    chosen_option=chosen,
+    reasoning=reasoning,
+    outcome=outcome
+)
+"@
+
+    try {
+        $env:PYTHONPATH = "src"
+        $null = python -c $pythonScript 2>&1
+    } catch {
+        # Silently continue if decision logging fails - don't block main workflow
+    }
+}
+
 function Write-Warning {
     param([string]$Message)
     Write-Host "[Warning] $Message" -ForegroundColor Yellow
@@ -247,6 +300,15 @@ print(len(imps))
         Write-Status "Autonomous discovery found $impCount potential improvements" -Color Green
         Write-Status "Output: $AutonomousDiscoveryOutputPath" -Color Green
 
+        # Log the autonomous discovery decision (IMP-LOG-001)
+        Write-DecisionLog -DecisionType "autonomous_discovery" -Context @{
+            imp_count = $impCount
+            output_path = $AutonomousDiscoveryOutputPath
+            sources = "failure_patterns,optimization_suggestions,metrics_anomalies"
+        } -OptionsConsidered @("discover_from_failures", "discover_from_optimizations", "discover_from_anomalies", "discover_all") `
+          -ChosenOption "discover_all" `
+          -Reasoning "Ran comprehensive discovery from all sources, found $impCount improvements"
+
         return @{
             HasDiscovery = $true
             DiscoveryPath = $AutonomousDiscoveryOutputPath
@@ -325,6 +387,16 @@ else:
 
         Write-Status "Autonomous wave planning grouped $impCount IMPs into $waveCount waves" -Color Green
         Write-Status "Output: $AutonomousWavePlanOutputPath" -Color Green
+
+        # Log the wave planning decision (IMP-LOG-001)
+        Write-DecisionLog -DecisionType "wave_planning" -Context @{
+            wave_count = $waveCount
+            imp_count = $impCount
+            output_path = $AutonomousWavePlanOutputPath
+            discovered_imps_path = $DiscoveredImpsPath
+        } -OptionsConsidered @("single_wave", "dependency_based_waves", "parallel_optimized_waves") `
+          -ChosenOption "parallel_optimized_waves" `
+          -Reasoning "Grouped $impCount IMPs into $waveCount waves optimized for maximum parallelization based on dependencies and file conflicts"
 
         return @{
             HasWavePlan = $true

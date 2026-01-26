@@ -215,6 +215,85 @@ def handle_ocr_connection_error(
     )
 
 
+def generate_escalation_report(
+    slot_id: int,
+    level: int,
+    error_message: str,
+    phase_id: str | None = None,
+    imp_id: str | None = None,
+    error_history: list[dict] | None = None,
+    ocr_screenshot_path: str | None = None,
+) -> dict:
+    """Generate context-enriched escalation report.
+
+    Args:
+        slot_id: The slot experiencing the issue
+        level: Escalation level (1-4)
+        error_message: Primary error description
+        phase_id: Current phase ID being executed
+        imp_id: Improvement ID being implemented
+        error_history: List of recent errors for this slot
+        ocr_screenshot_path: Path to OCR capture if available
+
+    Returns:
+        Enriched escalation report with full context
+    """
+    from datetime import datetime
+
+    report = {
+        "timestamp": datetime.now().isoformat(),
+        "slot_id": slot_id,
+        "level": level,
+        "message": error_message,
+        "context": {
+            "phase_id": phase_id,
+            "imp_id": imp_id,
+            "error_count": len(error_history) if error_history else 0,
+            "recent_errors": (error_history or [])[-5:],  # Last 5 errors
+            "ocr_screenshot": ocr_screenshot_path,
+        },
+        "analysis": {
+            "pattern_match": None,  # To be filled by analysis engine
+            "suggested_root_cause": None,
+            "recommended_action": None,
+        },
+    }
+
+    # Try to get analysis insights if available
+    try:
+        from telemetry.unified_event_log import UnifiedEventLog
+
+        event_log = UnifiedEventLog("telemetry_events.json")
+        events = event_log.query({"slot_id": slot_id})
+
+        # Find matching patterns from recent events
+        if events:
+            error_types: dict[str, int] = {}
+            for event in events[-20:]:  # Look at last 20 events
+                event_type = getattr(event, "event_type", None)
+                if event_type:
+                    error_types[event_type] = error_types.get(event_type, 0) + 1
+
+            # Identify most common error pattern
+            if error_types:
+                most_common = max(error_types.items(), key=lambda x: x[1])
+                if most_common[1] >= 3:  # Pattern threshold
+                    report["analysis"]["pattern_match"] = most_common[0]
+                    report["analysis"]["suggested_root_cause"] = (
+                        f"Recurring {most_common[0]} events detected "
+                        f"({most_common[1]} occurrences)"
+                    )
+                    report["analysis"][
+                        "recommended_action"
+                    ] = f"Investigate {most_common[0]} pattern for slot_{slot_id}"
+    except ImportError:
+        pass  # Telemetry module not available
+    except Exception:
+        pass  # Analysis failed, continue without insights
+
+    return report
+
+
 if __name__ == "__main__":
     # Example usage
     handler = ConnectionErrorHandler(max_retries=3, slot=1)

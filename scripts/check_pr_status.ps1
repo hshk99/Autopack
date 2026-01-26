@@ -383,6 +383,35 @@ logger.create_and_log_decision(
     }
 }
 
+# Function to record performance metrics
+function Write-PerformanceMetric {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$MetricType,
+        [Parameter(Mandatory=$true)]
+        [hashtable]$Args
+    )
+
+    $argsJson = $Args | ConvertTo-Json -Compress
+
+    $pythonScript = @"
+import sys
+import json
+sys.path.insert(0, 'src')
+from telemetry.performance_metrics import record_metric_from_ps
+
+args = json.loads('$($argsJson -replace "'", "''")')
+record_metric_from_ps('$MetricType', **args)
+"@
+
+    try {
+        $env:PYTHONPATH = "src"
+        $null = python -c $pythonScript 2>&1
+    } catch {
+        # Silently continue if performance metrics fail - don't block main workflow
+    }
+}
+
 # Check if gh CLI is available
 try {
     $null = gh --version
@@ -390,6 +419,9 @@ try {
     Write-Host "Error: GitHub CLI (gh) is not installed or not in PATH" -ForegroundColor Red
     exit 1
 }
+
+# Record PR check start time for CI wait tracking
+$prCheckStartTime = Get-Date
 
 Write-Host "==> Checking PR #$PrNumber status..." -ForegroundColor Yellow
 
@@ -486,6 +518,18 @@ if ($pr.state -ne "MERGED") {
     Write-Host ""
     Write-Host "PR #$PrNumber is not merged (state: $($pr.state))" -ForegroundColor Yellow
     Write-Host "No effectiveness tracking needed yet." -ForegroundColor Yellow
+
+    # Record CI wait time for non-merged PRs (pending or with failures)
+    $prCheckEndTime = Get-Date
+    $ciWaitSeconds = ($prCheckEndTime - $prCheckStartTime).TotalSeconds
+    $ciOutcome = if ($failedChecks.Count -gt 0) { "failure" } else { "pending" }
+
+    Write-PerformanceMetric -MetricType "ci" -Args @{
+        pr_number = $pr.number
+        wait_seconds = $ciWaitSeconds
+        outcome = $ciOutcome
+    }
+
     exit 0
 }
 
@@ -604,6 +648,25 @@ try {
     $result = python -c $pythonScript 2>&1
     if ($LASTEXITCODE -eq 0) {
         Write-Host $result -ForegroundColor Green
+
+        # Record CI wait time for merged PRs (success)
+        $prCheckEndTime = Get-Date
+        $ciWaitSeconds = ($prCheckEndTime - $prCheckStartTime).TotalSeconds
+
+        Write-PerformanceMetric -MetricType "ci" -Args @{
+            pr_number = $pr.number
+            wait_seconds = $ciWaitSeconds
+            outcome = "success"
+        }
+
+        # Record phase duration based on PR merge time
+        Write-PerformanceMetric -MetricType "phase" -Args @{
+            phase_id = $impId
+            start = $pr.createdAt
+            end = $pr.mergedAt
+            imp_id = $impId
+        }
+
         Write-Host ""
         Write-Host "==========================================" -ForegroundColor Cyan
         Write-Host "Effectiveness recorded successfully!" -ForegroundColor Green

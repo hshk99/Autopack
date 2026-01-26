@@ -8,8 +8,12 @@ Implements IMP-069: Add CASCADE Delete on Foreign Keys
 """
 
 import pytest
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
-from src.autopack.models import (
+from autopack.database import Base
+from autopack.models import (
     Run,
     Phase,
     Tier,
@@ -22,39 +26,40 @@ from src.autopack.models import (
 )
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def db_session():
-    """Provide a database session for testing."""
-    from sqlalchemy.exc import IntegrityError, ProgrammingError
-    from src.autopack.database import SessionLocal, Base, engine
+    """Provide an isolated database session with foreign keys enabled.
 
-    # Create tables - handle race condition when parallel workers try to create
-    # PostgreSQL ENUM types simultaneously (e.g., 'runstate' enum)
-    try:
-        Base.metadata.create_all(bind=engine)
-    except (IntegrityError, ProgrammingError) as e:
-        # Ignore "duplicate key value violates unique constraint" errors for
-        # PostgreSQL type creation - this happens when parallel test workers
-        # race to create the same ENUM type. The type already exists, so we
-        # can safely continue.
-        error_msg = str(e).lower()
-        if "pg_type_typname_nsp_index" in error_msg or "already exists" in error_msg:
-            pass  # Type already created by another worker, safe to continue
-        else:
-            raise
+    This fixture creates a fresh in-memory SQLite database for each test,
+    with foreign key constraints enabled (required for CASCADE delete behavior).
+    This ensures test isolation for parallel execution with pytest-xdist.
+    """
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
 
     # Enable foreign key constraints for SQLite (required for CASCADE deletes)
-    if engine.dialect.name == "sqlite":
-        with engine.connect() as conn:
-            conn.execute(__import__("sqlalchemy").text("PRAGMA foreign_keys=ON"))
-            conn.commit()
+    # This must be done on each connection since SQLite disables foreign keys by default
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
-    session = SessionLocal()
+    # Create tables
+    Base.metadata.create_all(bind=engine)
+
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    session = TestingSessionLocal()
+
     try:
         yield session
     finally:
-        session.rollback()
         session.close()
+        Base.metadata.drop_all(bind=engine)
+        engine.dispose()
 
 
 class TestCascadeDeletePhases:

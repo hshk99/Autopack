@@ -127,6 +127,7 @@ class TestContextInjector:
         assert injection.successful_strategies == []
         assert injection.doctor_hints == []
         assert injection.relevant_insights == []
+        assert injection.discovery_insights == []  # IMP-DISC-001
         assert injection.total_token_estimate == 0
 
     def test_get_context_for_phase_handles_exception(self, mock_memory_service):
@@ -151,6 +152,7 @@ class TestContextInjector:
             successful_strategies=["Use async for I/O", "Implement caching"],
             doctor_hints=["Check rate limits", "Monitor memory usage"],
             relevant_insights=["Auth uses OAuth 2.0", "DB pool max 20"],
+            discovery_insights=[],  # IMP-DISC-001
             total_token_estimate=150,
         )
 
@@ -181,6 +183,7 @@ class TestContextInjector:
             successful_strategies=[],
             doctor_hints=[],
             relevant_insights=[],
+            discovery_insights=[],  # IMP-DISC-001
             total_token_estimate=0,
         )
 
@@ -196,6 +199,7 @@ class TestContextInjector:
             successful_strategies=[],
             doctor_hints=["Check limits"],
             relevant_insights=[],
+            discovery_insights=[],  # IMP-DISC-001
             total_token_estimate=50,
         )
 
@@ -232,6 +236,7 @@ class TestContextInjector:
             successful_strategies=["strategy1"],
             doctor_hints=["hint1"],
             relevant_insights=["insight1"],
+            discovery_insights=["discovery1"],  # IMP-DISC-001
             total_token_estimate=100,
         )
 
@@ -239,6 +244,7 @@ class TestContextInjector:
         assert injection.successful_strategies == ["strategy1"]
         assert injection.doctor_hints == ["hint1"]
         assert injection.relevant_insights == ["insight1"]
+        assert injection.discovery_insights == ["discovery1"]  # IMP-DISC-001
         assert injection.total_token_estimate == 100
 
     def test_format_for_prompt_truncates_long_content(self):
@@ -250,6 +256,7 @@ class TestContextInjector:
             successful_strategies=[],
             doctor_hints=[],
             relevant_insights=[],
+            discovery_insights=[],  # IMP-DISC-001
             total_token_estimate=300,
         )
 

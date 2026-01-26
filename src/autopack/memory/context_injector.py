@@ -22,6 +22,7 @@ class ContextInjection:
     successful_strategies: List[str]
     doctor_hints: List[str]
     relevant_insights: List[str]
+    discovery_insights: List[str]  # IMP-DISC-001: Discovery context from research modules
     total_token_estimate: int
 
 
@@ -67,6 +68,7 @@ class ContextInjector:
                 successful_strategies=[],
                 doctor_hints=[],
                 relevant_insights=[],
+                discovery_insights=[],
                 total_token_estimate=0,
             )
 
@@ -119,14 +121,28 @@ class ContextInjector:
                 c.get("payload", {}).get("content", c.get("content", ""))[:200] for c in code_result
             ]
 
+            # IMP-DISC-001: Retrieve discovery context from research modules
+            discovery_insights = self.get_discovery_context(
+                phase_type=phase_type,
+                current_goal=current_goal,
+                limit=3,
+            )
+
             # Estimate total tokens
-            all_content = past_errors + successful_strategies + doctor_hints + relevant_insights
+            all_content = (
+                past_errors
+                + successful_strategies
+                + doctor_hints
+                + relevant_insights
+                + discovery_insights
+            )
             total_token_estimate = self._estimate_tokens(all_content)
 
             logger.info(
                 f"[ContextInjector] Retrieved context for {phase_type}: "
                 f"{len(past_errors)} errors, {len(successful_strategies)} strategies, "
-                f"{len(doctor_hints)} hints, {len(relevant_insights)} insights "
+                f"{len(doctor_hints)} hints, {len(relevant_insights)} insights, "
+                f"{len(discovery_insights)} discovery insights "
                 f"({total_token_estimate} tokens estimated)"
             )
 
@@ -135,6 +151,7 @@ class ContextInjector:
                 successful_strategies=successful_strategies,
                 doctor_hints=doctor_hints,
                 relevant_insights=relevant_insights,
+                discovery_insights=discovery_insights,
                 total_token_estimate=total_token_estimate,
             )
 
@@ -145,6 +162,7 @@ class ContextInjector:
                 successful_strategies=[],
                 doctor_hints=[],
                 relevant_insights=[],
+                discovery_insights=[],
                 total_token_estimate=0,
             )
 
@@ -182,6 +200,12 @@ class ContextInjector:
             if insight_items:
                 sections.append(f"**Relevant Historical Insights:**\n{insight_items}")
 
+        # IMP-DISC-001: Include discovery insights from research modules
+        if injection.discovery_insights:
+            discovery_items = "\n".join(f"- {d[:150]}" for d in injection.discovery_insights if d)
+            if discovery_items:
+                sections.append(f"**Discovery Insights (External Sources):**\n{discovery_items}")
+
         return "\n\n".join(sections) if sections else ""
 
     def _estimate_tokens(self, content_list: List[str]) -> int:
@@ -197,3 +221,48 @@ class ContextInjector:
         """
         total_chars = sum(len(str(item)) for item in content_list if item)
         return max(0, total_chars // 4)
+
+    def get_discovery_context(
+        self,
+        phase_type: str,
+        current_goal: str,
+        limit: int = 3,
+    ) -> List[str]:
+        """Retrieve discovery context from research/discovery modules (IMP-DISC-001).
+
+        Queries the discovery system (GitHub, Reddit, Web sources) for relevant
+        solutions and insights that can inform the current phase execution.
+
+        Args:
+            phase_type: Type of phase (e.g., 'build', 'test', 'deploy')
+            current_goal: The goal/description for this phase
+            limit: Maximum number of discovery insights to return
+
+        Returns:
+            List of discovery insight strings
+        """
+        try:
+            from ..roadc.discovery_context_merger import DiscoveryContextMerger
+
+            merger = DiscoveryContextMerger()
+            merged = merger.merge_sources(
+                query=f"{phase_type} {current_goal}",
+                limit=limit,
+            )
+            ranked = merger.rank_by_relevance(merged, current_goal)
+
+            logger.debug(
+                f"[ContextInjector] Retrieved {len(ranked)} discovery insights "
+                f"for phase={phase_type}"
+            )
+            return ranked[:limit]
+
+        except ImportError:
+            logger.debug(
+                "[ContextInjector] DiscoveryContextMerger not available, "
+                "skipping discovery context"
+            )
+            return []
+        except Exception as e:
+            logger.warning(f"[ContextInjector] Failed to retrieve discovery context: {e}")
+            return []

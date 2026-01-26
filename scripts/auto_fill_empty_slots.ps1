@@ -121,6 +121,75 @@ function Get-AvailableTasks {
     }
 }
 
+# Function to prioritize tasks using adaptive prioritization
+function Get-PrioritizedTasks {
+    param(
+        [Parameter(Mandatory=$true)]
+        [array]$Tasks,
+        [Parameter(Mandatory=$true)]
+        [int]$AvailableSlots
+    )
+
+    if ($Tasks.Count -eq 0) {
+        return @()
+    }
+
+    # Convert tasks to JSON for Python
+    $tasksJson = $Tasks | ConvertTo-Json -Compress -Depth 10
+    $tasksJson = $tasksJson -replace '"', '\"'
+
+    $pythonScript = @"
+import sys
+import json
+sys.path.insert(0, 'src')
+
+from generation.task_prioritizer import TaskPrioritizer
+
+try:
+    from memory.metrics_db import MetricsDatabase
+    from memory.failure_analyzer import FailureAnalyzer
+    db = MetricsDatabase()
+    analyzer = FailureAnalyzer(db)
+except Exception:
+    db = None
+    analyzer = None
+
+tasks = json.loads("$tasksJson")
+prioritizer = TaskPrioritizer(metrics_db=db, failure_analyzer=analyzer)
+prioritized = prioritizer.prioritize(tasks, $AvailableSlots)
+
+# Output as JSON array of imp_ids in priority order
+result = [{"id": t.imp_id or t.phase_id, "score": t.score} for t in prioritized]
+print(json.dumps(result))
+"@
+
+    try {
+        $env:PYTHONPATH = "src"
+        $result = python -c $pythonScript 2>&1
+
+        if ($LASTEXITCODE -eq 0 -and $result) {
+            $priorityOrder = $result | ConvertFrom-Json
+            Write-Host "  Task prioritization applied (adaptive scoring)" -ForegroundColor Cyan
+
+            # Reorder tasks based on priority
+            $orderedTasks = @()
+            foreach ($item in $priorityOrder) {
+                $task = $Tasks | Where-Object { $_.id -eq $item.id } | Select-Object -First 1
+                if ($task) {
+                    $orderedTasks += $task
+                    Write-Host "    - $($task.id): score $([math]::Round($item.score, 1))" -ForegroundColor Gray
+                }
+            }
+            return $orderedTasks
+        }
+    } catch {
+        Write-Host "  Warning: Prioritization failed, using FIFO order: $_" -ForegroundColor Yellow
+    }
+
+    # Fallback to original order
+    return $Tasks
+}
+
 # Function to fill a slot with a task
 function Fill-Slot {
     param(
@@ -218,18 +287,22 @@ if ($availableTasks.Count -eq 0) {
 Write-Host "Found $($availableTasks.Count) available task(s)" -ForegroundColor Cyan
 Write-Host ""
 
+Write-Host "==> Prioritizing tasks for optimal slot assignment..." -ForegroundColor Yellow
+$prioritizedTasks = Get-PrioritizedTasks -Tasks $availableTasks -AvailableSlots $emptySlots.Count
+Write-Host ""
+
 Write-Host "==> Filling empty slots..." -ForegroundColor Yellow
 
 $filledCount = 0
 $taskIndex = 0
 
 foreach ($slotNum in $emptySlots) {
-    if ($taskIndex -ge $availableTasks.Count) {
+    if ($taskIndex -ge $prioritizedTasks.Count) {
         Write-Host "  No more tasks available to fill remaining slots" -ForegroundColor Yellow
         break
     }
 
-    $task = $availableTasks[$taskIndex]
+    $task = $prioritizedTasks[$taskIndex]
     $success = Fill-Slot -SlotNumber $slotNum -Task $task -DryRun:$DryRun
 
     if ($success) {
@@ -249,6 +322,7 @@ Write-TelemetryEvent -EventType "slot_scan_completed" -Data @{
     empty_count = $emptySlots.Count
     filled_count = $filledCount
     dry_run = $DryRun.IsPresent
+    prioritization_used = $true
 }
 
 exit 0

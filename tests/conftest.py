@@ -21,6 +21,36 @@ for path in (project_root, src_path, backend_path):
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
 
+
+def pytest_configure(config):
+    """Configure pytest - runs before test collection in all workers.
+
+    This hook ensures sys.path is set up correctly for pytest-xdist parallel execution.
+    Essential for memory module tests that import from src/memory.
+    """
+    _project_root = Path(__file__).resolve().parent.parent
+    _src_path = _project_root / "src"
+    _src_path_str = str(_src_path)
+    if _src_path_str not in sys.path:
+        sys.path.insert(0, _src_path_str)
+
+
+# Hook that runs at the very start of pytest collection - before any imports
+def pytest_load_initial_conftests(early_config, parser, args):
+    """Earliest possible hook - runs before conftest collection.
+
+    This is critical for pytest-xdist workers to have correct sys.path
+    before any test modules are imported.
+    """
+    import sys
+    from pathlib import Path
+
+    _project_root = Path(__file__).resolve().parent.parent
+    _src_path = _project_root / "src"
+    _src_path_str = str(_src_path)
+    if _src_path_str not in sys.path:
+        sys.path.insert(0, _src_path_str)
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

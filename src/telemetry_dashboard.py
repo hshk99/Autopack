@@ -397,8 +397,8 @@ class TelemetryDashboard:
             [
                 "### Nudge Activity",
                 "",
-                f"| Metric | Value |",
-                f"|--------|-------|",
+                "| Metric | Value |",
+                "|--------|-------|",
                 f"| Total Nudges | {nudge['total']} |",
                 f"| Failed Nudges | {nudge['failed']} |",
                 f"| Escalated Nudges | {nudge['escalated']} |",
@@ -414,8 +414,8 @@ class TelemetryDashboard:
             [
                 "### CI Pipeline",
                 "",
-                f"| Metric | Value |",
-                f"|--------|-------|",
+                "| Metric | Value |",
+                "|--------|-------|",
                 f"| Total Runs | {ci['total_runs']} |",
                 f"| Successes | {ci['successes']} |",
                 f"| Failures | {ci['failures']} |",
@@ -430,8 +430,8 @@ class TelemetryDashboard:
             [
                 "### Slot Activity",
                 "",
-                f"| Metric | Value |",
-                f"|--------|-------|",
+                "| Metric | Value |",
+                "|--------|-------|",
                 f"| Total Events | {slot['total_events']} |",
                 f"| Failures | {slot['failures']} |",
                 "",

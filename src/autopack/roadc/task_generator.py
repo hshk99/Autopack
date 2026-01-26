@@ -1,7 +1,7 @@
 """ROAD-C: Autonomous Task Generator - converts insights to tasks."""
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
 
@@ -103,6 +103,10 @@ class GeneratedTask:
     created_at: datetime
     run_id: Optional[str] = None  # Run that generated this task
     status: str = "pending"  # pending, in_progress, completed, skipped, failed
+    # IMP-LOOP-005: Retry tracking fields
+    retry_count: int = 0
+    max_retries: int = 3
+    failure_runs: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -717,18 +721,23 @@ Analyze the pattern and implement a fix to prevent recurrence.
     def mark_task_status(
         self,
         task_id: str,
-        status: str,
+        status: Optional[str] = None,
         executed_in_run_id: Optional[str] = None,
-    ) -> bool:
-        """Update task status in database (IMP-ARCH-012).
+        increment_retry: bool = False,
+        failure_run_id: Optional[str] = None,
+    ) -> str:
+        """Update task status in database (IMP-ARCH-012, IMP-LOOP-005).
 
         Args:
             task_id: ID of task to update
-            status: New status (pending, in_progress, completed, skipped, failed)
+            status: New status (pending, in_progress, completed, skipped, failed).
+                    If None and increment_retry=True, status is determined by retry logic.
             executed_in_run_id: Run ID that executed/is executing this task
+            increment_retry: If True, increment retry_count and determine status based on retries
+            failure_run_id: Run ID to add to failure_runs list (IMP-LOOP-005)
 
         Returns:
-            True if task was updated, False if not found
+            Result string: "updated", "retry", "failed", or "not_found"
         """
         from ..models import GeneratedTaskModel
         from ..database import SessionLocal
@@ -740,23 +749,58 @@ Analyze the pattern and implement a fix to prevent recurrence.
 
             if not db_task:
                 logger.warning(f"[ROAD-C] Task {task_id} not found for status update")
-                return False
+                return "not_found"
 
-            db_task.status = status
+            result = "updated"
+
+            # IMP-LOOP-005: Handle retry logic when increment_retry is True
+            if increment_retry:
+                db_task.retry_count = (db_task.retry_count or 0) + 1
+
+                # Track the failed run
+                if failure_run_id:
+                    failure_runs = db_task.failure_runs or []
+                    if failure_run_id not in failure_runs:
+                        failure_runs.append(failure_run_id)
+                    db_task.failure_runs = failure_runs
+
+                # Determine status based on retry count
+                max_retries = db_task.max_retries or 3
+                if db_task.retry_count >= max_retries:
+                    db_task.status = "failed"
+                    db_task.failure_reason = (
+                        f"Exceeded max retries ({max_retries}). "
+                        f"Failed in runs: {', '.join(db_task.failure_runs or [])}"
+                    )
+                    result = "failed"
+                    logger.info(
+                        f"[IMP-LOOP-005] Task {task_id} marked as failed "
+                        f"(retry {db_task.retry_count}/{max_retries})"
+                    )
+                else:
+                    db_task.status = "pending"  # Return to pending for retry
+                    result = "retry"
+                    logger.info(
+                        f"[IMP-LOOP-005] Task {task_id} returned to pending for retry "
+                        f"({db_task.retry_count}/{max_retries})"
+                    )
+            elif status is not None:
+                db_task.status = status
+                if status == "completed":
+                    db_task.completed_at = datetime.now()
+
             db_task.updated_at = datetime.now()  # Track status change time (IMP-REL-003)
-            if status == "completed":
-                db_task.completed_at = datetime.now()
             if executed_in_run_id:
                 db_task.executed_in_run_id = executed_in_run_id
 
             session.commit()
-            logger.debug(f"[ROAD-C] Updated task {task_id} status to {status}")
-            return True
+            logger.debug(f"[ROAD-C] Updated task {task_id} status to {db_task.status}")
+            return result
 
         except Exception as e:
             session.rollback()
             logger.error(f"[ROAD-C] Failed to update task status: {e}")
-            return False
+            return "not_found"
         finally:
             session.close()
 

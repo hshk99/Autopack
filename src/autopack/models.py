@@ -1137,6 +1137,12 @@ class GeneratedTaskModel(Base):
     executed_in_run_id = Column(String(50), nullable=True)  # Run that executed this task
     updated_at = Column(DateTime, nullable=True)  # Last status update time (IMP-REL-003)
     failure_reason = Column(Text, nullable=True)  # Reason for failure (IMP-REL-003)
+    # IMP-LOOP-005: Retry tracking columns
+    retry_count = Column(Integer, nullable=False, default=0)
+    max_retries = Column(Integer, nullable=False, default=3)
+    failure_runs = Column(
+        JSON, nullable=True, default=list
+    )  # List of run IDs that failed this task
 
     def __repr__(self) -> str:
         title_preview = self.title[:30] if self.title else ""

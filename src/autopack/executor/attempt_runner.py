@@ -42,6 +42,8 @@ def run_single_attempt_with_recovery(
     attempt_index: int,
     allowed_paths: list[str] | None,
     memory_context: str | None = None,
+    context_reduction_factor: float | None = None,
+    model_downgrade: str | None = None,
 ) -> AttemptRunResult:
     """Run a single phase attempt with error recovery.
 
@@ -55,6 +57,8 @@ def run_single_attempt_with_recovery(
         attempt_index: Current 0-based attempt number.
         allowed_paths: List of allowed file paths for scope enforcement, or None.
         memory_context: Optional memory context to inject (IMP-ARCH-002).
+        context_reduction_factor: Optional factor to reduce context by (IMP-TEL-005).
+        model_downgrade: Optional target model to use instead (IMP-TEL-005).
 
     Returns:
         AttemptRunResult with success flag and status string.
@@ -67,6 +71,8 @@ def run_single_attempt_with_recovery(
             attempt_index=attempt_index,
             allowed_paths=allowed_paths,
             memory_context=memory_context,
+            context_reduction_factor=context_reduction_factor,
+            model_downgrade=model_downgrade,
         )
 
     success, status = executor.error_recovery.execute_with_retry(

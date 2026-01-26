@@ -82,6 +82,8 @@ class BuilderOrchestrator:
         attempt_index: int,
         allowed_paths: Optional[List[str]] = None,
         memory_context: Optional[str] = None,
+        context_reduction_factor: Optional[float] = None,
+        model_downgrade: Optional[str] = None,
     ) -> Tuple[BuilderResult, Dict[str, Any]]:
         """Execute Builder with full validation pipeline.
 
@@ -94,6 +96,10 @@ class BuilderOrchestrator:
             attempt_index: Current attempt number for model escalation
             allowed_paths: Optional list of allowed file paths
             memory_context: Optional memory context to inject (IMP-ARCH-002)
+            context_reduction_factor: Optional factor to reduce context by (IMP-TEL-005)
+                                      e.g., 0.7 means reduce context to 70% of normal size
+            model_downgrade: Optional target model to use instead (IMP-TEL-005)
+                            e.g., "sonnet", "haiku" to downgrade from opus
 
         Returns:
             Tuple of (BuilderResult, context_info dict with file_context, learning_context, etc.)
@@ -101,6 +107,20 @@ class BuilderOrchestrator:
         Raises:
             Exception: If context loading fails critically
         """
+        # IMP-TEL-005: Store telemetry adjustments for use in context loading and builder invocation
+        self._context_reduction_factor = context_reduction_factor
+        self._model_downgrade = model_downgrade
+
+        if context_reduction_factor is not None:
+            logger.info(
+                f"[IMP-TEL-005] Phase {phase_id}: context_reduction_factor={context_reduction_factor:.2f} "
+                f"(reducing context to {context_reduction_factor * 100:.0f}%)"
+            )
+        if model_downgrade is not None:
+            logger.info(
+                f"[IMP-TEL-005] Phase {phase_id}: model_downgrade={model_downgrade} "
+                f"(using downgraded model based on telemetry)"
+            )
         logger.info(f"[{phase_id}] Step 1/4: Generating code with Builder (via LlmService)...")
 
         # 1A-1E: Load all context types
@@ -207,6 +227,36 @@ class BuilderOrchestrator:
                 retrieved_context = f"{intention_context}\n\n{retrieved_context}"
             else:
                 retrieved_context = intention_context
+
+        # IMP-TEL-005: Apply context_reduction_factor if set from telemetry adjustments
+        # This reduces the amount of context sent to the builder to save tokens
+        reduction_factor = getattr(self, "_context_reduction_factor", None)
+        if reduction_factor is not None and 0 < reduction_factor < 1.0:
+            # Reduce retrieved_context by the factor
+            if retrieved_context:
+                original_len = len(retrieved_context)
+                max_chars = int(original_len * reduction_factor)
+                if len(retrieved_context) > max_chars:
+                    retrieved_context = retrieved_context[:max_chars]
+                    logger.info(
+                        f"[IMP-TEL-005] Reduced retrieved_context from {original_len} to {max_chars} chars "
+                        f"({reduction_factor:.0%} of original)"
+                    )
+
+            # Reduce file_context by limiting number of files
+            if file_context and "existing_files" in file_context:
+                existing_files = file_context.get("existing_files", {})
+                original_count = len(existing_files)
+                if original_count > 0:
+                    max_files = max(1, int(original_count * reduction_factor))
+                    if original_count > max_files:
+                        # Keep the most recently used/modified files (assuming dict order)
+                        reduced_files = dict(list(existing_files.items())[:max_files])
+                        file_context["existing_files"] = reduced_files
+                        logger.info(
+                            f"[IMP-TEL-005] Reduced file_context from {original_count} to {max_files} files "
+                            f"({reduction_factor:.0%} of original)"
+                        )
 
         return {
             "file_context": file_context,
@@ -746,6 +796,24 @@ class BuilderOrchestrator:
 
         # Primary Builder invocation
         # IMP-COST-002: Pass run-level budget for pre-call validation
+        # IMP-TEL-005: Build run_context with optional model_downgrade override
+        run_context = self.executor._build_run_context()
+        model_downgrade = getattr(self, "_model_downgrade", None)
+        if model_downgrade:
+            # Add model override for builder role to downgrade model based on telemetry
+            # The model_router checks run_context["model_overrides"] first before escalation
+            run_context = run_context or {}
+            run_context.setdefault("model_overrides", {})
+            # Override builder model for all task categories and complexities
+            # by adding a catch-all override
+            run_context["model_overrides"]["builder"] = {
+                "telemetry_downgrade": model_downgrade,
+            }
+            run_context["telemetry_model_downgrade"] = model_downgrade
+            logger.info(
+                f"[IMP-TEL-005] Phase {phase_id}: applying model_downgrade={model_downgrade} to run_context"
+            )
+
         builder_result = self.llm_service.execute_builder_phase(
             phase_spec=phase_with_constraints,
             file_context=file_context,
@@ -754,7 +822,7 @@ class BuilderOrchestrator:
             run_hints=run_hints,
             run_id=self.run_id,
             phase_id=phase_id,
-            run_context=self.executor._build_run_context(),
+            run_context=run_context,
             attempt_index=attempt_index,
             use_full_file_mode=use_full_file_mode,
             config=self.builder_output_config,
@@ -795,6 +863,7 @@ class BuilderOrchestrator:
             }
 
             # IMP-COST-002: Pass run-level budget for pre-call validation (fallback path)
+            # IMP-TEL-005: Re-use the run_context with telemetry model downgrade (if any)
             builder_result = self.llm_service.execute_builder_phase(
                 phase_spec=phase_structured,
                 file_context=file_context,
@@ -803,7 +872,7 @@ class BuilderOrchestrator:
                 run_hints=run_hints,
                 run_id=self.run_id,
                 phase_id=phase_id,
-                run_context=self.executor._build_run_context(),
+                run_context=run_context,  # IMP-TEL-005: Use same run_context with telemetry adjustments
                 attempt_index=attempt_index,
                 use_full_file_mode=False,
                 config=self.builder_output_config,

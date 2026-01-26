@@ -230,7 +230,7 @@ watchfiles==1.1.1
     # via uvicorn
 websocket-client==1.9.0
     # via praw
-websockets==15.0.1
+websockets==16.0
     # via uvicorn
 wrapt==2.0.1
     # via deprecated

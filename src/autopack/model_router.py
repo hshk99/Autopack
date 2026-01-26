@@ -194,6 +194,16 @@ class ModelRouter:
         """
         run_context = run_context or {}
 
+        # IMP-TEL-005: Check for telemetry-driven model downgrade first (highest priority)
+        # This overrides all other model selection logic when telemetry recommends a different model
+        telemetry_downgrade = run_context.get("telemetry_model_downgrade")
+        if telemetry_downgrade and role == "builder":
+            logger.info(
+                f"[IMP-TEL-005] Model selection overridden by telemetry: using {telemetry_downgrade} "
+                f"for {role} (phase={phase_id}, original complexity={complexity})"
+            )
+            return telemetry_downgrade, complexity, {"telemetry_downgrade": True}
+
         # 1. Check per-run overrides first (these bypass escalation)
         if "model_overrides" in run_context:
             overrides = run_context["model_overrides"].get(role, {})

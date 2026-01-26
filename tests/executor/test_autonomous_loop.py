@@ -151,9 +151,9 @@ class TestAutonomousLoopRecovery:
                         loop.run(poll_interval=0.5)
 
         # IMP-SAFETY-001: Default must be 50 to prevent infinite execution
-        assert received_max_iterations == 50, (
-            f"Expected default max_iterations=50, got {received_max_iterations}"
-        )
+        assert (
+            received_max_iterations == 50
+        ), f"Expected default max_iterations=50, got {received_max_iterations}"
 
     def test_autonomous_loop_stop_on_first_failure_saves_tokens(self):
         """Verify stop_on_first_failure flag stops immediately on failure."""
@@ -415,12 +415,12 @@ class TestBudgetExhaustionCheck:
                 )
 
         # Budget check should happen before get_run_status (which could consume tokens)
-        assert "get_run_status" not in call_order, (
-            "get_run_status should not be called when budget is exhausted"
-        )
-        assert "get_memory_context" not in call_order, (
-            "get_memory_context should not be called when budget is exhausted"
-        )
+        assert (
+            "get_run_status" not in call_order
+        ), "get_run_status should not be called when budget is exhausted"
+        assert (
+            "get_memory_context" not in call_order
+        ), "get_memory_context should not be called when budget is exhausted"
 
     def test_budget_check_allows_iteration_when_budget_available(self):
         """Verify loop continues when budget is not exhausted."""
@@ -851,9 +851,9 @@ class TestGeneratedTaskExecution:
 
                     result = loop._fetch_generated_tasks()
 
-            assert result[0]["priority_order"] == expected_order, (
-                f"Priority {task_priority} should map to order {expected_order}"
-            )
+            assert (
+                result[0]["priority_order"] == expected_order
+            ), f"Priority {task_priority} should map to order {expected_order}"
 
 
 if __name__ == "__main__":

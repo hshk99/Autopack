@@ -55,6 +55,8 @@ class FakeExecutor:
         attempt_index: int,
         allowed_paths: list[str] | None,
         memory_context: str | None = None,  # IMP-ARCH-002: memory context injection
+        context_reduction_factor: float | None = None,  # IMP-TEL-005: telemetry adjustment
+        model_downgrade: str | None = None,  # IMP-TEL-005: telemetry adjustment
     ) -> Tuple[bool, str]:
         self.execute_phase_calls.append(
             {
@@ -62,6 +64,8 @@ class FakeExecutor:
                 "attempt_index": attempt_index,
                 "allowed_paths": allowed_paths,
                 "memory_context": memory_context,
+                "context_reduction_factor": context_reduction_factor,
+                "model_downgrade": model_downgrade,
             }
         )
         return (True, "COMPLETE")

@@ -124,6 +124,16 @@ class ExecutionContext:
     run_budget_tokens: int = 0
     memory_context: Optional[str] = None  # IMP-ARCH-002: Memory context for builder injection
 
+    # IMP-TEL-005: Telemetry-driven adjustment parameters
+    # These are passed from _get_telemetry_adjustments() to dynamically tune phase execution
+    context_reduction_factor: Optional[float] = (
+        None  # Factor to reduce context by (e.g., 0.7 for 30% reduction)
+    )
+    model_downgrade: Optional[str] = None  # Target model to use instead (e.g., "sonnet", "haiku")
+    timeout_increase_factor: Optional[float] = (
+        None  # Factor to increase timeout by (e.g., 1.5 for 50% increase)
+    )
+
 
 @dataclass
 class ExecutionResult:
@@ -396,9 +406,21 @@ class PhaseOrchestrator:
 
         Note: time_watchdog is mandatory per IMP-SAFETY-004 - phases cannot run
         indefinitely. The watchdog must be provided when creating ExecutionContext.
+
+        IMP-TEL-005: If timeout_increase_factor is set from telemetry adjustments,
+        the base timeout is increased by that factor (e.g., 1.5 for 50% more time).
         """
         phase_id = context.phase.get("phase_id")
-        timeout_sec = settings.phase_timeout_minutes * 60
+        base_timeout_sec = settings.phase_timeout_minutes * 60
+
+        # IMP-TEL-005: Apply timeout_increase_factor if set from telemetry adjustments
+        timeout_sec = base_timeout_sec
+        if context.timeout_increase_factor is not None and context.timeout_increase_factor > 0:
+            timeout_sec = int(base_timeout_sec * context.timeout_increase_factor)
+            logger.info(
+                f"[IMP-TEL-005] Phase {phase_id}: timeout increased by {context.timeout_increase_factor:.2f}x "
+                f"({base_timeout_sec}s -> {timeout_sec}s) based on telemetry adjustments"
+            )
 
         exceeded, elapsed, soft_warning = context.time_watchdog.check_phase_timeout(
             phase_id, timeout_sec
@@ -538,6 +560,9 @@ class PhaseOrchestrator:
             attempt_index=context.attempt_index,
             allowed_paths=context.allowed_paths,
             memory_context=context.memory_context,  # IMP-ARCH-002: Memory context injection
+            # IMP-TEL-005: Pass telemetry adjustments
+            context_reduction_factor=context.context_reduction_factor,
+            model_downgrade=context.model_downgrade,
         )
 
         return result
@@ -1760,6 +1785,9 @@ class GeneratedTaskHandler:
                     attempt_index=0,
                     allowed_paths=phase.get("scope", {}).get("paths", []),
                     memory_context=kwargs.get("memory_context"),
+                    # IMP-TEL-005: Pass telemetry adjustments
+                    context_reduction_factor=kwargs.get("context_reduction_factor"),
+                    model_downgrade=kwargs.get("model_downgrade"),
                 )
                 return result.success, result.status
             except Exception as e:

@@ -888,6 +888,115 @@ class AutonomousLoop:
             logger.warning(f"[IMP-ARCH-012] Failed to load improvement tasks: {e}")
             return []
 
+    def _fetch_generated_tasks(self) -> List[Dict]:
+        """Fetch generated tasks and convert them to executable phase specs (IMP-LOOP-004).
+
+        This method closes the autonomous improvement loop by:
+        1. Retrieving pending tasks from the database via task_generator.get_pending_tasks()
+        2. Converting GeneratedTask objects into executable phase specifications
+        3. Marking tasks as "in_progress" when they start execution
+
+        The generated phases use the "generated-task-execution" phase type which
+        routes to the specialized handler in phase_dispatch.py.
+
+        Returns:
+            List of phase spec dicts ready for execution, or empty list if disabled/no tasks.
+        """
+        # Check if task execution is enabled (separate from task generation)
+        if not getattr(settings, "generated_task_execution_enabled", False):
+            logger.debug("[IMP-LOOP-004] Generated task execution is disabled")
+            return []
+
+        try:
+            from autopack.roadc.task_generator import AutonomousTaskGenerator
+
+            db_session = getattr(self.executor, "db_session", None)
+            generator = AutonomousTaskGenerator(db_session=db_session)
+
+            # Fetch pending tasks (limit to avoid overwhelming the run)
+            max_tasks_per_run = getattr(settings, "generated_task_max_per_run", 3)
+            pending_tasks = generator.get_pending_tasks(status="pending", limit=max_tasks_per_run)
+
+            if not pending_tasks:
+                logger.debug("[IMP-LOOP-004] No pending generated tasks to execute")
+                return []
+
+            # Convert GeneratedTask objects to executable phase specs
+            phase_specs = []
+            for task in pending_tasks:
+                # Map task priority to phase priority
+                priority_map = {"critical": 1, "high": 2, "medium": 3, "low": 4}
+                priority_order = priority_map.get(task.priority, 3)
+
+                # Build phase spec from GeneratedTask
+                phase_spec = {
+                    "phase_id": f"generated-task-execution-{task.task_id}",
+                    "phase_type": "generated-task-execution",
+                    "description": f"[AUTO] {task.title}\n\n{task.description}",
+                    "status": "QUEUED",
+                    "priority_order": priority_order,
+                    "category": "improvement",
+                    "scope": {
+                        "paths": task.suggested_files or [],
+                    },
+                    # Store task metadata for handler access
+                    "_generated_task": {
+                        "task_id": task.task_id,
+                        "title": task.title,
+                        "description": task.description,
+                        "priority": task.priority,
+                        "source_insights": task.source_insights,
+                        "suggested_files": task.suggested_files,
+                        "estimated_effort": task.estimated_effort,
+                        "run_id": task.run_id,
+                    },
+                }
+                phase_specs.append(phase_spec)
+
+                # Mark task as in_progress
+                generator.mark_task_status(
+                    task.task_id, "in_progress", executed_in_run_id=self.executor.run_id
+                )
+                logger.info(
+                    f"[IMP-LOOP-004] Queued generated task {task.task_id} for execution: {task.title}"
+                )
+
+            logger.info(f"[IMP-LOOP-004] Fetched {len(phase_specs)} generated tasks for execution")
+            return phase_specs
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-004] Failed to fetch generated tasks: {e}")
+            return []
+
+    def _inject_generated_tasks_into_backlog(self, run_data: Dict) -> Dict:
+        """Inject generated tasks into the phase backlog before execution (IMP-LOOP-004).
+
+        This method modifies the run_data to include generated task phases,
+        allowing them to be picked up by get_next_queued_phase() and executed
+        alongside regular phases.
+
+        Args:
+            run_data: The current run data dict containing phases
+
+        Returns:
+            Modified run_data with generated task phases injected
+        """
+        generated_phases = self._fetch_generated_tasks()
+        if not generated_phases:
+            return run_data
+
+        # Get existing phases
+        existing_phases = run_data.get("phases", [])
+
+        # Inject generated task phases at the end (after user-defined phases)
+        # They will be picked up when no other queued phases remain
+        run_data["phases"] = existing_phases + generated_phases
+
+        logger.info(
+            f"[IMP-LOOP-004] Injected {len(generated_phases)} generated task phases into backlog"
+        )
+        return run_data
+
     def _initialize_intention_loop(self):
         """Initialize intention-first loop for the run."""
         from autopack.autonomous.executor_wiring import initialize_intention_first_loop
@@ -1047,6 +1156,16 @@ class AutonomousLoop:
                 logger.info(f"Waiting {poll_interval}s before retry...")
                 self._adaptive_sleep(is_idle=True, base_interval=poll_interval)
                 continue
+
+            # IMP-LOOP-004: Inject generated tasks into backlog for execution
+            # This closes the autonomous improvement loop by executing tasks generated
+            # from telemetry insights in previous runs
+            try:
+                run_data = self._inject_generated_tasks_into_backlog(run_data)
+            except Exception as e:
+                logger.warning(
+                    f"[IMP-LOOP-004] Failed to inject generated tasks (non-blocking): {e}"
+                )
 
             # Auto-fix queued phases (normalize deliverables/scope, tune CI timeouts) before selection.
             try:

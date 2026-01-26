@@ -58,6 +58,11 @@ class TestResolveSpecialPhaseMethod:
         result = resolve_special_phase_method("diagnostics-iteration-loop")
         assert result == "_execute_diagnostics_iteration_loop_batched"
 
+    def test_generated_task_execution_returns_correct_handler(self):
+        """Test generated-task-execution maps to batched handler (IMP-LOOP-004)."""
+        result = resolve_special_phase_method("generated-task-execution")
+        assert result == "_execute_generated_task_batched"
+
     def test_unknown_phase_returns_none(self):
         """Test that unknown phase IDs return None."""
         result = resolve_special_phase_method("unknown-phase")
@@ -109,7 +114,8 @@ class TestSpecialPhaseMethodsRegistry:
 
     def test_registry_has_expected_count(self):
         """Test registry contains expected number of entries."""
-        assert len(SPECIAL_PHASE_METHODS) == 7
+        # IMP-LOOP-004: Updated count to include generated-task-execution handler
+        assert len(SPECIAL_PHASE_METHODS) == 8
 
     def test_all_keys_are_strings(self):
         """Test all registry keys are strings."""
@@ -144,6 +150,8 @@ class TestSpecialPhaseMethodsRegistry:
             "diagnostics-second-opinion-triage",
             "diagnostics-deep-retrieval",
             "diagnostics-iteration-loop",
+            # IMP-LOOP-004: Generated task execution handler
+            "generated-task-execution",
         ]
         for phase in expected_phases:
             assert phase in SPECIAL_PHASE_METHODS
@@ -188,6 +196,33 @@ class TestPhaseDispatchEdgeCases:
 
         assert len(SPECIAL_PHASE_METHODS) == original_len
         assert set(SPECIAL_PHASE_METHODS.keys()) == original_keys
+
+
+class TestGeneratedTaskExecutionHandler:
+    """Test generated-task-execution handler (IMP-LOOP-004)."""
+
+    def test_generated_task_handler_registered(self):
+        """Test generated-task-execution handler is in registry."""
+        assert "generated-task-execution" in SPECIAL_PHASE_METHODS
+
+    def test_generated_task_handler_follows_naming_convention(self):
+        """Test handler follows _execute_*_batched naming convention."""
+        handler = SPECIAL_PHASE_METHODS["generated-task-execution"]
+        assert handler.startswith("_execute_")
+        assert handler.endswith("_batched")
+
+    def test_generated_task_phase_resolves(self):
+        """Test generated-task-execution resolves to handler."""
+        result = resolve_special_phase_method("generated-task-execution")
+        assert result is not None
+        assert result == "_execute_generated_task_batched"
+
+    def test_generated_task_prefixed_phases_dont_match(self):
+        """Test that prefixed/suffixed variants don't match."""
+        # Variations should not resolve
+        assert resolve_special_phase_method("generated-task-execution-1") is None
+        assert resolve_special_phase_method("test-generated-task-execution") is None
+        assert resolve_special_phase_method("generated-task") is None
 
 
 if __name__ == "__main__":

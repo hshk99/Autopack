@@ -4,7 +4,6 @@ import sys
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-
 # Add src to path for imports
 sys.path.insert(0, "src")
 sys.path.insert(0, "scripts")

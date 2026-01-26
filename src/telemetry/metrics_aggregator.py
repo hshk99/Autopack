@@ -2,9 +2,37 @@
 
 import json
 from collections import defaultdict
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+if TYPE_CHECKING:
+    pass
+
+
+@dataclass
+class AggregatedMetric:
+    """Represents an aggregated metric over a time period or grouping.
+
+    Attributes:
+        metric_name: Name identifying this metric.
+        period: Time period or grouping identifier.
+        count: Number of data points aggregated.
+        sum_value: Sum of all values.
+        avg_value: Average of all values.
+        min_value: Minimum value observed.
+        max_value: Maximum value observed.
+    """
+
+    metric_name: str
+    period: str
+    count: int
+    sum_value: float
+    avg_value: float
+    min_value: float
+    max_value: float
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 class MetricsAggregator:
@@ -122,3 +150,113 @@ class MetricsAggregator:
             Dictionary containing the metrics data.
         """
         return self._metrics.get("metrics", {})
+
+    def aggregate_by_period(
+        self,
+        metric_name: str,
+        period: timedelta,
+        since_hours: int = 24,
+    ) -> List[AggregatedMetric]:
+        """Aggregate metrics over time periods.
+
+        Groups events into time buckets based on the period duration
+        and computes aggregate statistics for each bucket.
+
+        Args:
+            metric_name: Name to identify this aggregation.
+            period: Duration of each time bucket.
+            since_hours: Number of hours to look back.
+
+        Returns:
+            List of AggregatedMetric objects, one per time period.
+        """
+        cutoff = datetime.now() - timedelta(hours=since_hours)
+        events = self._read_events(cutoff)
+
+        if not events:
+            return []
+
+        # Group events by time period
+        buckets: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+
+        for event in events:
+            event_time = datetime.fromisoformat(event["timestamp"])
+            # Calculate bucket start time
+            bucket_start = cutoff + timedelta(
+                seconds=(
+                    (event_time - cutoff).total_seconds()
+                    // period.total_seconds()
+                    * period.total_seconds()
+                )
+            )
+            bucket_key = bucket_start.isoformat()
+            buckets[bucket_key].append(event)
+
+        # Convert buckets to AggregatedMetric objects
+        results: List[AggregatedMetric] = []
+        for period_key, bucket_events in sorted(buckets.items()):
+            count = len(bucket_events)
+            # For events, we aggregate counts (value=1 per event)
+            results.append(
+                AggregatedMetric(
+                    metric_name=metric_name,
+                    period=period_key,
+                    count=count,
+                    sum_value=float(count),
+                    avg_value=1.0,
+                    min_value=1.0,
+                    max_value=1.0,
+                    metadata={"event_types": list({e.get("type") for e in bucket_events})},
+                )
+            )
+
+        return results
+
+    def aggregate_by_component(
+        self,
+        metric_name: str,
+        since_hours: int = 24,
+    ) -> Dict[str, AggregatedMetric]:
+        """Aggregate metrics by component/source.
+
+        Groups events by their source or component field and computes
+        aggregate statistics for each group.
+
+        Args:
+            metric_name: Name to identify this aggregation.
+            since_hours: Number of hours to look back.
+
+        Returns:
+            Dictionary mapping component names to AggregatedMetric objects.
+        """
+        cutoff = datetime.now() - timedelta(hours=since_hours)
+        events = self._read_events(cutoff)
+
+        if not events:
+            return {}
+
+        # Group events by component (using 'type' as component proxy)
+        components: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+
+        for event in events:
+            component = event.get("type", "unknown")
+            components[component].append(event)
+
+        # Convert to AggregatedMetric objects
+        results: Dict[str, AggregatedMetric] = {}
+        for component, component_events in components.items():
+            count = len(component_events)
+            results[component] = AggregatedMetric(
+                metric_name=metric_name,
+                period=component,
+                count=count,
+                sum_value=float(count),
+                avg_value=1.0,
+                min_value=1.0,
+                max_value=1.0,
+                metadata={
+                    "slots": list({e.get("slot") for e in component_events if e.get("slot")}),
+                },
+            )
+
+        return results

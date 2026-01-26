@@ -5,9 +5,11 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
 
+from sqlalchemy.orm import Session
+
 from ..memory.memory_service import MemoryService, DEFAULT_MEMORY_FRESHNESS_HOURS
 from ..roadi import RegressionProtector
-from ..telemetry.analyzer import RankedIssue
+from ..telemetry.analyzer import RankedIssue, TelemetryAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -119,13 +121,18 @@ class AutonomousTaskGenerator:
         self,
         memory_service: Optional[MemoryService] = None,
         regression_protector: Optional[RegressionProtector] = None,
+        db_session: Optional[Session] = None,
     ):
         self._memory = memory_service or MemoryService()
-        # NOTE: TelemetryAnalyzer removed (IMP-ARCH-017) - it was never used and
-        # requires db_session which isn't available at AutonomousTaskGenerator init time.
-        # Task generation relies on MemoryService.retrieve_insights() instead.
-        # IMP-FEAT-001: Telemetry can now be passed directly via generate_tasks().
         self._regression = regression_protector or RegressionProtector()
+        # IMP-ARCH-017: Reconnect TelemetryAnalyzer when db_session is available.
+        # This enables automatic aggregation of telemetry data (cost sinks, failure
+        # modes, retry patterns) to feed directly into task generation.
+        self._db_session = db_session
+        self._telemetry_analyzer: Optional[TelemetryAnalyzer] = None
+        if db_session is not None:
+            self._telemetry_analyzer = TelemetryAnalyzer(db_session, memory_service=self._memory)
+            logger.debug("[IMP-ARCH-017] TelemetryAnalyzer initialized for task generation")
 
     def _convert_telemetry_to_insights(
         self, telemetry_data: Dict[str, List[RankedIssue]]
@@ -259,6 +266,20 @@ class AutonomousTaskGenerator:
                 logger.info(
                     f"[IMP-FEAT-001] Using {len(insights)} telemetry insights for task generation"
                 )
+            # IMP-ARCH-017: Auto-aggregate telemetry when db_session is available
+            elif self._telemetry_analyzer is not None:
+                logger.info(
+                    "[IMP-ARCH-017] Calling TelemetryAnalyzer.aggregate_telemetry() for task generation"
+                )
+                aggregated = self._telemetry_analyzer.aggregate_telemetry(window_days=7)
+                insights = self._convert_telemetry_to_insights(aggregated)
+                telemetry_source = "analyzer"
+                logger.info(
+                    f"[IMP-ARCH-017] Aggregated {len(insights)} insights from telemetry: "
+                    f"{len(aggregated.get('top_cost_sinks', []))} cost sinks, "
+                    f"{len(aggregated.get('top_failure_modes', []))} failure modes, "
+                    f"{len(aggregated.get('top_retry_causes', []))} retry causes"
+                )
             else:
                 # Fallback: Retrieve recent high-signal insights from memory
                 # IMP-ARCH-016: Removed namespace parameter - retrieve_insights now queries
@@ -335,7 +356,12 @@ class AutonomousTaskGenerator:
             raise
 
     def _detect_patterns(self, insights: List[dict]) -> List[dict]:
-        """Detect actionable patterns from insights."""
+        """Detect actionable patterns from insights.
+
+        IMP-ARCH-017: Integrates TelemetryAnalyzer results into pattern scoring.
+        Patterns matching known cost sinks, failure modes, or retry causes receive
+        boosted confidence and severity scores.
+        """
         patterns = []
 
         # Group by error type
@@ -349,13 +375,41 @@ class AutonomousTaskGenerator:
         # Create patterns from groups
         for error_type, group in error_groups.items():
             if len(group) >= 2:  # At least 2 occurrences
+                base_confidence = min(1.0, len(group) / 5)
+                base_severity = self._calculate_severity(group)
+
+                # IMP-ARCH-017: Boost scores based on telemetry issue type
+                # Cost sinks and failure modes are higher priority
+                confidence_boost = 0.0
+                severity_boost = 0
+
+                if error_type == "cost_sink":
+                    # High-cost phases are critical to optimize
+                    confidence_boost = 0.15
+                    severity_boost = 2
+                    # Extra boost for very high token consumers
+                    max_tokens = max(
+                        (i.get("metric_value", 0) for i in group), default=0
+                    )
+                    if max_tokens > 100000:
+                        severity_boost += 1
+                elif error_type == "failure_mode":
+                    # Failures directly impact reliability
+                    confidence_boost = 0.2
+                    severity_boost = 3
+                elif error_type == "retry_cause":
+                    # Retries indicate flakiness needing attention
+                    confidence_boost = 0.1
+                    severity_boost = 1
+
                 patterns.append(
                     {
                         "type": error_type,
                         "occurrences": len(group),
-                        "confidence": min(1.0, len(group) / 5),
+                        "confidence": min(1.0, base_confidence + confidence_boost),
                         "examples": group[:3],
-                        "severity": self._calculate_severity(group),
+                        "severity": min(10, base_severity + severity_boost),
+                        "telemetry_boosted": severity_boost > 0,  # Track if boosted
                     }
                 )
 

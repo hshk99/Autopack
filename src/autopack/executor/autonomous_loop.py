@@ -675,7 +675,9 @@ class AutonomousLoop:
         try:
             from autopack.roadc.task_generator import AutonomousTaskGenerator
 
-            generator = AutonomousTaskGenerator()
+            # IMP-ARCH-017: Pass db_session to enable telemetry aggregation
+            db_session = getattr(self.executor, "db_session", None)
+            generator = AutonomousTaskGenerator(db_session=db_session)
             completed_count = 0
 
             for task in improvement_tasks:
@@ -850,7 +852,9 @@ class AutonomousLoop:
         try:
             from autopack.roadc.task_generator import AutonomousTaskGenerator
 
-            generator = AutonomousTaskGenerator()
+            # IMP-ARCH-017: Pass db_session to enable telemetry aggregation
+            db_session = getattr(self.executor, "db_session", None)
+            generator = AutonomousTaskGenerator(db_session=db_session)
             max_tasks = getattr(settings, "task_generation_max_tasks_per_run", 5)
             pending_tasks = generator.get_pending_tasks(status="pending", limit=max_tasks)
 
@@ -1723,8 +1727,10 @@ class AutonomousLoop:
                     )
                     telemetry_insights = None
 
-            # IMP-FEAT-001: Pass telemetry insights directly to task generator
-            generator = AutonomousTaskGenerator()
+            # IMP-ARCH-017: Pass db_session to enable telemetry aggregation in task generator
+            # The generator can now call aggregate_telemetry() internally if no insights provided
+            db_session = getattr(self.executor, "db_session", None)
+            generator = AutonomousTaskGenerator(db_session=db_session)
             result = generator.generate_tasks(
                 max_tasks=task_gen_config.get("max_tasks_per_run", 10),
                 min_confidence=task_gen_config.get("min_confidence", 0.7),

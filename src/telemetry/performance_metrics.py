@@ -1,7 +1,6 @@
 """Performance metrics collector for execution optimization."""
 
 import json
-import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path

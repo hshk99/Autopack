@@ -683,9 +683,10 @@ class AutonomousLoop:
             for task in improvement_tasks:
                 task_id = task.get("task_id")
                 if task_id:
-                    if generator.mark_task_status(
+                    result = generator.mark_task_status(
                         task_id, "completed", executed_in_run_id=self.executor.run_id
-                    ):
+                    )
+                    if result == "updated":
                         completed_count += 1
 
             if completed_count > 0:
@@ -695,6 +696,52 @@ class AutonomousLoop:
 
         except Exception as e:
             logger.warning(f"[IMP-ARCH-019] Failed to mark tasks completed: {e}")
+
+    def _mark_improvement_tasks_failed(self, phases_failed: int) -> None:
+        """Mark improvement tasks as failed/retry when run has failures (IMP-LOOP-005).
+
+        Called when run finishes with failed phases, indicating the improvement
+        tasks were not successfully addressed and need retry or failure tracking.
+
+        Args:
+            phases_failed: Number of phases that failed in this run
+        """
+        improvement_tasks = getattr(self.executor, "_improvement_tasks", [])
+        # Ensure it's a proper list (not a Mock or other non-list type)
+        if not improvement_tasks or not isinstance(improvement_tasks, list):
+            return
+
+        try:
+            from autopack.roadc.task_generator import AutonomousTaskGenerator
+
+            # IMP-ARCH-017: Pass db_session to enable telemetry aggregation
+            db_session = getattr(self.executor, "db_session", None)
+            generator = AutonomousTaskGenerator(db_session=db_session)
+            retry_count = 0
+            failed_count = 0
+
+            for task in improvement_tasks:
+                task_id = task.get("task_id")
+                if task_id:
+                    result = generator.mark_task_status(
+                        task_id,
+                        status=None,  # Let method decide based on retry count
+                        increment_retry=True,
+                        failure_run_id=self.executor.run_id,
+                    )
+                    if result == "retry":
+                        retry_count += 1
+                    elif result == "failed":
+                        failed_count += 1
+
+            if retry_count > 0 or failed_count > 0:
+                logger.info(
+                    f"[IMP-LOOP-005] Task status update: {retry_count} tasks returned to pending, "
+                    f"{failed_count} tasks marked as failed"
+                )
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-005] Failed to update task status: {e}")
 
     def _adaptive_sleep(self, is_idle: bool = False, base_interval: Optional[float] = None):
         """Sleep with adaptive backoff when idle to reduce CPU usage.
@@ -1413,6 +1460,12 @@ class AutonomousLoop:
                     self._mark_improvement_tasks_completed()
                 except Exception as e:
                     logger.warning(f"Failed to mark improvement tasks as completed: {e}")
+            else:
+                # IMP-LOOP-005: Mark tasks as failed/retry when run has failures
+                try:
+                    self._mark_improvement_tasks_failed(phases_failed)
+                except Exception as e:
+                    logger.warning(f"Failed to mark improvement tasks as failed: {e}")
 
             # Learning Pipeline: Promote hints to persistent rules (Stage 0B)
             try:

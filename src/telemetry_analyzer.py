@@ -12,7 +12,10 @@ import logging
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from src.improvement_generator import ImprovementGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -662,3 +665,84 @@ class TelemetryAnalyzer:
         self._ci_retry_data = None
         self._slot_history_data = None
         logger.debug("Cleared telemetry data cache")
+
+    def get_all_patterns(self) -> list[dict[str, Any]]:
+        """Get all detected patterns from all telemetry sources.
+
+        Convenience method that aggregates patterns from all analysis methods.
+
+        Returns:
+            Combined list of patterns from failure, CI, and slot analysis.
+        """
+        failure_patterns = self.analyze_failure_patterns()
+        ci_patterns = self.analyze_ci_patterns()
+        slot_patterns = self.analyze_slot_behavior()
+
+        all_patterns = failure_patterns + ci_patterns + slot_patterns
+        logger.info(
+            "Collected %d total patterns: %d failure, %d CI, %d slot",
+            len(all_patterns),
+            len(failure_patterns),
+            len(ci_patterns),
+            len(slot_patterns),
+        )
+        return all_patterns
+
+    def generate_improvements_to_master(
+        self,
+        master_file_path: str | Path,
+    ) -> int:
+        """Generate improvements from patterns and append to master file.
+
+        This method bridges pattern detection with the ImprovementGenerator,
+        creating a complete pipeline from telemetry analysis to IMP entries.
+
+        Args:
+            master_file_path: Path to AUTOPACK_IMPS_MASTER.json file.
+
+        Returns:
+            Number of new improvements added to the master file.
+        """
+        # Import here to avoid circular dependency
+        from src.improvement_generator import ImprovementGenerator
+
+        # Get all detected patterns
+        patterns = self.get_all_patterns()
+
+        if not patterns:
+            logger.info("No patterns detected, no improvements to generate")
+            return 0
+
+        # Create generator and convert patterns to improvements
+        generator = ImprovementGenerator(master_file_path)
+        improvements = generator.generate_from_patterns(patterns)
+
+        # Append to master file
+        added_count = generator.append_to_master(improvements)
+
+        logger.info(
+            "Generated %d improvements from %d patterns, added %d to master file",
+            len(improvements),
+            len(patterns),
+            added_count,
+        )
+        return added_count
+
+    def create_improvement_generator(
+        self,
+        master_file_path: str | Path,
+    ) -> "ImprovementGenerator":
+        """Create an ImprovementGenerator instance for manual control.
+
+        Use this when you need more control over the improvement generation
+        process, such as filtering patterns before conversion.
+
+        Args:
+            master_file_path: Path to AUTOPACK_IMPS_MASTER.json file.
+
+        Returns:
+            Configured ImprovementGenerator instance.
+        """
+        from src.improvement_generator import ImprovementGenerator
+
+        return ImprovementGenerator(master_file_path)

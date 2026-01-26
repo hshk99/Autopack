@@ -146,10 +146,30 @@ class PhaseOrchestrator:
     - Success/failure routing
     - Recovery strategy selection
     - State updates
+    - IMP-TEL-004: Real-time anomaly detection and alert routing
     """
 
-    def __init__(self, max_retry_attempts: int = 5):
+    def __init__(
+        self,
+        max_retry_attempts: int = 5,
+        anomaly_detector: Optional[Any] = None,
+        alert_router: Optional[Any] = None,
+    ):
+        """Initialize the PhaseOrchestrator.
+
+        Args:
+            max_retry_attempts: Maximum number of retry attempts per phase.
+            anomaly_detector: Optional TelemetryAnomalyDetector for real-time anomaly detection.
+                             If provided, phase outcomes are analyzed for token spikes,
+                             duration anomalies, and failure rate threshold breaches.
+            alert_router: Optional AlertRouter for routing detected anomaly alerts.
+                         If provided, alerts are routed to appropriate handlers
+                         (logging, auto-healing, persistence).
+        """
         self.max_retry_attempts = max_retry_attempts
+        # IMP-TEL-004: Anomaly detection and alert routing
+        self.anomaly_detector = anomaly_detector
+        self.alert_router = alert_router
 
     def execute_phase_attempt(self, context: ExecutionContext) -> ExecutionResult:
         """
@@ -953,6 +973,7 @@ class PhaseOrchestrator:
         - ROAD-B: Automated telemetry analysis
         - ROAD-G: Real-time anomaly detection
         - ROAD-L: Telemetry-driven model optimization
+        - IMP-TEL-004: Route anomaly alerts from phase execution
         """
         if os.getenv("TELEMETRY_DB_ENABLED", "false").lower() != "true":
             return
@@ -981,6 +1002,85 @@ class PhaseOrchestrator:
                 db.close()
         except Exception as e:
             logger.warning(f"[{phase_id}] Failed to record ROAD-A phase outcome: {e}")
+
+        # IMP-TEL-004: Real-time anomaly detection and alert routing
+        # After recording phase outcome, check for anomalies and route alerts
+        self._detect_and_route_anomalies(
+            phase_id=phase_id,
+            run_id=run_id,
+            phase_type=phase_type,
+            outcome=outcome,
+            tokens_used=tokens_used,
+            duration_seconds=duration_seconds,
+        )
+
+    def _detect_and_route_anomalies(
+        self,
+        phase_id: str,
+        run_id: str,
+        phase_type: str,
+        outcome: str,
+        tokens_used: int = None,
+        duration_seconds: float = None,
+    ) -> None:
+        """IMP-TEL-004: Detect anomalies in phase metrics and route alerts.
+
+        Called after each phase outcome is recorded to enable real-time anomaly detection.
+        Anomalies are detected based on:
+        - Token usage spikes (>2x rolling baseline)
+        - Duration anomalies (>p95 threshold)
+        - Failure rate threshold breaches
+
+        Args:
+            phase_id: The phase identifier
+            run_id: The run identifier
+            phase_type: Phase category for baseline grouping
+            outcome: Phase outcome (SUCCESS/FAILED)
+            tokens_used: Tokens consumed during phase execution
+            duration_seconds: Phase execution duration
+        """
+        if not self.anomaly_detector:
+            return
+
+        # Skip if we don't have the required metrics
+        if tokens_used is None or duration_seconds is None:
+            logger.debug(
+                f"[IMP-TEL-004] Skipping anomaly detection for {phase_id}: "
+                f"missing metrics (tokens={tokens_used}, duration={duration_seconds})"
+            )
+            return
+
+        try:
+            # Record phase outcome and check for anomalies
+            alerts = self.anomaly_detector.record_phase_outcome(
+                phase_id=phase_id,
+                phase_type=phase_type or "unknown",
+                success=(outcome == "SUCCESS"),
+                tokens_used=tokens_used,
+                duration_seconds=duration_seconds,
+            )
+
+            if alerts:
+                logger.info(
+                    f"[IMP-TEL-004] Phase {phase_id}: {len(alerts)} anomaly alert(s) detected"
+                )
+
+                # Route each alert through the alert router
+                if self.alert_router:
+                    for alert in alerts:
+                        # Inject run_id into alert for persistence context
+                        self.alert_router.route_alert(alert, run_id=run_id)
+                else:
+                    # Fallback logging if no router configured
+                    for alert in alerts:
+                        logger.warning(
+                            f"[IMP-TEL-004] Unrouted alert: {alert.severity.value} - "
+                            f"{alert.metric}: {alert.current_value} (threshold: {alert.threshold})"
+                        )
+
+        except Exception as e:
+            # Don't let anomaly detection failures break phase execution
+            logger.warning(f"[IMP-TEL-004] Anomaly detection failed for {phase_id}: {e}")
 
     def _check_intention_stuck_handling(
         self, context: ExecutionContext, status: str

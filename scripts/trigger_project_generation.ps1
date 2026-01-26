@@ -39,6 +39,11 @@
 .PARAMETER DryRun
     When enabled, shows what would be done without executing telemetry aggregation.
 
+.PARAMETER UseAutonomousDiscovery
+    When enabled, runs autonomous_discovery.py to automatically identify improvement
+    opportunities from failure patterns, optimization suggestions, and metrics anomalies.
+    This enhances Phase 1 with data-driven IMP suggestions.
+
 .EXAMPLE
     .\trigger_project_generation.ps1 -UseTelemetryContext
     Runs both phases with telemetry context enabled.
@@ -73,7 +78,9 @@ param(
 
     [string]$ImpsMasterPath = "$env:USERPROFILE\OneDrive\Backup\Desktop\AUTOPACK_IMPS_MASTER.json",
 
-    [switch]$DryRun
+    [switch]$DryRun,
+
+    [switch]$UseAutonomousDiscovery
 )
 
 $ErrorActionPreference = "Stop"
@@ -118,6 +125,7 @@ $TelemetryBasePath = Join-Path $ProjectRoot $TelemetryBasePath
 $LearningMemoryPath = Join-Path $ProjectRoot $LearningMemoryPath
 $OutputPath = Join-Path $ProjectRoot $OutputPath
 $TelemetryAggregatorPath = Join-Path $ProjectRoot "scripts/utility/telemetry_aggregator.py"
+$AutonomousDiscoveryOutputPath = Join-Path $ProjectRoot ".autopack/DISCOVERED_IMPS.json"
 
 function Write-Status {
     param([string]$Message, [string]$Color = "Cyan")
@@ -179,6 +187,67 @@ function Invoke-TelemetryAggregation {
     catch {
         Write-Warning "Failed to run telemetry aggregator: $_"
         return $false
+    }
+}
+
+function Invoke-AutonomousDiscovery {
+    <#
+    .SYNOPSIS
+        Runs the autonomous discovery module to identify improvement opportunities.
+    .DESCRIPTION
+        IMP-GEN-001: Autonomous Phase 1 Discovery
+        Analyzes failure patterns, optimization suggestions, and metrics anomalies
+        to automatically identify potential improvements.
+    #>
+    Write-Status "Running autonomous discovery..."
+
+    if ($DryRun) {
+        Write-Status "[DryRun] Would execute: python -c 'from generation.autonomous_discovery import AutonomousDiscovery; ...'" -Color Yellow
+        return @{ HasDiscovery = $false; DiscoveryPath = $null; ImpCount = 0 }
+    }
+
+    try {
+        $pythonScript = @"
+import sys
+sys.path.insert(0, 'src')
+from generation.autonomous_discovery import AutonomousDiscovery
+from memory.metrics_db import MetricsDatabase
+from memory.failure_analyzer import FailureAnalyzer
+from feedback.optimization_detector import OptimizationDetector
+
+db = MetricsDatabase('data/metrics_history.db')
+analyzer = FailureAnalyzer(db)
+detector = OptimizationDetector(db)
+
+discovery = AutonomousDiscovery(
+    metrics_db=db,
+    failure_analyzer=analyzer,
+    optimization_detector=detector
+)
+imps = discovery.discover_all()
+discovery.export_to_json('$($AutonomousDiscoveryOutputPath -replace '\\', '/')')
+print(len(imps))
+"@
+        $result = $pythonScript | python 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Autonomous discovery returned non-zero exit code: $LASTEXITCODE"
+            Write-Warning "Output: $result"
+            return @{ HasDiscovery = $false; DiscoveryPath = $null; ImpCount = 0 }
+        }
+
+        $impCount = [int]$result
+        Write-Status "Autonomous discovery found $impCount potential improvements" -Color Green
+        Write-Status "Output: $AutonomousDiscoveryOutputPath" -Color Green
+
+        return @{
+            HasDiscovery = $true
+            DiscoveryPath = $AutonomousDiscoveryOutputPath
+            ImpCount = $impCount
+        }
+    }
+    catch {
+        Write-Warning "Failed to run autonomous discovery: $_"
+        return @{ HasDiscovery = $false; DiscoveryPath = $null; ImpCount = 0 }
     }
 }
 
@@ -282,7 +351,8 @@ function Build-Phase1Prompt {
     #>
     param(
         [hashtable]$TelemetryContext,
-        [hashtable]$CarryoverContext = @{ HasCarryover = $false }
+        [hashtable]$CarryoverContext = @{ HasCarryover = $false },
+        [hashtable]$DiscoveryContext = @{ HasDiscovery = $false }
     )
 
     $prompt = "@phase1"
@@ -323,6 +393,20 @@ function Build-Phase1Prompt {
         $carryoverLines += "- Prioritize carryover items that have been waiting longest"
         $carryoverLines += "- Preserve carryover_from field when incorporating into new cycle"
         $prompt += "`n" + ($carryoverLines -join "`n")
+    }
+
+    # Add autonomous discovery context if available (IMP-GEN-001)
+    if ($DiscoveryContext.HasDiscovery) {
+        $discoveryLines = @()
+        $discoveryLines += ""
+        $discoveryLines += "## Autonomous Discovery Context (IMP-GEN-001)"
+        $discoveryLines += ""
+        $discoveryLines += "DISCOVERED_IMPS: $($DiscoveryContext.DiscoveryPath)"
+        $discoveryLines += "- Contains $($DiscoveryContext.ImpCount) automatically identified improvements"
+        $discoveryLines += "- Sourced from failure patterns, optimization suggestions, and metrics anomalies"
+        $discoveryLines += "- Review and incorporate high-confidence items into the improvement list"
+        $discoveryLines += "- Each item includes confidence score and discovery source"
+        $prompt += "`n" + ($discoveryLines -join "`n")
     }
 
     return $prompt
@@ -370,12 +454,13 @@ function Invoke-Phase1 {
     #>
     param(
         [hashtable]$TelemetryContext,
-        [hashtable]$CarryoverContext = @{ HasCarryover = $false }
+        [hashtable]$CarryoverContext = @{ HasCarryover = $false },
+        [hashtable]$DiscoveryContext = @{ HasDiscovery = $false }
     )
 
     Write-Status "=== Phase 1: Discovery ===" -Color Magenta
 
-    $prompt = Build-Phase1Prompt -TelemetryContext $TelemetryContext -CarryoverContext $CarryoverContext
+    $prompt = Build-Phase1Prompt -TelemetryContext $TelemetryContext -CarryoverContext $CarryoverContext -DiscoveryContext $DiscoveryContext
 
     if ($DryRun) {
         Write-Status "[DryRun] Would send prompt:" -Color Yellow
@@ -426,7 +511,7 @@ function Invoke-Phase2 {
 # Main execution
 function Main {
     Write-Status "Autopack Project Generation Trigger" -Color Cyan
-    Write-Status "Phase: $Phase | UseTelemetryContext: $UseTelemetryContext | DryRun: $DryRun"
+    Write-Status "Phase: $Phase | UseTelemetryContext: $UseTelemetryContext | UseAutonomousDiscovery: $UseAutonomousDiscovery | DryRun: $DryRun"
     Write-Host ""
 
     # Validate environment
@@ -479,16 +564,29 @@ function Main {
         Write-Host ""
     }
 
+    # Run autonomous discovery if enabled (IMP-GEN-001)
+    $discoveryContext = @{ HasDiscovery = $false; DiscoveryPath = $null; ImpCount = 0 }
+    if ($UseAutonomousDiscovery -and ($Phase -eq "phase1" -or $Phase -eq "all")) {
+        Write-Status "Autonomous discovery enabled - analyzing patterns..."
+        $discoveryContext = Invoke-AutonomousDiscovery
+        if ($discoveryContext.HasDiscovery) {
+            Write-Status "Autonomous discovery completed:" -Color Green
+            Write-Status "  - Improvements found: $($discoveryContext.ImpCount)"
+            Write-Status "  - Output file: $($discoveryContext.DiscoveryPath)"
+        }
+        Write-Host ""
+    }
+
     # Execute requested phases
     switch ($Phase) {
         "phase1" {
-            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext
+            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext -DiscoveryContext $discoveryContext
         }
         "phase2" {
             Invoke-Phase2 -TelemetryContext $telemetryContext
         }
         "all" {
-            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext
+            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext -DiscoveryContext $discoveryContext
             Write-Host ""
             Invoke-Phase2 -TelemetryContext $telemetryContext
         }

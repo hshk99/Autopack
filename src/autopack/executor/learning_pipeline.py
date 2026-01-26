@@ -84,9 +84,8 @@ class LearningPipeline:
 
             self._hints.append(hint)
 
-            # Note: Integration with actual hint storage system (save_run_hint)
-            # is handled by the caller in autonomous_executor.py to maintain
-            # backward compatibility during the refactoring.
+            # Note: Hints are persisted to memory_service via persist_to_memory()
+            # which should be called after phase completion.
 
             logger.debug(f"[Learning] Recorded hint for {phase_id}: {hint_type}")
 
@@ -139,3 +138,89 @@ class LearningPipeline:
         """Clear all hints (useful for testing)"""
         self._hints = []
         logger.debug("[Learning] Cleared all hints")
+
+    def persist_to_memory(self, memory_service, project_id: Optional[str] = None) -> int:
+        """
+        Persist accumulated learning hints to memory service.
+
+        This enables cross-run learning by writing hints as telemetry insights
+        that can be retrieved in future runs.
+
+        Args:
+            memory_service: MemoryService instance (can be None if disabled)
+            project_id: Optional project identifier for namespacing
+
+        Returns:
+            Number of hints successfully persisted
+        """
+        if not memory_service or not getattr(memory_service, "enabled", False):
+            logger.debug("[Learning] Memory service disabled, skipping hint persistence")
+            return 0
+
+        if not self._hints:
+            logger.debug("[Learning] No hints to persist")
+            return 0
+
+        persisted_count = 0
+
+        for hint in self._hints:
+            try:
+                # Convert LearningHint to telemetry insight format
+                insight = {
+                    "insight_type": self._map_hint_type_to_insight_type(hint.hint_type),
+                    "description": hint.hint_text,
+                    "phase_id": hint.phase_id,
+                    "run_id": self.run_id,
+                    "suggested_action": hint.hint_text,
+                    "severity": self._get_hint_severity(hint.hint_type),
+                    "source_issue_keys": hint.source_issue_keys,
+                    "task_category": hint.task_category,
+                }
+
+                # Use the unified write_telemetry_insight method
+                result = memory_service.write_telemetry_insight(
+                    insight=insight,
+                    project_id=project_id,
+                    validate=True,
+                    strict=False,
+                )
+
+                if result:
+                    persisted_count += 1
+                    logger.debug(
+                        f"[Learning] Persisted hint to memory: {hint.phase_id}/{hint.hint_type}"
+                    )
+
+            except Exception as e:
+                logger.warning(f"[Learning] Failed to persist hint {hint.phase_id}: {e}")
+
+        logger.info(f"[Learning] Persisted {persisted_count}/{len(self._hints)} hints to memory")
+        return persisted_count
+
+    def _map_hint_type_to_insight_type(self, hint_type: str) -> str:
+        """Map learning hint types to telemetry insight types."""
+        mapping = {
+            "auditor_reject": "failure_mode",
+            "ci_fail": "failure_mode",
+            "patch_apply_error": "failure_mode",
+            "infra_error": "retry_cause",
+            "success_after_retry": "retry_cause",
+            "builder_churn_limit_exceeded": "cost_sink",
+            "builder_guardrail": "failure_mode",
+            "deliverables_validation_failed": "failure_mode",
+        }
+        return mapping.get(hint_type, "unknown")
+
+    def _get_hint_severity(self, hint_type: str) -> str:
+        """Get severity level for hint type."""
+        high_severity = {"ci_fail", "patch_apply_error", "builder_guardrail"}
+        medium_severity = {"auditor_reject", "deliverables_validation_failed"}
+        low_severity = {"success_after_retry", "infra_error", "builder_churn_limit_exceeded"}
+
+        if hint_type in high_severity:
+            return "high"
+        elif hint_type in medium_severity:
+            return "medium"
+        elif hint_type in low_severity:
+            return "low"
+        return "medium"

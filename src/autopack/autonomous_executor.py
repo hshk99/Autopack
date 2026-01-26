@@ -3378,6 +3378,16 @@ class AutonomousExecutor:
                         task_type=phase.get("category"),
                     )
                     logger.debug(f"[{phase_id}] Wrote phase summary to memory")
+
+                    # MEM-001: Persist learning hints to memory for cross-run learning
+                    hints_persisted = self.learning_pipeline.persist_to_memory(
+                        memory_service=self.memory_service,
+                        project_id=project_id,
+                    )
+                    if hints_persisted > 0:
+                        logger.debug(
+                            f"[{phase_id}] Persisted {hints_persisted} learning hints to memory"
+                        )
                 except Exception as e:
                     logger.warning(f"[{phase_id}] Failed to write phase summary to memory: {e}")
 
@@ -3421,6 +3431,16 @@ class AutonomousExecutor:
                         error_type=type(e).__name__,
                     )
                     logger.debug(f"[{phase_id}] Wrote error to memory")
+
+                    # MEM-001: Persist learning hints to memory for cross-run learning
+                    hints_persisted = self.learning_pipeline.persist_to_memory(
+                        memory_service=self.memory_service,
+                        project_id=project_id,
+                    )
+                    if hints_persisted > 0:
+                        logger.debug(
+                            f"[{phase_id}] Persisted {hints_persisted} learning hints to memory"
+                        )
                 except Exception as mem_e:
                     logger.warning(f"[{phase_id}] Failed to write error to memory: {mem_e}")
 

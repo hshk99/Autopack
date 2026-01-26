@@ -242,6 +242,57 @@ print(json.dumps(templates))
     }
 }
 
+# Function to run feedback loop cycle
+function Invoke-FeedbackLoopCycle {
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$MemoryPath = "LEARNING_MEMORY.json"
+    )
+
+    $pythonScript = @"
+import sys
+sys.path.insert(0, 'src')
+
+from feedback.loop_controller import FeedbackLoopController
+from memory.metrics_db import MetricsDatabase
+from memory.failure_analyzer import FailureAnalyzer
+from feedback.optimization_detector import OptimizationDetector
+
+# Initialize components
+metrics_db = MetricsDatabase()
+failure_analyzer = FailureAnalyzer(metrics_db)
+optimization_detector = OptimizationDetector(metrics_db)
+
+# Create and run feedback loop
+controller = FeedbackLoopController(
+    metrics_db=metrics_db,
+    failure_analyzer=failure_analyzer,
+    optimization_detector=optimization_detector
+)
+
+actions = controller.run_cycle()
+print(f"Feedback loop completed: {len(actions)} actions generated")
+
+for action in actions:
+    print(f"  [{action.priority.upper()}] {action.action_type}: {action.description}")
+"@
+
+    try {
+        $env:PYTHONPATH = "src"
+        $result = python -c $pythonScript 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host $result -ForegroundColor Cyan
+            return $true
+        } else {
+            Write-Host "  Warning: Feedback loop cycle failed: $result" -ForegroundColor Yellow
+            return $false
+        }
+    } catch {
+        Write-Host "  Warning: Failed to execute feedback loop: $_" -ForegroundColor Yellow
+        return $false
+    }
+}
+
 # Function to log events to centralized telemetry
 function Write-TelemetryEvent {
     param(
@@ -361,6 +412,11 @@ if ($failedChecks.Count -gt 0) {
     Write-Host "==> Recording failure category to learning memory..." -ForegroundColor Yellow
     Record-FailureCategoryToMemory -Category $failureCategory -PhaseId $phaseId -Details $failureDetails -MemoryPath $MemoryPath
 }
+
+# Trigger feedback loop cycle after status check
+Write-Host ""
+Write-Host "==> Running feedback loop cycle..." -ForegroundColor Yellow
+Invoke-FeedbackLoopCycle -MemoryPath $MemoryPath
 
 # Check if PR is merged
 if ($pr.state -ne "MERGED") {

@@ -317,6 +317,7 @@ class TestTaskGeneratorFreshnessIntegration:
             generator = AutonomousTaskGenerator()
             generator._memory = Mock()
             generator._regression = Mock()
+            generator._telemetry_analyzer = None
             generator._regression.check_protection = Mock(return_value=Mock(is_protected=True))
             return generator
 

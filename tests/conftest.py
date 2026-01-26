@@ -34,6 +34,23 @@ def pytest_configure(config):
     if _src_path_str not in sys.path:
         sys.path.insert(0, _src_path_str)
 
+
+# Hook that runs at the very start of pytest collection - before any imports
+def pytest_load_initial_conftests(early_config, parser, args):
+    """Earliest possible hook - runs before conftest collection.
+
+    This is critical for pytest-xdist workers to have correct sys.path
+    before any test modules are imported.
+    """
+    import sys
+    from pathlib import Path
+
+    _project_root = Path(__file__).resolve().parent.parent
+    _src_path = _project_root / "src"
+    _src_path_str = str(_src_path)
+    if _src_path_str not in sys.path:
+        sys.path.insert(0, _src_path_str)
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

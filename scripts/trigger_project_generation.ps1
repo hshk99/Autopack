@@ -44,6 +44,11 @@
     opportunities from failure patterns, optimization suggestions, and metrics anomalies.
     This enhances Phase 1 with data-driven IMP suggestions.
 
+.PARAMETER UseAutonomousWavePlanning
+    When enabled, runs autonomous_wave_planner.py to automatically group discovered IMPs
+    into optimal waves based on dependencies and file conflicts, maximizing parallelization.
+    This enhances Phase 2 with automated wave planning.
+
 .EXAMPLE
     .\trigger_project_generation.ps1 -UseTelemetryContext
     Runs both phases with telemetry context enabled.
@@ -80,7 +85,9 @@ param(
 
     [switch]$DryRun,
 
-    [switch]$UseAutonomousDiscovery
+    [switch]$UseAutonomousDiscovery,
+
+    [switch]$UseAutonomousWavePlanning
 )
 
 $ErrorActionPreference = "Stop"
@@ -126,6 +133,7 @@ $LearningMemoryPath = Join-Path $ProjectRoot $LearningMemoryPath
 $OutputPath = Join-Path $ProjectRoot $OutputPath
 $TelemetryAggregatorPath = Join-Path $ProjectRoot "scripts/utility/telemetry_aggregator.py"
 $AutonomousDiscoveryOutputPath = Join-Path $ProjectRoot ".autopack/DISCOVERED_IMPS.json"
+$AutonomousWavePlanOutputPath = Join-Path $ProjectRoot ".autopack/WAVE_PLAN.json"
 
 function Write-Status {
     param([string]$Message, [string]$Color = "Cyan")
@@ -248,6 +256,86 @@ print(len(imps))
     catch {
         Write-Warning "Failed to run autonomous discovery: $_"
         return @{ HasDiscovery = $false; DiscoveryPath = $null; ImpCount = 0 }
+    }
+}
+
+function Invoke-AutonomousWavePlanning {
+    <#
+    .SYNOPSIS
+        Runs the autonomous wave planner to group IMPs into optimal waves.
+    .DESCRIPTION
+        IMP-GEN-002: Autonomous Phase 2 Wave Planning
+        Takes discovered IMPs and groups them into waves based on dependencies
+        and file conflicts, maximizing parallelization potential.
+    .PARAMETER DiscoveredImpsPath
+        Path to the DISCOVERED_IMPS.json file from Phase 1 discovery.
+    #>
+    param(
+        [string]$DiscoveredImpsPath
+    )
+
+    Write-Status "Running autonomous wave planning..."
+
+    if ($DryRun) {
+        Write-Status "[DryRun] Would execute: python -c 'from generation.autonomous_wave_planner import AutonomousWavePlanner; ...'" -Color Yellow
+        return @{ HasWavePlan = $false; WavePlanPath = $null; WaveCount = 0; ImpCount = 0 }
+    }
+
+    if (-not (Test-Path $DiscoveredImpsPath)) {
+        Write-Warning "Discovered IMPs file not found at: $DiscoveredImpsPath"
+        Write-Warning "Run Phase 1 with -UseAutonomousDiscovery first"
+        return @{ HasWavePlan = $false; WavePlanPath = $null; WaveCount = 0; ImpCount = 0 }
+    }
+
+    try {
+        $pythonScript = @"
+import sys
+import json
+sys.path.insert(0, 'src')
+from generation.autonomous_wave_planner import AutonomousWavePlanner
+
+# Load discovered IMPs
+with open('$($DiscoveredImpsPath -replace '\\', '/')') as f:
+    data = json.load(f)
+
+imps = data.get('imps', [])
+if not imps:
+    print('0,0')
+else:
+    planner = AutonomousWavePlanner(imps)
+    planner.export_wave_plan('$($AutonomousWavePlanOutputPath -replace '\\', '/')')
+    plan = planner.plan_waves()
+    print(f'{len(plan.waves)},{sum(len(ids) for ids in plan.waves.values())}')
+"@
+        $result = $pythonScript | python 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Autonomous wave planning returned non-zero exit code: $LASTEXITCODE"
+            Write-Warning "Output: $result"
+            return @{ HasWavePlan = $false; WavePlanPath = $null; WaveCount = 0; ImpCount = 0 }
+        }
+
+        $parts = $result.Split(',')
+        $waveCount = [int]$parts[0]
+        $impCount = [int]$parts[1]
+
+        if ($waveCount -eq 0) {
+            Write-Warning "No IMPs to plan waves for"
+            return @{ HasWavePlan = $false; WavePlanPath = $null; WaveCount = 0; ImpCount = 0 }
+        }
+
+        Write-Status "Autonomous wave planning grouped $impCount IMPs into $waveCount waves" -Color Green
+        Write-Status "Output: $AutonomousWavePlanOutputPath" -Color Green
+
+        return @{
+            HasWavePlan = $true
+            WavePlanPath = $AutonomousWavePlanOutputPath
+            WaveCount = $waveCount
+            ImpCount = $impCount
+        }
+    }
+    catch {
+        Write-Warning "Failed to run autonomous wave planning: $_"
+        return @{ HasWavePlan = $false; WavePlanPath = $null; WaveCount = 0; ImpCount = 0 }
     }
 }
 
@@ -417,7 +505,10 @@ function Build-Phase2Prompt {
     .SYNOPSIS
         Constructs the Phase 2 wave planning prompt with optional telemetry context.
     #>
-    param([hashtable]$TelemetryContext)
+    param(
+        [hashtable]$TelemetryContext,
+        [hashtable]$WavePlanContext = @{ HasWavePlan = $false }
+    )
 
     $prompt = "@phase2"
 
@@ -442,6 +533,21 @@ function Build-Phase2Prompt {
         }
 
         $prompt += "`n" + ($contextLines -join "`n")
+    }
+
+    # Add autonomous wave planning context if available (IMP-GEN-002)
+    if ($WavePlanContext.HasWavePlan) {
+        $wavePlanLines = @()
+        $wavePlanLines += ""
+        $wavePlanLines += "## Autonomous Wave Plan Context (IMP-GEN-002)"
+        $wavePlanLines += ""
+        $wavePlanLines += "WAVE_PLAN: $($WavePlanContext.WavePlanPath)"
+        $wavePlanLines += "- Contains $($WavePlanContext.ImpCount) IMPs grouped into $($WavePlanContext.WaveCount) waves"
+        $wavePlanLines += "- Waves are optimized for maximum parallelization"
+        $wavePlanLines += "- Dependencies and file conflicts have been validated"
+        $wavePlanLines += "- Use this plan as the basis for worktree setup and task assignment"
+        $wavePlanLines += "- Each wave includes phase IDs, branch names, and file lists"
+        $prompt += "`n" + ($wavePlanLines -join "`n")
     }
 
     return $prompt
@@ -485,11 +591,14 @@ function Invoke-Phase2 {
     .SYNOPSIS
         Triggers Phase 2 wave planning with optional telemetry context.
     #>
-    param([hashtable]$TelemetryContext)
+    param(
+        [hashtable]$TelemetryContext,
+        [hashtable]$WavePlanContext = @{ HasWavePlan = $false }
+    )
 
     Write-Status "=== Phase 2: Wave Planning ===" -Color Magenta
 
-    $prompt = Build-Phase2Prompt -TelemetryContext $TelemetryContext
+    $prompt = Build-Phase2Prompt -TelemetryContext $TelemetryContext -WavePlanContext $WavePlanContext
 
     if ($DryRun) {
         Write-Status "[DryRun] Would send prompt:" -Color Yellow
@@ -511,7 +620,7 @@ function Invoke-Phase2 {
 # Main execution
 function Main {
     Write-Status "Autopack Project Generation Trigger" -Color Cyan
-    Write-Status "Phase: $Phase | UseTelemetryContext: $UseTelemetryContext | UseAutonomousDiscovery: $UseAutonomousDiscovery | DryRun: $DryRun"
+    Write-Status "Phase: $Phase | UseTelemetryContext: $UseTelemetryContext | UseAutonomousDiscovery: $UseAutonomousDiscovery | UseAutonomousWavePlanning: $UseAutonomousWavePlanning | DryRun: $DryRun"
     Write-Host ""
 
     # Validate environment
@@ -577,18 +686,32 @@ function Main {
         Write-Host ""
     }
 
+    # Run autonomous wave planning if enabled (IMP-GEN-002)
+    $wavePlanContext = @{ HasWavePlan = $false; WavePlanPath = $null; WaveCount = 0; ImpCount = 0 }
+    if ($UseAutonomousWavePlanning -and ($Phase -eq "phase2" -or $Phase -eq "all")) {
+        Write-Status "Autonomous wave planning enabled - grouping IMPs into waves..."
+        $wavePlanContext = Invoke-AutonomousWavePlanning -DiscoveredImpsPath $AutonomousDiscoveryOutputPath
+        if ($wavePlanContext.HasWavePlan) {
+            Write-Status "Autonomous wave planning completed:" -Color Green
+            Write-Status "  - Waves created: $($wavePlanContext.WaveCount)"
+            Write-Status "  - IMPs grouped: $($wavePlanContext.ImpCount)"
+            Write-Status "  - Output file: $($wavePlanContext.WavePlanPath)"
+        }
+        Write-Host ""
+    }
+
     # Execute requested phases
     switch ($Phase) {
         "phase1" {
             Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext -DiscoveryContext $discoveryContext
         }
         "phase2" {
-            Invoke-Phase2 -TelemetryContext $telemetryContext
+            Invoke-Phase2 -TelemetryContext $telemetryContext -WavePlanContext $wavePlanContext
         }
         "all" {
             Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext -DiscoveryContext $discoveryContext
             Write-Host ""
-            Invoke-Phase2 -TelemetryContext $telemetryContext
+            Invoke-Phase2 -TelemetryContext $telemetryContext -WavePlanContext $wavePlanContext
         }
     }
 

@@ -435,3 +435,194 @@ class TestTaskCategoryTracking:
         # Should get only bugfix hint
         assert len(hints) == 1
         assert "Details 2" in hints[0]
+
+
+class TestPersistToMemory:
+    """Test persist_to_memory functionality (MEM-001)"""
+
+    def test_persist_returns_zero_when_memory_service_none(self):
+        """Test returns 0 when memory_service is None"""
+        pipeline = LearningPipeline(run_id="test-run")
+        phase = {"phase_id": "test", "name": "Test Phase"}
+
+        pipeline.record_hint(phase, "auditor_reject", "Details")
+
+        result = pipeline.persist_to_memory(memory_service=None)
+        assert result == 0
+
+    def test_persist_returns_zero_when_memory_service_disabled(self):
+        """Test returns 0 when memory_service is disabled"""
+        pipeline = LearningPipeline(run_id="test-run")
+        phase = {"phase_id": "test", "name": "Test Phase"}
+
+        pipeline.record_hint(phase, "auditor_reject", "Details")
+
+        # Mock a disabled memory service
+        class MockMemoryService:
+            enabled = False
+
+        result = pipeline.persist_to_memory(memory_service=MockMemoryService())
+        assert result == 0
+
+    def test_persist_returns_zero_when_no_hints(self):
+        """Test returns 0 when no hints to persist"""
+        pipeline = LearningPipeline(run_id="test-run")
+
+        class MockMemoryService:
+            enabled = True
+
+        result = pipeline.persist_to_memory(memory_service=MockMemoryService())
+        assert result == 0
+
+    def test_persist_calls_write_telemetry_insight(self):
+        """Test persist calls write_telemetry_insight for each hint"""
+        pipeline = LearningPipeline(run_id="test-run")
+        phase = {"phase_id": "test", "name": "Test Phase"}
+
+        pipeline.record_hint(phase, "auditor_reject", "Details 1")
+        pipeline.record_hint(phase, "ci_fail", "Details 2")
+
+        # Mock memory service
+        written_insights = []
+
+        class MockMemoryService:
+            enabled = True
+
+            def write_telemetry_insight(self, insight, project_id, validate, strict):
+                written_insights.append(insight)
+                return f"point_{len(written_insights)}"
+
+        result = pipeline.persist_to_memory(
+            memory_service=MockMemoryService(), project_id="test-project"
+        )
+
+        assert result == 2
+        assert len(written_insights) == 2
+
+    def test_persist_converts_hint_to_insight_format(self):
+        """Test hint is correctly converted to telemetry insight format"""
+        pipeline = LearningPipeline(run_id="test-run")
+        phase = {
+            "phase_id": "test-phase",
+            "name": "Test Phase",
+            "task_category": "refactoring",
+        }
+
+        pipeline.record_hint(phase, "auditor_reject", "Code quality issues")
+
+        captured_insight = None
+
+        class MockMemoryService:
+            enabled = True
+
+            def write_telemetry_insight(self, insight, project_id, validate, strict):
+                nonlocal captured_insight
+                captured_insight = insight
+                return "point_1"
+
+        pipeline.persist_to_memory(
+            memory_service=MockMemoryService(), project_id="test-project"
+        )
+
+        assert captured_insight is not None
+        assert captured_insight["insight_type"] == "failure_mode"
+        assert captured_insight["phase_id"] == "test-phase"
+        assert captured_insight["run_id"] == "test-run"
+        assert captured_insight["task_category"] == "refactoring"
+        assert "auditor_reject_test-phase" in captured_insight["source_issue_keys"]
+
+    def test_persist_maps_hint_types_to_insight_types(self):
+        """Test hint types are correctly mapped to insight types"""
+        pipeline = LearningPipeline(run_id="test-run")
+
+        # Test each hint type mapping
+        hint_type_mappings = {
+            "auditor_reject": "failure_mode",
+            "ci_fail": "failure_mode",
+            "patch_apply_error": "failure_mode",
+            "infra_error": "retry_cause",
+            "success_after_retry": "retry_cause",
+            "builder_churn_limit_exceeded": "cost_sink",
+            "builder_guardrail": "failure_mode",
+        }
+
+        for hint_type, expected_insight_type in hint_type_mappings.items():
+            mapped = pipeline._map_hint_type_to_insight_type(hint_type)
+            assert mapped == expected_insight_type, f"Expected {expected_insight_type} for {hint_type}, got {mapped}"
+
+    def test_persist_maps_unknown_hint_type_to_unknown(self):
+        """Test unknown hint types map to 'unknown' insight type"""
+        pipeline = LearningPipeline(run_id="test-run")
+        mapped = pipeline._map_hint_type_to_insight_type("some_new_type")
+        assert mapped == "unknown"
+
+    def test_persist_sets_correct_severity(self):
+        """Test correct severity is set for different hint types"""
+        pipeline = LearningPipeline(run_id="test-run")
+
+        # High severity
+        assert pipeline._get_hint_severity("ci_fail") == "high"
+        assert pipeline._get_hint_severity("patch_apply_error") == "high"
+        assert pipeline._get_hint_severity("builder_guardrail") == "high"
+
+        # Medium severity
+        assert pipeline._get_hint_severity("auditor_reject") == "medium"
+        assert pipeline._get_hint_severity("deliverables_validation_failed") == "medium"
+
+        # Low severity
+        assert pipeline._get_hint_severity("success_after_retry") == "low"
+        assert pipeline._get_hint_severity("infra_error") == "low"
+
+        # Unknown defaults to medium
+        assert pipeline._get_hint_severity("unknown_type") == "medium"
+
+    def test_persist_continues_on_individual_failure(self):
+        """Test persistence continues even if individual hint fails"""
+        pipeline = LearningPipeline(run_id="test-run")
+        phase = {"phase_id": "test", "name": "Test Phase"}
+
+        pipeline.record_hint(phase, "auditor_reject", "Details 1")
+        pipeline.record_hint(phase, "ci_fail", "Details 2")
+        pipeline.record_hint(phase, "patch_apply_error", "Details 3")
+
+        call_count = [0]
+
+        class MockMemoryService:
+            enabled = True
+
+            def write_telemetry_insight(self, insight, project_id, validate, strict):
+                call_count[0] += 1
+                if call_count[0] == 2:
+                    raise Exception("Simulated failure")
+                return f"point_{call_count[0]}"
+
+        result = pipeline.persist_to_memory(
+            memory_service=MockMemoryService(), project_id="test-project"
+        )
+
+        # Should succeed for 2 out of 3 hints
+        assert result == 2
+        assert call_count[0] == 3  # All hints attempted
+
+    def test_persist_passes_project_id(self):
+        """Test project_id is passed to write_telemetry_insight"""
+        pipeline = LearningPipeline(run_id="test-run")
+        phase = {"phase_id": "test", "name": "Test Phase"}
+
+        pipeline.record_hint(phase, "auditor_reject", "Details")
+
+        captured_project_id = None
+
+        class MockMemoryService:
+            enabled = True
+
+            def write_telemetry_insight(self, insight, project_id, validate, strict):
+                nonlocal captured_project_id
+                captured_project_id = project_id
+                return "point_1"
+
+        pipeline.persist_to_memory(
+            memory_service=MockMemoryService(), project_id="my-project-id"
+        )
+
+        assert captured_project_id == "my-project-id"

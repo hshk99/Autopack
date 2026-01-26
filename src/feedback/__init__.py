@@ -2,6 +2,7 @@
 
 from .loop_controller import FeedbackLoopController, LoopAction, LoopState
 from .optimization_detector import OptimizationDetector, OptimizationSuggestion
+from .prompt_improver import PromptEnhancement, PromptImprover
 
 __all__ = [
     "FeedbackLoopController",
@@ -9,4 +10,6 @@ __all__ = [
     "LoopState",
     "OptimizationDetector",
     "OptimizationSuggestion",
+    "PromptEnhancement",
+    "PromptImprover",
 ]

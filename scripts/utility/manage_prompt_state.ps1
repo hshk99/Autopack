@@ -100,5 +100,76 @@ function Get-PhaseCompletionTime {
     }
 }
 
+function Get-ImprovedPrompt {
+    <#
+    .SYNOPSIS
+        Invokes Python prompt improver to get enhanced prompt with failure context.
+
+    .DESCRIPTION
+        Calls the PromptImprover Python module to generate an improved prompt
+        that includes warnings from failure history and guidance from success patterns.
+
+    .PARAMETER PhaseId
+        The unique identifier for the phase (e.g., "tel001", "mem002").
+
+    .PARAMETER PhaseType
+        The type of phase (e.g., "tel", "mem", "gen", "loop").
+
+    .PARAMETER OriginalPrompt
+        The original prompt template to enhance.
+
+    .PARAMETER MetricsDbPath
+        Optional path to the metrics database file.
+
+    .OUTPUTS
+        [string] The improved prompt with failure warnings and guidance.
+
+    .EXAMPLE
+        Get-ImprovedPrompt -PhaseId "tel001" -PhaseType "tel" -OriginalPrompt "Implement logging..."
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PhaseId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$PhaseType,
+
+        [Parameter(Mandatory = $true)]
+        [string]$OriginalPrompt,
+
+        [Parameter(Mandatory = $false)]
+        [string]$MetricsDbPath = ""
+    )
+
+    # Build Python command to invoke prompt improver
+    $pythonScript = @"
+import sys
+sys.path.insert(0, 'src')
+import json
+from feedback.prompt_improver import PromptImprover
+
+context = {'original_prompt': '''$($OriginalPrompt -replace "'", "\\'"  )'''}
+improver = PromptImprover()
+result = improver.get_improved_prompt('$PhaseId', '$PhaseType', context)
+print(result)
+"@
+
+    try {
+        $result = python -c $pythonScript 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            return $result
+        }
+        else {
+            Write-Warning "Prompt improver failed, using original prompt: $result"
+            return $OriginalPrompt
+        }
+    }
+    catch {
+        Write-Warning "Failed to invoke prompt improver: $_"
+        return $OriginalPrompt
+    }
+}
+
 # Export functions for module use
-Export-ModuleMember -Function Set-PhaseStatus, Get-PhaseCompletionTime
+Export-ModuleMember -Function Set-PhaseStatus, Get-PhaseCompletionTime, Get-ImprovedPrompt

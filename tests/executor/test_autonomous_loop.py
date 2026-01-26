@@ -151,9 +151,9 @@ class TestAutonomousLoopRecovery:
                         loop.run(poll_interval=0.5)
 
         # IMP-SAFETY-001: Default must be 50 to prevent infinite execution
-        assert (
-            received_max_iterations == 50
-        ), f"Expected default max_iterations=50, got {received_max_iterations}"
+        assert received_max_iterations == 50, (
+            f"Expected default max_iterations=50, got {received_max_iterations}"
+        )
 
     def test_autonomous_loop_stop_on_first_failure_saves_tokens(self):
         """Verify stop_on_first_failure flag stops immediately on failure."""
@@ -415,12 +415,12 @@ class TestBudgetExhaustionCheck:
                 )
 
         # Budget check should happen before get_run_status (which could consume tokens)
-        assert (
-            "get_run_status" not in call_order
-        ), "get_run_status should not be called when budget is exhausted"
-        assert (
-            "get_memory_context" not in call_order
-        ), "get_memory_context should not be called when budget is exhausted"
+        assert "get_run_status" not in call_order, (
+            "get_run_status should not be called when budget is exhausted"
+        )
+        assert "get_memory_context" not in call_order, (
+            "get_memory_context should not be called when budget is exhausted"
+        )
 
     def test_budget_check_allows_iteration_when_budget_available(self):
         """Verify loop continues when budget is not exhausted."""
@@ -624,6 +624,236 @@ class TestContextCeiling:
         assert hasattr(loop, "_context_ceiling")
         assert hasattr(loop, "_total_context_tokens")
         assert loop._total_context_tokens == 0
+
+
+class TestGeneratedTaskExecution:
+    """Tests for generated task fetching and execution (IMP-LOOP-004)."""
+
+    def test_fetch_generated_tasks_disabled_returns_empty(self):
+        """Verify empty list when generated task execution is disabled."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+
+        loop = AutonomousLoop(mock_executor)
+
+        with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
+            mock_settings.generated_task_execution_enabled = False
+
+            result = loop._fetch_generated_tasks()
+
+        assert result == []
+
+    def test_fetch_generated_tasks_no_pending_tasks_returns_empty(self):
+        """Verify empty list when no pending tasks exist."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+        mock_executor.db_session = None
+
+        loop = AutonomousLoop(mock_executor)
+
+        with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
+            mock_settings.generated_task_execution_enabled = True
+            mock_settings.generated_task_max_per_run = 3
+
+            with patch("autopack.roadc.task_generator.AutonomousTaskGenerator") as MockGenerator:
+                mock_generator = MockGenerator.return_value
+                mock_generator.get_pending_tasks.return_value = []
+
+                result = loop._fetch_generated_tasks()
+
+        assert result == []
+
+    def test_fetch_generated_tasks_converts_to_phase_specs(self):
+        """Verify tasks are converted to executable phase specifications."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run-456"
+        mock_executor.db_session = None
+
+        loop = AutonomousLoop(mock_executor)
+
+        # Create a mock GeneratedTask
+        mock_task = Mock()
+        mock_task.task_id = "task-123"
+        mock_task.title = "Test Improvement"
+        mock_task.description = "Fix performance issue"
+        mock_task.priority = "high"
+        mock_task.source_insights = ["insight-1", "insight-2"]
+        mock_task.suggested_files = ["src/module.py"]
+        mock_task.estimated_effort = "M"
+        mock_task.run_id = "prev-run-123"
+
+        with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
+            mock_settings.generated_task_execution_enabled = True
+            mock_settings.generated_task_max_per_run = 3
+
+            with patch("autopack.roadc.task_generator.AutonomousTaskGenerator") as MockGenerator:
+                mock_generator = MockGenerator.return_value
+                mock_generator.get_pending_tasks.return_value = [mock_task]
+
+                result = loop._fetch_generated_tasks()
+
+        assert len(result) == 1
+        phase_spec = result[0]
+
+        # Verify phase spec structure
+        assert phase_spec["phase_id"] == "generated-task-execution-task-123"
+        assert phase_spec["phase_type"] == "generated-task-execution"
+        assert phase_spec["status"] == "QUEUED"
+        assert phase_spec["category"] == "improvement"
+        assert "Test Improvement" in phase_spec["description"]
+        assert phase_spec["scope"]["paths"] == ["src/module.py"]
+
+        # Verify task metadata is embedded
+        assert "_generated_task" in phase_spec
+        assert phase_spec["_generated_task"]["task_id"] == "task-123"
+
+    def test_fetch_generated_tasks_marks_status_in_progress(self):
+        """Verify tasks are marked as in_progress when fetched."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run-789"
+        mock_executor.db_session = None
+
+        loop = AutonomousLoop(mock_executor)
+
+        mock_task = Mock()
+        mock_task.task_id = "task-456"
+        mock_task.title = "Test Task"
+        mock_task.description = "Description"
+        mock_task.priority = "medium"
+        mock_task.source_insights = []
+        mock_task.suggested_files = []
+        mock_task.estimated_effort = "S"
+        mock_task.run_id = "prev-run"
+
+        with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
+            mock_settings.generated_task_execution_enabled = True
+            mock_settings.generated_task_max_per_run = 3
+
+            with patch("autopack.roadc.task_generator.AutonomousTaskGenerator") as MockGenerator:
+                mock_generator = MockGenerator.return_value
+                mock_generator.get_pending_tasks.return_value = [mock_task]
+
+                loop._fetch_generated_tasks()
+
+                # Verify mark_task_status was called
+                mock_generator.mark_task_status.assert_called_once_with(
+                    "task-456", "in_progress", executed_in_run_id="test-run-789"
+                )
+
+    def test_fetch_generated_tasks_handles_exceptions(self):
+        """Verify exceptions are handled gracefully."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+        mock_executor.db_session = None
+
+        loop = AutonomousLoop(mock_executor)
+
+        with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
+            mock_settings.generated_task_execution_enabled = True
+            mock_settings.generated_task_max_per_run = 3
+
+            with patch("autopack.roadc.task_generator.AutonomousTaskGenerator") as MockGenerator:
+                mock_generator = MockGenerator.return_value
+                mock_generator.get_pending_tasks.side_effect = Exception("DB error")
+
+                # Should not raise, should return empty list
+                result = loop._fetch_generated_tasks()
+
+        assert result == []
+
+    def test_inject_generated_tasks_into_backlog_adds_phases(self):
+        """Verify generated tasks are injected into run_data phases."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+
+        loop = AutonomousLoop(mock_executor)
+
+        run_data = {
+            "phases": [
+                {"phase_id": "existing-phase-1"},
+                {"phase_id": "existing-phase-2"},
+            ]
+        }
+
+        mock_generated_phases = [
+            {
+                "phase_id": "generated-task-execution-task-1",
+                "phase_type": "generated-task-execution",
+            },
+            {
+                "phase_id": "generated-task-execution-task-2",
+                "phase_type": "generated-task-execution",
+            },
+        ]
+
+        with patch.object(loop, "_fetch_generated_tasks", return_value=mock_generated_phases):
+            result = loop._inject_generated_tasks_into_backlog(run_data)
+
+        # Verify phases were added
+        assert len(result["phases"]) == 4
+        assert result["phases"][0]["phase_id"] == "existing-phase-1"
+        assert result["phases"][1]["phase_id"] == "existing-phase-2"
+        assert result["phases"][2]["phase_id"] == "generated-task-execution-task-1"
+        assert result["phases"][3]["phase_id"] == "generated-task-execution-task-2"
+
+    def test_inject_generated_tasks_into_backlog_no_tasks(self):
+        """Verify run_data unchanged when no generated tasks."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+
+        loop = AutonomousLoop(mock_executor)
+
+        run_data = {"phases": [{"phase_id": "existing-phase-1"}]}
+
+        with patch.object(loop, "_fetch_generated_tasks", return_value=[]):
+            result = loop._inject_generated_tasks_into_backlog(run_data)
+
+        # Should return unchanged
+        assert len(result["phases"]) == 1
+        assert result is run_data
+
+    def test_priority_mapping_in_phase_spec(self):
+        """Verify task priority maps to correct phase priority_order."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+        mock_executor.db_session = None
+
+        loop = AutonomousLoop(mock_executor)
+
+        # Test different priority levels
+        priority_tests = [
+            ("critical", 1),
+            ("high", 2),
+            ("medium", 3),
+            ("low", 4),
+        ]
+
+        for task_priority, expected_order in priority_tests:
+            mock_task = Mock()
+            mock_task.task_id = f"task-{task_priority}"
+            mock_task.title = "Test"
+            mock_task.description = "Description"
+            mock_task.priority = task_priority
+            mock_task.source_insights = []
+            mock_task.suggested_files = []
+            mock_task.estimated_effort = "M"
+            mock_task.run_id = "prev-run"
+
+            with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
+                mock_settings.generated_task_execution_enabled = True
+                mock_settings.generated_task_max_per_run = 1
+
+                with patch(
+                    "autopack.roadc.task_generator.AutonomousTaskGenerator"
+                ) as MockGenerator:
+                    mock_generator = MockGenerator.return_value
+                    mock_generator.get_pending_tasks.return_value = [mock_task]
+
+                    result = loop._fetch_generated_tasks()
+
+            assert result[0]["priority_order"] == expected_order, (
+                f"Priority {task_priority} should map to order {expected_order}"
+            )
 
 
 if __name__ == "__main__":

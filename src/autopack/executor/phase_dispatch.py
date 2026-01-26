@@ -25,6 +25,8 @@ SPECIAL_PHASE_METHODS: dict[str, str] = {
     "diagnostics-second-opinion-triage": "_execute_diagnostics_second_opinion_batched",
     "diagnostics-deep-retrieval": "_execute_diagnostics_deep_retrieval_batched",
     "diagnostics-iteration-loop": "_execute_diagnostics_iteration_loop_batched",
+    # IMP-LOOP-004: Handler for executing generated improvement tasks
+    "generated-task-execution": "_execute_generated_task_batched",
 }
 
 

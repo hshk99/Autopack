@@ -520,9 +520,7 @@ class TestPersistToMemory:
                 captured_insight = insight
                 return "point_1"
 
-        pipeline.persist_to_memory(
-            memory_service=MockMemoryService(), project_id="test-project"
-        )
+        pipeline.persist_to_memory(memory_service=MockMemoryService(), project_id="test-project")
 
         assert captured_insight is not None
         assert captured_insight["insight_type"] == "failure_mode"
@@ -548,7 +546,9 @@ class TestPersistToMemory:
 
         for hint_type, expected_insight_type in hint_type_mappings.items():
             mapped = pipeline._map_hint_type_to_insight_type(hint_type)
-            assert mapped == expected_insight_type, f"Expected {expected_insight_type} for {hint_type}, got {mapped}"
+            assert (
+                mapped == expected_insight_type
+            ), f"Expected {expected_insight_type} for {hint_type}, got {mapped}"
 
     def test_persist_maps_unknown_hint_type_to_unknown(self):
         """Test unknown hint types map to 'unknown' insight type"""
@@ -621,8 +621,6 @@ class TestPersistToMemory:
                 captured_project_id = project_id
                 return "point_1"
 
-        pipeline.persist_to_memory(
-            memory_service=MockMemoryService(), project_id="my-project-id"
-        )
+        pipeline.persist_to_memory(memory_service=MockMemoryService(), project_id="my-project-id")
 
         assert captured_project_id == "my-project-id"

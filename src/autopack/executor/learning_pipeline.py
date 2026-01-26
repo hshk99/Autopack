@@ -194,9 +194,7 @@ class LearningPipeline:
             except Exception as e:
                 logger.warning(f"[Learning] Failed to persist hint {hint.phase_id}: {e}")
 
-        logger.info(
-            f"[Learning] Persisted {persisted_count}/{len(self._hints)} hints to memory"
-        )
+        logger.info(f"[Learning] Persisted {persisted_count}/{len(self._hints)} hints to memory")
         return persisted_count
 
     def _map_hint_type_to_insight_type(self, hint_type: str) -> str:

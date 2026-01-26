@@ -3385,7 +3385,9 @@ class AutonomousExecutor:
                         project_id=project_id,
                     )
                     if hints_persisted > 0:
-                        logger.debug(f"[{phase_id}] Persisted {hints_persisted} learning hints to memory")
+                        logger.debug(
+                            f"[{phase_id}] Persisted {hints_persisted} learning hints to memory"
+                        )
                 except Exception as e:
                     logger.warning(f"[{phase_id}] Failed to write phase summary to memory: {e}")
 
@@ -3436,7 +3438,9 @@ class AutonomousExecutor:
                         project_id=project_id,
                     )
                     if hints_persisted > 0:
-                        logger.debug(f"[{phase_id}] Persisted {hints_persisted} learning hints to memory")
+                        logger.debug(
+                            f"[{phase_id}] Persisted {hints_persisted} learning hints to memory"
+                        )
                 except Exception as mem_e:
                     logger.warning(f"[{phase_id}] Failed to write error to memory: {mem_e}")
 

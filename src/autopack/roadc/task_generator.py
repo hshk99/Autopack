@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from ..memory.memory_service import MemoryService, DEFAULT_MEMORY_FRESHNESS_HOURS
 from ..roadi import RegressionProtector
 from ..telemetry.analyzer import RankedIssue, TelemetryAnalyzer
+from .discovery_context_merger import DiscoveryContextMerger
 
 logger = logging.getLogger(__name__)
 
@@ -361,8 +362,15 @@ class AutonomousTaskGenerator:
         IMP-ARCH-017: Integrates TelemetryAnalyzer results into pattern scoring.
         Patterns matching known cost sinks, failure modes, or retry causes receive
         boosted confidence and severity scores.
+
+        IMP-DISC-001: Integrates discovery context from external sources (GitHub,
+        Reddit, Web). Patterns with matching discovered solutions receive additional
+        confidence and severity boosts.
         """
         patterns = []
+
+        # IMP-DISC-001: Fetch discovery context for pattern matching
+        discovery_keywords = self._get_discovery_keywords(insights)
 
         # Group by error type
         error_groups = {}
@@ -400,6 +408,11 @@ class AutonomousTaskGenerator:
                     confidence_boost = 0.1
                     severity_boost = 1
 
+                # IMP-DISC-001: Boost patterns with matching discovered solutions
+                discovery_boost = self._calculate_discovery_boost(group, discovery_keywords)
+                confidence_boost += discovery_boost["confidence"]
+                severity_boost += discovery_boost["severity"]
+
                 patterns.append(
                     {
                         "type": error_type,
@@ -408,6 +421,7 @@ class AutonomousTaskGenerator:
                         "examples": group[:3],
                         "severity": min(10, base_severity + severity_boost),
                         "telemetry_boosted": severity_boost > 0,  # Track if boosted
+                        "discovery_boosted": discovery_boost["severity"] > 0,  # IMP-DISC-001
                     }
                 )
 
@@ -415,6 +429,84 @@ class AutonomousTaskGenerator:
         patterns.sort(key=lambda p: (p["severity"], p["occurrences"]), reverse=True)
 
         return patterns
+
+    def _get_discovery_keywords(self, insights: List[dict]) -> set:
+        """Extract keywords from discovery context for pattern matching (IMP-DISC-001).
+
+        Args:
+            insights: List of insight dictionaries
+
+        Returns:
+            Set of keywords from discovered solutions
+        """
+        keywords = set()
+
+        try:
+            # Build query from insight content
+            query_parts = []
+            for insight in insights[:5]:  # Limit to first 5 for query building
+                content = insight.get("content", "")
+                if content:
+                    query_parts.append(content[:100])
+
+            if not query_parts:
+                return keywords
+
+            query = " ".join(query_parts)
+
+            # Fetch discovery insights
+            merger = DiscoveryContextMerger()
+            discovery_insights = merger.merge_sources(query=query, limit=5)
+
+            # Extract keywords from discoveries
+            for discovery in discovery_insights:
+                words = discovery.content.lower().split()
+                keywords.update(w for w in words if len(w) > 3)
+
+            logger.debug(
+                f"[IMP-DISC-001] Extracted {len(keywords)} discovery keywords "
+                f"from {len(discovery_insights)} insights"
+            )
+
+        except Exception as e:
+            logger.warning(f"[IMP-DISC-001] Failed to get discovery keywords: {e}")
+
+        return keywords
+
+    def _calculate_discovery_boost(self, group: List[dict], discovery_keywords: set) -> dict:
+        """Calculate boost based on discovered solutions matching pattern (IMP-DISC-001).
+
+        Args:
+            group: Group of insights forming a pattern
+            discovery_keywords: Keywords from discovered solutions
+
+        Returns:
+            Dict with 'confidence' and 'severity' boost values
+        """
+        if not discovery_keywords:
+            return {"confidence": 0.0, "severity": 0}
+
+        # Count keyword matches in group
+        matches = 0
+        for insight in group:
+            content = insight.get("content", "").lower()
+            for keyword in discovery_keywords:
+                if keyword in content:
+                    matches += 1
+                    break  # One match per insight is enough
+
+        # Calculate boost based on match ratio
+        match_ratio = matches / len(group) if group else 0
+
+        if match_ratio >= 0.5:
+            # Strong match: discovered solutions highly relevant
+            return {"confidence": 0.15, "severity": 2}
+        elif match_ratio >= 0.25:
+            # Moderate match: some discovered solutions apply
+            return {"confidence": 0.1, "severity": 1}
+        else:
+            # Weak or no match
+            return {"confidence": 0.0, "severity": 0}
 
     def _pattern_to_task(self, pattern: dict) -> GeneratedTask:
         """Convert a pattern into an improvement task."""

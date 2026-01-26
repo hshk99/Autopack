@@ -681,3 +681,45 @@ try {
     Write-Host "Error: Failed to execute Python script - $_" -ForegroundColor Red
     exit 1
 }
+
+# ============ ANOMALY DETECTION ============
+$script:prCheckCount = if ($script:prCheckCount) { $script:prCheckCount + 1 } else { 1 }
+
+if ($script:prCheckCount % 10 -eq 0) {
+    Write-Host ""
+    Write-Host "[ANOMALY] Running anomaly detection..." -ForegroundColor Cyan
+    try {
+        $anomalyScript = @"
+import sys
+sys.path.insert(0, 'src')
+from automation.anomaly_detector import AnomalyDetector
+from automation.dynamic_task_generator import DynamicTaskGenerator
+
+detector = AnomalyDetector()
+anomalies = detector.detect_all()
+
+if anomalies:
+    print(f'[ANOMALY] Detected {len(anomalies)} anomalies')
+    generator = DynamicTaskGenerator()
+    tasks = generator.generate_tasks(anomalies)
+    print(f'[TASK] Generated {len(tasks)} remediation tasks')
+
+    auto_tasks = [t for t in tasks if t.auto_executable]
+    if auto_tasks:
+        results = generator.execute_auto_tasks(auto_tasks)
+        fixed = sum(1 for v in results.values() if v)
+        print(f'[AUTO-FIX] Auto-fixed {fixed}/{len(auto_tasks)} tasks')
+else:
+    print('[ANOMALY] No anomalies detected')
+"@
+        $env:PYTHONPATH = "src"
+        $anomalyOutput = python -c $anomalyScript 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host $anomalyOutput -ForegroundColor Cyan
+        } else {
+            Write-Host "[WARN] Anomaly detection returned non-zero: $anomalyOutput" -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "[WARN] Anomaly detection failed: $_" -ForegroundColor Yellow
+    }
+}

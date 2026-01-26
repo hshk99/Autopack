@@ -60,13 +60,34 @@ GRID_POSITIONS = {
 # Connection error button keywords
 ERROR_BUTTON_KEYWORDS = ["resume", "try again", "retry", "reconnect"]
 
+# Permission dialog button keywords
+PERMISSION_BUTTON_KEYWORDS = ["allow", "accept", "grant", "permit", "ok", "yes", "continue"]
+
+# Retry-specific keywords (subset of error keywords that indicate retry action)
+RETRY_BUTTON_KEYWORDS = ["try again", "retry"]
+
+# Stagnation detection parameters
+STAGNATION_CHECK_INTERVAL_SECONDS = 60
+STAGNATION_EVENT_THRESHOLD = 3  # Min events in window to detect pattern
+
 
 @dataclass
 class SlotEvent:
-    """Represents a single slot event."""
+    """Represents a single slot event.
+
+    Event types recorded:
+    - connection_error: Legacy event for connection error detection
+    - connection_error_detected: Connection error dialog found via OCR
+    - resume_clicked: Resume button clicked (non-retry keywords)
+    - retry_button_click: Retry/try again button clicked
+    - permission_button_click: Permission dialog button clicked
+    - error_recovery_success: Recovery verified successful after button click
+    - stagnation_detected: Slot showing repeated errors without recovery
+    - escalation_level_change: Escalation level changed for the slot
+    """
 
     slot: int
-    event_type: str  # "connection_error", "resume_clicked", "retry_clicked"
+    event_type: str
     timestamp: str
     success: bool
     escalation_level: int = 0  # 0=first attempt, 1=retry, 2+=escalated
@@ -423,6 +444,61 @@ def get_best_nudge_template() -> tuple[str, str]:
     return default_id, NUDGE_TEMPLATES[default_id]
 
 
+def detect_stagnation(slot: int, window_minutes: int = 5) -> bool:
+    """
+    Detect if a slot is stagnating based on recent event patterns.
+
+    A slot is considered stagnating if it has multiple connection errors
+    within the time window without successful recovery.
+
+    Args:
+        slot: Slot number (1-9)
+        window_minutes: Time window to check for stagnation pattern
+
+    Returns:
+        True if stagnation pattern is detected
+    """
+    from datetime import timedelta
+
+    history = load_slot_history()
+    slot_key = str(slot)
+    events = history.get(slot_key, [])
+
+    if len(events) < STAGNATION_EVENT_THRESHOLD:
+        return False
+
+    # Get events within window
+    now = datetime.now(timezone.utc)
+    window_start = now - timedelta(minutes=window_minutes)
+
+    recent_events = []
+    for event in events[-20:]:  # Check last 20 events max
+        try:
+            event_time = datetime.fromisoformat(event.get("timestamp", "").replace("Z", "+00:00"))
+            if event_time >= window_start:
+                recent_events.append(event)
+        except (ValueError, TypeError):
+            continue
+
+    if len(recent_events) < STAGNATION_EVENT_THRESHOLD:
+        return False
+
+    # Check for stagnation pattern: multiple errors without successful recovery
+    error_count = sum(
+        1
+        for e in recent_events
+        if e.get("event_type") in ("connection_error", "connection_error_detected")
+        and not e.get("success", True)
+    )
+
+    recovery_count = sum(
+        1 for e in recent_events if e.get("event_type") == "error_recovery_success"
+    )
+
+    # Stagnating if errors outnumber recoveries significantly
+    return error_count >= STAGNATION_EVENT_THRESHOLD and error_count > recovery_count * 2
+
+
 class ConnectionErrorHandler:
     """OCR-based connection error handler for Cursor windows."""
 
@@ -430,6 +506,7 @@ class ConnectionErrorHandler:
         self.verbose = verbose
         self.reader = None
         self.sct = None
+        self._last_escalation_levels: dict[int, int] = {}  # Track escalation per slot
 
     def initialize_ocr(self) -> bool:
         """Initialize OCR components."""
@@ -468,8 +545,14 @@ class ConnectionErrorHandler:
         img = img[:, :, ::-1]  # BGR to RGB
         return img
 
-    def find_error_button(self, image, keywords: list[str]) -> Optional[tuple[int, int]]:
-        """Find the center location of an error button matching keywords."""
+    def find_error_button(
+        self, image, keywords: list[str]
+    ) -> Optional[tuple[tuple[int, int], str]]:
+        """Find the center location of an error button matching keywords.
+
+        Returns:
+            Tuple of ((x_center, y_center), matched_keyword) or None
+        """
         try:
             results = self.reader.readtext(image)
 
@@ -487,11 +570,19 @@ class ConnectionErrorHandler:
                         y_center = int((bbox[0][1] + bbox[2][1]) / 2)
                         if self.verbose:
                             print(f"  [FOUND] '{text}' at relative ({x_center}, {y_center})")
-                        return (x_center, y_center)
+                        return ((x_center, y_center), keyword)
         except Exception as e:
             if self.verbose:
                 print(f"  [ERROR] OCR failed: {e}")
         return None
+
+    def find_permission_button(self, image) -> Optional[tuple[tuple[int, int], str]]:
+        """Find permission dialog buttons in the image.
+
+        Returns:
+            Tuple of ((x_center, y_center), matched_keyword) or None
+        """
+        return self.find_error_button(image, PERMISSION_BUTTON_KEYWORDS)
 
     def click_at_slot_relative(self, slot: int, rel_x: int, rel_y: int) -> None:
         """Click at a position relative to the slot's top-left corner."""
@@ -506,11 +597,36 @@ class ConnectionErrorHandler:
 
         pyautogui.click(abs_x, abs_y)
 
+    def _track_escalation_change(self, slot: int, new_level: int) -> None:
+        """Track escalation level changes and record events."""
+        old_level = self._last_escalation_levels.get(slot, 0)
+        if new_level != old_level:
+            record_slot_event(
+                slot=slot,
+                event_type="escalation_level_change",
+                success=True,
+                escalation_level=new_level,
+                details={
+                    "previous_level": old_level,
+                    "new_level": new_level,
+                    "direction": "up" if new_level > old_level else "down",
+                },
+            )
+            self._last_escalation_levels[slot] = new_level
+
     def handle_slot_error(
         self, slot: int, escalation_level: int = 0, template_id: str | None = None
     ) -> bool:
         """
         Check and handle connection error for a specific slot.
+
+        Records expanded event types for better pattern analysis:
+        - connection_error_detected: When error dialog is found via OCR
+        - retry_button_click: When retry/try again button is clicked
+        - permission_button_click: When permission dialog button is clicked
+        - error_recovery_success: When recovery is verified successful
+        - stagnation_detected: When slot shows stagnation pattern
+        - escalation_level_change: When escalation level changes
 
         Args:
             slot: Slot number (1-9)
@@ -522,13 +638,87 @@ class ConnectionErrorHandler:
         """
         print(f"\n[CHECK] Slot {slot}")
 
+        # Track escalation level changes
+        self._track_escalation_change(slot, escalation_level)
+
+        # Check for stagnation pattern
+        if detect_stagnation(slot):
+            record_slot_event(
+                slot=slot,
+                event_type="stagnation_detected",
+                success=False,
+                escalation_level=escalation_level,
+                details={"detection_method": "event_pattern_analysis"},
+            )
+            print(f"  [WARN] Stagnation detected for slot {slot}")
+
         image = self.capture_slot(slot)
-        button_loc = self.find_error_button(image, ERROR_BUTTON_KEYWORDS)
 
-        if button_loc:
-            print("  [FOUND] Connection error dialog detected")
+        # First check for permission dialogs
+        permission_result = self.find_permission_button(image)
+        if permission_result:
+            button_loc, matched_keyword = permission_result
+            print(f"  [FOUND] Permission dialog detected (keyword: {matched_keyword})")
 
-            # Record the error event
+            # Record permission dialog detection
+            record_slot_event(
+                slot=slot,
+                event_type="connection_error_detected",
+                success=True,
+                escalation_level=escalation_level,
+                details={
+                    "button_position": button_loc,
+                    "matched_keyword": matched_keyword,
+                    "dialog_type": "permission",
+                },
+            )
+
+            # Click the permission button
+            self.click_at_slot_relative(slot, button_loc[0], button_loc[1])
+            time.sleep(0.5)
+
+            # Record permission button click
+            record_slot_event(
+                slot=slot,
+                event_type="permission_button_click",
+                success=True,
+                escalation_level=escalation_level,
+                details={"matched_keyword": matched_keyword},
+            )
+
+            # Record recovery success
+            record_slot_event(
+                slot=slot,
+                event_type="error_recovery_success",
+                success=True,
+                escalation_level=escalation_level,
+                details={"recovery_type": "permission_granted"},
+            )
+
+            print("  [OK] Clicked permission button")
+            return True
+
+        # Check for error/retry dialogs
+        error_result = self.find_error_button(image, ERROR_BUTTON_KEYWORDS)
+
+        if error_result:
+            button_loc, matched_keyword = error_result
+            print(f"  [FOUND] Connection error dialog detected (keyword: {matched_keyword})")
+
+            # Record connection error detection with more detail
+            record_slot_event(
+                slot=slot,
+                event_type="connection_error_detected",
+                success=True,
+                escalation_level=escalation_level,
+                details={
+                    "button_position": button_loc,
+                    "matched_keyword": matched_keyword,
+                    "dialog_type": "connection_error",
+                },
+            )
+
+            # Also record legacy event for backwards compatibility
             record_slot_event(
                 slot=slot,
                 event_type="connection_error",
@@ -555,13 +745,32 @@ class ConnectionErrorHandler:
             self.click_at_slot_relative(slot, button_loc[0], button_loc[1])
             time.sleep(0.5)
 
-            # Record the click event with template info
+            # Determine specific click event type based on matched keyword
+            is_retry = matched_keyword.lower() in [k.lower() for k in RETRY_BUTTON_KEYWORDS]
+            click_event_type = "retry_button_click" if is_retry else "resume_clicked"
+
+            # Record the specific click event
             record_slot_event(
                 slot=slot,
-                event_type="resume_clicked",
+                event_type=click_event_type,
                 success=True,
                 escalation_level=escalation_level,
-                details={"template_id": template_id},
+                details={
+                    "template_id": template_id,
+                    "matched_keyword": matched_keyword,
+                },
+            )
+
+            # Record recovery success
+            record_slot_event(
+                slot=slot,
+                event_type="error_recovery_success",
+                success=True,
+                escalation_level=escalation_level,
+                details={
+                    "recovery_type": "button_click",
+                    "button_type": click_event_type,
+                },
             )
 
             print("  [OK] Clicked recovery button")

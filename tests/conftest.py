@@ -1,8 +1,17 @@
 """Pytest configuration and fixtures for Autopack tests"""
 
-import os
+# CRITICAL: Path setup MUST happen before ANY imports (including pytest)
+# This ensures the memory module is importable by pytest-xdist workers
 import sys
 from pathlib import Path
+
+_project_root = Path(__file__).resolve().parent.parent
+_src_path = _project_root / "src"
+_src_path_str = str(_src_path)
+if _src_path_str not in sys.path:
+    sys.path.insert(0, _src_path_str)
+
+import os
 
 import pytest
 
@@ -11,12 +20,9 @@ import pytest
 # IMPORTANT: This must run before importing `autopack.database` (which creates an engine at import time).
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
-# Ensure src directory is in Python path before any imports
-project_root = Path(__file__).resolve().parent.parent
-src_path = project_root / "src"
-backend_path = src_path / "backend"
-
-for path in (project_root, src_path, backend_path):
+# Additional paths for backend compatibility
+backend_path = _src_path / "backend"
+for path in (_project_root, _src_path, backend_path):
     path_str = str(path)
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
@@ -50,6 +56,7 @@ def pytest_load_initial_conftests(early_config, parser, args):
     _src_path_str = str(_src_path)
     if _src_path_str not in sys.path:
         sys.path.insert(0, _src_path_str)
+
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

@@ -87,7 +87,11 @@ param(
 
     [switch]$UseAutonomousDiscovery,
 
-    [switch]$UseAutonomousWavePlanning
+    [switch]$UseAutonomousWavePlanning,
+
+    [switch]$UseDiscoveryContextInjection,
+
+    [string]$DiscoveryContextOutputPath = "$env:USERPROFILE\OneDrive\Backup\Desktop\DISCOVERY_CONTEXT.json"
 )
 
 $ErrorActionPreference = "Stop"
@@ -134,6 +138,7 @@ $OutputPath = Join-Path $ProjectRoot $OutputPath
 $TelemetryAggregatorPath = Join-Path $ProjectRoot "scripts/utility/telemetry_aggregator.py"
 $AutonomousDiscoveryOutputPath = Join-Path $ProjectRoot ".autopack/DISCOVERED_IMPS.json"
 $AutonomousWavePlanOutputPath = Join-Path $ProjectRoot ".autopack/WAVE_PLAN.json"
+$ContextInjectorPath = Join-Path $ProjectRoot "src/discovery/context_injector.py"
 
 function Write-Status {
     param([string]$Message, [string]$Color = "Cyan")
@@ -411,6 +416,72 @@ else:
     }
 }
 
+function Invoke-DiscoveryContextInjection {
+    <#
+    .SYNOPSIS
+        Runs the context injector to gather telemetry insights for discovery.
+    .DESCRIPTION
+        IMP-LOOP-001: Feedback Loop from Outcomes to Discovery
+        Analyzes telemetry events and decision logs to extract recurring issues,
+        successful patterns, and failed approaches. Injects this context into
+        Phase 1 discovery to enable informed prioritization.
+    #>
+    Write-Status "Running discovery context injection..."
+
+    if ($DryRun) {
+        Write-Status "[DryRun] Would execute: python -c 'from src.discovery.context_injector import ContextInjector; ...'" -Color Yellow
+        return @{ HasContext = $false; ContextPath = $null }
+    }
+
+    if (-not (Test-Path $ContextInjectorPath)) {
+        Write-Warning "Context injector not found at: $ContextInjectorPath"
+        return @{ HasContext = $false; ContextPath = $null }
+    }
+
+    try {
+        $pythonScript = @"
+import sys
+sys.path.insert(0, 'src')
+from discovery.context_injector import ContextInjector
+
+injector = ContextInjector(
+    telemetry_path='.autopack/telemetry_events.json',
+    decisions_path='.autopack/decisions_log.json'
+)
+context = injector.gather_context(lookback_days=30)
+injector.inject_into_phase1(context, r'$($DiscoveryContextOutputPath -replace '\\', '/')')
+print('OK')
+"@
+        $result = $pythonScript | python 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Discovery context injection returned non-zero exit code: $LASTEXITCODE"
+            Write-Warning "Output: $result"
+            return @{ HasContext = $false; ContextPath = $null }
+        }
+
+        Write-Status "Discovery context injected successfully" -Color Green
+        Write-Status "Output: $DiscoveryContextOutputPath" -Color Green
+
+        # Log the context injection decision (IMP-LOG-001)
+        Write-DecisionLog -DecisionType "context_injection" -Context @{
+            output_path = $DiscoveryContextOutputPath
+            lookback_days = 30
+            sources = "telemetry_events,decisions_log"
+        } -OptionsConsidered @("no_context", "telemetry_only", "decisions_only", "full_context") `
+          -ChosenOption "full_context" `
+          -Reasoning "Injected full context from telemetry and decisions for informed discovery"
+
+        return @{
+            HasContext = $true
+            ContextPath = $DiscoveryContextOutputPath
+        }
+    }
+    catch {
+        Write-Warning "Failed to run discovery context injection: $_"
+        return @{ HasContext = $false; ContextPath = $null }
+    }
+}
+
 function Get-TelemetryContextPaths {
     <#
     .SYNOPSIS
@@ -512,7 +583,8 @@ function Build-Phase1Prompt {
     param(
         [hashtable]$TelemetryContext,
         [hashtable]$CarryoverContext = @{ HasCarryover = $false },
-        [hashtable]$DiscoveryContext = @{ HasDiscovery = $false }
+        [hashtable]$DiscoveryContext = @{ HasDiscovery = $false },
+        [hashtable]$InjectedContext = @{ HasContext = $false }
     )
 
     $prompt = "@phase1"
@@ -567,6 +639,21 @@ function Build-Phase1Prompt {
         $discoveryLines += "- Review and incorporate high-confidence items into the improvement list"
         $discoveryLines += "- Each item includes confidence score and discovery source"
         $prompt += "`n" + ($discoveryLines -join "`n")
+    }
+
+    # Add injected context from telemetry feedback loop (IMP-LOOP-001)
+    if ($InjectedContext.HasContext) {
+        $injectedLines = @()
+        $injectedLines += ""
+        $injectedLines += "## Feedback Loop Context (IMP-LOOP-001)"
+        $injectedLines += ""
+        $injectedLines += "DISCOVERY_CONTEXT: $($InjectedContext.ContextPath)"
+        $injectedLines += "- Contains recurring issues, successful patterns, and failed approaches"
+        $injectedLines += "- Prioritize fixing any recurring_issues listed"
+        $injectedLines += "- Focus discovery on high_value_categories"
+        $injectedLines += "- Avoid approaches listed in failed_approaches"
+        $injectedLines += "- Follow the recommendations provided"
+        $prompt += "`n" + ($injectedLines -join "`n")
     }
 
     return $prompt
@@ -633,12 +720,13 @@ function Invoke-Phase1 {
     param(
         [hashtable]$TelemetryContext,
         [hashtable]$CarryoverContext = @{ HasCarryover = $false },
-        [hashtable]$DiscoveryContext = @{ HasDiscovery = $false }
+        [hashtable]$DiscoveryContext = @{ HasDiscovery = $false },
+        [hashtable]$InjectedContext = @{ HasContext = $false }
     )
 
     Write-Status "=== Phase 1: Discovery ===" -Color Magenta
 
-    $prompt = Build-Phase1Prompt -TelemetryContext $TelemetryContext -CarryoverContext $CarryoverContext -DiscoveryContext $DiscoveryContext
+    $prompt = Build-Phase1Prompt -TelemetryContext $TelemetryContext -CarryoverContext $CarryoverContext -DiscoveryContext $DiscoveryContext -InjectedContext $InjectedContext
 
     if ($DryRun) {
         Write-Status "[DryRun] Would send prompt:" -Color Yellow
@@ -692,7 +780,7 @@ function Invoke-Phase2 {
 # Main execution
 function Main {
     Write-Status "Autopack Project Generation Trigger" -Color Cyan
-    Write-Status "Phase: $Phase | UseTelemetryContext: $UseTelemetryContext | UseAutonomousDiscovery: $UseAutonomousDiscovery | UseAutonomousWavePlanning: $UseAutonomousWavePlanning | DryRun: $DryRun"
+    Write-Status "Phase: $Phase | UseTelemetryContext: $UseTelemetryContext | UseDiscoveryContextInjection: $UseDiscoveryContextInjection | UseAutonomousDiscovery: $UseAutonomousDiscovery | UseAutonomousWavePlanning: $UseAutonomousWavePlanning | DryRun: $DryRun"
     Write-Host ""
 
     # Validate environment
@@ -745,6 +833,18 @@ function Main {
         Write-Host ""
     }
 
+    # Run discovery context injection if enabled (IMP-LOOP-001)
+    $injectedContext = @{ HasContext = $false; ContextPath = $null }
+    if ($UseDiscoveryContextInjection -and ($Phase -eq "phase1" -or $Phase -eq "all")) {
+        Write-Status "Discovery context injection enabled - gathering telemetry insights..."
+        $injectedContext = Invoke-DiscoveryContextInjection
+        if ($injectedContext.HasContext) {
+            Write-Status "Discovery context injection completed:" -Color Green
+            Write-Status "  - Context file: $($injectedContext.ContextPath)"
+        }
+        Write-Host ""
+    }
+
     # Run autonomous discovery if enabled (IMP-GEN-001)
     $discoveryContext = @{ HasDiscovery = $false; DiscoveryPath = $null; ImpCount = 0 }
     if ($UseAutonomousDiscovery -and ($Phase -eq "phase1" -or $Phase -eq "all")) {
@@ -775,13 +875,13 @@ function Main {
     # Execute requested phases
     switch ($Phase) {
         "phase1" {
-            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext -DiscoveryContext $discoveryContext
+            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext -DiscoveryContext $discoveryContext -InjectedContext $injectedContext
         }
         "phase2" {
             Invoke-Phase2 -TelemetryContext $telemetryContext -WavePlanContext $wavePlanContext
         }
         "all" {
-            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext -DiscoveryContext $discoveryContext
+            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext -DiscoveryContext $discoveryContext -InjectedContext $injectedContext
             Write-Host ""
             Invoke-Phase2 -TelemetryContext $telemetryContext -WavePlanContext $wavePlanContext
         }

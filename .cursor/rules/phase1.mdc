@@ -57,6 +57,45 @@ When including carryover items in output, add a Historical Context section:
 - **Status Update**: [any changes since original discovery]
 ```
 
+## Feedback Loop Context Integration (IMP-LOOP-001)
+
+**CONTEXT INJECTION** (if available):
+If `C:\Users\hshk9\OneDrive\Backup\Desktop\DISCOVERY_CONTEXT.json` exists, READ it first and:
+1. Prioritize fixing any `recurring_issues` listed - these are issues that keep appearing across projects
+2. Focus discovery on `high_value_categories` - these IMP categories have the best historical outcomes
+3. Avoid approaches listed in `failed_approaches` - these have failed before and should not be repeated
+4. Follow the `recommendations` provided - these are actionable insights from telemetry analysis
+
+### Reading DISCOVERY_CONTEXT.json
+
+1. **Load the file** and parse its JSON structure
+2. **Check `recurring_issues`** array - Issues that appear frequently:
+   - Each issue has `type`, `occurrences`, and `recommendation`
+   - Prioritize creating IMPs that address root causes of recurring issues
+   - These should be treated as high-priority discoveries
+
+3. **Check `successful_patterns`** array - Patterns that worked well:
+   - Each pattern has `decision_type`, `chosen_option`, and `context`
+   - Prefer approaches that match successful patterns
+   - Use these as templates for new improvements
+
+4. **Check `high_value_categories`** list - Best-performing IMP categories:
+   - Focus discovery efforts on these categories first
+   - Examples: TEL (telemetry), LOG (logging), ESC (escalation), PERF (performance)
+
+5. **Check `failed_approaches`** array - Approaches to avoid:
+   - Each entry has `approach`, `reason`, and `avoid_in`
+   - Do NOT recommend approaches that have previously failed
+   - If a similar approach is needed, note the previous failure and propose mitigations
+
+6. **Check `performance_insights`** object - Timing and throughput data:
+   - Use to inform realistic effort estimates
+   - Identify bottleneck components to prioritize
+
+7. **Follow `recommendations`** list - Actionable insights:
+   - These are pre-generated recommendations from the context injector
+   - Incorporate these into your discovery prioritization
+
 ## Historical Context Integration (IMP-GEN-001)
 
 When telemetry context is provided, use historical data to inform your discovery:

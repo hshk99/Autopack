@@ -23,7 +23,7 @@ class EventLogger:
         """
         self.log_dir = Path(log_dir or os.environ.get("AUTOPACK_LOG_DIR", "./logs"))
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        self.current_log = self.log_dir / f'events_{datetime.now().strftime("%Y%m%d")}.jsonl'
+        self.current_log = self.log_dir / f"events_{datetime.now().strftime('%Y%m%d')}.jsonl"
 
     def log(
         self,

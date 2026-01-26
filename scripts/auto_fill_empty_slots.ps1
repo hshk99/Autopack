@@ -37,6 +37,35 @@ if ($DryRun) {
     Write-Host ""
 }
 
+# Function to record performance metrics
+function Write-PerformanceMetric {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$MetricType,
+        [Parameter(Mandatory=$true)]
+        [hashtable]$Args
+    )
+
+    $argsJson = $Args | ConvertTo-Json -Compress
+
+    $pythonScript = @"
+import sys
+import json
+sys.path.insert(0, 'src')
+from telemetry.performance_metrics import record_metric_from_ps
+
+args = json.loads('$($argsJson -replace "'", "''")')
+record_metric_from_ps('$MetricType', **args)
+"@
+
+    try {
+        $env:PYTHONPATH = "src"
+        $null = python -c $pythonScript 2>&1
+    } catch {
+        # Silently continue if performance metrics fail - don't block main workflow
+    }
+}
+
 # Function to log events to centralized telemetry
 function Write-TelemetryEvent {
     param(
@@ -323,6 +352,33 @@ Write-TelemetryEvent -EventType "slot_scan_completed" -Data @{
     filled_count = $filledCount
     dry_run = $DryRun.IsPresent
     prioritization_used = $true
+}
+
+# Record slot utilization metrics
+# Calculate busy vs idle based on occupied vs empty slots during this scan
+$totalSlots = $MaxSlots
+$occupiedCount = $occupiedSlots.Count
+
+# Record aggregate slot utilization (percentage of slots in use)
+if ($totalSlots -gt 0) {
+    # Estimate busy/idle time based on current snapshot
+    # Assume scan represents a point-in-time measurement
+    $scanDurationSeconds = 60  # Assume 1-minute measurement window
+
+    foreach ($slotNum in 1..$MaxSlots) {
+        $isOccupied = $occupiedSlots -contains $slotNum
+        $busySeconds = if ($isOccupied) { $scanDurationSeconds } else { 0 }
+        $idleSeconds = if ($isOccupied) { 0 } else { $scanDurationSeconds }
+
+        Write-PerformanceMetric -MetricType "slot" -Args @{
+            slot_id = $slotNum
+            busy_seconds = $busySeconds
+            idle_seconds = $idleSeconds
+        }
+    }
+
+    Write-Host ""
+    Write-Host "Slot utilization recorded: $occupiedCount/$totalSlots slots busy ($([math]::Round($occupiedCount/$totalSlots*100, 1))%)" -ForegroundColor Cyan
 }
 
 exit 0

@@ -63,7 +63,7 @@ def improved_token_metrics(code_change):
                 value=7000 + i * 70,  # 30% reduction
                 timestamp=code_change.timestamp + timedelta(hours=i + 1),
                 phase_id="code_generation",
-                run_id=f"run_{20+i}",
+                run_id=f"run_{20 + i}",
             )
             for i in range(20)
         ]
@@ -80,7 +80,7 @@ def degraded_duration_metrics(code_change):
                 value=15.0 + i * 0.75,  # 50% increase
                 timestamp=code_change.timestamp + timedelta(hours=i + 1),
                 phase_id="code_generation",
-                run_id=f"run_{20+i}",
+                run_id=f"run_{20 + i}",
             )
             for i in range(20)
         ]
@@ -251,7 +251,7 @@ def test_insufficient_samples_ignored(analyzer, code_change):
                 value=80 + i,
                 timestamp=datetime.now() + timedelta(hours=i),
                 phase_id="test",
-                run_id=f"run_{5+i}",
+                run_id=f"run_{5 + i}",
             )
             for i in range(5)
         ]
@@ -314,7 +314,7 @@ def test_high_variance_baseline_detected(analyzer, code_change):
                 value=120 + i,
                 timestamp=code_change.timestamp + timedelta(hours=i),
                 phase_id="test",
-                run_id=f"run_{15+i}",
+                run_id=f"run_{15 + i}",
             )
             for i in range(15)
         ]

@@ -51,6 +51,7 @@ def pytest_load_initial_conftests(early_config, parser, args):
     if _src_path_str not in sys.path:
         sys.path.insert(0, _src_path_str)
 
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

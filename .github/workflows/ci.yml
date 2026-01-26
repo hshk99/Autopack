@@ -304,7 +304,7 @@ jobs:
           # Production uses PostgreSQL; tests use same to catch schema issues early
           DATABASE_URL: postgresql://autopack:autopack@localhost:5432/autopack
           # PR-INFRA: Ensure src/memory module is importable by pytest-xdist workers
-          PYTHONPATH: src
+          PYTHONPATH: ${{ github.workspace }}/src
         run: |
           # Core gate: Must pass, no xfail allowed
           # Excludes research-marked, aspirational-marked, and legacy_contract-marked tests via pytest markers
@@ -313,13 +313,13 @@ jobs:
           pytest tests/ -m "not research and not aspirational and not legacy_contract" -n auto -v --cov=src/autopack --cov-report=xml --maxfail=5
       - name: Verify no collection errors
         env:
-          PYTHONPATH: src
+          PYTHONPATH: ${{ github.workspace }}/src
         run: |
           # Ensure test collection succeeds (no import errors)
           pytest tests/ -m "not research and not aspirational and not legacy_contract" --collect-only -q
       - name: Check xfail budget
         env:
-          PYTHONPATH: src
+          PYTHONPATH: ${{ github.workspace }}/src
         run: |
           # Verify xfail count hasn't grown without approval
           pytest tests/test_xfail_budget.py -v
@@ -369,7 +369,7 @@ jobs:
         env:
           DATABASE_URL: postgresql://autopack:autopack@localhost:5432/autopack
           # PR-INFRA: Ensure src/memory module is importable by pytest-xdist workers
-          PYTHONPATH: src
+          PYTHONPATH: ${{ github.workspace }}/src
         run: |
           # Aspirational gate: Track progress on extended test suites
           # Runs ONLY aspirational-marked tests (xfail-heavy extended suites)
@@ -379,7 +379,7 @@ jobs:
       - name: Report xpass tests
         if: always()
         env:
-          PYTHONPATH: src
+          PYTHONPATH: ${{ github.workspace }}/src
         run: |
           # Identify tests that are now passing but still marked xfail
           pytest tests/ -m "aspirational" -v --tb=no | grep -E "XPASS|xpassed" || echo "No XPASS tests found"
@@ -410,7 +410,7 @@ jobs:
           # Research tests use in-memory DB (faster, isolated)
           DATABASE_URL: "sqlite:///:memory:"
           # PR-INFRA: Ensure src/memory module is importable by pytest-xdist workers
-          PYTHONPATH: src
+          PYTHONPATH: ${{ github.workspace }}/src
         run: |
           # Research gate: Informational only
           # Tests the quarantined research subsystem (see RESEARCH_QUARANTINE.md)

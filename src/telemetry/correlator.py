@@ -1,7 +1,7 @@
 """Cross-artifact telemetry correlator."""
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import List, Optional
 
 from .event_schema import TelemetryEvent

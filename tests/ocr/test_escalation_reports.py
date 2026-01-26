@@ -1,14 +1,19 @@
 """Tests for context-enriched escalation reports (IMP-ESC-001)."""
 
+import importlib.util
 import sys
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-# Add src to path for imports
-sys.path.insert(0, "src")
-sys.path.insert(0, "scripts")
-
-from handle_connection_errors_ocr import generate_escalation_report
+# Import the module directly from file path to avoid polluting sys.modules
+# This prevents conflicts with tests/test_handle_connection_errors_ocr.py which
+# imports a different file with the same module name from scripts/utility/
+_module_path = Path(__file__).parent.parent.parent / "scripts" / "handle_connection_errors_ocr.py"
+_spec = importlib.util.spec_from_file_location("escalation_handler", _module_path)
+_escalation_module = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_escalation_module)
+generate_escalation_report = _escalation_module.generate_escalation_report
 
 
 class TestGenerateEscalationReport:

@@ -13,6 +13,7 @@ from typing import Any, Callable, Dict, Optional, TypeVar
 # Add src to path for imports
 sys.path.insert(0, "src")
 
+from decision_logging.decision_logger import get_decision_logger
 from telemetry.event_logger import get_logger
 
 T = TypeVar("T")
@@ -41,6 +42,7 @@ class ConnectionErrorHandler:
         self.max_delay = max_delay
         self.slot = slot
         self.logger = get_logger()
+        self.decision_logger = get_decision_logger()
 
     def handle_with_retry(
         self,
@@ -102,6 +104,22 @@ class ConnectionErrorHandler:
                 )
 
                 if attempt < self.max_retries - 1:
+                    # Log retry decision (IMP-LOG-001)
+                    self.decision_logger.create_and_log_decision(
+                        decision_type="retry",
+                        context={
+                            "operation": operation_name,
+                            "attempt": attempt + 1,
+                            "max_retries": self.max_retries,
+                            "error_type": type(e).__name__,
+                            "error_message": str(e),
+                            "slot": self.slot,
+                            **context,
+                        },
+                        options_considered=["retry_with_backoff", "fail_immediately", "escalate"],
+                        chosen_option="retry_with_backoff",
+                        reasoning=f"Attempt {attempt + 1} of {self.max_retries} failed with {type(e).__name__}, retrying after {delay:.1f}s exponential backoff",
+                    )
                     print(
                         f"Connection error on {operation_name} "
                         f"(attempt {attempt + 1}/{self.max_retries}): {e}. "
@@ -109,6 +127,25 @@ class ConnectionErrorHandler:
                     )
                     time.sleep(delay)
                 else:
+                    # Log escalation decision (IMP-LOG-001)
+                    self.decision_logger.create_and_log_decision(
+                        decision_type="escalation",
+                        context={
+                            "operation": operation_name,
+                            "total_attempts": self.max_retries,
+                            "error_type": type(e).__name__,
+                            "error_message": str(e),
+                            "slot": self.slot,
+                            **context,
+                        },
+                        options_considered=[
+                            "retry_again",
+                            "escalate_to_failure",
+                            "partial_recovery",
+                        ],
+                        chosen_option="escalate_to_failure",
+                        reasoning=f"Max retries ({self.max_retries}) exceeded for {operation_name}, escalating as permanent failure",
+                    )
                     print(
                         f"Connection error on {operation_name} "
                         f"(attempt {attempt + 1}/{self.max_retries}): {e}. "

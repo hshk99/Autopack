@@ -330,6 +330,59 @@ logger.log(event_type, data, slot)
     }
 }
 
+# Function to log structured decisions with reasoning (IMP-LOG-001)
+function Write-DecisionLog {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$DecisionType,
+        [Parameter(Mandatory=$true)]
+        [hashtable]$Context,
+        [Parameter(Mandatory=$true)]
+        [string[]]$OptionsConsidered,
+        [Parameter(Mandatory=$true)]
+        [string]$ChosenOption,
+        [Parameter(Mandatory=$true)]
+        [string]$Reasoning,
+        [Parameter(Mandatory=$false)]
+        [string]$Outcome = ""
+    )
+
+    $contextJson = $Context | ConvertTo-Json -Compress
+    $optionsJson = $OptionsConsidered | ConvertTo-Json -Compress
+    $outcomeArg = if ($Outcome) { "outcome='$($Outcome -replace "'", "''")'" } else { "outcome=None" }
+
+    $pythonScript = @"
+import sys
+import json
+sys.path.insert(0, 'src')
+from decision_logging.decision_logger import get_decision_logger
+
+decision_type = '$DecisionType'
+context = json.loads('$($contextJson -replace "'", "''")')
+options = json.loads('$($optionsJson -replace "'", "''")')
+chosen = '$($ChosenOption -replace "'", "''")'
+reasoning = '$($Reasoning -replace "'", "''")'
+$outcomeArg
+
+logger = get_decision_logger()
+logger.create_and_log_decision(
+    decision_type=decision_type,
+    context=context,
+    options_considered=options,
+    chosen_option=chosen,
+    reasoning=reasoning,
+    outcome=outcome
+)
+"@
+
+    try {
+        $env:PYTHONPATH = "src"
+        $null = python -c $pythonScript 2>&1
+    } catch {
+        # Silently continue if decision logging fails - don't block main workflow
+    }
+}
+
 # Check if gh CLI is available
 try {
     $null = gh --version
@@ -384,6 +437,16 @@ if ($failedChecks.Count -gt 0) {
     $failureCategory = Get-CIFailureCategory -FailedChecks $failedChecks
     Write-Host "  Category: $failureCategory" -ForegroundColor Cyan
     Write-Host "  Phase ID: $phaseId" -ForegroundColor Cyan
+
+    # Log the categorization decision (IMP-LOG-001)
+    Write-DecisionLog -DecisionType "ci_failure_categorization" -Context @{
+        pr_number = $pr.number
+        phase_id = $phaseId
+        failed_checks = ($failedChecks | ForEach-Object { $_.name }) -join ", "
+        failed_count = $failedChecks.Count
+    } -OptionsConsidered @("flaky_test", "unrelated_ci", "code_failure") `
+      -ChosenOption $failureCategory `
+      -Reasoning "Categorized based on failed job names pattern matching: jobs contained patterns indicative of $failureCategory"
 
     # Build failure details
     $failedJobNames = ($failedChecks | ForEach-Object { $_.name }) -join ", "
@@ -503,6 +566,17 @@ $detailsJson = $details | ConvertTo-Json -Compress
 
 Write-Host ""
 Write-Host "==> Recording improvement outcome..." -ForegroundColor Yellow
+
+# Log the decision to record this as a successful outcome (IMP-LOG-001)
+Write-DecisionLog -DecisionType "phase_transition" -Context @{
+    pr_number = $pr.number
+    imp_id = $impId
+    merge_time_hours = $mergeTimeHours
+    ci_pass_rate = $ciPassRate
+    review_cycles = $reviewCycles
+} -OptionsConsidered @("record_success", "record_failure", "skip_recording") `
+  -ChosenOption "record_success" `
+  -Reasoning "PR merged successfully with CI pass rate of $ciPassRate after $reviewCycles review cycles"
 
 # Invoke Python to record the outcome
 $pythonScript = @"

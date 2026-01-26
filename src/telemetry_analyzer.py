@@ -746,3 +746,243 @@ class TelemetryAnalyzer:
         from src.improvement_generator import ImprovementGenerator
 
         return ImprovementGenerator(master_file_path)
+
+    def generate_discovery_input(self) -> list[dict[str, Any]]:
+        """Generate discovery input formatted for Phase 1 consumption.
+
+        This method bridges the telemetry-to-discovery feedback loop by converting
+        detected patterns into a format suitable for Phase 1 discovery to ingest.
+        The output includes recurring issues, high-value categories, and
+        recommendations based on telemetry analysis.
+
+        Returns:
+            List of discovery input items with the following structure:
+            - recurring_issues: Issues that keep appearing and need attention
+            - high_value_categories: Categories where improvements have high impact
+            - failed_approaches: Approaches that have historically failed
+            - recommendations: Actionable suggestions for discovery focus
+        """
+        all_patterns = self.get_all_patterns()
+
+        if not all_patterns:
+            logger.info("No patterns detected for discovery input")
+            return []
+
+        discovery_items: list[dict[str, Any]] = []
+
+        # Group patterns by type for analysis
+        patterns_by_type: dict[str, list[dict[str, Any]]] = {}
+        for pattern in all_patterns:
+            pattern_type = pattern.get("pattern_type", "unknown")
+            if pattern_type not in patterns_by_type:
+                patterns_by_type[pattern_type] = []
+            patterns_by_type[pattern_type].append(pattern)
+
+        # Identify recurring issues (patterns that appear multiple times or have high counts)
+        recurring_issues: list[dict[str, Any]] = []
+        for pattern in all_patterns:
+            occurrence_count = pattern.get("occurrence_count", pattern.get("failure_count", 1))
+            if occurrence_count >= self.MIN_PATTERN_THRESHOLD:
+                recurring_issues.append(
+                    {
+                        "issue_type": pattern.get("pattern_type"),
+                        "description": pattern.get("description", ""),
+                        "occurrence_count": occurrence_count,
+                        "severity": pattern.get("severity", "medium"),
+                        "source": pattern.get("source", "unknown"),
+                        "details": self._extract_pattern_details(pattern),
+                    }
+                )
+
+        # Identify high-value categories based on pattern frequency and severity
+        category_scores: dict[str, int] = {}
+        severity_weights = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+        category_map = {
+            "flaky_test": "testing",
+            "consistent_ci_failure": "testing",
+            "repeated_failure": "reliability",
+            "phase_failure": "automation",
+            "escalation_pattern": "automation",
+            "workflow_failure": "ci_cd",
+            "slot_high_failure_rate": "reliability",
+            "frequent_event": "monitoring",
+        }
+
+        for pattern in all_patterns:
+            pattern_type = pattern.get("pattern_type", "unknown")
+            category = category_map.get(pattern_type, "general")
+            severity = pattern.get("severity", "medium")
+            weight = severity_weights.get(severity, 2)
+            occurrence_count = pattern.get("occurrence_count", pattern.get("failure_count", 1))
+            category_scores[category] = category_scores.get(category, 0) + (
+                weight * occurrence_count
+            )
+
+        # Sort categories by score and identify high-value ones
+        high_value_categories = sorted(category_scores.items(), key=lambda x: x[1], reverse=True)[
+            :5
+        ]
+
+        # Generate recommendations based on patterns
+        recommendations: list[dict[str, Any]] = []
+
+        # Check for testing issues
+        testing_patterns = patterns_by_type.get("flaky_test", []) + patterns_by_type.get(
+            "consistent_ci_failure", []
+        )
+        if testing_patterns:
+            recommendations.append(
+                {
+                    "focus_area": "testing",
+                    "priority": "high",
+                    "recommendation": (
+                        f"Address {len(testing_patterns)} testing issues. "
+                        "Consider implementing test stabilization improvements."
+                    ),
+                    "related_pattern_count": len(testing_patterns),
+                }
+            )
+
+        # Check for reliability issues
+        reliability_patterns = patterns_by_type.get("repeated_failure", []) + patterns_by_type.get(
+            "slot_high_failure_rate", []
+        )
+        if reliability_patterns:
+            recommendations.append(
+                {
+                    "focus_area": "reliability",
+                    "priority": "high",
+                    "recommendation": (
+                        f"Improve system reliability to address {len(reliability_patterns)} "
+                        "recurring failure patterns."
+                    ),
+                    "related_pattern_count": len(reliability_patterns),
+                }
+            )
+
+        # Check for automation/escalation issues
+        automation_patterns = patterns_by_type.get("escalation_pattern", []) + patterns_by_type.get(
+            "phase_failure", []
+        )
+        if automation_patterns:
+            recommendations.append(
+                {
+                    "focus_area": "automation",
+                    "priority": "medium",
+                    "recommendation": (
+                        f"Enhance automation to reduce {len(automation_patterns)} "
+                        "escalation and phase failure patterns."
+                    ),
+                    "related_pattern_count": len(automation_patterns),
+                }
+            )
+
+        # Build the discovery input structure
+        discovery_input = {
+            "generated_at": datetime.now().isoformat(),
+            "telemetry_source": str(self.base_path),
+            "total_patterns_analyzed": len(all_patterns),
+            "recurring_issues": recurring_issues,
+            "high_value_categories": [
+                {"category": cat, "score": score} for cat, score in high_value_categories
+            ],
+            "recommendations": recommendations,
+            "pattern_summary": {
+                pattern_type: len(patterns) for pattern_type, patterns in patterns_by_type.items()
+            },
+        }
+
+        discovery_items.append(discovery_input)
+
+        logger.info(
+            "Generated discovery input: %d recurring issues, %d high-value categories, "
+            "%d recommendations",
+            len(recurring_issues),
+            len(high_value_categories),
+            len(recommendations),
+        )
+
+        return discovery_items
+
+    def _extract_pattern_details(self, pattern: dict[str, Any]) -> dict[str, Any]:
+        """Extract relevant details from a pattern for discovery input.
+
+        Args:
+            pattern: The detected pattern dictionary.
+
+        Returns:
+            Dictionary containing pattern-specific details.
+        """
+        pattern_type = pattern.get("pattern_type", "")
+        details: dict[str, Any] = {}
+
+        if pattern_type == "flaky_test":
+            details["test_id"] = pattern.get("test_id")
+            details["retry_count"] = pattern.get("retry_count")
+            details["success_rate"] = pattern.get("success_rate")
+        elif pattern_type == "consistent_ci_failure":
+            details["test_id"] = pattern.get("test_id")
+            details["failure_count"] = pattern.get("failure_count")
+        elif pattern_type == "slot_high_failure_rate":
+            details["slot_id"] = pattern.get("slot_id")
+            details["failure_rate"] = pattern.get("failure_rate")
+        elif pattern_type in ("repeated_failure", "ci_failure_reason"):
+            details["failure_reason"] = pattern.get("failure_reason")
+        elif pattern_type == "phase_failure":
+            details["phase_type"] = pattern.get("phase_type")
+        elif pattern_type == "workflow_failure":
+            details["workflow"] = pattern.get("workflow")
+        elif pattern_type == "frequent_event":
+            details["event_type"] = pattern.get("event_type")
+        elif pattern_type == "escalation_pattern":
+            details["trigger"] = pattern.get("trigger")
+
+        return details
+
+    def export_discovery_input(self, output_path: str | Path) -> bool:
+        """Export discovery input to a JSON file for Phase 1 consumption.
+
+        Args:
+            output_path: Path where the discovery input JSON will be written.
+
+        Returns:
+            True if export was successful, False otherwise.
+        """
+        output_path = Path(output_path)
+
+        try:
+            discovery_input = self.generate_discovery_input()
+
+            if not discovery_input:
+                logger.warning("No discovery input generated, creating empty structure")
+                discovery_input = [
+                    {
+                        "generated_at": datetime.now().isoformat(),
+                        "telemetry_source": str(self.base_path),
+                        "total_patterns_analyzed": 0,
+                        "recurring_issues": [],
+                        "high_value_categories": [],
+                        "recommendations": [],
+                        "pattern_summary": {},
+                    }
+                ]
+
+            # Ensure parent directory exists
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Write the discovery input
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(
+                    {"discovery_input": discovery_input[0] if discovery_input else {}},
+                    f,
+                    indent=2,
+                    ensure_ascii=False,
+                )
+                f.write("\n")
+
+            logger.info("Exported discovery input to: %s", output_path)
+            return True
+
+        except OSError as e:
+            logger.error("Failed to export discovery input to %s: %s", output_path, e)
+            return False

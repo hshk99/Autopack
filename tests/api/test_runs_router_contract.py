@@ -4,8 +4,9 @@ These tests verify the runs router behavior contract is preserved
 during the extraction from main.py to api/routes/runs.py (PR-API-3i).
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestRunsRouterContract:
@@ -29,7 +30,8 @@ class TestGetRunContract:
 
         mock_db = MagicMock()
         mock_query = MagicMock()
-        mock_query.filter.return_value.first.return_value = None
+        # P3.2: Chain is now filter -> options -> first (joinedload optimization)
+        mock_query.filter.return_value.options.return_value.first.return_value = None
         mock_db.query.return_value = mock_query
 
         with pytest.raises(HTTPException) as exc_info:
@@ -47,7 +49,8 @@ class TestGetRunContract:
 
         mock_db = MagicMock()
         mock_query = MagicMock()
-        mock_query.filter.return_value.first.return_value = mock_run
+        # P3.2: Chain is now filter -> options -> first (joinedload optimization)
+        mock_query.filter.return_value.options.return_value.first.return_value = mock_run
         mock_db.query.return_value = mock_query
 
         result = get_run(run_id="test-run", db=mock_db, _auth="test-key")
@@ -186,7 +189,8 @@ class TestGetRunProgressContract:
 
         mock_db = MagicMock()
         mock_query = MagicMock()
-        mock_query.filter.return_value.first.return_value = None
+        # P3.2: Chain is now filter -> options -> first (joinedload optimization)
+        mock_query.filter.return_value.options.return_value.first.return_value = None
         mock_db.query.return_value = mock_query
 
         with pytest.raises(HTTPException) as exc_info:
@@ -199,7 +203,6 @@ class TestGetRunProgressContract:
     async def test_progress_returns_expected_fields(self):
         """Contract: GET /runs/{run_id}/progress returns expected fields."""
         from autopack.api.routes.runs import get_run_progress
-        from autopack import models
 
         mock_run = MagicMock()
         mock_run.id = "test-run"
@@ -209,22 +212,14 @@ class TestGetRunProgressContract:
         mock_run.completed_at = None
         mock_run.tokens_used = 1000
         mock_run.token_cap = 5000000
+        # P3.2: Phases are now loaded via joinedload, so mock them on run
+        mock_run.phases = []
 
         mock_db = MagicMock()
-
-        # First query returns run, second returns phases
-        call_count = [0]
-
-        def query_side_effect(model):
-            call_count[0] += 1
-            mock_query = MagicMock()
-            if model == models.Run:
-                mock_query.filter.return_value.first.return_value = mock_run
-            else:  # Phase
-                mock_query.filter.return_value.order_by.return_value.all.return_value = []
-            return mock_query
-
-        mock_db.query.side_effect = query_side_effect
+        mock_query = MagicMock()
+        # P3.2: Single query with joinedload - chain is filter -> options -> first
+        mock_query.filter.return_value.options.return_value.first.return_value = mock_run
+        mock_db.query.return_value = mock_query
 
         result = await get_run_progress(run_id="test-run", db=mock_db, _auth="test-key")
 
@@ -245,8 +240,8 @@ class TestStartRunContract:
         from fastapi import HTTPException
         from starlette.requests import Request
 
-        from autopack.api.routes.runs import start_run
         from autopack import schemas
+        from autopack.api.routes.runs import start_run
 
         mock_existing_run = MagicMock()
 
@@ -287,8 +282,8 @@ class TestStartRunContract:
         from fastapi import HTTPException
         from starlette.requests import Request
 
-        from autopack.api.routes.runs import start_run
         from autopack import schemas
+        from autopack.api.routes.runs import start_run
 
         mock_db = MagicMock()
         mock_query = MagicMock()

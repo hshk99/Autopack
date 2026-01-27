@@ -255,7 +255,17 @@ def get_run(
 ):
     """Get run details including all tiers and phases."""
     try:
-        run = db.query(models.Run).filter(models.Run.id == run_id).first()
+        # P3.2: Use joinedload to eagerly load tiers and phases in a single query
+        # This avoids N+1 queries when serializing the response
+        run = (
+            db.query(models.Run)
+            .filter(models.Run.id == run_id)
+            .options(
+                joinedload(models.Run.tiers).joinedload(models.Tier.phases),
+                joinedload(models.Run.phases),
+            )
+            .first()
+        )
         if not run:
             raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
         return run
@@ -446,18 +456,22 @@ async def get_run_progress(
 
     Returns phase-by-phase progress with timing and token information.
     Auth: Required in production; dev opt-in via AUTOPACK_PUBLIC_READ=1.
+
+    P3.2 Optimization: Uses joinedload to fetch run and phases in a single
+    query, avoiding the N+1 query problem.
     """
-    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    # P3.2: Use joinedload to eagerly load phases in a single query
+    run = (
+        db.query(models.Run)
+        .filter(models.Run.id == run_id)
+        .options(joinedload(models.Run.phases))
+        .first()
+    )
     if not run:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
 
-    # Get all phases for this run
-    phases = (
-        db.query(models.Phase)
-        .filter(models.Phase.run_id == run_id)
-        .order_by(models.Phase.phase_index)
-        .all()
-    )
+    # Phases are already loaded via joinedload - sort by phase_index
+    phases = sorted(run.phases, key=lambda p: p.phase_index)
 
     # Count phase states
     phases_total = len(phases)

@@ -114,8 +114,11 @@ workspace-verification.md
 workspace-verification.json
 workspace-verification.md
 
-# Cursor rules (local automation)
-.cursor/
+# Cursor settings (local)
+.cursor/*
+# But track phase rules for Autopack automation
+!.cursor/rules/
+!.cursor/rules/phase*.mdc
 
 # Streamdeck monitoring scripts (belong in streamdeck_auto_build repo)
 scripts/auto_fill_empty_slots.ps1

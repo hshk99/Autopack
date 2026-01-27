@@ -637,7 +637,7 @@ class TestGeneratedTaskExecution:
         loop = AutonomousLoop(mock_executor)
 
         with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
-            mock_settings.generated_task_execution_enabled = False
+            mock_settings.task_generation_auto_execute = False
 
             result = loop._fetch_generated_tasks()
 
@@ -652,7 +652,7 @@ class TestGeneratedTaskExecution:
         loop = AutonomousLoop(mock_executor)
 
         with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
-            mock_settings.generated_task_execution_enabled = True
+            mock_settings.task_generation_auto_execute = True
             mock_settings.generated_task_max_per_run = 3
 
             with patch("autopack.roadc.task_generator.AutonomousTaskGenerator") as MockGenerator:
@@ -683,7 +683,7 @@ class TestGeneratedTaskExecution:
         mock_task.run_id = "prev-run-123"
 
         with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
-            mock_settings.generated_task_execution_enabled = True
+            mock_settings.task_generation_auto_execute = True
             mock_settings.generated_task_max_per_run = 3
 
             with patch("autopack.roadc.task_generator.AutonomousTaskGenerator") as MockGenerator:
@@ -726,7 +726,7 @@ class TestGeneratedTaskExecution:
         mock_task.run_id = "prev-run"
 
         with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
-            mock_settings.generated_task_execution_enabled = True
+            mock_settings.task_generation_auto_execute = True
             mock_settings.generated_task_max_per_run = 3
 
             with patch("autopack.roadc.task_generator.AutonomousTaskGenerator") as MockGenerator:
@@ -749,7 +749,7 @@ class TestGeneratedTaskExecution:
         loop = AutonomousLoop(mock_executor)
 
         with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
-            mock_settings.generated_task_execution_enabled = True
+            mock_settings.task_generation_auto_execute = True
             mock_settings.generated_task_max_per_run = 3
 
             with patch("autopack.roadc.task_generator.AutonomousTaskGenerator") as MockGenerator:
@@ -840,7 +840,7 @@ class TestGeneratedTaskExecution:
             mock_task.run_id = "prev-run"
 
             with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
-                mock_settings.generated_task_execution_enabled = True
+                mock_settings.task_generation_auto_execute = True
                 mock_settings.generated_task_max_per_run = 1
 
                 with patch(

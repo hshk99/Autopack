@@ -1379,7 +1379,7 @@ class AutonomousLoop:
             List of phase spec dicts ready for execution, or empty list if disabled/no tasks.
         """
         # Check if task execution is enabled (separate from task generation)
-        if not getattr(settings, "generated_task_execution_enabled", False):
+        if not settings.task_generation_auto_execute:
             logger.debug("[IMP-LOOP-004] Generated task execution is disabled")
             return []
 

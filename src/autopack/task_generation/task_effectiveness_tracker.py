@@ -384,3 +384,91 @@ class TaskEffectivenessTracker:
             "effective_task_rate": effective_count / len(reports),
             "grade_distribution": grade_distribution,
         }
+
+    def record_task_outcome(
+        self,
+        task_id: str,
+        success: bool,
+        execution_time_seconds: float = 0.0,
+        tokens_used: int = 0,
+        category: str = "",
+        notes: str = "",
+    ) -> TaskImpactReport:
+        """Record task outcome with simplified metrics for phase completion tracking.
+
+        IMP-FBK-001: Provides a simpler API for recording task effectiveness when
+        full before/after metrics are not available. Uses success/failure as the
+        primary metric with execution time and tokens as secondary indicators.
+
+        Effectiveness scoring:
+        - Success: Base score of 0.8 (adjustable based on execution efficiency)
+        - Failure: Score of 0.0
+
+        For successful tasks, effectiveness is adjusted based on execution efficiency:
+        - Fast execution (< 60s): +0.1 bonus
+        - Low token usage (< 10000): +0.1 bonus
+        - Max effectiveness: 1.0
+
+        Args:
+            task_id: Unique identifier for the task/phase.
+            success: Whether the task completed successfully.
+            execution_time_seconds: Time taken to execute the task.
+            tokens_used: Number of tokens consumed during execution.
+            category: Optional category for aggregation (e.g., "build", "test").
+            notes: Optional notes about the execution context.
+
+        Returns:
+            TaskImpactReport with calculated effectiveness metrics.
+        """
+        # Base effectiveness for success vs failure
+        if success:
+            base_effectiveness = 0.8
+
+            # Efficiency bonuses for successful tasks
+            efficiency_bonus = 0.0
+
+            # Fast execution bonus (< 60 seconds)
+            if execution_time_seconds > 0 and execution_time_seconds < 60:
+                efficiency_bonus += 0.1
+
+            # Low token usage bonus (< 10000 tokens)
+            if tokens_used > 0 and tokens_used < 10000:
+                efficiency_bonus += 0.1
+
+            effectiveness_score = min(1.0, base_effectiveness + efficiency_bonus)
+            actual_improvement = effectiveness_score  # Treat as actual improvement achieved
+        else:
+            effectiveness_score = 0.0
+            actual_improvement = 0.0
+
+        # Create synthetic before/after metrics based on success
+        before_metrics = {"task_completion": 0.0}
+        after_metrics = {"task_completion": 1.0 if success else 0.0}
+
+        report = TaskImpactReport(
+            task_id=task_id,
+            before_metrics=before_metrics,
+            after_metrics=after_metrics,
+            target_improvement=1.0,  # Target is always successful completion
+            actual_improvement=actual_improvement,
+            effectiveness_score=effectiveness_score,
+            measured_at=datetime.now(),
+            category=category,
+            notes=notes or f"execution_time={execution_time_seconds:.1f}s, tokens={tokens_used}",
+        )
+
+        # Store in history
+        self.history.add_report(report)
+
+        logger.info(
+            "Recorded task outcome for %s: success=%s, effectiveness=%.2f (%s), "
+            "time=%.1fs, tokens=%d",
+            task_id,
+            success,
+            effectiveness_score,
+            report.get_effectiveness_grade(),
+            execution_time_seconds,
+            tokens_used,
+        )
+
+        return report

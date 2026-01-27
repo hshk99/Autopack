@@ -30,6 +30,11 @@ from autopack.memory.context_injector import ContextInjector
 from autopack.task_generation.task_effectiveness_tracker import \
     TaskEffectivenessTracker
 from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
+from autopack.telemetry.anomaly_detector import (AlertSeverity,
+                                                 TelemetryAnomalyDetector)
+from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
+                                             FeedbackLoopHealthReport,
+                                             MetaMetricsTracker)
 from autopack.telemetry.telemetry_to_memory_bridge import \
     TelemetryToMemoryBridge
 
@@ -104,6 +109,7 @@ class CircuitBreaker:
         failure_threshold: int = 5,
         reset_timeout_seconds: int = 300,
         half_open_max_calls: int = 1,
+        health_threshold: float = 0.5,
     ):
         """Initialize the circuit breaker.
 
@@ -111,10 +117,14 @@ class CircuitBreaker:
             failure_threshold: Consecutive failures before circuit trips (default: 5)
             reset_timeout_seconds: Seconds to wait before reset attempt (default: 300)
             half_open_max_calls: Max test calls in half-open state (default: 1)
+            health_threshold: Minimum health score to allow OPEN->HALF_OPEN transition (default: 0.5)
+
+        IMP-FBK-002: Enhanced with meta_metrics health check support.
         """
         self.failure_threshold = failure_threshold
         self.reset_timeout_seconds = reset_timeout_seconds
         self.half_open_max_calls = half_open_max_calls
+        self.health_threshold = health_threshold
 
         self._state = CircuitBreakerState.CLOSED
         self._consecutive_failures = 0
@@ -122,20 +132,43 @@ class CircuitBreaker:
         self._half_open_calls = 0
         self._total_trips = 0  # Track total number of times circuit has tripped
 
+        # IMP-FBK-002: Health check providers for smarter state transitions
+        self._meta_metrics_tracker: Optional[MetaMetricsTracker] = None
+        self._anomaly_detector: Optional[TelemetryAnomalyDetector] = None
+        self._last_health_report: Optional[FeedbackLoopHealthReport] = None
+        self._health_blocked_transitions = 0  # Count of blocked OPEN->HALF_OPEN transitions
+
     @property
     def state(self) -> CircuitBreakerState:
-        """Get current circuit breaker state, checking for timeout-based transitions."""
+        """Get current circuit breaker state, checking for timeout-based transitions.
+
+        IMP-FBK-002: Enhanced to check meta_metrics health before OPEN->HALF_OPEN
+        transition. If health score is below threshold, keeps circuit OPEN even
+        if timeout has elapsed.
+        """
         if self._state == CircuitBreakerState.OPEN:
             # Check if reset timeout has elapsed
             if self._last_failure_time is not None:
                 elapsed = time.time() - self._last_failure_time
                 if elapsed >= self.reset_timeout_seconds:
-                    logger.info(
-                        f"[IMP-LOOP-006] Circuit breaker transitioning to HALF_OPEN "
-                        f"after {elapsed:.1f}s timeout"
-                    )
-                    self._state = CircuitBreakerState.HALF_OPEN
-                    self._half_open_calls = 0
+                    # IMP-FBK-002: Check health before transitioning
+                    health_ok, health_score, reason = self._check_health_for_transition()
+
+                    if health_ok:
+                        logger.info(
+                            f"[IMP-LOOP-006] Circuit breaker transitioning to HALF_OPEN "
+                            f"after {elapsed:.1f}s timeout (health score: {health_score:.2f})"
+                        )
+                        self._state = CircuitBreakerState.HALF_OPEN
+                        self._half_open_calls = 0
+                    else:
+                        # Health check failed - keep circuit OPEN
+                        self._health_blocked_transitions += 1
+                        logger.warning(
+                            f"[IMP-FBK-002] Circuit breaker reset BLOCKED by health check. "
+                            f"Score: {health_score:.2f} < threshold {self.health_threshold}. "
+                            f"Reason: {reason}. Blocked count: {self._health_blocked_transitions}"
+                        )
         return self._state
 
     @property
@@ -147,6 +180,117 @@ class CircuitBreaker:
     def total_trips(self) -> int:
         """Get total number of times circuit has tripped."""
         return self._total_trips
+
+    @property
+    def health_blocked_transitions(self) -> int:
+        """Get count of OPEN->HALF_OPEN transitions blocked by health check.
+
+        IMP-FBK-002: Tracks how often health-based blocking prevented premature reset.
+        """
+        return self._health_blocked_transitions
+
+    def set_health_providers(
+        self,
+        meta_metrics_tracker: Optional[MetaMetricsTracker] = None,
+        anomaly_detector: Optional[TelemetryAnomalyDetector] = None,
+    ) -> None:
+        """Set health check providers for smarter state transitions.
+
+        IMP-FBK-002: Allows injection of meta_metrics and anomaly detection
+        for holistic health assessment before circuit reset.
+
+        Args:
+            meta_metrics_tracker: Tracker for feedback loop health metrics
+            anomaly_detector: Detector for telemetry anomalies
+        """
+        self._meta_metrics_tracker = meta_metrics_tracker
+        self._anomaly_detector = anomaly_detector
+        logger.debug(
+            f"[IMP-FBK-002] Circuit breaker health providers set: "
+            f"meta_metrics={meta_metrics_tracker is not None}, "
+            f"anomaly_detector={anomaly_detector is not None}"
+        )
+
+    def update_health_report(self, health_report: FeedbackLoopHealthReport) -> None:
+        """Update the latest health report for state transition decisions.
+
+        IMP-FBK-002: Called after telemetry aggregation to provide fresh
+        health data for circuit breaker decisions.
+
+        Args:
+            health_report: Latest FeedbackLoopHealthReport from meta_metrics
+        """
+        self._last_health_report = health_report
+        logger.debug(
+            f"[IMP-FBK-002] Circuit breaker health report updated: "
+            f"status={health_report.overall_status.value}, "
+            f"score={health_report.overall_score:.2f}"
+        )
+
+    def _check_health_for_transition(self) -> Tuple[bool, float, str]:
+        """Check if health conditions allow OPEN->HALF_OPEN transition.
+
+        IMP-FBK-002: Performs holistic health assessment using:
+        1. FeedbackLoopHealthReport overall score and status
+        2. Anomaly detector for active critical alerts
+        3. Component-level health scores
+
+        Returns:
+            Tuple of (health_ok, health_score, reason):
+                - health_ok: True if transition should be allowed
+                - health_score: Current health score (0.0-1.0)
+                - reason: Human-readable reason if blocked
+        """
+        # Default to allowing transition if no health providers configured
+        if self._meta_metrics_tracker is None and self._anomaly_detector is None:
+            if self._last_health_report is None:
+                return (True, 1.0, "No health providers configured")
+
+        # Check FeedbackLoopHealthReport if available
+        health_score = 1.0
+        reasons = []
+
+        if self._last_health_report is not None:
+            health_score = self._last_health_report.overall_score
+            status = self._last_health_report.overall_status
+
+            # Block transition if status is ATTENTION_REQUIRED
+            if status == FeedbackLoopHealth.ATTENTION_REQUIRED:
+                reasons.append(
+                    f"Feedback loop status is ATTENTION_REQUIRED "
+                    f"({len(self._last_health_report.critical_issues)} critical issues)"
+                )
+
+            # Block transition if score is below threshold
+            if health_score < self.health_threshold:
+                reasons.append(
+                    f"Health score {health_score:.2f} below threshold {self.health_threshold}"
+                )
+
+            # Check for degrading components
+            degrading_components = [
+                name
+                for name, report in self._last_health_report.component_reports.items()
+                if report.status.value == "degrading"
+            ]
+            if len(degrading_components) >= 2:
+                reasons.append(
+                    f"{len(degrading_components)} components degrading: "
+                    f"{', '.join(degrading_components[:3])}"
+                )
+
+        # Check anomaly detector for critical alerts
+        if self._anomaly_detector is not None:
+            pending_alerts = self._anomaly_detector.get_pending_alerts(clear=False)
+            critical_alerts = [a for a in pending_alerts if a.severity == AlertSeverity.CRITICAL]
+            if critical_alerts:
+                reasons.append(f"{len(critical_alerts)} critical anomaly alert(s) active")
+
+        # Determine if transition should be allowed
+        if reasons:
+            return (False, health_score, "; ".join(reasons))
+
+        return (True, health_score, "Health check passed")
 
     @property
     def is_closed(self) -> bool:
@@ -248,11 +392,26 @@ class CircuitBreaker:
         """Get circuit breaker statistics for monitoring.
 
         Returns:
-            Dictionary with state, failures, trips, and timing info
+            Dictionary with state, failures, trips, timing, and health info
+
+        IMP-FBK-002: Extended to include health-related statistics.
         """
         time_in_current_state = None
         if self._last_failure_time is not None:
             time_in_current_state = time.time() - self._last_failure_time
+
+        # IMP-FBK-002: Include health-related stats
+        health_stats = {
+            "health_threshold": self.health_threshold,
+            "health_blocked_transitions": self._health_blocked_transitions,
+            "has_meta_metrics_tracker": self._meta_metrics_tracker is not None,
+            "has_anomaly_detector": self._anomaly_detector is not None,
+        }
+
+        if self._last_health_report is not None:
+            health_stats["last_health_score"] = self._last_health_report.overall_score
+            health_stats["last_health_status"] = self._last_health_report.overall_status.value
+            health_stats["critical_issues_count"] = len(self._last_health_report.critical_issues)
 
         return {
             "state": self.state.value,
@@ -262,6 +421,7 @@ class CircuitBreaker:
             "reset_timeout_seconds": self.reset_timeout_seconds,
             "time_in_current_state_seconds": time_in_current_state,
             "half_open_calls": self._half_open_calls,
+            **health_stats,
         }
 
 
@@ -339,6 +499,31 @@ class AutonomousLoop:
         self._task_effectiveness_enabled = getattr(
             settings, "task_effectiveness_tracking_enabled", True
         )
+
+        # IMP-FBK-002: Meta-metrics and anomaly detection for circuit breaker health checks
+        # These enable holistic health assessment before circuit breaker reset
+        self._meta_metrics_tracker: Optional[MetaMetricsTracker] = None
+        self._anomaly_detector: Optional[TelemetryAnomalyDetector] = None
+        self._meta_metrics_enabled = getattr(settings, "meta_metrics_health_check_enabled", True)
+
+        # Initialize health providers and wire to circuit breaker
+        if self._meta_metrics_enabled:
+            self._meta_metrics_tracker = MetaMetricsTracker()
+            self._anomaly_detector = TelemetryAnomalyDetector()
+            logger.info("[IMP-FBK-002] Meta-metrics health check initialized for circuit breaker")
+
+            # Wire health providers to circuit breaker
+            if self._circuit_breaker is not None:
+                health_threshold = getattr(settings, "circuit_breaker_health_threshold", 0.5)
+                self._circuit_breaker.health_threshold = health_threshold
+                self._circuit_breaker.set_health_providers(
+                    meta_metrics_tracker=self._meta_metrics_tracker,
+                    anomaly_detector=self._anomaly_detector,
+                )
+                logger.info(
+                    f"[IMP-FBK-002] Circuit breaker health providers wired "
+                    f"(threshold={health_threshold})"
+                )
 
     def get_loop_stats(self) -> Dict:
         """Get current loop statistics for monitoring (IMP-LOOP-006, IMP-AUTO-002).
@@ -1088,6 +1273,9 @@ class AutonomousLoop:
             # IMP-INT-002: Persist aggregated insights to memory via bridge
             self._persist_insights_to_memory(ranked_issues, context="phase_telemetry")
 
+            # IMP-FBK-002: Update circuit breaker health report from meta-metrics
+            self._update_circuit_breaker_health(ranked_issues)
+
             return ranked_issues
 
         except Exception as e:
@@ -1127,6 +1315,139 @@ class AutonomousLoop:
 
         return self._task_effectiveness_tracker
 
+    def _update_circuit_breaker_health(self, ranked_issues: Optional[Dict]) -> None:
+        """Update circuit breaker with latest health report from meta-metrics.
+
+        IMP-FBK-002: Generates a FeedbackLoopHealthReport from aggregated telemetry
+        and updates the circuit breaker to enable health-aware state transitions.
+        This prevents premature circuit reset when the system is still unhealthy.
+
+        Args:
+            ranked_issues: Ranked issues from telemetry aggregation (used to build
+                          telemetry data for health analysis)
+        """
+        if not self._meta_metrics_enabled:
+            return
+
+        if self._circuit_breaker is None:
+            return
+
+        if self._meta_metrics_tracker is None:
+            return
+
+        try:
+            # Build telemetry data structure from ranked issues and loop stats
+            telemetry_data = self._build_telemetry_data_for_health(ranked_issues)
+
+            # Analyze feedback loop health
+            health_report = self._meta_metrics_tracker.analyze_feedback_loop_health(
+                telemetry_data=telemetry_data
+            )
+
+            # Update circuit breaker with health report
+            self._circuit_breaker.update_health_report(health_report)
+
+            # Log health status
+            if health_report.overall_status == FeedbackLoopHealth.ATTENTION_REQUIRED:
+                logger.warning(
+                    f"[IMP-FBK-002] Feedback loop health: ATTENTION_REQUIRED "
+                    f"(score={health_report.overall_score:.2f}, "
+                    f"critical_issues={len(health_report.critical_issues)})"
+                )
+            elif health_report.overall_status == FeedbackLoopHealth.DEGRADED:
+                logger.info(
+                    f"[IMP-FBK-002] Feedback loop health: DEGRADED "
+                    f"(score={health_report.overall_score:.2f})"
+                )
+            else:
+                logger.debug(
+                    f"[IMP-FBK-002] Feedback loop health: {health_report.overall_status.value} "
+                    f"(score={health_report.overall_score:.2f})"
+                )
+
+        except Exception as e:
+            # Non-fatal - health check failure should not block execution
+            logger.warning(
+                f"[IMP-FBK-002] Failed to update circuit breaker health (non-fatal): {e}"
+            )
+
+    def _build_telemetry_data_for_health(self, ranked_issues: Optional[Dict]) -> Dict:
+        """Build telemetry data structure for meta-metrics health analysis.
+
+        IMP-FBK-002: Converts ranked issues and loop statistics into the format
+        expected by MetaMetricsTracker.analyze_feedback_loop_health().
+
+        Args:
+            ranked_issues: Ranked issues from telemetry aggregation
+
+        Returns:
+            Dictionary formatted for meta-metrics health analysis
+        """
+        # Initialize with loop statistics
+        telemetry_data: Dict = {
+            "road_b": {  # Telemetry Analysis
+                "phases_analyzed": self._total_phases_executed,
+                "total_phases": self._total_phases_executed + self._total_phases_failed,
+                "false_positives": 0,
+                "total_issues": 0,
+            },
+            "road_c": {  # Task Generation
+                "completed_tasks": self._total_phases_executed,
+                "total_tasks": self._total_phases_executed + self._total_phases_failed,
+                "rework_count": 0,
+            },
+            "road_e": {  # Validation Coverage
+                "valid_ab_tests": 0,
+                "total_ab_tests": 0,
+                "regressions_caught": 0,
+                "total_changes": 0,
+            },
+            "road_f": {  # Policy Promotion
+                "effective_promotions": 0,
+                "total_promotions": 0,
+                "rollbacks": 0,
+            },
+            "road_g": {  # Anomaly Detection
+                "actionable_alerts": 0,
+                "total_alerts": 0,
+                "false_positives": 0,
+            },
+            "road_j": {  # Auto-Healing
+                "successful_heals": 0,
+                "total_heal_attempts": 0,
+                "escalations": 0,
+            },
+            "road_l": {  # Model Optimization
+                "optimal_routings": 0,
+                "total_routings": 0,
+                "avg_tokens_per_success": 0,
+                "sample_count": 0,
+            },
+        }
+
+        # Add data from ranked issues if available
+        if ranked_issues:
+            cost_sinks = ranked_issues.get("top_cost_sinks", [])
+            failure_modes = ranked_issues.get("top_failure_modes", [])
+            retry_causes = ranked_issues.get("top_retry_causes", [])
+
+            total_issues = len(cost_sinks) + len(failure_modes) + len(retry_causes)
+            telemetry_data["road_b"]["total_issues"] = total_issues
+
+            # Estimate task quality from failure modes
+            if failure_modes:
+                telemetry_data["road_c"]["rework_count"] = len(failure_modes)
+
+        # Add anomaly detector stats if available
+        if self._anomaly_detector is not None:
+            pending_alerts = self._anomaly_detector.get_pending_alerts(clear=False)
+            telemetry_data["road_g"]["total_alerts"] = len(pending_alerts)
+            telemetry_data["road_g"]["actionable_alerts"] = len(
+                [a for a in pending_alerts if a.severity == AlertSeverity.CRITICAL]
+            )
+
+        return telemetry_data
+
     def _update_task_effectiveness(
         self,
         phase_id: str,
@@ -1141,6 +1462,8 @@ class AutonomousLoop:
         for closed-loop learning. This enables the priority engine to adjust task
         prioritization based on historical effectiveness.
 
+        IMP-FBK-002: Also records outcomes to anomaly detector for pattern detection.
+
         Args:
             phase_id: ID of the completed phase
             phase_type: Type of the phase (e.g., "build", "test")
@@ -1148,6 +1471,15 @@ class AutonomousLoop:
             execution_time_seconds: Time taken to execute the phase
             tokens_used: Number of tokens consumed during execution
         """
+        # IMP-FBK-002: Record to anomaly detector for pattern detection
+        self._record_phase_to_anomaly_detector(
+            phase_id=phase_id,
+            phase_type=phase_type,
+            success=success,
+            tokens_used=tokens_used,
+            duration_seconds=execution_time_seconds,
+        )
+
         tracker = self._get_task_effectiveness_tracker()
         if not tracker:
             return
@@ -1160,7 +1492,7 @@ class AutonomousLoop:
                 execution_time_seconds=execution_time_seconds,
                 tokens_used=tokens_used,
                 category=phase_type or "general",
-                notes=f"Phase execution outcome from autonomous loop",
+                notes="Phase execution outcome from autonomous loop",
             )
 
             # Feed back to priority engine if available
@@ -1176,6 +1508,60 @@ class AutonomousLoop:
             logger.warning(
                 f"[IMP-FBK-001] Failed to update task effectiveness for phase {phase_id} "
                 f"(non-fatal): {e}"
+            )
+
+    def _record_phase_to_anomaly_detector(
+        self,
+        phase_id: str,
+        phase_type: Optional[str],
+        success: bool,
+        tokens_used: int,
+        duration_seconds: float,
+    ) -> None:
+        """Record phase outcome to anomaly detector for pattern detection.
+
+        IMP-FBK-002: Records phase outcomes to TelemetryAnomalyDetector which
+        tracks token spikes, failure rate breaches, and duration anomalies.
+        These anomalies are used by the circuit breaker for health-aware
+        state transitions.
+
+        Args:
+            phase_id: ID of the completed phase
+            phase_type: Type of the phase (e.g., "build", "test")
+            success: Whether the phase executed successfully
+            tokens_used: Number of tokens consumed during execution
+            duration_seconds: Time taken to execute the phase
+        """
+        if self._anomaly_detector is None:
+            return
+
+        try:
+            alerts = self._anomaly_detector.record_phase_outcome(
+                phase_id=phase_id,
+                phase_type=phase_type or "general",
+                success=success,
+                tokens_used=tokens_used,
+                duration_seconds=duration_seconds,
+            )
+
+            # Log any alerts generated
+            if alerts:
+                for alert in alerts:
+                    if alert.severity == AlertSeverity.CRITICAL:
+                        logger.warning(
+                            f"[IMP-FBK-002] Critical anomaly detected: {alert.metric} "
+                            f"(value={alert.current_value:.2f}, threshold={alert.threshold:.2f})"
+                        )
+                    else:
+                        logger.debug(
+                            f"[IMP-FBK-002] Anomaly detected: {alert.metric} "
+                            f"(value={alert.current_value:.2f})"
+                        )
+
+        except Exception as e:
+            # Non-fatal - anomaly detection failure should not block execution
+            logger.debug(
+                f"[IMP-FBK-002] Failed to record phase to anomaly detector " f"(non-fatal): {e}"
             )
 
     def _get_telemetry_adjustments(self, phase_type: Optional[str]) -> Dict:

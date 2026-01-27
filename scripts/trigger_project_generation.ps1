@@ -91,7 +91,11 @@ param(
 
     [switch]$UseDiscoveryContextInjection,
 
-    [string]$DiscoveryContextOutputPath = "$env:USERPROFILE\OneDrive\Backup\Desktop\DISCOVERY_CONTEXT.json"
+    [string]$DiscoveryContextOutputPath = "$env:USERPROFILE\OneDrive\Backup\Desktop\DISCOVERY_CONTEXT.json",
+
+    [switch]$UseTelemetryFeedbackLoop,
+
+    [string]$TelemetryFeedbackOutputPath = "$env:USERPROFILE\OneDrive\Backup\Desktop\TELEMETRY_FEEDBACK.json"
 )
 
 $ErrorActionPreference = "Stop"
@@ -482,6 +486,107 @@ print('OK')
     }
 }
 
+function Invoke-TelemetryFeedbackLoop {
+    <#
+    .SYNOPSIS
+        Runs the telemetry-to-discovery feedback loop.
+    .DESCRIPTION
+        IMP-TEL-003: Telemetry-to-Discovery Feedback Loop
+        Analyzes telemetry from the previous cycle to automatically identify
+        recurring issues as improvement candidates. This closes the self-improvement
+        loop by feeding operational telemetry back into discovery phases.
+    #>
+    Write-Status "Running telemetry-to-discovery feedback loop..."
+
+    if ($DryRun) {
+        Write-Status "[DryRun] Would execute: python -c 'from src.telemetry_analyzer import TelemetryAnalyzer; ...'" -Color Yellow
+        return @{ HasFeedback = $false; FeedbackPath = $null; ImprovementsAdded = 0 }
+    }
+
+    try {
+        $feedbackOutputPath = $TelemetryFeedbackOutputPath -replace '\\', '/'
+        $telemetryBasePath = $TelemetryBasePath -replace '\\', '/'
+        $impsMasterPath = $ImpsMasterPath -replace '\\', '/'
+
+        $pythonScript = @"
+import sys
+import json
+sys.path.insert(0, 'src')
+from telemetry_analyzer import TelemetryAnalyzer
+
+# Initialize analyzer with telemetry base path
+analyzer = TelemetryAnalyzer('$telemetryBasePath')
+
+# Generate discovery input from telemetry patterns
+discovery_input = analyzer.generate_discovery_input()
+
+# Export discovery input for Phase 1 consumption
+export_success = analyzer.export_discovery_input('$feedbackOutputPath')
+
+# Also generate improvements and append to master file
+try:
+    improvements_added = analyzer.generate_improvements_to_master('$impsMasterPath')
+except Exception as e:
+    improvements_added = 0
+
+# Output results
+result = {
+    'has_feedback': bool(discovery_input),
+    'feedback_path': '$feedbackOutputPath' if export_success else None,
+    'improvements_added': improvements_added,
+    'patterns_analyzed': discovery_input[0].get('total_patterns_analyzed', 0) if discovery_input else 0,
+    'recurring_issues': len(discovery_input[0].get('recurring_issues', [])) if discovery_input else 0,
+    'recommendations': len(discovery_input[0].get('recommendations', [])) if discovery_input else 0
+}
+print(json.dumps(result))
+"@
+        $result = $pythonScript | python 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Telemetry feedback loop returned non-zero exit code: $LASTEXITCODE"
+            Write-Warning "Output: $result"
+            return @{ HasFeedback = $false; FeedbackPath = $null; ImprovementsAdded = 0 }
+        }
+
+        $feedbackResult = $result | ConvertFrom-Json
+
+        if ($feedbackResult.has_feedback) {
+            Write-Status "Telemetry feedback loop completed:" -Color Green
+            Write-Status "  - Patterns analyzed: $($feedbackResult.patterns_analyzed)"
+            Write-Status "  - Recurring issues found: $($feedbackResult.recurring_issues)"
+            Write-Status "  - Recommendations generated: $($feedbackResult.recommendations)"
+            Write-Status "  - Improvements added to master: $($feedbackResult.improvements_added)"
+            Write-Status "  - Feedback file: $($feedbackResult.feedback_path)"
+
+            # Log the feedback loop decision (IMP-LOG-001)
+            Write-DecisionLog -DecisionType "telemetry_feedback_loop" -Context @{
+                patterns_analyzed = $feedbackResult.patterns_analyzed
+                recurring_issues = $feedbackResult.recurring_issues
+                recommendations = $feedbackResult.recommendations
+                improvements_added = $feedbackResult.improvements_added
+                feedback_path = $feedbackResult.feedback_path
+            } -OptionsConsidered @("skip_feedback", "analyze_patterns_only", "analyze_and_generate_improvements") `
+              -ChosenOption "analyze_and_generate_improvements" `
+              -Reasoning "Analyzed $($feedbackResult.patterns_analyzed) patterns, found $($feedbackResult.recurring_issues) recurring issues, added $($feedbackResult.improvements_added) improvements to master"
+        }
+        else {
+            Write-Status "No telemetry patterns detected for feedback loop" -Color Yellow
+        }
+
+        return @{
+            HasFeedback = $feedbackResult.has_feedback
+            FeedbackPath = $feedbackResult.feedback_path
+            ImprovementsAdded = $feedbackResult.improvements_added
+            PatternsAnalyzed = $feedbackResult.patterns_analyzed
+            RecurringIssues = $feedbackResult.recurring_issues
+            Recommendations = $feedbackResult.recommendations
+        }
+    }
+    catch {
+        Write-Warning "Failed to run telemetry feedback loop: $_"
+        return @{ HasFeedback = $false; FeedbackPath = $null; ImprovementsAdded = 0 }
+    }
+}
+
 function Get-TelemetryContextPaths {
     <#
     .SYNOPSIS
@@ -584,7 +689,8 @@ function Build-Phase1Prompt {
         [hashtable]$TelemetryContext,
         [hashtable]$CarryoverContext = @{ HasCarryover = $false },
         [hashtable]$DiscoveryContext = @{ HasDiscovery = $false },
-        [hashtable]$InjectedContext = @{ HasContext = $false }
+        [hashtable]$InjectedContext = @{ HasContext = $false },
+        [hashtable]$FeedbackLoopContext = @{ HasFeedback = $false }
     )
 
     $prompt = "@phase1"
@@ -656,6 +762,25 @@ function Build-Phase1Prompt {
         $prompt += "`n" + ($injectedLines -join "`n")
     }
 
+    # Add telemetry-to-discovery feedback loop context (IMP-TEL-003)
+    if ($FeedbackLoopContext.HasFeedback) {
+        $feedbackLines = @()
+        $feedbackLines += ""
+        $feedbackLines += "## Telemetry Feedback Loop Context (IMP-TEL-003)"
+        $feedbackLines += ""
+        $feedbackLines += "TELEMETRY_FEEDBACK: $($FeedbackLoopContext.FeedbackPath)"
+        $feedbackLines += "- Generated from analysis of $($FeedbackLoopContext.PatternsAnalyzed) telemetry patterns"
+        $feedbackLines += "- Contains $($FeedbackLoopContext.RecurringIssues) recurring issues requiring attention"
+        $feedbackLines += "- Includes $($FeedbackLoopContext.Recommendations) prioritized recommendations"
+        if ($FeedbackLoopContext.ImprovementsAdded -gt 0) {
+            $feedbackLines += "- Added $($FeedbackLoopContext.ImprovementsAdded) auto-discovered improvements to master file"
+        }
+        $feedbackLines += "- Review high_value_categories to focus discovery efforts"
+        $feedbackLines += "- Address recurring_issues with highest occurrence counts first"
+        $feedbackLines += "- Follow recommendations based on pattern analysis"
+        $prompt += "`n" + ($feedbackLines -join "`n")
+    }
+
     return $prompt
 }
 
@@ -721,12 +846,13 @@ function Invoke-Phase1 {
         [hashtable]$TelemetryContext,
         [hashtable]$CarryoverContext = @{ HasCarryover = $false },
         [hashtable]$DiscoveryContext = @{ HasDiscovery = $false },
-        [hashtable]$InjectedContext = @{ HasContext = $false }
+        [hashtable]$InjectedContext = @{ HasContext = $false },
+        [hashtable]$FeedbackLoopContext = @{ HasFeedback = $false }
     )
 
     Write-Status "=== Phase 1: Discovery ===" -Color Magenta
 
-    $prompt = Build-Phase1Prompt -TelemetryContext $TelemetryContext -CarryoverContext $CarryoverContext -DiscoveryContext $DiscoveryContext -InjectedContext $InjectedContext
+    $prompt = Build-Phase1Prompt -TelemetryContext $TelemetryContext -CarryoverContext $CarryoverContext -DiscoveryContext $DiscoveryContext -InjectedContext $InjectedContext -FeedbackLoopContext $FeedbackLoopContext
 
     if ($DryRun) {
         Write-Status "[DryRun] Would send prompt:" -Color Yellow
@@ -780,7 +906,7 @@ function Invoke-Phase2 {
 # Main execution
 function Main {
     Write-Status "Autopack Project Generation Trigger" -Color Cyan
-    Write-Status "Phase: $Phase | UseTelemetryContext: $UseTelemetryContext | UseDiscoveryContextInjection: $UseDiscoveryContextInjection | UseAutonomousDiscovery: $UseAutonomousDiscovery | UseAutonomousWavePlanning: $UseAutonomousWavePlanning | DryRun: $DryRun"
+    Write-Status "Phase: $Phase | UseTelemetryContext: $UseTelemetryContext | UseDiscoveryContextInjection: $UseDiscoveryContextInjection | UseTelemetryFeedbackLoop: $UseTelemetryFeedbackLoop | UseAutonomousDiscovery: $UseAutonomousDiscovery | UseAutonomousWavePlanning: $UseAutonomousWavePlanning | DryRun: $DryRun"
     Write-Host ""
 
     # Validate environment
@@ -845,6 +971,23 @@ function Main {
         Write-Host ""
     }
 
+    # Run telemetry-to-discovery feedback loop if enabled (IMP-TEL-003)
+    $feedbackLoopContext = @{ HasFeedback = $false; FeedbackPath = $null; ImprovementsAdded = 0 }
+    if ($UseTelemetryFeedbackLoop -and ($Phase -eq "phase1" -or $Phase -eq "all")) {
+        Write-Status "Telemetry feedback loop enabled - analyzing previous cycle telemetry..."
+        $feedbackLoopContext = Invoke-TelemetryFeedbackLoop
+        if ($feedbackLoopContext.HasFeedback) {
+            Write-Status "Telemetry feedback loop completed:" -Color Green
+            Write-Status "  - Patterns analyzed: $($feedbackLoopContext.PatternsAnalyzed)"
+            Write-Status "  - Recurring issues: $($feedbackLoopContext.RecurringIssues)"
+            Write-Status "  - Recommendations: $($feedbackLoopContext.Recommendations)"
+            if ($feedbackLoopContext.ImprovementsAdded -gt 0) {
+                Write-Status "  - Improvements added to master: $($feedbackLoopContext.ImprovementsAdded)"
+            }
+        }
+        Write-Host ""
+    }
+
     # Run autonomous discovery if enabled (IMP-GEN-001)
     $discoveryContext = @{ HasDiscovery = $false; DiscoveryPath = $null; ImpCount = 0 }
     if ($UseAutonomousDiscovery -and ($Phase -eq "phase1" -or $Phase -eq "all")) {
@@ -875,13 +1018,13 @@ function Main {
     # Execute requested phases
     switch ($Phase) {
         "phase1" {
-            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext -DiscoveryContext $discoveryContext -InjectedContext $injectedContext
+            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext -DiscoveryContext $discoveryContext -InjectedContext $injectedContext -FeedbackLoopContext $feedbackLoopContext
         }
         "phase2" {
             Invoke-Phase2 -TelemetryContext $telemetryContext -WavePlanContext $wavePlanContext
         }
         "all" {
-            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext -DiscoveryContext $discoveryContext -InjectedContext $injectedContext
+            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext -DiscoveryContext $discoveryContext -InjectedContext $injectedContext -FeedbackLoopContext $feedbackLoopContext
             Write-Host ""
             Invoke-Phase2 -TelemetryContext $telemetryContext -WavePlanContext $wavePlanContext
         }

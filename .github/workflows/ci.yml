@@ -310,8 +310,26 @@ jobs:
           # Excludes research-marked, aspirational-marked, and legacy_contract-marked tests via pytest markers
           # PR-INFRA-1: Parallel execution with pytest-xdist (-n auto detects CPU count, typically 2-4 workers)
           # Expected: 50% faster execution (45 min → ~20-25 min)
-          # --durations=20: Profile slowest tests for future optimization
-          pytest tests/ -m "not research and not aspirational and not legacy_contract" -n auto -v --durations=20 --cov=src/autopack --cov-report=xml --maxfail=5
+          # --durations=0: Capture ALL test durations for optimization analysis
+          pytest tests/ -m "not research and not aspirational and not legacy_contract" -n auto -v --durations=0 --cov=src/autopack --cov-report=xml --maxfail=5 2>&1 | tee core_test_output.txt
+      - name: Extract and upload test durations
+        if: always()
+        run: |
+          # Extract durations for CI optimization analysis (temporary artifact)
+          echo "=== CORE TESTS DURATION REPORT ===" > test-durations-core.txt
+          echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> test-durations-core.txt
+          echo "Commit: ${{ github.sha }}" >> test-durations-core.txt
+          echo "Run ID: ${{ github.run_id }}" >> test-durations-core.txt
+          echo "" >> test-durations-core.txt
+          echo "=== SLOWEST TESTS (top 50) ===" >> test-durations-core.txt
+          grep -E "^[0-9]+\.[0-9]+s" core_test_output.txt | sort -t's' -k1 -rn | head -50 >> test-durations-core.txt || echo "No duration data found" >> test-durations-core.txt
+      - name: Upload core test durations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-durations-core
+          path: test-durations-core.txt
+          retention-days: 30
       - name: Verify no collection errors
         env:
           PYTHONPATH: ${{ github.workspace }}/src
@@ -375,9 +393,9 @@ jobs:
           # Aspirational gate: Track progress on extended test suites
           # Runs ONLY aspirational-marked tests (xfail-heavy extended suites)
           # PR-INFRA-1: Parallel execution for faster feedback
-          # --durations=20: Profile slowest tests for future optimization
+          # --durations=0: Capture ALL test durations for optimization analysis
           # Tee output to file for xpass detection without re-running tests (~6 min savings)
-          pytest tests/ -m "aspirational" -n auto -v --tb=short --durations=20 2>&1 | tee aspirational_output.txt
+          pytest tests/ -m "aspirational" -n auto -v --tb=short --durations=0 2>&1 | tee aspirational_output.txt
           echo "Aspirational test results (informational - does not block CI)"
       - name: Report xpass tests
         if: always()
@@ -385,6 +403,24 @@ jobs:
           # Identify tests that are now passing but still marked xfail
           # Parse from saved output instead of re-running pytest (CI optimization)
           grep -E "XPASS|xpassed" aspirational_output.txt || echo "No XPASS tests found"
+      - name: Extract and upload test durations
+        if: always()
+        run: |
+          # Extract durations for CI optimization analysis (temporary artifact)
+          echo "=== ASPIRATIONAL TESTS DURATION REPORT ===" > test-durations-aspirational.txt
+          echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> test-durations-aspirational.txt
+          echo "Commit: ${{ github.sha }}" >> test-durations-aspirational.txt
+          echo "Run ID: ${{ github.run_id }}" >> test-durations-aspirational.txt
+          echo "" >> test-durations-aspirational.txt
+          echo "=== SLOWEST TESTS (top 50) ===" >> test-durations-aspirational.txt
+          grep -E "^[0-9]+\.[0-9]+s" aspirational_output.txt | sort -t's' -k1 -rn | head -50 >> test-durations-aspirational.txt || echo "No duration data found" >> test-durations-aspirational.txt
+      - name: Upload aspirational test durations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-durations-aspirational
+          path: test-durations-aspirational.txt
+          retention-days: 30
 
   test-research:
     name: Research Tests (Informational)
@@ -417,8 +453,26 @@ jobs:
           # Research gate: Informational only
           # Tests the quarantined research subsystem (see RESEARCH_QUARANTINE.md)
           # PR-INFRA-1: Parallel execution (non-blocking, so speed less critical but still beneficial)
-          # --durations=20: Profile slowest tests for future optimization
-          pytest tests/ -m "research" -n auto -v --tb=short --durations=20 || echo "Research tests failed (expected - subsystem has API drift)"
+          # --durations=0: Capture ALL test durations for optimization analysis
+          pytest tests/ -m "research" -n auto -v --tb=short --durations=0 2>&1 | tee research_output.txt || echo "Research tests failed (expected - subsystem has API drift)"
+      - name: Extract and upload test durations
+        if: always()
+        run: |
+          # Extract durations for CI optimization analysis (temporary artifact)
+          echo "=== RESEARCH TESTS DURATION REPORT ===" > test-durations-research.txt
+          echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> test-durations-research.txt
+          echo "Commit: ${{ github.sha }}" >> test-durations-research.txt
+          echo "Run ID: ${{ github.run_id }}" >> test-durations-research.txt
+          echo "" >> test-durations-research.txt
+          echo "=== SLOWEST TESTS (top 50) ===" >> test-durations-research.txt
+          grep -E "^[0-9]+\.[0-9]+s" research_output.txt | sort -t's' -k1 -rn | head -50 >> test-durations-research.txt || echo "No duration data found" >> test-durations-research.txt
+      - name: Upload research test durations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-durations-research
+          path: test-durations-research.txt
+          retention-days: 30
       - name: Report research test status
         if: always()
         run: |

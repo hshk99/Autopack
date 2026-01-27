@@ -5,14 +5,172 @@ Deliverable-based output token estimation to reduce truncation from 50% → 30%.
 Per TOKEN_BUDGET_ANALYSIS_REVISED.md (GPT-5.2 reviewed).
 """
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any, Tuple
-from pathlib import Path
-from functools import lru_cache
-import re
 import logging
+import os
+import re
+from dataclasses import dataclass, field
+from functools import lru_cache
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+
+# IMP-PERF-001: Pattern-based token estimation cache for common file types
+# Key: (file_path_pattern, is_new, category) -> estimated tokens
+# Pattern matching enables predictable token counts without file I/O
+@lru_cache(maxsize=512)
+def _get_pattern_based_estimate(
+    file_extension: str,
+    is_test: bool,
+    is_doc: bool,
+    is_config: bool,
+    is_frontend: bool,
+    is_new: bool,
+) -> Optional[int]:
+    """
+    Get cached token estimate based on file pattern characteristics.
+
+    IMP-PERF-001: Common file patterns have predictable token counts.
+    This avoids repeated file I/O and complexity analysis for similar files.
+
+    Args:
+        file_extension: File extension (e.g., ".py", ".json")
+        is_test: Whether file is a test file
+        is_doc: Whether file is documentation
+        is_config: Whether file is configuration
+        is_frontend: Whether file is frontend code
+        is_new: Whether file is new (not existing)
+
+    Returns:
+        Estimated tokens or None if pattern not recognized
+    """
+    # Pattern-based estimates for common file types
+    # These are derived from TOKEN_WEIGHTS with common patterns
+    if is_test:
+        return 1400 if is_new else 600
+    if is_doc:
+        return 500 if is_new else 400
+    if is_config:
+        return 1000 if is_new else 500
+    if is_frontend:
+        return 2800 if is_new else 1100
+
+    # Extension-specific patterns for backend files
+    if file_extension in {".py", ".pyi"}:
+        return 2000 if is_new else 700
+    if file_extension in {".sql"}:
+        return 1500 if is_new else 600
+
+    return None  # Not a recognized pattern, use full estimation
+
+
+# IMP-PERF-001: Cached file complexity analysis with mtime-based invalidation
+@lru_cache(maxsize=256)
+def _cached_analyze_file_complexity(file_path_str: str, mtime: float) -> float:
+    """
+    Analyze file complexity with caching based on modification time.
+
+    IMP-PERF-001: File complexity analysis involves I/O and parsing.
+    Cache results keyed by (path, mtime) to avoid repeated analysis.
+
+    Args:
+        file_path_str: Absolute file path as string
+        mtime: File modification timestamp (cache invalidation key)
+
+    Returns:
+        Complexity multiplier (0.5-2.0)
+    """
+    try:
+        file_path = Path(file_path_str)
+        content = file_path.read_text(encoding="utf-8", errors="ignore")
+        lines = content.split("\n")
+
+        # Count non-empty, non-comment lines
+        code_lines = [line for line in lines if line.strip() and not line.strip().startswith("#")]
+
+        # LOC factor (more code → higher estimate)
+        if len(code_lines) < 50:
+            loc_factor = 0.7  # Small file
+        elif len(code_lines) < 200:
+            loc_factor = 1.0  # Normal file
+        elif len(code_lines) < 500:
+            loc_factor = 1.3  # Large file
+        else:
+            loc_factor = 1.5  # Very large file
+
+        # Import count (more dependencies → more context)
+        import_lines = [line for line in code_lines if "import " in line]
+        if len(import_lines) < 5:
+            import_factor = 0.9
+        elif len(import_lines) < 15:
+            import_factor = 1.0
+        else:
+            import_factor = 1.2
+
+        # Nesting depth (complex logic → more explanation needed)
+        max_indent = max([len(line) - len(line.lstrip()) for line in code_lines] + [0])
+        if max_indent < 8:
+            nesting_factor = 0.9
+        elif max_indent < 16:
+            nesting_factor = 1.0
+        else:
+            nesting_factor = 1.2
+
+        # Combined multiplier
+        multiplier = loc_factor * import_factor * nesting_factor
+
+        # Clamp to reasonable range
+        return max(0.5, min(2.0, multiplier))
+
+    except Exception as e:
+        logger.debug(f"[TokenEstimator] Could not analyze {file_path_str}: {e}")
+        return 1.0  # Default
+
+
+def clear_token_estimation_cache() -> None:
+    """Clear all token estimation caches.
+
+    IMP-PERF-001: Utility to clear caches for testing or when file system changes.
+    """
+    _get_pattern_based_estimate.cache_clear()
+    _cached_analyze_file_complexity.cache_clear()
+    TokenEstimator._estimate_cached.cache_clear()
+    logger.debug("[TokenEstimator] All caches cleared")
+
+
+def get_token_estimation_cache_info() -> Dict[str, Any]:
+    """Get cache statistics for all token estimation caches.
+
+    IMP-PERF-001: Utility for monitoring cache performance.
+
+    Returns:
+        Dict with cache hit/miss stats for each cache
+    """
+    pattern_info = _get_pattern_based_estimate.cache_info()
+    complexity_info = _cached_analyze_file_complexity.cache_info()
+    estimate_info = TokenEstimator._estimate_cached.cache_info()
+
+    return {
+        "pattern_cache": {
+            "hits": pattern_info.hits,
+            "misses": pattern_info.misses,
+            "size": pattern_info.currsize,
+            "maxsize": pattern_info.maxsize,
+        },
+        "complexity_cache": {
+            "hits": complexity_info.hits,
+            "misses": complexity_info.misses,
+            "size": complexity_info.currsize,
+            "maxsize": complexity_info.maxsize,
+        },
+        "estimate_cache": {
+            "hits": estimate_info.hits,
+            "misses": estimate_info.misses,
+            "size": estimate_info.currsize,
+            "maxsize": estimate_info.maxsize,
+        },
+    }
 
 
 @dataclass
@@ -830,6 +988,9 @@ class TokenEstimator:
         """
         Estimate tokens for single deliverable.
 
+        IMP-PERF-001: Uses pattern-based caching for common file types
+        to avoid repeated file I/O and complexity analysis.
+
         Args:
             deliverable: Deliverable path or description
             category: Phase category
@@ -875,6 +1036,33 @@ class TokenEstimator:
         is_migration = "alembic/versions" in lower_norm or "migration" in lower_norm
         is_frontend = any(lower_norm.endswith(ext) for ext in [".tsx", ".jsx", ".vue", ".svelte"])
 
+        # IMP-PERF-001: Try pattern-based cache first for common file types
+        # This avoids file I/O for predictable patterns
+        file_extension = Path(lower_norm).suffix.lower()
+        pattern_estimate = _get_pattern_based_estimate(
+            file_extension=file_extension,
+            is_test=is_test,
+            is_doc=is_doc,
+            is_config=is_config or is_migration,
+            is_frontend=is_frontend or category == "frontend",
+            is_new=is_new,
+        )
+
+        if pattern_estimate is not None:
+            # For new files, pattern estimate is sufficient (no file to analyze)
+            if is_new:
+                return pattern_estimate
+
+            # For existing files, apply complexity multiplier if file exists
+            if self.workspace:
+                file_path = self.workspace / path
+                if file_path.exists():
+                    complexity_multiplier = self._analyze_file_complexity(file_path)
+                    return int(pattern_estimate * complexity_multiplier)
+
+            return pattern_estimate
+
+        # Fallback to original weight-based calculation for unrecognized patterns
         # Select weight category
         if is_doc:
             weight_key = "new_file_doc" if is_new else "modify_doc"
@@ -986,6 +1174,9 @@ class TokenEstimator:
         """
         Analyze file complexity to adjust token estimate.
 
+        IMP-PERF-001: Uses cached analysis with mtime-based invalidation
+        to avoid repeated file I/O for unchanged files.
+
         Heuristics:
         - LOC (lines of code)
         - Import count (dependencies)
@@ -998,48 +1189,10 @@ class TokenEstimator:
             Complexity multiplier (0.5-2.0)
         """
         try:
-            content = file_path.read_text(encoding="utf-8", errors="ignore")
-            lines = content.split("\n")
-
-            # Count non-empty, non-comment lines
-            code_lines = [
-                line for line in lines if line.strip() and not line.strip().startswith("#")
-            ]
-
-            # LOC factor (more code → higher estimate)
-            if len(code_lines) < 50:
-                loc_factor = 0.7  # Small file
-            elif len(code_lines) < 200:
-                loc_factor = 1.0  # Normal file
-            elif len(code_lines) < 500:
-                loc_factor = 1.3  # Large file
-            else:
-                loc_factor = 1.5  # Very large file
-
-            # Import count (more dependencies → more context)
-            import_lines = [line for line in code_lines if "import " in line]
-            if len(import_lines) < 5:
-                import_factor = 0.9
-            elif len(import_lines) < 15:
-                import_factor = 1.0
-            else:
-                import_factor = 1.2
-
-            # Nesting depth (complex logic → more explanation needed)
-            max_indent = max([len(line) - len(line.lstrip()) for line in code_lines] + [0])
-            if max_indent < 8:
-                nesting_factor = 0.9
-            elif max_indent < 16:
-                nesting_factor = 1.0
-            else:
-                nesting_factor = 1.2
-
-            # Combined multiplier
-            multiplier = loc_factor * import_factor * nesting_factor
-
-            # Clamp to reasonable range
-            return max(0.5, min(2.0, multiplier))
-
+            # IMP-PERF-001: Use cached analysis with mtime-based invalidation
+            resolved_path = file_path.resolve()
+            mtime = os.path.getmtime(resolved_path)
+            return _cached_analyze_file_complexity(str(resolved_path), mtime)
         except Exception as e:
             logger.debug(f"[TokenEstimator] Could not analyze {file_path}: {e}")
             return 1.0  # Default

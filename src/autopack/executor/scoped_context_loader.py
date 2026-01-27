@@ -2,17 +2,34 @@
 
 Extracted from autonomous_executor.py as part of PR-EXE-12.
 Handles context loading with scope restrictions and token budget management.
+
+IMP-PERF-001: Integrates with token estimation caching for improved performance.
 """
 
 import logging
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
 
 logger = logging.getLogger(__name__)
+
+
+# IMP-PERF-001: Import token estimation cache utilities for reporting
+def _get_token_estimation_cache_info() -> Optional[Dict[str, Any]]:
+    """Get token estimation cache info if available.
+
+    Returns:
+        Dict with cache stats or None if import fails
+    """
+    try:
+        from autopack.token_estimator import get_token_estimation_cache_info
+
+        return get_token_estimation_cache_info()
+    except ImportError:
+        return None
 
 
 # File content cache with modification time tracking
@@ -372,9 +389,32 @@ class ScopedContextLoader:
                 f"Hit rate: {cache_info['hit_rate']:.1%}, Cache size: {cache_info['size']}/{cache_info['maxsize']}"
             )
 
+        # IMP-PERF-001: Report token estimation cache statistics
+        token_cache_info = _get_token_estimation_cache_info()
+        if token_cache_info:
+            pattern_cache = token_cache_info.get("pattern_cache", {})
+            complexity_cache = token_cache_info.get("complexity_cache", {})
+            pattern_total = pattern_cache.get("hits", 0) + pattern_cache.get("misses", 0)
+            complexity_total = complexity_cache.get("hits", 0) + complexity_cache.get("misses", 0)
+
+            if pattern_total > 0 or complexity_total > 0:
+                pattern_rate = (
+                    pattern_cache.get("hits", 0) / pattern_total if pattern_total > 0 else 0.0
+                )
+                complexity_rate = (
+                    complexity_cache.get("hits", 0) / complexity_total
+                    if complexity_total > 0
+                    else 0.0
+                )
+                logger.info(
+                    f"[TokenEstimation] Pattern cache: {pattern_cache.get('hits', 0)}/{pattern_total} "
+                    f"({pattern_rate:.1%}), Complexity cache: {complexity_cache.get('hits', 0)}/{complexity_total} "
+                    f"({complexity_rate:.1%})"
+                )
+
         # BUILD-145 P1.1: Apply context budgeting to loaded files
-        from autopack.context_budgeter import select_files_for_context, reset_embedding_cache
         from autopack.config import settings
+        from autopack.context_budgeter import reset_embedding_cache, select_files_for_context
 
         # BUILD-145 P1 (hardening): Reset embedding cache per phase to enforce per-phase cap
         reset_embedding_cache()

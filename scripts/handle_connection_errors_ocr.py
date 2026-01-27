@@ -14,7 +14,11 @@ from typing import Any, Callable, Dict, Optional, TypeVar
 sys.path.insert(0, "src")
 
 from decision_logging.decision_logger import get_decision_logger
+from logging_config import setup_logging
 from telemetry.event_logger import get_logger
+
+# Module-level logger for persistent logging to rotating files
+ocr_logger = setup_logging("ocr_handler")
 
 T = TypeVar("T")
 
@@ -120,10 +124,13 @@ class ConnectionErrorHandler:
                         chosen_option="retry_with_backoff",
                         reasoning=f"Attempt {attempt + 1} of {self.max_retries} failed with {type(e).__name__}, retrying after {delay:.1f}s exponential backoff",
                     )
-                    print(
-                        f"Connection error on {operation_name} "
-                        f"(attempt {attempt + 1}/{self.max_retries}): {e}. "
-                        f"Retrying in {delay:.1f}s..."
+                    ocr_logger.warning(
+                        "Connection error on %s (attempt %d/%d): %s. " "Retrying in %.1fs...",
+                        operation_name,
+                        attempt + 1,
+                        self.max_retries,
+                        e,
+                        delay,
                     )
                     time.sleep(delay)
                 else:
@@ -146,10 +153,12 @@ class ConnectionErrorHandler:
                         chosen_option="escalate_to_failure",
                         reasoning=f"Max retries ({self.max_retries}) exceeded for {operation_name}, escalating as permanent failure",
                     )
-                    print(
-                        f"Connection error on {operation_name} "
-                        f"(attempt {attempt + 1}/{self.max_retries}): {e}. "
-                        "Max retries exceeded."
+                    ocr_logger.error(
+                        "Connection error on %s (attempt %d/%d): %s. " "Max retries exceeded.",
+                        operation_name,
+                        attempt + 1,
+                        self.max_retries,
+                        e,
                     )
 
         # Log final failure
@@ -307,4 +316,4 @@ if __name__ == "__main__":
         operation_name="example_ocr",
         context={"source": "test"},
     )
-    print(f"Result: {result}")
+    ocr_logger.info("Result: %s", result)

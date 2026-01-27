@@ -20,16 +20,16 @@ Key Features:
 import asyncio
 import hashlib
 import logging
+import sys
 import threading
 import time
 import traceback
-import sys
-from typing import Optional, Callable, Any, Dict, List, Set, Literal, Tuple
-from enum import Enum
 from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple
 
-from .debug_journal import log_error, log_fix, log_escalation
 from .config_loader import doctor_config as _doctor_config
+from .debug_journal import log_error, log_escalation, log_fix
 
 logger = logging.getLogger(__name__)
 
@@ -1036,6 +1036,127 @@ class ErrorRecoverySystem:
         else:
             raise RuntimeError(f"{operation_name} failed with unknown error")
 
+    async def async_execute_with_retry(
+        self,
+        func: Callable,
+        func_args: tuple = (),
+        func_kwargs: dict = None,
+        operation_name: str = "operation",
+        max_retries: int = 3,
+        retry_on_categories: List[ErrorCategory] = None,
+    ) -> Any:
+        """
+        Execute an async function with automatic retry and error recovery.
+
+        This is the async version of execute_with_retry, using asyncio.sleep()
+        instead of time.sleep() to avoid blocking the event loop.
+
+        Use this method when calling from async contexts (FastAPI routes,
+        async background tasks, etc.) to prevent blocking the event loop
+        during retry backoff.
+
+        Args:
+            func: Async function to execute (must be awaitable)
+            func_args: Positional arguments for function
+            func_kwargs: Keyword arguments for function
+            operation_name: Human-readable operation name for logging
+            max_retries: Maximum number of retry attempts
+            retry_on_categories: List of error categories that should trigger retry
+                                (default: [TRANSIENT, RECOVERABLE])
+
+        Returns:
+            Result of successful function execution
+
+        Raises:
+            Last exception if all retries fail
+        """
+        func_kwargs = func_kwargs or {}
+        retry_on_categories = retry_on_categories or [
+            ErrorCategory.ENCODING,
+            ErrorCategory.NETWORK,
+            ErrorCategory.FILE_IO,
+            ErrorCategory.VALIDATION,
+            ErrorCategory.LOGIC,
+            ErrorCategory.UNKNOWN,
+        ]
+
+        last_error_ctx = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                # Execute the async function
+                result = await func(*func_args, **func_kwargs)
+
+                # Success
+                if attempt > 0:
+                    logger.info(f"[Recovery] {operation_name} succeeded on retry {attempt}")
+                return result
+
+            except Exception as e:
+                # Classify the error
+                error_ctx = self.classify_error(
+                    e,
+                    context_data={
+                        "operation": operation_name,
+                        "attempt": attempt + 1,
+                        "max_attempts": max_retries + 1,
+                    },
+                )
+                error_ctx.retry_count = attempt
+                error_ctx.max_retries = max_retries
+                last_error_ctx = error_ctx
+
+                logger.error(
+                    f"[Recovery] {operation_name} failed (attempt {attempt + 1}/{max_retries + 1}): "
+                    f"{error_ctx.error_type}: {error_ctx.error_message}"
+                )
+
+                # Don't retry on last attempt
+                if attempt >= max_retries:
+                    logger.error(f"[Recovery] Max retries reached for {operation_name}")
+                    break
+
+                # Check if error category is retryable
+                if (
+                    error_ctx.category not in retry_on_categories
+                    and error_ctx.severity != ErrorSeverity.TRANSIENT
+                ):
+                    logger.error(
+                        f"[Recovery] Error category {error_ctx.category.value} "
+                        f"not retryable for {operation_name}"
+                    )
+                    break
+
+                # Attempt self-healing (sync operation, doesn't block event loop significantly)
+                fixed = self.attempt_self_healing(error_ctx)
+                if fixed:
+                    logger.info(f"[Recovery] Error fixed, retrying {operation_name}...")
+                    continue
+
+                # If not fixed and error is fatal, don't retry
+                if error_ctx.severity == ErrorSeverity.FATAL:
+                    logger.error(f"[Recovery] Fatal error for {operation_name}, cannot retry")
+                    break
+
+                # Wait before retry using asyncio.sleep to avoid blocking event loop
+                if attempt < max_retries:
+                    wait_time = 2**attempt  # Exponential backoff
+                    logger.info(f"[Recovery] Waiting {wait_time}s before retry...")
+                    await asyncio.sleep(wait_time)
+
+        # All retries failed
+        if last_error_ctx:
+            logger.error(
+                f"[Recovery] {operation_name} failed permanently after {max_retries + 1} attempts\n"
+                f"Error type: {last_error_ctx.error_type}\n"
+                f"Error message: {last_error_ctx.error_message}\n"
+                f"Category: {last_error_ctx.category.value}\n"
+                f"Severity: {last_error_ctx.severity.value}"
+            )
+            raise last_error_ctx.error
+        else:
+            raise RuntimeError(f"{operation_name} failed with unknown error")
+
     def get_error_summary(self) -> Dict:
         """Get summary of all errors encountered"""
         return {
@@ -1157,4 +1278,42 @@ def safe_execute(
     except Exception as e:
         if log_errors:
             logger.error(f"[SafeExecute] {operation_name} failed permanently: {e}")
+        return default_return
+
+
+async def async_safe_execute(
+    func: Callable,
+    operation_name: str = "operation",
+    default_return: Any = None,
+    log_errors: bool = True,
+    **retry_kwargs,
+) -> Any:
+    """
+    Async convenience wrapper for safe execution with error recovery.
+
+    This is the async version of safe_execute, using asyncio.sleep()
+    instead of time.sleep() to avoid blocking the event loop during
+    retry backoff.
+
+    Use this from async contexts (FastAPI routes, async background tasks)
+    to prevent blocking the event loop during retries.
+
+    Args:
+        func: Async function to execute (must be awaitable)
+        operation_name: Name for logging
+        default_return: Value to return if all retries fail
+        log_errors: Whether to log errors
+        **retry_kwargs: Additional kwargs for async_execute_with_retry
+
+    Returns:
+        Function result or default_return if failed
+    """
+    recovery = get_error_recovery()
+    try:
+        return await recovery.async_execute_with_retry(
+            func=func, operation_name=operation_name, **retry_kwargs
+        )
+    except Exception as e:
+        if log_errors:
+            logger.error(f"[AsyncSafeExecute] {operation_name} failed permanently: {e}")
         return default_return

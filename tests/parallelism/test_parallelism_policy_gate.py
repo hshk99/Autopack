@@ -12,6 +12,11 @@ from autopack.autonomy.parallelism_gate import (
     ParallelismPolicyGate,
     ParallelismPolicyViolation,
     check_parallelism_policy,
+    extract_phase_scope_paths,
+    check_scope_overlap,
+    check_phases_can_run_parallel,
+    find_parallel_execution_groups,
+    ScopeBasedParallelismChecker,
 )
 
 
@@ -245,14 +250,6 @@ def test_four_layer_isolation_model_recommended():
 # =============================================================================
 # IMP-AUTO-002: Scope-based parallel phase execution tests
 # =============================================================================
-
-from autopack.autonomy.parallelism_gate import (
-    extract_phase_scope_paths,
-    check_scope_overlap,
-    check_phases_can_run_parallel,
-    find_parallel_execution_groups,
-    ScopeBasedParallelismChecker,
-)
 
 
 class TestScopeExtraction:

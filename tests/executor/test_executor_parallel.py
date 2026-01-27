@@ -3,9 +3,7 @@
 Tests the ThreadPoolExecutor-based parallel execution of phases with non-overlapping scopes.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from concurrent.futures import Future
+from unittest.mock import Mock, patch
 
 from autopack.executor.autonomous_loop import AutonomousLoop
 

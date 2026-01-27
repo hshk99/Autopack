@@ -1,37 +1,85 @@
 """Compiler module for the tracer bullet pipeline."""
 
 import ast
+from typing import Union
+
+# Safe AST node types for mathematical expression evaluation.
+# This strict whitelist prevents arbitrary code execution by only allowing
+# numeric constants and basic arithmetic operators.
+_SAFE_NODES = (
+    ast.Expression,
+    ast.Constant,  # Python 3.8+ for all constant values
+    ast.BinOp,
+    ast.UnaryOp,
+    # Binary operators
+    ast.Add,
+    ast.Sub,
+    ast.Mult,
+    ast.Div,
+    ast.FloorDiv,
+    ast.Mod,
+    ast.Pow,
+    # Unary operators
+    ast.USub,
+    ast.UAdd,
+)
 
 
-def compile_expression(expression: str) -> int:
+def safe_eval(expression: str) -> Union[int, float]:
     """
-    Compiles and evaluates a mathematical expression.
+    Safely evaluate a mathematical expression.
+
+    Only allows basic arithmetic operations (+, -, *, /, //, %, **) on numbers.
+    No function calls, attribute access, name lookups, or other potentially
+    unsafe operations are permitted.
+
+    Args:
+        expression: A string containing a mathematical expression.
+
+    Returns:
+        The numeric result of the expression.
+
+    Raises:
+        ValueError: If the expression contains unsafe node types or is invalid.
+    """
+    try:
+        tree = ast.parse(expression, mode="eval")
+    except SyntaxError as e:
+        raise ValueError(f"Invalid expression syntax: {e}")
+
+    # Validate all nodes in the AST are in the safe whitelist
+    for node in ast.walk(tree):
+        if not isinstance(node, _SAFE_NODES):
+            raise ValueError(f"Unsafe expression: contains {type(node).__name__}")
+
+    # Additional check: ensure Constant nodes only contain numeric values
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant):
+            if not isinstance(node.value, (int, float)):
+                raise ValueError(
+                    f"Unsafe expression: non-numeric constant {type(node.value).__name__}"
+                )
+
+    # Safe to evaluate - compile and eval with empty builtins and locals
+    # to prevent any access to Python built-ins or external variables
+    compiled = compile(tree, "<expression>", "eval")
+    return eval(compiled, {"__builtins__": {}}, {})
+
+
+def compile_expression(expression: str) -> Union[int, float]:
+    """
+    Compiles and evaluates a mathematical expression safely.
 
     Args:
         expression (str): The mathematical expression to evaluate.
 
     Returns:
-        int: The result of the evaluated expression.
+        Union[int, float]: The result of the evaluated expression.
 
     Raises:
         ValueError: If the expression is invalid or unsafe.
     """
-    try:
-        # Parse the expression into an AST node
-        node = ast.parse(expression, mode="eval")
-
-        # Ensure the node is safe to evaluate
-        if not all(
-            isinstance(n, (ast.Expression, ast.BinOp, ast.Num, ast.UnaryOp, ast.operator))
-            for n in ast.walk(node)
-        ):
-            raise ValueError("Unsafe expression")
-
-        # Compile and evaluate the expression
-        compiled = compile(node, "<string>", "eval")
-        return eval(compiled)
-    except Exception as e:
-        raise ValueError(f"Invalid expression: {e}")
+    return safe_eval(expression)
 
 
 if __name__ == "__main__":

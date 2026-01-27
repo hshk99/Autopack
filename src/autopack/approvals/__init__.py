@@ -1,11 +1,21 @@
-"""Approval service modules (BUILD-181 Phase 6, IMP-REL-001).
+"""Approval service modules (BUILD-181 Phase 6, IMP-REL-001, IMP-LOOP-014).
 
 Provides pivot-only approval triggers and multi-channel notification.
 Supports Telegram -> Email -> SMS fallback chain for reliability.
 Disabled by default, requires explicit configuration.
 Never active in CI.
+
+IMP-LOOP-014: Adds human approval feedback capture and analysis for
+improving task generation through pattern recognition.
 """
 
+from .feedback_analyzer import (
+    ApprovalFeedback,
+    ApprovalFeedbackAnalyzer,
+    HumanAction,
+    PriorityWeightUpdate,
+    RejectionPattern,
+)
 from .notification_chain import (
     EmailChannel,
     NotificationChain,
@@ -44,4 +54,10 @@ __all__ = [
     "EmailChannel",
     "SMSChannel",
     "create_notification_chain",
+    # IMP-LOOP-014: Feedback capture and analysis
+    "ApprovalFeedback",
+    "ApprovalFeedbackAnalyzer",
+    "HumanAction",
+    "PriorityWeightUpdate",
+    "RejectionPattern",
 ]

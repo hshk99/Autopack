@@ -310,7 +310,8 @@ jobs:
           # Excludes research-marked, aspirational-marked, and legacy_contract-marked tests via pytest markers
           # PR-INFRA-1: Parallel execution with pytest-xdist (-n auto detects CPU count, typically 2-4 workers)
           # Expected: 50% faster execution (45 min → ~20-25 min)
-          pytest tests/ -m "not research and not aspirational and not legacy_contract" -n auto -v --cov=src/autopack --cov-report=xml --maxfail=5
+          # --durations=20: Profile slowest tests for future optimization
+          pytest tests/ -m "not research and not aspirational and not legacy_contract" -n auto -v --durations=20 --cov=src/autopack --cov-report=xml --maxfail=5
       - name: Verify no collection errors
         env:
           PYTHONPATH: ${{ github.workspace }}/src
@@ -374,15 +375,16 @@ jobs:
           # Aspirational gate: Track progress on extended test suites
           # Runs ONLY aspirational-marked tests (xfail-heavy extended suites)
           # PR-INFRA-1: Parallel execution for faster feedback
-          pytest tests/ -m "aspirational" -n auto -v --tb=short
+          # --durations=20: Profile slowest tests for future optimization
+          # Tee output to file for xpass detection without re-running tests (~6 min savings)
+          pytest tests/ -m "aspirational" -n auto -v --tb=short --durations=20 2>&1 | tee aspirational_output.txt
           echo "Aspirational test results (informational - does not block CI)"
       - name: Report xpass tests
         if: always()
-        env:
-          PYTHONPATH: ${{ github.workspace }}/src
         run: |
           # Identify tests that are now passing but still marked xfail
-          pytest tests/ -m "aspirational" -v --tb=no | grep -E "XPASS|xpassed" || echo "No XPASS tests found"
+          # Parse from saved output instead of re-running pytest (CI optimization)
+          grep -E "XPASS|xpassed" aspirational_output.txt || echo "No XPASS tests found"
 
   test-research:
     name: Research Tests (Informational)
@@ -415,7 +417,8 @@ jobs:
           # Research gate: Informational only
           # Tests the quarantined research subsystem (see RESEARCH_QUARANTINE.md)
           # PR-INFRA-1: Parallel execution (non-blocking, so speed less critical but still beneficial)
-          pytest tests/ -m "research" -n auto -v --tb=short || echo "Research tests failed (expected - subsystem has API drift)"
+          # --durations=20: Profile slowest tests for future optimization
+          pytest tests/ -m "research" -n auto -v --tb=short --durations=20 || echo "Research tests failed (expected - subsystem has API drift)"
       - name: Report research test status
         if: always()
         run: |

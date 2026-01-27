@@ -392,7 +392,7 @@ class TestGetSummary:
 
     def test_summary_counts_match(self, generator: InsightToTaskGenerator) -> None:
         """Test summary counts match actual improvements."""
-        improvements = generator.generate_improvements_from_insights()
+        generator.generate_improvements_from_insights()
         summary = generator.get_summary()
 
         # Total should match

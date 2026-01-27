@@ -8,10 +8,10 @@ Detects:
 
 import logging
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict
 from datetime import datetime
-from statistics import mean, quantiles
 from enum import Enum
+from statistics import mean, quantiles
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

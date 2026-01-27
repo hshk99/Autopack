@@ -22,9 +22,9 @@ import send2trash
 from sqlalchemy.orm import Session
 
 from ..models import CleanupCandidateDB
-from .policy import StoragePolicy, is_path_protected
 from .checkpoint_logger import CheckpointLogger, compute_sha256
 from .lock_detector import LockDetector
+from .policy import StoragePolicy, is_path_protected
 
 logger = logging.getLogger(__name__)
 
@@ -656,9 +656,7 @@ class CleanupExecutor:
                     checkpoint_status = (
                         "completed"
                         if result.status == ExecutionStatus.COMPLETED
-                        else "skipped"
-                        if result.status == ExecutionStatus.SKIPPED
-                        else "failed"
+                        else "skipped" if result.status == ExecutionStatus.SKIPPED else "failed"
                     )
 
                     self.checkpoint_logger.log_execution(

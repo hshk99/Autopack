@@ -11,14 +11,15 @@ Validates:
 """
 
 import json
+
+# Add scripts/tidy to path
+import sys
 import tempfile
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-import pytest
 
-# Add scripts/tidy to path
-import sys
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "tidy"))
 

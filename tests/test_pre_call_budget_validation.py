@@ -4,8 +4,9 @@ Tests that verify the LlmService correctly checks token budget before
 making LLM calls and returns appropriate error results when budget is exceeded.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from autopack.llm_service import LlmService, estimate_tokens
 

@@ -11,18 +11,18 @@ Tests verify:
 
 from __future__ import annotations
 
-import pytest
+# Add scripts/tidy to path
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-# Add scripts/tidy to path
-import sys
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "tidy"))
 
-from locks import MultiLock, LOCK_ORDER, lock_path
 from lease import Lease
+from locks import LOCK_ORDER, MultiLock, lock_path
 
 
 @pytest.fixture

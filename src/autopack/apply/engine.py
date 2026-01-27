@@ -211,7 +211,7 @@ def check_existing_files_for_new_patches(patch_content: str, workspace: Path) ->
     Raises:
         PatchApplyError: If patch tries to create file that already exists
     """
-    from .policy import is_path_protected, PROTECTED_PATHS
+    from .policy import PROTECTED_PATHS, is_path_protected
 
     lines = patch_content.split("\n")
     i = 0

@@ -21,13 +21,13 @@ import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from .repo_scanner import RepoScanner
+from .memory.memory_service import MemoryService
 from .pattern_matcher import PatternMatcher
 from .preflight_validator import PreflightValidator
 from .project_intention import ProjectIntentionManager
-from .memory.memory_service import MemoryService
+from .repo_scanner import RepoScanner
 
 logger = logging.getLogger(__name__)
 
@@ -414,11 +414,11 @@ class PlanNormalizer:
 
             # Get adapter instance
             from .toolchain import (
-                PythonAdapter,
-                NodeAdapter,
                 GoAdapter,
-                RustAdapter,
                 JavaAdapter,
+                NodeAdapter,
+                PythonAdapter,
+                RustAdapter,
             )
 
             adapter_map = {

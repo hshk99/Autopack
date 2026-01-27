@@ -9,10 +9,10 @@ Handles malformed patches from LLMs including:
 - Whitespace issues
 """
 
+import logging
+import re
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
-import re
-import logging
 
 logger = logging.getLogger(__name__)
 

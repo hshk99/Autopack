@@ -5,10 +5,11 @@ Tests deterministic risk scoring based on scope size, protected paths,
 category patterns, and cross-cutting changes.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from autopack.risk_scorer import RiskScorer, RiskLevel, RiskScore, ApprovalGate
+import pytest
+
+from autopack.risk_scorer import ApprovalGate, RiskLevel, RiskScore, RiskScorer
 
 
 class TestRiskLevel:

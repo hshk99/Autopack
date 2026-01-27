@@ -8,7 +8,6 @@ These tests define the contract BEFORE implementation:
 
 from __future__ import annotations
 
-
 import pytest
 
 

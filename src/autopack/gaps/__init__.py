@@ -8,9 +8,9 @@ Public API exports:
     - GapScanResult: result type for scan_gaps
 """
 
-from .models import GapReportV1, Gap, GapEvidence, SafeRemediation, GapSummary
+from .api import GapScanResult, scan_gaps
+from .models import Gap, GapEvidence, GapReportV1, GapSummary, SafeRemediation
 from .scanner import GapScanner, scan_workspace
-from .api import scan_gaps, GapScanResult
 
 __all__ = [
     # Models

@@ -21,10 +21,7 @@ from autopack.model_routing_refresh import (
     refresh_routing_snapshot,
     select_best_model_for_tier,
 )
-from autopack.model_routing_snapshot import (
-    ModelRoutingEntry,
-    RoutingSnapshotStorage,
-)
+from autopack.model_routing_snapshot import ModelRoutingEntry, RoutingSnapshotStorage
 
 
 @pytest.fixture

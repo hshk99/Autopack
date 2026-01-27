@@ -6,8 +6,9 @@ actual API calls to Anthropic.
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestStreamResponse:

@@ -1,6 +1,6 @@
 """Custom exceptions for the Autopack framework."""
 
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 class AutopackError(Exception):

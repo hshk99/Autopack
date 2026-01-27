@@ -12,15 +12,15 @@ Analyzes historical scan data to provide proactive guidance:
 Requires scan history to function (at least 2-3 scans for trend analysis).
 """
 
-from typing import List, Dict, Optional
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from collections import defaultdict
+from typing import Dict, List, Optional
 
-from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
-from autopack.models import StorageScan, CleanupCandidateDB
+from autopack.models import CleanupCandidateDB, StorageScan
 from autopack.storage_optimizer.policy import StoragePolicy
 
 

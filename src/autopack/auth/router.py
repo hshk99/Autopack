@@ -15,23 +15,24 @@ import hashlib
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Header, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
+from autopack.config import settings  # BUILD-146 P12 Phase 5
+from autopack.database import get_db
+
+from .models import User
+from .rate_limiter import login_rate_limiter
+from .schemas import Token, UserCreate, UserResponse
 from .security import (
     create_access_token,
     decode_access_token,
-    generate_jwk_from_public_pem,
     ensure_keys,
+    generate_jwk_from_public_pem,
     hash_password,
     verify_password,
 )
-from .models import User
-from .schemas import Token, UserCreate, UserResponse
-from .rate_limiter import login_rate_limiter
-from autopack.database import get_db
-from autopack.config import settings  # BUILD-146 P12 Phase 5
 
 router = APIRouter(
     prefix="/api/auth",

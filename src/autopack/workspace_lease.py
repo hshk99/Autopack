@@ -17,9 +17,9 @@ Example:
     ...     execute_run(lease.workspace_path)
 """
 
+import logging
 import os
 import socket
-import logging
 from pathlib import Path
 from typing import Optional
 

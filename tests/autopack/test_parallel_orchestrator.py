@@ -7,17 +7,17 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from autopack.parallel_orchestrator import (
-    ParallelRunConfig,
-    RunResult,
-    ParallelRunOrchestrator,
-    execute_parallel_runs,
-    execute_single_run,
-)
 from autopack.intention_anchor.v2 import (
     IntentionAnchorV2,
     ParallelismIsolationIntention,
     PivotIntentions,
+)
+from autopack.parallel_orchestrator import (
+    ParallelRunConfig,
+    ParallelRunOrchestrator,
+    RunResult,
+    execute_parallel_runs,
+    execute_single_run,
 )
 
 

@@ -69,9 +69,9 @@ def test_ci_script_passes_on_current_codebase():
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0, (
-        f"CI script failed on current codebase:\nstdout: {result.stdout}\nstderr: {result.stderr}"
-    )
+    assert (
+        result.returncode == 0
+    ), f"CI script failed on current codebase:\nstdout: {result.stdout}\nstderr: {result.stderr}"
     assert "[OK]" in result.stdout
 
 
@@ -83,12 +83,12 @@ def test_pinned_image_constant_exists():
     assert memory_service.exists()
 
     content = memory_service.read_text(encoding="utf-8")
-    assert "DEFAULT_QDRANT_IMAGE" in content, (
-        "DEFAULT_QDRANT_IMAGE constant not found in memory_service.py"
-    )
-    assert EXPECTED_PINNED_IMAGE in content, (
-        f"Expected pinned image {EXPECTED_PINNED_IMAGE} not found in memory_service.py"
-    )
+    assert (
+        "DEFAULT_QDRANT_IMAGE" in content
+    ), "DEFAULT_QDRANT_IMAGE constant not found in memory_service.py"
+    assert (
+        EXPECTED_PINNED_IMAGE in content
+    ), f"Expected pinned image {EXPECTED_PINNED_IMAGE} not found in memory_service.py"
 
 
 def test_config_memory_yaml_has_pinned_image():
@@ -100,12 +100,12 @@ def test_config_memory_yaml_has_pinned_image():
 
     content = config_path.read_text(encoding="utf-8")
     assert "image:" in content, "Qdrant image config not found in config/memory.yaml"
-    assert EXPECTED_PINNED_IMAGE in content, (
-        f"Expected pinned image {EXPECTED_PINNED_IMAGE} not found in config/memory.yaml"
-    )
-    assert FORBIDDEN_PATTERN not in content, (
-        ":latest tag found in config/memory.yaml - must use pinned version"
-    )
+    assert (
+        EXPECTED_PINNED_IMAGE in content
+    ), f"Expected pinned image {EXPECTED_PINNED_IMAGE} not found in config/memory.yaml"
+    assert (
+        FORBIDDEN_PATTERN not in content
+    ), ":latest tag found in config/memory.yaml - must use pinned version"
 
 
 def test_docker_compose_matches_pinned_image():
@@ -118,12 +118,12 @@ def test_docker_compose_matches_pinned_image():
     assert compose_path.exists()
 
     content = compose_path.read_text(encoding="utf-8")
-    assert EXPECTED_PINNED_IMAGE in content, (
-        f"docker-compose.yml should use {EXPECTED_PINNED_IMAGE} for Qdrant"
-    )
-    assert FORBIDDEN_PATTERN not in content, (
-        ":latest tag found in docker-compose.yml - must use pinned version"
-    )
+    assert (
+        EXPECTED_PINNED_IMAGE in content
+    ), f"docker-compose.yml should use {EXPECTED_PINNED_IMAGE} for Qdrant"
+    assert (
+        FORBIDDEN_PATTERN not in content
+    ), ":latest tag found in docker-compose.yml - must use pinned version"
 
 
 @pytest.mark.parametrize(
@@ -143,6 +143,6 @@ def test_autostart_files_use_qdrant_image_variable(file_path: Path):
 
     # Check that the file uses qdrant_image variable in docker run command
     # (not a hardcoded string)
-    assert "qdrant_image" in content.lower() or "QDRANT_IMAGE" in content, (
-        f"{file_path} should use qdrant_image variable for docker run"
-    )
+    assert (
+        "qdrant_image" in content.lower() or "QDRANT_IMAGE" in content
+    ), f"{file_path} should use qdrant_image variable for docker run"

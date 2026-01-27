@@ -4,8 +4,8 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from autopack.dashboard.server import create_dashboard_app
 from autopack.config import settings
+from autopack.dashboard.server import create_dashboard_app
 
 
 class _StubUsageRecorder:

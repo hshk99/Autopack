@@ -1,11 +1,11 @@
 from pathlib import Path
 
 from autopack.backlog_maintenance import (
-    parse_backlog_markdown,
     backlog_items_to_phases,
     create_git_checkpoint,
-    revert_to_checkpoint,
+    parse_backlog_markdown,
     parse_patch_stats,
+    revert_to_checkpoint,
 )
 
 

@@ -3,11 +3,11 @@
 import pytest
 
 from autopack.executor.task_generator import (
-    FollowupTaskGenerator,
     FollowupTask,
+    FollowupTaskGenerator,
     IssueType,
-    TestPlan,
     PreflightChecklist,
+    TestPlan,
 )
 from autopack.telemetry.analyzer import RankedIssue
 

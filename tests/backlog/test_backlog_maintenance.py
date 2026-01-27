@@ -9,18 +9,18 @@ Verifies the backlog maintenance helpers work correctly:
 
 import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from autopack.backlog_maintenance import (
     BacklogItem,
-    parse_backlog_markdown,
     backlog_items_to_phases,
-    write_plan,
     create_git_checkpoint,
-    revert_to_checkpoint,
+    parse_backlog_markdown,
     parse_patch_stats,
+    revert_to_checkpoint,
+    write_plan,
 )
 
 

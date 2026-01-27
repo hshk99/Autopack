@@ -13,6 +13,7 @@ See: docs/SECURITY_EXCEPTIONS.md for full CVE-2024-23342 rationale
 """
 
 import os
+
 import pytest
 from pydantic import ValidationError
 

@@ -6,7 +6,7 @@ into the Postgres-backed model catalog.
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 import yaml
 from sqlalchemy.orm import Session

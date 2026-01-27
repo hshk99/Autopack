@@ -1,14 +1,15 @@
 """Tests for ROAD-I Regression Protection System."""
 
-import pytest
 from pathlib import Path
 
+import pytest
+
 from autopack.roadi import (
+    ProtectionResult,
     RegressionProtector,
     RegressionTest,
-    ProtectionResult,
-    RiskSeverity,
     RiskAssessment,
+    RiskSeverity,
 )
 
 

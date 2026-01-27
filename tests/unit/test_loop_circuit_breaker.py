@@ -399,8 +399,9 @@ class TestConfigCircuitBreakerSettings:
 
     def test_config_validation_rejects_invalid_threshold(self):
         """Test that config validation catches invalid threshold."""
-        from autopack.config import validate_config, Settings
         from unittest.mock import MagicMock
+
+        from autopack.config import Settings, validate_config
 
         mock_config = MagicMock(spec=Settings)
         mock_config.run_token_cap = 5000000

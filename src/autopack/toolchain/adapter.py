@@ -124,11 +124,11 @@ def detect_toolchains(workspace: Path) -> List[ToolchainDetectionResult]:
     Returns:
         List of detected toolchains, sorted by confidence (highest first)
     """
-    from .python_adapter import PythonAdapter
-    from .node_adapter import NodeAdapter
     from .go_adapter import GoAdapter
-    from .rust_adapter import RustAdapter
     from .java_adapter import JavaAdapter
+    from .node_adapter import NodeAdapter
+    from .python_adapter import PythonAdapter
+    from .rust_adapter import RustAdapter
 
     adapters = [
         PythonAdapter(),

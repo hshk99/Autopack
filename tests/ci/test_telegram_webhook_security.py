@@ -10,11 +10,10 @@ Contract: Telegram webhook cannot be spoofed in production.
 """
 
 import os
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent.parent
 
@@ -27,18 +26,18 @@ class TestWebhookSecurityModule:
         security_module = (
             REPO_ROOT / "src" / "autopack" / "notifications" / "telegram_webhook_security.py"
         )
-        assert security_module.exists(), (
-            "telegram_webhook_security.py not found - PR7 requires webhook signature verification"
-        )
+        assert (
+            security_module.exists()
+        ), "telegram_webhook_security.py not found - PR7 requires webhook signature verification"
 
     def test_module_is_importable(self):
         """Module must be importable without errors."""
         from autopack.notifications.telegram_webhook_security import (
+            get_verification_status,
             get_webhook_secret,
             is_verification_required,
             verify_secret_token,
             verify_telegram_webhook,
-            get_verification_status,
         )
 
         # All functions should be callable
@@ -88,7 +87,9 @@ class TestProductionRequirements:
 
     def test_production_requires_verification(self):
         """Production mode should require verification."""
-        from autopack.notifications.telegram_webhook_security import is_verification_required
+        from autopack.notifications.telegram_webhook_security import (
+            is_verification_required,
+        )
 
         with patch.dict(os.environ, {"AUTOPACK_ENV": "production"}, clear=False):
             os.environ.pop("TELEGRAM_WEBHOOK_SECRET", None)
@@ -96,7 +97,9 @@ class TestProductionRequirements:
 
     def test_production_with_secret_requires_verification(self):
         """Production with secret should require verification."""
-        from autopack.notifications.telegram_webhook_security import is_verification_required
+        from autopack.notifications.telegram_webhook_security import (
+            is_verification_required,
+        )
 
         with patch.dict(
             os.environ,
@@ -106,7 +109,9 @@ class TestProductionRequirements:
 
     def test_development_without_secret_no_requirement(self):
         """Development mode without secret should not require verification."""
-        from autopack.notifications.telegram_webhook_security import is_verification_required
+        from autopack.notifications.telegram_webhook_security import (
+            is_verification_required,
+        )
 
         with patch.dict(os.environ, {"AUTOPACK_ENV": "development"}, clear=False):
             os.environ.pop("TELEGRAM_WEBHOOK_SECRET", None)
@@ -114,7 +119,9 @@ class TestProductionRequirements:
 
     def test_development_with_secret_requires_verification(self):
         """Development with secret should require verification."""
-        from autopack.notifications.telegram_webhook_security import is_verification_required
+        from autopack.notifications.telegram_webhook_security import (
+            is_verification_required,
+        )
 
         with patch.dict(
             os.environ,
@@ -129,7 +136,9 @@ class TestWebhookVerification:
     @pytest.mark.asyncio
     async def test_production_rejects_without_secret_config(self):
         """Production should reject if no secret is configured."""
-        from autopack.notifications.telegram_webhook_security import verify_telegram_webhook
+        from autopack.notifications.telegram_webhook_security import (
+            verify_telegram_webhook,
+        )
 
         mock_request = MagicMock()
         mock_request.headers.get.return_value = None
@@ -142,7 +151,9 @@ class TestWebhookVerification:
     @pytest.mark.asyncio
     async def test_production_rejects_invalid_token(self):
         """Production should reject invalid token."""
-        from autopack.notifications.telegram_webhook_security import verify_telegram_webhook
+        from autopack.notifications.telegram_webhook_security import (
+            verify_telegram_webhook,
+        )
 
         mock_request = MagicMock()
         mock_request.headers.get.return_value = "wrong-token"
@@ -157,7 +168,9 @@ class TestWebhookVerification:
     @pytest.mark.asyncio
     async def test_production_accepts_valid_token(self):
         """Production should accept valid token."""
-        from autopack.notifications.telegram_webhook_security import verify_telegram_webhook
+        from autopack.notifications.telegram_webhook_security import (
+            verify_telegram_webhook,
+        )
 
         mock_request = MagicMock()
         mock_request.headers.get.return_value = "correct-token"
@@ -172,7 +185,9 @@ class TestWebhookVerification:
     @pytest.mark.asyncio
     async def test_development_allows_without_token(self):
         """Development should allow requests without token (no secret configured)."""
-        from autopack.notifications.telegram_webhook_security import verify_telegram_webhook
+        from autopack.notifications.telegram_webhook_security import (
+            verify_telegram_webhook,
+        )
 
         mock_request = MagicMock()
         mock_request.headers.get.return_value = None
@@ -189,6 +204,7 @@ class TestTimingAttackPrevention:
     def test_uses_hmac_compare_digest(self):
         """Verification should use constant-time comparison."""
         import inspect
+
         from autopack.notifications import telegram_webhook_security
 
         source = inspect.getsource(telegram_webhook_security)
@@ -209,12 +225,12 @@ class TestMainIntegration:
         content = approvals_py.read_text(encoding="utf-8")
 
         # Must import and call verification
-        assert "verify_telegram_webhook" in content, (
-            "approvals.py telegram_webhook handler must call verify_telegram_webhook"
-        )
-        assert "telegram_webhook_security" in content, (
-            "approvals.py must import from telegram_webhook_security module"
-        )
+        assert (
+            "verify_telegram_webhook" in content
+        ), "approvals.py telegram_webhook handler must call verify_telegram_webhook"
+        assert (
+            "telegram_webhook_security" in content
+        ), "approvals.py must import from telegram_webhook_security module"
 
     def test_webhook_handler_rejects_on_failure(self):
         """Webhook handler must raise HTTPException on verification failure."""
@@ -228,12 +244,12 @@ class TestMainIntegration:
         webhook_section = content[webhook_start : webhook_start + 1500]
 
         # Must raise HTTPException on failure
-        assert "HTTPException" in webhook_section, (
-            "Webhook handler must raise HTTPException on verification failure"
-        )
-        assert "403" in webhook_section, (
-            "Webhook handler must return 403 status on verification failure"
-        )
+        assert (
+            "HTTPException" in webhook_section
+        ), "Webhook handler must raise HTTPException on verification failure"
+        assert (
+            "403" in webhook_section
+        ), "Webhook handler must return 403 status on verification failure"
 
 
 class TestVerificationStatus:
@@ -241,7 +257,9 @@ class TestVerificationStatus:
 
     def test_get_verification_status_returns_dict(self):
         """get_verification_status should return status dict."""
-        from autopack.notifications.telegram_webhook_security import get_verification_status
+        from autopack.notifications.telegram_webhook_security import (
+            get_verification_status,
+        )
 
         status = get_verification_status()
 
@@ -252,7 +270,9 @@ class TestVerificationStatus:
 
     def test_status_reflects_configuration(self):
         """Status should reflect current configuration."""
-        from autopack.notifications.telegram_webhook_security import get_verification_status
+        from autopack.notifications.telegram_webhook_security import (
+            get_verification_status,
+        )
 
         with patch.dict(
             os.environ,

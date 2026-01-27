@@ -1,7 +1,7 @@
 """Doctor metrics display for dashboard."""
 
-from typing import Any, Dict, List
 from dataclasses import dataclass
+from typing import Any, Dict, List
 
 
 @dataclass

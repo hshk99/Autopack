@@ -2,7 +2,10 @@
 
 import pytest
 
-from autopack.research.intent_clarification import IntentClarificationAgent, ClarifiedIntent
+from autopack.research.intent_clarification import (
+    ClarifiedIntent,
+    IntentClarificationAgent,
+)
 from autopack.research.models import ResearchQuery
 
 

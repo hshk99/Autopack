@@ -503,7 +503,9 @@ def analyze_approval_patterns(
         List of detected patterns sorted by confidence
     """
     from autopack.storage_optimizer import load_policy
-    from autopack.storage_optimizer.approval_pattern_analyzer import ApprovalPatternAnalyzer
+    from autopack.storage_optimizer.approval_pattern_analyzer import (
+        ApprovalPatternAnalyzer,
+    )
 
     policy = load_policy()
     analyzer = ApprovalPatternAnalyzer(db, policy)
@@ -578,7 +580,9 @@ def get_learned_rules(
 def approve_learned_rule(rule_id: int, approved_by: str, db: Session = Depends(get_db)):
     """Approve a learned rule for application to policy."""
     from autopack.storage_optimizer import load_policy
-    from autopack.storage_optimizer.approval_pattern_analyzer import ApprovalPatternAnalyzer
+    from autopack.storage_optimizer.approval_pattern_analyzer import (
+        ApprovalPatternAnalyzer,
+    )
 
     policy = load_policy()
     analyzer = ApprovalPatternAnalyzer(db, policy)

@@ -9,18 +9,18 @@ from datetime import datetime, timezone
 import pytest
 
 from src.autopack.intention_anchor.phase_type_registry import (
-    PhaseTypeRegistry,
-    PhaseTypePivots,
     CustomPivot,
+    PhaseTypePivots,
+    PhaseTypeRegistry,
 )
 from src.autopack.intention_anchor.v2 import (
-    IntentionAnchorV2,
-    NorthStarIntention,
-    ScopeBoundariesIntention,
-    SafetyRiskIntention,
     BudgetCostIntention,
     EvidenceVerificationIntention,
+    IntentionAnchorV2,
+    NorthStarIntention,
     PivotIntentions,
+    SafetyRiskIntention,
+    ScopeBoundariesIntention,
 )
 
 

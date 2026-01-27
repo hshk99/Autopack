@@ -89,8 +89,8 @@ class TestLlmServiceScopeReductionWiring:
 
     def test_generate_scope_reduction_proposal_raises_on_api_failure(self):
         """generate_scope_reduction_proposal raises ScopeReductionError on LLM failure."""
-        from autopack.llm_service import LlmService
         from autopack.exceptions import ScopeReductionError
+        from autopack.llm_service import LlmService
 
         # Create mock service with failing LLM
         with patch.object(LlmService, "__init__", lambda self, *args, **kwargs: None):
@@ -123,8 +123,8 @@ class TestLlmServiceScopeReductionWiring:
 
     def test_generate_scope_reduction_proposal_raises_on_json_parse_failure(self):
         """generate_scope_reduction_proposal raises ScopeReductionError on JSON parse failure."""
-        from autopack.llm_service import LlmService
         from autopack.exceptions import ScopeReductionError
+        from autopack.llm_service import LlmService
 
         with patch.object(LlmService, "__init__", lambda self, *args, **kwargs: None):
             service = LlmService.__new__(LlmService)

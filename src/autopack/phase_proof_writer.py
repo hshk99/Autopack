@@ -5,13 +5,18 @@ BUILD-161 Phase A: Intention-first loop integration.
 BUILD-180: Added deterministic git-based metrics.
 """
 
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-import logging
 
-from autopack.phase_proof import PhaseProof, PhaseChange, PhaseVerification, PhaseProofStorage
-from autopack.proof_metrics import get_proof_metrics, ProofMetrics
+from autopack.phase_proof import (
+    PhaseChange,
+    PhaseProof,
+    PhaseProofStorage,
+    PhaseVerification,
+)
+from autopack.proof_metrics import ProofMetrics, get_proof_metrics
 
 logger = logging.getLogger(__name__)
 

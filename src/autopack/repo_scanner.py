@@ -11,10 +11,10 @@ Key Features:
 - Fast (caches results)
 """
 
+import fnmatch
 import os
 from pathlib import Path
 from typing import Dict, List, Optional
-import fnmatch
 
 
 class RepoScanner:

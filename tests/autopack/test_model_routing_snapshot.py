@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from autopack.config import settings
 from autopack.model_routing_snapshot import (
     ModelRoutingEntry,
     ModelRoutingSnapshot,
@@ -16,7 +17,6 @@ from autopack.model_routing_snapshot import (
     create_default_snapshot,
     refresh_or_load_snapshot,
 )
-from autopack.config import settings
 
 
 @pytest.fixture

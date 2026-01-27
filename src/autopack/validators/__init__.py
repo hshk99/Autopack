@@ -4,9 +4,9 @@
 # - yaml_validator.py: YAML/docker-compose validation pre-apply
 
 from .yaml_validator import (
-    validate_yaml_syntax,
-    validate_docker_compose,
     ValidationResult,
+    validate_docker_compose,
+    validate_yaml_syntax,
 )
 
 __all__ = [

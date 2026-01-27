@@ -1,4 +1,5 @@
 import unittest
+
 from autopack.diagnostics.cursor_prompt_generator import generate_cursor_prompt
 
 

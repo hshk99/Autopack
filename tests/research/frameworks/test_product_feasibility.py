@@ -1,6 +1,7 @@
 """Tests for Product Feasibility Framework"""
 
 import pytest
+
 from autopack.research.frameworks.product_feasibility import ProductFeasibility
 
 

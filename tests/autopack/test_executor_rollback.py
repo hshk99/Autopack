@@ -4,8 +4,9 @@ Tests savepoint creation, rollback logic, and cleanup functionality using temp g
 All tests are isolated (no network, no real repo modifications).
 """
 
-import pytest
 import subprocess
+
+import pytest
 
 from autopack.rollback_manager import RollbackManager
 

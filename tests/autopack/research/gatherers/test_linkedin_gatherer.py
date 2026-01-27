@@ -1,7 +1,8 @@
 """Tests for LinkedIn gatherer."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from autopack.research.gatherers.linkedin_gatherer import LinkedInGatherer
 from autopack.research.models.enums import EvidenceType

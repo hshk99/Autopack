@@ -7,7 +7,12 @@ Tests GB caps, file count caps, retry backoff, and skip_locked behavior.
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
-from autopack.storage_optimizer.executor import CleanupExecutor, ExecutionResult, ExecutionStatus
+
+from autopack.storage_optimizer.executor import (
+    CleanupExecutor,
+    ExecutionResult,
+    ExecutionStatus,
+)
 from autopack.storage_optimizer.policy import load_policy
 
 

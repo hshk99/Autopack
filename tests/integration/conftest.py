@@ -12,9 +12,9 @@ import asyncio
 import threading
 from contextlib import contextmanager
 from typing import Callable, Optional, TypeVar
+from unittest.mock import patch
 
 import pytest
-from unittest.mock import patch
 
 T = TypeVar("T")
 
@@ -307,6 +307,7 @@ def mock_session_local(db_engine):
     instead of creating their own connection to the global database.
     """
     from sqlalchemy.orm import sessionmaker
+
     from autopack import database
 
     # Create a sessionmaker bound to the test engine

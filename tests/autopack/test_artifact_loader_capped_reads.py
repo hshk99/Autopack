@@ -4,8 +4,9 @@ Tests that artifact loader respects artifact_read_size_cap_bytes setting
 when reading summaries to prevent memory exhaustion from large artifacts.
 """
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from autopack.artifact_loader import ArtifactLoader, _read_capped
 

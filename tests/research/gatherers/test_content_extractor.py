@@ -1,4 +1,5 @@
 import unittest
+
 from autopack.research.gatherers.content_extractor import ContentExtractor
 
 

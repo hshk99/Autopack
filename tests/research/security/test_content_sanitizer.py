@@ -5,6 +5,7 @@ This module contains unit tests for the ContentSanitizer class.
 """
 
 import unittest
+
 from autopack.research.security.content_sanitizer import ContentSanitizer
 
 

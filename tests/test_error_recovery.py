@@ -17,35 +17,29 @@ from unittest.mock import patch
 
 import pytest
 
-from autopack.error_recovery import (
-    # Enums
-    ErrorSeverity,
-    ErrorCategory,
-    # Data classes
-    ErrorContext,
+from autopack.error_recovery import (  # Enums; Data classes; Type alias; Diagnosis cache; Error recovery system; Constants
+    DOCTOR_CHEAP_MODEL,
+    DOCTOR_HIGH_RISK_CATEGORIES,
+    DOCTOR_MAX_BUILDER_ATTEMPTS_BEFORE_COMPLEX,
+    DOCTOR_STRONG_MODEL,
+    DoctorContextSummary,
     DoctorRequest,
     DoctorResponse,
-    DoctorContextSummary,
-    # Type alias
-    is_complex_failure,
-    choose_doctor_model,
-    should_escalate_doctor_model,
-    # Diagnosis cache
-    _get_diagnosis_cache_key,
-    get_diagnosis_from_cache,
-    cache_diagnosis,
-    get_diagnosis_cache_stats,
-    clear_diagnosis_cache,
-    get_diagnosis_with_cache,
-    # Error recovery system
+    ErrorCategory,
+    ErrorContext,
     ErrorRecoverySystem,
+    ErrorSeverity,
+    _get_diagnosis_cache_key,
+    cache_diagnosis,
+    choose_doctor_model,
+    clear_diagnosis_cache,
+    get_diagnosis_cache_stats,
+    get_diagnosis_from_cache,
+    get_diagnosis_with_cache,
     get_error_recovery,
+    is_complex_failure,
     safe_execute,
-    # Constants
-    DOCTOR_MAX_BUILDER_ATTEMPTS_BEFORE_COMPLEX,
-    DOCTOR_CHEAP_MODEL,
-    DOCTOR_STRONG_MODEL,
-    DOCTOR_HIGH_RISK_CATEGORIES,
+    should_escalate_doctor_model,
 )
 
 # =============================================================================

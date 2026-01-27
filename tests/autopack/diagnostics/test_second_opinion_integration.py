@@ -1,8 +1,9 @@
 """Tests for second opinion LLM integration (Phase B1)."""
 
-import pytest
 import json
 import os
+
+import pytest
 
 from autopack.diagnostics.second_opinion import (
     SecondOpinionConfig,

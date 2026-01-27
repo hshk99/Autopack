@@ -1,6 +1,7 @@
 """Tests for Web Discovery."""
 
 from unittest.mock import Mock, patch
+
 from autopack.research.discovery.web_discovery import WebDiscovery, WebResult
 
 

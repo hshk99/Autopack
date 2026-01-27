@@ -5,11 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.scope_refiner import (
-    ScopeRefiner,
-    ScopeRefinementResult,
-    ScopeSuggestion,
-)
+from autopack.scope_refiner import ScopeRefinementResult, ScopeRefiner, ScopeSuggestion
 
 
 class TestScopeSuggestionDataclass:

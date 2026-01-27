@@ -38,14 +38,14 @@ def execute(
         Tuple of (success, status) where status is "COMPLETE", "FAILED", etc.
     """
     # Imports inside function to avoid circular imports and reduce import-time weight
-    from autopack.llm_client import BuilderResult
-    from autopack.governed_apply import GovernedApplyPath
     from autopack.deliverables_validator import (
         extract_deliverables_from_scope,
-        validate_new_file_diffs_have_complete_structure,
-        validate_deliverables,
         format_validation_feedback_for_builder,
+        validate_deliverables,
+        validate_new_file_diffs_have_complete_structure,
     )
+    from autopack.governed_apply import GovernedApplyPath
+    from autopack.llm_client import BuilderResult
 
     phase_id = phase.get("phase_id") or "research-gatherers-web-compilation"
 

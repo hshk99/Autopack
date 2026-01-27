@@ -3,8 +3,9 @@
 PR-CLIENT-1: Contract tests for phase execution orchestration.
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from autopack.llm.anthropic.phase_executor import AnthropicPhaseExecutor
 from autopack.llm.providers.anthropic_transport import AnthropicTransport

@@ -1,10 +1,11 @@
 """Tests for alert routing (ROAD-G)."""
 
-import pytest
 import logging
 
-from autopack.telemetry.anomaly_detector import AnomalyAlert, AlertSeverity
+import pytest
+
 from autopack.telemetry.alerts import AlertRouter
+from autopack.telemetry.anomaly_detector import AlertSeverity, AnomalyAlert
 
 
 @pytest.fixture

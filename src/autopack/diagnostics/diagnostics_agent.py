@@ -9,19 +9,20 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
+
 # IMP-LOOP-016: Import for telemetry bridge (TYPE_CHECKING to avoid circular imports)
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 import yaml
 
-from autopack.diagnostics.command_runner import (CommandResult,
-                                                 GovernedCommandRunner)
-from autopack.diagnostics.deep_retrieval import (DeepRetrieval,
-                                                 DeepRetrievalEngine)
+from autopack.diagnostics.command_runner import CommandResult, GovernedCommandRunner
+from autopack.diagnostics.deep_retrieval import DeepRetrieval, DeepRetrievalEngine
 from autopack.diagnostics.hypothesis import HypothesisLedger
 from autopack.diagnostics.probes import Probe, ProbeLibrary, ProbeRunResult
-from autopack.diagnostics.retrieval_triggers import (RetrievalTrigger,
-                                                     RetrievalTriggerDetector)
+from autopack.diagnostics.retrieval_triggers import (
+    RetrievalTrigger,
+    RetrievalTriggerDetector,
+)
 from autopack.memory import MemoryService
 
 if TYPE_CHECKING:

@@ -4,8 +4,9 @@ Verifies that OperationalError exceptions trigger CRITICAL alerts
 through the telemetry alerting infrastructure.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 from sqlalchemy.exc import OperationalError
 
 
@@ -61,8 +62,8 @@ class TestDbConnectivityAlerts:
         from fastapi import HTTPException
         from starlette.requests import Request
 
-        from autopack.api.routes.runs import start_run
         from autopack import schemas
+        from autopack.api.routes.runs import start_run
 
         mock_db = MagicMock()
         mock_db.query.side_effect = OperationalError(
@@ -130,10 +131,9 @@ class TestDbConnectivityAlerts:
 
     def test_alert_router_singleton(self):
         """Verify _get_alert_router returns singleton."""
-        from autopack.api.routes.runs import _get_alert_router
-
         # Reset singleton for test isolation
         import autopack.api.routes.runs as runs_module
+        from autopack.api.routes.runs import _get_alert_router
 
         runs_module._alert_router = None
 
@@ -162,6 +162,7 @@ class TestDbConnectivityAlerts:
     def test_alert_logs_critical_message(self, caplog):
         """Verify alert logs CRITICAL level message."""
         import logging
+
         from autopack.api.routes.runs import _send_db_connectivity_alert
 
         mock_error = OperationalError("statement", {}, Exception("connection refused"))

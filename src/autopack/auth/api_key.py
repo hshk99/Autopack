@@ -4,8 +4,8 @@ Simplifies auth for personal/internal use while protecting high-impact endpoints
 Replaces enterprise OAuth/JWT lifecycle complexity.
 """
 
-import secrets
 import hashlib
+import secrets
 from datetime import datetime, timezone
 from typing import Annotated, Optional
 
@@ -13,6 +13,7 @@ from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from autopack.database import get_db
+
 from .models import APIKey
 
 

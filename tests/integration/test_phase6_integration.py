@@ -4,10 +4,11 @@ These tests verify that True Autonomy features are correctly integrated
 into the autonomous_executor hot-path and work end-to-end.
 """
 
-import pytest
 import os
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 
 class TestFailureHardeningIntegration:
@@ -238,7 +239,10 @@ class TestParallelExecutionIntegration:
     @pytest.mark.asyncio
     async def test_parallel_orchestrator_bounded_concurrency(self, tmp_path):
         """Test that parallel orchestrator enforces concurrency limits."""
-        from autopack.parallel_orchestrator import ParallelRunOrchestrator, ParallelRunConfig
+        from autopack.parallel_orchestrator import (
+            ParallelRunConfig,
+            ParallelRunOrchestrator,
+        )
 
         config = ParallelRunConfig(
             max_concurrent_runs=2,
@@ -254,13 +258,14 @@ class TestParallelExecutionIntegration:
     @pytest.mark.asyncio
     async def test_parallel_orchestrator_isolated_workspaces(self, tmp_path):
         """Test that parallel orchestrator creates isolated workspaces."""
-        from autopack.parallel_orchestrator import execute_parallel_runs
         from datetime import datetime, timezone
+
         from autopack.intention_anchor.v2 import (
             IntentionAnchorV2,
             ParallelismIsolationIntention,
             PivotIntentions,
         )
+        from autopack.parallel_orchestrator import execute_parallel_runs
 
         # Mock executor function
         executed_runs = []
@@ -331,8 +336,8 @@ class TestEndToEndIntegration:
 
         try:
             # Import all modules
-            from autopack.intention_wiring import IntentionContextInjector
             from autopack.failure_hardening import FailureHardeningRegistry
+            from autopack.intention_wiring import IntentionContextInjector
             from autopack.plan_normalizer import PlanNormalizer
 
             # Verify all instantiate without errors

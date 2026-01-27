@@ -4,6 +4,7 @@ IMP-TEL-002: Wire telemetry analysis into executor decision points.
 """
 
 from unittest.mock import MagicMock, patch
+
 from autopack.executor.autonomous_loop import AutonomousLoop
 
 

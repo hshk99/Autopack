@@ -14,12 +14,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
 
-
-from autopack.plan_normalizer import (
-    PlanNormalizer,
-    normalize_plan,
-    DEFAULT_TOKEN_CAP,
-)
+from autopack.plan_normalizer import DEFAULT_TOKEN_CAP, PlanNormalizer, normalize_plan
 
 
 class TestDeliverableExtraction:

@@ -1,9 +1,10 @@
 """Task queue for processing uploaded files."""
 
+import logging
 import uuid
 from typing import Any
+
 from fastapi import UploadFile
-import logging
 
 # Simulated task queue
 task_queue = []

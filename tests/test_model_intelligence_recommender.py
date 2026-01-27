@@ -8,16 +8,16 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from autopack.database import Base
-from autopack.model_intelligence.recommender import (
-    generate_candidates,
-    compute_price_score,
-    compute_benchmark_score,
-    infer_role_from_use_case,
-)
 from autopack.model_intelligence.models import (
+    ModelBenchmark,
     ModelCatalog,
     ModelPricing,
-    ModelBenchmark,
+)
+from autopack.model_intelligence.recommender import (
+    compute_benchmark_score,
+    compute_price_score,
+    generate_candidates,
+    infer_role_from_use_case,
 )
 
 

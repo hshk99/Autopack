@@ -16,11 +16,11 @@ pytest.skip(
     "Quarantined research orchestrator production suite (API drift)", allow_module_level=True
 )
 
+import shutil
+import tempfile
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
-import tempfile
-import shutil
 
 
 class TestEvidenceModel(unittest.TestCase):

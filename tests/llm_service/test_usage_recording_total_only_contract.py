@@ -6,18 +6,19 @@ including both full-detail and total-only recording modes.
 BUILD-144 P0: Tests ensure correct handling of exact token counts vs total-only mode.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.autopack.database import Base
 from src.autopack.llm.usage import (
+    aggregate_usage_by_model,
+    aggregate_usage_by_run,
+    model_to_provider,
     record_usage,
     record_usage_total_only,
-    model_to_provider,
-    aggregate_usage_by_run,
-    aggregate_usage_by_model,
 )
 from src.autopack.usage_recorder import LlmUsageEvent
 

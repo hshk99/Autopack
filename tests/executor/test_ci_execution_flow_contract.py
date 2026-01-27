@@ -12,7 +12,6 @@ Validates that CIExecutionFlow correctly:
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-
 from autopack.executor.ci_execution_flow import CIExecutionFlow
 
 

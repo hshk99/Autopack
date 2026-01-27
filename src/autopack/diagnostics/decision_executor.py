@@ -23,15 +23,15 @@ import logging
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
+from autopack.deliverables_validator import validate_deliverables
 from autopack.diagnostics.diagnostics_models import (
     Decision,
     DecisionType,
     ExecutionResult,
     PhaseSpec,
 )
-from autopack.deliverables_validator import validate_deliverables
 from autopack.memory import MemoryService
 
 logger = logging.getLogger(__name__)

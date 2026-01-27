@@ -6,7 +6,8 @@ to reduce budget waste while maintaining safety.
 """
 
 import pytest
-from autopack.token_estimator import TokenEstimator, TokenEstimate
+
+from autopack.token_estimator import TokenEstimate, TokenEstimator
 
 
 class TestCategoryAwareBaseBudgets:

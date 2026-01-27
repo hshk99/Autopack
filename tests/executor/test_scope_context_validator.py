@@ -6,6 +6,7 @@ and read-only context.
 """
 
 from unittest.mock import Mock
+
 import pytest
 
 from autopack.executor.scope_context_validator import ScopeContextValidator

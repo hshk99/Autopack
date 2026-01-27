@@ -4,9 +4,10 @@ Tests that artifact loader prefers run artifacts over full file content
 for token-efficient read-only context loading.
 """
 
-import pytest
-from pathlib import Path
 import json
+from pathlib import Path
+
+import pytest
 
 from autopack.artifact_loader import ArtifactLoader, estimate_tokens
 

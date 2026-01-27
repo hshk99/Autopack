@@ -5,16 +5,16 @@ Used by tidy_workspace.py to automatically route files to the correct locations.
 """
 
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import List, Optional
 
 from sqlalchemy import (
+    ARRAY,
     Boolean,
     Column,
     DateTime,
     Integer,
     String,
     Text,
-    ARRAY,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Session

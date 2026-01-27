@@ -153,9 +153,9 @@ class TestAutonomousLoopRecovery:
                         loop.run(poll_interval=0.5)
 
         # IMP-SAFETY-001: Default must be 50 to prevent infinite execution
-        assert received_max_iterations == 50, (
-            f"Expected default max_iterations=50, got {received_max_iterations}"
-        )
+        assert (
+            received_max_iterations == 50
+        ), f"Expected default max_iterations=50, got {received_max_iterations}"
 
     def test_autonomous_loop_stop_on_first_failure_saves_tokens(self):
         """Verify stop_on_first_failure flag stops immediately on failure."""
@@ -417,12 +417,12 @@ class TestBudgetExhaustionCheck:
                 )
 
         # Budget check should happen before get_run_status (which could consume tokens)
-        assert "get_run_status" not in call_order, (
-            "get_run_status should not be called when budget is exhausted"
-        )
-        assert "get_memory_context" not in call_order, (
-            "get_memory_context should not be called when budget is exhausted"
-        )
+        assert (
+            "get_run_status" not in call_order
+        ), "get_run_status should not be called when budget is exhausted"
+        assert (
+            "get_memory_context" not in call_order
+        ), "get_memory_context should not be called when budget is exhausted"
 
     def test_budget_check_allows_iteration_when_budget_available(self):
         """Verify loop continues when budget is not exhausted."""
@@ -853,9 +853,9 @@ class TestGeneratedTaskExecution:
 
                     result = loop._fetch_generated_tasks()
 
-            assert result[0]["priority_order"] == expected_order, (
-                f"Priority {task_priority} should map to order {expected_order}"
-            )
+            assert (
+                result[0]["priority_order"] == expected_order
+            ), f"Priority {task_priority} should map to order {expected_order}"
 
 
 class TestMandatoryFeedbackPipeline:
@@ -883,9 +883,9 @@ class TestMandatoryFeedbackPipeline:
             loop = AutonomousLoop(mock_executor)
 
             # IMP-LOOP-011: Must be True regardless of settings
-            assert loop._feedback_pipeline_enabled is True, (
-                "feedback_pipeline_enabled must be True regardless of settings"
-            )
+            assert (
+                loop._feedback_pipeline_enabled is True
+            ), "feedback_pipeline_enabled must be True regardless of settings"
 
     def test_feedback_pipeline_logs_warning_when_settings_try_to_disable(self, caplog):
         """Verify warning is logged when settings attempt to disable feedback pipeline.
@@ -948,9 +948,9 @@ class TestMandatoryFeedbackPipeline:
                 for record in caplog.records
                 if "IMP-LOOP-011" in record.message and record.levelno >= logging.WARNING
             ]
-            assert len(imp_loop_011_warnings) == 0, (
-                "Should not log warning when feedback_pipeline_enabled=True in settings"
-            )
+            assert (
+                len(imp_loop_011_warnings) == 0
+            ), "Should not log warning when feedback_pipeline_enabled=True in settings"
 
             # Verify pipeline is enabled
             assert loop._feedback_pipeline_enabled is True

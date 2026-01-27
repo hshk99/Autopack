@@ -1,7 +1,9 @@
 """Tests for phases endpoint pagination (IMP-044)"""
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
+
 from autopack import models
 
 

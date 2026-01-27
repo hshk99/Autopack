@@ -16,10 +16,12 @@ Usage:
 """
 
 import logging
-import requests
 from typing import Dict
-from autopack.notifications.telegram_notifier import TelegramNotifier
+
+import requests
+
 from autopack.models import StorageScan
+from autopack.notifications.telegram_notifier import TelegramNotifier
 
 logger = logging.getLogger(__name__)
 

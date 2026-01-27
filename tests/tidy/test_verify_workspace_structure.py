@@ -11,23 +11,22 @@ Also ensures default-warn behavior is preserved for unknown files.
 
 from __future__ import annotations
 
+# Import verifier functions and configuration
+import sys
 from pathlib import Path
 
 import pytest
 
-# Import verifier functions and configuration
-import sys
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts" / "tidy"))
 from verify_workspace_structure import (
-    ROOT_ALLOWED_DIRS,
-    DOCS_ALLOWED_PATTERNS,
     ARCHIVE_REQUIRED_BUCKETS,
+    DOCS_ALLOWED_PATTERNS,
+    ROOT_ALLOWED_DIRS,
     is_docs_file_allowed,
     matches_pattern,
-    verify_root_structure,
-    verify_docs_structure,
     verify_archive_structure,
+    verify_docs_structure,
+    verify_root_structure,
 )
 
 
@@ -96,9 +95,9 @@ class TestDocsPatternAllowlist:
     def test_docs_file_allowlist(self, filename: str, should_allow: bool) -> None:
         """Test that is_docs_file_allowed correctly identifies allowlisted files."""
         result = is_docs_file_allowed(filename)
-        assert result == should_allow, (
-            f"is_docs_file_allowed('{filename}') returned {result}, expected {should_allow}"
-        )
+        assert (
+            result == should_allow
+        ), f"is_docs_file_allowed('{filename}') returned {result}, expected {should_allow}"
 
     def test_build_pattern_in_allowed_patterns(self) -> None:
         """BUILD-*.md pattern must be in DOCS_ALLOWED_PATTERNS."""
@@ -135,9 +134,9 @@ class TestDocsPatternAllowlist:
         assert len(build_warnings) == 0, f"Unexpected BUILD doc warnings: {build_warnings}"
 
         completion_warnings = [w for w in warnings if "COMPLETION_REPORT_TEST.md" in w]
-        assert len(completion_warnings) == 0, (
-            f"Unexpected completion warnings: {completion_warnings}"
-        )
+        assert (
+            len(completion_warnings) == 0
+        ), f"Unexpected completion warnings: {completion_warnings}"
 
 
 class TestDocsDefaultWarnPreserved:
@@ -170,9 +169,9 @@ class TestDocsDefaultWarnPreserved:
 
         # Should have warning about the unknown file
         unknown_warnings = [w for w in warnings if unknown_file in w]
-        assert len(unknown_warnings) == 1, (
-            f"Expected 1 warning for unknown file, got {len(unknown_warnings)}: {warnings}"
-        )
+        assert (
+            len(unknown_warnings) == 1
+        ), f"Expected 1 warning for unknown file, got {len(unknown_warnings)}: {warnings}"
         assert "Non-SOT file in docs/" in unknown_warnings[0]
 
 

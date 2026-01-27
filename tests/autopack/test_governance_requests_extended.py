@@ -11,8 +11,9 @@ NOTE: This is an extended test suite for planned/enhanced governance features.
 Tests are marked xfail until the enhanced API is implemented.
 """
 
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 
 pytestmark = [
     pytest.mark.skip(
@@ -137,7 +138,11 @@ class TestTierEscalation:
 
     def test_tier_1_auto_approval(self):
         """Test that tier 1 (low risk) requests can be auto-approved."""
-        from autopack.governance_requests import GovernanceRequest, RequestType, should_auto_approve
+        from autopack.governance_requests import (
+            GovernanceRequest,
+            RequestType,
+            should_auto_approve,
+        )
 
         request = GovernanceRequest(
             request_id="req_001",
@@ -154,7 +159,11 @@ class TestTierEscalation:
 
     def test_tier_2_requires_approval(self):
         """Test that tier 2 (medium risk) requires human approval."""
-        from autopack.governance_requests import GovernanceRequest, RequestType, should_auto_approve
+        from autopack.governance_requests import (
+            GovernanceRequest,
+            RequestType,
+            should_auto_approve,
+        )
 
         request = GovernanceRequest(
             request_id="req_001",
@@ -192,7 +201,11 @@ class TestTierEscalation:
 
     def test_escalation_on_timeout(self):
         """Test that requests escalate to higher tier on timeout."""
-        from autopack.governance_requests import GovernanceRequest, RequestType, should_escalate
+        from autopack.governance_requests import (
+            GovernanceRequest,
+            RequestType,
+            should_escalate,
+        )
 
         # Create request from 2 hours ago
         old_time = datetime.utcnow() - timedelta(hours=2)
@@ -211,7 +224,11 @@ class TestTierEscalation:
 
     def test_no_escalation_within_timeout(self):
         """Test that requests don't escalate within timeout period."""
-        from autopack.governance_requests import GovernanceRequest, RequestType, should_escalate
+        from autopack.governance_requests import (
+            GovernanceRequest,
+            RequestType,
+            should_escalate,
+        )
 
         # Create recent request
         request = GovernanceRequest(
@@ -379,8 +396,9 @@ class TestEdgeCases:
 
     def test_concurrent_approval_attempts(self):
         """Test handling of concurrent approval attempts."""
-        from autopack.governance_requests import GovernanceRequest, RequestType
         import threading
+
+        from autopack.governance_requests import GovernanceRequest, RequestType
 
         request = GovernanceRequest(
             request_id="req_001",

@@ -6,8 +6,8 @@ Tests history pack generation and SOT doc substitution.
 import pytest
 
 from autopack.artifact_loader import ArtifactLoader
-from autopack.file_layout import RunFileLayout
 from autopack.config import settings
+from autopack.file_layout import RunFileLayout
 
 
 class TestHistoryPack:

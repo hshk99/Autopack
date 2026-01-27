@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.main import get_client_ip, _is_trusted_proxy
+from autopack.main import _is_trusted_proxy, get_client_ip
 
 
 class TestIsTrustedProxy:

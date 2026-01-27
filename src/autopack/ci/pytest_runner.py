@@ -4,15 +4,15 @@ Extracted from autonomous_executor.py as part of PR-EXE-13.
 Handles pytest execution with coverage, parallel execution, and result parsing.
 """
 
-from dataclasses import dataclass
-from typing import Dict, Optional, Any
-from pathlib import Path
+import logging
+import os
+import re
 import subprocess
 import sys
-import os
 import time
-import re
-import logging
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 

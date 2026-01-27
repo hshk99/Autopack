@@ -11,9 +11,7 @@ import pytest
 def test_imports():
     """Test that core modules can be imported."""
     try:
-        from autopack import autonomous_executor
-        from autopack import memory
-        from autopack import models
+        from autopack import autonomous_executor, memory, models
 
         assert True
     except ImportError as e:
@@ -33,7 +31,7 @@ def test_memory_service_creation():
 def test_database_models():
     """Test that database models can be imported."""
     try:
-        from autopack.models import Phase, Run, DecisionLog, PlanChange
+        from autopack.models import DecisionLog, Phase, PlanChange, Run
 
         assert True
     except ImportError as e:
@@ -43,6 +41,7 @@ def test_database_models():
 def test_config_loading():
     """Test that config files can be loaded."""
     from pathlib import Path
+
     import yaml
 
     config_dir = Path(__file__).parent.parent.parent / "config"

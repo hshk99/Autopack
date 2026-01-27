@@ -69,7 +69,9 @@ from autopack.main import app
 
 # Explicitly import PolicyPromotion to ensure it's registered (IMP-ARCH-006)
 from autopack.models import PolicyPromotion  # noqa: F401
-from autopack.usage_recorder import LlmUsageEvent  # noqa: F401 - ensure model registered
+from autopack.usage_recorder import (  # noqa: F401 - ensure model registered
+    LlmUsageEvent,
+)
 
 
 @pytest.fixture(scope="function", autouse=True)

@@ -14,14 +14,14 @@ External dependency tests (PostgreSQL, Qdrant) are in test_sot_db_sync_integrati
 
 from __future__ import annotations
 
-import pytest
 import sqlite3
+import sys
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-import sys
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "tidy"))

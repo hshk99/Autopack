@@ -7,11 +7,12 @@ ORM serialization failures (500 errors).
 Per BUILD-130 Phase 1: Schema Validator implementation.
 """
 
-from typing import List, Set
-from dataclasses import dataclass, field
-from sqlalchemy import text, create_engine
-import logging
 import difflib
+import logging
+from dataclasses import dataclass, field
+from typing import List, Set
+
+from sqlalchemy import create_engine, text
 
 logger = logging.getLogger(__name__)
 

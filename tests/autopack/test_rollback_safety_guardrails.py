@@ -6,10 +6,11 @@ Tests the P0 safety enhancements:
 - Protected patterns (.env, *.db, .autonomous_runs/, logs, etc.)
 """
 
-import pytest
 import subprocess
 
-from autopack.rollback_manager import RollbackManager, PROTECTED_PATTERNS
+import pytest
+
+from autopack.rollback_manager import PROTECTED_PATTERNS, RollbackManager
 
 
 class TestRollbackSafetyGuardrails:

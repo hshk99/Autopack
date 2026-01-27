@@ -14,12 +14,12 @@ Key components:
 """
 
 from .models import (
+    ModelBenchmark,
     ModelCatalog,
     ModelPricing,
-    ModelBenchmark,
+    ModelRecommendation,
     ModelRuntimeStats,
     ModelSentimentSignal,
-    ModelRecommendation,
 )
 
 __all__ = [

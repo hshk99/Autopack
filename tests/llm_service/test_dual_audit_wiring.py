@@ -9,11 +9,12 @@ These tests verify:
 - Judge escalation is triggered when needed
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
-from autopack.llm_service import LlmService
+import pytest
+
 from autopack.llm_client import AuditorResult
+from autopack.llm_service import LlmService
 
 
 @pytest.mark.aspirational

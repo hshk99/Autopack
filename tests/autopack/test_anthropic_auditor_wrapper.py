@@ -6,9 +6,9 @@ This test verifies that:
 3. Logs clear warnings when auditing is disabled
 """
 
-import os
 import logging
-from unittest.mock import patch, MagicMock
+import os
+from unittest.mock import MagicMock, patch
 
 from autopack.dual_auditor import AnthropicAuditorClientWrapper, StubClaudeAuditor
 from autopack.llm_client import AuditorResult

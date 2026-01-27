@@ -14,8 +14,9 @@ These tests prevent auth behavior drift during refactoring.
 """
 
 import os
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Set testing mode before imports
 os.environ.setdefault("TESTING", "1")
@@ -90,8 +91,9 @@ class TestVerifyApiKeyContract:
     @pytest.mark.asyncio
     async def test_production_rejects_invalid_key(self):
         """Contract: Production mode with configured key rejects wrong key."""
-        from autopack.api.deps import verify_api_key
         from fastapi import HTTPException
+
+        from autopack.api.deps import verify_api_key
 
         # Clear PYTEST_CURRENT_TEST to disable test bypass
         saved_pct = os.environ.pop("PYTEST_CURRENT_TEST", None)
@@ -159,8 +161,9 @@ class TestVerifyApiKeyContract:
     @pytest.mark.asyncio
     async def test_dev_mode_validates_if_key_configured(self):
         """Contract: Dev mode with AUTOPACK_API_KEY validates it."""
-        from autopack.api.deps import verify_api_key
         from fastapi import HTTPException
+
+        from autopack.api.deps import verify_api_key
 
         # Clear PYTEST_CURRENT_TEST to disable test bypass
         saved_pct = os.environ.pop("PYTEST_CURRENT_TEST", None)
@@ -551,7 +554,7 @@ class TestLimiterContract:
 
     def test_limiter_uses_get_client_ip(self):
         """Contract: Limiter key_func is get_client_ip."""
-        from autopack.api.deps import limiter, get_client_ip
+        from autopack.api.deps import get_client_ip, limiter
 
         # The limiter should use our get_client_ip function
         assert limiter._key_func == get_client_ip

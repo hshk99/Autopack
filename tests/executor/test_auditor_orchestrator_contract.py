@@ -14,7 +14,6 @@ import json
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-
 from autopack.executor.auditor_orchestrator import AuditorOrchestrator
 
 

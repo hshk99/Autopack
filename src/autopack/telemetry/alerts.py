@@ -3,7 +3,8 @@
 import logging
 import os
 from typing import Optional
-from .anomaly_detector import AnomalyAlert, AlertSeverity
+
+from .anomaly_detector import AlertSeverity, AnomalyAlert
 from .auto_healer import AutoHealingEngine
 
 logger = logging.getLogger(__name__)
@@ -68,8 +69,8 @@ class AlertRouter:
             return False
 
         try:
-            from autopack.models import AnomalyAlertEvent
             from autopack.database import SessionLocal
+            from autopack.models import AnomalyAlertEvent
 
             db = SessionLocal()
             try:

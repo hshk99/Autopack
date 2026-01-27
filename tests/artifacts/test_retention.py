@@ -1,15 +1,16 @@
 """Tests for artifact retention management."""
 
-import pytest
+import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-import tempfile
+
+import pytest
 
 from autopack.artifacts import (
+    DEFAULT_RETENTION_POLICIES,
     ArtifactClass,
     ArtifactMetadata,
     ArtifactRetentionManager,
-    DEFAULT_RETENTION_POLICIES,
 )
 
 

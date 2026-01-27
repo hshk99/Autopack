@@ -7,9 +7,10 @@ Tests cover:
 - Full maintenance cycle
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock
+
+import pytest
 
 from autopack.memory.memory_service import MemoryMaintenancePolicy
 

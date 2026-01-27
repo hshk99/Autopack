@@ -4,19 +4,15 @@ This module tests the client_id field on LlmUsageEvent and the
 get_client_usage helper function for SaaS cost attribution.
 """
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from autopack.database import Base
+from autopack.llm.usage import get_client_usage, record_usage, record_usage_total_only
 from autopack.usage_recorder import LlmUsageEvent
-from autopack.llm.usage import (
-    record_usage,
-    record_usage_total_only,
-    get_client_usage,
-)
 
 
 @pytest.fixture

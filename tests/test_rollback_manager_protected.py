@@ -1,8 +1,9 @@
 """Tests for rollback manager protected file blocking (IMP-SAFETY-006)."""
 
-import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from autopack.rollback_manager import RollbackManager
 

@@ -1,7 +1,9 @@
 """Tests for ParallelExecutor module."""
 
-import pytest
 import time
+
+import pytest
+
 from autopack.research.gatherers.parallel_executor import ParallelExecutor
 
 

@@ -1,7 +1,6 @@
 import json
 
-from sqlalchemy import create_engine
-from sqlalchemy import event
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -33,10 +32,10 @@ def test_token_estimation_v2_db_write_stores_ratio_semantics(monkeypatch):
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
     # Import Base + models after engine created
-    from autopack.database import Base
-    from autopack.models import Run, Tier, Phase, TokenEstimationV2Event
     import autopack.anthropic_clients as anthropic_clients
     import autopack.database as autopack_database
+    from autopack.database import Base
+    from autopack.models import Phase, Run, Tier, TokenEstimationV2Event
 
     Base.metadata.create_all(bind=engine)
 

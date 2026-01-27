@@ -6,7 +6,6 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
-
 from src.automation.anomaly_detector import Anomaly, AnomalyDetector
 
 

@@ -22,10 +22,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from autopack.error_recovery import (
-    DoctorRequest,
-    DoctorResponse,
-)
+from autopack.error_recovery import DoctorRequest, DoctorResponse
 
 logger = logging.getLogger(__name__)
 

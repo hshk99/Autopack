@@ -7,6 +7,7 @@ pytestmark = pytest.mark.skip(reason="UK date extraction parser needs fixing")
 
 import unittest
 from datetime import datetime
+
 from autopack.document_classifier_uk import UKDocumentClassifier
 
 

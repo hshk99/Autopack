@@ -20,7 +20,8 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from fnmatch import fnmatch
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
+
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)

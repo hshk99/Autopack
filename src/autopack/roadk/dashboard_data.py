@@ -6,12 +6,9 @@ the existing telemetry infrastructure and MetaMetricsTracker.
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
-from ..telemetry.meta_metrics import (
-    MetaMetricsTracker,
-    FeedbackLoopHealthReport,
-)
+from ..telemetry.meta_metrics import FeedbackLoopHealthReport, MetaMetricsTracker
 
 
 @dataclass

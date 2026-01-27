@@ -19,19 +19,19 @@ Related modules:
 - intention_stuck_handler.py: Intention-first stuck handling (BUILD-161)
 """
 
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Dict, Optional, Any, List, Callable, Tuple
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from autopack.config import settings
 from autopack.autonomous.budgeting import (
-    is_phase_budget_exceeded,
     get_phase_budget_remaining_pct,
+    is_phase_budget_exceeded,
 )
+from autopack.config import settings
 from autopack.time_watchdog import TimeWatchdog
 
 logger = logging.getLogger(__name__)
@@ -636,7 +636,7 @@ class PhaseOrchestrator:
         - Replan triggers
         - Attempt increment and retry
         """
-        from autopack.executor.retry_policy import next_attempt_state, AttemptContext
+        from autopack.executor.retry_policy import AttemptContext, next_attempt_state
 
         phase_id = context.phase.get("phase_id")
         status = result.status
@@ -948,11 +948,11 @@ class PhaseOrchestrator:
             return
 
         try:
-            from autopack.usage_recorder import (
-                record_phase6_metrics,
-                estimate_doctor_tokens_avoided,
-            )
             from autopack.database import SessionLocal
+            from autopack.usage_recorder import (
+                estimate_doctor_tokens_avoided,
+                record_phase6_metrics,
+            )
 
             db = SessionLocal()
             try:
@@ -1004,8 +1004,8 @@ class PhaseOrchestrator:
             return
 
         try:
-            from autopack.models import PhaseOutcomeEvent
             from autopack.database import SessionLocal
+            from autopack.models import PhaseOutcomeEvent
 
             db = SessionLocal()
             try:
@@ -1343,8 +1343,8 @@ class PhaseOrchestrator:
 
         Includes diagnostics, Doctor invocation, and replan checks.
         """
-        from autopack.error_reporter import report_error
         from autopack.debug_journal import log_error
+        from autopack.error_reporter import report_error
 
         phase_id = context.phase.get("phase_id")
         logger.error(f"[{phase_id}] Attempt {context.attempt_index + 1} raised exception: {exc}")
@@ -1770,7 +1770,9 @@ class GeneratedTaskHandler:
         else:
             # Fallback: try to use builder orchestration directly
             try:
-                from autopack.executor.attempt_runner import run_single_attempt_with_recovery
+                from autopack.executor.attempt_runner import (
+                    run_single_attempt_with_recovery,
+                )
 
                 # Create a minimal executor context
                 class MinimalExecutor:
@@ -1852,9 +1854,10 @@ class GeneratedTaskHandler:
             return
 
         try:
-            from autopack.models import GeneratedTaskExecutionEvent
-            from autopack.database import SessionLocal
             from datetime import datetime, timezone
+
+            from autopack.database import SessionLocal
+            from autopack.models import GeneratedTaskExecutionEvent
 
             db = SessionLocal()
             try:

@@ -1,14 +1,19 @@
 """Tests for task generation success metrics (IMP-LOOP-004)."""
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from autopack.models import TaskGenerationEvent
 from autopack.roadc.task_generator import (
     AutonomousTaskGenerator,
     _emit_task_generation_event,
 )
-from autopack.telemetry.analyzer import TelemetryAnalyzer, TaskGenerationStats, RankedIssue
+from autopack.telemetry.analyzer import (
+    RankedIssue,
+    TaskGenerationStats,
+    TelemetryAnalyzer,
+)
 
 
 class TestTaskGenerationEvent:

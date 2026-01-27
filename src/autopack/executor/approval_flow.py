@@ -11,7 +11,7 @@ sleep/clock for deterministic testing.
 
 import logging
 import time
-from typing import Optional, Callable
+from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 

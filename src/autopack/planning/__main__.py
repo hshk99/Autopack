@@ -17,10 +17,10 @@ import logging
 import sys
 from pathlib import Path
 
-from .plan_proposer import propose_plan
 from ..file_layout import RunFileLayout
 from ..gaps.models import GapReportV1
 from ..intention_anchor.v2 import IntentionAnchorV2
+from .plan_proposer import propose_plan
 
 logger = logging.getLogger(__name__)
 

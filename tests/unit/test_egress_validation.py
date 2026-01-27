@@ -8,7 +8,7 @@ import pytest
 
 from autopack.config import settings
 from autopack.exceptions import ValidationError
-from autopack.utils.egress import validate_outbound_host, log_outbound_request
+from autopack.utils.egress import log_outbound_request, validate_outbound_host
 
 
 class TestValidateOutboundHost:

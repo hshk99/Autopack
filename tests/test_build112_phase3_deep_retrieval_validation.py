@@ -10,17 +10,18 @@ Run with:
     pytest tests/test_build112_phase3_deep_retrieval_validation.py -v
 """
 
-import pytest
 import sys
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import pytest
+
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from autopack.diagnostics.retrieval_triggers import RetrievalTriggerDetector
 from autopack.diagnostics.deep_retrieval import DeepRetrievalEngine
 from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
+from autopack.diagnostics.retrieval_triggers import RetrievalTriggerDetector
 
 
 class TestDeepRetrievalEscalation:
@@ -140,9 +141,9 @@ class TestDeepRetrievalEscalation:
                 assert "end_line" in snippet, "Snippet missing 'end_line' field"
                 assert snippet["path"].startswith("src/"), f"Invalid path format: {snippet['path']}"
                 assert snippet["start_line"] > 0, "start_line must be positive"
-                assert snippet["end_line"] >= snippet["start_line"], (
-                    "end_line must be >= start_line"
-                )
+                assert (
+                    snippet["end_line"] >= snippet["start_line"]
+                ), "end_line must be >= start_line"
 
     def test_diagnostics_agent_stage2_integration(self):
         """Test that DiagnosticsAgent properly integrates Stage 2 deep retrieval."""

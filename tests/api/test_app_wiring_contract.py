@@ -15,8 +15,9 @@ These tests prevent app wiring drift during refactoring.
 """
 
 import os
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 # Set testing mode before imports
 os.environ.setdefault("TESTING", "1")
@@ -52,8 +53,9 @@ class TestCreateAppContract:
 
     def test_rate_limit_exceeded_handler_registered(self):
         """Contract: RateLimitExceeded exception has handler."""
-        from autopack.api.app import create_app
         from slowapi.errors import RateLimitExceeded
+
+        from autopack.api.app import create_app
 
         app = create_app()
         # Exception handlers are stored in app.exception_handlers
@@ -119,8 +121,9 @@ class TestGlobalExceptionHandlerContract:
     @pytest.mark.asyncio
     async def test_returns_error_id_in_response(self):
         """Contract: Exception handler returns error_id for log correlation."""
-        from autopack.api.app import global_exception_handler
         from fastapi import Request
+
+        from autopack.api.app import global_exception_handler
 
         # Create mock request
         request = MagicMock(spec=Request)
@@ -146,8 +149,9 @@ class TestGlobalExceptionHandlerContract:
     @pytest.mark.asyncio
     async def test_production_hides_error_type(self):
         """Contract: Production mode does not expose error type."""
-        from autopack.api.app import global_exception_handler
         from fastapi import Request
+
+        from autopack.api.app import global_exception_handler
 
         request = MagicMock(spec=Request)
         request.url = MagicMock()
@@ -171,8 +175,9 @@ class TestGlobalExceptionHandlerContract:
     @pytest.mark.asyncio
     async def test_development_includes_error_type(self):
         """Contract: Development mode includes error type for debugging."""
-        from autopack.api.app import global_exception_handler
         from fastapi import Request
+
+        from autopack.api.app import global_exception_handler
 
         request = MagicMock(spec=Request)
         request.url = MagicMock()
@@ -195,8 +200,9 @@ class TestGlobalExceptionHandlerContract:
     @pytest.mark.asyncio
     async def test_extracts_run_id_from_path(self):
         """Contract: Handler extracts run_id from /runs/{run_id}/* paths."""
-        from autopack.api.app import global_exception_handler
         from fastapi import Request
+
+        from autopack.api.app import global_exception_handler
 
         request = MagicMock(spec=Request)
         request.url = MagicMock()
@@ -222,8 +228,9 @@ class TestLifespanContract:
     @pytest.mark.asyncio
     async def test_lifespan_skips_db_init_in_testing(self):
         """Contract: Database init is skipped when TESTING=1."""
-        from autopack.api.app import lifespan
         from fastapi import FastAPI
+
+        from autopack.api.app import lifespan
 
         app = FastAPI()
 
@@ -239,8 +246,10 @@ class TestLifespanContract:
     async def test_lifespan_starts_timeout_cleanup_task(self):
         """Contract: Lifespan starts approval timeout cleanup background task."""
         import asyncio
-        from autopack.api.app import lifespan
+
         from fastapi import FastAPI
+
+        from autopack.api.app import lifespan
 
         app = FastAPI()
 
@@ -341,6 +350,7 @@ class TestGracefulShutdownManagerContract:
     async def test_initiate_shutdown_waits_for_transactions(self):
         """Contract: Shutdown waits for active transactions to complete."""
         import asyncio
+
         from autopack.api.app import GracefulShutdownManager
 
         manager = GracefulShutdownManager(shutdown_timeout=5.0)
@@ -386,6 +396,7 @@ class TestGracefulShutdownManagerContract:
     async def test_initiate_shutdown_immediate_when_no_transactions(self):
         """Contract: Shutdown completes immediately when no active transactions."""
         import asyncio
+
         from autopack.api.app import GracefulShutdownManager
 
         manager = GracefulShutdownManager(shutdown_timeout=30.0)
@@ -407,8 +418,10 @@ class TestLifespanGracefulShutdownContract:
     async def test_lifespan_initializes_shutdown_manager(self):
         """Contract: Lifespan initializes the global shutdown manager."""
         import asyncio
-        from autopack.api.app import lifespan, get_shutdown_manager
+
         from fastapi import FastAPI
+
+        from autopack.api.app import get_shutdown_manager, lifespan
 
         app = FastAPI()
 
@@ -430,8 +443,10 @@ class TestLifespanGracefulShutdownContract:
     async def test_lifespan_uses_env_timeout(self):
         """Contract: Lifespan uses GRACEFUL_SHUTDOWN_TIMEOUT env var."""
         import asyncio
-        from autopack.api.app import lifespan, get_shutdown_manager
+
         from fastapi import FastAPI
+
+        from autopack.api.app import get_shutdown_manager, lifespan
 
         app = FastAPI()
 
@@ -627,6 +642,7 @@ class TestBackgroundTaskSupervisorAlertingContract:
     async def test_supervisor_does_not_alert_on_cancel(self):
         """Contract: Supervisor does not alert on task cancellation."""
         import asyncio
+
         from autopack.api.app import BackgroundTaskSupervisor
 
         async def cancellable_task():

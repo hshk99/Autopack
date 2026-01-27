@@ -29,11 +29,11 @@ Usage:
 """
 
 import ast
-import re
 import logging
-from pathlib import Path
-from typing import Dict, List, Set, Optional, Tuple
+import re
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 

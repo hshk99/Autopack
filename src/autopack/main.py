@@ -24,7 +24,6 @@ from slowapi.errors import RateLimitExceeded
 
 # PR-API-1: Auth + rate limiting deps extracted to api/deps.py
 from .api.deps import limiter
-
 from .version import __version__
 
 logger = logging.getLogger(__name__)
@@ -52,18 +51,18 @@ _startup_logger.debug(
     sanitize_url(resolved_url) if resolved_url else "NOT SET",
 )
 
+import logging
+
 # PR-API-2: App factory and wiring extracted to api/app.py
 # Note: We still create the app here (not via create_app()) to keep all routes
 # defined in main.py until router extraction is complete (PR-API-3+).
 # This keeps the canonical entrypoint `uvicorn autopack.main:app` working.
 from .api.app import (
-    lifespan,
-    global_exception_handler,
-    correlation_id_middleware,
     SecurityHeadersMiddleware,
+    correlation_id_middleware,
+    global_exception_handler,
+    lifespan,
 )
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +110,8 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_exception_handler(Exception, global_exception_handler)
 
 # Mount authentication router (BUILD-146 P12 Phase 5: migrated to autopack.auth)
-from autopack.auth import router as auth_router, api_key_router
+from autopack.auth import api_key_router
+from autopack.auth import router as auth_router
 
 app.include_router(auth_router, tags=["authentication"])
 app.include_router(api_key_router, tags=["api-keys"])
@@ -183,17 +183,9 @@ app.include_router(runs_router)
 
 # Backwards compatibility re-exports for tests (PR-API-1/PR-API-3 compatibility layer)
 # These allow existing tests to continue importing from autopack.main
-from .api.deps import (  # noqa: F401
-    _is_trusted_proxy,
-    get_client_ip,
-    verify_api_key,
-    verify_read_access,
-)
+from .api.deps import _is_trusted_proxy, get_client_ip  # noqa: F401
 from .api.routes.phases import submit_builder_result  # noqa: F401
 from .config import settings  # noqa: F401
 from .database import get_db  # noqa: F401
 from .file_layout import RunFileLayout  # noqa: F401
 from .notifications.telegram_notifier import answer_telegram_callback  # noqa: F401
-from .notifications.telegram_webhook_security import (  # noqa: F401
-    verify_telegram_webhook as verify_telegram_webhook_crypto,
-)

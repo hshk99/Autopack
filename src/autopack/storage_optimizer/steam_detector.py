@@ -6,10 +6,10 @@ Addresses user's original request: "detect and suggest moving large uninstalled 
 """
 
 import sys
-from typing import List, Dict, Optional
-from pathlib import Path
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, List, Optional
 
 # Platform-guarded import: winreg is Windows-only
 if sys.platform == "win32":

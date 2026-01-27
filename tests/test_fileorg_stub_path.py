@@ -4,8 +4,10 @@ BUILD-146: Ensure stubs for missing files land in correct workspace root,
 not duplicated paths like fileorganizer/fileorganizer/package-lock.json.
 """
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
+
 from autopack.autonomous_executor import AutonomousExecutor
 
 
@@ -60,9 +62,9 @@ def test_load_scoped_context_missing_file_stub_path(mock_executor):
     # The key should be "fileorganizer/package-lock.json", NOT "fileorganizer/fileorganizer/package-lock.json"
     for missing in missing_files:
         assert "fileorganizer/fileorganizer" not in missing, f"Duplicate path detected: {missing}"
-        assert missing.startswith("fileorganizer/") or missing == "package-lock.json", (
-            f"Unexpected path format: {missing}"
-        )
+        assert (
+            missing.startswith("fileorganizer/") or missing == "package-lock.json"
+        ), f"Unexpected path format: {missing}"
 
 
 def test_load_scoped_context_stub_creation_path(mock_executor, tmp_path):

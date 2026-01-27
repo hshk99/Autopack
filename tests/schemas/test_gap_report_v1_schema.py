@@ -6,13 +6,11 @@ Tests validate that:
 - Tests run offline and deterministically
 """
 
-import pytest
 from datetime import datetime, timezone
 
-from autopack.schema_validation import (
-    validate_gap_report_v1,
-    SchemaValidationError,
-)
+import pytest
+
+from autopack.schema_validation import SchemaValidationError, validate_gap_report_v1
 
 
 def test_minimal_valid_gap_report_v1():

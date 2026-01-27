@@ -7,11 +7,13 @@ This tool uses raw SQL to diagnose and repair schema violations.
 Per BUILD-130 Phase 1: Break-Glass Repair implementation.
 """
 
-from sqlalchemy import text, create_engine
-from autopack.schema_validator import SchemaValidator, SchemaValidationResult
-from datetime import datetime
-import logging
 import json
+import logging
+from datetime import datetime
+
+from sqlalchemy import create_engine, text
+
+from autopack.schema_validator import SchemaValidationResult, SchemaValidator
 
 logger = logging.getLogger(__name__)
 

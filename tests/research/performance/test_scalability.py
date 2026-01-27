@@ -81,8 +81,8 @@ class TestScalability:
 
     def test_sustained_load(self):
         """Test system under sustained load."""
-        from autopack.research.session_manager import SessionManager
         from autopack.research.query_processor import QueryProcessor
+        from autopack.research.session_manager import SessionManager
 
         manager = SessionManager()
         processor = QueryProcessor()

@@ -4,8 +4,9 @@ Verifies that all dashboard route handlers emit structured logs for request/resp
 to enable API issue diagnosis.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestDashboardAPILogging:

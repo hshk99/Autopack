@@ -34,28 +34,21 @@ Usage:
     reporter.print_summary(report)
 """
 
+# Make submodules accessible for patching in tests (platform-gated to avoid winreg on Linux)
+import sys
+
+from .classifier import FileClassifier
+from .models import CleanupCandidate, CleanupPlan, ScanResult, StorageReport
 from .policy import (
     CategoryPolicy,
     RetentionPolicy,
     StoragePolicy,
-    load_policy,
-    is_path_protected,
     get_category_for_path,
+    is_path_protected,
+    load_policy,
 )
-
-from .models import (
-    ScanResult,
-    CleanupCandidate,
-    CleanupPlan,
-    StorageReport,
-)
-
-from .scanner import StorageScanner
-from .classifier import FileClassifier
 from .reporter import StorageReporter
-
-# Make submodules accessible for patching in tests (platform-gated to avoid winreg on Linux)
-import sys
+from .scanner import StorageScanner
 
 if sys.platform == "win32":
     from . import steam_detector  # noqa: F401

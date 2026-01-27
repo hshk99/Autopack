@@ -1,10 +1,11 @@
 """Tests for IMP-COST-002: Per-phase token budget caps."""
 
 import pytest
+
 from autopack.autonomous.budgeting import (
     PhaseTokenBudgetExceededError,
-    is_phase_budget_exceeded,
     get_phase_budget_remaining_pct,
+    is_phase_budget_exceeded,
 )
 from autopack.config import Settings
 

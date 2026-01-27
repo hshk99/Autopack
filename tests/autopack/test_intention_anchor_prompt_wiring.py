@@ -8,11 +8,11 @@ and gracefully degrade when anchor is missing.
 """
 
 import tempfile
+
 import pytest
 
-
-from autopack.intention_anchor import IntentionConstraints, create_anchor, save_anchor
 from autopack.error_recovery import DoctorRequest
+from autopack.intention_anchor import IntentionConstraints, create_anchor, save_anchor
 
 
 @pytest.fixture(autouse=True)

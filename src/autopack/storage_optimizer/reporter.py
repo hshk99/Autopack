@@ -9,12 +9,12 @@ Creates human-readable reports showing:
 - Potential savings
 """
 
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
-import json
 
-from .models import ScanResult, CleanupPlan, StorageReport
+from .models import CleanupPlan, ScanResult, StorageReport
 
 
 class StorageReporter:

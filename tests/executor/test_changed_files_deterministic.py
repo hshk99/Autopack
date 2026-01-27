@@ -9,7 +9,6 @@ These tests verify:
 
 from __future__ import annotations
 
-
 import pytest
 
 
@@ -110,7 +109,10 @@ def test_changed_files_result_to_dict():
 
 def test_format_changed_files_unknown():
     """Format displays unknown status correctly."""
-    from autopack.executor.changed_files import ChangedFilesResult, format_changed_files_for_display
+    from autopack.executor.changed_files import (
+        ChangedFilesResult,
+        format_changed_files_for_display,
+    )
 
     result = ChangedFilesResult(files=None, status="unknown", evidence_flag="git_unavailable")
 
@@ -122,7 +124,10 @@ def test_format_changed_files_unknown():
 
 def test_format_changed_files_available():
     """Format displays available files correctly."""
-    from autopack.executor.changed_files import ChangedFilesResult, format_changed_files_for_display
+    from autopack.executor.changed_files import (
+        ChangedFilesResult,
+        format_changed_files_for_display,
+    )
 
     result = ChangedFilesResult(files=["a.py", "b.py"], status="available")
 

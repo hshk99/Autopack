@@ -5,6 +5,7 @@ import pytest
 pytest.skip("Quarantined research tracer_bullet suite", allow_module_level=True)
 
 import unittest  # pragma: no cover
+
 from tracer_bullet.gatherer import gather_data  # pragma: no cover
 
 

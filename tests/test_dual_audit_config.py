@@ -7,9 +7,11 @@ Tests verify:
 """
 
 import os
-import pytest
 from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 from sqlalchemy.orm import Session
+
 from autopack.config import Settings
 from autopack.llm_service import LlmService
 

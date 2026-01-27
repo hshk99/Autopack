@@ -4,17 +4,17 @@ Validates that phase proofs include real metrics when git is available,
 with explicit metrics_placeholder flag.
 """
 
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-from datetime import datetime, timezone
 
-from autopack.proof_metrics import (
-    count_changed_files,
-    list_changed_files,
-    get_proof_metrics,
-    ProofMetrics,
-)
 from autopack.phase_proof_writer import write_minimal_phase_proof
+from autopack.proof_metrics import (
+    ProofMetrics,
+    count_changed_files,
+    get_proof_metrics,
+    list_changed_files,
+)
 
 
 class TestCountChangedFiles:

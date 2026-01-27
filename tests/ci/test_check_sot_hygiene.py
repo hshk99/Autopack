@@ -123,6 +123,7 @@ def test_script_is_check_only():
     """Verify the script doesn't write any files."""
     # This test ensures the script respects the check-only constraint
     import inspect
+
     from scripts.ci import check_sot_hygiene
 
     source = inspect.getsource(check_sot_hygiene)

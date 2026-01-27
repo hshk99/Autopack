@@ -5,17 +5,16 @@ Single completion authority - prevents bypassing quality/CI/deliverables gates.
 Per BUILD-127 Final Plan: peer-reviewed comprehensive completion check.
 """
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Set
-from pathlib import Path
-import logging
 import json
+import logging
 import os
-
-from autopack.test_baseline_tracker import TestBaseline, TestDelta, TestBaselineTracker
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Dict, List, Optional, Set
 
 # Note: deliverables_validator is a module with standalone functions, not a class
 import autopack.deliverables_validator as deliverables_validator_module
+from autopack.test_baseline_tracker import TestBaseline, TestBaselineTracker, TestDelta
 
 logger = logging.getLogger(__name__)
 

@@ -9,8 +9,8 @@ that are applied to files rather than generating complete file content.
 
 import json
 import logging
-from typing import Dict, Optional
 from dataclasses import dataclass
+from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 

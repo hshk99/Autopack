@@ -6,10 +6,10 @@ Future versions can integrate WizTree for faster scanning.
 """
 
 import os
-from pathlib import Path
-from datetime import datetime
-from typing import List, Optional
 import shutil
+from datetime import datetime
+from pathlib import Path
+from typing import List, Optional
 
 from .models import ScanResult
 

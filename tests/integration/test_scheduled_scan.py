@@ -4,10 +4,11 @@ Integration tests for scheduled storage scans (BUILD-150 Phase 3).
 Tests Windows Task Scheduler integration and automated scan workflows.
 """
 
-import pytest
 import subprocess
-from unittest.mock import Mock, patch
 from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
 
 
 class TestScheduledScanSetup:
@@ -256,8 +257,9 @@ class TestWizTreePerformance:
     def test_wiztree_scan_faster_than_python(self):
         """Test WizTree is significantly faster than Python scanner."""
         import time
-        from autopack.storage_optimizer.wiztree_scanner import WizTreeScanner
+
         from autopack.storage_optimizer.scanner import StorageScanner
+        from autopack.storage_optimizer.wiztree_scanner import WizTreeScanner
 
         # Scan small directory with both scanners
         test_dir = "C:/Windows/System32"  # ~5000 files
@@ -291,6 +293,7 @@ class TestWizTreePerformance:
     def test_wiztree_full_drive_scan_under_60_seconds(self):
         """Test WizTree scans 1TB drive in < 60 seconds."""
         import time
+
         from autopack.storage_optimizer.wiztree_scanner import WizTreeScanner
 
         scanner = WizTreeScanner()

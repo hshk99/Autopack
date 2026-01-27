@@ -11,18 +11,15 @@ Design Goals:
 - Validate responses against original requests
 """
 
-from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any, Tuple
-from enum import Enum
-import re
 import json
+import re
+from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
-from .evidence_requests import (
-    EvidenceRequestBatch,
-    EvidenceType,
-)
+from .evidence_requests import EvidenceRequestBatch, EvidenceType
 
 
 class ResponseFormat(Enum):

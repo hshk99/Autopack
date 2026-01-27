@@ -91,8 +91,8 @@ class TestRecovery:
 
     def test_graceful_degradation(self):
         """Test graceful degradation when services are unavailable."""
-        from autopack.research.data_collector import DataCollector
         from autopack.research.analyzer import Analyzer
+        from autopack.research.data_collector import DataCollector
 
         collector = DataCollector()
         analyzer = Analyzer()

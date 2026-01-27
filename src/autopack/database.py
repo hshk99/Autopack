@@ -37,8 +37,8 @@ import logging
 from contextlib import contextmanager
 from typing import Any, Generator
 
-from sqlalchemy import create_engine, text, event
-from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session, Session
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.orm import Session, declarative_base, scoped_session, sessionmaker
 
 from .config import get_database_url
 from .db_leak_detector import ConnectionLeakDetector
@@ -319,19 +319,16 @@ def init_db():
     - PostgreSQL: Uses advisory lock to prevent corruption during concurrent bootstrap
     - SQLite: No locking needed (file-level locking is inherent)
     """
-    from .config import settings
     import logging
+
+    from .config import settings
 
     logger = logging.getLogger(__name__)
 
     # Import models to register them with Base.metadata
     from . import models  # noqa: F401
-    from .usage_recorder import (  # noqa: F401
-        LlmUsageEvent,
-        DoctorUsageStats,
-        TokenEfficiencyMetrics,
-    )
     from .auth.models import User  # noqa: F401  # BUILD-146 P12 Phase 5
+    from .usage_recorder import LlmUsageEvent  # noqa: F401
 
     # Bootstrap mode: create missing tables via create_all (for dev/test)
     # Migration mode: use Alembic (for production - IMP-OPS-002)
@@ -423,9 +420,10 @@ def run_migrations() -> None:
     Raises:
         Exception: If migration fails. Database may be left in an inconsistent state.
     """
+    import os
+
     from alembic import command
     from alembic.config import Config
-    import os
 
     # Create Alembic config
     alembic_cfg = Config()

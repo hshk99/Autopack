@@ -1,6 +1,7 @@
 """Tests for IMP-SEC-002: Rate limiter memory bounds with LRU cleanup."""
 
 import time
+
 from autopack.auth.rate_limiter import RateLimiter
 
 

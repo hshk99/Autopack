@@ -11,15 +11,15 @@ Public API exports:
     - AutopilotResult: result type for run_autopilot
 """
 
-from .models import AutopilotSessionV1
+from .api import AutopilotResult, load_anchor, run_autopilot
 from .autopilot import AutopilotController, run_autopilot_session
+from .models import AutopilotSessionV1
 from .parallelism_gate import (
     ParallelismPolicyGate,
     ParallelismPolicyViolation,
     check_parallelism_policy,
     load_and_check_parallelism_policy,
 )
-from .api import run_autopilot, load_anchor, AutopilotResult
 
 __all__ = [
     "AutopilotSessionV1",

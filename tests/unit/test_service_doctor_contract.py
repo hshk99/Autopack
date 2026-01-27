@@ -7,21 +7,22 @@ of the full LlmService, using mock LLM responses.
 from __future__ import annotations
 
 import json
+
 import pytest
 
+from autopack.error_recovery import DoctorRequest, DoctorResponse
 from autopack.service.doctor import (
     DOCTOR_SYSTEM_PROMPT,
     DoctorCallResult,
     DoctorDiagnosisContext,
     build_doctor_user_message,
-    parse_doctor_json,
+    calculate_health_ratio,
     create_default_doctor_response,
+    parse_doctor_json,
+    should_consider_rollback,
     validate_doctor_action,
     validate_fix_type,
-    calculate_health_ratio,
-    should_consider_rollback,
 )
-from autopack.error_recovery import DoctorRequest, DoctorResponse
 
 # ============================================================================
 # Fixtures

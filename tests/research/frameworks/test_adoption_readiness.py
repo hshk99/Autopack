@@ -1,6 +1,7 @@
 """Tests for Adoption Readiness Framework"""
 
 import pytest
+
 from autopack.research.frameworks.adoption_readiness import AdoptionReadiness
 
 

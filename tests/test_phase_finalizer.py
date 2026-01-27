@@ -8,11 +8,12 @@ Tests:
 - Warning vs blocking thresholds
 """
 
-import pytest
-from unittest.mock import Mock
 from datetime import datetime, timezone
+from unittest.mock import Mock
 
-from autopack.phase_finalizer import PhaseFinalizer, PhaseFinalizationDecision
+import pytest
+
+from autopack.phase_finalizer import PhaseFinalizationDecision, PhaseFinalizer
 from autopack.test_baseline_tracker import TestBaseline, TestDelta
 
 

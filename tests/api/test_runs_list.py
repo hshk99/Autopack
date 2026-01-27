@@ -6,8 +6,9 @@ Verifies:
 - Returns correct summary fields
 """
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 
 # Uses shared client fixture from conftest.py
 

@@ -6,9 +6,10 @@ Tests the retry logic and failure tracking for improvement tasks:
 - Failure run IDs should be tracked in failure_runs list
 """
 
-import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
+
+import pytest
 
 from autopack.roadc.task_generator import AutonomousTaskGenerator, GeneratedTask
 

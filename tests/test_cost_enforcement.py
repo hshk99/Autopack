@@ -5,10 +5,11 @@ pausing execution when cost limits are approached.
 """
 
 from unittest.mock import MagicMock, patch
+
 import pytest
 
-from autopack.telemetry.analyzer import TelemetryAnalyzer, CostRecommendation
 from autopack.executor.autonomous_loop import AutonomousLoop
+from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
 
 
 class TestCostRecommendationDataclass:

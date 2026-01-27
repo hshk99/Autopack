@@ -10,11 +10,13 @@ Tests verify:
 Per BUILD-043/044/045 patterns: strict isolation, no protected path modifications.
 """
 
-import pytest
-from pathlib import Path
-from datetime import datetime
-import tempfile
 import shutil
+import tempfile
+from datetime import datetime
+from pathlib import Path
+
+import pytest
+
 from autopack.diagnostics.deep_retrieval import DeepRetrieval
 
 

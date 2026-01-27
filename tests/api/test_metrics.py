@@ -13,8 +13,9 @@ Contract guarantees:
 """
 
 import os
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 # Set testing mode before imports
 os.environ.setdefault("TESTING", "1")
@@ -35,6 +36,7 @@ class TestMetricsEndpointContract:
     def test_metrics_endpoint_returns_prometheus_format(self):
         """Contract: /metrics returns Prometheus text format."""
         from fastapi.testclient import TestClient
+
         from autopack.api.app import create_app
 
         app = create_app()
@@ -74,8 +76,9 @@ class TestRequestCountMetricContract:
     def test_request_count_increments_on_request(self):
         """Contract: Request count increments for each API request."""
         from fastapi.testclient import TestClient
-        from autopack.api.app import create_app
         from prometheus_client import REGISTRY
+
+        from autopack.api.app import create_app
 
         app = create_app()
         client = TestClient(app)
@@ -173,8 +176,9 @@ class TestMetricsMiddlewareContract:
     def test_metrics_endpoint_not_instrumented(self):
         """Contract: /metrics endpoint itself doesn't increment metrics."""
         from fastapi.testclient import TestClient
-        from autopack.api.app import create_app
         from prometheus_client import REGISTRY
+
+        from autopack.api.app import create_app
 
         app = create_app()
         client = TestClient(app)
@@ -194,8 +198,9 @@ class TestMetricsMiddlewareContract:
     @pytest.mark.asyncio
     async def test_metrics_middleware_records_status_codes(self):
         """Contract: Different status codes are recorded separately."""
-        from autopack.api.app import metrics_middleware
         from fastapi import Request, Response
+
+        from autopack.api.app import metrics_middleware
 
         # Create mock request
         request = MagicMock(spec=Request)

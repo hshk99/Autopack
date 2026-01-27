@@ -5,17 +5,17 @@ Implements the circuit breaker pattern with configurable thresholds,
 timeouts, and state transitions.
 """
 
-import time
+import logging
 import threading
-from enum import Enum
-from typing import Callable, Any, Optional, Dict, TYPE_CHECKING
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
-import logging
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 if TYPE_CHECKING:
-    from .circuit_breaker_persistence import CircuitBreakerPersistence
     from .circuit_breaker_file_persistence import FileBasedCircuitBreakerPersistence
+    from .circuit_breaker_persistence import CircuitBreakerPersistence
 else:
     from .circuit_breaker_file_persistence import FileBasedCircuitBreakerPersistence
 

@@ -3,7 +3,14 @@
 from datetime import datetime, timezone
 from enum import Enum
 
-from sqlalchemy import DECIMAL, JSON, BigInteger, Boolean, Column, DateTime
+from sqlalchemy import (
+    DECIMAL,
+    JSON,
+    BigInteger,
+    Boolean,
+    Column,
+    DateTime,
+)
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import (
     Float,

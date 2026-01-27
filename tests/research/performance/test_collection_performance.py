@@ -1,8 +1,9 @@
 """Performance tests for data collection."""
 
-import pytest
 import time
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 
 class TestCollectionPerformance:

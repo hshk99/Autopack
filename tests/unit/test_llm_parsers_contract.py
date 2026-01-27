@@ -381,7 +381,7 @@ class TestNDJSONParseResult:
 
     def test_successful_parse(self):
         """NDJSONParseResult stores successful parse data."""
-        from autopack.llm.parsers import NDJSONParseResult, NDJSONOperation
+        from autopack.llm.parsers import NDJSONOperation, NDJSONParseResult
 
         result = NDJSONParseResult(
             success=True,

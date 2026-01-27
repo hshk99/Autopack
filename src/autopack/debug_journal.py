@@ -4,13 +4,12 @@ Legacy module that now redirects to archive_consolidator.py.
 Maintains backward compatibility for imports while using the new consolidated documentation system.
 """
 
-from typing import Optional, List
-from autopack.archive_consolidator import (
-    log_error as _log_error,
-    log_fix as _log_fix,
-    mark_resolved as _mark_resolved,
-    get_consolidator,
-)
+from typing import List, Optional
+
+from autopack.archive_consolidator import get_consolidator
+from autopack.archive_consolidator import log_error as _log_error
+from autopack.archive_consolidator import log_fix as _log_fix
+from autopack.archive_consolidator import mark_resolved as _mark_resolved
 
 
 # Re-export functions for backward compatibility

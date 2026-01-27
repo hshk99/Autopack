@@ -10,8 +10,8 @@ New code should use full_file or structured_edit parsers instead.
 import json
 import logging
 import warnings
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 

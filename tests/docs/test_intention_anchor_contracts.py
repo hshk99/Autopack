@@ -11,7 +11,6 @@ import json
 import re
 import tempfile
 
-
 from autopack.intention_anchor import (
     IntentionConstraints,
     create_anchor,

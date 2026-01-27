@@ -6,12 +6,13 @@ next probes, and minimal patch strategies.
 """
 
 import json
+
 import pytest
 
 from autopack.diagnostics.second_opinion import (
     SecondOpinionConfig,
-    TriageReport,
     SecondOpinionTriageSystem,
+    TriageReport,
 )
 
 

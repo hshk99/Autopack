@@ -7,16 +7,17 @@ installation by mocking the Playwright API.
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 
 from autopack.browser.playwright_runner import (
+    ActionLimitExceededError,
+    ActionRecord,
+    BrowserAction,
+    BrowserSessionConfig,
+    BrowserSessionError,
     PlaywrightRunner,
     PlaywrightSession,
-    BrowserSessionConfig,
-    BrowserAction,
-    ActionRecord,
-    ActionLimitExceededError,
-    BrowserSessionError,
 )
 
 

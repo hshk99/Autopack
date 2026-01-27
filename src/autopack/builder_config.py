@@ -7,11 +7,12 @@ consistent thresholds across pre-flight checks, prompt building, and parsing.
 Per IMPLEMENTATION_PLAN2.md Phase 1.1
 """
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
+
 import yaml
-import logging
 
 logger = logging.getLogger(__name__)
 

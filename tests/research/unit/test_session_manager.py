@@ -1,7 +1,8 @@
 """Unit tests for research session management."""
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 
 
 class TestSessionManager:

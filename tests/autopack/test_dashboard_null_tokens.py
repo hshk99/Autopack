@@ -6,14 +6,15 @@ with NULL prompt_tokens and completion_tokens (from total-only recording).
 BUILD-144 P1: Uses in-memory SQLite with StaticPool for parallel-safe testing.
 """
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, StaticPool
+from sqlalchemy import StaticPool, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from autopack.main import app, get_db
 from autopack.database import Base
+from autopack.main import app, get_db
 from autopack.usage_recorder import LlmUsageEvent
 
 
@@ -110,9 +111,9 @@ class TestDashboardNullTokens:
         response = client.get("/dashboard/usage?period=week")
 
         # Should return 200, not crash
-        assert response.status_code == 200, (
-            f"Expected 200, got {response.status_code}: {response.text}"
-        )
+        assert (
+            response.status_code == 200
+        ), f"Expected 200, got {response.status_code}: {response.text}"
 
         data = response.json()
         assert "providers" in data

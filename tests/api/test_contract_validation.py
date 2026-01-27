@@ -14,9 +14,10 @@ These tests validate:
 Uses runtime OpenAPI spec from /openapi.json endpoint.
 """
 
-import pytest
 import json
 from typing import Any, Dict
+
+import pytest
 
 
 @pytest.fixture
@@ -126,8 +127,9 @@ class TestRunsListEndpointContract:
     @pytest.fixture
     def populated_db(self, client, db_session):
         """Populate database with test runs."""
-        from autopack import models
         from datetime import datetime, timezone
+
+        from autopack import models
 
         # Create test runs
         for i in range(3):

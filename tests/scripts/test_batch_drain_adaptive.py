@@ -8,10 +8,11 @@ Tests cover:
 """
 
 import pytest
+
 from scripts.batch_drain_controller import (
-    normalize_error_text,
-    compute_failure_fingerprint,
     DrainResult,
+    compute_failure_fingerprint,
+    normalize_error_text,
 )
 
 

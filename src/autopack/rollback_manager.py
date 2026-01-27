@@ -24,11 +24,11 @@ Cleanup strategy:
 - Or run cleanup method to delete tags older than threshold
 """
 
-import subprocess
 import logging
-from pathlib import Path
+import subprocess
 from datetime import datetime
-from typing import Optional, Tuple, List
+from pathlib import Path
+from typing import List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

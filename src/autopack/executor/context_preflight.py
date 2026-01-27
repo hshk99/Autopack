@@ -16,10 +16,10 @@ Policy Goals:
 3. Support telemetry integration for observability
 """
 
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Tuple
-import logging
 
 logger = logging.getLogger(__name__)
 

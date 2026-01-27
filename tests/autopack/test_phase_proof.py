@@ -9,6 +9,7 @@ from datetime import datetime
 
 import pytest
 
+from autopack.config import settings
 from autopack.phase_proof import (
     PhaseChange,
     PhaseProof,
@@ -16,7 +17,6 @@ from autopack.phase_proof import (
     PhaseVerification,
     render_proof_as_markdown,
 )
-from autopack.config import settings
 
 
 @pytest.fixture

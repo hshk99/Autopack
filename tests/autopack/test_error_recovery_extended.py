@@ -11,8 +11,9 @@ NOTE: This is an extended test suite for planned/enhanced error recovery feature
 Tests are marked xfail until the enhanced API is implemented.
 """
 
-import pytest
 import time
+
+import pytest
 
 pytestmark = [
     pytest.mark.skip(
@@ -262,8 +263,8 @@ class TestBackoffMechanisms:
         """Test that all backoff strategies respect max delay cap."""
         from autopack.error_recovery import (
             calculate_backoff_delay,
-            calculate_linear_backoff,
             calculate_fibonacci_backoff,
+            calculate_linear_backoff,
         )
 
         max_delay = 10.0
@@ -302,8 +303,9 @@ class TestEdgeCases:
 
     def test_concurrent_failures(self):
         """Test handling of concurrent failures with circuit breaker."""
-        from autopack.error_recovery import CircuitBreaker
         import threading
+
+        from autopack.error_recovery import CircuitBreaker
 
         breaker = CircuitBreaker(failure_threshold=5, timeout=1.0)
         failure_count = 0

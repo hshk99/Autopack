@@ -8,9 +8,10 @@ Verifies that path traversal attacks are blocked, including:
 - Windows-specific attacks (backslash, drive letters)
 """
 
-import pytest
 from datetime import datetime, timezone
 from unittest.mock import patch
+
+import pytest
 
 
 @pytest.fixture

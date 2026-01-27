@@ -4,10 +4,10 @@ Extracted from autonomous_executor.py as part of PR-EXE-13.
 Handles revising phase approach when current strategy isn't working.
 """
 
-from dataclasses import dataclass
-from typing import Dict, Optional, List, TYPE_CHECKING
-import time
 import logging
+import time
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from autopack.archive_consolidator import log_build_event
 

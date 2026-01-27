@@ -6,9 +6,10 @@ and return safe metadata for UI/operator consumption.
 """
 
 import os
-import pytest
 from datetime import datetime, timezone
 from unittest.mock import patch
+
+import pytest
 
 
 class TestArtifactSizeCaps:

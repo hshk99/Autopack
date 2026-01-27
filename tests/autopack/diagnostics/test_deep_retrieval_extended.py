@@ -14,13 +14,14 @@ NOTE: Originally an extended/aspirational test suite, now graduated to core suit
 as deep retrieval enhancements have been implemented (22/22 tests passing).
 """
 
-import pytest
-from pathlib import Path
-
 # GRADUATED: Removed xfail marker - enhancements have been implemented (BUILD-146 Phase A P15)
 import json
-import tempfile
 import shutil
+import tempfile
+from pathlib import Path
+
+import pytest
+
 from autopack.diagnostics.deep_retrieval import DeepRetrieval
 
 

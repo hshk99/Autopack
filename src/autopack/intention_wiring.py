@@ -15,11 +15,11 @@ Key principles:
 """
 
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
-from .project_intention import ProjectIntentionManager
-from .memory.memory_service import MemoryService
 from .memory import goal_drift
+from .memory.memory_service import MemoryService
+from .project_intention import ProjectIntentionManager
 
 logger = logging.getLogger(__name__)
 

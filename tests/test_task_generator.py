@@ -1,8 +1,9 @@
 """Tests for ROAD-C Autonomous Task Generator."""
 
-import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
+
+import pytest
 
 from autopack.roadc import AutonomousTaskGenerator, GeneratedTask, TaskGenerationResult
 from autopack.telemetry.analyzer import RankedIssue

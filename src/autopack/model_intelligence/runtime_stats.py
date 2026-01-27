@@ -6,14 +6,14 @@ computing cost estimates using the pricing table.
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 import numpy as np
-from sqlalchemy import func, and_
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from ..usage_recorder import LlmUsageEvent
-from .models import ModelRuntimeStats, ModelPricing
+from .models import ModelPricing, ModelRuntimeStats
 
 
 def compute_runtime_stats(

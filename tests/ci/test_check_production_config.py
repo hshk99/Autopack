@@ -4,8 +4,8 @@ Validates that scripts/ci/check_production_config.py blocks DEBUG
 enablement in production configs.
 """
 
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 # Import will be available after implementation
 # from scripts.ci.check_production_config import (

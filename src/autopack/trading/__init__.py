@@ -5,10 +5,10 @@ Provides safety gates for automated trading operations.
 """
 
 from .risk_controls import (
-    TradingRiskConfig,
-    TradingMode,
     RiskLimitType,
     RiskViolation,
+    TradingMode,
+    TradingRiskConfig,
     TradingRiskGate,
 )
 

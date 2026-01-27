@@ -4,13 +4,19 @@ This module tests that embedding API calls are properly tracked in usage telemet
 enabling complete cost attribution for retrieval-heavy phases.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.autopack.database import Base
-from src.autopack.usage_recorder import LlmUsageEvent, EMBEDDING_ROLE, BUILDER_ROLE, AUDITOR_ROLE
+from src.autopack.usage_recorder import (
+    AUDITOR_ROLE,
+    BUILDER_ROLE,
+    EMBEDDING_ROLE,
+    LlmUsageEvent,
+)
 
 
 @pytest.fixture
@@ -193,8 +199,9 @@ class TestEmbeddingRoleValidatorAcceptsEmbedding:
 
     def test_embedding_role_validator_accepts_embedding(self, db_session):
         """Test that EMBEDDING_ROLE is a valid role for LlmUsageEvent."""
-        from src.autopack.usage_recorder import LlmUsageEvent
         from datetime import datetime, timezone
+
+        from src.autopack.usage_recorder import LlmUsageEvent
 
         # Create an event with EMBEDDING_ROLE
         event = LlmUsageEvent(

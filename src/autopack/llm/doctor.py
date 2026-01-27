@@ -11,9 +11,9 @@ import logging
 from typing import Any, Optional
 
 from ..error_recovery import (
+    DoctorContextSummary,
     DoctorRequest,
     DoctorResponse,
-    DoctorContextSummary,
     choose_doctor_model,
     should_escalate_doctor_model,
 )

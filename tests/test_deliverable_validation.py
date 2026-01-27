@@ -4,16 +4,17 @@ Tests the DeliverableValidator class to ensure it correctly identifies
 violations of must_not constraints and missing success criteria.
 """
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 
 from autopack.builder import DeliverableValidator, ValidationResult
 from autopack.intention_anchor.v2 import (
+    EvidenceVerificationIntention,
     IntentionAnchorV2,
     NorthStarIntention,
-    SafetyRiskIntention,
-    EvidenceVerificationIntention,
     PivotIntentions,
+    SafetyRiskIntention,
 )
 
 

@@ -1,17 +1,18 @@
 """Tests for circuit breaker implementation."""
 
-import pytest
-import time
-import tempfile
 import os
+import tempfile
+import time
 from unittest.mock import Mock
+
+import pytest
 
 from autopack.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
-    CircuitState,
-    CircuitBreakerOpenError,
     CircuitBreakerMetrics,
+    CircuitBreakerOpenError,
+    CircuitState,
 )
 
 

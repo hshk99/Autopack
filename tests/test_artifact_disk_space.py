@@ -3,17 +3,17 @@
 Tests the disk space checking functionality to prevent disk exhaustion crashes.
 """
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from autopack.autonomy.action_executor import SafeActionExecutor
 from autopack.disk_space import (
     check_disk_space,
     ensure_disk_space,
     get_available_disk_space,
 )
 from autopack.exceptions import DiskSpaceError
-from autopack.autonomy.action_executor import SafeActionExecutor
 
 
 class TestCheckDiskSpace:

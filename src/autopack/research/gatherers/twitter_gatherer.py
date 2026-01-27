@@ -12,8 +12,8 @@ from typing import Any
 
 import requests
 
-from autopack.research.models.evidence import Citation, Evidence
 from autopack.research.models.enums import EvidenceType
+from autopack.research.models.evidence import Citation, Evidence
 
 
 class TwitterGatherer:

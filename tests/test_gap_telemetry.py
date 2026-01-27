@@ -1,11 +1,11 @@
 """Tests for gap detection telemetry system."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 from autopack.gaps.gap_telemetry import (
-    GapTelemetryRecorder,
     GapDetectionEvent,
     GapRemediationEvent,
+    GapTelemetryRecorder,
 )
 from autopack.models import GapDetection, GapRemediation
 

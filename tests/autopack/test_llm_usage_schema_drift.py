@@ -4,12 +4,13 @@ Verifies that prompt_tokens and completion_tokens are nullable in the schema
 and that NULL inserts succeed in SQLite.
 """
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
-from autopack.database import SessionLocal, engine, Base
+from autopack.database import Base, SessionLocal, engine
 from autopack.usage_recorder import LlmUsageEvent
 
 
@@ -59,9 +60,7 @@ class TestLlmUsageSchemadrift:
         assert completion_tokens_col["nullable"] in (
             True,
             None,
-        ), (
-            f"completion_tokens column must be nullable, got nullable={completion_tokens_col['nullable']}"
-        )
+        ), f"completion_tokens column must be nullable, got nullable={completion_tokens_col['nullable']}"
 
     def test_total_tokens_column_exists_and_not_nullable(self, test_db: Session):
         """BUILD-144 P0.4: Verify total_tokens column exists and is NOT nullable"""
@@ -75,9 +74,9 @@ class TestLlmUsageSchemadrift:
         assert total_tokens_col is not None, "total_tokens column not found"
 
         # total_tokens should be non-nullable (False means NOT NULL)
-        assert not total_tokens_col["nullable"], (
-            f"total_tokens column must be non-nullable, got nullable={total_tokens_col['nullable']}"
-        )
+        assert not total_tokens_col[
+            "nullable"
+        ], f"total_tokens column must be non-nullable, got nullable={total_tokens_col['nullable']}"
 
     def test_insert_null_prompt_tokens_succeeds(self, test_db: Session):
         """Test that inserting NULL prompt_tokens succeeds"""

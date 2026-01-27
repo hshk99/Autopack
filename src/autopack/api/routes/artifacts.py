@@ -93,8 +93,9 @@ async def get_artifact_file(
         X-Artifact-Redacted: "true" if content was redacted
         X-Artifact-Original-Size: Original file size in bytes
     """
-    from autopack.artifacts.redaction import ArtifactRedactor
     from pathlib import Path
+
+    from autopack.artifacts.redaction import ArtifactRedactor
 
     # IMP-SEC-003: Strengthen path traversal defense
     # Decode URL encoding first - decode twice to catch double-encoded attacks

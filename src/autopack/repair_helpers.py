@@ -12,8 +12,8 @@ without human intervention.
 import json
 import logging
 import re
-from typing import Any, Dict, Optional, Tuple
 from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

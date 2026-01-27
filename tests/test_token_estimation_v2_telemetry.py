@@ -4,8 +4,8 @@ Regression test for TokenEstimationV2 DB telemetry persistence.
 Ensures that telemetry events can be written to the database with correct metric semantics.
 """
 
-import os
 import json
+import os
 import tempfile
 from unittest.mock import patch
 
@@ -13,8 +13,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from autopack.models import Base, TokenEstimationV2Event
 from autopack.anthropic_clients import _write_token_estimation_v2_telemetry
+from autopack.models import Base, TokenEstimationV2Event
 
 
 @pytest.fixture
@@ -123,15 +123,15 @@ def test_telemetry_write_with_feature_flag(temp_db):
             #       = |800 - 1200| / ((800 + 1200) / 2) * 100
             #       = 400 / 1000 * 100 = 40.0
             assert event.smape_percent is not None
-            assert abs(event.smape_percent - 40.0) < 0.01, (
-                f"Expected SMAPE ~40.0, got {event.smape_percent}"
-            )
+            assert (
+                abs(event.smape_percent - 40.0) < 0.01
+            ), f"Expected SMAPE ~40.0, got {event.smape_percent}"
 
             # Waste ratio = predicted / actual = 1200 / 800 = 1.5 (NOT 150)
             assert event.waste_ratio is not None
-            assert abs(event.waste_ratio - 1.5) < 0.01, (
-                f"Expected waste_ratio ~1.5, got {event.waste_ratio}"
-            )
+            assert (
+                abs(event.waste_ratio - 1.5) < 0.01
+            ), f"Expected waste_ratio ~1.5, got {event.waste_ratio}"
 
             # Underestimated = actual > pred = 800 > 1200 = False
             assert event.underestimated is False

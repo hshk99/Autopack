@@ -20,9 +20,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
-from ..gaps.models import GapReportV1, Gap
+from ..executor.safety_profile import SafetyProfile, derive_safety_profile
+from ..gaps.models import Gap, GapReportV1
 from ..intention_anchor.v2 import IntentionAnchorV2
-from ..executor.safety_profile import derive_safety_profile, SafetyProfile
 from .models import (
     Action,
     BudgetCompliance,

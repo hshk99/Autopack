@@ -9,17 +9,18 @@ with minimal changes. The method calls back to the parent client for helper
 methods like prompt building and parsing, which will be extracted in PR-CLIENT-2.
 """
 
-import os
-import logging
-import yaml
 import copy
+import logging
+import os
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import yaml
+
+from ...continuation_recovery import ContinuationRecovery
 from ...llm_client import BuilderResult
 from ...llm_service import estimate_tokens
 from ...token_estimator import TokenEstimator
-from ...continuation_recovery import ContinuationRecovery
 from ..providers.anthropic_transport import AnthropicTransport
 
 logger = logging.getLogger(__name__)
@@ -907,7 +908,9 @@ class AnthropicPhaseExecutor:
 
                     # BUILD-129 Phase 3: Write telemetry to DB for validation
                     # Import telemetry function to avoid circular import
-                    from ...anthropic_clients import _write_token_estimation_v2_telemetry
+                    from ...anthropic_clients import (
+                        _write_token_estimation_v2_telemetry,
+                    )
 
                     token_pred_meta = phase_spec.get("metadata", {}).get("token_prediction", {})
                     _write_token_estimation_v2_telemetry(
@@ -964,7 +967,9 @@ class AnthropicPhaseExecutor:
 
                     # BUILD-129 Phase 3: Write telemetry to DB (fallback case)
                     # Import telemetry function to avoid circular import
-                    from ...anthropic_clients import _write_token_estimation_v2_telemetry
+                    from ...anthropic_clients import (
+                        _write_token_estimation_v2_telemetry,
+                    )
 
                     token_pred_meta_fallback = phase_spec.get("metadata", {}).get(
                         "token_prediction", {}

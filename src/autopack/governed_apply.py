@@ -12,36 +12,32 @@ Enhanced with self-troubleshoot capabilities:
 Per GPT_RESPONSE18: Added symbol preservation and structural similarity validation.
 """
 
+import hashlib
 import logging
 import re
-import hashlib
 from pathlib import Path
-from typing import List, Tuple, Optional, Dict
-
-from .repair_helpers import YamlRepairHelper, save_repair_debug
-from .rollback_manager import RollbackManager
-from .config import settings
-from .patching.policy import PatchPolicy
-from .patching.patch_sanitize import (
-    sanitize_patch,
-    fix_empty_file_diffs,
-    repair_hunk_headers,
-)
-from .patching.patch_quality import validate_patch_quality
-from .patching.apply_engine import (
-    execute_git_apply,
-    execute_manual_apply,
-)
-from .exceptions import ValidationError
+from typing import Dict, List, Optional, Tuple
 
 # IMP-Q02: Import extracted validation and approval modules
 from .apply.validation import (
-    check_symbol_preservation,
-    check_structural_similarity,
-    validate_python_syntax,
     check_merge_conflict_markers,
+    check_structural_similarity,
+    check_symbol_preservation,
     compute_file_hash,
+    validate_python_syntax,
 )
+from .config import settings
+from .exceptions import ValidationError
+from .patching.apply_engine import execute_git_apply, execute_manual_apply
+from .patching.patch_quality import validate_patch_quality
+from .patching.patch_sanitize import (
+    fix_empty_file_diffs,
+    repair_hunk_headers,
+    sanitize_patch,
+)
+from .patching.policy import PatchPolicy
+from .repair_helpers import YamlRepairHelper, save_repair_debug
+from .rollback_manager import RollbackManager
 
 logger = logging.getLogger(__name__)
 

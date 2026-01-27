@@ -2,8 +2,12 @@
 
 import pytest
 
-from autopack.workflow.research_review import ResearchReviewWorkflow, ReviewConfig, ReviewDecision
 from autopack.phases.research_phase import ResearchPhaseResult
+from autopack.workflow.research_review import (
+    ResearchReviewWorkflow,
+    ReviewConfig,
+    ReviewDecision,
+)
 
 
 @pytest.fixture

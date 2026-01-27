@@ -9,13 +9,14 @@ These tests ensure that llm_service.py NEVER applies heuristic token splits
 This prevents regression of the "no guessing" policy established in BUILD-144 P0.
 """
 
-import pytest
-from unittest.mock import Mock, patch
 import re
+from unittest.mock import Mock, patch
+
+import pytest
 from sqlalchemy.orm import Session
 
+from autopack.llm_client import AuditorResult, BuilderResult
 from autopack.llm_service import LlmService
-from autopack.llm_client import BuilderResult, AuditorResult
 from autopack.usage_recorder import LlmUsageEvent
 
 
@@ -104,10 +105,8 @@ class TestNoGuessingTokenSplits:
 
     def test_doctor_no_guessing_anthropic(self, llm_service, mock_db):
         """Doctor with Anthropic should use exact token counts, not 70/30 guess"""
-        from autopack.error_recovery import DoctorRequest
-
         # Mock the _call_doctor_llm method directly to bypass client setup complexity
-        from autopack.error_recovery import DoctorResponse
+        from autopack.error_recovery import DoctorRequest, DoctorResponse
 
         mock_response = DoctorResponse(
             action="retry_with_fix",

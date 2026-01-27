@@ -1,7 +1,8 @@
 """Integration tests for data flow between components."""
 
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock
 
 
 class TestDataFlow:

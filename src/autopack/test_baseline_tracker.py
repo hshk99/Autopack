@@ -7,13 +7,13 @@ Uses pytest-json-report for structured output (no text parsing).
 Per BUILD-127 Final Plan design.
 """
 
+import json
+import logging
+import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Dict, Optional
-import json
-import subprocess
-import logging
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

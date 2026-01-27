@@ -4,9 +4,9 @@ Extracted from autonomous_executor.py as part of PR-EXE-13.
 Validates that loaded file context matches scope configuration.
 """
 
-from typing import Dict, List, TYPE_CHECKING
-from pathlib import Path
 import logging
+from pathlib import Path
+from typing import TYPE_CHECKING, Dict, List
 
 if TYPE_CHECKING:
     from ..autonomous_executor import AutonomousExecutor

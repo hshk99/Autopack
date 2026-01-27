@@ -1,10 +1,11 @@
 """Tests for AlertRouter integration with ROAD-J AutoHealingEngine."""
 
-import pytest
 import logging
 
-from autopack.telemetry.anomaly_detector import AnomalyAlert, AlertSeverity
+import pytest
+
 from autopack.telemetry.alerts import AlertRouter
+from autopack.telemetry.anomaly_detector import AlertSeverity, AnomalyAlert
 from autopack.telemetry.auto_healer import AutoHealingEngine, HealingAction
 
 

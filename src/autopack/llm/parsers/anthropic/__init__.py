@@ -8,9 +8,9 @@ This module exports parsers for different Anthropic response formats:
 """
 
 from .full_file import FullFileParser, FullFileParseResult
+from .legacy_diff import LegacyDiffParser, LegacyDiffParseResult
 from .ndjson import NDJSONResponseParser, NDJSONResponseParseResult
 from .structured_edit import StructuredEditParser, StructuredEditParseResult
-from .legacy_diff import LegacyDiffParser, LegacyDiffParseResult
 
 __all__ = [
     "FullFileParser",

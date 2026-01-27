@@ -1,10 +1,11 @@
 """Performance tests for research system."""
 
-import pytest
-import time
 import statistics
-from datetime import datetime, timezone
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
+
+import pytest
 
 
 class TestSessionPerformance:

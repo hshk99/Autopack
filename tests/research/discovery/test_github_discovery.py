@@ -1,10 +1,11 @@
 """Tests for GitHub Discovery."""
 
 from unittest.mock import Mock, patch
+
 from autopack.research.discovery.github_discovery import (
     GitHubDiscovery,
-    GitHubRepository,
     GitHubIssue,
+    GitHubRepository,
 )
 
 

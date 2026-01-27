@@ -1,10 +1,10 @@
 """Tests for tier-aware token budget redistribution (IMP-TIER-001)."""
 
 from src.autopack.autonomous.budgeting import (
+    MIN_TOKENS_PER_TIER,
+    TIER_COST_RATIOS,
     adjust_budget_for_tier,
     allocate_phase_budget,
-    TIER_COST_RATIOS,
-    MIN_TOKENS_PER_TIER,
 )
 
 

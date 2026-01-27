@@ -10,7 +10,7 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from .models import ModelSentimentSignal, ModelCatalog
+from .models import ModelCatalog, ModelSentimentSignal
 
 
 def ingest_sentiment_signal(

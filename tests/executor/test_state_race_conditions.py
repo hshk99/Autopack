@@ -11,21 +11,22 @@ Test coverage:
 """
 
 import threading
-import pytest
-from pathlib import Path
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch, MagicMock
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 from sqlalchemy.exc import OperationalError
 from tenacity import RetryError
 
 from autopack.executor.phase_state_manager import (
+    OptimisticLockError,
     PhaseStateManager,
     StateUpdateRequest,
-    OptimisticLockError,
 )
 from autopack.executor.state_persistence import (
-    ExecutorStateManager,
     ExecutorState,
+    ExecutorStateManager,
     PersistenceError,
 )
 

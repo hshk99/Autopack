@@ -14,9 +14,9 @@ from autopack.executor.phase_orchestrator import create_default_time_watchdog
 def test_orchestrator_imports():
     """Verify orchestrator can be imported"""
     from autopack.executor.phase_orchestrator import (
-        PhaseOrchestrator,
         ExecutionContext,
         ExecutionResult,
+        PhaseOrchestrator,
         PhaseResult,
         create_default_time_watchdog,
     )
@@ -92,7 +92,7 @@ def test_execution_result_structure():
 
 def test_create_exhausted_result():
     """Test _create_exhausted_result method"""
-    from autopack.executor.phase_orchestrator import PhaseOrchestrator, ExecutionContext
+    from autopack.executor.phase_orchestrator import ExecutionContext, PhaseOrchestrator
 
     orchestrator = PhaseOrchestrator(max_retry_attempts=5)
     watchdog = create_default_time_watchdog()
@@ -120,8 +120,8 @@ def test_create_exhausted_result():
 def test_orchestrator_with_mock_context():
     """Test orchestrator with minimal mock context"""
     from autopack.executor.phase_orchestrator import (
-        PhaseOrchestrator,
         ExecutionContext,
+        PhaseOrchestrator,
         PhaseResult,
     )
 
@@ -153,7 +153,7 @@ def test_orchestrator_with_mock_context():
 
 def test_successful_phase_execution_mock():
     """Test happy path: phase succeeds on first attempt (mocked)"""
-    from autopack.executor.phase_orchestrator import PhaseOrchestrator, ExecutionContext
+    from autopack.executor.phase_orchestrator import ExecutionContext, PhaseOrchestrator
 
     # This is a smoke test - just verify the structure works
     PhaseOrchestrator(max_retry_attempts=5)
@@ -190,8 +190,8 @@ def test_retry_after_failure_mock():
 def test_max_attempts_exhausted():
     """Test exhaustion: phase fails all attempts"""
     from autopack.executor.phase_orchestrator import (
-        PhaseOrchestrator,
         ExecutionContext,
+        PhaseOrchestrator,
         PhaseResult,
     )
 

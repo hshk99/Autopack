@@ -4,13 +4,14 @@ Tests for WizTree scanner integration (BUILD-150 Phase 3).
 Tests high-performance disk scanning via WizTree CLI with graceful fallback.
 """
 
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timezone
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
-from autopack.storage_optimizer.wiztree_scanner import WizTreeScanner
+import pytest
+
 from autopack.storage_optimizer.models import ScanResult
+from autopack.storage_optimizer.wiztree_scanner import WizTreeScanner
 
 
 class TestWizTreeScanner:
@@ -278,7 +279,7 @@ class TestScannerFactory:
     )
     def test_create_scanner_falls_back_when_wiztree_unavailable(self):
         """Test factory returns StorageScanner when WizTree not available."""
-        from autopack.storage_optimizer.scanner import create_scanner, StorageScanner
+        from autopack.storage_optimizer.scanner import StorageScanner, create_scanner
 
         with patch("autopack.storage_optimizer.scanner.WizTreeScanner") as mock_wiztree_class:
             mock_wiztree_instance = Mock()
@@ -292,7 +293,7 @@ class TestScannerFactory:
 
     def test_create_scanner_returns_python_scanner_when_not_preferred(self):
         """Test factory returns StorageScanner when prefer_wiztree=False."""
-        from autopack.storage_optimizer.scanner import create_scanner, StorageScanner
+        from autopack.storage_optimizer.scanner import StorageScanner, create_scanner
 
         scanner = create_scanner(prefer_wiztree=False)
 

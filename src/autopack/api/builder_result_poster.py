@@ -7,11 +7,11 @@ Handles posting Builder execution results to the Autopack API.
 import logging
 import time
 from pathlib import Path
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
-from autopack.llm_client import BuilderResult
-from autopack.governed_apply import GovernedApplyPath
 from autopack.debug_journal import log_error
+from autopack.governed_apply import GovernedApplyPath
+from autopack.llm_client import BuilderResult
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor

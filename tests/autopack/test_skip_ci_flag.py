@@ -7,8 +7,9 @@ for telemetry runs, preventing PhaseFinalizer from running collection error dete
 Also verifies that the guardrail prevents CI skip for non-telemetry runs.
 """
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
 
 
 @pytest.fixture

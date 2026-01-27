@@ -1,7 +1,8 @@
 """Tests for Twitter gatherer."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from autopack.research.gatherers.twitter_gatherer import TwitterGatherer
 from autopack.research.models.enums import EvidenceType

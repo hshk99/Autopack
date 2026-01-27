@@ -7,7 +7,6 @@ to prevent command injection attacks.
 import shlex
 from unittest.mock import MagicMock, patch
 
-
 from autopack.autonomy.action_executor import SafeActionExecutor
 from autopack.maintenance_runner import run_tests
 

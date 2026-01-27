@@ -6,8 +6,9 @@ Validates:
 - Stable IDs and bounded payloads
 """
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 

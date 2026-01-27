@@ -10,16 +10,9 @@ Implements gap analysis items 6.1 (durable idempotency) and 6.9 (external action
 from datetime import datetime, timezone
 from enum import Enum
 
-from sqlalchemy import (
-    Column,
-    DateTime,
-    Integer,
-    String,
-    Text,
-    JSON,
-    Index,
-)
+from sqlalchemy import JSON, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import Index, Integer, String, Text
 
 from ..database import Base
 

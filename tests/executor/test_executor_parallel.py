@@ -67,10 +67,11 @@ class TestParallelismCheckerInitialization:
     def test_initialize_parallelism_checker_with_intention_anchor(self):
         """Test parallelism checker initialization with intention anchor."""
         from datetime import datetime, timezone
+
         from autopack.intention_anchor.v2 import (
             IntentionAnchorV2,
-            PivotIntentions,
             ParallelismIsolationIntention,
+            PivotIntentions,
         )
 
         executor = Mock()

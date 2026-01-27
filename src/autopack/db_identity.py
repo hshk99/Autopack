@@ -24,7 +24,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from .models import Run, Phase
+from .models import Phase, Run
 
 
 def _get_sqlite_db_path() -> Optional[Path]:

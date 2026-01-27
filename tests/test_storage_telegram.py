@@ -4,12 +4,13 @@ Tests for Storage Optimizer Telegram notifications (BUILD-150 Phase 3).
 Tests mobile approval workflow via Telegram bot.
 """
 
-import pytest
-from unittest.mock import Mock, patch
 from datetime import datetime, timezone
+from unittest.mock import Mock, patch
 
-from autopack.storage_optimizer.telegram_notifications import StorageTelegramNotifier
+import pytest
+
 from autopack.models import StorageScan
+from autopack.storage_optimizer.telegram_notifications import StorageTelegramNotifier
 
 
 class TestStorageTelegramNotifier:

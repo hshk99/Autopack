@@ -5,7 +5,8 @@ This module defines the RedditDiscovery class, which mines Reddit threads and co
 to gather community insights and opinions relevant to research topics.
 """
 
-from typing import List, Dict
+from typing import Dict, List
+
 import praw
 
 
@@ -52,8 +53,8 @@ class RedditDiscovery:
 
 # Backward compatibility shims
 from dataclasses import dataclass
-from typing import Optional, List
 from datetime import datetime
+from typing import List, Optional
 
 
 @dataclass

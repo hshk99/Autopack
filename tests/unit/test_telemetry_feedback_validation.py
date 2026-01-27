@@ -3,12 +3,13 @@
 IMP-LOOP-002: Tests validation checks for telemetry data before memory storage.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from autopack.memory.memory_service import (
-    TelemetryFeedbackValidator,
     TelemetryFeedbackValidationError,
+    TelemetryFeedbackValidator,
 )
 
 

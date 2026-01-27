@@ -1,10 +1,11 @@
 """Tests for IMP-COST-001: Per-run budget enforcement with automatic abort."""
 
 import pytest
+
 from autopack.autonomous.budgeting import (
     BudgetExhaustedError,
-    is_budget_exhausted,
     get_budget_remaining_pct,
+    is_budget_exhausted,
 )
 
 

@@ -4,13 +4,13 @@ Extracted from autonomous_executor.py as part of PR-EXE-13.
 Handles execution of fix recommendations from diagnostics or Doctor.
 """
 
-from dataclasses import dataclass
-from typing import Dict, Optional, List, Tuple, TYPE_CHECKING
-from pathlib import Path
-import subprocess
+import logging
 import re
 import shlex
-import logging
+import subprocess
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from autopack.debug_journal import log_error, log_fix
 from autopack.executor.run_checkpoint import create_execute_fix_checkpoint

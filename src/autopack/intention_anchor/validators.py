@@ -4,9 +4,9 @@ Provides validation utilities for safe field access at consumption time,
 ensuring that code doesn't assume fields exist without null checks.
 """
 
-from typing import Optional, Any
-from functools import wraps
 import logging
+from functools import wraps
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 

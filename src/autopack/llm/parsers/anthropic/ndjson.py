@@ -12,11 +12,12 @@ a complete JSON object, so only the last incomplete line is lost."
 
 import json
 import logging
-from typing import Optional, Any, Dict
 from dataclasses import dataclass
+from typing import Any, Dict, Optional
 
 # Import the existing NDJSON infrastructure
-from ....ndjson_format import NDJSONParser, NDJSONParseResult as CoreNDJSONParseResult
+from ....ndjson_format import NDJSONParser
+from ....ndjson_format import NDJSONParseResult as CoreNDJSONParseResult
 
 logger = logging.getLogger(__name__)
 
@@ -124,8 +125,8 @@ class NDJSONResponseParser:
         Used as a last resort to salvage structured edit JSON from truncated NDJSON output.
         """
         try:
-            from json import JSONDecoder
             import ast
+            from json import JSONDecoder
 
             decoder = JSONDecoder()
             idx = 0

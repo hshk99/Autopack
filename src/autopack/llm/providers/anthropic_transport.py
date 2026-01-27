@@ -6,21 +6,25 @@ separating concerns between network communication and prompt/parsing logic.
 Extracted from anthropic_clients.py as part of PR-LLM-1 (Item 1.1: god file refactoring).
 """
 
-import os
 import logging
-from typing import Optional, Dict, Any
+import os
 from dataclasses import dataclass
+from typing import Any, Dict, Optional
 
 try:
     from anthropic import Anthropic
-    from anthropic.types import Message, ContentBlock, Usage
+    from anthropic.types import ContentBlock, Message, Usage
 except ImportError:
     Anthropic = None
     Message = None
     ContentBlock = None
     Usage = None
 
-from autopack.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitBreakerOpenError
+from autopack.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerOpenError,
+)
 
 logger = logging.getLogger(__name__)
 

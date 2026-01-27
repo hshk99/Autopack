@@ -27,13 +27,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from .models import RunResult
-from .parallel_run_supervisor import ParallelRunSupervisor
 from ..autonomy.parallelism_gate import (
     ParallelismPolicyViolation,
     load_and_check_parallelism_policy,
 )
 from ..config import settings
+from .models import RunResult
+from .parallel_run_supervisor import ParallelRunSupervisor
 
 logger = logging.getLogger(__name__)
 

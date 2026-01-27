@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 from autopack.diagnostics.diagnostics_models import (
     Decision,

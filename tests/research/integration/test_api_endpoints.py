@@ -1,7 +1,8 @@
 """Integration tests for research API endpoints."""
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
 
 
 class TestResearchAPIEndpoints:

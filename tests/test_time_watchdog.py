@@ -1,6 +1,7 @@
 """Tests for TimeWatchdog (IMP-STUCK-001: Per-phase timeout enforcement)"""
 
 import time
+
 from autopack.time_watchdog import TimeWatchdog
 
 

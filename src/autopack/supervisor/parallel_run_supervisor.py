@@ -27,9 +27,9 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from ..workspace_manager import WorkspaceManager
-from ..workspace_lease import WorkspaceLease
 from ..config import settings
+from ..workspace_lease import WorkspaceLease
+from ..workspace_manager import WorkspaceManager
 
 logger = logging.getLogger(__name__)
 

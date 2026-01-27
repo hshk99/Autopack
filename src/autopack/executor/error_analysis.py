@@ -5,12 +5,12 @@ Analyzes error patterns to detect approach flaws during phase execution.
 Distinguishes 'approach flaw' from 'transient failure' by tracking error patterns.
 """
 
-from dataclasses import dataclass
-from typing import List, Dict, Optional
-from difflib import SequenceMatcher
+import logging
 import re
 import time
-import logging
+from dataclasses import dataclass
+from difflib import SequenceMatcher
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

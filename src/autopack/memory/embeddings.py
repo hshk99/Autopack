@@ -9,10 +9,10 @@ Provides:
 - Local deterministic embedding (SHA256-based) when OpenAI unavailable
 """
 
-import os
 import asyncio
 import hashlib
 import logging
+import os
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
@@ -100,8 +100,8 @@ def _record_embedding_usage(
         return
 
     try:
-        from autopack.usage_recorder import EMBEDDING_ROLE
         from autopack.service.usage_recording import record_usage_total_only
+        from autopack.usage_recorder import EMBEDDING_ROLE
 
         record_usage_total_only(
             db=db,

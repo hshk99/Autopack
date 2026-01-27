@@ -4,15 +4,16 @@ Extracted from autonomous_executor.py as part of PR-EXE-14.
 Tests the batched deliverables execution strategy.
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from autopack.executor.batched_deliverables_executor import (
     BatchedDeliverablesExecutor,
     BatchedExecutionContext,
     BatchedExecutionResult,
 )
-from autopack.llm_client import BuilderResult, AuditorResult
+from autopack.llm_client import AuditorResult, BuilderResult
 
 
 @pytest.fixture

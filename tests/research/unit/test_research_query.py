@@ -1,7 +1,8 @@
 """Unit tests for research query processing."""
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
 
 
 class TestResearchQuery:

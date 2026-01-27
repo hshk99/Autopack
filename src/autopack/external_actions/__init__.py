@@ -6,7 +6,7 @@ This module implements the external action ledger described in gap analysis item
 - Query "what happened" for any idempotency key
 """
 
-from .models import ExternalAction, ExternalActionStatus
 from .ledger import ExternalActionLedger
+from .models import ExternalAction, ExternalActionStatus
 
 __all__ = ["ExternalAction", "ExternalActionStatus", "ExternalActionLedger"]

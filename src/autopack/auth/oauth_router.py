@@ -15,14 +15,13 @@ SOT Contract Endpoints:
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 from autopack.api.deps import limiter
-from .oauth_lifecycle import (
-    OAuthCredentialManager,
-)
-from .router import get_current_user
+
 from .models import User
+from .oauth_lifecycle import OAuthCredentialManager
+from .router import get_current_user
 
 logger = logging.getLogger(__name__)
 

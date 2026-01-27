@@ -19,8 +19,8 @@ Related modules:
 - autopack.stuck_handling: StuckReason and StuckResolutionDecision enums
 """
 
-from typing import Tuple, Any, Optional
 import logging
+from typing import Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -253,6 +253,8 @@ class IntentionStuckHandler:
         try:
             from autopack.executor.scope_reduction_flow import (
                 generate_scope_reduction_proposal as gen_scope_proposal,
+            )
+            from autopack.executor.scope_reduction_flow import (
                 write_scope_reduction_proposal,
             )
             from autopack.run_file_layout import RunFileLayout

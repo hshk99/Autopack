@@ -14,14 +14,14 @@ by collecting initial approvals, then learning from them).
 """
 
 import re
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
-from dataclasses import dataclass
-from collections import defaultdict
-from datetime import datetime, timezone
 
-from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from autopack.models import CleanupCandidateDB, LearnedRule
 from autopack.storage_optimizer.policy import StoragePolicy

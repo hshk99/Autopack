@@ -12,9 +12,7 @@ Test Coverage:
 6. Budget utilization and warnings
 """
 
-from autopack.executor.retrieval_injection import (
-    RetrievalInjection,
-)
+from autopack.executor.retrieval_injection import RetrievalInjection
 
 
 class TestSOTBudgetGating:
@@ -103,14 +101,14 @@ class TestGlobalKillSwitch:
 
         assert gate.allowed is True
 
-    def test_default_disabled(self):
-        """Test that default state is disabled."""
+    def test_default_enabled(self):
+        """Test that default state is enabled (IMP-AUTO-001)."""
         injection = RetrievalInjection()
 
         gate = injection.gate_sot_retrieval(max_context_chars=100_000)
 
-        assert gate.allowed is False
-        assert "disabled" in gate.reason.lower()
+        assert gate.allowed is True
+        assert "budget available" in gate.reason.lower()
 
 
 class TestTelemetryRecording:
@@ -365,7 +363,7 @@ class TestFromSettings:
         assert injection.reserve_budget == 2000
 
     def test_from_settings_defaults(self):
-        """Test from_settings with missing attributes uses defaults."""
+        """Test from_settings with missing attributes uses defaults (IMP-AUTO-001)."""
 
         class MinimalSettings:
             pass
@@ -374,7 +372,7 @@ class TestFromSettings:
 
         assert injection.sot_budget_limit == 4000
         assert injection.telemetry_enabled is False
-        assert injection.enabled is False
+        assert injection.enabled is True  # IMP-AUTO-001: enabled by default
 
 
 class TestEdgeCases:

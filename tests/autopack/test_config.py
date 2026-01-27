@@ -166,3 +166,39 @@ class TestConfigValidation:
         captured = capsys.readouterr()
         assert "Configuration errors detected" in captured.err
         assert "DATABASE_URL is required" in captured.err
+
+
+class TestSettingsDefaults:
+    """Test suite for Settings class defaults (IMP-AUTO-001)."""
+
+    def test_sot_retrieval_enabled_by_default(self):
+        """Verify SOT memory retrieval is enabled by default.
+
+        IMP-AUTO-001: Enable memory retrieval by default to improve
+        learning effectiveness. Each execution should start with
+        accumulated knowledge from previous runs.
+        """
+        from autopack.config import Settings
+
+        settings = Settings()
+        assert settings.autopack_sot_retrieval_enabled is True
+
+    def test_sot_memory_indexing_enabled_by_default(self):
+        """Verify SOT memory indexing is enabled by default.
+
+        Memory indexing must be enabled for retrieval to work.
+        """
+        from autopack.config import Settings
+
+        settings = Settings()
+        assert settings.autopack_enable_sot_memory_indexing is True
+
+    def test_sot_retrieval_can_be_disabled_via_env(self, monkeypatch):
+        """Verify SOT retrieval can be disabled via environment variable."""
+        monkeypatch.setenv("AUTOPACK_SOT_RETRIEVAL_ENABLED", "false")
+
+        from autopack.config import Settings
+
+        # Create fresh settings instance
+        settings = Settings()
+        assert settings.autopack_sot_retrieval_enabled is False

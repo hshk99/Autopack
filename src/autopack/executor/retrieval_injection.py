@@ -13,7 +13,7 @@ Policy Goals:
 4. Enable testable, deterministic budget decisions
 
 SOT Budget Policy:
-- Global kill switch: autopack_sot_retrieval_enabled (default: False)
+- Global kill switch: autopack_sot_retrieval_enabled (default: True)
 - Budget check: max_context_chars >= (sot_budget + 2000)
   - sot_budget: autopack_sot_retrieval_max_chars (default: 4000)
   - 2000-char reserve for non-SOT context
@@ -22,9 +22,9 @@ SOT Budget Policy:
 See docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md for integration pattern.
 """
 
+import logging
 from dataclasses import dataclass
 from typing import Dict, Optional
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class RetrievalInjection:
         sot_budget_limit: Maximum characters for SOT retrieval (default: 4000)
         telemetry_enabled: Whether to record telemetry (default: False)
         reserve_budget: Characters reserved for non-SOT context (default: 2000)
-        enabled: Global kill switch for SOT retrieval (default: False)
+        enabled: Global kill switch for SOT retrieval (default: True)
 
     Usage:
         injection = RetrievalInjection(
@@ -92,7 +92,7 @@ class RetrievalInjection:
         sot_budget_limit: int = 4000,
         telemetry_enabled: bool = False,
         reserve_budget: int = 2000,
-        enabled: bool = False,
+        enabled: bool = True,
     ):
         """Initialize retrieval injection manager.
 
@@ -298,5 +298,5 @@ class RetrievalInjection:
             sot_budget_limit=getattr(settings, "autopack_sot_retrieval_max_chars", 4000),
             telemetry_enabled=getattr(settings, "TELEMETRY_DB_ENABLED", False),
             reserve_budget=2000,
-            enabled=getattr(settings, "autopack_sot_retrieval_enabled", False),
+            enabled=getattr(settings, "autopack_sot_retrieval_enabled", True),
         )

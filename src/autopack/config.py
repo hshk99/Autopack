@@ -653,9 +653,7 @@ class Settings(BaseSettings):
         default=2,
         ge=1,
         le=4,
-        validation_alias=AliasChoices(
-            "AUTOPACK_MAX_PARALLEL_PHASES", "MAX_PARALLEL_PHASES"
-        ),
+        validation_alias=AliasChoices("AUTOPACK_MAX_PARALLEL_PHASES", "MAX_PARALLEL_PHASES"),
         description="Maximum number of phases to execute in parallel (default: 2, max: 4)",
     )
 

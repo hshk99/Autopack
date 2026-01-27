@@ -13,10 +13,32 @@ from __future__ import annotations
 
 import logging
 import re
+from collections import defaultdict, deque
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from ..memory.learning_db import LearningDatabase
+
+
+@dataclass
+class ExecutionPlanResult:
+    """Result of execution plan computation.
+
+    Attributes:
+        ordered_tasks: Tasks sorted by optimal execution order.
+        total_estimated_tokens: Total token cost for all tasks.
+        dependency_graph: The computed dependency DAG.
+        pareto_frontier_count: Number of tasks on the Pareto frontier.
+        budget_constrained: Whether budget constraint was applied.
+    """
+
+    ordered_tasks: list[dict[str, Any]]
+    total_estimated_tokens: float
+    dependency_graph: dict[str, list[str]]
+    pareto_frontier_count: int
+    budget_constrained: bool
+
 
 logger = logging.getLogger(__name__)
 
@@ -468,3 +490,281 @@ class PriorityEngine:
             "high_risk_items": high_risk_items,
             "recommended_order": recommended_order,
         }
+
+    def compute_execution_plan(
+        self,
+        tasks: list[dict[str, Any]],
+        budget_tokens: float | None = None,
+    ) -> ExecutionPlanResult:
+        """Build DAG from task dependencies and compute optimal execution order.
+
+        Uses Pareto frontier optimization balancing:
+        - Token cost minimization
+        - Impact maximization
+        - Dependency satisfaction
+
+        Args:
+            tasks: List of task dictionaries to schedule. Each task should have:
+                - imp_id or id: Unique identifier
+                - depends_on: Optional list of task IDs this task depends on
+                - estimated_tokens: Optional estimated token cost
+                - priority: Priority level (affects impact score)
+            budget_tokens: Optional token budget constraint.
+
+        Returns:
+            ExecutionPlanResult containing the ordered tasks and metadata.
+        """
+        if not tasks:
+            return ExecutionPlanResult(
+                ordered_tasks=[],
+                total_estimated_tokens=0.0,
+                dependency_graph={},
+                pareto_frontier_count=0,
+                budget_constrained=False,
+            )
+
+        # Build dependency DAG
+        dag = self._build_dependency_dag(tasks)
+
+        # Topological sort respecting dependencies
+        ordered = self._topological_sort(tasks, dag)
+
+        # Apply Pareto optimization
+        frontier, frontier_count = self._compute_pareto_frontier(ordered)
+
+        # Apply budget constraint if specified
+        budget_constrained = False
+        if budget_tokens is not None:
+            frontier, budget_constrained = self._apply_budget_constraint(frontier, budget_tokens)
+
+        # Calculate total estimated tokens
+        total_tokens = sum(task.get("estimated_tokens", 1000.0) for task in frontier)
+
+        logger.info(
+            "Computed execution plan: %d tasks, %.0f total tokens, " "budget_constrained=%s",
+            len(frontier),
+            total_tokens,
+            budget_constrained,
+        )
+
+        return ExecutionPlanResult(
+            ordered_tasks=frontier,
+            total_estimated_tokens=total_tokens,
+            dependency_graph=dag,
+            pareto_frontier_count=frontier_count,
+            budget_constrained=budget_constrained,
+        )
+
+    def _build_dependency_dag(self, tasks: list[dict[str, Any]]) -> dict[str, list[str]]:
+        """Build directed acyclic graph of task dependencies.
+
+        Args:
+            tasks: List of task dictionaries.
+
+        Returns:
+            Dictionary mapping task IDs to lists of tasks they depend on.
+        """
+        dag: dict[str, list[str]] = defaultdict(list)
+
+        # Create a set of valid task IDs
+        valid_ids: set[str] = set()
+        for task in tasks:
+            task_id = task.get("imp_id", task.get("id", ""))
+            if task_id:
+                valid_ids.add(task_id)
+
+        # Build the dependency graph
+        for task in tasks:
+            task_id = task.get("imp_id", task.get("id", ""))
+            if not task_id:
+                continue
+
+            depends_on = task.get("depends_on", [])
+            if isinstance(depends_on, str):
+                depends_on = [depends_on]
+
+            # Only include valid dependencies
+            valid_deps = [dep for dep in depends_on if dep in valid_ids]
+            dag[task_id] = valid_deps
+
+            # Ensure all task IDs are in the DAG (even with no dependencies)
+            if task_id not in dag:
+                dag[task_id] = []
+
+        return dict(dag)
+
+    def _topological_sort(
+        self,
+        tasks: list[dict[str, Any]],
+        dag: dict[str, list[str]],
+    ) -> list[dict[str, Any]]:
+        """Sort tasks respecting dependency order using Kahn's algorithm.
+
+        Args:
+            tasks: List of task dictionaries.
+            dag: Dependency graph (task -> list of dependencies).
+
+        Returns:
+            List of tasks sorted in valid execution order.
+        """
+        # Create task lookup by ID
+        task_by_id: dict[str, dict[str, Any]] = {}
+        for task in tasks:
+            task_id = task.get("imp_id", task.get("id", ""))
+            if task_id:
+                task_by_id[task_id] = task
+
+        # Calculate in-degrees (how many tasks depend on each task)
+        # We need to invert the DAG for in-degree calculation
+        # dag[A] = [B] means A depends on B
+        # For topological sort, we need B to come before A
+        dependents: dict[str, list[str]] = defaultdict(list)
+        in_degree: dict[str, int] = {task_id: 0 for task_id in dag}
+
+        for task_id, dependencies in dag.items():
+            in_degree[task_id] = len(dependencies)
+            for dep in dependencies:
+                dependents[dep].append(task_id)
+
+        # Find all tasks with no dependencies (in-degree 0)
+        queue: deque[str] = deque()
+        for task_id, degree in in_degree.items():
+            if degree == 0:
+                queue.append(task_id)
+
+        sorted_ids: list[str] = []
+        while queue:
+            # Process tasks with same in-degree by priority score
+            # to get deterministic, priority-aware ordering
+            current_batch = list(queue)
+            queue.clear()
+
+            # Sort current batch by priority score (higher first)
+            current_batch.sort(
+                key=lambda tid: self.calculate_priority_score(task_by_id.get(tid, {})),
+                reverse=True,
+            )
+
+            for task_id in current_batch:
+                sorted_ids.append(task_id)
+
+                # Reduce in-degree of dependent tasks
+                for dependent in dependents[task_id]:
+                    in_degree[dependent] -= 1
+                    if in_degree[dependent] == 0:
+                        queue.append(dependent)
+
+        # Handle any remaining tasks (cycle detection)
+        # Add them at the end, sorted by priority
+        remaining = [tid for tid in dag if tid not in sorted_ids]
+        if remaining:
+            logger.warning(
+                "Detected dependency cycle involving %d tasks: %s",
+                len(remaining),
+                remaining[:5],
+            )
+            remaining.sort(
+                key=lambda tid: self.calculate_priority_score(task_by_id.get(tid, {})),
+                reverse=True,
+            )
+            sorted_ids.extend(remaining)
+
+        # Convert IDs back to tasks
+        return [task_by_id[tid] for tid in sorted_ids if tid in task_by_id]
+
+    def _compute_pareto_frontier(
+        self, tasks: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]], int]:
+        """Find Pareto-optimal tasks balancing cost vs impact.
+
+        A task is Pareto-optimal if no other task has both lower cost
+        AND higher impact. This preserves the execution order from
+        topological sort while annotating which tasks are on the frontier.
+
+        Args:
+            tasks: List of tasks in topologically sorted order.
+
+        Returns:
+            Tuple of (tasks in original order, count of frontier tasks).
+            The original topological order is preserved to respect dependencies.
+        """
+        if not tasks:
+            return [], 0
+
+        # Calculate cost and impact for each task
+        task_metrics: list[tuple[dict[str, Any], float, float]] = []
+        for task in tasks:
+            cost = task.get("estimated_tokens", 1000.0)
+            impact = self.calculate_priority_score(task)
+            task_metrics.append((task, cost, impact))
+
+        # Find Pareto frontier
+        # A point is dominated if another point has lower cost AND higher impact
+        frontier_count = 0
+
+        for i, (task_i, cost_i, impact_i) in enumerate(task_metrics):
+            is_dominated = False
+            for j, (task_j, cost_j, impact_j) in enumerate(task_metrics):
+                if i == j:
+                    continue
+                # task_j dominates task_i if:
+                # cost_j <= cost_i AND impact_j >= impact_i
+                # AND at least one strict inequality
+                if cost_j <= cost_i and impact_j >= impact_i:
+                    if cost_j < cost_i or impact_j > impact_i:
+                        is_dominated = True
+                        break
+
+            if not is_dominated:
+                frontier_count += 1
+
+        logger.debug(
+            "Pareto frontier: %d of %d tasks",
+            frontier_count,
+            len(tasks),
+        )
+
+        # Return tasks in original topological order to respect dependencies
+        return tasks, frontier_count
+
+    def _apply_budget_constraint(
+        self,
+        tasks: list[dict[str, Any]],
+        budget_tokens: float,
+    ) -> tuple[list[dict[str, Any]], bool]:
+        """Filter tasks to fit within token budget.
+
+        Args:
+            tasks: List of tasks (ideally Pareto-sorted).
+            budget_tokens: Maximum total token budget.
+
+        Returns:
+            Tuple of (filtered tasks, whether constraint was applied).
+        """
+        if budget_tokens <= 0:
+            return [], True
+
+        selected: list[dict[str, Any]] = []
+        current_cost = 0.0
+
+        for task in tasks:
+            task_cost = task.get("estimated_tokens", 1000.0)
+            if current_cost + task_cost <= budget_tokens:
+                selected.append(task)
+                current_cost += task_cost
+            else:
+                # Budget exceeded, stop adding tasks
+                break
+
+        was_constrained = len(selected) < len(tasks)
+
+        if was_constrained:
+            logger.info(
+                "Budget constraint: selected %d of %d tasks (%.0f of %.0f tokens)",
+                len(selected),
+                len(tasks),
+                current_cost,
+                budget_tokens,
+            )
+
+        return selected, was_constrained

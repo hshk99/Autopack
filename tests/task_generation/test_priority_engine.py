@@ -15,6 +15,7 @@ import pytest
 
 from autopack.task_generation.priority_engine import (
     COMPLEXITY_KEYWORDS,
+    ExecutionPlanResult,
     PriorityEngine,
 )
 
@@ -491,3 +492,302 @@ class TestIntegrationWithLearningDb:
 
         # First should be telemetry (higher success rate)
         assert "TEL" in ranked[0]["imp_id"]
+
+
+class TestBuildDependencyDag:
+    """Tests for DAG construction from task dependencies."""
+
+    def test_build_dag_no_dependencies(self, priority_engine: PriorityEngine) -> None:
+        """Test DAG with no dependencies."""
+        tasks = [
+            {"imp_id": "IMP-001", "title": "Task 1"},
+            {"imp_id": "IMP-002", "title": "Task 2"},
+        ]
+        dag = priority_engine._build_dependency_dag(tasks)
+        assert dag["IMP-001"] == []
+        assert dag["IMP-002"] == []
+
+    def test_build_dag_with_dependencies(self, priority_engine: PriorityEngine) -> None:
+        """Test DAG with explicit dependencies."""
+        tasks = [
+            {"imp_id": "IMP-001", "title": "Task 1"},
+            {"imp_id": "IMP-002", "title": "Task 2", "depends_on": ["IMP-001"]},
+            {"imp_id": "IMP-003", "title": "Task 3", "depends_on": ["IMP-001", "IMP-002"]},
+        ]
+        dag = priority_engine._build_dependency_dag(tasks)
+        assert dag["IMP-001"] == []
+        assert dag["IMP-002"] == ["IMP-001"]
+        assert set(dag["IMP-003"]) == {"IMP-001", "IMP-002"}
+
+    def test_build_dag_filters_invalid_deps(self, priority_engine: PriorityEngine) -> None:
+        """Test that invalid dependencies are filtered out."""
+        tasks = [
+            {"imp_id": "IMP-001", "title": "Task 1"},
+            {"imp_id": "IMP-002", "title": "Task 2", "depends_on": ["IMP-001", "INVALID"]},
+        ]
+        dag = priority_engine._build_dependency_dag(tasks)
+        assert dag["IMP-002"] == ["IMP-001"]
+
+    def test_build_dag_string_dependency(self, priority_engine: PriorityEngine) -> None:
+        """Test DAG handles string dependency (not list)."""
+        tasks = [
+            {"imp_id": "IMP-001", "title": "Task 1"},
+            {"imp_id": "IMP-002", "title": "Task 2", "depends_on": "IMP-001"},
+        ]
+        dag = priority_engine._build_dependency_dag(tasks)
+        assert dag["IMP-002"] == ["IMP-001"]
+
+
+class TestTopologicalSort:
+    """Tests for topological sorting of tasks."""
+
+    def test_topological_sort_no_deps(self, priority_engine: PriorityEngine) -> None:
+        """Test sort with no dependencies - sorted by priority."""
+        tasks = [
+            {"imp_id": "IMP-001", "title": "Low priority", "priority": "low"},
+            {"imp_id": "IMP-002", "title": "High priority", "priority": "high"},
+            {"imp_id": "IMP-003", "title": "Critical priority", "priority": "critical"},
+        ]
+        dag = priority_engine._build_dependency_dag(tasks)
+        sorted_tasks = priority_engine._topological_sort(tasks, dag)
+
+        # Should be sorted by priority score
+        assert len(sorted_tasks) == 3
+        # Critical should come first
+        assert sorted_tasks[0]["imp_id"] == "IMP-003"
+        # High should come second
+        assert sorted_tasks[1]["imp_id"] == "IMP-002"
+        # Low should come last
+        assert sorted_tasks[2]["imp_id"] == "IMP-001"
+
+    def test_topological_sort_with_deps(self, priority_engine: PriorityEngine) -> None:
+        """Test sort respects dependencies."""
+        tasks = [
+            {"imp_id": "IMP-001", "title": "Task 1", "priority": "low"},
+            {
+                "imp_id": "IMP-002",
+                "title": "Task 2",
+                "priority": "critical",
+                "depends_on": ["IMP-001"],
+            },
+        ]
+        dag = priority_engine._build_dependency_dag(tasks)
+        sorted_tasks = priority_engine._topological_sort(tasks, dag)
+
+        # IMP-001 must come before IMP-002 despite lower priority
+        assert len(sorted_tasks) == 2
+        assert sorted_tasks[0]["imp_id"] == "IMP-001"
+        assert sorted_tasks[1]["imp_id"] == "IMP-002"
+
+    def test_topological_sort_chain(self, priority_engine: PriorityEngine) -> None:
+        """Test sort with dependency chain."""
+        tasks = [
+            {"imp_id": "IMP-003", "title": "Task 3", "depends_on": ["IMP-002"]},
+            {"imp_id": "IMP-001", "title": "Task 1"},
+            {"imp_id": "IMP-002", "title": "Task 2", "depends_on": ["IMP-001"]},
+        ]
+        dag = priority_engine._build_dependency_dag(tasks)
+        sorted_tasks = priority_engine._topological_sort(tasks, dag)
+
+        ids = [t["imp_id"] for t in sorted_tasks]
+        assert ids.index("IMP-001") < ids.index("IMP-002")
+        assert ids.index("IMP-002") < ids.index("IMP-003")
+
+    def test_topological_sort_empty(self, priority_engine: PriorityEngine) -> None:
+        """Test sort with empty list."""
+        sorted_tasks = priority_engine._topological_sort([], {})
+        assert sorted_tasks == []
+
+
+class TestParetoFrontier:
+    """Tests for Pareto frontier computation."""
+
+    def test_pareto_frontier_single_task(self, priority_engine: PriorityEngine) -> None:
+        """Test frontier with single task."""
+        tasks = [{"imp_id": "IMP-001", "estimated_tokens": 1000, "priority": "high"}]
+        frontier, count = priority_engine._compute_pareto_frontier(tasks)
+        assert len(frontier) == 1
+        assert count == 1
+
+    def test_pareto_frontier_all_on_frontier(self, priority_engine: PriorityEngine) -> None:
+        """Test when all tasks are on the frontier."""
+        # High cost high impact vs low cost low impact
+        tasks = [
+            {"imp_id": "IMP-001", "estimated_tokens": 5000, "priority": "critical"},
+            {"imp_id": "IMP-002", "estimated_tokens": 500, "priority": "low"},
+        ]
+        frontier, count = priority_engine._compute_pareto_frontier(tasks)
+        assert count == 2  # Both on frontier
+
+    def test_pareto_frontier_dominated_task(self, priority_engine: PriorityEngine) -> None:
+        """Test that dominated tasks are identified."""
+        # IMP-002 is dominated: same cost but lower priority
+        tasks = [
+            {"imp_id": "IMP-001", "estimated_tokens": 1000, "priority": "critical"},
+            {"imp_id": "IMP-002", "estimated_tokens": 1000, "priority": "low"},
+        ]
+        frontier, count = priority_engine._compute_pareto_frontier(tasks)
+        assert count == 1  # Only one on frontier
+        # Order is preserved from input (topological order)
+        assert len(frontier) == 2
+        assert frontier[0]["imp_id"] == "IMP-001"
+        assert frontier[1]["imp_id"] == "IMP-002"
+
+    def test_pareto_frontier_empty(self, priority_engine: PriorityEngine) -> None:
+        """Test frontier with empty list."""
+        frontier, count = priority_engine._compute_pareto_frontier([])
+        assert frontier == []
+        assert count == 0
+
+
+class TestBudgetConstraint:
+    """Tests for budget constraint application."""
+
+    def test_budget_constraint_within_budget(self, priority_engine: PriorityEngine) -> None:
+        """Test when all tasks fit within budget."""
+        tasks = [
+            {"imp_id": "IMP-001", "estimated_tokens": 500},
+            {"imp_id": "IMP-002", "estimated_tokens": 500},
+        ]
+        filtered, constrained = priority_engine._apply_budget_constraint(tasks, 2000)
+        assert len(filtered) == 2
+        assert not constrained
+
+    def test_budget_constraint_exceeds_budget(self, priority_engine: PriorityEngine) -> None:
+        """Test when tasks exceed budget."""
+        tasks = [
+            {"imp_id": "IMP-001", "estimated_tokens": 500},
+            {"imp_id": "IMP-002", "estimated_tokens": 500},
+            {"imp_id": "IMP-003", "estimated_tokens": 500},
+        ]
+        filtered, constrained = priority_engine._apply_budget_constraint(tasks, 800)
+        assert len(filtered) == 1
+        assert constrained
+
+    def test_budget_constraint_exact_fit(self, priority_engine: PriorityEngine) -> None:
+        """Test when tasks exactly fit budget."""
+        tasks = [
+            {"imp_id": "IMP-001", "estimated_tokens": 500},
+            {"imp_id": "IMP-002", "estimated_tokens": 500},
+        ]
+        filtered, constrained = priority_engine._apply_budget_constraint(tasks, 1000)
+        assert len(filtered) == 2
+        assert not constrained
+
+    def test_budget_constraint_zero_budget(self, priority_engine: PriorityEngine) -> None:
+        """Test with zero budget."""
+        tasks = [{"imp_id": "IMP-001", "estimated_tokens": 500}]
+        filtered, constrained = priority_engine._apply_budget_constraint(tasks, 0)
+        assert len(filtered) == 0
+        assert constrained
+
+    def test_budget_constraint_default_tokens(self, priority_engine: PriorityEngine) -> None:
+        """Test default token cost when not specified."""
+        tasks = [{"imp_id": "IMP-001"}]  # No estimated_tokens
+        filtered, constrained = priority_engine._apply_budget_constraint(tasks, 1500)
+        assert len(filtered) == 1  # Default is 1000
+
+
+class TestComputeExecutionPlan:
+    """Tests for the main compute_execution_plan method."""
+
+    def test_compute_execution_plan_empty(self, priority_engine: PriorityEngine) -> None:
+        """Test execution plan with empty tasks."""
+        result = priority_engine.compute_execution_plan([])
+        assert isinstance(result, ExecutionPlanResult)
+        assert result.ordered_tasks == []
+        assert result.total_estimated_tokens == 0.0
+        assert result.dependency_graph == {}
+        assert result.pareto_frontier_count == 0
+        assert result.budget_constrained is False
+
+    def test_compute_execution_plan_basic(self, priority_engine: PriorityEngine) -> None:
+        """Test basic execution plan computation."""
+        tasks = [
+            {"imp_id": "IMP-001", "title": "Task 1", "estimated_tokens": 500, "priority": "high"},
+            {"imp_id": "IMP-002", "title": "Task 2", "estimated_tokens": 300, "priority": "low"},
+        ]
+        result = priority_engine.compute_execution_plan(tasks)
+        assert isinstance(result, ExecutionPlanResult)
+        assert len(result.ordered_tasks) == 2
+        assert result.total_estimated_tokens == 800.0
+
+    def test_compute_execution_plan_with_deps(self, priority_engine: PriorityEngine) -> None:
+        """Test execution plan respects dependencies."""
+        tasks = [
+            {"imp_id": "IMP-001", "title": "Foundation", "priority": "low"},
+            {
+                "imp_id": "IMP-002",
+                "title": "Feature",
+                "priority": "critical",
+                "depends_on": ["IMP-001"],
+            },
+        ]
+        result = priority_engine.compute_execution_plan(tasks)
+
+        # IMP-001 must come before IMP-002
+        ids = [t["imp_id"] for t in result.ordered_tasks]
+        assert ids.index("IMP-001") < ids.index("IMP-002")
+
+    def test_compute_execution_plan_with_budget(self, priority_engine: PriorityEngine) -> None:
+        """Test execution plan with budget constraint."""
+        tasks = [
+            {"imp_id": "IMP-001", "estimated_tokens": 500, "priority": "high"},
+            {"imp_id": "IMP-002", "estimated_tokens": 500, "priority": "medium"},
+            {"imp_id": "IMP-003", "estimated_tokens": 500, "priority": "low"},
+        ]
+        result = priority_engine.compute_execution_plan(tasks, budget_tokens=800)
+        assert result.budget_constrained is True
+        assert len(result.ordered_tasks) < 3
+        assert result.total_estimated_tokens <= 800
+
+    def test_compute_execution_plan_complex(self, priority_engine: PriorityEngine) -> None:
+        """Test complex execution plan with deps and budget."""
+        tasks = [
+            {"imp_id": "IMP-001", "title": "Base", "estimated_tokens": 200, "priority": "medium"},
+            {
+                "imp_id": "IMP-002",
+                "title": "Feature A",
+                "estimated_tokens": 300,
+                "priority": "high",
+                "depends_on": ["IMP-001"],
+            },
+            {
+                "imp_id": "IMP-003",
+                "title": "Feature B",
+                "estimated_tokens": 400,
+                "priority": "high",
+                "depends_on": ["IMP-001"],
+            },
+            {
+                "imp_id": "IMP-004",
+                "title": "Integration",
+                "estimated_tokens": 500,
+                "priority": "critical",
+                "depends_on": ["IMP-002", "IMP-003"],
+            },
+        ]
+        result = priority_engine.compute_execution_plan(tasks)
+
+        # Verify dependency order
+        ids = [t["imp_id"] for t in result.ordered_tasks]
+        assert ids.index("IMP-001") < ids.index("IMP-002")
+        assert ids.index("IMP-001") < ids.index("IMP-003")
+        assert ids.index("IMP-002") < ids.index("IMP-004")
+        assert ids.index("IMP-003") < ids.index("IMP-004")
+
+    def test_compute_execution_plan_result_attributes(
+        self, priority_engine: PriorityEngine
+    ) -> None:
+        """Test all attributes of ExecutionPlanResult."""
+        tasks = [
+            {"imp_id": "IMP-001", "estimated_tokens": 500, "priority": "high"},
+        ]
+        result = priority_engine.compute_execution_plan(tasks)
+
+        assert hasattr(result, "ordered_tasks")
+        assert hasattr(result, "total_estimated_tokens")
+        assert hasattr(result, "dependency_graph")
+        assert hasattr(result, "pareto_frontier_count")
+        assert hasattr(result, "budget_constrained")
+        assert result.pareto_frontier_count >= 1

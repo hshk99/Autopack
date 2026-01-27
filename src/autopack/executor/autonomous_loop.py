@@ -482,9 +482,16 @@ class AutonomousLoop:
         self._parallel_phases_executed = 0
         self._parallel_phases_skipped = 0
 
-        # IMP-LOOP-001: Unified feedback pipeline for self-improvement loop
+        # IMP-LOOP-011: Feedback pipeline is MANDATORY for self-improvement loop
         self._feedback_pipeline: Optional[FeedbackPipeline] = None
-        self._feedback_pipeline_enabled = getattr(settings, "feedback_pipeline_enabled", True)
+        _settings_value = getattr(settings, "feedback_pipeline_enabled", True)
+        if not _settings_value:
+            logger.warning(
+                "[IMP-LOOP-011] feedback_pipeline_enabled=False in settings. "
+                "FeedbackPipeline is critical for the self-improvement loop. "
+                "Override ignored - pipeline remains enabled."
+            )
+        self._feedback_pipeline_enabled = True  # Always enabled
 
         # IMP-INT-001: Telemetry aggregation tracking for self-improvement loop
         # Controls how often aggregate_telemetry() is called during execution
@@ -657,6 +664,13 @@ class AutonomousLoop:
         logger.info(
             f"[IMP-LOOP-001] FeedbackPipeline initialized "
             f"(run_id={run_id}, project_id={project_id})"
+        )
+
+        # IMP-LOOP-011: Emit loop health status for observability
+        logger.info(
+            "[IMP-LOOP-011] Self-improvement loop health: feedback_pipeline=ENABLED, "
+            f"telemetry_analyzer={'ENABLED' if self._telemetry_analyzer else 'DISABLED'}, "
+            f"memory_service={'ENABLED' if memory_service else 'DISABLED'}"
         )
 
     def _get_feedback_pipeline_context(self, phase_type: str, phase_goal: str) -> str:

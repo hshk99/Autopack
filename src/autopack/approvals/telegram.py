@@ -186,9 +186,9 @@ Reply with /approve {request.request_id} or /deny {request.request_id}"""
             True if sent successfully
         """
         try:
-            import urllib.request
-            import urllib.parse
             import json
+            import urllib.parse
+            import urllib.request
 
             url = f"https://api.telegram.org/bot{self._bot_token}/sendMessage"
             data = urllib.parse.urlencode(

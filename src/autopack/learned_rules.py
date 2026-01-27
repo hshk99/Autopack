@@ -86,6 +86,94 @@ class LearnedRule:
         return cls(**data)
 
 
+@dataclass
+class LearnedRuleAging:
+    """Tracks aging and decay of learned rules.
+
+    Monitors how outdated learned rules become over time and triggers
+    automatic deprecation when decay exceeds threshold.
+
+    Attributes:
+        rule_id: Unique identifier of the rule being tracked
+        creation_date: When the rule was first created
+        last_validation_date: When the rule was last validated as still useful
+        age_days: Number of days since creation
+        validation_failures: Count of times rule failed to prevent issues
+        decay_score: 0.0 = fresh, 1.0 = fully decayed
+    """
+
+    rule_id: str
+    creation_date: datetime
+    last_validation_date: datetime
+    age_days: int
+    validation_failures: int
+    decay_score: float  # 0.0 = fresh, 1.0 = fully decayed
+
+    def should_deprecate(self) -> bool:
+        """Check if rule should be deprecated (decay > 0.7).
+
+        Returns:
+            True if decay_score exceeds 0.7 threshold
+        """
+        return self.decay_score > 0.7
+
+    def calculate_decay(self) -> float:
+        """Calculate decay score based on age and validation failures.
+
+        Decay formula:
+        - Age factor: age_days / 365, capped at 0.5 (min 0.0)
+        - Failure factor: validation_failures * 0.1, capped at 0.5 (min 0.0)
+        - Total decay: age_factor + failure_factor, capped at 1.0
+
+        Returns:
+            Decay score between 0.0 and 1.0
+        """
+        age_factor = max(0.0, min(self.age_days / 365, 0.5))  # 0.0 to 0.5 from age
+        failure_factor = max(
+            0.0, min(self.validation_failures * 0.1, 0.5)
+        )  # 0.0 to 0.5 from failures
+        return min(age_factor + failure_factor, 1.0)
+
+    @classmethod
+    def from_rule(cls, rule: LearnedRule) -> "LearnedRuleAging":
+        """Create aging tracker from an existing LearnedRule.
+
+        Args:
+            rule: The LearnedRule to track
+
+        Returns:
+            LearnedRuleAging instance with calculated age and initial decay
+        """
+        creation_date = datetime.fromisoformat(rule.first_seen)
+        last_validation_date = datetime.fromisoformat(rule.last_seen)
+        now = datetime.now(timezone.utc)
+        age_days = (now - creation_date).days
+
+        aging = cls(
+            rule_id=rule.rule_id,
+            creation_date=creation_date,
+            last_validation_date=last_validation_date,
+            age_days=age_days,
+            validation_failures=0,  # Start with no failures
+            decay_score=0.0,
+        )
+        # Calculate initial decay based on age
+        aging.decay_score = aging.calculate_decay()
+        return aging
+
+    def record_validation_failure(self) -> None:
+        """Record a validation failure and recalculate decay."""
+        self.validation_failures += 1
+        self.decay_score = self.calculate_decay()
+
+    def record_validation_success(self) -> None:
+        """Record a successful validation, updating last validation date."""
+        self.last_validation_date = datetime.now(timezone.utc)
+        # Successful validations can reduce failure impact over time
+        # but age factor still applies
+        self.decay_score = self.calculate_decay()
+
+
 # ============================================================================
 # Stage 0A: Run-Local Hints
 # ============================================================================

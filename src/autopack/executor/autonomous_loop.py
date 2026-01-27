@@ -15,20 +15,21 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from autopack.archive_consolidator import log_build_event
-from autopack.autonomous.budgeting import (
-    BudgetExhaustedError,
-    get_budget_remaining_pct,
-    is_budget_exhausted,
-)
-from autopack.autonomy.parallelism_gate import ParallelismPolicyGate, ScopeBasedParallelismChecker
+from autopack.autonomous.budgeting import (BudgetExhaustedError,
+                                           get_budget_remaining_pct,
+                                           is_budget_exhausted)
+from autopack.autonomy.parallelism_gate import (ParallelismPolicyGate,
+                                                ScopeBasedParallelismChecker)
 from autopack.config import settings
-from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
+from autopack.database import (SESSION_HEALTH_CHECK_INTERVAL,
+                               ensure_session_healthy)
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
 from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
-from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
+from autopack.telemetry.telemetry_to_memory_bridge import \
+    TelemetryToMemoryBridge
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
@@ -1792,7 +1793,8 @@ class AutonomousLoop:
 
     def _initialize_intention_loop(self):
         """Initialize intention-first loop for the run."""
-        from autopack.autonomous.executor_wiring import initialize_intention_first_loop
+        from autopack.autonomous.executor_wiring import \
+            initialize_intention_first_loop
         from autopack.intention_anchor.storage import IntentionAnchorStorage
 
         # IMP-ARCH-012: Load pending improvement tasks from self-improvement loop
@@ -1814,10 +1816,7 @@ class AutonomousLoop:
                 from datetime import datetime, timezone
 
                 from autopack.intention_anchor.models import (
-                    IntentionAnchor,
-                    IntentionBudgets,
-                    IntentionConstraints,
-                )
+                    IntentionAnchor, IntentionBudgets, IntentionConstraints)
 
                 intention_anchor = IntentionAnchor(
                     anchor_id=f"default-{self.executor.run_id}",
@@ -2080,6 +2079,20 @@ class AutonomousLoop:
                 if stop_reason in ("circuit_breaker_tripped", "stop_on_first_failure"):
                     break
 
+                # IMP-INT-005: Immediate cost check after parallel execution completes
+                # Check cost recommendations before waiting, to stop faster if budget is exceeded
+                parallel_cost = self._check_cost_recommendations()
+                if parallel_cost.should_pause:
+                    logger.warning(
+                        f"[IMP-INT-005] Cost pause triggered after parallel execution: "
+                        f"{parallel_cost.reason}. "
+                        f"Current spend: {parallel_cost.current_spend:,.0f} tokens. "
+                        f"Budget remaining: {parallel_cost.budget_remaining_pct:.1f}%"
+                    )
+                    self._pause_for_cost_limit(parallel_cost)
+                    stop_reason = "cost_limit_reached"
+                    break
+
                 # Skip to next iteration since we handled all phases in parallel
                 if iteration < max_iterations:
                     logger.info(f"Waiting {poll_interval}s before next phase...")
@@ -2226,6 +2239,20 @@ class AutonomousLoop:
                     )
                     stop_reason = "stop_on_first_failure"
                     break
+
+            # IMP-INT-005: Immediate cost check after phase completion
+            # Check cost recommendations before waiting, to stop faster if budget is exceeded
+            post_phase_cost = self._check_cost_recommendations()
+            if post_phase_cost.should_pause:
+                logger.warning(
+                    f"[IMP-INT-005] Cost pause triggered after phase {phase_id}: "
+                    f"{post_phase_cost.reason}. "
+                    f"Current spend: {post_phase_cost.current_spend:,.0f} tokens. "
+                    f"Budget remaining: {post_phase_cost.budget_remaining_pct:.1f}%"
+                )
+                self._pause_for_cost_limit(post_phase_cost)
+                stop_reason = "cost_limit_reached"
+                break
 
             # Wait before next iteration
             if iteration < effective_max_iterations:

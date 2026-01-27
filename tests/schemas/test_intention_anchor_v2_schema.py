@@ -6,12 +6,13 @@ Tests validate that:
 - Tests run offline and deterministically
 """
 
-import pytest
 from datetime import datetime, timezone
 
+import pytest
+
 from autopack.schema_validation import (
-    validate_intention_anchor_v2,
     SchemaValidationError,
+    validate_intention_anchor_v2,
 )
 
 

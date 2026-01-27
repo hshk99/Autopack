@@ -4,8 +4,9 @@ Validates that the BUILD-144 migration runbook exists and contains key sections.
 Lightweight string assertions to verify documentation completeness.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 
 class TestBuild144MigrationRunbookSmoke:
@@ -51,9 +52,9 @@ class TestBuild144MigrationRunbookSmoke:
         """Runbook references the correct migration script"""
         content = runbook_path.read_text(encoding="utf-8")
 
-        assert "scripts/migrations/add_total_tokens_build144.py" in content, (
-            "Runbook must reference migration script path"
-        )
+        assert (
+            "scripts/migrations/add_total_tokens_build144.py" in content
+        ), "Runbook must reference migration script path"
         assert "upgrade" in content, "Runbook must mention 'upgrade' command"
 
     def test_runbook_has_environment_variables(self, runbook_path):
@@ -70,9 +71,9 @@ class TestBuild144MigrationRunbookSmoke:
         content = runbook_path.read_text(encoding="utf-8")
 
         # Should have Python verification snippet
-        assert "from autopack.database import SessionLocal" in content, (
-            "Runbook should include Python verification code"
-        )
+        assert (
+            "from autopack.database import SessionLocal" in content
+        ), "Runbook should include Python verification code"
 
         # Should mention total_tokens column
         assert "total_tokens" in content.lower(), "Runbook must reference total_tokens column"
@@ -95,9 +96,9 @@ class TestBuild144MigrationRunbookSmoke:
         content = runbook_path.read_text(encoding="utf-8")
 
         # Should explain total-only recording
-        assert "total-only" in content.lower() or "total only" in content.lower(), (
-            "Runbook must explain total-only recording"
-        )
+        assert (
+            "total-only" in content.lower() or "total only" in content.lower()
+        ), "Runbook must explain total-only recording"
 
         # Should mention NULL handling
         assert "NULL" in content, "Runbook must explain NULL token splits"

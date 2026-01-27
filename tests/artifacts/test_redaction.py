@@ -1,14 +1,15 @@
 """Tests for artifact redaction."""
 
-import pytest
-from pathlib import Path
-import tempfile
 import json
+import tempfile
+from pathlib import Path
+
+import pytest
 
 from autopack.artifacts import (
-    RedactionPattern,
-    ArtifactRedactor,
     DEFAULT_REDACTION_PATTERNS,
+    ArtifactRedactor,
+    RedactionPattern,
 )
 from autopack.artifacts.redaction import RedactionCategory
 

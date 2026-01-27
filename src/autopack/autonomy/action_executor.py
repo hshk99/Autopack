@@ -12,15 +12,11 @@ import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional
 
-from .action_allowlist import (
-    ActionType,
-    ActionClassification,
-    classify_action,
-)
 from ..disk_space import check_disk_space
 from ..exceptions import DiskSpaceError
+from .action_allowlist import ActionClassification, ActionType, classify_action
 
 logger = logging.getLogger(__name__)
 

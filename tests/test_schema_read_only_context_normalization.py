@@ -6,6 +6,7 @@ whether legacy string format or new dict format is provided.
 """
 
 import pytest
+
 from autopack.schemas import PhaseCreate
 
 
@@ -380,7 +381,7 @@ class TestPhaseCreateReadOnlyContextNormalization:
     def test_normalization_at_api_boundary(self):
         """Test that normalization happens at API boundary (PhaseCreate instantiation)"""
         # This simulates what happens when API receives a RunStartRequest
-        from autopack.schemas import RunStartRequest, RunCreate, TierCreate
+        from autopack.schemas import RunCreate, RunStartRequest, TierCreate
 
         request = RunStartRequest(
             run=RunCreate(run_id="test-run"),

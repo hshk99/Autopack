@@ -88,20 +88,20 @@ def test_copy_paste_contracts_required_canonical_strings_exist():
         if "uvicorn autopack.main:app" in raw and "--port 8000" in raw:
             entrypoint_ok = True
             break
-    assert entrypoint_ok, (
-        "Canonical entrypoint missing (expected uvicorn autopack.main:app --port 8000)"
-    )
+    assert (
+        entrypoint_ok
+    ), "Canonical entrypoint missing (expected uvicorn autopack.main:app --port 8000)"
 
     # Canonical env template path must be present in CONFIG_GUIDE and PROJECT_INDEX.
-    assert "cp .env.example .env" in _read_text(config_guide), (
-        "CONFIG_GUIDE must include: cp .env.example .env"
-    )
-    assert "cp .env.example .env" in _read_text(project_index), (
-        "PROJECT_INDEX must include: cp .env.example .env"
-    )
+    assert "cp .env.example .env" in _read_text(
+        config_guide
+    ), "CONFIG_GUIDE must include: cp .env.example .env"
+    assert "cp .env.example .env" in _read_text(
+        project_index
+    ), "PROJECT_INDEX must include: cp .env.example .env"
 
     # Compose topology (if described in DEPLOYMENT) must include qdrant.
     dep_raw = _read_text(deployment)
-    assert "qdrant" in dep_raw, (
-        "DEPLOYMENT.md must mention qdrant (compose includes qdrant service)"
-    )
+    assert (
+        "qdrant" in dep_raw
+    ), "DEPLOYMENT.md must mention qdrant (compose includes qdrant service)"

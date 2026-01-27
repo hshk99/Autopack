@@ -7,8 +7,9 @@ Full API integration tests are in other test files.
 """
 
 import os
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 
 def test_consolidated_metrics_kill_switch_defaults_off():

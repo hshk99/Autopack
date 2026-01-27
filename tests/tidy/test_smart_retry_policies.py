@@ -8,16 +8,16 @@ Verifies that per-reason retry policies correctly control:
 - Escalation to needs_manual status
 """
 
+import sys
 import tempfile
 from pathlib import Path
 
 import pytest
-import sys
 
 # Add tidy scripts to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "tidy"))
 
-from pending_moves import PendingMovesQueue, RETRY_POLICIES
+from pending_moves import RETRY_POLICIES, PendingMovesQueue
 
 
 class TestSmartRetryPolicies:

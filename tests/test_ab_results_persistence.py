@@ -3,12 +3,13 @@
 Verifies that A/B test results are stored correctly with strict validity checks.
 """
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from autopack.models import Base, Run, Phase, PhaseState, RunState, ABTestResult
+from autopack.models import ABTestResult, Base, Phase, PhaseState, Run, RunState
 
 
 @pytest.fixture

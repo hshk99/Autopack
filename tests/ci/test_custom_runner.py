@@ -4,9 +4,10 @@ Validates that the custom CI runner correctly executes custom commands,
 handles timeouts, and persists logs.
 """
 
+import subprocess
 from pathlib import Path
 from unittest.mock import Mock, patch
-import subprocess
+
 import pytest
 
 from autopack.ci.custom_runner import CustomRunner

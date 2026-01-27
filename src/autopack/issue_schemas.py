@@ -9,7 +9,7 @@ Per §5 of v7 playbook:
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Issue(BaseModel):

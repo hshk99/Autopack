@@ -412,7 +412,10 @@ class TestGetApprovalServiceWithChain:
                 "TELEGRAM_CHAT_ID": "12345",
             },
         ):
-            from autopack.approvals.service import NoopApprovalService, get_approval_service
+            from autopack.approvals.service import (
+                NoopApprovalService,
+                get_approval_service,
+            )
 
             service = get_approval_service()
             assert isinstance(service, NoopApprovalService)

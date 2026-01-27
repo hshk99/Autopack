@@ -8,18 +8,21 @@ Tests:
 4. Coverage tracking fields are populated correctly
 """
 
-import pytest
-import tempfile
 import os
-from pathlib import Path
-from sqlalchemy import create_engine
 
 # Import migration functions
 import sys
+import tempfile
+from pathlib import Path
+
+import pytest
+from sqlalchemy import create_engine
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts" / "migrations"))
-from add_phase6_metrics_build146 import upgrade as base_upgrade, check_table_exists
-from add_phase6_p3_fields import upgrade as p3_upgrade, check_column_exists
+from add_phase6_metrics_build146 import check_table_exists
+from add_phase6_metrics_build146 import upgrade as base_upgrade
+from add_phase6_p3_fields import check_column_exists
+from add_phase6_p3_fields import upgrade as p3_upgrade
 
 
 def test_migration_idempotence():
@@ -99,9 +102,9 @@ def test_median_estimation_function():
     from autopack.database import Base
     from autopack.models import Run
     from autopack.usage_recorder import (
+        UsageEventData,
         estimate_doctor_tokens_avoided,
         record_usage,
-        UsageEventData,
     )
 
     # Use in-memory DB for test
@@ -164,10 +167,7 @@ def test_coverage_fields_populated():
     """Test that coverage fields are populated when recording metrics"""
     from autopack.database import Base
     from autopack.models import Run
-    from autopack.usage_recorder import (
-        record_phase6_metrics,
-        Phase6Metrics,
-    )
+    from autopack.usage_recorder import Phase6Metrics, record_phase6_metrics
 
     # Use in-memory DB for test
     test_engine = create_engine("sqlite:///:memory:")

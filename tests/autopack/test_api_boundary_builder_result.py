@@ -7,12 +7,13 @@ Tests the actual FastAPI boundary (not just Pydantic parsing) to ensure:
 - After P1.3 strictness flip: legacy payload → 422
 """
 
-from fastapi.testclient import TestClient
 from unittest.mock import MagicMock
-import pytest
 
-from autopack.main import app
+import pytest
+from fastapi.testclient import TestClient
+
 from autopack.database import get_db
+from autopack.main import app
 
 
 def mock_submit_builder_result_impl(run_id: str, phase_id: str, builder_result, db):
@@ -147,9 +148,9 @@ class TestBuilderResultBoundary:
         error_detail = response.json().get("detail", [])
 
         # Should report extra fields
-        assert any("extra" in str(item).lower() for item in error_detail), (
-            "422 response should indicate extra fields are forbidden"
-        )
+        assert any(
+            "extra" in str(item).lower() for item in error_detail
+        ), "422 response should indicate extra fields are forbidden"
 
     def test_missing_required_fields_422(self, client):
         """Missing required fields should return 422"""
@@ -168,9 +169,9 @@ class TestBuilderResultBoundary:
         error_detail = response.json().get("detail", [])
 
         # Should report missing 'status' field
-        assert any("status" in str(item).lower() for item in error_detail), (
-            "422 response should indicate missing 'status' field"
-        )
+        assert any(
+            "status" in str(item).lower() for item in error_detail
+        ), "422 response should indicate missing 'status' field"
 
     def test_invalid_field_type_422(self, client):
         """Invalid field types should return 422"""
@@ -190,9 +191,9 @@ class TestBuilderResultBoundary:
         error_detail = response.json().get("detail", [])
 
         # Should report type validation error for tokens_used
-        assert any("tokens_used" in str(item).lower() for item in error_detail), (
-            "422 response should indicate tokens_used type error"
-        )
+        assert any(
+            "tokens_used" in str(item).lower() for item in error_detail
+        ), "422 response should indicate tokens_used type error"
 
 
 if __name__ == "__main__":

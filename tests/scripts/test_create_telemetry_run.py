@@ -15,8 +15,9 @@ os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 import pytest
+
 from autopack.database import SessionLocal, engine
-from autopack.models import Run, Tier, Phase, RunState, TierState, PhaseState, Base
+from autopack.models import Base, Phase, PhaseState, Run, RunState, Tier, TierState
 
 
 @pytest.fixture(scope="function")

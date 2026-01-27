@@ -14,9 +14,9 @@ Deliverables manifest preview limit: When a manifest is present, it shows up to 
 to keep the prompt compact while ensuring path correctness.
 """
 
-import os
 import logging
-from typing import Dict, List, Optional, Any
+import os
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -642,7 +642,9 @@ def build_user_prompt(
             try:
                 scope_cfg = phase_spec.get("scope") or {}
                 try:
-                    from autopack.deliverables_validator import extract_deliverables_from_scope
+                    from autopack.deliverables_validator import (
+                        extract_deliverables_from_scope,
+                    )
 
                     deliverables_list = (
                         extract_deliverables_from_scope(scope_cfg)

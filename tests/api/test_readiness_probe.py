@@ -324,9 +324,8 @@ class TestLifespanIntegration:
     @pytest.mark.asyncio
     async def test_lifespan_records_db_init_failure(self):
         """Lifespan records DB init failure."""
-        from autopack.api.routes.health import _init_state
-
         from autopack.api.app import lifespan
+        from autopack.api.routes.health import _init_state
 
         mock_app = MagicMock()
 

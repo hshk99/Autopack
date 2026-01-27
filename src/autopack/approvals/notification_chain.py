@@ -35,6 +35,7 @@ from email.mime.text import MIMEText
 from typing import Any, Dict, List, Optional
 
 from autopack.utils import create_safe_error_message
+
 from .service import ApprovalRequest, ApprovalResult
 
 logger = logging.getLogger(__name__)

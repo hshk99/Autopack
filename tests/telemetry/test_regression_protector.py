@@ -1,14 +1,15 @@
 """Tests for ROAD-I: Regression Protection."""
 
-import pytest
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-import tempfile
+
+import pytest
 
 from autopack.telemetry.regression_protector import (
-    RegressionProtector,
     IssueFix,
     IssueType,
+    RegressionProtector,
     RegressionSeverity,
 )
 

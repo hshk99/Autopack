@@ -17,11 +17,11 @@ Related modules:
 - error_analysis.py: Provides error pattern detection
 """
 
-from dataclasses import dataclass
-from typing import Dict, Optional, Tuple, List, Any
 import logging
-import time
 import os
+import time
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
 from autopack.executor.error_analysis import ErrorAnalyzer
 
@@ -91,8 +91,9 @@ class ReplanTrigger:
     def _load_config_from_yaml(self):
         """Load replan configuration from config/models.yaml."""
         try:
-            import yaml
             from pathlib import Path
+
+            import yaml
 
             config_path = Path("config/models.yaml")
             if config_path.exists():

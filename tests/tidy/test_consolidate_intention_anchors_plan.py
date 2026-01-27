@@ -6,11 +6,11 @@ plans with stable idempotency hashes and NEVER writes to SOT ledgers.
 """
 
 import json
-import tempfile
-from pathlib import Path
 
 # Import the script functions directly
 import sys
+import tempfile
+from pathlib import Path
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "scripts" / "tidy"))
@@ -440,15 +440,15 @@ def test_run_plan_mode_no_sot_writes():
 
             # Check content unchanged
             current_content = file_path.read_text(encoding="utf-8")
-            assert current_content == original_state["content"], (
-                f"{file_path} content was modified!"
-            )
+            assert (
+                current_content == original_state["content"]
+            ), f"{file_path} content was modified!"
 
             # Check mtime unchanged
             current_mtime = file_path.stat().st_mtime
-            assert current_mtime == original_state["mtime"], (
-                f"{file_path} mtime changed (file was written to)!"
-            )
+            assert (
+                current_mtime == original_state["mtime"]
+            ), f"{file_path} mtime changed (file was written to)!"
 
 
 # =============================================================================

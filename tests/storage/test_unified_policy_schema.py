@@ -1,5 +1,6 @@
-import yaml
 from pathlib import Path
+
+import yaml
 
 from autopack.storage_optimizer.policy import load_policy
 

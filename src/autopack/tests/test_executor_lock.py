@@ -33,10 +33,11 @@ Alternative Coverage:
 """
 
 import os
-import pytest
+import sys
 import tempfile
 from pathlib import Path
-import sys
+
+import pytest
 
 from autopack.executor_lock import ExecutorLockManager
 

@@ -8,8 +8,8 @@ This is Stage 2 format per IMPLEMENTATION_PLAN3.md Phase 2.2.
 
 import json
 import logging
-from typing import Optional, Dict, Any
 from dataclasses import dataclass
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +71,8 @@ class StructuredEditParser:
         Returns:
             StructuredEditParseResult with parsed edit plan or error
         """
-        from autopack.structured_edits import EditPlan, EditOperation, EditOperationType
         from autopack.builder_config import BuilderOutputConfig
+        from autopack.structured_edits import EditOperation, EditOperationType, EditPlan
 
         if config is None:
             config = BuilderOutputConfig()

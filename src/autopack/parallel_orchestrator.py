@@ -24,14 +24,14 @@ Architecture:
 import asyncio
 import logging
 from dataclasses import dataclass
-from pathlib import Path
-from typing import List, Optional, Dict, Any, Callable
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional
 
-from .workspace_manager import WorkspaceManager
-from .executor_lock import ExecutorLockManager
 from .autonomy.parallelism_gate import ParallelismPolicyGate
+from .executor_lock import ExecutorLockManager
 from .intention_anchor.v2 import IntentionAnchorV2
+from .workspace_manager import WorkspaceManager
 
 logger = logging.getLogger(__name__)
 

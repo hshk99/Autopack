@@ -8,10 +8,10 @@ from pathlib import Path
 
 from autopack.patching.apply_engine import (
     ApplyResult,
-    execute_git_apply,
-    execute_manual_apply,
     _classify_patch_files,
     _extract_files_from_patch,
+    execute_git_apply,
+    execute_manual_apply,
 )
 
 # =============================================================================

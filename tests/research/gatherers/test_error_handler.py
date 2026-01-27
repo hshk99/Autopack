@@ -1,8 +1,10 @@
 """Tests for ErrorHandler module."""
 
+from unittest.mock import Mock, patch
+
 import pytest
 import requests
-from unittest.mock import Mock, patch
+
 from autopack.research.gatherers.error_handler import ErrorHandler
 
 

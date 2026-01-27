@@ -7,8 +7,8 @@ Handles posting Auditor review results to the Autopack API.
 import logging
 from typing import TYPE_CHECKING
 
-from autopack.llm_client import AuditorResult
 from autopack.debug_journal import log_error
+from autopack.llm_client import AuditorResult
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor

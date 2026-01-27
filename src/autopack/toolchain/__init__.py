@@ -5,11 +5,11 @@ for different programming languages and frameworks.
 """
 
 from .adapter import ToolchainAdapter, ToolchainDetectionResult
-from .python_adapter import PythonAdapter
-from .node_adapter import NodeAdapter
 from .go_adapter import GoAdapter
-from .rust_adapter import RustAdapter
 from .java_adapter import JavaAdapter
+from .node_adapter import NodeAdapter
+from .python_adapter import PythonAdapter
+from .rust_adapter import RustAdapter
 
 __all__ = [
     "ToolchainAdapter",

@@ -8,6 +8,7 @@ Critical for preventing silent prompt bloat from uncapped context assembly.
 """
 
 import pytest
+
 from autopack.memory.memory_service import MemoryService
 
 

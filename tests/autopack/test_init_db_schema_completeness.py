@@ -8,7 +8,9 @@ BUILD-145 P0: Ensures init_db() imports all usage_recorder ORM classes.
 """
 
 from unittest.mock import patch
+
 from sqlalchemy import create_engine, inspect
+
 from autopack.database import init_db
 
 

@@ -17,11 +17,9 @@ from __future__ import annotations
 import logging
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
-from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent, DiagnosticOutcome
-from autopack.diagnostics.probes import Probe, ProbeCommand, ProbeRunResult
-from autopack.diagnostics.goal_aware_decision import GoalAwareDecisionMaker
+from autopack.diagnostics.diagnostics_agent import DiagnosticOutcome, DiagnosticsAgent
 from autopack.diagnostics.diagnostics_models import (
     Decision,
     DecisionType,
@@ -30,6 +28,8 @@ from autopack.diagnostics.diagnostics_models import (
     InvestigationResult,
     PhaseSpec,
 )
+from autopack.diagnostics.goal_aware_decision import GoalAwareDecisionMaker
+from autopack.diagnostics.probes import Probe, ProbeCommand, ProbeRunResult
 from autopack.memory import MemoryService
 
 logger = logging.getLogger(__name__)

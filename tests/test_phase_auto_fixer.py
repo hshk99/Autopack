@@ -1,7 +1,7 @@
 from autopack.phase_auto_fixer import (
-    normalize_deliverables,
-    derive_scope_paths_from_deliverables,
     auto_fix_phase_scope,
+    derive_scope_paths_from_deliverables,
+    normalize_deliverables,
 )
 
 

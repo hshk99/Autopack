@@ -12,9 +12,9 @@ Integrates with:
 """
 
 import logging
-from enum import Enum
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from autopack.telemetry.analyzer import RankedIssue
 

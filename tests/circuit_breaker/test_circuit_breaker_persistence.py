@@ -4,10 +4,14 @@ Verifies that circuit breaker state is persisted to Redis and
 restored correctly after process restarts.
 """
 
-import pytest
 import fakeredis
+import pytest
 
-from src.autopack.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitState
+from src.autopack.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitState,
+)
 from src.autopack.circuit_breaker_persistence import CircuitBreakerPersistence
 from src.autopack.circuit_breaker_registry import CircuitBreakerRegistry
 

@@ -27,7 +27,11 @@ from autopack.scope_reduction import (
     ScopeReductionProposal,
     ScopeReductionRationale,
 )
-from autopack.stuck_handling import StuckHandlingPolicy, StuckReason, StuckResolutionDecision
+from autopack.stuck_handling import (
+    StuckHandlingPolicy,
+    StuckReason,
+    StuckResolutionDecision,
+)
 
 
 @pytest.fixture

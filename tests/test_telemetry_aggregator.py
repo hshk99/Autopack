@@ -2,8 +2,9 @@
 
 import json
 import sys
-import pytest
 from pathlib import Path
+
+import pytest
 
 # Add scripts/utility to path for importing telemetry_aggregator
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts" / "utility"))

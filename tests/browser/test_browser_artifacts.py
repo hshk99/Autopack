@@ -4,11 +4,8 @@ import json
 import tempfile
 from pathlib import Path
 
-from autopack.browser.artifacts import (
-    BrowserArtifactManager,
-    BrowserArtifactPolicy,
-)
 from autopack.artifacts import ArtifactClass
+from autopack.browser.artifacts import BrowserArtifactManager, BrowserArtifactPolicy
 
 
 class TestBrowserArtifactPolicy:

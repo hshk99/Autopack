@@ -10,12 +10,12 @@ Features:
 - Historical trend analysis
 """
 
+import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
-import json
 
 logger = logging.getLogger(__name__)
 

@@ -10,9 +10,10 @@ NOTE: Partially graduated - T1 prompt fixes implemented and passing (3 tests),
 T2 retry logic still aspirational (3 tests have function-level xfail markers).
 """
 
-import pytest
-from unittest.mock import Mock, patch
 from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
 
 # PARTIAL GRADUATION: Module-level xfail removed - T1 tests graduated (BUILD-146 Phase A P15)
 # T2 tests still have function-level xfail markers below

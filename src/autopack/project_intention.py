@@ -19,14 +19,15 @@ import hashlib
 import json
 import logging
 import warnings
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from .file_layout import RunFileLayout
+from .intention_anchor.v2 import IntentionAnchorV2
+from .intention_anchor.v2 import create_from_inputs as create_v2_anchor
 from .memory.memory_service import MemoryService
-from .intention_anchor.v2 import IntentionAnchorV2, create_from_inputs as create_v2_anchor
 
 logger = logging.getLogger(__name__)
 

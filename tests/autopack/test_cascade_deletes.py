@@ -14,15 +14,15 @@ from sqlalchemy.pool import StaticPool
 
 from autopack.database import Base
 from autopack.models import (
-    Run,
+    ABTestResult,
+    GovernanceRequest,
     Phase,
+    Run,
+    SOTRetrievalEvent,
     Tier,
     TierState,
-    TokenEstimationV2Event,
     TokenBudgetEscalationEvent,
-    SOTRetrievalEvent,
-    GovernanceRequest,
-    ABTestResult,
+    TokenEstimationV2Event,
 )
 
 

@@ -27,9 +27,10 @@ def api_client(tmp_path):
     os.environ["DATABASE_URL"] = f"sqlite:///{test_db}"
 
     # Recreate database engine with test DATABASE_URL
-    import autopack.database
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+
+    import autopack.database
 
     autopack.database.engine = create_engine(
         f"sqlite:///{test_db}",
@@ -42,8 +43,9 @@ def api_client(tmp_path):
     )
 
     # Initialize database with tables
-    from autopack.database import init_db
     from unittest.mock import patch
+
+    from autopack.database import init_db
 
     with patch("autopack.config.settings") as mock_settings:
         mock_settings.db_bootstrap_enabled = True
@@ -140,9 +142,9 @@ class TestOpenAPINotCheckedIn:
     def test_openapi_strategy_doc_exists(self):
         """Verify the OpenAPI strategy documentation exists."""
         strategy_doc = REPO_ROOT / "docs" / "api" / "OPENAPI_STRATEGY.md"
-        assert strategy_doc.exists(), (
-            f"Missing {strategy_doc}. This document defines the runtime-canonical OpenAPI strategy."
-        )
+        assert (
+            strategy_doc.exists()
+        ), f"Missing {strategy_doc}. This document defines the runtime-canonical OpenAPI strategy."
 
 
 class TestOpenAPIVersionConsistency:

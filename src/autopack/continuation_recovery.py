@@ -7,10 +7,10 @@ Per TOKEN_BUDGET_ANALYSIS_REVISED.md: "Continuation is cheaper and faster than r
 GPT-5.2 Priority: HIGHEST - recovers 95% of truncation failures.
 """
 
-from dataclasses import dataclass
-from typing import Optional, List, Tuple
-import re
 import logging
+import re
+from dataclasses import dataclass
+from typing import List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

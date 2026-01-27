@@ -2,8 +2,9 @@
 
 import asyncio
 import logging
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from autopack.error_recovery import ErrorRecoverySystem
 
@@ -62,6 +63,7 @@ class TestSyncContextDocumentation:
     def test_error_recovery_network_fix_documented(self):
         """_fix_network_error time.sleep should be documented."""
         import inspect
+
         from autopack import error_recovery
 
         source = inspect.getsource(error_recovery.ErrorRecoverySystem._fix_network_error)
@@ -71,6 +73,7 @@ class TestSyncContextDocumentation:
     def test_error_recovery_execute_with_retry_documented(self):
         """execute_with_retry time.sleep should be documented."""
         import inspect
+
         from autopack import error_recovery
 
         source = inspect.getsource(error_recovery.ErrorRecoverySystem.execute_with_retry)
@@ -80,6 +83,7 @@ class TestSyncContextDocumentation:
     def test_autonomous_loop_documented(self):
         """autonomous_loop time.sleep should be documented."""
         import inspect
+
         from autopack.executor import autonomous_loop
 
         source = inspect.getsource(autonomous_loop.AutonomousLoop._adaptive_sleep)

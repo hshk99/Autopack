@@ -1,8 +1,9 @@
 """Tests for WorkspaceManager (P2.0 parallel runs)."""
 
-import pytest
 import shutil
 import subprocess
+
+import pytest
 
 from autopack.workspace_manager import WorkspaceManager
 

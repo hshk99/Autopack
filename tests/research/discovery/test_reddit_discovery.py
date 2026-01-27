@@ -1,7 +1,12 @@
 """Tests for Reddit Discovery."""
 
 from unittest.mock import Mock, patch
-from autopack.research.discovery.reddit_discovery import RedditDiscovery, RedditPost, RedditComment
+
+from autopack.research.discovery.reddit_discovery import (
+    RedditComment,
+    RedditDiscovery,
+    RedditPost,
+)
 
 
 class TestRedditDiscovery:

@@ -4,10 +4,10 @@ IMP-029: Ensures all model selection goes through centralized routing
 and configuration is loaded from config/models.yaml.
 """
 
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 import yaml
 
 
@@ -68,26 +68,26 @@ class TestErrorRecoveryUsesConfig:
 
     def test_error_recovery_uses_config_cheap_model(self):
         """error_recovery.DOCTOR_CHEAP_MODEL should match config."""
-        from src.autopack.error_recovery import DOCTOR_CHEAP_MODEL
         from src.autopack.config_loader import doctor_config
+        from src.autopack.error_recovery import DOCTOR_CHEAP_MODEL
 
         assert DOCTOR_CHEAP_MODEL == doctor_config.cheap_model
 
     def test_error_recovery_uses_config_strong_model(self):
         """error_recovery.DOCTOR_STRONG_MODEL should match config."""
-        from src.autopack.error_recovery import DOCTOR_STRONG_MODEL
         from src.autopack.config_loader import doctor_config
+        from src.autopack.error_recovery import DOCTOR_STRONG_MODEL
 
         assert DOCTOR_STRONG_MODEL == doctor_config.strong_model
 
     def test_error_recovery_uses_config_thresholds(self):
         """error_recovery thresholds should match config."""
+        from src.autopack.config_loader import doctor_config
         from src.autopack.error_recovery import (
-            DOCTOR_MIN_CONFIDENCE_FOR_CHEAP,
             DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
             DOCTOR_MAX_BUILDER_ATTEMPTS_BEFORE_COMPLEX,
+            DOCTOR_MIN_CONFIDENCE_FOR_CHEAP,
         )
-        from src.autopack.config_loader import doctor_config
 
         assert DOCTOR_MIN_CONFIDENCE_FOR_CHEAP == doctor_config.min_confidence_for_cheap
         assert DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO == doctor_config.health_budget_near_limit_ratio
@@ -98,11 +98,11 @@ class TestErrorRecoveryUsesConfig:
 
     def test_error_recovery_uses_config_risk_categories(self):
         """error_recovery risk categories should match config."""
+        from src.autopack.config_loader import doctor_config
         from src.autopack.error_recovery import (
             DOCTOR_HIGH_RISK_CATEGORIES,
             DOCTOR_LOW_RISK_CATEGORIES,
         )
-        from src.autopack.config_loader import doctor_config
 
         assert DOCTOR_HIGH_RISK_CATEGORIES == set(doctor_config.high_risk_categories)
         assert DOCTOR_LOW_RISK_CATEGORIES == set(doctor_config.low_risk_categories)
@@ -247,9 +247,9 @@ class TestNoHardcodedModelsInErrorRecovery:
 
         # Check that the model assignments reference _doctor_config
         # and don't have literal string assignments
-        assert "_doctor_config.cheap_model" in source, (
-            "DOCTOR_CHEAP_MODEL should reference _doctor_config.cheap_model"
-        )
-        assert "_doctor_config.strong_model" in source, (
-            "DOCTOR_STRONG_MODEL should reference _doctor_config.strong_model"
-        )
+        assert (
+            "_doctor_config.cheap_model" in source
+        ), "DOCTOR_CHEAP_MODEL should reference _doctor_config.cheap_model"
+        assert (
+            "_doctor_config.strong_model" in source
+        ), "DOCTOR_STRONG_MODEL should reference _doctor_config.strong_model"

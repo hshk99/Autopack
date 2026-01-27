@@ -13,11 +13,12 @@ This policy ensures:
 - Coordination with Tidy system
 """
 
-import yaml
+import fnmatch
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
-from dataclasses import dataclass
-import fnmatch
+
+import yaml
 
 
 @dataclass

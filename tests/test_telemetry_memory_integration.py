@@ -6,11 +6,13 @@ Tests verify:
 3. Integration in autonomous_loop.py works end-to-end
 """
 
-import pytest
 from unittest.mock import Mock, patch
-from src.autopack.telemetry.analyzer import TelemetryAnalyzer, RankedIssue
-from src.autopack.memory.memory_service import MemoryService
+
+import pytest
+
 from src.autopack.executor.autonomous_loop import AutonomousLoop
+from src.autopack.memory.memory_service import MemoryService
+from src.autopack.telemetry.analyzer import RankedIssue, TelemetryAnalyzer
 
 
 class TestTelemetryAnalyzerMemoryIntegration:

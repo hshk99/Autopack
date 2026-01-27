@@ -6,8 +6,9 @@ These tests verify that:
 3. Unauthenticated requests are rejected with 401
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 def _create_mock_user(username: str = "test_user", user_id: int = 1):
@@ -104,8 +105,9 @@ class TestGovernanceEndpointRequiresAuth:
 
     def test_endpoint_has_get_current_user_dependency(self):
         """IMP-SEC-005: Verify endpoint uses get_current_user dependency."""
-        from autopack.api.routes.governance import approve_governance_request
         import inspect
+
+        from autopack.api.routes.governance import approve_governance_request
 
         # Get the function signature
         sig = inspect.signature(approve_governance_request)
@@ -116,19 +118,20 @@ class TestGovernanceEndpointRequiresAuth:
 
         # Verify it has a default (the Depends() call)
         param = params["current_user"]
-        assert param.default is not inspect.Parameter.empty, (
-            "current_user must have a Depends() default"
-        )
+        assert (
+            param.default is not inspect.Parameter.empty
+        ), "current_user must have a Depends() default"
 
     def test_endpoint_does_not_accept_user_id_parameter(self):
         """IMP-SEC-005: Verify endpoint no longer accepts user_id as parameter."""
-        from autopack.api.routes.governance import approve_governance_request
         import inspect
+
+        from autopack.api.routes.governance import approve_governance_request
 
         sig = inspect.signature(approve_governance_request)
         params = sig.parameters
 
         # Verify user_id is NOT in parameters (security fix)
-        assert "user_id" not in params, (
-            "Endpoint must NOT accept user_id parameter - this would allow authorization bypass"
-        )
+        assert (
+            "user_id" not in params
+        ), "Endpoint must NOT accept user_id parameter - this would allow authorization bypass"

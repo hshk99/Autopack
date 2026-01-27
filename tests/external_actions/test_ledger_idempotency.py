@@ -6,15 +6,11 @@ Validates gap analysis requirements 6.1 and 6.9:
 """
 
 import pytest
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from autopack.database import Base
-from autopack.external_actions import (
-    ExternalActionStatus,
-    ExternalActionLedger,
-)
+from autopack.external_actions import ExternalActionLedger, ExternalActionStatus
 
 
 @pytest.fixture

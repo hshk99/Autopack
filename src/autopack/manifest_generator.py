@@ -48,11 +48,11 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from autopack.repo_scanner import RepoScanner
-from autopack.pattern_matcher import PatternMatcher, MatchResult
+from autopack.pattern_matcher import MatchResult, PatternMatcher
 from autopack.preflight_validator import PreflightValidator
+from autopack.repo_scanner import RepoScanner
 
 logger = logging.getLogger(__name__)
 
@@ -423,6 +423,7 @@ class ManifestGenerator:
             category: Phase category (backend, frontend, tests, etc.)
         """
         from datetime import datetime, timezone
+
         from autopack.token_estimator import TokenEstimator
 
         try:
@@ -521,7 +522,9 @@ class ManifestGenerator:
             if existing_deliverables_raw.strip():
                 it = existing_deliverables_raw.strip()
                 try:
-                    from autopack.deliverables_validator import sanitize_deliverable_path
+                    from autopack.deliverables_validator import (
+                        sanitize_deliverable_path,
+                    )
 
                     it = sanitize_deliverable_path(it)
                 except Exception:

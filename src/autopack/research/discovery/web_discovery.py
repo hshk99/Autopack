@@ -5,7 +5,8 @@ This module defines the WebDiscovery class, which utilizes web scraping and sear
 to gather information from various online sources relevant to research topics.
 """
 
-from typing import List, Dict
+from typing import Dict, List
+
 import requests
 from bs4 import BeautifulSoup
 

@@ -1,10 +1,11 @@
 """Integration tests for full research pipeline."""
 
-import pytest
 from unittest.mock import patch
 
-from autopack.research.orchestrator import ResearchOrchestrator
+import pytest
+
 from autopack.research.models import ResearchQuery
+from autopack.research.orchestrator import ResearchOrchestrator
 
 
 class TestFullResearchPipeline:

@@ -6,10 +6,10 @@ These rules are then injected into Builder/Auditor prompts to prevent recurring 
 This module implements Phase 1.1-1.3 of the Debug Journal System (ref5.md).
 """
 
+import logging
 import re
 from pathlib import Path
-from typing import List, Dict, Optional
-import logging
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

@@ -66,11 +66,7 @@ from .telemetry import (
     load_and_render_for_builder_with_telemetry,
     load_and_render_for_doctor_with_telemetry,
 )
-from .v2 import (
-    IntentionAnchorV2,
-    create_from_inputs,
-    validate_pivot_completeness,
-)
+from .v2 import IntentionAnchorV2, create_from_inputs, validate_pivot_completeness
 
 __all__ = [
     # Models

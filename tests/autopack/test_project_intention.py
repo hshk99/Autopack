@@ -14,15 +14,14 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-
+from autopack.file_layout import RunFileLayout
 from autopack.project_intention import (
+    INTENTION_SCHEMA_VERSION,
+    MAX_INTENTION_ANCHOR_CHARS,
     ProjectIntention,
     ProjectIntentionManager,
     create_and_store_intention,
-    MAX_INTENTION_ANCHOR_CHARS,
-    INTENTION_SCHEMA_VERSION,
 )
-from autopack.file_layout import RunFileLayout
 
 
 class TestProjectIntention:

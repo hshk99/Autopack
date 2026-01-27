@@ -7,10 +7,10 @@ Exposes:
 - DiagnosticsAgent: orchestrates probes, evidence capture, and hypothesis ledger.
 """
 
-from .command_runner import GovernedCommandRunner, CommandResult
-from .probes import ProbeLibrary, Probe, ProbeCommand, ProbeRunResult
+from .command_runner import CommandResult, GovernedCommandRunner
+from .diagnostics_agent import DiagnosticOutcome, DiagnosticsAgent
 from .hypothesis import Hypothesis, HypothesisLedger
-from .diagnostics_agent import DiagnosticsAgent, DiagnosticOutcome
+from .probes import Probe, ProbeCommand, ProbeLibrary, ProbeRunResult
 
 __all__ = [
     "CommandResult",

@@ -3,14 +3,15 @@
 Tests the deliverables inference logic that prevents category mismatches.
 """
 
-import pytest
 from pathlib import Path
 from unittest.mock import Mock
 
+import pytest
+
 from autopack.manifest_generator import ManifestGenerator
-from autopack.repo_scanner import RepoScanner
 from autopack.pattern_matcher import PatternMatcher
 from autopack.preflight_validator import PreflightValidator
+from autopack.repo_scanner import RepoScanner
 
 
 @pytest.fixture

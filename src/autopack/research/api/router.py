@@ -18,12 +18,14 @@ import logging
 import os
 from datetime import datetime
 from functools import wraps
+from typing import List
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
-from typing import List
-from .schemas import ResearchSession, CreateResearchSession
+
 from autopack.sql_sanitizer import SQLSanitizer
+
+from .schemas import CreateResearchSession, ResearchSession
 
 logger = logging.getLogger(__name__)
 

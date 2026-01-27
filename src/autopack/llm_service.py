@@ -37,20 +37,20 @@ def estimate_tokens(text: str, *, chars_per_token: float = 4.0) -> int:
     return max(1, int(len(text) / chars_per_token))
 
 
+from .dual_auditor import DualAuditor
+from .error_recovery import (
+    DoctorContextSummary,
+    DoctorRequest,
+    DoctorResponse,
+    choose_doctor_model,
+)
+from .exceptions import ScopeReductionError
+from .llm import doctor
+from .llm.client_resolution import resolve_client_and_model
 from .llm_client import AuditorResult, BuilderResult
 from .model_router import ModelRouter
 from .quality_gate import QualityGate, integrate_with_auditor
 from .usage_recorder import LlmUsageEvent
-from .error_recovery import (
-    DoctorRequest,
-    DoctorResponse,
-    DoctorContextSummary,
-    choose_doctor_model,
-)
-from .dual_auditor import DualAuditor
-from .exceptions import ScopeReductionError
-from .llm.client_resolution import resolve_client_and_model
-from .llm import doctor
 
 # Import OpenAI clients with graceful fallback
 try:
@@ -85,7 +85,7 @@ GLMAuditorClient = None  # type: ignore[assignment]
 
 # Import Gemini clients with graceful fallback
 try:
-    from .gemini_clients import GeminiBuilderClient, GeminiAuditorClient
+    from .gemini_clients import GeminiAuditorClient, GeminiBuilderClient
 
     GEMINI_AVAILABLE = True
 except ImportError:

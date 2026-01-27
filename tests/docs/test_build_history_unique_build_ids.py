@@ -14,8 +14,8 @@ Coverage:
 - INDEX BUILD IDs are subset of section BUILD IDs (optional, for future)
 """
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 

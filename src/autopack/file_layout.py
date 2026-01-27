@@ -11,7 +11,7 @@ BUILD-145 P2: Extended artifact-first substitution support:
 """
 
 from pathlib import Path
-from typing import Optional, List, Sequence
+from typing import List, Optional, Sequence
 
 from .config import settings
 

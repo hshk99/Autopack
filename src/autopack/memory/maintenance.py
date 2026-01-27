@@ -9,15 +9,15 @@ Provides:
 """
 
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from .faiss_store import FaissStore
 from .memory_service import (
-    COLLECTION_RUN_SUMMARIES,
-    COLLECTION_ERRORS_CI,
     COLLECTION_DOCTOR_HINTS,
+    COLLECTION_ERRORS_CI,
     COLLECTION_PLANNING,
+    COLLECTION_RUN_SUMMARIES,
     _load_memory_config,
 )
 
@@ -243,6 +243,7 @@ def run_maintenance(
 def main():
     """CLI entry point: python -m autopack.memory.maintenance --project-id autopack"""
     import argparse
+
     from .memory_service import MemoryService
 
     cfg = _load_memory_config()

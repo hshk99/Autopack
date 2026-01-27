@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 from scripts.ci.check_windows_console_unicode import (
     PRAGMA_ALLOW,
     UNICODE_ARROW_CHARS,

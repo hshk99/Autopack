@@ -10,12 +10,12 @@ Key features:
 - Identifies missing, misplaced, or extra files
 """
 
-import logging
 import json
-import re
+import logging
 import os
+import re
 from pathlib import Path
-from typing import Dict, List, Set, Tuple, Optional, Any
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 

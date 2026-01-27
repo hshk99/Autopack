@@ -13,10 +13,10 @@ structured implementation.
 
 import json
 import re
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-from enum import Enum
 
 from autopack.llm_service import LlmService
 
@@ -568,9 +568,7 @@ Analyze the phase now:
                     (
                         0
                         if phase_map[pid].feasibility == FeasibilityLevel.CAN_IMPLEMENT
-                        else 1
-                        if phase_map[pid].feasibility == FeasibilityLevel.RISKY
-                        else 2
+                        else 1 if phase_map[pid].feasibility == FeasibilityLevel.RISKY else 2
                     ),
                     phase_map[pid].complexity_score,
                 )

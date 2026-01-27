@@ -5,12 +5,12 @@ and content changes. It reduces complexity in governed_apply.py by separating
 validation concerns.
 """
 
-import logging
-import hashlib
 import ast
+import hashlib
+import logging
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Tuple, Optional, Set
+from typing import Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 

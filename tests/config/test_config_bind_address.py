@@ -9,10 +9,11 @@ We use monkeypatch to set env vars before creating Settings instances.
 """
 
 import os
+
 import pytest
 from pydantic import ValidationError
 
-from autopack.config import Settings, _LOCAL_ADDRESSES
+from autopack.config import _LOCAL_ADDRESSES, Settings
 
 
 @pytest.fixture(autouse=True)

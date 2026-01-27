@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import MagicMock
+
 from autopack.research.validators.recency_validator import RecencyValidator
 
 

@@ -4,15 +4,16 @@ Validates that parallel execution requires anchor by default and
 policy-checked API is the default entrypoint.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from autopack.autonomy.parallelism_gate import ParallelismPolicyViolation
 from autopack.parallel_orchestrator import (
-    ParallelRunOrchestrator,
     ParallelRunConfig,
+    ParallelRunOrchestrator,
     execute_parallel_runs,
 )
-from autopack.autonomy.parallelism_gate import ParallelismPolicyViolation
 
 
 class TestParallelExecutionRequiresAnchor:
@@ -87,10 +88,11 @@ class TestPolicyCheckedAsDefault:
     async def test_deprecated_method_emits_warning(self):
         """Deprecated execute_parallel_with_policy_check should emit warning."""
         from datetime import datetime, timezone
+
         from autopack.intention_anchor.v2 import (
             IntentionAnchorV2,
-            PivotIntentions,
             ParallelismIsolationIntention,
+            PivotIntentions,
         )
 
         config = ParallelRunConfig(max_concurrent_runs=3)

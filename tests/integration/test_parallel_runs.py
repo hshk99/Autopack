@@ -11,28 +11,28 @@ IMP-TEST-001: Uses proper synchronization primitives instead of arbitrary sleep(
 calls to prevent flaky tests from race conditions.
 """
 
+import shutil
+import subprocess
+import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 import pytest
-from pathlib import Path
-import subprocess
-import shutil
-import sys
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from autopack.workspace_manager import WorkspaceManager
-from autopack.workspace_lease import WorkspaceLease
-from autopack.test_baseline_tracker import TestBaselineTracker
 from autopack.executor_lock import ExecutorLockManager
+from autopack.test_baseline_tracker import TestBaselineTracker
+from autopack.workspace_lease import WorkspaceLease
+from autopack.workspace_manager import WorkspaceManager
 
 # Import synchronization utilities from conftest
 from tests.integration.conftest import (
+    DEFAULT_THREAD_TIMEOUT,
     ThreadSyncPoint,
     thread_wait_for_condition,
-    DEFAULT_THREAD_TIMEOUT,
 )
 
 
@@ -231,10 +231,11 @@ def test_custom_autonomous_runs_dir_respected(git_repo, tmp_path):
     leak into the worktree-local .autonomous_runs directory.
     """
     import os
+
+    from autopack import config
+    from autopack.break_glass_repair import BreakGlassRepair
     from autopack.file_layout import RunFileLayout
     from autopack.learned_rules import _get_run_hints_file
-    from autopack.break_glass_repair import BreakGlassRepair
-    from autopack import config
 
     # Set custom AUTONOMOUS_RUNS_DIR
     custom_runs_dir = tmp_path / "custom_runs"
@@ -254,9 +255,9 @@ def test_custom_autonomous_runs_dir_respected(git_repo, tmp_path):
         layout.ensure_diagnostics_dirs()
 
         # Verify base directory is under custom_runs_dir
-        assert str(layout.base_dir).startswith(str(custom_runs_dir)), (
-            f"RunFileLayout base_dir {layout.base_dir} should start with {custom_runs_dir}"
-        )
+        assert str(layout.base_dir).startswith(
+            str(custom_runs_dir)
+        ), f"RunFileLayout base_dir {layout.base_dir} should start with {custom_runs_dir}"
 
         # Verify directories were created under custom location
         assert layout.base_dir.exists()
@@ -282,30 +283,30 @@ def test_custom_autonomous_runs_dir_respected(git_repo, tmp_path):
 
         # Test 3: Learned rules respects custom dir
         hints_file = _get_run_hints_file(run_id)
-        assert str(hints_file).startswith(str(custom_runs_dir)), (
-            f"Run hints file {hints_file} should be under {custom_runs_dir}"
-        )
+        assert str(hints_file).startswith(
+            str(custom_runs_dir)
+        ), f"Run hints file {hints_file} should be under {custom_runs_dir}"
 
         # Test 4: Break-glass repair log respects custom dir
         repair = BreakGlassRepair(database_url="sqlite:///:memory:")
-        assert str(repair.repair_log_path).startswith(str(custom_runs_dir)), (
-            f"Break-glass repair log {repair.repair_log_path} should be under {custom_runs_dir}"
-        )
+        assert str(repair.repair_log_path).startswith(
+            str(custom_runs_dir)
+        ), f"Break-glass repair log {repair.repair_log_path} should be under {custom_runs_dir}"
 
         # Test 5: TestBaselineTracker respects custom dir
         tracker = TestBaselineTracker(git_repo, run_id=run_id)
         # Normalize paths for comparison (handle Windows/Unix path separators)
         cache_dir_normalized = str(tracker.cache_dir).replace("\\", "/")
         custom_runs_normalized = str(custom_runs_dir).replace("\\", "/")
-        assert cache_dir_normalized.startswith(custom_runs_normalized), (
-            f"TestBaselineTracker cache_dir {tracker.cache_dir} should be under {custom_runs_dir}"
-        )
+        assert cache_dir_normalized.startswith(
+            custom_runs_normalized
+        ), f"TestBaselineTracker cache_dir {tracker.cache_dir} should be under {custom_runs_dir}"
 
         # CRITICAL: Verify NO artifacts created in default .autonomous_runs location
         default_location = git_repo / ".autonomous_runs" / run_id
-        assert not default_location.exists(), (
-            f"Artifacts LEAKED to default location {default_location} - this violates parallel runs isolation!"
-        )
+        assert (
+            not default_location.exists()
+        ), f"Artifacts LEAKED to default location {default_location} - this violates parallel runs isolation!"
 
         # Also verify no artifacts at project root .autonomous_runs
         default_root = Path(".autonomous_runs") / run_id
@@ -318,9 +319,9 @@ def test_custom_autonomous_runs_dir_respected(git_repo, tmp_path):
         # Verify all created artifacts are ONLY under custom_runs_dir
         if custom_runs_dir.exists():
             artifact_count = sum(1 for _ in custom_runs_dir.rglob("*") if _.is_file())
-            assert artifact_count > 0, (
-                "No artifacts were created - test might not be exercising the code"
-            )
+            assert (
+                artifact_count > 0
+            ), "No artifacts were created - test might not be exercising the code"
 
     finally:
         # Restore original settings

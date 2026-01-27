@@ -119,8 +119,9 @@ class TelemetryAnalyzer:
 
         # NEW: Persist to memory for future retrieval
         if self.memory_service and self.memory_service.enabled:
-            from autopack.telemetry.telemetry_to_memory_bridge import \
-                TelemetryToMemoryBridge
+            from autopack.telemetry.telemetry_to_memory_bridge import (
+                TelemetryToMemoryBridge,
+            )
 
             bridge = TelemetryToMemoryBridge(
                 self.memory_service, enabled=self._telemetry_to_memory_enabled
@@ -1008,8 +1009,9 @@ class TelemetryAnalyzer:
 
         # Persist to memory if available (same pattern as aggregate_telemetry)
         if self.memory_service and self.memory_service.enabled and ranked_issues:
-            from autopack.telemetry.telemetry_to_memory_bridge import \
-                TelemetryToMemoryBridge
+            from autopack.telemetry.telemetry_to_memory_bridge import (
+                TelemetryToMemoryBridge,
+            )
 
             bridge = TelemetryToMemoryBridge(
                 self.memory_service, enabled=self._telemetry_to_memory_enabled

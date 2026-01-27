@@ -6,15 +6,16 @@ Tests cover:
 - Telemetry recording
 """
 
-import pytest
 import json
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock
 
+import pytest
+
+from autopack.anthropic_clients import AnthropicBuilderClient
 from autopack.builder_config import BuilderOutputConfig
 from autopack.file_size_telemetry import FileSizeTelemetry
-from autopack.anthropic_clients import AnthropicBuilderClient
 
 
 class TestBuilderOutputConfig:
@@ -32,8 +33,8 @@ class TestBuilderOutputConfig:
 
     def test_from_yaml(self):
         """Test loading from YAML"""
-        import tempfile as tf
         import os
+        import tempfile as tf
 
         # Create temporary file
         fd, temp_path = tf.mkstemp(suffix=".yaml")

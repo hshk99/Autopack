@@ -3,15 +3,16 @@
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
 import pytest
 
 from autopack.auth.oauth_lifecycle import (
-    OAuthCredentialManager,
-    OAuthCredential,
     CredentialHealth,
     CredentialStatus,
-    RefreshResult,
+    OAuthCredential,
+    OAuthCredentialManager,
     RefreshAttemptResult,
+    RefreshResult,
     create_generic_oauth2_handler,
 )
 

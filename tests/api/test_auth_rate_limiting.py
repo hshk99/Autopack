@@ -31,9 +31,9 @@ class TestRateLimitDecorators:
 
         # Verify the endpoint signature includes Request parameter
         sig = inspect.signature(request_approval)
-        assert "request" in sig.parameters, (
-            "/approval/request should have request parameter for rate limiting"
-        )
+        assert (
+            "request" in sig.parameters
+        ), "/approval/request should have request parameter for rate limiting"
 
     def test_telegram_webhook_has_rate_limit_decorator(self):
         """Verify /telegram/webhook has @limiter.limit decorator."""
@@ -46,9 +46,9 @@ class TestRateLimitDecorators:
 
         # Verify Request parameter
         sig = inspect.signature(telegram_webhook)
-        assert "request" in sig.parameters, (
-            "/telegram/webhook should have request parameter for rate limiting"
-        )
+        assert (
+            "request" in sig.parameters
+        ), "/telegram/webhook should have request parameter for rate limiting"
 
     def test_oauth_refresh_has_rate_limit_decorator(self):
         """Verify /api/auth/oauth/refresh/{provider} has @limiter.limit decorator."""
@@ -61,9 +61,9 @@ class TestRateLimitDecorators:
 
         # Verify Request parameter
         sig = inspect.signature(refresh_credential)
-        assert "request" in sig.parameters, (
-            "/api/auth/oauth/refresh/{provider} should have request parameter for rate limiting"
-        )
+        assert (
+            "request" in sig.parameters
+        ), "/api/auth/oauth/refresh/{provider} should have request parameter for rate limiting"
 
     def test_oauth_reset_has_rate_limit_decorator(self):
         """Verify /api/auth/oauth/reset/{provider} has @limiter.limit decorator."""
@@ -76,9 +76,9 @@ class TestRateLimitDecorators:
 
         # Verify Request parameter
         sig = inspect.signature(reset_failure_count)
-        assert "request" in sig.parameters, (
-            "/api/auth/oauth/reset/{provider} should have request parameter for rate limiting"
-        )
+        assert (
+            "request" in sig.parameters
+        ), "/api/auth/oauth/reset/{provider} should have request parameter for rate limiting"
 
 
 class TestRateLimitConfiguration:
@@ -201,15 +201,15 @@ class TestRateLimitDocumentation:
         from autopack.auth.oauth_router import refresh_credential
 
         docstring = refresh_credential.__doc__ or ""
-        assert "rate limit" in docstring.lower(), (
-            "/api/auth/oauth/refresh/{provider} should document rate limiting"
-        )
+        assert (
+            "rate limit" in docstring.lower()
+        ), "/api/auth/oauth/refresh/{provider} should document rate limiting"
 
     def test_oauth_reset_documents_rate_limit(self):
         """Verify /api/auth/oauth/reset/{provider} docstring mentions rate limiting."""
         from autopack.auth.oauth_router import reset_failure_count
 
         docstring = reset_failure_count.__doc__ or ""
-        assert "rate limit" in docstring.lower(), (
-            "/api/auth/oauth/reset/{provider} should document rate limiting"
-        )
+        assert (
+            "rate limit" in docstring.lower()
+        ), "/api/auth/oauth/reset/{provider} should document rate limiting"

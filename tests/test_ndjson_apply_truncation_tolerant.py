@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def test_ndjson_apply_modify_missing_operations_is_noop():
-    from autopack.ndjson_format import NDJSONOperation, NDJSONApplier
+    from autopack.ndjson_format import NDJSONApplier, NDJSONOperation
 
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)

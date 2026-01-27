@@ -1,7 +1,8 @@
 """End-to-end integration tests for research system."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from autopack.autonomous.research_hooks import ResearchHooks, ResearchTriggerConfig
 from autopack.integrations.build_history_integrator import BuildHistoryIntegrator

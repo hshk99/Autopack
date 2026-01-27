@@ -10,13 +10,9 @@ Tests cover:
 - LearnedRuleAging decay monitoring (IMP-LOOP-013)
 """
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
-from autopack.learned_rules import (
-    LearnedRule,
-    LearnedRuleAging,
-    DiscoveryStage,
-)
+from autopack.learned_rules import DiscoveryStage, LearnedRule, LearnedRuleAging
 
 # ============================================================================
 # LearnedRuleAging Tests (IMP-LOOP-013)
@@ -239,9 +235,9 @@ class TestLearnedRuleAging:
                 validation_failures=0,
                 decay_score=decay_score,
             )
-            assert aging.should_deprecate() == expected_deprecate, (
-                f"decay_score={decay_score} should return {expected_deprecate}"
-            )
+            assert (
+                aging.should_deprecate() == expected_deprecate
+            ), f"decay_score={decay_score} should return {expected_deprecate}"
 
 
 class TestLearnedRuleAgingEdgeCases:

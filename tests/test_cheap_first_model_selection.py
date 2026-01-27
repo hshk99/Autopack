@@ -4,10 +4,10 @@ This module tests that non-critical tasks (docs, tests, etc.) use cheaper
 models first before escalating to more expensive models.
 """
 
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 import yaml
 
 

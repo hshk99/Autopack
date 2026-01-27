@@ -2,9 +2,10 @@
 
 import os
 import platform
-import pytest
 import threading
 import time
+
+import pytest
 
 from autopack.executor_lock import ExecutorLockManager
 

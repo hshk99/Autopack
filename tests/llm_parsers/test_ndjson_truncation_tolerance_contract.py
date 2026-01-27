@@ -12,11 +12,11 @@ This test suite validates the NDJSON parser contract with 10+ scenarios:
 Each test is table-driven to ensure comprehensive coverage.
 """
 
-import pytest
 import json
-from autopack.llm.parsers.anthropic.ndjson import (
-    NDJSONResponseParser,
-)
+
+import pytest
+
+from autopack.llm.parsers.anthropic.ndjson import NDJSONResponseParser
 
 
 class TestNDJSONTruncationToleranceContract:

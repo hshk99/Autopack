@@ -1,6 +1,7 @@
 """Tests for Competitive Intensity Framework"""
 
 import pytest
+
 from autopack.research.frameworks.competitive_intensity import CompetitiveIntensity
 
 

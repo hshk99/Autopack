@@ -14,6 +14,7 @@ Test coverage:
 """
 
 import os
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -33,9 +34,10 @@ def canonical_client(tmp_path):
     os.environ.pop("AUTOPACK_ENABLE_PHASE6_METRICS", None)
 
     # Recreate database engine with test DATABASE_URL
-    import autopack.database
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+
+    import autopack.database
 
     autopack.database.engine = create_engine(
         f"sqlite:///{test_db}",
@@ -48,8 +50,9 @@ def canonical_client(tmp_path):
     )
 
     # Initialize database with tables
-    from autopack.database import init_db
     from unittest.mock import patch
+
+    from autopack.database import init_db
 
     # Enable bootstrap mode to allow table creation on empty DB
     with patch("autopack.config.settings") as mock_settings:

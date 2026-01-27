@@ -9,9 +9,9 @@ Provides user-facing dashboard to monitor:
 """
 
 from autopack.roadk.dashboard_data import (
+    DashboardDataProvider,
     LoopHealthMetrics,
     TrendPoint,
-    DashboardDataProvider,
 )
 from autopack.roadk.meta_metrics_dashboard import MetaMetricsDashboard
 

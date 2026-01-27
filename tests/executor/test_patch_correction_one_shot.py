@@ -66,9 +66,7 @@ def test_correct_patch_once_returns_result():
 
 def test_correct_patch_once_records_evidence():
     """Correction attempt records evidence regardless of success/failure."""
-    from autopack.executor.patch_correction import (
-        correct_patch_once,
-    )
+    from autopack.executor.patch_correction import correct_patch_once
 
     original_patch = '{"data": {}}'
     validator_error = {
@@ -88,9 +86,7 @@ def test_correct_patch_once_records_evidence():
 
 def test_correct_patch_max_one_attempt():
     """Only one correction attempt is made per 422 event."""
-    from autopack.executor.patch_correction import (
-        PatchCorrectionTracker,
-    )
+    from autopack.executor.patch_correction import PatchCorrectionTracker
 
     tracker = PatchCorrectionTracker()
 

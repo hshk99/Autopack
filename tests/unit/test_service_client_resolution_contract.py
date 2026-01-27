@@ -6,15 +6,16 @@ of the full LlmService, using mock client objects.
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from autopack.service.client_resolution import (
     ClientRegistry,
     ClientResolutionResult,
+    get_fallback_chain,
     model_to_provider,
     resolve_client_and_model,
-    get_fallback_chain,
 )
 
 # ============================================================================

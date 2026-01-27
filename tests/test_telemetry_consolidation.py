@@ -10,12 +10,12 @@ Tests cover:
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from autopack.tidy.telemetry_consolidator import TelemetryConsolidator
 from autopack.memory.memory_service import MemoryService
+from autopack.tidy.telemetry_consolidator import TelemetryConsolidator
 
 
 @pytest.fixture

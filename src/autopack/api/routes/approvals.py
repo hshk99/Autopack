@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from autopack import models
-from autopack.api.deps import verify_api_key, verify_read_access, limiter
+from autopack.api.deps import limiter, verify_api_key, verify_read_access
 from autopack.database import get_db
 from autopack.notifications.telegram_notifier import answer_telegram_callback
 from autopack.notifications.telegram_webhook_security import (

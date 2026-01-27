@@ -14,8 +14,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.config import settings
 from autopack.autonomous_executor import AutonomousExecutor
+from autopack.config import settings
 from autopack.phase_proof import PhaseProofStorage
 from autopack.proof_metrics import ProofMetrics
 

@@ -1,9 +1,13 @@
 """Contract tests for autopilot_session_v1.schema.json."""
 
-import pytest
 from datetime import datetime, timezone
 
-from autopack.schema_validation import validate_autopilot_session_v1, SchemaValidationError
+import pytest
+
+from autopack.schema_validation import (
+    SchemaValidationError,
+    validate_autopilot_session_v1,
+)
 
 
 def test_minimal_valid_autopilot_session_v1():
@@ -251,9 +255,9 @@ def test_error_log_entry_missing_timestamp():
 def test_pydantic_model_roundtrip():
     """Test that AutopilotSessionV1 Pydantic model can roundtrip through schema validation."""
     from autopack.autonomy.models import (
+        ApprovalRequest,
         AutopilotSessionV1,
         ExecutionSummary,
-        ApprovalRequest,
     )
 
     session = AutopilotSessionV1(

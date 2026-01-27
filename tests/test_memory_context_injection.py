@@ -3,10 +3,11 @@
 Tests IMP-ARCH-002: Integrate Memory Context Retrieval into Executor Phase Loop
 """
 
-import pytest
 from unittest.mock import Mock
 
-from autopack.memory.context_injector import ContextInjector, ContextInjection
+import pytest
+
+from autopack.memory.context_injector import ContextInjection, ContextInjector
 from autopack.memory.memory_service import MemoryService
 
 

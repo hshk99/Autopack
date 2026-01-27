@@ -6,8 +6,9 @@ Verifies:
 - Duration calculation
 """
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
-from datetime import datetime, timezone, timedelta
 
 # Uses shared client, db_session fixtures from conftest.py
 

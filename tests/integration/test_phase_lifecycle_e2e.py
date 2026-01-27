@@ -10,18 +10,19 @@ These tests verify the complete phase execution lifecycle including:
 All tests are marked with @pytest.mark.aspirational for fast CI execution.
 """
 
-import pytest
 from datetime import datetime, timezone
 from unittest.mock import Mock
 
-from autopack.models import Phase, PhaseState, Run, RunState, Tier, TierState
-from autopack.executor.phase_state_manager import PhaseStateManager, StateUpdateRequest
+import pytest
+
 from autopack.executor.phase_orchestrator import (
-    PhaseOrchestrator,
     ExecutionContext,
+    PhaseOrchestrator,
     PhaseResult,
     create_default_time_watchdog,
 )
+from autopack.executor.phase_state_manager import PhaseStateManager, StateUpdateRequest
+from autopack.models import Phase, PhaseState, Run, RunState, Tier, TierState
 
 
 @pytest.fixture

@@ -12,11 +12,11 @@ Integrates with:
 """
 
 import logging
-from typing import Optional, Dict, Any, Callable
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Callable, Dict, Optional
 
-from .anomaly_detector import AnomalyAlert, AlertSeverity
+from .anomaly_detector import AlertSeverity, AnomalyAlert
 
 logger = logging.getLogger(__name__)
 

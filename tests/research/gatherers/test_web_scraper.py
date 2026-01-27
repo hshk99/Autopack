@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import patch
+
 from autopack.research.gatherers.web_scraper import WebScraper
 
 

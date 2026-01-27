@@ -11,11 +11,12 @@ Tests are marked xfail until the full enhanced API is implemented (EmbeddingMode
 and enhanced MemoryService methods).
 """
 
-import pytest
-import tempfile
 import shutil
+import tempfile
 from unittest.mock import Mock, patch
+
 import numpy as np
+import pytest
 
 pytestmark = [
     pytest.mark.skip(

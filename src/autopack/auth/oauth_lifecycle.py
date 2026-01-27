@@ -731,9 +731,9 @@ def create_generic_oauth2_handler(
     """
 
     def handler(cred: OAuthCredential) -> RefreshAttemptResult:
-        import urllib.request
-        import urllib.parse
         import urllib.error
+        import urllib.parse
+        import urllib.request
 
         data = {
             "grant_type": "refresh_token",

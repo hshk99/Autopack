@@ -19,6 +19,6 @@ Providers:
 - Trading broker execution
 """
 
-from .runner import IntegrationRunner, IntegrationResult
+from .runner import IntegrationResult, IntegrationRunner
 
 __all__ = ["IntegrationRunner", "IntegrationResult"]

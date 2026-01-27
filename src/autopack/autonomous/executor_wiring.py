@@ -273,7 +273,10 @@ def generate_scope_reduction_proposal(
     Returns:
         Validated ScopeReductionProposal, or None if generation/validation failed
     """
-    from autopack.scope_reduction import ScopeReductionProposal, validate_scope_reduction
+    from autopack.scope_reduction import (
+        ScopeReductionProposal,
+        validate_scope_reduction,
+    )
 
     # Generate prompt
     prompt = wiring.loop.build_scope_reduction_prompt(anchor, current_plan, budget_remaining)

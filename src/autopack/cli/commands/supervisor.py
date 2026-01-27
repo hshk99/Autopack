@@ -11,13 +11,13 @@ from typing import List
 
 import click
 
+from autopack.autonomy.parallelism_gate import ParallelismPolicyViolation
 from autopack.supervisor.api import (
-    run_parallel_supervised,
-    list_worktrees,
     cleanup_worktrees,
+    list_worktrees,
+    run_parallel_supervised,
 )
 from autopack.supervisor.parallel_run_supervisor import SupervisorError
-from autopack.autonomy.parallelism_gate import ParallelismPolicyViolation
 
 logger = logging.getLogger(__name__)
 

@@ -5,17 +5,17 @@ across the application.
 """
 
 import json
-import threading
-from pathlib import Path
-from typing import Dict, Optional, List, TYPE_CHECKING
-from dataclasses import dataclass
 import logging
+import threading
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from .circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
-    CircuitState,
     CircuitBreakerMetrics,
+    CircuitState,
 )
 
 if TYPE_CHECKING:

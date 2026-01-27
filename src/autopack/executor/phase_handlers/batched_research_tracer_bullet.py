@@ -38,14 +38,14 @@ def execute(
         Tuple of (success, status) where status is "COMPLETE", "FAILED", etc.
     """
     # Imports inside function to avoid circular imports and reduce import-time weight
-    from autopack.llm_client import BuilderResult
-    from autopack.governed_apply import GovernedApplyPath
     from autopack.deliverables_validator import (
         extract_deliverables_from_scope,
-        validate_new_file_diffs_have_complete_structure,
-        validate_deliverables,
         format_validation_feedback_for_builder,
+        validate_deliverables,
+        validate_new_file_diffs_have_complete_structure,
     )
+    from autopack.governed_apply import GovernedApplyPath
+    from autopack.llm_client import BuilderResult
 
     phase_id = phase.get("phase_id") or "research-tracer-bullet"
 
@@ -332,8 +332,8 @@ def execute(
         # Pre-apply JSON deliverable validation + repair (reuse existing helpers)
         try:
             from autopack.deliverables_validator import (
-                validate_new_json_deliverables_in_patch,
                 repair_empty_required_json_deliverables_in_patch,
+                validate_new_json_deliverables_in_patch,
             )
 
             ok_json, json_errors, _json_details = validate_new_json_deliverables_in_patch(

@@ -7,8 +7,9 @@ Part of PR-SVC-3 (Item 1.1 god file refactoring).
 """
 
 from unittest.mock import Mock
-from autopack.llm.doctor import execute_doctor, _parse_doctor_json
+
 from autopack.error_recovery import DoctorRequest, DoctorResponse
+from autopack.llm.doctor import _parse_doctor_json, execute_doctor
 
 
 def test_doctor_returns_json_only():

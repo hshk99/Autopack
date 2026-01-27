@@ -6,9 +6,10 @@ in production by default to prevent accidental secret exposure.
 """
 
 import os
-import pytest
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 
 class TestOAuthProductionHardening:
@@ -180,6 +181,6 @@ class TestOAuthHardeningDocumentation:
             content = f.read()
 
         # Check for OAuth hardening documentation
-        assert "OAUTH" in content.upper() or "oauth" in content.lower(), (
-            "DEPLOYMENT.md should mention OAuth credential handling"
-        )
+        assert (
+            "OAUTH" in content.upper() or "oauth" in content.lower()
+        ), "DEPLOYMENT.md should mention OAuth credential handling"

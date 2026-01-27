@@ -16,12 +16,13 @@ filesystem quirks without crashing or producing incorrect results.
 from __future__ import annotations
 
 import os
-import pytest
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 # Skip all tests on non-Windows platforms
 pytestmark = pytest.mark.skipif(
@@ -30,7 +31,7 @@ pytestmark = pytest.mark.skipif(
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from autopack.storage_optimizer.approval import hash_file, AuditLog
+from autopack.storage_optimizer.approval import AuditLog, hash_file
 
 
 @pytest.fixture

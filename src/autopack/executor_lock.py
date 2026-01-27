@@ -4,9 +4,9 @@ BUILD-048-T1: Process-Level Locking
 Prevents multiple executor instances from running concurrently for the same run-id.
 """
 
+import logging
 import os
 import socket
-import logging
 from pathlib import Path
 from typing import Optional
 

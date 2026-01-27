@@ -6,7 +6,7 @@ This test suite verifies the citation validation logic, particularly:
 3. Three-check validation system (quote in source, hash match, numeric validation)
 """
 
-from autopack.research.models.validators import Finding, CitationValidator
+from autopack.research.models.validators import CitationValidator, Finding
 
 
 class TestCitationValidatorTextNormalization:

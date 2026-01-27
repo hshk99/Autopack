@@ -6,10 +6,10 @@ Key principle: Never retry a request that fails deterministically with the same 
 Per BUILD-130 Phase 0: Circuit Breaker implementation.
 """
 
+import logging
 import random
 from enum import Enum
-from typing import Tuple, Optional
-import logging
+from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

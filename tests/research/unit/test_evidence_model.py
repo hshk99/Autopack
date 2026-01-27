@@ -1,9 +1,10 @@
 """Unit tests for evidence model and citation enforcement."""
 
-import pytest
 from datetime import datetime
 
-from autopack.research.models import Evidence, Citation, EvidenceQuality
+import pytest
+
+from autopack.research.models import Citation, Evidence, EvidenceQuality
 
 
 class TestEvidence:

@@ -17,21 +17,21 @@ Related modules:
 - replan_trigger.py: Handles replan actions recommended by Doctor
 """
 
-from dataclasses import dataclass
-from typing import Dict, Optional, Tuple, List, Any, Set
 import logging
 import os
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
 # Import Doctor types and constants
 try:
     from autopack.doctor import (
+        DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
+        DOCTOR_MIN_BUILDER_ATTEMPTS,
+        DoctorContextSummary,
         DoctorRequest,
         DoctorResponse,
-        DoctorContextSummary,
-        DOCTOR_MIN_BUILDER_ATTEMPTS,
-        DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
     )
 except ImportError:
     # Fallback if doctor module doesn't exist yet
@@ -396,8 +396,8 @@ class DoctorIntegration:
             return
 
         try:
-            from autopack.models import DoctorOutcomeEvent
             from autopack.database import SessionLocal
+            from autopack.models import DoctorOutcomeEvent
 
             db = SessionLocal()
             try:
@@ -450,9 +450,10 @@ class DoctorIntegration:
             return
 
         try:
-            from autopack.models import DoctorOutcomeEvent
-            from autopack.database import SessionLocal
             from sqlalchemy import desc
+
+            from autopack.database import SessionLocal
+            from autopack.models import DoctorOutcomeEvent
 
             db = SessionLocal()
             try:

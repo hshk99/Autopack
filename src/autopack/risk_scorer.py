@@ -31,10 +31,10 @@ Usage:
 
 import logging
 import re
-from pathlib import Path
-from typing import List, Dict, Optional, Set
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
+from typing import Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 

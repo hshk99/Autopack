@@ -1,12 +1,13 @@
 """Tests for context_budgeter with embedding cache."""
 
 from unittest.mock import patch
+
 from autopack.context_budgeter import (
-    select_files_for_context,
-    reset_embedding_cache,
-    get_embedding_stats,
-    set_cache_persistence,
     _lexical_score,
+    get_embedding_stats,
+    reset_embedding_cache,
+    select_files_for_context,
+    set_cache_persistence,
 )
 
 

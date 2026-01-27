@@ -15,11 +15,11 @@ State tracked:
 - last_attempt_timestamp: Timestamp of last attempt
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Any
-import logging
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -322,9 +322,10 @@ class PhaseStateManager:
             OptimisticLockError: If phase was modified by another process
         """
         try:
+            from sqlalchemy.exc import OperationalError
+
             from autopack.database import SessionLocal
             from autopack.models import Phase
-            from sqlalchemy.exc import OperationalError
 
             # Use session as context manager to ensure proper cleanup and transaction boundaries
             with SessionLocal() as db:
@@ -416,9 +417,11 @@ class PhaseStateManager:
             True if update successful, False otherwise
         """
         try:
-            from autopack.database import SessionLocal
-            from autopack.models import Phase, PhaseState as PhaseStateEnum
             from sqlalchemy.exc import OperationalError
+
+            from autopack.database import SessionLocal
+            from autopack.models import Phase
+            from autopack.models import PhaseState as PhaseStateEnum
 
             # Use session as context manager to ensure proper cleanup and transaction boundaries
             with SessionLocal() as db:
@@ -479,9 +482,11 @@ class PhaseStateManager:
             True if update successful, False otherwise
         """
         try:
-            from autopack.database import SessionLocal
-            from autopack.models import Phase, PhaseState as PhaseStateEnum
             from sqlalchemy.exc import OperationalError
+
+            from autopack.database import SessionLocal
+            from autopack.models import Phase
+            from autopack.models import PhaseState as PhaseStateEnum
 
             # Use session as context manager to ensure proper cleanup and transaction boundaries
             with SessionLocal() as db:

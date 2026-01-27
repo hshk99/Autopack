@@ -8,10 +8,11 @@ Tracks model performance by phase type and adjusts routing:
 
 import logging
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
 from datetime import datetime, timedelta, timezone
-from sqlalchemy.orm import Session
+from typing import Dict, Optional, Tuple
+
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

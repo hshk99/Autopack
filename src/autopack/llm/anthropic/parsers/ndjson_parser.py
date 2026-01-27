@@ -9,13 +9,13 @@ so if truncation occurs, all complete lines are still usable.
 
 import json
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from ....llm_client import BuilderResult
-from ....ndjson_format import NDJSONParser, NDJSONApplier
+from ....ndjson_format import NDJSONApplier, NDJSONParser
 
 logger = logging.getLogger(__name__)
 
@@ -327,8 +327,8 @@ class NDJSONParserWrapper:
     def _scan_for_structured_edit(self, sanitized: str) -> Optional[Dict]:
         """Scan for structured-edit JSON object in potentially malformed text."""
         try:
-            from json import JSONDecoder
             import ast
+            from json import JSONDecoder
 
             decoder = JSONDecoder()
             idx = 0

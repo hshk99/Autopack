@@ -18,11 +18,11 @@ import urllib.robotparser
 from dataclasses import dataclass
 from typing import Dict, Optional
 
-from ...exceptions import ValidationError, IntegrationError
-
 import requests
 
 from autopack.research.gatherers.content_extractor import ContentExtractor
+
+from ...exceptions import IntegrationError, ValidationError
 
 
 @dataclass(frozen=True)

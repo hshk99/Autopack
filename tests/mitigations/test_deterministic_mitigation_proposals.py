@@ -106,12 +106,12 @@ def test_mitigation_proposal_no_llm_required():
 
 def test_mitigation_proposal_written_run_locally():
     """Mitigation proposal is written to run-local path, not SOT."""
+    from autopack.file_layout import RunFileLayout
     from autopack.mitigations.deterministic_rules import (
         MitigationInputs,
         generate_mitigation_proposal,
         write_mitigation_proposal,
     )
-    from autopack.file_layout import RunFileLayout
 
     with tempfile.TemporaryDirectory() as tmpdir:
         layout = RunFileLayout("test-run-001", base_dir=Path(tmpdir))
@@ -237,12 +237,12 @@ def test_mitigation_proposal_sorted_output():
 
 def test_mitigation_no_sot_writes():
     """Mitigation generator never writes to SOT paths."""
+    from autopack.file_layout import RunFileLayout
     from autopack.mitigations.deterministic_rules import (
         MitigationInputs,
         generate_mitigation_proposal,
         write_mitigation_proposal,
     )
-    from autopack.file_layout import RunFileLayout
 
     with tempfile.TemporaryDirectory() as tmpdir:
         layout = RunFileLayout("test-run-001", base_dir=Path(tmpdir))
@@ -262,6 +262,6 @@ def test_mitigation_no_sot_writes():
 
         for prefix in forbidden_prefixes:
             # Only check if it's a root path write, not if prefix appears in temp dir
-            assert not artifact_str.endswith(prefix), (
-                f"Artifact written to SOT path: {artifact_path}"
-            )
+            assert not artifact_str.endswith(
+                prefix
+            ), f"Artifact written to SOT path: {artifact_path}"

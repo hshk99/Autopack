@@ -5,7 +5,8 @@ Tests file profiling, chunking, and integration with grounded context.
 """
 
 import pytest
-from autopack.context_chunker import ContextChunker, ChunkRef
+
+from autopack.context_chunker import ChunkRef, ContextChunker
 
 
 @pytest.fixture

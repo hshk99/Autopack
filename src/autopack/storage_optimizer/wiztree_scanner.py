@@ -12,14 +12,15 @@ Performance benchmarks:
 Falls back to Python-based scanner if WizTree is not installed or fails.
 """
 
-import os
-import subprocess
 import csv
 import logging
+import os
+import subprocess
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
-from datetime import datetime, timezone
+
 from .models import ScanResult
 from .scanner import StorageScanner
 

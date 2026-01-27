@@ -8,16 +8,17 @@ Verifies that:
 4. Phase timeout is enforced when watchdog is provided
 """
 
-import pytest
 from unittest.mock import Mock
 
-from autopack.time_watchdog import TimeWatchdog
+import pytest
+
 from autopack.executor.phase_orchestrator import (
     ExecutionContext,
     PhaseOrchestrator,
     create_default_time_watchdog,
 )
 from autopack.executor.phase_runner import PhaseRunner
+from autopack.time_watchdog import TimeWatchdog
 
 
 class TestMandatoryTimeWatchdog:

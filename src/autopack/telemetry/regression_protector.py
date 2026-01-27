@@ -13,13 +13,13 @@ Key capabilities:
 - Track fix stability over time (how often fixes hold)
 """
 
+import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Any
 from pathlib import Path
-import json
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -135,9 +135,9 @@ class RegressionProtector:
 
         # In-memory storage
         self.fixes: Dict[str, IssueFix] = {}  # issue_id -> IssueFix
-        self.regressions: Dict[
-            str, RegressionDetection
-        ] = {}  # regression_id -> RegressionDetection
+        self.regressions: Dict[str, RegressionDetection] = (
+            {}
+        )  # regression_id -> RegressionDetection
 
         # Load from storage if available
         if self.storage_path and self.storage_path.exists():

@@ -15,9 +15,10 @@ from autopack.llm_client import BuilderResult
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
+
 from autopack.deliverables_validator import (
-    validate_deliverables,
     format_validation_feedback_for_builder,
+    validate_deliverables,
 )
 from autopack.governed_apply import GovernedApplyPath
 
@@ -530,8 +531,8 @@ class BuilderOrchestrator:
             return
 
         try:
-            from autopack.usage_recorder import record_phase6_metrics
             from autopack.database import SessionLocal
+            from autopack.usage_recorder import record_phase6_metrics
 
             db = SessionLocal()
             try:
@@ -1178,7 +1179,9 @@ class BuilderOrchestrator:
 
         # Persist P10 decision to DB
         if os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in ["1", "true", "yes"]:
-            from autopack.executor.db_events import try_record_token_budget_escalation_event
+            from autopack.executor.db_events import (
+                try_record_token_budget_escalation_event,
+            )
 
             try_record_token_budget_escalation_event(
                 run_id=self.run_id,
@@ -1448,7 +1451,9 @@ class BuilderOrchestrator:
 
                 # Persist P10 decision to DB
                 if os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in ["1", "true", "yes"]:
-                    from autopack.executor.db_events import try_record_token_budget_escalation_event
+                    from autopack.executor.db_events import (
+                        try_record_token_budget_escalation_event,
+                    )
 
                     try_record_token_budget_escalation_event(
                         run_id=self.run_id,

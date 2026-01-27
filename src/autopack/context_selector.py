@@ -10,11 +10,11 @@ Phase 1 Enhancement: Added ranking heuristics from chatbot_project
 """
 
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional
 import re
 import subprocess
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

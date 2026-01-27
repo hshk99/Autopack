@@ -1,22 +1,23 @@
 """Tests for parallelism policy gate enforcement (Phase 5)."""
 
-import pytest
 from datetime import datetime, timezone
 
-from autopack.intention_anchor.v2 import (
-    IntentionAnchorV2,
-    PivotIntentions,
-    ParallelismIsolationIntention,
-)
+import pytest
+
 from autopack.autonomy.parallelism_gate import (
     ParallelismPolicyGate,
     ParallelismPolicyViolation,
-    check_parallelism_policy,
-    extract_phase_scope_paths,
-    check_scope_overlap,
-    check_phases_can_run_parallel,
-    find_parallel_execution_groups,
     ScopeBasedParallelismChecker,
+    check_parallelism_policy,
+    check_phases_can_run_parallel,
+    check_scope_overlap,
+    extract_phase_scope_paths,
+    find_parallel_execution_groups,
+)
+from autopack.intention_anchor.v2 import (
+    IntentionAnchorV2,
+    ParallelismIsolationIntention,
+    PivotIntentions,
 )
 
 

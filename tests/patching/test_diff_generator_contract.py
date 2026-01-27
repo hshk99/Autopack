@@ -14,6 +14,7 @@ Tests cover:
 """
 
 import pytest
+
 from autopack.patching.diff_generator import (
     extract_diff_stats,
     generate_diff_from_full_file,

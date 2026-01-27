@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import MagicMock
+
 from autopack.research.validators.quality_validator import QualityValidator
 
 

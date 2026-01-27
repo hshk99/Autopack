@@ -17,9 +17,9 @@ import logging
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-from autopack.repo_scanner import RepoScanner
-from autopack.pattern_matcher import PatternMatcher, MatchResult
 from autopack.context_chunker import ContextChunker
+from autopack.pattern_matcher import MatchResult, PatternMatcher
+from autopack.repo_scanner import RepoScanner
 
 logger = logging.getLogger(__name__)
 

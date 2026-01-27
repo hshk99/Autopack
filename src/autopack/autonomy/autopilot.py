@@ -24,18 +24,18 @@ from typing import Optional
 from ..file_layout import RunFileLayout
 from ..gaps.scanner import scan_workspace
 from ..intention_anchor.v2 import IntentionAnchorV2
-from ..planning.plan_proposer import propose_plan
 from ..planning.models import PlanProposalV1
-from .models import (
-    AutopilotSessionV1,
-    ExecutionSummary,
-    ApprovalRequest,
-    ErrorLogEntry,
-    AutopilotMetadata,
-)
-from .action_executor import SafeActionExecutor, ExecutionBatch
+from ..planning.plan_proposer import propose_plan
 from .action_allowlist import ActionClassification
+from .action_executor import ExecutionBatch, SafeActionExecutor
 from .executor_integration import ExecutorContext, create_executor_context
+from .models import (
+    ApprovalRequest,
+    AutopilotMetadata,
+    AutopilotSessionV1,
+    ErrorLogEntry,
+    ExecutionSummary,
+)
 
 logger = logging.getLogger(__name__)
 

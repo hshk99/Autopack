@@ -4,14 +4,14 @@ Extracted from autonomous_executor.py as part of PR-EXE-13.
 Handles custom CI scripts defined in project configuration.
 """
 
-from dataclasses import dataclass
-from typing import Dict, Optional, Any
-from pathlib import Path
-import subprocess
-import shlex
-import os
-import time
 import logging
+import os
+import shlex
+import subprocess
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 

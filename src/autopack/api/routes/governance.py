@@ -10,8 +10,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from autopack.api.deps import verify_read_access
-from autopack.auth.router import get_current_user
 from autopack.auth.models import User
+from autopack.auth.router import get_current_user
 from autopack.database import get_db
 
 logger = logging.getLogger(__name__)

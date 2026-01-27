@@ -3,15 +3,15 @@
 Detects missing packages through static analysis and runtime validation.
 """
 
-from dataclasses import dataclass
-from pathlib import Path
-from typing import List, Set, Dict, Optional, Tuple, Iterable
 import ast
 import logging
 import re
 import shlex
 import subprocess
 import tomllib
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 

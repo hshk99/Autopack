@@ -2,10 +2,10 @@
 
 from autopack.text_normalization import (
     decode_html_entities,
-    normalize_unicode,
-    strip_markdown_artifacts,
-    normalize_whitespace,
     normalize_text,
+    normalize_unicode,
+    normalize_whitespace,
+    strip_markdown_artifacts,
 )
 
 

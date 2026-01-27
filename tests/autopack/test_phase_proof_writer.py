@@ -12,8 +12,8 @@ from unittest.mock import patch
 import pytest
 
 from autopack.config import settings
-from autopack.phase_proof_writer import write_minimal_phase_proof
 from autopack.phase_proof import PhaseProofStorage
+from autopack.phase_proof_writer import write_minimal_phase_proof
 from autopack.proof_metrics import ProofMetrics
 
 

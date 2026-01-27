@@ -5,6 +5,7 @@ at consumption time, ensuring that code doesn't assume fields exist without null
 """
 
 from datetime import datetime, timezone
+
 import pytest
 
 from autopack.intention_anchor.v2 import (
@@ -13,9 +14,9 @@ from autopack.intention_anchor.v2 import (
     PivotIntentions,
 )
 from autopack.intention_anchor.validators import (
-    validate_anchor_field,
     AnchorValidator,
     safe_anchor_access,
+    validate_anchor_field,
 )
 
 

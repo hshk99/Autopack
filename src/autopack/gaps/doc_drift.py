@@ -4,12 +4,12 @@ Thin wrapper around existing doc drift check scripts.
 Runs actual scripts and captures exit codes for evidence.
 """
 
+import hashlib
 import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
-import hashlib
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,7 @@
 """Tests for intention effectiveness tracking (IMP-INTENT-002)."""
 
 from unittest.mock import MagicMock, patch
+
 from autopack.telemetry.intention_effectiveness import (
     IntentionEffectivenessTracker,
     IntentionOutcome,

@@ -1,12 +1,13 @@
 """Tests for telemetry anomaly detector (ROAD-G)."""
 
-import pytest
 from datetime import datetime
 
+import pytest
+
 from autopack.telemetry.anomaly_detector import (
-    TelemetryAnomalyDetector,
-    AnomalyAlert,
     AlertSeverity,
+    AnomalyAlert,
+    TelemetryAnomalyDetector,
 )
 
 

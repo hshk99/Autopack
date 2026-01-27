@@ -20,7 +20,10 @@ from autopack.autonomous.budgeting import (
     get_budget_remaining_pct,
     is_budget_exhausted,
 )
-from autopack.autonomy.parallelism_gate import ParallelismPolicyGate, ScopeBasedParallelismChecker
+from autopack.autonomy.parallelism_gate import (
+    ParallelismPolicyGate,
+    ScopeBasedParallelismChecker,
+)
 from autopack.config import settings
 from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome

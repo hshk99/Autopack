@@ -5,8 +5,10 @@ BUILD-129 Phase 3: Verify that documentation tasks requiring code investigation
 are correctly classified as DOC_SYNTHESIS vs DOC_WRITE.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from autopack.token_estimator import TokenEstimator
 
 
@@ -251,9 +253,9 @@ class TestDocSynthesisDetection:
             abs(estimate.estimated_tokens - 16384) / ((estimate.estimated_tokens + 16384) / 2) * 100
         )
 
-        assert new_smape < old_smape, (
-            f"New SMAPE ({new_smape:.1f}%) should be < old SMAPE ({old_smape:.1f}%)"
-        )
+        assert (
+            new_smape < old_smape
+        ), f"New SMAPE ({new_smape:.1f}%) should be < old SMAPE ({old_smape:.1f}%)"
         assert new_smape < 50, f"New SMAPE ({new_smape:.1f}%) should be <50% (target accuracy)"
 
 

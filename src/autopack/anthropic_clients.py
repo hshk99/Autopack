@@ -9,10 +9,10 @@ This module provides Anthropic API integration for when
 ModelRouter selects Claude models based on category/quota.
 """
 
-import os
 import json
 import logging
-from typing import Dict, List, Optional, Any
+import os
+from typing import Any, Dict, List, Optional
 
 try:
     from anthropic import Anthropic
@@ -20,14 +20,20 @@ except ImportError:
     # Graceful degradation if anthropic package not installed
     Anthropic = None
 
+from .journal_reader import get_prevention_prompt_injection
+
+# PR-CLIENT-2: Import parser modules for output format handling
+from .llm.anthropic.parsers import FullFileParser, NDJSONParserWrapper
+
+# PR-CLIENT-1: Import phase execution orchestrator
+from .llm.anthropic.phase_executor import AnthropicPhaseExecutor
+
 # PR-LLM-1: Import transport wrapper for clean separation of transport layer
 from .llm.providers.anthropic_transport import (
     AnthropicTransport,
     AnthropicTransportError,
 )
-
-from .llm_client import BuilderResult, AuditorResult
-from .journal_reader import get_prevention_prompt_injection
+from .llm_client import AuditorResult, BuilderResult
 
 # BUILD-129 Phase 1: Deliverable-based token estimation
 
@@ -35,14 +41,6 @@ from .journal_reader import get_prevention_prompt_injection
 
 # BUILD-129 Phase 3: NDJSON truncation-tolerant format
 
-# PR-CLIENT-1: Import phase execution orchestrator
-from .llm.anthropic.phase_executor import AnthropicPhaseExecutor
-
-# PR-CLIENT-2: Import parser modules for output format handling
-from .llm.anthropic.parsers import (
-    FullFileParser,
-    NDJSONParserWrapper,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -107,8 +105,8 @@ def _write_token_estimation_v2_telemetry(
 
     try:
         from .database import SessionLocal
-        from .models import TokenEstimationV2Event
         from .models import Phase as PhaseModel
+        from .models import TokenEstimationV2Event
 
         # Calculate metrics
         if actual_output_tokens > 0 and predicted_output_tokens > 0:
@@ -483,8 +481,9 @@ class AnthropicBuilderClient:
         Per IMPLEMENTATION_PLAN3.md Phase 2.2
         """
         import json
-        from autopack.structured_edits import EditPlan, EditOperation, EditOperationType
+
         from autopack.builder_config import BuilderOutputConfig
+        from autopack.structured_edits import EditOperation, EditOperationType, EditPlan
 
         if config is None:
             config = BuilderOutputConfig()

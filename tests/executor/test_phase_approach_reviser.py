@@ -5,6 +5,7 @@ when stuck, implements goal anchoring, and classifies alignment.
 """
 
 from unittest.mock import Mock, patch
+
 import pytest
 
 from autopack.executor.phase_approach_reviser import PhaseApproachReviser

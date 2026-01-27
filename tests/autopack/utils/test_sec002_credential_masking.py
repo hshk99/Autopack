@@ -4,10 +4,10 @@ IMP-SEC-002: Add credential masking in logging and error outputs.
 """
 
 from autopack.utils.credential_masking import (
+    create_safe_error_message,
     mask_credential,
     mask_dict_credentials,
     mask_url_credentials,
-    create_safe_error_message,
 )
 
 

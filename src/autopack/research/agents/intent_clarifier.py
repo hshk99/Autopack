@@ -5,7 +5,7 @@ This module defines the IntentClarifier class, which is responsible for refining
 to ensure accurate and relevant research outcomes.
 """
 
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 class IntentClarifier:
@@ -46,7 +46,7 @@ class IntentClarifier:
 
 # Backward compatibility - ResearchIntent not in original implementation
 from dataclasses import dataclass, field
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 
 @dataclass

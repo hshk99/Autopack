@@ -6,14 +6,15 @@ Validates gap analysis requirement 6.10:
 - Compliance flag detection
 """
 
-import pytest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
 from autopack.publishing import (
+    ComplianceFlag,
     PublishPacket,
     PublishPacketStatus,
-    ComplianceFlag,
     PublishPreflightGate,
 )
 from autopack.publishing.models import ComplianceFlagSeverity

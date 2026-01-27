@@ -8,12 +8,13 @@ Tests:
 - Severity calculation
 """
 
-import pytest
 import json
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
-from autopack.test_baseline_tracker import TestBaseline, TestDelta, TestBaselineTracker
+import pytest
+
+from autopack.test_baseline_tracker import TestBaseline, TestBaselineTracker, TestDelta
 
 
 @pytest.fixture

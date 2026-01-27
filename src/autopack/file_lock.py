@@ -4,9 +4,9 @@ Provides a unified file-locking interface that works across Windows, Linux, and 
 using platform-appropriate primitives (msvcrt on Windows, fcntl on Unix).
 """
 
+import logging
 import os
 import platform
-import logging
 from typing import Optional
 
 logger = logging.getLogger(__name__)

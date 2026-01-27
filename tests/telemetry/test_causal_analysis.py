@@ -1,7 +1,8 @@
 """Tests for ROAD-H causal analysis."""
 
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 
 from autopack.telemetry.causal_analysis import (
     CausalAnalyzer,

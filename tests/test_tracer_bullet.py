@@ -9,9 +9,10 @@ Validates:
 - Token budget tracking
 """
 
-import pytest
 import time
 from unittest.mock import Mock, patch
+
+import pytest
 
 # Quarantined: this suite targets an old `research_tracer` package that is not part of the active repo.
 # Avoid collection-time import errors (hard blocks in CI).
@@ -19,13 +20,16 @@ pytest.skip(
     "Quarantined tracer bullet tests (legacy research_tracer package)", allow_module_level=True
 )
 
-from research_tracer.scraper import WebScraper  # pragma: no cover
-from research_tracer.extractor import (
-    StructuredExtractor,
-    PromptInjectionDetector,
-)  # pragma: no cover
 from research_tracer.calculator import Calculator  # pragma: no cover
-from research_tracer.pipeline import ResearchPipeline, PipelineConfig  # pragma: no cover
+from research_tracer.extractor import (  # pragma: no cover
+    PromptInjectionDetector,
+    StructuredExtractor,
+)
+from research_tracer.pipeline import (  # pragma: no cover
+    PipelineConfig,
+    ResearchPipeline,
+)
+from research_tracer.scraper import WebScraper  # pragma: no cover
 
 
 class TestWebScraper:

@@ -3,11 +3,7 @@
 import tempfile
 from pathlib import Path
 
-from autopack.gaps.gap_plugin import (
-    GapDetectorPlugin,
-    GapResult,
-    PluginRegistry,
-)
+from autopack.gaps.gap_plugin import GapDetectorPlugin, GapResult, PluginRegistry
 from autopack.gaps.plugins.api_routes_plugin import ApiRoutesWithoutTestsPlugin
 
 

@@ -11,13 +11,13 @@ a complete JSON object, so only the last incomplete line is lost."
 GPT-5.2 Priority: HIGH - prevents catastrophic JSON parse failures under truncation.
 """
 
+import ast
 import json
 import logging
-import ast
 import re
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Tuple
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

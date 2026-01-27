@@ -6,17 +6,13 @@ Implements gap analysis item 6.6:
 - Browser artifact handling (screenshots, HAR logs)
 """
 
+from .redaction import DEFAULT_REDACTION_PATTERNS, ArtifactRedactor, RedactionPattern
 from .retention import (
+    DEFAULT_RETENTION_POLICIES,
     ArtifactClass,
-    RetentionPolicy,
     ArtifactMetadata,
     ArtifactRetentionManager,
-    DEFAULT_RETENTION_POLICIES,
-)
-from .redaction import (
-    RedactionPattern,
-    ArtifactRedactor,
-    DEFAULT_REDACTION_PATTERNS,
+    RetentionPolicy,
 )
 
 __all__ = [

@@ -8,9 +8,15 @@ Tests cover:
 - Edge cases (no changes, missing data)
 """
 
-import pytest
 import json
-from autopack.calibration_reporter import CalibrationReporter, CalibrationReport, CoefficientChange
+
+import pytest
+
+from autopack.calibration_reporter import (
+    CalibrationReport,
+    CalibrationReporter,
+    CoefficientChange,
+)
 
 
 class TestCoefficientChange:

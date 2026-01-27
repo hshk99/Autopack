@@ -9,15 +9,16 @@ This test suite verifies that:
 """
 
 import os
+
 import pytest
 from alembic.config import Config
 
-from autopack.database import run_migrations
 from autopack import models  # noqa: F401 - Import to register models
-from autopack.auth.models import User, APIKey  # noqa: F401 - Import to register models
+from autopack.auth.models import APIKey, User  # noqa: F401 - Import to register models
+from autopack.database import run_migrations
 from autopack.usage_recorder import (  # noqa: F401 - Import to register models
-    LlmUsageEvent,
     DoctorUsageStats,
+    LlmUsageEvent,
     TokenEfficiencyMetrics,
 )
 
@@ -148,6 +149,7 @@ def test_alembic_config_programmatic():
     This test verifies that the configuration setup is correct.
     """
     from alembic.config import Config
+
     from autopack.config import get_database_url
 
     # Create config as done in run_migrations()

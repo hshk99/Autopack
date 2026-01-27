@@ -16,20 +16,20 @@ as telemetry utility enhancements have been implemented (42/43 tests passing).
 
 import pytest
 
-# GRADUATED: Removed xfail marker - enhancements have been implemented (BUILD-146 Phase A P15)
-
 from autopack.telemetry_utils import (
-    filter_samples,
     calculate_smape,
+    calculate_statistics,
+    calculate_truncation_rate,
+    calculate_underestimation_rate,
     calculate_waste_ratio,
     detect_underestimation,
-    calculate_statistics,
-    calculate_underestimation_rate,
-    calculate_truncation_rate,
-    validate_sample,
+    filter_samples,
     group_by_category,
     group_by_complexity,
+    validate_sample,
 )
+
+# GRADUATED: Removed xfail marker - enhancements have been implemented (BUILD-146 Phase A P15)
 
 
 class TestFilterSamples:

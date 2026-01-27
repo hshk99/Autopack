@@ -6,11 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from telemetry.correlator import (
-    CausationChain,
-    CorrelatedEvent,
-    TelemetryCorrelator,
-)
+from telemetry.correlator import CausationChain, CorrelatedEvent, TelemetryCorrelator
 from telemetry.event_schema import TelemetryEvent
 from telemetry.unified_event_log import UnifiedEventLog
 

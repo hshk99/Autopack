@@ -6,8 +6,10 @@ This prevents accidentally running an unauthenticated API in production.
 """
 
 import os
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from autopack.api.app import StartupError
 
 
@@ -101,8 +103,9 @@ class TestProductionAuthRequirement:
     def test_verify_api_key_rejects_bad_key_when_configured(self):
         """verify_api_key should reject invalid keys when API key is configured."""
         import asyncio
-        from fastapi import HTTPException
         from unittest.mock import patch
+
+        from fastapi import HTTPException
 
         # Must also clear PYTEST_CURRENT_TEST to avoid test-mode bypass
         with patch.dict(
@@ -165,7 +168,7 @@ class TestProductionAuthDocumentation:
             content = f.read()
 
         # The gap analysis should mention this security issue
-        assert "AUTOPACK_API_KEY" in content, (
-            "Gap analysis should document AUTOPACK_API_KEY requirement"
-        )
+        assert (
+            "AUTOPACK_API_KEY" in content
+        ), "Gap analysis should document AUTOPACK_API_KEY requirement"
         assert "production" in content.lower(), "Gap analysis should mention production mode"

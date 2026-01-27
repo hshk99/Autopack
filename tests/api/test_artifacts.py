@@ -6,9 +6,10 @@ Verifies:
 - Path traversal attacks are blocked (security)
 """
 
-import pytest
 from datetime import datetime, timezone
 from unittest.mock import patch
+
+import pytest
 
 # Uses shared client, db_session fixtures from conftest.py
 

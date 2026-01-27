@@ -9,7 +9,7 @@ Validates that init_db() enforces schema safety:
 """
 
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy import create_engine
@@ -31,8 +31,8 @@ class TestDBInitGuardrails:
         test_engine = create_engine(db_url)
 
         # Use monkeypatch for reliable test isolation in parallel execution
-        import autopack.database
         import autopack.config
+        import autopack.database
 
         monkeypatch.setattr(autopack.database, "engine", test_engine)
 
@@ -86,8 +86,8 @@ class TestDBInitGuardrails:
         test_engine = create_engine(db_url)
 
         # Use monkeypatch for reliable test isolation in parallel execution
-        import autopack.database
         import autopack.config
+        import autopack.database
 
         monkeypatch.setattr(autopack.database, "engine", test_engine)
 
@@ -137,8 +137,8 @@ class TestDBInitGuardrails:
         test_engine = create_engine(db_url)
 
         # Use monkeypatch for reliable test isolation in parallel execution
-        import autopack.database
         import autopack.config
+        import autopack.database
 
         monkeypatch.setattr(autopack.database, "engine", test_engine)
 
@@ -286,8 +286,8 @@ class TestBootstrapConcurrencyControl:
 
     def test_init_db_calls_bootstrap_with_lock_in_bootstrap_mode(self, monkeypatch):
         """init_db should use _bootstrap_with_lock when bootstrap enabled (IMP-OPS-006)."""
-        import autopack.database
         import autopack.config
+        import autopack.database
 
         # Create mock settings with bootstrap enabled
         mock_settings = MagicMock()

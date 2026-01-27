@@ -8,15 +8,15 @@ Per GPT_RESPONSE11: Added guards for large files, churn, and symbol validation.
 Per IMPLEMENTATION_PLAN2.md Phase 4: Added read-only enforcement and shrinkage/growth detection.
 """
 
+import difflib
 import json
 import logging
-import difflib
 import re
 import subprocess
 import tempfile
-from typing import Optional, Dict, Any
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 from ..validators.content_sanitizer import ContentSanitizer
 from ..validators.pack_validator import PackValidator

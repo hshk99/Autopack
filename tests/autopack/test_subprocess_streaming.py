@@ -3,9 +3,9 @@
 import sys
 
 from autopack.subprocess_streaming import (
+    read_last_n_lines,
     run_with_streaming,
     run_with_streaming_legacy_compat,
-    read_last_n_lines,
 )
 
 

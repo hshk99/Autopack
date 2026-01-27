@@ -17,8 +17,8 @@ import logging
 import sys
 from pathlib import Path
 
-from .scanner import scan_workspace
 from ..file_layout import RunFileLayout
+from .scanner import scan_workspace
 
 logger = logging.getLogger(__name__)
 

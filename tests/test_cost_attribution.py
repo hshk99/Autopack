@@ -4,11 +4,12 @@ Validates cost aggregation by phase type (build/audit/test/tidy/doctor)
 and by intent (feature/bugfix/refactor/docs).
 """
 
-import pytest
 from datetime import datetime, timedelta
 
+import pytest
+
+from autopack.telemetry.cost_aggregator import CostAggregation, CostAggregator
 from autopack.usage_recorder import LlmUsageEvent, UsageEventData, record_usage
-from autopack.telemetry.cost_aggregator import CostAggregator, CostAggregation
 
 
 class TestCostAggregationDataclass:
@@ -461,6 +462,7 @@ class TestCostAggregatorSessionManagement:
     def test_aggregator_creates_own_session(self, db_engine):
         """Test aggregator manages its own session"""
         from sqlalchemy.orm import sessionmaker
+
         from autopack.database import Base
 
         # Ensure tables are created on the engine

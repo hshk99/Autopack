@@ -26,8 +26,8 @@ from autopack.llm.client_resolution import (  # noqa: F401
 
 # Import prompt builders (PR-LLM-2)
 from autopack.llm.prompts.anthropic_builder_prompts import (  # noqa: F401
-    build_system_prompt,
     build_minimal_system_prompt,
+    build_system_prompt,
     build_user_prompt,
 )
 

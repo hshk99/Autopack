@@ -27,8 +27,8 @@ Usage:
 """
 
 import re
-from typing import Dict, List, Optional
 from dataclasses import dataclass
+from typing import Dict, List, Optional
 
 from autopack.repo_scanner import RepoScanner
 

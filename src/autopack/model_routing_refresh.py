@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from autopack.model_routing_snapshot import (
@@ -22,7 +23,6 @@ from autopack.model_routing_snapshot import (
     RoutingSnapshotStorage,
     create_default_snapshot,
 )
-from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -126,9 +126,7 @@ def load_model_catalog() -> list[ModelCatalogEntry]:
     Returns:
         List of catalog entries
     """
-    from autopack.model_catalog import (
-        load_model_catalog as load_from_config,
-    )
+    from autopack.model_catalog import load_model_catalog as load_from_config
 
     # Try to load from config files
     config_catalog = load_from_config()

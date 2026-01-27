@@ -11,12 +11,14 @@ Validates:
 4. Foreign key constraints to (run_id, phase_id) are satisfied
 """
 
-import pytest
 import os
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from autopack.models import Base, Run, Tier, Phase, SOTRetrievalEvent
+
+from autopack.models import Base, Phase, Run, SOTRetrievalEvent, Tier
 
 
 @pytest.fixture
@@ -35,7 +37,7 @@ def test_run_and_phase(test_db):
     """Create a test run and phase for telemetry"""
     from datetime import datetime, timezone
 
-    from autopack.models import RunState, PhaseState
+    from autopack.models import PhaseState, RunState
 
     run = Run(
         id="test-build155-telemetry",
@@ -205,9 +207,9 @@ class TestSOTTelemetryFields:
                     )
 
         event = test_db.query(SOTRetrievalEvent).first()
-        assert event.sot_truncated is True, (
-            "Truncation flag should be set when output is near cap (>= 95%)"
-        )
+        assert (
+            event.sot_truncated is True
+        ), "Truncation flag should be set when output is near cap (>= 95%)"
 
     def test_sections_included_tracking(self, test_db, test_run_and_phase, executor):
         """Telemetry should track which context sections were included"""

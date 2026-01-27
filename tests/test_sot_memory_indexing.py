@@ -20,8 +20,8 @@ from autopack.memory.sot_indexing import (
     chunk_text,
     extract_heading_from_chunk,
     extract_timestamp_from_chunk,
-    stable_chunk_id,
     json_to_embedding_text,
+    stable_chunk_id,
 )
 
 
@@ -169,8 +169,8 @@ Implemented comprehensive observability features including:
         """Test that SOT indexing is enabled by default (IMP-FEAT-002)."""
         with patch.dict(os.environ, {"AUTOPACK_ENABLE_MEMORY": "true"}):
             # Reload settings to get fresh defaults
-            import sys
             import importlib
+            import sys
 
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])
@@ -197,8 +197,8 @@ Implemented comprehensive observability features including:
             },
         ):
             # Reload settings to pick up environment changes
-            import sys
             import importlib
+            import sys
 
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])
@@ -222,8 +222,8 @@ Implemented comprehensive observability features including:
             },
         ):
             # Reload settings module to pick up environment changes
-            import sys
             import importlib
+            import sys
 
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])
@@ -247,8 +247,8 @@ Implemented comprehensive observability features including:
             },
         ):
             # Reload settings module to pick up environment changes
-            import sys
             import importlib
+            import sys
 
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])
@@ -275,8 +275,8 @@ Implemented comprehensive observability features including:
             },
         ):
             # Reload settings to pick up environment changes
-            import sys
             import importlib
+            import sys
 
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])
@@ -310,8 +310,8 @@ Implemented comprehensive observability features including:
             },
         ):
             # Reload settings module to pick up environment changes
-            import sys
             import importlib
+            import sys
 
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])
@@ -342,8 +342,8 @@ Implemented comprehensive observability features including:
             },
         ):
             # Reload settings module to pick up environment changes
-            import sys
             import importlib
+            import sys
 
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])
@@ -583,8 +583,8 @@ Content here.
             },
         ):
             # Reload settings module to pick up environment changes
-            import sys
             import importlib
+            import sys
 
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])
@@ -618,8 +618,8 @@ Content.
             },
         ):
             # Reload settings module to pick up environment changes
-            import sys
             import importlib
+            import sys
 
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])
@@ -704,8 +704,8 @@ class TestSOT6FileSupport:
             },
         ):
             # Reload settings module to pick up environment changes
-            import sys
             import importlib
+            import sys
 
             if "autopack.config" in sys.modules:
                 importlib.reload(sys.modules["autopack.config"])

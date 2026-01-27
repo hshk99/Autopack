@@ -24,13 +24,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "tidy"))
 
 from lease import (
-    pid_running,
-    read_lock_status,
     break_stale_lock,
     lock_path_for_name,
-    print_lock_status,
-    should_use_ascii,
+    pid_running,
     print_all_lock_status,
+    print_lock_status,
+    read_lock_status,
+    should_use_ascii,
 )
 
 

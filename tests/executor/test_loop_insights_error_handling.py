@@ -7,8 +7,9 @@ Tests cover:
 - Extra context logging for debugging
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from autopack.executor.autonomous_loop import AutonomousLoop
 

@@ -6,9 +6,9 @@ system readiness before autonomous execution.
 
 import logging
 import os
+import socket
 import subprocess
 import time
-import socket
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Literal

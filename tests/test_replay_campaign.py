@@ -3,12 +3,13 @@
 Verifies that failed runs can be cloned and replayed with Phase 6 features.
 """
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from autopack.models import Base, Run, Tier, Phase, PhaseState, RunState
+from autopack.models import Base, Phase, PhaseState, Run, RunState, Tier
 
 
 @pytest.fixture

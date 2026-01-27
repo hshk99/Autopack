@@ -1,7 +1,8 @@
 """Integration tests for research workflow."""
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 
 
 class TestResearchWorkflowIntegration:

@@ -3,8 +3,9 @@
 Lightweight tests to validate rollback configuration, imports, and basic integration.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 
 class TestRollbackSmoke:
@@ -33,9 +34,10 @@ class TestRollbackSmoke:
 
     def test_governed_apply_accepts_rollback_params(self):
         """GovernedApplyPath should accept run_id and phase_id for rollback"""
-        from autopack.governed_apply import GovernedApplyPath
-        from pathlib import Path
         import tempfile
+        from pathlib import Path
+
+        from autopack.governed_apply import GovernedApplyPath
 
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
@@ -49,9 +51,10 @@ class TestRollbackSmoke:
 
     def test_governed_apply_without_rollback_params_works(self):
         """GovernedApplyPath should work without rollback params (backward compat)"""
-        from autopack.governed_apply import GovernedApplyPath
-        from pathlib import Path
         import tempfile
+        from pathlib import Path
+
+        from autopack.governed_apply import GovernedApplyPath
 
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
@@ -72,9 +75,10 @@ class TestRollbackSmoke:
 
     def test_rollback_manager_initialization(self):
         """RollbackManager should initialize with correct params"""
-        from autopack.rollback_manager import RollbackManager
-        from pathlib import Path
         import tempfile
+        from pathlib import Path
+
+        from autopack.rollback_manager import RollbackManager
 
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = RollbackManager(
@@ -110,9 +114,9 @@ class TestRollbackSmoke:
         settings = Settings()
 
         # Verify the env var override works
-        assert settings.executor_rollback_enabled is True, (
-            "AUTOPACK_ROLLBACK_ENABLED=true should enable executor_rollback_enabled"
-        )
+        assert (
+            settings.executor_rollback_enabled is True
+        ), "AUTOPACK_ROLLBACK_ENABLED=true should enable executor_rollback_enabled"
 
     def test_rollback_env_var_override_legacy(self, monkeypatch):
         """executor_rollback_enabled should also accept EXECUTOR_ROLLBACK_ENABLED (legacy alias)"""
@@ -124,9 +128,9 @@ class TestRollbackSmoke:
         settings = Settings()
 
         # Verify the legacy env var alias works
-        assert settings.executor_rollback_enabled is True, (
-            "EXECUTOR_ROLLBACK_ENABLED=true should enable executor_rollback_enabled (legacy alias)"
-        )
+        assert (
+            settings.executor_rollback_enabled is True
+        ), "EXECUTOR_ROLLBACK_ENABLED=true should enable executor_rollback_enabled (legacy alias)"
 
     def test_build144_runbook_file_exists(self):
         """BUILD-144 migration runbook should exist"""
@@ -143,8 +147,9 @@ class TestRollbackSmoke:
 
     def test_rollback_protected_paths_not_touched(self):
         """Rollback should document that it never touches protected paths"""
-        from autopack import rollback_manager
         import inspect
+
+        from autopack import rollback_manager
 
         source = inspect.getsource(rollback_manager)
 

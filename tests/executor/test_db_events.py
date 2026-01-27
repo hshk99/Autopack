@@ -3,7 +3,7 @@
 IMP-REL-001: Verify database session rollback on commit failure.
 """
 
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 
 class TestDBEventPersisterRollback:
@@ -76,6 +76,7 @@ class TestDBEventPersisterRollback:
     def test_rollback_on_db_operational_error(self):
         """Verify rollback handles SQLAlchemy OperationalError."""
         from sqlalchemy.exc import OperationalError
+
         from autopack.executor.db_events import try_record_token_budget_escalation_event
 
         mock_session = MagicMock()

@@ -5,10 +5,10 @@ import pytest
 from autopack.phases.research_phase import (
     ResearchPhase,
     ResearchPhaseManager,
+    ResearchPriority,
     ResearchQuery,
     ResearchResult,
     ResearchStatus,
-    ResearchPriority,
     create_research_phase_from_task,
 )
 

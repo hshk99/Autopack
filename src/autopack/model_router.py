@@ -1,20 +1,16 @@
 """Model router for quota-aware model selection with escalation support."""
 
+import logging
+import os
+from pathlib import Path
 from typing import Any, Dict, Literal, Optional
 
-import os
 import yaml
-import logging
-from pathlib import Path
 from sqlalchemy.orm import Session
 
-from .usage_service import UsageService
-from .model_selection import (
-    PhaseHistory,
-    get_model_selector,
-    HIGH_RISK_CATEGORIES,
-)
+from .model_selection import HIGH_RISK_CATEGORIES, PhaseHistory, get_model_selector
 from .telemetry.model_performance_tracker import TelemetryDrivenModelOptimizer
+from .usage_service import UsageService
 
 logger = logging.getLogger(__name__)
 

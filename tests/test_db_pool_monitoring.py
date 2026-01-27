@@ -3,15 +3,14 @@
 import time
 from unittest.mock import MagicMock, patch
 
-
+from autopack.dashboard_schemas import DatabasePoolStats
 from autopack.database import (
+    ScopedSession,
     get_pool_health,
     get_session,
     get_session_metrics,
-    ScopedSession,
 )
 from autopack.db_leak_detector import ConnectionLeakDetector
-from autopack.dashboard_schemas import DatabasePoolStats
 
 
 class TestDatabasePoolStats:
@@ -210,8 +209,9 @@ class TestAutonomousLoopPoolHealthLogging:
 
     def test_log_db_pool_health_disabled(self):
         """Test _log_db_pool_health when feature flag is disabled."""
-        from autopack.executor.autonomous_loop import AutonomousLoop
         from unittest.mock import MagicMock
+
+        from autopack.executor.autonomous_loop import AutonomousLoop
 
         mock_executor = MagicMock()
         loop = AutonomousLoop(executor=mock_executor)
@@ -226,10 +226,11 @@ class TestAutonomousLoopPoolHealthLogging:
 
     def test_log_db_pool_health_enabled_healthy(self):
         """Test _log_db_pool_health with healthy pool."""
-        from autopack.executor.autonomous_loop import AutonomousLoop
-        from autopack.dashboard_schemas import DatabasePoolStats
         from datetime import datetime
         from unittest.mock import MagicMock
+
+        from autopack.dashboard_schemas import DatabasePoolStats
+        from autopack.executor.autonomous_loop import AutonomousLoop
 
         mock_executor = MagicMock()
         loop = AutonomousLoop(executor=mock_executor)
@@ -266,10 +267,11 @@ class TestAutonomousLoopPoolHealthLogging:
 
     def test_log_db_pool_health_enabled_high_utilization(self):
         """Test _log_db_pool_health with high pool utilization."""
-        from autopack.executor.autonomous_loop import AutonomousLoop
-        from autopack.dashboard_schemas import DatabasePoolStats
         from datetime import datetime
         from unittest.mock import MagicMock
+
+        from autopack.dashboard_schemas import DatabasePoolStats
+        from autopack.executor.autonomous_loop import AutonomousLoop
 
         mock_executor = MagicMock()
         loop = AutonomousLoop(executor=mock_executor)
@@ -534,7 +536,7 @@ class TestGetPoolStats:
 
     def test_get_pool_stats_updates_module_metrics(self):
         """Test that get_pool_stats updates the module-level _pool_metrics."""
-        from autopack.database import get_pool_stats, get_pool_metrics
+        from autopack.database import get_pool_metrics, get_pool_stats
 
         with patch("autopack.database.engine") as mock_engine:
             mock_pool = MagicMock()
@@ -556,7 +558,7 @@ class TestGetPoolStats:
 
     def test_get_pool_metrics_returns_cached_values(self):
         """Test that get_pool_metrics returns cached values without querying pool."""
-        from autopack.database import get_pool_metrics, _pool_metrics
+        from autopack.database import _pool_metrics, get_pool_metrics
 
         # Directly set module-level metrics
         _pool_metrics.update(

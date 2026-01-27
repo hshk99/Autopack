@@ -6,11 +6,11 @@ instead of full-file replacement.
 Per IMPLEMENTATION_PLAN3.md Phase 1
 """
 
+import logging
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Dict
 from enum import Enum
 from pathlib import Path
-import logging
+from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

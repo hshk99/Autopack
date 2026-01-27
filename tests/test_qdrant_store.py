@@ -9,6 +9,7 @@ Tests will be skipped if Qdrant is not available.
 """
 
 import os
+
 import pytest
 
 # Check if Qdrant should be tested
@@ -17,7 +18,7 @@ QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
 
 try:
-    from autopack.memory import QdrantStore, QDRANT_AVAILABLE
+    from autopack.memory import QDRANT_AVAILABLE, QdrantStore
 
     if QDRANT_AVAILABLE and QDRANT_TEST_ENABLED:
         # Try connecting to Qdrant

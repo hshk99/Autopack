@@ -11,14 +11,15 @@ Test coverage (25 tests):
 5. Database integration
 """
 
-import pytest
-from pathlib import Path
 from datetime import datetime, timezone
-from unittest.mock import Mock, MagicMock, patch
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 from autopack.executor.phase_state_manager import (
-    PhaseStateManager,
     PhaseState,
+    PhaseStateManager,
     StateUpdateRequest,
 )
 

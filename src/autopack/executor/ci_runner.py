@@ -16,15 +16,15 @@ Design principles:
 - Support table-driven testing for pytest output parsing
 """
 
+import logging
 import os
-import sys
 import re
 import shlex
-import time
 import subprocess
-import logging
+import sys
+import time
 from pathlib import Path
-from typing import Dict, Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

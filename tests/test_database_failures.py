@@ -9,9 +9,11 @@ Tests that the system handles database failures gracefully:
 - Graceful degradation scenarios
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
-from sqlalchemy.exc import OperationalError, IntegrityError, TimeoutError as SATimeoutError
+
+import pytest
+from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import TimeoutError as SATimeoutError
 from sqlalchemy.orm import Session
 
 from autopack.database import (

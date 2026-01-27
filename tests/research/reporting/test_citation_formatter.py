@@ -1,4 +1,5 @@
 import unittest
+
 from autopack.research.reporting.citation_formatter import CitationFormatter
 
 

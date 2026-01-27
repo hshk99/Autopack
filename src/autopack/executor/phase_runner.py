@@ -18,11 +18,11 @@ Related modules:
 - intention_stuck_handler.py: Intention-first stuck handling (BUILD-161)
 """
 
+import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Optional, Any, List, Callable, Tuple
-import logging
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

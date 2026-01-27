@@ -8,14 +8,14 @@ Tests registration, login, JWT tokens, and duplicate detection.
 from datetime import datetime, timezone
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from autopack.auth import router, hash_password, User
+from autopack.auth import User, hash_password, router
 from autopack.database import Base, get_db
-from fastapi import FastAPI
 
 # Test database setup
 TEST_DATABASE_URL = "sqlite:///:memory:"

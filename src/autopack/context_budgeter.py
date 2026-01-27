@@ -16,11 +16,11 @@ import os
 import re
 import threading
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
-from autopack.memory.embeddings import sync_embed_texts, semantic_embeddings_enabled
-from autopack.file_hashing import compute_cache_key
 from autopack.config import settings
+from autopack.file_hashing import compute_cache_key
+from autopack.memory.embeddings import semantic_embeddings_enabled, sync_embed_texts
 
 logger = logging.getLogger(__name__)
 

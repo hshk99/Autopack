@@ -10,10 +10,10 @@ This module monitors archive files and automatically updates the consolidated
 documents when relevant information changes.
 """
 
+import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, List
-import logging
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

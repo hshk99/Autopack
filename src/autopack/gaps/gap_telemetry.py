@@ -1,8 +1,9 @@
 """Telemetry for gap detection effectiveness."""
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
-from dataclasses import dataclass
+
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
@@ -114,8 +115,9 @@ class GapTelemetryRecorder:
             Float between 0.0 and 1.0 representing recurrence rate.
         """
         try:
-            from sqlalchemy import func
             from datetime import timedelta
+
+            from sqlalchemy import func
 
             from ..models import GapDetection
 

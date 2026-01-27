@@ -17,9 +17,9 @@ import logging
 import sys
 from pathlib import Path
 
-from .autopilot import AutopilotController
 from ..file_layout import RunFileLayout
 from ..intention_anchor.v2 import IntentionAnchorV2
+from .autopilot import AutopilotController
 
 logger = logging.getLogger(__name__)
 

@@ -6,19 +6,19 @@ auth under autopack namespace.
 BUILD-188 P5.2: Auth hardening - ephemeral key generation blocked in production.
 """
 
-import os
-import bcrypt
 import base64
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
+import bcrypt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from jose import jwt, JWTError
+from jose import JWTError, jwt
 
 # Import settings from autopack config (BUILD-146 P12 Phase 5)
-from autopack.config import settings, is_production
+from autopack.config import is_production, settings
 
 logger = logging.getLogger(__name__)
 

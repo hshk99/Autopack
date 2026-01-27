@@ -7,9 +7,9 @@ to enable future migration from local git CLI to external git service.
 This enables governed apply path while keeping implementation flexible.
 """
 
-from typing import Protocol, Dict, Optional
 import subprocess
 from pathlib import Path
+from typing import Dict, Optional, Protocol
 
 
 class GitAdapter(Protocol):

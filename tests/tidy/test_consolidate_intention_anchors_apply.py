@@ -9,11 +9,10 @@ Intention behind these tests: Verify that apply mode:
 - Inserts stable markers for tracking
 """
 
-import tempfile
-from pathlib import Path
-
 # Import the script functions directly
 import sys
+import tempfile
+from pathlib import Path
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "scripts" / "tidy"))

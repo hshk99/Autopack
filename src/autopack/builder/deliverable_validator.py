@@ -5,7 +5,7 @@ respect intention anchor constraints (must_not, success_criteria, etc.).
 """
 
 from dataclasses import dataclass
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
 
 from ..intention_anchor.v2 import IntentionAnchorV2
 

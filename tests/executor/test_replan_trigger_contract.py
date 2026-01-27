@@ -7,7 +7,7 @@ These tests verify the approach flaw detection and replanning logic.
 
 def test_replan_trigger_imports():
     """Verify replan trigger can be imported"""
-    from autopack.executor.replan_trigger import ReplanTrigger, ReplanConfig
+    from autopack.executor.replan_trigger import ReplanConfig, ReplanTrigger
 
     assert ReplanTrigger is not None
     assert ReplanConfig is not None
@@ -36,7 +36,7 @@ def test_replan_trigger_instantiation():
 
 def test_should_trigger_replan_below_threshold():
     """Test that replan is not triggered below error threshold"""
-    from autopack.executor.replan_trigger import ReplanTrigger, ReplanConfig
+    from autopack.executor.replan_trigger import ReplanConfig, ReplanTrigger
 
     # Explicitly set threshold to 3 to avoid YAML config override
     config = ReplanConfig(trigger_threshold=3)
@@ -61,7 +61,7 @@ def test_should_trigger_replan_below_threshold():
 
 def test_should_trigger_replan_at_threshold():
     """Test that replan is triggered at error threshold"""
-    from autopack.executor.replan_trigger import ReplanTrigger, ReplanConfig
+    from autopack.executor.replan_trigger import ReplanConfig, ReplanTrigger
 
     config = ReplanConfig(trigger_threshold=3, similarity_enabled=False)
     trigger = ReplanTrigger(config=config)

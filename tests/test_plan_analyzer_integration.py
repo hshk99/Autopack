@@ -6,7 +6,7 @@ helping to discover concrete requirements through test scenarios.
 """
 
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -287,7 +287,10 @@ class TestContextBudget:
         scanner.scan(use_cache=False)
         matcher = PatternMatcher(scanner, autopack_internal_mode=False, run_type="project_build")
 
-        from autopack.plan_analyzer_grounding import GroundedContextBuilder, MAX_CONTEXT_CHARS
+        from autopack.plan_analyzer_grounding import (
+            MAX_CONTEXT_CHARS,
+            GroundedContextBuilder,
+        )
 
         builder = GroundedContextBuilder(scanner, matcher)
         context = builder.build_context(goal="Add new feature", phase_id="feature-phase")
@@ -306,7 +309,10 @@ class TestContextBudget:
         scanner.scan(use_cache=False)
         matcher = PatternMatcher(scanner, autopack_internal_mode=False, run_type="project_build")
 
-        from autopack.plan_analyzer_grounding import GroundedContextBuilder, MAX_CONTEXT_CHARS
+        from autopack.plan_analyzer_grounding import (
+            MAX_CONTEXT_CHARS,
+            GroundedContextBuilder,
+        )
 
         builder = GroundedContextBuilder(scanner, matcher)
 

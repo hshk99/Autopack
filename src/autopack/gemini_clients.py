@@ -6,9 +6,9 @@ Environment variables:
 - GOOGLE_API_KEY: API key for Google Gemini
 """
 
-import os
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -20,7 +20,7 @@ except ImportError:
     GENAI_AVAILABLE = False
     genai = None
 
-from .llm_client import BuilderResult, AuditorResult
+from .llm_client import AuditorResult, BuilderResult
 from .token_estimator import TokenEstimator
 
 logger = logging.getLogger(__name__)
@@ -391,7 +391,7 @@ Guidelines:
 
         # Stage 0A + 0B: Inject learned rules and hints
         if project_rules or run_hints:
-            from .learned_rules import format_rules_for_prompt, format_hints_for_prompt
+            from .learned_rules import format_hints_for_prompt, format_rules_for_prompt
 
             if project_rules:
                 rules_section = format_rules_for_prompt(project_rules)
@@ -596,7 +596,7 @@ Be thorough but fair. Approve patches that work correctly even if they have mino
         prompt_parts = []
 
         if project_rules or run_hints:
-            from .learned_rules import format_rules_for_prompt, format_hints_for_prompt
+            from .learned_rules import format_hints_for_prompt, format_rules_for_prompt
 
             if project_rules:
                 rules_section = format_rules_for_prompt(project_rules)

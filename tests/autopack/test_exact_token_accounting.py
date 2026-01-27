@@ -4,12 +4,13 @@ Validates that prompt_tokens and completion_tokens are accurately recorded
 from provider SDK responses, replacing heuristic 40/60 and 60/40 splits.
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from sqlalchemy.orm import Session
 
+from autopack.llm_client import AuditorResult, BuilderResult
 from autopack.llm_service import LlmService
-from autopack.llm_client import BuilderResult, AuditorResult
 from autopack.usage_recorder import LlmUsageEvent
 
 

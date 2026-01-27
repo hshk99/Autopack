@@ -3,11 +3,11 @@
 from pathlib import Path
 
 from autopack.deliverables_validator import (
-    extract_paths_from_patch,
-    normalize_path,
     extract_deliverables_from_scope,
-    validate_deliverables,
+    extract_paths_from_patch,
     format_validation_feedback_for_builder,
+    normalize_path,
+    validate_deliverables,
 )
 
 
@@ -76,8 +76,8 @@ class TestNormalizePath:
     def test_with_workspace(self):
         """Test normalization with workspace"""
         # Use a Windows-compatible absolute path for testing
-        import tempfile
         import os
+        import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
@@ -309,9 +309,9 @@ new file mode 100644
         is_valid, errors, details = validate_deliverables(
             patch, scope, "test-phase", workspace=tmp_path
         )
-        assert is_valid is True, (
-            f"Expected validation to pass using workspace state; errors={errors}"
-        )
+        assert (
+            is_valid is True
+        ), f"Expected validation to pass using workspace state; errors={errors}"
         assert details["missing_paths"] == []
 
     def test_examples_directory_allowed(self):

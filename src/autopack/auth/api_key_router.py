@@ -11,8 +11,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from autopack.database import get_db
-from .models import APIKey
+
 from .api_key import generate_api_key, require_api_key
+from .models import APIKey
 
 router = APIRouter(
     prefix="/api/auth/api-keys",

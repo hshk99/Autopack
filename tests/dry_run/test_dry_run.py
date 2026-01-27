@@ -3,19 +3,15 @@
 Tests the dry-run workflow: create -> approve -> execute with hash verification.
 """
 
-import pytest
+import json
+import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-import tempfile
-import json
 
-from autopack.dry_run import (
-    DryRunResult,
-    DryRunApproval,
-    DryRunStatus,
-    DryRunExecutor,
-)
-from autopack.dry_run.models import PredictedSideEffect, ExecutionResult
+import pytest
+
+from autopack.dry_run import DryRunApproval, DryRunExecutor, DryRunResult, DryRunStatus
+from autopack.dry_run.models import ExecutionResult, PredictedSideEffect
 
 
 class TestDryRunResult:

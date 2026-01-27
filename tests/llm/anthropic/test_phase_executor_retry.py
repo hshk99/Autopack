@@ -3,15 +3,16 @@
 IMP-003: Verify retry path uses AnthropicTransport for circuit breaker protection.
 """
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
 
 from autopack.llm.anthropic.phase_executor import AnthropicPhaseExecutor
 from autopack.llm.providers.anthropic_transport import (
     AnthropicTransport,
+    AnthropicTransportApiError,
     TransportResponse,
     TransportUsage,
-    AnthropicTransportApiError,
 )
 from autopack.llm_client import BuilderResult
 

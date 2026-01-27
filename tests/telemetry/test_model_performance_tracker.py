@@ -1,14 +1,15 @@
 """Tests for telemetry-driven model performance tracker (ROAD-L)."""
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
-from datetime import datetime, timezone, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from autopack.models import Base, PhaseOutcomeEvent
 from autopack.telemetry.model_performance_tracker import (
-    TelemetryDrivenModelOptimizer,
     ModelPerformance,
+    TelemetryDrivenModelOptimizer,
 )
 
 

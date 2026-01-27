@@ -11,8 +11,8 @@ Architecture:
 - Extensible for future Cursor/Claude implementations
 """
 
-from typing import Dict, List, Optional, Protocol, TYPE_CHECKING
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Dict, List, Optional, Protocol
 
 if TYPE_CHECKING:
     from autopack.structured_edits import EditPlan
@@ -34,7 +34,9 @@ class BuilderResult:
     stop_reason: Optional[str] = (
         None  # Anthropic API stop_reason: 'end_turn', 'max_tokens', 'stop_sequence'
     )
-    was_truncated: bool = False  # True if output is known-truncated (stop_reason=='max_tokens' or truncation-tolerant parser detected truncation)
+    was_truncated: bool = (
+        False  # True if output is known-truncated (stop_reason=='max_tokens' or truncation-tolerant parser detected truncation)
+    )
     raw_output: Optional[str] = (
         None  # Raw LLM output (used for continuation recovery / truncation analysis)
     )

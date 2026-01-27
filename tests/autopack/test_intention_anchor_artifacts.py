@@ -8,7 +8,6 @@ correctly generated and can be consolidated without direct writes to SOT ledgers
 import tempfile
 from pathlib import Path
 
-
 from autopack.intention_anchor import (
     IntentionConstraints,
     create_anchor,

@@ -12,8 +12,8 @@ Per GPT_RESPONSE10: LLM outputs complete file content, we generate diff.
 
 import json
 import logging
-from typing import Dict, Any, Optional
 from dataclasses import dataclass
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 

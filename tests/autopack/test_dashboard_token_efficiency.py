@@ -1,14 +1,14 @@
 """Tests for dashboard token efficiency integration (BUILD-145 deployment hardening)"""
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from autopack.database import Base, get_db
-from autopack.usage_recorder import record_token_efficiency_metrics
 from autopack.main import app
-from fastapi.testclient import TestClient
+from autopack.usage_recorder import record_token_efficiency_metrics
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 """Bridge component for persisting telemetry insights to memory service."""
 
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 try:
     from autopack.memory.memory_service import MemoryService

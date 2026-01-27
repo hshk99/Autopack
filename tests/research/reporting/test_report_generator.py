@@ -1,6 +1,7 @@
 import unittest
-from autopack.research.reporting.report_generator import ReportGenerator
+
 from autopack.research.reporting.citation_formatter import CitationFormatter
+from autopack.research.reporting.report_generator import ReportGenerator
 
 
 class TestReportGenerator(unittest.TestCase):

@@ -11,11 +11,11 @@ Design Goals:
 - Priority-based ordering for most critical evidence first
 """
 
+import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional, Dict, Any
-import json
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 
 class EvidenceType(Enum):

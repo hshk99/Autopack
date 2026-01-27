@@ -1,6 +1,7 @@
 import praw
-from autopack.research.gatherers.rate_limiter import RateLimiter
+
 from autopack.research.gatherers.error_handler import error_handler
+from autopack.research.gatherers.rate_limiter import RateLimiter
 
 
 class RedditGatherer:

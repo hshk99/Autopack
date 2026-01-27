@@ -22,9 +22,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from autopack.database import Base
-from autopack.models import StorageScan, CleanupCandidateDB
+from autopack.models import CleanupCandidateDB, StorageScan
 from autopack.storage_optimizer.executor import CleanupExecutor, ExecutionStatus
-from autopack.storage_optimizer.policy import StoragePolicy, CategoryPolicy
+from autopack.storage_optimizer.policy import CategoryPolicy, StoragePolicy
 
 # ==============================================================================
 # Fixtures

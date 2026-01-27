@@ -4,11 +4,12 @@ Uses your existing CodeCompassBot (@CodeSherpaBot) to send approval requests
 to your phone when Autopack needs human approval for risky changes.
 """
 
-import os
 import logging
-import requests
-from typing import Dict, Optional
+import os
 from datetime import datetime, timezone
+from typing import Dict, Optional
+
+import requests
 
 logger = logging.getLogger(__name__)
 

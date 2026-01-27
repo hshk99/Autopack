@@ -5,7 +5,7 @@ Simplified unit tests for PhaseFinalizer (BUILD-127 Phase 1).
 import json
 from unittest.mock import Mock
 
-from autopack.phase_finalizer import PhaseFinalizer, PhaseFinalizationDecision
+from autopack.phase_finalizer import PhaseFinalizationDecision, PhaseFinalizer
 from autopack.test_baseline_tracker import TestDelta
 
 

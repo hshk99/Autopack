@@ -1,7 +1,8 @@
 import unittest
 from datetime import datetime
-from autopack.research.models.evidence import Evidence
+
 from autopack.research.models.enums import EvidenceType
+from autopack.research.models.evidence import Evidence
 
 
 class TestEvidenceModel(unittest.TestCase):

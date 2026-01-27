@@ -4,12 +4,17 @@ Unit tests for CheckpointLogger (BUILD-152).
 Tests checkpoint logging, SHA256 computation, and dual-write fallback.
 """
 
-import pytest
 import json
 import tempfile
-from pathlib import Path
 from datetime import datetime
-from autopack.storage_optimizer.checkpoint_logger import CheckpointLogger, compute_sha256
+from pathlib import Path
+
+import pytest
+
+from autopack.storage_optimizer.checkpoint_logger import (
+    CheckpointLogger,
+    compute_sha256,
+)
 
 
 class TestCheckpointLogger:
@@ -176,6 +181,7 @@ class TestCheckpointLogger:
     def test_log_execution_to_database(self):
         """Integration test: Log to PostgreSQL execution_checkpoints table."""
         import os
+
         from autopack.database import SessionLocal
 
         # Skip if no database configured
@@ -251,7 +257,7 @@ class TestCheckpointLogger:
 
     def test_get_deleted_checksums_lookback_period(self):
         """Test that lookback_days filters old checkpoints."""
-        from datetime import timezone, timedelta
+        from datetime import timedelta, timezone
 
         with tempfile.TemporaryDirectory() as temp_dir:
             jsonl_path = Path(temp_dir) / "test_checkpoints.log"

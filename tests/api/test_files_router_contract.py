@@ -17,8 +17,9 @@ class TestUploadEndpointContract:
     @pytest.mark.asyncio
     async def test_upload_requires_file(self):
         """Contract: Upload returns 400 if no file provided."""
-        from autopack.api.routes.files import upload_file
         from fastapi import HTTPException
+
+        from autopack.api.routes.files import upload_file
 
         # Create mock request with empty form
         mock_request = MagicMock()

@@ -14,12 +14,12 @@ Token cost: ~500-2K tokens per 100 files (only for edge cases).
 """
 
 import json
-from pathlib import Path
-from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
-from autopack.storage_optimizer.policy import StoragePolicy, CategoryDefinition
 from autopack.storage_optimizer.models import ScanResult
+from autopack.storage_optimizer.policy import CategoryDefinition, StoragePolicy
 
 
 @dataclass
@@ -231,8 +231,8 @@ Respond with ONLY the JSON array, no other text.
         """
         # Import LLM utilities
         try:
-            from autopack.llm import get_llm_client
             from autopack.config import settings
+            from autopack.llm import get_llm_client
 
             # Determine provider
             provider = self.llm_provider or settings.llm_provider

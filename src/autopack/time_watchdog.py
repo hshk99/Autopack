@@ -13,7 +13,7 @@ from burning entire run budget. Default: 15 min per phase with 50% soft warning.
 """
 
 import time
-from typing import Optional, Dict
+from typing import Dict, Optional
 
 
 class TimeWatchdog:

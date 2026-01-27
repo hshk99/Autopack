@@ -4,9 +4,10 @@ Validates that the pytest runner correctly executes pytest, parses output,
 handles timeouts, and persists CI logs.
 """
 
+import subprocess
 from pathlib import Path
 from unittest.mock import Mock, patch
-import subprocess
+
 import pytest
 
 from autopack.ci.pytest_runner import PytestRunner

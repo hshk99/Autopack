@@ -5,7 +5,7 @@ This module defines the SourceEvaluator class, which assesses the credibility an
 of information sources discovered during the research process.
 """
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 
 class SourceEvaluator:

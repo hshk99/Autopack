@@ -8,13 +8,14 @@ These tests verify:
 - Fallback exhaustion raises clear error
 """
 
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
+
 from autopack.llm.client_resolution import (
-    resolve_client_and_model,
-    resolve_builder_client,
     resolve_auditor_client,
+    resolve_builder_client,
+    resolve_client_and_model,
 )
 
 

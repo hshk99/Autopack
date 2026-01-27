@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Optional, Tuple, Protocol
+from typing import Optional, Protocol, Tuple
 
 from fastapi import FastAPI
 

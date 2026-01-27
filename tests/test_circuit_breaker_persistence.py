@@ -1,15 +1,16 @@
 """Tests for circuit breaker persistence requirement."""
 
-import pytest
-import tempfile
 import os
+import tempfile
 from pathlib import Path
+
+import pytest
 
 from autopack.circuit_breaker import (
     CircuitBreaker,
-    CircuitState,
     CircuitBreakerConfig,
     CircuitBreakerOpenError,
+    CircuitState,
 )
 from autopack.circuit_breaker_file_persistence import FileBasedCircuitBreakerPersistence
 

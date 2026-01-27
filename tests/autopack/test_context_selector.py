@@ -3,11 +3,10 @@
 IMP-TEST-005: Add comprehensive tests for ContextSelector class.
 """
 
+import subprocess
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-import subprocess
-
+from unittest.mock import MagicMock, patch
 
 from autopack.context_selector import ContextSelector
 

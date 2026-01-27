@@ -10,9 +10,10 @@ This prevents the "1 queued blocks 5 failed" scenario.
 """
 
 import os
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import pytest
 
 # Set DATABASE_URL before any imports
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
@@ -21,7 +22,7 @@ os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from autopack.database import SessionLocal, engine
-from autopack.models import Phase, PhaseState, Base, Run, Tier
+from autopack.models import Base, Phase, PhaseState, Run, Tier
 from scripts.batch_drain_controller import BatchDrainController
 
 

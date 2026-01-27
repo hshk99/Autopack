@@ -7,10 +7,10 @@ This is the deprecated mode where LLM generates raw git diffs.
 Kept for backward compatibility only.
 """
 
-import re
 import logging
-from typing import Optional
+import re
 from dataclasses import dataclass
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 

@@ -8,8 +8,9 @@ Tests that SOT retrieval is correctly gated based on available budget:
 4. Correctly calculates minimum required budget (sot_budget + 2000)
 """
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
 
 
 class TestSOTBudgetGating:
@@ -159,7 +160,6 @@ class TestSOTBudgetGating:
         # This test verifies the design intent documented in BUILD-154
         # In production, AUTOPACK_SOT_RETRIEVAL_ENABLED defaults to false
         # Tests use mocks, but this documents expected behavior
-
         # Simulate default production config (SOT disabled by default)
         executor.retrieval_injection.gate_sot_retrieval.return_value = GateDecision(
             allowed=False,

@@ -15,11 +15,11 @@ from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from .models import (
+    ModelBenchmark,
     ModelCatalog,
     ModelPricing,
-    ModelBenchmark,
-    ModelRuntimeStats,
     ModelRecommendation,
+    ModelRuntimeStats,
 )
 from .sentiment_ingest import compute_sentiment_score
 

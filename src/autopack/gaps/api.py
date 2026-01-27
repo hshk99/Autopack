@@ -22,9 +22,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from ..file_layout import RunFileLayout
 from .models import GapReportV1
 from .scanner import scan_workspace
-from ..file_layout import RunFileLayout
 
 logger = logging.getLogger(__name__)
 

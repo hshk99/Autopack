@@ -9,7 +9,6 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
-
 from autopack.executor.run_checkpoint import (
     create_checkpoint,
     create_deletion_savepoint,

@@ -1,16 +1,17 @@
 """Unit tests for source discovery strategies."""
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
+
+from autopack.research.intent_clarification import ClarifiedIntent
 from autopack.research.source_discovery import (
+    AcademicSearchStrategy,
+    DiscoveredSource,
+    DocumentationSearchStrategy,
     SourceDiscoveryStrategy,
     WebSearchStrategy,
-    AcademicSearchStrategy,
-    DocumentationSearchStrategy,
-    DiscoveredSource,
 )
-from autopack.research.intent_clarification import ClarifiedIntent
 
 
 class TestSourceDiscoveryStrategy:

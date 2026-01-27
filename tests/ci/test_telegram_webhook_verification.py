@@ -10,6 +10,7 @@ Security contract: Webhook cannot be abused if endpoint is reachable.
 """
 
 import os
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -74,9 +75,9 @@ class TestTelegramWebhookVerification:
 
         response = client.post("/telegram/webhook", json=payload)
         # Should not return 403 (may return other errors due to missing DB data)
-        assert response.status_code != 403, (
-            f"Webhook should be accessible in testing mode, got {response.status_code}"
-        )
+        assert (
+            response.status_code != 403
+        ), f"Webhook should be accessible in testing mode, got {response.status_code}"
 
     def test_webhook_rejects_missing_secret_in_production(self, production_client):
         """Webhook should reject requests without secret token in production."""
@@ -91,9 +92,9 @@ class TestTelegramWebhookVerification:
 
         # Request without X-Telegram-Bot-Api-Secret-Token header
         response = production_client.post("/telegram/webhook", json=payload)
-        assert response.status_code == 403, (
-            f"Webhook should reject missing secret in production, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 403
+        ), f"Webhook should reject missing secret in production, got {response.status_code}"
 
     def test_webhook_rejects_invalid_secret_in_production(self, production_client):
         """Webhook should reject requests with wrong secret token."""
@@ -112,9 +113,9 @@ class TestTelegramWebhookVerification:
             json=payload,
             headers={"X-Telegram-Bot-Api-Secret-Token": "wrong-secret"},
         )
-        assert response.status_code == 403, (
-            f"Webhook should reject invalid secret, got {response.status_code}"
-        )
+        assert (
+            response.status_code == 403
+        ), f"Webhook should reject invalid secret, got {response.status_code}"
 
     def test_webhook_accepts_valid_secret_in_production(self, production_client):
         """Webhook should accept requests with correct secret token."""
@@ -136,9 +137,9 @@ class TestTelegramWebhookVerification:
             },  # gitleaks:allow
         )
         # Should not return 403 (may return other errors due to missing DB)
-        assert response.status_code != 403, (
-            f"Webhook should accept valid secret, got {response.status_code}"
-        )
+        assert (
+            response.status_code != 403
+        ), f"Webhook should accept valid secret, got {response.status_code}"
 
     def test_webhook_with_valid_credentials_processes_request(self, production_client):
         """Webhook with valid secret should process request (not return 403)."""
@@ -163,9 +164,9 @@ class TestTelegramWebhookVerification:
             },  # gitleaks:allow
         )
         # Should not return 403 - may return 200 (processed) or other status
-        assert response.status_code != 403, (
-            f"Webhook with valid credentials should not be rejected, got {response.status_code}"
-        )
+        assert (
+            response.status_code != 403
+        ), f"Webhook with valid credentials should not be rejected, got {response.status_code}"
 
 
 class TestTelegramWebhookProductionRequirements:
@@ -235,8 +236,9 @@ class TestWebhookSecurityModule:
 
     def test_telegram_webhook_endpoint_exists(self):
         """telegram_webhook endpoint must exist."""
-        from autopack.main import app
         from fastapi.routing import APIRoute
+
+        from autopack.main import app
 
         webhook_route = None
         for route in app.routes:

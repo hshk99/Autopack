@@ -4,9 +4,10 @@ Validates that the execute fix handler correctly executes automated fixes,
 validates commands, and handles security constraints.
 """
 
-from unittest.mock import Mock, patch
-import pytest
 import sys
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Patch the incorrect import in execute_fix_handler.py before importing it
 # The source file incorrectly imports from autopack.checkpoint instead of autopack.executor

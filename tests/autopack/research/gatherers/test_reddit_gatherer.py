@@ -1,7 +1,8 @@
 """Tests for Reddit gatherer."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from autopack.research.gatherers.reddit_gatherer import RedditGatherer
 from autopack.research.models.enums import EvidenceType

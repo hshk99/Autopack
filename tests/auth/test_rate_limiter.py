@@ -5,9 +5,10 @@ Verifies that rate limiting prevents brute force attacks on login endpoints.
 """
 
 import os
-import pytest
 from time import sleep
 from unittest.mock import MagicMock
+
+import pytest
 
 # Set testing mode before imports
 os.environ.setdefault("TESTING", "1")
@@ -122,6 +123,7 @@ class TestLoginRateLimitIntegration:
         """Create a test database session."""
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
+
         from autopack.database import Base
 
         engine = create_engine("sqlite:///:memory:")
@@ -137,9 +139,10 @@ class TestLoginRateLimitIntegration:
     @pytest.fixture
     def test_user(self, test_db):
         """Create a test user in the database."""
+        from datetime import datetime, timezone
+
         from autopack.auth.models import User
         from autopack.auth.router import get_password_hash
-        from datetime import datetime, timezone
 
         user = User(
             username="testuser",
@@ -158,10 +161,11 @@ class TestLoginRateLimitIntegration:
     @pytest.mark.asyncio
     async def test_login_applies_rate_limiting(self, mock_request, test_db, test_user):
         """Test that login endpoint enforces rate limiting."""
-        from autopack.auth.router import login
-        from autopack.auth.rate_limiter import login_rate_limiter
-        from fastapi.security import OAuth2PasswordRequestForm
         from fastapi import HTTPException
+        from fastapi.security import OAuth2PasswordRequestForm
+
+        from autopack.auth.rate_limiter import login_rate_limiter
+        from autopack.auth.router import login
 
         # Reset rate limiter
         login_rate_limiter.requests.clear()
@@ -191,9 +195,10 @@ class TestLoginRateLimitIntegration:
     @pytest.mark.asyncio
     async def test_login_rate_limit_per_ip(self, test_db, test_user):
         """Test that rate limiting is applied per IP address."""
-        from autopack.auth.router import login
-        from autopack.auth.rate_limiter import login_rate_limiter
         from fastapi.security import OAuth2PasswordRequestForm
+
+        from autopack.auth.rate_limiter import login_rate_limiter
+        from autopack.auth.router import login
 
         # Reset rate limiter
         login_rate_limiter.requests.clear()
@@ -226,10 +231,11 @@ class TestLoginRateLimitIntegration:
     @pytest.mark.asyncio
     async def test_login_rate_limit_with_failed_attempts(self, mock_request, test_db, test_user):
         """Test that rate limiting applies even to failed login attempts."""
-        from autopack.auth.router import login
-        from autopack.auth.rate_limiter import login_rate_limiter
-        from fastapi.security import OAuth2PasswordRequestForm
         from fastapi import HTTPException
+        from fastapi.security import OAuth2PasswordRequestForm
+
+        from autopack.auth.rate_limiter import login_rate_limiter
+        from autopack.auth.router import login
 
         # Reset rate limiter
         login_rate_limiter.requests.clear()

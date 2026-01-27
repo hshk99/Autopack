@@ -2,9 +2,8 @@
 
 from pathlib import Path
 
-
-from autopack.plan_analyzer_grounding import GroundedContextBuilder, MAX_CONTEXT_CHARS
 from autopack.pattern_matcher import PatternMatcher
+from autopack.plan_analyzer_grounding import MAX_CONTEXT_CHARS, GroundedContextBuilder
 from autopack.repo_scanner import RepoScanner
 
 

@@ -5,7 +5,8 @@ This module defines the GitHubDiscovery class, which searches GitHub repositorie
 to find relevant code and discussions for research purposes.
 """
 
-from typing import List, Dict
+from typing import Dict, List
+
 from github import Github
 
 
@@ -54,8 +55,8 @@ class GitHubDiscovery:
 
 # Backward compatibility shims
 from dataclasses import dataclass
-from typing import Optional, List
 from datetime import datetime
+from typing import List, Optional
 
 
 @dataclass

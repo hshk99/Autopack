@@ -16,13 +16,13 @@ Error reports are written to:
 BUILD-188: All context data is sanitized before persisting to prevent secret leakage.
 """
 
-import traceback
 import json
+import logging
 import sys
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Dict, Any, List
-import logging
+from typing import Any, Dict, List, Optional
 
 from .sanitizer import sanitize_context, sanitize_dict
 

@@ -7,9 +7,10 @@ Tests cover:
 - Health tracking and circuit breaker reset
 """
 
-import pytest
 import time
 from unittest.mock import Mock, patch
+
+import pytest
 
 pytestmark = [
     pytest.mark.xfail(
@@ -121,7 +122,7 @@ class TestErrorRecoveryClassification:
     def test_error_recovery_classifies_network_errors(self):
         """Verify network errors classified as transient."""
         try:
-            from autopack.error_recovery import ErrorRecoverySystem, ErrorCategory
+            from autopack.error_recovery import ErrorCategory, ErrorRecoverySystem
         except ImportError:
             pytest.skip("ErrorRecovery classification not available")
 
@@ -145,7 +146,7 @@ class TestErrorRecoveryClassification:
     def test_error_recovery_classifies_encoding_errors(self):
         """Verify encoding errors classified correctly."""
         try:
-            from autopack.error_recovery import ErrorRecoverySystem, ErrorCategory
+            from autopack.error_recovery import ErrorCategory, ErrorRecoverySystem
         except ImportError:
             pytest.skip("ErrorRecovery classification not available")
 

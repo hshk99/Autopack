@@ -1,10 +1,11 @@
 """Integration tests for stage transitions in research pipeline."""
 
-import pytest
 from unittest.mock import patch
 
-from autopack.research.orchestrator import ResearchOrchestrator
+import pytest
+
 from autopack.research.models import ResearchQuery, ResearchStage
+from autopack.research.orchestrator import ResearchOrchestrator
 
 
 class TestStageTransitions:

@@ -9,9 +9,10 @@ Per IMPLEMENTATION_PLAN_MEMORY_AND_CONTEXT.md:
 """
 
 import logging
-from typing import Optional, Tuple
-import yaml
 from pathlib import Path
+from typing import Optional, Tuple
+
+import yaml
 
 from .embeddings import sync_embed_text
 

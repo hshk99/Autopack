@@ -15,14 +15,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from autopack.archive_consolidator import log_build_event
-from autopack.autonomous.budgeting import (BudgetExhaustedError,
-                                           get_budget_remaining_pct,
-                                           is_budget_exhausted)
-from autopack.autonomy.parallelism_gate import (ParallelismPolicyGate,
-                                                ScopeBasedParallelismChecker)
+from autopack.autonomous.budgeting import (
+    BudgetExhaustedError,
+    get_budget_remaining_pct,
+    is_budget_exhausted,
+)
+from autopack.autonomy.parallelism_gate import ParallelismPolicyGate, ScopeBasedParallelismChecker
 from autopack.config import settings
-from autopack.database import (SESSION_HEALTH_CHECK_INTERVAL,
-                               ensure_session_healthy)
+from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
@@ -318,6 +318,13 @@ class AutonomousLoop:
         # IMP-LOOP-001: Unified feedback pipeline for self-improvement loop
         self._feedback_pipeline: Optional[FeedbackPipeline] = None
         self._feedback_pipeline_enabled = getattr(settings, "feedback_pipeline_enabled", True)
+
+        # IMP-INT-001: Telemetry aggregation tracking for self-improvement loop
+        # Controls how often aggregate_telemetry() is called during execution
+        self._telemetry_aggregation_interval = getattr(
+            settings, "telemetry_aggregation_interval", 3
+        )  # Aggregate every N phases
+        self._phases_since_last_aggregation = 0
 
     def get_loop_stats(self) -> Dict:
         """Get current loop statistics for monitoring (IMP-LOOP-006, IMP-AUTO-002).
@@ -765,6 +772,77 @@ class AutonomousLoop:
                     memory_service=memory_service,
                 )
         return self._telemetry_analyzer
+
+    def _aggregate_phase_telemetry(self, phase_id: str, force: bool = False) -> Optional[Dict]:
+        """Aggregate telemetry after phase completion for self-improvement feedback.
+
+        IMP-INT-001: Wires TelemetryAnalyzer.aggregate_telemetry() into the autonomous
+        execution loop after phase completion. This enables the self-improvement
+        architecture by ensuring telemetry insights are aggregated and persisted
+        during execution, not just at the end of the run.
+
+        Uses throttling to avoid expensive database queries after every phase.
+        By default, aggregates every N phases (controlled by telemetry_aggregation_interval).
+
+        Args:
+            phase_id: ID of the phase that just completed (for logging)
+            force: If True, bypass throttling and aggregate immediately
+
+        Returns:
+            Dictionary of ranked issues from aggregate_telemetry(), or None if
+            aggregation was skipped (throttled) or failed.
+        """
+        # Increment phase counter
+        self._phases_since_last_aggregation += 1
+
+        # Check if we should aggregate (throttling)
+        should_aggregate = force or (
+            self._phases_since_last_aggregation >= self._telemetry_aggregation_interval
+        )
+
+        if not should_aggregate:
+            logger.debug(
+                f"[IMP-INT-001] Skipping telemetry aggregation after phase {phase_id} "
+                f"({self._phases_since_last_aggregation}/{self._telemetry_aggregation_interval} phases)"
+            )
+            return None
+
+        analyzer = self._get_telemetry_analyzer()
+        if not analyzer:
+            logger.debug("[IMP-INT-001] No telemetry analyzer available for aggregation")
+            return None
+
+        try:
+            # Aggregate telemetry - this internally persists to memory via bridge
+            # when memory_service is available (see TelemetryAnalyzer.aggregate_telemetry)
+            ranked_issues = analyzer.aggregate_telemetry(window_days=7)
+
+            # Reset throttle counter
+            self._phases_since_last_aggregation = 0
+
+            # Log aggregation results
+            total_issues = (
+                len(ranked_issues.get("top_cost_sinks", []))
+                + len(ranked_issues.get("top_failure_modes", []))
+                + len(ranked_issues.get("top_retry_causes", []))
+            )
+            logger.info(
+                f"[IMP-INT-001] Aggregated telemetry after phase {phase_id}: "
+                f"{total_issues} issues found "
+                f"(cost_sinks={len(ranked_issues.get('top_cost_sinks', []))}, "
+                f"failure_modes={len(ranked_issues.get('top_failure_modes', []))}, "
+                f"retry_causes={len(ranked_issues.get('top_retry_causes', []))})"
+            )
+
+            return ranked_issues
+
+        except Exception as e:
+            # Non-fatal - telemetry aggregation failure should not block execution
+            logger.warning(
+                f"[IMP-INT-001] Failed to aggregate telemetry after phase {phase_id} "
+                f"(non-fatal): {e}"
+            )
+            return None
 
     def _get_telemetry_adjustments(self, phase_type: Optional[str]) -> Dict:
         """Get telemetry-driven adjustments for phase execution.
@@ -1476,8 +1554,7 @@ class AutonomousLoop:
 
     def _initialize_intention_loop(self):
         """Initialize intention-first loop for the run."""
-        from autopack.autonomous.executor_wiring import \
-            initialize_intention_first_loop
+        from autopack.autonomous.executor_wiring import initialize_intention_first_loop
         from autopack.intention_anchor.storage import IntentionAnchorStorage
 
         # IMP-ARCH-012: Load pending improvement tasks from self-improvement loop
@@ -1499,7 +1576,10 @@ class AutonomousLoop:
                 from datetime import datetime, timezone
 
                 from autopack.intention_anchor.models import (
-                    IntentionAnchor, IntentionBudgets, IntentionConstraints)
+                    IntentionAnchor,
+                    IntentionBudgets,
+                    IntentionConstraints,
+                )
 
                 intention_anchor = IntentionAnchor(
                     anchor_id=f"default-{self.executor.run_id}",
@@ -1726,6 +1806,14 @@ class AutonomousLoop:
 
                         if self._circuit_breaker is not None:
                             self._circuit_breaker.record_success()
+
+                        # IMP-INT-001: Aggregate telemetry after parallel phase completion
+                        try:
+                            self._aggregate_phase_telemetry(phase_id_result)
+                        except Exception as agg_err:
+                            logger.warning(
+                                f"[IMP-INT-001] Telemetry aggregation failed (non-fatal): {agg_err}"
+                            )
                     else:
                         logger.warning(
                             f"Phase {phase_id_result} finished with status: {status} (parallel)"
@@ -1841,6 +1929,15 @@ class AutonomousLoop:
                 # IMP-LOOP-006: Record success with circuit breaker
                 if self._circuit_breaker is not None:
                     self._circuit_breaker.record_success()
+
+                # IMP-INT-001: Aggregate telemetry after phase completion for self-improvement
+                try:
+                    self._aggregate_phase_telemetry(phase_id)
+                except Exception as agg_err:
+                    # Non-fatal - continue execution even if telemetry aggregation fails
+                    logger.warning(
+                        f"[IMP-INT-001] Telemetry aggregation failed (non-fatal): {agg_err}"
+                    )
 
                 # IMP-AUTOPILOT-001: Periodic autopilot invocation after successful phases
                 if (

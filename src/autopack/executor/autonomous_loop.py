@@ -28,6 +28,7 @@ from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
 from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
+from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
@@ -280,6 +281,9 @@ class AutonomousLoop:
         self.max_idle_sleep = 5.0  # Maximum sleep time when idle
         self._last_session_health_check = time.time()  # Track last health check
         self._telemetry_analyzer: Optional[TelemetryAnalyzer] = None
+
+        # IMP-INT-002: TelemetryToMemoryBridge for persisting insights after aggregation
+        self._telemetry_to_memory_bridge: Optional[TelemetryToMemoryBridge] = None
 
         # IMP-PERF-002: Context ceiling tracking
         # Prevents unbounded context injection across phases
@@ -773,6 +777,144 @@ class AutonomousLoop:
                 )
         return self._telemetry_analyzer
 
+    def _get_telemetry_to_memory_bridge(self) -> Optional[TelemetryToMemoryBridge]:
+        """Get or create the TelemetryToMemoryBridge instance.
+
+        IMP-INT-002: Provides a bridge for persisting telemetry insights to memory
+        after aggregation. The bridge is lazily initialized and reused.
+
+        Returns:
+            TelemetryToMemoryBridge instance if memory_service is available, None otherwise.
+        """
+        if self._telemetry_to_memory_bridge is None:
+            memory_service = getattr(self.executor, "memory_service", None)
+            if memory_service and memory_service.enabled:
+                self._telemetry_to_memory_bridge = TelemetryToMemoryBridge(
+                    memory_service=memory_service,
+                    enabled=True,
+                )
+        return self._telemetry_to_memory_bridge
+
+    def _flatten_ranked_issues_to_dicts(self, ranked_issues: Dict) -> list:
+        """Convert ranked issues from aggregate_telemetry() to a flat list of dicts.
+
+        IMP-INT-002: Converts RankedIssue objects to dictionaries suitable for
+        TelemetryToMemoryBridge.persist_insights().
+
+        Args:
+            ranked_issues: Dictionary from TelemetryAnalyzer.aggregate_telemetry()
+                containing top_cost_sinks, top_failure_modes, top_retry_causes.
+
+        Returns:
+            Flat list of dictionaries ready for bridge.persist_insights().
+        """
+        flat_issues = []
+
+        for issue in ranked_issues.get("top_cost_sinks", []):
+            flat_issues.append(
+                {
+                    "issue_type": "cost_sink",
+                    "insight_id": f"{issue.rank}",
+                    "rank": issue.rank,
+                    "phase_id": issue.phase_id,
+                    "phase_type": issue.phase_type,
+                    "severity": "high",
+                    "description": f"Phase {issue.phase_id} consuming {issue.metric_value:,.0f} tokens",
+                    "metric_value": issue.metric_value,
+                    "occurrences": issue.details.get("count", 1),
+                    "details": issue.details,
+                    "suggested_action": f"Optimize token usage for {issue.phase_type}",
+                }
+            )
+
+        for issue in ranked_issues.get("top_failure_modes", []):
+            flat_issues.append(
+                {
+                    "issue_type": "failure_mode",
+                    "insight_id": f"{issue.rank}",
+                    "rank": issue.rank,
+                    "phase_id": issue.phase_id,
+                    "phase_type": issue.phase_type,
+                    "severity": "high",
+                    "description": f"Failure: {issue.details.get('outcome', '')} - {issue.details.get('stop_reason', '')}",
+                    "metric_value": issue.metric_value,
+                    "occurrences": issue.details.get("count", 1),
+                    "details": issue.details,
+                    "suggested_action": f"Fix {issue.phase_type} failure pattern",
+                }
+            )
+
+        for issue in ranked_issues.get("top_retry_causes", []):
+            flat_issues.append(
+                {
+                    "issue_type": "retry_cause",
+                    "insight_id": f"{issue.rank}",
+                    "rank": issue.rank,
+                    "phase_id": issue.phase_id,
+                    "phase_type": issue.phase_type,
+                    "severity": "medium",
+                    "description": f"Retry cause: {issue.details.get('stop_reason', '')}",
+                    "metric_value": issue.metric_value,
+                    "occurrences": issue.details.get("count", 1),
+                    "details": issue.details,
+                    "suggested_action": f"Increase timeout or optimize {issue.phase_type}",
+                }
+            )
+
+        return flat_issues
+
+    def _persist_insights_to_memory(
+        self, ranked_issues: Dict, context: str = "phase_telemetry"
+    ) -> int:
+        """Persist ranked issues to memory via TelemetryToMemoryBridge.
+
+        IMP-INT-002: Invokes TelemetryToMemoryBridge.persist_insights() after
+        telemetry aggregation to store insights in memory for future retrieval.
+
+        Args:
+            ranked_issues: Dictionary from TelemetryAnalyzer.aggregate_telemetry()
+            context: Context string for logging (e.g., "phase_telemetry", "run_finalization")
+
+        Returns:
+            Number of insights persisted, or 0 if persistence failed/skipped.
+        """
+        bridge = self._get_telemetry_to_memory_bridge()
+        if not bridge:
+            logger.debug(f"[IMP-INT-002] No bridge available for {context} persistence")
+            return 0
+
+        run_id = getattr(self.executor, "run_id", "unknown")
+        project_id = getattr(self.executor, "_get_project_slug", lambda: "default")()
+
+        try:
+            # Flatten ranked issues to dicts for bridge
+            flat_issues = self._flatten_ranked_issues_to_dicts(ranked_issues)
+
+            if not flat_issues:
+                logger.debug(f"[IMP-INT-002] No issues to persist for {context}")
+                return 0
+
+            # Persist to memory
+            persisted_count = bridge.persist_insights(
+                ranked_issues=flat_issues,
+                run_id=run_id,
+                project_id=project_id,
+            )
+
+            logger.info(
+                f"[IMP-INT-002] Persisted {persisted_count} insights to memory "
+                f"(context={context}, run_id={run_id})"
+            )
+            return persisted_count
+
+        except Exception as e:
+            # Non-fatal - persistence failure should not block execution
+            logger.warning(
+                f"[IMP-INT-002] Failed to persist insights to memory "
+                f"(context={context}, non-fatal): {e}"
+            )
+            return 0
+
     def _aggregate_phase_telemetry(self, phase_id: str, force: bool = False) -> Optional[Dict]:
         """Aggregate telemetry after phase completion for self-improvement feedback.
 
@@ -813,8 +955,7 @@ class AutonomousLoop:
             return None
 
         try:
-            # Aggregate telemetry - this internally persists to memory via bridge
-            # when memory_service is available (see TelemetryAnalyzer.aggregate_telemetry)
+            # Aggregate telemetry from database
             ranked_issues = analyzer.aggregate_telemetry(window_days=7)
 
             # Reset throttle counter
@@ -833,6 +974,9 @@ class AutonomousLoop:
                 f"failure_modes={len(ranked_issues.get('top_failure_modes', []))}, "
                 f"retry_causes={len(ranked_issues.get('top_retry_causes', []))})"
             )
+
+            # IMP-INT-002: Persist aggregated insights to memory via bridge
+            self._persist_insights_to_memory(ranked_issues, context="phase_telemetry")
 
             return ranked_issues
 
@@ -2399,6 +2543,7 @@ class AutonomousLoop:
         """Analyze and persist telemetry insights to memory after run completion.
 
         Implements IMP-ARCH-001: Wire Telemetry Analyzer to Memory Service.
+        IMP-INT-002: Explicit bridge invocation after aggregation.
         IMP-LOOP-002: Added validation to ensure data integrity before persistence.
 
         Closes the ROAD-B feedback loop by persisting ranked issues to vector memory
@@ -2412,6 +2557,10 @@ class AutonomousLoop:
         try:
             # Analyze telemetry from the run and aggregate issues
             ranked_issues = analyzer.aggregate_telemetry(window_days=7)
+
+            # IMP-INT-002: Persist aggregated insights to memory via bridge
+            # This ensures insights are persisted before validation processing
+            self._persist_insights_to_memory(ranked_issues, context="run_finalization")
 
             # IMP-LOOP-002: Validate telemetry feedback before memory storage
             is_valid, validated_issues, error_count = self._validate_telemetry_feedback(

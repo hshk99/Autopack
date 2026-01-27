@@ -73,14 +73,24 @@ def _is_fresh(
 
     Args:
         timestamp_str: ISO format timestamp string
-        max_age_hours: Maximum age in hours for data to be considered fresh
+        max_age_hours: Maximum age in hours for data to be considered fresh.
+                      IMP-LOOP-014: Must be positive; non-positive values
+                      are treated as using the default freshness threshold.
         now: Current time (defaults to UTC now)
 
     Returns:
         True if timestamp is within max_age_hours, False otherwise
     """
+    # IMP-LOOP-014: Freshness filtering is mandatory - non-positive values
+    # should not bypass the check. Log warning and use default.
     if max_age_hours <= 0:
-        return True  # No freshness check if max_age_hours is 0 or negative
+        logger.warning(
+            "[IMP-LOOP-014] _is_fresh called with max_age_hours=%s (must be positive). "
+            "Using DEFAULT_MEMORY_FRESHNESS_HOURS=%s instead.",
+            max_age_hours,
+            DEFAULT_MEMORY_FRESHNESS_HOURS,
+        )
+        max_age_hours = DEFAULT_MEMORY_FRESHNESS_HOURS
 
     parsed_ts = _parse_timestamp(timestamp_str)
     if parsed_ts is None:
@@ -1823,13 +1833,16 @@ class MemoryService:
         IMP-LOOP-003: Added freshness check to filter out stale insights based on
         timestamp. Stale data can lead to outdated context being used for task creation.
 
+        IMP-LOOP-014: Freshness filtering is MANDATORY. Attempts to disable via
+        0/negative values are ignored with a warning. Audit logging added.
+
         Args:
             query: Search query to find relevant insights
             limit: Maximum number of results to return
             project_id: Optional project ID to filter by
             max_age_hours: Maximum age in hours for insights to be considered fresh.
                           Defaults to DEFAULT_MEMORY_FRESHNESS_HOURS (72 hours).
-                          Set to 0 or negative to disable freshness filtering.
+                          Must be positive; attempts to disable are ignored.
 
         Returns:
             List of insight dictionaries with content, metadata, and score
@@ -1838,9 +1851,28 @@ class MemoryService:
             logger.debug("[MemoryService] Memory disabled, returning empty insights")
             return []
 
-        # IMP-LOOP-003: Apply default freshness threshold if not specified
-        effective_max_age = (
-            max_age_hours if max_age_hours is not None else DEFAULT_MEMORY_FRESHNESS_HOURS
+        # IMP-LOOP-014: Enforce mandatory freshness filtering with validation
+        if max_age_hours is not None and max_age_hours <= 0:
+            logger.warning(
+                "[IMP-LOOP-014] max_age_hours=%s is invalid (must be positive). "
+                "Freshness filtering is mandatory for the self-improvement loop. "
+                "Override ignored - using DEFAULT_MEMORY_FRESHNESS_HOURS=%s.",
+                max_age_hours,
+                DEFAULT_MEMORY_FRESHNESS_HOURS,
+            )
+            effective_max_age = DEFAULT_MEMORY_FRESHNESS_HOURS
+        else:
+            effective_max_age = (
+                max_age_hours if max_age_hours is not None else DEFAULT_MEMORY_FRESHNESS_HOURS
+            )
+
+        # IMP-LOOP-014: Audit log for freshness filter applied
+        logger.info(
+            "[IMP-LOOP-014] Retrieving insights with freshness_filter=%sh, "
+            "project_id=%s, limit=%s",
+            effective_max_age,
+            project_id or "all",
+            limit,
         )
 
         try:
@@ -1882,13 +1914,16 @@ class MemoryService:
                     if payload.get("task_type") != "telemetry_insight":
                         continue
 
-                    # IMP-LOOP-003: Apply freshness check
+                    # IMP-LOOP-003/IMP-LOOP-014: Apply mandatory freshness check
                     timestamp = payload.get("timestamp")
-                    if effective_max_age > 0 and not _is_fresh(timestamp, effective_max_age):
+                    if not _is_fresh(timestamp, effective_max_age):
                         stale_count += 1
                         logger.debug(
-                            f"[IMP-LOOP-003] Skipping stale insight (age > {effective_max_age}h): "
-                            f"id={getattr(result, 'id', 'unknown')}, timestamp={timestamp}"
+                            "[IMP-LOOP-014] Skipping stale insight (age > %sh): "
+                            "id=%s, timestamp=%s",
+                            effective_max_age,
+                            getattr(result, "id", "unknown"),
+                            timestamp,
                         )
                         continue
 

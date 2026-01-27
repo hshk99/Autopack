@@ -4,15 +4,16 @@ Tests the freshness validation logic added to memory retrieval
 for task generation, ensuring only recent and relevant memories are used.
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 
+import pytest
+
 from autopack.memory.memory_service import (
-    MemoryService,
     DEFAULT_MEMORY_FRESHNESS_HOURS,
-    _parse_timestamp,
+    MemoryService,
     _is_fresh,
+    _parse_timestamp,
 )
 
 
@@ -76,15 +77,21 @@ class TestFreshnessCheck:
         edge_ts = (now - timedelta(hours=24)).isoformat()
         assert _is_fresh(edge_ts, max_age_hours=24, now=now) is True
 
-    def test_zero_max_age_disables_check(self):
-        """Test that max_age_hours=0 disables freshness check."""
+    def test_zero_max_age_uses_default(self):
+        """Test that max_age_hours=0 uses default (IMP-LOOP-014: no bypass allowed)."""
+        now = datetime.now(timezone.utc)
+        # Old timestamp beyond default threshold
         old_ts = "2020-01-01T00:00:00+00:00"  # Very old
-        assert _is_fresh(old_ts, max_age_hours=0) is True
+        # IMP-LOOP-014: Zero max_age should use DEFAULT and filter stale data
+        assert _is_fresh(old_ts, max_age_hours=0, now=now) is False
 
-    def test_negative_max_age_disables_check(self):
-        """Test that negative max_age_hours disables freshness check."""
+    def test_negative_max_age_uses_default(self):
+        """Test that negative max_age_hours uses default (IMP-LOOP-014: no bypass allowed)."""
+        now = datetime.now(timezone.utc)
+        # Old timestamp beyond default threshold
         old_ts = "2020-01-01T00:00:00+00:00"  # Very old
-        assert _is_fresh(old_ts, max_age_hours=-1) is True
+        # IMP-LOOP-014: Negative max_age should use DEFAULT and filter stale data
+        assert _is_fresh(old_ts, max_age_hours=-1, now=now) is False
 
     def test_invalid_timestamp_not_fresh(self):
         """Test that invalid timestamp is not considered fresh."""
@@ -213,9 +220,11 @@ class TestMemoryServiceFreshnessFiltering:
         assert len(insights) == 1
         assert insights[0]["id"] == "within-default"
 
-    def test_retrieve_insights_zero_max_age_disables_filtering(self, mock_memory_service):
-        """Test that max_age_hours=0 disables freshness filtering."""
-        old_ts = "2020-01-01T00:00:00+00:00"  # Very old
+    def test_retrieve_insights_zero_max_age_uses_default_with_warning(
+        self, mock_memory_service, caplog
+    ):
+        """Test that max_age_hours=0 is ignored with warning (IMP-LOOP-014)."""
+        old_ts = "2020-01-01T00:00:00+00:00"  # Very old - beyond default threshold
 
         call_count = [0]
 
@@ -238,19 +247,69 @@ class TestMemoryServiceFreshnessFiltering:
         mock_memory_service.store.search = Mock(side_effect=mock_search_side_effect)
         mock_memory_service._safe_store_call = lambda label, fn, default: fn()
 
-        with patch(
-            "autopack.memory.memory_service.sync_embed_text",
-            return_value=[0.1] * 384,
-        ):
-            insights = mock_memory_service.retrieve_insights(
-                query="test query",
-                limit=10,
-                max_age_hours=0,  # Disable filtering
-            )
+        import logging
 
-        # Should include old insight since filtering is disabled
-        assert len(insights) == 1
-        assert insights[0]["id"] == "old-insight"
+        with caplog.at_level(logging.WARNING):
+            with patch(
+                "autopack.memory.memory_service.sync_embed_text",
+                return_value=[0.1] * 384,
+            ):
+                insights = mock_memory_service.retrieve_insights(
+                    query="test query",
+                    limit=10,
+                    max_age_hours=0,  # Try to disable filtering
+                )
+
+        # IMP-LOOP-014: Should filter old insight since bypass is not allowed
+        assert len(insights) == 0
+        # Should log a warning about the override being ignored
+        assert any("IMP-LOOP-014" in record.message for record in caplog.records)
+        assert any("invalid" in record.message.lower() for record in caplog.records)
+
+    def test_retrieve_insights_negative_max_age_uses_default_with_warning(
+        self, mock_memory_service, caplog
+    ):
+        """Test that negative max_age_hours is ignored with warning (IMP-LOOP-014)."""
+        old_ts = "2020-01-01T00:00:00+00:00"  # Very old - beyond default threshold
+
+        call_count = [0]
+
+        def mock_search_side_effect(collection, query_vector, filter, limit):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return [
+                    Mock(
+                        id="old-insight",
+                        score=0.9,
+                        payload={
+                            "task_type": "telemetry_insight",
+                            "timestamp": old_ts,
+                            "summary": "Very old insight",
+                        },
+                    ),
+                ]
+            return []
+
+        mock_memory_service.store.search = Mock(side_effect=mock_search_side_effect)
+        mock_memory_service._safe_store_call = lambda label, fn, default: fn()
+
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            with patch(
+                "autopack.memory.memory_service.sync_embed_text",
+                return_value=[0.1] * 384,
+            ):
+                insights = mock_memory_service.retrieve_insights(
+                    query="test query",
+                    limit=10,
+                    max_age_hours=-5,  # Try to disable filtering with negative
+                )
+
+        # IMP-LOOP-014: Should filter old insight since bypass is not allowed
+        assert len(insights) == 0
+        # Should log a warning about the override being ignored
+        assert any("IMP-LOOP-014" in record.message for record in caplog.records)
 
     def test_retrieve_insights_includes_timestamp_in_result(self, mock_memory_service):
         """Test that retrieved insights include timestamp field."""
@@ -303,6 +362,54 @@ class TestMemoryServiceFreshnessFiltering:
         )
 
         assert insights == []
+
+    def test_retrieve_insights_logs_audit_trail(self, mock_memory_service, caplog):
+        """Test that retrieve_insights logs audit trail for freshness filter (IMP-LOOP-014)."""
+        now = datetime.now(timezone.utc)
+        fresh_ts = (now - timedelta(hours=1)).isoformat()
+
+        call_count = [0]
+
+        def mock_search_side_effect(collection, query_vector, filter, limit):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return [
+                    Mock(
+                        id="insight-1",
+                        score=0.9,
+                        payload={
+                            "task_type": "telemetry_insight",
+                            "timestamp": fresh_ts,
+                            "summary": "Test insight",
+                        },
+                    ),
+                ]
+            return []
+
+        mock_memory_service.store.search = Mock(side_effect=mock_search_side_effect)
+        mock_memory_service._safe_store_call = lambda label, fn, default: fn()
+
+        import logging
+
+        with caplog.at_level(logging.INFO):
+            with patch(
+                "autopack.memory.memory_service.sync_embed_text",
+                return_value=[0.1] * 384,
+            ):
+                insights = mock_memory_service.retrieve_insights(
+                    query="test query",
+                    limit=10,
+                    max_age_hours=48,
+                    project_id="test-project",
+                )
+
+        assert len(insights) == 1
+        # IMP-LOOP-014: Should log audit trail with freshness filter info
+        audit_logs = [r for r in caplog.records if "IMP-LOOP-014" in r.message]
+        assert len(audit_logs) >= 1
+        audit_message = audit_logs[0].message
+        assert "freshness_filter=48" in audit_message
+        assert "project_id=test-project" in audit_message
 
 
 class TestTaskGeneratorFreshnessIntegration:

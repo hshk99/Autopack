@@ -10,6 +10,8 @@ Components:
 
 from __future__ import annotations
 
+from autopack.task_generation.insight_to_task import InsightToTaskGenerator
+
 from .priority_engine import PriorityEngine
 
-__all__ = ["PriorityEngine"]
+__all__ = ["InsightToTaskGenerator", "PriorityEngine"]

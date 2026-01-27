@@ -254,7 +254,38 @@ class ModelRouter:
                     escalation_info["original_model"] = model
                     model = fallback
 
-        # 6. Log selection for analysis
+        # 6. IMP-FBK-004: Apply telemetry-driven model optimization
+        # Query performance history and adjust model if underperforming
+        if self.telemetry_optimizer and task_category:
+            optimized_model, optimization_reason = self.telemetry_optimizer.suggest_model(
+                phase_type=task_category,
+                current_model=model,
+                complexity=effective_complexity,
+            )
+            if optimization_reason:
+                logger.info(
+                    f"[IMP-FBK-004] Telemetry-driven model optimization: {optimization_reason} "
+                    f"(phase={phase_id}, original={model}, optimized={optimized_model})"
+                )
+                escalation_info["telemetry_optimization"] = True
+                escalation_info["telemetry_optimization_reason"] = optimization_reason
+                escalation_info["original_model_before_telemetry"] = model
+                model = optimized_model
+
+                # If we downgraded, add budget info
+                if "Downgrading" in optimization_reason:
+                    budget_warning = {
+                        "level": "info",
+                        "message": f"Telemetry optimization: {optimization_reason}",
+                    }
+                # If we escalated due to poor performance, add warning
+                elif "Escalating" in optimization_reason:
+                    budget_warning = {
+                        "level": "warning",
+                        "message": f"Telemetry escalation: {optimization_reason}",
+                    }
+
+        # 7. Log selection for analysis
         self.model_selector.log_model_selection(
             phase_id=phase_id,
             role=role,

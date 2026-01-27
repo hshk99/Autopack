@@ -33,14 +33,23 @@ class TelemetryDrivenModelOptimizer:
     """Optimizes model selection based on historical performance."""
 
     # Model cost tiers (relative cost, lower = cheaper)
+    # IMP-FBK-004: Updated with current model naming conventions
     MODEL_COST_TIERS = {
+        # Tier 1: Cheapest/fastest models
         "claude-3-haiku": 1,
         "claude-3-5-haiku": 1,
+        "claude-haiku-3-5": 1,
         "gemini-1.5-flash": 1,
+        "gemini-2.0-flash": 1,
+        # Tier 3: Mid-tier models
         "claude-3-5-sonnet": 3,
+        "claude-sonnet-4-5": 3,
         "gemini-1.5-pro": 3,
+        "gemini-2.0-pro": 3,
+        # Tier 10: Premium models
         "claude-3-opus": 10,
         "claude-opus-4": 10,
+        "claude-opus-4-5": 10,
     }
 
     def __init__(

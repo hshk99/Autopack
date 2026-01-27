@@ -30,6 +30,7 @@ from autopack.autonomy.parallelism_gate import (
     ScopeBasedParallelismChecker,
     ParallelismPolicyGate,
 )
+from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
@@ -313,6 +314,10 @@ class AutonomousLoop:
         self._parallel_phases_executed = 0
         self._parallel_phases_skipped = 0
 
+        # IMP-LOOP-001: Unified feedback pipeline for self-improvement loop
+        self._feedback_pipeline: Optional[FeedbackPipeline] = None
+        self._feedback_pipeline_enabled = getattr(settings, "feedback_pipeline_enabled", True)
+
     def get_loop_stats(self) -> Dict:
         """Get current loop statistics for monitoring (IMP-LOOP-006, IMP-AUTO-002).
 
@@ -338,6 +343,12 @@ class AutonomousLoop:
             "parallel_phases_executed": self._parallel_phases_executed,
             "parallel_phases_skipped": self._parallel_phases_skipped,
         }
+
+        # IMP-LOOP-001: Add feedback pipeline statistics
+        if self._feedback_pipeline is not None:
+            stats["feedback_pipeline"] = self._feedback_pipeline.get_stats()
+        else:
+            stats["feedback_pipeline"] = {"enabled": self._feedback_pipeline_enabled}
 
         return stats
 
@@ -390,6 +401,158 @@ class AutonomousLoop:
             f"[IMP-AUTO-002] Parallelism checker initialized "
             f"(max_parallel_phases={self._max_parallel_phases})"
         )
+
+    def _initialize_feedback_pipeline(self) -> None:
+        """Initialize the unified feedback pipeline.
+
+        IMP-LOOP-001: Creates the FeedbackPipeline for telemetry-memory-learning
+        loop orchestration. Integrates with memory service and telemetry analyzer.
+        """
+        if not self._feedback_pipeline_enabled:
+            logger.debug("[IMP-LOOP-001] Feedback pipeline disabled by configuration")
+            return
+
+        if self._feedback_pipeline is not None:
+            logger.debug("[IMP-LOOP-001] Feedback pipeline already initialized")
+            return
+
+        # Get services from executor
+        memory_service = getattr(self.executor, "memory_service", None)
+        run_id = getattr(self.executor, "run_id", None)
+        project_id = getattr(self.executor, "_get_project_slug", lambda: "default")()
+
+        # Initialize telemetry analyzer if not already present
+        if self._telemetry_analyzer is None and hasattr(self.executor, "db_session"):
+            try:
+                self._telemetry_analyzer = TelemetryAnalyzer(
+                    db_session=self.executor.db_session,
+                    memory_service=memory_service,
+                )
+            except Exception as e:
+                logger.warning(f"[IMP-LOOP-001] Failed to initialize telemetry analyzer: {e}")
+
+        # Create feedback pipeline
+        self._feedback_pipeline = FeedbackPipeline(
+            memory_service=memory_service,
+            telemetry_analyzer=self._telemetry_analyzer,
+            learning_pipeline=None,  # Will be set if available
+            run_id=run_id,
+            project_id=project_id,
+            enabled=True,
+        )
+
+        logger.info(
+            f"[IMP-LOOP-001] FeedbackPipeline initialized "
+            f"(run_id={run_id}, project_id={project_id})"
+        )
+
+    def _get_feedback_pipeline_context(self, phase_type: str, phase_goal: str) -> str:
+        """Get enhanced context from feedback pipeline.
+
+        IMP-LOOP-001: Uses the unified FeedbackPipeline to retrieve context
+        from previous executions, including insights, errors, and success patterns.
+
+        Args:
+            phase_type: Type of phase (e.g., 'build', 'test')
+            phase_goal: Goal/description of the phase
+
+        Returns:
+            Formatted context string for prompt injection
+        """
+        if not self._feedback_pipeline_enabled or self._feedback_pipeline is None:
+            return ""
+
+        try:
+            context = self._feedback_pipeline.get_context_for_phase(
+                phase_type=phase_type,
+                phase_goal=phase_goal,
+                max_insights=5,
+                max_age_hours=72.0,
+                include_errors=True,
+                include_success_patterns=True,
+            )
+
+            if context.formatted_context:
+                logger.info(
+                    f"[IMP-LOOP-001] Retrieved feedback pipeline context "
+                    f"(insights={len(context.relevant_insights)}, "
+                    f"errors={len(context.similar_errors)}, "
+                    f"patterns={len(context.success_patterns)})"
+                )
+
+            return context.formatted_context
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-001] Failed to get feedback pipeline context: {e}")
+            return ""
+
+    def _process_phase_with_feedback_pipeline(
+        self,
+        phase: Dict,
+        success: bool,
+        status: str,
+        execution_start_time: float,
+    ) -> None:
+        """Process phase outcome through the feedback pipeline.
+
+        IMP-LOOP-001: Uses the unified FeedbackPipeline to capture and persist
+        phase execution feedback for the self-improvement loop.
+
+        Args:
+            phase: Phase dictionary with execution details
+            success: Whether the phase executed successfully
+            status: Final status string from execution
+            execution_start_time: Unix timestamp when execution started
+        """
+        if not self._feedback_pipeline_enabled or self._feedback_pipeline is None:
+            return
+
+        try:
+            phase_id = phase.get("phase_id", "unknown")
+            phase_type = phase.get("phase_type")
+            run_id = getattr(self.executor, "run_id", "unknown")
+            project_id = getattr(self.executor, "_get_project_slug", lambda: "default")()
+
+            # Calculate execution time
+            execution_time = time.time() - execution_start_time
+
+            # Get tokens used (approximate)
+            tokens_used = getattr(self.executor, "_run_tokens_used", 0)
+
+            # Build error message for failures
+            error_message = None
+            if not success:
+                error_message = f"Phase failed with status: {status}"
+                phase_result = getattr(self.executor, "_last_phase_result", None)
+                if phase_result and isinstance(phase_result, dict):
+                    error_detail = phase_result.get("error") or phase_result.get("message")
+                    if error_detail:
+                        error_message = f"{error_message}. Detail: {error_detail}"
+
+            # Create PhaseOutcome
+            outcome = PhaseOutcome(
+                phase_id=phase_id,
+                phase_type=phase_type,
+                success=success,
+                status=status,
+                execution_time_seconds=execution_time,
+                tokens_used=tokens_used,
+                error_message=error_message,
+                run_id=run_id,
+                project_id=project_id,
+            )
+
+            # Process through feedback pipeline
+            result = self._feedback_pipeline.process_phase_outcome(outcome)
+
+            if result.get("success"):
+                logger.debug(
+                    f"[IMP-LOOP-001] Processed phase {phase_id} through feedback pipeline "
+                    f"(insights={result.get('insights_created', 0)})"
+                )
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-001] Failed to process phase through feedback pipeline: {e}")
 
     def _get_queued_phases_for_parallel_check(self, run_data: Dict) -> List[Dict]:
         """Get QUEUED phases suitable for parallel execution check.
@@ -1100,6 +1263,9 @@ class AutonomousLoop:
         # (needs intention anchor for policy checks)
         self._initialize_parallelism_checker()
 
+        # IMP-LOOP-001: Initialize feedback pipeline for self-improvement loop
+        self._initialize_feedback_pipeline()
+
         # Main execution loop
         stats = self._execute_loop(poll_interval, max_iterations, stop_on_first_failure)
 
@@ -1605,6 +1771,9 @@ class AutonomousLoop:
             phase_goal = next_phase.get("description", "")
             memory_context = self._get_memory_context(phase_type, phase_goal)
 
+            # IMP-LOOP-001: Retrieve enhanced context from feedback pipeline
+            feedback_context = self._get_feedback_pipeline_context(phase_type, phase_goal)
+
             # IMP-ARCH-019: Inject improvement tasks into phase context
             improvement_context = self._get_improvement_task_context()
 
@@ -1612,6 +1781,12 @@ class AutonomousLoop:
             combined_context = ""
             if memory_context:
                 combined_context = memory_context
+            if feedback_context:
+                combined_context = (
+                    combined_context + "\n\n" + feedback_context
+                    if combined_context
+                    else feedback_context
+                )
             if improvement_context:
                 combined_context = (
                     combined_context + "\n\n" + improvement_context
@@ -1644,6 +1819,20 @@ class AutonomousLoop:
                 # Non-fatal - continue execution even if feedback fails
                 logger.warning(
                     f"[IMP-LOOP-005] Execution feedback recording failed (non-fatal): {feedback_err}"
+                )
+
+            # IMP-LOOP-001: Process outcome through unified feedback pipeline
+            try:
+                self._process_phase_with_feedback_pipeline(
+                    phase=next_phase,
+                    success=success,
+                    status=status,
+                    execution_start_time=execution_start_time,
+                )
+            except Exception as pipeline_err:
+                # Non-fatal - continue execution even if feedback pipeline fails
+                logger.warning(
+                    f"[IMP-LOOP-001] Feedback pipeline processing failed (non-fatal): {pipeline_err}"
                 )
 
             if success:
@@ -2166,6 +2355,33 @@ class AutonomousLoop:
                 extra=extra,
             )
             # Continue loop execution - insight persistence is non-critical
+
+        # IMP-LOOP-001: Flush pending insights from feedback pipeline
+        if self._feedback_pipeline is not None:
+            try:
+                flushed = self._feedback_pipeline.flush_pending_insights()
+                if flushed > 0:
+                    logger.info(
+                        f"[IMP-LOOP-001] Flushed {flushed} pending feedback pipeline insights"
+                    )
+
+                # Also persist any learning hints
+                hints_persisted = self._feedback_pipeline.persist_learning_hints()
+                if hints_persisted > 0:
+                    logger.info(
+                        f"[IMP-LOOP-001] Persisted {hints_persisted} learning hints from feedback pipeline"
+                    )
+
+                # Log final stats
+                stats = self._feedback_pipeline.get_stats()
+                logger.info(
+                    f"[IMP-LOOP-001] Feedback pipeline stats: "
+                    f"outcomes_processed={stats.get('outcomes_processed', 0)}, "
+                    f"insights_persisted={stats.get('insights_persisted', 0)}, "
+                    f"context_retrievals={stats.get('context_retrievals', 0)}"
+                )
+            except Exception as e:
+                logger.warning(f"[IMP-LOOP-001] Failed to flush feedback pipeline (non-fatal): {e}")
 
     def _generate_improvement_tasks(self) -> list:
         """Generate improvement tasks from telemetry (ROAD-C).

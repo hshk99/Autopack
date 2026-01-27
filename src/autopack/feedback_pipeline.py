@@ -1,0 +1,639 @@
+"""
+Unified Feedback Pipeline for Autopack Self-Improvement Loop.
+
+IMP-LOOP-001: Creates a unified FeedbackPipeline that automatically orchestrates
+the full telemetry -> memory -> learning -> planning loop.
+
+This module integrates:
+- Telemetry collection from phase execution
+- Persistent storage of insights to memory service
+- Learning rule extraction from patterns
+- Context enrichment for next phase planning
+
+The pipeline ensures that lessons learned from each phase execution are:
+1. Captured as telemetry insights
+2. Persisted to vector memory for future retrieval
+3. Used to inform subsequent phase planning
+"""
+
+import logging
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class PhaseOutcome:
+    """Represents the outcome of a phase execution for feedback processing.
+
+    Attributes:
+        phase_id: Unique identifier for the phase
+        phase_type: Type of phase (e.g., 'build', 'test', 'deploy')
+        success: Whether the phase executed successfully
+        status: Status message from execution
+        execution_time_seconds: Duration of phase execution
+        tokens_used: Number of tokens consumed
+        error_message: Error message if execution failed
+        learnings: List of key learnings from execution
+        run_id: Identifier for the current run
+        project_id: Project identifier for namespacing
+    """
+
+    phase_id: str
+    phase_type: Optional[str]
+    success: bool
+    status: str
+    execution_time_seconds: Optional[float] = None
+    tokens_used: Optional[int] = None
+    error_message: Optional[str] = None
+    learnings: Optional[List[str]] = None
+    run_id: Optional[str] = None
+    project_id: Optional[str] = None
+
+
+@dataclass
+class PhaseContext:
+    """Context retrieved from memory for phase planning.
+
+    Attributes:
+        relevant_insights: List of relevant telemetry insights
+        similar_errors: List of similar past errors
+        success_patterns: List of patterns from successful executions
+        recommendations: List of actionable recommendations
+        formatted_context: Pre-formatted string for prompt injection
+    """
+
+    relevant_insights: List[Dict[str, Any]]
+    similar_errors: List[Dict[str, Any]]
+    success_patterns: List[Dict[str, Any]]
+    recommendations: List[Dict[str, Any]]
+    formatted_context: str
+
+
+class FeedbackPipeline:
+    """Unified pipeline for the telemetry-memory-learning-planning loop.
+
+    IMP-LOOP-001: Orchestrates the full feedback loop:
+    1. Captures telemetry from phase execution (process_phase_outcome)
+    2. Persists insights to memory service
+    3. Extracts learning rules from patterns
+    4. Feeds context into next phase planning (get_context_for_phase)
+
+    This class integrates with:
+    - MemoryService: For persistent storage and retrieval of insights
+    - TelemetryAnalyzer: For analyzing phase outcomes and detecting patterns
+    - LearningPipeline: For recording and promoting learning hints
+
+    Example usage:
+        ```python
+        feedback_pipeline = FeedbackPipeline(
+            memory_service=memory_service,
+            telemetry_analyzer=telemetry_analyzer,
+            run_id="run_001",
+            project_id="my_project"
+        )
+
+        # After phase execution
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=True,
+            status="completed",
+            execution_time_seconds=45.2
+        )
+        feedback_pipeline.process_phase_outcome(outcome)
+
+        # Before next phase
+        context = feedback_pipeline.get_context_for_phase(
+            phase_type="test",
+            phase_goal="Run unit tests for feature X"
+        )
+        ```
+    """
+
+    def __init__(
+        self,
+        memory_service: Optional[Any] = None,
+        telemetry_analyzer: Optional[Any] = None,
+        learning_pipeline: Optional[Any] = None,
+        run_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        enabled: bool = True,
+    ):
+        """Initialize the FeedbackPipeline.
+
+        Args:
+            memory_service: MemoryService instance for persistent storage
+            telemetry_analyzer: TelemetryAnalyzer for pattern detection
+            learning_pipeline: LearningPipeline for recording hints
+            run_id: Current run identifier
+            project_id: Project identifier for namespacing
+            enabled: Whether the pipeline is active (default: True)
+        """
+        self.memory_service = memory_service
+        self.telemetry_analyzer = telemetry_analyzer
+        self.learning_pipeline = learning_pipeline
+        self.run_id = run_id or datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        self.project_id = project_id or "default"
+        self.enabled = enabled
+
+        # Track processed outcomes for deduplication
+        self._processed_outcomes: set = set()
+
+        # Track accumulated insights for batch processing
+        self._pending_insights: List[Dict[str, Any]] = []
+
+        # Stats tracking
+        self._stats = {
+            "outcomes_processed": 0,
+            "insights_persisted": 0,
+            "context_retrievals": 0,
+            "learning_hints_recorded": 0,
+        }
+
+        logger.info(
+            f"[IMP-LOOP-001] FeedbackPipeline initialized "
+            f"(run_id={self.run_id}, project_id={self.project_id}, enabled={self.enabled})"
+        )
+
+    def process_phase_outcome(self, outcome: PhaseOutcome) -> Dict[str, Any]:
+        """Process a phase execution outcome through the feedback loop.
+
+        This method:
+        1. Validates and normalizes the outcome data
+        2. Creates telemetry insights based on success/failure
+        3. Persists insights to memory service
+        4. Records learning hints for future runs
+        5. Updates internal statistics
+
+        Args:
+            outcome: PhaseOutcome containing execution results
+
+        Returns:
+            Dictionary with processing results:
+            - success: Whether processing succeeded
+            - insights_created: Number of insights created
+            - hints_recorded: Number of learning hints recorded
+            - error: Error message if processing failed
+        """
+        if not self.enabled:
+            logger.debug("[IMP-LOOP-001] FeedbackPipeline disabled, skipping outcome processing")
+            return {"success": True, "insights_created": 0, "hints_recorded": 0}
+
+        result = {
+            "success": False,
+            "insights_created": 0,
+            "hints_recorded": 0,
+            "error": None,
+        }
+
+        try:
+            # Deduplication check
+            outcome_key = f"{outcome.phase_id}:{outcome.run_id or self.run_id}"
+            if outcome_key in self._processed_outcomes:
+                logger.debug(f"[IMP-LOOP-001] Outcome already processed: {outcome_key}")
+                result["success"] = True
+                return result
+
+            # 1. Create telemetry insight from outcome
+            insight = self._create_insight_from_outcome(outcome)
+            self._pending_insights.append(insight)
+            result["insights_created"] += 1
+
+            # 2. Persist to memory service
+            if self.memory_service and getattr(self.memory_service, "enabled", False):
+                try:
+                    self.memory_service.write_task_execution_feedback(
+                        run_id=outcome.run_id or self.run_id,
+                        phase_id=outcome.phase_id,
+                        project_id=outcome.project_id or self.project_id,
+                        success=outcome.success,
+                        phase_type=outcome.phase_type,
+                        execution_time_seconds=outcome.execution_time_seconds,
+                        error_message=outcome.error_message,
+                        tokens_used=outcome.tokens_used,
+                        context_summary=outcome.status,
+                        learnings=outcome.learnings,
+                    )
+                    self._stats["insights_persisted"] += 1
+                    logger.debug(
+                        f"[IMP-LOOP-001] Persisted execution feedback for {outcome.phase_id}"
+                    )
+                except Exception as e:
+                    logger.warning(f"[IMP-LOOP-001] Failed to persist execution feedback: {e}")
+
+                # Also write as telemetry insight for cross-run retrieval
+                try:
+                    self.memory_service.write_telemetry_insight(
+                        insight=insight,
+                        project_id=outcome.project_id or self.project_id,
+                        validate=True,
+                        strict=False,
+                    )
+                except Exception as e:
+                    logger.warning(f"[IMP-LOOP-001] Failed to persist telemetry insight: {e}")
+
+            # 3. Record learning hint if failure
+            if not outcome.success and self.learning_pipeline:
+                try:
+                    hint_type = self._determine_hint_type(outcome)
+                    self.learning_pipeline.record_hint(
+                        phase={"phase_id": outcome.phase_id, "phase_type": outcome.phase_type},
+                        hint_type=hint_type,
+                        details=outcome.error_message or outcome.status,
+                    )
+                    result["hints_recorded"] += 1
+                    self._stats["learning_hints_recorded"] += 1
+                except Exception as e:
+                    logger.warning(f"[IMP-LOOP-001] Failed to record learning hint: {e}")
+
+            # Mark as processed
+            self._processed_outcomes.add(outcome_key)
+            self._stats["outcomes_processed"] += 1
+            result["success"] = True
+
+            logger.info(
+                f"[IMP-LOOP-001] Processed outcome for {outcome.phase_id} "
+                f"(success={outcome.success}, insights={result['insights_created']})"
+            )
+
+        except Exception as e:
+            result["error"] = str(e)
+            logger.error(f"[IMP-LOOP-001] Failed to process phase outcome: {e}")
+
+        return result
+
+    def get_context_for_phase(
+        self,
+        phase_type: str,
+        phase_goal: str,
+        max_insights: int = 5,
+        max_age_hours: float = 72.0,
+        include_errors: bool = True,
+        include_success_patterns: bool = True,
+    ) -> PhaseContext:
+        """Retrieve context from memory for phase planning.
+
+        This method queries the memory service to retrieve:
+        1. Relevant telemetry insights from similar past phases
+        2. Similar error patterns to avoid
+        3. Success patterns to replicate
+        4. Recommendations from telemetry analysis
+
+        Args:
+            phase_type: Type of phase being planned
+            phase_goal: Description of what the phase aims to achieve
+            max_insights: Maximum number of insights to retrieve (default: 5)
+            max_age_hours: Maximum age in hours for insights (default: 72)
+            include_errors: Whether to include error patterns (default: True)
+            include_success_patterns: Whether to include success patterns (default: True)
+
+        Returns:
+            PhaseContext containing retrieved context and formatted string
+        """
+        self._stats["context_retrievals"] += 1
+
+        if not self.enabled or not self.memory_service:
+            logger.debug("[IMP-LOOP-001] FeedbackPipeline disabled or no memory service")
+            return PhaseContext(
+                relevant_insights=[],
+                similar_errors=[],
+                success_patterns=[],
+                recommendations=[],
+                formatted_context="",
+            )
+
+        try:
+            # Build search query combining phase type and goal
+            search_query = f"{phase_type} phase: {phase_goal}"
+
+            # 1. Retrieve relevant telemetry insights
+            insights = []
+            if getattr(self.memory_service, "enabled", False):
+                try:
+                    insights = self.memory_service.retrieve_insights(
+                        query=search_query,
+                        limit=max_insights,
+                        project_id=self.project_id,
+                        max_age_hours=max_age_hours,
+                    )
+                except Exception as e:
+                    logger.warning(f"[IMP-LOOP-001] Failed to retrieve insights: {e}")
+
+            # 2. Retrieve similar errors
+            similar_errors = []
+            if include_errors and getattr(self.memory_service, "enabled", False):
+                try:
+                    similar_errors = self.memory_service.search_errors(
+                        query=search_query,
+                        project_id=self.project_id,
+                        limit=3,
+                    )
+                except Exception as e:
+                    logger.warning(f"[IMP-LOOP-001] Failed to retrieve errors: {e}")
+
+            # 3. Retrieve success patterns
+            success_patterns = []
+            if include_success_patterns and getattr(self.memory_service, "enabled", False):
+                try:
+                    success_patterns = self.memory_service.search_execution_feedback(
+                        query=search_query,
+                        project_id=self.project_id,
+                        success_only=True,
+                        phase_type=phase_type,
+                        limit=3,
+                    )
+                except Exception as e:
+                    logger.warning(f"[IMP-LOOP-001] Failed to retrieve success patterns: {e}")
+
+            # 4. Get recommendations from telemetry analyzer
+            recommendations = []
+            if self.telemetry_analyzer:
+                try:
+                    recommendations = self.telemetry_analyzer.get_recommendations_for_phase(
+                        phase_type=phase_type,
+                        lookback_hours=24,
+                    )
+                except Exception as e:
+                    logger.warning(f"[IMP-LOOP-001] Failed to get recommendations: {e}")
+
+            # Format context for prompt injection
+            formatted_context = self._format_context(
+                insights=insights,
+                errors=similar_errors,
+                success_patterns=success_patterns,
+                recommendations=recommendations,
+                phase_type=phase_type,
+            )
+
+            logger.info(
+                f"[IMP-LOOP-001] Retrieved context for {phase_type} "
+                f"(insights={len(insights)}, errors={len(similar_errors)}, "
+                f"patterns={len(success_patterns)}, recommendations={len(recommendations)})"
+            )
+
+            return PhaseContext(
+                relevant_insights=insights,
+                similar_errors=similar_errors,
+                success_patterns=success_patterns,
+                recommendations=recommendations,
+                formatted_context=formatted_context,
+            )
+
+        except Exception as e:
+            logger.error(f"[IMP-LOOP-001] Failed to get context for phase: {e}")
+            return PhaseContext(
+                relevant_insights=[],
+                similar_errors=[],
+                success_patterns=[],
+                recommendations=[],
+                formatted_context="",
+            )
+
+    def flush_pending_insights(self) -> int:
+        """Flush accumulated insights to memory service.
+
+        Call this at the end of a run to ensure all insights are persisted.
+
+        Returns:
+            Number of insights flushed
+        """
+        if not self._pending_insights:
+            return 0
+
+        flushed = 0
+        if self.memory_service and getattr(self.memory_service, "enabled", False):
+            for insight in self._pending_insights:
+                try:
+                    self.memory_service.write_telemetry_insight(
+                        insight=insight,
+                        project_id=self.project_id,
+                        validate=True,
+                        strict=False,
+                    )
+                    flushed += 1
+                except Exception as e:
+                    logger.warning(f"[IMP-LOOP-001] Failed to flush insight: {e}")
+
+        self._pending_insights.clear()
+        logger.info(f"[IMP-LOOP-001] Flushed {flushed} pending insights")
+        return flushed
+
+    def persist_learning_hints(self) -> int:
+        """Persist accumulated learning hints to memory.
+
+        Call this at the end of a run to ensure learning hints are
+        available for future runs.
+
+        Returns:
+            Number of hints persisted
+        """
+        if not self.learning_pipeline:
+            return 0
+
+        try:
+            return self.learning_pipeline.persist_to_memory(
+                memory_service=self.memory_service,
+                project_id=self.project_id,
+            )
+        except Exception as e:
+            logger.error(f"[IMP-LOOP-001] Failed to persist learning hints: {e}")
+            return 0
+
+    def get_stats(self) -> Dict[str, int]:
+        """Get pipeline statistics.
+
+        Returns:
+            Dictionary with pipeline statistics
+        """
+        return dict(self._stats)
+
+    def reset_stats(self) -> None:
+        """Reset pipeline statistics."""
+        self._stats = {
+            "outcomes_processed": 0,
+            "insights_persisted": 0,
+            "context_retrievals": 0,
+            "learning_hints_recorded": 0,
+        }
+
+    def _create_insight_from_outcome(self, outcome: PhaseOutcome) -> Dict[str, Any]:
+        """Create a telemetry insight from a phase outcome.
+
+        Args:
+            outcome: PhaseOutcome to convert
+
+        Returns:
+            Dictionary in telemetry insight format
+        """
+        # Determine insight type based on outcome
+        if outcome.success:
+            insight_type = "unknown"  # Successful outcomes don't trigger specific insight types
+            description = f"Phase {outcome.phase_id} completed successfully"
+        else:
+            insight_type = self._determine_insight_type(outcome)
+            description = (
+                f"Phase {outcome.phase_id} failed: {outcome.error_message or outcome.status}"
+            )
+
+        # Build suggested action
+        suggested_action = None
+        if not outcome.success:
+            suggested_action = self._generate_suggested_action(outcome)
+
+        return {
+            "insight_type": insight_type,
+            "description": description,
+            "phase_id": outcome.phase_id,
+            "run_id": outcome.run_id or self.run_id,
+            "suggested_action": suggested_action,
+            "severity": "high" if not outcome.success else "low",
+            "phase_type": outcome.phase_type,
+            "success": outcome.success,
+            "execution_time_seconds": outcome.execution_time_seconds,
+            "tokens_used": outcome.tokens_used,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+    def _determine_insight_type(self, outcome: PhaseOutcome) -> str:
+        """Determine the insight type from an outcome.
+
+        Args:
+            outcome: PhaseOutcome to analyze
+
+        Returns:
+            Insight type string
+        """
+        error_msg = (outcome.error_message or outcome.status or "").lower()
+
+        # Check for cost-related issues
+        if outcome.tokens_used and outcome.tokens_used > 100000:
+            return "cost_sink"
+
+        # Check for failure patterns
+        if any(pattern in error_msg for pattern in ["timeout", "retry", "rate limit", "overload"]):
+            return "retry_cause"
+
+        # Default to failure mode for unsuccessful outcomes
+        if not outcome.success:
+            return "failure_mode"
+
+        return "unknown"
+
+    def _determine_hint_type(self, outcome: PhaseOutcome) -> str:
+        """Determine the learning hint type from an outcome.
+
+        Args:
+            outcome: PhaseOutcome to analyze
+
+        Returns:
+            Hint type string for LearningPipeline
+        """
+        error_msg = (outcome.error_message or outcome.status or "").lower()
+
+        if "audit" in error_msg or "reject" in error_msg:
+            return "auditor_reject"
+        if "ci" in error_msg or "test" in error_msg or "fail" in error_msg:
+            return "ci_fail"
+        if "patch" in error_msg or "apply" in error_msg:
+            return "patch_apply_error"
+        if "infrastructure" in error_msg or "network" in error_msg or "api" in error_msg:
+            return "infra_error"
+        if "guardrail" in error_msg or "limit" in error_msg:
+            return "builder_guardrail"
+
+        return "ci_fail"  # Default to CI fail for unknown failures
+
+    def _generate_suggested_action(self, outcome: PhaseOutcome) -> str:
+        """Generate a suggested action from an outcome.
+
+        Args:
+            outcome: PhaseOutcome to generate action for
+
+        Returns:
+            Suggested action string
+        """
+        error_msg = (outcome.error_message or outcome.status or "").lower()
+
+        if "timeout" in error_msg:
+            return f"Increase timeout for {outcome.phase_type} phases or optimize execution"
+        if "token" in error_msg or "budget" in error_msg:
+            return f"Reduce context size for {outcome.phase_type} phases"
+        if "test" in error_msg or "ci" in error_msg:
+            return f"Review test failures in {outcome.phase_type} and fix failing tests"
+        if "patch" in error_msg:
+            return f"Improve patch generation for {outcome.phase_type}"
+
+        return f"Investigate and fix failure in {outcome.phase_type}: {outcome.phase_id}"
+
+    def _format_context(
+        self,
+        insights: List[Dict[str, Any]],
+        errors: List[Dict[str, Any]],
+        success_patterns: List[Dict[str, Any]],
+        recommendations: List[Dict[str, Any]],
+        phase_type: str,
+    ) -> str:
+        """Format retrieved context for prompt injection.
+
+        Args:
+            insights: List of telemetry insights
+            errors: List of similar errors
+            success_patterns: List of success patterns
+            recommendations: List of recommendations
+            phase_type: Type of phase being planned
+
+        Returns:
+            Formatted context string for prompt injection
+        """
+        sections = []
+
+        # Header
+        sections.append(f"## Context from Previous Executions ({phase_type})\n")
+
+        # Recommendations section (highest priority)
+        if recommendations:
+            rec_lines = ["### Recommendations"]
+            for rec in recommendations[:3]:
+                severity = rec.get("severity", "INFO")
+                action = rec.get("action", "review")
+                reason = rec.get("reason", "No reason provided")
+                rec_lines.append(f"- [{severity}] {action}: {reason}")
+            sections.append("\n".join(rec_lines))
+
+        # Insights section
+        if insights:
+            insight_lines = ["### Relevant Insights"]
+            for insight in insights[:5]:
+                content = insight.get("content", insight.get("metadata", {}).get("summary", ""))
+                if content:
+                    insight_lines.append(f"- {content[:200]}")
+            sections.append("\n".join(insight_lines))
+
+        # Error patterns section
+        if errors:
+            error_lines = ["### Similar Past Errors (to avoid)"]
+            for err in errors[:3]:
+                payload = err.get("payload", {})
+                error_type = payload.get("error_type", "unknown")
+                error_text = payload.get("error_text", "")[:150]
+                error_lines.append(f"- {error_type}: {error_text}")
+            sections.append("\n".join(error_lines))
+
+        # Success patterns section
+        if success_patterns:
+            success_lines = ["### Successful Patterns (to replicate)"]
+            for pattern in success_patterns[:3]:
+                payload = pattern.get("payload", {})
+                context = payload.get("context_summary", "")
+                learnings = payload.get("learnings", [])
+                if context:
+                    success_lines.append(f"- Context: {context[:150]}")
+                if learnings:
+                    for learning in learnings[:2]:
+                        success_lines.append(f"  - Learning: {learning[:100]}")
+            sections.append("\n".join(success_lines))
+
+        return "\n\n".join(sections) if sections else ""

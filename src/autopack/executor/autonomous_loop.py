@@ -655,7 +655,7 @@ class AutonomousLoop:
         self._feedback_pipeline = FeedbackPipeline(
             memory_service=memory_service,
             telemetry_analyzer=self._telemetry_analyzer,
-            learning_pipeline=None,  # Will be set if available
+            learning_pipeline=getattr(self.executor, "learning_pipeline", None),
             run_id=run_id,
             project_id=project_id,
             enabled=True,

@@ -29,6 +29,7 @@ import json
 import argparse
 import logging
 import re
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
@@ -338,6 +339,12 @@ class AutonomousExecutor:
 
         # Optional: Index SOT docs at startup if enabled
         self._maybe_index_sot_docs()
+
+        # IMP-REL-001: Thread-safe lock for stale phase reset operations
+        # Prevents race conditions when multiple executors attempt concurrent reset
+        self._phase_reset_lock = threading.Lock()
+        # Track phase reset counts for observability
+        self._phase_reset_counts: Dict[str, int] = {}
 
         # PR-EXE-5: Initialize context preflight and retrieval injection (extracted modules)
         from autopack.executor.context_preflight import ContextPreflight
@@ -1310,6 +1317,9 @@ class AutonomousExecutor:
 
         This prevents the system from getting permanently stuck on
         failed infrastructure issues (network timeouts, API errors, etc.)
+
+        IMP-REL-001: Uses thread-safe locking with double-check pattern to prevent
+        race conditions when multiple executors attempt concurrent reset.
         """
         from datetime import datetime, timedelta
 
@@ -1330,10 +1340,12 @@ class AutonomousExecutor:
                 last_updated_str = phase.get("updated_at") or phase.get("last_updated")
 
                 if not last_updated_str:
-                    logger.warning(
-                        f"[{phase_id}] EXECUTING phase has no timestamp - assuming stale and resetting"
+                    # IMP-REL-001: Use locked reset for phases without timestamp
+                    self._reset_stale_phase_with_lock(
+                        phase_id=phase_id,
+                        reason="no timestamp",
+                        time_stale_seconds=None,
                     )
-                    self._update_phase_status(phase_id, "QUEUED")
                     continue
 
                 try:
@@ -1347,45 +1359,130 @@ class AutonomousExecutor:
                     time_stale = now - last_updated
 
                     if time_stale > stale_threshold:
-                        logger.warning(f"[{phase_id}] STALE PHASE DETECTED")
-                        logger.warning("  State: EXECUTING")
-                        logger.warning(f"  Last Updated: {last_updated_str}")
-                        logger.warning(f"  Time Stale: {time_stale.total_seconds():.0f} seconds")
-                        logger.warning("  Auto-resetting to QUEUED...")
-
-                        # Phase 1.7: Auto-reset EXECUTING → QUEUED
-                        try:
-                            self._update_phase_status(phase_id, "QUEUED")
-                            logger.info(f"[{phase_id}] Successfully reset to QUEUED")
-
-                            # Log to DEBUG_JOURNAL.md for tracking
-                            from autopack.debug_journal import log_fix
-
-                            log_fix(
-                                error_signature=f"Stale Phase Auto-Reset: {phase_id}",
-                                fix_description=f"Automatically reset phase from EXECUTING to QUEUED after {time_stale.total_seconds():.0f}s of inactivity",
-                                files_changed=["autonomous_executor.py"],
-                                test_run_id=self.run_id,
-                                result="success",
-                            )
-
-                        except Exception as e:
-                            logger.error(f"[{phase_id}] Failed to reset stale phase: {e}")
-
-                            # Log stale phase reset failure
-                            log_error(
-                                error_signature="Stale phase reset failure",
-                                symptom=f"Phase {phase_id}: {type(e).__name__}: {str(e)}",
-                                run_id=self.run_id,
-                                phase_id=phase_id,
-                                suspected_cause="Failed to call API to reset stuck phase",
-                                priority="HIGH",
-                            )
+                        # IMP-REL-001: Use locked reset with double-check pattern
+                        self._reset_stale_phase_with_lock(
+                            phase_id=phase_id,
+                            reason="stale",
+                            time_stale_seconds=time_stale.total_seconds(),
+                            last_updated_str=last_updated_str,
+                        )
 
                 except Exception as e:
                     logger.warning(
                         f"[{phase_id}] Failed to parse timestamp '{last_updated_str}': {e}"
                     )
+
+    def _reset_stale_phase_with_lock(
+        self,
+        phase_id: str,
+        reason: str,
+        time_stale_seconds: Optional[float] = None,
+        last_updated_str: Optional[str] = None,
+    ) -> bool:
+        """
+        IMP-REL-001: Reset a stale phase with proper locking and double-check pattern.
+
+        Uses thread-safe locking to prevent race conditions when multiple executors
+        attempt to reset the same stale phase concurrently.
+
+        Args:
+            phase_id: The phase ID to reset
+            reason: Reason for reset (e.g., "stale", "no timestamp")
+            time_stale_seconds: How long the phase has been stale (for logging)
+            last_updated_str: Original timestamp string (for logging)
+
+        Returns:
+            True if phase was reset, False if already reset by another executor
+        """
+        with self._phase_reset_lock:
+            # Double-check: Re-fetch run data to verify phase is still stale
+            # Another executor may have already reset it while we waited for lock
+            try:
+                current_run_data = self.get_run_status()
+            except Exception as e:
+                logger.warning(
+                    f"[{phase_id}] IMP-REL-001: Failed to re-fetch run status for "
+                    f"double-check: {e}. Proceeding with reset."
+                )
+                current_run_data = None
+
+            # If we successfully fetched current state, verify phase is still EXECUTING
+            if current_run_data:
+                phase_still_executing = False
+                for tier in current_run_data.get("tiers", []):
+                    for phase in tier.get("phases", []):
+                        if phase.get("phase_id") == phase_id:
+                            if phase.get("state") == "EXECUTING":
+                                phase_still_executing = True
+                            break
+
+                if not phase_still_executing:
+                    logger.info(
+                        f"[{phase_id}] IMP-REL-001: Phase no longer EXECUTING "
+                        f"(already reset by another executor). Skipping reset."
+                    )
+                    return False
+
+            # Log stale phase detection
+            if reason == "no timestamp":
+                logger.warning(
+                    f"[{phase_id}] EXECUTING phase has no timestamp - assuming stale and resetting"
+                )
+            else:
+                logger.warning(f"[{phase_id}] STALE PHASE DETECTED")
+                logger.warning("  State: EXECUTING")
+                if last_updated_str:
+                    logger.warning(f"  Last Updated: {last_updated_str}")
+                if time_stale_seconds is not None:
+                    logger.warning(f"  Time Stale: {time_stale_seconds:.0f} seconds")
+                logger.warning("  Auto-resetting to QUEUED...")
+
+            # Phase 1.7: Auto-reset EXECUTING → QUEUED
+            try:
+                self._update_phase_status(phase_id, "QUEUED")
+
+                # IMP-REL-001: Track reset count for observability
+                reset_count = self._phase_reset_counts.get(phase_id, 0) + 1
+                self._phase_reset_counts[phase_id] = reset_count
+
+                logger.info(
+                    f"[{phase_id}] Successfully reset to QUEUED " f"(reset_count={reset_count})"
+                )
+
+                # Log to DEBUG_JOURNAL.md for tracking
+                from autopack.debug_journal import log_fix
+
+                stale_desc = (
+                    f"after {time_stale_seconds:.0f}s of inactivity"
+                    if time_stale_seconds is not None
+                    else "due to missing timestamp"
+                )
+                log_fix(
+                    error_signature=f"Stale Phase Auto-Reset: {phase_id}",
+                    fix_description=(
+                        f"Automatically reset phase from EXECUTING to QUEUED {stale_desc} "
+                        f"(reset_count={reset_count})"
+                    ),
+                    files_changed=["autonomous_executor.py"],
+                    test_run_id=self.run_id,
+                    result="success",
+                )
+
+                return True
+
+            except Exception as e:
+                logger.error(f"[{phase_id}] Failed to reset stale phase: {e}")
+
+                # Log stale phase reset failure
+                log_error(
+                    error_signature="Stale phase reset failure",
+                    symptom=f"Phase {phase_id}: {type(e).__name__}: {str(e)}",
+                    run_id=self.run_id,
+                    phase_id=phase_id,
+                    suspected_cause="Failed to call API to reset stuck phase",
+                    priority="HIGH",
+                )
+                return False
 
     def _get_tier_index(self, tier_id: int, tiers: List[Dict]) -> int:
         """Get tier_index for a given tier_id

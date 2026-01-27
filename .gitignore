@@ -116,3 +116,10 @@ workspace-verification.md
 
 # Cursor rules (local automation)
 .cursor/
+
+# Streamdeck monitoring scripts (belong in streamdeck_auto_build repo)
+scripts/auto_fill_empty_slots.ps1
+scripts/check_pr_status.ps1
+scripts/trigger_next_project_if_queued.ps1
+scripts/trigger_project_generation.ps1
+scripts/utility/manage_prompt_state.ps1

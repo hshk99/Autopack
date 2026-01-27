@@ -55,6 +55,151 @@ function Get-CIFailureCategory {
     return "code_failure"
 }
 
+# Function to get flaky test recommendation from historical analysis
+function Get-FlakyTestRecommendation {
+    param(
+        [Parameter(Mandatory=$true)]
+        [array]$FailedTests,
+        [Parameter(Mandatory=$false)]
+        [string]$CiStatePath = "ci_retry_state.json"
+    )
+
+    $failedTestsJson = $FailedTests | ConvertTo-Json -Compress
+    if (-not $failedTestsJson -or $failedTestsJson -eq "null") {
+        $failedTestsJson = "[]"
+    }
+
+    $pythonScript = @"
+import sys
+import json
+from pathlib import Path
+sys.path.insert(0, 'src')
+from autopack.analytics.flaky_test_detector import FlakyTestDetector
+
+failed_tests = json.loads('$($failedTestsJson -replace "'", "''")')
+if not isinstance(failed_tests, list):
+    failed_tests = [failed_tests] if failed_tests else []
+
+ci_state_path = Path('$CiStatePath')
+detector = FlakyTestDetector(ci_state_path)
+recommendation = detector.get_retry_recommendation(failed_tests)
+print(json.dumps(recommendation))
+"@
+
+    try {
+        $env:PYTHONPATH = "src"
+        $result = python -c $pythonScript 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            return $result | ConvertFrom-Json
+        } else {
+            Write-Host "  Warning: Failed to get flaky test recommendation: $result" -ForegroundColor Yellow
+            return @{
+                should_retry = $false
+                retry_tests = @()
+                investigate_tests = $FailedTests
+                details = @{}
+            }
+        }
+    } catch {
+        Write-Host "  Warning: Failed to execute flaky test analysis: $_" -ForegroundColor Yellow
+        return @{
+            should_retry = $false
+            retry_tests = @()
+            investigate_tests = $FailedTests
+            details = @{}
+        }
+    }
+}
+
+# Function to record CI failure to flaky test detector for historical analysis
+function Record-CIFailureForFlakyAnalysis {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$TestId,
+        [Parameter(Mandatory=$true)]
+        [string]$Outcome,
+        [Parameter(Mandatory=$false)]
+        [string]$Workflow = "",
+        [Parameter(Mandatory=$false)]
+        [string]$FailureReason = "",
+        [Parameter(Mandatory=$false)]
+        [int]$Attempt = 1,
+        [Parameter(Mandatory=$false)]
+        [string]$RunId = "",
+        [Parameter(Mandatory=$false)]
+        [string]$CiStatePath = "ci_retry_state.json"
+    )
+
+    $pythonScript = @"
+import sys
+from pathlib import Path
+sys.path.insert(0, 'src')
+from autopack.analytics.flaky_test_detector import FlakyTestDetector
+
+ci_state_path = Path('$CiStatePath')
+detector = FlakyTestDetector(ci_state_path)
+detector.record_failure(
+    test_id='$($TestId -replace "'", "''")',
+    outcome='$Outcome',
+    workflow='$Workflow' if '$Workflow' else None,
+    failure_reason='$($FailureReason -replace "'", "''")' if '$FailureReason' else None,
+    attempt=$Attempt,
+    run_id='$RunId' if '$RunId' else None
+)
+print(f"Recorded CI failure for {repr('$TestId')}: $Outcome")
+"@
+
+    try {
+        $env:PYTHONPATH = "src"
+        $result = python -c $pythonScript 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  $result" -ForegroundColor Cyan
+            return $true
+        } else {
+            Write-Host "  Warning: Failed to record CI failure: $result" -ForegroundColor Yellow
+            return $false
+        }
+    } catch {
+        Write-Host "  Warning: Failed to execute CI failure recording: $_" -ForegroundColor Yellow
+        return $false
+    }
+}
+
+# Function to get flaky test report for human review
+function Get-FlakyTestReport {
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$CiStatePath = "ci_retry_state.json"
+    )
+
+    $pythonScript = @"
+import sys
+import json
+from pathlib import Path
+sys.path.insert(0, 'src')
+from autopack.analytics.flaky_test_detector import FlakyTestDetector
+
+ci_state_path = Path('$CiStatePath')
+detector = FlakyTestDetector(ci_state_path)
+report = detector.get_flaky_test_report()
+print(json.dumps(report))
+"@
+
+    try {
+        $env:PYTHONPATH = "src"
+        $result = python -c $pythonScript 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            return $result | ConvertFrom-Json
+        } else {
+            Write-Host "  Warning: Failed to get flaky test report: $result" -ForegroundColor Yellow
+            return @{}
+        }
+    } catch {
+        Write-Host "  Warning: Failed to execute flaky test report: $_" -ForegroundColor Yellow
+        return @{}
+    }
+}
+
 # Function to record failure category to learning memory
 function Record-FailureCategoryToMemory {
     param(
@@ -506,6 +651,52 @@ if ($failedChecks.Count -gt 0) {
     Write-Host ""
     Write-Host "==> Recording failure category to learning memory..." -ForegroundColor Yellow
     Record-FailureCategoryToMemory -Category $failureCategory -PhaseId $phaseId -Details $failureDetails -MemoryPath $MemoryPath
+
+    # Record failures to flaky test detector for historical analysis
+    Write-Host ""
+    Write-Host "==> Recording failures for flaky test analysis..." -ForegroundColor Yellow
+    $failedJobList = @($failedChecks | ForEach-Object { $_.name })
+    foreach ($failedJob in $failedJobList) {
+        $runIdMatch = if ($failedChecks[0].detailsUrl -match "runs/(\d+)") { $Matches[1] } else { "" }
+        Record-CIFailureForFlakyAnalysis -TestId $failedJob -Outcome "failed" -Workflow "ci" -FailureReason $failureCategory -RunId $runIdMatch
+    }
+
+    # Get flaky test recommendations
+    Write-Host ""
+    Write-Host "==> Analyzing failure patterns for retry recommendation..." -ForegroundColor Yellow
+    $flakyRecommendation = Get-FlakyTestRecommendation -FailedTests $failedJobList
+
+    if ($flakyRecommendation.should_retry) {
+        Write-Host "  RECOMMENDATION: Auto-retry suggested for flaky tests" -ForegroundColor Green
+        Write-Host "  Retry tests: $($flakyRecommendation.retry_tests -join ', ')" -ForegroundColor Green
+        if ($flakyRecommendation.investigate_tests.Count -gt 0) {
+            Write-Host "  Investigate: $($flakyRecommendation.investigate_tests -join ', ')" -ForegroundColor Yellow
+        }
+
+        # Log the retry recommendation decision
+        Write-DecisionLog -DecisionType "ci_retry_recommendation" -Context @{
+            pr_number = $pr.number
+            phase_id = $phaseId
+            failed_tests = $failedJobList -join ", "
+            retry_tests = $flakyRecommendation.retry_tests -join ", "
+            investigate_tests = $flakyRecommendation.investigate_tests -join ", "
+        } -OptionsConsidered @("auto_retry", "investigate", "skip") `
+          -ChosenOption "auto_retry" `
+          -Reasoning "Flaky test detector identified tests with high flakiness scores suitable for auto-retry"
+    } else {
+        Write-Host "  RECOMMENDATION: Investigation needed - not typical flaky pattern" -ForegroundColor Yellow
+        Write-Host "  Tests to investigate: $($flakyRecommendation.investigate_tests -join ', ')" -ForegroundColor Yellow
+
+        # Log the investigation recommendation decision
+        Write-DecisionLog -DecisionType "ci_retry_recommendation" -Context @{
+            pr_number = $pr.number
+            phase_id = $phaseId
+            failed_tests = $failedJobList -join ", "
+            investigate_tests = $flakyRecommendation.investigate_tests -join ", "
+        } -OptionsConsidered @("auto_retry", "investigate", "skip") `
+          -ChosenOption "investigate" `
+          -Reasoning "Flaky test detector did not find patterns indicating safe auto-retry"
+    }
 }
 
 # Trigger feedback loop cycle after status check

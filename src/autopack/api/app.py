@@ -30,7 +30,8 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, Response
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import (CONTENT_TYPE_LATEST, Counter, Histogram,
+                               generate_latest)
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -236,6 +237,23 @@ class GracefulShutdownManager:
 
 # Global shutdown manager instance
 _shutdown_manager: GracefulShutdownManager | None = None
+
+# IMP-REL-003: Lock for protecting global state during concurrent startup/shutdown
+# Using a lazily-created lock to ensure it's bound to the correct event loop
+_state_lock: asyncio.Lock | None = None
+
+
+def _get_state_lock() -> asyncio.Lock:
+    """Get or create the state lock for the current event loop.
+
+    IMP-REL-003: Lazy lock creation ensures the lock is bound to the
+    correct event loop when used, avoiding issues with module-level
+    lock creation before the event loop is running.
+    """
+    global _state_lock
+    if _state_lock is None:
+        _state_lock = asyncio.Lock()
+    return _state_lock
 
 
 def get_shutdown_manager() -> GracefulShutdownManager:
@@ -828,8 +846,8 @@ async def approval_timeout_cleanup():
 
     IMP-OPS-007: Records run success/failure for health monitoring.
     """
-    from ..notifications.telegram_notifier import TelegramNotifier
     from .. import models
+    from ..notifications.telegram_notifier import TelegramNotifier
 
     logger.info("[APPROVAL-TIMEOUT] Background task started")
 
@@ -1001,33 +1019,39 @@ async def lifespan(app: FastAPI):
         startup_logger.run_phase("database", init_database)
 
         # Phase 3: Shutdown manager initialization
-        def init_shutdown_manager():
+        # IMP-REL-003: Use async lock for global state protection
+        async def init_shutdown_manager():
             global _shutdown_manager
-            # IMP-OPS-003: Initialize graceful shutdown manager
-            # Configurable via GRACEFUL_SHUTDOWN_TIMEOUT env var (default 30 seconds)
-            shutdown_timeout = float(os.getenv("GRACEFUL_SHUTDOWN_TIMEOUT", "30"))
-            _shutdown_manager = GracefulShutdownManager(shutdown_timeout=shutdown_timeout)
-            logger.debug(f"Shutdown timeout configured: {shutdown_timeout}s")
+            async with _get_state_lock():
+                # IMP-OPS-003: Initialize graceful shutdown manager
+                # Configurable via GRACEFUL_SHUTDOWN_TIMEOUT env var (default 30 seconds)
+                shutdown_timeout = float(os.getenv("GRACEFUL_SHUTDOWN_TIMEOUT", "30"))
+                if _shutdown_manager is None:
+                    _shutdown_manager = GracefulShutdownManager(shutdown_timeout=shutdown_timeout)
+                    logger.debug(f"Shutdown timeout configured: {shutdown_timeout}s")
 
-        startup_logger.run_phase("shutdown_manager", init_shutdown_manager)
+        await startup_logger.run_phase_async("shutdown_manager", init_shutdown_manager)
 
         # Phase 4: Task monitor initialization
-        def init_task_monitor():
+        # IMP-REL-003: Use async lock for global state protection
+        async def init_task_monitor():
             global _task_monitor
-            # IMP-OPS-007: Initialize background task health monitor
-            # Configurable via TASK_MONITOR_MAX_AGE env var (default 300 seconds / 5 minutes)
-            task_monitor_max_age = float(os.getenv("TASK_MONITOR_MAX_AGE", "300"))
-            task_monitor_max_failures = int(os.getenv("TASK_MONITOR_MAX_FAILURES", "3"))
-            _task_monitor = BackgroundTaskMonitor(
-                max_age_seconds=task_monitor_max_age,
-                max_failures=task_monitor_max_failures,
-            )
-            logger.debug(
-                f"Task monitor configured: max_age={task_monitor_max_age}s, "
-                f"max_failures={task_monitor_max_failures}"
-            )
+            async with _get_state_lock():
+                # IMP-OPS-007: Initialize background task health monitor
+                # Configurable via TASK_MONITOR_MAX_AGE env var (default 300 seconds / 5 minutes)
+                task_monitor_max_age = float(os.getenv("TASK_MONITOR_MAX_AGE", "300"))
+                task_monitor_max_failures = int(os.getenv("TASK_MONITOR_MAX_FAILURES", "3"))
+                if _task_monitor is None:
+                    _task_monitor = BackgroundTaskMonitor(
+                        max_age_seconds=task_monitor_max_age,
+                        max_failures=task_monitor_max_failures,
+                    )
+                    logger.debug(
+                        f"Task monitor configured: max_age={task_monitor_max_age}s, "
+                        f"max_failures={task_monitor_max_failures}"
+                    )
 
-        startup_logger.run_phase("task_monitor", init_task_monitor)
+        await startup_logger.run_phase_async("task_monitor", init_task_monitor)
 
         # Phase 5: Background tasks initialization
         def init_background_tasks():
@@ -1086,10 +1110,12 @@ async def lifespan(app: FastAPI):
     if _task_monitor:
         logger.info(f"[TASK-MONITOR] Final status: {_task_monitor.get_all_status()}")
 
-    # IMP-OPS-003: Cleanup shutdown manager
-    _shutdown_manager = None
-    # IMP-OPS-007: Cleanup task monitor
-    _task_monitor = None
+    # IMP-REL-003: Cleanup global state with lock protection
+    async with _get_state_lock():
+        # IMP-OPS-003: Cleanup shutdown manager
+        _shutdown_manager = None
+        # IMP-OPS-007: Cleanup task monitor
+        _task_monitor = None
     logger.info("[SHUTDOWN] Application shutdown complete")
 
 

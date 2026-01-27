@@ -14,11 +14,376 @@ Second-order metrics: Measure whether the improvement loop is improving.
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+
+class PipelineStage(Enum):
+    """Stages in the self-improvement pipeline for SLA tracking."""
+
+    PHASE_COMPLETE = "phase_complete"
+    TELEMETRY_COLLECTED = "telemetry_collected"
+    MEMORY_PERSISTED = "memory_persisted"
+    TASK_GENERATED = "task_generated"
+    TASK_EXECUTED = "task_executed"
+
+
+@dataclass
+class PipelineStageTimestamp:
+    """Timestamp record for a specific pipeline stage.
+
+    Used for end-to-end SLA tracking across the self-improvement loop.
+    """
+
+    stage: PipelineStage
+    timestamp: datetime
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "stage": self.stage.value,
+            "timestamp": self.timestamp.isoformat(),
+            "metadata": self.metadata,
+        }
+
+
+@dataclass
+class PipelineSLAConfig:
+    """Configuration for pipeline SLA thresholds.
+
+    Attributes:
+        end_to_end_threshold_ms: Total pipeline SLA threshold (default 5 minutes)
+        stage_thresholds_ms: Per-stage SLA thresholds (optional)
+        alert_on_breach: Whether to generate alerts on SLA breach
+    """
+
+    end_to_end_threshold_ms: float = 300000  # 5 minutes default
+    stage_thresholds_ms: Dict[str, float] = field(default_factory=dict)
+    alert_on_breach: bool = True
+
+    def __post_init__(self) -> None:
+        """Set default stage thresholds if not provided."""
+        default_thresholds = {
+            "phase_complete_to_telemetry_collected": 60000,  # 1 minute
+            "telemetry_collected_to_memory_persisted": 60000,  # 1 minute
+            "memory_persisted_to_task_generated": 60000,  # 1 minute
+            "task_generated_to_task_executed": 120000,  # 2 minutes
+        }
+        for key, value in default_thresholds.items():
+            if key not in self.stage_thresholds_ms:
+                self.stage_thresholds_ms[key] = value
+
+
+@dataclass
+class SLABreachAlert:
+    """Alert generated when pipeline SLA is breached."""
+
+    level: str  # "warning" or "critical"
+    stage_from: Optional[str]
+    stage_to: Optional[str]
+    threshold_ms: float
+    actual_ms: float
+    breach_amount_ms: float
+    message: str
+    timestamp: datetime = field(default_factory=datetime.utcnow)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "level": self.level,
+            "stage_from": self.stage_from,
+            "stage_to": self.stage_to,
+            "threshold_ms": self.threshold_ms,
+            "actual_ms": self.actual_ms,
+            "breach_amount_ms": self.breach_amount_ms,
+            "message": self.message,
+            "timestamp": self.timestamp.isoformat(),
+        }
+
+
+class PipelineLatencyTracker:
+    """Track timestamps and latencies across the self-improvement pipeline.
+
+    Monitors the end-to-end latency from phase completion through task execution,
+    enabling SLA enforcement and alerting when the feedback loop falls behind.
+
+    Pipeline stages:
+    1. phase_complete - A phase finishes executing
+    2. telemetry_collected - Telemetry data is collected from the phase
+    3. memory_persisted - Insights are persisted to memory
+    4. task_generated - Improvement task is generated
+    5. task_executed - Task is executed
+
+    Usage:
+        tracker = PipelineLatencyTracker()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE)
+        # ... later ...
+        tracker.record_stage(PipelineStage.TELEMETRY_COLLECTED)
+        latencies = tracker.get_stage_latencies()
+        alerts = tracker.check_sla_breaches()
+    """
+
+    # Stage ordering for latency calculation
+    STAGE_ORDER = [
+        PipelineStage.PHASE_COMPLETE,
+        PipelineStage.TELEMETRY_COLLECTED,
+        PipelineStage.MEMORY_PERSISTED,
+        PipelineStage.TASK_GENERATED,
+        PipelineStage.TASK_EXECUTED,
+    ]
+
+    def __init__(
+        self,
+        pipeline_id: Optional[str] = None,
+        sla_config: Optional[PipelineSLAConfig] = None,
+    ):
+        """Initialize the pipeline latency tracker.
+
+        Args:
+            pipeline_id: Optional identifier for this pipeline run
+            sla_config: SLA configuration (uses defaults if not provided)
+        """
+        self.pipeline_id = pipeline_id or datetime.utcnow().isoformat()
+        self.sla_config = sla_config or PipelineSLAConfig()
+        self._stage_timestamps: Dict[PipelineStage, PipelineStageTimestamp] = {}
+
+    def record_stage(
+        self,
+        stage: PipelineStage,
+        timestamp: Optional[datetime] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> PipelineStageTimestamp:
+        """Record a timestamp for a pipeline stage.
+
+        Args:
+            stage: The pipeline stage being recorded
+            timestamp: Optional explicit timestamp (defaults to now)
+            metadata: Optional metadata about this stage
+
+        Returns:
+            The recorded PipelineStageTimestamp
+        """
+        ts = timestamp or datetime.utcnow()
+        stage_ts = PipelineStageTimestamp(
+            stage=stage,
+            timestamp=ts,
+            metadata=metadata or {},
+        )
+        self._stage_timestamps[stage] = stage_ts
+        logger.debug(f"Recorded pipeline stage {stage.value} at {ts.isoformat()}")
+        return stage_ts
+
+    def get_stage_timestamp(self, stage: PipelineStage) -> Optional[PipelineStageTimestamp]:
+        """Get the recorded timestamp for a specific stage.
+
+        Args:
+            stage: The pipeline stage to query
+
+        Returns:
+            The PipelineStageTimestamp if recorded, None otherwise
+        """
+        return self._stage_timestamps.get(stage)
+
+    def get_stage_latency_ms(
+        self, from_stage: PipelineStage, to_stage: PipelineStage
+    ) -> Optional[float]:
+        """Calculate latency between two pipeline stages in milliseconds.
+
+        Args:
+            from_stage: Starting stage
+            to_stage: Ending stage
+
+        Returns:
+            Latency in milliseconds, or None if timestamps not available
+        """
+        from_ts = self._stage_timestamps.get(from_stage)
+        to_ts = self._stage_timestamps.get(to_stage)
+
+        if from_ts is None or to_ts is None:
+            return None
+
+        delta = to_ts.timestamp - from_ts.timestamp
+        return delta.total_seconds() * 1000
+
+    def get_stage_latencies(self) -> Dict[str, Optional[float]]:
+        """Get all stage-to-stage latencies.
+
+        Returns:
+            Dict mapping stage transition names to latencies in ms
+        """
+        latencies = {}
+        for i in range(len(self.STAGE_ORDER) - 1):
+            from_stage = self.STAGE_ORDER[i]
+            to_stage = self.STAGE_ORDER[i + 1]
+            key = f"{from_stage.value}_to_{to_stage.value}"
+            latencies[key] = self.get_stage_latency_ms(from_stage, to_stage)
+        return latencies
+
+    def get_end_to_end_latency_ms(self) -> Optional[float]:
+        """Calculate total end-to-end pipeline latency.
+
+        Returns:
+            Total latency from phase_complete to task_executed in ms,
+            or None if endpoints not recorded
+        """
+        return self.get_stage_latency_ms(
+            PipelineStage.PHASE_COMPLETE,
+            PipelineStage.TASK_EXECUTED,
+        )
+
+    def get_partial_latency_ms(self) -> Optional[float]:
+        """Calculate latency from first to last recorded stage.
+
+        Useful when pipeline hasn't completed all stages yet.
+
+        Returns:
+            Latency from earliest to latest recorded stage in ms,
+            or None if no stages recorded
+        """
+        if not self._stage_timestamps:
+            return None
+
+        recorded_stages = [stage for stage in self.STAGE_ORDER if stage in self._stage_timestamps]
+
+        if len(recorded_stages) < 2:
+            return None
+
+        first_stage = recorded_stages[0]
+        last_stage = recorded_stages[-1]
+        return self.get_stage_latency_ms(first_stage, last_stage)
+
+    def is_within_sla(self) -> bool:
+        """Check if the pipeline is within end-to-end SLA.
+
+        Returns:
+            True if within SLA or incomplete, False if SLA breached
+        """
+        e2e_latency = self.get_end_to_end_latency_ms()
+        if e2e_latency is None:
+            return True  # Can't determine, assume OK
+        return e2e_latency <= self.sla_config.end_to_end_threshold_ms
+
+    def check_sla_breaches(self) -> List[SLABreachAlert]:
+        """Check for SLA breaches at each stage and end-to-end.
+
+        Returns:
+            List of SLABreachAlert for any detected breaches
+        """
+        alerts = []
+
+        # Check end-to-end SLA
+        e2e_latency = self.get_end_to_end_latency_ms()
+        if e2e_latency is not None:
+            threshold = self.sla_config.end_to_end_threshold_ms
+            if e2e_latency > threshold:
+                breach = e2e_latency - threshold
+                level = "critical" if breach > threshold * 0.5 else "warning"
+                alerts.append(
+                    SLABreachAlert(
+                        level=level,
+                        stage_from=PipelineStage.PHASE_COMPLETE.value,
+                        stage_to=PipelineStage.TASK_EXECUTED.value,
+                        threshold_ms=threshold,
+                        actual_ms=e2e_latency,
+                        breach_amount_ms=breach,
+                        message=f"End-to-end SLA breached: {e2e_latency:.0f}ms > {threshold:.0f}ms threshold",
+                    )
+                )
+
+        # Check per-stage SLAs
+        stage_latencies = self.get_stage_latencies()
+        for transition, latency in stage_latencies.items():
+            if latency is None:
+                continue
+
+            threshold = self.sla_config.stage_thresholds_ms.get(transition)
+            if threshold is None:
+                continue
+
+            if latency > threshold:
+                breach = latency - threshold
+                level = "critical" if breach > threshold * 0.5 else "warning"
+                parts = transition.split("_to_")
+                alerts.append(
+                    SLABreachAlert(
+                        level=level,
+                        stage_from=parts[0] if len(parts) > 0 else None,
+                        stage_to=parts[1] if len(parts) > 1 else None,
+                        threshold_ms=threshold,
+                        actual_ms=latency,
+                        breach_amount_ms=breach,
+                        message=f"Stage SLA breached ({transition}): {latency:.0f}ms > {threshold:.0f}ms",
+                    )
+                )
+
+        return alerts
+
+    def get_sla_status(self) -> str:
+        """Get human-readable SLA status.
+
+        Returns:
+            Status string: "excellent", "good", "acceptable", "warning", or "breached"
+        """
+        e2e_latency = self.get_end_to_end_latency_ms()
+        if e2e_latency is None:
+            return "unknown"
+
+        threshold = self.sla_config.end_to_end_threshold_ms
+
+        if e2e_latency <= threshold * 0.5:
+            return "excellent"
+        elif e2e_latency <= threshold * 0.8:
+            return "good"
+        elif e2e_latency <= threshold:
+            return "acceptable"
+        elif e2e_latency <= threshold * 1.5:
+            return "warning"
+        else:
+            return "breached"
+
+    def to_feedback_loop_latency(self) -> "FeedbackLoopLatency":
+        """Convert to FeedbackLoopLatency for compatibility.
+
+        Returns:
+            FeedbackLoopLatency instance with available latency data
+        """
+        telemetry_to_analysis = self.get_stage_latency_ms(
+            PipelineStage.PHASE_COMPLETE, PipelineStage.TELEMETRY_COLLECTED
+        )
+        analysis_to_task = self.get_stage_latency_ms(
+            PipelineStage.TELEMETRY_COLLECTED, PipelineStage.TASK_GENERATED
+        )
+        total = self.get_end_to_end_latency_ms()
+
+        return FeedbackLoopLatency(
+            telemetry_to_analysis_ms=telemetry_to_analysis or 0,
+            analysis_to_task_ms=analysis_to_task or 0,
+            total_latency_ms=total or 0,
+            sla_threshold_ms=self.sla_config.end_to_end_threshold_ms,
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert tracker state to dictionary for serialization.
+
+        Returns:
+            Dict with all tracker state and computed metrics
+        """
+        return {
+            "pipeline_id": self.pipeline_id,
+            "stages": {stage.value: ts.to_dict() for stage, ts in self._stage_timestamps.items()},
+            "stage_latencies": self.get_stage_latencies(),
+            "end_to_end_latency_ms": self.get_end_to_end_latency_ms(),
+            "sla_status": self.get_sla_status(),
+            "sla_config": {
+                "end_to_end_threshold_ms": self.sla_config.end_to_end_threshold_ms,
+                "stage_thresholds_ms": self.sla_config.stage_thresholds_ms,
+            },
+            "breaches": [alert.to_dict() for alert in self.check_sla_breaches()],
+        }
 
 
 class FeedbackLoopHealth(Enum):

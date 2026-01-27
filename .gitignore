@@ -113,3 +113,6 @@ workspace-verification.md
 # Workspace verification output
 workspace-verification.json
 workspace-verification.md
+
+# Cursor rules (local automation)
+.cursor/

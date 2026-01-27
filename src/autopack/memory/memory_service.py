@@ -14,6 +14,7 @@ Payload schema:
 - type: summary | error | hint | code
 """
 
+import hashlib
 import logging
 import os
 import socket
@@ -22,12 +23,13 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
-import hashlib
-import yaml
 
-from .embeddings import sync_embed_text, EMBEDDING_SIZE, MAX_EMBEDDING_CHARS
+import yaml
+from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
+
+from .embeddings import EMBEDDING_SIZE, MAX_EMBEDDING_CHARS, sync_embed_text
 from .faiss_store import FaissStore
-from .qdrant_store import QdrantStore, QDRANT_AVAILABLE
+from .qdrant_store import QDRANT_AVAILABLE, QdrantStore
 
 logger = logging.getLogger(__name__)
 
@@ -505,6 +507,69 @@ def _load_memory_config() -> Dict[str, Any]:
     return {}
 
 
+# ---------------------------------------------------------------------------
+# IMP-REL-002: Memory Service Retry with Backoff
+# ---------------------------------------------------------------------------
+
+
+def _create_qdrant_store_with_retry(
+    host: str,
+    port: int,
+    api_key: Optional[str],
+    prefer_grpc: bool,
+    timeout: int,
+    max_attempts: int = 3,
+) -> "QdrantStore":
+    """Create QdrantStore with retry and exponential backoff.
+
+    IMP-REL-002: Memory service failures previously fell back immediately to NullStore,
+    losing accumulated knowledge. This wrapper adds retry with exponential backoff
+    before falling back, allowing transient connection issues to resolve.
+
+    Args:
+        host: Qdrant server host
+        port: Qdrant server port
+        api_key: Optional API key for Qdrant Cloud
+        prefer_grpc: Use gRPC instead of HTTP
+        timeout: Request timeout in seconds
+        max_attempts: Maximum number of connection attempts (default: 3)
+
+    Returns:
+        QdrantStore instance
+
+    Raises:
+        Exception: If connection fails after all retry attempts
+    """
+
+    @retry(
+        stop=stop_after_attempt(max_attempts),
+        wait=wait_exponential(multiplier=1, min=1, max=4),
+        reraise=True,
+    )
+    def _connect() -> "QdrantStore":
+        logger.debug(f"[IMP-REL-002] Attempting to connect to Qdrant at {host}:{port}")
+        return QdrantStore(
+            host=host,
+            port=port,
+            api_key=api_key,
+            prefer_grpc=prefer_grpc,
+            timeout=timeout,
+        )
+
+    try:
+        store = _connect()
+        logger.info(f"[IMP-REL-002] Successfully connected to Qdrant at {host}:{port}")
+        return store
+    except RetryError as e:
+        logger.warning(
+            f"[IMP-REL-002] Failed to connect to Qdrant after {max_attempts} attempts: {e}"
+        )
+        raise e.last_attempt.exception() from e
+    except Exception as e:
+        logger.warning(f"[IMP-REL-002] Failed to connect to Qdrant: {e}")
+        raise
+
+
 class MemoryService:
     """
     High-level interface for vector memory operations.
@@ -594,7 +659,8 @@ class MemoryService:
 
         if use_qdrant and QDRANT_AVAILABLE:
             try:
-                self.store = QdrantStore(
+                # IMP-REL-002: Use retry with exponential backoff for Qdrant connection
+                self.store = _create_qdrant_store_with_retry(
                     host=qdrant_host,
                     port=qdrant_port,
                     api_key=qdrant_api_key,
@@ -613,7 +679,8 @@ class MemoryService:
                     qdrant_image=qdrant_image,
                 ):
                     try:
-                        self.store = QdrantStore(
+                        # IMP-REL-002: Use retry with exponential backoff after autostart
+                        self.store = _create_qdrant_store_with_retry(
                             host=qdrant_host,
                             port=qdrant_port,
                             api_key=qdrant_api_key,
@@ -1309,8 +1376,8 @@ class MemoryService:
         Returns:
             Dict with indexing statistics: {"indexed": N, "skipped": bool}
         """
-        from .sot_indexing import chunk_sot_file, chunk_sot_json
         from ..config import settings
+        from .sot_indexing import chunk_sot_file, chunk_sot_json
 
         if not self.enabled:
             return {"indexed": 0, "skipped": True, "reason": "memory_disabled"}

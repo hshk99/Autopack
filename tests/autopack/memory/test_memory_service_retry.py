@@ -124,12 +124,15 @@ class TestQdrantRetryWithBackoff:
 
         monkeypatch.setattr(ms, "QdrantStore", always_fail, raising=True)
 
+        # Disable autostart so we only get the initial 3 retry attempts
+        monkeypatch.setattr(ms, "_autostart_qdrant_if_needed", lambda **kwargs: False, raising=True)
+
         # Ensure fallback is enabled (default behavior)
         service = ms.MemoryService(use_qdrant=True)
 
         assert service.backend == "faiss"
         assert service.enabled is True
-        # Should have made 3 retry attempts
+        # Should have made 3 retry attempts (no autostart = no second round)
         assert call_count["n"] == 3
 
     def test_memory_service_retry_with_autostart(self, monkeypatch):

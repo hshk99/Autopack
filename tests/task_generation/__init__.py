@@ -1,1 +1,1 @@
-# Tests for task_generation module
+"""Tests for task_generation module."""

@@ -49,6 +49,15 @@
     into optimal waves based on dependencies and file conflicts, maximizing parallelization.
     This enhances Phase 2 with automated wave planning.
 
+.PARAMETER UsePriorityEngine
+    When enabled, runs the data-driven priority engine to rank improvements based on
+    historical success rates, blocking patterns, and complexity estimates. This enables
+    the memory->task_generation link in the self-improvement loop (IMP-TGN-001).
+
+.PARAMETER PriorityEngineOutputPath
+    Path where PRIORITY_RANKED_IMPS.json will be written when using the priority engine.
+    Defaults to ".autopack/PRIORITY_RANKED_IMPS.json".
+
 .EXAMPLE
     .\trigger_project_generation.ps1 -UseTelemetryContext
     Runs both phases with telemetry context enabled.
@@ -95,7 +104,11 @@ param(
 
     [switch]$UseTelemetryFeedbackLoop,
 
-    [string]$TelemetryFeedbackOutputPath = "$env:USERPROFILE\OneDrive\Backup\Desktop\TELEMETRY_FEEDBACK.json"
+    [string]$TelemetryFeedbackOutputPath = "$env:USERPROFILE\OneDrive\Backup\Desktop\TELEMETRY_FEEDBACK.json",
+
+    [switch]$UsePriorityEngine,
+
+    [string]$PriorityEngineOutputPath = ".autopack/PRIORITY_RANKED_IMPS.json"
 )
 
 $ErrorActionPreference = "Stop"
@@ -143,6 +156,8 @@ $TelemetryAggregatorPath = Join-Path $ProjectRoot "scripts/utility/telemetry_agg
 $AutonomousDiscoveryOutputPath = Join-Path $ProjectRoot ".autopack/DISCOVERED_IMPS.json"
 $AutonomousWavePlanOutputPath = Join-Path $ProjectRoot ".autopack/WAVE_PLAN.json"
 $ContextInjectorPath = Join-Path $ProjectRoot "src/discovery/context_injector.py"
+$PriorityEngineOutputPath = Join-Path $ProjectRoot $PriorityEngineOutputPath
+$LearningDbPath = Join-Path $ProjectRoot ".autopack/learning_db.json"
 
 function Write-Status {
     param([string]$Message, [string]$Color = "Cyan")
@@ -420,6 +435,132 @@ else:
     }
 }
 
+function Invoke-PriorityEngine {
+    <#
+    .SYNOPSIS
+        Runs the data-driven priority engine to rank improvements.
+    .DESCRIPTION
+        IMP-TGN-001: Data-Driven Task Prioritization
+        Uses historical learning data to prioritize improvements based on:
+        - Category success rates (past outcomes)
+        - Blocking pattern detection
+        - Complexity estimation
+        This enables the memory->task_generation link in the self-improvement loop.
+    .PARAMETER ImpsToRank
+        Path to JSON file containing improvements to rank, or array of improvements.
+    #>
+    param(
+        [string]$ImpsToRank = $null
+    )
+
+    Write-Status "Running data-driven priority engine..."
+
+    if ($DryRun) {
+        Write-Status "[DryRun] Would execute: python -c 'from autopack.task_generation.priority_engine import PriorityEngine; ...'" -Color Yellow
+        return @{ HasPriorityRanking = $false; RankedImpsPath = $null; ImpCount = 0 }
+    }
+
+    try {
+        $learningDbPath = $LearningDbPath -replace '\\', '/'
+        $outputPath = $PriorityEngineOutputPath -replace '\\', '/'
+        $impsMasterPath = $ImpsMasterPath -replace '\\', '/'
+
+        $pythonScript = @"
+import sys
+import json
+sys.path.insert(0, 'src')
+from pathlib import Path
+from autopack.task_generation.priority_engine import PriorityEngine
+from autopack.memory.learning_db import LearningDatabase
+
+# Initialize learning database
+db_path = Path('$learningDbPath')
+learning_db = LearningDatabase(db_path)
+
+# Initialize priority engine
+engine = PriorityEngine(learning_db)
+
+# Load improvements to rank
+imps_path = Path('$impsMasterPath')
+if imps_path.exists():
+    with open(imps_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    imps = data.get('unimplemented_imps', [])
+else:
+    imps = []
+
+if not imps:
+    print(json.dumps({'ranked': [], 'count': 0, 'summary': {}}))
+else:
+    # Rank improvements by data-driven priority
+    ranked = engine.rank_improvements(imps, include_scores=True)
+    summary = engine.get_priority_summary(imps)
+
+    # Export to output file
+    output_path = Path('$outputPath')
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, 'w', encoding='utf-8') as f:
+        json.dump({
+            'ranked_improvements': ranked,
+            'summary': summary,
+            'source_file': '$impsMasterPath'
+        }, f, indent=2)
+
+    result = {
+        'ranked': [imp.get('imp_id', imp.get('id', 'unknown')) for imp in ranked[:5]],
+        'count': len(ranked),
+        'summary': {
+            'total': summary.get('total_improvements', 0),
+            'high_risk': len(summary.get('high_risk_items', []))
+        }
+    }
+    print(json.dumps(result))
+"@
+        $result = $pythonScript | python 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Priority engine returned non-zero exit code: $LASTEXITCODE"
+            Write-Warning "Output: $result"
+            return @{ HasPriorityRanking = $false; RankedImpsPath = $null; ImpCount = 0 }
+        }
+
+        $priorityResult = $result | ConvertFrom-Json
+
+        if ($priorityResult.count -gt 0) {
+            Write-Status "Priority engine ranked $($priorityResult.count) improvements" -Color Green
+            Write-Status "Top 5 by priority: $($priorityResult.ranked -join ', ')" -Color Green
+            if ($priorityResult.summary.high_risk -gt 0) {
+                Write-Status "High-risk items detected: $($priorityResult.summary.high_risk)" -Color Yellow
+            }
+            Write-Status "Output: $PriorityEngineOutputPath" -Color Green
+
+            # Log the priority ranking decision (IMP-LOG-001)
+            Write-DecisionLog -DecisionType "priority_ranking" -Context @{
+                total_improvements = $priorityResult.count
+                high_risk_items = $priorityResult.summary.high_risk
+                output_path = $PriorityEngineOutputPath
+                top_ranked = $priorityResult.ranked -join ','
+            } -OptionsConsidered @("static_priority", "category_based", "data_driven_priority") `
+              -ChosenOption "data_driven_priority" `
+              -Reasoning "Ranked $($priorityResult.count) improvements using historical success rates and blocking patterns"
+        }
+        else {
+            Write-Status "No improvements to rank" -Color Yellow
+        }
+
+        return @{
+            HasPriorityRanking = $priorityResult.count -gt 0
+            RankedImpsPath = $PriorityEngineOutputPath
+            ImpCount = $priorityResult.count
+            TopRanked = $priorityResult.ranked
+            HighRiskCount = $priorityResult.summary.high_risk
+        }
+    }
+    catch {
+        Write-Warning "Failed to run priority engine: $_"
+        return @{ HasPriorityRanking = $false; RankedImpsPath = $null; ImpCount = 0 }
+    }
+}
+
 function Invoke-DiscoveryContextInjection {
     <#
     .SYNOPSIS
@@ -690,7 +831,8 @@ function Build-Phase1Prompt {
         [hashtable]$CarryoverContext = @{ HasCarryover = $false },
         [hashtable]$DiscoveryContext = @{ HasDiscovery = $false },
         [hashtable]$InjectedContext = @{ HasContext = $false },
-        [hashtable]$FeedbackLoopContext = @{ HasFeedback = $false }
+        [hashtable]$FeedbackLoopContext = @{ HasFeedback = $false },
+        [hashtable]$PriorityContext = @{ HasPriorityRanking = $false }
     )
 
     $prompt = "@phase1"
@@ -781,6 +923,27 @@ function Build-Phase1Prompt {
         $prompt += "`n" + ($feedbackLines -join "`n")
     }
 
+    # Add data-driven priority ranking context (IMP-TGN-001)
+    if ($PriorityContext.HasPriorityRanking) {
+        $priorityLines = @()
+        $priorityLines += ""
+        $priorityLines += "## Data-Driven Priority Context (IMP-TGN-001)"
+        $priorityLines += ""
+        $priorityLines += "PRIORITY_RANKED_IMPS: $($PriorityContext.RankedImpsPath)"
+        $priorityLines += "- Contains $($PriorityContext.ImpCount) improvements ranked by historical success likelihood"
+        $priorityLines += "- Ranking considers: category success rates, blocking patterns, complexity estimates"
+        if ($PriorityContext.TopRanked) {
+            $priorityLines += "- Top priorities: $($PriorityContext.TopRanked -join ', ')"
+        }
+        if ($PriorityContext.HighRiskCount -gt 0) {
+            $priorityLines += "- WARNING: $($PriorityContext.HighRiskCount) items flagged as high-risk for blocking"
+            $priorityLines += "- Review high_risk_items in the file for potential blockers"
+        }
+        $priorityLines += "- Use recommended_order to sequence wave assignments"
+        $priorityLines += "- Consider deferring high-risk items to later waves"
+        $prompt += "`n" + ($priorityLines -join "`n")
+    }
+
     return $prompt
 }
 
@@ -847,12 +1010,13 @@ function Invoke-Phase1 {
         [hashtable]$CarryoverContext = @{ HasCarryover = $false },
         [hashtable]$DiscoveryContext = @{ HasDiscovery = $false },
         [hashtable]$InjectedContext = @{ HasContext = $false },
-        [hashtable]$FeedbackLoopContext = @{ HasFeedback = $false }
+        [hashtable]$FeedbackLoopContext = @{ HasFeedback = $false },
+        [hashtable]$PriorityContext = @{ HasPriorityRanking = $false }
     )
 
     Write-Status "=== Phase 1: Discovery ===" -Color Magenta
 
-    $prompt = Build-Phase1Prompt -TelemetryContext $TelemetryContext -CarryoverContext $CarryoverContext -DiscoveryContext $DiscoveryContext -InjectedContext $InjectedContext -FeedbackLoopContext $FeedbackLoopContext
+    $prompt = Build-Phase1Prompt -TelemetryContext $TelemetryContext -CarryoverContext $CarryoverContext -DiscoveryContext $DiscoveryContext -InjectedContext $InjectedContext -FeedbackLoopContext $FeedbackLoopContext -PriorityContext $PriorityContext
 
     if ($DryRun) {
         Write-Status "[DryRun] Would send prompt:" -Color Yellow
@@ -906,7 +1070,7 @@ function Invoke-Phase2 {
 # Main execution
 function Main {
     Write-Status "Autopack Project Generation Trigger" -Color Cyan
-    Write-Status "Phase: $Phase | UseTelemetryContext: $UseTelemetryContext | UseDiscoveryContextInjection: $UseDiscoveryContextInjection | UseTelemetryFeedbackLoop: $UseTelemetryFeedbackLoop | UseAutonomousDiscovery: $UseAutonomousDiscovery | UseAutonomousWavePlanning: $UseAutonomousWavePlanning | DryRun: $DryRun"
+    Write-Status "Phase: $Phase | UseTelemetryContext: $UseTelemetryContext | UseDiscoveryContextInjection: $UseDiscoveryContextInjection | UseTelemetryFeedbackLoop: $UseTelemetryFeedbackLoop | UseAutonomousDiscovery: $UseAutonomousDiscovery | UseAutonomousWavePlanning: $UseAutonomousWavePlanning | UsePriorityEngine: $UsePriorityEngine | DryRun: $DryRun"
     Write-Host ""
 
     # Validate environment
@@ -1001,6 +1165,25 @@ function Main {
         Write-Host ""
     }
 
+    # Run data-driven priority engine if enabled (IMP-TGN-001)
+    $priorityContext = @{ HasPriorityRanking = $false; RankedImpsPath = $null; ImpCount = 0 }
+    if ($UsePriorityEngine -and ($Phase -eq "phase1" -or $Phase -eq "all")) {
+        Write-Status "Data-driven priority engine enabled - ranking improvements..."
+        $priorityContext = Invoke-PriorityEngine
+        if ($priorityContext.HasPriorityRanking) {
+            Write-Status "Priority ranking completed:" -Color Green
+            Write-Status "  - Improvements ranked: $($priorityContext.ImpCount)"
+            Write-Status "  - Output file: $($priorityContext.RankedImpsPath)"
+            if ($priorityContext.TopRanked) {
+                Write-Status "  - Top priorities: $($priorityContext.TopRanked -join ', ')"
+            }
+            if ($priorityContext.HighRiskCount -gt 0) {
+                Write-Status "  - High-risk items: $($priorityContext.HighRiskCount)" -Color Yellow
+            }
+        }
+        Write-Host ""
+    }
+
     # Run autonomous wave planning if enabled (IMP-GEN-002)
     $wavePlanContext = @{ HasWavePlan = $false; WavePlanPath = $null; WaveCount = 0; ImpCount = 0 }
     if ($UseAutonomousWavePlanning -and ($Phase -eq "phase2" -or $Phase -eq "all")) {
@@ -1018,13 +1201,13 @@ function Main {
     # Execute requested phases
     switch ($Phase) {
         "phase1" {
-            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext -DiscoveryContext $discoveryContext -InjectedContext $injectedContext -FeedbackLoopContext $feedbackLoopContext
+            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext -DiscoveryContext $discoveryContext -InjectedContext $injectedContext -FeedbackLoopContext $feedbackLoopContext -PriorityContext $priorityContext
         }
         "phase2" {
             Invoke-Phase2 -TelemetryContext $telemetryContext -WavePlanContext $wavePlanContext
         }
         "all" {
-            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext -DiscoveryContext $discoveryContext -InjectedContext $injectedContext -FeedbackLoopContext $feedbackLoopContext
+            Invoke-Phase1 -TelemetryContext $telemetryContext -CarryoverContext $carryoverContext -DiscoveryContext $discoveryContext -InjectedContext $injectedContext -FeedbackLoopContext $feedbackLoopContext -PriorityContext $priorityContext
             Write-Host ""
             Invoke-Phase2 -TelemetryContext $telemetryContext -WavePlanContext $wavePlanContext
         }

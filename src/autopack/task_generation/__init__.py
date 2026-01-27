@@ -1,9 +1,17 @@
-"""Task generation module for autonomous improvement suggestion.
+"""Task Generation Module.
 
-This module provides:
-- insight_to_task.py: Converts telemetry insights into improvement suggestions
+Provides data-driven task prioritization and autonomous improvement suggestion
+capabilities for the Autopack self-improvement loop.
+
+Components:
+- PriorityEngine: Prioritizes tasks based on historical success data
+- InsightToTaskGenerator: Generates improvement suggestions from telemetry insights
 """
+
+from __future__ import annotations
 
 from autopack.task_generation.insight_to_task import InsightToTaskGenerator
 
-__all__ = ["InsightToTaskGenerator"]
+from .priority_engine import PriorityEngine
+
+__all__ = ["InsightToTaskGenerator", "PriorityEngine"]

@@ -1127,7 +1127,7 @@ class TestDeduplicateMemoryContext:
     def test_deduplicate_preserves_file_blocks_not_in_context(self, tmp_path: Path):
         """Test that file blocks not in file context are preserved."""
         orchestrator = make_builder_orchestrator(tmp_path)
-        memory_context = "--- FILE: other.py ---\n" "print('other')\n" "--- END FILE ---"
+        memory_context = "--- FILE: other.py ---\nprint('other')\n--- END FILE ---"
         file_context = {"existing_files": {"src/test.py": "content"}}
 
         result = orchestrator._deduplicate_memory_context("phase-1", memory_context, file_context)
@@ -1138,9 +1138,7 @@ class TestDeduplicateMemoryContext:
     def test_deduplicate_handles_code_block_format(self, tmp_path: Path):
         """Test that code blocks with file paths are deduplicated."""
         orchestrator = make_builder_orchestrator(tmp_path)
-        memory_context = (
-            "Some context\n" "```src/test.py\n" "def hello():\n" "    pass\n" "```\n" "More context"
-        )
+        memory_context = "Some context\n```src/test.py\ndef hello():\n    pass\n```\nMore context"
         file_context = {"existing_files": {"src/test.py": "content"}}
 
         result = orchestrator._deduplicate_memory_context("phase-1", memory_context, file_context)
@@ -1153,7 +1151,7 @@ class TestDeduplicateMemoryContext:
     def test_deduplicate_handles_normalized_paths(self, tmp_path: Path):
         """Test that paths are normalized for comparison."""
         orchestrator = make_builder_orchestrator(tmp_path)
-        memory_context = "--- FILE: /src/test.py ---\n" "content\n" "--- END FILE ---"
+        memory_context = "--- FILE: /src/test.py ---\ncontent\n--- END FILE ---"
         # File context has path without leading slash
         file_context = {"existing_files": {"src/test.py": "content"}}
 
@@ -1165,7 +1163,7 @@ class TestDeduplicateMemoryContext:
     def test_deduplicate_handles_windows_paths(self, tmp_path: Path):
         """Test that Windows-style paths are handled."""
         orchestrator = make_builder_orchestrator(tmp_path)
-        memory_context = "--- FILE: src\\test.py ---\n" "content\n" "--- END FILE ---"
+        memory_context = "--- FILE: src\\test.py ---\ncontent\n--- END FILE ---"
         # File context has forward slash
         file_context = {"existing_files": {"src/test.py": "content"}}
 
@@ -1178,11 +1176,7 @@ class TestDeduplicateMemoryContext:
         """Test that consecutive newlines are cleaned up after deduplication."""
         orchestrator = make_builder_orchestrator(tmp_path)
         memory_context = (
-            "Intro\n\n\n"
-            "--- FILE: src/test.py ---\n"
-            "content\n"
-            "--- END FILE ---\n\n\n\n"
-            "Outro"
+            "Intro\n\n\n--- FILE: src/test.py ---\ncontent\n--- END FILE ---\n\n\n\nOutro"
         )
         file_context = {"existing_files": {"src/test.py": "content"}}
 

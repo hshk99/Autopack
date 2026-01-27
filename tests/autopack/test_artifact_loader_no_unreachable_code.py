@@ -33,9 +33,9 @@ class TestArtifactLoaderNoUnreachableCode:
                 # The last statement should be a return
                 assert len(node.body) > 0, "Function body is empty"
                 last_stmt = node.body[-1]
-                assert isinstance(
-                    last_stmt, ast.Return
-                ), f"Last statement is {type(last_stmt).__name__}, not Return"
+                assert isinstance(last_stmt, ast.Return), (
+                    f"Last statement is {type(last_stmt).__name__}, not Return"
+                )
                 return
 
         pytest.fail("load_with_extended_contexts method not found")
@@ -49,9 +49,9 @@ class TestArtifactLoaderNoUnreachableCode:
                     if isinstance(stmt, ast.Return):
                         if i < len(node.body) - 1:
                             next_stmt = node.body[i + 1]
-                            assert not isinstance(
-                                next_stmt, ast.Return
-                            ), f"Unreachable return found: return at line {stmt.lineno} followed by return at line {next_stmt.lineno}"
+                            assert not isinstance(next_stmt, ast.Return), (
+                                f"Unreachable return found: return at line {stmt.lineno} followed by return at line {next_stmt.lineno}"
+                            )
                 return
 
         pytest.fail("load_with_extended_contexts method not found")
@@ -77,6 +77,6 @@ class TestArtifactLoaderNoUnreachableCode:
                         # There are statements after this return
                         next_stmt = node.body[i + 1]
                         # Multiple consecutive returns are definitely unreachable
-                        assert not isinstance(
-                            next_stmt, ast.Return
-                        ), f"Function {node.name}: unreachable return at line {next_stmt.lineno}"
+                        assert not isinstance(next_stmt, ast.Return), (
+                            f"Function {node.name}: unreachable return at line {next_stmt.lineno}"
+                        )

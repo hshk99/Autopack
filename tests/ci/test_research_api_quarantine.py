@@ -28,9 +28,9 @@ class TestResearchAPIQuarantine:
         content = router_file.read_text(encoding="utf-8")
 
         # Must have guard function
-        assert (
-            "_is_research_api_enabled" in content
-        ), "Research router must have _is_research_api_enabled guard function"
+        assert "_is_research_api_enabled" in content, (
+            "Research router must have _is_research_api_enabled guard function"
+        )
         assert "research_guard" in content, "Research router must have research_guard decorator"
 
     def test_research_api_disabled_in_production_by_default(self):
@@ -39,9 +39,9 @@ class TestResearchAPIQuarantine:
 
         with patch.dict(os.environ, {"AUTOPACK_ENV": "production"}, clear=False):
             os.environ.pop("RESEARCH_API_ENABLED", None)
-            assert (
-                _is_research_api_enabled() is False
-            ), "Research API must be disabled in production by default"
+            assert _is_research_api_enabled() is False, (
+                "Research API must be disabled in production by default"
+            )
 
     def test_research_api_enabled_in_development(self):
         """Research API should be enabled in development by default."""
@@ -49,9 +49,9 @@ class TestResearchAPIQuarantine:
 
         with patch.dict(os.environ, {"AUTOPACK_ENV": "development"}, clear=False):
             os.environ.pop("RESEARCH_API_ENABLED", None)
-            assert (
-                _is_research_api_enabled() is True
-            ), "Research API should be enabled in development"
+            assert _is_research_api_enabled() is True, (
+                "Research API should be enabled in development"
+            )
 
     def test_research_api_explicit_enable(self):
         """RESEARCH_API_ENABLED=true should enable even in production."""
@@ -61,9 +61,9 @@ class TestResearchAPIQuarantine:
             os.environ,
             {"AUTOPACK_ENV": "production", "RESEARCH_API_ENABLED": "true"},
         ):
-            assert (
-                _is_research_api_enabled() is True
-            ), "Explicit RESEARCH_API_ENABLED=true should enable API"
+            assert _is_research_api_enabled() is True, (
+                "Explicit RESEARCH_API_ENABLED=true should enable API"
+            )
 
     def test_research_api_explicit_disable(self):
         """RESEARCH_API_ENABLED=false should disable even in development."""
@@ -73,9 +73,9 @@ class TestResearchAPIQuarantine:
             os.environ,
             {"AUTOPACK_ENV": "development", "RESEARCH_API_ENABLED": "false"},
         ):
-            assert (
-                _is_research_api_enabled() is False
-            ), "Explicit RESEARCH_API_ENABLED=false should disable API"
+            assert _is_research_api_enabled() is False, (
+                "Explicit RESEARCH_API_ENABLED=false should disable API"
+            )
 
 
 class TestResearchEndpointsHaveGuard:
@@ -113,9 +113,9 @@ class TestResearchEndpointsHaveGuard:
         get_sections = content.split("@research_router.get")
         assert len(get_sections) >= 3, "Expected at least 2 GET endpoints"
         # Check the sessions/{session_id} endpoint
-        assert (
-            "@research_guard" in get_sections[2].split("def ")[0]
-        ), "get_research_session must have @research_guard decorator"
+        assert "@research_guard" in get_sections[2].split("def ")[0], (
+            "get_research_session must have @research_guard decorator"
+        )
 
 
 class TestResearchQuarantineDocumentation:
@@ -145,9 +145,9 @@ class TestResearchQuarantineDocumentation:
 
         # Must start with docstring containing QUARANTINE
         assert content.strip().startswith('"""'), "Research router must have module docstring"
-        assert (
-            "QUARANTINE" in content.split('"""')[1]
-        ), "Research router docstring must mention QUARANTINE status"
+        assert "QUARANTINE" in content.split('"""')[1], (
+            "Research router docstring must mention QUARANTINE status"
+        )
 
 
 class TestProductionSafety:
@@ -185,6 +185,6 @@ class TestProductionSafety:
 
         # Should document the flag or have a note about research API
         env_vars_str = str(env_vars)
-        assert (
-            "RESEARCH_API_ENABLED" in env_vars_str or "research" in env_vars_str.lower()
-        ), "PROJECT_INDEX.json should document RESEARCH_API_ENABLED environment variable"
+        assert "RESEARCH_API_ENABLED" in env_vars_str or "research" in env_vars_str.lower(), (
+            "PROJECT_INDEX.json should document RESEARCH_API_ENABLED environment variable"
+        )

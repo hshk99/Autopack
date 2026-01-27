@@ -775,7 +775,7 @@ class CausalAnalyzer:
                         recommendation = "defer"
                         reason = (
                             f"High historical failure rate: {negative_count}/{total_outcomes} "
-                            f"({risk_score*100:.0f}%) negative outcomes"
+                            f"({risk_score * 100:.0f}%) negative outcomes"
                         )
                     elif risk_score >= 0.4:
                         recommendation = "caution"
@@ -787,7 +787,7 @@ class CausalAnalyzer:
                         recommendation = "proceed"
                         reason = (
                             f"Good historical track record: {positive_count}/{total_outcomes} "
-                            f"({(1-risk_score)*100:.0f}%) positive outcomes"
+                            f"({(1 - risk_score) * 100:.0f}%) positive outcomes"
                         )
 
                     risk_data.update(
@@ -941,7 +941,7 @@ class CausalAnalyzer:
                 if relative_width > 0.5:  # CI width > 50% of mean
                     warnings.append(
                         f"{metric_name}: wide confidence interval "
-                        f"({relative_width*100:.1f}% of baseline) - more data recommended"
+                        f"({relative_width * 100:.1f}% of baseline) - more data recommended"
                     )
 
         # Overall validation: pass if no critical issues

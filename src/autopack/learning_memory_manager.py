@@ -115,8 +115,7 @@ class LearningMemoryManager:
 
         self._memory["improvement_outcomes"].append(outcome)
         logger.debug(
-            f"[LearningMemory] Recorded outcome for {imp_id}: "
-            f"{'success' if success else 'failure'}"
+            f"[LearningMemory] Recorded outcome for {imp_id}: {'success' if success else 'failure'}"
         )
 
         # Update patterns based on new outcome

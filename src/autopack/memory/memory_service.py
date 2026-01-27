@@ -484,19 +484,13 @@ class NullStore:
     def delete(self, collection: str, ids: List[str]) -> int:  # noqa: ARG002
         return 0
 
-    def count(
-        self, collection: str, filter: Optional[Dict[str, Any]] = None
-    ) -> int:  # noqa: ARG002
+    def count(self, collection: str, filter: Optional[Dict[str, Any]] = None) -> int:  # noqa: ARG002
         return 0
 
-    def get_payload(
-        self, collection: str, point_id: str
-    ) -> Optional[Dict[str, Any]]:  # noqa: ARG002
+    def get_payload(self, collection: str, point_id: str) -> Optional[Dict[str, Any]]:  # noqa: ARG002
         return None
 
-    def update_payload(
-        self, collection: str, point_id: str, payload: Dict[str, Any]
-    ) -> bool:  # noqa: ARG002
+    def update_payload(self, collection: str, point_id: str, payload: Dict[str, Any]) -> bool:  # noqa: ARG002
         return False
 
 
@@ -2035,8 +2029,7 @@ class MemoryService:
 
         # IMP-LOOP-014: Audit log for freshness filter applied
         logger.info(
-            "[IMP-LOOP-014] Retrieving insights with freshness_filter=%sh, "
-            "project_id=%s, limit=%s",
+            "[IMP-LOOP-014] Retrieving insights with freshness_filter=%sh, project_id=%s, limit=%s",
             effective_max_age,
             project_id or "all",
             limit,

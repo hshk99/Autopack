@@ -161,9 +161,9 @@ class TestStalePhaseResetLocking:
 
             # Due to double-check pattern, only one should have actually reset
             actual_resets = len(reset_order)
-            assert (
-                actual_resets == 1
-            ), f"Expected 1 reset due to double-check pattern, got {actual_resets}"
+            assert actual_resets == 1, (
+                f"Expected 1 reset due to double-check pattern, got {actual_resets}"
+            )
 
     def test_reset_count_incremented(self):
         """Test that reset_count is incremented on each reset."""

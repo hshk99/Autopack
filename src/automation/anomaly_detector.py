@@ -67,7 +67,7 @@ class AnomalyDetector:
                     anomalies.append(
                         Anomaly(
                             anomaly_id=(
-                                f"ci_fail_{pr_key}_" f"{datetime.now().strftime('%Y%m%d%H%M')}"
+                                f"ci_fail_{pr_key}_{datetime.now().strftime('%Y%m%d%H%M')}"
                             ),
                             anomaly_type="repeated_ci_failure",
                             severity="high" if retry_count >= 5 else "medium",
@@ -104,7 +104,7 @@ class AnomalyDetector:
                     anomalies.append(
                         Anomaly(
                             anomaly_id=(
-                                f"stuck_slot_{slot_id}_" f"{datetime.now().strftime('%Y%m%d%H%M')}"
+                                f"stuck_slot_{slot_id}_{datetime.now().strftime('%Y%m%d%H%M')}"
                             ),
                             anomaly_type="stuck_slot",
                             severity="high" if hours_stuck > 4 else "medium",
@@ -143,9 +143,7 @@ class AnomalyDetector:
                 )
                 anomalies.append(
                     Anomaly(
-                        anomaly_id=(
-                            f"escalation_spike_" f"{datetime.now().strftime('%Y%m%d%H%M')}"
-                        ),
+                        anomaly_id=(f"escalation_spike_{datetime.now().strftime('%Y%m%d%H%M')}"),
                         anomaly_type="escalation_spike",
                         severity="critical",
                         detected_at=datetime.now(),

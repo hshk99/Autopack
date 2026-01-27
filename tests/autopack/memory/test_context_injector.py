@@ -12,9 +12,11 @@ Tests cover:
 
 from unittest.mock import MagicMock, Mock, patch
 
-from autopack.memory.context_injector import (ContextInjection,
-                                              ContextInjector,
-                                              EnrichedContextInjection)
+from autopack.memory.context_injector import (
+    ContextInjection,
+    ContextInjector,
+    EnrichedContextInjection,
+)
 from autopack.memory.memory_service import ContextMetadata
 
 

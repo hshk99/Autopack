@@ -8,8 +8,7 @@ from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 from sqlalchemy.orm import Session
 
-from ..memory.memory_service import (DEFAULT_MEMORY_FRESHNESS_HOURS,
-                                     MemoryService)
+from ..memory.memory_service import DEFAULT_MEMORY_FRESHNESS_HOURS, MemoryService
 from ..roadi import RegressionProtector
 from ..roadi.regression_protector import RiskAssessment
 from ..telemetry.analyzer import RankedIssue, TelemetryAnalyzer
@@ -681,7 +680,9 @@ class AutonomousTaskGenerator:
             return DirectInsightConsumer(telemetry_insights)
 
         if self._telemetry_analyzer is not None:
-            logger.debug("[IMP-LOOP-013] Using AnalyzerInsightConsumer (TelemetryAnalyzer available)")
+            logger.debug(
+                "[IMP-LOOP-013] Using AnalyzerInsightConsumer (TelemetryAnalyzer available)"
+            )
             return AnalyzerInsightConsumer(self._telemetry_analyzer, window_days=7)
 
         logger.debug("[IMP-LOOP-013] Using MemoryInsightConsumer (fallback)")

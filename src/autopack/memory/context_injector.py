@@ -326,8 +326,7 @@ class ContextInjector:
 
         except ImportError:
             logger.debug(
-                "[ContextInjector] DiscoveryContextMerger not available, "
-                "skipping discovery context"
+                "[ContextInjector] DiscoveryContextMerger not available, skipping discovery context"
             )
             return []
         except Exception as e:
@@ -561,7 +560,7 @@ class ContextInjector:
                 else:
                     error_items.append(f"- {content}")
             if error_items:
-                sections.append(f"**Past Errors to Avoid:**\n" + "\n".join(error_items))
+                sections.append("**Past Errors to Avoid:**\n" + "\n".join(error_items))
 
         # Format strategies
         if injection.successful_strategies:
@@ -573,7 +572,7 @@ class ContextInjector:
                 else:
                     strategy_items.append(f"- {content}")
             if strategy_items:
-                sections.append(f"**Successful Strategies:**\n" + "\n".join(strategy_items))
+                sections.append("**Successful Strategies:**\n" + "\n".join(strategy_items))
 
         # Format hints
         if injection.doctor_hints:
@@ -585,7 +584,7 @@ class ContextInjector:
                 else:
                     hint_items.append(f"- {content}")
             if hint_items:
-                sections.append(f"**Doctor Recommendations:**\n" + "\n".join(hint_items))
+                sections.append("**Doctor Recommendations:**\n" + "\n".join(hint_items))
 
         # Format insights
         if injection.relevant_insights:
@@ -597,7 +596,7 @@ class ContextInjector:
                 else:
                     insight_items.append(f"- {content}")
             if insight_items:
-                sections.append(f"**Relevant Historical Insights:**\n" + "\n".join(insight_items))
+                sections.append("**Relevant Historical Insights:**\n" + "\n".join(insight_items))
 
         # Discovery insights (no metadata)
         if injection.discovery_insights:

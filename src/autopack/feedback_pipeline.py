@@ -725,7 +725,7 @@ class FeedbackPipeline:
             self._stats["hints_promoted_to_rules"] += 1
 
             logger.info(
-                f"[IMP-LOOP-015] Promoted hint to rule: {hint_key} " f"(occurrences={occurrences})"
+                f"[IMP-LOOP-015] Promoted hint to rule: {hint_key} (occurrences={occurrences})"
             )
             return True
 

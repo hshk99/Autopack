@@ -51,7 +51,7 @@ class RegressionTest:
                     pct_change = (current - baseline) / baseline
                     if pct_change > self.max_degradation:
                         violations.append(
-                            f"{metric}: {pct_change*100:.1f}% increase "
+                            f"{metric}: {pct_change * 100:.1f}% increase "
                             f"(baseline={baseline:.2f}, current={current:.2f})"
                         )
             elif metric in ["success_rate", "quality_score"]:
@@ -60,7 +60,7 @@ class RegressionTest:
                     pct_change = (baseline - current) / baseline
                     if pct_change > self.max_degradation:
                         violations.append(
-                            f"{metric}: {pct_change*100:.1f}% decrease "
+                            f"{metric}: {pct_change * 100:.1f}% decrease "
                             f"(baseline={baseline:.2f}, current={current:.2f})"
                         )
 

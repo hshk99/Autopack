@@ -6,8 +6,13 @@ from unittest.mock import MagicMock
 import pytest
 
 from autopack.task_generation.task_effectiveness_tracker import (
-    EXCELLENT_EFFECTIVENESS, GOOD_EFFECTIVENESS, POOR_EFFECTIVENESS,
-    EffectivenessHistory, TaskEffectivenessTracker, TaskImpactReport)
+    EXCELLENT_EFFECTIVENESS,
+    GOOD_EFFECTIVENESS,
+    POOR_EFFECTIVENESS,
+    EffectivenessHistory,
+    TaskEffectivenessTracker,
+    TaskImpactReport,
+)
 
 
 class TestTaskImpactReport:

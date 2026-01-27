@@ -604,8 +604,7 @@ def get_diagnosis_with_cache(
 
     # Cache miss - call Doctor LLM
     logger.info(
-        f"[DoctorCache] Calling Doctor LLM for {error_category} error "
-        f"({phase_id or 'no phase'})"
+        f"[DoctorCache] Calling Doctor LLM for {error_category} error ({phase_id or 'no phase'})"
     )
     diagnosis = doctor_call_fn()
 

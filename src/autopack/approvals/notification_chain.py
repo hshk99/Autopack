@@ -426,7 +426,7 @@ To reject, reply with: REJECT {request.request_id}
         pivot_section = ""
         if request.affected_pivots:
             pivot_section = (
-                f"<p><strong>Affected Pivots:</strong> " f"{', '.join(request.affected_pivots)}</p>"
+                f"<p><strong>Affected Pivots:</strong> {', '.join(request.affected_pivots)}</p>"
             )
 
         return f"""

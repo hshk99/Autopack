@@ -31,12 +31,13 @@ This removes technical debt while preserving aspirational tests via skip markers
 import pytest
 
 # Expected xfail count - reduced from 111 to 6 after removing extended test suites
-# Remaining 6 xfails are critical aspirational features that need explicit tracking:
+# Remaining 13 xfails are critical aspirational features that need explicit tracking:
 # - 3 tests in test_parallel_orchestrator.py (WorkspaceManager/ExecutorLockManager integration)
 # - 1 test in test_telemetry_unblock_fixes.py (T2 retry logic)
 # - 1 test in test_api_contract_builder.py (executor payload schema compliance - deferred to P1)
 # - 1 test in test_dashboard_integration.py (DB session isolation for data sharing)
-EXPECTED_XFAIL_COUNT = 6
+# - 7 tests in test_telemetry_informed_generation.py (IMP-GEN-001 not yet implemented)
+EXPECTED_XFAIL_COUNT = 13
 
 # Tolerance for minor variations in xfail count (e.g., parameterized tests)
 TOLERANCE = 0

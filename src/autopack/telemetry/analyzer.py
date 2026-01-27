@@ -5,7 +5,10 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from autopack.diagnostics.probes import ProbeRunResult
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -116,7 +119,8 @@ class TelemetryAnalyzer:
 
         # NEW: Persist to memory for future retrieval
         if self.memory_service and self.memory_service.enabled:
-            from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
+            from autopack.telemetry.telemetry_to_memory_bridge import \
+                TelemetryToMemoryBridge
 
             bridge = TelemetryToMemoryBridge(
                 self.memory_service, enabled=self._telemetry_to_memory_enabled
@@ -936,3 +940,169 @@ class TelemetryAnalyzer:
                     )
 
         logger.info(f"[IMP-LOOP-012] Wrote task effectiveness report to: {output_path}")
+
+    def ingest_diagnostic_findings(
+        self,
+        findings: List[Dict[str, Any]],
+        run_id: Optional[str] = None,
+        phase_id: Optional[str] = None,
+    ) -> List[RankedIssue]:
+        """Ingest diagnostic findings and convert them to RankedIssue format (IMP-LOOP-016).
+
+        Creates a bridge between DiagnosticsAgent and the telemetry system, enabling
+        diagnostic findings to be tracked and actioned through the same pipeline as
+        other telemetry-derived issues.
+
+        Args:
+            findings: List of diagnostic findings with structure:
+                - failure_class: str - Classification of the failure
+                - probe_name: str - Name of the probe that found the issue
+                - resolved: bool - Whether the probe resolved the issue
+                - severity: str - "high", "medium", or "low"
+                - evidence: str - Summary of evidence found
+                - commands_run: int - Number of commands executed
+                - exit_codes: List[int] - Exit codes from commands
+            run_id: Optional run ID for context
+            phase_id: Optional phase ID for context
+
+        Returns:
+            List of RankedIssue objects with issue_type="diagnostic"
+        """
+        ranked_issues: List[RankedIssue] = []
+
+        for i, finding in enumerate(findings):
+            failure_class = finding.get("failure_class", "unknown")
+            probe_name = finding.get("probe_name", "unknown_probe")
+            resolved = finding.get("resolved", False)
+            severity = finding.get("severity", "medium")
+            evidence = finding.get("evidence", "")
+            commands_run = finding.get("commands_run", 0)
+            exit_codes = finding.get("exit_codes", [])
+
+            # Calculate a metric value based on severity and resolution
+            # Higher values indicate more critical issues
+            severity_weights = {"high": 3.0, "medium": 2.0, "low": 1.0}
+            base_weight = severity_weights.get(severity, 2.0)
+            # Unresolved issues get higher weight
+            metric_value = base_weight * (2.0 if not resolved else 1.0)
+
+            issue = RankedIssue(
+                rank=i + 1,
+                issue_type="diagnostic",
+                phase_id=phase_id or f"diag-{failure_class}",
+                phase_type=f"diagnostic:{failure_class}",
+                metric_value=metric_value,
+                details={
+                    "failure_class": failure_class,
+                    "probe_name": probe_name,
+                    "resolved": resolved,
+                    "severity": severity,
+                    "evidence": evidence,
+                    "commands_run": commands_run,
+                    "exit_codes": exit_codes,
+                    "run_id": run_id,
+                    "source": "diagnostics_agent",
+                },
+            )
+            ranked_issues.append(issue)
+
+        # Persist to memory if available (same pattern as aggregate_telemetry)
+        if self.memory_service and self.memory_service.enabled and ranked_issues:
+            from autopack.telemetry.telemetry_to_memory_bridge import \
+                TelemetryToMemoryBridge
+
+            bridge = TelemetryToMemoryBridge(
+                self.memory_service, enabled=self._telemetry_to_memory_enabled
+            )
+            flat_issues = []
+            for issue in ranked_issues:
+                flat_issues.append(
+                    {
+                        "issue_type": "diagnostic",
+                        "insight_id": f"diag-{issue.rank}",
+                        "rank": issue.rank,
+                        "phase_id": issue.phase_id,
+                        "phase_type": issue.phase_type,
+                        "severity": issue.details.get("severity", "medium"),
+                        "description": f"Diagnostic finding: {issue.details.get('failure_class', '')} "
+                        f"via {issue.details.get('probe_name', '')}",
+                        "metric_value": issue.metric_value,
+                        "occurrences": 1,
+                        "details": issue.details,
+                        "suggested_action": f"Investigate {issue.details.get('failure_class', '')} "
+                        f"{'(resolved)' if issue.details.get('resolved') else '(unresolved)'}",
+                    }
+                )
+            bridge.persist_insights(
+                flat_issues,
+                run_id=run_id or self.run_id,
+                project_id=None,
+            )
+
+        logger.info(
+            f"[IMP-LOOP-016] Ingested {len(ranked_issues)} diagnostic findings "
+            f"(run_id={run_id}, phase_id={phase_id})"
+        )
+
+        return ranked_issues
+
+    @staticmethod
+    def convert_probe_results_to_findings(
+        probe_results: List["ProbeRunResult"],
+        failure_class: str,
+    ) -> List[Dict[str, Any]]:
+        """Convert ProbeRunResult objects to diagnostic findings format (IMP-LOOP-016).
+
+        Helper method for DiagnosticsAgent to convert probe results into the
+        format expected by ingest_diagnostic_findings().
+
+        Args:
+            probe_results: List of ProbeRunResult from DiagnosticsAgent
+            failure_class: The failure classification from diagnostics
+
+        Returns:
+            List of finding dictionaries ready for ingest_diagnostic_findings()
+        """
+        findings: List[Dict[str, Any]] = []
+
+        for pr in probe_results:
+            # Extract exit codes from command results
+            exit_codes = [
+                cr.exit_code
+                for cr in pr.command_results
+                if not cr.skipped and cr.exit_code is not None
+            ]
+
+            # Build evidence summary from command results
+            evidence_parts = []
+            for cr in pr.command_results:
+                if cr.skipped:
+                    evidence_parts.append(f"{cr.label or cr.command}: skipped")
+                elif cr.timed_out:
+                    evidence_parts.append(f"{cr.label or cr.command}: timed out")
+                else:
+                    evidence_parts.append(f"{cr.label or cr.command}: exit={cr.exit_code}")
+            evidence = "; ".join(evidence_parts) if evidence_parts else "No commands executed"
+
+            # Determine severity based on probe results
+            # Unresolved probes with failures are high severity
+            if not pr.resolved and any(code != 0 for code in exit_codes):
+                severity = "high"
+            elif not pr.resolved:
+                severity = "medium"
+            else:
+                severity = "low"
+
+            findings.append(
+                {
+                    "failure_class": failure_class,
+                    "probe_name": pr.probe.name,
+                    "resolved": pr.resolved,
+                    "severity": severity,
+                    "evidence": evidence,
+                    "commands_run": len(pr.command_results),
+                    "exit_codes": exit_codes,
+                }
+            )
+
+        return findings

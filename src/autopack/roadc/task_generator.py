@@ -3,7 +3,8 @@
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from enum import Enum
+from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 from sqlalchemy.orm import Session
 
@@ -16,6 +17,408 @@ from ..telemetry.causal_analysis import CausalAnalyzer
 from .discovery_context_merger import DiscoveryContextMerger
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# IMP-LOOP-013: Unified Insight Consumption Interface
+# =============================================================================
+
+
+class InsightSource(Enum):
+    """Source of insights for path tracking (IMP-LOOP-013)."""
+
+    DIRECT = "direct"  # Direct telemetry_insights parameter
+    ANALYZER = "analyzer"  # TelemetryAnalyzer.aggregate_telemetry()
+    MEMORY = "memory"  # MemoryService.retrieve_insights()
+
+
+@dataclass
+class UnifiedInsight:
+    """Unified insight format from any source (IMP-LOOP-013).
+
+    This dataclass provides a consistent format for insights regardless
+    of whether they come from direct telemetry, the analyzer, or memory.
+    """
+
+    id: str
+    issue_type: str  # cost_sink, failure_mode, retry_cause, error, etc.
+    content: str
+    severity: str  # high, medium, low
+    phase_id: Optional[str] = None
+    phase_type: Optional[str] = None
+    metric_value: Optional[float] = None
+    rank: Optional[int] = None
+    details: Optional[Dict[str, Any]] = None
+    source: Optional[InsightSource] = None  # Track which path provided this insight
+
+
+@dataclass
+class InsightConsumerResult:
+    """Result from an InsightConsumer (IMP-LOOP-013).
+
+    Encapsulates both the insights and metadata about the retrieval.
+    """
+
+    insights: List[UnifiedInsight]
+    source: InsightSource
+    retrieval_time_ms: float
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@runtime_checkable
+class InsightConsumer(Protocol):
+    """Protocol for insight consumers (IMP-LOOP-013).
+
+    Defines a unified interface for retrieving insights from different
+    sources (direct telemetry, analyzer, memory). This enables:
+    - Consistent data format across all paths
+    - Observable path selection
+    - Easier testing and extensibility
+    """
+
+    def get_insights(
+        self,
+        limit: int = 100,
+        max_age_hours: Optional[float] = None,
+    ) -> InsightConsumerResult:
+        """Retrieve insights from this consumer.
+
+        Args:
+            limit: Maximum number of insights to return
+            max_age_hours: Maximum age for insights (if applicable)
+
+        Returns:
+            InsightConsumerResult with unified insights and metadata
+        """
+        ...
+
+
+class DirectInsightConsumer:
+    """Consumer for direct telemetry insights (IMP-LOOP-013).
+
+    Wraps telemetry data passed directly to generate_tasks(),
+    converting RankedIssue objects to UnifiedInsight format.
+    """
+
+    def __init__(self, telemetry_data: Dict[str, List[RankedIssue]]):
+        """Initialize with telemetry data.
+
+        Args:
+            telemetry_data: Output from TelemetryAnalyzer.aggregate_telemetry()
+        """
+        self._telemetry_data = telemetry_data
+
+    def get_insights(
+        self,
+        limit: int = 100,
+        max_age_hours: Optional[float] = None,
+    ) -> InsightConsumerResult:
+        """Convert and return telemetry data as unified insights.
+
+        Args:
+            limit: Maximum number of insights to return
+            max_age_hours: Ignored for direct data (already fresh)
+
+        Returns:
+            InsightConsumerResult with converted insights
+        """
+        start_time = datetime.now()
+        insights: List[UnifiedInsight] = []
+
+        # Convert cost sinks
+        for issue in self._telemetry_data.get("top_cost_sinks", []):
+            insights.append(
+                UnifiedInsight(
+                    id=f"cost_sink_{issue.phase_id}_{issue.rank}",
+                    issue_type="cost_sink",
+                    content=(
+                        f"Phase {issue.phase_id} ({issue.phase_type}) consuming "
+                        f"{issue.metric_value:,.0f} tokens. "
+                        f"Avg: {issue.details.get('avg_tokens', 0):,.0f} tokens, "
+                        f"Count: {issue.details.get('count', 0)}"
+                    ),
+                    severity="high" if issue.metric_value > 50000 else "medium",
+                    phase_id=issue.phase_id,
+                    phase_type=issue.phase_type,
+                    metric_value=issue.metric_value,
+                    rank=issue.rank,
+                    details=issue.details,
+                    source=InsightSource.DIRECT,
+                )
+            )
+
+        # Convert failure modes
+        for issue in self._telemetry_data.get("top_failure_modes", []):
+            insights.append(
+                UnifiedInsight(
+                    id=f"failure_{issue.phase_id}_{issue.rank}",
+                    issue_type="failure_mode",
+                    content=(
+                        f"Phase {issue.phase_id} ({issue.phase_type}) failed "
+                        f"{int(issue.metric_value)} times. "
+                        f"Outcome: {issue.details.get('outcome', 'unknown')}, "
+                        f"Reason: {issue.details.get('stop_reason', 'unknown')}"
+                    ),
+                    severity="high" if issue.metric_value > 5 else "medium",
+                    phase_id=issue.phase_id,
+                    phase_type=issue.phase_type,
+                    metric_value=issue.metric_value,
+                    rank=issue.rank,
+                    details=issue.details,
+                    source=InsightSource.DIRECT,
+                )
+            )
+
+        # Convert retry causes
+        for issue in self._telemetry_data.get("top_retry_causes", []):
+            insights.append(
+                UnifiedInsight(
+                    id=f"retry_{issue.phase_id}_{issue.rank}",
+                    issue_type="retry_cause",
+                    content=(
+                        f"Phase {issue.phase_id} ({issue.phase_type}) required "
+                        f"{int(issue.metric_value)} retries. "
+                        f"Reason: {issue.details.get('stop_reason', 'unknown')}, "
+                        f"Success count: {issue.details.get('success_count', 0)}"
+                    ),
+                    severity="high" if issue.metric_value > 5 else "medium",
+                    phase_id=issue.phase_id,
+                    phase_type=issue.phase_type,
+                    metric_value=issue.metric_value,
+                    rank=issue.rank,
+                    details=issue.details,
+                    source=InsightSource.DIRECT,
+                )
+            )
+
+        retrieval_time_ms = (datetime.now() - start_time).total_seconds() * 1000
+
+        logger.debug(
+            f"[IMP-LOOP-013] DirectInsightConsumer returned {len(insights[:limit])} insights "
+            f"in {retrieval_time_ms:.1f}ms"
+        )
+
+        return InsightConsumerResult(
+            insights=insights[:limit],
+            source=InsightSource.DIRECT,
+            retrieval_time_ms=retrieval_time_ms,
+            metadata={
+                "cost_sinks": len(self._telemetry_data.get("top_cost_sinks", [])),
+                "failure_modes": len(self._telemetry_data.get("top_failure_modes", [])),
+                "retry_causes": len(self._telemetry_data.get("top_retry_causes", [])),
+            },
+        )
+
+
+class AnalyzerInsightConsumer:
+    """Consumer for TelemetryAnalyzer insights (IMP-LOOP-013).
+
+    Wraps TelemetryAnalyzer.aggregate_telemetry() and converts
+    output to UnifiedInsight format.
+    """
+
+    def __init__(self, analyzer: TelemetryAnalyzer, window_days: int = 7):
+        """Initialize with a TelemetryAnalyzer instance.
+
+        Args:
+            analyzer: TelemetryAnalyzer instance with active db session
+            window_days: Number of days to look back for telemetry
+        """
+        self._analyzer = analyzer
+        self._window_days = window_days
+
+    def get_insights(
+        self,
+        limit: int = 100,
+        max_age_hours: Optional[float] = None,
+    ) -> InsightConsumerResult:
+        """Aggregate telemetry and return as unified insights.
+
+        Args:
+            limit: Maximum number of insights to return
+            max_age_hours: Ignored (window_days is used instead)
+
+        Returns:
+            InsightConsumerResult with aggregated insights
+        """
+        start_time = datetime.now()
+
+        # Get aggregated telemetry
+        aggregated = self._analyzer.aggregate_telemetry(window_days=self._window_days)
+
+        # Use DirectInsightConsumer to convert (reuse conversion logic)
+        direct_consumer = DirectInsightConsumer(aggregated)
+        result = direct_consumer.get_insights(limit=limit)
+
+        # Update source and timing
+        insights = [
+            UnifiedInsight(
+                id=i.id,
+                issue_type=i.issue_type,
+                content=i.content,
+                severity=i.severity,
+                phase_id=i.phase_id,
+                phase_type=i.phase_type,
+                metric_value=i.metric_value,
+                rank=i.rank,
+                details=i.details,
+                source=InsightSource.ANALYZER,  # Override source
+            )
+            for i in result.insights
+        ]
+
+        retrieval_time_ms = (datetime.now() - start_time).total_seconds() * 1000
+
+        logger.debug(
+            f"[IMP-LOOP-013] AnalyzerInsightConsumer returned {len(insights)} insights "
+            f"in {retrieval_time_ms:.1f}ms (window={self._window_days} days)"
+        )
+
+        return InsightConsumerResult(
+            insights=insights,
+            source=InsightSource.ANALYZER,
+            retrieval_time_ms=retrieval_time_ms,
+            metadata={
+                "window_days": self._window_days,
+                **result.metadata,
+            },
+        )
+
+
+class MemoryInsightConsumer:
+    """Consumer for MemoryService insights (IMP-LOOP-013).
+
+    Wraps MemoryService.retrieve_insights() and converts
+    output to UnifiedInsight format.
+    """
+
+    def __init__(
+        self,
+        memory_service: MemoryService,
+        query: str = "error failure bottleneck improvement opportunity",
+    ):
+        """Initialize with a MemoryService instance.
+
+        Args:
+            memory_service: MemoryService instance
+            query: Search query for retrieving insights
+        """
+        self._memory = memory_service
+        self._query = query
+
+    def get_insights(
+        self,
+        limit: int = 100,
+        max_age_hours: Optional[float] = None,
+    ) -> InsightConsumerResult:
+        """Retrieve insights from memory service.
+
+        Args:
+            limit: Maximum number of insights to return
+            max_age_hours: Maximum age for insights (freshness filter)
+
+        Returns:
+            InsightConsumerResult with memory insights
+        """
+        start_time = datetime.now()
+
+        effective_max_age = (
+            max_age_hours if max_age_hours is not None else DEFAULT_MEMORY_FRESHNESS_HOURS
+        )
+
+        # Retrieve from memory
+        raw_insights = self._memory.retrieve_insights(
+            query=self._query,
+            limit=limit,
+            max_age_hours=effective_max_age,
+        )
+
+        # Convert to unified format
+        insights: List[UnifiedInsight] = []
+        for i, raw in enumerate(raw_insights):
+            insights.append(
+                UnifiedInsight(
+                    id=raw.get("id", f"memory_{i}"),
+                    issue_type=raw.get("issue_type", "unknown"),
+                    content=raw.get("content", ""),
+                    severity=raw.get("severity", "medium"),
+                    phase_id=raw.get("phase_id"),
+                    phase_type=raw.get("phase_type"),
+                    metric_value=raw.get("metric_value"),
+                    rank=raw.get("rank"),
+                    details=raw.get("details"),
+                    source=InsightSource.MEMORY,
+                )
+            )
+
+        retrieval_time_ms = (datetime.now() - start_time).total_seconds() * 1000
+
+        logger.debug(
+            f"[IMP-LOOP-013] MemoryInsightConsumer returned {len(insights)} insights "
+            f"in {retrieval_time_ms:.1f}ms (max_age={effective_max_age}h)"
+        )
+
+        return InsightConsumerResult(
+            insights=insights,
+            source=InsightSource.MEMORY,
+            retrieval_time_ms=retrieval_time_ms,
+            metadata={
+                "query": self._query,
+                "max_age_hours": effective_max_age,
+            },
+        )
+
+
+def _emit_insight_path_metrics(
+    source: InsightSource,
+    insights_count: int,
+    retrieval_time_ms: float,
+    run_id: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Emit metrics for insight path selection (IMP-LOOP-013).
+
+    Records which insight source was used and performance metrics
+    for observability and debugging.
+
+    Args:
+        source: The InsightSource that was used
+        insights_count: Number of insights retrieved
+        retrieval_time_ms: Time taken to retrieve insights
+        run_id: Optional run ID for correlation
+        metadata: Additional metadata about the retrieval
+    """
+    try:
+        from ..database import SessionLocal
+        from ..models import InsightPathEvent
+
+        session = SessionLocal()
+        try:
+            event = InsightPathEvent(
+                source=source.value,
+                insights_count=insights_count,
+                retrieval_time_ms=retrieval_time_ms,
+                run_id=run_id,
+                extra_data=metadata or {},
+                timestamp=datetime.now(timezone.utc),
+            )
+            session.add(event)
+            session.commit()
+            logger.debug(
+                f"[IMP-LOOP-013] Emitted insight path metrics: "
+                f"source={source.value}, count={insights_count}, time={retrieval_time_ms:.1f}ms"
+            )
+        except Exception as e:
+            session.rollback()
+            logger.warning(f"[IMP-LOOP-013] Failed to emit insight path metrics: {e}")
+        finally:
+            session.close()
+    except ImportError:
+        # Model not available - log metrics instead
+        logger.info(
+            f"[IMP-LOOP-013] Insight path: source={source.value}, "
+            f"count={insights_count}, time={retrieval_time_ms:.1f}ms"
+        )
 
 
 def _emit_task_generation_event(
@@ -225,6 +628,65 @@ class AutonomousTaskGenerator:
             logger.debug("[IMP-ARCH-017] TelemetryAnalyzer initialized for task generation")
         logger.debug("[IMP-FBK-005] CausalAnalyzer initialized for task prioritization")
 
+    def _unified_insights_to_dicts(
+        self, unified_insights: List[UnifiedInsight]
+    ) -> List[Dict[str, Any]]:
+        """Convert UnifiedInsight objects to dict format for pattern detection (IMP-LOOP-013).
+
+        This method bridges the new InsightConsumer interface with the existing
+        _detect_patterns() method which expects dict format.
+
+        Args:
+            unified_insights: List of UnifiedInsight objects from any consumer
+
+        Returns:
+            List of insight dicts compatible with _detect_patterns()
+        """
+        return [
+            {
+                "id": insight.id,
+                "issue_type": insight.issue_type,
+                "severity": insight.severity,
+                "content": insight.content,
+                "phase_id": insight.phase_id,
+                "phase_type": insight.phase_type,
+                "metric_value": insight.metric_value,
+                "rank": insight.rank,
+                "details": insight.details or {},
+            }
+            for insight in unified_insights
+        ]
+
+    def _get_insight_consumer(
+        self,
+        telemetry_insights: Optional[Dict[str, List[RankedIssue]]] = None,
+        max_age_hours: Optional[float] = None,
+    ) -> InsightConsumer:
+        """Select and return the appropriate InsightConsumer (IMP-LOOP-013).
+
+        Implements the routing policy for insight sources:
+        1. If telemetry_insights is provided -> DirectInsightConsumer
+        2. If TelemetryAnalyzer is available -> AnalyzerInsightConsumer
+        3. Fallback -> MemoryInsightConsumer
+
+        Args:
+            telemetry_insights: Optional direct telemetry data
+            max_age_hours: Maximum age for memory insights
+
+        Returns:
+            An InsightConsumer instance for the selected source
+        """
+        if telemetry_insights is not None:
+            logger.debug("[IMP-LOOP-013] Using DirectInsightConsumer (telemetry_insights provided)")
+            return DirectInsightConsumer(telemetry_insights)
+
+        if self._telemetry_analyzer is not None:
+            logger.debug("[IMP-LOOP-013] Using AnalyzerInsightConsumer (TelemetryAnalyzer available)")
+            return AnalyzerInsightConsumer(self._telemetry_analyzer, window_days=7)
+
+        logger.debug("[IMP-LOOP-013] Using MemoryInsightConsumer (fallback)")
+        return MemoryInsightConsumer(self._memory)
+
     def _convert_telemetry_to_insights(
         self, telemetry_data: Dict[str, List[RankedIssue]]
     ) -> List[Dict[str, Any]]:
@@ -233,6 +695,9 @@ class AutonomousTaskGenerator:
         Implements IMP-FEAT-001: Wires TelemetryAnalyzer.aggregate_telemetry() output
         to the task generation pipeline by converting RankedIssue objects to the
         insight dict format expected by _detect_patterns().
+
+        Note: This method is preserved for backward compatibility.
+        New code should use InsightConsumer interface (IMP-LOOP-013).
 
         Args:
             telemetry_data: Output from TelemetryAnalyzer.aggregate_telemetry() containing:
@@ -244,79 +709,18 @@ class AutonomousTaskGenerator:
         Returns:
             List of insight dicts compatible with _detect_patterns()
         """
-        insights = []
-
-        # Convert cost sinks
-        for issue in telemetry_data.get("top_cost_sinks", []):
-            insights.append(
-                {
-                    "id": f"cost_sink_{issue.phase_id}_{issue.rank}",
-                    "issue_type": "cost_sink",
-                    "severity": "high" if issue.metric_value > 50000 else "medium",
-                    "content": (
-                        f"Phase {issue.phase_id} ({issue.phase_type}) consuming "
-                        f"{issue.metric_value:,.0f} tokens. "
-                        f"Avg: {issue.details.get('avg_tokens', 0):,.0f} tokens, "
-                        f"Count: {issue.details.get('count', 0)}"
-                    ),
-                    "phase_id": issue.phase_id,
-                    "phase_type": issue.phase_type,
-                    "metric_value": issue.metric_value,
-                    "rank": issue.rank,
-                    "details": issue.details,
-                }
-            )
-
-        # Convert failure modes
-        for issue in telemetry_data.get("top_failure_modes", []):
-            insights.append(
-                {
-                    "id": f"failure_{issue.phase_id}_{issue.rank}",
-                    "issue_type": "failure_mode",
-                    "severity": "high" if issue.metric_value > 5 else "medium",
-                    "content": (
-                        f"Phase {issue.phase_id} ({issue.phase_type}) failed "
-                        f"{int(issue.metric_value)} times. "
-                        f"Outcome: {issue.details.get('outcome', 'unknown')}, "
-                        f"Reason: {issue.details.get('stop_reason', 'unknown')}"
-                    ),
-                    "phase_id": issue.phase_id,
-                    "phase_type": issue.phase_type,
-                    "metric_value": issue.metric_value,
-                    "rank": issue.rank,
-                    "details": issue.details,
-                }
-            )
-
-        # Convert retry causes
-        for issue in telemetry_data.get("top_retry_causes", []):
-            insights.append(
-                {
-                    "id": f"retry_{issue.phase_id}_{issue.rank}",
-                    "issue_type": "retry_cause",
-                    "severity": "high" if issue.metric_value > 5 else "medium",
-                    "content": (
-                        f"Phase {issue.phase_id} ({issue.phase_type}) required "
-                        f"{int(issue.metric_value)} retries. "
-                        f"Reason: {issue.details.get('stop_reason', 'unknown')}, "
-                        f"Success count: {issue.details.get('success_count', 0)}"
-                    ),
-                    "phase_id": issue.phase_id,
-                    "phase_type": issue.phase_type,
-                    "metric_value": issue.metric_value,
-                    "rank": issue.rank,
-                    "details": issue.details,
-                }
-            )
+        # Use the new InsightConsumer for conversion
+        consumer = DirectInsightConsumer(telemetry_data)
+        result = consumer.get_insights(limit=1000)
 
         logger.debug(
-            f"[IMP-FEAT-001] Converted telemetry to {len(insights)} insights: "
-            f"{len(telemetry_data.get('top_cost_sinks', []))} cost sinks, "
-            f"{len(telemetry_data.get('top_failure_modes', []))} failure modes, "
-            f"{len(telemetry_data.get('top_retry_causes', []))} retry causes"
+            f"[IMP-FEAT-001] Converted telemetry to {len(result.insights)} insights: "
+            f"{result.metadata.get('cost_sinks', 0)} cost sinks, "
+            f"{result.metadata.get('failure_modes', 0)} failure modes, "
+            f"{result.metadata.get('retry_causes', 0)} retry causes"
         )
 
-        return insights
+        return self._unified_insights_to_dicts(result.insights)
 
     def generate_tasks(
         self,
@@ -350,45 +754,30 @@ class AutonomousTaskGenerator:
         tasks: List[GeneratedTask] = []
 
         try:
-            # IMP-FEAT-001: Use telemetry insights directly if provided
-            if telemetry_insights:
-                insights = self._convert_telemetry_to_insights(telemetry_insights)
-                telemetry_source = "direct"
-                logger.info(
-                    f"[IMP-FEAT-001] Using {len(insights)} telemetry insights for task generation"
-                )
-            # IMP-ARCH-017: Auto-aggregate telemetry when db_session is available
-            elif self._telemetry_analyzer is not None:
-                logger.info(
-                    "[IMP-ARCH-017] Calling TelemetryAnalyzer.aggregate_telemetry() for task generation"
-                )
-                aggregated = self._telemetry_analyzer.aggregate_telemetry(window_days=7)
-                insights = self._convert_telemetry_to_insights(aggregated)
-                telemetry_source = "analyzer"
-                logger.info(
-                    f"[IMP-ARCH-017] Aggregated {len(insights)} insights from telemetry: "
-                    f"{len(aggregated.get('top_cost_sinks', []))} cost sinks, "
-                    f"{len(aggregated.get('top_failure_modes', []))} failure modes, "
-                    f"{len(aggregated.get('top_retry_causes', []))} retry causes"
-                )
-            else:
-                # Fallback: Retrieve recent high-signal insights from memory
-                # IMP-ARCH-016: Removed namespace parameter - retrieve_insights now queries
-                # across run_summaries, errors_ci, doctor_hints collections
-                # IMP-LOOP-003: Apply freshness check to filter stale insights
-                effective_max_age = (
-                    max_age_hours if max_age_hours is not None else DEFAULT_MEMORY_FRESHNESS_HOURS
-                )
-                insights = self._memory.retrieve_insights(
-                    query="error failure bottleneck improvement opportunity",
-                    limit=100,
-                    max_age_hours=effective_max_age,
-                )
-                telemetry_source = "memory"
-                logger.debug(
-                    f"[IMP-LOOP-003] Retrieved {len(insights)} fresh insights "
-                    f"(max_age={effective_max_age}h)"
-                )
+            # IMP-LOOP-013: Use unified InsightConsumer interface
+            consumer = self._get_insight_consumer(telemetry_insights, max_age_hours)
+            consumer_result = consumer.get_insights(
+                limit=100,
+                max_age_hours=max_age_hours,
+            )
+
+            # Convert to dict format for pattern detection
+            insights = self._unified_insights_to_dicts(consumer_result.insights)
+            telemetry_source = consumer_result.source.value
+
+            # IMP-LOOP-013: Emit path selection metrics
+            _emit_insight_path_metrics(
+                source=consumer_result.source,
+                insights_count=len(consumer_result.insights),
+                retrieval_time_ms=consumer_result.retrieval_time_ms,
+                run_id=run_id,
+                metadata=consumer_result.metadata,
+            )
+
+            logger.info(
+                f"[IMP-LOOP-013] Retrieved {len(insights)} insights via {telemetry_source} path "
+                f"in {consumer_result.retrieval_time_ms:.1f}ms"
+            )
 
             # Detect patterns across insights
             patterns = self._detect_patterns(insights)

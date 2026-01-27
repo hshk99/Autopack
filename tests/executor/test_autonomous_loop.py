@@ -8,8 +8,10 @@ Tests cover:
 - Adaptive sleep behavior
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
+
 from autopack.executor.autonomous_loop import AutonomousLoop
 from autopack.supervisor.api_client import SupervisorApiHttpError
 
@@ -854,6 +856,104 @@ class TestGeneratedTaskExecution:
             assert (
                 result[0]["priority_order"] == expected_order
             ), f"Priority {task_priority} should map to order {expected_order}"
+
+
+class TestMandatoryFeedbackPipeline:
+    """Test mandatory feedback pipeline behavior (IMP-LOOP-011)."""
+
+    def test_feedback_pipeline_always_enabled_even_when_settings_disable(self):
+        """Verify feedback_pipeline_enabled is always True regardless of settings.
+
+        IMP-LOOP-011: FeedbackPipeline is MANDATORY for the self-improvement loop.
+        Even if settings.feedback_pipeline_enabled is False, the pipeline must remain enabled.
+        """
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+
+        with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
+            # Configure settings to disable feedback pipeline
+            mock_settings.feedback_pipeline_enabled = False
+            # Set other required settings with defaults
+            mock_settings.max_parallel_phases = 2
+            mock_settings.telemetry_aggregation_interval = 3
+            mock_settings.task_effectiveness_tracking_enabled = True
+            mock_settings.meta_metrics_health_check_enabled = False
+            mock_settings.context_ceiling_tokens = 50000
+
+            loop = AutonomousLoop(mock_executor)
+
+            # IMP-LOOP-011: Must be True regardless of settings
+            assert (
+                loop._feedback_pipeline_enabled is True
+            ), "feedback_pipeline_enabled must be True regardless of settings"
+
+    def test_feedback_pipeline_logs_warning_when_settings_try_to_disable(self, caplog):
+        """Verify warning is logged when settings attempt to disable feedback pipeline.
+
+        IMP-LOOP-011: When settings.feedback_pipeline_enabled=False, a warning should
+        be logged indicating the override is ignored.
+        """
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+
+        with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
+            # Configure settings to disable feedback pipeline
+            mock_settings.feedback_pipeline_enabled = False
+            mock_settings.max_parallel_phases = 2
+            mock_settings.telemetry_aggregation_interval = 3
+            mock_settings.task_effectiveness_tracking_enabled = True
+            mock_settings.meta_metrics_health_check_enabled = False
+            mock_settings.context_ceiling_tokens = 50000
+
+            import logging
+
+            with caplog.at_level(logging.WARNING):
+                loop = AutonomousLoop(mock_executor)
+
+            # Verify warning was logged
+            assert any(
+                "IMP-LOOP-011" in record.message
+                and "feedback_pipeline_enabled=False" in record.message
+                for record in caplog.records
+            ), "Expected warning about feedback_pipeline_enabled=False being ignored"
+
+            # Verify pipeline is still enabled
+            assert loop._feedback_pipeline_enabled is True
+
+    def test_feedback_pipeline_no_warning_when_settings_enable(self, caplog):
+        """Verify no warning logged when settings have feedback_pipeline_enabled=True.
+
+        IMP-LOOP-011: Warning should only appear when settings try to disable.
+        """
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+
+        with patch("autopack.executor.autonomous_loop.settings") as mock_settings:
+            # Configure settings to enable feedback pipeline (default)
+            mock_settings.feedback_pipeline_enabled = True
+            mock_settings.max_parallel_phases = 2
+            mock_settings.telemetry_aggregation_interval = 3
+            mock_settings.task_effectiveness_tracking_enabled = True
+            mock_settings.meta_metrics_health_check_enabled = False
+            mock_settings.context_ceiling_tokens = 50000
+
+            import logging
+
+            with caplog.at_level(logging.WARNING):
+                loop = AutonomousLoop(mock_executor)
+
+            # Verify no IMP-LOOP-011 warning was logged
+            imp_loop_011_warnings = [
+                record
+                for record in caplog.records
+                if "IMP-LOOP-011" in record.message and record.levelno >= logging.WARNING
+            ]
+            assert (
+                len(imp_loop_011_warnings) == 0
+            ), "Should not log warning when feedback_pipeline_enabled=True in settings"
+
+            # Verify pipeline is enabled
+            assert loop._feedback_pipeline_enabled is True
 
 
 if __name__ == "__main__":

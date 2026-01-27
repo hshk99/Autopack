@@ -6,13 +6,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from autopack.task_generation.task_effectiveness_tracker import (
-    EXCELLENT_EFFECTIVENESS,
-    GOOD_EFFECTIVENESS,
-    POOR_EFFECTIVENESS,
-    EffectivenessHistory,
-    TaskEffectivenessTracker,
-    TaskImpactReport,
-)
+    EXCELLENT_EFFECTIVENESS, GOOD_EFFECTIVENESS, POOR_EFFECTIVENESS,
+    EffectivenessHistory, TaskEffectivenessTracker, TaskImpactReport)
 
 
 class TestTaskImpactReport:
@@ -698,3 +693,172 @@ class TestEdgeCases:
         # success_rate (higher better): (0.9 - 0.8) / 0.8 = 0.125
         # average: (0.5 + 0.125) / 2 = 0.3125
         assert report.actual_improvement == pytest.approx(0.3125)
+
+
+class TestRecordTaskOutcome:
+    """Tests for record_task_outcome method (IMP-FBK-001)."""
+
+    @pytest.fixture
+    def tracker(self) -> TaskEffectivenessTracker:
+        """Create a tracker for testing."""
+        return TaskEffectivenessTracker()
+
+    def test_successful_task_basic(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test recording a successful task outcome."""
+        report = tracker.record_task_outcome(
+            task_id="phase-123",
+            success=True,
+            execution_time_seconds=30.0,
+            tokens_used=5000,
+        )
+
+        assert report.task_id == "phase-123"
+        # Success with fast execution and low tokens: 0.8 + 0.1 + 0.1 = 1.0
+        assert report.effectiveness_score == pytest.approx(1.0)
+        assert report.get_effectiveness_grade() == "excellent"
+
+    def test_successful_task_slow_execution(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test successful task with slow execution gets lower effectiveness."""
+        report = tracker.record_task_outcome(
+            task_id="phase-123",
+            success=True,
+            execution_time_seconds=120.0,  # Slow (> 60s)
+            tokens_used=5000,  # Low tokens
+        )
+
+        # Success with slow execution but low tokens: 0.8 + 0.0 + 0.1 = 0.9
+        assert report.effectiveness_score == pytest.approx(0.9)
+        assert report.get_effectiveness_grade() == "excellent"
+
+    def test_successful_task_high_tokens(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test successful task with high token usage gets lower effectiveness."""
+        report = tracker.record_task_outcome(
+            task_id="phase-123",
+            success=True,
+            execution_time_seconds=30.0,  # Fast
+            tokens_used=15000,  # High tokens (> 10000)
+        )
+
+        # Success with fast execution but high tokens: 0.8 + 0.1 + 0.0 = 0.9
+        assert report.effectiveness_score == pytest.approx(0.9)
+
+    def test_successful_task_slow_and_high_tokens(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test successful task with slow execution and high tokens."""
+        report = tracker.record_task_outcome(
+            task_id="phase-123",
+            success=True,
+            execution_time_seconds=120.0,  # Slow
+            tokens_used=15000,  # High tokens
+        )
+
+        # Success with no bonuses: 0.8 + 0.0 + 0.0 = 0.8
+        assert report.effectiveness_score == pytest.approx(0.8)
+        assert report.get_effectiveness_grade() == "good"
+
+    def test_failed_task(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test recording a failed task outcome."""
+        report = tracker.record_task_outcome(
+            task_id="phase-456",
+            success=False,
+            execution_time_seconds=10.0,
+            tokens_used=1000,
+        )
+
+        assert report.task_id == "phase-456"
+        assert report.effectiveness_score == pytest.approx(0.0)
+        assert report.get_effectiveness_grade() == "poor"
+
+    def test_with_category(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test recording task outcome with category."""
+        report = tracker.record_task_outcome(
+            task_id="phase-123",
+            success=True,
+            category="build",
+        )
+
+        assert report.category == "build"
+        assert "build" in tracker.history.category_stats
+
+    def test_with_notes(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test recording task outcome with custom notes."""
+        report = tracker.record_task_outcome(
+            task_id="phase-123",
+            success=True,
+            notes="Custom test notes",
+        )
+
+        assert report.notes == "Custom test notes"
+
+    def test_default_notes_format(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test default notes include execution metrics."""
+        report = tracker.record_task_outcome(
+            task_id="phase-123",
+            success=True,
+            execution_time_seconds=45.5,
+            tokens_used=7500,
+        )
+
+        assert "execution_time=45.5s" in report.notes
+        assert "tokens=7500" in report.notes
+
+    def test_report_stored_in_history(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test report is stored in history."""
+        tracker.record_task_outcome(
+            task_id="phase-123",
+            success=True,
+        )
+
+        assert len(tracker.history.reports) == 1
+        assert tracker.history.reports[0].task_id == "phase-123"
+
+    def test_multiple_outcomes(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test recording multiple task outcomes."""
+        tracker.record_task_outcome(task_id="phase-1", success=True)
+        tracker.record_task_outcome(task_id="phase-2", success=False)
+        tracker.record_task_outcome(task_id="phase-3", success=True)
+
+        assert len(tracker.history.reports) == 3
+
+        summary = tracker.get_summary()
+        assert summary["total_tasks"] == 3
+        # 2 effective (successful with base 0.8), 1 ineffective (failed with 0.0)
+        assert summary["effective_task_rate"] == pytest.approx(2 / 3)
+
+    def test_feed_back_to_priority_engine(self) -> None:
+        """Test that record_task_outcome works with priority engine feedback."""
+        mock_engine = MagicMock()
+        tracker = TaskEffectivenessTracker(priority_engine=mock_engine)
+
+        report = tracker.record_task_outcome(
+            task_id="phase-123",
+            success=True,
+            category="test",
+        )
+
+        # Feed back manually (record_task_outcome doesn't auto-feed)
+        tracker.feed_back_to_priority_engine(report)
+        mock_engine.clear_cache.assert_called_once()
+
+    def test_zero_execution_time(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test handling of zero execution time."""
+        report = tracker.record_task_outcome(
+            task_id="phase-123",
+            success=True,
+            execution_time_seconds=0.0,
+            tokens_used=5000,
+        )
+
+        # Zero execution time doesn't get fast bonus (0.8 + 0.0 + 0.1 = 0.9)
+        assert report.effectiveness_score == pytest.approx(0.9)
+
+    def test_zero_tokens(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test handling of zero tokens."""
+        report = tracker.record_task_outcome(
+            task_id="phase-123",
+            success=True,
+            execution_time_seconds=30.0,
+            tokens_used=0,
+        )
+
+        # Zero tokens doesn't get low token bonus (0.8 + 0.1 + 0.0 = 0.9)
+        assert report.effectiveness_score == pytest.approx(0.9)

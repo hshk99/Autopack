@@ -27,6 +27,8 @@ from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
+from autopack.task_generation.task_effectiveness_tracker import \
+    TaskEffectivenessTracker
 from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
 from autopack.telemetry.telemetry_to_memory_bridge import \
     TelemetryToMemoryBridge
@@ -331,6 +333,13 @@ class AutonomousLoop:
         )  # Aggregate every N phases
         self._phases_since_last_aggregation = 0
 
+        # IMP-FBK-001: Task effectiveness tracker for closed-loop learning
+        # Records task outcomes and feeds back to priority engine
+        self._task_effectiveness_tracker: Optional[TaskEffectivenessTracker] = None
+        self._task_effectiveness_enabled = getattr(
+            settings, "task_effectiveness_tracking_enabled", True
+        )
+
     def get_loop_stats(self) -> Dict:
         """Get current loop statistics for monitoring (IMP-LOOP-006, IMP-AUTO-002).
 
@@ -362,6 +371,12 @@ class AutonomousLoop:
             stats["feedback_pipeline"] = self._feedback_pipeline.get_stats()
         else:
             stats["feedback_pipeline"] = {"enabled": self._feedback_pipeline_enabled}
+
+        # IMP-FBK-001: Add task effectiveness statistics
+        if self._task_effectiveness_tracker is not None:
+            stats["task_effectiveness"] = self._task_effectiveness_tracker.get_summary()
+        else:
+            stats["task_effectiveness"] = {"enabled": self._task_effectiveness_enabled}
 
         return stats
 
@@ -1082,6 +1097,86 @@ class AutonomousLoop:
                 f"(non-fatal): {e}"
             )
             return None
+
+    def _get_task_effectiveness_tracker(self) -> Optional[TaskEffectivenessTracker]:
+        """Get or create the TaskEffectivenessTracker instance.
+
+        IMP-FBK-001: Lazy initialization of the task effectiveness tracker.
+        Creates the tracker on first access if effectiveness tracking is enabled.
+
+        Returns:
+            TaskEffectivenessTracker instance, or None if tracking is disabled.
+        """
+        if not self._task_effectiveness_enabled:
+            return None
+
+        if self._task_effectiveness_tracker is None:
+            try:
+                # Try to get priority engine from executor for feedback integration
+                priority_engine = getattr(self.executor, "_priority_engine", None)
+                self._task_effectiveness_tracker = TaskEffectivenessTracker(
+                    priority_engine=priority_engine
+                )
+                logger.info(
+                    "[IMP-FBK-001] TaskEffectivenessTracker initialized "
+                    f"(priority_engine={'enabled' if priority_engine else 'disabled'})"
+                )
+            except Exception as e:
+                logger.warning(f"[IMP-FBK-001] Failed to initialize TaskEffectivenessTracker: {e}")
+                return None
+
+        return self._task_effectiveness_tracker
+
+    def _update_task_effectiveness(
+        self,
+        phase_id: str,
+        phase_type: Optional[str],
+        success: bool,
+        execution_time_seconds: float,
+        tokens_used: int = 0,
+    ) -> None:
+        """Update task effectiveness tracking after phase completion.
+
+        IMP-FBK-001: Records phase execution outcomes to the TaskEffectivenessTracker
+        for closed-loop learning. This enables the priority engine to adjust task
+        prioritization based on historical effectiveness.
+
+        Args:
+            phase_id: ID of the completed phase
+            phase_type: Type of the phase (e.g., "build", "test")
+            success: Whether the phase executed successfully
+            execution_time_seconds: Time taken to execute the phase
+            tokens_used: Number of tokens consumed during execution
+        """
+        tracker = self._get_task_effectiveness_tracker()
+        if not tracker:
+            return
+
+        try:
+            # Record the task outcome
+            report = tracker.record_task_outcome(
+                task_id=phase_id,
+                success=success,
+                execution_time_seconds=execution_time_seconds,
+                tokens_used=tokens_used,
+                category=phase_type or "general",
+                notes=f"Phase execution outcome from autonomous loop",
+            )
+
+            # Feed back to priority engine if available
+            tracker.feed_back_to_priority_engine(report)
+
+            logger.debug(
+                f"[IMP-FBK-001] Updated task effectiveness for phase {phase_id}: "
+                f"effectiveness={report.effectiveness_score:.2f} ({report.get_effectiveness_grade()})"
+            )
+
+        except Exception as e:
+            # Non-fatal - effectiveness tracking failure should not block execution
+            logger.warning(
+                f"[IMP-FBK-001] Failed to update task effectiveness for phase {phase_id} "
+                f"(non-fatal): {e}"
+            )
 
     def _get_telemetry_adjustments(self, phase_type: Optional[str]) -> Dict:
         """Get telemetry-driven adjustments for phase execution.
@@ -2035,6 +2130,24 @@ class AutonomousLoop:
                 # Process results from parallel execution
                 for phase, success, status in results:
                     phase_id_result = phase.get("phase_id", "unknown")
+                    phase_type_result = phase.get("phase_type")
+
+                    # IMP-FBK-001: Update task effectiveness for parallel phase
+                    try:
+                        # Note: For parallel phases we don't have precise execution time
+                        # Use a default estimate based on typical parallel execution
+                        tokens_used = getattr(self.executor, "_run_tokens_used", 0)
+                        self._update_task_effectiveness(
+                            phase_id=phase_id_result,
+                            phase_type=phase_type_result,
+                            success=success,
+                            execution_time_seconds=0.0,  # Unknown for parallel execution
+                            tokens_used=tokens_used // max(1, parallel_count),  # Estimate per phase
+                        )
+                    except Exception as effectiveness_err:
+                        logger.warning(
+                            f"[IMP-FBK-001] Task effectiveness tracking failed (non-fatal): {effectiveness_err}"
+                        )
 
                     if success:
                         logger.info(f"Phase {phase_id_result} completed successfully (parallel)")
@@ -2169,6 +2282,23 @@ class AutonomousLoop:
                 # Non-fatal - continue execution even if feedback pipeline fails
                 logger.warning(
                     f"[IMP-LOOP-001] Feedback pipeline processing failed (non-fatal): {pipeline_err}"
+                )
+
+            # IMP-FBK-001: Update task effectiveness tracking for closed-loop learning
+            try:
+                execution_time = time.time() - execution_start_time
+                tokens_used = getattr(self.executor, "_run_tokens_used", 0)
+                self._update_task_effectiveness(
+                    phase_id=phase_id,
+                    phase_type=phase_type,
+                    success=success,
+                    execution_time_seconds=execution_time,
+                    tokens_used=tokens_used,
+                )
+            except Exception as effectiveness_err:
+                # Non-fatal - continue execution even if effectiveness tracking fails
+                logger.warning(
+                    f"[IMP-FBK-001] Task effectiveness tracking failed (non-fatal): {effectiveness_err}"
                 )
 
             if success:

@@ -1296,6 +1296,61 @@ class RiskGatingEvent(Base):
     )
 
 
+class InsightPathEvent(Base):
+    """Insight path selection telemetry event (IMP-LOOP-013).
+
+    Tracks which insight source was used during task generation for
+    observability and debugging. Enables analysis of:
+    1. Which insight paths are most commonly used
+    2. Performance characteristics of each path
+    3. Debugging insight retrieval issues
+
+    Part of the unified InsightConsumer interface implementation.
+    """
+
+    __tablename__ = "insight_path_events"
+    __table_args__ = (
+        Index("ix_insight_path_source", "source"),
+        Index("ix_insight_path_timestamp", "timestamp"),
+        Index("ix_insight_path_run_id", "run_id"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    run_id = Column(String(50), nullable=True, index=True)  # Run that triggered retrieval
+
+    timestamp = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+    # Path selection
+    source = Column(
+        String(20), nullable=False, index=True
+    )  # "direct", "analyzer", "memory"
+
+    # Metrics
+    insights_count = Column(Integer, nullable=False, default=0)
+    retrieval_time_ms = Column(Float, nullable=True)  # Time to retrieve insights
+
+    # Additional context (source-specific details)
+    extra_data = Column(JSON, nullable=True)  # Source-specific context (renamed from metadata)
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<InsightPathEvent(source={self.source}, "
+            f"count={self.insights_count}, time={self.retrieval_time_ms}ms)>"
+        )
+
+
 class CausalAnalysisRecord(Base):
     """Causal analysis record for tracking change-outcome relationships (IMP-FBK-005).
 

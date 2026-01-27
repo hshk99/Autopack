@@ -20,6 +20,8 @@ import os
 import socket
 import subprocess
 import time
+from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -2179,3 +2181,261 @@ class MemoryService:
                 sections.append("\n".join(sot_section))
 
         return "\n\n".join(sections) if sections else ""
+
+
+# ---------------------------------------------------------------------------
+# IMP-LOOP-012: Memory Lifecycle Management
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class MemoryMaintenancePolicy:
+    """Policy for memory lifecycle management.
+
+    IMP-LOOP-012: Provides automatic eviction of stale insights (>90 days),
+    compaction of duplicate insights, and memory usage limits with alerts.
+    Prevents unbounded memory growth in the memory service.
+
+    Attributes:
+        max_age_days: Maximum age in days before an insight is eligible for eviction.
+        max_memory_mb: Maximum memory usage in MB before alerts are triggered.
+        dedup_enabled: Whether to enable duplicate compaction.
+        alert_callback: Optional callback function for memory alerts.
+    """
+
+    max_age_days: int = 90
+    max_memory_mb: float = 100.0
+    dedup_enabled: bool = True
+    alert_callback: Optional[Any] = dataclass_field(default=None, repr=False)
+
+    def should_evict(self, insight: Dict[str, Any], age_days: int) -> bool:
+        """Check if insight should be evicted based on age.
+
+        Args:
+            insight: The insight dictionary (payload from memory store).
+            age_days: The age of the insight in days.
+
+        Returns:
+            True if the insight should be evicted, False otherwise.
+        """
+        return age_days > self.max_age_days
+
+    def calculate_age_days(self, timestamp_str: Optional[str]) -> int:
+        """Calculate the age in days from an ISO timestamp string.
+
+        Args:
+            timestamp_str: ISO format timestamp string (e.g., "2024-01-15T10:30:00+00:00")
+
+        Returns:
+            Age in days, or 0 if timestamp cannot be parsed.
+        """
+        if not timestamp_str:
+            return 0
+        try:
+            if timestamp_str.endswith("Z"):
+                timestamp_str = timestamp_str[:-1] + "+00:00"
+            parsed_ts = datetime.fromisoformat(timestamp_str)
+            if parsed_ts.tzinfo is None:
+                parsed_ts = parsed_ts.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            age_seconds = (now - parsed_ts).total_seconds()
+            return int(age_seconds / 86400)  # Convert to days
+        except (ValueError, TypeError):
+            return 0
+
+    def compact_duplicates(self, insights: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Remove duplicate insights, keeping newest versions.
+
+        Identifies duplicates based on content_hash field in payload.
+        When duplicates are found, keeps only the most recent one
+        (determined by timestamp).
+
+        Args:
+            insights: List of insight dictionaries with 'payload' containing
+                     'content_hash' and 'timestamp' fields.
+
+        Returns:
+            List of deduplicated insights, keeping the newest of each duplicate set.
+        """
+        if not self.dedup_enabled:
+            return insights
+
+        # Sort by timestamp descending (newest first)
+        def get_timestamp(insight: Dict[str, Any]) -> str:
+            payload = insight.get("payload", {})
+            return payload.get("timestamp", "")
+
+        sorted_insights = sorted(insights, key=get_timestamp, reverse=True)
+
+        # Keep only the first occurrence of each content_hash
+        seen_hashes: Dict[str, Dict[str, Any]] = {}
+        for insight in sorted_insights:
+            payload = insight.get("payload", {})
+            content_hash = payload.get("content_hash")
+            if content_hash is None:
+                # No content_hash, use a unique key based on id or content
+                content_hash = insight.get("id", str(hash(str(payload))))
+
+            if content_hash not in seen_hashes:
+                seen_hashes[content_hash] = insight
+
+        return list(seen_hashes.values())
+
+    def check_memory_usage(self, current_usage_mb: float) -> bool:
+        """Check if memory usage exceeds the limit and trigger alert if needed.
+
+        Args:
+            current_usage_mb: Current memory usage in megabytes.
+
+        Returns:
+            True if usage is within limits, False if over limit.
+        """
+        is_within_limit = current_usage_mb <= self.max_memory_mb
+        if not is_within_limit:
+            logger.warning(
+                f"[IMP-LOOP-012] Memory usage alert: {current_usage_mb:.2f}MB "
+                f"exceeds limit of {self.max_memory_mb:.2f}MB"
+            )
+            if self.alert_callback:
+                try:
+                    self.alert_callback(current_usage_mb, self.max_memory_mb)
+                except Exception as e:
+                    logger.error(f"[IMP-LOOP-012] Alert callback failed: {e}")
+        return is_within_limit
+
+    def get_eviction_candidates(self, insights: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Get list of insights that are candidates for eviction based on age.
+
+        Args:
+            insights: List of insight dictionaries with 'payload' containing 'timestamp'.
+
+        Returns:
+            List of insights that should be evicted (age > max_age_days).
+        """
+        eviction_candidates = []
+        for insight in insights:
+            payload = insight.get("payload", {})
+            timestamp = payload.get("timestamp")
+            age_days = self.calculate_age_days(timestamp)
+            if self.should_evict(payload, age_days):
+                eviction_candidates.append(insight)
+        return eviction_candidates
+
+    def run_maintenance(
+        self,
+        memory_service: "MemoryService",
+        collection: str,
+        project_id: Optional[str] = None,
+        dry_run: bool = False,
+    ) -> Dict[str, Any]:
+        """Run full maintenance cycle on a memory collection.
+
+        Performs:
+        1. Eviction of stale insights (age > max_age_days)
+        2. Compaction of duplicates
+        3. Memory usage check with alerts
+
+        Args:
+            memory_service: The MemoryService instance to maintain.
+            collection: The collection name to maintain.
+            project_id: Optional project ID to filter by.
+            dry_run: If True, report what would be done without making changes.
+
+        Returns:
+            Dict with maintenance results:
+            - evicted_count: Number of insights evicted
+            - deduplicated_count: Number of duplicates removed
+            - memory_usage_mb: Current memory usage (estimated)
+            - memory_ok: Whether memory usage is within limits
+        """
+        results = {
+            "evicted_count": 0,
+            "deduplicated_count": 0,
+            "memory_usage_mb": 0.0,
+            "memory_ok": True,
+            "dry_run": dry_run,
+        }
+
+        if not memory_service.enabled:
+            logger.info("[IMP-LOOP-012] Memory disabled, skipping maintenance")
+            return results
+
+        try:
+            # Get all insights from collection
+            filter_dict: Optional[Dict[str, Any]] = None
+            if project_id:
+                filter_dict = {"project_id": project_id}
+
+            all_insights = memory_service._safe_store_call(
+                f"run_maintenance/{collection}/scroll",
+                lambda: memory_service.store.scroll(collection, filter=filter_dict, limit=10000),
+                [],
+            )
+
+            if not all_insights:
+                logger.info(f"[IMP-LOOP-012] No insights found in {collection}")
+                return results
+
+            # Step 1: Find eviction candidates
+            eviction_candidates = self.get_eviction_candidates(all_insights)
+            results["evicted_count"] = len(eviction_candidates)
+
+            if eviction_candidates and not dry_run:
+                eviction_ids = [i.get("id") for i in eviction_candidates if i.get("id")]
+                if eviction_ids:
+                    memory_service._safe_store_call(
+                        f"run_maintenance/{collection}/delete",
+                        lambda: memory_service.store.delete(collection, eviction_ids),
+                        0,
+                    )
+                    logger.info(
+                        f"[IMP-LOOP-012] Evicted {len(eviction_ids)} stale insights from {collection}"
+                    )
+
+            # Step 2: Compact duplicates (on remaining insights)
+            remaining_insights = [i for i in all_insights if i not in eviction_candidates]
+            compacted = self.compact_duplicates(remaining_insights)
+            duplicates_removed = len(remaining_insights) - len(compacted)
+            results["deduplicated_count"] = duplicates_removed
+
+            if duplicates_removed > 0 and not dry_run:
+                # Find the duplicate IDs to remove
+                compacted_ids = {i.get("id") for i in compacted}
+                duplicate_ids = [
+                    i.get("id")
+                    for i in remaining_insights
+                    if i.get("id") and i.get("id") not in compacted_ids
+                ]
+                if duplicate_ids:
+                    memory_service._safe_store_call(
+                        f"run_maintenance/{collection}/delete_duplicates",
+                        lambda: memory_service.store.delete(collection, duplicate_ids),
+                        0,
+                    )
+                    logger.info(
+                        f"[IMP-LOOP-012] Removed {len(duplicate_ids)} duplicate insights from {collection}"
+                    )
+
+            # Step 3: Check memory usage (estimate based on count)
+            # Rough estimate: ~2KB per insight average
+            remaining_count = memory_service._safe_store_call(
+                f"run_maintenance/{collection}/count",
+                lambda: memory_service.store.count(collection, filter=filter_dict),
+                0,
+            )
+            estimated_mb = (remaining_count * 2) / 1024  # 2KB per insight
+            results["memory_usage_mb"] = estimated_mb
+            results["memory_ok"] = self.check_memory_usage(estimated_mb)
+
+            logger.info(
+                f"[IMP-LOOP-012] Maintenance complete for {collection}: "
+                f"evicted={results['evicted_count']}, "
+                f"deduplicated={results['deduplicated_count']}, "
+                f"memory_mb={results['memory_usage_mb']:.2f}"
+            )
+
+        except Exception as e:
+            logger.error(f"[IMP-LOOP-012] Maintenance failed for {collection}: {e}")
+            results["error"] = str(e)
+
+        return results

@@ -1,12 +1,13 @@
 """Tests for telemetry analyzer (ROAD-B)."""
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
-from datetime import datetime, timezone, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from autopack.models import Base, PhaseOutcomeEvent
-from autopack.telemetry.analyzer import TelemetryAnalyzer, RankedIssue
+from autopack.telemetry.analyzer import RankedIssue, TelemetryAnalyzer
 
 
 @pytest.fixture
@@ -362,3 +363,52 @@ def test_ranked_issue_dataclass():
     assert issue.phase_type == "code_generation"
     assert issue.metric_value == 50000.0
     assert issue.details["avg_tokens"] == 25000
+
+
+def test_telemetry_to_memory_mandatory_logs_warning_on_disable_attempt(
+    db_session, monkeypatch, caplog
+):
+    """Test IMP-LOOP-010: Telemetry-to-memory persistence logs warning when env var tries to disable."""
+    import logging
+
+    # Set env var to try to disable
+    monkeypatch.setenv("AUTOPACK_TELEMETRY_TO_MEMORY_ENABLED", "false")
+
+    with caplog.at_level(logging.WARNING):
+        analyzer = TelemetryAnalyzer(db_session)
+
+    # Feature should remain enabled despite env var
+    assert analyzer._telemetry_to_memory_enabled is True
+
+    # Warning should be logged
+    assert any(
+        "IMP-LOOP-010" in record.message and "false" in record.message for record in caplog.records
+    )
+
+
+def test_telemetry_to_memory_enabled_by_default(db_session, monkeypatch):
+    """Test that telemetry-to-memory is enabled by default without warning."""
+    # Ensure env var is not set
+    monkeypatch.delenv("AUTOPACK_TELEMETRY_TO_MEMORY_ENABLED", raising=False)
+
+    analyzer = TelemetryAnalyzer(db_session)
+
+    # Feature should be enabled
+    assert analyzer._telemetry_to_memory_enabled is True
+
+
+def test_telemetry_to_memory_no_warning_when_explicitly_enabled(db_session, monkeypatch, caplog):
+    """Test that no warning is logged when env var explicitly enables the feature."""
+    import logging
+
+    # Explicitly enable via env var
+    monkeypatch.setenv("AUTOPACK_TELEMETRY_TO_MEMORY_ENABLED", "true")
+
+    with caplog.at_level(logging.WARNING):
+        analyzer = TelemetryAnalyzer(db_session)
+
+    # Feature should be enabled
+    assert analyzer._telemetry_to_memory_enabled is True
+
+    # No IMP-LOOP-010 warning should be logged
+    assert not any("IMP-LOOP-010" in record.message for record in caplog.records)

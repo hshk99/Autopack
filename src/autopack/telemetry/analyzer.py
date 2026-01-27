@@ -1,11 +1,12 @@
 """Automated telemetry analysis for issue prioritization."""
 
-import os
 import logging
-from pathlib import Path
-from datetime import datetime, timedelta, timezone
+import os
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -58,10 +59,16 @@ class TelemetryAnalyzer:
         self.db = db_session
         self.memory_service = memory_service
         self.run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        # IMP-ARCH-018: Changed default to "true" to enable self-improvement loop
-        self._telemetry_to_memory_enabled = (
-            os.getenv("AUTOPACK_TELEMETRY_TO_MEMORY_ENABLED", "true").lower() == "true"
-        )
+        # IMP-LOOP-010: Telemetry-to-memory persistence is MANDATORY - no silent disable
+        _env_value = os.getenv("AUTOPACK_TELEMETRY_TO_MEMORY_ENABLED", "true").lower()
+        if _env_value != "true":
+            logger.warning(
+                "[IMP-LOOP-010] AUTOPACK_TELEMETRY_TO_MEMORY_ENABLED is set to '%s'. "
+                "Telemetry-to-memory persistence is critical for the self-improvement loop. "
+                "Override ignored - persistence remains enabled.",
+                _env_value,
+            )
+        self._telemetry_to_memory_enabled = True  # Always enabled
 
     def aggregate_telemetry(self, window_days: int = 7) -> Dict[str, List[RankedIssue]]:
         """Analyze recent runs and generate ranked issue list.
@@ -86,7 +93,9 @@ class TelemetryAnalyzer:
 
         # NEW: Persist to memory for future retrieval
         if self.memory_service and self.memory_service.enabled:
-            from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
+            from autopack.telemetry.telemetry_to_memory_bridge import (
+                TelemetryToMemoryBridge,
+            )
 
             bridge = TelemetryToMemoryBridge(
                 self.memory_service, enabled=self._telemetry_to_memory_enabled

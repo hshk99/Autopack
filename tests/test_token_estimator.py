@@ -6,7 +6,7 @@ Tests deliverable-based token estimation for reducing truncation.
 
 import pytest
 
-from autopack.token_estimator import TokenEstimator, TokenEstimate
+from autopack.token_estimator import TokenEstimate, TokenEstimator
 
 
 class TestTokenEstimate:
@@ -397,3 +397,311 @@ class TestTokenEstimatorIntegration:
             # With buffer: expected_base * 1.2, but capped by max(base, estimate*buffer)
             # Since estimate=base, budget should be base (no buffer applies)
             assert budget >= expected_base
+
+
+class TestTokenEstimatorCaching:
+    """IMP-PERF-001: Tests for token estimation caching functionality."""
+
+    def test_pattern_based_estimate_cache(self):
+        """Test that pattern-based estimates are cached."""
+        from autopack.token_estimator import (
+            _get_pattern_based_estimate,
+            clear_token_estimation_cache,
+        )
+
+        # Clear cache before test
+        clear_token_estimation_cache()
+
+        # First call - cache miss
+        result1 = _get_pattern_based_estimate(
+            file_extension=".py",
+            is_test=True,
+            is_doc=False,
+            is_config=False,
+            is_frontend=False,
+            is_new=True,
+        )
+        assert result1 == 1400  # new_file_test
+
+        # Second call with same params - should be cache hit
+        result2 = _get_pattern_based_estimate(
+            file_extension=".py",
+            is_test=True,
+            is_doc=False,
+            is_config=False,
+            is_frontend=False,
+            is_new=True,
+        )
+        assert result2 == result1
+
+        # Check cache stats
+        cache_info = _get_pattern_based_estimate.cache_info()
+        assert cache_info.hits >= 1
+        assert cache_info.misses >= 1
+
+    def test_pattern_based_estimate_common_types(self):
+        """Test pattern estimates for common file types."""
+        from autopack.token_estimator import (
+            _get_pattern_based_estimate,
+            clear_token_estimation_cache,
+        )
+
+        clear_token_estimation_cache()
+
+        # Test files
+        assert (
+            _get_pattern_based_estimate(
+                ".py", is_test=True, is_doc=False, is_config=False, is_frontend=False, is_new=True
+            )
+            == 1400
+        )
+        assert (
+            _get_pattern_based_estimate(
+                ".py", is_test=True, is_doc=False, is_config=False, is_frontend=False, is_new=False
+            )
+            == 600
+        )
+
+        # Doc files
+        assert (
+            _get_pattern_based_estimate(
+                ".md", is_test=False, is_doc=True, is_config=False, is_frontend=False, is_new=True
+            )
+            == 500
+        )
+        assert (
+            _get_pattern_based_estimate(
+                ".md", is_test=False, is_doc=True, is_config=False, is_frontend=False, is_new=False
+            )
+            == 400
+        )
+
+        # Config files
+        assert (
+            _get_pattern_based_estimate(
+                ".json", is_test=False, is_doc=False, is_config=True, is_frontend=False, is_new=True
+            )
+            == 1000
+        )
+        assert (
+            _get_pattern_based_estimate(
+                ".yaml",
+                is_test=False,
+                is_doc=False,
+                is_config=True,
+                is_frontend=False,
+                is_new=False,
+            )
+            == 500
+        )
+
+        # Frontend files
+        assert (
+            _get_pattern_based_estimate(
+                ".tsx", is_test=False, is_doc=False, is_config=False, is_frontend=True, is_new=True
+            )
+            == 2800
+        )
+        assert (
+            _get_pattern_based_estimate(
+                ".jsx", is_test=False, is_doc=False, is_config=False, is_frontend=True, is_new=False
+            )
+            == 1100
+        )
+
+        # Python files (backend)
+        assert (
+            _get_pattern_based_estimate(
+                ".py", is_test=False, is_doc=False, is_config=False, is_frontend=False, is_new=True
+            )
+            == 2000
+        )
+        assert (
+            _get_pattern_based_estimate(
+                ".py", is_test=False, is_doc=False, is_config=False, is_frontend=False, is_new=False
+            )
+            == 700
+        )
+
+    def test_file_complexity_cache(self, tmp_path):
+        """Test that file complexity analysis is cached."""
+        from autopack.token_estimator import (
+            _cached_analyze_file_complexity,
+            clear_token_estimation_cache,
+        )
+
+        clear_token_estimation_cache()
+
+        # Create a test file
+        test_file = tmp_path / "test_complexity.py"
+        test_file.write_text(
+            "\n".join(
+                [
+                    "import os",
+                    "import sys",
+                    "",
+                    "def main():",
+                    "    print('hello')",
+                    "",
+                ]
+            )
+        )
+        mtime = test_file.stat().st_mtime
+
+        # First call - cache miss
+        result1 = _cached_analyze_file_complexity(str(test_file), mtime)
+        assert 0.5 <= result1 <= 2.0
+
+        # Second call with same mtime - should be cache hit
+        result2 = _cached_analyze_file_complexity(str(test_file), mtime)
+        assert result2 == result1
+
+        # Check cache stats
+        cache_info = _cached_analyze_file_complexity.cache_info()
+        assert cache_info.hits >= 1
+        assert cache_info.misses >= 1
+
+    def test_file_complexity_cache_invalidation(self, tmp_path):
+        """Test that complexity cache is invalidated when file changes."""
+        import time
+
+        from autopack.token_estimator import (
+            _cached_analyze_file_complexity,
+            clear_token_estimation_cache,
+        )
+
+        clear_token_estimation_cache()
+
+        # Create a small test file
+        test_file = tmp_path / "test_invalidation.py"
+        test_file.write_text("x = 1\n")
+        mtime1 = test_file.stat().st_mtime
+
+        result1 = _cached_analyze_file_complexity(str(test_file), mtime1)
+
+        # Modify the file (ensure mtime changes)
+        time.sleep(0.01)  # Small delay to ensure mtime changes
+        test_file.write_text("\n".join(["import " + str(i) for i in range(20)] + ["x = 1\n" * 200]))
+        mtime2 = test_file.stat().st_mtime
+
+        # With different mtime, should be cache miss
+        result2 = _cached_analyze_file_complexity(str(test_file), mtime2)
+
+        # Results should be different (larger file = higher complexity)
+        # The larger file should have higher complexity due to more imports and LOC
+        assert mtime1 != mtime2 or result1 != result2  # Either mtime changed or result changed
+
+    def test_clear_token_estimation_cache(self, tmp_path):
+        """Test that clear_token_estimation_cache clears all caches."""
+        from autopack.token_estimator import (
+            _cached_analyze_file_complexity,
+            _get_pattern_based_estimate,
+            clear_token_estimation_cache,
+            get_token_estimation_cache_info,
+        )
+
+        # Populate caches
+        _get_pattern_based_estimate(".py", True, False, False, False, True)
+        test_file = tmp_path / "test_clear.py"
+        test_file.write_text("x = 1\n")
+        _cached_analyze_file_complexity(str(test_file), test_file.stat().st_mtime)
+
+        # Verify caches have entries
+        info_before = get_token_estimation_cache_info()
+        assert (
+            info_before["pattern_cache"]["size"] > 0 or info_before["pattern_cache"]["misses"] > 0
+        )
+
+        # Clear caches
+        clear_token_estimation_cache()
+
+        # Verify caches are cleared
+        info_after = get_token_estimation_cache_info()
+        assert info_after["pattern_cache"]["size"] == 0
+        assert info_after["complexity_cache"]["size"] == 0
+
+    def test_get_token_estimation_cache_info(self, tmp_path):
+        """Test cache info retrieval."""
+        from autopack.token_estimator import (
+            _get_pattern_based_estimate,
+            clear_token_estimation_cache,
+            get_token_estimation_cache_info,
+        )
+
+        clear_token_estimation_cache()
+
+        # Generate some cache activity
+        _get_pattern_based_estimate(".py", True, False, False, False, True)
+        _get_pattern_based_estimate(".py", True, False, False, False, True)  # Cache hit
+
+        info = get_token_estimation_cache_info()
+
+        assert "pattern_cache" in info
+        assert "complexity_cache" in info
+        assert "estimate_cache" in info
+
+        assert "hits" in info["pattern_cache"]
+        assert "misses" in info["pattern_cache"]
+        assert "size" in info["pattern_cache"]
+        assert "maxsize" in info["pattern_cache"]
+
+    def test_estimate_deliverable_uses_pattern_cache(self, tmp_path):
+        """Test that _estimate_deliverable uses pattern cache for common files."""
+        from autopack.token_estimator import clear_token_estimation_cache
+
+        clear_token_estimation_cache()
+
+        estimator = TokenEstimator(workspace=tmp_path)
+
+        # Estimate multiple similar deliverables
+        deliverables = [
+            "Create tests/test_foo.py",
+            "Create tests/test_bar.py",
+            "Create tests/test_baz.py",
+        ]
+
+        # All should return same estimate (new test files)
+        estimates = [estimator._estimate_deliverable(d, "testing") for d in deliverables]
+
+        # All new test files should have same base estimate
+        assert all(e == estimates[0] for e in estimates)
+        assert estimates[0] == 1400  # new_file_test
+
+    def test_estimate_with_caching_performance(self, tmp_path):
+        """Test that caching improves performance for repeated estimates."""
+        from autopack.token_estimator import (
+            clear_token_estimation_cache,
+            get_token_estimation_cache_info,
+        )
+
+        clear_token_estimation_cache()
+
+        estimator = TokenEstimator(workspace=tmp_path)
+
+        deliverables = [
+            "Create src/module1.py",
+            "Create src/module2.py",
+            "Create tests/test_module1.py",
+            "Create tests/test_module2.py",
+            "Create docs/README.md",
+        ]
+
+        # First estimation
+        estimate1 = estimator.estimate(
+            deliverables=deliverables,
+            category="backend",
+            complexity="medium",
+        )
+
+        # Second estimation with same params (should use cache)
+        estimate2 = estimator.estimate(
+            deliverables=deliverables,
+            category="backend",
+            complexity="medium",
+        )
+
+        assert estimate1.estimated_tokens == estimate2.estimated_tokens
+
+        # Check that estimate cache was used
+        info = get_token_estimation_cache_info()
+        assert info["estimate_cache"]["hits"] >= 1

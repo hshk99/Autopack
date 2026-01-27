@@ -151,7 +151,13 @@ class FeedbackPipeline:
             "insights_persisted": 0,
             "context_retrievals": 0,
             "learning_hints_recorded": 0,
+            "hints_promoted_to_rules": 0,
         }
+
+        # IMP-LOOP-015: Track hint occurrences for automatic promotion to rules
+        # When a hint pattern occurs 3+ times, it becomes a rule in memory
+        self._hint_occurrences: Dict[str, int] = {}
+        self._hint_promotion_threshold = 3
 
         logger.info(
             f"[IMP-LOOP-001] FeedbackPipeline initialized "
@@ -246,6 +252,13 @@ class FeedbackPipeline:
                     )
                     result["hints_recorded"] += 1
                     self._stats["learning_hints_recorded"] += 1
+
+                    # IMP-LOOP-015: Track hint occurrences and promote to rules
+                    hint_key = self._get_hint_promotion_key(hint_type, outcome)
+                    self._hint_occurrences[hint_key] = self._hint_occurrences.get(hint_key, 0) + 1
+
+                    if self._hint_occurrences[hint_key] >= self._hint_promotion_threshold:
+                        self._promote_hint_to_rule(hint_type, hint_key, outcome)
                 except Exception as e:
                     logger.warning(f"[IMP-LOOP-001] Failed to record learning hint: {e}")
 
@@ -451,13 +464,16 @@ class FeedbackPipeline:
         return dict(self._stats)
 
     def reset_stats(self) -> None:
-        """Reset pipeline statistics."""
+        """Reset pipeline statistics and hint tracking."""
         self._stats = {
             "outcomes_processed": 0,
             "insights_persisted": 0,
             "context_retrievals": 0,
             "learning_hints_recorded": 0,
+            "hints_promoted_to_rules": 0,
         }
+        # IMP-LOOP-015: Also reset hint occurrence tracking
+        self._hint_occurrences = {}
 
     def _create_insight_from_outcome(self, outcome: PhaseOutcome) -> Dict[str, Any]:
         """Create a telemetry insight from a phase outcome.
@@ -637,3 +653,121 @@ class FeedbackPipeline:
             sections.append("\n".join(success_lines))
 
         return "\n\n".join(sections) if sections else ""
+
+    def _get_hint_promotion_key(self, hint_type: str, outcome: PhaseOutcome) -> str:
+        """Generate a key for tracking hint occurrences.
+
+        IMP-LOOP-015: Creates a unique key for grouping similar hints.
+        Hints with the same type and phase_type are grouped together.
+
+        Args:
+            hint_type: The type of learning hint
+            outcome: The phase outcome containing context
+
+        Returns:
+            A key string for tracking occurrences
+        """
+        phase_type = outcome.phase_type or "unknown"
+        return f"{hint_type}:{phase_type}"
+
+    def _promote_hint_to_rule(self, hint_type: str, hint_key: str, outcome: PhaseOutcome) -> bool:
+        """Promote a frequently occurring hint to a persistent rule.
+
+        IMP-LOOP-015: When a hint pattern occurs 3+ times, it becomes a rule
+        that is persisted to memory for cross-run learning. Rules are
+        higher-priority than hints and are always included in context.
+
+        Args:
+            hint_type: The type of learning hint
+            hint_key: The promotion key identifying this pattern
+            outcome: The phase outcome that triggered promotion
+
+        Returns:
+            True if promotion succeeded, False otherwise
+        """
+        if not self.memory_service or not getattr(self.memory_service, "enabled", False):
+            logger.debug("[IMP-LOOP-015] Cannot promote hint - memory service unavailable")
+            return False
+
+        try:
+            occurrences = self._hint_occurrences.get(hint_key, 0)
+            phase_type = outcome.phase_type or "unknown"
+
+            # Create rule from accumulated hint pattern
+            rule_description = (
+                f"RULE (promoted from {occurrences} occurrences): "
+                f"Phases of type '{phase_type}' frequently encounter '{hint_type}' issues. "
+                f"Take preventive measures based on past failures."
+            )
+
+            suggested_action = self._generate_rule_action(hint_type, phase_type)
+
+            rule_insight = {
+                "insight_type": "promoted_rule",
+                "description": rule_description,
+                "phase_type": phase_type,
+                "hint_type": hint_type,
+                "occurrences": occurrences,
+                "run_id": self.run_id,
+                "suggested_action": suggested_action,
+                "severity": "high",  # Rules are high priority
+                "is_rule": True,  # Flag to identify promoted rules
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+
+            self.memory_service.write_telemetry_insight(
+                insight=rule_insight,
+                project_id=self.project_id,
+                validate=True,
+                strict=False,
+            )
+
+            self._stats["hints_promoted_to_rules"] += 1
+
+            logger.info(
+                f"[IMP-LOOP-015] Promoted hint to rule: {hint_key} " f"(occurrences={occurrences})"
+            )
+            return True
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-015] Failed to promote hint to rule: {e}")
+            return False
+
+    def _generate_rule_action(self, hint_type: str, phase_type: str) -> str:
+        """Generate actionable guidance for a promoted rule.
+
+        Args:
+            hint_type: The type of hint being promoted
+            phase_type: The type of phase affected
+
+        Returns:
+            Suggested action string for the rule
+        """
+        actions = {
+            "auditor_reject": (
+                f"For {phase_type} phases: Ensure complete implementations, "
+                "add proper error handling, and verify code quality before submission."
+            ),
+            "ci_fail": (
+                f"For {phase_type} phases: Run local tests before submitting, "
+                "check for common test failures, and ensure all dependencies are included."
+            ),
+            "patch_apply_error": (
+                f"For {phase_type} phases: Use proper diff format, "
+                "verify file paths exist, and check for conflicting changes."
+            ),
+            "infra_error": (
+                f"For {phase_type} phases: Add retry logic, "
+                "check API connectivity, and handle network failures gracefully."
+            ),
+            "builder_guardrail": (
+                f"For {phase_type} phases: Reduce output size, "
+                "break large changes into smaller chunks, and respect token limits."
+            ),
+        }
+
+        return actions.get(
+            hint_type,
+            f"For {phase_type} phases: Review past failures of type '{hint_type}' "
+            "and implement preventive measures.",
+        )

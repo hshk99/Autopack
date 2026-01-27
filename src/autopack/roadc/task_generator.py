@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..memory.memory_service import DEFAULT_MEMORY_FRESHNESS_HOURS, MemoryService
 from ..roadi import RegressionProtector
+from ..roadi.regression_protector import RiskAssessment
 from ..telemetry.analyzer import RankedIssue, TelemetryAnalyzer
 from ..telemetry.causal_analysis import CausalAnalyzer
 from .discovery_context_merger import DiscoveryContextMerger
@@ -108,6 +109,9 @@ class GeneratedTask:
     retry_count: int = 0
     max_retries: int = 3
     failure_runs: List[str] = field(default_factory=list)
+    # IMP-LOOP-018: Risk assessment fields
+    requires_approval: bool = False  # True for medium-risk tasks needing approval gate
+    risk_severity: Optional[str] = None  # low, medium, high, critical
 
 
 @dataclass
@@ -312,15 +316,26 @@ class AutonomousTaskGenerator:
             # Detect patterns across insights
             patterns = self._detect_patterns(insights)
 
-            # IMP-FBK-003: Filter patterns that would cause regressions before task generation
-            # This prevents re-attempting known-bad improvements
+            # IMP-LOOP-018: Filter patterns with risk assessment for regression gating
+            # This blocks high/critical risk patterns and flags medium risk for approval
             original_pattern_count = len(patterns)
-            patterns = self._regression.filter_patterns_for_regressions(patterns)
+            patterns, risk_assessments = self._regression.filter_patterns_with_risk_assessment(
+                patterns
+            )
+
+            # Log risk gating summary
             if len(patterns) < original_pattern_count:
-                logger.info(
-                    f"[IMP-FBK-003] Filtered {original_pattern_count - len(patterns)} "
-                    f"regression-causing patterns (kept {len(patterns)})"
+                blocked_count = original_pattern_count - len(patterns)
+                high_risk_blocked = sum(
+                    1 for r in risk_assessments.values() if r.blocking_recommended
                 )
+                logger.info(
+                    f"[IMP-LOOP-018] Regression risk gating: blocked {blocked_count} patterns "
+                    f"(high/critical risk: {high_risk_blocked}), kept {len(patterns)}"
+                )
+
+                # Emit telemetry for risk gating decisions
+                self._emit_risk_gating_metrics(risk_assessments)
 
             # IMP-FBK-005: Apply causal analysis adjustments to pattern priorities
             # This adjusts severity/confidence based on historical causal relationships
@@ -332,7 +347,21 @@ class AutonomousTaskGenerator:
             # Generate tasks from patterns
             for pattern in patterns[:max_tasks]:
                 if pattern["confidence"] >= min_confidence:
+                    # IMP-LOOP-018: Include risk assessment in task generation
+                    risk_assessment = pattern.get("_risk_assessment")
+                    requires_approval = pattern.get("_requires_approval", False)
+
                     task = self._pattern_to_task(pattern)
+
+                    # Mark tasks that require approval gate (medium risk)
+                    if requires_approval and risk_assessment:
+                        task.requires_approval = True
+                        task.risk_severity = risk_assessment.severity.value
+                        logger.info(
+                            f"[IMP-LOOP-018] Task {task.task_id} flagged for approval gate "
+                            f"(risk: {risk_assessment.severity.value})"
+                        )
+
                     tasks.append(task)
 
                     # Add regression protection for each task
@@ -592,6 +621,70 @@ class AutonomousTaskGenerator:
             )
 
         return adjusted_patterns
+
+    def _emit_risk_gating_metrics(self, risk_assessments: Dict[str, "RiskAssessment"]) -> None:
+        """Emit telemetry for risk gating decisions (IMP-LOOP-018).
+
+        Tracks regression rate trends and risk distribution for monitoring
+        the effectiveness of the risk gating system.
+
+        Args:
+            risk_assessments: Dict mapping pattern type to RiskAssessment
+        """
+        try:
+            from ..database import SessionLocal
+            from ..models import RiskGatingEvent
+
+            # Calculate risk distribution
+            severity_counts = {
+                "low": 0,
+                "medium": 0,
+                "high": 0,
+                "critical": 0,
+            }
+            total_blocked = 0
+            avg_historical_rate = 0.0
+            historical_rates = []
+
+            for risk in risk_assessments.values():
+                severity_counts[risk.severity.value] += 1
+                if risk.blocking_recommended:
+                    total_blocked += 1
+                if risk.historical_regression_rate > 0:
+                    historical_rates.append(risk.historical_regression_rate)
+
+            if historical_rates:
+                avg_historical_rate = sum(historical_rates) / len(historical_rates)
+
+            session = SessionLocal()
+            try:
+                event = RiskGatingEvent(
+                    total_patterns=len(risk_assessments),
+                    blocked_count=total_blocked,
+                    low_risk_count=severity_counts["low"],
+                    medium_risk_count=severity_counts["medium"],
+                    high_risk_count=severity_counts["high"],
+                    critical_risk_count=severity_counts["critical"],
+                    avg_historical_regression_rate=avg_historical_rate,
+                    timestamp=datetime.now(),
+                )
+                session.add(event)
+                session.commit()
+                logger.debug(
+                    f"[IMP-LOOP-018] Emitted risk gating metrics: "
+                    f"total={len(risk_assessments)}, blocked={total_blocked}, "
+                    f"avg_historical_rate={avg_historical_rate:.2%}"
+                )
+            except Exception as e:
+                session.rollback()
+                logger.warning(f"[IMP-LOOP-018] Failed to emit risk gating metrics: {e}")
+            finally:
+                session.close()
+        except ImportError:
+            # Database or model not available - skip telemetry
+            logger.debug("[IMP-LOOP-018] RiskGatingEvent model not available, skipping metrics")
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-018] Error in risk gating metrics: {e}")
 
     def _pattern_to_task(self, pattern: dict) -> GeneratedTask:
         """Convert a pattern into an improvement task."""

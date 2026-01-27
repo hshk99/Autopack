@@ -6,17 +6,48 @@ ROAD-C (task generator) to add regression tests for each fix.
 
 IMP-FBK-003: Also provides pre-task-generation regression checking to prevent
 re-attempting known-bad improvements.
+
+IMP-LOOP-018: Added RiskSeverity levels and risk assessment for task generation
+gating. High/critical risk patterns are blocked from task generation.
 """
 
 import logging
 import re
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+
+class RiskSeverity(Enum):
+    """Risk severity levels for regression risk assessment (IMP-LOOP-018).
+
+    Used to gate task generation based on risk of causing regressions.
+    """
+
+    LOW = "low"  # Minor risk, proceed normally
+    MEDIUM = "medium"  # Moderate risk, requires approval gate
+    HIGH = "high"  # High risk, block task generation
+    CRITICAL = "critical"  # Very high risk, block and alert
+
+
+@dataclass
+class RiskAssessment:
+    """Result of regression risk assessment (IMP-LOOP-018).
+
+    Contains severity level, blocking recommendation, and evidence for the assessment.
+    """
+
+    severity: RiskSeverity
+    blocking_recommended: bool
+    confidence: float  # 0.0-1.0
+    evidence: List[str] = field(default_factory=list)
+    pattern_type: str = ""
+    historical_regression_rate: float = 0.0  # Historical rate of regressions for this type
 
 
 @dataclass
@@ -434,6 +465,130 @@ class TestRegression{test_id.replace("-", "")}:
 
         return True
 
+    def assess_regression_risk(
+        self,
+        issue_pattern: str,
+        pattern_context: Optional[Dict[str, Any]] = None,
+    ) -> RiskAssessment:
+        """Assess the regression risk for a given pattern (IMP-LOOP-018).
+
+        Evaluates the risk of generating a task for this pattern based on:
+        - Existing regression tests
+        - Historical regression rate for similar patterns
+        - Pattern overlap with known fixed issues
+
+        Args:
+            issue_pattern: The pattern describing the issue/task to assess.
+            pattern_context: Optional additional context about the pattern.
+
+        Returns:
+            RiskAssessment with severity, blocking recommendation, and evidence.
+        """
+        evidence = []
+        confidence = 0.0
+        historical_rate = 0.0
+
+        # Check if this pattern matches a known fixed issue
+        existing_tests = self._find_existing_tests(issue_pattern)
+        if existing_tests:
+            evidence.append(
+                f"Found {len(existing_tests)} existing regression test(s) for this pattern"
+            )
+            confidence += 0.3 * min(len(existing_tests), 3)  # Cap at 3 tests
+
+        # Check against known fixed issues from test file content
+        if self._check_specific_regression(issue_pattern, pattern_context):
+            evidence.append("Pattern matches known fixed regression")
+            confidence += 0.4
+
+            # Verify if fix is still valid
+            if self._verify_fix_still_valid(issue_pattern, pattern_context):
+                evidence.append("Existing fix verified as still valid")
+                confidence += 0.2
+            else:
+                evidence.append("Existing fix may be stale or reverted")
+                confidence -= 0.1
+
+        # Calculate historical regression rate (mock - would query database in real impl)
+        context_type = (pattern_context or {}).get("issue_type", "")
+        if context_type:
+            historical_rate = self._get_historical_regression_rate(context_type)
+            if historical_rate > 0:
+                evidence.append(
+                    f"Historical regression rate for '{context_type}': {historical_rate:.1%}"
+                )
+                confidence += historical_rate * 0.3
+
+        # Clamp confidence to [0, 1]
+        confidence = max(0.0, min(1.0, confidence))
+
+        # Determine severity based on confidence and evidence
+        severity = self._calculate_risk_severity(confidence, len(existing_tests), historical_rate)
+
+        # Determine blocking recommendation
+        blocking_recommended = severity in (RiskSeverity.HIGH, RiskSeverity.CRITICAL)
+
+        return RiskAssessment(
+            severity=severity,
+            blocking_recommended=blocking_recommended,
+            confidence=confidence,
+            evidence=evidence,
+            pattern_type=context_type,
+            historical_regression_rate=historical_rate,
+        )
+
+    def _calculate_risk_severity(
+        self,
+        confidence: float,
+        existing_test_count: int,
+        historical_rate: float,
+    ) -> RiskSeverity:
+        """Calculate risk severity based on multiple factors (IMP-LOOP-018).
+
+        Args:
+            confidence: Overall confidence score (0-1)
+            existing_test_count: Number of existing regression tests
+            historical_rate: Historical regression rate for this pattern type
+
+        Returns:
+            RiskSeverity level
+        """
+        # Critical: High confidence + multiple existing tests + high historical rate
+        if confidence >= 0.8 and existing_test_count >= 2 and historical_rate >= 0.3:
+            return RiskSeverity.CRITICAL
+
+        # High: Good confidence + existing tests
+        if confidence >= 0.6 and existing_test_count >= 1:
+            return RiskSeverity.HIGH
+
+        # Medium: Some confidence or existing tests
+        if confidence >= 0.4 or existing_test_count >= 1:
+            return RiskSeverity.MEDIUM
+
+        # Low: Little or no evidence of risk
+        return RiskSeverity.LOW
+
+    def _get_historical_regression_rate(self, issue_type: str) -> float:
+        """Get historical regression rate for an issue type (IMP-LOOP-018).
+
+        In a real implementation, this would query the database for historical data.
+
+        Args:
+            issue_type: Type of issue to check
+
+        Returns:
+            Historical regression rate (0.0 to 1.0)
+        """
+        # Default rates based on issue type (would be computed from actual data)
+        default_rates = {
+            "cost_sink": 0.15,  # Cost optimizations sometimes regress
+            "failure_mode": 0.25,  # Failure fixes are prone to regression
+            "retry_cause": 0.20,  # Retry fixes can be fragile
+            "performance": 0.10,  # Performance fixes usually stable
+            "flaky_test": 0.35,  # Flaky test fixes often regress
+        }
+        return default_rates.get(issue_type, 0.10)
+
     def filter_patterns_for_regressions(
         self,
         patterns: List[Dict[str, Any]],
@@ -489,3 +644,72 @@ class TestRegression{test_id.replace("-", "")}:
             )
 
         return filtered
+
+    def filter_patterns_with_risk_assessment(
+        self,
+        patterns: List[Dict[str, Any]],
+    ) -> tuple[List[Dict[str, Any]], Dict[str, RiskAssessment]]:
+        """Filter patterns and return risk assessments for each (IMP-LOOP-018).
+
+        Enhanced version of filter_patterns_for_regressions that also returns
+        detailed risk assessments for each pattern.
+
+        Args:
+            patterns: List of pattern dictionaries from task generator.
+
+        Returns:
+            Tuple of:
+            - Filtered list of patterns (high/critical risk removed)
+            - Dict mapping pattern type to RiskAssessment
+        """
+        filtered = []
+        risk_assessments: Dict[str, RiskAssessment] = {}
+        blocked_count = 0
+        medium_risk_count = 0
+
+        for pattern in patterns:
+            issue_pattern = pattern.get("type", "")
+            examples = pattern.get("examples", [])
+
+            # Build context from examples
+            pattern_context = {}
+            if examples:
+                first_example = examples[0]
+                pattern_context = {
+                    "phase_id": first_example.get("phase_id", ""),
+                    "issue_type": first_example.get("issue_type", ""),
+                    "phase_type": first_example.get("phase_type", ""),
+                }
+
+            # Build full pattern string
+            if examples:
+                example_contents = [e.get("content", "")[:100] for e in examples[:3]]
+                full_pattern = f"{issue_pattern}: {' | '.join(example_contents)}"
+            else:
+                full_pattern = issue_pattern
+
+            # Assess risk
+            risk = self.assess_regression_risk(full_pattern, pattern_context)
+            risk_assessments[issue_pattern] = risk
+
+            if risk.blocking_recommended:
+                blocked_count += 1
+                logger.warning(
+                    f"[IMP-LOOP-018] Blocked pattern '{issue_pattern}' - "
+                    f"risk severity: {risk.severity.value}, confidence: {risk.confidence:.2f}"
+                )
+            else:
+                if risk.severity == RiskSeverity.MEDIUM:
+                    medium_risk_count += 1
+                    # Add risk info to pattern for approval gate handling
+                    pattern["_risk_assessment"] = risk
+                    pattern["_requires_approval"] = True
+                filtered.append(pattern)
+
+        if blocked_count > 0 or medium_risk_count > 0:
+            logger.info(
+                f"[IMP-LOOP-018] Risk assessment: blocked={blocked_count}, "
+                f"medium_risk={medium_risk_count}, passed={len(filtered)}"
+            )
+
+        return filtered, risk_assessments

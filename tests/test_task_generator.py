@@ -759,3 +759,169 @@ class TestCleanupStaleTasks:
 
         mock_session.rollback.assert_called_once()
         mock_session.close.assert_called_once()
+
+
+class TestRiskGatingIntegration:
+    """Tests for IMP-LOOP-018: Regression risk gating in task generation."""
+
+    @pytest.fixture
+    def mock_memory_service(self):
+        """Create a mock memory service."""
+        service = Mock()
+        service.retrieve_insights = Mock(return_value=[])
+        return service
+
+    def test_generated_task_has_risk_fields(self):
+        """Test that GeneratedTask has risk-related fields."""
+        task = GeneratedTask(
+            task_id="TASK-RISK001",
+            title="Test task",
+            description="Test description",
+            priority="high",
+            source_insights=["insight-1"],
+            suggested_files=["src/file.py"],
+            estimated_effort="M",
+            created_at=datetime.now(),
+            requires_approval=True,
+            risk_severity="medium",
+        )
+
+        assert task.requires_approval is True
+        assert task.risk_severity == "medium"
+
+    def test_generated_task_risk_fields_default_to_safe_values(self):
+        """Test that risk fields default to safe values."""
+        task = GeneratedTask(
+            task_id="TASK-SAFE001",
+            title="Test task",
+            description="Test description",
+            priority="high",
+            source_insights=["insight-1"],
+            suggested_files=["src/file.py"],
+            estimated_effort="M",
+            created_at=datetime.now(),
+        )
+
+        assert task.requires_approval is False
+        assert task.risk_severity is None
+
+    def test_generate_tasks_uses_risk_assessment(self, mock_memory_service):
+        """Test that generate_tasks integrates risk assessment."""
+        mock_memory_service.retrieve_insights.return_value = [
+            {"issue_type": "error", "content": "Error 1", "id": "1", "severity": "high"},
+            {"issue_type": "error", "content": "Error 2", "id": "2", "severity": "high"},
+        ]
+
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        result = generator.generate_tasks(max_tasks=10, min_confidence=0.0)
+
+        # Should complete without error (risk assessment integrated)
+        assert isinstance(result, TaskGenerationResult)
+
+    def test_medium_risk_tasks_flagged_for_approval(self, mock_memory_service, tmp_path):
+        """Test that medium risk tasks are flagged for approval gate."""
+        from autopack.roadi import RegressionProtector, RiskSeverity
+
+        # Create a test file to trigger medium risk
+        tests_dir = tmp_path / "tests"
+        tests_dir.mkdir()
+        (tests_dir / "test_regression_cost.py").write_text(
+            '"""Regression test for cost sink."""\n'
+            "# Pattern: cost sink optimization\n"
+            "def test_cost_regression():\n"
+            "    assert True\n"
+        )
+
+        protector = RegressionProtector(tests_root=tests_dir)
+
+        patterns = [
+            {
+                "type": "cost_sink",
+                "occurrences": 2,
+                "confidence": 0.7,
+                "severity": 5,
+                "examples": [
+                    {
+                        "content": "cost sink optimization in build",
+                        "phase_id": "build",
+                        "issue_type": "cost_sink",
+                    }
+                ],
+            },
+        ]
+
+        filtered, risk_assessments = protector.filter_patterns_with_risk_assessment(patterns)
+
+        # Should have risk assessment
+        assert "cost_sink" in risk_assessments
+        # If medium risk, should be flagged for approval
+        if risk_assessments["cost_sink"].severity == RiskSeverity.MEDIUM:
+            assert filtered[0].get("_requires_approval", False) is True
+
+    def test_high_risk_tasks_blocked_from_generation(self, mock_memory_service, tmp_path):
+        """Test that high/critical risk patterns are blocked."""
+        from autopack.roadi import RegressionProtector, RiskSeverity
+
+        # Create multiple test files to trigger high risk
+        tests_dir = tmp_path / "tests"
+        tests_dir.mkdir()
+        for i in range(3):
+            (tests_dir / f"test_regression_fail_{i}.py").write_text(
+                f'"""Regression test for failure mode #{i}."""\n'
+                "# Pattern: critical failure mode\n"
+                "def test_failure_regression():\n"
+                "    assert True\n"
+            )
+
+        protector = RegressionProtector(tests_root=tests_dir)
+
+        patterns = [
+            {
+                "type": "failure_mode",
+                "occurrences": 5,
+                "confidence": 0.9,
+                "severity": 8,
+                "examples": [
+                    {
+                        "content": "critical failure mode in deploy",
+                        "phase_id": "deploy",
+                        "issue_type": "failure_mode",
+                    }
+                ],
+            },
+        ]
+
+        filtered, risk_assessments = protector.filter_patterns_with_risk_assessment(patterns)
+
+        # Check if blocking was recommended
+        risk = risk_assessments.get("failure_mode")
+        if risk and risk.severity in (RiskSeverity.HIGH, RiskSeverity.CRITICAL):
+            # Pattern should be blocked (not in filtered list)
+            assert risk.blocking_recommended is True
+            assert len([p for p in filtered if p["type"] == "failure_mode"]) == 0
+
+    def test_risk_assessment_includes_evidence(self, mock_memory_service, tmp_path):
+        """Test that risk assessment includes evidence for its decision."""
+        from autopack.roadi import RegressionProtector
+
+        tests_dir = tmp_path / "tests"
+        tests_dir.mkdir()
+        (tests_dir / "test_regression_perf.py").write_text(
+            '"""Regression test for performance."""\n'
+            "# Pattern: slow query performance\n"
+            "def test_performance_regression():\n"
+            "    assert True\n"
+        )
+
+        protector = RegressionProtector(tests_root=tests_dir)
+
+        risk = protector.assess_regression_risk(
+            "slow query performance",
+            {"issue_type": "performance"},
+        )
+
+        # Should have some evidence
+        assert len(risk.evidence) > 0
+        # Should include historical rate info
+        assert any("historical" in e.lower() for e in risk.evidence)

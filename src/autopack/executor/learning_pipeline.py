@@ -6,10 +6,10 @@ Records lessons learned during troubleshooting to help:
 2. Future runs after promotion (Stage 0B - cross-run hints)
 """
 
-from dataclasses import dataclass
-from typing import List, Dict, Optional
-import time
 import logging
+import time
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -35,15 +35,24 @@ class LearningPipeline:
     2. Future runs after promotion (Stage 0B)
     """
 
-    def __init__(self, run_id: str):
+    def __init__(
+        self,
+        run_id: str,
+        memory_service: Optional[Any] = None,
+        project_id: Optional[str] = None,
+    ):
         """
         Initialize LearningPipeline.
 
         Args:
             run_id: Run identifier for tracking hints
+            memory_service: Optional MemoryService instance for hint persistence
+            project_id: Optional project identifier for namespacing persisted hints
         """
         self.run_id = run_id
         self._hints: List[LearningHint] = []
+        self._memory_service = memory_service
+        self._project_id = project_id
 
     def record_hint(self, phase: Dict, hint_type: str, details: str):
         """
@@ -84,8 +93,8 @@ class LearningPipeline:
 
             self._hints.append(hint)
 
-            # Note: Hints are persisted to memory_service via persist_to_memory()
-            # which should be called after phase completion.
+            # IMP-INT-004: Persist hint immediately if memory_service is available
+            self._persist_hint_to_memory(hint)
 
             logger.debug(f"[Learning] Recorded hint for {phase_id}: {hint_type}")
 
@@ -138,6 +147,54 @@ class LearningPipeline:
         """Clear all hints (useful for testing)"""
         self._hints = []
         logger.debug("[Learning] Cleared all hints")
+
+    def _persist_hint_to_memory(self, hint: LearningHint) -> bool:
+        """
+        Persist a single hint to memory service immediately.
+
+        This is called from record_hint() to ensure hints are not lost
+        when the executor exits. Part of IMP-INT-004.
+
+        Args:
+            hint: The LearningHint to persist
+
+        Returns:
+            True if persistence succeeded, False otherwise
+        """
+        if not self._memory_service or not getattr(self._memory_service, "enabled", False):
+            return False
+
+        try:
+            # Convert LearningHint to telemetry insight format
+            insight = {
+                "insight_type": self._map_hint_type_to_insight_type(hint.hint_type),
+                "description": hint.hint_text,
+                "phase_id": hint.phase_id,
+                "run_id": self.run_id,
+                "suggested_action": hint.hint_text,
+                "severity": self._get_hint_severity(hint.hint_type),
+                "source_issue_keys": hint.source_issue_keys,
+                "task_category": hint.task_category,
+            }
+
+            # Use the unified write_telemetry_insight method
+            result = self._memory_service.write_telemetry_insight(
+                insight=insight,
+                project_id=self._project_id,
+                validate=True,
+                strict=False,
+            )
+
+            if result:
+                logger.debug(
+                    f"[Learning] Persisted hint to memory: {hint.phase_id}/{hint.hint_type}"
+                )
+                return True
+
+        except Exception as e:
+            logger.warning(f"[Learning] Failed to persist hint {hint.phase_id}: {e}")
+
+        return False
 
     def persist_to_memory(self, memory_service, project_id: Optional[str] = None) -> int:
         """

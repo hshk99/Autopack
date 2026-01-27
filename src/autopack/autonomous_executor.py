@@ -22,67 +22,59 @@ Environment Variables:
     AUTOPACK_API_URL: Autopack API URL (default: http://localhost:8000)
 """
 
-import os
-import sys
-import time
-import json
 import argparse
+import json
 import logging
+import os
 import re
+import sys
 import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
+
+# Configure logging
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from autopack.supervisor import SupervisorApiClient
-from autopack.quality_gate import QualityGate
-from autopack.config import settings
-from autopack.llm_client import BuilderResult, AuditorResult
-from autopack.executor_lock import ExecutorLockManager  # BUILD-048-T1
-from autopack.error_recovery import (
-    ErrorRecoverySystem,
-    DoctorRequest,
-    DoctorResponse,
-    DoctorContextSummary,
-    DOCTOR_MIN_BUILDER_ATTEMPTS,
-    DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
-)
-from autopack.llm_service import LlmService
-from autopack.debug_journal import log_error
+from autopack.api.auditor_result_poster import AuditorResultPoster
+from autopack.api.builder_result_poster import BuilderResultPoster
+from autopack.api.server_lifecycle import APIServerLifecycle
 from autopack.archive_consolidator import log_build_event
-from autopack.learned_rules import (
-    load_project_rules,
-    get_active_rules_for_phase,
-    get_relevant_hints_for_phase,
-    save_run_hint,
-)
-from autopack.health_checks import run_health_checks
-from autopack.file_layout import RunFileLayout
-from autopack.governed_apply import GovernedApplyPath
+from autopack.ci.custom_runner import CustomRunner
+from autopack.ci.pytest_runner import PytestRunner
+from autopack.config import settings
+from autopack.debug_journal import log_error
 
 # Memory and validation imports
 # BUILD-115: models.py removed - database write code disabled below
 from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
-from autopack.memory import MemoryService
-from autopack.utils import mask_credential
-
-# BUILD-123v2: Manifest Generator imports
-from autopack.manifest_generator import ManifestGenerator
-
-# BUILD-127 Phase 1: Completion authority with baseline tracking
-from autopack.phase_finalizer import PhaseFinalizer
-from autopack.test_baseline_tracker import TestBaselineTracker
-from autopack.phase_auto_fixer import auto_fix_phase_scope
+from autopack.error_recovery import (
+    DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
+    DOCTOR_MIN_BUILDER_ATTEMPTS,
+    DoctorContextSummary,
+    DoctorRequest,
+    DoctorResponse,
+    ErrorRecoverySystem,
+)
 
 # PR-EXE-2: Approval flow consolidation
 from autopack.executor.approval_flow import (
-    request_human_approval,
     request_build113_approval,
     request_build113_clarification,
+    request_human_approval,
+)
+from autopack.executor.autonomous_loop import AutonomousLoop
+
+# PR-EXE-12: Large helper method extraction
+from autopack.executor.backlog_maintenance import BacklogMaintenance
+from autopack.executor.batched_deliverables_executor import (
+    BatchedDeliverablesExecutor,
+    BatchedExecutionContext,
 )
 
 # PR-EXE-6: Heuristic context loader extraction
@@ -91,41 +83,49 @@ from autopack.executor.context_loading_heuristic import (
     get_default_priority_files,
 )
 
-# PR-EXE-4: Run checkpoint and rollback extraction
-from autopack.executor.run_checkpoint import (
-    create_run_checkpoint,
-    rollback_to_run_checkpoint,
-    create_deletion_savepoint,
-)
+# PR-EXE-10: Error analysis and learning pipeline
+from autopack.executor.error_analysis import ErrorAnalyzer
+from autopack.executor.execute_fix_handler import ExecuteFixHandler
+from autopack.executor.learning_pipeline import LearningPipeline
+from autopack.executor.phase_approach_reviser import PhaseApproachReviser
 
 # PR-EXE-9: Phase state persistence manager
 from autopack.executor.phase_state_manager import PhaseStateManager
 
-# PR-EXE-10: Error analysis and learning pipeline
-from autopack.executor.error_analysis import ErrorAnalyzer
-from autopack.executor.learning_pipeline import LearningPipeline
-
-# PR-EXE-12: Large helper method extraction
-from autopack.executor.backlog_maintenance import BacklogMaintenance
-from autopack.executor.scoped_context_loader import ScopedContextLoader
-from autopack.api.builder_result_poster import BuilderResultPoster
-from autopack.api.auditor_result_poster import AuditorResultPoster
-from autopack.executor.autonomous_loop import AutonomousLoop
-from autopack.api.server_lifecycle import APIServerLifecycle
+# PR-EXE-4: Run checkpoint and rollback extraction
+from autopack.executor.run_checkpoint import (
+    create_deletion_savepoint,
+    create_run_checkpoint,
+    rollback_to_run_checkpoint,
+)
 
 # PR-EXE-13: Final helper extraction - reach 5,000 lines!
 from autopack.executor.scope_context_validator import ScopeContextValidator
-from autopack.ci.pytest_runner import PytestRunner
-from autopack.ci.custom_runner import CustomRunner
-from autopack.executor.execute_fix_handler import ExecuteFixHandler
-from autopack.executor.phase_approach_reviser import PhaseApproachReviser
-from autopack.executor.batched_deliverables_executor import (
-    BatchedDeliverablesExecutor,
-    BatchedExecutionContext,
+from autopack.executor.scoped_context_loader import ScopedContextLoader
+from autopack.executor_lock import ExecutorLockManager  # BUILD-048-T1
+from autopack.file_layout import RunFileLayout
+from autopack.governed_apply import GovernedApplyPath
+from autopack.health_checks import run_health_checks
+from autopack.learned_rules import (
+    get_active_rules_for_phase,
+    get_relevant_hints_for_phase,
+    load_project_rules,
+    save_run_hint,
 )
+from autopack.llm_client import AuditorResult, BuilderResult
+from autopack.llm_service import LlmService
 
-# Configure logging
-from dotenv import load_dotenv
+# BUILD-123v2: Manifest Generator imports
+from autopack.manifest_generator import ManifestGenerator
+from autopack.memory import MemoryService
+from autopack.phase_auto_fixer import auto_fix_phase_scope
+
+# BUILD-127 Phase 1: Completion authority with baseline tracking
+from autopack.phase_finalizer import PhaseFinalizer
+from autopack.quality_gate import QualityGate
+from autopack.supervisor import SupervisorApiClient
+from autopack.test_baseline_tracker import TestBaselineTracker
+from autopack.utils import mask_credential
 
 logging.basicConfig(
     level=logging.INFO,
@@ -271,7 +271,7 @@ class AutonomousExecutor:
 
         # Apply encoding fix immediately to prevent Unicode crashes
         # Create a dummy error context for encoding fix
-        from autopack.error_recovery import ErrorContext, ErrorCategory, ErrorSeverity
+        from autopack.error_recovery import ErrorCategory, ErrorContext, ErrorSeverity
 
         dummy_ctx = ErrorContext(
             error=Exception("Pre-emptive encoding fix"),
@@ -348,9 +348,9 @@ class AutonomousExecutor:
         self._phase_reset_counts: Dict[str, int] = {}
 
         # PR-EXE-5: Initialize context preflight and retrieval injection (extracted modules)
+        from autopack.config import settings
         from autopack.executor.context_preflight import ContextPreflight
         from autopack.executor.retrieval_injection import RetrievalInjection
-        from autopack.config import settings
 
         self.context_preflight = ContextPreflight(
             max_files=40,
@@ -405,9 +405,9 @@ class AutonomousExecutor:
         self.iterative_investigator = None
         if self.enable_autonomous_fixes and self.diagnostics_agent:
             try:
-                from autopack.diagnostics.iterative_investigator import IterativeInvestigator
-                from autopack.diagnostics.goal_aware_decision import GoalAwareDecisionMaker
                 from autopack.diagnostics.decision_executor import DecisionExecutor
+                from autopack.diagnostics.goal_aware_decision import GoalAwareDecisionMaker
+                from autopack.diagnostics.iterative_investigator import IterativeInvestigator
 
                 decision_maker = GoalAwareDecisionMaker(
                     low_risk_threshold=100,
@@ -490,14 +490,19 @@ class AutonomousExecutor:
             fatal_error_types=[],
             similarity_enabled=True,
         )
-        self.learning_pipeline = LearningPipeline(run_id=self.run_id)
+        # IMP-INT-004: Pass memory_service to enable immediate hint persistence
+        self.learning_pipeline = LearningPipeline(
+            run_id=self.run_id,
+            memory_service=self.memory_service,
+            project_id=self.project_id,
+        )
         logger.info("[PR-EXE-10] Error analyzer and learning pipeline initialized")
 
         # PR-EXE-11: Initialize Builder/Auditor pipeline orchestrators
-        from autopack.executor.builder_orchestrator import BuilderOrchestrator
-        from autopack.executor.patch_application_flow import PatchApplicationFlow
-        from autopack.executor.ci_execution_flow import CIExecutionFlow
         from autopack.executor.auditor_orchestrator import AuditorOrchestrator
+        from autopack.executor.builder_orchestrator import BuilderOrchestrator
+        from autopack.executor.ci_execution_flow import CIExecutionFlow
+        from autopack.executor.patch_application_flow import PatchApplicationFlow
 
         self.builder_orchestrator = BuilderOrchestrator(self)
         self.patch_flow = PatchApplicationFlow(self)
@@ -841,8 +846,8 @@ class AutonomousExecutor:
 
         # BUILD-130: Schema validation on startup (fail-fast if schema invalid)
         try:
-            from autopack.schema_validator import SchemaValidator
             from autopack.config import get_database_url
+            from autopack.schema_validator import SchemaValidator
 
             database_url = get_database_url()
             if database_url:
@@ -1027,8 +1032,9 @@ class AutonomousExecutor:
         Returns:
             Formatted deliverables contract string or None if no deliverables specified
         """
-        from .deliverables_validator import extract_deliverables_from_scope
         from os.path import commonpath
+
+        from .deliverables_validator import extract_deliverables_from_scope
 
         scope = phase.get("scope")
         if not scope:
@@ -1260,9 +1266,7 @@ class AutonomousExecutor:
 
         classifier = ErrorClassifier()
         # Try to fetch status with circuit breaker logic
-        from autopack.supervisor.api_client import (
-            SupervisorApiHttpError,
-        )
+        from autopack.supervisor.api_client import SupervisorApiHttpError
 
         try:
             return self.api_client.get_run(self.run_id, timeout=10)
@@ -1824,8 +1828,8 @@ class AutonomousExecutor:
         model_downgrade = kwargs.get("model_downgrade")
         timeout_increase_factor = kwargs.get("timeout_increase_factor")
         from autopack.executor.phase_orchestrator import (
-            PhaseOrchestrator,
             ExecutionContext,
+            PhaseOrchestrator,
             PhaseResult,
         )
 
@@ -2416,7 +2420,7 @@ class AutonomousExecutor:
                 )
 
                 # Construct PhaseSpec from phase
-                from autopack.diagnostics.diagnostics_models import PhaseSpec, DecisionType
+                from autopack.diagnostics.diagnostics_models import DecisionType, PhaseSpec
 
                 phase_spec = PhaseSpec(
                     phase_id=phase.get("phase_id", "unknown"),
@@ -3146,7 +3150,7 @@ class AutonomousExecutor:
                 logger.info(f"[BUILD-113] Running proactive decision analysis for {phase_id}")
 
                 try:
-                    from autopack.diagnostics.diagnostics_models import PhaseSpec, DecisionType
+                    from autopack.diagnostics.diagnostics_models import DecisionType, PhaseSpec
 
                     # Use GoalAwareDecisionMaker directly (no investigation needed for fresh features)
                     decision_maker = self.iterative_investigator.decision_maker
@@ -4103,10 +4107,11 @@ class AutonomousExecutor:
             return
 
         try:
+            from datetime import datetime, timezone
+
             from autopack.config import settings
             from autopack.database import SessionLocal
             from autopack.models import SOTRetrievalEvent
-            from datetime import datetime, timezone
 
             # Calculate metrics
             sot_chunks = retrieved_context.get("sot", [])
@@ -4438,6 +4443,7 @@ class AutonomousExecutor:
             True if governance request was approved and patch applied, False otherwise
         """
         import json
+
         from autopack.governance_requests import create_governance_request
 
         # Try to parse as structured error
@@ -4813,8 +4819,9 @@ class AutonomousExecutor:
         """
         try:
             # BUILD-115: from autopack import models
-            from autopack import models
             from datetime import datetime, timezone
+
+            from autopack import models
 
             run = self.db_session.query(models.Run).filter(models.Run.id == self.run_id).first()
             if not run:

@@ -181,7 +181,7 @@ class InsightToTaskGenerator:
 
         # Build description with context
         details = insight.get("details", "")
-        description_parts = [f"Auto-generated from telemetry analysis."]
+        description_parts = ["Auto-generated from telemetry analysis."]
         if details:
             description_parts.append(f"Details: {details}")
 
@@ -288,7 +288,7 @@ class InsightToTaskGenerator:
                     "failure_rate": slot_info.get("failure_rate"),
                     "severity": slot_info.get("severity"),
                     "action": f"Investigate slot {slot_id} reliability issues",
-                    "details": f"High escalation rate detected",
+                    "details": "High escalation rate detected",
                 }
                 imp = self.format_as_imp(action)
                 improvements.append(imp)

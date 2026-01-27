@@ -15,14 +15,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from autopack.archive_consolidator import log_build_event
-from autopack.autonomous.budgeting import (
-    BudgetExhaustedError,
-    get_budget_remaining_pct,
-    is_budget_exhausted,
-)
-from autopack.autonomy.parallelism_gate import ParallelismPolicyGate, ScopeBasedParallelismChecker
+from autopack.autonomous.budgeting import (BudgetExhaustedError,
+                                           get_budget_remaining_pct,
+                                           is_budget_exhausted)
+from autopack.autonomy.parallelism_gate import (ParallelismPolicyGate,
+                                                ScopeBasedParallelismChecker)
 from autopack.config import settings
-from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
+from autopack.database import (SESSION_HEALTH_CHECK_INTERVAL,
+                               ensure_session_healthy)
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
@@ -33,6 +33,10 @@ if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
 
 logger = logging.getLogger(__name__)
+
+# IMP-REL-004: Default max iteration limit for the execution loop
+# This prevents unbounded loops when max_iterations is not explicitly set
+DEFAULT_MAX_ITERATIONS = 10000
 
 
 class SOTDriftError(Exception):
@@ -1472,7 +1476,8 @@ class AutonomousLoop:
 
     def _initialize_intention_loop(self):
         """Initialize intention-first loop for the run."""
-        from autopack.autonomous.executor_wiring import initialize_intention_first_loop
+        from autopack.autonomous.executor_wiring import \
+            initialize_intention_first_loop
         from autopack.intention_anchor.storage import IntentionAnchorStorage
 
         # IMP-ARCH-012: Load pending improvement tasks from self-improvement loop
@@ -1494,10 +1499,7 @@ class AutonomousLoop:
                 from datetime import datetime, timezone
 
                 from autopack.intention_anchor.models import (
-                    IntentionAnchor,
-                    IntentionBudgets,
-                    IntentionConstraints,
-                )
+                    IntentionAnchor, IntentionBudgets, IntentionConstraints)
 
                 intention_anchor = IntentionAnchor(
                     anchor_id=f"default-{self.executor.run_id}",
@@ -1551,7 +1553,10 @@ class AutonomousLoop:
         stop_signal_file = Path(".autonomous_runs/.stop_executor")
         stop_reason: str | None = None
 
-        while True:
+        # IMP-REL-004: Use effective max iterations with fallback to default
+        effective_max_iterations = max_iterations if max_iterations else DEFAULT_MAX_ITERATIONS
+
+        while iteration < effective_max_iterations:
             # Check for stop signal (from monitor script)
             if stop_signal_file.exists():
                 signal_content = stop_signal_file.read_text().strip()
@@ -1569,12 +1574,6 @@ class AutonomousLoop:
                     ensure_session_healthy(self.executor.db_session)
                     self._last_session_health_check = current_time
                     logger.debug("[SessionHealth] Periodic session health check completed")
-
-            # Check iteration limit
-            if max_iterations and iteration >= max_iterations:
-                logger.info(f"Reached max iterations ({max_iterations}), stopping")
-                stop_reason = "max_iterations"
-                break
 
             iteration += 1
 
@@ -1894,9 +1893,16 @@ class AutonomousLoop:
                     break
 
             # Wait before next iteration
-            if iteration < max_iterations:
+            if iteration < effective_max_iterations:
                 logger.info(f"Waiting {poll_interval}s before next phase...")
                 self._adaptive_sleep(is_idle=False, base_interval=poll_interval)
+        else:
+            # IMP-REL-004: Max iterations reached - log warning and set stop reason
+            logger.warning(
+                f"Execution loop reached max iterations ({effective_max_iterations}), "
+                "stopping to prevent resource exhaustion"
+            )
+            stop_reason = "max_iterations"
 
         logger.info("Autonomous execution loop finished")
 

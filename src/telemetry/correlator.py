@@ -1,11 +1,17 @@
 """Cross-artifact telemetry correlator."""
 
+import logging
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import List, Optional
 
 from .event_schema import TelemetryEvent
 from .unified_event_log import UnifiedEventLog
+
+logger = logging.getLogger(__name__)
+
+# IMP-REL-004: Max iteration limits for causation chain building
+MAX_CAUSATION_CHAIN_DEPTH = 1000
 
 
 @dataclass
@@ -121,8 +127,11 @@ class TelemetryCorrelator:
         chain_events = [final_event]
         current = final_event
 
+        # IMP-REL-004: Add iteration counter to prevent unbounded loops
+        depth = 0
         # Look for events that could have caused this one
-        while True:
+        while depth < MAX_CAUSATION_CHAIN_DEPTH:
+            depth += 1
             window_start = current.timestamp - self.correlation_window
             potential_causes = self.event_log.query(
                 {"until": current.timestamp, "since": window_start}
@@ -148,6 +157,12 @@ class TelemetryCorrelator:
 
             chain_events.insert(0, cause)
             current = cause
+        else:
+            # IMP-REL-004: Max depth reached - log warning
+            logger.warning(
+                f"Causation chain exceeded max depth ({MAX_CAUSATION_CHAIN_DEPTH}), "
+                "possible circular reference or extremely long chain"
+            )
 
         return CausationChain(
             chain_id=f"chain_{final_event.timestamp.isoformat()}",

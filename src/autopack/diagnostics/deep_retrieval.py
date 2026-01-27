@@ -17,9 +17,9 @@ Per BUILD-043/044/045 patterns: strict isolation, no protected path modification
 """
 
 import logging
-from typing import Dict, List, Any, Tuple
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Tuple
 
 from autopack.sql_sanitizer import SQLSanitizer
 
@@ -41,6 +41,9 @@ class DeepRetrieval:
 
     # Recency window (prioritize recent files)
     RECENCY_WINDOW_HOURS = 24
+
+    # IMP-REL-004: Max iteration limits for keyword search loops
+    MAX_KEYWORD_HITS_PER_FILE = 10000
 
     def __init__(self, run_dir: Path, repo_root: Path):
         """Initialize deep retrieval module.
@@ -369,15 +372,26 @@ class DeepRetrieval:
             content_lower = content.lower()
 
             # Find all keyword hit positions
+            # IMP-REL-004: Add iteration counter to prevent unbounded loops
             hit_positions = []
+            total_hits = 0
             for keyword in keywords:
                 search_pos = 0
-                while True:
+                while total_hits < self.MAX_KEYWORD_HITS_PER_FILE:
                     pos = content_lower.find(keyword, search_pos)
                     if pos == -1:
                         break
                     hit_positions.append(pos)
                     search_pos = pos + 1
+                    total_hits += 1
+                else:
+                    # Max hits reached - log and continue with what we have
+                    if total_hits >= self.MAX_KEYWORD_HITS_PER_FILE:
+                        logger.warning(
+                            f"Keyword search exceeded max hits ({self.MAX_KEYWORD_HITS_PER_FILE}) "
+                            f"in file {file}, truncating results"
+                        )
+                        break
 
             if not hit_positions:
                 # No keyword hits - use head+tail sample instead of full file

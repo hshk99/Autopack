@@ -30,7 +30,8 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, Response
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from prometheus_client import (CONTENT_TYPE_LATEST, Counter, Histogram,
+                               generate_latest)
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -42,6 +43,9 @@ from ..version import __version__
 from .deps import limiter
 
 logger = logging.getLogger(__name__)
+
+# IMP-REL-004: Max iteration limits for polling loops to prevent resource exhaustion
+MAX_CLEANUP_ITERATIONS = 100000  # ~69 days at 1 min intervals before warning
 
 # IMP-OPS-010: Prometheus metrics for API observability
 # These metrics enable monitoring of API performance and request patterns
@@ -850,7 +854,10 @@ async def approval_timeout_cleanup():
 
     logger.info("[APPROVAL-TIMEOUT] Background task started")
 
-    while True:
+    # IMP-REL-004: Add iteration counter to prevent unbounded loops
+    iteration = 0
+    while iteration < MAX_CLEANUP_ITERATIONS:
+        iteration += 1
         try:
             # IMP-OPS-003: Check shutdown flag before sleeping
             shutdown_mgr = get_shutdown_manager()
@@ -954,6 +961,12 @@ async def approval_timeout_cleanup():
                 pass  # Shutdown manager not initialized yet
             # Continue running despite errors
             await asyncio.sleep(60)
+    else:
+        # IMP-REL-004: Max iterations reached - log warning
+        logger.warning(
+            f"[APPROVAL-TIMEOUT] Reached max iterations ({MAX_CLEANUP_ITERATIONS}), "
+            "stopping cleanup task to prevent resource exhaustion"
+        )
 
 
 @asynccontextmanager

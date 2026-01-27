@@ -109,6 +109,173 @@ def _is_fresh(
 
 
 # ---------------------------------------------------------------------------
+# IMP-LOOP-019: Context Relevance/Confidence Metadata
+# ---------------------------------------------------------------------------
+
+# Confidence thresholds for context quality assessment
+LOW_CONFIDENCE_THRESHOLD = 0.3
+MEDIUM_CONFIDENCE_THRESHOLD = 0.6
+
+# Age thresholds for confidence decay (hours)
+FRESH_AGE_HOURS = 24  # Context younger than this gets full score
+STALE_AGE_HOURS = 168  # Context older than this (1 week) gets penalized
+
+
+@dataclass
+class ContextMetadata:
+    """Metadata about context relevance and quality.
+
+    IMP-LOOP-019: Provides relevance scoring and confidence signals
+    so callers know how fresh and relevant the retrieved context is.
+
+    Attributes:
+        content: The actual context content string
+        relevance_score: Similarity/relevance score from vector search (0.0-1.0)
+        age_hours: Age of the context in hours since creation
+        confidence: Computed confidence score combining relevance and freshness (0.0-1.0)
+        is_low_confidence: True if confidence is below the threshold for reliable use
+        source_type: Type of context source (e.g., 'error', 'summary', 'hint', 'code')
+        source_id: Original ID of the memory record
+    """
+
+    content: str
+    relevance_score: float
+    age_hours: float
+    confidence: float
+    is_low_confidence: bool
+    source_type: str = ""
+    source_id: str = ""
+
+    @property
+    def confidence_level(self) -> str:
+        """Human-readable confidence level."""
+        if self.confidence >= MEDIUM_CONFIDENCE_THRESHOLD:
+            return "high"
+        elif self.confidence >= LOW_CONFIDENCE_THRESHOLD:
+            return "medium"
+        return "low"
+
+
+def _calculate_age_hours(
+    timestamp_str: Optional[str],
+    now: Optional[datetime] = None,
+) -> float:
+    """Calculate age in hours from timestamp.
+
+    Args:
+        timestamp_str: ISO format timestamp string
+        now: Current time (defaults to UTC now)
+
+    Returns:
+        Age in hours, or -1.0 if timestamp is invalid/missing
+    """
+    parsed_ts = _parse_timestamp(timestamp_str)
+    if parsed_ts is None:
+        return -1.0  # Unknown age
+
+    now = now or datetime.now(timezone.utc)
+
+    # Ensure both datetimes are timezone-aware
+    if parsed_ts.tzinfo is None:
+        parsed_ts = parsed_ts.replace(tzinfo=timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+
+    age_seconds = (now - parsed_ts).total_seconds()
+    return max(0.0, age_seconds / 3600)
+
+
+def _calculate_confidence(
+    relevance_score: float,
+    age_hours: float,
+) -> float:
+    """Calculate confidence score combining relevance and freshness.
+
+    IMP-LOOP-019: Confidence is based on:
+    - Relevance score from vector search (primary factor)
+    - Age decay: fresh context is more reliable than stale context
+
+    Args:
+        relevance_score: Similarity score from vector search (0.0-1.0)
+        age_hours: Age of context in hours (-1 for unknown)
+
+    Returns:
+        Confidence score between 0.0 and 1.0
+    """
+    # Normalize relevance to 0-1 range (scores can sometimes exceed 1.0)
+    relevance = max(0.0, min(1.0, relevance_score))
+
+    # Unknown age gets a penalty but not complete rejection
+    if age_hours < 0:
+        age_factor = 0.5  # Unknown age = 50% confidence in freshness
+    elif age_hours <= FRESH_AGE_HOURS:
+        age_factor = 1.0  # Fresh content gets full score
+    elif age_hours >= STALE_AGE_HOURS:
+        age_factor = 0.5  # Stale content gets 50% score
+    else:
+        # Linear decay between fresh and stale thresholds
+        decay_range = STALE_AGE_HOURS - FRESH_AGE_HOURS
+        age_beyond_fresh = age_hours - FRESH_AGE_HOURS
+        age_factor = 1.0 - (0.5 * age_beyond_fresh / decay_range)
+
+    # Combine: relevance is weighted more heavily (70%) than freshness (30%)
+    confidence = 0.7 * relevance + 0.3 * age_factor
+
+    return max(0.0, min(1.0, confidence))
+
+
+def _enrich_with_metadata(
+    result: Dict[str, Any],
+    source_type: str = "",
+    content_key: str = "content",
+    now: Optional[datetime] = None,
+) -> ContextMetadata:
+    """Enrich a search result with context metadata.
+
+    IMP-LOOP-019: Converts a raw search result dict to ContextMetadata
+    with relevance scoring and confidence signals.
+
+    Args:
+        result: Search result dict with 'id', 'score', and 'payload' keys
+        source_type: Type of context source for identification
+        content_key: Key in payload to use for content extraction
+        now: Current time for age calculation
+
+    Returns:
+        ContextMetadata with all quality signals
+    """
+    # Extract fields from result
+    score = result.get("score", 0.0)
+    payload = result.get("payload", {})
+    source_id = result.get("id", "")
+
+    # Try to extract content from various common keys
+    content = ""
+    for key in [content_key, "content", "summary", "error_text", "hint", "description"]:
+        if key in payload and payload[key]:
+            content = str(payload[key])
+            break
+
+    # Get timestamp and calculate age
+    timestamp = payload.get("timestamp")
+    age_hours = _calculate_age_hours(timestamp, now)
+
+    # Calculate confidence
+    confidence = _calculate_confidence(score, age_hours)
+    is_low_confidence = confidence < LOW_CONFIDENCE_THRESHOLD
+
+    return ContextMetadata(
+        content=content,
+        relevance_score=score,
+        age_hours=age_hours,
+        confidence=confidence,
+        is_low_confidence=is_low_confidence,
+        source_type=source_type or payload.get("type", ""),
+        source_id=source_id,
+    )
+
+
+# ---------------------------------------------------------------------------
 # IMP-LOOP-002: Telemetry Feedback Validation
 # ---------------------------------------------------------------------------
 
@@ -2060,6 +2227,141 @@ class MemoryService:
             results["sot"] = self.search_sot(query, project_id, limit=sot_limit)
 
         return results
+
+    def retrieve_context_with_metadata(
+        self,
+        query: str,
+        project_id: str,
+        run_id: Optional[str] = None,
+        include_code: bool = True,
+        include_summaries: bool = True,
+        include_errors: bool = True,
+        include_hints: bool = True,
+    ) -> Dict[str, List["ContextMetadata"]]:
+        """
+        Retrieve context with relevance and confidence metadata.
+
+        IMP-LOOP-019: Returns ContextMetadata objects instead of raw dicts,
+        providing relevance_score, age_hours, and confidence signals.
+
+        Args:
+            query: Search query
+            project_id: Project to search within
+            run_id: Optional run to scope summaries
+            include_*: Flags to include/exclude collections
+
+        Returns:
+            Dict with keys mapping to lists of ContextMetadata objects.
+            Each ContextMetadata includes confidence signals to help
+            callers determine if the context is reliable.
+        """
+        results: Dict[str, List[ContextMetadata]] = {
+            "code": [],
+            "summaries": [],
+            "errors": [],
+            "hints": [],
+        }
+
+        if not self.enabled:
+            return results
+
+        now = datetime.now(timezone.utc)
+
+        # Content key mappings for each source type
+        content_keys = {
+            "code": "content_preview",
+            "summaries": "summary",
+            "errors": "error_text",
+            "hints": "hint",
+        }
+
+        if include_code:
+            raw_results = self.search_code(query, project_id)
+            results["code"] = [
+                _enrich_with_metadata(r, "code", content_keys["code"], now) for r in raw_results
+            ]
+
+        if include_summaries:
+            raw_results = self.search_summaries(query, project_id, run_id)
+            results["summaries"] = [
+                _enrich_with_metadata(r, "summary", content_keys["summaries"], now)
+                for r in raw_results
+            ]
+
+        if include_errors:
+            raw_results = self.search_errors(query, project_id)
+            results["errors"] = [
+                _enrich_with_metadata(r, "error", content_keys["errors"], now) for r in raw_results
+            ]
+
+        if include_hints:
+            raw_results = self.search_doctor_hints(query, project_id)
+            results["hints"] = [
+                _enrich_with_metadata(r, "hint", content_keys["hints"], now) for r in raw_results
+            ]
+
+        # Log summary with confidence information
+        total_items = sum(len(v) for v in results.values())
+        low_confidence_items = sum(
+            1 for items in results.values() for item in items if item.is_low_confidence
+        )
+        if total_items > 0:
+            logger.info(
+                f"[MemoryService] Retrieved {total_items} context items with metadata "
+                f"({low_confidence_items} low confidence)"
+            )
+
+        return results
+
+    def get_context_quality_summary(
+        self,
+        context_items: Dict[str, List["ContextMetadata"]],
+    ) -> Dict[str, Any]:
+        """
+        Get a summary of context quality metrics.
+
+        IMP-LOOP-019: Provides aggregated quality metrics for retrieved context.
+
+        Args:
+            context_items: Output from retrieve_context_with_metadata()
+
+        Returns:
+            Dict with quality metrics:
+            - total_items: Total number of context items
+            - low_confidence_count: Items with low confidence
+            - avg_confidence: Average confidence score
+            - avg_age_hours: Average age of context
+            - has_low_confidence_warning: True if significant portion is low confidence
+        """
+        all_items = [item for items in context_items.values() for item in items]
+
+        if not all_items:
+            return {
+                "total_items": 0,
+                "low_confidence_count": 0,
+                "avg_confidence": 0.0,
+                "avg_age_hours": 0.0,
+                "has_low_confidence_warning": False,
+            }
+
+        total = len(all_items)
+        low_confidence = sum(1 for item in all_items if item.is_low_confidence)
+        avg_confidence = sum(item.confidence for item in all_items) / total
+
+        # Calculate average age, excluding unknown ages (-1)
+        valid_ages = [item.age_hours for item in all_items if item.age_hours >= 0]
+        avg_age = sum(valid_ages) / len(valid_ages) if valid_ages else -1.0
+
+        # Warning if more than 50% of items are low confidence
+        has_warning = (low_confidence / total) > 0.5
+
+        return {
+            "total_items": total,
+            "low_confidence_count": low_confidence,
+            "avg_confidence": round(avg_confidence, 3),
+            "avg_age_hours": round(avg_age, 1),
+            "has_low_confidence_warning": has_warning,
+        }
 
     def format_retrieved_context(
         self,

@@ -1,4 +1,5 @@
 """Unit tests for IMP-LOOP-003: Memory Retrieval Freshness Check.
+Also includes IMP-LOOP-019: Context Relevance/Confidence Metadata tests.
 
 Tests the freshness validation logic added to memory retrieval
 for task generation, ensuring only recent and relevant memories are used.
@@ -9,12 +10,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.memory.memory_service import (
-    DEFAULT_MEMORY_FRESHNESS_HOURS,
-    MemoryService,
-    _is_fresh,
-    _parse_timestamp,
-)
+from autopack.memory.memory_service import (  # IMP-LOOP-019: New imports
+    DEFAULT_MEMORY_FRESHNESS_HOURS, FRESH_AGE_HOURS, LOW_CONFIDENCE_THRESHOLD,
+    MEDIUM_CONFIDENCE_THRESHOLD, STALE_AGE_HOURS, ContextMetadata,
+    MemoryService, _calculate_age_hours, _calculate_confidence,
+    _enrich_with_metadata, _is_fresh, _parse_timestamp)
 
 
 class TestTimestampParsing:
@@ -482,6 +482,359 @@ class TestTaskGeneratorFreshnessIntegration:
         # Should not call retrieve_insights when using direct telemetry
         mock_task_generator._memory.retrieve_insights.assert_not_called()
         assert result.insights_processed == 1  # One cost sink converted
+
+
+# ---------------------------------------------------------------------------
+# IMP-LOOP-019: Context Relevance/Confidence Metadata Tests
+# ---------------------------------------------------------------------------
+
+
+class TestCalculateAgeHours:
+    """Tests for _calculate_age_hours helper function."""
+
+    def test_calculate_age_hours_valid_timestamp(self):
+        """Test age calculation for valid timestamp."""
+        now = datetime.now(timezone.utc)
+        past = (now - timedelta(hours=10)).isoformat()
+
+        age = _calculate_age_hours(past, now)
+        assert 9.9 < age < 10.1  # Allow small margin
+
+    def test_calculate_age_hours_future_timestamp(self):
+        """Test age calculation for future timestamp returns 0."""
+        now = datetime.now(timezone.utc)
+        future = (now + timedelta(hours=10)).isoformat()
+
+        age = _calculate_age_hours(future, now)
+        assert age == 0.0
+
+    def test_calculate_age_hours_invalid_timestamp(self):
+        """Test age calculation for invalid timestamp returns -1."""
+        age = _calculate_age_hours("not-a-timestamp")
+        assert age == -1.0
+
+    def test_calculate_age_hours_none_timestamp(self):
+        """Test age calculation for None timestamp returns -1."""
+        age = _calculate_age_hours(None)
+        assert age == -1.0
+
+
+class TestCalculateConfidence:
+    """Tests for _calculate_confidence helper function."""
+
+    def test_calculate_confidence_high_relevance_fresh(self):
+        """Test confidence for high relevance, fresh content."""
+        confidence = _calculate_confidence(relevance_score=0.9, age_hours=5.0)
+        # 0.7 * 0.9 + 0.3 * 1.0 = 0.63 + 0.30 = 0.93
+        assert confidence >= 0.9
+
+    def test_calculate_confidence_high_relevance_stale(self):
+        """Test confidence for high relevance, stale content."""
+        confidence = _calculate_confidence(relevance_score=0.9, age_hours=200.0)
+        # age_factor should be 0.5 for stale content
+        # 0.7 * 0.9 + 0.3 * 0.5 = 0.63 + 0.15 = 0.78
+        assert 0.75 < confidence < 0.85
+
+    def test_calculate_confidence_low_relevance_fresh(self):
+        """Test confidence for low relevance, fresh content."""
+        confidence = _calculate_confidence(relevance_score=0.2, age_hours=5.0)
+        # 0.7 * 0.2 + 0.3 * 1.0 = 0.14 + 0.30 = 0.44
+        assert 0.4 < confidence < 0.5
+
+    def test_calculate_confidence_unknown_age(self):
+        """Test confidence with unknown age (-1)."""
+        confidence = _calculate_confidence(relevance_score=0.8, age_hours=-1.0)
+        # age_factor = 0.5 for unknown
+        # 0.7 * 0.8 + 0.3 * 0.5 = 0.56 + 0.15 = 0.71
+        assert 0.65 < confidence < 0.75
+
+    def test_calculate_confidence_clamps_to_range(self):
+        """Test confidence is clamped to 0-1 range."""
+        # Very high relevance (above 1.0)
+        confidence = _calculate_confidence(relevance_score=1.5, age_hours=0.0)
+        assert confidence <= 1.0
+
+        # Negative relevance (shouldn't happen but test edge case)
+        confidence = _calculate_confidence(relevance_score=-0.5, age_hours=0.0)
+        assert confidence >= 0.0
+
+
+class TestEnrichWithMetadata:
+    """Tests for _enrich_with_metadata helper function."""
+
+    def test_enrich_with_metadata_basic(self):
+        """Test basic enrichment of a search result."""
+        now = datetime.now(timezone.utc)
+        past = (now - timedelta(hours=10)).isoformat()
+
+        result = {
+            "id": "error:123",
+            "score": 0.85,
+            "payload": {
+                "type": "error",
+                "error_text": "ImportError: No module named 'foo'",
+                "timestamp": past,
+            },
+        }
+
+        metadata = _enrich_with_metadata(result, "error", "error_text", now)
+
+        assert isinstance(metadata, ContextMetadata)
+        assert metadata.content == "ImportError: No module named 'foo'"
+        assert metadata.relevance_score == 0.85
+        assert 9.9 < metadata.age_hours < 10.1
+        assert metadata.source_type == "error"
+        assert metadata.source_id == "error:123"
+
+    def test_enrich_with_metadata_low_confidence(self):
+        """Test that low confidence is flagged correctly."""
+        now = datetime.now(timezone.utc)
+        past = (now - timedelta(hours=200)).isoformat()
+
+        result = {
+            "id": "old:1",
+            "score": 0.2,  # Low relevance
+            "payload": {
+                "type": "error",
+                "content": "Old error",
+                "timestamp": past,  # Old
+            },
+        }
+
+        metadata = _enrich_with_metadata(result, "error", "content", now)
+
+        assert metadata.is_low_confidence is True
+        assert metadata.confidence < LOW_CONFIDENCE_THRESHOLD
+
+    def test_enrich_with_metadata_missing_timestamp(self):
+        """Test enrichment with missing timestamp."""
+        result = {
+            "id": "no-ts:1",
+            "score": 0.9,
+            "payload": {
+                "type": "error",
+                "content": "Error without timestamp",
+                # No timestamp
+            },
+        }
+
+        metadata = _enrich_with_metadata(result, "error")
+
+        assert metadata.age_hours == -1.0  # Unknown age
+        assert metadata.content == "Error without timestamp"
+
+    def test_enrich_with_metadata_fallback_content_key(self):
+        """Test that enrichment falls back to other content keys."""
+        result = {
+            "id": "fallback:1",
+            "score": 0.8,
+            "payload": {
+                "summary": "This is a summary",  # Not the specified key
+            },
+        }
+
+        metadata = _enrich_with_metadata(result, "summary", "description")
+
+        assert metadata.content == "This is a summary"
+
+
+class TestContextMetadataDataclass:
+    """Tests for ContextMetadata dataclass."""
+
+    def test_context_metadata_confidence_level_high(self):
+        """Test confidence_level property for high confidence."""
+        metadata = ContextMetadata(
+            content="test",
+            relevance_score=0.9,
+            age_hours=5.0,
+            confidence=0.75,
+            is_low_confidence=False,
+        )
+        assert metadata.confidence_level == "high"
+
+    def test_context_metadata_confidence_level_medium(self):
+        """Test confidence_level property for medium confidence."""
+        metadata = ContextMetadata(
+            content="test",
+            relevance_score=0.5,
+            age_hours=100.0,
+            confidence=0.45,
+            is_low_confidence=False,
+        )
+        assert metadata.confidence_level == "medium"
+
+    def test_context_metadata_confidence_level_low(self):
+        """Test confidence_level property for low confidence."""
+        metadata = ContextMetadata(
+            content="test",
+            relevance_score=0.2,
+            age_hours=200.0,
+            confidence=0.2,
+            is_low_confidence=True,
+        )
+        assert metadata.confidence_level == "low"
+
+
+class TestMemoryServiceRetrieveContextWithMetadata:
+    """Tests for MemoryService.retrieve_context_with_metadata method."""
+
+    @pytest.fixture
+    def mock_memory_service(self):
+        """Create a mock MemoryService for testing."""
+        with patch.object(MemoryService, "__init__", lambda self, **kwargs: None):
+            service = MemoryService()
+            service.enabled = True
+            service.store = Mock()
+            service.top_k = 5
+            return service
+
+    def test_retrieve_context_with_metadata_returns_dict(self, mock_memory_service):
+        """Test that retrieve_context_with_metadata returns proper structure."""
+        mock_memory_service.search_code = Mock(return_value=[])
+        mock_memory_service.search_summaries = Mock(return_value=[])
+        mock_memory_service.search_errors = Mock(return_value=[])
+        mock_memory_service.search_doctor_hints = Mock(return_value=[])
+
+        result = mock_memory_service.retrieve_context_with_metadata(
+            query="test query",
+            project_id="test-project",
+        )
+
+        assert isinstance(result, dict)
+        assert "code" in result
+        assert "summaries" in result
+        assert "errors" in result
+        assert "hints" in result
+
+    def test_retrieve_context_with_metadata_disabled_memory(self, mock_memory_service):
+        """Test that disabled memory returns empty result."""
+        mock_memory_service.enabled = False
+
+        result = mock_memory_service.retrieve_context_with_metadata(
+            query="test query",
+            project_id="test-project",
+        )
+
+        assert result["code"] == []
+        assert result["errors"] == []
+
+    def test_retrieve_context_with_metadata_enriches_results(self, mock_memory_service):
+        """Test that results are enriched with metadata."""
+        now = datetime.now(timezone.utc)
+        past = (now - timedelta(hours=5)).isoformat()
+
+        mock_memory_service.search_errors = Mock(
+            return_value=[
+                {
+                    "id": "error:1",
+                    "score": 0.9,
+                    "payload": {
+                        "type": "error",
+                        "error_text": "Test error",
+                        "timestamp": past,
+                    },
+                }
+            ]
+        )
+        mock_memory_service.search_code = Mock(return_value=[])
+        mock_memory_service.search_summaries = Mock(return_value=[])
+        mock_memory_service.search_doctor_hints = Mock(return_value=[])
+
+        result = mock_memory_service.retrieve_context_with_metadata(
+            query="test query",
+            project_id="test-project",
+        )
+
+        assert len(result["errors"]) == 1
+        assert isinstance(result["errors"][0], ContextMetadata)
+        assert result["errors"][0].content == "Test error"
+        assert result["errors"][0].relevance_score == 0.9
+
+
+class TestMemoryServiceGetContextQualitySummary:
+    """Tests for MemoryService.get_context_quality_summary method."""
+
+    @pytest.fixture
+    def mock_memory_service(self):
+        """Create a mock MemoryService for testing."""
+        with patch.object(MemoryService, "__init__", lambda self, **kwargs: None):
+            service = MemoryService()
+            service.enabled = True
+            return service
+
+    def test_get_context_quality_summary_empty(self, mock_memory_service):
+        """Test quality summary for empty context."""
+        result = mock_memory_service.get_context_quality_summary(
+            {
+                "code": [],
+                "errors": [],
+            }
+        )
+
+        assert result["total_items"] == 0
+        assert result["low_confidence_count"] == 0
+        assert result["avg_confidence"] == 0.0
+
+    def test_get_context_quality_summary_with_items(self, mock_memory_service):
+        """Test quality summary with items."""
+        high_conf = ContextMetadata(
+            content="c1",
+            relevance_score=0.9,
+            age_hours=5.0,
+            confidence=0.8,
+            is_low_confidence=False,
+        )
+        low_conf = ContextMetadata(
+            content="c2",
+            relevance_score=0.2,
+            age_hours=200.0,
+            confidence=0.2,
+            is_low_confidence=True,
+        )
+
+        result = mock_memory_service.get_context_quality_summary(
+            {
+                "errors": [high_conf, low_conf],
+                "code": [],
+            }
+        )
+
+        assert result["total_items"] == 2
+        assert result["low_confidence_count"] == 1
+        assert result["avg_confidence"] == 0.5  # (0.8 + 0.2) / 2
+
+    def test_get_context_quality_summary_warning_threshold(self, mock_memory_service):
+        """Test quality summary warning when > 50% items are low confidence."""
+        low_conf1 = ContextMetadata(
+            content="c1",
+            relevance_score=0.2,
+            age_hours=200.0,
+            confidence=0.2,
+            is_low_confidence=True,
+        )
+        low_conf2 = ContextMetadata(
+            content="c2",
+            relevance_score=0.2,
+            age_hours=200.0,
+            confidence=0.25,
+            is_low_confidence=True,
+        )
+        high_conf = ContextMetadata(
+            content="c3",
+            relevance_score=0.9,
+            age_hours=5.0,
+            confidence=0.8,
+            is_low_confidence=False,
+        )
+
+        # 2/3 items are low confidence (> 50%)
+        result = mock_memory_service.get_context_quality_summary(
+            {
+                "errors": [low_conf1, low_conf2, high_conf],
+            }
+        )
+
+        assert result["has_low_confidence_warning"] is True
 
 
 if __name__ == "__main__":

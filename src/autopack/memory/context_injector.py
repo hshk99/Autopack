@@ -6,10 +6,10 @@ the builder to learn from past experience.
 """
 
 import logging
-from dataclasses import dataclass
-from typing import List, Optional
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
-from .memory_service import MemoryService
+from .memory_service import ContextMetadata, MemoryService
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,73 @@ class ContextInjection:
     relevant_insights: List[str]
     discovery_insights: List[str]  # IMP-DISC-001: Discovery context from research modules
     total_token_estimate: int
+
+
+@dataclass
+class EnrichedContextInjection:
+    """Context injection with relevance and confidence metadata.
+
+    IMP-LOOP-019: Extends ContextInjection with quality signals so callers
+    know how fresh and relevant the retrieved context is.
+
+    Attributes:
+        past_errors: List of ContextMetadata for past errors
+        successful_strategies: List of ContextMetadata for strategies
+        doctor_hints: List of ContextMetadata for hints
+        relevant_insights: List of ContextMetadata for code insights
+        discovery_insights: List of plain strings (discovery has no metadata)
+        total_token_estimate: Estimated token count
+        quality_summary: Aggregated quality metrics for the context
+        has_low_confidence_warning: True if significant portion is low confidence
+    """
+
+    past_errors: List[ContextMetadata]
+    successful_strategies: List[ContextMetadata]
+    doctor_hints: List[ContextMetadata]
+    relevant_insights: List[ContextMetadata]
+    discovery_insights: List[str]
+    total_token_estimate: int
+    quality_summary: Dict[str, Any] = field(default_factory=dict)
+    has_low_confidence_warning: bool = False
+
+    def to_plain_injection(self) -> ContextInjection:
+        """Convert to plain ContextInjection (for backward compatibility).
+
+        Returns:
+            ContextInjection with just the content strings
+        """
+        return ContextInjection(
+            past_errors=[m.content for m in self.past_errors],
+            successful_strategies=[m.content for m in self.successful_strategies],
+            doctor_hints=[m.content for m in self.doctor_hints],
+            relevant_insights=[m.content for m in self.relevant_insights],
+            discovery_insights=self.discovery_insights,
+            total_token_estimate=self.total_token_estimate,
+        )
+
+    @property
+    def avg_confidence(self) -> float:
+        """Average confidence across all context items."""
+        all_items = (
+            self.past_errors
+            + self.successful_strategies
+            + self.doctor_hints
+            + self.relevant_insights
+        )
+        if not all_items:
+            return 0.0
+        return sum(item.confidence for item in all_items) / len(all_items)
+
+    @property
+    def low_confidence_count(self) -> int:
+        """Count of items with low confidence."""
+        all_items = (
+            self.past_errors
+            + self.successful_strategies
+            + self.doctor_hints
+            + self.relevant_insights
+        )
+        return sum(1 for item in all_items if item.is_low_confidence)
 
 
 class ContextInjector:
@@ -266,3 +333,276 @@ class ContextInjector:
         except Exception as e:
             logger.warning(f"[ContextInjector] Failed to retrieve discovery context: {e}")
             return []
+
+    # -------------------------------------------------------------------------
+    # IMP-LOOP-019: Context with Relevance/Confidence Metadata
+    # -------------------------------------------------------------------------
+
+    def get_context_for_phase_with_metadata(
+        self,
+        phase_type: str,
+        current_goal: str,
+        project_id: str,
+        max_tokens: int = 500,
+    ) -> EnrichedContextInjection:
+        """Retrieve context with relevance and confidence metadata.
+
+        IMP-LOOP-019: Returns EnrichedContextInjection with ContextMetadata
+        objects that include relevance_score, age_hours, and confidence.
+
+        Args:
+            phase_type: Type of phase (e.g., 'build', 'test', 'deploy')
+            current_goal: The goal/description for this phase
+            project_id: Project ID for scoping memory queries
+            max_tokens: Maximum tokens to allocate for context (default 500)
+
+        Returns:
+            EnrichedContextInjection with metadata for each context item
+        """
+        empty_result = EnrichedContextInjection(
+            past_errors=[],
+            successful_strategies=[],
+            doctor_hints=[],
+            relevant_insights=[],
+            discovery_insights=[],
+            total_token_estimate=0,
+            quality_summary={
+                "total_items": 0,
+                "low_confidence_count": 0,
+                "avg_confidence": 0.0,
+                "avg_age_hours": 0.0,
+                "has_low_confidence_warning": False,
+            },
+            has_low_confidence_warning=False,
+        )
+
+        if not self._memory.enabled:
+            logger.debug("[ContextInjector] Memory disabled, returning empty enriched context")
+            return empty_result
+
+        try:
+            # Build query strings for each context type
+            error_query = f"{phase_type} error failure issue"
+            success_query = f"{phase_type} success strategy approach solution"
+            hints_query = f"doctor recommendation hint {current_goal}"
+            insights_query = current_goal
+
+            # Retrieve context with metadata using the new method
+            error_metadata = self._memory.retrieve_context_with_metadata(
+                query=error_query,
+                project_id=project_id,
+                include_code=False,
+                include_summaries=False,
+                include_errors=True,
+                include_hints=False,
+            )
+
+            strategy_metadata = self._memory.retrieve_context_with_metadata(
+                query=success_query,
+                project_id=project_id,
+                include_code=False,
+                include_summaries=True,
+                include_errors=False,
+                include_hints=False,
+            )
+
+            hints_metadata = self._memory.retrieve_context_with_metadata(
+                query=hints_query,
+                project_id=project_id,
+                include_code=False,
+                include_summaries=False,
+                include_errors=False,
+                include_hints=True,
+            )
+
+            insights_metadata = self._memory.retrieve_context_with_metadata(
+                query=insights_query,
+                project_id=project_id,
+                include_code=True,
+                include_summaries=False,
+                include_errors=False,
+                include_hints=False,
+            )
+
+            # Extract the relevant lists and limit to 3 items each
+            past_errors = error_metadata.get("errors", [])[:3]
+            strategies = strategy_metadata.get("summaries", [])[:3]
+            hints = hints_metadata.get("hints", [])[:2]
+            insights = insights_metadata.get("code", [])[:3]
+
+            # Get discovery context (no metadata for external sources)
+            discovery_insights = self.get_discovery_context(
+                phase_type=phase_type,
+                current_goal=current_goal,
+                limit=3,
+            )
+
+            # Calculate token estimate
+            all_content = (
+                [m.content for m in past_errors]
+                + [m.content for m in strategies]
+                + [m.content for m in hints]
+                + [m.content for m in insights]
+                + discovery_insights
+            )
+            total_token_estimate = self._estimate_tokens(all_content)
+
+            # Calculate quality summary
+            all_metadata_items = past_errors + strategies + hints + insights
+            quality_summary = self._calculate_quality_summary(all_metadata_items)
+
+            # Determine if we should warn about low confidence
+            has_warning = quality_summary.get("has_low_confidence_warning", False)
+
+            if has_warning:
+                logger.warning(
+                    f"[ContextInjector] Low confidence context retrieved for {phase_type}: "
+                    f"{quality_summary['low_confidence_count']}/{quality_summary['total_items']} "
+                    f"items are low confidence (avg={quality_summary['avg_confidence']:.2f})"
+                )
+
+            logger.info(
+                f"[ContextInjector] Retrieved enriched context for {phase_type}: "
+                f"{len(past_errors)} errors, {len(strategies)} strategies, "
+                f"{len(hints)} hints, {len(insights)} insights, "
+                f"{len(discovery_insights)} discovery insights "
+                f"(avg_confidence={quality_summary.get('avg_confidence', 0):.2f}, "
+                f"{total_token_estimate} tokens)"
+            )
+
+            return EnrichedContextInjection(
+                past_errors=past_errors,
+                successful_strategies=strategies,
+                doctor_hints=hints,
+                relevant_insights=insights,
+                discovery_insights=discovery_insights,
+                total_token_estimate=total_token_estimate,
+                quality_summary=quality_summary,
+                has_low_confidence_warning=has_warning,
+            )
+
+        except Exception as e:
+            logger.warning(f"[ContextInjector] Failed to retrieve enriched memory context: {e}")
+            return empty_result
+
+    def _calculate_quality_summary(self, items: List[ContextMetadata]) -> Dict[str, Any]:
+        """Calculate aggregated quality metrics for context items.
+
+        Args:
+            items: List of ContextMetadata objects
+
+        Returns:
+            Dict with quality metrics
+        """
+        if not items:
+            return {
+                "total_items": 0,
+                "low_confidence_count": 0,
+                "avg_confidence": 0.0,
+                "avg_age_hours": 0.0,
+                "has_low_confidence_warning": False,
+            }
+
+        total = len(items)
+        low_confidence = sum(1 for item in items if item.is_low_confidence)
+        avg_confidence = sum(item.confidence for item in items) / total
+
+        # Calculate average age, excluding unknown ages (-1)
+        valid_ages = [item.age_hours for item in items if item.age_hours >= 0]
+        avg_age = sum(valid_ages) / len(valid_ages) if valid_ages else -1.0
+
+        # Warning if more than 50% of items are low confidence
+        has_warning = (low_confidence / total) > 0.5 if total > 0 else False
+
+        return {
+            "total_items": total,
+            "low_confidence_count": low_confidence,
+            "avg_confidence": round(avg_confidence, 3),
+            "avg_age_hours": round(avg_age, 1) if avg_age >= 0 else -1.0,
+            "has_low_confidence_warning": has_warning,
+        }
+
+    def format_enriched_for_prompt(
+        self,
+        injection: EnrichedContextInjection,
+        include_confidence_warnings: bool = True,
+    ) -> str:
+        """Format enriched context injection for builder prompt.
+
+        IMP-LOOP-019: Formats context with optional confidence warnings
+        so the builder knows when context may be unreliable.
+
+        Args:
+            injection: EnrichedContextInjection with metadata
+            include_confidence_warnings: Whether to include low-confidence warnings
+
+        Returns:
+            Formatted string suitable for prompt injection
+        """
+        sections = []
+
+        # Add confidence warning header if needed
+        if include_confidence_warnings and injection.has_low_confidence_warning:
+            warning = (
+                "**⚠️ Context Quality Warning:**\n"
+                f"Some retrieved context has low confidence "
+                f"(avg={injection.quality_summary.get('avg_confidence', 0):.2f}). "
+                "Consider verifying this information before relying on it."
+            )
+            sections.append(warning)
+
+        # Format past errors with confidence indicators
+        if injection.past_errors:
+            error_items = []
+            for m in injection.past_errors:
+                content = m.content[:150] if m.content else ""
+                if m.is_low_confidence and include_confidence_warnings:
+                    error_items.append(f"- {content} _(low confidence)_")
+                else:
+                    error_items.append(f"- {content}")
+            if error_items:
+                sections.append(f"**Past Errors to Avoid:**\n" + "\n".join(error_items))
+
+        # Format strategies
+        if injection.successful_strategies:
+            strategy_items = []
+            for m in injection.successful_strategies:
+                content = m.content[:150] if m.content else ""
+                if m.is_low_confidence and include_confidence_warnings:
+                    strategy_items.append(f"- {content} _(low confidence)_")
+                else:
+                    strategy_items.append(f"- {content}")
+            if strategy_items:
+                sections.append(f"**Successful Strategies:**\n" + "\n".join(strategy_items))
+
+        # Format hints
+        if injection.doctor_hints:
+            hint_items = []
+            for m in injection.doctor_hints:
+                content = m.content[:150] if m.content else ""
+                if m.is_low_confidence and include_confidence_warnings:
+                    hint_items.append(f"- {content} _(low confidence)_")
+                else:
+                    hint_items.append(f"- {content}")
+            if hint_items:
+                sections.append(f"**Doctor Recommendations:**\n" + "\n".join(hint_items))
+
+        # Format insights
+        if injection.relevant_insights:
+            insight_items = []
+            for m in injection.relevant_insights:
+                content = m.content[:150] if m.content else ""
+                if m.is_low_confidence and include_confidence_warnings:
+                    insight_items.append(f"- {content} _(low confidence)_")
+                else:
+                    insight_items.append(f"- {content}")
+            if insight_items:
+                sections.append(f"**Relevant Historical Insights:**\n" + "\n".join(insight_items))
+
+        # Discovery insights (no metadata)
+        if injection.discovery_insights:
+            discovery_items = "\n".join(f"- {d[:150]}" for d in injection.discovery_insights if d)
+            if discovery_items:
+                sections.append(f"**Discovery Insights (External Sources):**\n{discovery_items}")
+
+        return "\n\n".join(sections) if sections else ""

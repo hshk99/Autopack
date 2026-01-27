@@ -9,16 +9,23 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+# IMP-LOOP-016: Import for telemetry bridge (TYPE_CHECKING to avoid circular imports)
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 import yaml
 
-from autopack.diagnostics.command_runner import CommandResult, GovernedCommandRunner
+from autopack.diagnostics.command_runner import (CommandResult,
+                                                 GovernedCommandRunner)
+from autopack.diagnostics.deep_retrieval import (DeepRetrieval,
+                                                 DeepRetrievalEngine)
 from autopack.diagnostics.hypothesis import HypothesisLedger
 from autopack.diagnostics.probes import Probe, ProbeLibrary, ProbeRunResult
-from autopack.diagnostics.retrieval_triggers import RetrievalTrigger, RetrievalTriggerDetector
-from autopack.diagnostics.deep_retrieval import DeepRetrieval, DeepRetrievalEngine
+from autopack.diagnostics.retrieval_triggers import (RetrievalTrigger,
+                                                     RetrievalTriggerDetector)
 from autopack.memory import MemoryService
+
+if TYPE_CHECKING:
+    from autopack.telemetry.analyzer import TelemetryAnalyzer
 
 
 @dataclass
@@ -57,6 +64,7 @@ class DiagnosticsAgent:
         max_probes: int = 8,
         max_seconds: int = 300,
         runner: Optional[GovernedCommandRunner] = None,
+        telemetry_analyzer: Optional["TelemetryAnalyzer"] = None,
     ) -> None:
         cfg = self._load_config()
         self.run_id = run_id
@@ -97,6 +105,9 @@ class DiagnosticsAgent:
         self.deep_retrieval_engine = (
             DeepRetrievalEngine(embedding_model=embedding_model) if embedding_model else None
         )
+
+        # IMP-LOOP-016: Telemetry analyzer for bridging diagnostic findings
+        self.telemetry_analyzer = telemetry_analyzer
 
     def retrieve_deep_context_if_needed(
         self, error_context: Dict[str, Any], query: str
@@ -182,6 +193,13 @@ class DiagnosticsAgent:
                 ledger_summary=ledger_summary,
                 probe_results=probe_results,
                 mode=mode,
+            )
+
+            # IMP-LOOP-016: Emit telemetry events for diagnostic findings
+            self._emit_telemetry_events(
+                failure_class=failure_class,
+                phase_id=phase_id,
+                probe_results=probe_results,
             )
 
             # Stage 2: Deep Retrieval Escalation (auto-triggered based on Stage 1 evidence)
@@ -383,6 +401,53 @@ class DiagnosticsAgent:
             except Exception:
                 # Best-effort; do not raise inside diagnostics path
                 pass
+
+    def _emit_telemetry_events(
+        self,
+        failure_class: str,
+        phase_id: Optional[str],
+        probe_results: List[ProbeRunResult],
+    ) -> None:
+        """Emit telemetry events for diagnostic findings (IMP-LOOP-016).
+
+        Bridges diagnostic findings to the telemetry system for automatic
+        task generation and tracking. This enables diagnostic-sourced issues
+        to be processed through the same improvement pipeline as other
+        telemetry-derived insights.
+
+        Args:
+            failure_class: Classification of the failure
+            phase_id: Phase identifier if available
+            probe_results: Results from probe execution
+        """
+        if not self.telemetry_analyzer:
+            return
+
+        if not probe_results:
+            return
+
+        try:
+            # Import here to avoid circular imports at module load time
+            from autopack.telemetry.analyzer import TelemetryAnalyzer
+
+            # Convert probe results to findings format
+            findings = TelemetryAnalyzer.convert_probe_results_to_findings(
+                probe_results=probe_results,
+                failure_class=failure_class,
+            )
+
+            # Ingest findings into telemetry system
+            self.telemetry_analyzer.ingest_diagnostic_findings(
+                findings=findings,
+                run_id=self.run_id,
+                phase_id=phase_id,
+            )
+        except Exception as e:
+            # Best-effort: do not raise inside diagnostics path
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(f"[IMP-LOOP-016] Failed to emit telemetry events: {e}")
 
     def _load_config(self) -> Dict:
         """Load diagnostics config from config/diagnostics.yaml if present."""

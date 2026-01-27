@@ -168,6 +168,92 @@ class NoopApprovalService(ApprovalService):
         return False
 
 
+class ChainedApprovalService(ApprovalService):
+    """IMP-REL-001: Approval service with multi-channel fallback.
+
+    Uses NotificationChain to try Telegram -> Email -> SMS in sequence
+    until one succeeds. Provides resilience against single point of failure.
+    """
+
+    def __init__(self):
+        """Initialize with notification chain."""
+        from .notification_chain import create_notification_chain
+
+        self._chain = create_notification_chain()
+
+    def request_approval(self, request: ApprovalRequest) -> ApprovalResult:
+        """Send approval request through notification chain.
+
+        Args:
+            request: ApprovalRequest with details
+
+        Returns:
+            ApprovalResult with outcome
+        """
+        if not self.is_enabled():
+            logger.warning(
+                f"[ChainedApprovalService] Request {request.request_id} cannot be sent: "
+                f"no notification channels configured"
+            )
+            return ApprovalResult(
+                success=False,
+                approved=None,
+                error_reason="no_channels_configured",
+                evidence={
+                    "service": "chained",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "request_id": request.request_id,
+                    "error": "No notification channels are enabled",
+                },
+            )
+
+        chain_result = self._chain.send(request)
+
+        if chain_result.success:
+            logger.info(
+                f"[ChainedApprovalService] Request {request.request_id} sent via "
+                f"{chain_result.successful_channel}"
+            )
+            return ApprovalResult(
+                success=True,
+                approved=None,  # Pending human response
+                error_reason=None,
+                evidence={
+                    "service": "chained",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "request_id": request.request_id,
+                    "successful_channel": chain_result.successful_channel,
+                    "failed_channels": chain_result.failed_channels,
+                    "chain_evidence": chain_result.evidence,
+                },
+            )
+        else:
+            logger.error(
+                f"[ChainedApprovalService] All channels failed for {request.request_id}: "
+                f"{chain_result.error_details}"
+            )
+            return ApprovalResult(
+                success=False,
+                approved=None,
+                error_reason="all_channels_failed",
+                evidence={
+                    "service": "chained",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "request_id": request.request_id,
+                    "failed_channels": chain_result.failed_channels,
+                    "error_details": chain_result.error_details,
+                },
+            )
+
+    def is_enabled(self) -> bool:
+        """Check if any notification channel is enabled."""
+        return len(self._chain.get_enabled_channels()) > 0
+
+    def get_enabled_channels(self) -> List[str]:
+        """Get list of enabled notification channel names."""
+        return self._chain.get_enabled_channels()
+
+
 def _is_ci_environment() -> bool:
     """Check if running in CI environment."""
     ci_indicators = [
@@ -182,13 +268,19 @@ def _is_ci_environment() -> bool:
     return any(os.environ.get(var) for var in ci_indicators)
 
 
-def get_approval_service() -> ApprovalService:
+def get_approval_service(use_chain: bool = True) -> ApprovalService:
     """Get the configured approval service.
 
+    IMP-REL-001: Now supports multi-channel fallback via ChainedApprovalService.
+
     Logic:
-    1. Never return TelegramApprovalService in CI
-    2. Require explicit AUTOPACK_TELEGRAM_ENABLED=true
-    3. Require AUTOPACK_TELEGRAM_BOT_TOKEN and AUTOPACK_TELEGRAM_CHAT_ID
+    1. Never active in CI
+    2. If use_chain=True (default), use ChainedApprovalService with fallback
+    3. Falls back to single-channel TelegramApprovalService if use_chain=False
+    4. Returns NoopApprovalService if no channels configured
+
+    Args:
+        use_chain: Use ChainedApprovalService with fallback (default: True)
 
     Returns:
         ApprovalService instance
@@ -198,7 +290,23 @@ def get_approval_service() -> ApprovalService:
         logger.debug("[ApprovalService] CI environment detected, using NoopApprovalService")
         return NoopApprovalService()
 
-    # Check if Telegram is explicitly enabled
+    # IMP-REL-001: Use notification chain by default for fallback support
+    if use_chain:
+        chained_service = ChainedApprovalService()
+        if chained_service.is_enabled():
+            enabled_channels = chained_service.get_enabled_channels()
+            logger.info(
+                f"[ApprovalService] Using ChainedApprovalService with channels: "
+                f"{enabled_channels}"
+            )
+            return chained_service
+        else:
+            logger.debug(
+                "[ApprovalService] No notification channels enabled, "
+                "falling back to legacy check"
+            )
+
+    # Legacy: Check if Telegram is explicitly enabled (backward compatibility)
     telegram_enabled = os.environ.get("AUTOPACK_TELEGRAM_ENABLED", "").lower() == "true"
     if not telegram_enabled:
         logger.debug("[ApprovalService] Telegram not enabled, using NoopApprovalService")
@@ -218,5 +326,5 @@ def get_approval_service() -> ApprovalService:
     # Import here to avoid circular dependency and optional dependency
     from .telegram import TelegramApprovalService
 
-    logger.info("[ApprovalService] Using TelegramApprovalService")
+    logger.info("[ApprovalService] Using TelegramApprovalService (legacy single-channel)")
     return TelegramApprovalService(bot_token=bot_token, chat_id=chat_id)

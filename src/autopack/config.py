@@ -657,6 +657,87 @@ class Settings(BaseSettings):
         description="Maximum number of phases to execute in parallel (default: 2, max: 4)",
     )
 
+    # IMP-REL-001: Multi-channel notification fallback configuration
+    # Email notification settings (secondary fallback after Telegram)
+    notification_email_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "AUTOPACK_NOTIFICATION_EMAIL_ENABLED", "NOTIFICATION_EMAIL_ENABLED"
+        ),
+        description="Enable email as fallback notification channel",
+    )
+
+    notification_email_host: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "AUTOPACK_NOTIFICATION_EMAIL_HOST", "NOTIFICATION_EMAIL_HOST"
+        ),
+        description="SMTP server hostname for email notifications",
+    )
+
+    notification_email_port: int = Field(
+        default=587,
+        validation_alias=AliasChoices(
+            "AUTOPACK_NOTIFICATION_EMAIL_PORT", "NOTIFICATION_EMAIL_PORT"
+        ),
+        description="SMTP server port (default: 587 for TLS)",
+    )
+
+    notification_email_user: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "AUTOPACK_NOTIFICATION_EMAIL_USER", "NOTIFICATION_EMAIL_USER"
+        ),
+        description="SMTP username for authentication",
+    )
+
+    notification_email_from: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "AUTOPACK_NOTIFICATION_EMAIL_FROM", "NOTIFICATION_EMAIL_FROM"
+        ),
+        description="Sender email address for notifications",
+    )
+
+    notification_email_to: str = Field(
+        default="",
+        validation_alias=AliasChoices("AUTOPACK_NOTIFICATION_EMAIL_TO", "NOTIFICATION_EMAIL_TO"),
+        description="Recipient email address for approval notifications",
+    )
+
+    # SMS notification settings (tertiary fallback after Email)
+    notification_sms_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "AUTOPACK_NOTIFICATION_SMS_ENABLED", "NOTIFICATION_SMS_ENABLED"
+        ),
+        description="Enable SMS as fallback notification channel",
+    )
+
+    notification_sms_provider: str = Field(
+        default="twilio",
+        validation_alias=AliasChoices(
+            "AUTOPACK_NOTIFICATION_SMS_PROVIDER", "NOTIFICATION_SMS_PROVIDER"
+        ),
+        description="SMS provider: 'twilio' or 'sns' (AWS)",
+    )
+
+    notification_sms_from_number: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "AUTOPACK_NOTIFICATION_SMS_FROM_NUMBER", "NOTIFICATION_SMS_FROM_NUMBER"
+        ),
+        description="Sender phone number for SMS (E.164 format)",
+    )
+
+    notification_sms_to_number: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "AUTOPACK_NOTIFICATION_SMS_TO_NUMBER", "NOTIFICATION_SMS_TO_NUMBER"
+        ),
+        description="Recipient phone number for SMS (E.164 format)",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def parse_allowed_hosts(cls, values):

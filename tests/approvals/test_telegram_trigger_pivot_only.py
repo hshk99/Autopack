@@ -164,7 +164,7 @@ def test_telegram_never_active_in_ci():
 
 def test_telegram_disabled_by_default():
     """Telegram service is disabled by default."""
-    from autopack.approvals.service import get_approval_service, NoopApprovalService
+    from autopack.approvals.service import NoopApprovalService, get_approval_service
 
     # No environment variables set
     with patch.dict("os.environ", {}, clear=True):
@@ -195,8 +195,8 @@ def test_telegram_enabled_only_with_explicit_config():
 
 def test_telegram_misconfigured_fails_safely():
     """Misconfigured Telegram records evidence and halts if approval required."""
-    from autopack.approvals.telegram import TelegramApprovalService
     from autopack.approvals.service import ApprovalRequest, ApprovalTriggerReason
+    from autopack.approvals.telegram import TelegramApprovalService
 
     # Missing required config
     service = TelegramApprovalService(bot_token=None, chat_id=None)

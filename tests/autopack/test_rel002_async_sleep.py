@@ -9,9 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from autopack.error_recovery import (ErrorCategory, ErrorRecoverySystem,
-                                     async_safe_execute, get_error_recovery,
-                                     safe_execute)
+from autopack.error_recovery import ErrorRecoverySystem, async_safe_execute
 
 
 class TestAsyncExecuteWithRetry:

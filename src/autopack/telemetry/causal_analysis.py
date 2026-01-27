@@ -20,12 +20,12 @@ Methods:
 """
 
 import logging
+import math
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Any
 from statistics import mean, stdev
-import math
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -682,6 +682,199 @@ class CausalAnalyzer:
             )
 
         return recommendations
+
+    # =========================================================================
+    # IMP-FBK-005: Task Prioritization Integration
+    # =========================================================================
+
+    def get_pattern_causal_history(
+        self,
+        pattern_type: str,
+        affected_components: Optional[List[str]] = None,
+        lookback_days: int = 30,
+    ) -> Dict[str, Any]:
+        """Get causal history for a pattern type to inform task prioritization.
+
+        IMP-FBK-005: Query historical causal relationships to determine if
+        a pattern type has historically caused negative outcomes. Used by
+        TaskGenerator to adjust priorities for tasks that may cause failures.
+
+        Args:
+            pattern_type: Type of pattern (e.g., "cost_sink", "failure_mode", "retry_cause")
+            affected_components: Optional list of components to filter by
+            lookback_days: Number of days to look back for historical data
+
+        Returns:
+            Dict containing:
+                - risk_score: 0.0-1.0 (higher = more likely to cause failures)
+                - negative_outcomes: Count of negative causal relationships
+                - positive_outcomes: Count of positive causal relationships
+                - confidence: Confidence in the risk assessment
+                - recommendation: "proceed", "caution", or "defer"
+                - reason: Human-readable explanation
+        """
+        # Query historical causal relationships from stored analyses
+        # This is a simplified implementation - in production would query database
+        risk_data = {
+            "pattern_type": pattern_type,
+            "risk_score": 0.0,
+            "negative_outcomes": 0,
+            "positive_outcomes": 0,
+            "confidence": 0.5,
+            "recommendation": "proceed",
+            "reason": "No historical causal data available for this pattern",
+        }
+
+        try:
+            # Query database for historical causal analysis reports
+            from ..database import SessionLocal
+            from ..models import CausalAnalysisRecord
+
+            session = SessionLocal()
+            try:
+                from datetime import timezone
+
+                cutoff_date = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+
+                # Query historical records matching pattern type
+                records = (
+                    session.query(CausalAnalysisRecord)
+                    .filter(
+                        CausalAnalysisRecord.pattern_type == pattern_type,
+                        CausalAnalysisRecord.timestamp >= cutoff_date,
+                    )
+                    .all()
+                )
+
+                if not records:
+                    logger.debug(
+                        f"[IMP-FBK-005] No historical causal data for pattern: {pattern_type}"
+                    )
+                    return risk_data
+
+                # Aggregate historical outcomes
+                negative_count = 0
+                positive_count = 0
+                total_confidence = 0.0
+
+                for record in records:
+                    if record.effect_direction == "negative":
+                        negative_count += 1
+                    elif record.effect_direction == "positive":
+                        positive_count += 1
+                    total_confidence += record.confidence or 0.5
+
+                total_outcomes = negative_count + positive_count
+                if total_outcomes > 0:
+                    # Calculate risk score: ratio of negative outcomes
+                    risk_score = negative_count / total_outcomes
+                    avg_confidence = total_confidence / len(records)
+
+                    # Determine recommendation based on risk
+                    if risk_score >= 0.7:
+                        recommendation = "defer"
+                        reason = (
+                            f"High historical failure rate: {negative_count}/{total_outcomes} "
+                            f"({risk_score*100:.0f}%) negative outcomes"
+                        )
+                    elif risk_score >= 0.4:
+                        recommendation = "caution"
+                        reason = (
+                            f"Mixed historical outcomes: {negative_count} negative, "
+                            f"{positive_count} positive"
+                        )
+                    else:
+                        recommendation = "proceed"
+                        reason = (
+                            f"Good historical track record: {positive_count}/{total_outcomes} "
+                            f"({(1-risk_score)*100:.0f}%) positive outcomes"
+                        )
+
+                    risk_data.update(
+                        {
+                            "risk_score": risk_score,
+                            "negative_outcomes": negative_count,
+                            "positive_outcomes": positive_count,
+                            "confidence": avg_confidence,
+                            "recommendation": recommendation,
+                            "reason": reason,
+                        }
+                    )
+
+                    logger.debug(
+                        f"[IMP-FBK-005] Causal history for {pattern_type}: "
+                        f"risk={risk_score:.2f}, recommendation={recommendation}"
+                    )
+
+            finally:
+                session.close()
+
+        except ImportError:
+            # Database not available - return default risk assessment
+            logger.debug("[IMP-FBK-005] Database not available for causal history query")
+        except Exception as e:
+            logger.warning(f"[IMP-FBK-005] Failed to query causal history: {e}")
+
+        return risk_data
+
+    def adjust_priority_for_causal_risk(
+        self,
+        pattern: Dict[str, Any],
+        causal_history: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Adjust pattern priority based on causal risk assessment.
+
+        IMP-FBK-005: Modifies pattern severity and confidence based on
+        historical causal analysis. Tasks that have historically caused
+        failures get lower priority; safe tasks get higher priority.
+
+        Args:
+            pattern: Pattern dict with 'type', 'severity', 'confidence' keys
+            causal_history: Output from get_pattern_causal_history()
+
+        Returns:
+            Modified pattern dict with adjusted severity and confidence
+        """
+        adjusted = pattern.copy()
+        risk_score = causal_history.get("risk_score", 0.0)
+        recommendation = causal_history.get("recommendation", "proceed")
+
+        # Adjust severity based on risk
+        original_severity = adjusted.get("severity", 5)
+
+        if recommendation == "defer":
+            # High risk: significantly reduce severity to lower priority
+            adjusted["severity"] = max(1, original_severity - 4)
+            adjusted["causal_risk"] = "high"
+            logger.debug(
+                f"[IMP-FBK-005] Reduced severity from {original_severity} to "
+                f"{adjusted['severity']} due to high causal risk"
+            )
+        elif recommendation == "caution":
+            # Medium risk: moderately reduce severity
+            adjusted["severity"] = max(1, original_severity - 2)
+            adjusted["causal_risk"] = "medium"
+        else:
+            # Low risk: slight boost to safe patterns
+            if risk_score < 0.2 and causal_history.get("positive_outcomes", 0) > 0:
+                adjusted["severity"] = min(10, original_severity + 1)
+                adjusted["causal_risk"] = "low"
+
+        # Adjust confidence based on causal confidence
+        causal_confidence = causal_history.get("confidence", 0.5)
+        original_confidence = adjusted.get("confidence", 0.5)
+
+        # Blend pattern confidence with causal confidence
+        adjusted["confidence"] = (original_confidence * 0.7) + (causal_confidence * 0.3)
+
+        # Add causal metadata for tracking
+        adjusted["causal_history"] = {
+            "risk_score": risk_score,
+            "recommendation": recommendation,
+            "reason": causal_history.get("reason", ""),
+        }
+
+        return adjusted
 
     def validate_ab_test_result(
         self,

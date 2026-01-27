@@ -7,10 +7,10 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from ..memory.memory_service import (DEFAULT_MEMORY_FRESHNESS_HOURS,
-                                     MemoryService)
+from ..memory.memory_service import DEFAULT_MEMORY_FRESHNESS_HOURS, MemoryService
 from ..roadi import RegressionProtector
 from ..telemetry.analyzer import RankedIssue, TelemetryAnalyzer
+from ..telemetry.causal_analysis import CausalAnalyzer
 from .discovery_context_merger import DiscoveryContextMerger
 
 logger = logging.getLogger(__name__)
@@ -127,10 +127,13 @@ class AutonomousTaskGenerator:
         self,
         memory_service: Optional[MemoryService] = None,
         regression_protector: Optional[RegressionProtector] = None,
+        causal_analyzer: Optional[CausalAnalyzer] = None,
         db_session: Optional[Session] = None,
     ):
         self._memory = memory_service or MemoryService()
         self._regression = regression_protector or RegressionProtector()
+        # IMP-FBK-005: CausalAnalyzer for risk-based task prioritization
+        self._causal_analyzer = causal_analyzer or CausalAnalyzer()
         # IMP-ARCH-017: Reconnect TelemetryAnalyzer when db_session is available.
         # This enables automatic aggregation of telemetry data (cost sinks, failure
         # modes, retry patterns) to feed directly into task generation.
@@ -139,6 +142,7 @@ class AutonomousTaskGenerator:
         if db_session is not None:
             self._telemetry_analyzer = TelemetryAnalyzer(db_session, memory_service=self._memory)
             logger.debug("[IMP-ARCH-017] TelemetryAnalyzer initialized for task generation")
+        logger.debug("[IMP-FBK-005] CausalAnalyzer initialized for task prioritization")
 
     def _convert_telemetry_to_insights(
         self, telemetry_data: Dict[str, List[RankedIssue]]
@@ -317,6 +321,13 @@ class AutonomousTaskGenerator:
                     f"[IMP-FBK-003] Filtered {original_pattern_count - len(patterns)} "
                     f"regression-causing patterns (kept {len(patterns)})"
                 )
+
+            # IMP-FBK-005: Apply causal analysis adjustments to pattern priorities
+            # This adjusts severity/confidence based on historical causal relationships
+            patterns = self._apply_causal_adjustments(patterns)
+
+            # Re-sort patterns after causal adjustments (severity may have changed)
+            patterns.sort(key=lambda p: (p["severity"], p["occurrences"]), reverse=True)
 
             # Generate tasks from patterns
             for pattern in patterns[:max_tasks]:
@@ -522,6 +533,65 @@ class AutonomousTaskGenerator:
         else:
             # Weak or no match
             return {"confidence": 0.0, "severity": 0}
+
+    def _apply_causal_adjustments(self, patterns: List[dict]) -> List[dict]:
+        """Apply causal analysis adjustments to pattern priorities (IMP-FBK-005).
+
+        Queries CausalAnalyzer for historical causal relationships and adjusts
+        pattern severity/confidence based on risk assessment. Tasks that have
+        historically caused downstream failures get lower priority; safe tasks
+        get higher priority.
+
+        Args:
+            patterns: List of pattern dicts from _detect_patterns()
+
+        Returns:
+            List of patterns with adjusted severity/confidence based on causal risk
+        """
+        if not patterns:
+            return patterns
+
+        adjusted_patterns = []
+        adjustments_made = 0
+
+        for pattern in patterns:
+            pattern_type = pattern.get("type", "unknown")
+
+            try:
+                # Query causal history for this pattern type
+                causal_history = self._causal_analyzer.get_pattern_causal_history(
+                    pattern_type=pattern_type,
+                    lookback_days=30,
+                )
+
+                # Apply adjustments based on causal risk
+                adjusted = self._causal_analyzer.adjust_priority_for_causal_risk(
+                    pattern=pattern,
+                    causal_history=causal_history,
+                )
+
+                # Track if adjustment was made
+                if adjusted.get("severity") != pattern.get("severity"):
+                    adjustments_made += 1
+                    logger.debug(
+                        f"[IMP-FBK-005] Adjusted {pattern_type} severity: "
+                        f"{pattern.get('severity')} -> {adjusted.get('severity')} "
+                        f"(risk: {causal_history.get('recommendation')})"
+                    )
+
+                adjusted_patterns.append(adjusted)
+
+            except Exception as e:
+                # If causal analysis fails, keep original pattern
+                logger.warning(f"[IMP-FBK-005] Causal adjustment failed for {pattern_type}: {e}")
+                adjusted_patterns.append(pattern)
+
+        if adjustments_made > 0:
+            logger.info(
+                f"[IMP-FBK-005] Applied causal adjustments to {adjustments_made}/{len(patterns)} patterns"
+            )
+
+        return adjusted_patterns
 
     def _pattern_to_task(self, pattern: dict) -> GeneratedTask:
         """Convert a pattern into an improvement task."""

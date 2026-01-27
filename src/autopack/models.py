@@ -3,22 +3,17 @@
 from datetime import datetime, timezone
 from enum import Enum
 
+from sqlalchemy import DECIMAL, JSON, BigInteger, Boolean, Column, DateTime
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import (
-    BigInteger,
-    Boolean,
-    Column,
-    DECIMAL,
-    DateTime,
-    Enum as SQLEnum,
+    Float,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
-    JSON,
     String,
     Text,
     UniqueConstraint,
-    Float,
 )
 from sqlalchemy.orm import relationship, synonym
 
@@ -1201,3 +1196,64 @@ class AnomalyAlertEvent(Base):
         default=lambda: datetime.now(timezone.utc),
         index=True,
     )
+
+
+class CausalAnalysisRecord(Base):
+    """Causal analysis record for tracking change-outcome relationships (IMP-FBK-005).
+
+    Persists causal analysis results from CausalAnalyzer to enable:
+    1. Historical risk assessment for task prioritization
+    2. Learning from past change impacts
+    3. Avoiding tasks that historically caused failures
+
+    Part of the ROAD-H causal analysis integration with task generation.
+    """
+
+    __tablename__ = "causal_analysis_records"
+    __table_args__ = (
+        Index("ix_causal_analysis_pattern_type", "pattern_type"),
+        Index("ix_causal_analysis_effect_direction", "effect_direction"),
+        Index("ix_causal_analysis_timestamp", "timestamp"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    analysis_id = Column(String(128), unique=True, nullable=False, index=True)
+
+    # Change information
+    change_id = Column(String(128), nullable=True, index=True)
+    change_type = Column(String(50), nullable=True)  # code, config, policy, model
+    pattern_type = Column(String(50), nullable=False)  # cost_sink, failure_mode, retry_cause
+
+    # Causal analysis results
+    effect_direction = Column(String(20), nullable=False)  # positive, negative, neutral
+    causal_strength = Column(String(20), nullable=True)  # strong, moderate, weak, none, confounded
+    confidence = Column(Float, nullable=True)  # 0.0-1.0
+    effect_size = Column(Float, nullable=True)
+
+    # Statistical details
+    p_value = Column(Float, nullable=True)
+    sample_size = Column(Integer, nullable=True)
+    baseline_mean = Column(Float, nullable=True)
+    post_change_mean = Column(Float, nullable=True)
+    percent_change = Column(Float, nullable=True)
+
+    # Metadata
+    affected_components = Column(JSON, nullable=True)  # List of affected component names
+    confounding_factors = Column(JSON, nullable=True)  # List of confounding factor descriptions
+    explanation = Column(Text, nullable=True)
+
+    # Run context
+    run_id = Column(String(50), nullable=True, index=True)
+
+    timestamp = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<CausalAnalysisRecord(analysis_id={self.analysis_id}, "
+            f"pattern_type={self.pattern_type}, effect={self.effect_direction})>"
+        )

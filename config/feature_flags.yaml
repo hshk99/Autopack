@@ -504,6 +504,132 @@ flags:
     aliases: ["TELEGRAM_CHAT_ID"]
 
   # ============================================================================
+  # Multi-Channel Notification Fallback (IMP-REL-001)
+  # ============================================================================
+  AUTOPACK_NOTIFICATION_EMAIL_ENABLED:
+    description: "Enable email channel for approval notifications (IMP-REL-001)"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["config.py", "approvals/notification_chain.py"]
+    aliases: ["NOTIFICATION_EMAIL_ENABLED"]
+    notes: "IMP-REL-001: Part of multi-channel notification fallback (Telegram -> Email -> SMS)"
+
+  AUTOPACK_NOTIFICATION_EMAIL_HOST:
+    description: "SMTP server hostname for email notifications (IMP-REL-001)"
+    category: service_config
+    default: ""
+    values: "Hostname string (e.g., smtp.example.com)"
+    affects: ["config.py", "approvals/notification_chain.py"]
+    aliases: ["NOTIFICATION_EMAIL_HOST"]
+    requires: ["AUTOPACK_NOTIFICATION_EMAIL_ENABLED=true"]
+
+  AUTOPACK_NOTIFICATION_EMAIL_PORT:
+    description: "SMTP server port for email notifications (IMP-REL-001)"
+    category: service_config
+    default: "587"
+    values: "Integer (port number, typically 587 for TLS or 465 for SSL)"
+    affects: ["config.py", "approvals/notification_chain.py"]
+    aliases: ["NOTIFICATION_EMAIL_PORT"]
+    requires: ["AUTOPACK_NOTIFICATION_EMAIL_ENABLED=true"]
+
+  AUTOPACK_NOTIFICATION_EMAIL_USER:
+    description: "SMTP username for authentication (IMP-REL-001)"
+    category: service_config
+    default: ""
+    values: "Username string"
+    affects: ["config.py", "approvals/notification_chain.py"]
+    aliases: ["NOTIFICATION_EMAIL_USER"]
+    requires: ["AUTOPACK_NOTIFICATION_EMAIL_ENABLED=true"]
+
+  AUTOPACK_NOTIFICATION_EMAIL_PASSWORD:
+    description: "SMTP password for authentication (IMP-REL-001)"
+    category: security
+    default: null
+    values: "Password string"
+    affects: ["approvals/notification_chain.py"]
+    security_implications:
+      set: "Used for SMTP authentication"
+      unset: "Email notifications will fail if authentication is required"
+    notes: "Sensitive credential - consider using environment variable injection"
+
+  AUTOPACK_NOTIFICATION_EMAIL_FROM:
+    description: "Sender email address for notifications (IMP-REL-001)"
+    category: service_config
+    default: ""
+    values: "Email address string"
+    affects: ["config.py", "approvals/notification_chain.py"]
+    aliases: ["NOTIFICATION_EMAIL_FROM"]
+    requires: ["AUTOPACK_NOTIFICATION_EMAIL_ENABLED=true"]
+
+  AUTOPACK_NOTIFICATION_EMAIL_TO:
+    description: "Recipient email address for notifications (IMP-REL-001)"
+    category: service_config
+    default: ""
+    values: "Email address string"
+    affects: ["config.py", "approvals/notification_chain.py"]
+    aliases: ["NOTIFICATION_EMAIL_TO"]
+    requires: ["AUTOPACK_NOTIFICATION_EMAIL_ENABLED=true"]
+
+  AUTOPACK_NOTIFICATION_SMS_ENABLED:
+    description: "Enable SMS channel for approval notifications (IMP-REL-001)"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["config.py", "approvals/notification_chain.py"]
+    aliases: ["NOTIFICATION_SMS_ENABLED"]
+    notes: "IMP-REL-001: Part of multi-channel notification fallback (Telegram -> Email -> SMS)"
+
+  AUTOPACK_NOTIFICATION_SMS_PROVIDER:
+    description: "SMS provider to use (IMP-REL-001)"
+    category: service_config
+    default: "twilio"
+    values: ["twilio", "sns"]
+    affects: ["config.py", "approvals/notification_chain.py"]
+    aliases: ["NOTIFICATION_SMS_PROVIDER"]
+    requires: ["AUTOPACK_NOTIFICATION_SMS_ENABLED=true"]
+
+  AUTOPACK_NOTIFICATION_SMS_ACCOUNT_SID:
+    description: "Twilio Account SID for SMS notifications (IMP-REL-001)"
+    category: security
+    default: null
+    values: "Account SID string"
+    affects: ["approvals/notification_chain.py"]
+    requires: ["AUTOPACK_NOTIFICATION_SMS_ENABLED=true", "AUTOPACK_NOTIFICATION_SMS_PROVIDER=twilio"]
+    security_implications:
+      set: "Used for Twilio API authentication"
+    notes: "Required when using Twilio provider"
+
+  AUTOPACK_NOTIFICATION_SMS_AUTH_TOKEN:
+    description: "Twilio Auth Token for SMS notifications (IMP-REL-001)"
+    category: security
+    default: null
+    values: "Auth token string"
+    affects: ["approvals/notification_chain.py"]
+    requires: ["AUTOPACK_NOTIFICATION_SMS_ENABLED=true", "AUTOPACK_NOTIFICATION_SMS_PROVIDER=twilio"]
+    security_implications:
+      set: "Used for Twilio API authentication"
+    notes: "Sensitive credential - consider using environment variable injection"
+
+  AUTOPACK_NOTIFICATION_SMS_FROM_NUMBER:
+    description: "Sender phone number for SMS notifications (IMP-REL-001)"
+    category: service_config
+    default: ""
+    values: "Phone number in E.164 format (e.g., +1234567890)"
+    affects: ["config.py", "approvals/notification_chain.py"]
+    aliases: ["NOTIFICATION_SMS_FROM_NUMBER"]
+    requires: ["AUTOPACK_NOTIFICATION_SMS_ENABLED=true"]
+
+  AUTOPACK_NOTIFICATION_SMS_TO_NUMBER:
+    description: "Recipient phone number for SMS notifications (IMP-REL-001)"
+    category: service_config
+    default: ""
+    values: "Phone number in E.164 format (e.g., +1234567890)"
+    affects: ["config.py", "approvals/notification_chain.py"]
+    aliases: ["NOTIFICATION_SMS_TO_NUMBER"]
+    requires: ["AUTOPACK_NOTIFICATION_SMS_ENABLED=true"]
+
+  # ============================================================================
   # Dual Audit Configuration (IMP-COST-001)
   # ============================================================================
   AUTOPACK_DUAL_AUDIT_ENABLED:
@@ -938,3 +1064,64 @@ external_env_vars:
     category: security
     documented_in: "docs/PROJECT_INDEX.json"
     notes: "Runtime GLM is disabled; only used by tidy/model-intelligence tooling"
+
+  # Multi-Channel Notification Aliases (IMP-REL-001)
+  NOTIFICATION_EMAIL_ENABLED:
+    description: "Alias for AUTOPACK_NOTIFICATION_EMAIL_ENABLED (IMP-REL-001)"
+    category: feature_toggle
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_NOTIFICATION_EMAIL_ENABLED"
+
+  NOTIFICATION_EMAIL_HOST:
+    description: "Alias for AUTOPACK_NOTIFICATION_EMAIL_HOST (IMP-REL-001)"
+    category: service_config
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_NOTIFICATION_EMAIL_HOST"
+
+  NOTIFICATION_EMAIL_PORT:
+    description: "Alias for AUTOPACK_NOTIFICATION_EMAIL_PORT (IMP-REL-001)"
+    category: service_config
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_NOTIFICATION_EMAIL_PORT"
+
+  NOTIFICATION_EMAIL_USER:
+    description: "Alias for AUTOPACK_NOTIFICATION_EMAIL_USER (IMP-REL-001)"
+    category: service_config
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_NOTIFICATION_EMAIL_USER"
+
+  NOTIFICATION_EMAIL_FROM:
+    description: "Alias for AUTOPACK_NOTIFICATION_EMAIL_FROM (IMP-REL-001)"
+    category: service_config
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_NOTIFICATION_EMAIL_FROM"
+
+  NOTIFICATION_EMAIL_TO:
+    description: "Alias for AUTOPACK_NOTIFICATION_EMAIL_TO (IMP-REL-001)"
+    category: service_config
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_NOTIFICATION_EMAIL_TO"
+
+  NOTIFICATION_SMS_ENABLED:
+    description: "Alias for AUTOPACK_NOTIFICATION_SMS_ENABLED (IMP-REL-001)"
+    category: feature_toggle
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_NOTIFICATION_SMS_ENABLED"
+
+  NOTIFICATION_SMS_PROVIDER:
+    description: "Alias for AUTOPACK_NOTIFICATION_SMS_PROVIDER (IMP-REL-001)"
+    category: service_config
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_NOTIFICATION_SMS_PROVIDER"
+
+  NOTIFICATION_SMS_FROM_NUMBER:
+    description: "Alias for AUTOPACK_NOTIFICATION_SMS_FROM_NUMBER (IMP-REL-001)"
+    category: service_config
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_NOTIFICATION_SMS_FROM_NUMBER"
+
+  NOTIFICATION_SMS_TO_NUMBER:
+    description: "Alias for AUTOPACK_NOTIFICATION_SMS_TO_NUMBER (IMP-REL-001)"
+    category: service_config
+    affects: ["config.py"]
+    alias_of: "AUTOPACK_NOTIFICATION_SMS_TO_NUMBER"

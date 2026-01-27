@@ -6,8 +6,7 @@ Ensures resilience against single point of failure in approval notifications.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 

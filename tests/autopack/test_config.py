@@ -197,9 +197,6 @@ class TestSettingsDefaults:
         """Verify SOT retrieval can be disabled via environment variable."""
         monkeypatch.setenv("AUTOPACK_SOT_RETRIEVAL_ENABLED", "false")
 
-        # Need to reimport to pick up new env var
-        from pydantic_settings import BaseSettings
-
         from autopack.config import Settings
 
         # Create fresh settings instance

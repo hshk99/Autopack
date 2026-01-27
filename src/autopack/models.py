@@ -5,8 +5,16 @@ from enum import Enum
 
 from sqlalchemy import DECIMAL, JSON, BigInteger, Boolean, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import (Float, ForeignKey, ForeignKeyConstraint, Index,
-                        Integer, String, Text, UniqueConstraint)
+from sqlalchemy import (
+    Float,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship, synonym
 
 from .database import Base
@@ -1326,9 +1334,7 @@ class InsightPathEvent(Base):
     )
 
     # Path selection
-    source = Column(
-        String(20), nullable=False, index=True
-    )  # "direct", "analyzer", "memory"
+    source = Column(String(20), nullable=False, index=True)  # "direct", "analyzer", "memory"
 
     # Metrics
     insights_count = Column(Integer, nullable=False, default=0)

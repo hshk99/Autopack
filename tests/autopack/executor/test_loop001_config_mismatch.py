@@ -123,6 +123,6 @@ class TestConfigPropertyDefaults:
         from autopack.config import Settings
 
         fresh_settings = Settings()
-        assert (
-            fresh_settings.task_generation_max_tasks_per_run == 10
-        ), "task_generation_max_tasks_per_run should default to 10"
+        assert fresh_settings.task_generation_max_tasks_per_run == 10, (
+            "task_generation_max_tasks_per_run should default to 10"
+        )

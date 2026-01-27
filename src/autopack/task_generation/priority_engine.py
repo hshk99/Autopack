@@ -541,7 +541,7 @@ class PriorityEngine:
         total_tokens = sum(task.get("estimated_tokens", 1000.0) for task in frontier)
 
         logger.info(
-            "Computed execution plan: %d tasks, %.0f total tokens, " "budget_constrained=%s",
+            "Computed execution plan: %d tasks, %.0f total tokens, budget_constrained=%s",
             len(frontier),
             total_tokens,
             budget_constrained,

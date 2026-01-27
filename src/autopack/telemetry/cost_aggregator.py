@@ -212,8 +212,7 @@ class CostAggregator:
                     highest_volume.total_tokens / sum(a.total_tokens for a in phase_costs)
                 ) * 100
                 insights.append(
-                    f"Highest volume: {highest_volume.category_value} "
-                    f"({volume_pct:.1f}% of tokens)"
+                    f"Highest volume: {highest_volume.category_value} ({volume_pct:.1f}% of tokens)"
                 )
 
         # Analyze intent costs

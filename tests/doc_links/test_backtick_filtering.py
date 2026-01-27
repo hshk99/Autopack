@@ -118,9 +118,9 @@ Invalid paths (should be ignored even with include_backticks=True):
     assert "scripts/check_doc_links.py" in refs
     assert "config.yaml.example" in refs
     assert "README.md" in refs  # BUILD-166: improved heuristics
-    assert (
-        "Makefile" in refs
-    ), f"Expected Makefile in refs, got: {sorted(refs.keys())}"  # BUILD-166: improved heuristics
+    assert "Makefile" in refs, (
+        f"Expected Makefile in refs, got: {sorted(refs.keys())}"
+    )  # BUILD-166: improved heuristics
     assert "pyproject.toml" in refs  # BUILD-166: improved heuristics
 
     # Should not extract simple identifiers

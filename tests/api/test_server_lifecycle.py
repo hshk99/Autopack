@@ -136,6 +136,6 @@ class TestAPIServerLifecycleFileHandleCleanup:
             lifecycle.start_server("127.0.0.1", 8000)
 
         # Verify cleanup happened
-        assert (
-            lifecycle.log_file_handle is None
-        ), "log_file_handle should be None after start_server completes"
+        assert lifecycle.log_file_handle is None, (
+            "log_file_handle should be None after start_server completes"
+        )

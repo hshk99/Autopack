@@ -4,14 +4,18 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from autopack.telemetry.meta_metrics import (ComponentStatus,
-                                             FeedbackLoopHealth,
-                                             FeedbackLoopLatency,
-                                             MetaMetricsTracker, MetricTrend,
-                                             PipelineLatencyTracker,
-                                             PipelineSLAConfig, PipelineStage,
-                                             PipelineStageTimestamp,
-                                             SLABreachAlert)
+from autopack.telemetry.meta_metrics import (
+    ComponentStatus,
+    FeedbackLoopHealth,
+    FeedbackLoopLatency,
+    MetaMetricsTracker,
+    MetricTrend,
+    PipelineLatencyTracker,
+    PipelineSLAConfig,
+    PipelineStage,
+    PipelineStageTimestamp,
+    SLABreachAlert,
+)
 
 
 @pytest.fixture

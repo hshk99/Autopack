@@ -165,7 +165,7 @@ class TestProductionAuthDocumentation:
             content = f.read()
 
         # The gap analysis should mention this security issue
-        assert (
-            "AUTOPACK_API_KEY" in content
-        ), "Gap analysis should document AUTOPACK_API_KEY requirement"
+        assert "AUTOPACK_API_KEY" in content, (
+            "Gap analysis should document AUTOPACK_API_KEY requirement"
+        )
         assert "production" in content.lower(), "Gap analysis should mention production mode"

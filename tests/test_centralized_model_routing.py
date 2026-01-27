@@ -247,9 +247,9 @@ class TestNoHardcodedModelsInErrorRecovery:
 
         # Check that the model assignments reference _doctor_config
         # and don't have literal string assignments
-        assert (
-            "_doctor_config.cheap_model" in source
-        ), "DOCTOR_CHEAP_MODEL should reference _doctor_config.cheap_model"
-        assert (
-            "_doctor_config.strong_model" in source
-        ), "DOCTOR_STRONG_MODEL should reference _doctor_config.strong_model"
+        assert "_doctor_config.cheap_model" in source, (
+            "DOCTOR_CHEAP_MODEL should reference _doctor_config.cheap_model"
+        )
+        assert "_doctor_config.strong_model" in source, (
+            "DOCTOR_STRONG_MODEL should reference _doctor_config.strong_model"
+        )

@@ -11,10 +11,16 @@ from unittest.mock import Mock, patch
 import pytest
 
 from autopack.memory.memory_service import (  # IMP-LOOP-019: New imports
-    DEFAULT_MEMORY_FRESHNESS_HOURS, FRESH_AGE_HOURS, LOW_CONFIDENCE_THRESHOLD,
-    MEDIUM_CONFIDENCE_THRESHOLD, STALE_AGE_HOURS, ContextMetadata,
-    MemoryService, _calculate_age_hours, _calculate_confidence,
-    _enrich_with_metadata, _is_fresh, _parse_timestamp)
+    DEFAULT_MEMORY_FRESHNESS_HOURS,
+    LOW_CONFIDENCE_THRESHOLD,
+    ContextMetadata,
+    MemoryService,
+    _calculate_age_hours,
+    _calculate_confidence,
+    _enrich_with_metadata,
+    _is_fresh,
+    _parse_timestamp,
+)
 
 
 class TestTimestampParsing:

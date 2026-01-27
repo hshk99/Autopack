@@ -296,14 +296,12 @@ def get_approval_service(use_chain: bool = True) -> ApprovalService:
         if chained_service.is_enabled():
             enabled_channels = chained_service.get_enabled_channels()
             logger.info(
-                f"[ApprovalService] Using ChainedApprovalService with channels: "
-                f"{enabled_channels}"
+                f"[ApprovalService] Using ChainedApprovalService with channels: {enabled_channels}"
             )
             return chained_service
         else:
             logger.debug(
-                "[ApprovalService] No notification channels enabled, "
-                "falling back to legacy check"
+                "[ApprovalService] No notification channels enabled, falling back to legacy check"
             )
 
     # Legacy: Check if Telegram is explicitly enabled (backward compatibility)

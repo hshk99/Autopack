@@ -309,9 +309,9 @@ new file mode 100644
         is_valid, errors, details = validate_deliverables(
             patch, scope, "test-phase", workspace=tmp_path
         )
-        assert (
-            is_valid is True
-        ), f"Expected validation to pass using workspace state; errors={errors}"
+        assert is_valid is True, (
+            f"Expected validation to pass using workspace state; errors={errors}"
+        )
         assert details["missing_paths"] == []
 
     def test_examples_directory_allowed(self):

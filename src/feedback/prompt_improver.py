@@ -119,8 +119,7 @@ class PromptImprover:
                 PromptEnhancement(
                     category="warning",
                     content=(
-                        f"Previous attempt failed: "
-                        f"{failure.get('error_summary', 'Unknown error')}"
+                        f"Previous attempt failed: {failure.get('error_summary', 'Unknown error')}"
                     ),
                     priority="high",
                     source=f"phase_history:{phase_id}",
@@ -166,8 +165,7 @@ class PromptImprover:
                     PromptEnhancement(
                         category="pattern",
                         content=(
-                            f"Similar phases typically complete in "
-                            f"{int(avg_duration / 60)} minutes"
+                            f"Similar phases typically complete in {int(avg_duration / 60)} minutes"
                         ),
                         priority="low",
                         source="success_metrics",

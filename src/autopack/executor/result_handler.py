@@ -337,9 +337,7 @@ class ResultHandler:
 
         try:
             self.learning_pipeline.record_hint(phase, hint_type, details)
-            logger.info(
-                f"[{phase.get('phase_id', 'unknown')}] " f"Recorded learning hint: {hint_type}"
-            )
+            logger.info(f"[{phase.get('phase_id', 'unknown')}] Recorded learning hint: {hint_type}")
         except Exception as e:
             logger.warning(f"Failed to record learning hint: {e}")
 

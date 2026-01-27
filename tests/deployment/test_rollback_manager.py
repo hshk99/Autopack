@@ -48,7 +48,9 @@ class TestRollbackManager:
 
         # Trigger rollback
         result = manager.trigger_rollback(
-            "promo-123", "Test rollback", restore_config=False  # Skip config restore for test
+            "promo-123",
+            "Test rollback",
+            restore_config=False,  # Skip config restore for test
         )
 
         assert result is True
@@ -87,7 +89,7 @@ class TestRollbackManager:
                 ab_test_result_id=1,
                 improvement_task_id=f"task-{i}",
                 config_changes={"key": {"old": "val1", "new": "val2"}},
-                promoted_version=f"v{i+1}",
+                promoted_version=f"v{i + 1}",
                 previous_version=f"v{i}",
                 status="rolled_back",
                 rollback_triggered=True,

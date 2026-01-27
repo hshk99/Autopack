@@ -45,23 +45,23 @@ class TestPhaseDispatchMethodNaming:
     def test_all_method_names_start_with_underscore_execute(self) -> None:
         """Verify all method names follow _execute_* naming convention."""
         for phase_id, method_name in SPECIAL_PHASE_METHODS.items():
-            assert method_name.startswith(
-                "_execute_"
-            ), f"Method for '{phase_id}' should start with '_execute_': {method_name}"
+            assert method_name.startswith("_execute_"), (
+                f"Method for '{phase_id}' should start with '_execute_': {method_name}"
+            )
 
     def test_all_method_names_end_with_batched(self) -> None:
         """Verify all method names end with _batched suffix."""
         for phase_id, method_name in SPECIAL_PHASE_METHODS.items():
-            assert method_name.endswith(
-                "_batched"
-            ), f"Method for '{phase_id}' should end with '_batched': {method_name}"
+            assert method_name.endswith("_batched"), (
+                f"Method for '{phase_id}' should end with '_batched': {method_name}"
+            )
 
     def test_method_names_are_valid_python_identifiers(self) -> None:
         """Verify all method names are valid Python identifiers."""
         for phase_id, method_name in SPECIAL_PHASE_METHODS.items():
-            assert (
-                method_name.isidentifier()
-            ), f"Method name for '{phase_id}' is not a valid identifier: {method_name}"
+            assert method_name.isidentifier(), (
+                f"Method name for '{phase_id}' is not a valid identifier: {method_name}"
+            )
 
 
 class TestResolveSpecialPhaseMethod:
@@ -81,9 +81,9 @@ class TestResolveSpecialPhaseMethod:
         """Verify known phase_ids return correct method names."""
         for phase_id, expected_method in SPECIAL_PHASE_METHODS.items():
             result = resolve_special_phase_method(phase_id)
-            assert (
-                result == expected_method
-            ), f"Expected '{expected_method}' for '{phase_id}', got '{result}'"
+            assert result == expected_method, (
+                f"Expected '{expected_method}' for '{phase_id}', got '{result}'"
+            )
 
     @pytest.mark.parametrize(
         "phase_id,expected_method",
@@ -136,9 +136,9 @@ class TestFakeExecutorMethodExistence:
         # Verify getattr works for each method name
         for phase_id, method_name in SPECIAL_PHASE_METHODS.items():
             method = getattr(fake, method_name, None)
-            assert (
-                method is not None
-            ), f"getattr failed for method '{method_name}' (phase '{phase_id}')"
-            assert callable(
-                method
-            ), f"Method '{method_name}' for phase '{phase_id}' should be callable"
+            assert method is not None, (
+                f"getattr failed for method '{method_name}' (phase '{phase_id}')"
+            )
+            assert callable(method), (
+                f"Method '{method_name}' for phase '{phase_id}' should be callable"
+            )

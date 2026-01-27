@@ -116,9 +116,9 @@ class TestGovernanceEndpointRequiresAuth:
 
         # Verify it has a default (the Depends() call)
         param = params["current_user"]
-        assert (
-            param.default is not inspect.Parameter.empty
-        ), "current_user must have a Depends() default"
+        assert param.default is not inspect.Parameter.empty, (
+            "current_user must have a Depends() default"
+        )
 
     def test_endpoint_does_not_accept_user_id_parameter(self):
         """IMP-SEC-005: Verify endpoint no longer accepts user_id as parameter."""
@@ -130,5 +130,5 @@ class TestGovernanceEndpointRequiresAuth:
 
         # Verify user_id is NOT in parameters (security fix)
         assert "user_id" not in params, (
-            "Endpoint must NOT accept user_id parameter - " "this would allow authorization bypass"
+            "Endpoint must NOT accept user_id parameter - this would allow authorization bypass"
         )

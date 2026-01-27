@@ -13,6 +13,10 @@ from autopack.config import settings
 
 logger = logging.getLogger(__name__)
 
+# IMP-REL-004: Max iteration limits for file reading loops
+# 100000 chunks * 64KB = ~6.4GB max file size before safety limit
+MAX_FILE_CHUNKS = 100000
+
 router = APIRouter(prefix="/files", tags=["files"])
 
 
@@ -67,12 +71,25 @@ async def upload_file(request: Request):
         total_size = 0
 
         with open(file_path, "wb") as f:
-            while True:
+            # IMP-REL-004: Add iteration counter to prevent unbounded loops
+            chunk_count = 0
+            while chunk_count < MAX_FILE_CHUNKS:
+                chunk_count += 1
                 chunk = await file.read(CHUNK_SIZE)
                 if not chunk:
                     break
                 f.write(chunk)
                 total_size += len(chunk)
+            else:
+                # Max chunks reached - log warning and raise error
+                logger.warning(
+                    f"File upload exceeded max chunks ({MAX_FILE_CHUNKS}), "
+                    "possible infinite loop or extremely large file"
+                )
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File too large or corrupted (exceeded {MAX_FILE_CHUNKS} chunks)",
+                )
 
         # Return relative path only (security: never expose absolute filesystem paths)
         relative_path = f"_uploads/{unique_filename}"

@@ -51,3 +51,18 @@ f8ad99729c03793ebd74798f6c759ab2e175e38d:tests/subagent/test_guardrails.py:gener
 # These are intentional example strings showing JWT format, not actual secrets
 ea4a3710e16dd6bcfbe73b7082725b7fa727f9db:.env.example:private-key:308
 ea4a3710e16dd6bcfbe73b7082725b7fa727f9db:.env.example:public-key:315
+
+# IMP-SEC-002: Fake credentials in credential masking test file
+# These are intentional test strings to verify masking functionality
+ae23320ead2c05ec69d7bc121fc7ac5a2e5eba83:tests/autopack/utils/test_sec002_credential_masking.py:generic-api-key:49
+ae23320ead2c05ec69d7bc121fc7ac5a2e5eba83:tests/autopack/utils/test_sec002_credential_masking.py:generic-api-key:69
+ae23320ead2c05ec69d7bc121fc7ac5a2e5eba83:tests/autopack/utils/test_sec002_credential_masking.py:generic-api-key:92
+ae23320ead2c05ec69d7bc121fc7ac5a2e5eba83:tests/autopack/utils/test_sec002_credential_masking.py:generic-api-key:93
+ae23320ead2c05ec69d7bc121fc7ac5a2e5eba83:tests/autopack/utils/test_sec002_credential_masking.py:generic-api-key:94
+ae23320ead2c05ec69d7bc121fc7ac5a2e5eba83:tests/autopack/utils/test_sec002_credential_masking.py:generic-api-key:106
+ae23320ead2c05ec69d7bc121fc7ac5a2e5eba83:tests/autopack/utils/test_sec002_credential_masking.py:generic-api-key:107
+ae23320ead2c05ec69d7bc121fc7ac5a2e5eba83:tests/autopack/utils/test_sec002_credential_masking.py:generic-api-key:128
+ae23320ead2c05ec69d7bc121fc7ac5a2e5eba83:tests/autopack/utils/test_sec002_credential_masking.py:generic-api-key:135
+ae23320ead2c05ec69d7bc121fc7ac5a2e5eba83:tests/autopack/utils/test_sec002_credential_masking.py:generic-api-key:141
+ae23320ead2c05ec69d7bc121fc7ac5a2e5eba83:tests/autopack/utils/test_sec002_credential_masking.py:generic-api-key:170
+ae23320ead2c05ec69d7bc121fc7ac5a2e5eba83:tests/autopack/utils/test_sec002_credential_masking.py:github-pat:206

@@ -12,6 +12,11 @@ from autopack.autonomy.parallelism_gate import (
     ParallelismPolicyGate,
     ParallelismPolicyViolation,
     check_parallelism_policy,
+    extract_phase_scope_paths,
+    check_scope_overlap,
+    check_phases_can_run_parallel,
+    find_parallel_execution_groups,
+    ScopeBasedParallelismChecker,
 )
 
 
@@ -240,3 +245,299 @@ def test_four_layer_isolation_model_recommended():
 
     # Verify isolation model
     assert anchor.pivot_intentions.parallelism_isolation.isolation_model == "four_layer"
+
+
+# =============================================================================
+# IMP-AUTO-002: Scope-based parallel phase execution tests
+# =============================================================================
+
+
+class TestScopeExtraction:
+    """Tests for scope path extraction from phases."""
+
+    def test_extract_paths_from_scope(self):
+        """Test extracting paths from phase scope configuration."""
+        phase = {
+            "phase_id": "test-phase",
+            "scope": {
+                "paths": ["src/foo.py", "src/bar.py"],
+                "read_only_context": ["tests/test_foo.py"],
+            },
+        }
+        paths = extract_phase_scope_paths(phase)
+        assert paths == {"src/foo.py", "src/bar.py", "tests/test_foo.py"}
+
+    def test_extract_paths_with_dict_read_only_context(self):
+        """Test extracting paths when read_only_context uses dict format."""
+        phase = {
+            "phase_id": "test-phase",
+            "scope": {
+                "paths": ["src/main.py"],
+                "read_only_context": [
+                    {"path": "config/settings.py", "reason": "Configuration"},
+                    {"path": "utils/helpers.py", "reason": "Utility functions"},
+                ],
+            },
+        }
+        paths = extract_phase_scope_paths(phase)
+        assert paths == {"src/main.py", "config/settings.py", "utils/helpers.py"}
+
+    def test_extract_paths_empty_scope(self):
+        """Test extracting paths from phase with no scope."""
+        phase = {"phase_id": "test-phase"}
+        paths = extract_phase_scope_paths(phase)
+        assert paths == set()
+
+    def test_extract_paths_normalizes_backslashes(self):
+        """Test that backslashes are normalized to forward slashes."""
+        phase = {
+            "phase_id": "test-phase",
+            "scope": {
+                "paths": ["src\\windows\\path.py"],
+            },
+        }
+        paths = extract_phase_scope_paths(phase)
+        assert "src/windows/path.py" in paths
+
+
+class TestScopeOverlap:
+    """Tests for scope overlap detection."""
+
+    def test_no_overlap_disjoint_paths(self):
+        """Test no overlap when paths are completely disjoint."""
+        paths_a = {"src/module_a/file.py", "src/module_a/utils.py"}
+        paths_b = {"src/module_b/file.py", "src/module_b/utils.py"}
+
+        has_overlap, overlapping = check_scope_overlap(paths_a, paths_b)
+
+        assert has_overlap is False
+        assert overlapping == set()
+
+    def test_overlap_identical_paths(self):
+        """Test overlap detection with identical paths."""
+        paths_a = {"src/shared/common.py", "src/module_a/file.py"}
+        paths_b = {"src/shared/common.py", "src/module_b/file.py"}
+
+        has_overlap, overlapping = check_scope_overlap(paths_a, paths_b)
+
+        assert has_overlap is True
+        assert "src/shared/common.py" in overlapping
+
+    def test_overlap_directory_containment(self):
+        """Test overlap when one path contains another (directory)."""
+        paths_a = {"src/module_a"}  # Directory
+        paths_b = {"src/module_a/subdir/file.py"}  # File inside directory
+
+        has_overlap, overlapping = check_scope_overlap(paths_a, paths_b)
+
+        assert has_overlap is True
+        assert "src/module_a" in overlapping
+
+    def test_no_overlap_similar_prefixes(self):
+        """Test no overlap with similar but distinct path prefixes."""
+        paths_a = {"src/module_a/file.py"}
+        paths_b = {"src/module_ab/file.py"}  # Different directory
+
+        has_overlap, overlapping = check_scope_overlap(paths_a, paths_b)
+
+        assert has_overlap is False
+
+    def test_overlap_nested_directories(self):
+        """Test overlap with nested directory structure."""
+        paths_a = {"src/api/v1"}
+        paths_b = {"src/api/v1/endpoints/users.py"}
+
+        has_overlap, overlapping = check_scope_overlap(paths_a, paths_b)
+
+        assert has_overlap is True
+
+
+class TestPhasesCanRunParallel:
+    """Tests for phase parallel execution eligibility."""
+
+    def test_phases_can_run_parallel_no_overlap(self):
+        """Test phases with non-overlapping scopes can run in parallel."""
+        phase_a = {
+            "phase_id": "phase-a",
+            "scope": {"paths": ["src/module_a/"]},
+        }
+        phase_b = {
+            "phase_id": "phase-b",
+            "scope": {"paths": ["src/module_b/"]},
+        }
+
+        can_parallel, reason = check_phases_can_run_parallel(phase_a, phase_b)
+
+        assert can_parallel is True
+        assert reason is None
+
+    def test_phases_cannot_run_parallel_with_overlap(self):
+        """Test phases with overlapping scopes cannot run in parallel."""
+        phase_a = {
+            "phase_id": "phase-a",
+            "scope": {"paths": ["src/shared/utils.py", "src/module_a/"]},
+        }
+        phase_b = {
+            "phase_id": "phase-b",
+            "scope": {"paths": ["src/shared/utils.py", "src/module_b/"]},
+        }
+
+        can_parallel, reason = check_phases_can_run_parallel(phase_a, phase_b)
+
+        assert can_parallel is False
+        assert "Scope overlap detected" in reason
+
+    def test_phases_cannot_run_parallel_no_scope(self):
+        """Test phases without scope defined cannot run in parallel."""
+        phase_a = {"phase_id": "phase-a"}  # No scope
+        phase_b = {
+            "phase_id": "phase-b",
+            "scope": {"paths": ["src/module_b/"]},
+        }
+
+        can_parallel, reason = check_phases_can_run_parallel(phase_a, phase_b)
+
+        assert can_parallel is False
+        assert "no scope defined" in reason
+
+
+class TestFindParallelExecutionGroups:
+    """Tests for grouping phases for parallel execution."""
+
+    def test_group_independent_phases(self):
+        """Test grouping completely independent phases."""
+        phases = [
+            {"phase_id": "p1", "scope": {"paths": ["src/a/"]}},
+            {"phase_id": "p2", "scope": {"paths": ["src/b/"]}},
+            {"phase_id": "p3", "scope": {"paths": ["src/c/"]}},
+        ]
+
+        groups = find_parallel_execution_groups(phases, max_group_size=3)
+
+        # All phases should be in one group since they don't overlap
+        assert len(groups) == 1
+        assert len(groups[0]) == 3
+
+    def test_group_overlapping_phases(self):
+        """Test grouping phases with some overlaps."""
+        phases = [
+            {"phase_id": "p1", "scope": {"paths": ["src/shared.py", "src/a/"]}},
+            {"phase_id": "p2", "scope": {"paths": ["src/shared.py", "src/b/"]}},  # Overlaps with p1
+            {"phase_id": "p3", "scope": {"paths": ["src/c/"]}},  # Independent
+        ]
+
+        groups = find_parallel_execution_groups(phases, max_group_size=3)
+
+        # p1 and p2 overlap, so they should be in different groups
+        # p3 doesn't overlap with p1, so it could be grouped with p1
+        assert len(groups) >= 2
+
+    def test_group_respects_max_size(self):
+        """Test that groups respect max_group_size limit."""
+        phases = [{"phase_id": f"p{i}", "scope": {"paths": [f"src/module_{i}/"]}} for i in range(5)]
+
+        groups = find_parallel_execution_groups(phases, max_group_size=2)
+
+        # Each group should have at most 2 phases
+        for group in groups:
+            assert len(group) <= 2
+
+    def test_empty_phases_returns_empty_groups(self):
+        """Test that empty phases list returns empty groups."""
+        groups = find_parallel_execution_groups([], max_group_size=2)
+        assert groups == []
+
+
+class TestScopeBasedParallelismChecker:
+    """Tests for ScopeBasedParallelismChecker class."""
+
+    def test_checker_without_policy_gate(self):
+        """Test checker works without policy gate."""
+        checker = ScopeBasedParallelismChecker(policy_gate=None)
+
+        phases = [
+            {"phase_id": "p1", "scope": {"paths": ["src/a/"]}},
+            {"phase_id": "p2", "scope": {"paths": ["src/b/"]}},
+        ]
+
+        can_parallel, reason = checker.can_execute_parallel(phases)
+        assert can_parallel is True
+
+    def test_checker_with_policy_gate_allowed(self):
+        """Test checker with policy gate that allows parallelism."""
+        anchor = create_test_anchor(
+            parallelism_allowed=True, max_concurrent_runs=3, isolation_model="four_layer"
+        )
+        policy_gate = ParallelismPolicyGate(anchor)
+        checker = ScopeBasedParallelismChecker(policy_gate=policy_gate)
+
+        phases = [
+            {"phase_id": "p1", "scope": {"paths": ["src/a/"]}},
+            {"phase_id": "p2", "scope": {"paths": ["src/b/"]}},
+        ]
+
+        can_parallel, reason = checker.can_execute_parallel(phases)
+        assert can_parallel is True
+
+    def test_checker_with_policy_gate_denied(self):
+        """Test checker with policy gate that denies parallelism."""
+        anchor = create_test_anchor(parallelism_allowed=False)
+        policy_gate = ParallelismPolicyGate(anchor)
+        checker = ScopeBasedParallelismChecker(policy_gate=policy_gate)
+
+        phases = [
+            {"phase_id": "p1", "scope": {"paths": ["src/a/"]}},
+            {"phase_id": "p2", "scope": {"paths": ["src/b/"]}},
+        ]
+
+        can_parallel, reason = checker.can_execute_parallel(phases)
+        assert can_parallel is False
+        assert "not allowed by intention anchor policy" in reason
+
+    def test_checker_single_phase_not_parallel(self):
+        """Test that single phase doesn't qualify for parallel execution."""
+        checker = ScopeBasedParallelismChecker(policy_gate=None)
+
+        phases = [{"phase_id": "p1", "scope": {"paths": ["src/a/"]}}]
+
+        can_parallel, reason = checker.can_execute_parallel(phases)
+        assert can_parallel is False
+        assert "at least 2 phases" in reason
+
+    def test_get_parallel_groups_with_parallelism_allowed(self):
+        """Test get_parallel_groups returns proper groups when allowed."""
+        anchor = create_test_anchor(
+            parallelism_allowed=True, max_concurrent_runs=2, isolation_model="four_layer"
+        )
+        policy_gate = ParallelismPolicyGate(anchor)
+        checker = ScopeBasedParallelismChecker(policy_gate=policy_gate)
+
+        queued_phases = [
+            {"phase_id": "p1", "scope": {"paths": ["src/a/"]}},
+            {"phase_id": "p2", "scope": {"paths": ["src/b/"]}},
+            {"phase_id": "p3", "scope": {"paths": ["src/c/"]}},
+        ]
+
+        groups = checker.get_parallel_groups(queued_phases)
+
+        # With max_concurrent=2, groups should have at most 2 phases
+        for group in groups:
+            assert len(group) <= 2
+
+    def test_get_parallel_groups_with_parallelism_denied(self):
+        """Test get_parallel_groups returns single-phase groups when denied."""
+        anchor = create_test_anchor(parallelism_allowed=False)
+        policy_gate = ParallelismPolicyGate(anchor)
+        checker = ScopeBasedParallelismChecker(policy_gate=policy_gate)
+
+        queued_phases = [
+            {"phase_id": "p1", "scope": {"paths": ["src/a/"]}},
+            {"phase_id": "p2", "scope": {"paths": ["src/b/"]}},
+        ]
+
+        groups = checker.get_parallel_groups(queued_phases)
+
+        # Each phase should be in its own group
+        assert len(groups) == 2
+        for group in groups:
+            assert len(group) == 1

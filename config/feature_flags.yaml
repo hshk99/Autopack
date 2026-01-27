@@ -205,6 +205,28 @@ flags:
     requires: ["AUTOPACK_CIRCUIT_BREAKER_ENABLED=true"]
     notes: "IMP-LOOP-006: Number of successful calls needed in half-open state to close the circuit"
 
+  # ============================================================================
+  # Parallel Phase Execution (IMP-AUTO-002)
+  # ============================================================================
+  AUTOPACK_PARALLEL_PHASE_ENABLED:
+    description: "Enable parallel phase execution when file scopes don't overlap (IMP-AUTO-002)"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["config.py", "executor/autonomous_loop.py", "autonomy/parallelism_gate.py"]
+    aliases: ["PARALLEL_PHASE_EXECUTION_ENABLED"]
+    notes: "IMP-AUTO-002: When enabled, phases with non-overlapping file scopes can execute concurrently using ThreadPoolExecutor. Requires scope-based isolation verification."
+
+  AUTOPACK_MAX_PARALLEL_PHASES:
+    description: "Maximum number of phases to execute in parallel (IMP-AUTO-002)"
+    category: tuning
+    default: "2"
+    values: "Integer between 1-4 (recommended: 2)"
+    affects: ["config.py", "executor/autonomous_loop.py"]
+    aliases: ["MAX_PARALLEL_PHASES"]
+    requires: ["AUTOPACK_PARALLEL_PHASE_ENABLED=true"]
+    notes: "IMP-AUTO-002: Controls maximum concurrency for parallel phase execution. Higher values increase throughput but may increase resource contention."
+
   AUTOPACK_ENABLE_CONSOLIDATED_METRICS:
     description: "Enable consolidated metrics endpoint"
     category: feature_toggle

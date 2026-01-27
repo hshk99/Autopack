@@ -12,25 +12,22 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
-from autopack.config import settings
 from autopack.archive_consolidator import log_build_event
-from autopack.database import ensure_session_healthy, SESSION_HEALTH_CHECK_INTERVAL
+from autopack.autonomous.budgeting import (BudgetExhaustedError,
+                                           get_budget_remaining_pct,
+                                           is_budget_exhausted)
+from autopack.autonomy.parallelism_gate import (ParallelismPolicyGate,
+                                                ScopeBasedParallelismChecker)
+from autopack.config import settings
+from autopack.database import (SESSION_HEALTH_CHECK_INTERVAL,
+                               ensure_session_healthy)
+from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
+from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
-from autopack.learned_rules import promote_hints_to_rules
-from autopack.telemetry.analyzer import TelemetryAnalyzer, CostRecommendation
-from autopack.autonomous.budgeting import (
-    BudgetExhaustedError,
-    is_budget_exhausted,
-    get_budget_remaining_pct,
-)
-from autopack.autonomy.parallelism_gate import (
-    ScopeBasedParallelismChecker,
-    ParallelismPolicyGate,
-)
-from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
+from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
@@ -1390,7 +1387,7 @@ class AutonomousLoop:
             generator = AutonomousTaskGenerator(db_session=db_session)
 
             # Fetch pending tasks (limit to avoid overwhelming the run)
-            max_tasks_per_run = getattr(settings, "generated_task_max_per_run", 3)
+            max_tasks_per_run = settings.task_generation_max_tasks_per_run
             pending_tasks = generator.get_pending_tasks(status="pending", limit=max_tasks_per_run)
 
             if not pending_tasks:
@@ -1475,7 +1472,8 @@ class AutonomousLoop:
 
     def _initialize_intention_loop(self):
         """Initialize intention-first loop for the run."""
-        from autopack.autonomous.executor_wiring import initialize_intention_first_loop
+        from autopack.autonomous.executor_wiring import \
+            initialize_intention_first_loop
         from autopack.intention_anchor.storage import IntentionAnchorStorage
 
         # IMP-ARCH-012: Load pending improvement tasks from self-improvement loop
@@ -1494,12 +1492,10 @@ class AutonomousLoop:
                     f"[IntentionFirst] No intention anchor found for run {self.executor.run_id}, using defaults"
                 )
                 # Create minimal default anchor if none exists
-                from autopack.intention_anchor.models import (
-                    IntentionAnchor,
-                    IntentionConstraints,
-                    IntentionBudgets,
-                )
                 from datetime import datetime, timezone
+
+                from autopack.intention_anchor.models import (
+                    IntentionAnchor, IntentionBudgets, IntentionConstraints)
 
                 intention_anchor = IntentionAnchor(
                     anchor_id=f"default-{self.executor.run_id}",
@@ -2398,8 +2394,8 @@ class AutonomousLoop:
             List of GeneratedTask objects
         """
         try:
-            from autopack.roadc import AutonomousTaskGenerator
             from autopack.config import settings as config_settings
+            from autopack.roadc import AutonomousTaskGenerator
         except ImportError:
             logger.debug("[IMP-ARCH-004] ROAD-C module not available")
             return []

@@ -16,6 +16,25 @@ from autopack.roadc.task_generator import AutonomousTaskGenerator, GeneratedTask
 class TestTaskStatusFeedbackLoop:
     """Test suite for IMP-LOOP-005: Task Status Feedback Loop."""
 
+    @pytest.fixture(autouse=True)
+    def mock_memory_service(self):
+        """Prevent real MemoryService creation causing Qdrant timeouts.
+
+        IMP-TEST-001: AutonomousTaskGenerator creates MemoryService() if not provided,
+        which triggers Qdrant connection attempts and 24-second timeouts in CI.
+        """
+        from unittest.mock import MagicMock, patch
+
+        mock = MagicMock()
+        mock.enabled = True
+
+        # Create a mock class that returns our mock instance when instantiated
+        mock_class = MagicMock(return_value=mock)
+
+        # Use patch context manager which is more reliable
+        with patch("autopack.roadc.task_generator.MemoryService", mock_class):
+            yield
+
     @pytest.fixture
     def mock_session(self):
         """Create a mock database session."""
@@ -222,6 +241,22 @@ class TestGeneratedTaskDataclass:
 
 class TestAutonomousLoopIntegration:
     """Test integration with autonomous_loop._mark_improvement_tasks_failed."""
+
+    @pytest.fixture(autouse=True)
+    def mock_memory_service(self):
+        """Prevent real MemoryService creation causing Qdrant timeouts.
+
+        IMP-TEST-001: _mark_improvement_tasks_failed creates AutonomousTaskGenerator
+        which creates MemoryService(), triggering Qdrant connection timeouts in CI.
+        """
+        from unittest.mock import MagicMock, patch
+
+        mock = MagicMock()
+        mock.enabled = True
+        mock_class = MagicMock(return_value=mock)
+
+        with patch("autopack.roadc.task_generator.MemoryService", mock_class):
+            yield
 
     @pytest.fixture
     def mock_executor(self):

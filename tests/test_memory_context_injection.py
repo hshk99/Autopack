@@ -72,15 +72,38 @@ def mock_memory_service():
 class TestContextInjector:
     """Test ContextInjector class."""
 
+    @pytest.fixture(autouse=True)
+    def mock_default_memory_service(self, monkeypatch):
+        """Prevent real MemoryService creation when not explicitly provided.
+
+        IMP-TEST-001: Tests that create ContextInjector() without passing a
+        memory_service would otherwise trigger real Qdrant connection attempts,
+        causing 24-second timeouts per test in CI environments without Qdrant.
+        """
+        from unittest.mock import MagicMock
+
+        mock = MagicMock(spec=MemoryService)
+        mock.enabled = True
+        self._default_mock_memory = mock
+        monkeypatch.setattr(
+            "autopack.memory.context_injector.MemoryService",
+            lambda: mock,
+        )
+
     def test_context_injector_initialization_with_service(self, mock_memory_service):
         """Test ContextInjector initialization with provided service."""
         injector = ContextInjector(memory_service=mock_memory_service)
         assert injector._memory == mock_memory_service
 
     def test_context_injector_initialization_without_service(self):
-        """Test ContextInjector initialization creates default service."""
+        """Test ContextInjector initialization creates default service.
+
+        Note: The autouse fixture mocks MemoryService to prevent Qdrant timeouts.
+        This test verifies that the default factory is called when no service is provided.
+        """
         injector = ContextInjector()
-        assert isinstance(injector._memory, MemoryService)
+        # Verify the mocked default service was used
+        assert injector._memory == self._default_mock_memory
 
     def test_get_context_for_phase_returns_injection(self, mock_memory_service):
         """Test get_context_for_phase returns ContextInjection with retrieved data."""

@@ -1,14 +1,17 @@
 """Tests for ROAD-K meta-metrics system."""
 
+from datetime import datetime, timedelta
+
 import pytest
 
-from autopack.telemetry.meta_metrics import (
-    MetaMetricsTracker,
-    FeedbackLoopHealth,
-    FeedbackLoopLatency,
-    ComponentStatus,
-    MetricTrend,
-)
+from autopack.telemetry.meta_metrics import (ComponentStatus,
+                                             FeedbackLoopHealth,
+                                             FeedbackLoopLatency,
+                                             MetaMetricsTracker, MetricTrend,
+                                             PipelineLatencyTracker,
+                                             PipelineSLAConfig, PipelineStage,
+                                             PipelineStageTimestamp,
+                                             SLABreachAlert)
 
 
 @pytest.fixture
@@ -703,3 +706,432 @@ def test_feedback_loop_latency_custom_sla():
     assert latency.is_healthy() is True
     assert latency.get_sla_status() == "good"  # 67% of custom SLA
     assert latency.get_breach_amount_ms() == 0
+
+
+# Tests for Pipeline SLA Tracking (IMP-LOOP-017)
+
+
+class TestPipelineStage:
+    """Tests for PipelineStage enum."""
+
+    def test_pipeline_stage_values(self):
+        """Test PipelineStage enum has expected values."""
+        assert PipelineStage.PHASE_COMPLETE.value == "phase_complete"
+        assert PipelineStage.TELEMETRY_COLLECTED.value == "telemetry_collected"
+        assert PipelineStage.MEMORY_PERSISTED.value == "memory_persisted"
+        assert PipelineStage.TASK_GENERATED.value == "task_generated"
+        assert PipelineStage.TASK_EXECUTED.value == "task_executed"
+
+    def test_pipeline_stage_count(self):
+        """Test PipelineStage has exactly 5 stages."""
+        assert len(PipelineStage) == 5
+
+
+class TestPipelineStageTimestamp:
+    """Tests for PipelineStageTimestamp dataclass."""
+
+    def test_timestamp_creation(self):
+        """Test PipelineStageTimestamp instantiation."""
+        now = datetime.utcnow()
+        ts = PipelineStageTimestamp(
+            stage=PipelineStage.PHASE_COMPLETE,
+            timestamp=now,
+            metadata={"phase_name": "test_phase"},
+        )
+
+        assert ts.stage == PipelineStage.PHASE_COMPLETE
+        assert ts.timestamp == now
+        assert ts.metadata == {"phase_name": "test_phase"}
+
+    def test_timestamp_to_dict(self):
+        """Test PipelineStageTimestamp serialization."""
+        now = datetime.utcnow()
+        ts = PipelineStageTimestamp(
+            stage=PipelineStage.TELEMETRY_COLLECTED,
+            timestamp=now,
+        )
+
+        result = ts.to_dict()
+        assert result["stage"] == "telemetry_collected"
+        assert result["timestamp"] == now.isoformat()
+        assert result["metadata"] == {}
+
+
+class TestPipelineSLAConfig:
+    """Tests for PipelineSLAConfig dataclass."""
+
+    def test_default_config(self):
+        """Test PipelineSLAConfig default values."""
+        config = PipelineSLAConfig()
+
+        assert config.end_to_end_threshold_ms == 300000  # 5 minutes
+        assert config.alert_on_breach is True
+        # Check default stage thresholds are set
+        assert "phase_complete_to_telemetry_collected" in config.stage_thresholds_ms
+
+    def test_custom_config(self):
+        """Test PipelineSLAConfig with custom values."""
+        config = PipelineSLAConfig(
+            end_to_end_threshold_ms=600000,  # 10 minutes
+            stage_thresholds_ms={"custom_stage": 30000},
+            alert_on_breach=False,
+        )
+
+        assert config.end_to_end_threshold_ms == 600000
+        assert config.alert_on_breach is False
+        assert "custom_stage" in config.stage_thresholds_ms
+
+
+class TestPipelineLatencyTracker:
+    """Tests for PipelineLatencyTracker class."""
+
+    @pytest.fixture
+    def tracker(self):
+        """Create a pipeline latency tracker."""
+        return PipelineLatencyTracker(pipeline_id="test-pipeline-001")
+
+    def test_tracker_initialization(self, tracker):
+        """Test tracker initialization."""
+        assert tracker.pipeline_id == "test-pipeline-001"
+        assert tracker.sla_config is not None
+        assert tracker.sla_config.end_to_end_threshold_ms == 300000
+
+    def test_tracker_with_custom_sla(self):
+        """Test tracker with custom SLA config."""
+        config = PipelineSLAConfig(end_to_end_threshold_ms=600000)
+        tracker = PipelineLatencyTracker(sla_config=config)
+
+        assert tracker.sla_config.end_to_end_threshold_ms == 600000
+
+    def test_record_stage(self, tracker):
+        """Test recording a pipeline stage."""
+        now = datetime.utcnow()
+        result = tracker.record_stage(
+            PipelineStage.PHASE_COMPLETE,
+            timestamp=now,
+            metadata={"test": "value"},
+        )
+
+        assert result.stage == PipelineStage.PHASE_COMPLETE
+        assert result.timestamp == now
+        assert result.metadata == {"test": "value"}
+
+    def test_record_stage_default_timestamp(self, tracker):
+        """Test recording a stage without explicit timestamp."""
+        before = datetime.utcnow()
+        result = tracker.record_stage(PipelineStage.PHASE_COMPLETE)
+        after = datetime.utcnow()
+
+        assert before <= result.timestamp <= after
+
+    def test_get_stage_timestamp(self, tracker):
+        """Test retrieving a recorded stage timestamp."""
+        now = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=now)
+
+        result = tracker.get_stage_timestamp(PipelineStage.PHASE_COMPLETE)
+        assert result is not None
+        assert result.timestamp == now
+
+        # Non-recorded stage returns None
+        result = tracker.get_stage_timestamp(PipelineStage.TASK_EXECUTED)
+        assert result is None
+
+    def test_get_stage_latency_ms(self, tracker):
+        """Test calculating latency between stages."""
+        t1 = datetime.utcnow()
+        t2 = t1 + timedelta(seconds=30)  # 30 seconds later
+
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=t1)
+        tracker.record_stage(PipelineStage.TELEMETRY_COLLECTED, timestamp=t2)
+
+        latency = tracker.get_stage_latency_ms(
+            PipelineStage.PHASE_COMPLETE,
+            PipelineStage.TELEMETRY_COLLECTED,
+        )
+
+        assert latency == 30000  # 30 seconds in ms
+
+    def test_get_stage_latency_missing_stage(self, tracker):
+        """Test latency calculation with missing stage."""
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE)
+
+        latency = tracker.get_stage_latency_ms(
+            PipelineStage.PHASE_COMPLETE,
+            PipelineStage.TELEMETRY_COLLECTED,  # Not recorded
+        )
+
+        assert latency is None
+
+    def test_get_stage_latencies(self, tracker):
+        """Test getting all stage-to-stage latencies."""
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TELEMETRY_COLLECTED,
+            timestamp=base + timedelta(seconds=10),
+        )
+        tracker.record_stage(
+            PipelineStage.MEMORY_PERSISTED,
+            timestamp=base + timedelta(seconds=20),
+        )
+
+        latencies = tracker.get_stage_latencies()
+
+        assert latencies["phase_complete_to_telemetry_collected"] == 10000
+        assert latencies["telemetry_collected_to_memory_persisted"] == 10000
+        assert latencies["memory_persisted_to_task_generated"] is None
+
+    def test_get_end_to_end_latency(self, tracker):
+        """Test end-to-end latency calculation."""
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TASK_EXECUTED,
+            timestamp=base + timedelta(minutes=2),
+        )
+
+        latency = tracker.get_end_to_end_latency_ms()
+        assert latency == 120000  # 2 minutes in ms
+
+    def test_get_end_to_end_latency_incomplete(self, tracker):
+        """Test end-to-end latency when pipeline is incomplete."""
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE)
+
+        latency = tracker.get_end_to_end_latency_ms()
+        assert latency is None
+
+    def test_get_partial_latency(self, tracker):
+        """Test partial latency calculation."""
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.MEMORY_PERSISTED,
+            timestamp=base + timedelta(seconds=45),
+        )
+
+        latency = tracker.get_partial_latency_ms()
+        assert latency == 45000
+
+    def test_is_within_sla_true(self, tracker):
+        """Test is_within_sla returns True when under threshold."""
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TASK_EXECUTED,
+            timestamp=base + timedelta(minutes=2),  # Under 5 min SLA
+        )
+
+        assert tracker.is_within_sla() is True
+
+    def test_is_within_sla_false(self, tracker):
+        """Test is_within_sla returns False when over threshold."""
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TASK_EXECUTED,
+            timestamp=base + timedelta(minutes=10),  # Over 5 min SLA
+        )
+
+        assert tracker.is_within_sla() is False
+
+    def test_is_within_sla_incomplete(self, tracker):
+        """Test is_within_sla returns True when incomplete."""
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE)
+        assert tracker.is_within_sla() is True  # Can't determine, assume OK
+
+    def test_check_sla_breaches_none(self, tracker):
+        """Test no breaches when within SLA."""
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TASK_EXECUTED,
+            timestamp=base + timedelta(minutes=2),
+        )
+
+        breaches = tracker.check_sla_breaches()
+        # Filter to only end-to-end breaches
+        e2e_breaches = [b for b in breaches if b.stage_to == "task_executed"]
+        assert len(e2e_breaches) == 0
+
+    def test_check_sla_breaches_end_to_end(self, tracker):
+        """Test end-to-end SLA breach detection."""
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TASK_EXECUTED,
+            timestamp=base + timedelta(minutes=10),  # Double the SLA
+        )
+
+        breaches = tracker.check_sla_breaches()
+        e2e_breaches = [b for b in breaches if b.stage_to == "task_executed"]
+
+        assert len(e2e_breaches) == 1
+        assert e2e_breaches[0].level == "critical"  # >50% over threshold
+        assert e2e_breaches[0].threshold_ms == 300000
+        assert e2e_breaches[0].actual_ms == 600000
+        assert e2e_breaches[0].breach_amount_ms == 300000
+
+    def test_check_sla_breaches_stage_level(self, tracker):
+        """Test stage-level SLA breach detection."""
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TELEMETRY_COLLECTED,
+            timestamp=base + timedelta(minutes=3),  # Over 1 min stage threshold
+        )
+
+        breaches = tracker.check_sla_breaches()
+        stage_breaches = [b for b in breaches if b.stage_from == "phase_complete"]
+
+        assert len(stage_breaches) >= 1
+
+    def test_get_sla_status_excellent(self, tracker):
+        """Test SLA status 'excellent' when under 50%."""
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TASK_EXECUTED,
+            timestamp=base + timedelta(minutes=1),  # 1 min = 20% of 5 min
+        )
+
+        assert tracker.get_sla_status() == "excellent"
+
+    def test_get_sla_status_good(self, tracker):
+        """Test SLA status 'good' when 50-80%."""
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TASK_EXECUTED,
+            timestamp=base + timedelta(seconds=200),  # ~67% of 5 min
+        )
+
+        assert tracker.get_sla_status() == "good"
+
+    def test_get_sla_status_acceptable(self, tracker):
+        """Test SLA status 'acceptable' when 80-100%."""
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TASK_EXECUTED,
+            timestamp=base + timedelta(seconds=270),  # 90% of 5 min
+        )
+
+        assert tracker.get_sla_status() == "acceptable"
+
+    def test_get_sla_status_warning(self, tracker):
+        """Test SLA status 'warning' when 100-150%."""
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TASK_EXECUTED,
+            timestamp=base + timedelta(minutes=6),  # 120% of 5 min
+        )
+
+        assert tracker.get_sla_status() == "warning"
+
+    def test_get_sla_status_breached(self, tracker):
+        """Test SLA status 'breached' when over 150%."""
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TASK_EXECUTED,
+            timestamp=base + timedelta(minutes=10),  # 200% of 5 min
+        )
+
+        assert tracker.get_sla_status() == "breached"
+
+    def test_get_sla_status_unknown(self, tracker):
+        """Test SLA status 'unknown' when incomplete."""
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE)
+        assert tracker.get_sla_status() == "unknown"
+
+    def test_to_feedback_loop_latency(self, tracker):
+        """Test conversion to FeedbackLoopLatency."""
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TELEMETRY_COLLECTED,
+            timestamp=base + timedelta(seconds=30),
+        )
+        tracker.record_stage(
+            PipelineStage.TASK_GENERATED,
+            timestamp=base + timedelta(seconds=60),
+        )
+        tracker.record_stage(
+            PipelineStage.TASK_EXECUTED,
+            timestamp=base + timedelta(seconds=120),
+        )
+
+        latency = tracker.to_feedback_loop_latency()
+
+        assert isinstance(latency, FeedbackLoopLatency)
+        assert latency.telemetry_to_analysis_ms == 30000
+        assert latency.analysis_to_task_ms == 30000  # telemetry to task_generated
+        assert latency.total_latency_ms == 120000
+        assert latency.sla_threshold_ms == 300000
+
+    def test_to_dict(self, tracker):
+        """Test tracker serialization to dict."""
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TASK_EXECUTED,
+            timestamp=base + timedelta(minutes=2),
+        )
+
+        result = tracker.to_dict()
+
+        assert result["pipeline_id"] == "test-pipeline-001"
+        assert "stages" in result
+        assert "phase_complete" in result["stages"]
+        assert "task_executed" in result["stages"]
+        assert result["end_to_end_latency_ms"] == 120000
+        assert result["sla_status"] == "excellent"
+        assert "sla_config" in result
+        assert "breaches" in result
+
+
+class TestSLABreachAlert:
+    """Tests for SLABreachAlert dataclass."""
+
+    def test_breach_alert_creation(self):
+        """Test SLABreachAlert instantiation."""
+        alert = SLABreachAlert(
+            level="warning",
+            stage_from="phase_complete",
+            stage_to="telemetry_collected",
+            threshold_ms=60000,
+            actual_ms=90000,
+            breach_amount_ms=30000,
+            message="Test breach message",
+        )
+
+        assert alert.level == "warning"
+        assert alert.stage_from == "phase_complete"
+        assert alert.stage_to == "telemetry_collected"
+        assert alert.threshold_ms == 60000
+        assert alert.actual_ms == 90000
+        assert alert.breach_amount_ms == 30000
+        assert alert.message == "Test breach message"
+
+    def test_breach_alert_to_dict(self):
+        """Test SLABreachAlert serialization."""
+        alert = SLABreachAlert(
+            level="critical",
+            stage_from=None,
+            stage_to=None,
+            threshold_ms=300000,
+            actual_ms=600000,
+            breach_amount_ms=300000,
+            message="End-to-end SLA breached",
+        )
+
+        result = alert.to_dict()
+
+        assert result["level"] == "critical"
+        assert result["stage_from"] is None
+        assert result["threshold_ms"] == 300000
+        assert result["actual_ms"] == 600000
+        assert result["message"] == "End-to-end SLA breached"
+        assert "timestamp" in result

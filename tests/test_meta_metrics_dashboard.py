@@ -1,14 +1,14 @@
 """Tests for ROAD-K meta-metrics dashboard (IMP-ARCH-007)."""
 
-import pytest
 from datetime import datetime, timedelta
 
-from autopack.roadk.dashboard_data import (
-    LoopHealthMetrics,
-    TrendPoint,
-    DashboardDataProvider,
-)
+import pytest
+
+from autopack.roadk.dashboard_data import (DashboardDataProvider,
+                                           LoopHealthMetrics, TrendPoint)
 from autopack.roadk.meta_metrics_dashboard import MetaMetricsDashboard
+from autopack.telemetry.meta_metrics import (PipelineLatencyTracker,
+                                             PipelineSLAConfig, PipelineStage)
 
 
 @pytest.fixture
@@ -478,3 +478,220 @@ class TestMetaMetricsDashboard:
         # Should be within last minute
         delta = abs((now - generated_at.replace(tzinfo=None)).total_seconds())
         assert delta < 60
+
+
+class TestDashboardSLAMetrics:
+    """Tests for dashboard SLA tracking (IMP-LOOP-017)."""
+
+    def test_dashboard_default_sla_threshold(self):
+        """Test dashboard has default 5 minute SLA threshold."""
+        dashboard = MetaMetricsDashboard()
+        assert dashboard._sla_threshold_ms == 300000  # 5 minutes
+
+    def test_dashboard_custom_sla_threshold(self):
+        """Test dashboard with custom SLA threshold."""
+        dashboard = MetaMetricsDashboard(sla_threshold_ms=600000)  # 10 minutes
+        assert dashboard._sla_threshold_ms == 600000
+
+    def test_dashboard_sla_config(self):
+        """Test dashboard with custom SLA config."""
+        config = PipelineSLAConfig(
+            end_to_end_threshold_ms=600000,
+            stage_thresholds_ms={"custom": 30000},
+        )
+        dashboard = MetaMetricsDashboard(sla_config=config)
+
+        assert dashboard._sla_config.end_to_end_threshold_ms == 600000
+        assert "custom" in dashboard._sla_config.stage_thresholds_ms
+
+    def test_dashboard_data_includes_sla(self, healthy_provider):
+        """Test dashboard data includes SLA section."""
+        dashboard = MetaMetricsDashboard(data_provider=healthy_provider)
+        data = dashboard.get_dashboard_data(days=7)
+
+        assert "sla" in data
+        assert "threshold_ms" in data["sla"]
+        assert "threshold_minutes" in data["sla"]
+        assert "status" in data["sla"]
+        assert "is_within_sla" in data["sla"]
+
+    def test_dashboard_sla_defaults_without_tracker(self, healthy_provider):
+        """Test SLA defaults when no pipeline tracker is set."""
+        dashboard = MetaMetricsDashboard(data_provider=healthy_provider)
+        data = dashboard.get_dashboard_data(days=7)
+
+        sla = data["sla"]
+        assert sla["threshold_ms"] == 300000
+        assert sla["threshold_minutes"] == 5.0
+        assert sla["status"] == "unknown"
+        assert sla["current_latency_ms"] is None
+        assert sla["is_within_sla"] is True
+
+    def test_dashboard_sla_with_tracker(self, healthy_provider):
+        """Test SLA metrics with pipeline tracker."""
+        tracker = PipelineLatencyTracker()
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TASK_EXECUTED,
+            timestamp=base + timedelta(minutes=2),
+        )
+
+        dashboard = MetaMetricsDashboard(
+            data_provider=healthy_provider,
+            pipeline_tracker=tracker,
+        )
+        data = dashboard.get_dashboard_data(days=7)
+
+        sla = data["sla"]
+        assert sla["status"] == "excellent"
+        assert sla["current_latency_ms"] == 120000
+        assert sla["current_latency_minutes"] == 2.0
+        assert sla["is_within_sla"] is True
+
+    def test_dashboard_sla_breach_alerts(self, healthy_provider):
+        """Test SLA breach generates alerts."""
+        tracker = PipelineLatencyTracker()
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TASK_EXECUTED,
+            timestamp=base + timedelta(minutes=10),  # Over 5 min SLA
+        )
+
+        dashboard = MetaMetricsDashboard(
+            data_provider=healthy_provider,
+            pipeline_tracker=tracker,
+        )
+        data = dashboard.get_dashboard_data(days=7)
+
+        # Should have SLA breach alert
+        sla_alerts = [a for a in data["alerts"] if "SLA" in a["message"]]
+        assert len(sla_alerts) >= 1
+        assert sla_alerts[0]["level"] in ["warning", "critical"]
+
+    def test_set_pipeline_tracker(self, healthy_provider):
+        """Test setting pipeline tracker after initialization."""
+        dashboard = MetaMetricsDashboard(data_provider=healthy_provider)
+        assert dashboard._pipeline_tracker is None
+
+        tracker = PipelineLatencyTracker()
+        dashboard.set_pipeline_tracker(tracker)
+
+        assert dashboard._pipeline_tracker is tracker
+
+    def test_configure_sla(self, healthy_provider):
+        """Test configuring SLA thresholds."""
+        dashboard = MetaMetricsDashboard(data_provider=healthy_provider)
+        dashboard.configure_sla(
+            end_to_end_threshold_ms=600000,
+            stage_thresholds_ms={"custom_stage": 30000},
+        )
+
+        assert dashboard._sla_threshold_ms == 600000
+        assert "custom_stage" in dashboard._sla_config.stage_thresholds_ms
+
+    def test_configure_sla_updates_tracker(self, healthy_provider):
+        """Test configuring SLA updates tracker config."""
+        tracker = PipelineLatencyTracker()
+        dashboard = MetaMetricsDashboard(
+            data_provider=healthy_provider,
+            pipeline_tracker=tracker,
+        )
+
+        dashboard.configure_sla(end_to_end_threshold_ms=600000)
+
+        assert tracker.sla_config.end_to_end_threshold_ms == 600000
+
+    def test_detailed_report_includes_sla_details(self, healthy_provider):
+        """Test detailed report includes SLA configuration details."""
+        dashboard = MetaMetricsDashboard(data_provider=healthy_provider)
+        report = dashboard.get_detailed_report(days=7)
+
+        assert "sla_details" in report["detailed_report"]
+        sla_details = report["detailed_report"]["sla_details"]
+        assert "configuration" in sla_details
+        assert sla_details["configuration"]["end_to_end_threshold_ms"] == 300000
+
+    def test_detailed_report_includes_pipeline_state(self, healthy_provider):
+        """Test detailed report includes current pipeline state."""
+        tracker = PipelineLatencyTracker(pipeline_id="test-123")
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+
+        dashboard = MetaMetricsDashboard(
+            data_provider=healthy_provider,
+            pipeline_tracker=tracker,
+        )
+        report = dashboard.get_detailed_report(days=7)
+
+        sla_details = report["detailed_report"]["sla_details"]
+        assert sla_details["current_pipeline"] is not None
+        assert sla_details["current_pipeline"]["pipeline_id"] == "test-123"
+
+    def test_sla_breach_suggestions(self, healthy_provider):
+        """Test SLA breach alerts include helpful suggestions."""
+        tracker = PipelineLatencyTracker()
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TASK_EXECUTED,
+            timestamp=base + timedelta(minutes=10),
+        )
+
+        dashboard = MetaMetricsDashboard(
+            data_provider=healthy_provider,
+            pipeline_tracker=tracker,
+        )
+        data = dashboard.get_dashboard_data(days=7)
+
+        sla_alerts = [a for a in data["alerts"] if "SLA" in a["message"]]
+        for alert in sla_alerts:
+            assert "suggestion" in alert
+            assert len(alert["suggestion"]) > 0
+
+    def test_sla_stage_latencies_in_dashboard(self, healthy_provider):
+        """Test stage latencies are included in SLA metrics."""
+        tracker = PipelineLatencyTracker()
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TELEMETRY_COLLECTED,
+            timestamp=base + timedelta(seconds=30),
+        )
+        tracker.record_stage(
+            PipelineStage.MEMORY_PERSISTED,
+            timestamp=base + timedelta(seconds=60),
+        )
+
+        dashboard = MetaMetricsDashboard(
+            data_provider=healthy_provider,
+            pipeline_tracker=tracker,
+        )
+        data = dashboard.get_dashboard_data(days=7)
+
+        stage_latencies = data["sla"]["stage_latencies"]
+        assert "phase_complete_to_telemetry_collected" in stage_latencies
+        assert stage_latencies["phase_complete_to_telemetry_collected"] == 30000
+
+    def test_sla_breaches_in_dashboard(self, healthy_provider):
+        """Test breach details are included in SLA metrics."""
+        tracker = PipelineLatencyTracker()
+        base = datetime.utcnow()
+        tracker.record_stage(PipelineStage.PHASE_COMPLETE, timestamp=base)
+        tracker.record_stage(
+            PipelineStage.TASK_EXECUTED,
+            timestamp=base + timedelta(minutes=10),
+        )
+
+        dashboard = MetaMetricsDashboard(
+            data_provider=healthy_provider,
+            pipeline_tracker=tracker,
+        )
+        data = dashboard.get_dashboard_data(days=7)
+
+        breaches = data["sla"]["breaches"]
+        assert len(breaches) >= 1
+        assert "threshold_ms" in breaches[0]
+        assert "actual_ms" in breaches[0]
+        assert "breach_amount_ms" in breaches[0]

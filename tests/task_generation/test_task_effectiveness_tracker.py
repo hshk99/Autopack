@@ -1,0 +1,700 @@
+"""Tests for TaskEffectivenessTracker in autopack.task_generation module."""
+
+from datetime import datetime
+from unittest.mock import MagicMock
+
+import pytest
+
+from autopack.task_generation.task_effectiveness_tracker import (
+    EXCELLENT_EFFECTIVENESS,
+    GOOD_EFFECTIVENESS,
+    POOR_EFFECTIVENESS,
+    EffectivenessHistory,
+    TaskEffectivenessTracker,
+    TaskImpactReport,
+)
+
+
+class TestTaskImpactReport:
+    """Tests for TaskImpactReport dataclass."""
+
+    def test_basic_creation(self) -> None:
+        """Test creating a basic TaskImpactReport."""
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.1},
+            target_improvement=0.5,
+            actual_improvement=0.5,
+            effectiveness_score=1.0,
+            measured_at=datetime.now(),
+        )
+        assert report.task_id == "IMP-TEST-001"
+        assert report.effectiveness_score == 1.0
+
+    def test_is_effective_true(self) -> None:
+        """Test is_effective returns True for good effectiveness."""
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={},
+            after_metrics={},
+            target_improvement=0.5,
+            actual_improvement=0.4,
+            effectiveness_score=GOOD_EFFECTIVENESS,
+            measured_at=datetime.now(),
+        )
+        assert report.is_effective() is True
+
+    def test_is_effective_false(self) -> None:
+        """Test is_effective returns False for poor effectiveness."""
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={},
+            after_metrics={},
+            target_improvement=0.5,
+            actual_improvement=0.1,
+            effectiveness_score=POOR_EFFECTIVENESS - 0.1,
+            measured_at=datetime.now(),
+        )
+        assert report.is_effective() is False
+
+    def test_get_effectiveness_grade_excellent(self) -> None:
+        """Test excellent grade for high effectiveness."""
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={},
+            after_metrics={},
+            target_improvement=0.5,
+            actual_improvement=0.5,
+            effectiveness_score=EXCELLENT_EFFECTIVENESS,
+            measured_at=datetime.now(),
+        )
+        assert report.get_effectiveness_grade() == "excellent"
+
+    def test_get_effectiveness_grade_good(self) -> None:
+        """Test good grade for moderate-high effectiveness."""
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={},
+            after_metrics={},
+            target_improvement=0.5,
+            actual_improvement=0.4,
+            effectiveness_score=0.8,
+            measured_at=datetime.now(),
+        )
+        assert report.get_effectiveness_grade() == "good"
+
+    def test_get_effectiveness_grade_moderate(self) -> None:
+        """Test moderate grade for mid-range effectiveness."""
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={},
+            after_metrics={},
+            target_improvement=0.5,
+            actual_improvement=0.25,
+            effectiveness_score=0.5,
+            measured_at=datetime.now(),
+        )
+        assert report.get_effectiveness_grade() == "moderate"
+
+    def test_get_effectiveness_grade_poor(self) -> None:
+        """Test poor grade for low effectiveness."""
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={},
+            after_metrics={},
+            target_improvement=0.5,
+            actual_improvement=0.05,
+            effectiveness_score=0.1,
+            measured_at=datetime.now(),
+        )
+        assert report.get_effectiveness_grade() == "poor"
+
+    def test_optional_fields(self) -> None:
+        """Test optional category and notes fields."""
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={},
+            after_metrics={},
+            target_improvement=0.5,
+            actual_improvement=0.5,
+            effectiveness_score=1.0,
+            measured_at=datetime.now(),
+            category="telemetry",
+            notes="Test measurement",
+        )
+        assert report.category == "telemetry"
+        assert report.notes == "Test measurement"
+
+
+class TestEffectivenessHistory:
+    """Tests for EffectivenessHistory dataclass."""
+
+    def test_empty_history(self) -> None:
+        """Test empty history initialization."""
+        history = EffectivenessHistory()
+        assert len(history.reports) == 0
+        assert len(history.category_stats) == 0
+
+    def test_add_report(self) -> None:
+        """Test adding a report to history."""
+        history = EffectivenessHistory()
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={},
+            after_metrics={},
+            target_improvement=0.5,
+            actual_improvement=0.5,
+            effectiveness_score=1.0,
+            measured_at=datetime.now(),
+            category="telemetry",
+        )
+        history.add_report(report)
+
+        assert len(history.reports) == 1
+        assert "telemetry" in history.category_stats
+
+    def test_category_stats_aggregation(self) -> None:
+        """Test category statistics are correctly aggregated."""
+        history = EffectivenessHistory()
+
+        report1 = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={},
+            after_metrics={},
+            target_improvement=0.5,
+            actual_improvement=0.5,
+            effectiveness_score=0.8,
+            measured_at=datetime.now(),
+            category="telemetry",
+        )
+        report2 = TaskImpactReport(
+            task_id="IMP-TEST-002",
+            before_metrics={},
+            after_metrics={},
+            target_improvement=0.5,
+            actual_improvement=0.3,
+            effectiveness_score=0.6,
+            measured_at=datetime.now(),
+            category="telemetry",
+        )
+
+        history.add_report(report1)
+        history.add_report(report2)
+
+        stats = history.category_stats["telemetry"]
+        assert stats["total_tasks"] == 2
+        assert stats["avg_effectiveness"] == pytest.approx(0.7)
+        assert stats["effective_count"] == 1  # Only first is effective (0.8 >= 0.7)
+
+    def test_get_category_effectiveness(self) -> None:
+        """Test getting effectiveness for a category."""
+        history = EffectivenessHistory()
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={},
+            after_metrics={},
+            target_improvement=0.5,
+            actual_improvement=0.4,
+            effectiveness_score=0.8,
+            measured_at=datetime.now(),
+            category="memory",
+        )
+        history.add_report(report)
+
+        assert history.get_category_effectiveness("memory") == 0.8
+        assert history.get_category_effectiveness("unknown") == 0.5  # Default
+
+    def test_general_category_fallback(self) -> None:
+        """Test empty category falls back to general."""
+        history = EffectivenessHistory()
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={},
+            after_metrics={},
+            target_improvement=0.5,
+            actual_improvement=0.5,
+            effectiveness_score=1.0,
+            measured_at=datetime.now(),
+            category="",
+        )
+        history.add_report(report)
+
+        assert "general" in history.category_stats
+
+
+class TestTaskEffectivenessTracker:
+    """Tests for TaskEffectivenessTracker class."""
+
+    @pytest.fixture
+    def tracker(self) -> TaskEffectivenessTracker:
+        """Create a tracker without priority engine."""
+        return TaskEffectivenessTracker()
+
+    @pytest.fixture
+    def tracker_with_engine(self) -> TaskEffectivenessTracker:
+        """Create a tracker with mock priority engine."""
+        mock_engine = MagicMock()
+        return TaskEffectivenessTracker(priority_engine=mock_engine)
+
+    def test_init_without_engine(self) -> None:
+        """Test tracker initializes without priority engine."""
+        tracker = TaskEffectivenessTracker()
+        assert tracker.priority_engine is None
+        assert len(tracker.history.reports) == 0
+
+    def test_init_with_engine(self) -> None:
+        """Test tracker initializes with priority engine."""
+        mock_engine = MagicMock()
+        tracker = TaskEffectivenessTracker(priority_engine=mock_engine)
+        assert tracker.priority_engine is mock_engine
+
+
+class TestMeasureImpact:
+    """Tests for measure_impact method."""
+
+    @pytest.fixture
+    def tracker(self) -> TaskEffectivenessTracker:
+        """Create a tracker for testing."""
+        return TaskEffectivenessTracker()
+
+    def test_basic_measurement(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test basic impact measurement."""
+        report = tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.1},
+            target=0.5,
+        )
+
+        assert report.task_id == "IMP-TEST-001"
+        assert report.target_improvement == 0.5
+        # 50% reduction in error_rate: (0.2 - 0.1) / 0.2 = 0.5
+        assert report.actual_improvement == pytest.approx(0.5)
+        # Effectiveness: 0.5 / 0.5 = 1.0
+        assert report.effectiveness_score == pytest.approx(1.0)
+
+    def test_partial_improvement(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test partial improvement calculation."""
+        report = tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.15},
+            target=0.5,
+        )
+
+        # 25% reduction: (0.2 - 0.15) / 0.2 = 0.25
+        assert report.actual_improvement == pytest.approx(0.25)
+        # Effectiveness: 0.25 / 0.5 = 0.5
+        assert report.effectiveness_score == pytest.approx(0.5)
+
+    def test_exceeded_target(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test effectiveness is capped at 1.0 when target exceeded."""
+        report = tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.02},
+            target=0.5,
+        )
+
+        # 90% reduction: (0.2 - 0.02) / 0.2 = 0.9
+        assert report.actual_improvement == pytest.approx(0.9)
+        # Effectiveness capped at 1.0
+        assert report.effectiveness_score == 1.0
+
+    def test_higher_is_better_metric(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test metrics where higher values are better."""
+        report = tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"success_rate": 0.6},
+            after_metrics={"success_rate": 0.9},
+            target=0.5,
+        )
+
+        # 50% increase: (0.9 - 0.6) / 0.6 = 0.5
+        assert report.actual_improvement == pytest.approx(0.5)
+        assert report.effectiveness_score == pytest.approx(1.0)
+
+    def test_multiple_metrics(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test averaging across multiple metrics."""
+        report = tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2, "latency": 100.0},
+            after_metrics={"error_rate": 0.1, "latency": 80.0},
+            target=0.3,
+        )
+
+        # error_rate: (0.2 - 0.1) / 0.2 = 0.5
+        # latency: (100 - 80) / 100 = 0.2
+        # average: (0.5 + 0.2) / 2 = 0.35
+        assert report.actual_improvement == pytest.approx(0.35)
+
+    def test_with_category(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test measurement with category."""
+        report = tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.1},
+            target=0.5,
+            category="telemetry",
+        )
+
+        assert report.category == "telemetry"
+        assert "telemetry" in tracker.history.category_stats
+
+    def test_with_notes(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test measurement with notes."""
+        report = tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.1},
+            target=0.5,
+            notes="Measured after 24-hour deployment",
+        )
+
+        assert report.notes == "Measured after 24-hour deployment"
+
+    def test_report_stored_in_history(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test report is stored in history."""
+        tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.1},
+            target=0.5,
+        )
+
+        assert len(tracker.history.reports) == 1
+        assert tracker.history.reports[0].task_id == "IMP-TEST-001"
+
+    def test_invalid_target_zero(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test error on zero target."""
+        with pytest.raises(ValueError, match="Target improvement must be positive"):
+            tracker.measure_impact(
+                task_id="IMP-TEST-001",
+                before_metrics={"error_rate": 0.2},
+                after_metrics={"error_rate": 0.1},
+                target=0,
+            )
+
+    def test_invalid_target_negative(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test error on negative target."""
+        with pytest.raises(ValueError, match="Target improvement must be positive"):
+            tracker.measure_impact(
+                task_id="IMP-TEST-001",
+                before_metrics={"error_rate": 0.2},
+                after_metrics={"error_rate": 0.1},
+                target=-0.1,
+            )
+
+    def test_no_common_keys(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test error when no common keys between before/after."""
+        with pytest.raises(ValueError, match="must have common keys"):
+            tracker.measure_impact(
+                task_id="IMP-TEST-001",
+                before_metrics={"error_rate": 0.2},
+                after_metrics={"latency": 100.0},
+                target=0.5,
+            )
+
+    def test_no_improvement(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test measurement when there's no improvement."""
+        report = tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.2},
+            target=0.5,
+        )
+
+        assert report.actual_improvement == pytest.approx(0.0)
+        assert report.effectiveness_score == pytest.approx(0.0)
+
+    def test_negative_improvement(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test measurement when metrics got worse."""
+        report = tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.3},
+            target=0.5,
+        )
+
+        # Got worse by 50%: (0.2 - 0.3) / 0.2 = -0.5
+        assert report.actual_improvement == pytest.approx(-0.5)
+        # Effectiveness is 0 since we didn't improve
+        assert report.effectiveness_score == pytest.approx(0.0)
+
+
+class TestFeedBackToPriorityEngine:
+    """Tests for feed_back_to_priority_engine method."""
+
+    def test_feedback_without_engine(self) -> None:
+        """Test feedback is no-op without engine."""
+        tracker = TaskEffectivenessTracker()
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={},
+            after_metrics={},
+            target_improvement=0.5,
+            actual_improvement=0.5,
+            effectiveness_score=1.0,
+            measured_at=datetime.now(),
+        )
+
+        # Should not raise
+        tracker.feed_back_to_priority_engine(report)
+
+    def test_feedback_clears_cache(self) -> None:
+        """Test feedback clears priority engine cache."""
+        mock_engine = MagicMock()
+        tracker = TaskEffectivenessTracker(priority_engine=mock_engine)
+
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={},
+            after_metrics={},
+            target_improvement=0.5,
+            actual_improvement=0.5,
+            effectiveness_score=1.0,
+            measured_at=datetime.now(),
+            category="telemetry",
+        )
+
+        tracker.feed_back_to_priority_engine(report)
+
+        mock_engine.clear_cache.assert_called_once()
+
+    def test_feedback_for_excellent_grade(self) -> None:
+        """Test feedback for excellent effectiveness."""
+        mock_engine = MagicMock()
+        tracker = TaskEffectivenessTracker(priority_engine=mock_engine)
+
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={},
+            after_metrics={},
+            target_improvement=0.5,
+            actual_improvement=0.5,
+            effectiveness_score=EXCELLENT_EFFECTIVENESS,
+            measured_at=datetime.now(),
+        )
+
+        tracker.feed_back_to_priority_engine(report)
+        mock_engine.clear_cache.assert_called_once()
+
+    def test_feedback_for_poor_grade(self) -> None:
+        """Test feedback for poor effectiveness."""
+        mock_engine = MagicMock()
+        tracker = TaskEffectivenessTracker(priority_engine=mock_engine)
+
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={},
+            after_metrics={},
+            target_improvement=0.5,
+            actual_improvement=0.05,
+            effectiveness_score=0.1,
+            measured_at=datetime.now(),
+        )
+
+        tracker.feed_back_to_priority_engine(report)
+        mock_engine.clear_cache.assert_called_once()
+
+
+class TestGetEffectiveness:
+    """Tests for get_effectiveness method."""
+
+    @pytest.fixture
+    def tracker(self) -> TaskEffectivenessTracker:
+        """Create a tracker for testing."""
+        return TaskEffectivenessTracker()
+
+    def test_get_existing_task(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test getting effectiveness for existing task."""
+        tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.1},
+            target=0.5,
+        )
+
+        effectiveness = tracker.get_effectiveness("IMP-TEST-001")
+        assert effectiveness == pytest.approx(1.0)
+
+    def test_get_nonexistent_task(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test getting effectiveness for non-existent task returns default."""
+        effectiveness = tracker.get_effectiveness("IMP-NONEXISTENT")
+        assert effectiveness == 0.5
+
+    def test_get_multiple_tasks(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test getting effectiveness for multiple tasks."""
+        tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.1},
+            target=0.5,
+        )
+        tracker.measure_impact(
+            task_id="IMP-TEST-002",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.15},
+            target=0.5,
+        )
+
+        assert tracker.get_effectiveness("IMP-TEST-001") == pytest.approx(1.0)
+        assert tracker.get_effectiveness("IMP-TEST-002") == pytest.approx(0.5)
+
+
+class TestGetCategoryEffectiveness:
+    """Tests for get_category_effectiveness method."""
+
+    @pytest.fixture
+    def tracker(self) -> TaskEffectivenessTracker:
+        """Create a tracker for testing."""
+        return TaskEffectivenessTracker()
+
+    def test_existing_category(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test getting effectiveness for existing category."""
+        tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.1},
+            target=0.5,
+            category="telemetry",
+        )
+
+        effectiveness = tracker.get_category_effectiveness("telemetry")
+        assert effectiveness == pytest.approx(1.0)
+
+    def test_nonexistent_category(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test getting effectiveness for non-existent category returns default."""
+        effectiveness = tracker.get_category_effectiveness("unknown")
+        assert effectiveness == 0.5
+
+
+class TestGetSummary:
+    """Tests for get_summary method."""
+
+    @pytest.fixture
+    def tracker(self) -> TaskEffectivenessTracker:
+        """Create a tracker for testing."""
+        return TaskEffectivenessTracker()
+
+    def test_empty_summary(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test summary with no reports."""
+        summary = tracker.get_summary()
+
+        assert summary["total_tasks"] == 0
+        assert summary["avg_effectiveness"] == 0.0
+        assert summary["by_category"] == {}
+        assert summary["effective_task_rate"] == 0.0
+        assert summary["grade_distribution"] == {
+            "excellent": 0,
+            "good": 0,
+            "moderate": 0,
+            "poor": 0,
+        }
+
+    def test_summary_with_reports(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test summary with multiple reports."""
+        # Add excellent task
+        tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.02},
+            target=0.5,
+            category="telemetry",
+        )
+        # Add moderate task
+        tracker.measure_impact(
+            task_id="IMP-TEST-002",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.15},
+            target=0.5,
+            category="memory",
+        )
+
+        summary = tracker.get_summary()
+
+        assert summary["total_tasks"] == 2
+        assert "telemetry" in summary["by_category"]
+        assert "memory" in summary["by_category"]
+        assert summary["grade_distribution"]["excellent"] == 1
+        assert summary["grade_distribution"]["moderate"] == 1
+
+    def test_effective_task_rate(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test effective task rate calculation."""
+        # Add effective task (effectiveness >= 0.7)
+        tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.1},
+            target=0.5,
+        )
+        # Add ineffective task
+        tracker.measure_impact(
+            task_id="IMP-TEST-002",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.18},
+            target=0.5,
+        )
+
+        summary = tracker.get_summary()
+
+        # 1 effective out of 2 = 0.5
+        assert summary["effective_task_rate"] == 0.5
+
+
+class TestEdgeCases:
+    """Tests for edge cases and error handling."""
+
+    @pytest.fixture
+    def tracker(self) -> TaskEffectivenessTracker:
+        """Create a tracker for testing."""
+        return TaskEffectivenessTracker()
+
+    def test_zero_before_value(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test handling when before value is zero."""
+        report = tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.0},
+            after_metrics={"error_rate": 0.1},
+            target=0.5,
+        )
+
+        # When before is 0 and after is positive, consider it a change
+        assert report is not None
+
+    def test_very_small_values(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test handling of very small metric values."""
+        report = tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.0001},
+            after_metrics={"error_rate": 0.00005},
+            target=0.5,
+        )
+
+        assert report.actual_improvement == pytest.approx(0.5)
+        assert report.effectiveness_score == pytest.approx(1.0)
+
+    def test_empty_metrics_common_keys(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test error when metrics are empty."""
+        with pytest.raises(ValueError, match="must have common keys"):
+            tracker.measure_impact(
+                task_id="IMP-TEST-001",
+                before_metrics={},
+                after_metrics={},
+                target=0.5,
+            )
+
+    def test_mixed_metric_directions(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test metrics with different improvement directions."""
+        report = tracker.measure_impact(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2, "success_rate": 0.8},
+            after_metrics={"error_rate": 0.1, "success_rate": 0.9},
+            target=0.25,
+        )
+
+        # error_rate (lower better): (0.2 - 0.1) / 0.2 = 0.5
+        # success_rate (higher better): (0.9 - 0.8) / 0.8 = 0.125
+        # average: (0.5 + 0.125) / 2 = 0.3125
+        assert report.actual_improvement == pytest.approx(0.3125)

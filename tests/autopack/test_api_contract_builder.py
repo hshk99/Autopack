@@ -10,7 +10,6 @@ from types import SimpleNamespace
 
 import pytest
 
-from autopack.autonomous_executor import AutonomousExecutor
 from autopack.builder_schemas import (BuilderProbeResult, BuilderResult,
                                       BuilderSuggestedIssue)
 

@@ -243,7 +243,7 @@ def mock_memory_service(monkeypatch, tmp_path):
     allowing tests to exercise MemoryService integration paths
     without requiring a running Qdrant instance.
     """
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     # Create mock store
     mock_store = MagicMock()

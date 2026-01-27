@@ -12,7 +12,7 @@ These tests use mocks to exercise integration paths in CI when Qdrant
 is not available, ensuring critical code paths are always tested.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -140,7 +140,6 @@ class TestMemoryServiceWithFaissBackend:
 
         # Store a document
         test_text = "This is a test error message for CI"
-        test_payload = {"run_id": "test-run", "phase_id": "phase-1", "type": "error"}
 
         # This exercises the store path
         service.write_error(
@@ -193,7 +192,6 @@ class TestMemoryServiceErrorHandling:
         service = ms.MemoryService(index_dir=faiss_dir, use_qdrant=False)
 
         # Patch store.upsert to fail
-        original_upsert = service.store.upsert
         with patch.object(service.store, "upsert", side_effect=RuntimeError("Store failed")):
             # Should handle error gracefully via _safe_store_call
             result = service._safe_store_call(

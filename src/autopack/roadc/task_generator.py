@@ -7,7 +7,8 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from ..memory.memory_service import DEFAULT_MEMORY_FRESHNESS_HOURS, MemoryService
+from ..memory.memory_service import (DEFAULT_MEMORY_FRESHNESS_HOURS,
+                                     MemoryService)
 from ..roadi import RegressionProtector
 from ..roadi.regression_protector import RiskAssessment
 from ..telemetry.analyzer import RankedIssue, TelemetryAnalyzer
@@ -89,6 +90,82 @@ def _emit_task_generation_event(
 
 # Stale task threshold: tasks in_progress for longer than this are considered stale (IMP-REL-003)
 STALE_TASK_THRESHOLD_HOURS = 24
+
+
+@dataclass
+class TaskCompletionEvent:
+    """Event emitted when a ROAD-C task completes (IMP-LOOP-012).
+
+    Captures task execution outcomes for effectiveness tracking. This enables
+    measurement of whether improvement tasks achieve their intended targets.
+    """
+
+    task_id: str
+    success: bool
+    target_metric: Optional[float] = None  # Expected improvement target
+    actual_metric: Optional[float] = None  # Actual measured result
+    target_achieved: Optional[bool] = None  # Did we hit the target?
+    task_type: Optional[str] = None  # cost_sink, failure_mode, retry_cause
+    task_priority: Optional[str] = None  # critical, high, medium, low
+    execution_duration_ms: Optional[float] = None  # How long the task took
+    run_id: Optional[str] = None  # Run that executed the task
+    failure_reason: Optional[str] = None  # Reason if failed
+    retry_count: int = 0  # Retries needed
+
+
+def emit_task_completion(event: TaskCompletionEvent) -> None:
+    """Emit a task completion telemetry event (IMP-LOOP-012).
+
+    Records task execution outcomes to the database for measuring
+    task effectiveness and improvement target achievement.
+
+    Args:
+        event: TaskCompletionEvent with execution outcome details
+    """
+    try:
+        from ..database import SessionLocal
+        from ..models import TaskCompletionEvent as TaskCompletionEventModel
+
+        session = SessionLocal()
+        try:
+            # Calculate improvement percentage if we have both target and actual
+            improvement_percentage = None
+            if event.target_metric is not None and event.actual_metric is not None:
+                if event.target_metric != 0:
+                    improvement_percentage = (
+                        (event.actual_metric - event.target_metric) / abs(event.target_metric)
+                    ) * 100
+
+            db_event = TaskCompletionEventModel(
+                task_id=event.task_id,
+                run_id=event.run_id,
+                success=event.success,
+                failure_reason=event.failure_reason,
+                target_metric=event.target_metric,
+                actual_metric=event.actual_metric,
+                target_achieved=event.target_achieved,
+                improvement_percentage=improvement_percentage,
+                task_type=event.task_type,
+                task_priority=event.task_priority,
+                execution_duration_ms=event.execution_duration_ms,
+                retry_count=event.retry_count,
+                timestamp=datetime.now(timezone.utc),
+            )
+            session.add(db_event)
+            session.commit()
+            logger.debug(
+                f"[IMP-LOOP-012] Emitted task completion event: "
+                f"task_id={event.task_id}, success={event.success}, "
+                f"target_achieved={event.target_achieved}"
+            )
+        except Exception as e:
+            session.rollback()
+            logger.warning(f"[IMP-LOOP-012] Failed to emit task completion event: {e}")
+        finally:
+            session.close()
+    except ImportError:
+        # Database not available - skip telemetry
+        logger.debug("[IMP-LOOP-012] Database not available, skipping task completion event")
 
 
 @dataclass

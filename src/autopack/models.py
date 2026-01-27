@@ -5,16 +5,8 @@ from enum import Enum
 
 from sqlalchemy import DECIMAL, JSON, BigInteger, Boolean, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import (
-    Float,
-    ForeignKey,
-    ForeignKeyConstraint,
-    Index,
-    Integer,
-    String,
-    Text,
-    UniqueConstraint,
-)
+from sqlalchemy import (Float, ForeignKey, ForeignKeyConstraint, Index,
+                        Integer, String, Text, UniqueConstraint)
 from sqlalchemy.orm import relationship, synonym
 
 from .database import Base
@@ -1189,6 +1181,112 @@ class AnomalyAlertEvent(Base):
     resolved = Column(Boolean, nullable=False, default=False, index=True)
     resolved_at = Column(DateTime, nullable=True)
     resolution_action = Column(String(100), nullable=True)  # auto_healed, escalated, ignored
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+
+class TaskCompletionEvent(Base):
+    """Task completion telemetry event (IMP-LOOP-012).
+
+    Records task execution outcomes to enable measurement of task effectiveness
+    and target achievement. Feeds back into the self-improvement loop to track
+    whether generated improvement tasks actually achieved their intended goals.
+
+    Captured metrics:
+    - Task success/failure status
+    - Target metric vs actual metric achieved
+    - Whether the improvement target was met
+    - Execution duration and run context
+    """
+
+    __tablename__ = "task_completion_events"
+    __table_args__ = (
+        Index("ix_task_completion_task_id", "task_id"),
+        Index("ix_task_completion_success", "success"),
+        Index("ix_task_completion_target_achieved", "target_achieved"),
+        Index("ix_task_completion_timestamp", "timestamp"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(String(50), nullable=False, index=True)  # Links to GeneratedTaskModel
+    run_id = Column(String(50), nullable=True, index=True)  # Run that executed the task
+
+    timestamp = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+    # Execution outcome
+    success = Column(Boolean, nullable=False, index=True)
+    failure_reason = Column(Text, nullable=True)  # Reason if failed
+
+    # Target vs actual metrics
+    target_metric = Column(Float, nullable=True)  # Expected improvement target
+    actual_metric = Column(Float, nullable=True)  # Actual measured result
+    target_achieved = Column(Boolean, nullable=True, index=True)  # Did we hit the target?
+    improvement_percentage = Column(Float, nullable=True)  # Percentage improvement achieved
+
+    # Task context
+    task_type = Column(String(50), nullable=True)  # cost_sink, failure_mode, retry_cause
+    task_priority = Column(String(20), nullable=True)  # critical, high, medium, low
+
+    # Execution details
+    execution_duration_ms = Column(Float, nullable=True)  # How long the task took
+    retry_count = Column(Integer, nullable=False, default=0)  # Retries needed
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<TaskCompletionEvent(task_id={self.task_id}, "
+            f"success={self.success}, target_achieved={self.target_achieved})>"
+        )
+
+
+class RiskGatingEvent(Base):
+    """Risk gating telemetry event (IMP-LOOP-018).
+
+    Tracks regression risk gating decisions during task generation to monitor
+    the effectiveness of the risk gating system and track regression rate trends.
+    """
+
+    __tablename__ = "risk_gating_events"
+    __table_args__ = (
+        Index("ix_risk_gating_timestamp", "timestamp"),
+        Index("ix_risk_gating_blocked_count", "blocked_count"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    timestamp = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+    # Pattern counts by risk level
+    total_patterns = Column(Integer, nullable=False, default=0)
+    blocked_count = Column(Integer, nullable=False, default=0)
+    low_risk_count = Column(Integer, nullable=False, default=0)
+    medium_risk_count = Column(Integer, nullable=False, default=0)
+    high_risk_count = Column(Integer, nullable=False, default=0)
+    critical_risk_count = Column(Integer, nullable=False, default=0)
+
+    # Historical regression rate tracking
+    avg_historical_regression_rate = Column(Float, nullable=True)
 
     created_at = Column(
         DateTime,

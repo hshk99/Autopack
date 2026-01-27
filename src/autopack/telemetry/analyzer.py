@@ -52,6 +52,29 @@ class TaskGenerationStats:
     common_error_types: Dict[str, int]  # Error type -> count
 
 
+@dataclass
+class TaskEffectivenessStats:
+    """Task effectiveness statistics from completion telemetry (IMP-LOOP-012).
+
+    Tracks how well improvement tasks achieve their intended targets,
+    enabling measurement of the self-improvement loop's effectiveness.
+    """
+
+    total_completed: int  # Total tasks completed (success or failure)
+    successful_tasks: int  # Tasks that completed successfully
+    failed_tasks: int  # Tasks that failed
+    success_rate: float  # Success rate (0.0 - 1.0)
+    targets_achieved: int  # Tasks that met their improvement targets
+    targets_missed: int  # Tasks that didn't meet targets
+    target_achievement_rate: float  # Rate of target achievement (0.0 - 1.0)
+    avg_improvement_pct: float  # Average improvement percentage achieved
+    avg_execution_duration_ms: float  # Average task execution time
+    effectiveness_by_type: Dict[str, Dict[str, float]]  # type -> {success_rate, target_rate}
+    effectiveness_by_priority: Dict[
+        str, Dict[str, float]
+    ]  # priority -> {success_rate, target_rate}
+
+
 class TelemetryAnalyzer:
     """Analyze telemetry data and generate ranked issues."""
 
@@ -93,9 +116,8 @@ class TelemetryAnalyzer:
 
         # NEW: Persist to memory for future retrieval
         if self.memory_service and self.memory_service.enabled:
-            from autopack.telemetry.telemetry_to_memory_bridge import (
-                TelemetryToMemoryBridge,
-            )
+            from autopack.telemetry.telemetry_to_memory_bridge import \
+                TelemetryToMemoryBridge
 
             bridge = TelemetryToMemoryBridge(
                 self.memory_service, enabled=self._telemetry_to_memory_enabled
@@ -679,3 +701,239 @@ class TelemetryAnalyzer:
                 f.write("*No errors recorded in analysis window*\n")
 
         logger.info(f"[IMP-LOOP-004] Wrote task generation report to: {output_path}")
+
+    def receive_task_completion(
+        self,
+        task_id: str,
+        success: bool,
+        target_metric: Optional[float] = None,
+        actual_metric: Optional[float] = None,
+        task_type: Optional[str] = None,
+        task_priority: Optional[str] = None,
+        execution_duration_ms: Optional[float] = None,
+        run_id: Optional[str] = None,
+        failure_reason: Optional[str] = None,
+        retry_count: int = 0,
+    ) -> None:
+        """Receive and record a task completion event (IMP-LOOP-012).
+
+        This method is called when a ROAD-C improvement task completes,
+        recording the outcome for effectiveness tracking.
+
+        Args:
+            task_id: Unique identifier for the task
+            success: Whether the task completed successfully
+            target_metric: Expected improvement target value
+            actual_metric: Actual measured result after task execution
+            task_type: Type of task (cost_sink, failure_mode, retry_cause)
+            task_priority: Priority level (critical, high, medium, low)
+            execution_duration_ms: How long the task took to execute
+            run_id: Run ID that executed the task
+            failure_reason: Reason for failure if task failed
+            retry_count: Number of retries needed
+        """
+        from ..models import TaskCompletionEvent as TaskCompletionEventModel
+
+        try:
+            # Determine if target was achieved
+            target_achieved = None
+            improvement_percentage = None
+
+            if target_metric is not None and actual_metric is not None:
+                # For cost sinks and retry causes, lower is better
+                # For success rates, higher is better
+                # We'll use a simple heuristic: actual >= target means achieved
+                # (callers should normalize metrics appropriately)
+                target_achieved = actual_metric >= target_metric
+
+                if target_metric != 0:
+                    improvement_percentage = (
+                        (actual_metric - target_metric) / abs(target_metric)
+                    ) * 100
+
+            db_event = TaskCompletionEventModel(
+                task_id=task_id,
+                run_id=run_id,
+                success=success,
+                failure_reason=failure_reason,
+                target_metric=target_metric,
+                actual_metric=actual_metric,
+                target_achieved=target_achieved,
+                improvement_percentage=improvement_percentage,
+                task_type=task_type,
+                task_priority=task_priority,
+                execution_duration_ms=execution_duration_ms,
+                retry_count=retry_count,
+                timestamp=datetime.now(timezone.utc),
+            )
+            self.db.add(db_event)
+            self.db.commit()
+            logger.info(
+                f"[IMP-LOOP-012] Recorded task completion: task_id={task_id}, "
+                f"success={success}, target_achieved={target_achieved}"
+            )
+        except Exception as e:
+            self.db.rollback()
+            logger.warning(f"[IMP-LOOP-012] Failed to record task completion: {e}")
+
+    def get_task_effectiveness_stats(self, window_days: int = 7) -> TaskEffectivenessStats:
+        """Get task effectiveness statistics (IMP-LOOP-012).
+
+        Aggregates task completion telemetry to measure how effectively
+        the self-improvement loop achieves its intended improvements.
+
+        Args:
+            window_days: Number of days to look back (default: 7)
+
+        Returns:
+            TaskEffectivenessStats with aggregated effectiveness metrics
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+
+        # Query overall stats
+        overall_result = self.db.execute(
+            text("""
+            SELECT
+                COUNT(*) as total_completed,
+                SUM(CASE WHEN success = true THEN 1 ELSE 0 END) as successful_tasks,
+                SUM(CASE WHEN success = false THEN 1 ELSE 0 END) as failed_tasks,
+                SUM(CASE WHEN target_achieved = true THEN 1 ELSE 0 END) as targets_achieved,
+                SUM(CASE WHEN target_achieved = false THEN 1 ELSE 0 END) as targets_missed,
+                AVG(improvement_percentage) as avg_improvement_pct,
+                AVG(execution_duration_ms) as avg_execution_duration_ms
+            FROM task_completion_events
+            WHERE timestamp >= :cutoff
+            """),
+            {"cutoff": cutoff},
+        )
+        row = overall_result.fetchone()
+
+        total_completed = row.total_completed or 0
+        successful_tasks = row.successful_tasks or 0
+        failed_tasks = row.failed_tasks or 0
+        targets_achieved = row.targets_achieved or 0
+        targets_missed = row.targets_missed or 0
+        avg_improvement_pct = row.avg_improvement_pct or 0.0
+        avg_execution_duration_ms = row.avg_execution_duration_ms or 0.0
+
+        # Calculate rates
+        success_rate = successful_tasks / total_completed if total_completed > 0 else 0.0
+        targets_with_metrics = targets_achieved + targets_missed
+        target_achievement_rate = (
+            targets_achieved / targets_with_metrics if targets_with_metrics > 0 else 0.0
+        )
+
+        # Query effectiveness by task type
+        type_result = self.db.execute(
+            text("""
+            SELECT
+                task_type,
+                COUNT(*) as total,
+                SUM(CASE WHEN success = true THEN 1 ELSE 0 END) as successes,
+                SUM(CASE WHEN target_achieved = true THEN 1 ELSE 0 END) as achieved
+            FROM task_completion_events
+            WHERE timestamp >= :cutoff AND task_type IS NOT NULL
+            GROUP BY task_type
+            """),
+            {"cutoff": cutoff},
+        )
+        effectiveness_by_type: Dict[str, Dict[str, float]] = {}
+        for type_row in type_result:
+            total = type_row.total or 1
+            effectiveness_by_type[type_row.task_type] = {
+                "success_rate": (type_row.successes or 0) / total,
+                "target_rate": (type_row.achieved or 0) / total,
+                "total": total,
+            }
+
+        # Query effectiveness by priority
+        priority_result = self.db.execute(
+            text("""
+            SELECT
+                task_priority,
+                COUNT(*) as total,
+                SUM(CASE WHEN success = true THEN 1 ELSE 0 END) as successes,
+                SUM(CASE WHEN target_achieved = true THEN 1 ELSE 0 END) as achieved
+            FROM task_completion_events
+            WHERE timestamp >= :cutoff AND task_priority IS NOT NULL
+            GROUP BY task_priority
+            """),
+            {"cutoff": cutoff},
+        )
+        effectiveness_by_priority: Dict[str, Dict[str, float]] = {}
+        for prio_row in priority_result:
+            total = prio_row.total or 1
+            effectiveness_by_priority[prio_row.task_priority] = {
+                "success_rate": (prio_row.successes or 0) / total,
+                "target_rate": (prio_row.achieved or 0) / total,
+                "total": total,
+            }
+
+        logger.debug(
+            f"[IMP-LOOP-012] Task effectiveness stats: {total_completed} completed, "
+            f"{success_rate:.1%} success rate, {target_achievement_rate:.1%} target achievement"
+        )
+
+        return TaskEffectivenessStats(
+            total_completed=total_completed,
+            successful_tasks=successful_tasks,
+            failed_tasks=failed_tasks,
+            success_rate=success_rate,
+            targets_achieved=targets_achieved,
+            targets_missed=targets_missed,
+            target_achievement_rate=target_achievement_rate,
+            avg_improvement_pct=avg_improvement_pct,
+            avg_execution_duration_ms=avg_execution_duration_ms,
+            effectiveness_by_type=effectiveness_by_type,
+            effectiveness_by_priority=effectiveness_by_priority,
+        )
+
+    def write_task_effectiveness_report(
+        self, stats: TaskEffectivenessStats, output_path: Path
+    ) -> None:
+        """Write task effectiveness stats to artifact file (IMP-LOOP-012).
+
+        Args:
+            stats: TaskEffectivenessStats from get_task_effectiveness_stats()
+            output_path: Path to write markdown report
+        """
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(output_path, "w") as f:
+            f.write("# Task Effectiveness Report\n\n")
+            f.write(f"**Generated**: {datetime.now(timezone.utc).isoformat()}\n\n")
+
+            f.write("## Summary\n\n")
+            f.write("| Metric | Value |\n")
+            f.write("|--------|-------|\n")
+            f.write(f"| Total Completed | {stats.total_completed} |\n")
+            f.write(f"| Successful Tasks | {stats.successful_tasks} |\n")
+            f.write(f"| Failed Tasks | {stats.failed_tasks} |\n")
+            f.write(f"| Success Rate | {stats.success_rate:.1%} |\n")
+            f.write(f"| Targets Achieved | {stats.targets_achieved} |\n")
+            f.write(f"| Targets Missed | {stats.targets_missed} |\n")
+            f.write(f"| Target Achievement Rate | {stats.target_achievement_rate:.1%} |\n")
+            f.write(f"| Avg Improvement | {stats.avg_improvement_pct:.1f}% |\n")
+            f.write(f"| Avg Execution Time | {stats.avg_execution_duration_ms:.0f}ms |\n")
+
+            if stats.effectiveness_by_type:
+                f.write("\n## Effectiveness by Task Type\n\n")
+                f.write("| Task Type | Success Rate | Target Rate | Count |\n")
+                f.write("|-----------|--------------|-------------|-------|\n")
+                for task_type, metrics in sorted(stats.effectiveness_by_type.items()):
+                    f.write(
+                        f"| {task_type} | {metrics['success_rate']:.1%} | "
+                        f"{metrics['target_rate']:.1%} | {int(metrics['total'])} |\n"
+                    )
+
+            if stats.effectiveness_by_priority:
+                f.write("\n## Effectiveness by Priority\n\n")
+                f.write("| Priority | Success Rate | Target Rate | Count |\n")
+                f.write("|----------|--------------|-------------|-------|\n")
+                for priority, metrics in sorted(stats.effectiveness_by_priority.items()):
+                    f.write(
+                        f"| {priority} | {metrics['success_rate']:.1%} | "
+                        f"{metrics['target_rate']:.1%} | {int(metrics['total'])} |\n"
+                    )
+
+        logger.info(f"[IMP-LOOP-012] Wrote task effectiveness report to: {output_path}")

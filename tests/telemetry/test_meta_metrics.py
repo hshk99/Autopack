@@ -5,6 +5,7 @@ import pytest
 from autopack.telemetry.meta_metrics import (
     MetaMetricsTracker,
     FeedbackLoopHealth,
+    FeedbackLoopLatency,
     ComponentStatus,
     MetricTrend,
 )
@@ -550,3 +551,155 @@ def test_component_health_report_structure():
     assert isinstance(report.metrics, list)
     assert isinstance(report.issues, list)
     assert isinstance(report.recommendations, list)
+
+
+# Tests for FeedbackLoopLatency (IMP-LOOP-010)
+
+
+def test_feedback_loop_latency_structure():
+    """Test FeedbackLoopLatency dataclass structure."""
+    latency = FeedbackLoopLatency(
+        telemetry_to_analysis_ms=50000,
+        analysis_to_task_ms=100000,
+        total_latency_ms=150000,
+        sla_threshold_ms=300000,
+    )
+
+    assert latency.telemetry_to_analysis_ms == 50000
+    assert latency.analysis_to_task_ms == 100000
+    assert latency.total_latency_ms == 150000
+    assert latency.sla_threshold_ms == 300000
+
+
+def test_feedback_loop_latency_default_sla():
+    """Test FeedbackLoopLatency default SLA threshold (5 minutes)."""
+    latency = FeedbackLoopLatency(
+        telemetry_to_analysis_ms=50000,
+        analysis_to_task_ms=100000,
+        total_latency_ms=150000,
+    )
+
+    assert latency.sla_threshold_ms == 300000  # 5 minutes in milliseconds
+
+
+def test_feedback_loop_latency_is_healthy_within_sla():
+    """Test is_healthy returns True when latency is within SLA."""
+    latency = FeedbackLoopLatency(
+        telemetry_to_analysis_ms=50000,
+        analysis_to_task_ms=100000,
+        total_latency_ms=150000,  # 2.5 minutes, well within 5-minute SLA
+        sla_threshold_ms=300000,
+    )
+
+    assert latency.is_healthy() is True
+
+
+def test_feedback_loop_latency_is_healthy_at_sla_boundary():
+    """Test is_healthy returns True when latency equals SLA exactly."""
+    latency = FeedbackLoopLatency(
+        telemetry_to_analysis_ms=150000,
+        analysis_to_task_ms=150000,
+        total_latency_ms=300000,  # Exactly at 5-minute SLA
+        sla_threshold_ms=300000,
+    )
+
+    assert latency.is_healthy() is True
+
+
+def test_feedback_loop_latency_is_healthy_breached():
+    """Test is_healthy returns False when latency exceeds SLA."""
+    latency = FeedbackLoopLatency(
+        telemetry_to_analysis_ms=200000,
+        analysis_to_task_ms=200000,
+        total_latency_ms=400000,  # 6.67 minutes, exceeds 5-minute SLA
+        sla_threshold_ms=300000,
+    )
+
+    assert latency.is_healthy() is False
+
+
+def test_feedback_loop_latency_get_sla_status_excellent():
+    """Test get_sla_status returns 'excellent' when under 50% of SLA."""
+    latency = FeedbackLoopLatency(
+        telemetry_to_analysis_ms=30000,
+        analysis_to_task_ms=50000,
+        total_latency_ms=80000,  # ~27% of SLA
+        sla_threshold_ms=300000,
+    )
+
+    assert latency.get_sla_status() == "excellent"
+
+
+def test_feedback_loop_latency_get_sla_status_good():
+    """Test get_sla_status returns 'good' when between 50-80% of SLA."""
+    latency = FeedbackLoopLatency(
+        telemetry_to_analysis_ms=100000,
+        analysis_to_task_ms=100000,
+        total_latency_ms=200000,  # ~67% of SLA
+        sla_threshold_ms=300000,
+    )
+
+    assert latency.get_sla_status() == "good"
+
+
+def test_feedback_loop_latency_get_sla_status_acceptable():
+    """Test get_sla_status returns 'acceptable' when between 80-100% of SLA."""
+    latency = FeedbackLoopLatency(
+        telemetry_to_analysis_ms=140000,
+        analysis_to_task_ms=140000,
+        total_latency_ms=280000,  # ~93% of SLA
+        sla_threshold_ms=300000,
+    )
+
+    assert latency.get_sla_status() == "acceptable"
+
+
+def test_feedback_loop_latency_get_sla_status_breached():
+    """Test get_sla_status returns 'breached' when exceeding SLA."""
+    latency = FeedbackLoopLatency(
+        telemetry_to_analysis_ms=200000,
+        analysis_to_task_ms=200000,
+        total_latency_ms=400000,  # 133% of SLA
+        sla_threshold_ms=300000,
+    )
+
+    assert latency.get_sla_status() == "breached"
+
+
+def test_feedback_loop_latency_get_breach_amount_within_sla():
+    """Test get_breach_amount_ms returns 0 when within SLA."""
+    latency = FeedbackLoopLatency(
+        telemetry_to_analysis_ms=50000,
+        analysis_to_task_ms=100000,
+        total_latency_ms=150000,
+        sla_threshold_ms=300000,
+    )
+
+    assert latency.get_breach_amount_ms() == 0
+
+
+def test_feedback_loop_latency_get_breach_amount_exceeded():
+    """Test get_breach_amount_ms returns correct breach amount."""
+    latency = FeedbackLoopLatency(
+        telemetry_to_analysis_ms=200000,
+        analysis_to_task_ms=200000,
+        total_latency_ms=400000,  # 100000ms over SLA
+        sla_threshold_ms=300000,
+    )
+
+    assert latency.get_breach_amount_ms() == 100000
+
+
+def test_feedback_loop_latency_custom_sla():
+    """Test FeedbackLoopLatency with custom SLA threshold."""
+    # Use a 10-minute SLA instead of default 5 minutes
+    latency = FeedbackLoopLatency(
+        telemetry_to_analysis_ms=200000,
+        analysis_to_task_ms=200000,
+        total_latency_ms=400000,
+        sla_threshold_ms=600000,  # 10 minutes
+    )
+
+    assert latency.is_healthy() is True
+    assert latency.get_sla_status() == "good"  # 67% of custom SLA
+    assert latency.get_breach_amount_ms() == 0

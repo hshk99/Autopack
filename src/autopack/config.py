@@ -639,6 +639,26 @@ class Settings(BaseSettings):
         description="Max calls allowed in half-open state before deciding to close or re-open",
     )
 
+    # IMP-AUTO-002: Parallel phase execution configuration
+    # Enables concurrent execution of phases with non-overlapping file scopes
+    parallel_phase_execution_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "AUTOPACK_PARALLEL_PHASE_ENABLED", "PARALLEL_PHASE_EXECUTION_ENABLED"
+        ),
+        description="Enable parallel phase execution when file scopes don't overlap",
+    )
+
+    max_parallel_phases: int = Field(
+        default=2,
+        ge=1,
+        le=4,
+        validation_alias=AliasChoices(
+            "AUTOPACK_MAX_PARALLEL_PHASES", "MAX_PARALLEL_PHASES"
+        ),
+        description="Maximum number of phases to execute in parallel (default: 2, max: 4)",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def parse_allowed_hosts(cls, values):

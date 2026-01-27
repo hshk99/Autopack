@@ -3,11 +3,12 @@
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from ..memory.memory_service import MemoryService, DEFAULT_MEMORY_FRESHNESS_HOURS
+from ..memory.memory_service import (DEFAULT_MEMORY_FRESHNESS_HOURS,
+                                     MemoryService)
 from ..roadi import RegressionProtector
 from ..telemetry.analyzer import RankedIssue, TelemetryAnalyzer
 from .discovery_context_merger import DiscoveryContextMerger
@@ -49,8 +50,8 @@ def _emit_task_generation_event(
         error_type: Exception type if failed
     """
     try:
-        from ..models import TaskGenerationEvent
         from ..database import SessionLocal
+        from ..models import TaskGenerationEvent
 
         session = SessionLocal()
         try:
@@ -306,6 +307,16 @@ class AutonomousTaskGenerator:
 
             # Detect patterns across insights
             patterns = self._detect_patterns(insights)
+
+            # IMP-FBK-003: Filter patterns that would cause regressions before task generation
+            # This prevents re-attempting known-bad improvements
+            original_pattern_count = len(patterns)
+            patterns = self._regression.filter_patterns_for_regressions(patterns)
+            if len(patterns) < original_pattern_count:
+                logger.info(
+                    f"[IMP-FBK-003] Filtered {original_pattern_count - len(patterns)} "
+                    f"regression-causing patterns (kept {len(patterns)})"
+                )
 
             # Generate tasks from patterns
             for pattern in patterns[:max_tasks]:
@@ -611,8 +622,8 @@ Analyze the pattern and implement a fix to prevent recurrence.
         Returns:
             Number of tasks persisted
         """
-        from ..models import GeneratedTaskModel
         from ..database import SessionLocal
+        from ..models import GeneratedTaskModel
 
         session = SessionLocal()
         tasks_to_persist = []
@@ -671,9 +682,10 @@ Analyze the pattern and implement a fix to prevent recurrence.
         Returns:
             List of GeneratedTask dataclass instances
         """
-        from ..models import GeneratedTaskModel
-        from ..database import SessionLocal
         from sqlalchemy import case
+
+        from ..database import SessionLocal
+        from ..models import GeneratedTaskModel
 
         session = SessionLocal()
 
@@ -739,8 +751,8 @@ Analyze the pattern and implement a fix to prevent recurrence.
         Returns:
             Result string: "updated", "retry", "failed", or "not_found"
         """
-        from ..models import GeneratedTaskModel
         from ..database import SessionLocal
+        from ..models import GeneratedTaskModel
 
         session = SessionLocal()
 
@@ -824,8 +836,8 @@ Analyze the pattern and implement a fix to prevent recurrence.
         Returns:
             Number of stale tasks cleaned up.
         """
-        from ..models import GeneratedTaskModel
         from ..database import SessionLocal
+        from ..models import GeneratedTaskModel
 
         session = SessionLocal()
         threshold = datetime.now() - timedelta(hours=threshold_hours)

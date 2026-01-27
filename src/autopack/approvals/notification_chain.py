@@ -34,6 +34,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any, Dict, List, Optional
 
+from autopack.utils import create_safe_error_message
 from .service import ApprovalRequest, ApprovalResult
 
 logger = logging.getLogger(__name__)
@@ -167,8 +168,9 @@ class NotificationChain:
 
             except Exception as e:
                 result.failed_channels.append(channel.name)
-                result.error_details[channel.name] = str(e)
-                logger.error(f"[NotificationChain] Channel {channel.name} exception: {e}")
+                safe_error = create_safe_error_message(e)
+                result.error_details[channel.name] = safe_error
+                logger.error(f"[NotificationChain] Channel {channel.name} exception: {safe_error}")
 
         # All channels failed
         logger.error(f"[NotificationChain] All channels failed for request {request.request_id}")
@@ -255,12 +257,13 @@ class TelegramChannel(NotificationChannel):
                     )
 
         except Exception as e:
-            logger.error(f"[TelegramChannel] Error: {e}")
+            safe_error = create_safe_error_message(e)
+            logger.error(f"[TelegramChannel] Error: {safe_error}")
             return ApprovalResult(
                 success=False,
                 approved=None,
                 error_reason="telegram_exception",
-                evidence={"channel": "telegram", "error": str(e)},
+                evidence={"channel": "telegram", "error": safe_error},
             )
 
     def _format_message(self, request: ApprovalRequest) -> str:
@@ -386,12 +389,13 @@ class EmailChannel(NotificationChannel):
             )
 
         except Exception as e:
-            logger.error(f"[EmailChannel] Error: {e}")
+            safe_error = create_safe_error_message(e)
+            logger.error(f"[EmailChannel] Error: {safe_error}")
             return ApprovalResult(
                 success=False,
                 approved=None,
                 error_reason="email_send_failed",
-                evidence={"channel": "email", "error": str(e)},
+                evidence={"channel": "email", "error": safe_error},
             )
 
     def _format_text_message(self, request: ApprovalRequest) -> str:
@@ -599,12 +603,13 @@ class SMSChannel(NotificationChannel):
                     )
 
         except Exception as e:
-            logger.error(f"[SMSChannel:Twilio] Error: {e}")
+            safe_error = create_safe_error_message(e)
+            logger.error(f"[SMSChannel:Twilio] Error: {safe_error}")
             return ApprovalResult(
                 success=False,
                 approved=None,
                 error_reason="twilio_exception",
-                evidence={"channel": "sms", "provider": "twilio", "error": str(e)},
+                evidence={"channel": "sms", "provider": "twilio", "error": safe_error},
             )
 
     def _send_sns(self, message: str) -> ApprovalResult:
@@ -649,12 +654,13 @@ class SMSChannel(NotificationChannel):
                 evidence={"channel": "sms", "error": "boto3 not installed"},
             )
         except Exception as e:
-            logger.error(f"[SMSChannel:SNS] Error: {e}")
+            safe_error = create_safe_error_message(e)
+            logger.error(f"[SMSChannel:SNS] Error: {safe_error}")
             return ApprovalResult(
                 success=False,
                 approved=None,
                 error_reason="sns_exception",
-                evidence={"channel": "sms", "provider": "sns", "error": str(e)},
+                evidence={"channel": "sms", "provider": "sns", "error": safe_error},
             )
 
     def _format_message(self, request: ApprovalRequest) -> str:

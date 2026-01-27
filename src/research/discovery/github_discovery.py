@@ -4,9 +4,14 @@ This module provides the GitHubDiscovery class for discovering relevant
 repositories, issues, and discussions on GitHub.
 """
 
+import logging
 import requests
 from typing import Dict, List, Optional
 from dataclasses import dataclass
+
+from autopack.utils import mask_credential
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -83,6 +88,10 @@ class GitHubDiscovery:
         self.headers = {"Accept": "application/vnd.github.v3+json"}
         if api_token:
             self.headers["Authorization"] = f"token {api_token}"
+            # IMP-SEC-002: Log masked token for debugging (never log full token)
+            logger.debug(f"GitHub Discovery initialized with token: {mask_credential(api_token)}")
+        else:
+            logger.debug("GitHub Discovery initialized without authentication")
 
         self.rate_limit_remaining = None
         self.rate_limit_reset = None

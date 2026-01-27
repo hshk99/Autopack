@@ -68,6 +68,7 @@ from autopack.governed_apply import GovernedApplyPath
 # BUILD-115: models.py removed - database write code disabled below
 from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
 from autopack.memory import MemoryService
+from autopack.utils import mask_credential
 
 # BUILD-123v2: Manifest Generator imports
 from autopack.manifest_generator import ManifestGenerator
@@ -773,7 +774,16 @@ class AutonomousExecutor:
         if invalid_keys:
             raise ValueError("Invalid API key(s) detected:\n  - " + "\n  - ".join(invalid_keys))
 
-        logger.info("API key validation passed")
+        # IMP-SEC-002: Log masked credentials for debugging (never log full credentials)
+        configured_keys = []
+        if self.glm_key:
+            configured_keys.append(f"GLM_API_KEY={mask_credential(self.glm_key)}")
+        if self.anthropic_key:
+            configured_keys.append(f"ANTHROPIC_API_KEY={mask_credential(self.anthropic_key)}")
+        if self.openai_key:
+            configured_keys.append(f"OPENAI_API_KEY={mask_credential(self.openai_key)}")
+
+        logger.info(f"API key validation passed. Configured: {', '.join(configured_keys)}")
 
     def _run_startup_checks(self):
         """

@@ -66,10 +66,10 @@ from sqlalchemy.orm import sessionmaker
 import autopack.models  # noqa: F401
 from autopack.database import Base, get_db
 from autopack.main import app
+
 # Explicitly import PolicyPromotion to ensure it's registered (IMP-ARCH-006)
 from autopack.models import PolicyPromotion  # noqa: F401
-from autopack.usage_recorder import \
-    LlmUsageEvent  # noqa: F401 - ensure model registered
+from autopack.usage_recorder import LlmUsageEvent  # noqa: F401 - ensure model registered
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -243,7 +243,7 @@ def mock_memory_service(monkeypatch, tmp_path):
     allowing tests to exercise MemoryService integration paths
     without requiring a running Qdrant instance.
     """
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     # Create mock store
     mock_store = MagicMock()

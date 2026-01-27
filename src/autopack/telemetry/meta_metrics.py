@@ -30,6 +30,39 @@ class FeedbackLoopHealth(Enum):
     UNKNOWN = "unknown"  # Insufficient data to determine health
 
 
+@dataclass
+class FeedbackLoopLatency:
+    """Latency measurements for the feedback loop pipeline.
+
+    Tracks the time from telemetry collection through analysis to task generation,
+    with SLA enforcement to detect when the feedback loop is falling behind.
+    """
+
+    telemetry_to_analysis_ms: float
+    analysis_to_task_ms: float
+    total_latency_ms: float
+    sla_threshold_ms: float = 300000  # 5 minutes default SLA
+
+    def is_healthy(self) -> bool:
+        """Check if latency is within SLA (5-minute threshold by default)."""
+        return self.total_latency_ms <= self.sla_threshold_ms
+
+    def get_sla_status(self) -> str:
+        """Get human-readable SLA status."""
+        if self.total_latency_ms <= self.sla_threshold_ms * 0.5:
+            return "excellent"
+        elif self.total_latency_ms <= self.sla_threshold_ms * 0.8:
+            return "good"
+        elif self.total_latency_ms <= self.sla_threshold_ms:
+            return "acceptable"
+        else:
+            return "breached"
+
+    def get_breach_amount_ms(self) -> float:
+        """Get the amount by which SLA is breached (0 if within SLA)."""
+        return max(0, self.total_latency_ms - self.sla_threshold_ms)
+
+
 class ComponentStatus(Enum):
     """Health status for individual ROAD components."""
 

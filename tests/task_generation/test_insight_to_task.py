@@ -7,9 +7,14 @@ import pytest
 
 from autopack.analytics.telemetry_analyzer import TelemetryAnalyzer
 from autopack.task_generation.insight_to_task import (
-    CRITICAL_ESCALATION_RATE, CRITICAL_FLAKINESS, CRITICAL_HEALTH_THRESHOLD,
-    HIGH_ESCALATION_RATE, HIGH_FLAKINESS, HIGH_IMPACT_THRESHOLD,
-    InsightToTaskGenerator)
+    CRITICAL_ESCALATION_RATE,
+    CRITICAL_FLAKINESS,
+    CRITICAL_HEALTH_THRESHOLD,
+    HIGH_ESCALATION_RATE,
+    HIGH_FLAKINESS,
+    HIGH_IMPACT_THRESHOLD,
+    InsightToTaskGenerator,
+)
 
 
 @pytest.fixture

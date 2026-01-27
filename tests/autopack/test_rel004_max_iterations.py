@@ -4,8 +4,6 @@ These tests verify that all while loops have proper max iteration limits
 to prevent resource exhaustion when exit conditions fail.
 """
 
-import pytest
-
 # Test imports for the modules we're testing
 from autopack.api.app import MAX_CLEANUP_ITERATIONS
 from autopack.api.routes.files import MAX_FILE_CHUNKS

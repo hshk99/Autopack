@@ -915,6 +915,100 @@ class AutonomousLoop:
             )
             return 0
 
+    def _generate_tasks_from_ranked_issues(
+        self, ranked_issues: Dict, context: str = "phase_telemetry"
+    ) -> int:
+        """Generate improvement tasks from ranked issues and queue them for execution.
+
+        IMP-INT-003: Wires ROADC TaskGenerator into executor loop. After telemetry
+        insights are persisted to memory, this method generates improvement tasks
+        from those same insights and persists them to the database for execution.
+
+        This completes the insight→task→execution cycle by ensuring tasks are
+        generated directly from persisted insights without re-aggregating telemetry.
+
+        Args:
+            ranked_issues: Dictionary from TelemetryAnalyzer.aggregate_telemetry()
+                containing top_cost_sinks, top_failure_modes, top_retry_causes.
+            context: Context string for logging (e.g., "phase_telemetry", "run_finalization")
+
+        Returns:
+            Number of tasks generated and persisted, or 0 if generation failed/skipped.
+        """
+        try:
+            from autopack.config import settings as config_settings
+            from autopack.roadc import AutonomousTaskGenerator
+        except ImportError:
+            logger.debug("[IMP-INT-003] ROADC module not available for task generation")
+            return 0
+
+        # Check if task generation is enabled
+        try:
+            task_gen_config = getattr(config_settings, "task_generation", {})
+            if not task_gen_config:
+                task_gen_config = {"enabled": False}
+        except Exception:
+            task_gen_config = {"enabled": False}
+
+        if not task_gen_config.get("enabled", False):
+            logger.debug("[IMP-INT-003] Task generation not enabled in settings")
+            return 0
+
+        # Check if we have any issues to generate tasks from
+        total_issues = (
+            len(ranked_issues.get("top_cost_sinks", []))
+            + len(ranked_issues.get("top_failure_modes", []))
+            + len(ranked_issues.get("top_retry_causes", []))
+        )
+
+        if total_issues == 0:
+            logger.debug(f"[IMP-INT-003] No ranked issues for task generation ({context})")
+            return 0
+
+        try:
+            # IMP-INT-003: Generate tasks directly from the ranked issues that were just persisted
+            db_session = getattr(self.executor, "db_session", None)
+            generator = AutonomousTaskGenerator(db_session=db_session)
+
+            run_id = getattr(self.executor, "run_id", None)
+            result = generator.generate_tasks(
+                max_tasks=task_gen_config.get("max_tasks_per_run", 10),
+                min_confidence=task_gen_config.get("min_confidence", 0.7),
+                telemetry_insights=ranked_issues,
+                run_id=run_id,
+            )
+
+            tasks_generated = len(result.tasks_generated)
+            logger.info(
+                f"[IMP-INT-003] Generated {tasks_generated} tasks from {total_issues} "
+                f"ranked issues ({context}, {result.generation_time_ms:.0f}ms)"
+            )
+
+            # Persist generated tasks to database for execution queue
+            if result.tasks_generated:
+                try:
+                    persisted_count = generator.persist_tasks(result.tasks_generated, run_id)
+                    logger.info(
+                        f"[IMP-INT-003] Queued {persisted_count} tasks for execution ({context})"
+                    )
+                    return persisted_count
+                except Exception as persist_err:
+                    logger.warning(
+                        f"[IMP-INT-003] Failed to queue tasks for execution "
+                        f"(context={context}, non-fatal): {persist_err}"
+                    )
+                    return 0
+
+            return 0
+
+        except Exception as e:
+            # Non-fatal - task generation failure should not block execution
+            logger.warning(
+                f"[IMP-INT-003] Failed to generate tasks from ranked issues "
+                f"(context={context}, non-fatal): {e}"
+            )
+            return 0
+
     def _aggregate_phase_telemetry(self, phase_id: str, force: bool = False) -> Optional[Dict]:
         """Aggregate telemetry after phase completion for self-improvement feedback.
 
@@ -2579,6 +2673,12 @@ class AutonomousLoop:
                 f"{len(ranked_issues.get('top_failure_modes', []))} failure modes, "
                 f"{len(ranked_issues.get('top_retry_causes', []))} retry causes"
             )
+
+            # IMP-INT-003: Generate tasks from the validated ranked issues and queue for execution
+            # This completes the insight→task→execution cycle by ensuring tasks are generated
+            # directly from the insights that were just persisted to memory
+            self._generate_tasks_from_ranked_issues(ranked_issues, context="run_finalization")
+
         except Exception as e:
             logger.warning(f"[IMP-ARCH-001] Failed to analyze telemetry: {e}")
             return

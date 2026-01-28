@@ -20,6 +20,23 @@ logger = logging.getLogger(__name__)
 class RetrievalTrigger:
     """Analyzes Stage 1 handoff bundles to determine if deep retrieval is needed."""
 
+    # Lower thresholds to capture more errors (IMP-DIAG-003)
+    MIN_ERROR_LENGTH = 10
+    MIN_ROOT_CAUSE_LENGTH = 15
+
+    # Add semantic escalation - escalate on first attempt for certain patterns
+    # Note: patterns that need word boundaries use tuple format (pattern, requires_boundary)
+    IMMEDIATE_ESCALATION_PATTERNS = [
+        "traceback",
+        " error:",  # Requires leading space to avoid matching "SomeError:"
+        " failed:",  # Requires leading space to avoid matching "TaskFailed:"
+        "assertionerror",
+        "timeout",
+        "connection refused",
+        "raise ",  # Explicit raise statement
+        "threw exception",
+    ]
+
     def __init__(self, run_dir: Path):
         """Initialize retrieval trigger analyzer.
 
@@ -42,6 +59,31 @@ class RetrievalTrigger:
         Returns:
             True if deep retrieval should be triggered, False otherwise
         """
+        # Trigger 0: Immediate escalation for known error patterns (IMP-DIAG-003)
+        if handoff_bundle:
+            error_msg = handoff_bundle.get("error_message", "")
+            if error_msg:
+                error_lower = error_msg.lower()
+                for pattern in self.IMMEDIATE_ESCALATION_PATTERNS:
+                    if pattern in error_lower:
+                        self.logger.info(
+                            f"[RetrievalTrigger] Phase {phase_id} attempt {attempt_number}: "
+                            f"Immediate escalation pattern '{pattern}' detected - "
+                            f"triggering deep retrieval"
+                        )
+                        return True
+
+        # Trigger 0b: Low confidence root cause (IMP-DIAG-003)
+        if handoff_bundle:
+            root_cause_confidence = handoff_bundle.get("root_cause_confidence", 1.0)
+            if root_cause_confidence < 0.5:
+                self.logger.info(
+                    f"[RetrievalTrigger] Phase {phase_id} attempt {attempt_number}: "
+                    f"Low root cause confidence ({root_cause_confidence}) - "
+                    f"triggering deep retrieval"
+                )
+                return True
+
         # Trigger 1: Empty or minimal handoff bundle
         if self._is_bundle_insufficient(handoff_bundle):
             self.logger.info(
@@ -98,7 +140,8 @@ class RetrievalTrigger:
         recent_changes = bundle.get("recent_changes", [])
 
         # Bundle is insufficient if all fields are empty/minimal
-        has_error = len(error_msg) > 20
+        # Use lowered threshold (IMP-DIAG-003)
+        has_error = len(error_msg) > self.MIN_ERROR_LENGTH
         has_trace = len(stack_trace) > 50
         has_changes = len(recent_changes) > 0
 
@@ -132,7 +175,8 @@ class RetrievalTrigger:
                 return True
 
         # Check if error message is too short to be useful
-        if len(error_msg) < 30:
+        # Use lowered threshold (IMP-DIAG-003)
+        if len(error_msg) < self.MIN_ROOT_CAUSE_LENGTH:
             return True
 
         return False
@@ -196,7 +240,8 @@ class RetrievalTrigger:
                 return False
 
         # Root cause should have reasonable length
-        if len(root_cause) < 20:
+        # Use lowered threshold (IMP-DIAG-003)
+        if len(root_cause) < self.MIN_ROOT_CAUSE_LENGTH:
             return False
 
         return True

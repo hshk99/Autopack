@@ -1001,7 +1001,8 @@ class TestHealthGateTaskGeneration:
 
     def test_get_feedback_loop_health_attention_required_when_circuit_open(self):
         """Verify health returns ATTENTION_REQUIRED when circuit breaker is OPEN."""
-        from autopack.executor.autonomous_loop import CircuitBreaker, CircuitBreakerState
+        from autopack.executor.autonomous_loop import (CircuitBreaker,
+                                                       CircuitBreakerState)
 
         mock_executor = Mock()
         loop = AutonomousLoop(mock_executor)
@@ -1015,7 +1016,8 @@ class TestHealthGateTaskGeneration:
 
     def test_get_feedback_loop_health_degraded_when_circuit_half_open(self):
         """Verify health returns DEGRADED when circuit breaker is HALF_OPEN."""
-        from autopack.executor.autonomous_loop import CircuitBreaker, CircuitBreakerState
+        from autopack.executor.autonomous_loop import (CircuitBreaker,
+                                                       CircuitBreakerState)
 
         mock_executor = Mock()
         loop = AutonomousLoop(mock_executor)
@@ -1110,6 +1112,146 @@ class TestHealthGateTaskGeneration:
                         loop._finalize_execution(stats)
 
             # Task generation SHOULD be called (DEGRADED allows generation)
+            mock_gen.assert_called_once()
+
+    def test_circuit_breaker_blocks_task_gen(self):
+        """Verify task generation is skipped when circuit breaker is OPEN (IMP-LOOP-002)."""
+        from autopack.executor.autonomous_loop import (CircuitBreaker,
+                                                       CircuitBreakerState)
+
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+        mock_executor._get_project_slug = Mock(return_value="test-project")
+
+        loop = AutonomousLoop(mock_executor)
+
+        # Set up healthy feedback loop state
+        loop._total_phases_executed = 10
+        loop._total_phases_failed = 0
+
+        # Set up circuit breaker in OPEN state
+        loop._circuit_breaker = CircuitBreaker()
+        loop._circuit_breaker._state = CircuitBreakerState.OPEN
+
+        # Track whether _generate_improvement_tasks is called
+        with patch.object(loop, "_generate_improvement_tasks") as mock_gen:
+            with patch.object(loop, "_persist_loop_insights"):
+                with patch("autopack.executor.autonomous_loop.log_build_event"):
+                    with patch.object(loop.executor, "_best_effort_write_run_summary"):
+                        # Call _finalize_execution with no_more_executable_phases
+                        stats = {
+                            "iteration": 10,
+                            "phases_executed": 10,
+                            "phases_failed": 0,
+                            "stop_reason": "no_more_executable_phases",
+                        }
+                        loop._finalize_execution(stats)
+
+            # Task generation should NOT be called because circuit breaker is OPEN
+            mock_gen.assert_not_called()
+
+    def test_circuit_breaker_allows_task_gen_when_closed(self):
+        """Verify task generation proceeds when circuit breaker is CLOSED (IMP-LOOP-002)."""
+        from autopack.executor.autonomous_loop import (CircuitBreaker,
+                                                       CircuitBreakerState)
+
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+        mock_executor._get_project_slug = Mock(return_value="test-project")
+
+        loop = AutonomousLoop(mock_executor)
+
+        # Set up healthy state
+        loop._total_phases_executed = 10
+        loop._total_phases_failed = 0
+
+        # Set up circuit breaker in CLOSED state
+        loop._circuit_breaker = CircuitBreaker()
+        loop._circuit_breaker._state = CircuitBreakerState.CLOSED
+
+        # Track whether _generate_improvement_tasks is called
+        with patch.object(loop, "_generate_improvement_tasks") as mock_gen:
+            with patch.object(loop, "_persist_loop_insights"):
+                with patch("autopack.executor.autonomous_loop.log_build_event"):
+                    with patch.object(loop.executor, "_best_effort_write_run_summary"):
+                        # Call _finalize_execution with no_more_executable_phases
+                        stats = {
+                            "iteration": 10,
+                            "phases_executed": 10,
+                            "phases_failed": 0,
+                            "stop_reason": "no_more_executable_phases",
+                        }
+                        loop._finalize_execution(stats)
+
+            # Task generation SHOULD be called (circuit is CLOSED)
+            mock_gen.assert_called_once()
+
+    def test_circuit_breaker_allows_task_gen_when_half_open(self):
+        """Verify task generation proceeds when circuit breaker is HALF_OPEN (IMP-LOOP-002)."""
+        from autopack.executor.autonomous_loop import (CircuitBreaker,
+                                                       CircuitBreakerState)
+
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+        mock_executor._get_project_slug = Mock(return_value="test-project")
+
+        loop = AutonomousLoop(mock_executor)
+
+        # Set up healthy state
+        loop._total_phases_executed = 10
+        loop._total_phases_failed = 0
+
+        # Set up circuit breaker in HALF_OPEN state
+        loop._circuit_breaker = CircuitBreaker()
+        loop._circuit_breaker._state = CircuitBreakerState.HALF_OPEN
+
+        # Track whether _generate_improvement_tasks is called
+        with patch.object(loop, "_generate_improvement_tasks") as mock_gen:
+            with patch.object(loop, "_persist_loop_insights"):
+                with patch("autopack.executor.autonomous_loop.log_build_event"):
+                    with patch.object(loop.executor, "_best_effort_write_run_summary"):
+                        # Call _finalize_execution with no_more_executable_phases
+                        stats = {
+                            "iteration": 10,
+                            "phases_executed": 10,
+                            "phases_failed": 0,
+                            "stop_reason": "no_more_executable_phases",
+                        }
+                        loop._finalize_execution(stats)
+
+            # Task generation SHOULD be called (HALF_OPEN allows requests)
+            mock_gen.assert_called_once()
+
+    def test_circuit_breaker_none_allows_task_gen(self):
+        """Verify task generation proceeds when no circuit breaker is configured (IMP-LOOP-002)."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+        mock_executor._get_project_slug = Mock(return_value="test-project")
+
+        loop = AutonomousLoop(mock_executor)
+
+        # Set up healthy state
+        loop._total_phases_executed = 10
+        loop._total_phases_failed = 0
+
+        # Ensure no circuit breaker
+        loop._circuit_breaker = None
+
+        # Track whether _generate_improvement_tasks is called
+        with patch.object(loop, "_generate_improvement_tasks") as mock_gen:
+            with patch.object(loop, "_persist_loop_insights"):
+                with patch("autopack.executor.autonomous_loop.log_build_event"):
+                    with patch.object(loop.executor, "_best_effort_write_run_summary"):
+                        # Call _finalize_execution with no_more_executable_phases
+                        stats = {
+                            "iteration": 10,
+                            "phases_executed": 10,
+                            "phases_failed": 0,
+                            "stop_reason": "no_more_executable_phases",
+                        }
+                        loop._finalize_execution(stats)
+
+            # Task generation SHOULD be called (no circuit breaker configured)
             mock_gen.assert_called_once()
 
 

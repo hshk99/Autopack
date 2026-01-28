@@ -2299,6 +2299,12 @@ class MemoryService:
                 _enrich_with_metadata(r, "hint", content_keys["hints"], now) for r in raw_results
             ]
 
+        # IMP-MEM-001: Sort all results by confidence (highest first)
+        # This ensures hints with higher confidence * similarity ranking
+        # are prioritized over less reliable results
+        for key in results:
+            results[key].sort(key=lambda x: x.confidence, reverse=True)
+
         # Log summary with confidence information
         total_items = sum(len(v) for v in results.values())
         low_confidence_items = sum(

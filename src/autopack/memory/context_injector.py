@@ -19,6 +19,23 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class ContextInjectionMetadata:
+    """Metadata about context injection for impact measurement (IMP-LOOP-021).
+
+    Tracks whether context was injected and how many items were provided,
+    enabling A/B comparison of phase success rates with/without context.
+    """
+
+    context_injected: bool  # True if any context items were injected
+    context_item_count: int  # Total number of context items injected
+    errors_count: int  # Number of past errors injected
+    strategies_count: int  # Number of successful strategies injected
+    hints_count: int  # Number of doctor hints injected
+    insights_count: int  # Number of relevant insights injected
+    discovery_count: int  # Number of discovery insights injected
+
+
+@dataclass
 class ContextInjection:
     """Context to inject into builder prompt."""
 
@@ -865,3 +882,89 @@ class ContextInjector:
                 sections.append(f"**Discovery Insights (External Sources):**\n{discovery_items}")
 
         return "\n\n".join(sections) if sections else ""
+
+    # -------------------------------------------------------------------------
+    # IMP-LOOP-021: Context Injection Impact Measurement
+    # -------------------------------------------------------------------------
+
+    def get_injection_metadata(self, injection: ContextInjection) -> ContextInjectionMetadata:
+        """Extract injection metadata for impact measurement (IMP-LOOP-021).
+
+        Creates metadata tracking whether context was injected and counts
+        by category. This enables A/B comparison of phase success rates
+        between phases with and without context injection.
+
+        Args:
+            injection: ContextInjection with retrieved context items
+
+        Returns:
+            ContextInjectionMetadata with injection statistics
+        """
+        errors_count = len(injection.past_errors)
+        strategies_count = len(injection.successful_strategies)
+        hints_count = len(injection.doctor_hints)
+        insights_count = len(injection.relevant_insights)
+        discovery_count = len(injection.discovery_insights)
+
+        total_count = (
+            errors_count + strategies_count + hints_count + insights_count + discovery_count
+        )
+
+        metadata = ContextInjectionMetadata(
+            context_injected=total_count > 0,
+            context_item_count=total_count,
+            errors_count=errors_count,
+            strategies_count=strategies_count,
+            hints_count=hints_count,
+            insights_count=insights_count,
+            discovery_count=discovery_count,
+        )
+
+        logger.debug(
+            f"[IMP-LOOP-021] Context injection metadata: injected={metadata.context_injected}, "
+            f"count={metadata.context_item_count}"
+        )
+
+        return metadata
+
+    def get_enriched_injection_metadata(
+        self, injection: EnrichedContextInjection
+    ) -> ContextInjectionMetadata:
+        """Extract injection metadata from enriched context (IMP-LOOP-021).
+
+        Creates metadata tracking from EnrichedContextInjection objects
+        that include confidence and quality information.
+
+        Args:
+            injection: EnrichedContextInjection with metadata
+
+        Returns:
+            ContextInjectionMetadata with injection statistics
+        """
+        errors_count = len(injection.past_errors)
+        strategies_count = len(injection.successful_strategies)
+        hints_count = len(injection.doctor_hints)
+        insights_count = len(injection.relevant_insights)
+        discovery_count = len(injection.discovery_insights)
+
+        total_count = (
+            errors_count + strategies_count + hints_count + insights_count + discovery_count
+        )
+
+        metadata = ContextInjectionMetadata(
+            context_injected=total_count > 0,
+            context_item_count=total_count,
+            errors_count=errors_count,
+            strategies_count=strategies_count,
+            hints_count=hints_count,
+            insights_count=insights_count,
+            discovery_count=discovery_count,
+        )
+
+        logger.debug(
+            f"[IMP-LOOP-021] Enriched context injection metadata: "
+            f"injected={metadata.context_injected}, count={metadata.context_item_count}, "
+            f"avg_confidence={injection.avg_confidence:.2f}"
+        )
+
+        return metadata

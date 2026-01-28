@@ -497,6 +497,10 @@ class PhaseOutcomeEvent(Base):
     model_used = Column(String, nullable=True)  # For ROAD-L optimization
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+    # IMP-LOOP-021: Context injection impact tracking
+    context_injected = Column(Boolean, nullable=True, index=True)  # Was memory context injected?
+    context_item_count = Column(Integer, nullable=True)  # Number of context items injected
+
 
 class TokenBudgetEscalationEvent(Base):
     """

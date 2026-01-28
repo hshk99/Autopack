@@ -7,7 +7,10 @@ Per GPT architect + user consensus on learned rules design.
 """
 
 import json
+import logging
 from collections import defaultdict
+
+logger = logging.getLogger(__name__)
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -583,6 +586,510 @@ def promote_hints_to_rules(run_id: str, project_id: str) -> int:
     return promoted_count
 
 
+# ============================================================================
+# IMP-LOOP-020: Cross-Run Hint/Rule Conflict Detection
+# ============================================================================
+
+
+# Opposing keyword pairs for semantic conflict detection
+_OPPOSING_KEYWORDS = [
+    (
+        {"always", "require", "must", "enforce", "add", "include", "enable"},
+        {"never", "avoid", "skip", "disable", "remove", "exclude", "omit"},
+    ),
+    ({"strict", "mandatory"}, {"optional", "flexible", "relaxed"}),
+    ({"all", "every"}, {"none", "no"}),
+    ({"with"}, {"without"}),
+]
+
+
+def detect_rule_conflicts(
+    rules: List[LearnedRule],
+) -> List[Tuple[LearnedRule, LearnedRule, str]]:
+    """Detect potentially conflicting rules based on scope overlap and semantic analysis.
+
+    IMP-LOOP-020: Identifies contradicting rules/hints that could cause confusion
+    or inconsistent guidance during phase execution.
+
+    Conflict detection checks:
+    1. Scope overlap - both rules affect the same files/patterns
+    2. Semantic contradiction - directives contain opposing keywords
+
+    Args:
+        rules: List of LearnedRule objects to check for conflicts
+
+    Returns:
+        List of (rule1, rule2, conflict_reason) tuples for each detected conflict
+    """
+    conflicts: List[Tuple[LearnedRule, LearnedRule, str]] = []
+
+    # Only check active rules
+    active_rules = [r for r in rules if r.status == "active"]
+
+    for i, rule1 in enumerate(active_rules):
+        for rule2 in active_rules[i + 1 :]:
+            # Skip rules in different task categories (unlikely to conflict)
+            if rule1.task_category != rule2.task_category:
+                continue
+
+            if _scopes_overlap(rule1, rule2):
+                if _directives_conflict(rule1, rule2):
+                    conflicts.append(
+                        (
+                            rule1,
+                            rule2,
+                            f"Scope overlap ({_describe_scope_overlap(rule1, rule2)}) "
+                            f"with conflicting directives",
+                        )
+                    )
+
+    return conflicts
+
+
+def detect_hint_conflicts(
+    hints: List[RunRuleHint],
+) -> List[Tuple[RunRuleHint, RunRuleHint, str]]:
+    """Detect potentially conflicting hints within the same run.
+
+    Similar to detect_rule_conflicts but for run-local hints.
+
+    Args:
+        hints: List of RunRuleHint objects to check for conflicts
+
+    Returns:
+        List of (hint1, hint2, conflict_reason) tuples for each detected conflict
+    """
+    conflicts: List[Tuple[RunRuleHint, RunRuleHint, str]] = []
+
+    for i, hint1 in enumerate(hints):
+        for hint2 in hints[i + 1 :]:
+            # Skip hints in different task categories
+            if hint1.task_category != hint2.task_category:
+                continue
+
+            if _hint_scopes_overlap(hint1, hint2):
+                if _hint_directives_conflict(hint1, hint2):
+                    conflicts.append(
+                        (
+                            hint1,
+                            hint2,
+                            f"Scope overlap with conflicting directives",
+                        )
+                    )
+
+    return conflicts
+
+
+def _scopes_overlap(rule1: LearnedRule, rule2: LearnedRule) -> bool:
+    """Check if two rules affect overlapping file patterns.
+
+    Two rules overlap if their scope_patterns could match the same files.
+
+    Rules:
+    - If both have no scope_pattern (None/global), they overlap
+    - If one is global and the other isn't, they overlap (global affects all)
+    - If both have patterns, check for pattern intersection
+
+    Args:
+        rule1: First rule to compare
+        rule2: Second rule to compare
+
+    Returns:
+        True if scopes overlap, False otherwise
+    """
+    pattern1 = rule1.scope_pattern
+    pattern2 = rule2.scope_pattern
+
+    # Both global = overlap
+    if pattern1 is None and pattern2 is None:
+        return True
+
+    # One global = overlap (global affects everything)
+    if pattern1 is None or pattern2 is None:
+        return True
+
+    # Both have patterns - check for intersection
+    return _patterns_can_intersect(pattern1, pattern2)
+
+
+def _patterns_can_intersect(pattern1: str, pattern2: str) -> bool:
+    """Check if two glob patterns could match the same files.
+
+    Uses heuristic matching:
+    - Same pattern = intersect
+    - Same extension (*.py, *.py) = intersect
+    - One contains the other (auth/*.py, *.py) = intersect
+    - Same directory prefix = intersect
+
+    Args:
+        pattern1: First glob pattern
+        pattern2: Second glob pattern
+
+    Returns:
+        True if patterns could match same files
+    """
+    import fnmatch
+
+    # Normalize patterns
+    p1 = pattern1.replace("\\", "/").lower()
+    p2 = pattern2.replace("\\", "/").lower()
+
+    # Exact match
+    if p1 == p2:
+        return True
+
+    # Extract extensions
+    ext1 = _extract_extension(p1)
+    ext2 = _extract_extension(p2)
+
+    # Different extensions = no overlap (*.py and *.js won't match same files)
+    if ext1 and ext2 and ext1 != ext2:
+        return False
+
+    # Same extension with wildcards = likely overlap
+    if ext1 and ext1 == ext2:
+        return True
+
+    # Check if one pattern is more general than the other
+    # e.g., "*.py" matches anything "auth/*.py" matches
+    if fnmatch.fnmatch(p1, p2) or fnmatch.fnmatch(p2, p1):
+        return True
+
+    # Check directory overlap
+    dir1 = _extract_directory(p1)
+    dir2 = _extract_directory(p2)
+
+    if dir1 and dir2:
+        # Same directory or one contains the other
+        if dir1 == dir2 or dir1.startswith(dir2) or dir2.startswith(dir1):
+            return True
+
+    # Default: assume no overlap for distinct patterns
+    return False
+
+
+def _extract_extension(pattern: str) -> Optional[str]:
+    """Extract file extension from a glob pattern."""
+    if "*." in pattern:
+        # Find the extension after the last *.
+        parts = pattern.split("*.")
+        if len(parts) > 1:
+            ext = parts[-1]
+            # Handle patterns like "*.py" or "src/*.py"
+            if "/" not in ext and "\\" not in ext:
+                return f".{ext}"
+    return None
+
+
+def _extract_directory(pattern: str) -> Optional[str]:
+    """Extract directory prefix from a glob pattern."""
+    if "/" in pattern:
+        parts = pattern.rsplit("/", 1)
+        if parts[0] and not parts[0].startswith("*"):
+            return parts[0]
+    return None
+
+
+def _directives_conflict(rule1: LearnedRule, rule2: LearnedRule) -> bool:
+    """Check if rule constraints/directives are semantically contradictory.
+
+    Uses keyword matching to detect opposing directives like:
+    - "always add type hints" vs "skip type hints for tests"
+    - "require docstrings" vs "avoid docstrings"
+
+    Args:
+        rule1: First rule to compare
+        rule2: Second rule to compare
+
+    Returns:
+        True if directives appear to conflict
+    """
+    text1 = rule1.constraint.lower()
+    text2 = rule2.constraint.lower()
+
+    # Tokenize
+    words1 = set(text1.split())
+    words2 = set(text2.split())
+
+    # Check for opposing keyword pairs
+    for positive_set, negative_set in _OPPOSING_KEYWORDS:
+        has_positive_1 = bool(words1 & positive_set)
+        has_negative_1 = bool(words1 & negative_set)
+        has_positive_2 = bool(words2 & positive_set)
+        has_negative_2 = bool(words2 & negative_set)
+
+        # Rule1 positive + Rule2 negative = conflict
+        if has_positive_1 and has_negative_2:
+            # Verify they're discussing the same topic
+            if _share_topic_keywords(words1, words2):
+                return True
+
+        # Rule1 negative + Rule2 positive = conflict
+        if has_negative_1 and has_positive_2:
+            if _share_topic_keywords(words1, words2):
+                return True
+
+    return False
+
+
+def _share_topic_keywords(words1: set, words2: set) -> bool:
+    """Check if two word sets share topic-related keywords.
+
+    Filters out common words to focus on topic-specific terms.
+
+    Args:
+        words1: First set of words
+        words2: Second set of words
+
+    Returns:
+        True if they share meaningful topic words
+    """
+    # Common words to ignore
+    stop_words = {
+        "the",
+        "a",
+        "an",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "must",
+        "shall",
+        "can",
+        "need",
+        "to",
+        "of",
+        "in",
+        "for",
+        "on",
+        "with",
+        "at",
+        "by",
+        "from",
+        "as",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "above",
+        "below",
+        "between",
+        "under",
+        "again",
+        "further",
+        "then",
+        "once",
+        "here",
+        "there",
+        "when",
+        "where",
+        "why",
+        "how",
+        "all",
+        "each",
+        "few",
+        "more",
+        "most",
+        "other",
+        "some",
+        "such",
+        "no",
+        "nor",
+        "not",
+        "only",
+        "own",
+        "same",
+        "so",
+        "than",
+        "too",
+        "very",
+        "just",
+        "and",
+        "but",
+        "if",
+        "or",
+        "because",
+        "until",
+        "while",
+        "this",
+        "that",
+        "these",
+        "those",
+        "always",
+        "never",
+        "require",
+        "avoid",
+        "add",
+        "skip",
+        "include",
+        "exclude",
+        "enable",
+        "disable",
+        "watch",
+        "out",
+        "working",
+        "tasks",
+        "issues",
+    }
+
+    # Get meaningful words
+    meaningful1 = words1 - stop_words
+    meaningful2 = words2 - stop_words
+
+    # Need at least 1 shared meaningful word to consider same topic
+    shared = meaningful1 & meaningful2
+    return len(shared) >= 1
+
+
+def _hint_scopes_overlap(hint1: RunRuleHint, hint2: RunRuleHint) -> bool:
+    """Check if two hints affect overlapping file paths."""
+    if not hint1.scope_paths and not hint2.scope_paths:
+        return True  # Both global
+
+    if not hint1.scope_paths or not hint2.scope_paths:
+        return True  # One is global
+
+    # Check for direct path overlap or directory overlap
+    paths1 = set(hint1.scope_paths)
+    paths2 = set(hint2.scope_paths)
+
+    if paths1 & paths2:
+        return True  # Direct path overlap
+
+    # Check directory overlap
+    dirs1 = {str(Path(p).parent) for p in paths1}
+    dirs2 = {str(Path(p).parent) for p in paths2}
+
+    return bool(dirs1 & dirs2)
+
+
+def _hint_directives_conflict(hint1: RunRuleHint, hint2: RunRuleHint) -> bool:
+    """Check if hint texts are semantically contradictory."""
+    text1 = hint1.hint_text.lower()
+    text2 = hint2.hint_text.lower()
+
+    words1 = set(text1.split())
+    words2 = set(text2.split())
+
+    for positive_set, negative_set in _OPPOSING_KEYWORDS:
+        has_positive_1 = bool(words1 & positive_set)
+        has_negative_1 = bool(words1 & negative_set)
+        has_positive_2 = bool(words2 & positive_set)
+        has_negative_2 = bool(words2 & negative_set)
+
+        if (has_positive_1 and has_negative_2) or (has_negative_1 and has_positive_2):
+            if _share_topic_keywords(words1, words2):
+                return True
+
+    return False
+
+
+def _describe_scope_overlap(rule1: LearnedRule, rule2: LearnedRule) -> str:
+    """Generate a human-readable description of the scope overlap."""
+    p1 = rule1.scope_pattern or "global"
+    p2 = rule2.scope_pattern or "global"
+
+    if p1 == "global" and p2 == "global":
+        return "both global"
+    elif p1 == "global":
+        return f"global vs {p2}"
+    elif p2 == "global":
+        return f"{p1} vs global"
+    else:
+        return f"{p1} vs {p2}"
+
+
+def get_conflicts_for_project(project_id: str) -> List[Tuple[LearnedRule, LearnedRule, str]]:
+    """Get all rule conflicts for a project.
+
+    Convenience function that loads project rules and detects conflicts.
+
+    Args:
+        project_id: Project identifier
+
+    Returns:
+        List of (rule1, rule2, conflict_reason) tuples
+    """
+    rules = load_project_rules(project_id)
+    return detect_rule_conflicts(rules)
+
+
+def format_conflicts_report(
+    conflicts: List[Tuple[LearnedRule, LearnedRule, str]],
+) -> str:
+    """Format conflicts into a human-readable report.
+
+    Args:
+        conflicts: List of conflict tuples from detect_rule_conflicts
+
+    Returns:
+        Formatted string report
+    """
+    if not conflicts:
+        return "No conflicts detected."
+
+    lines = [f"Detected {len(conflicts)} potential rule conflict(s):\n"]
+
+    for i, (rule1, rule2, reason) in enumerate(conflicts, 1):
+        lines.append(f"--- Conflict {i} ---")
+        lines.append(f"Rule A: [{rule1.rule_id}] {rule1.constraint}")
+        lines.append(f"Rule B: [{rule2.rule_id}] {rule2.constraint}")
+        lines.append(f"Reason: {reason}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def promote_hints_with_conflict_check(
+    run_id: str, project_id: str
+) -> Tuple[int, List[Tuple[LearnedRule, LearnedRule, str]]]:
+    """Promote hints to rules and check for conflicts.
+
+    IMP-LOOP-020: Extended version of promote_hints_to_rules that also
+    detects and returns any conflicts among the resulting rules.
+
+    Args:
+        run_id: Run ID
+        project_id: Project ID
+
+    Returns:
+        Tuple of (promoted_count, conflicts) where:
+        - promoted_count: Number of rules promoted
+        - conflicts: List of (rule1, rule2, reason) tuples for detected conflicts
+    """
+    promoted_count = promote_hints_to_rules(run_id, project_id)
+
+    # After promotion, check for conflicts
+    rules = load_project_rules(project_id)
+    conflicts = detect_rule_conflicts(rules)
+
+    # Log warnings for any detected conflicts
+    if conflicts:
+        logger.warning(
+            f"Detected {len(conflicts)} potential rule conflict(s) in project '{project_id}'"
+        )
+        for rule1, rule2, reason in conflicts:
+            logger.warning(f"  Conflict: [{rule1.rule_id}] vs [{rule2.rule_id}]: {reason}")
+
+    return promoted_count, conflicts
+
+
 def load_project_rules(project_id: str) -> List[LearnedRule]:
     """Load all project rules
 
@@ -662,6 +1169,32 @@ def get_active_rules_for_phase(
     # Return most promoted first, limited
     relevant.sort(key=lambda r: r.promotion_count, reverse=True)
     return relevant[:max_rules]
+
+
+def get_active_rules_with_conflicts(
+    project_id: str, phase: Dict, max_rules: int = 10
+) -> Tuple[List[LearnedRule], List[Tuple[LearnedRule, LearnedRule, str]]]:
+    """Get active rules for phase along with any detected conflicts.
+
+    IMP-LOOP-020: Extended version of get_active_rules_for_phase that also
+    returns detected conflicts among the returned rules.
+
+    Args:
+        project_id: Project ID
+        phase: Phase dict
+        max_rules: Maximum number of rules to return
+
+    Returns:
+        Tuple of (rules, conflicts) where:
+        - rules: List of relevant LearnedRule objects
+        - conflicts: List of (rule1, rule2, reason) tuples for any conflicts
+    """
+    rules = get_active_rules_for_phase(project_id, phase, max_rules)
+
+    # Detect conflicts among returned rules
+    conflicts = detect_rule_conflicts(rules)
+
+    return rules, conflicts
 
 
 # ============================================================================

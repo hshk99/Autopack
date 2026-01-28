@@ -30,6 +30,8 @@ from typing import Any, Dict, List, Optional, Union
 import yaml
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
+# IMP-MEM-005: Import retrieval quality tracker for metrics collection
+from ..telemetry.meta_metrics import RetrievalQualityTracker
 from .embeddings import EMBEDDING_SIZE, MAX_EMBEDDING_CHARS, sync_embed_text
 from .faiss_store import FaissStore
 from .qdrant_store import QDRANT_AVAILABLE, QdrantStore
@@ -829,6 +831,9 @@ class MemoryService:
         self.max_embed_chars = config.get("max_embed_chars", MAX_EMBEDDING_CHARS)
         self.planning_collection = config.get("planning_collection", COLLECTION_PLANNING)
 
+        # IMP-MEM-005: Initialize retrieval quality tracker (must happen before early return)
+        self._retrieval_quality_tracker: Optional[RetrievalQualityTracker] = None
+
         if not self.enabled:
             self.store = NullStore()
             self.backend = "disabled"
@@ -999,6 +1004,71 @@ class MemoryService:
             return default
 
     # -------------------------------------------------------------------------
+    # IMP-MEM-005: Retrieval Quality Metrics
+    # -------------------------------------------------------------------------
+
+    @property
+    def retrieval_quality_tracker(self) -> Optional[RetrievalQualityTracker]:
+        """Get the retrieval quality tracker if set."""
+        return self._retrieval_quality_tracker
+
+    def set_retrieval_quality_tracker(self, tracker: Optional[RetrievalQualityTracker]) -> None:
+        """Set the retrieval quality tracker for metrics collection.
+
+        IMP-MEM-005: Enables recording of retrieval quality metrics including
+        hit rate, relevance scores, and freshness.
+
+        Args:
+            tracker: RetrievalQualityTracker instance or None to disable tracking
+        """
+        self._retrieval_quality_tracker = tracker
+        if tracker:
+            logger.debug("[IMP-MEM-005] Retrieval quality tracker enabled")
+        else:
+            logger.debug("[IMP-MEM-005] Retrieval quality tracker disabled")
+
+    def _record_retrieval_metrics(
+        self,
+        query: str,
+        results: List[Dict[str, Any]],
+        collection: str,
+    ) -> None:
+        """Record metrics for a retrieval operation.
+
+        IMP-MEM-005: Records hit count, relevance scores, and freshness metrics.
+
+        Args:
+            query: The search query string
+            results: List of result dicts from the search
+            collection: Name of the collection searched
+        """
+        if self._retrieval_quality_tracker is None:
+            return
+
+        try:
+            self._retrieval_quality_tracker.record_retrieval(
+                query=query,
+                results=results,
+                collection=collection,
+            )
+        except Exception as e:
+            # Don't let metrics recording break the main functionality
+            logger.warning(f"[IMP-MEM-005] Failed to record retrieval metrics: {e}")
+
+    def get_retrieval_quality_summary(self) -> Optional[Dict[str, Any]]:
+        """Get a summary of retrieval quality metrics.
+
+        IMP-MEM-005: Returns aggregated quality metrics for memory retrieval
+        operations, or None if tracking is not enabled.
+
+        Returns:
+            Dict with quality metrics, or None if tracker not set
+        """
+        if self._retrieval_quality_tracker is None:
+            return None
+        return self._retrieval_quality_tracker.to_dict()
+
+    # -------------------------------------------------------------------------
     # Code Docs (workspace files)
     # -------------------------------------------------------------------------
 
@@ -1075,7 +1145,7 @@ class MemoryService:
 
         limit = limit or self.top_k
         query_vector = sync_embed_text(query)
-        return self._safe_store_call(
+        results = self._safe_store_call(
             "search_code/search",
             lambda: self.store.search(
                 COLLECTION_CODE_DOCS,
@@ -1085,6 +1155,9 @@ class MemoryService:
             ),
             [],
         )
+        # IMP-MEM-005: Record retrieval quality metrics
+        self._record_retrieval_metrics(query, results, "code")
+        return results
 
     # -------------------------------------------------------------------------
     # Run Summaries
@@ -1163,7 +1236,7 @@ class MemoryService:
         filter_dict = {"project_id": project_id}
         if run_id:
             filter_dict["run_id"] = run_id
-        return self._safe_store_call(
+        results = self._safe_store_call(
             "search_summaries/search",
             lambda: self.store.search(
                 COLLECTION_RUN_SUMMARIES,
@@ -1173,6 +1246,9 @@ class MemoryService:
             ),
             [],
         )
+        # IMP-MEM-005: Record retrieval quality metrics
+        self._record_retrieval_metrics(query, results, "summaries")
+        return results
 
     # -------------------------------------------------------------------------
     # Errors/CI
@@ -1246,7 +1322,7 @@ class MemoryService:
 
         limit = limit or self.top_k
         query_vector = sync_embed_text(query)
-        return self._safe_store_call(
+        results = self._safe_store_call(
             "search_errors/search",
             lambda: self.store.search(
                 COLLECTION_ERRORS_CI,
@@ -1256,6 +1332,9 @@ class MemoryService:
             ),
             [],
         )
+        # IMP-MEM-005: Record retrieval quality metrics
+        self._record_retrieval_metrics(query, results, "errors")
+        return results
 
     # -------------------------------------------------------------------------
     # Doctor Hints
@@ -1846,7 +1925,7 @@ class MemoryService:
 
         limit = limit or self.top_k
         query_vector = sync_embed_text(query)
-        return self._safe_store_call(
+        results = self._safe_store_call(
             "search_doctor_hints/search",
             lambda: self.store.search(
                 COLLECTION_DOCTOR_HINTS,
@@ -1856,6 +1935,9 @@ class MemoryService:
             ),
             [],
         )
+        # IMP-MEM-005: Record retrieval quality metrics
+        self._record_retrieval_metrics(query, results, "hints")
+        return results
 
     # -------------------------------------------------------------------------
     # Task Execution Feedback (IMP-LOOP-005)
@@ -2011,7 +2093,8 @@ class MemoryService:
             ),
             [],
         )
-
+        # IMP-MEM-005: Record retrieval quality metrics
+        self._record_retrieval_metrics(query, results, "execution_feedback")
         return results
 
     # -------------------------------------------------------------------------
@@ -2221,7 +2304,7 @@ class MemoryService:
 
         limit = limit or self.top_k
         query_vector = sync_embed_text(query)
-        return self._safe_store_call(
+        results = self._safe_store_call(
             "search_sot/search",
             lambda: self.store.search(
                 COLLECTION_SOT_DOCS,
@@ -2231,6 +2314,9 @@ class MemoryService:
             ),
             [],
         )
+        # IMP-MEM-005: Record retrieval quality metrics
+        self._record_retrieval_metrics(query, results, "sot")
+        return results
 
     # -------------------------------------------------------------------------
     # Planning artifacts / plan changes / decision log
@@ -2403,6 +2489,8 @@ class MemoryService:
         )
         if types:
             results = [r for r in results if r.get("payload", {}).get("type") in types]
+        # IMP-MEM-005: Record retrieval quality metrics
+        self._record_retrieval_metrics(query, results, "planning")
         return results
 
     def latest_plan_change(self, project_id: str) -> List[Dict[str, Any]]:

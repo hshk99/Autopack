@@ -1292,3 +1292,380 @@ class MetaMetricsTracker:
                 metrics[metric_name] = 0.0
 
         return metrics
+
+
+# ---------------------------------------------------------------------------
+# IMP-MEM-005: Memory Retrieval Quality Metrics
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class MemoryRetrievalMetrics:
+    """Metrics for a single memory retrieval operation.
+
+    IMP-MEM-005: Captures quality signals for memory retrieval including
+    freshness, relevance, and hit rate to assess if retrieved context is useful.
+
+    Attributes:
+        query_hash: Hash of the query for tracking repeat queries
+        hit_count: Number of results returned
+        avg_relevance: Average relevance score across all results (0.0-1.0)
+        max_relevance: Maximum relevance score among results (0.0-1.0)
+        min_relevance: Minimum relevance score among results (0.0-1.0)
+        avg_freshness_hours: Average age of results in hours
+        stale_count: Number of results older than freshness threshold
+        collection: The collection searched (e.g., "code", "summaries", "hints")
+        timestamp: When the retrieval occurred
+    """
+
+    query_hash: str
+    hit_count: int
+    avg_relevance: float
+    max_relevance: float
+    min_relevance: float
+    avg_freshness_hours: float
+    stale_count: int
+    collection: str
+    timestamp: datetime = field(default_factory=datetime.utcnow)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "query_hash": self.query_hash,
+            "hit_count": self.hit_count,
+            "avg_relevance": round(self.avg_relevance, 4),
+            "max_relevance": round(self.max_relevance, 4),
+            "min_relevance": round(self.min_relevance, 4),
+            "avg_freshness_hours": round(self.avg_freshness_hours, 2),
+            "stale_count": self.stale_count,
+            "collection": self.collection,
+            "timestamp": self.timestamp.isoformat(),
+        }
+
+    @property
+    def hit_rate_quality(self) -> str:
+        """Assess hit rate quality: 'good', 'sparse', or 'empty'."""
+        if self.hit_count >= 3:
+            return "good"
+        elif self.hit_count >= 1:
+            return "sparse"
+        return "empty"
+
+    @property
+    def relevance_quality(self) -> str:
+        """Assess relevance quality: 'high', 'medium', or 'low'."""
+        if self.avg_relevance >= 0.7:
+            return "high"
+        elif self.avg_relevance >= 0.4:
+            return "medium"
+        return "low"
+
+    @property
+    def freshness_quality(self) -> str:
+        """Assess freshness quality: 'fresh', 'aging', or 'stale'."""
+        if self.avg_freshness_hours <= 24:
+            return "fresh"
+        elif self.avg_freshness_hours <= 168:  # 1 week
+            return "aging"
+        return "stale"
+
+
+@dataclass
+class RetrievalQualitySummary:
+    """Aggregated summary of retrieval quality over multiple operations.
+
+    IMP-MEM-005: Provides high-level quality assessment for memory retrieval
+    operations to detect degradation trends.
+
+    Attributes:
+        total_retrievals: Total number of retrieval operations tracked
+        avg_hit_count: Average number of results per retrieval
+        avg_relevance: Average relevance score across all retrievals
+        avg_freshness_hours: Average age of results in hours
+        empty_retrieval_rate: Fraction of retrievals that returned no results
+        low_relevance_rate: Fraction of retrievals with avg relevance < 0.4
+        stale_result_rate: Fraction of results that were stale
+        period_start: Start of the tracking period
+        period_end: End of the tracking period
+    """
+
+    total_retrievals: int
+    avg_hit_count: float
+    avg_relevance: float
+    avg_freshness_hours: float
+    empty_retrieval_rate: float
+    low_relevance_rate: float
+    stale_result_rate: float
+    period_start: datetime
+    period_end: datetime
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "total_retrievals": self.total_retrievals,
+            "avg_hit_count": round(self.avg_hit_count, 2),
+            "avg_relevance": round(self.avg_relevance, 4),
+            "avg_freshness_hours": round(self.avg_freshness_hours, 2),
+            "empty_retrieval_rate": round(self.empty_retrieval_rate, 4),
+            "low_relevance_rate": round(self.low_relevance_rate, 4),
+            "stale_result_rate": round(self.stale_result_rate, 4),
+            "period_start": self.period_start.isoformat(),
+            "period_end": self.period_end.isoformat(),
+        }
+
+    @property
+    def overall_quality(self) -> str:
+        """Assess overall retrieval quality: 'healthy', 'degraded', or 'poor'."""
+        # Poor if too many empty or low-relevance retrievals
+        if self.empty_retrieval_rate > 0.3 or self.low_relevance_rate > 0.5:
+            return "poor"
+        # Degraded if relevance is low or results are stale
+        if self.avg_relevance < 0.5 or self.stale_result_rate > 0.4:
+            return "degraded"
+        return "healthy"
+
+
+class RetrievalQualityTracker:
+    """Track and analyze memory retrieval quality metrics over time.
+
+    IMP-MEM-005: Monitors retrieval quality to detect when memory becomes
+    stale, less relevant, or returns poor results. Enables alerting on
+    degradation and provides data for tuning embedding/retrieval parameters.
+
+    Usage:
+        tracker = RetrievalQualityTracker()
+        metrics = tracker.record_retrieval(
+            query="error handling patterns",
+            results=[...],
+            collection="code"
+        )
+        summary = tracker.get_quality_summary()
+    """
+
+    # Freshness threshold in hours (results older than this are "stale")
+    DEFAULT_FRESHNESS_THRESHOLD_HOURS = 168  # 1 week
+
+    def __init__(
+        self,
+        freshness_threshold_hours: float = DEFAULT_FRESHNESS_THRESHOLD_HOURS,
+        max_history_size: int = 1000,
+    ):
+        """Initialize the retrieval quality tracker.
+
+        Args:
+            freshness_threshold_hours: Hours after which results are stale
+            max_history_size: Maximum number of retrieval records to keep
+        """
+        self.freshness_threshold_hours = freshness_threshold_hours
+        self.max_history_size = max_history_size
+        self._retrieval_history: List[MemoryRetrievalMetrics] = []
+        self._lock = __import__("threading").Lock()
+
+    def record_retrieval(
+        self,
+        query: str,
+        results: List[Dict[str, Any]],
+        collection: str,
+        timestamp: Optional[datetime] = None,
+    ) -> MemoryRetrievalMetrics:
+        """Record metrics for a retrieval operation.
+
+        Args:
+            query: The search query string
+            results: List of result dicts, each with 'score' and optional
+                'payload' containing 'timestamp'
+            collection: Name of the collection searched
+            timestamp: When the retrieval occurred (defaults to now)
+
+        Returns:
+            MemoryRetrievalMetrics for this retrieval
+        """
+        ts = timestamp or datetime.utcnow()
+        query_hash = self._hash_query(query)
+
+        # Calculate relevance metrics
+        scores = [r.get("score", 0.0) for r in results]
+        avg_relevance = sum(scores) / len(scores) if scores else 0.0
+        max_relevance = max(scores) if scores else 0.0
+        min_relevance = min(scores) if scores else 0.0
+
+        # Calculate freshness metrics
+        freshness_hours = self._calculate_freshness_hours(results, ts)
+        avg_freshness = sum(freshness_hours) / len(freshness_hours) if freshness_hours else 0.0
+        stale_count = sum(1 for h in freshness_hours if h > self.freshness_threshold_hours)
+
+        metrics = MemoryRetrievalMetrics(
+            query_hash=query_hash,
+            hit_count=len(results),
+            avg_relevance=avg_relevance,
+            max_relevance=max_relevance,
+            min_relevance=min_relevance,
+            avg_freshness_hours=avg_freshness,
+            stale_count=stale_count,
+            collection=collection,
+            timestamp=ts,
+        )
+
+        # Store in history with thread safety
+        with self._lock:
+            self._retrieval_history.append(metrics)
+            # Trim history if needed
+            if len(self._retrieval_history) > self.max_history_size:
+                self._retrieval_history = self._retrieval_history[-self.max_history_size :]
+
+        logger.debug(
+            f"[IMP-MEM-005] Recorded retrieval: collection={collection}, "
+            f"hits={len(results)}, avg_relevance={avg_relevance:.3f}"
+        )
+
+        return metrics
+
+    def _hash_query(self, query: str) -> str:
+        """Create a hash of the query for tracking repeat queries."""
+        import hashlib
+
+        return hashlib.sha256(query.encode()).hexdigest()[:16]
+
+    def _calculate_freshness_hours(
+        self, results: List[Dict[str, Any]], now: datetime
+    ) -> List[float]:
+        """Calculate freshness (age in hours) for each result.
+
+        Args:
+            results: List of result dicts with optional timestamp in payload
+            now: Current time for age calculation
+
+        Returns:
+            List of age values in hours (only for results with valid timestamps)
+        """
+        freshness_hours = []
+        for r in results:
+            payload = r.get("payload", {})
+            timestamp_str = payload.get("timestamp") or payload.get("created_at")
+            if timestamp_str:
+                try:
+                    if timestamp_str.endswith("Z"):
+                        timestamp_str = timestamp_str[:-1] + "+00:00"
+                    parsed = datetime.fromisoformat(timestamp_str)
+                    if parsed.tzinfo is None:
+                        parsed = parsed.replace(tzinfo=__import__("datetime").timezone.utc)
+                    if now.tzinfo is None:
+                        now = now.replace(tzinfo=__import__("datetime").timezone.utc)
+                    age_hours = (now - parsed).total_seconds() / 3600
+                    freshness_hours.append(max(0.0, age_hours))
+                except (ValueError, TypeError):
+                    pass  # Skip results with invalid timestamps
+        return freshness_hours
+
+    def get_quality_summary(
+        self,
+        since: Optional[datetime] = None,
+        collection: Optional[str] = None,
+    ) -> RetrievalQualitySummary:
+        """Get aggregated quality summary for retrieval operations.
+
+        Args:
+            since: Only include retrievals after this time (defaults to all)
+            collection: Only include retrievals for this collection (defaults to all)
+
+        Returns:
+            RetrievalQualitySummary with aggregated metrics
+        """
+        with self._lock:
+            history = list(self._retrieval_history)
+
+        # Filter by time and collection
+        if since:
+            history = [m for m in history if m.timestamp >= since]
+        if collection:
+            history = [m for m in history if m.collection == collection]
+
+        if not history:
+            now = datetime.utcnow()
+            return RetrievalQualitySummary(
+                total_retrievals=0,
+                avg_hit_count=0.0,
+                avg_relevance=0.0,
+                avg_freshness_hours=0.0,
+                empty_retrieval_rate=0.0,
+                low_relevance_rate=0.0,
+                stale_result_rate=0.0,
+                period_start=since or now,
+                period_end=now,
+            )
+
+        total = len(history)
+        avg_hit_count = sum(m.hit_count for m in history) / total
+        avg_relevance = sum(m.avg_relevance for m in history) / total
+
+        # Calculate average freshness (excluding 0.0 for empty retrievals)
+        freshness_values = [m.avg_freshness_hours for m in history if m.hit_count > 0]
+        avg_freshness = sum(freshness_values) / len(freshness_values) if freshness_values else 0.0
+
+        # Calculate rates
+        empty_count = sum(1 for m in history if m.hit_count == 0)
+        low_relevance_count = sum(1 for m in history if m.avg_relevance < 0.4)
+        total_results = sum(m.hit_count for m in history)
+        total_stale = sum(m.stale_count for m in history)
+        stale_rate = total_stale / total_results if total_results > 0 else 0.0
+
+        return RetrievalQualitySummary(
+            total_retrievals=total,
+            avg_hit_count=avg_hit_count,
+            avg_relevance=avg_relevance,
+            avg_freshness_hours=avg_freshness,
+            empty_retrieval_rate=empty_count / total,
+            low_relevance_rate=low_relevance_count / total,
+            stale_result_rate=stale_rate,
+            period_start=min(m.timestamp for m in history),
+            period_end=max(m.timestamp for m in history),
+        )
+
+    def get_collection_breakdown(self) -> Dict[str, RetrievalQualitySummary]:
+        """Get quality summaries broken down by collection.
+
+        Returns:
+            Dict mapping collection names to their quality summaries
+        """
+        with self._lock:
+            history = list(self._retrieval_history)
+
+        collections = set(m.collection for m in history)
+        return {col: self.get_quality_summary(collection=col) for col in collections}
+
+    def get_recent_metrics(self, count: int = 10) -> List[MemoryRetrievalMetrics]:
+        """Get the most recent retrieval metrics.
+
+        Args:
+            count: Number of recent metrics to return
+
+        Returns:
+            List of recent MemoryRetrievalMetrics (newest first)
+        """
+        with self._lock:
+            return list(reversed(self._retrieval_history[-count:]))
+
+    def clear_history(self) -> None:
+        """Clear all retrieval history."""
+        with self._lock:
+            self._retrieval_history.clear()
+        logger.debug("[IMP-MEM-005] Cleared retrieval quality history")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert tracker state to dictionary for serialization.
+
+        Returns:
+            Dict with summary and recent metrics
+        """
+        summary = self.get_quality_summary()
+        recent = self.get_recent_metrics(5)
+
+        return {
+            "freshness_threshold_hours": self.freshness_threshold_hours,
+            "summary": summary.to_dict(),
+            "overall_quality": summary.overall_quality,
+            "recent_retrievals": [m.to_dict() for m in recent],
+            "collection_breakdown": {
+                col: s.to_dict() for col, s in self.get_collection_breakdown().items()
+            },
+        }

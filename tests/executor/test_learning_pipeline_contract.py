@@ -767,7 +767,11 @@ class TestConfidenceScoring:
         assert hint.confidence == 0.1
 
     def test_hints_sorted_by_confidence_in_get_hints_for_phase(self):
-        """Test hints are returned sorted by confidence (highest first)"""
+        """Test hints are returned sorted by decay score (highest first)
+
+        IMP-MEM-004: Now sorts by decay score which combines confidence with
+        time-based decay. Fresh hints with high confidence come first.
+        """
 
         pipeline = LearningPipeline(run_id="test-run")
         phase = {"phase_id": "test", "name": "Test Phase"}
@@ -777,14 +781,15 @@ class TestConfidenceScoring:
         pipeline.record_hint(phase, "ci_fail", "Medium conf hint")
         pipeline.record_hint(phase, "patch_apply_error", "High conf hint")
 
-        # Manually adjust confidences
+        # Manually adjust confidences (all above decay_threshold of 0.3)
         hints = pipeline.get_all_hints()
-        hints[0].confidence = 0.1  # Low
-        hints[1].confidence = 0.5  # Medium
+        hints[0].confidence = 0.4  # Low (but above threshold)
+        hints[1].confidence = 0.6  # Medium
         hints[2].confidence = 0.9  # High
 
-        # Get hints - should be sorted by confidence
-        sorted_hints = pipeline.get_hints_for_phase(phase)
+        # Get hints - should be sorted by decay score (which incorporates confidence)
+        # IMP-MEM-004: Use decay_threshold=0.0 to include all hints regardless of decay
+        sorted_hints = pipeline.get_hints_for_phase(phase, decay_threshold=0.0)
 
         assert len(sorted_hints) == 3
         assert "High conf hint" in sorted_hints[0]

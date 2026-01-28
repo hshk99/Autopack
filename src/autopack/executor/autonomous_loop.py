@@ -1887,7 +1887,39 @@ class AutonomousLoop:
                     f"{len(injection.relevant_insights)} insights)"
                 )
 
-            return injector.format_for_prompt(injection)
+            memory_context = injector.format_for_prompt(injection)
+
+            # IMP-LOOP-025: Retrieve and inject promoted rules into execution context
+            # Promoted rules are high-priority patterns that have occurred 3+ times
+            if self._feedback_pipeline is not None:
+                try:
+                    promoted_rules = self._feedback_pipeline.get_promoted_rules(
+                        phase_type=phase_type, limit=5
+                    )
+                    if promoted_rules:
+                        rules_lines = ["\n\n## Promoted Rules (High-Priority Patterns)"]
+                        rules_lines.append(
+                            "The following rules were derived from recurring issues:"
+                        )
+                        for rule in promoted_rules:
+                            description = rule.get("description", "")[:200]
+                            action = rule.get("suggested_action", "")[:150]
+                            occurrences = rule.get("occurrences", 0)
+                            rules_lines.append(f"- **Rule** (seen {occurrences}x): {description}")
+                            if action:
+                                rules_lines.append(f"  → Action: {action}")
+                        rules_context = "\n".join(rules_lines)
+                        memory_context += rules_context
+                        logger.info(
+                            f"[IMP-LOOP-025] Injected {len(promoted_rules)} promoted rules "
+                            f"into execution context for phase_type={phase_type}"
+                        )
+                except Exception as rules_err:
+                    logger.warning(
+                        f"[IMP-LOOP-025] Failed to retrieve promoted rules (non-fatal): {rules_err}"
+                    )
+
+            return memory_context
         except Exception as e:
             logger.warning(f"[IMP-ARCH-002] Failed to retrieve memory context: {e}")
             return ""

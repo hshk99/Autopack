@@ -29,6 +29,13 @@ from typing import Dict, Optional
 logger = logging.getLogger(__name__)
 
 
+# Progressive degradation thresholds (as ratio of remaining budget)
+FULL_RETRIEVAL_THRESHOLD = 0.5  # 50%+ budget = full retrieval
+REDUCED_RETRIEVAL_THRESHOLD = 0.3  # 30-50% = reduced retrieval
+SUMMARY_ONLY_THRESHOLD = 0.15  # 15-30% = summary only
+# Below 15% = no retrieval
+
+
 @dataclass
 class GateDecision:
     """Decision about whether SOT retrieval is allowed.
@@ -39,6 +46,8 @@ class GateDecision:
         budget_remaining: Estimated remaining budget after this retrieval
         sot_budget: Configured SOT budget limit
         reserve_budget: Reserved budget for non-SOT context
+        retrieval_mode: Degradation tier - "full", "reduced", "summary", or "none"
+        max_entries: Maximum entries to retrieve based on degradation tier
     """
 
     allowed: bool
@@ -46,6 +55,8 @@ class GateDecision:
     budget_remaining: int
     sot_budget: int
     reserve_budget: int = 2000
+    retrieval_mode: str = "full"
+    max_entries: int = 10
 
 
 class RetrievalInjection:
@@ -115,21 +126,26 @@ class RetrievalInjection:
         max_context_chars: int,
         phase_id: str = None,
         requested_entries: int = 3,
+        total_budget: int = None,
     ) -> GateDecision:
-        """Gate SOT retrieval based on budget availability.
+        """Gate SOT retrieval based on budget availability with progressive degradation.
 
-        This implements the budget gating logic from autonomous_executor.py:
+        This implements budget gating with tiered degradation instead of binary allow/deny:
         - Global kill switch: if not enabled, deny immediately
-        - Budget check: max_context_chars >= (sot_budget + reserve_budget)
-        - The reserve ensures room for other context sections
+        - Progressive degradation based on budget ratio:
+          - 50%+ remaining: full retrieval (10 entries)
+          - 30-50% remaining: reduced retrieval (5 entries)
+          - 15-30% remaining: summary only (2 entries)
+          - <15% remaining: no retrieval
 
         Args:
             max_context_chars: Total context budget allocated for this retrieval
             phase_id: Optional phase identifier for logging
             requested_entries: Number of entries to retrieve (for logging)
+            total_budget: Total budget for ratio calculation (defaults to sot_budget + reserve)
 
         Returns:
-            GateDecision with verdict and budget details
+            GateDecision with verdict, budget details, and degradation tier
         """
         prefix = f"[{phase_id}] " if phase_id else ""
 
@@ -141,37 +157,71 @@ class RetrievalInjection:
                 reason="SOT retrieval disabled by configuration",
                 budget_remaining=max_context_chars,
                 sot_budget=self.sot_budget_limit,
+                retrieval_mode="none",
+                max_entries=0,
             )
 
-        # Budget gating: ensure we have enough headroom
+        # Calculate budget ratio for progressive degradation
+        # Use total_budget if provided, otherwise use minimum required as baseline
         min_required_budget = self.sot_budget_limit + self.reserve_budget
+        effective_total = total_budget if total_budget is not None else min_required_budget
 
-        if max_context_chars < min_required_budget:
+        # Handle edge case where effective_total is 0 or negative
+        if effective_total <= 0:
+            budget_ratio = 0.0
+        else:
+            budget_ratio = max_context_chars / effective_total
+
+        # Progressive degradation based on budget ratio
+        if budget_ratio >= FULL_RETRIEVAL_THRESHOLD:
+            retrieval_mode = "full"
+            max_entries = 10
+            log_level = "info"
+            reason = "Budget available for full SOT retrieval"
+        elif budget_ratio >= REDUCED_RETRIEVAL_THRESHOLD:
+            retrieval_mode = "reduced"
+            max_entries = 5
+            log_level = "info"
+            reason = "Budget tight - using reduced retrieval"
             logger.info(
-                f"{prefix}[SOT] Skipping retrieval - insufficient budget "
-                f"(available: {max_context_chars}, needs: {min_required_budget}, "
-                f"sot_cap={self.sot_budget_limit}, reserve={self.reserve_budget})"
+                f"{prefix}[SOT] Budget tight ({budget_ratio:.1%}) - using reduced retrieval"
+            )
+        elif budget_ratio >= SUMMARY_ONLY_THRESHOLD:
+            retrieval_mode = "summary"
+            max_entries = 2
+            log_level = "info"
+            reason = "Budget very tight - summary only"
+            logger.info(f"{prefix}[SOT] Budget very tight ({budget_ratio:.1%}) - summary only")
+        else:
+            # Below 15% - no retrieval
+            logger.warning(
+                f"{prefix}[SOT] Budget too tight for any retrieval "
+                f"(ratio: {budget_ratio:.1%}, available: {max_context_chars})"
             )
             return GateDecision(
                 allowed=False,
-                reason=f"Insufficient budget: {max_context_chars} < {min_required_budget}",
+                reason=f"Budget too tight ({budget_ratio:.1%}) for any retrieval",
                 budget_remaining=max_context_chars,
                 sot_budget=self.sot_budget_limit,
+                retrieval_mode="none",
+                max_entries=0,
             )
 
-        # Budget check passed
+        # Budget check passed with degradation tier
         budget_remaining = max_context_chars - self.sot_budget_limit
         logger.info(
-            f"{prefix}[SOT] Including retrieval (budget: {max_context_chars}, "
-            f"sot_cap={self.sot_budget_limit}, entries: {requested_entries}, "
+            f"{prefix}[SOT] Including retrieval (mode: {retrieval_mode}, "
+            f"budget_ratio: {budget_ratio:.1%}, max_entries: {max_entries}, "
             f"remaining: {budget_remaining})"
         )
 
         return GateDecision(
             allowed=True,
-            reason="Budget available for SOT retrieval",
+            reason=reason,
             budget_remaining=budget_remaining,
             sot_budget=self.sot_budget_limit,
+            retrieval_mode=retrieval_mode,
+            max_entries=max_entries,
         )
 
     def record_retrieval_telemetry(

@@ -45,6 +45,13 @@ INSIGHT_TO_CATEGORY = {
     "flaky_tests": "TST",
     "escalation_patterns": "ESC",
     "timing_analysis": "TMG",
+    # New categories (IMP-TASK-001)
+    "cost_sink": "CST",
+    "retry_cause": "RTY",
+    "ci_fail": "CI",
+    "infra_error": "INF",
+    "auditor_reject": "AUD",
+    "promoted_rule": "RUL",
 }
 
 # Impact validation constants (IMP-TASK-002)

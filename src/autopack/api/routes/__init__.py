@@ -4,6 +4,7 @@ Domain routers extracted from main.py (PR-API-3+).
 
 Current routers:
 - health.py: Health check and root endpoints
+- metrics.py: Prometheus metrics endpoints for feedback loop observability (IMP-OBS-001)
 - files.py: File upload operations
 - storage.py: Storage optimization endpoints (scan, cleanup, steam, recommendations)
 - dashboard.py: Dashboard metrics and status endpoints (usage, models, token-efficiency)

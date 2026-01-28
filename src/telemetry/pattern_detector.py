@@ -213,3 +213,60 @@ class PatternDetector:
             Number of patterns in the registry.
         """
         return len(self.known_patterns)
+
+    @property
+    def patterns(self) -> Dict[str, Pattern]:
+        """Get the pattern registry.
+
+        Returns:
+            Dictionary of pattern_id to Pattern mappings.
+        """
+        return self.known_patterns
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize pattern detector state to dictionary.
+
+        Returns:
+            Dictionary containing all pattern data for persistence.
+        """
+        patterns_data = {}
+        for pattern_id, pattern in self.known_patterns.items():
+            # Convert tuple to list for JSON serialization
+            signature = dict(pattern.signature)
+            if "event_type_sequence" in signature:
+                signature["event_type_sequence"] = list(signature["event_type_sequence"])
+            patterns_data[pattern_id] = {
+                "pattern_id": pattern.pattern_id,
+                "occurrences": pattern.occurrences,
+                "first_seen": pattern.first_seen,
+                "last_seen": pattern.last_seen,
+                "signature": signature,
+            }
+        return {"patterns": patterns_data, "version": 1}
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "PatternDetector":
+        """Deserialize pattern detector from dictionary.
+
+        Args:
+            data: Dictionary containing pattern data.
+
+        Returns:
+            PatternDetector instance with restored patterns.
+        """
+        detector = cls()
+        patterns_data = data.get("patterns", {})
+        for pattern_id, pattern_data in patterns_data.items():
+            # Convert list back to tuple for event_type_sequence
+            signature = dict(pattern_data.get("signature", {}))
+            if "event_type_sequence" in signature:
+                signature["event_type_sequence"] = tuple(signature["event_type_sequence"])
+            pattern = Pattern(
+                pattern_id=pattern_data["pattern_id"],
+                occurrences=pattern_data["occurrences"],
+                first_seen=pattern_data["first_seen"],
+                last_seen=pattern_data["last_seen"],
+                signature=signature,
+            )
+            detector.known_patterns[pattern_id] = pattern
+        return detector

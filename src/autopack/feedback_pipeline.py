@@ -622,6 +622,7 @@ class FeedbackPipeline:
         IMP-LOOP-004: Called by the timer to flush insights. Also checks
         if insight threshold is reached. Reschedules itself after completion.
         IMP-AUTO-003: Thread-safe access to pending insights count.
+        IMP-LOOP-022: Also checks for SLA breaches during auto-flush.
         """
         try:
             # IMP-AUTO-003: Thread-safe access to pending insights count
@@ -631,6 +632,9 @@ class FeedbackPipeline:
                 logger.info(f"[IMP-LOOP-004] Auto-flushing {pending_count} pending insights")
                 flushed = self.flush_pending_insights()
                 logger.info(f"[IMP-LOOP-004] Auto-flush complete: {flushed} insights persisted")
+
+            # IMP-LOOP-022: Check for SLA breaches during auto-flush
+            self._check_and_alert_sla_breaches()
         except Exception as e:
             logger.warning(f"[IMP-LOOP-004] Auto-flush failed: {e}")
         finally:
@@ -678,6 +682,175 @@ class FeedbackPipeline:
                 f"[IMP-LOOP-004] Flushing {pending_count} " "remaining insights on shutdown"
             )
             self.flush_pending_insights()
+
+    def _check_and_alert_sla_breaches(self) -> List[Dict[str, Any]]:
+        """Check for SLA breaches and generate alerts.
+
+        IMP-LOOP-022: Monitors the feedback pipeline for SLA breaches and
+        generates alerts when thresholds are exceeded. Alerts are logged
+        and optionally persisted as telemetry insights for cross-run analysis.
+
+        Returns:
+            List of SLA breach alerts that were detected
+        """
+        if not self._latency_tracker:
+            return []
+
+        try:
+            breaches = self._latency_tracker.check_sla_breaches()
+            if not breaches:
+                return []
+
+            alerts_sent = []
+            for breach in breaches:
+                # Log the alert with appropriate severity
+                if breach.level == "critical":
+                    logger.error(f"[IMP-LOOP-022] CRITICAL SLA BREACH: {breach.message}")
+                else:
+                    logger.warning(f"[IMP-LOOP-022] SLA BREACH WARNING: {breach.message}")
+
+                alert_dict = breach.to_dict()
+                alerts_sent.append(alert_dict)
+
+                # Persist breach as telemetry insight for tracking
+                if self.memory_service and getattr(self.memory_service, "enabled", False):
+                    try:
+                        insight = {
+                            "insight_type": "sla_breach",
+                            "description": breach.message,
+                            "content": (
+                                f"Pipeline SLA breached: {breach.actual_ms:.0f}ms "
+                                f"exceeded {breach.threshold_ms:.0f}ms threshold "
+                                f"by {breach.breach_amount_ms:.0f}ms"
+                            ),
+                            "metadata": {
+                                "level": breach.level,
+                                "stage_from": breach.stage_from,
+                                "stage_to": breach.stage_to,
+                                "threshold_ms": breach.threshold_ms,
+                                "actual_ms": breach.actual_ms,
+                                "breach_amount_ms": breach.breach_amount_ms,
+                            },
+                            "severity": "critical" if breach.level == "critical" else "high",
+                            "confidence": 1.0,
+                            "run_id": self.run_id,
+                            "suggested_action": self._generate_sla_breach_action(breach),
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }
+
+                        self.memory_service.write_telemetry_insight(
+                            insight=insight,
+                            project_id=self.project_id,
+                            validate=True,
+                            strict=False,
+                        )
+                        self._stats["insights_persisted"] += 1
+                        logger.debug(
+                            f"[IMP-LOOP-022] Persisted SLA breach insight: {breach.message}"
+                        )
+                    except Exception as e:
+                        logger.warning(f"[IMP-LOOP-022] Failed to persist SLA breach insight: {e}")
+
+            if alerts_sent:
+                logger.info(
+                    f"[IMP-LOOP-022] Detected {len(alerts_sent)} SLA breach(es), "
+                    f"alerts generated"
+                )
+
+            return alerts_sent
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-022] Failed to check SLA breaches: {e}")
+            return []
+
+    def _generate_sla_breach_action(self, breach: Any) -> str:
+        """Generate suggested action for an SLA breach.
+
+        IMP-LOOP-022: Creates actionable guidance based on the type and
+        severity of the SLA breach.
+
+        Args:
+            breach: SLABreachAlert object containing breach details
+
+        Returns:
+            Suggested action string
+        """
+        if breach.stage_from and breach.stage_to:
+            # Stage-specific breach
+            stage_actions = {
+                ("phase_complete", "telemetry_collected"): (
+                    "Optimize telemetry collection. Check for slow event handlers "
+                    "or excessive logging that may be delaying telemetry processing."
+                ),
+                ("telemetry_collected", "memory_persisted"): (
+                    "Investigate memory service latency. Check vector database "
+                    "connection, batch sizes, and embedding generation performance."
+                ),
+                ("memory_persisted", "task_generated"): (
+                    "Review task generation logic. Consider caching retrieval results "
+                    "or simplifying task prioritization algorithms."
+                ),
+                ("task_generated", "task_executed"): (
+                    "Reduce task execution time. Consider breaking large tasks into "
+                    "smaller units or optimizing the task executor."
+                ),
+            }
+            key = (breach.stage_from, breach.stage_to)
+            if key in stage_actions:
+                return stage_actions[key]
+
+        # End-to-end or unknown breach
+        if breach.level == "critical":
+            return (
+                "URGENT: Pipeline SLA critically breached. Investigate bottlenecks "
+                "across all pipeline stages. Consider temporarily reducing task "
+                "generation rate or increasing processing resources."
+            )
+        else:
+            return (
+                "Pipeline SLA approaching critical threshold. Monitor pipeline "
+                "latency trends and consider optimizing the slowest stages."
+            )
+
+    def check_sla_status(self) -> Dict[str, Any]:
+        """Get current SLA status for the feedback pipeline.
+
+        IMP-LOOP-022: Provides a snapshot of current SLA compliance status,
+        including any active breaches and overall health metrics.
+
+        Returns:
+            Dictionary with SLA status information:
+            - is_healthy: Whether pipeline is within SLA
+            - sla_status: Human-readable status string
+            - breaches: List of current SLA breaches
+            - latency_metrics: Current latency measurements
+        """
+        if not self._latency_tracker:
+            return {
+                "is_healthy": True,
+                "sla_status": "unknown",
+                "breaches": [],
+                "latency_metrics": None,
+                "message": "No latency tracker configured",
+            }
+
+        try:
+            breaches = self._latency_tracker.check_sla_breaches()
+            return {
+                "is_healthy": self._latency_tracker.is_within_sla(),
+                "sla_status": self._latency_tracker.get_sla_status(),
+                "breaches": [b.to_dict() for b in breaches],
+                "latency_metrics": self._latency_tracker.to_dict(),
+            }
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-022] Failed to get SLA status: {e}")
+            return {
+                "is_healthy": True,
+                "sla_status": "error",
+                "breaches": [],
+                "latency_metrics": None,
+                "error": str(e),
+            }
 
     def persist_learning_hints(self) -> int:
         """Persist accumulated learning hints to memory.

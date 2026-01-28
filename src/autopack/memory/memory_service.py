@@ -1318,6 +1318,10 @@ class MemoryService:
 
         IMP-LOOP-002: Added validation support to ensure data integrity before storage.
         IMP-AUTO-003: Added concurrent write safety with content-hash deduplication.
+        IMP-MEM-006: Added content-based semantic deduplication using embedding
+                     similarity to prevent memory bloat from duplicate failure patterns.
+                     Similar insights (>90% similarity) are merged instead of stored
+                     as separate entries, updating occurrence count and timestamps.
 
         Args:
             insight: TelemetryInsight object to persist
@@ -1326,8 +1330,8 @@ class MemoryService:
             strict: If True with validate=True, raise exception on validation failure
 
         Returns:
-            Document ID of written insight, or empty string if validation fails
-            or if duplicate content detected
+            Document ID of written insight, or empty string if validation fails,
+            duplicate content detected, or merged into existing similar insight
 
         Raises:
             TelemetryFeedbackValidationError: If strict=True and validation fails
@@ -1378,6 +1382,18 @@ class MemoryService:
             # Track the hash before writing to prevent race conditions
             self._content_hashes.add(content_hash)
 
+        # IMP-MEM-006: Check for semantically similar insights before storing
+        # Skip semantic check for rules (they use different lifecycle tracking)
+        if not is_rule and insight_type not in ("promoted_rule", "effectiveness_rule"):
+            similar_insights = self._find_similar_insights(insight, threshold=0.9)
+            if similar_insights:
+                # Merge with the most similar existing insight
+                merged_id = self._merge_insights(similar_insights[0], insight)
+                if merged_id:
+                    # Successfully merged - don't store as new
+                    return merged_id
+                # If merge failed, fall through to normal storage
+
         # Route to appropriate write method based on insight type
         # IMP-REL-002: Handle rules with lifecycle tracking first
         if is_rule or insight_type in ("promoted_rule", "effectiveness_rule"):
@@ -1426,6 +1442,184 @@ class MemoryService:
                 ci_result=None,
                 task_type="telemetry_insight",
             )
+
+    # -------------------------------------------------------------------------
+    # IMP-MEM-006: Content-based deduplication for insights
+    # -------------------------------------------------------------------------
+
+    def _find_similar_insights(
+        self,
+        insight: Dict[str, Any],
+        threshold: float = 0.9,
+    ) -> List[Dict[str, Any]]:
+        """Find semantically similar insights using embedding similarity.
+
+        IMP-MEM-006: Prevents memory bloat by detecting near-duplicate insights
+        before storage. Uses vector similarity to find insights with similar
+        content, even if not exact matches.
+
+        Args:
+            insight: The insight dict containing content/description to match.
+            threshold: Minimum similarity score (0-1) to consider as duplicate.
+                       Default 0.9 requires very high similarity.
+
+        Returns:
+            List of similar insights with their payloads and scores, sorted
+            by similarity score descending. Empty list if no matches found.
+        """
+        if not self.enabled:
+            return []
+
+        insight_type = insight.get("insight_type", "unknown")
+        description = insight.get("description", "")
+        content = insight.get("content", description)
+
+        # Build search text same as used for storage
+        search_text = f"{insight_type}:{content}"
+        if not search_text.strip(":"):
+            return []
+
+        try:
+            # Create embedding for similarity search
+            query_vector = sync_embed_text(search_text)
+
+            # Determine which collection to search based on insight type
+            if insight_type == "failure_mode":
+                collection = COLLECTION_ERRORS_CI
+            elif insight_type == "retry_cause":
+                collection = COLLECTION_DOCTOR_HINTS
+            else:
+                # cost_sink and generic insights go to run_summaries
+                collection = COLLECTION_RUN_SUMMARIES
+
+            # Search for similar insights with telemetry_insight task_type
+            results = self._safe_store_call(
+                f"_find_similar_insights/{collection}",
+                lambda: self.store.search(
+                    collection,
+                    query_vector,
+                    filter={"task_type": "telemetry_insight"},
+                    limit=5,
+                ),
+                [],
+            )
+
+            # Filter by similarity threshold and return with metadata
+            similar = []
+            for result in results:
+                score = result.get("score", 0)
+                if score >= threshold:
+                    similar.append(
+                        {
+                            "id": result.get("id"),
+                            "payload": result.get("payload", {}),
+                            "score": score,
+                            "collection": collection,
+                        }
+                    )
+
+            # Sort by score descending (highest similarity first)
+            similar.sort(key=lambda x: x.get("score", 0), reverse=True)
+
+            if similar:
+                logger.debug(
+                    f"[IMP-MEM-006] Found {len(similar)} similar insights "
+                    f"(threshold={threshold}): top score={similar[0]['score']:.3f}"
+                )
+
+            return similar
+
+        except Exception as e:
+            logger.warning(f"[IMP-MEM-006] Error finding similar insights: {e}")
+            return []
+
+    def _merge_insights(
+        self,
+        existing: Dict[str, Any],
+        new_insight: Dict[str, Any],
+    ) -> str:
+        """Merge a new insight into an existing similar insight.
+
+        IMP-MEM-006: Instead of storing duplicate content, this method updates
+        the existing insight with merged metadata: increments occurrence count,
+        updates timestamp, and preserves the highest confidence value.
+
+        Args:
+            existing: Dict containing 'id', 'payload', and 'collection' of
+                      the existing similar insight.
+            new_insight: The new insight dict that would have been stored.
+
+        Returns:
+            The existing insight's ID (now updated with merged data).
+        """
+        if not self.enabled:
+            return ""
+
+        existing_id = existing.get("id", "")
+        collection = existing.get("collection", COLLECTION_RUN_SUMMARIES)
+        payload = existing.get("payload", {})
+
+        if not existing_id:
+            logger.warning("[IMP-MEM-006] Cannot merge: missing existing insight ID")
+            return ""
+
+        try:
+            # Update occurrence count
+            current_occurrences = payload.get("occurrence_count", 1)
+            new_occurrences = current_occurrences + 1
+
+            # Update timestamp to latest
+            new_timestamp = datetime.now(timezone.utc).isoformat()
+
+            # Merge metadata - keep highest confidence
+            existing_confidence = payload.get("confidence", 0.5)
+            new_confidence = new_insight.get("confidence", 0.5)
+            merged_confidence = max(existing_confidence, new_confidence)
+
+            # Prepare updated payload
+            updated_payload = {
+                "occurrence_count": new_occurrences,
+                "last_occurrence": new_timestamp,
+                "confidence": merged_confidence,
+                # Track merge history
+                "merge_count": payload.get("merge_count", 0) + 1,
+                "last_merged_at": new_timestamp,
+            }
+
+            # Preserve suggested_action if new one is provided
+            new_action = new_insight.get("suggested_action")
+            if new_action and new_action != payload.get("suggested_action"):
+                # Append to existing actions or set new one
+                existing_actions = payload.get("suggested_actions", [])
+                if payload.get("suggested_action"):
+                    existing_actions = [payload["suggested_action"]] + existing_actions
+                if new_action not in existing_actions:
+                    existing_actions.append(new_action)
+                updated_payload["suggested_actions"] = existing_actions[:5]  # Keep max 5
+
+            # Update the existing record
+            success = self._safe_store_call(
+                f"_merge_insights/{collection}",
+                lambda: self.store.update_payload(collection, existing_id, updated_payload),
+                False,
+            )
+
+            if success:
+                logger.info(
+                    f"[IMP-MEM-006] Merged insight into existing (id={existing_id}, "
+                    f"occurrences={new_occurrences}, confidence={merged_confidence:.2f})"
+                )
+                return existing_id
+            else:
+                logger.warning(
+                    f"[IMP-MEM-006] Failed to update existing insight {existing_id}, "
+                    "will store as new"
+                )
+                return ""
+
+        except Exception as e:
+            logger.warning(f"[IMP-MEM-006] Error merging insights: {e}")
+            return ""
 
     def _write_rule_with_lifecycle(
         self,

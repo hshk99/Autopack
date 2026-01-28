@@ -972,6 +972,9 @@ class AutonomousExecutor:
         Filters project rules and run hints relevant to this phase's
         task category for injection into Builder/Auditor prompts.
 
+        IMP-LOOP-018: Also registers applied rules with learning pipeline
+        for effectiveness tracking when phase completes.
+
         Args:
             phase: Phase specification dict
 
@@ -991,6 +994,10 @@ class AutonomousExecutor:
 
         if relevant_rules:
             logger.debug(f"  Found {len(relevant_rules)} relevant project rules for phase")
+            # IMP-LOOP-018: Register applied rules for effectiveness tracking
+            phase_id = phase.get("phase_id", "unknown")
+            rule_ids = [r.rule_id for r in relevant_rules]
+            self.learning_pipeline.register_applied_rules(phase_id, rule_ids)
         if relevant_hints:
             logger.debug(f"  Found {len(relevant_hints)} hints from earlier phases")
 
@@ -1534,6 +1541,8 @@ class AutonomousExecutor:
 
         PR-EXE-9: Core database logic delegated to PhaseStateManager,
         but phase proof writing remains here (requires _intention_wiring access).
+
+        IMP-LOOP-018: Also records rule effectiveness (success) when phase completes.
         """
         # Get phase for timestamps before marking complete
         phase_db = self._get_phase_from_db(phase_id)
@@ -1569,6 +1578,14 @@ class AutonomousExecutor:
                     logger.warning(
                         f"[{phase_id}] Failed to write phase proof (non-fatal): {proof_err}"
                     )
+
+            # IMP-LOOP-018: Record rule effectiveness (success)
+            try:
+                self.learning_pipeline.record_phase_rule_effectiveness(phase_id, success=True)
+            except Exception as rule_eff_err:
+                logger.warning(
+                    f"[{phase_id}] Failed to record rule effectiveness (non-fatal): {rule_eff_err}"
+                )
 
         return success
 
@@ -1654,6 +1671,8 @@ class AutonomousExecutor:
 
         PR-EXE-9: Core database logic delegated to PhaseStateManager,
         but phase proof writing and telemetry remain here (require executor context).
+
+        IMP-LOOP-018: Also records rule effectiveness (failure) when phase fails.
         """
         # Get phase for timestamps before marking failed
         phase_db = self._get_phase_from_db(phase_id)
@@ -1695,6 +1714,14 @@ class AutonomousExecutor:
 
             # Send Telegram notification for phase failure
             self._send_phase_failure_notification(phase_id, reason)
+
+            # IMP-LOOP-018: Record rule effectiveness (failure)
+            try:
+                self.learning_pipeline.record_phase_rule_effectiveness(phase_id, success=False)
+            except Exception as rule_eff_err:
+                logger.warning(
+                    f"[{phase_id}] Failed to record rule effectiveness (non-fatal): {rule_eff_err}"
+                )
 
         return success
 

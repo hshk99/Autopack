@@ -103,6 +103,9 @@ class LearningPipeline:
     Hints are lessons that can help:
     1. Later phases in the same run (Stage 0A)
     2. Future runs after promotion (Stage 0B)
+
+    IMP-LOOP-018: Also tracks rule effectiveness by recording which rules
+    were applied and whether the phase succeeded or failed.
     """
 
     def __init__(
@@ -123,6 +126,8 @@ class LearningPipeline:
         self._hints: List[LearningHint] = []
         self._memory_service = memory_service
         self._project_id = project_id
+        # IMP-LOOP-018: Track applied rules per phase for effectiveness tracking
+        self._applied_rules_per_phase: Dict[str, List[str]] = {}
 
     def record_hint(self, phase: Dict, hint_type: str, details: str):
         """
@@ -224,6 +229,73 @@ class LearningPipeline:
         """Clear all hints (useful for testing)"""
         self._hints = []
         logger.debug("[Learning] Cleared all hints")
+
+    # =========================================================================
+    # IMP-LOOP-018: Rule Effectiveness Tracking
+    # =========================================================================
+
+    def register_applied_rules(self, phase_id: str, rule_ids: List[str]) -> None:
+        """Register rules that were applied during phase execution.
+
+        IMP-LOOP-018: Tracks which rules were used for a phase so we can
+        record their effectiveness after phase completion.
+
+        Args:
+            phase_id: Phase identifier
+            rule_ids: List of rule IDs that were applied
+        """
+        if not rule_ids:
+            return
+
+        self._applied_rules_per_phase[phase_id] = list(rule_ids)
+        logger.debug(f"[Learning] Registered {len(rule_ids)} applied rules for {phase_id}")
+
+    def record_phase_rule_effectiveness(self, phase_id: str, success: bool) -> int:
+        """Record rule effectiveness based on phase outcome.
+
+        IMP-LOOP-018: Called after phase completion to update rule aging
+        based on whether the phase succeeded or failed.
+
+        Args:
+            phase_id: Phase identifier
+            success: True if phase completed successfully, False otherwise
+
+        Returns:
+            Number of rules for which effectiveness was recorded
+        """
+        from autopack.learned_rules import record_rule_validation_outcome
+
+        applied_rules = self._applied_rules_per_phase.get(phase_id, [])
+        if not applied_rules:
+            return 0
+
+        project_id = self._project_id or "autopack"
+
+        try:
+            record_rule_validation_outcome(project_id, applied_rules, success)
+            outcome = "success" if success else "failure"
+            logger.info(
+                f"[Learning] Recorded rule effectiveness ({outcome}) for "
+                f"{len(applied_rules)} rules in {phase_id}"
+            )
+            return len(applied_rules)
+        except Exception as e:
+            logger.warning(f"[Learning] Failed to record rule effectiveness for {phase_id}: {e}")
+            return 0
+        finally:
+            # Clear applied rules for this phase after recording
+            self._applied_rules_per_phase.pop(phase_id, None)
+
+    def get_applied_rules_for_phase(self, phase_id: str) -> List[str]:
+        """Get list of rules applied to a phase.
+
+        Args:
+            phase_id: Phase identifier
+
+        Returns:
+            List of rule IDs or empty list if none registered
+        """
+        return self._applied_rules_per_phase.get(phase_id, [])
 
     def _persist_hint_to_memory(self, hint: LearningHint) -> bool:
         """

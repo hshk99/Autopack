@@ -175,6 +175,217 @@ class LearnedRuleAging:
 
 
 # ============================================================================
+# IMP-LOOP-018: Rule Aging Tracker (Persistence Layer)
+# ============================================================================
+
+
+class RuleAgingTracker:
+    """Manages persistence and tracking of rule aging data.
+
+    IMP-LOOP-018: Activates LearnedRuleAging by persisting validation
+    outcomes and providing rule deprecation filtering.
+
+    Aging data is stored alongside project rules in a separate file:
+    - docs/RULE_AGING.json (for autopack project)
+    - {autonomous_runs_dir}/{project}/docs/RULE_AGING.json (for sub-projects)
+    """
+
+    def __init__(self, project_id: str = "autopack"):
+        """Initialize tracker for a project.
+
+        Args:
+            project_id: Project identifier for rule isolation
+        """
+        self.project_id = project_id
+        self._aging_data: Dict[str, Dict] = {}
+        self._load_aging_data()
+
+    def _get_aging_file(self) -> Path:
+        """Get path to rule aging data file."""
+        if self.project_id == "autopack":
+            return Path("docs") / "RULE_AGING.json"
+        else:
+            from .config import settings
+
+            return Path(settings.autonomous_runs_dir) / self.project_id / "docs" / "RULE_AGING.json"
+
+    def _load_aging_data(self) -> None:
+        """Load aging data from file."""
+        aging_file = self._get_aging_file()
+        if not aging_file.exists():
+            self._aging_data = {}
+            return
+
+        try:
+            with open(aging_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self._aging_data = data.get("aging", {})
+        except (json.JSONDecodeError, KeyError, TypeError):
+            self._aging_data = {}
+
+    def _save_aging_data(self) -> None:
+        """Persist aging data to file."""
+        aging_file = self._get_aging_file()
+        aging_file.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(aging_file, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "aging": self._aging_data,
+                    "last_updated": datetime.now(timezone.utc).isoformat(),
+                },
+                f,
+                indent=2,
+            )
+
+    def get_aging(self, rule_id: str) -> Optional[LearnedRuleAging]:
+        """Get aging data for a rule.
+
+        Args:
+            rule_id: Rule identifier
+
+        Returns:
+            LearnedRuleAging instance or None if not tracked
+        """
+        if rule_id not in self._aging_data:
+            return None
+
+        data = self._aging_data[rule_id]
+        return LearnedRuleAging(
+            rule_id=rule_id,
+            creation_date=datetime.fromisoformat(data["creation_date"]),
+            last_validation_date=datetime.fromisoformat(data["last_validation_date"]),
+            age_days=data["age_days"],
+            validation_failures=data["validation_failures"],
+            decay_score=data["decay_score"],
+        )
+
+    def get_or_create_aging(self, rule: LearnedRule) -> LearnedRuleAging:
+        """Get or create aging tracker for a rule.
+
+        Args:
+            rule: LearnedRule to track
+
+        Returns:
+            LearnedRuleAging instance (creates new if not tracked)
+        """
+        existing = self.get_aging(rule.rule_id)
+        if existing:
+            # Update age_days based on current time
+            now = datetime.now(timezone.utc)
+            existing.age_days = (now - existing.creation_date).days
+            existing.decay_score = existing.calculate_decay()
+            return existing
+
+        # Create new aging tracker from rule
+        return LearnedRuleAging.from_rule(rule)
+
+    def record_validation_success(self, rule_id: str) -> None:
+        """Record a successful rule application.
+
+        Args:
+            rule_id: Rule identifier
+        """
+        now = datetime.now(timezone.utc)
+
+        if rule_id not in self._aging_data:
+            # Initialize aging data for new rule
+            self._aging_data[rule_id] = {
+                "creation_date": now.isoformat(),
+                "last_validation_date": now.isoformat(),
+                "age_days": 0,
+                "validation_failures": 0,
+                "decay_score": 0.0,
+            }
+        else:
+            # Update existing aging data
+            data = self._aging_data[rule_id]
+            data["last_validation_date"] = now.isoformat()
+            creation = datetime.fromisoformat(data["creation_date"])
+            age_days = (now - creation).days
+            data["age_days"] = age_days
+
+            # Recalculate decay directly
+            # Calculate decay: age_factor (max 0.5) + failure_factor (max 0.5)
+            age_factor = max(0.0, min(age_days / 365, 0.5))
+            failure_factor = max(0.0, min(data.get("validation_failures", 0) * 0.1, 0.5))
+            data["decay_score"] = min(age_factor + failure_factor, 1.0)
+
+        self._save_aging_data()
+
+    def record_validation_failure(self, rule_id: str) -> None:
+        """Record a failed rule application.
+
+        Args:
+            rule_id: Rule identifier
+        """
+        now = datetime.now(timezone.utc)
+
+        if rule_id not in self._aging_data:
+            # Initialize aging data for new rule with one failure
+            self._aging_data[rule_id] = {
+                "creation_date": now.isoformat(),
+                "last_validation_date": now.isoformat(),
+                "age_days": 0,
+                "validation_failures": 1,
+                "decay_score": 0.1,  # 1 failure * 0.1
+            }
+        else:
+            # Update existing aging data
+            data = self._aging_data[rule_id]
+            data["validation_failures"] = data.get("validation_failures", 0) + 1
+
+            # Recalculate decay directly (don't use aging.record_validation_failure()
+            # as that would double-increment the failures)
+            creation = datetime.fromisoformat(data["creation_date"])
+            age_days = (now - creation).days
+            data["age_days"] = age_days
+
+            # Calculate decay: age_factor (max 0.5) + failure_factor (max 0.5)
+            age_factor = max(0.0, min(age_days / 365, 0.5))
+            failure_factor = max(0.0, min(data["validation_failures"] * 0.1, 0.5))
+            data["decay_score"] = min(age_factor + failure_factor, 1.0)
+
+        self._save_aging_data()
+
+    def should_deprecate(self, rule_id: str) -> bool:
+        """Check if a rule should be deprecated based on aging.
+
+        Args:
+            rule_id: Rule identifier
+
+        Returns:
+            True if rule decay exceeds 0.7 threshold
+        """
+        aging = self.get_aging(rule_id)
+        if not aging:
+            return False  # Unknown rules are not deprecated
+        return aging.should_deprecate()
+
+
+def record_rule_validation_outcome(project_id: str, rule_ids: List[str], success: bool) -> None:
+    """Record validation outcome for rules applied during phase execution.
+
+    IMP-LOOP-018: Called after phase execution to track rule effectiveness.
+
+    Args:
+        project_id: Project identifier
+        rule_ids: List of rule IDs that were applied
+        success: True if phase succeeded, False otherwise
+    """
+    if not rule_ids:
+        return
+
+    tracker = RuleAgingTracker(project_id)
+
+    for rule_id in rule_ids:
+        if success:
+            tracker.record_validation_success(rule_id)
+        else:
+            tracker.record_validation_failure(rule_id)
+
+
+# ============================================================================
 # Stage 0A: Run-Local Hints
 # ============================================================================
 
@@ -403,6 +614,7 @@ def get_active_rules_for_phase(
     - stage == "rule" (only fully promoted rules)
     - task_category match
     - scope_pattern match
+    - IMP-LOOP-018: Not deprecated by aging (decay_score <= 0.7)
 
     Args:
         project_id: Project ID
@@ -421,11 +633,18 @@ def get_active_rules_for_phase(
     # Extract phase scope_paths for pattern matching
     phase_scope_paths = _extract_scope_paths(phase, None)
 
+    # IMP-LOOP-018: Initialize aging tracker for deprecation filtering
+    aging_tracker = RuleAgingTracker(project_id)
+
     # Filter relevant rules
     relevant = []
     for rule in all_rules:
         # Only active rules at RULE stage
         if rule.status != "active" or rule.stage != DiscoveryStage.RULE.value:
+            continue
+
+        # IMP-LOOP-018: Filter out deprecated rules based on aging
+        if aging_tracker.should_deprecate(rule.rule_id):
             continue
 
         # Match task_category if both have it

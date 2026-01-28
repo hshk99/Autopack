@@ -63,3 +63,12 @@ goal_drift:
   enabled: true
   mode: advisory  # advisory (log only) or blocking (fail on drift)
   threshold: 0.7  # Similarity threshold below which drift is flagged
+
+# IMP-LOOP-017: Automated memory maintenance scheduling
+# Prevents stale insights from polluting retrieval context
+maintenance:
+  auto_maintenance_enabled: true  # Master switch for automatic maintenance
+  maintenance_interval_hours: 24  # Hours between maintenance runs
+  max_age_days: 90  # Maximum age for entries before pruning
+  prune_threshold: 1000  # Max entries per collection before aggressive pruning
+  planning_keep_versions: 3  # Number of planning artifact versions to retain

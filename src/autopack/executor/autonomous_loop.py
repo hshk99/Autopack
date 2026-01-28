@@ -27,6 +27,7 @@ from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
+from autopack.memory.maintenance import run_maintenance_if_due
 from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
 from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
 from autopack.telemetry.anomaly_detector import AlertSeverity, TelemetryAnomalyDetector
@@ -517,6 +518,14 @@ class AutonomousLoop:
         self._task_effectiveness_enabled = getattr(
             settings, "task_effectiveness_tracking_enabled", True
         )
+
+        # IMP-LOOP-017: Automated memory maintenance scheduling
+        # Tracks last maintenance check to avoid repeated checks every iteration
+        self._last_maintenance_check = 0.0  # Timestamp of last check
+        self._maintenance_check_interval = getattr(
+            settings, "maintenance_check_interval_seconds", 300.0  # Check every 5 minutes
+        )
+        self._auto_maintenance_enabled = getattr(settings, "auto_memory_maintenance_enabled", True)
 
         # IMP-FBK-002: Meta-metrics and anomaly detection for circuit breaker health checks
         # These enable holistic health assessment before circuit breaker reset
@@ -2480,6 +2489,24 @@ class AutonomousLoop:
                     ensure_session_healthy(self.executor.db_session)
                     self._last_session_health_check = current_time
                     logger.debug("[SessionHealth] Periodic session health check completed")
+
+            # IMP-LOOP-017: Periodic memory maintenance check
+            # Runs maintenance if enough time has passed since last maintenance
+            if self._auto_maintenance_enabled:
+                if current_time - self._last_maintenance_check >= self._maintenance_check_interval:
+                    self._last_maintenance_check = current_time
+                    try:
+                        maintenance_result = run_maintenance_if_due()
+                        if maintenance_result is not None:
+                            logger.info(
+                                f"[IMP-LOOP-017] Memory maintenance completed during loop: "
+                                f"pruned={maintenance_result.get('pruned', 0)}, "
+                                f"tombstoned={maintenance_result.get('planning_tombstoned', 0)}"
+                            )
+                    except Exception as e:
+                        logger.warning(
+                            f"[IMP-LOOP-017] Memory maintenance failed (non-blocking): {e}"
+                        )
 
             iteration += 1
 

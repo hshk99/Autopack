@@ -730,6 +730,7 @@ class AutonomousTaskGenerator:
         telemetry_insights: Optional[Dict[str, List[RankedIssue]]] = None,
         run_id: Optional[str] = None,
         max_age_hours: Optional[float] = None,
+        backlog: Optional[List[Dict[str, Any]]] = None,
     ) -> TaskGenerationResult:
         """Generate improvement tasks from recent telemetry insights.
 
@@ -744,6 +745,9 @@ class AutonomousTaskGenerator:
                           Only applies when retrieving from memory (not direct telemetry).
                           Defaults to DEFAULT_MEMORY_FRESHNESS_HOURS (72 hours).
                           IMP-LOOP-003: Ensures only recent data is used for task generation.
+            backlog: Optional list of phase dicts representing the current run's backlog.
+                    If provided, high-priority (critical) tasks will be injected into
+                    this backlog for same-run execution (IMP-LOOP-003).
 
         Returns:
             TaskGenerationResult containing generated tasks and statistics
@@ -850,6 +854,15 @@ class AutonomousTaskGenerator:
                 max_tasks=max_tasks,
             )
 
+            # IMP-LOOP-003: Inject high-priority tasks into backlog for same-run execution
+            if backlog is not None and tasks:
+                injected_count = self._inject_into_backlog(backlog, tasks)
+                if injected_count > 0:
+                    logger.info(
+                        f"[IMP-LOOP-003] Injected {injected_count} critical tasks into "
+                        f"current run backlog for same-run execution"
+                    )
+
             return TaskGenerationResult(
                 tasks_generated=tasks,
                 insights_processed=len(insights),
@@ -877,6 +890,62 @@ class AutonomousTaskGenerator:
             )
             logger.error(f"[IMP-LOOP-004] Task generation failed: {e}")
             raise
+
+    def _inject_into_backlog(
+        self, backlog: List[Dict[str, Any]], tasks: List[GeneratedTask]
+    ) -> int:
+        """Inject high-priority tasks into active backlog for same-run execution.
+
+        IMP-LOOP-003: This method enables critical tasks to execute in the current run
+        instead of waiting for the next run. Only tasks with priority="critical" are
+        injected, ensuring that routine tasks don't disrupt the current execution flow.
+
+        Args:
+            backlog: The current run's phase list (modified in-place)
+            tasks: List of generated tasks to potentially inject
+
+        Returns:
+            Number of tasks injected into the backlog
+        """
+        # Filter for critical priority tasks only
+        critical_tasks = [t for t in tasks if t.priority == "critical"]
+
+        if not critical_tasks:
+            logger.debug("[IMP-LOOP-003] No critical tasks to inject into current run")
+            return 0
+
+        # Convert critical tasks to executable phase specs
+        injected_count = 0
+        for task in critical_tasks:
+            # Build phase spec from GeneratedTask (matching _fetch_generated_tasks format)
+            phase_spec = {
+                "phase_id": f"generated-task-execution-{task.task_id}",
+                "phase_type": "generated-task-execution",
+                "description": f"[AUTO-CRITICAL] {task.title}\n\n{task.description}",
+                "status": "QUEUED",
+                "priority_order": 0,  # Highest priority for immediate execution
+                "category": "improvement",
+                "scope": {
+                    "paths": task.suggested_files or [],
+                },
+                "metadata": {
+                    "task_id": task.task_id,
+                    "source_insights": task.source_insights,
+                    "estimated_effort": task.estimated_effort,
+                    "injected_same_run": True,  # Mark as same-run injection
+                },
+            }
+
+            # Insert at the front of the backlog for immediate execution
+            backlog.insert(0, phase_spec)
+            injected_count += 1
+
+            logger.info(
+                f"[IMP-LOOP-003] Injected critical task {task.task_id} into backlog "
+                f"at position 0 for immediate same-run execution"
+            )
+
+        return injected_count
 
     def _detect_patterns(self, insights: List[dict]) -> List[dict]:
         """Detect actionable patterns from insights.

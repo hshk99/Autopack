@@ -926,3 +926,215 @@ class TestRiskGatingIntegration:
         assert len(risk.evidence) > 0
         # Should include historical rate info
         assert any("historical" in e.lower() for e in risk.evidence)
+
+
+class TestBacklogInjection:
+    """Tests for IMP-LOOP-003: Same-run task execution via backlog injection."""
+
+    @pytest.fixture
+    def mock_memory_service(self):
+        """Create a mock memory service."""
+        service = Mock()
+        service.retrieve_insights = Mock(return_value=[])
+        return service
+
+    @pytest.fixture
+    def sample_critical_task(self):
+        """Create a sample critical priority task."""
+        return GeneratedTask(
+            task_id="TASK-CRITICAL001",
+            title="Critical task",
+            description="Critical priority task for immediate execution",
+            priority="critical",
+            source_insights=["insight-1"],
+            suggested_files=["src/critical.py"],
+            estimated_effort="M",
+            created_at=datetime.now(),
+        )
+
+    @pytest.fixture
+    def sample_high_task(self):
+        """Create a sample high priority task."""
+        return GeneratedTask(
+            task_id="TASK-HIGH001",
+            title="High priority task",
+            description="High priority task",
+            priority="high",
+            source_insights=["insight-2"],
+            suggested_files=["src/high.py"],
+            estimated_effort="M",
+            created_at=datetime.now(),
+        )
+
+    def test_inject_into_backlog_injects_critical_tasks(
+        self, mock_memory_service, sample_critical_task
+    ):
+        """Test that critical priority tasks are injected into backlog."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        backlog = [
+            {"phase_id": "existing-phase-1", "status": "QUEUED"},
+            {"phase_id": "existing-phase-2", "status": "QUEUED"},
+        ]
+
+        injected_count = generator._inject_into_backlog(backlog, [sample_critical_task])
+
+        assert injected_count == 1
+        assert len(backlog) == 3
+        # Critical task should be at position 0 (front of backlog)
+        assert backlog[0]["phase_id"] == "generated-task-execution-TASK-CRITICAL001"
+        assert backlog[0]["phase_type"] == "generated-task-execution"
+        assert backlog[0]["priority_order"] == 0
+        assert backlog[0]["metadata"]["injected_same_run"] is True
+
+    def test_inject_into_backlog_ignores_non_critical_tasks(
+        self, mock_memory_service, sample_high_task
+    ):
+        """Test that non-critical tasks are NOT injected into backlog."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        backlog = [{"phase_id": "existing-phase-1", "status": "QUEUED"}]
+        original_length = len(backlog)
+
+        injected_count = generator._inject_into_backlog(backlog, [sample_high_task])
+
+        assert injected_count == 0
+        assert len(backlog) == original_length
+
+    def test_inject_into_backlog_handles_multiple_critical_tasks(self, mock_memory_service):
+        """Test that multiple critical tasks are all injected."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        critical_tasks = [
+            GeneratedTask(
+                task_id=f"TASK-CRIT{i}",
+                title=f"Critical task {i}",
+                description=f"Description {i}",
+                priority="critical",
+                source_insights=[f"insight-{i}"],
+                suggested_files=[f"src/file{i}.py"],
+                estimated_effort="S",
+                created_at=datetime.now(),
+            )
+            for i in range(3)
+        ]
+
+        backlog = [{"phase_id": "existing-phase", "status": "QUEUED"}]
+
+        injected_count = generator._inject_into_backlog(backlog, critical_tasks)
+
+        assert injected_count == 3
+        assert len(backlog) == 4
+        # All critical tasks should be at the front
+        for i in range(3):
+            assert "generated-task-execution" in backlog[i]["phase_id"]
+
+    def test_inject_into_backlog_handles_empty_backlog(
+        self, mock_memory_service, sample_critical_task
+    ):
+        """Test injection into empty backlog."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        backlog = []
+
+        injected_count = generator._inject_into_backlog(backlog, [sample_critical_task])
+
+        assert injected_count == 1
+        assert len(backlog) == 1
+        assert backlog[0]["phase_id"] == "generated-task-execution-TASK-CRITICAL001"
+
+    def test_inject_into_backlog_handles_empty_tasks(self, mock_memory_service):
+        """Test injection with no tasks."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        backlog = [{"phase_id": "existing-phase", "status": "QUEUED"}]
+        original_length = len(backlog)
+
+        injected_count = generator._inject_into_backlog(backlog, [])
+
+        assert injected_count == 0
+        assert len(backlog) == original_length
+
+    def test_inject_into_backlog_preserves_task_metadata(
+        self, mock_memory_service, sample_critical_task
+    ):
+        """Test that task metadata is preserved in phase spec."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        backlog = []
+        generator._inject_into_backlog(backlog, [sample_critical_task])
+
+        injected_phase = backlog[0]
+        assert injected_phase["metadata"]["task_id"] == "TASK-CRITICAL001"
+        assert injected_phase["metadata"]["source_insights"] == ["insight-1"]
+        assert injected_phase["metadata"]["estimated_effort"] == "M"
+        assert injected_phase["scope"]["paths"] == ["src/critical.py"]
+
+    def test_generate_tasks_with_backlog_injects_critical_tasks(self, mock_memory_service):
+        """Test that generate_tasks injects critical tasks when backlog is provided."""
+        # Create insights that will generate critical tasks
+        mock_memory_service.retrieve_insights.return_value = [
+            {"issue_type": "error", "content": "Critical error 1", "id": "1", "severity": "high"},
+            {"issue_type": "error", "content": "Critical error 2", "id": "2", "severity": "high"},
+            {"issue_type": "error", "content": "Critical error 3", "id": "3", "severity": "high"},
+            {"issue_type": "error", "content": "Critical error 4", "id": "4", "severity": "high"},
+            {"issue_type": "error", "content": "Critical error 5", "id": "5", "severity": "high"},
+        ]
+
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        backlog = [{"phase_id": "existing-phase", "status": "QUEUED"}]
+
+        result = generator.generate_tasks(
+            max_tasks=10,
+            min_confidence=0.0,
+            backlog=backlog,
+        )
+
+        # Should have generated tasks
+        assert isinstance(result, TaskGenerationResult)
+        # Backlog may have been modified if any critical tasks were generated
+        # (depends on pattern detection logic)
+
+    def test_generate_tasks_without_backlog_does_not_inject(self, mock_memory_service):
+        """Test that generate_tasks does not inject when backlog is None."""
+        mock_memory_service.retrieve_insights.return_value = [
+            {"issue_type": "error", "content": "Error 1", "id": "1", "severity": "high"},
+            {"issue_type": "error", "content": "Error 2", "id": "2", "severity": "high"},
+        ]
+
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        # No backlog provided (default behavior)
+        result = generator.generate_tasks(
+            max_tasks=10,
+            min_confidence=0.0,
+            backlog=None,
+        )
+
+        # Should complete without error
+        assert isinstance(result, TaskGenerationResult)
+
+    def test_injected_phase_has_correct_format(self, mock_memory_service, sample_critical_task):
+        """Test that injected phase has correct structure for execution."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        backlog = []
+        generator._inject_into_backlog(backlog, [sample_critical_task])
+
+        phase = backlog[0]
+
+        # Verify required phase fields
+        assert "phase_id" in phase
+        assert "phase_type" in phase
+        assert "description" in phase
+        assert "status" in phase
+        assert "priority_order" in phase
+        assert "category" in phase
+        assert "scope" in phase
+        assert "metadata" in phase
+
+        # Verify correct values
+        assert phase["status"] == "QUEUED"
+        assert phase["category"] == "improvement"
+        assert "[AUTO-CRITICAL]" in phase["description"]

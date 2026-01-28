@@ -15,28 +15,27 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from autopack.archive_consolidator import log_build_event
-from autopack.autonomous.budgeting import (BudgetExhaustedError,
-                                           get_budget_remaining_pct,
-                                           is_budget_exhausted)
-from autopack.autonomy.parallelism_gate import (ParallelismPolicyGate,
-                                                ScopeBasedParallelismChecker)
+from autopack.autonomous.budgeting import (
+    BudgetExhaustedError,
+    get_budget_remaining_pct,
+    is_budget_exhausted,
+)
+from autopack.autonomy.parallelism_gate import ParallelismPolicyGate, ScopeBasedParallelismChecker
 from autopack.config import settings
-from autopack.database import (SESSION_HEALTH_CHECK_INTERVAL,
-                               ensure_session_healthy)
+from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
-from autopack.task_generation.task_effectiveness_tracker import \
-    TaskEffectivenessTracker
+from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
 from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
-from autopack.telemetry.anomaly_detector import (AlertSeverity,
-                                                 TelemetryAnomalyDetector)
-from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
-                                             FeedbackLoopHealthReport,
-                                             MetaMetricsTracker)
-from autopack.telemetry.telemetry_to_memory_bridge import \
-    TelemetryToMemoryBridge
+from autopack.telemetry.anomaly_detector import AlertSeverity, TelemetryAnomalyDetector
+from autopack.telemetry.meta_metrics import (
+    FeedbackLoopHealth,
+    FeedbackLoopHealthReport,
+    MetaMetricsTracker,
+)
+from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
@@ -543,6 +542,11 @@ class AutonomousLoop:
                     f"[IMP-FBK-002] Circuit breaker health providers wired "
                     f"(threshold={health_threshold})"
                 )
+
+        # IMP-LOOP-003: Reference to current run's phases for same-run task injection
+        # This is set during _execute_phases and allows high-priority generated tasks
+        # to be injected into the current run's backlog for immediate execution
+        self._current_run_phases: Optional[List[Dict]] = None
 
     def get_loop_stats(self) -> Dict:
         """Get current loop statistics for monitoring (IMP-LOOP-006, IMP-AUTO-002).
@@ -1198,11 +1202,14 @@ class AutonomousLoop:
             generator = AutonomousTaskGenerator(db_session=db_session)
 
             run_id = getattr(self.executor, "run_id", None)
+            # IMP-LOOP-003: Pass current run phases as backlog for same-run injection
+            # of high-priority (critical) tasks
             result = generator.generate_tasks(
                 max_tasks=task_gen_config.get("max_tasks_per_run", 10),
                 min_confidence=task_gen_config.get("min_confidence", 0.7),
                 telemetry_insights=ranked_issues,
                 run_id=run_id,
+                backlog=self._current_run_phases,
             )
 
             tasks_generated = len(result.tasks_generated)
@@ -2330,8 +2337,7 @@ class AutonomousLoop:
 
     def _initialize_intention_loop(self):
         """Initialize intention-first loop for the run."""
-        from autopack.autonomous.executor_wiring import \
-            initialize_intention_first_loop
+        from autopack.autonomous.executor_wiring import initialize_intention_first_loop
         from autopack.intention_anchor.storage import IntentionAnchorStorage
 
         # IMP-ARCH-012: Load pending improvement tasks from self-improvement loop
@@ -2353,7 +2359,10 @@ class AutonomousLoop:
                 from datetime import datetime, timezone
 
                 from autopack.intention_anchor.models import (
-                    IntentionAnchor, IntentionBudgets, IntentionConstraints)
+                    IntentionAnchor,
+                    IntentionBudgets,
+                    IntentionConstraints,
+                )
 
                 intention_anchor = IntentionAnchor(
                     anchor_id=f"default-{self.executor.run_id}",
@@ -2493,6 +2502,11 @@ class AutonomousLoop:
                 logger.warning(
                     f"[IMP-LOOP-004] Failed to inject generated tasks (non-blocking): {e}"
                 )
+
+            # IMP-LOOP-003: Store reference to current run's phases for same-run task injection
+            # This allows high-priority tasks generated during execution to be injected
+            # into the current run's backlog for immediate execution
+            self._current_run_phases = run_data.get("phases", [])
 
             # Auto-fix queued phases (normalize deliverables/scope, tune CI timeouts) before selection.
             try:

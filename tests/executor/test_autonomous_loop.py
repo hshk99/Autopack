@@ -1001,8 +1001,7 @@ class TestHealthGateTaskGeneration:
 
     def test_get_feedback_loop_health_attention_required_when_circuit_open(self):
         """Verify health returns ATTENTION_REQUIRED when circuit breaker is OPEN."""
-        from autopack.executor.autonomous_loop import (CircuitBreaker,
-                                                       CircuitBreakerState)
+        from autopack.executor.autonomous_loop import CircuitBreaker, CircuitBreakerState
 
         mock_executor = Mock()
         loop = AutonomousLoop(mock_executor)
@@ -1016,8 +1015,7 @@ class TestHealthGateTaskGeneration:
 
     def test_get_feedback_loop_health_degraded_when_circuit_half_open(self):
         """Verify health returns DEGRADED when circuit breaker is HALF_OPEN."""
-        from autopack.executor.autonomous_loop import (CircuitBreaker,
-                                                       CircuitBreakerState)
+        from autopack.executor.autonomous_loop import CircuitBreaker, CircuitBreakerState
 
         mock_executor = Mock()
         loop = AutonomousLoop(mock_executor)
@@ -1116,8 +1114,7 @@ class TestHealthGateTaskGeneration:
 
     def test_circuit_breaker_blocks_task_gen(self):
         """Verify task generation is skipped when circuit breaker is OPEN (IMP-LOOP-002)."""
-        from autopack.executor.autonomous_loop import (CircuitBreaker,
-                                                       CircuitBreakerState)
+        from autopack.executor.autonomous_loop import CircuitBreaker, CircuitBreakerState
 
         mock_executor = Mock()
         mock_executor.run_id = "test-run"
@@ -1152,8 +1149,7 @@ class TestHealthGateTaskGeneration:
 
     def test_circuit_breaker_allows_task_gen_when_closed(self):
         """Verify task generation proceeds when circuit breaker is CLOSED (IMP-LOOP-002)."""
-        from autopack.executor.autonomous_loop import (CircuitBreaker,
-                                                       CircuitBreakerState)
+        from autopack.executor.autonomous_loop import CircuitBreaker, CircuitBreakerState
 
         mock_executor = Mock()
         mock_executor.run_id = "test-run"
@@ -1188,8 +1184,7 @@ class TestHealthGateTaskGeneration:
 
     def test_circuit_breaker_allows_task_gen_when_half_open(self):
         """Verify task generation proceeds when circuit breaker is HALF_OPEN (IMP-LOOP-002)."""
-        from autopack.executor.autonomous_loop import (CircuitBreaker,
-                                                       CircuitBreakerState)
+        from autopack.executor.autonomous_loop import CircuitBreaker, CircuitBreakerState
 
         mock_executor = Mock()
         mock_executor.run_id = "test-run"
@@ -1253,6 +1248,55 @@ class TestHealthGateTaskGeneration:
 
             # Task generation SHOULD be called (no circuit breaker configured)
             mock_gen.assert_called_once()
+
+
+class TestSameRunBacklogInjection:
+    """Tests for IMP-LOOP-003: Same-run task execution via backlog injection."""
+
+    def test_current_run_phases_initialized_to_none(self):
+        """Verify _current_run_phases is initialized to None."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+
+        loop = AutonomousLoop(mock_executor)
+
+        assert loop._current_run_phases is None
+
+    def test_current_run_phases_can_be_modified_by_injection(self):
+        """Verify _current_run_phases list can be modified in-place by injection."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+
+        loop = AutonomousLoop(mock_executor)
+
+        # Set initial phases
+        phases = [{"phase_id": "phase-1", "status": "QUEUED"}]
+        loop._current_run_phases = phases
+
+        # Simulate injection by modifying the list
+        loop._current_run_phases.insert(0, {"phase_id": "injected-phase", "status": "QUEUED"})
+
+        # Verify the original list was modified (both references point to same list)
+        assert len(phases) == 2
+        assert phases[0]["phase_id"] == "injected-phase"
+
+    def test_current_run_phases_is_list_type(self):
+        """Verify _current_run_phases can be assigned a list and retrieved."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+
+        loop = AutonomousLoop(mock_executor)
+
+        # Assign phases
+        test_phases = [
+            {"phase_id": "phase-1", "status": "QUEUED"},
+            {"phase_id": "phase-2", "status": "QUEUED"},
+        ]
+        loop._current_run_phases = test_phases
+
+        # Verify retrieval
+        assert loop._current_run_phases is test_phases
+        assert len(loop._current_run_phases) == 2
 
 
 if __name__ == "__main__":

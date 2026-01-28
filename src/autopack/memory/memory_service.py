@@ -1353,6 +1353,19 @@ class MemoryService:
         run_id = insight.get("run_id", "telemetry")
         suggested_action = insight.get("suggested_action")
 
+        # IMP-REL-002: Add lifecycle tracking fields for rules
+        is_rule = insight.get("is_rule", False)
+        if is_rule:
+            # Ensure lifecycle metadata exists for rule tracking
+            if "metadata" not in insight:
+                insight["metadata"] = {}
+            if "created_at" not in insight["metadata"]:
+                insight["metadata"]["created_at"] = datetime.now(timezone.utc).isoformat()
+            if "last_applied" not in insight["metadata"]:
+                insight["metadata"]["last_applied"] = None
+            if "application_count" not in insight["metadata"]:
+                insight["metadata"]["application_count"] = 0
+
         # IMP-AUTO-003: Compute content hash for deduplication
         content_hash = hashlib.sha256(f"{insight_type}:{content}".encode()).hexdigest()[:16]
 
@@ -1366,7 +1379,15 @@ class MemoryService:
             self._content_hashes.add(content_hash)
 
         # Route to appropriate write method based on insight type
-        if insight_type == "cost_sink":
+        # IMP-REL-002: Handle rules with lifecycle tracking first
+        if is_rule or insight_type in ("promoted_rule", "effectiveness_rule"):
+            return self._write_rule_with_lifecycle(
+                insight=insight,
+                project_id=project_id or "default",
+                run_id=run_id,
+                phase_id=phase_id,
+            )
+        elif insight_type == "cost_sink":
             return self.write_phase_summary(
                 run_id=run_id,
                 phase_id=phase_id,
@@ -1405,6 +1426,210 @@ class MemoryService:
                 ci_result=None,
                 task_type="telemetry_insight",
             )
+
+    def _write_rule_with_lifecycle(
+        self,
+        insight: Dict[str, Any],
+        project_id: str,
+        run_id: str,
+        phase_id: str,
+    ) -> str:
+        """Write a rule with lifecycle tracking metadata.
+
+        IMP-REL-002: Stores rules (promoted hints or effectiveness-generated rules)
+        with lifecycle tracking fields for decay and pruning support.
+
+        Args:
+            insight: The rule insight dict containing metadata
+            project_id: Project identifier
+            run_id: Run identifier
+            phase_id: Phase identifier
+
+        Returns:
+            Point ID of the stored rule
+        """
+        if not self.enabled:
+            return ""
+
+        description = insight.get("description", "")
+        content = insight.get("content", description)
+        insight_type = insight.get("insight_type", "rule")
+        suggested_action = insight.get("suggested_action", "")
+        metadata = insight.get("metadata", {})
+
+        # Build text for embedding
+        text = f"Rule: {description}\nContent: {content}\nAction: {suggested_action}"
+        vector = sync_embed_text(text)
+
+        # Create unique point ID for rule
+        rule_hash = hashlib.sha256(f"{insight_type}:{content}".encode()).hexdigest()[:12]
+        point_id = f"rule:{project_id}:{rule_hash}"
+
+        # Build payload with lifecycle tracking fields
+        payload = {
+            "type": "rule",
+            "is_rule": True,
+            "insight_type": insight_type,
+            "run_id": run_id,
+            "phase_id": phase_id,
+            "project_id": project_id,
+            "description": description[:1000] if description else "",
+            "content": content[:2000] if content else "",
+            "suggested_action": suggested_action[:1000] if suggested_action else "",
+            "severity": insight.get("severity", "medium"),
+            "confidence": insight.get("confidence", 0.5),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            # IMP-REL-002: Lifecycle tracking fields
+            "created_at": metadata.get("created_at", datetime.now(timezone.utc).isoformat()),
+            "last_applied": metadata.get("last_applied"),
+            "application_count": metadata.get("application_count", 0),
+            # Additional rule metadata
+            "rule_type": metadata.get("rule_type"),
+            "pattern": metadata.get("pattern"),
+            "sample_size": metadata.get("sample_size"),
+            "success_rate": metadata.get("success_rate"),
+            "occurrences": insight.get("occurrences"),
+            "hint_type": insight.get("hint_type"),
+            "phase_type": insight.get("phase_type"),
+        }
+
+        self._safe_store_call(
+            "_write_rule_with_lifecycle/upsert",
+            lambda: self.store.upsert(
+                COLLECTION_DOCTOR_HINTS,
+                [{"id": point_id, "vector": vector, "payload": payload}],
+            ),
+            0,
+        )
+        logger.info(
+            f"[IMP-REL-002] Wrote rule with lifecycle tracking: {insight_type} "
+            f"(id={point_id}, application_count={payload['application_count']})"
+        )
+        return point_id
+
+    def record_rule_application(self, rule_id: str) -> bool:
+        """Record that a rule was successfully applied.
+
+        IMP-REL-002: Updates the lifecycle tracking fields for a rule when it
+        is successfully applied. This increments application_count and updates
+        last_applied timestamp for decay calculation.
+
+        Args:
+            rule_id: Point ID of the rule to update
+
+        Returns:
+            True if the rule was updated, False if not found or update failed
+        """
+        if not self.enabled:
+            return False
+
+        try:
+            # Get current payload
+            payload = self._safe_store_call(
+                "record_rule_application/get_payload",
+                lambda: self.store.get_payload(COLLECTION_DOCTOR_HINTS, rule_id),
+                None,
+            )
+
+            if payload is None:
+                logger.warning(f"[IMP-REL-002] Rule not found for application: {rule_id}")
+                return False
+
+            # Update lifecycle fields
+            payload["last_applied"] = datetime.now(timezone.utc).isoformat()
+            payload["application_count"] = payload.get("application_count", 0) + 1
+
+            # Persist updated payload
+            success = self._safe_store_call(
+                "record_rule_application/update_payload",
+                lambda: self.store.update_payload(COLLECTION_DOCTOR_HINTS, rule_id, payload),
+                False,
+            )
+
+            if success:
+                logger.info(
+                    f"[IMP-REL-002] Recorded rule application: {rule_id} "
+                    f"(count={payload['application_count']})"
+                )
+            return success
+
+        except Exception as e:
+            logger.warning(f"[IMP-REL-002] Failed to record rule application: {e}")
+            return False
+
+    def get_rules_for_pruning(
+        self,
+        project_id: str,
+        limit: int = 10000,
+    ) -> List[Dict[str, Any]]:
+        """Get all rules for pruning evaluation.
+
+        IMP-REL-002: Retrieves all rules with is_rule=True from doctor_hints
+        collection for lifecycle pruning evaluation.
+
+        Args:
+            project_id: Project identifier
+            limit: Maximum number of rules to retrieve
+
+        Returns:
+            List of rule documents with their payloads and IDs
+        """
+        if not self.enabled:
+            return []
+
+        try:
+            docs = self._safe_store_call(
+                "get_rules_for_pruning/scroll",
+                lambda: self.store.scroll(
+                    COLLECTION_DOCTOR_HINTS,
+                    filter={"project_id": project_id},
+                    limit=limit,
+                ),
+                [],
+            )
+
+            # Filter for rules only
+            rules = []
+            for doc in docs:
+                payload = doc.get("payload", {})
+                if payload.get("is_rule", False) or payload.get("type") == "rule":
+                    rules.append(doc)
+
+            logger.debug(f"[IMP-REL-002] Found {len(rules)} rules for pruning evaluation")
+            return rules
+
+        except Exception as e:
+            logger.warning(f"[IMP-REL-002] Failed to get rules for pruning: {e}")
+            return []
+
+    def delete_rule(self, rule_id: str) -> bool:
+        """Delete a rule by ID.
+
+        IMP-REL-002: Removes a rule from the doctor_hints collection.
+        Used by maintenance pruning to remove stale rules.
+
+        Args:
+            rule_id: Point ID of the rule to delete
+
+        Returns:
+            True if deleted, False otherwise
+        """
+        if not self.enabled:
+            return False
+
+        try:
+            deleted = self._safe_store_call(
+                "delete_rule/delete",
+                lambda: self.store.delete(COLLECTION_DOCTOR_HINTS, [rule_id]),
+                0,
+            )
+            if deleted > 0:
+                logger.info(f"[IMP-REL-002] Deleted rule: {rule_id}")
+                return True
+            return False
+        except Exception as e:
+            logger.warning(f"[IMP-REL-002] Failed to delete rule {rule_id}: {e}")
+            return False
 
     def search_doctor_hints(
         self,

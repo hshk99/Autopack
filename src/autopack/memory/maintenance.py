@@ -139,6 +139,95 @@ def tombstone_superseded_planning(
     return tombstoned
 
 
+def prune_stale_rules(
+    store: FaissStore,
+    project_id: str,
+    max_age_days: int = 30,
+    min_applications: int = 3,
+) -> int:
+    """
+    Remove rules with insufficient usage within time window.
+
+    IMP-REL-002: Prunes rules that haven't been applied enough times within
+    the configured time window. Rules are identified by is_rule=True or
+    type="rule" in their payload. A rule is considered stale if:
+    - created_at is older than max_age_days AND
+    - application_count is less than min_applications
+
+    This implements decay-based cleanup analogous to LearningHint's 1-week
+    half-life, but for promoted rules in memory.
+
+    Args:
+        store: FaissStore instance
+        project_id: Project to prune within
+        max_age_days: Days before a rule is considered for pruning (default: 30)
+        min_applications: Minimum applications to keep rule (default: 3)
+
+    Returns:
+        Number of rules pruned
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+
+    try:
+        # Scroll all documents in doctor_hints for this project
+        docs = store.scroll(
+            COLLECTION_DOCTOR_HINTS,
+            filter={"project_id": project_id},
+            limit=10000,
+        )
+
+        pruned = 0
+        ids_to_delete = []
+
+        for doc in docs:
+            payload = doc.get("payload", {})
+
+            # Only process rules
+            if not payload.get("is_rule", False) and payload.get("type") != "rule":
+                continue
+
+            # Get lifecycle tracking fields
+            created_at_str = payload.get("created_at")
+            application_count = payload.get("application_count", 0)
+
+            if not created_at_str:
+                # No created_at timestamp - can't evaluate, skip
+                continue
+
+            try:
+                # Parse created_at timestamp
+                created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                # Ensure timezone awareness
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=timezone.utc)
+            except (ValueError, AttributeError) as e:
+                logger.debug(f"[IMP-REL-002] Invalid created_at for rule {doc['id']}: {e}")
+                continue
+
+            # Check if rule should be pruned
+            if created_at < cutoff and application_count < min_applications:
+                ids_to_delete.append(doc["id"])
+                logger.info(
+                    f"[IMP-REL-002] Marking stale rule for pruning: {doc['id']} "
+                    f"(applications={application_count}, age={max_age_days}+ days)"
+                )
+
+        # Delete stale rules
+        if ids_to_delete:
+            deleted = store.delete(COLLECTION_DOCTOR_HINTS, ids_to_delete)
+            pruned = deleted
+            logger.info(
+                f"[IMP-REL-002] Pruned {pruned} stale rules from '{COLLECTION_DOCTOR_HINTS}' "
+                f"(project={project_id}, max_age={max_age_days} days, min_applications={min_applications})"
+            )
+
+        return pruned
+
+    except Exception as e:
+        logger.error(f"[IMP-REL-002] Failed to prune stale rules: {e}")
+        return 0
+
+
 async def compress_entry_content(
     content: str,
     llm_service: Optional[any] = None,
@@ -192,14 +281,19 @@ def run_maintenance(
     project_id: str,
     ttl_days: int = DEFAULT_TTL_DAYS,
     planning_keep_versions: int = 3,
+    rule_max_age_days: int = 30,
+    rule_min_applications: int = 3,
 ) -> dict:
     """
-    Run full maintenance cycle: prune old entries.
+    Run full maintenance cycle: prune old entries and stale rules.
 
     Args:
         store: FaissStore instance
         project_id: Project to maintain
         ttl_days: TTL for pruning
+        planning_keep_versions: Number of planning artifact versions to retain
+        rule_max_age_days: IMP-REL-002: Max age in days for rule pruning
+        rule_min_applications: IMP-REL-002: Min applications to keep a rule
 
     Returns:
         Dict with maintenance stats
@@ -209,6 +303,7 @@ def run_maintenance(
     stats = {
         "pruned": 0,
         "planning_tombstoned": 0,
+        "rules_pruned": 0,
         "compressed": 0,
         "errors": [],
     }
@@ -237,6 +332,18 @@ def run_maintenance(
         stats["errors"].append(f"Tombstone failed: {e}")
         logger.error(f"[Maintenance] Tombstone failed: {e}")
 
+    # IMP-REL-002: Prune stale rules based on lifecycle tracking
+    try:
+        stats["rules_pruned"] = prune_stale_rules(
+            store,
+            project_id,
+            max_age_days=rule_max_age_days,
+            min_applications=rule_min_applications,
+        )
+    except Exception as e:
+        stats["errors"].append(f"Rule prune failed: {e}")
+        logger.error(f"[IMP-REL-002] Rule prune failed: {e}")
+
     logger.info(f"[Maintenance] Completed: {stats}")
     return stats
 
@@ -258,6 +365,9 @@ def _load_maintenance_config() -> Dict[str, Any]:
         "max_age_days": maintenance_config.get("max_age_days", DEFAULT_TTL_DAYS),
         "prune_threshold": maintenance_config.get("prune_threshold", 1000),
         "planning_keep_versions": maintenance_config.get("planning_keep_versions", 3),
+        # IMP-REL-002: Rule lifecycle pruning configuration
+        "rule_max_age_days": maintenance_config.get("rule_max_age_days", DEFAULT_TTL_DAYS),
+        "rule_min_applications": maintenance_config.get("rule_min_applications", 3),
     }
 
 
@@ -368,13 +478,16 @@ def run_maintenance_if_due(
             project_id=project_id,
             ttl_days=config["max_age_days"],
             planning_keep_versions=config["planning_keep_versions"],
+            rule_max_age_days=config["rule_max_age_days"],
+            rule_min_applications=config["rule_min_applications"],
         )
 
         _update_last_maintenance_time()
 
         logger.info(
             f"[IMP-LOOP-017] Auto-maintenance completed: "
-            f"pruned={stats['pruned']}, tombstoned={stats['planning_tombstoned']}"
+            f"pruned={stats['pruned']}, tombstoned={stats['planning_tombstoned']}, "
+            f"rules_pruned={stats.get('rules_pruned', 0)}"
         )
 
         return stats
@@ -383,7 +496,13 @@ def run_maintenance_if_due(
         logger.error(f"[IMP-LOOP-017] Auto-maintenance failed: {e}")
         # Still update timestamp to prevent retry storm
         _update_last_maintenance_time()
-        return {"pruned": 0, "planning_tombstoned": 0, "compressed": 0, "errors": [str(e)]}
+        return {
+            "pruned": 0,
+            "planning_tombstoned": 0,
+            "rules_pruned": 0,
+            "compressed": 0,
+            "errors": [str(e)],
+        }
 
 
 def main():

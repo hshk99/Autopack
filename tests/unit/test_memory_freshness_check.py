@@ -11,16 +11,12 @@ from unittest.mock import Mock, patch
 import pytest
 
 from autopack.memory.memory_service import (  # IMP-LOOP-019: New imports
-    DEFAULT_MEMORY_FRESHNESS_HOURS,
-    LOW_CONFIDENCE_THRESHOLD,
-    ContextMetadata,
-    MemoryService,
-    _calculate_age_hours,
-    _calculate_confidence,
-    _enrich_with_metadata,
-    _is_fresh,
-    _parse_timestamp,
-)
+    COLLECTION_CODE_DOCS, COLLECTION_DOCTOR_HINTS, COLLECTION_ERRORS_CI,
+    COLLECTION_FRESHNESS_HOURS, COLLECTION_PLANNING, COLLECTION_RUN_SUMMARIES,
+    COLLECTION_SOT_DOCS, DEFAULT_MEMORY_FRESHNESS_HOURS,
+    LOW_CONFIDENCE_THRESHOLD, ContextMetadata, MemoryService,
+    _calculate_age_hours, _calculate_confidence, _enrich_with_metadata,
+    _is_fresh, _parse_timestamp, get_freshness_threshold)
 
 
 class TestTimestampParsing:
@@ -174,36 +170,40 @@ class TestMemoryServiceFreshnessFiltering:
         assert len(insights) == 1
         assert insights[0]["id"] == "fresh-1"
 
-    def test_retrieve_insights_uses_default_max_age(self, mock_memory_service):
-        """Test that retrieve_insights uses DEFAULT_MEMORY_FRESHNESS_HOURS when not specified."""
+    def test_retrieve_insights_uses_per_collection_thresholds(self, mock_memory_service):
+        """Test that retrieve_insights uses per-collection thresholds when max_age_hours not specified.
+
+        IMP-MEM-004: When max_age_hours is None, each collection uses its own freshness threshold.
+        run_summaries uses 48h threshold, so a 40h insight should be included.
+        """
         now = datetime.now(timezone.utc)
-        # Just within default threshold (72 hours)
-        within_default_ts = (now - timedelta(hours=70)).isoformat()
-        # Just outside default threshold
-        outside_default_ts = (now - timedelta(hours=75)).isoformat()
+        # Within run_summaries threshold (48 hours)
+        within_threshold_ts = (now - timedelta(hours=40)).isoformat()
+        # Outside run_summaries threshold (48 hours)
+        outside_threshold_ts = (now - timedelta(hours=55)).isoformat()
 
         call_count = [0]
 
         def mock_search_side_effect(collection, query_vector, filter, limit):
             call_count[0] += 1
-            if call_count[0] == 1:
+            if call_count[0] == 1:  # run_summaries (first collection)
                 return [
                     Mock(
-                        id="within-default",
+                        id="within-threshold",
                         score=0.9,
                         payload={
                             "task_type": "telemetry_insight",
-                            "timestamp": within_default_ts,
-                            "summary": "Within default",
+                            "timestamp": within_threshold_ts,
+                            "summary": "Within run_summaries threshold (40h)",
                         },
                     ),
                     Mock(
-                        id="outside-default",
+                        id="outside-threshold",
                         score=0.8,
                         payload={
                             "task_type": "telemetry_insight",
-                            "timestamp": outside_default_ts,
-                            "summary": "Outside default",
+                            "timestamp": outside_threshold_ts,
+                            "summary": "Outside run_summaries threshold (55h)",
                         },
                     ),
                 ]
@@ -216,15 +216,15 @@ class TestMemoryServiceFreshnessFiltering:
             "autopack.memory.memory_service.sync_embed_text",
             return_value=[0.1] * 384,
         ):
-            # Don't specify max_age_hours - should use default
+            # Don't specify max_age_hours - should use per-collection thresholds
             insights = mock_memory_service.retrieve_insights(
                 query="test query",
                 limit=10,
             )
 
-        # Should only include insight within default threshold
+        # Should only include insight within run_summaries 48h threshold
         assert len(insights) == 1
-        assert insights[0]["id"] == "within-default"
+        assert insights[0]["id"] == "within-threshold"
 
     def test_retrieve_insights_zero_max_age_uses_default_with_warning(
         self, mock_memory_service, caplog
@@ -841,6 +841,285 @@ class TestMemoryServiceGetContextQualitySummary:
         )
 
         assert result["has_low_confidence_warning"] is True
+
+
+# ---------------------------------------------------------------------------
+# IMP-MEM-004: Per-Collection Staleness Policy Tests
+# ---------------------------------------------------------------------------
+
+
+class TestCollectionFreshnessConstants:
+    """Tests for IMP-MEM-004: Per-collection freshness threshold constants."""
+
+    def test_collection_freshness_hours_defined(self):
+        """Test that COLLECTION_FRESHNESS_HOURS dict is defined with all collections."""
+        assert isinstance(COLLECTION_FRESHNESS_HOURS, dict)
+        assert "default" in COLLECTION_FRESHNESS_HOURS
+
+    def test_collection_freshness_hours_values(self):
+        """Test that per-collection freshness thresholds have expected values."""
+        # Error patterns need quick attention (24h)
+        assert COLLECTION_FRESHNESS_HOURS[COLLECTION_ERRORS_CI] == 24
+        # Test/CI results need frequent refresh (48h)
+        assert COLLECTION_FRESHNESS_HOURS[COLLECTION_RUN_SUMMARIES] == 48
+        # Hints have moderate freshness (72h)
+        assert COLLECTION_FRESHNESS_HOURS[COLLECTION_DOCTOR_HINTS] == 72
+        # Code docs change less frequently (168h = 1 week)
+        assert COLLECTION_FRESHNESS_HOURS[COLLECTION_CODE_DOCS] == 168
+        # Planning artifacts are more stable (168h)
+        assert COLLECTION_FRESHNESS_HOURS[COLLECTION_PLANNING] == 168
+        # SOT docs are reference material (336h = 2 weeks)
+        assert COLLECTION_FRESHNESS_HOURS[COLLECTION_SOT_DOCS] == 336
+        # Default fallback
+        assert COLLECTION_FRESHNESS_HOURS["default"] == 72
+
+    def test_errors_ci_has_shortest_threshold(self):
+        """Test that errors_ci has the shortest freshness threshold."""
+        errors_threshold = COLLECTION_FRESHNESS_HOURS[COLLECTION_ERRORS_CI]
+        for collection, threshold in COLLECTION_FRESHNESS_HOURS.items():
+            if collection != COLLECTION_ERRORS_CI and collection != "default":
+                assert errors_threshold <= threshold, (
+                    f"errors_ci ({errors_threshold}h) should have shortest threshold, "
+                    f"but {collection} has {threshold}h"
+                )
+
+    def test_sot_docs_has_longest_threshold(self):
+        """Test that sot_docs has the longest freshness threshold."""
+        sot_threshold = COLLECTION_FRESHNESS_HOURS[COLLECTION_SOT_DOCS]
+        for collection, threshold in COLLECTION_FRESHNESS_HOURS.items():
+            if collection != "default":
+                assert sot_threshold >= threshold, (
+                    f"sot_docs ({sot_threshold}h) should have longest threshold, "
+                    f"but {collection} has {threshold}h"
+                )
+
+
+class TestGetFreshnessThreshold:
+    """Tests for get_freshness_threshold() function."""
+
+    def test_get_freshness_threshold_known_collection(self):
+        """Test getting freshness threshold for a known collection."""
+        assert get_freshness_threshold(COLLECTION_ERRORS_CI) == 24
+        assert get_freshness_threshold(COLLECTION_RUN_SUMMARIES) == 48
+        assert get_freshness_threshold(COLLECTION_DOCTOR_HINTS) == 72
+        assert get_freshness_threshold(COLLECTION_CODE_DOCS) == 168
+        assert get_freshness_threshold(COLLECTION_PLANNING) == 168
+        assert get_freshness_threshold(COLLECTION_SOT_DOCS) == 336
+
+    def test_get_freshness_threshold_unknown_collection(self):
+        """Test getting freshness threshold for unknown collection returns default."""
+        assert get_freshness_threshold("unknown_collection") == 72
+        assert get_freshness_threshold("") == 72
+        assert get_freshness_threshold("custom_collection") == 72
+
+    def test_get_freshness_threshold_default(self):
+        """Test that default threshold matches DEFAULT_MEMORY_FRESHNESS_HOURS."""
+        assert get_freshness_threshold("unknown") == DEFAULT_MEMORY_FRESHNESS_HOURS
+
+
+class TestPerCollectionStalenessFiltering:
+    """Tests for per-collection staleness filtering in MemoryService.retrieve_insights."""
+
+    @pytest.fixture
+    def mock_memory_service(self):
+        """Create a mock MemoryService for testing."""
+        with patch.object(MemoryService, "__init__", lambda self, **kwargs: None):
+            service = MemoryService()
+            service.enabled = True
+            service.store = Mock()
+            service.top_k = 5
+            return service
+
+    def test_retrieve_insights_uses_per_collection_thresholds_by_default(self, mock_memory_service):
+        """Test that retrieve_insights uses per-collection thresholds when max_age_hours is None."""
+        now = datetime.now(timezone.utc)
+
+        # Create insights at different ages:
+        # - errors_ci: 20h old (within 24h threshold) - should be included
+        # - errors_ci: 30h old (beyond 24h threshold) - should be filtered
+        # - run_summaries: 40h old (within 48h threshold) - should be included
+        errors_fresh_ts = (now - timedelta(hours=20)).isoformat()
+        errors_stale_ts = (now - timedelta(hours=30)).isoformat()
+        summaries_fresh_ts = (now - timedelta(hours=40)).isoformat()
+
+        call_count = [0]
+        collection_order = [
+            "run_summaries",  # First collection queried
+            "errors_ci",  # Second collection queried
+            "doctor_hints",  # Third collection queried
+        ]
+
+        def mock_search_side_effect(collection, query_vector, filter, limit):
+            idx = call_count[0]
+            call_count[0] += 1
+
+            if idx == 0:  # run_summaries
+                return [
+                    Mock(
+                        id="summary-1",
+                        score=0.8,
+                        payload={
+                            "task_type": "telemetry_insight",
+                            "timestamp": summaries_fresh_ts,
+                            "summary": "Summary insight (40h old, within 48h)",
+                        },
+                    ),
+                ]
+            elif idx == 1:  # errors_ci
+                return [
+                    Mock(
+                        id="error-fresh",
+                        score=0.9,
+                        payload={
+                            "task_type": "telemetry_insight",
+                            "timestamp": errors_fresh_ts,
+                            "summary": "Fresh error (20h old, within 24h)",
+                        },
+                    ),
+                    Mock(
+                        id="error-stale",
+                        score=0.85,
+                        payload={
+                            "task_type": "telemetry_insight",
+                            "timestamp": errors_stale_ts,
+                            "summary": "Stale error (30h old, beyond 24h)",
+                        },
+                    ),
+                ]
+            return []
+
+        mock_memory_service.store.search = Mock(side_effect=mock_search_side_effect)
+        mock_memory_service._safe_store_call = lambda label, fn, default: fn()
+
+        with patch(
+            "autopack.memory.memory_service.sync_embed_text",
+            return_value=[0.1] * 384,
+        ):
+            # Don't specify max_age_hours - should use per-collection thresholds
+            insights = mock_memory_service.retrieve_insights(
+                query="test query",
+                limit=10,
+            )
+
+        # Should include:
+        # - error-fresh (20h < 24h threshold for errors_ci)
+        # - summary-1 (40h < 48h threshold for run_summaries)
+        # Should exclude:
+        # - error-stale (30h > 24h threshold for errors_ci)
+        assert len(insights) == 2
+        insight_ids = [i["id"] for i in insights]
+        assert "error-fresh" in insight_ids
+        assert "summary-1" in insight_ids
+        assert "error-stale" not in insight_ids
+
+    def test_retrieve_insights_respects_explicit_max_age_hours(self, mock_memory_service):
+        """Test that explicit max_age_hours overrides per-collection thresholds."""
+        now = datetime.now(timezone.utc)
+
+        # Create an error 30h old - beyond errors_ci's 24h threshold
+        # but within an explicit 48h threshold
+        errors_ts = (now - timedelta(hours=30)).isoformat()
+
+        call_count = [0]
+
+        def mock_search_side_effect(collection, query_vector, filter, limit):
+            idx = call_count[0]
+            call_count[0] += 1
+
+            if idx == 1:  # errors_ci (second collection)
+                return [
+                    Mock(
+                        id="error-30h",
+                        score=0.9,
+                        payload={
+                            "task_type": "telemetry_insight",
+                            "timestamp": errors_ts,
+                            "summary": "Error 30h old",
+                        },
+                    ),
+                ]
+            return []
+
+        mock_memory_service.store.search = Mock(side_effect=mock_search_side_effect)
+        mock_memory_service._safe_store_call = lambda label, fn, default: fn()
+
+        with patch(
+            "autopack.memory.memory_service.sync_embed_text",
+            return_value=[0.1] * 384,
+        ):
+            # Explicit 48h threshold - should include the 30h old error
+            insights = mock_memory_service.retrieve_insights(
+                query="test query",
+                limit=10,
+                max_age_hours=48,
+            )
+
+        assert len(insights) == 1
+        assert insights[0]["id"] == "error-30h"
+
+    def test_retrieve_insights_includes_freshness_threshold_in_result(self, mock_memory_service):
+        """Test that insights include their freshness_threshold in the result."""
+        now = datetime.now(timezone.utc)
+        fresh_ts = (now - timedelta(hours=10)).isoformat()
+
+        call_count = [0]
+
+        def mock_search_side_effect(collection, query_vector, filter, limit):
+            idx = call_count[0]
+            call_count[0] += 1
+
+            if idx == 1:  # errors_ci
+                return [
+                    Mock(
+                        id="error-1",
+                        score=0.9,
+                        payload={
+                            "task_type": "telemetry_insight",
+                            "timestamp": fresh_ts,
+                            "summary": "Error",
+                        },
+                    ),
+                ]
+            return []
+
+        mock_memory_service.store.search = Mock(side_effect=mock_search_side_effect)
+        mock_memory_service._safe_store_call = lambda label, fn, default: fn()
+
+        with patch(
+            "autopack.memory.memory_service.sync_embed_text",
+            return_value=[0.1] * 384,
+        ):
+            insights = mock_memory_service.retrieve_insights(
+                query="test query",
+                limit=10,
+            )
+
+        assert len(insights) == 1
+        assert "freshness_threshold" in insights[0]
+        # Should be 24h for errors_ci
+        assert insights[0]["freshness_threshold"] == 24
+
+    def test_retrieve_insights_logs_per_collection_thresholds(self, mock_memory_service, caplog):
+        """Test that retrieve_insights logs when using per-collection thresholds."""
+        mock_memory_service.store.search = Mock(return_value=[])
+        mock_memory_service._safe_store_call = lambda label, fn, default: fn()
+
+        import logging
+
+        with caplog.at_level(logging.INFO):
+            with patch(
+                "autopack.memory.memory_service.sync_embed_text",
+                return_value=[0.1] * 384,
+            ):
+                mock_memory_service.retrieve_insights(
+                    query="test query",
+                    limit=10,
+                    # No max_age_hours - uses per-collection
+                )
+
+        # Should log about using per-collection thresholds
+        assert any("IMP-MEM-004" in record.message for record in caplog.records)
+        assert any("per-collection" in record.message.lower() for record in caplog.records)
 
 
 if __name__ == "__main__":

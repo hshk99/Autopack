@@ -444,6 +444,44 @@ ALL_COLLECTIONS = [
     COLLECTION_SOT_DOCS,
 ]
 
+# ---------------------------------------------------------------------------
+# IMP-MEM-004: Per-Collection Staleness Policies
+# ---------------------------------------------------------------------------
+# Different memory collections have different freshness requirements:
+# - Error patterns need quick attention (24h)
+# - Test/CI results need frequent refresh (48h)
+# - Learning hints have moderate freshness (72h - default)
+# - Code docs change less frequently (168h = 1 week)
+# - Planning artifacts are more stable (168h)
+# - SOT docs are reference material (336h = 2 weeks)
+
+COLLECTION_FRESHNESS_HOURS: Dict[str, int] = {
+    COLLECTION_ERRORS_CI: 24,  # Errors should be addressed quickly
+    COLLECTION_RUN_SUMMARIES: 48,  # Test/CI results need frequent refresh
+    COLLECTION_DOCTOR_HINTS: 72,  # Hints have moderate freshness
+    COLLECTION_CODE_DOCS: 168,  # Code docs change less frequently (1 week)
+    COLLECTION_PLANNING: 168,  # Planning artifacts are more stable
+    COLLECTION_SOT_DOCS: 336,  # SOT docs are reference material (2 weeks)
+    "default": 72,  # Fallback to DEFAULT_MEMORY_FRESHNESS_HOURS
+}
+
+
+def get_freshness_threshold(collection_name: str) -> int:
+    """Get the freshness threshold in hours for a specific collection.
+
+    IMP-MEM-004: Different collections have different staleness policies.
+    Error patterns age differently than code docs, so each collection type
+    has its own configurable freshness threshold.
+
+    Args:
+        collection_name: The name of the memory collection.
+
+    Returns:
+        Freshness threshold in hours for the collection.
+    """
+    return COLLECTION_FRESHNESS_HOURS.get(collection_name, COLLECTION_FRESHNESS_HOURS["default"])
+
+
 _BOOL_TRUE = {"1", "true", "yes", "y", "on"}
 _BOOL_FALSE = {"0", "false", "no", "n", "off"}
 
@@ -2019,27 +2057,32 @@ class MemoryService:
             return []
 
         # IMP-LOOP-014: Enforce mandatory freshness filtering with validation
+        # IMP-MEM-004: When max_age_hours is None, use per-collection thresholds
+        use_per_collection_freshness = max_age_hours is None
         if max_age_hours is not None and max_age_hours <= 0:
             logger.warning(
                 "[IMP-LOOP-014] max_age_hours=%s is invalid (must be positive). "
                 "Freshness filtering is mandatory for the self-improvement loop. "
-                "Override ignored - using DEFAULT_MEMORY_FRESHNESS_HOURS=%s.",
+                "Override ignored - using per-collection thresholds.",
                 max_age_hours,
-                DEFAULT_MEMORY_FRESHNESS_HOURS,
             )
-            effective_max_age = DEFAULT_MEMORY_FRESHNESS_HOURS
-        else:
-            effective_max_age = (
-                max_age_hours if max_age_hours is not None else DEFAULT_MEMORY_FRESHNESS_HOURS
-            )
+            use_per_collection_freshness = True
 
-        # IMP-LOOP-014: Audit log for freshness filter applied
-        logger.info(
-            "[IMP-LOOP-014] Retrieving insights with freshness_filter=%sh, project_id=%s, limit=%s",
-            effective_max_age,
-            project_id or "all",
-            limit,
-        )
+        # IMP-LOOP-014/IMP-MEM-004: Audit log for freshness filter applied
+        if use_per_collection_freshness:
+            logger.info(
+                "[IMP-MEM-004] Retrieving insights with per-collection freshness thresholds, "
+                "project_id=%s, limit=%s",
+                project_id or "all",
+                limit,
+            )
+        else:
+            logger.info(
+                "[IMP-LOOP-014] Retrieving insights with freshness_filter=%sh, project_id=%s, limit=%s",
+                max_age_hours,
+                project_id or "all",
+                limit,
+            )
 
         try:
             # Embed the query text
@@ -2058,6 +2101,12 @@ class MemoryService:
             per_collection_limit = max((limit * 2) // len(insight_collections), 5)
 
             for collection in insight_collections:
+                # IMP-MEM-004: Get collection-specific freshness threshold
+                if use_per_collection_freshness:
+                    collection_max_age = get_freshness_threshold(collection)
+                else:
+                    collection_max_age = max_age_hours
+
                 # Build filter for telemetry insights
                 search_filter = {"task_type": "telemetry_insight"}
                 if project_id:
@@ -2080,14 +2129,16 @@ class MemoryService:
                     if payload.get("task_type") != "telemetry_insight":
                         continue
 
-                    # IMP-LOOP-003/IMP-LOOP-014: Apply mandatory freshness check
+                    # IMP-LOOP-003/IMP-LOOP-014/IMP-MEM-004: Apply freshness check
+                    # Uses per-collection threshold when max_age_hours is not specified
                     timestamp = payload.get("timestamp")
-                    if not _is_fresh(timestamp, effective_max_age):
+                    if not _is_fresh(timestamp, collection_max_age):
                         stale_count += 1
                         logger.debug(
-                            "[IMP-LOOP-014] Skipping stale insight (age > %sh): "
+                            "[IMP-MEM-004] Skipping stale insight (age > %sh for %s): "
                             "id=%s, timestamp=%s",
-                            effective_max_age,
+                            collection_max_age,
+                            collection,
                             getattr(result, "id", "unknown"),
                             timestamp,
                         )
@@ -2103,6 +2154,7 @@ class MemoryService:
                         "file_path": payload.get("file_path"),
                         "collection": collection,
                         "timestamp": timestamp,  # IMP-LOOP-003: Include timestamp in result
+                        "freshness_threshold": collection_max_age,  # IMP-MEM-004: Include threshold
                     }
                     all_insights.append(insight)
 
@@ -2110,11 +2162,11 @@ class MemoryService:
             all_insights.sort(key=lambda x: x.get("score", 0), reverse=True)
             insights = all_insights[:limit]
 
-            # IMP-LOOP-003: Log freshness filtering stats
+            # IMP-LOOP-003/IMP-MEM-004: Log freshness filtering stats
             if stale_count > 0:
                 logger.info(
-                    f"[IMP-LOOP-003] Filtered {stale_count} stale insights "
-                    f"(max_age={effective_max_age}h)"
+                    "[IMP-MEM-004] Filtered %d stale insights using per-collection thresholds",
+                    stale_count,
                 )
 
             logger.debug(

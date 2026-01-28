@@ -7,10 +7,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.task_generation.roi_analyzer import (DEFAULT_EFFECTIVENESS,
-                                                   MIN_SAMPLES_FOR_LEARNING,
-                                                   ROIAnalyzer,
-                                                   ROIPredictionRecord)
+from autopack.task_generation.roi_analyzer import (
+    DEFAULT_EFFECTIVENESS,
+    MIN_SAMPLES_FOR_LEARNING,
+    ROIAnalyzer,
+    ROIPredictionRecord,
+)
 
 
 class TestROIPredictionRecord:

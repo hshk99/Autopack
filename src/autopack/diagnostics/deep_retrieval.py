@@ -19,9 +19,12 @@ Per BUILD-043/044/045 patterns: strict isolation, no protected path modification
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from autopack.sql_sanitizer import SQLSanitizer
+
+if TYPE_CHECKING:
+    from autopack.memory.memory_service import MemoryService
 
 logger = logging.getLogger(__name__)
 
@@ -45,15 +48,22 @@ class DeepRetrieval:
     # IMP-REL-004: Max iteration limits for keyword search loops
     MAX_KEYWORD_HITS_PER_FILE = 10000
 
-    def __init__(self, run_dir: Path, repo_root: Path):
+    def __init__(
+        self,
+        run_dir: Path,
+        repo_root: Path,
+        memory_service: Optional["MemoryService"] = None,
+    ):
         """Initialize deep retrieval module.
 
         Args:
             run_dir: Path to .autonomous_runs/<run_id> directory
             repo_root: Path to repository root
+            memory_service: Optional MemoryService for historical error/pattern lookup
         """
         self.run_dir = run_dir
         self.repo_root = repo_root
+        self.memory_service = memory_service
         self.logger = logger
 
     def retrieve(
@@ -264,10 +274,117 @@ class DeepRetrieval:
         Returns:
             List of memory entry snippets (max 5, max 5KB total)
         """
-        # Memory retrieval is optional - return empty if not available
-        # Future enhancement: integrate with vector store/memory system
-        self.logger.debug("[DeepRetrieval] Memory retrieval not yet implemented")
-        return []
+        if not self.memory_service:
+            self.logger.debug("[DeepRetrieval] Memory service not configured")
+            return []
+
+        # Check if memory service is enabled
+        if not getattr(self.memory_service, "enabled", False):
+            self.logger.debug("[DeepRetrieval] Memory service not enabled")
+            return []
+
+        entries: List[Dict[str, Any]] = []
+        total_size = 0
+
+        # Get project_id from handoff_bundle (required for memory queries)
+        project_id = handoff_bundle.get("project_id", "")
+        if not project_id:
+            self.logger.debug("[DeepRetrieval] No project_id in handoff bundle")
+            return []
+
+        # Search for similar errors using error_message
+        error_message = handoff_bundle.get("error_message", "")
+        if error_message:
+            try:
+                # Truncate query to first 500 chars for efficiency
+                error_query = error_message[:500]
+                error_results = self.memory_service.search_errors(
+                    query=error_query,
+                    project_id=project_id,
+                    limit=5,
+                )
+                for result in error_results:
+                    if len(entries) >= self.MAX_MEMORY_ENTRIES:
+                        break
+                    if total_size >= self.MAX_MEMORY_ENTRIES_SIZE:
+                        break
+
+                    # Extract content from payload
+                    payload = result.get("payload", {})
+                    content = payload.get("error_snippet", payload.get("content", ""))
+                    if not content:
+                        continue
+
+                    # Truncate if needed to stay within budget
+                    remaining_budget = self.MAX_MEMORY_ENTRIES_SIZE - total_size
+                    if len(content) > remaining_budget:
+                        content = content[:remaining_budget]
+
+                    entries.append(
+                        {
+                            "source": "memory:error",
+                            "content": content,
+                            "size": len(content),
+                            "relevance_score": result.get("score", 0.0),
+                            "metadata": {
+                                "collection": "errors",
+                                "id": result.get("id", ""),
+                            },
+                        }
+                    )
+                    total_size += len(content)
+            except Exception as e:
+                self.logger.debug(f"[DeepRetrieval] Error searching memory errors: {e}")
+
+        # Search for related code patterns using file_path or root_cause
+        file_path = handoff_bundle.get("file_path", "")
+        root_cause = handoff_bundle.get("root_cause", "")
+        pattern_query = file_path or root_cause
+
+        if pattern_query and len(entries) < self.MAX_MEMORY_ENTRIES:
+            try:
+                pattern_results = self.memory_service.search_code(
+                    query=pattern_query[:500],
+                    project_id=project_id,
+                    limit=3,
+                )
+                for result in pattern_results:
+                    if len(entries) >= self.MAX_MEMORY_ENTRIES:
+                        break
+                    if total_size >= self.MAX_MEMORY_ENTRIES_SIZE:
+                        break
+
+                    # Extract content from payload
+                    payload = result.get("payload", {})
+                    content = payload.get("content", "")
+                    if not content:
+                        continue
+
+                    # Truncate if needed to stay within budget
+                    remaining_budget = self.MAX_MEMORY_ENTRIES_SIZE - total_size
+                    if len(content) > remaining_budget:
+                        content = content[:remaining_budget]
+
+                    entries.append(
+                        {
+                            "source": "memory:pattern",
+                            "content": content,
+                            "size": len(content),
+                            "relevance_score": result.get("score", 0.0),
+                            "metadata": {
+                                "collection": "code",
+                                "id": result.get("id", ""),
+                            },
+                        }
+                    )
+                    total_size += len(content)
+            except Exception as e:
+                self.logger.debug(f"[DeepRetrieval] Error searching memory code: {e}")
+
+        self.logger.debug(
+            f"[DeepRetrieval] Retrieved {len(entries)} memory entries " f"({total_size} bytes)"
+        )
+        return entries
 
     def _extract_keywords(self, handoff_bundle: Dict[str, Any]) -> List[str]:
         """Extract keywords from handoff bundle for relevance ranking.

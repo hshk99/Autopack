@@ -26,12 +26,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from autopack.telemetry.meta_metrics import (PipelineLatencyTracker,
-                                             PipelineStage)
+from autopack.telemetry.meta_metrics import PipelineLatencyTracker, PipelineStage
 
 if TYPE_CHECKING:
-    from autopack.task_generation.task_effectiveness_tracker import \
-        TaskEffectivenessTracker
+    from autopack.task_generation.task_effectiveness_tracker import (
+        TaskEffectivenessTracker,
+    )
 
 logger = logging.getLogger(__name__)
 

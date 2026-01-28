@@ -5,7 +5,7 @@ This module provides functionality to execute tasks in parallel.
 
 import concurrent.futures
 import logging
-from typing import List, Callable, Any, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

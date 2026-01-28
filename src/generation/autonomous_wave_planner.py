@@ -1,12 +1,11 @@
 """Autonomous Phase 2 wave planning for IMP grouping."""
 
+import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Set
-
-import json
 
 
 @dataclass

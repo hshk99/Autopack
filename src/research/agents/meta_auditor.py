@@ -4,9 +4,9 @@ This module implements the Meta-Auditor agent responsible for synthesizing findi
 various decision frameworks and generating strategic recommendations.
 """
 
-from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 # NOTE: repo uses PYTHONPATH=src, so modules under src/research are imported as `research.*`
 

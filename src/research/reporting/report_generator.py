@@ -3,8 +3,8 @@
 This module generates formatted research reports from meta-auditor synthesis.
 """
 
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, Optional
 
 
 class ReportGenerator:

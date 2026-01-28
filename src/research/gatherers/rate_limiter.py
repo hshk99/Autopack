@@ -3,11 +3,11 @@
 This module provides rate limiting functionality for API requests.
 """
 
-import time
 import logging
-from threading import Lock
+import time
 from collections import deque
 from datetime import datetime, timedelta
+from threading import Lock
 
 logger = logging.getLogger(__name__)
 

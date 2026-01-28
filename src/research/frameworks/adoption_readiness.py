@@ -4,7 +4,7 @@ This module evaluates the adoption readiness of a market or organization for a n
 or technology, considering customer readiness, infrastructure, and regulatory environment.
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
 
 class AdoptionReadiness:

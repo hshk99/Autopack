@@ -4,9 +4,11 @@ Web Scraper Module
 This module is responsible for scraping web content and interfacing with the content extractor.
 """
 
+from typing import Dict, List
+
 import requests
 from bs4 import BeautifulSoup
-from typing import List, Dict
+
 from src.research.gatherers.content_extractor import ContentExtractor
 
 

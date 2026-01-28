@@ -15,10 +15,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from autopack.learned_rules import (DiscoveryStage, LearnedRule,
-                                    LearnedRuleAging, RuleAgingTracker,
-                                    get_active_rules_for_phase,
-                                    record_rule_validation_outcome)
+from autopack.learned_rules import (
+    DiscoveryStage,
+    LearnedRule,
+    LearnedRuleAging,
+    RuleAgingTracker,
+    get_active_rules_for_phase,
+    record_rule_validation_outcome,
+)
 
 # ============================================================================
 # RuleAgingTracker Tests

@@ -4,7 +4,7 @@ This module evaluates the potential of a market based on various factors includi
 market size, growth rate, and competitive landscape.
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
 
 class MarketAttractiveness:

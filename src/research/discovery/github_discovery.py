@@ -5,9 +5,10 @@ repositories, issues, and discussions on GitHub.
 """
 
 import logging
-import requests
-from typing import Dict, List, Optional
 from dataclasses import dataclass
+from typing import Dict, List, Optional
+
+import requests
 
 from autopack.utils import mask_credential
 

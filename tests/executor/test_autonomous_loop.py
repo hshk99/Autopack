@@ -1017,7 +1017,10 @@ class TestHealthGateTaskGeneration:
 
     def test_get_feedback_loop_health_attention_required_when_circuit_open(self):
         """Verify health returns ATTENTION_REQUIRED when circuit breaker is OPEN."""
-        from autopack.executor.autonomous_loop import CircuitBreaker, CircuitBreakerState
+        from autopack.executor.autonomous_loop import (
+            CircuitBreaker,
+            CircuitBreakerState,
+        )
 
         mock_executor = Mock()
         loop = AutonomousLoop(mock_executor)
@@ -1031,7 +1034,10 @@ class TestHealthGateTaskGeneration:
 
     def test_get_feedback_loop_health_degraded_when_circuit_half_open(self):
         """Verify health returns DEGRADED when circuit breaker is HALF_OPEN."""
-        from autopack.executor.autonomous_loop import CircuitBreaker, CircuitBreakerState
+        from autopack.executor.autonomous_loop import (
+            CircuitBreaker,
+            CircuitBreakerState,
+        )
 
         mock_executor = Mock()
         loop = AutonomousLoop(mock_executor)
@@ -1130,7 +1136,10 @@ class TestHealthGateTaskGeneration:
 
     def test_circuit_breaker_blocks_task_gen(self):
         """Verify task generation is skipped when circuit breaker is OPEN (IMP-LOOP-002)."""
-        from autopack.executor.autonomous_loop import CircuitBreaker, CircuitBreakerState
+        from autopack.executor.autonomous_loop import (
+            CircuitBreaker,
+            CircuitBreakerState,
+        )
 
         mock_executor = Mock()
         mock_executor.run_id = "test-run"
@@ -1165,7 +1174,10 @@ class TestHealthGateTaskGeneration:
 
     def test_circuit_breaker_allows_task_gen_when_closed(self):
         """Verify task generation proceeds when circuit breaker is CLOSED (IMP-LOOP-002)."""
-        from autopack.executor.autonomous_loop import CircuitBreaker, CircuitBreakerState
+        from autopack.executor.autonomous_loop import (
+            CircuitBreaker,
+            CircuitBreakerState,
+        )
 
         mock_executor = Mock()
         mock_executor.run_id = "test-run"
@@ -1200,7 +1212,10 @@ class TestHealthGateTaskGeneration:
 
     def test_circuit_breaker_allows_task_gen_when_half_open(self):
         """Verify task generation proceeds when circuit breaker is HALF_OPEN (IMP-LOOP-002)."""
-        from autopack.executor.autonomous_loop import CircuitBreaker, CircuitBreakerState
+        from autopack.executor.autonomous_loop import (
+            CircuitBreaker,
+            CircuitBreakerState,
+        )
 
         mock_executor = Mock()
         mock_executor.run_id = "test-run"

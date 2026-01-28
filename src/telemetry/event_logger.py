@@ -2,6 +2,7 @@
 
 import json
 import os
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -21,6 +22,7 @@ class EventLogger:
             log_dir: Directory for log files. Defaults to AUTOPACK_LOG_DIR
                     environment variable or ./logs.
         """
+        self._write_lock = threading.Lock()
         self.log_dir = Path(log_dir or os.environ.get("AUTOPACK_LOG_DIR", "./logs"))
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.current_log = self.log_dir / f"events_{datetime.now().strftime('%Y%m%d')}.jsonl"
@@ -32,6 +34,8 @@ class EventLogger:
         slot: Optional[int] = None,
     ) -> None:
         """Log an event to the JSONL file.
+
+        Thread-safe: uses a write lock to prevent concurrent write corruption.
 
         Args:
             event_type: Type of event (e.g., 'pr_merged', 'ci_failure',
@@ -45,8 +49,9 @@ class EventLogger:
             "slot": slot,
             "data": data,
         }
-        with open(self.current_log, "a", encoding="utf-8") as f:
-            f.write(json.dumps(event) + "\n")
+        with self._write_lock:
+            with open(self.current_log, "a", encoding="utf-8") as f:
+                f.write(json.dumps(event) + "\n")
 
     def log_pr_event(
         self,
@@ -172,10 +177,13 @@ class EventLogger:
 
 # Global logger instance for convenience
 _default_logger: Optional[EventLogger] = None
+_logger_lock = threading.Lock()
 
 
 def get_logger(log_dir: Optional[str] = None) -> EventLogger:
     """Get or create the default EventLogger instance.
+
+    Thread-safe: uses double-check locking pattern for singleton initialization.
 
     Args:
         log_dir: Optional directory override for log files.
@@ -185,5 +193,8 @@ def get_logger(log_dir: Optional[str] = None) -> EventLogger:
     """
     global _default_logger
     if _default_logger is None or log_dir is not None:
-        _default_logger = EventLogger(log_dir)
+        with _logger_lock:
+            # Double-check pattern: verify condition still holds after acquiring lock
+            if _default_logger is None or log_dir is not None:
+                _default_logger = EventLogger(log_dir)
     return _default_logger

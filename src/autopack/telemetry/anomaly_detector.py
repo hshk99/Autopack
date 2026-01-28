@@ -166,7 +166,8 @@ class TelemetryAnomalyDetector:
 
         try:
             p95 = quantiles(history, n=20)[18]  # 95th percentile
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[IMP-TELE-003] Failed to calculate p95 for {key}: {e}")
             return None
 
         if current_duration > p95 * 1.5:  # 50% above p95
@@ -365,7 +366,8 @@ class TelemetryAnomalyDetector:
             covariance /= len(a)
 
             return covariance / (std_a * std_b)
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[IMP-TELE-003] Failed to calculate correlation: {e}")
             return 0.0
 
     def detect_cross_phase_correlation(self) -> Optional[AnomalyAlert]:

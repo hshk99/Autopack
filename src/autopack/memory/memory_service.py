@@ -565,7 +565,8 @@ def _tcp_reachable(host: str, port: int, timeout_s: float) -> bool:
     try:
         with socket.create_connection((host, port), timeout=timeout_s):
             return True
-    except Exception:
+    except Exception as e:
+        logger.debug(f"[IMP-TELE-003] TCP connection to {host}:{port} failed: {e}")
         return False
 
 
@@ -578,7 +579,8 @@ def _docker_available() -> bool:
             timeout=5,
         )
         return r.returncode == 0
-    except Exception:
+    except Exception as e:
+        logger.debug(f"[IMP-TELE-003] Docker availability check failed: {e}")
         return False
 
 
@@ -594,8 +596,8 @@ def _docker_compose_cmd() -> Optional[List[str]]:
         )
         if r.returncode == 0:
             return ["docker", "compose"]
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"[IMP-TELE-003] 'docker compose' command check failed: {e}")
     # Fallback `docker-compose`
     try:
         r = subprocess.run(
@@ -606,8 +608,8 @@ def _docker_compose_cmd() -> Optional[List[str]]:
         )
         if r.returncode == 0:
             return ["docker-compose"]
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"[IMP-TELE-003] 'docker-compose' command check failed: {e}")
     return None
 
 
@@ -658,7 +660,8 @@ def _autostart_qdrant_if_needed(
                 timeout=60,
             )
             started = r.returncode == 0
-        except Exception:
+        except Exception as e:
+            logger.warning(f"[IMP-TELE-003] Docker compose up failed: {e}")
             started = False
 
     if not started:
@@ -697,7 +700,8 @@ def _autostart_qdrant_if_needed(
                     timeout=60,
                 )
                 started = r.returncode == 0
-        except Exception:
+        except Exception as e:
+            logger.warning(f"[IMP-TELE-003] Docker container start/run failed: {e}")
             started = False
 
     if not started:
@@ -867,7 +871,10 @@ class MemoryService:
             autostart_timeout_seconds = int(
                 os.getenv("AUTOPACK_QDRANT_AUTOSTART_TIMEOUT") or autostart_timeout_seconds
             )
-        except Exception:
+        except (ValueError, TypeError) as e:
+            logger.debug(
+                f"[IMP-TELE-003] Invalid AUTOPACK_QDRANT_AUTOSTART_TIMEOUT, using default: {e}"
+            )
             autostart_timeout_seconds = autostart_timeout_seconds
 
         # Pinned image for autostart fallback (determinism). Env override supported.
@@ -910,9 +917,11 @@ class MemoryService:
                             "[MemoryService] Qdrant autostart succeeded; using Qdrant backend"
                         )
                         return
-                    except Exception:
+                    except Exception as e:
                         # Fall through to existing policy (require vs fallback)
-                        pass
+                        logger.warning(
+                            f"[IMP-TELE-003] Qdrant connection failed after autostart: {e}"
+                        )
 
                 if require_qdrant or not fallback_to_faiss:
                     raise

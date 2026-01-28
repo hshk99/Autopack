@@ -1,4 +1,4 @@
-"""Context preparation cost tracking for IMP-COST-004.
+"""Context preparation cost tracking for IMP-COST-004 and budget gating for IMP-COST-001.
 
 Tracks previously invisible context preparation overhead:
 - File reads (count and bytes)
@@ -8,13 +8,23 @@ Tracks previously invisible context preparation overhead:
 - Estimated token equivalent of prep work
 
 This enables visibility into 20-40% hidden overhead in context assembly phase.
+
+IMP-COST-001: Budget status tracking for task generation gating.
+Provides real-time budget status to pre-filter high-cost tasks when budget is constrained.
 """
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
-from typing import Dict, List
+from datetime import datetime, timedelta, timezone
+from typing import TYPE_CHECKING, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -120,3 +130,129 @@ class ContextPrepTracker:
             scope_analysis_ms=self._scope_analysis_ms,
             total_prep_ms=total_ms,
         )
+
+
+# =============================================================================
+# IMP-COST-001: Budget Status Tracking for Task Generation Gating
+# =============================================================================
+
+# Default thresholds for budget gating
+DEFAULT_DAILY_TOKEN_BUDGET = 5_000_000  # 5M tokens per day
+DEFAULT_LOW_COST_TASK_THRESHOLD = 50_000  # Tasks estimated below this are "low cost"
+DEFAULT_BUDGET_CONSTRAINT_THRESHOLD = 0.5  # Constrain when < 50% remaining
+
+
+@dataclass
+class BudgetStatus:
+    """Current budget status for task generation gating (IMP-COST-001).
+
+    Provides real-time budget information to enable task generation to
+    pre-filter high-cost tasks when budget is constrained.
+    """
+
+    total_budget: int  # Total daily token budget
+    used: int  # Tokens used today
+    remaining: int  # Tokens remaining
+    remaining_percentage: float  # Remaining as percentage (0.0 to 1.0)
+    low_cost_threshold: int  # Tasks below this estimated cost are "low cost"
+    constrained: bool  # True when remaining_percentage < constraint threshold
+
+
+class CostTracker:
+    """Tracks token usage and budget status for task generation gating (IMP-COST-001).
+
+    Aggregates token usage from the database and provides budget status
+    to inform task generation decisions. When budget is constrained,
+    task generation should pre-filter high-cost tasks.
+    """
+
+    def __init__(
+        self,
+        db_session: Optional["Session"] = None,
+        daily_token_budget: int = DEFAULT_DAILY_TOKEN_BUDGET,
+        low_cost_task_threshold: int = DEFAULT_LOW_COST_TASK_THRESHOLD,
+        budget_constraint_threshold: float = DEFAULT_BUDGET_CONSTRAINT_THRESHOLD,
+    ):
+        """Initialize cost tracker.
+
+        Args:
+            db_session: SQLAlchemy session for querying usage data
+            daily_token_budget: Maximum tokens allowed per day
+            low_cost_task_threshold: Estimated cost threshold for "low cost" tasks
+            budget_constraint_threshold: Remaining percentage below which budget is constrained
+        """
+        self._db_session = db_session
+        self._daily_token_budget = daily_token_budget
+        self._low_cost_task_threshold = low_cost_task_threshold
+        self._budget_constraint_threshold = budget_constraint_threshold
+
+    def _get_tokens_used_today(self) -> int:
+        """Query total tokens used today from database.
+
+        Returns:
+            Total tokens used since midnight UTC today
+        """
+        if self._db_session is None:
+            logger.warning("[IMP-COST-001] No database session available, returning 0 tokens used")
+            return 0
+
+        try:
+            from sqlalchemy import func
+
+            from ..usage_recorder import LlmUsageEvent
+
+            # Calculate start of today in UTC
+            today_start = datetime.now(timezone.utc).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+
+            # Sum total_tokens from all usage events since today start
+            result = (
+                self._db_session.query(func.sum(LlmUsageEvent.total_tokens))
+                .filter(LlmUsageEvent.created_at >= today_start)
+                .scalar()
+            )
+
+            tokens_used = result or 0
+            logger.debug(f"[IMP-COST-001] Tokens used today: {tokens_used:,}")
+            return tokens_used
+
+        except Exception as e:
+            logger.warning(f"[IMP-COST-001] Failed to query tokens used: {e}")
+            return 0
+
+    def get_budget_status(self) -> BudgetStatus:
+        """Return current budget status for task generation gating (IMP-COST-001).
+
+        Queries token usage from the database and computes budget status
+        including remaining tokens and whether budget is constrained.
+
+        Returns:
+            BudgetStatus with current budget information
+        """
+        total_budget = self._daily_token_budget
+        used = self._get_tokens_used_today()
+        remaining = max(0, total_budget - used)
+
+        # Calculate remaining percentage (avoid division by zero)
+        remaining_percentage = remaining / total_budget if total_budget > 0 else 0.0
+
+        # Determine if budget is constrained
+        constrained = remaining_percentage < self._budget_constraint_threshold
+
+        status = BudgetStatus(
+            total_budget=total_budget,
+            used=used,
+            remaining=remaining,
+            remaining_percentage=remaining_percentage,
+            low_cost_threshold=self._low_cost_task_threshold,
+            constrained=constrained,
+        )
+
+        if constrained:
+            logger.info(
+                f"[IMP-COST-001] Budget constrained: {remaining_percentage:.1%} remaining "
+                f"({remaining:,}/{total_budget:,} tokens)"
+            )
+
+        return status

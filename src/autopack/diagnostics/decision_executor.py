@@ -26,12 +26,12 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from autopack.deliverables_validator import validate_deliverables
-from autopack.diagnostics.diagnostics_models import (
-    Decision,
-    DecisionType,
-    ExecutionResult,
-    PhaseSpec,
-)
+from autopack.diagnostics.command_runner import GovernedCommandRunner
+from autopack.diagnostics.diagnostics_models import (Decision, DecisionType,
+                                                     ExecutionResult,
+                                                     PhaseSpec,
+                                                     ValidationResult)
+from autopack.diagnostics.probes import Probe, ProbeLibrary, ProbeRunResult
 from autopack.memory import MemoryService
 
 logger = logging.getLogger(__name__)
@@ -71,7 +71,12 @@ class DecisionExecutor:
         self.memory_service = memory_service
         self.decision_logger = decision_logger
 
-    def execute_decision(self, decision: Decision, phase_spec: PhaseSpec) -> ExecutionResult:
+    def execute_decision(
+        self,
+        decision: Decision,
+        phase_spec: PhaseSpec,
+        original_error: Optional[str] = None,
+    ) -> ExecutionResult:
         """
         Execute a CLEAR_FIX decision with safety nets.
 
@@ -80,13 +85,15 @@ class DecisionExecutor:
         2. Apply patch/fix
         3. Validate deliverables
         4. Run acceptance tests
-        5. If failure: auto-rollback
-        6. If success: commit with metadata
-        7. Log decision
+        5. Validate fix resolved original error
+        6. If failure: auto-rollback
+        7. If success: commit with metadata
+        8. Log decision
 
         Args:
             decision: Decision to execute (must be CLEAR_FIX)
             phase_spec: Phase specification for validation
+            original_error: Optional original error message for post-fix validation
 
         Returns:
             ExecutionResult with success status and details
@@ -215,7 +222,30 @@ class DecisionExecutor:
 
             logger.info("[DecisionExecutor] Acceptance tests passed")
 
-            # Step 5: Commit with metadata
+            # Step 5: Validate fix resolved original error
+            validation_result = self._validate_fix(original_error, decision, phase_spec)
+            if not validation_result.resolved:
+                logger.warning(
+                    f"[DecisionExecutor] Post-fix validation failed: {validation_result.reason}"
+                )
+                self._rollback(save_point)
+                return ExecutionResult(
+                    success=False,
+                    decision_id=decision_id,
+                    save_point=save_point,
+                    patch_applied=True,
+                    deliverables_validated=True,
+                    tests_passed=True,
+                    rollback_performed=True,
+                    error_message=f"Validation failed: {validation_result.reason}",
+                    fix_validated=False,
+                    needs_retry=True,
+                    validation_result=validation_result,
+                )
+
+            logger.info("[DecisionExecutor] Post-fix validation passed")
+
+            # Step 6: Commit with metadata
             commit_sha = self._commit_with_metadata(decision, phase_spec, decision_id)
             logger.info(f"[DecisionExecutor] Committed: {commit_sha}")
 
@@ -233,6 +263,9 @@ class DecisionExecutor:
                 tests_passed=True,
                 rollback_performed=False,
                 commit_sha=commit_sha,
+                fix_validated=True,
+                needs_retry=False,
+                validation_result=validation_result,
             )
 
         except Exception as e:
@@ -606,6 +639,157 @@ class DecisionExecutor:
         )
 
         return "\n".join(lines)
+
+    def _validate_fix(
+        self,
+        original_error: Optional[str],
+        decision: Decision,
+        phase_spec: PhaseSpec,
+    ) -> ValidationResult:
+        """
+        Re-run diagnostic probes to confirm fix resolved the original error.
+
+        This validation step ensures that after applying a fix, the original
+        error condition is actually resolved. It re-runs probes appropriate
+        for the error type and checks if the original error pattern is gone.
+
+        Args:
+            original_error: The original error message/pattern to check for
+            decision: The fix decision that was applied
+            phase_spec: Phase specification for context
+
+        Returns:
+            ValidationResult indicating whether the fix resolved the error
+        """
+        if not original_error:
+            # If no original error specified, skip validation
+            logger.info("[DecisionExecutor] No original error specified - skipping validation")
+            return ValidationResult(
+                resolved=True,
+                reason="No original error to validate against",
+            )
+
+        logger.info("[DecisionExecutor] Running post-fix validation")
+
+        # Determine failure class from decision context
+        failure_class = self._infer_failure_class(original_error, decision)
+
+        # Get probes for this failure class
+        probes = ProbeLibrary.for_failure(
+            failure_class,
+            context={
+                "phase_id": phase_spec.phase_id,
+                "files_modified": decision.files_modified,
+            },
+        )
+
+        if not probes:
+            logger.info("[DecisionExecutor] No validation probes available - assuming resolved")
+            return ValidationResult(
+                resolved=True,
+                reason="No validation probes available for this error type",
+            )
+
+        # Create a command runner for validation
+        runner = GovernedCommandRunner(
+            run_id=f"{self.run_id}_validation",
+            workspace=self.workspace,
+            max_commands=10,
+            max_seconds=120,
+        )
+
+        probe_results: List[ProbeRunResult] = []
+        original_error_found = False
+
+        # Run probes and check for original error
+        for probe in probes:
+            command_results = []
+            for cmd in probe.commands:
+                result = runner.run(
+                    cmd.command,
+                    label=cmd.label,
+                    allow_network=cmd.allow_network,
+                    sandbox=cmd.sandbox,
+                )
+                command_results.append(result)
+
+                # Check if original error pattern appears in output
+                output = f"{result.stdout} {result.stderr}"
+                if original_error.lower() in output.lower():
+                    original_error_found = True
+                    logger.warning(
+                        f"[DecisionExecutor] Original error still detected in probe output: "
+                        f"{cmd.label or cmd.command}"
+                    )
+
+            probe_result = ProbeRunResult(
+                probe=probe,
+                command_results=command_results,
+                resolved=not original_error_found,
+            )
+            probe_results.append(probe_result)
+
+        # Build validation result
+        if original_error_found:
+            logger.warning(
+                "[DecisionExecutor] Post-fix validation failed - original error persists"
+            )
+            return ValidationResult(
+                resolved=False,
+                reason="Original error still detected after fix",
+                probe_results=probe_results,
+                original_error_still_present=True,
+            )
+
+        logger.info("[DecisionExecutor] Post-fix validation passed - error appears resolved")
+        return ValidationResult(
+            resolved=True,
+            reason="Original error no longer detected",
+            probe_results=probe_results,
+            original_error_still_present=False,
+        )
+
+    def _infer_failure_class(self, original_error: str, decision: Decision) -> str:
+        """
+        Infer the failure class from the original error message.
+
+        Uses heuristics to map error messages to probe library failure classes.
+
+        Args:
+            original_error: The original error message
+            decision: The fix decision for additional context
+
+        Returns:
+            A failure class string for ProbeLibrary.for_failure()
+        """
+        error_lower = original_error.lower()
+
+        # Map common error patterns to failure classes
+        if "patch" in error_lower or "hunk" in error_lower or "conflict" in error_lower:
+            return "patch_apply_error"
+        if "test" in error_lower or "assert" in error_lower or "pytest" in error_lower:
+            return "ci_fail"
+        if "import" in error_lower or "module" in error_lower or "dependency" in error_lower:
+            return "deps_missing"
+        if (
+            "file not found" in error_lower
+            or "no such file" in error_lower
+            or "filenotfounderror" in error_lower
+        ):
+            return "missing_path"
+        if "yaml" in error_lower or "schema" in error_lower:
+            return "yaml_schema"
+        if "timeout" in error_lower or "timed out" in error_lower:
+            return "timeout"
+        if "permission" in error_lower or "access denied" in error_lower:
+            return "permission_denied"
+        if "memory" in error_lower or "oom" in error_lower:
+            return "memory_error"
+        if "network" in error_lower or "connection" in error_lower:
+            return "network"
+
+        # Default to baseline probes
+        return "baseline"
 
     def _log_decision_with_metadata(
         self,

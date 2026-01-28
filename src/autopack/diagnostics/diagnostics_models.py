@@ -200,6 +200,23 @@ class InvestigationResult:
 
 
 @dataclass
+class ValidationResult:
+    """Result of post-fix validation.
+
+    Attributes:
+        resolved: Whether the original error was resolved
+        reason: Human-readable explanation
+        probe_results: Results from re-running diagnostic probes
+        original_error_still_present: Whether original error pattern is still detected
+    """
+
+    resolved: bool
+    reason: str
+    probe_results: Optional[List[ProbeRunResult]] = None
+    original_error_still_present: bool = False
+
+
+@dataclass
 class ExecutionResult:
     """Result of decision execution.
 
@@ -215,6 +232,9 @@ class ExecutionResult:
         commit_sha: Git commit SHA (if succeeded)
         conflict_lines: Lines that conflicted during patch application
         retry_context: Context information for retry attempts
+        fix_validated: Whether post-fix validation passed
+        needs_retry: Whether the fix needs to be retried
+        validation_result: Detailed validation result
     """
 
     success: bool
@@ -228,3 +248,6 @@ class ExecutionResult:
     commit_sha: Optional[str] = None
     conflict_lines: Optional[List[int]] = None
     retry_context: Optional[Dict[str, Any]] = None
+    fix_validated: bool = True
+    needs_retry: bool = False
+    validation_result: Optional[ValidationResult] = None

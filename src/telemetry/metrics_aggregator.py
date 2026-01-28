@@ -1,14 +1,20 @@
 """Metrics aggregation engine for Autopack telemetry."""
 
 import json
+import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional
 
 if TYPE_CHECKING:
     pass
+
+logger = logging.getLogger(__name__)
+
+# Batch size for streaming aggregation to prevent OOM on high-volume logs
+BATCH_SIZE = 1000
 
 
 @dataclass
@@ -33,6 +39,80 @@ class AggregatedMetric:
     min_value: float
     max_value: float
     metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+class StreamingAggregator:
+    """Aggregates metrics incrementally without storing all events in memory.
+
+    This class processes events one at a time, maintaining running statistics
+    to avoid memory exhaustion when processing high-volume logs.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the streaming aggregator with empty statistics."""
+        self.total_events: int = 0
+        self.by_type: Dict[str, int] = defaultdict(int)
+        self.by_slot: Dict[int, int] = defaultdict(int)
+        self.error_count: int = 0
+        self._events_with_duration: int = 0
+        self._duration_sum: float = 0.0
+        self._duration_min: float = float("inf")
+        self._duration_max: float = 0.0
+
+    def add(self, event: Dict[str, Any]) -> None:
+        """Add a single event to the aggregation.
+
+        Args:
+            event: Event dictionary to aggregate.
+        """
+        self.total_events += 1
+
+        event_type = event.get("type", "unknown")
+        self.by_type[event_type] += 1
+
+        slot = event.get("slot")
+        if slot is not None:
+            self.by_slot[slot] += 1
+
+        if "error" in event_type.lower() or "failure" in event_type.lower():
+            self.error_count += 1
+
+        # Track duration statistics if present
+        duration = event.get("duration")
+        if duration is not None:
+            self._events_with_duration += 1
+            self._duration_sum += duration
+            self._duration_min = min(self._duration_min, duration)
+            self._duration_max = max(self._duration_max, duration)
+
+    def finalize(self) -> Dict[str, Any]:
+        """Finalize aggregation and return metrics dictionary.
+
+        Returns:
+            Dictionary containing aggregated metrics.
+        """
+        metrics: Dict[str, Any] = {
+            "total_events": self.total_events,
+            "by_type": dict(self.by_type),
+            "by_slot": dict(self.by_slot),
+            "success_rate": 0.0,
+            "error_count": self.error_count,
+        }
+
+        if self.total_events > 0:
+            metrics["success_rate"] = 1 - (self.error_count / self.total_events)
+
+        # Add duration statistics if any events had duration
+        if self._events_with_duration > 0:
+            metrics["duration_stats"] = {
+                "count": self._events_with_duration,
+                "sum": self._duration_sum,
+                "avg": self._duration_sum / self._events_with_duration,
+                "min": self._duration_min,
+                "max": self._duration_max,
+            }
+
+        return metrics
 
 
 class MetricsAggregator:
@@ -68,6 +148,9 @@ class MetricsAggregator:
     def aggregate(self, since_hours: int = 24) -> Dict[str, Any]:
         """Aggregate events from last N hours into metrics.
 
+        Uses streaming aggregation to process events in batches of BATCH_SIZE
+        to prevent memory exhaustion when processing high-volume logs.
+
         Args:
             since_hours: Number of hours to look back for events.
 
@@ -75,38 +158,60 @@ class MetricsAggregator:
             Dictionary containing aggregated metrics.
         """
         cutoff = datetime.now() - timedelta(hours=since_hours)
-        events = self._read_events(cutoff)
 
-        metrics: Dict[str, Any] = {
-            "total_events": len(events),
-            "by_type": defaultdict(int),
-            "by_slot": defaultdict(int),
-            "success_rate": 0.0,
-            "error_count": 0,
-        }
+        # Use streaming aggregation to avoid loading all events into memory
+        aggregator = StreamingAggregator()
+        events_processed = 0
 
-        for event in events:
-            event_type = event.get("type", "unknown")
-            metrics["by_type"][event_type] += 1
-            slot = event.get("slot")
-            if slot is not None:
-                metrics["by_slot"][slot] += 1
-            if "error" in event_type.lower() or "failure" in event_type.lower():
-                metrics["error_count"] += 1
+        for event in self._stream_events(cutoff):
+            aggregator.add(event)
+            events_processed += 1
 
-        if metrics["total_events"] > 0:
-            metrics["success_rate"] = 1 - (metrics["error_count"] / metrics["total_events"])
+            # Log progress for long operations
+            if events_processed % 10000 == 0:
+                logger.debug(f"Processed {events_processed} events")
 
-        # Convert defaultdicts to regular dicts for JSON serialization
-        metrics["by_type"] = dict(metrics["by_type"])
-        metrics["by_slot"] = dict(metrics["by_slot"])
+        metrics = aggregator.finalize()
 
         self._metrics["metrics"] = metrics
         self._save_store()
         return metrics
 
+    def _stream_events(self, since: datetime) -> Generator[Dict[str, Any], None, None]:
+        """Stream events from log files since given datetime.
+
+        This generator yields events one at a time without loading all events
+        into memory, preventing OOM crashes for high-volume logs.
+
+        Args:
+            since: Only include events after this datetime.
+
+        Yields:
+            Event dictionaries matching the time filter.
+        """
+        if not self.log_dir.exists():
+            return
+
+        for log_file in sorted(self.log_dir.glob("events_*.jsonl")):
+            with open(log_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            event = json.loads(line)
+                            event_time = datetime.fromisoformat(event["timestamp"])
+                            if event_time >= since:
+                                yield event
+                        except (json.JSONDecodeError, KeyError) as e:
+                            # Log but continue - don't let one bad event crash aggregation
+                            logger.warning(f"Skipping malformed event in {log_file}: {e}")
+                            continue
+
     def _read_events(self, since: datetime) -> List[Dict[str, Any]]:
         """Read events from log files since given datetime.
+
+        Note: This method loads all events into memory. For high-volume logs,
+        prefer using _stream_events() or the aggregate() method which uses
+        streaming aggregation.
 
         Args:
             since: Only include events after this datetime.
@@ -114,19 +219,7 @@ class MetricsAggregator:
         Returns:
             List of event dictionaries.
         """
-        events: List[Dict[str, Any]] = []
-        if not self.log_dir.exists():
-            return events
-
-        for log_file in sorted(self.log_dir.glob("events_*.jsonl")):
-            with open(log_file, "r", encoding="utf-8") as f:
-                for line in f:
-                    if line.strip():
-                        event = json.loads(line)
-                        event_time = datetime.fromisoformat(event["timestamp"])
-                        if event_time >= since:
-                            events.append(event)
-        return events
+        return list(self._stream_events(since))
 
     def get_summary(self) -> str:
         """Get human-readable metrics summary.

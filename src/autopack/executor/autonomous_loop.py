@@ -36,7 +36,9 @@ from autopack.telemetry.anomaly_detector import (AlertSeverity,
                                                  TelemetryAnomalyDetector)
 from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
                                              FeedbackLoopHealthReport,
-                                             MetaMetricsTracker)
+                                             MetaMetricsTracker,
+                                             PipelineLatencyTracker,
+                                             PipelineStage)
 from autopack.telemetry.telemetry_to_memory_bridge import \
     TelemetryToMemoryBridge
 
@@ -563,6 +565,10 @@ class AutonomousLoop:
         # When True, task generation is paused due to ATTENTION_REQUIRED health status
         self._task_generation_paused: bool = False
 
+        # IMP-TELE-001: Pipeline latency tracker for loop cycle time measurement
+        # Tracks timestamps across pipeline stages to diagnose bottlenecks
+        self._latency_tracker: Optional[PipelineLatencyTracker] = None
+
     def get_loop_stats(self) -> Dict:
         """Get current loop statistics for monitoring (IMP-LOOP-006, IMP-AUTO-002).
 
@@ -603,6 +609,12 @@ class AutonomousLoop:
 
         # IMP-REL-001: Add task generation pause status
         stats["task_generation_paused"] = self._task_generation_paused
+
+        # IMP-TELE-001: Add pipeline latency tracking statistics
+        if self._latency_tracker is not None:
+            stats["pipeline_latency"] = self._latency_tracker.to_dict()
+        else:
+            stats["pipeline_latency"] = {"enabled": False}
 
         return stats
 
@@ -709,11 +721,18 @@ class AutonomousLoop:
             except Exception as e:
                 logger.warning(f"[IMP-LOOP-001] Failed to initialize telemetry analyzer: {e}")
 
+        # IMP-TELE-001: Create pipeline latency tracker for cycle time measurement
+        self._latency_tracker = PipelineLatencyTracker(
+            pipeline_id=f"{run_id or 'unknown'}_{project_id}",
+        )
+        logger.debug("[IMP-TELE-001] Pipeline latency tracker initialized")
+
         # Create feedback pipeline
         self._feedback_pipeline = FeedbackPipeline(
             memory_service=memory_service,
             telemetry_analyzer=self._telemetry_analyzer,
             learning_pipeline=getattr(self.executor, "learning_pipeline", None),
+            latency_tracker=self._latency_tracker,
             run_id=run_id,
             project_id=project_id,
             enabled=True,
@@ -721,7 +740,7 @@ class AutonomousLoop:
 
         logger.info(
             f"[IMP-LOOP-001] FeedbackPipeline initialized "
-            f"(run_id={run_id}, project_id={project_id})"
+            f"(run_id={run_id}, project_id={project_id}, latency_tracking=enabled)"
         )
 
         # IMP-LOOP-011: Emit loop health status for observability
@@ -2042,6 +2061,13 @@ class AutonomousLoop:
                 logger.info(
                     f"[IMP-ARCH-019] Marked {completed_count} improvement tasks as completed"
                 )
+
+                # IMP-TELE-001: Record task execution completion for latency tracking
+                if self._latency_tracker:
+                    self._latency_tracker.record_stage(
+                        PipelineStage.TASK_EXECUTED,
+                        metadata={"tasks_completed": completed_count},
+                    )
 
         except Exception as e:
             logger.warning(f"[IMP-ARCH-019] Failed to mark tasks completed: {e}")
@@ -3538,6 +3564,16 @@ class AutonomousLoop:
                 f"from {result.insights_processed} insights "
                 f"({result.generation_time_ms:.0f}ms)"
             )
+
+            # IMP-TELE-001: Record task generation time for latency tracking
+            if self._latency_tracker and result.tasks_generated:
+                self._latency_tracker.record_stage(
+                    PipelineStage.TASK_GENERATED,
+                    metadata={
+                        "tasks_generated": len(result.tasks_generated),
+                        "generation_time_ms": result.generation_time_ms,
+                    },
+                )
 
             # IMP-ARCH-014: Persist generated tasks to database
             if result.tasks_generated:

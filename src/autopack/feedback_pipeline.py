@@ -26,10 +26,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from autopack.telemetry.meta_metrics import (PipelineLatencyTracker,
+                                             PipelineStage)
+
 if TYPE_CHECKING:
-    from autopack.task_generation.task_effectiveness_tracker import (
-        TaskEffectivenessTracker,
-    )
+    from autopack.task_generation.task_effectiveness_tracker import \
+        TaskEffectivenessTracker
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +131,7 @@ class FeedbackPipeline:
         telemetry_analyzer: Optional[Any] = None,
         learning_pipeline: Optional[Any] = None,
         effectiveness_tracker: Optional["TaskEffectivenessTracker"] = None,
+        latency_tracker: Optional[PipelineLatencyTracker] = None,
         run_id: Optional[str] = None,
         project_id: Optional[str] = None,
         enabled: bool = True,
@@ -141,6 +144,8 @@ class FeedbackPipeline:
             learning_pipeline: LearningPipeline for recording hints
             effectiveness_tracker: IMP-LOOP-017: TaskEffectivenessTracker for
                 analyzing patterns and generating learning rules
+            latency_tracker: IMP-TELE-001: PipelineLatencyTracker for measuring
+                loop cycle time across pipeline stages
             run_id: Current run identifier
             project_id: Project identifier for namespacing
             enabled: Whether the pipeline is active (default: True)
@@ -152,6 +157,9 @@ class FeedbackPipeline:
         self.run_id = run_id or datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         self.project_id = project_id or "default"
         self.enabled = enabled
+
+        # IMP-TELE-001: Pipeline latency tracking for loop cycle time measurement
+        self._latency_tracker = latency_tracker
 
         # Track processed outcomes for deduplication
         self._processed_outcomes: set = set()
@@ -227,6 +235,13 @@ class FeedbackPipeline:
         }
 
         try:
+            # IMP-TELE-001: Record phase completion time for latency tracking
+            if self._latency_tracker:
+                self._latency_tracker.record_stage(
+                    PipelineStage.PHASE_COMPLETE,
+                    metadata={"phase_id": outcome.phase_id, "success": outcome.success},
+                )
+
             # Deduplication check
             outcome_key = f"{outcome.phase_id}:{outcome.run_id or self.run_id}"
             if outcome_key in self._processed_outcomes:
@@ -240,6 +255,13 @@ class FeedbackPipeline:
             with self._insights_lock:
                 self._pending_insights.append(insight)
             result["insights_created"] += 1
+
+            # IMP-TELE-001: Record telemetry collection time
+            if self._latency_tracker:
+                self._latency_tracker.record_stage(
+                    PipelineStage.TELEMETRY_COLLECTED,
+                    metadata={"insight_count": result["insights_created"]},
+                )
 
             # IMP-LOOP-004: Check if insight threshold reached for immediate flush
             self._check_threshold_flush()
@@ -276,6 +298,13 @@ class FeedbackPipeline:
                     )
                 except Exception as e:
                     logger.warning(f"[IMP-LOOP-001] Failed to persist telemetry insight: {e}")
+
+                # IMP-TELE-001: Record memory persistence time
+                if self._latency_tracker:
+                    self._latency_tracker.record_stage(
+                        PipelineStage.MEMORY_PERSISTED,
+                        metadata={"insights_persisted": self._stats["insights_persisted"]},
+                    )
 
             # 3. Record learning hint if failure
             if not outcome.success and self.learning_pipeline:
@@ -678,6 +707,43 @@ class FeedbackPipeline:
             Dictionary with pipeline statistics
         """
         return dict(self._stats)
+
+    @property
+    def latency_tracker(self) -> Optional[PipelineLatencyTracker]:
+        """Get the pipeline latency tracker.
+
+        IMP-TELE-001: Returns the latency tracker for external access,
+        allowing the autonomous loop to record additional stages.
+
+        Returns:
+            PipelineLatencyTracker instance or None if not configured
+        """
+        return self._latency_tracker
+
+    def set_latency_tracker(self, tracker: PipelineLatencyTracker) -> None:
+        """Set the pipeline latency tracker.
+
+        IMP-TELE-001: Allows the autonomous loop to inject a latency tracker
+        after pipeline initialization.
+
+        Args:
+            tracker: PipelineLatencyTracker instance to use
+        """
+        self._latency_tracker = tracker
+        logger.debug("[IMP-TELE-001] Latency tracker set on FeedbackPipeline")
+
+    def get_latency_metrics(self) -> Optional[Dict[str, Any]]:
+        """Get current latency metrics from the tracker.
+
+        IMP-TELE-001: Returns comprehensive latency metrics including
+        stage timestamps, latencies, and SLA status.
+
+        Returns:
+            Dictionary with latency metrics or None if tracker not configured
+        """
+        if self._latency_tracker is None:
+            return None
+        return self._latency_tracker.to_dict()
 
     def reset_stats(self) -> None:
         """Reset pipeline statistics and hint tracking.

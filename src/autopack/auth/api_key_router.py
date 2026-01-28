@@ -114,7 +114,7 @@ async def list_api_keys(
     """
     from sqlalchemy import or_
 
-    # Return the current key and any keys it created
+    # Return the current key and any keys it created (bounded query for memory safety)
     keys = (
         db.query(APIKey)
         .filter(
@@ -124,6 +124,7 @@ async def list_api_keys(
             )
         )
         .order_by(APIKey.created_at.desc())
+        .limit(100)
         .all()
     )
     return keys

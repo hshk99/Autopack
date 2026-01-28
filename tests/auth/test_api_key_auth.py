@@ -247,3 +247,43 @@ def test_created_key_has_owner_set(client: TestClient, db_session):
     # Verify the new key has the parent as owner
     new_key = db_session.query(APIKey).filter(APIKey.id == new_key_id).first()
     assert new_key.created_by_key_id == parent_key.id
+
+
+# IMP-PERF-005: Pagination limit tests
+
+
+def test_list_api_keys_pagination_limit(client: TestClient, db_session):
+    """IMP-PERF-005: Verify list_api_keys is bounded to 100 results for memory safety."""
+    # Create parent key
+    plain_key_parent, hashed_key_parent = generate_api_key()
+    parent_key = APIKey(
+        name="Parent Key",
+        key_hash=hashed_key_parent,
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db_session.add(parent_key)
+    db_session.commit()
+    db_session.refresh(parent_key)
+
+    # Create 110 child keys owned by parent (more than the limit of 100)
+    for i in range(110):
+        _, hashed_key = generate_api_key()
+        child_key = APIKey(
+            name=f"Child Key {i}",
+            key_hash=hashed_key,
+            is_active=True,
+            created_at=datetime.now(timezone.utc),
+            created_by_key_id=parent_key.id,
+        )
+        db_session.add(child_key)
+
+    db_session.commit()
+
+    # List keys - should return at most 100 due to pagination limit
+    response = client.get("/api/auth/api-keys", headers={"X-API-Key": plain_key_parent})
+    assert response.status_code == 200
+    keys = response.json()
+
+    # Should be capped at 100 (parent + up to 99 children, or 100 children depending on order)
+    assert len(keys) <= 100

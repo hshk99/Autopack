@@ -21,13 +21,13 @@ Before proceeding, verify your current working directory:
 Run phase_3.md in C:\Users\hshk9\OneDrive\Backup\Desktop to generate workflow prompts.
 
 **IMPORTANT - DETERMINE WAVE NUMBER**:
-1. Read AUTOPACK_WAVE_PLAN.json in C:\Users\hshk9\OneDrive\Backup\Desktop\Archive to see available waves
-2. Read Prompts_All_Waves.md in C:\Users\hshk9\OneDrive\Backup\Desktop\Archive header to see which waves already have prompts
+1. Read AUTOPACK_WAVE_PLAN.json in C:\Users\hshk9\OneDrive\Backup\Desktop to see available waves
+2. Read Prompts_All_Waves.md in C:\Users\hshk9\OneDrive\Backup\Desktop header to see which waves already have prompts
 3. Generate prompts for the NEXT wave that needs generation
 
 **ACTION - CREATE/UPDATE FILES**:
-1. CREATE/UPDATE AUTOPACK_WORKFLOW.md at C:\Users\hshk9\OneDrive\Backup\Desktop\Archive\AUTOPACK_WORKFLOW.md
-2. CREATE/UPDATE Prompts_All_Waves.md at C:\Users\hshk9\OneDrive\Backup\Desktop\Archive\Prompts_All_Waves.md
+1. CREATE/UPDATE AUTOPACK_WORKFLOW.md at C:\Users\hshk9\OneDrive\Backup\Desktop\AUTOPACK_WORKFLOW.md
+2. CREATE/UPDATE Prompts_All_Waves.md at C:\Users\hshk9\OneDrive\Backup\Desktop\Prompts_All_Waves.md
 
 **Prompts_All_Waves.md SIMPLIFIED FORMAT** (registry/status only - no detailed prompts):
 - Header line: `W1: 0/X | W2: 0/Y | W3: 0/Z` (per-wave counts)

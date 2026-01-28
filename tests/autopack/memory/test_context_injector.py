@@ -670,3 +670,350 @@ class TestContextInjectorFormatEnrichedForPrompt:
 
         assert "Context Quality Warning" not in result
         assert "_(low confidence)_" not in result
+
+
+# ---------------------------------------------------------------------------
+# IMP-MEM-002: Cross-Phase Conflict Detection Tests
+# ---------------------------------------------------------------------------
+
+
+class TestExtractTopic:
+    """Tests for _extract_topic method."""
+
+    def test_extract_topic_from_technical_term(self):
+        """IMP-MEM-002: Should extract technical terms as topics."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        assert injector._extract_topic("Always use async for I/O operations") == "async"
+        assert injector._extract_topic("Prefer caching for repeated queries") == "caching"
+        assert injector._extract_topic("Add proper error handling") == "error"
+
+    def test_extract_topic_empty_content(self):
+        """IMP-MEM-002: Should handle empty content."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        assert injector._extract_topic("") == ""
+        assert injector._extract_topic(None) == ""
+
+    def test_extract_topic_removes_common_prefixes(self):
+        """IMP-MEM-002: Should remove 'always', 'never' prefixes."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        # Both should extract 'async' as topic
+        topic1 = injector._extract_topic("Always use async patterns")
+        topic2 = injector._extract_topic("Never use async patterns")
+        assert topic1 == topic2 == "async"
+
+
+class TestAreConflicting:
+    """Tests for _are_conflicting method."""
+
+    def test_conflicting_use_vs_avoid(self):
+        """IMP-MEM-002: Should detect 'use' vs 'avoid' contradiction."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        assert injector._are_conflicting(
+            "Use async for database calls",
+            "Avoid async for database calls",
+        )
+
+    def test_conflicting_always_vs_never(self):
+        """IMP-MEM-002: Should detect 'always' vs 'never' contradiction."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        assert injector._are_conflicting(
+            "Always enable caching in production",
+            "Never enable caching in production",
+        )
+
+    def test_conflicting_do_vs_dont(self):
+        """IMP-MEM-002: Should detect 'do' vs 'don't' contradiction."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        assert injector._are_conflicting(
+            "Do add retry logic for API calls",
+            "Don't add retry logic for API calls",
+        )
+
+    def test_not_conflicting_different_topics(self):
+        """IMP-MEM-002: Should not flag hints about different topics."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        assert not injector._are_conflicting(
+            "Use async for I/O operations",
+            "Avoid caching for real-time data",
+        )
+
+    def test_not_conflicting_same_advice(self):
+        """IMP-MEM-002: Should not flag hints with same advice."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        assert not injector._are_conflicting(
+            "Use async for database calls",
+            "Use async for network operations",
+        )
+
+    def test_not_conflicting_empty_content(self):
+        """IMP-MEM-002: Should handle empty content gracefully."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        assert not injector._are_conflicting("", "Some hint")
+        assert not injector._are_conflicting("Some hint", "")
+        assert not injector._are_conflicting("", "")
+
+
+class TestResolveConflicts:
+    """Tests for _resolve_conflicts method."""
+
+    def test_resolve_conflicts_keeps_higher_confidence(self):
+        """IMP-MEM-002: Should keep hint with higher confidence."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        high_conf = ContextMetadata(
+            content="Use async for database calls",
+            relevance_score=0.9,
+            age_hours=5.0,
+            confidence=0.8,
+            is_low_confidence=False,
+        )
+        low_conf = ContextMetadata(
+            content="Avoid async for database calls",
+            relevance_score=0.7,
+            age_hours=10.0,
+            confidence=0.4,
+            is_low_confidence=True,
+        )
+
+        result, conflicts = injector._resolve_conflicts([low_conf, high_conf])
+
+        assert len(result) == 1
+        assert result[0].content == "Use async for database calls"
+        assert conflicts == 1
+
+    def test_resolve_conflicts_no_conflicts(self):
+        """IMP-MEM-002: Should return all hints when no conflicts."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        hint1 = ContextMetadata(
+            content="Use async for I/O",
+            relevance_score=0.9,
+            age_hours=5.0,
+            confidence=0.8,
+            is_low_confidence=False,
+        )
+        hint2 = ContextMetadata(
+            content="Enable caching for reads",
+            relevance_score=0.7,
+            age_hours=10.0,
+            confidence=0.6,
+            is_low_confidence=False,
+        )
+
+        result, conflicts = injector._resolve_conflicts([hint1, hint2])
+
+        assert len(result) == 2
+        assert conflicts == 0
+
+    def test_resolve_conflicts_empty_list(self):
+        """IMP-MEM-002: Should handle empty list."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        result, conflicts = injector._resolve_conflicts([])
+
+        assert result == []
+        assert conflicts == 0
+
+    def test_resolve_conflicts_multiple_conflicts(self):
+        """IMP-MEM-002: Should resolve multiple conflicts."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        hints = [
+            ContextMetadata(
+                content="Use async patterns",
+                relevance_score=0.9,
+                age_hours=5.0,
+                confidence=0.9,
+                is_low_confidence=False,
+            ),
+            ContextMetadata(
+                content="Avoid async patterns",
+                relevance_score=0.7,
+                age_hours=10.0,
+                confidence=0.3,
+                is_low_confidence=True,
+            ),
+            ContextMetadata(
+                content="Enable caching",
+                relevance_score=0.8,
+                age_hours=8.0,
+                confidence=0.7,
+                is_low_confidence=False,
+            ),
+            ContextMetadata(
+                content="Disable caching",
+                relevance_score=0.6,
+                age_hours=15.0,
+                confidence=0.4,
+                is_low_confidence=True,
+            ),
+        ]
+
+        result, conflicts = injector._resolve_conflicts(hints)
+
+        assert len(result) == 2
+        assert conflicts == 2
+        # Should keep higher confidence versions
+        contents = [h.content for h in result]
+        assert "Use async patterns" in contents
+        assert "Enable caching" in contents
+
+
+class TestResolveConflictsPlain:
+    """Tests for _resolve_conflicts_plain method."""
+
+    def test_resolve_conflicts_plain_keeps_first(self):
+        """IMP-MEM-002: Should keep first hint when conflicts exist."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        hints = [
+            "Use async for database calls",
+            "Avoid async for database calls",
+        ]
+
+        result, conflicts = injector._resolve_conflicts_plain(hints)
+
+        assert len(result) == 1
+        assert result[0] == "Use async for database calls"
+        assert conflicts == 1
+
+    def test_resolve_conflicts_plain_no_conflicts(self):
+        """IMP-MEM-002: Should return all when no conflicts."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        hints = [
+            "Use async for I/O",
+            "Enable caching for reads",
+        ]
+
+        result, conflicts = injector._resolve_conflicts_plain(hints)
+
+        assert len(result) == 2
+        assert conflicts == 0
+
+
+class TestConflictResolutionIntegration:
+    """Integration tests for conflict resolution in context retrieval."""
+
+    def test_get_context_for_phase_with_metadata_resolves_conflicts(self):
+        """IMP-MEM-002: Should resolve conflicts in enriched context retrieval."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        # Create conflicting hints
+        hint1 = ContextMetadata(
+            content="Use async patterns",
+            relevance_score=0.9,
+            age_hours=5.0,
+            confidence=0.8,
+            is_low_confidence=False,
+        )
+        hint2 = ContextMetadata(
+            content="Avoid async patterns",
+            relevance_score=0.7,
+            age_hours=10.0,
+            confidence=0.4,
+            is_low_confidence=True,
+        )
+
+        mock_memory.retrieve_context_with_metadata.return_value = {
+            "errors": [],
+            "summaries": [],
+            "hints": [hint1, hint2],
+            "code": [],
+        }
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        with patch.object(injector, "get_discovery_context", return_value=[]):
+            result = injector.get_context_for_phase_with_metadata(
+                phase_type="build",
+                current_goal="fix compilation",
+                project_id="test-project",
+            )
+
+            # Should have resolved conflicts
+            assert len(result.doctor_hints) == 1
+            assert result.doctor_hints[0].content == "Use async patterns"
+            assert result.quality_summary.get("conflicts_resolved", 0) == 1
+
+    def test_get_context_for_phase_resolves_conflicts(self):
+        """IMP-MEM-002: Should resolve conflicts in plain context retrieval."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.search_errors.return_value = []
+        mock_memory.search_summaries.return_value = []
+        mock_memory.search_code.return_value = []
+
+        # Return conflicting hints
+        mock_memory.search_doctor_hints.return_value = [
+            {"payload": {"hint": "Use async patterns"}},
+            {"payload": {"hint": "Avoid async patterns"}},
+        ]
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        with patch.object(injector, "get_discovery_context", return_value=[]):
+            result = injector.get_context_for_phase(
+                phase_type="build",
+                current_goal="fix compilation",
+                project_id="test-project",
+            )
+
+            # Should have resolved conflicts
+            assert len(result.doctor_hints) == 1
+            assert result.doctor_hints[0] == "Use async patterns"

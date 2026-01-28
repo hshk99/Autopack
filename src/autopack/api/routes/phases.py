@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from autopack import models, schemas
 from autopack.api.deps import verify_api_key
@@ -217,6 +217,7 @@ def record_phase_issue(
     """Record an issue for a phase."""
     phase = (
         db.query(models.Phase)
+        .options(joinedload(models.Phase.tier))
         .filter(models.Phase.run_id == run_id, models.Phase.phase_id == phase_id)
         .first()
     )
@@ -224,7 +225,7 @@ def record_phase_issue(
     if not phase:
         raise HTTPException(status_code=404, detail=f"Phase {phase_id} not found in run {run_id}")
 
-    tier = db.query(models.Tier).filter(models.Tier.id == phase.tier_id).first()
+    tier = phase.tier
     if not tier:
         raise HTTPException(status_code=404, detail=f"Tier not found for phase {phase_id}")
 
@@ -293,6 +294,7 @@ def submit_builder_result(
         models.Run.run_id = models.Run.id  # type: ignore[attr-defined]
     phase = (
         db.query(models.Phase)
+        .options(joinedload(models.Phase.tier))
         .filter(models.Phase.run_id == run_id, models.Phase.phase_id == phase_id)
         .first()
     )
@@ -307,7 +309,7 @@ def submit_builder_result(
     # Record suggested issues
     if builder_result.suggested_issues:
         tracker = IssueTracker(run_id=run_id)
-        tier = db.query(models.Tier).filter(models.Tier.id == phase.tier_id).first()
+        tier = phase.tier  # Eager-loaded via joinedload
 
         for issue in builder_result.suggested_issues:
             tracker.record_issue(
@@ -344,7 +346,7 @@ def submit_builder_result(
             # Record DATA_INTEGRITY issue via IssueTracker per GPT_RESPONSE19 Q1/C1
             try:
                 tracker = IssueTracker(run_id=run_id)
-                tier = db.query(models.Tier).filter(models.Tier.id == phase.tier_id).first()
+                tier = phase.tier  # Eager-loaded via joinedload
 
                 issue_key = "run_missing_for_phase"  # Per GPT1: descriptive key for de-duplication
                 tracker.record_issue(
@@ -383,7 +385,7 @@ def submit_builder_result(
                 # Record DATA_INTEGRITY issue per GPT_RESPONSE20 Q2
                 try:
                     tracker = IssueTracker(run_id=run_id)
-                    tier = db.query(models.Tier).filter(models.Tier.id == phase.tier_id).first()
+                    tier = phase.tier  # Eager-loaded via joinedload
 
                     issue_key = "run_type_missing_for_run"  # Per GPT1/GPT2: descriptive key
                     tracker.record_issue(

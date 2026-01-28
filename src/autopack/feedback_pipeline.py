@@ -157,6 +157,9 @@ class FeedbackPipeline:
         # Track accumulated insights for batch processing
         self._pending_insights: List[Dict[str, Any]] = []
 
+        # IMP-AUTO-003: Thread-safe access to pending insights list
+        self._insights_lock = threading.Lock()
+
         # Stats tracking
         self._stats = {
             "outcomes_processed": 0,
@@ -230,7 +233,9 @@ class FeedbackPipeline:
 
             # 1. Create telemetry insight from outcome
             insight = self._create_insight_from_outcome(outcome)
-            self._pending_insights.append(insight)
+            # IMP-AUTO-003: Thread-safe queuing of pending insights
+            with self._insights_lock:
+                self._pending_insights.append(insight)
             result["insights_created"] += 1
 
             # IMP-LOOP-004: Check if insight threshold reached for immediate flush
@@ -531,16 +536,21 @@ class FeedbackPipeline:
         """Flush accumulated insights to memory service.
 
         Call this at the end of a run to ensure all insights are persisted.
+        IMP-AUTO-003: Thread-safe flush with copy-and-clear pattern.
 
         Returns:
             Number of insights flushed
         """
-        if not self._pending_insights:
-            return 0
+        # IMP-AUTO-003: Thread-safe access - copy and clear under lock
+        with self._insights_lock:
+            if not self._pending_insights:
+                return 0
+            insights_to_flush = list(self._pending_insights)
+            self._pending_insights.clear()
 
         flushed = 0
         if self.memory_service and getattr(self.memory_service, "enabled", False):
-            for insight in self._pending_insights:
+            for insight in insights_to_flush:
                 try:
                     self.memory_service.write_telemetry_insight(
                         insight=insight,
@@ -552,7 +562,6 @@ class FeedbackPipeline:
                 except Exception as e:
                     logger.warning(f"[IMP-LOOP-001] Failed to flush insight: {e}")
 
-        self._pending_insights.clear()
         logger.info(f"[IMP-LOOP-001] Flushed {flushed} pending insights")
         return flushed
 
@@ -578,9 +587,12 @@ class FeedbackPipeline:
 
         IMP-LOOP-004: Called by the timer to flush insights. Also checks
         if insight threshold is reached. Reschedules itself after completion.
+        IMP-AUTO-003: Thread-safe access to pending insights count.
         """
         try:
-            pending_count = len(self._pending_insights)
+            # IMP-AUTO-003: Thread-safe access to pending insights count
+            with self._insights_lock:
+                pending_count = len(self._pending_insights)
             if pending_count > 0:
                 logger.info(f"[IMP-LOOP-004] Auto-flushing {pending_count} pending insights")
                 flushed = self.flush_pending_insights()
@@ -597,8 +609,12 @@ class FeedbackPipeline:
 
         IMP-LOOP-004: Called after adding insights to check if the threshold
         of 100 insights is reached, triggering an immediate flush.
+        IMP-AUTO-003: Thread-safe access to pending insights count.
         """
-        if len(self._pending_insights) >= self._insight_threshold:
+        # IMP-AUTO-003: Thread-safe access to pending insights count
+        with self._insights_lock:
+            should_flush = len(self._pending_insights) >= self._insight_threshold
+        if should_flush:
             logger.info(
                 f"[IMP-LOOP-004] Insight threshold ({self._insight_threshold}) reached, "
                 "triggering flush"
@@ -610,6 +626,7 @@ class FeedbackPipeline:
 
         IMP-LOOP-004: Call this when shutting down the pipeline to cleanly
         stop the background timer and flush any remaining insights.
+        IMP-AUTO-003: Thread-safe access to pending insights.
         """
         self._auto_flush_enabled = False
         if self._flush_timer is not None:
@@ -618,10 +635,13 @@ class FeedbackPipeline:
             logger.info("[IMP-LOOP-004] Auto-flush timer stopped")
 
         # Flush any remaining insights on shutdown
-        if self._pending_insights:
+        # IMP-AUTO-003: Thread-safe access to pending insights count
+        with self._insights_lock:
+            has_pending = bool(self._pending_insights)
+            pending_count = len(self._pending_insights)
+        if has_pending:
             logger.info(
-                f"[IMP-LOOP-004] Flushing {len(self._pending_insights)} "
-                "remaining insights on shutdown"
+                f"[IMP-LOOP-004] Flushing {pending_count} " "remaining insights on shutdown"
             )
             self.flush_pending_insights()
 
@@ -1038,7 +1058,9 @@ class FeedbackPipeline:
                     result["error"] = str(e)
             else:
                 # Queue for later flush if memory service unavailable
-                self._pending_insights.append(insight)
+                # IMP-AUTO-003: Thread-safe queuing of pending insights
+                with self._insights_lock:
+                    self._pending_insights.append(insight)
                 result["success"] = True
                 logger.info(
                     f"[IMP-MEM-004] Queued circuit breaker event for later persistence: "

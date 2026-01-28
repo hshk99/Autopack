@@ -2025,6 +2025,7 @@ class MemoryService:
         limit: int = 10,
         project_id: Optional[str] = None,
         max_age_hours: Optional[float] = None,
+        min_confidence: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
         """Retrieve insights from memory for task generation (IMP-ARCH-010/016).
 
@@ -2041,6 +2042,9 @@ class MemoryService:
         IMP-LOOP-014: Freshness filtering is MANDATORY. Attempts to disable via
         0/negative values are ignored with a warning. Audit logging added.
 
+        IMP-LOOP-016: Added confidence filtering to exclude low-confidence insights
+        from task generation, improving decision quality.
+
         Args:
             query: Search query to find relevant insights
             limit: Maximum number of results to return
@@ -2048,6 +2052,8 @@ class MemoryService:
             max_age_hours: Maximum age in hours for insights to be considered fresh.
                           Defaults to DEFAULT_MEMORY_FRESHNESS_HOURS (72 hours).
                           Must be positive; attempts to disable are ignored.
+            min_confidence: Optional minimum confidence threshold (0.0-1.0).
+                           If provided, insights with confidence below this are filtered.
 
         Returns:
             List of insight dictionaries with content, metadata, and score
@@ -2144,6 +2150,8 @@ class MemoryService:
                         )
                         continue
 
+                    # IMP-LOOP-016: Extract confidence from payload, default to 1.0
+                    confidence = payload.get("confidence", 1.0)
                     insight = {
                         "id": getattr(result, "id", None),
                         "content": payload.get("content", payload.get("summary", "")),
@@ -2155,6 +2163,7 @@ class MemoryService:
                         "collection": collection,
                         "timestamp": timestamp,  # IMP-LOOP-003: Include timestamp in result
                         "freshness_threshold": collection_max_age,  # IMP-MEM-004: Include threshold
+                        "confidence": confidence,  # IMP-LOOP-016: Include confidence for filtering
                     }
                     all_insights.append(insight)
 
@@ -2168,6 +2177,18 @@ class MemoryService:
                     "[IMP-MEM-004] Filtered %d stale insights using per-collection thresholds",
                     stale_count,
                 )
+
+            # IMP-LOOP-016: Apply confidence filtering if threshold is specified
+            if min_confidence is not None:
+                pre_filter_count = len(insights)
+                insights = [i for i in insights if i.get("confidence", 1.0) >= min_confidence]
+                filtered_count = pre_filter_count - len(insights)
+                if filtered_count > 0:
+                    logger.info(
+                        "[IMP-LOOP-016] Filtered %d low-confidence insights " "(threshold: %.2f)",
+                        filtered_count,
+                        min_confidence,
+                    )
 
             logger.debug(
                 f"[MemoryService] Retrieved {len(insights)} fresh insights for query: {query[:50]}..."

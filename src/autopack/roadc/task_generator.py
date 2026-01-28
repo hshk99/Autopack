@@ -49,6 +49,7 @@ class UnifiedInsight:
     rank: Optional[int] = None
     details: Optional[Dict[str, Any]] = None
     source: Optional[InsightSource] = None  # Track which path provided this insight
+    confidence: float = 1.0  # IMP-LOOP-016: Confidence score for filtering unreliable insights
 
 
 @dataclass
@@ -125,6 +126,7 @@ class DirectInsightConsumer:
         insights: List[UnifiedInsight] = []
 
         # Convert cost sinks
+        # IMP-LOOP-016: Direct telemetry has confidence=1.0 (verified real data)
         for issue in self._telemetry_data.get("top_cost_sinks", []):
             insights.append(
                 UnifiedInsight(
@@ -143,6 +145,7 @@ class DirectInsightConsumer:
                     rank=issue.rank,
                     details=issue.details,
                     source=InsightSource.DIRECT,
+                    confidence=1.0,
                 )
             )
 
@@ -165,6 +168,7 @@ class DirectInsightConsumer:
                     rank=issue.rank,
                     details=issue.details,
                     source=InsightSource.DIRECT,
+                    confidence=1.0,
                 )
             )
 
@@ -187,6 +191,7 @@ class DirectInsightConsumer:
                     rank=issue.rank,
                     details=issue.details,
                     source=InsightSource.DIRECT,
+                    confidence=1.0,
                 )
             )
 
@@ -249,7 +254,8 @@ class AnalyzerInsightConsumer:
         direct_consumer = DirectInsightConsumer(aggregated)
         result = direct_consumer.get_insights(limit=limit)
 
-        # Update source and timing
+        # Update source and timing, preserving confidence
+        # IMP-LOOP-016: Propagate confidence score from underlying insights
         insights = [
             UnifiedInsight(
                 id=i.id,
@@ -262,6 +268,7 @@ class AnalyzerInsightConsumer:
                 rank=i.rank,
                 details=i.details,
                 source=InsightSource.ANALYZER,  # Override source
+                confidence=i.confidence,  # Preserve confidence
             )
             for i in result.insights
         ]
@@ -333,6 +340,7 @@ class MemoryInsightConsumer:
         )
 
         # Convert to unified format
+        # IMP-LOOP-016: Include confidence from memory insight, default 1.0 if not present
         insights: List[UnifiedInsight] = []
         for i, raw in enumerate(raw_insights):
             insights.append(
@@ -347,6 +355,7 @@ class MemoryInsightConsumer:
                     rank=raw.get("rank"),
                     details=raw.get("details"),
                     source=InsightSource.MEMORY,
+                    confidence=raw.get("confidence", 1.0),
                 )
             )
 
@@ -766,8 +775,20 @@ class AutonomousTaskGenerator:
                 max_age_hours=max_age_hours,
             )
 
+            # IMP-LOOP-016: Filter insights by confidence threshold before processing
+            # This prevents low-confidence insights from influencing task generation
+            original_count = len(consumer_result.insights)
+            filtered_insights = [
+                i for i in consumer_result.insights if i.confidence >= min_confidence
+            ]
+            if len(filtered_insights) < original_count:
+                logger.info(
+                    f"[IMP-LOOP-016] Confidence filtering: {original_count} -> "
+                    f"{len(filtered_insights)} insights (threshold: {min_confidence})"
+                )
+
             # Convert to dict format for pattern detection
-            insights = self._unified_insights_to_dicts(consumer_result.insights)
+            insights = self._unified_insights_to_dicts(filtered_insights)
             telemetry_source = consumer_result.source.value
 
             # IMP-LOOP-013: Emit path selection metrics

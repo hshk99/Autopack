@@ -441,6 +441,43 @@ class TestCategoryMapping:
         imp = generator.format_as_imp(insight)
         assert imp["id"].startswith("IMP-GEN-")
 
+    # IMP-TASK-001: Tests for new category mappings
+    def test_cost_sink_category(self, generator: InsightToTaskGenerator) -> None:
+        """Test cost_sink maps to CST."""
+        insight = {"source": "cost_sink", "action": "Test"}
+        imp = generator.format_as_imp(insight)
+        assert imp["id"].startswith("IMP-CST-")
+
+    def test_retry_cause_category(self, generator: InsightToTaskGenerator) -> None:
+        """Test retry_cause maps to RTY."""
+        insight = {"source": "retry_cause", "action": "Test"}
+        imp = generator.format_as_imp(insight)
+        assert imp["id"].startswith("IMP-RTY-")
+
+    def test_ci_fail_category(self, generator: InsightToTaskGenerator) -> None:
+        """Test ci_fail maps to CI."""
+        insight = {"source": "ci_fail", "action": "Test"}
+        imp = generator.format_as_imp(insight)
+        assert imp["id"].startswith("IMP-CI-")
+
+    def test_infra_error_category(self, generator: InsightToTaskGenerator) -> None:
+        """Test infra_error maps to INF."""
+        insight = {"source": "infra_error", "action": "Test"}
+        imp = generator.format_as_imp(insight)
+        assert imp["id"].startswith("IMP-INF-")
+
+    def test_auditor_reject_category(self, generator: InsightToTaskGenerator) -> None:
+        """Test auditor_reject maps to AUD."""
+        insight = {"source": "auditor_reject", "action": "Test"}
+        imp = generator.format_as_imp(insight)
+        assert imp["id"].startswith("IMP-AUD-")
+
+    def test_promoted_rule_category(self, generator: InsightToTaskGenerator) -> None:
+        """Test promoted_rule maps to RUL."""
+        insight = {"source": "promoted_rule", "action": "Test"}
+        imp = generator.format_as_imp(insight)
+        assert imp["id"].startswith("IMP-RUL-")
+
 
 class TestEdgeCases:
     """Tests for edge cases and error handling."""

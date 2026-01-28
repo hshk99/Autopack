@@ -40,6 +40,11 @@ def pytest_configure(config):
     if _src_path_str not in sys.path:
         sys.path.insert(0, _src_path_str)
 
+    # IMP-TEST-001: Register flaky marker for tests that may need retries
+    config.addinivalue_line(
+        "markers", "flaky(reruns=N): mark test as flaky with N reruns on failure"
+    )
+
 
 # Hook that runs at the very start of pytest collection - before any imports
 def pytest_load_initial_conftests(early_config, parser, args):

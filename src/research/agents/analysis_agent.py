@@ -5,7 +5,7 @@ This module is responsible for analyzing aggregated web content data.
 It identifies trends, patterns, and provides insights based on the content.
 """
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 
 class AnalysisAgent:

@@ -4,9 +4,9 @@ This module assesses the viability of a product by analyzing technical feasibili
 cost implications, and resource requirements.
 """
 
-from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class RiskLevel(Enum):

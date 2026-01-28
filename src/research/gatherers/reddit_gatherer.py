@@ -3,12 +3,14 @@
 This module provides functionality to gather data from Reddit communities.
 """
 
-import praw
 import logging
-from typing import Dict, List, Any
 from datetime import datetime
-from .rate_limiter import RateLimiter
+from typing import Any, Dict, List
+
+import praw
+
 from .error_handler import ErrorHandler
+from .rate_limiter import RateLimiter
 
 logger = logging.getLogger(__name__)
 

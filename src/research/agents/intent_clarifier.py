@@ -6,8 +6,8 @@ structuring research objectives.
 """
 
 import re
-from typing import Dict, List
 from dataclasses import dataclass, field
+from typing import Dict, List
 
 
 @dataclass

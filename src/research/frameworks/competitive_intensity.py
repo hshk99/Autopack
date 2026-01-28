@@ -4,7 +4,7 @@ This module evaluates the level of competition within a market using Porter's Fi
 inspired methodology.
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
 
 class CompetitiveIntensity:

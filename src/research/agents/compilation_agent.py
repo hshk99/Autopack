@@ -5,7 +5,8 @@ This module is responsible for compiling and organizing web content data.
 It aggregates, deduplicates, categorizes, and identifies gaps in the content.
 """
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from src.research.gatherers.web_scraper import WebScraper
 
 

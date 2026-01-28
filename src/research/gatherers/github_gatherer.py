@@ -3,12 +3,14 @@
 This module provides functionality to gather data from GitHub repositories.
 """
 
-import requests
 import logging
-from typing import Dict, List, Optional, Any
 from datetime import datetime
-from .rate_limiter import RateLimiter
+from typing import Any, Dict, List, Optional
+
+import requests
+
 from .error_handler import ErrorHandler
+from .rate_limiter import RateLimiter
 
 logger = logging.getLogger(__name__)
 

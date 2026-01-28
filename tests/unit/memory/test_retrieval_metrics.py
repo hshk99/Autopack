@@ -9,9 +9,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.telemetry.meta_metrics import (MemoryRetrievalMetrics,
-                                             RetrievalQualitySummary,
-                                             RetrievalQualityTracker)
+from autopack.telemetry.meta_metrics import (
+    MemoryRetrievalMetrics,
+    RetrievalQualitySummary,
+    RetrievalQualityTracker,
+)
 
 
 class TestMemoryRetrievalMetrics:

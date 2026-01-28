@@ -16,7 +16,9 @@ import pytest
 from autopack.memory.learning_db import LearningDatabase
 from autopack.task_generation.priority_engine import PriorityEngine
 from autopack.task_generation.task_effectiveness_tracker import (
-    TaskEffectivenessTracker, TaskImpactReport)
+    TaskEffectivenessTracker,
+    TaskImpactReport,
+)
 
 
 class TestTaskEffectivenessTrackerWithLearningDb:

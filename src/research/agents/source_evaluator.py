@@ -4,9 +4,9 @@ This module provides the SourceEvaluator class for evaluating the relevance
 and trustworthiness of research sources.
 """
 
-from typing import Dict, List, Optional
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
+from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
 

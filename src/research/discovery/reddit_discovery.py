@@ -4,10 +4,11 @@ This module provides the RedditDiscovery class for discovering relevant
 posts and discussions on Reddit.
 """
 
-import requests
-from typing import Dict, List, Optional
-from dataclasses import dataclass
 import time
+from dataclasses import dataclass
+from typing import Dict, List, Optional
+
+import requests
 
 
 @dataclass

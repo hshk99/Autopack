@@ -4,12 +4,13 @@ This module provides the WebDiscovery class for discovering relevant
 information on the web through search engines and web scraping.
 """
 
-import requests
-from typing import Dict, List, Optional
-from dataclasses import dataclass
-from urllib.parse import urlparse
-import time
 import re
+import time
+from dataclasses import dataclass
+from typing import Dict, List, Optional
+from urllib.parse import urlparse
+
+import requests
 
 
 @dataclass

@@ -16,32 +16,34 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from autopack.archive_consolidator import log_build_event
-from autopack.autonomous.budgeting import (BudgetExhaustedError,
-                                           get_budget_remaining_pct,
-                                           is_budget_exhausted)
-from autopack.autonomy.parallelism_gate import (ParallelismPolicyGate,
-                                                ScopeBasedParallelismChecker)
+from autopack.autonomous.budgeting import (
+    BudgetExhaustedError,
+    get_budget_remaining_pct,
+    is_budget_exhausted,
+)
+from autopack.autonomy.parallelism_gate import (
+    ParallelismPolicyGate,
+    ScopeBasedParallelismChecker,
+)
 from autopack.config import settings
-from autopack.database import (SESSION_HEALTH_CHECK_INTERVAL,
-                               ensure_session_healthy)
+from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
 from autopack.memory.maintenance import run_maintenance_if_due
-from autopack.task_generation.task_effectiveness_tracker import \
-    TaskEffectivenessTracker
+from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
 from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
-from autopack.telemetry.anomaly_detector import (AlertSeverity,
-                                                 TelemetryAnomalyDetector)
-from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
-                                             FeedbackLoopHealthReport,
-                                             GoalDriftDetector,
-                                             MetaMetricsTracker,
-                                             PipelineLatencyTracker,
-                                             PipelineStage)
-from autopack.telemetry.telemetry_to_memory_bridge import \
-    TelemetryToMemoryBridge
+from autopack.telemetry.anomaly_detector import AlertSeverity, TelemetryAnomalyDetector
+from autopack.telemetry.meta_metrics import (
+    FeedbackLoopHealth,
+    FeedbackLoopHealthReport,
+    GoalDriftDetector,
+    MetaMetricsTracker,
+    PipelineLatencyTracker,
+    PipelineStage,
+)
+from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
@@ -2454,8 +2456,7 @@ class AutonomousLoop:
 
     def _initialize_intention_loop(self):
         """Initialize intention-first loop for the run."""
-        from autopack.autonomous.executor_wiring import \
-            initialize_intention_first_loop
+        from autopack.autonomous.executor_wiring import initialize_intention_first_loop
         from autopack.intention_anchor.storage import IntentionAnchorStorage
 
         # IMP-ARCH-012: Load pending improvement tasks from self-improvement loop
@@ -2477,7 +2478,10 @@ class AutonomousLoop:
                 from datetime import datetime, timezone
 
                 from autopack.intention_anchor.models import (
-                    IntentionAnchor, IntentionBudgets, IntentionConstraints)
+                    IntentionAnchor,
+                    IntentionBudgets,
+                    IntentionConstraints,
+                )
 
                 intention_anchor = IntentionAnchor(
                     anchor_id=f"default-{self.executor.run_id}",

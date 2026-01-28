@@ -5,8 +5,8 @@ This module is responsible for extracting and processing content from web pages.
 It deduplicates content, categorizes it by type, and identifies gaps.
 """
 
-from typing import List, Dict, Any
 import re
+from typing import Any, Dict, List
 
 
 class ContentExtractor:

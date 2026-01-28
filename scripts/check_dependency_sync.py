@@ -121,8 +121,12 @@ def main() -> int:
                 continue
 
             # Skip Python version/platform-specific packages
-            # Package lines look like: package==version or package[extra]==version
-            pkg_match = stripped.split("==")[0].split("[")[0].lower() if "==" in stripped else None
+            # Package lines look like: package==version, package>=version, or package[extra]==version
+            pkg_match = None
+            if "==" in stripped:
+                pkg_match = stripped.split("==")[0].split("[")[0].lower()
+            elif ">=" in stripped:
+                pkg_match = stripped.split(">=")[0].split("[")[0].lower()
             if pkg_match and pkg_match in SKIP_PACKAGES:
                 continue
 

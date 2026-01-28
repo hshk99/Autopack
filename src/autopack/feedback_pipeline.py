@@ -1413,6 +1413,89 @@ class FeedbackPipeline:
             "and implement preventive measures.",
         )
 
+    def get_promoted_rules(
+        self,
+        phase_type: Optional[str] = None,
+        limit: int = 5,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve promoted rules for injection into execution context.
+
+        IMP-LOOP-025: Fetches rules that were promoted from recurring hint patterns
+        (via IMP-LOOP-015) to provide high-priority guidance during phase execution.
+        Promoted rules have is_rule=True and represent patterns that have occurred
+        3+ times across runs.
+
+        Args:
+            phase_type: Optional filter to get rules for a specific phase type
+            limit: Maximum number of rules to return (default: 5)
+
+        Returns:
+            List of rule dictionaries with description, suggested_action, and metadata
+        """
+        if not self.memory_service or not getattr(self.memory_service, "enabled", False):
+            logger.debug(
+                "[IMP-LOOP-025] Cannot retrieve promoted rules - memory service unavailable"
+            )
+            return []
+
+        try:
+            # Search for promoted rules across telemetry insight collections
+            # Use "promoted_rule" as the query to find rules in semantic search
+            query = f"promoted_rule {phase_type or 'all'}"
+
+            # Search telemetry insights and filter for is_rule=True
+            all_results = self.memory_service.search_telemetry_insights(
+                query=query,
+                limit=limit * 3,  # Fetch extra to account for filtering
+                project_id=self.project_id,
+                max_age_hours=168,  # 7 days - rules should persist longer
+            )
+
+            # Filter for actual promoted rules
+            rules = []
+            for result in all_results:
+                metadata = result.get("metadata", {})
+                # Check for promoted rule markers
+                if not (
+                    metadata.get("is_rule") is True
+                    or metadata.get("insight_type") == "promoted_rule"
+                ):
+                    continue
+
+                # Optional: filter by phase_type if specified
+                if phase_type and metadata.get("phase_type") != phase_type:
+                    continue
+
+                rule = {
+                    "description": metadata.get("description", result.get("content", "")),
+                    "suggested_action": metadata.get("suggested_action", ""),
+                    "phase_type": metadata.get("phase_type", "unknown"),
+                    "hint_type": metadata.get("hint_type", "unknown"),
+                    "occurrences": metadata.get("occurrences", 0),
+                    "confidence": result.get("confidence", 0.8),
+                    "timestamp": result.get("timestamp"),
+                }
+                rules.append(rule)
+
+                if len(rules) >= limit:
+                    break
+
+            if rules:
+                logger.info(
+                    f"[IMP-LOOP-025] Retrieved {len(rules)} promoted rules "
+                    f"for phase_type={phase_type or 'all'}"
+                )
+            else:
+                logger.debug(
+                    f"[IMP-LOOP-025] No promoted rules found for phase_type={phase_type or 'all'}"
+                )
+
+            return rules
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-025] Failed to retrieve promoted rules: {e}")
+            return []
+
     def record_circuit_breaker_event(
         self,
         failure_count: int,

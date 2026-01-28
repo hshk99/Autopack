@@ -15,27 +15,28 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from autopack.archive_consolidator import log_build_event
-from autopack.autonomous.budgeting import (
-    BudgetExhaustedError,
-    get_budget_remaining_pct,
-    is_budget_exhausted,
-)
-from autopack.autonomy.parallelism_gate import ParallelismPolicyGate, ScopeBasedParallelismChecker
+from autopack.autonomous.budgeting import (BudgetExhaustedError,
+                                           get_budget_remaining_pct,
+                                           is_budget_exhausted)
+from autopack.autonomy.parallelism_gate import (ParallelismPolicyGate,
+                                                ScopeBasedParallelismChecker)
 from autopack.config import settings
-from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
+from autopack.database import (SESSION_HEALTH_CHECK_INTERVAL,
+                               ensure_session_healthy)
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
-from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
+from autopack.task_generation.task_effectiveness_tracker import \
+    TaskEffectivenessTracker
 from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
-from autopack.telemetry.anomaly_detector import AlertSeverity, TelemetryAnomalyDetector
-from autopack.telemetry.meta_metrics import (
-    FeedbackLoopHealth,
-    FeedbackLoopHealthReport,
-    MetaMetricsTracker,
-)
-from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
+from autopack.telemetry.anomaly_detector import (AlertSeverity,
+                                                 TelemetryAnomalyDetector)
+from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
+                                             FeedbackLoopHealthReport,
+                                             MetaMetricsTracker)
+from autopack.telemetry.telemetry_to_memory_bridge import \
+    TelemetryToMemoryBridge
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
@@ -43,7 +44,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # IMP-REL-004: Default max iteration limit for the execution loop
-# This prevents unbounded loops when max_iterations is not explicitly set
+# This prevelnts unbounded loops when max_iterations is not explicitly set
 DEFAULT_MAX_ITERATIONS = 10000
 
 
@@ -305,6 +306,18 @@ class CircuitBreaker:
     def is_half_open(self) -> bool:
         """Check if circuit is half-open (testing recovery)."""
         return self.state == CircuitBreakerState.HALF_OPEN
+
+    def is_available(self) -> bool:
+        """Check if circuit breaker allows operations.
+
+        IMP-LOOP-002: Used to gate task generation when circuit is OPEN.
+        Returns True when circuit is CLOSED or HALF_OPEN (allowing requests).
+        Returns False when circuit is OPEN (blocking requests).
+
+        Returns:
+            True if operations are allowed, False if blocked.
+        """
+        return self.state != CircuitBreakerState.OPEN
 
     def record_success(self) -> None:
         """Record a successful operation, potentially closing the circuit.
@@ -2317,7 +2330,8 @@ class AutonomousLoop:
 
     def _initialize_intention_loop(self):
         """Initialize intention-first loop for the run."""
-        from autopack.autonomous.executor_wiring import initialize_intention_first_loop
+        from autopack.autonomous.executor_wiring import \
+            initialize_intention_first_loop
         from autopack.intention_anchor.storage import IntentionAnchorStorage
 
         # IMP-ARCH-012: Load pending improvement tasks from self-improvement loop
@@ -2339,10 +2353,7 @@ class AutonomousLoop:
                 from datetime import datetime, timezone
 
                 from autopack.intention_anchor.models import (
-                    IntentionAnchor,
-                    IntentionBudgets,
-                    IntentionConstraints,
-                )
+                    IntentionAnchor, IntentionBudgets, IntentionConstraints)
 
                 intention_anchor = IntentionAnchor(
                     anchor_id=f"default-{self.executor.run_id}",
@@ -2873,10 +2884,14 @@ class AutonomousLoop:
                 FeedbackLoopHealth.HEALTHY.value,
                 FeedbackLoopHealth.DEGRADED.value,
             ):
-                try:
-                    self._generate_improvement_tasks()
-                except Exception as e:
-                    logger.warning(f"Failed to generate improvement tasks: {e}")
+                # IMP-LOOP-002: Check circuit breaker before task generation
+                if self._circuit_breaker is not None and not self._circuit_breaker.is_available():
+                    logger.warning("[IMP-LOOP-002] Circuit breaker OPEN - skipping task generation")
+                else:
+                    try:
+                        self._generate_improvement_tasks()
+                    except Exception as e:
+                        logger.warning(f"Failed to generate improvement tasks: {e}")
             else:
                 logger.warning(
                     f"[IMP-LOOP-001] Skipping task generation due to health status: {health_status}"

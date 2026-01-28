@@ -37,6 +37,44 @@ HIGH_SUCCESS_THRESHOLD = 0.8  # Above this → prefer_pattern rule
 
 
 @dataclass
+class RegisteredTask:
+    """Represents a task registered for execution verification.
+
+    IMP-LOOP-021: Tracks generated improvement tasks to verify they are
+    actually executed, enabling closed-loop feedback validation.
+
+    Attributes:
+        task_id: Unique identifier for the task.
+        priority: Priority level of the task (critical, high, medium, low).
+        category: Category of the task for aggregation.
+        registered_at: Timestamp when the task was registered.
+        executed: Whether the task has been executed.
+        executed_at: Timestamp when execution was recorded.
+        execution_success: Whether the execution was successful.
+    """
+
+    task_id: str
+    priority: str = ""
+    category: str = ""
+    registered_at: datetime = field(default_factory=datetime.now)
+    executed: bool = False
+    executed_at: datetime | None = None
+    execution_success: bool | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "task_id": self.task_id,
+            "priority": self.priority,
+            "category": self.category,
+            "registered_at": self.registered_at.isoformat(),
+            "executed": self.executed,
+            "executed_at": self.executed_at.isoformat() if self.executed_at else None,
+            "execution_success": self.execution_success,
+        }
+
+
+@dataclass
 class EffectivenessLearningRule:
     """Rule generated from task effectiveness patterns.
 
@@ -197,6 +235,8 @@ class TaskEffectivenessTracker:
         """
         self.history = EffectivenessHistory()
         self.priority_engine = priority_engine
+        # IMP-LOOP-021: Track registered tasks for execution verification
+        self._registered_tasks: dict[str, RegisteredTask] = {}
 
     def measure_impact(
         self,
@@ -590,3 +630,145 @@ class TaskEffectivenessTracker:
         )
 
         return rules
+
+    def register_task(
+        self,
+        task_id: str,
+        priority: str = "",
+        category: str = "",
+    ) -> RegisteredTask:
+        """Register a generated task for execution verification.
+
+        IMP-LOOP-021: Records a generated improvement task for later verification
+        that it was actually executed. This enables closed-loop tracking to ensure
+        generated tasks don't get lost.
+
+        Args:
+            task_id: Unique identifier for the task (typically the IMP ID).
+            priority: Priority level of the task (critical, high, medium, low).
+            category: Category of the task for aggregation.
+
+        Returns:
+            RegisteredTask instance tracking the task.
+        """
+        if task_id in self._registered_tasks:
+            logger.debug(
+                "[IMP-LOOP-021] Task %s already registered, updating metadata",
+                task_id,
+            )
+            existing = self._registered_tasks[task_id]
+            # Update metadata if provided
+            if priority:
+                existing.priority = priority
+            if category:
+                existing.category = category
+            return existing
+
+        registered = RegisteredTask(
+            task_id=task_id,
+            priority=priority,
+            category=category,
+        )
+        self._registered_tasks[task_id] = registered
+
+        logger.info(
+            "[IMP-LOOP-021] Registered task for execution verification: "
+            "task_id=%s, priority=%s, category=%s",
+            task_id,
+            priority,
+            category,
+        )
+
+        return registered
+
+    def record_execution(
+        self,
+        task_id: str,
+        success: bool,
+    ) -> bool:
+        """Record that a registered task was executed.
+
+        IMP-LOOP-021: Marks a registered task as executed, completing the
+        verification loop. This confirms the generated task was actually
+        run and records its outcome.
+
+        Args:
+            task_id: The task ID to mark as executed.
+            success: Whether the execution was successful.
+
+        Returns:
+            True if task was found and updated, False if task was not registered.
+        """
+        if task_id not in self._registered_tasks:
+            logger.debug(
+                "[IMP-LOOP-021] Task %s not registered, cannot record execution",
+                task_id,
+            )
+            return False
+
+        registered = self._registered_tasks[task_id]
+        registered.executed = True
+        registered.executed_at = datetime.now()
+        registered.execution_success = success
+
+        logger.info(
+            "[IMP-LOOP-021] Recorded execution for task %s: success=%s",
+            task_id,
+            success,
+        )
+
+        return True
+
+    def get_unexecuted_tasks(self) -> list[RegisteredTask]:
+        """Get all registered tasks that have not been executed.
+
+        IMP-LOOP-021: Returns tasks that were generated but never executed,
+        indicating a gap in the feedback loop.
+
+        Returns:
+            List of RegisteredTask instances that have not been executed.
+        """
+        return [task for task in self._registered_tasks.values() if not task.executed]
+
+    def get_execution_verification_summary(self) -> dict[str, Any]:
+        """Get a summary of task execution verification status.
+
+        IMP-LOOP-021: Provides visibility into the task verification pipeline,
+        showing how many generated tasks were actually executed.
+
+        Returns:
+            Dictionary containing:
+            - total_registered: Total number of registered tasks
+            - executed_count: Number of tasks that were executed
+            - unexecuted_count: Number of tasks not yet executed
+            - execution_rate: Percentage of registered tasks that were executed
+            - success_rate: Percentage of executed tasks that succeeded
+            - by_priority: Breakdown by priority level
+            - unexecuted_tasks: List of task IDs not yet executed
+        """
+        total = len(self._registered_tasks)
+        executed = [t for t in self._registered_tasks.values() if t.executed]
+        unexecuted = [t for t in self._registered_tasks.values() if not t.executed]
+        successful = [t for t in executed if t.execution_success]
+
+        # Breakdown by priority
+        by_priority: dict[str, dict[str, int]] = {}
+        for task in self._registered_tasks.values():
+            priority = task.priority or "unknown"
+            if priority not in by_priority:
+                by_priority[priority] = {"registered": 0, "executed": 0, "successful": 0}
+            by_priority[priority]["registered"] += 1
+            if task.executed:
+                by_priority[priority]["executed"] += 1
+                if task.execution_success:
+                    by_priority[priority]["successful"] += 1
+
+        return {
+            "total_registered": total,
+            "executed_count": len(executed),
+            "unexecuted_count": len(unexecuted),
+            "execution_rate": len(executed) / total if total > 0 else 0.0,
+            "success_rate": len(successful) / len(executed) if executed else 0.0,
+            "by_priority": by_priority,
+            "unexecuted_tasks": [t.task_id for t in unexecuted],
+        }

@@ -16,31 +16,29 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from autopack.archive_consolidator import log_build_event
-from autopack.autonomous.budgeting import (
-    BudgetExhaustedError,
-    get_budget_remaining_pct,
-    is_budget_exhausted,
-)
-from autopack.autonomy.parallelism_gate import (
-    ParallelismPolicyGate,
-    ScopeBasedParallelismChecker,
-)
+from autopack.autonomous.budgeting import (BudgetExhaustedError,
+                                           get_budget_remaining_pct,
+                                           is_budget_exhausted)
+from autopack.autonomy.parallelism_gate import (ParallelismPolicyGate,
+                                                ScopeBasedParallelismChecker)
 from autopack.config import settings
-from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
+from autopack.database import (SESSION_HEALTH_CHECK_INTERVAL,
+                               ensure_session_healthy)
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
 from autopack.memory.maintenance import run_maintenance_if_due
-from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
+from autopack.task_generation.task_effectiveness_tracker import \
+    TaskEffectivenessTracker
 from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
-from autopack.telemetry.anomaly_detector import AlertSeverity, TelemetryAnomalyDetector
-from autopack.telemetry.meta_metrics import (
-    FeedbackLoopHealth,
-    FeedbackLoopHealthReport,
-    MetaMetricsTracker,
-)
-from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
+from autopack.telemetry.anomaly_detector import (AlertSeverity,
+                                                 TelemetryAnomalyDetector)
+from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
+                                             FeedbackLoopHealthReport,
+                                             MetaMetricsTracker)
+from autopack.telemetry.telemetry_to_memory_bridge import \
+    TelemetryToMemoryBridge
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
@@ -1587,6 +1585,17 @@ class AutonomousLoop:
             # Feed back to priority engine if available
             tracker.feed_back_to_priority_engine(report)
 
+            # IMP-LOOP-021: Verify execution for generated improvement tasks
+            # Generated task phases have IDs like "generated-task-execution-{task_id}"
+            generated_task_prefix = "generated-task-execution-"
+            if phase_id.startswith(generated_task_prefix):
+                original_task_id = phase_id[len(generated_task_prefix) :]
+                if tracker.record_execution(original_task_id, success):
+                    logger.info(
+                        f"[IMP-LOOP-021] Verified execution of generated task {original_task_id}: "
+                        f"success={success}"
+                    )
+
             logger.debug(
                 f"[IMP-FBK-001] Updated task effectiveness for phase {phase_id}: "
                 f"effectiveness={report.effectiveness_score:.2f} ({report.get_effectiveness_grade()})"
@@ -2393,7 +2402,8 @@ class AutonomousLoop:
 
     def _initialize_intention_loop(self):
         """Initialize intention-first loop for the run."""
-        from autopack.autonomous.executor_wiring import initialize_intention_first_loop
+        from autopack.autonomous.executor_wiring import \
+            initialize_intention_first_loop
         from autopack.intention_anchor.storage import IntentionAnchorStorage
 
         # IMP-ARCH-012: Load pending improvement tasks from self-improvement loop
@@ -2415,10 +2425,7 @@ class AutonomousLoop:
                 from datetime import datetime, timezone
 
                 from autopack.intention_anchor.models import (
-                    IntentionAnchor,
-                    IntentionBudgets,
-                    IntentionConstraints,
-                )
+                    IntentionAnchor, IntentionBudgets, IntentionConstraints)
 
                 intention_anchor = IntentionAnchor(
                     anchor_id=f"default-{self.executor.run_id}",
@@ -3540,6 +3547,25 @@ class AutonomousLoop:
                     logger.info(f"[IMP-ARCH-014] Persisted {persisted_count} tasks to database")
                 except Exception as persist_err:
                     logger.warning(f"[IMP-ARCH-014] Failed to persist tasks: {persist_err}")
+
+                # IMP-LOOP-021: Register generated tasks for execution verification
+                tracker = self._get_task_effectiveness_tracker()
+                if tracker:
+                    for task in result.tasks_generated:
+                        try:
+                            tracker.register_task(
+                                task_id=task.task_id,
+                                priority=getattr(task, "priority", ""),
+                                category=getattr(task, "estimated_effort", ""),
+                            )
+                        except Exception as reg_err:
+                            logger.debug(
+                                f"[IMP-LOOP-021] Failed to register task {task.task_id}: {reg_err}"
+                            )
+                    logger.info(
+                        f"[IMP-LOOP-021] Registered {len(result.tasks_generated)} tasks "
+                        "for execution verification"
+                    )
 
             return result.tasks_generated
         except Exception as e:

@@ -78,6 +78,23 @@ class TaskEffectivenessStats:
     ]  # priority -> {success_rate, target_rate}
 
 
+@dataclass
+class ContextInjectionImpact:
+    """Context injection impact analysis result (IMP-LOOP-021).
+
+    Compares success rates between phases with and without context injection
+    to measure the effectiveness of memory-based context retrieval.
+    """
+
+    with_context_success_rate: float  # Success rate for phases with context injection
+    without_context_success_rate: float  # Success rate for phases without context injection
+    delta: float  # Success rate difference (with - without)
+    with_context_count: int  # Number of phases with context injection
+    without_context_count: int  # Number of phases without context injection
+    avg_context_item_count: float  # Average items injected (when context was injected)
+    impact_significant: bool  # True if delta is statistically meaningful (>5% with n>=10)
+
+
 class TelemetryAnalyzer:
     """Analyze telemetry data and generate ranked issues."""
 
@@ -941,6 +958,85 @@ class TelemetryAnalyzer:
                     )
 
         logger.info(f"[IMP-LOOP-012] Wrote task effectiveness report to: {output_path}")
+
+    def analyze_context_injection_impact(self, window_days: int = 7) -> ContextInjectionImpact:
+        """Analyze the impact of context injection on phase success rates (IMP-LOOP-021).
+
+        Compares success rates between phases with and without context injection
+        to measure the effectiveness of memory-based context retrieval.
+
+        Args:
+            window_days: Number of days to look back (default: 7)
+
+        Returns:
+            ContextInjectionImpact with A/B comparison metrics
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+
+        # Query phases with context injection
+        with_context_result = self.db.execute(
+            text("""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN phase_outcome = 'SUCCESS' THEN 1 ELSE 0 END) as successes,
+                AVG(context_item_count) as avg_items
+            FROM phase_outcome_events
+            WHERE timestamp >= :cutoff
+                AND context_injected = true
+            """),
+            {"cutoff": cutoff},
+        )
+        with_row = with_context_result.fetchone()
+
+        # Query phases without context injection
+        without_context_result = self.db.execute(
+            text("""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN phase_outcome = 'SUCCESS' THEN 1 ELSE 0 END) as successes
+            FROM phase_outcome_events
+            WHERE timestamp >= :cutoff
+                AND (context_injected = false OR context_injected IS NULL)
+            """),
+            {"cutoff": cutoff},
+        )
+        without_row = without_context_result.fetchone()
+
+        # Extract values with defaults
+        with_count = with_row.total or 0 if with_row else 0
+        with_successes = with_row.successes or 0 if with_row else 0
+        avg_items = with_row.avg_items or 0.0 if with_row else 0.0
+
+        without_count = without_row.total or 0 if without_row else 0
+        without_successes = without_row.successes or 0 if without_row else 0
+
+        # Calculate success rates
+        with_success_rate = with_successes / max(with_count, 1)
+        without_success_rate = without_successes / max(without_count, 1)
+        delta = with_success_rate - without_success_rate
+
+        # Determine if the impact is statistically significant
+        # Simple heuristic: delta > 5% and at least 10 samples in each group
+        impact_significant = abs(delta) > 0.05 and with_count >= 10 and without_count >= 10
+
+        impact = ContextInjectionImpact(
+            with_context_success_rate=with_success_rate,
+            without_context_success_rate=without_success_rate,
+            delta=delta,
+            with_context_count=with_count,
+            without_context_count=without_count,
+            avg_context_item_count=avg_items,
+            impact_significant=impact_significant,
+        )
+
+        logger.info(
+            f"[IMP-LOOP-021] Context injection impact analysis: "
+            f"with_context={with_success_rate:.1%} ({with_count} phases), "
+            f"without_context={without_success_rate:.1%} ({without_count} phases), "
+            f"delta={delta:+.1%}, significant={impact_significant}"
+        )
+
+        return impact
 
     def ingest_diagnostic_findings(
         self,

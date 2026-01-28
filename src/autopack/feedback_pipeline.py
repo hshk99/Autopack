@@ -18,10 +18,12 @@ The pipeline ensures that lessons learned from each phase execution are:
 4. IMP-LOOP-017: Analyzed for effectiveness patterns that generate learning rules
 """
 
+import json
 import logging
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
@@ -172,7 +174,8 @@ class FeedbackPipeline:
 
         # IMP-LOOP-015: Track hint occurrences for automatic promotion to rules
         # When a hint pattern occurs 3+ times, it becomes a rule in memory
-        self._hint_occurrences: Dict[str, int] = {}
+        # IMP-LOOP-020: Persist hint occurrences across runs for cross-run learning
+        self._hint_occurrences: Dict[str, int] = self._load_hint_occurrences()
         self._hint_promotion_threshold = 3
 
         # IMP-LOOP-004: Auto-flush configuration for pending insights
@@ -287,8 +290,10 @@ class FeedbackPipeline:
                     self._stats["learning_hints_recorded"] += 1
 
                     # IMP-LOOP-015: Track hint occurrences and promote to rules
+                    # IMP-LOOP-020: Persist after each increment for cross-run learning
                     hint_key = self._get_hint_promotion_key(hint_type, outcome)
                     self._hint_occurrences[hint_key] = self._hint_occurrences.get(hint_key, 0) + 1
+                    self._save_hint_occurrences()
 
                     if self._hint_occurrences[hint_key] >= self._hint_promotion_threshold:
                         self._promote_hint_to_rule(hint_type, hint_key, outcome)
@@ -675,7 +680,12 @@ class FeedbackPipeline:
         return dict(self._stats)
 
     def reset_stats(self) -> None:
-        """Reset pipeline statistics and hint tracking."""
+        """Reset pipeline statistics and hint tracking.
+
+        Note: This does NOT persist the reset hint occurrences to avoid
+        accidental data loss. Use clear_hint_occurrences() to also clear
+        persisted data.
+        """
         self._stats = {
             "outcomes_processed": 0,
             "insights_persisted": 0,
@@ -683,8 +693,22 @@ class FeedbackPipeline:
             "learning_hints_recorded": 0,
             "hints_promoted_to_rules": 0,
         }
-        # IMP-LOOP-015: Also reset hint occurrence tracking
+        # IMP-LOOP-015: Also reset hint occurrence tracking (in-memory only)
         self._hint_occurrences = {}
+
+    def clear_hint_occurrences(self, persist: bool = True) -> None:
+        """Clear hint occurrence tracking data.
+
+        IMP-LOOP-020: Clears both in-memory and optionally persisted hint
+        occurrence data. Use with caution as this resets cross-run learning.
+
+        Args:
+            persist: If True, also clears the persisted data file
+        """
+        self._hint_occurrences = {}
+        if persist:
+            self._save_hint_occurrences()
+            logger.info("[IMP-LOOP-020] Cleared and persisted empty hint occurrences")
 
     def _create_insight_from_outcome(self, outcome: PhaseOutcome) -> Dict[str, Any]:
         """Create a telemetry insight from a phase outcome.
@@ -864,6 +888,100 @@ class FeedbackPipeline:
             sections.append("\n".join(success_lines))
 
         return "\n\n".join(sections) if sections else ""
+
+    def _get_hint_occurrences_file(self) -> Path:
+        """Get path to hint occurrences persistence file.
+
+        IMP-LOOP-020: Returns the path where hint occurrences are persisted
+        for cross-run learning. The file is stored in the project's docs directory.
+
+        Returns:
+            Path to the hint occurrences JSON file
+        """
+        from .config import settings
+
+        if self.project_id == "autopack" or self.project_id == "default":
+            return Path("docs") / "HINT_OCCURRENCES.json"
+        else:
+            return (
+                Path(settings.autonomous_runs_dir)
+                / self.project_id
+                / "docs"
+                / "HINT_OCCURRENCES.json"
+            )
+
+    def _load_hint_occurrences(self) -> Dict[str, int]:
+        """Load hint occurrences from persistence layer.
+
+        IMP-LOOP-020: Loads previously persisted hint occurrence counts
+        to enable cross-run promotion tracking. If the file doesn't exist
+        or is corrupted, returns an empty dict.
+
+        Returns:
+            Dictionary mapping hint keys to occurrence counts
+        """
+        occurrences_file = self._get_hint_occurrences_file()
+
+        if not occurrences_file.exists():
+            logger.debug(
+                f"[IMP-LOOP-020] No hint occurrences file found at {occurrences_file}, "
+                "starting fresh"
+            )
+            return {}
+
+        try:
+            with open(occurrences_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            occurrences = data.get("occurrences", {})
+            logger.info(
+                f"[IMP-LOOP-020] Loaded {len(occurrences)} hint occurrence entries "
+                f"from {occurrences_file}"
+            )
+            return occurrences
+
+        except (json.JSONDecodeError, KeyError, TypeError) as e:
+            logger.warning(
+                f"[IMP-LOOP-020] Failed to load hint occurrences from {occurrences_file}: {e}. "
+                "Starting fresh."
+            )
+            return {}
+
+    def _save_hint_occurrences(self) -> bool:
+        """Save hint occurrences to persistence layer.
+
+        IMP-LOOP-020: Persists current hint occurrence counts to enable
+        cross-run promotion tracking. Creates parent directories if needed.
+
+        Returns:
+            True if save succeeded, False otherwise
+        """
+        occurrences_file = self._get_hint_occurrences_file()
+
+        try:
+            occurrences_file.parent.mkdir(parents=True, exist_ok=True)
+
+            with open(occurrences_file, "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "occurrences": self._hint_occurrences,
+                        "last_updated": datetime.now(timezone.utc).isoformat(),
+                        "run_id": self.run_id,
+                        "project_id": self.project_id,
+                    },
+                    f,
+                    indent=2,
+                )
+
+            logger.debug(
+                f"[IMP-LOOP-020] Saved {len(self._hint_occurrences)} hint occurrence entries "
+                f"to {occurrences_file}"
+            )
+            return True
+
+        except (OSError, TypeError) as e:
+            logger.warning(f"[IMP-LOOP-020] Failed to save hint occurrences: {e}")
+            return False
 
     def _get_hint_promotion_key(self, hint_type: str, outcome: PhaseOutcome) -> str:
         """Generate a key for tracking hint occurrences.

@@ -611,3 +611,331 @@ class TestEndToEndEffectivenessFeedback:
         assert ranked[1]["category"] == "api"
         # Memory should be last (lowest effectiveness)
         assert ranked[2]["category"] == "memory"
+
+
+class TestCategoryWeightMultiplier:
+    """Tests for IMP-TASK-003: Category weight multiplier functionality."""
+
+    @pytest.fixture
+    def mock_learning_db(self) -> MagicMock:
+        """Create a mock LearningDatabase."""
+        db = MagicMock()
+        db.get_success_rate.return_value = 0.5
+        db.get_likely_blockers.return_value = []
+        db.get_historical_patterns.return_value = {
+            "top_blocking_reasons": [],
+            "category_success_rates": {},
+            "recent_trends": {"sample_size": 0},
+        }
+        return db
+
+    def test_initial_multiplier_is_one(self, mock_learning_db: MagicMock) -> None:
+        """Test that initial category multiplier is 1.0."""
+        engine = PriorityEngine(mock_learning_db)
+        assert engine.get_category_weight_multiplier("telemetry") == 1.0
+        assert engine.get_category_weight_multiplier("memory") == 1.0
+        assert engine.get_category_weight_multiplier("unknown") == 1.0
+
+    def test_update_category_weight_multiplier(self, mock_learning_db: MagicMock) -> None:
+        """Test updating category weight multiplier."""
+        engine = PriorityEngine(mock_learning_db)
+
+        engine.update_category_weight_multiplier("telemetry", 1.2)
+        assert engine.get_category_weight_multiplier("telemetry") == pytest.approx(1.2)
+
+        engine.update_category_weight_multiplier("memory", 0.8)
+        assert engine.get_category_weight_multiplier("memory") == pytest.approx(0.8)
+
+    def test_multiplier_clamped_to_max(self, mock_learning_db: MagicMock) -> None:
+        """Test that multiplier is clamped to max 2.0."""
+        engine = PriorityEngine(mock_learning_db)
+
+        engine.update_category_weight_multiplier("telemetry", 5.0)
+        assert engine.get_category_weight_multiplier("telemetry") == pytest.approx(2.0)
+
+    def test_multiplier_clamped_to_min(self, mock_learning_db: MagicMock) -> None:
+        """Test that multiplier is clamped to min 0.1."""
+        engine = PriorityEngine(mock_learning_db)
+
+        engine.update_category_weight_multiplier("memory", 0.01)
+        assert engine.get_category_weight_multiplier("memory") == pytest.approx(0.1)
+
+    def test_multiplier_applied_to_priority_score(self, mock_learning_db: MagicMock) -> None:
+        """Test that multiplier affects priority score calculation."""
+        engine = PriorityEngine(mock_learning_db)
+
+        imp = {"imp_id": "IMP-TEL-001", "category": "telemetry", "priority": "high"}
+
+        # Get baseline score
+        baseline_score = engine.calculate_priority_score(imp)
+
+        # Apply boost multiplier
+        engine.update_category_weight_multiplier("telemetry", 1.5)
+        boosted_score = engine.calculate_priority_score(imp)
+
+        # Boosted score should be higher
+        assert boosted_score > baseline_score
+        # Allow for rounding tolerance (score is rounded to 3 decimal places)
+        assert boosted_score == pytest.approx(baseline_score * 1.5, abs=0.001)
+
+    def test_multiplier_penalty_reduces_score(self, mock_learning_db: MagicMock) -> None:
+        """Test that penalty multiplier reduces priority score."""
+        engine = PriorityEngine(mock_learning_db)
+
+        imp = {"imp_id": "IMP-MEM-001", "category": "memory", "priority": "high"}
+
+        # Get baseline score
+        baseline_score = engine.calculate_priority_score(imp)
+
+        # Apply penalty multiplier
+        engine.update_category_weight_multiplier("memory", 0.7)
+        penalized_score = engine.calculate_priority_score(imp)
+
+        # Penalized score should be lower
+        assert penalized_score < baseline_score
+        # Allow for rounding tolerance (score is rounded to 3 decimal places)
+        assert penalized_score == pytest.approx(baseline_score * 0.7, abs=0.001)
+
+
+class TestFeedBackToPriorityEngineComplete:
+    """Tests for IMP-TASK-003: Complete feedback loop integration."""
+
+    @pytest.fixture
+    def mock_learning_db(self) -> MagicMock:
+        """Create a mock LearningDatabase."""
+        db = MagicMock()
+        db.get_success_rate.return_value = 0.5
+        db.get_likely_blockers.return_value = []
+        db.get_historical_patterns.return_value = {
+            "top_blocking_reasons": [],
+            "category_success_rates": {},
+            "recent_trends": {"sample_size": 0},
+        }
+        return db
+
+    def test_feed_back_updates_multiplier_excellent(self, mock_learning_db: MagicMock) -> None:
+        """Test that excellent effectiveness boosts multiplier."""
+        engine = PriorityEngine(mock_learning_db)
+        tracker = TaskEffectivenessTracker(priority_engine=engine)
+
+        report = TaskImpactReport(
+            task_id="IMP-TEL-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.02},
+            target_improvement=0.5,
+            actual_improvement=0.9,
+            effectiveness_score=0.95,  # Excellent
+            measured_at=datetime.now(),
+            category="telemetry",
+        )
+
+        tracker.feed_back_to_priority_engine(report)
+
+        # Multiplier should be boosted (1.0 * 1.2 = 1.2)
+        assert engine.get_category_weight_multiplier("telemetry") == pytest.approx(1.2)
+
+    def test_feed_back_updates_multiplier_good(self, mock_learning_db: MagicMock) -> None:
+        """Test that good effectiveness boosts multiplier."""
+        engine = PriorityEngine(mock_learning_db)
+        tracker = TaskEffectivenessTracker(priority_engine=engine)
+
+        report = TaskImpactReport(
+            task_id="IMP-TEL-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.08},
+            target_improvement=0.5,
+            actual_improvement=0.6,
+            effectiveness_score=0.75,  # Good
+            measured_at=datetime.now(),
+            category="api",
+        )
+
+        tracker.feed_back_to_priority_engine(report)
+
+        # Multiplier should be boosted (1.0 * 1.1 = 1.1)
+        assert engine.get_category_weight_multiplier("api") == pytest.approx(1.1)
+
+    def test_feed_back_updates_multiplier_poor(self, mock_learning_db: MagicMock) -> None:
+        """Test that poor effectiveness reduces multiplier."""
+        engine = PriorityEngine(mock_learning_db)
+        tracker = TaskEffectivenessTracker(priority_engine=engine)
+
+        report = TaskImpactReport(
+            task_id="IMP-MEM-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.22},
+            target_improvement=0.5,
+            actual_improvement=-0.1,
+            effectiveness_score=0.1,  # Poor
+            measured_at=datetime.now(),
+            category="memory",
+        )
+
+        tracker.feed_back_to_priority_engine(report)
+
+        # Multiplier should be reduced (1.0 * 0.9 = 0.9)
+        assert engine.get_category_weight_multiplier("memory") == pytest.approx(0.9)
+
+    def test_feed_back_moderate_no_change(self, mock_learning_db: MagicMock) -> None:
+        """Test that moderate effectiveness keeps multiplier unchanged."""
+        engine = PriorityEngine(mock_learning_db)
+        tracker = TaskEffectivenessTracker(priority_engine=engine)
+
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.15},
+            target_improvement=0.5,
+            actual_improvement=0.25,
+            effectiveness_score=0.5,  # Moderate
+            measured_at=datetime.now(),
+            category="testing",
+        )
+
+        tracker.feed_back_to_priority_engine(report)
+
+        # Multiplier should stay at 1.0 (1.0 * 1.0 = 1.0)
+        assert engine.get_category_weight_multiplier("testing") == pytest.approx(1.0)
+
+    def test_feed_back_cumulative(self, mock_learning_db: MagicMock) -> None:
+        """Test that multiple feedbacks accumulate multipliers."""
+        engine = PriorityEngine(mock_learning_db)
+        tracker = TaskEffectivenessTracker(priority_engine=engine)
+
+        # First excellent report
+        report1 = TaskImpactReport(
+            task_id="IMP-TEL-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.02},
+            target_improvement=0.5,
+            actual_improvement=0.9,
+            effectiveness_score=0.95,  # Excellent
+            measured_at=datetime.now(),
+            category="telemetry",
+        )
+        tracker.feed_back_to_priority_engine(report1)
+        assert engine.get_category_weight_multiplier("telemetry") == pytest.approx(1.2)
+
+        # Second excellent report
+        report2 = TaskImpactReport(
+            task_id="IMP-TEL-002",
+            before_metrics={"error_rate": 0.1},
+            after_metrics={"error_rate": 0.01},
+            target_improvement=0.5,
+            actual_improvement=0.9,
+            effectiveness_score=0.95,  # Excellent
+            measured_at=datetime.now(),
+            category="telemetry",
+        )
+        tracker.feed_back_to_priority_engine(report2)
+        # Should be 1.2 * 1.2 = 1.44
+        assert engine.get_category_weight_multiplier("telemetry") == pytest.approx(1.44)
+
+    def test_feed_back_clamped_at_max(self, mock_learning_db: MagicMock) -> None:
+        """Test that cumulative feedback is clamped at max."""
+        engine = PriorityEngine(mock_learning_db)
+        tracker = TaskEffectivenessTracker(priority_engine=engine)
+
+        # Multiple excellent reports to hit max
+        for i in range(10):
+            report = TaskImpactReport(
+                task_id=f"IMP-TEL-{i:03d}",
+                before_metrics={"error_rate": 0.2},
+                after_metrics={"error_rate": 0.02},
+                target_improvement=0.5,
+                actual_improvement=0.9,
+                effectiveness_score=0.95,  # Excellent
+                measured_at=datetime.now(),
+                category="telemetry",
+            )
+            tracker.feed_back_to_priority_engine(report)
+
+        # Should be clamped at 2.0
+        assert engine.get_category_weight_multiplier("telemetry") == pytest.approx(2.0)
+
+    def test_feed_back_clamped_at_min(self, mock_learning_db: MagicMock) -> None:
+        """Test that cumulative feedback is clamped at min."""
+        engine = PriorityEngine(mock_learning_db)
+        tracker = TaskEffectivenessTracker(priority_engine=engine)
+
+        # Multiple poor reports to hit min
+        for i in range(30):
+            report = TaskImpactReport(
+                task_id=f"IMP-MEM-{i:03d}",
+                before_metrics={"error_rate": 0.2},
+                after_metrics={"error_rate": 0.25},
+                target_improvement=0.5,
+                actual_improvement=-0.25,
+                effectiveness_score=0.1,  # Poor
+                measured_at=datetime.now(),
+                category="memory",
+            )
+            tracker.feed_back_to_priority_engine(report)
+
+        # Should be clamped at 0.1
+        assert engine.get_category_weight_multiplier("memory") == pytest.approx(0.1)
+
+    def test_feed_back_affects_priority_calculation(self, mock_learning_db: MagicMock) -> None:
+        """Test that feedback actually affects priority scores."""
+        engine = PriorityEngine(mock_learning_db)
+        tracker = TaskEffectivenessTracker(priority_engine=engine)
+
+        tel_imp = {"imp_id": "IMP-TEL-NEW", "category": "telemetry", "priority": "high"}
+        mem_imp = {"imp_id": "IMP-MEM-NEW", "category": "memory", "priority": "high"}
+
+        # Get baseline scores
+        tel_baseline = engine.calculate_priority_score(tel_imp)
+        mem_baseline = engine.calculate_priority_score(mem_imp)
+
+        # Feed back excellent telemetry
+        tel_report = TaskImpactReport(
+            task_id="IMP-TEL-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.02},
+            target_improvement=0.5,
+            actual_improvement=0.9,
+            effectiveness_score=0.95,
+            measured_at=datetime.now(),
+            category="telemetry",
+        )
+        tracker.feed_back_to_priority_engine(tel_report)
+
+        # Feed back poor memory
+        mem_report = TaskImpactReport(
+            task_id="IMP-MEM-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.25},
+            target_improvement=0.5,
+            actual_improvement=-0.25,
+            effectiveness_score=0.1,
+            measured_at=datetime.now(),
+            category="memory",
+        )
+        tracker.feed_back_to_priority_engine(mem_report)
+
+        # Get new scores
+        tel_after = engine.calculate_priority_score(tel_imp)
+        mem_after = engine.calculate_priority_score(mem_imp)
+
+        # Telemetry should be boosted
+        assert tel_after > tel_baseline
+        # Memory should be penalized
+        assert mem_after < mem_baseline
+
+    def test_feed_back_no_priority_engine(self) -> None:
+        """Test that feedback without priority engine logs but doesn't fail."""
+        tracker = TaskEffectivenessTracker()  # No priority engine
+
+        report = TaskImpactReport(
+            task_id="IMP-TEST-001",
+            before_metrics={"error_rate": 0.2},
+            after_metrics={"error_rate": 0.1},
+            target_improvement=0.5,
+            actual_improvement=0.5,
+            effectiveness_score=0.8,
+            measured_at=datetime.now(),
+            category="testing",
+        )
+
+        # Should not raise exception
+        tracker.feed_back_to_priority_engine(report)

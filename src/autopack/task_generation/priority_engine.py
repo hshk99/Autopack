@@ -133,6 +133,8 @@ class PriorityEngine:
         self._patterns_cache: dict[str, Any] | None = None
         self._effectiveness_stats = effectiveness_stats
         self._effectiveness_tracker = effectiveness_tracker
+        # IMP-TASK-003: Category multipliers for effectiveness feedback loop
+        self._category_multipliers: dict[str, float] = {}
 
     def _get_cached_patterns(self) -> dict[str, Any]:
         """Get historical patterns, caching for performance."""
@@ -176,6 +178,43 @@ class PriorityEngine:
         # Clear cache to force recalculation with new effectiveness data
         self.clear_cache()
         logger.debug("[IMP-TASK-001] Connected effectiveness tracker to priority engine")
+
+    def update_category_weight_multiplier(self, category: str, multiplier: float) -> None:
+        """Update the weight multiplier for a category based on effectiveness feedback.
+
+        IMP-TASK-003: Completes the effectiveness feedback loop by actually applying
+        weight adjustments from TaskEffectivenessTracker. Categories with better
+        effectiveness get boosted priority, while underperforming categories are
+        deprioritized.
+
+        Args:
+            category: The category to update (e.g., "telemetry", "memory").
+            multiplier: The weight multiplier to apply. Clamped to [0.1, 2.0] range.
+                - > 1.0: Boost priority for this category
+                - < 1.0: Reduce priority for this category
+                - 1.0: No change (neutral)
+        """
+        # Clamp multiplier to reasonable range to prevent runaway weights
+        clamped_multiplier = max(0.1, min(2.0, multiplier))
+        self._category_multipliers[category] = clamped_multiplier
+        logger.info(
+            "[IMP-TASK-003] Updated category weight multiplier: %s = %.2f",
+            category,
+            clamped_multiplier,
+        )
+
+    def get_category_weight_multiplier(self, category: str) -> float:
+        """Get the current weight multiplier for a category.
+
+        IMP-TASK-003: Returns the effectiveness-based multiplier for a category.
+
+        Args:
+            category: The category to query.
+
+        Returns:
+            The weight multiplier (default 1.0 if not set).
+        """
+        return self._category_multipliers.get(category, 1.0)
 
     def get_effectiveness_factor(self, improvement: dict[str, Any]) -> float:
         """Get effectiveness factor based on historical task outcomes.
@@ -454,7 +493,7 @@ class PriorityEngine:
         # Higher priority level -> higher score
         # Higher complexity factor (simpler tasks) -> higher score
         # Higher effectiveness factor -> higher score (IMP-LOOP-019)
-        score = (
+        base_score = (
             (category_success_rate * self.CATEGORY_SUCCESS_WEIGHT)
             + ((1.0 - blocking_risk) * self.BLOCKING_RISK_WEIGHT)
             + (priority_base * self.PRIORITY_LEVEL_WEIGHT)
@@ -462,9 +501,13 @@ class PriorityEngine:
             + (effectiveness_factor * self.EFFECTIVENESS_WEIGHT)
         )
 
+        # IMP-TASK-003: Apply category weight multiplier from effectiveness feedback
+        category_multiplier = self.get_category_weight_multiplier(category)
+        score = base_score * category_multiplier
+
         logger.debug(
             "Priority score for %s: %.3f (category=%.2f, block_risk=%.2f, "
-            "priority=%.2f, complexity=%.2f, effectiveness=%.2f)",
+            "priority=%.2f, complexity=%.2f, effectiveness=%.2f, category_mult=%.2f)",
             improvement.get("imp_id", improvement.get("id", "unknown")),
             score,
             category_success_rate,
@@ -472,6 +515,7 @@ class PriorityEngine:
             priority_base,
             complexity_factor,
             effectiveness_factor,
+            category_multiplier,
         )
 
         return round(score, 3)

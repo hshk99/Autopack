@@ -368,10 +368,12 @@ class TaskEffectivenessTracker:
     def feed_back_to_priority_engine(self, report: TaskImpactReport) -> None:
         """Update priority engine weighting based on effectiveness.
 
-        Adjusts the priority engine's category weighting based on
-        the measured effectiveness of completed tasks. Effective
-        tasks boost their category's weight, while ineffective
-        tasks reduce it.
+        IMP-TASK-003: Adjusts the priority engine's category weighting based on
+        the measured effectiveness of completed tasks. Effective tasks boost
+        their category's weight, while ineffective tasks reduce it.
+
+        The adjustment is cumulative - the new multiplier is based on the
+        current multiplier combined with the adjustment factor for this report.
 
         Args:
             report: TaskImpactReport containing effectiveness data.
@@ -396,16 +398,24 @@ class TaskEffectivenessTracker:
         else:
             adjustment = 1.0  # No change for moderate
 
+        # IMP-TASK-003: Get current multiplier and apply adjustment
+        current_multiplier = self.priority_engine.get_category_weight_multiplier(category)
+        new_multiplier = current_multiplier * adjustment
+
+        # Apply the updated multiplier to the priority engine
+        self.priority_engine.update_category_weight_multiplier(category, new_multiplier)
+
         # Clear cache to force recalculation with new data
         self.priority_engine.clear_cache()
 
         logger.info(
-            "Fed back effectiveness for task %s to priority engine: "
-            "category=%s, grade=%s, adjustment=%.2f",
+            "[IMP-TASK-003] Fed back effectiveness for task %s to priority engine: "
+            "category=%s, grade=%s, adjustment=%.2f, new_multiplier=%.2f",
             report.task_id,
             category,
             grade,
             adjustment,
+            new_multiplier,
         )
 
     def get_effectiveness(self, task_id: str) -> float:

@@ -2,8 +2,8 @@
 
 import logging
 from dataclasses import dataclass
-from datetime import timedelta
-from typing import List, Optional
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
 
 from .event_schema import TelemetryEvent
 from .unified_event_log import UnifiedEventLog
@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 
 # IMP-REL-004: Max iteration limits for causation chain building
 MAX_CAUSATION_CHAIN_DEPTH = 1000
+
+# IMP-TEL-005: Default time window for pre-fetching events
+DEFAULT_PREFETCH_WINDOW_HOURS = 1
 
 
 @dataclass
@@ -118,6 +121,9 @@ class TelemetryCorrelator:
     def find_causation_chain(self, final_event: TelemetryEvent) -> CausationChain:
         """Trace back through events to find the causation chain.
 
+        IMP-TEL-005: Optimized with cycle detection and pre-fetching to achieve
+        O(n) complexity instead of O(n^2) worst case.
+
         Args:
             final_event: The final effect event to trace back from.
 
@@ -127,25 +133,31 @@ class TelemetryCorrelator:
         chain_events = [final_event]
         current = final_event
 
+        # IMP-TEL-005: Cycle detection - track visited events
+        visited: set[Tuple[datetime, str, str]] = {self._get_event_key(final_event)}
+
+        # IMP-TEL-005: Pre-fetch events in one query instead of repeated queries
+        # This reduces O(n^2) to O(n) for deep chains
+        time_window = timedelta(hours=DEFAULT_PREFETCH_WINDOW_HOURS)
+        prefetched_events = self._prefetch_events(
+            end_time=final_event.timestamp,
+            time_window=time_window,
+            slot_id=final_event.slot_id,
+        )
+
+        # Build index for efficient lookup: group events by timestamp range
+        events_by_time = self._build_time_index(prefetched_events)
+
         # IMP-REL-004: Add iteration counter to prevent unbounded loops
         depth = 0
         # Look for events that could have caused this one
         while depth < MAX_CAUSATION_CHAIN_DEPTH:
             depth += 1
-            window_start = current.timestamp - self.correlation_window
-            potential_causes = self.event_log.query(
-                {"until": current.timestamp, "since": window_start}
-            )
 
-            # Filter to events before current and with same slot_id if available
-            if current.slot_id is not None:
-                potential_causes = [
-                    e
-                    for e in potential_causes
-                    if e.slot_id == current.slot_id and e.timestamp < current.timestamp
-                ]
-            else:
-                potential_causes = [e for e in potential_causes if e.timestamp < current.timestamp]
+            # Find potential causes from pre-fetched events
+            potential_causes = self._get_potential_causes_from_index(
+                current, events_by_time, visited
+            )
 
             if not potential_causes:
                 break
@@ -155,6 +167,16 @@ class TelemetryCorrelator:
             if cause is None:
                 break
 
+            # IMP-TEL-005: Check for cycle before adding
+            cause_key = self._get_event_key(cause)
+            if cause_key in visited:
+                logger.warning(
+                    f"Cycle detected in causation chain at event: "
+                    f"{cause.source}:{cause.event_type}"
+                )
+                break
+
+            visited.add(cause_key)
             chain_events.insert(0, cause)
             current = cause
         else:
@@ -171,6 +193,108 @@ class TelemetryCorrelator:
             final_effect_event=final_event,
             confidence=self._chain_confidence(chain_events),
         )
+
+    def _get_event_key(self, event: TelemetryEvent) -> Tuple[datetime, str, str]:
+        """Create a unique key for an event for cycle detection.
+
+        Args:
+            event: The event to create a key for.
+
+        Returns:
+            Tuple of (timestamp, source, event_type) as unique identifier.
+        """
+        return (event.timestamp, event.source, event.event_type)
+
+    def _prefetch_events(
+        self,
+        end_time: datetime,
+        time_window: timedelta,
+        slot_id: Optional[int] = None,
+    ) -> List[TelemetryEvent]:
+        """Pre-fetch events in time window for efficient chain traversal.
+
+        IMP-TEL-005: Single query to fetch all potential cause events,
+        avoiding repeated queries in the main loop.
+
+        Args:
+            end_time: The end of the time window (usually the final event's time).
+            time_window: How far back to look for events.
+            slot_id: Optional slot ID to filter events.
+
+        Returns:
+            List of events in the time window.
+        """
+        start_time = end_time - time_window
+        filters: Dict[str, object] = {
+            "since": start_time,
+            "until": end_time,
+        }
+        if slot_id is not None:
+            filters["slot_id"] = slot_id
+
+        events = self.event_log.query(filters)
+        logger.debug(f"Pre-fetched {len(events)} events in {time_window} window for chain analysis")
+        return events
+
+    def _build_time_index(self, events: List[TelemetryEvent]) -> Dict[int, List[TelemetryEvent]]:
+        """Build time-based index for efficient event lookup.
+
+        Groups events into minute-based buckets for faster filtering.
+
+        Args:
+            events: List of events to index.
+
+        Returns:
+            Dictionary mapping minute buckets to events.
+        """
+        index: Dict[int, List[TelemetryEvent]] = {}
+        for event in events:
+            # Use minute-granularity bucket (timestamp as minutes since epoch)
+            bucket = int(event.timestamp.timestamp() // 60)
+            if bucket not in index:
+                index[bucket] = []
+            index[bucket].append(event)
+        return index
+
+    def _get_potential_causes_from_index(
+        self,
+        effect: TelemetryEvent,
+        events_by_time: Dict[int, List[TelemetryEvent]],
+        visited: set[Tuple[datetime, str, str]],
+    ) -> List[TelemetryEvent]:
+        """Get potential cause events from the pre-built index.
+
+        Args:
+            effect: The effect event to find causes for.
+            events_by_time: Time-indexed events from pre-fetch.
+            visited: Set of already-visited event keys.
+
+        Returns:
+            List of potential cause events, filtered and sorted.
+        """
+        window_start = effect.timestamp - self.correlation_window
+        window_end = effect.timestamp
+
+        # Get relevant minute buckets
+        start_bucket = int(window_start.timestamp() // 60)
+        end_bucket = int(window_end.timestamp() // 60)
+
+        potential_causes = []
+        for bucket in range(start_bucket, end_bucket + 1):
+            if bucket in events_by_time:
+                for event in events_by_time[bucket]:
+                    # Filter: must be before effect, not visited, same slot if applicable
+                    if event.timestamp >= effect.timestamp:
+                        continue
+                    if event.timestamp < window_start:
+                        continue
+                    if self._get_event_key(event) in visited:
+                        continue
+                    if effect.slot_id is not None and event.slot_id != effect.slot_id:
+                        continue
+                    potential_causes.append(event)
+
+        return potential_causes
 
     def correlate_by_timewindow(
         self,

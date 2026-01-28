@@ -3,18 +3,21 @@
 Calculates the return on investment for generated tasks,
 including payback period and lifetime value. This enables
 data-driven task prioritization based on expected returns.
+
+IMP-TASK-003: Adds ROI prediction validation and effectiveness learning
+to improve prediction accuracy over time.
 """
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from autopack.task_generation.task_effectiveness_tracker import (
-        TaskEffectivenessTracker,
-    )
+    from autopack.task_generation.task_effectiveness_tracker import \
+        TaskEffectivenessTracker
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +31,10 @@ EXCELLENT_ROI = 5.0  # 500%+ return
 GOOD_ROI = 2.0  # 200%+ return
 MODERATE_ROI = 1.0  # 100%+ return (break-even)
 POOR_ROI = 0.5  # Less than break-even
+
+# IMP-TASK-003: Configuration for learned effectiveness
+MIN_SAMPLES_FOR_LEARNING = 3  # Minimum samples before using learned effectiveness
+EFFECTIVENESS_LEARNING_RATE = 0.2  # How quickly to adapt to new data (0-1)
 
 
 @dataclass
@@ -91,6 +98,50 @@ class PaybackAnalysis:
             True if payback_phases is within threshold.
         """
         return self.payback_phases <= threshold_phases
+
+
+@dataclass
+class ROIPredictionRecord:
+    """Record of an ROI prediction vs actual outcome.
+
+    IMP-TASK-003: Tracks prediction accuracy to enable learning and
+    calibration of the effectiveness model over time.
+
+    Attributes:
+        task_id: Unique identifier for the task.
+        predicted_roi: ROI that was predicted at task creation.
+        actual_roi: Actual ROI measured after task completion.
+        predicted_effectiveness: Effectiveness used in prediction.
+        actual_effectiveness: Actual effectiveness observed.
+        error: Absolute error between predicted and actual ROI.
+        category: Category of the task for grouping analysis.
+        recorded_at: Timestamp when the record was created.
+    """
+
+    task_id: str
+    predicted_roi: float
+    actual_roi: float
+    predicted_effectiveness: float
+    actual_effectiveness: float
+    error: float
+    category: str = ""
+    recorded_at: datetime = field(default_factory=datetime.now)
+
+    def get_accuracy_grade(self) -> str:
+        """Return a human-readable accuracy grade based on prediction error.
+
+        Returns:
+            One of: "excellent", "good", "moderate", "poor"
+        """
+        relative_error = self.error / max(abs(self.predicted_roi), 0.01)
+        if relative_error <= 0.1:
+            return "excellent"
+        elif relative_error <= 0.25:
+            return "good"
+        elif relative_error <= 0.5:
+            return "moderate"
+        else:
+            return "poor"
 
 
 @dataclass
@@ -160,10 +211,16 @@ class ROIAnalyzer:
     historical effectiveness data from TaskEffectivenessTracker.
     It enables prioritization of tasks based on expected returns.
 
+    IMP-TASK-003: Enhanced with ROI prediction validation and
+    effectiveness learning from historical outcomes.
+
     Attributes:
         effectiveness_tracker: TaskEffectivenessTracker for historical data.
         history: ROIHistory containing all calculated analyses.
         phases_horizon: Number of phases to consider for lifetime value.
+        _roi_predictions: List of ROI prediction records for validation.
+        _category_effectiveness: Learned effectiveness by category.
+        _prediction_accuracy: Tracked accuracy metrics by category.
     """
 
     def __init__(
@@ -181,6 +238,11 @@ class ROIAnalyzer:
         self.effectiveness_tracker = effectiveness_tracker
         self.history = ROIHistory()
         self.phases_horizon = phases_horizon
+
+        # IMP-TASK-003: ROI prediction validation tracking
+        self._roi_predictions: list[ROIPredictionRecord] = []
+        self._category_effectiveness: dict[str, dict[str, float]] = {}
+        self._pending_predictions: dict[str, dict[str, Any]] = {}
 
     def calculate_payback_period(
         self,
@@ -250,6 +312,14 @@ class ROIAnalyzer:
         # Store in history
         self.history.add_analysis(analysis)
 
+        # IMP-TASK-003: Record prediction for later validation
+        self.record_prediction(
+            task_id=task_id,
+            predicted_roi=risk_adjusted_roi,
+            predicted_effectiveness=effectiveness,
+            category=category,
+        )
+
         logger.info(
             "Calculated ROI for task %s: roi=%.2f (%s), payback=%d phases, "
             "lifetime_value=%.0f tokens",
@@ -265,8 +335,14 @@ class ROIAnalyzer:
     def _get_task_effectiveness(self, task_id: str, category: str) -> float:
         """Get effectiveness for a task, with fallbacks.
 
-        Tries to get task-specific effectiveness first, then category
-        effectiveness, then falls back to default.
+        IMP-TASK-003: Enhanced to use learned effectiveness from ROI validation
+        before falling back to tracker and default values.
+
+        Tries (in order):
+        1. Learned effectiveness from ROI validation history
+        2. Task-specific effectiveness from tracker
+        3. Category effectiveness from tracker
+        4. Default effectiveness
 
         Args:
             task_id: Task ID to look up.
@@ -275,6 +351,16 @@ class ROIAnalyzer:
         Returns:
             Effectiveness score (0.0-1.0).
         """
+        # IMP-TASK-003: Try learned effectiveness first
+        learned = self._get_learned_effectiveness(category)
+        if learned is not None:
+            logger.debug(
+                "[IMP-TASK-003] Using learned effectiveness for category '%s': %.3f",
+                category,
+                learned,
+            )
+            return learned
+
         if self.effectiveness_tracker is None:
             return DEFAULT_EFFECTIVENESS
 
@@ -288,6 +374,177 @@ class ROIAnalyzer:
                 effectiveness = category_effectiveness
 
         return effectiveness
+
+    def _get_learned_effectiveness(self, category: str) -> float | None:
+        """Get learned effectiveness for a category from ROI validation history.
+
+        IMP-TASK-003: Returns learned effectiveness if sufficient data exists,
+        otherwise returns None to signal fallback to other sources.
+
+        Args:
+            category: Category to look up.
+
+        Returns:
+            Learned effectiveness (0.0-1.0) if sufficient data, None otherwise.
+        """
+        cat_key = category or "general"
+
+        if cat_key not in self._category_effectiveness:
+            return None
+
+        stats = self._category_effectiveness[cat_key]
+        sample_count = stats.get("sample_count", 0)
+
+        if sample_count < MIN_SAMPLES_FOR_LEARNING:
+            return None
+
+        return stats.get("learned_effectiveness")
+
+    def validate_roi_prediction(
+        self,
+        task_id: str,
+        actual_roi: float,
+        actual_effectiveness: float,
+    ) -> ROIPredictionRecord | None:
+        """Validate a predicted ROI against actual outcome.
+
+        IMP-TASK-003: Compares predicted ROI with actual ROI after task
+        completion, records the prediction accuracy, and updates the
+        effectiveness model for future predictions.
+
+        Args:
+            task_id: The task ID to validate (must have pending prediction).
+            actual_roi: The actual ROI measured after task completion.
+            actual_effectiveness: Actual effectiveness observed (0.0-1.0).
+
+        Returns:
+            ROIPredictionRecord with validation results, or None if task not found.
+        """
+        if task_id not in self._pending_predictions:
+            logger.debug(
+                "[IMP-TASK-003] No pending prediction found for task %s",
+                task_id,
+            )
+            return None
+
+        prediction = self._pending_predictions.pop(task_id)
+        predicted_roi = prediction["predicted_roi"]
+        predicted_effectiveness = prediction["predicted_effectiveness"]
+        category = prediction["category"]
+
+        error = abs(predicted_roi - actual_roi)
+
+        record = ROIPredictionRecord(
+            task_id=task_id,
+            predicted_roi=predicted_roi,
+            actual_roi=actual_roi,
+            predicted_effectiveness=predicted_effectiveness,
+            actual_effectiveness=actual_effectiveness,
+            error=error,
+            category=category,
+        )
+
+        self._roi_predictions.append(record)
+
+        # Update effectiveness model with new data
+        self._update_effectiveness_model(category, actual_effectiveness)
+
+        logger.info(
+            "[IMP-TASK-003] Validated ROI prediction for task %s: "
+            "predicted=%.2f, actual=%.2f, error=%.2f (%s), "
+            "effectiveness: predicted=%.2f, actual=%.2f",
+            task_id,
+            predicted_roi,
+            actual_roi,
+            error,
+            record.get_accuracy_grade(),
+            predicted_effectiveness,
+            actual_effectiveness,
+        )
+
+        return record
+
+    def _update_effectiveness_model(self, category: str, actual_effectiveness: float) -> None:
+        """Update learned effectiveness for a category based on new outcome.
+
+        IMP-TASK-003: Uses exponential moving average to update the learned
+        effectiveness, balancing historical data with new observations.
+
+        Args:
+            category: Category to update.
+            actual_effectiveness: Newly observed effectiveness (0.0-1.0).
+        """
+        cat_key = category or "general"
+
+        if cat_key not in self._category_effectiveness:
+            self._category_effectiveness[cat_key] = {
+                "learned_effectiveness": actual_effectiveness,
+                "sample_count": 1,
+                "total_effectiveness": actual_effectiveness,
+                "prediction_errors": [],
+            }
+            logger.debug(
+                "[IMP-TASK-003] Initialized effectiveness model for '%s': %.3f",
+                cat_key,
+                actual_effectiveness,
+            )
+            return
+
+        stats = self._category_effectiveness[cat_key]
+        old_effectiveness = stats["learned_effectiveness"]
+        sample_count = stats["sample_count"]
+
+        # Use exponential moving average for smooth learning
+        # More weight on new data when we have fewer samples
+        alpha = max(EFFECTIVENESS_LEARNING_RATE, 1.0 / (sample_count + 1))
+        new_effectiveness = old_effectiveness * (1 - alpha) + actual_effectiveness * alpha
+
+        stats["learned_effectiveness"] = new_effectiveness
+        stats["sample_count"] = sample_count + 1
+        stats["total_effectiveness"] = stats.get("total_effectiveness", 0) + actual_effectiveness
+
+        logger.debug(
+            "[IMP-TASK-003] Updated effectiveness model for '%s': "
+            "%.3f -> %.3f (sample %d, alpha=%.3f)",
+            cat_key,
+            old_effectiveness,
+            new_effectiveness,
+            stats["sample_count"],
+            alpha,
+        )
+
+    def record_prediction(
+        self,
+        task_id: str,
+        predicted_roi: float,
+        predicted_effectiveness: float,
+        category: str = "",
+    ) -> None:
+        """Record a prediction for later validation.
+
+        IMP-TASK-003: Stores prediction details so they can be validated
+        against actual outcomes when the task completes.
+
+        Args:
+            task_id: Unique identifier for the task.
+            predicted_roi: The ROI prediction being made.
+            predicted_effectiveness: Effectiveness used in the prediction.
+            category: Category of the task.
+        """
+        self._pending_predictions[task_id] = {
+            "predicted_roi": predicted_roi,
+            "predicted_effectiveness": predicted_effectiveness,
+            "category": category,
+            "recorded_at": datetime.now(),
+        }
+        logger.debug(
+            "[IMP-TASK-003] Recorded ROI prediction for task %s: "
+            "roi=%.2f, effectiveness=%.2f, category='%s'",
+            task_id,
+            predicted_roi,
+            predicted_effectiveness,
+            category,
+        )
 
     def rank_tasks_by_roi(self, analyses: list[PaybackAnalysis]) -> list[PaybackAnalysis]:
         """Sort tasks by risk-adjusted ROI (descending).
@@ -390,4 +647,66 @@ class ROIAnalyzer:
             "by_category": dict(self.history.category_stats),
             "profitable_rate": profitable_count / len(analyses),
             "grade_distribution": grade_distribution,
+        }
+
+    def get_validation_summary(self) -> dict[str, Any]:
+        """Get a summary of ROI prediction validation.
+
+        IMP-TASK-003: Provides visibility into prediction accuracy and
+        learned effectiveness values.
+
+        Returns:
+            Dictionary containing:
+            - total_validations: Total number of validated predictions
+            - avg_error: Average absolute error between predicted and actual ROI
+            - accuracy_distribution: Count of validations by accuracy grade
+            - learned_effectiveness: Learned effectiveness by category
+            - pending_predictions: Count of predictions awaiting validation
+        """
+        if not self._roi_predictions:
+            return {
+                "total_validations": 0,
+                "avg_error": 0.0,
+                "avg_effectiveness_error": 0.0,
+                "accuracy_distribution": {
+                    "excellent": 0,
+                    "good": 0,
+                    "moderate": 0,
+                    "poor": 0,
+                },
+                "learned_effectiveness": {},
+                "pending_predictions": len(self._pending_predictions),
+            }
+
+        total_error = sum(r.error for r in self._roi_predictions)
+        total_effectiveness_error = sum(
+            abs(r.predicted_effectiveness - r.actual_effectiveness) for r in self._roi_predictions
+        )
+
+        # Count by accuracy grade
+        accuracy_distribution: dict[str, int] = {
+            "excellent": 0,
+            "good": 0,
+            "moderate": 0,
+            "poor": 0,
+        }
+        for record in self._roi_predictions:
+            grade = record.get_accuracy_grade()
+            accuracy_distribution[grade] += 1
+
+        # Prepare learned effectiveness summary
+        learned_summary: dict[str, dict[str, Any]] = {}
+        for category, stats in self._category_effectiveness.items():
+            learned_summary[category] = {
+                "effectiveness": stats.get("learned_effectiveness", DEFAULT_EFFECTIVENESS),
+                "sample_count": stats.get("sample_count", 0),
+            }
+
+        return {
+            "total_validations": len(self._roi_predictions),
+            "avg_error": total_error / len(self._roi_predictions),
+            "avg_effectiveness_error": total_effectiveness_error / len(self._roi_predictions),
+            "accuracy_distribution": accuracy_distribution,
+            "learned_effectiveness": learned_summary,
+            "pending_predictions": len(self._pending_predictions),
         }

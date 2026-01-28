@@ -193,20 +193,30 @@ class LearningPipeline:
             # Don't let hint recording break phase execution
             logger.warning(f"[Learning] Failed to record hint: {e}")
 
-    def get_hints_for_phase(self, phase: Dict, task_category: Optional[str] = None) -> List[str]:
+    def get_hints_for_phase(
+        self,
+        phase: Dict,
+        task_category: Optional[str] = None,
+        decay_threshold: float = 0.3,
+    ) -> List[str]:
         """
-        Get relevant hints for a phase, sorted by confidence.
+        Get relevant hints for a phase, filtered by decay and sorted by decay score.
 
         IMP-MEM-001: Hints are now sorted by confidence score so that
         hints with more occurrences and higher validation success rates
         are prioritized over less reliable hints.
 
+        IMP-MEM-004: Applies decay score filtering to prioritize fresh guidance.
+        Old hints below the decay threshold are filtered out, and remaining
+        hints are sorted by decay score (which combines confidence with time decay).
+
         Args:
             phase: Phase specification dict
             task_category: Optional task category filter
+            decay_threshold: Minimum decay score to include hint (default 0.3)
 
         Returns:
-            List of hint text strings, sorted by confidence (highest first)
+            List of hint text strings, sorted by decay score (highest first)
         """
         phase_id = phase.get("phase_id")
         phase_task_category = phase.get("task_category")
@@ -228,10 +238,66 @@ class LearningPipeline:
             ):
                 relevant_hints.append(hint)
 
-        # IMP-MEM-001: Sort by confidence (highest first)
-        relevant_hints.sort(key=lambda h: h.confidence, reverse=True)
+        # IMP-MEM-004: Apply decay score filtering
+        # Calculate decay score for each hint and filter below threshold
+        scored_hints = [(h, h.calculate_decay_score()) for h in relevant_hints]
+        valid_hints = [(h, score) for h, score in scored_hints if score >= decay_threshold]
 
-        return [h.hint_text for h in relevant_hints[:10]]  # Limit to top 10
+        # IMP-MEM-004: Sort by decay score (highest first) instead of confidence
+        # Decay score already incorporates confidence, so this prioritizes
+        # both reliable AND recent hints
+        valid_hints.sort(key=lambda x: x[1], reverse=True)
+
+        return [h.hint_text for h, _ in valid_hints[:10]]  # Limit to top 10
+
+    def get_hints_with_decay_scores(
+        self,
+        phase: Dict,
+        task_category: Optional[str] = None,
+        decay_threshold: float = 0.3,
+    ) -> List[tuple]:
+        """
+        Get relevant hints for a phase with their decay scores.
+
+        IMP-MEM-004: Returns hints along with their decay scores for callers
+        that need to apply decay weighting when formatting context.
+
+        Args:
+            phase: Phase specification dict
+            task_category: Optional task category filter
+            decay_threshold: Minimum decay score to include hint (default 0.3)
+
+        Returns:
+            List of (hint_text, decay_score) tuples, sorted by decay score
+        """
+        phase_id = phase.get("phase_id")
+        phase_task_category = phase.get("task_category")
+
+        # Filter hints by category or phase
+        relevant_hints: List[LearningHint] = []
+
+        for hint in self._hints:
+            # Same phase ID
+            if hint.phase_id == phase_id:
+                relevant_hints.append(hint)
+                continue
+
+            # Same category (if available on both hint and phase)
+            if (
+                phase_task_category is not None
+                and hint.task_category is not None
+                and hint.task_category == phase_task_category
+            ):
+                relevant_hints.append(hint)
+
+        # Calculate decay score and filter
+        scored_hints = [(h, h.calculate_decay_score()) for h in relevant_hints]
+        valid_hints = [(h, score) for h, score in scored_hints if score >= decay_threshold]
+
+        # Sort by decay score (highest first)
+        valid_hints.sort(key=lambda x: x[1], reverse=True)
+
+        return [(h.hint_text, score) for h, score in valid_hints[:10]]
 
     def get_all_hints(self) -> List[LearningHint]:
         """Get all recorded hints"""

@@ -700,6 +700,79 @@ class FeedbackPipeline:
             logger.error(f"[IMP-LOOP-001] Failed to persist learning hints: {e}")
             return 0
 
+    def get_learning_hints_for_context(
+        self,
+        phase: Dict[str, Any],
+        decay_threshold: float = 0.3,
+        include_scores: bool = False,
+    ) -> List[Any]:
+        """Retrieve learning hints with decay filtering for phase context.
+
+        IMP-MEM-004: Retrieves learning hints that have been filtered and
+        sorted by decay score. Old hints below the decay threshold are
+        excluded to prioritize fresh guidance.
+
+        Args:
+            phase: Phase specification dict with phase_id and optional task_category
+            decay_threshold: Minimum decay score to include hint (default 0.3)
+            include_scores: If True, return (hint_text, decay_score) tuples;
+                           if False, return just hint_text strings
+
+        Returns:
+            List of hint texts or (hint_text, decay_score) tuples, sorted by
+            decay score (highest first)
+        """
+        if not self.learning_pipeline:
+            return []
+
+        try:
+            if include_scores:
+                return self.learning_pipeline.get_hints_with_decay_scores(
+                    phase=phase,
+                    decay_threshold=decay_threshold,
+                )
+            else:
+                return self.learning_pipeline.get_hints_for_phase(
+                    phase=phase,
+                    decay_threshold=decay_threshold,
+                )
+        except Exception as e:
+            logger.warning(f"[IMP-MEM-004] Failed to get learning hints: {e}")
+            return []
+
+    def format_hints_with_decay_weights(
+        self,
+        hints_with_scores: List[tuple],
+        max_hints: int = 5,
+    ) -> str:
+        """Format learning hints with decay-weighted prominence.
+
+        IMP-MEM-004: Formats hints for prompt injection, with visual indicators
+        showing hint freshness/reliability based on decay scores.
+
+        Args:
+            hints_with_scores: List of (hint_text, decay_score) tuples
+            max_hints: Maximum number of hints to include
+
+        Returns:
+            Formatted string with hints and freshness indicators
+        """
+        if not hints_with_scores:
+            return ""
+
+        lines = ["### Learning Hints (sorted by relevance)"]
+        for hint_text, score in hints_with_scores[:max_hints]:
+            # Use visual indicators for freshness
+            if score >= 0.8:
+                freshness = "[FRESH]"
+            elif score >= 0.5:
+                freshness = "[RECENT]"
+            else:
+                freshness = "[AGING]"
+            lines.append(f"- {freshness} {hint_text}")
+
+        return "\n".join(lines)
+
     def get_stats(self) -> Dict[str, int]:
         """Get pipeline statistics.
 

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -46,6 +47,33 @@ INSIGHT_TO_CATEGORY = {
     "timing_analysis": "TMG",
 }
 
+# Impact validation constants (IMP-TASK-002)
+IMPACT_LEVELS = ["critical", "high", "medium", "low"]
+IMPACT_LEVEL_TO_NUMERIC = {"critical": 3, "high": 2, "medium": 1, "low": 0}
+NUMERIC_TO_IMPACT_LEVEL = {3: "critical", 2: "high", 1: "medium", 0: "low"}
+
+# Threshold adjustment limits (IMP-TASK-002)
+MIN_THRESHOLD_ADJUSTMENT = -0.15  # Max decrease from base threshold
+MAX_THRESHOLD_ADJUSTMENT = 0.15  # Max increase from base threshold
+MIN_HISTORY_FOR_CALIBRATION = 10  # Minimum records before calibration kicks in
+
+
+@dataclass
+class ImpactValidationRecord:
+    """Record of predicted vs actual impact for calibration (IMP-TASK-002).
+
+    Attributes:
+        task_id: Unique identifier for the task.
+        predicted: The predicted impact level (critical/high/medium/low).
+        actual: The actual impact level observed after completion.
+        timestamp: When the validation occurred.
+    """
+
+    task_id: str
+    predicted: str
+    actual: str
+    timestamp: datetime = field(default_factory=datetime.now)
+
 
 class InsightToTaskGenerator:
     """Generates improvement suggestions from telemetry insights.
@@ -76,6 +104,14 @@ class InsightToTaskGenerator:
         self._imp_counter: Counter[str] = Counter()
         self._effectiveness_stats = effectiveness_stats
 
+        # IMP-TASK-002: Impact validation tracking
+        self._impact_history: list[ImpactValidationRecord] = []
+        self._threshold_adjustments: dict[str, float] = {
+            "critical": 0.0,
+            "high": 0.0,
+            "medium": 0.0,
+        }
+
     def set_effectiveness_stats(self, stats: TaskEffectivenessStats) -> None:
         """Set or update task effectiveness stats (IMP-LOOP-019).
 
@@ -93,6 +129,180 @@ class InsightToTaskGenerator:
             stats.success_rate * 100,
             len(stats.effectiveness_by_type),
         )
+
+    def validate_impact_estimate(self, task_id: str, predicted: str, actual: str) -> None:
+        """Record and validate an impact estimate against actual outcome (IMP-TASK-002).
+
+        This method compares the predicted impact level against the actual
+        observed impact and records the result for threshold calibration.
+        When enough history is accumulated, thresholds are automatically
+        recalibrated to improve accuracy.
+
+        Args:
+            task_id: Unique identifier for the task.
+            predicted: The predicted impact level (critical/high/medium/low).
+            actual: The actual observed impact level (critical/high/medium/low).
+        """
+        # Validate inputs
+        predicted_lower = predicted.lower()
+        actual_lower = actual.lower()
+
+        if predicted_lower not in IMPACT_LEVELS:
+            logger.warning("[IMP-TASK-002] Invalid predicted impact level: %s", predicted)
+            return
+        if actual_lower not in IMPACT_LEVELS:
+            logger.warning("[IMP-TASK-002] Invalid actual impact level: %s", actual)
+            return
+
+        # Record the validation
+        record = ImpactValidationRecord(
+            task_id=task_id,
+            predicted=predicted_lower,
+            actual=actual_lower,
+        )
+        self._impact_history.append(record)
+
+        # Log the validation
+        if predicted_lower != actual_lower:
+            logger.info(
+                "[IMP-TASK-002] Impact mismatch for task %s: predicted=%s, actual=%s",
+                task_id,
+                predicted_lower,
+                actual_lower,
+            )
+        else:
+            logger.debug(
+                "[IMP-TASK-002] Impact validated for task %s: %s",
+                task_id,
+                predicted_lower,
+            )
+
+        # Trigger recalibration if we have enough history
+        self._recalibrate_thresholds()
+
+    def _get_calibrated_thresholds(self) -> dict[str, float]:
+        """Get dynamically adjusted impact thresholds based on validation history (IMP-TASK-002).
+
+        Returns threshold values that have been calibrated based on historical
+        prediction accuracy. If predictions have been systematically over- or
+        under-estimating impact, thresholds are adjusted accordingly.
+
+        For health-based thresholds (lower health = higher impact), adjustments
+        are SUBTRACTED because:
+        - Over-predicting (positive adjustment) means we need to be MORE conservative
+        - Being more conservative means LOWERING the threshold (fewer things qualify)
+        - Under-predicting (negative adjustment) means we need to be LESS conservative
+        - Being less conservative means RAISING the threshold (more things qualify)
+
+        Returns:
+            Dictionary mapping impact levels to their calibrated thresholds:
+            - critical: Health threshold for critical classification
+            - high: Health threshold for high classification
+            - medium: Health threshold for medium classification
+        """
+        return {
+            "critical": CRITICAL_HEALTH_THRESHOLD - self._threshold_adjustments["critical"],
+            "high": HIGH_IMPACT_THRESHOLD - self._threshold_adjustments["high"],
+            "medium": MEDIUM_IMPACT_THRESHOLD - self._threshold_adjustments["medium"],
+        }
+
+    def _recalibrate_thresholds(self) -> None:
+        """Recalibrate impact thresholds based on validation history (IMP-TASK-002).
+
+        Analyzes the history of predicted vs actual impact levels and adjusts
+        thresholds to reduce systematic prediction errors. Only recalibrates
+        when sufficient history has been accumulated.
+
+        The algorithm:
+        - For each impact level, count over-predictions (predicted higher than actual)
+          and under-predictions (predicted lower than actual)
+        - If over-predicting, increase threshold (make it harder to classify as that level)
+        - If under-predicting, decrease threshold (make it easier to classify)
+        - Adjustments are bounded to prevent extreme drift
+        """
+        if len(self._impact_history) < MIN_HISTORY_FOR_CALIBRATION:
+            return
+
+        # Count prediction errors by level
+        over_predictions: Counter[str] = Counter()
+        under_predictions: Counter[str] = Counter()
+        total_by_level: Counter[str] = Counter()
+
+        for record in self._impact_history:
+            predicted_num = IMPACT_LEVEL_TO_NUMERIC[record.predicted]
+            actual_num = IMPACT_LEVEL_TO_NUMERIC[record.actual]
+            total_by_level[record.predicted] += 1
+
+            if predicted_num > actual_num:
+                # Over-predicted (e.g., predicted critical but was actually medium)
+                over_predictions[record.predicted] += 1
+            elif predicted_num < actual_num:
+                # Under-predicted (e.g., predicted low but was actually high)
+                under_predictions[record.predicted] += 1
+
+        # Calculate adjustment for each threshold
+        for level in ["critical", "high", "medium"]:
+            if total_by_level[level] == 0:
+                continue
+
+            over_rate = over_predictions[level] / total_by_level[level]
+            under_rate = under_predictions[level] / total_by_level[level]
+
+            # Calculate adjustment: positive if over-predicting, negative if under-predicting
+            # Scale by the error rate difference
+            adjustment_delta = (over_rate - under_rate) * 0.05
+
+            # Apply bounded adjustment
+            new_adjustment = self._threshold_adjustments[level] + adjustment_delta
+            self._threshold_adjustments[level] = max(
+                MIN_THRESHOLD_ADJUSTMENT,
+                min(MAX_THRESHOLD_ADJUSTMENT, new_adjustment),
+            )
+
+        logger.debug(
+            "[IMP-TASK-002] Recalibrated thresholds: critical=%.3f, high=%.3f, medium=%.3f",
+            self._threshold_adjustments["critical"],
+            self._threshold_adjustments["high"],
+            self._threshold_adjustments["medium"],
+        )
+
+    def get_impact_validation_stats(self) -> dict[str, Any]:
+        """Get statistics on impact validation accuracy (IMP-TASK-002).
+
+        Returns:
+            Dictionary containing:
+            - total_validations: Total number of validated predictions
+            - accuracy: Proportion of correct predictions
+            - by_level: Breakdown by impact level with hits/misses
+            - threshold_adjustments: Current calibration adjustments
+        """
+        if not self._impact_history:
+            return {
+                "total_validations": 0,
+                "accuracy": 0.0,
+                "by_level": {},
+                "threshold_adjustments": dict(self._threshold_adjustments),
+            }
+
+        correct = sum(1 for r in self._impact_history if r.predicted == r.actual)
+        total = len(self._impact_history)
+
+        by_level: dict[str, dict[str, int]] = {}
+        for level in IMPACT_LEVELS:
+            level_records = [r for r in self._impact_history if r.predicted == level]
+            hits = sum(1 for r in level_records if r.actual == level)
+            by_level[level] = {
+                "predicted_count": len(level_records),
+                "correct": hits,
+                "accuracy": hits / len(level_records) if level_records else 0.0,
+            }
+
+        return {
+            "total_validations": total,
+            "accuracy": correct / total if total > 0 else 0.0,
+            "by_level": by_level,
+            "threshold_adjustments": dict(self._threshold_adjustments),
+        }
 
     def _generate_imp_id(self, category: str) -> str:
         """Generate a unique IMP ID for a category.
@@ -157,6 +367,9 @@ class InsightToTaskGenerator:
         - Flakiness score (higher = higher impact)
         - Severity field if present
 
+        IMP-TASK-002: Uses dynamically calibrated thresholds based on
+        historical validation of predictions vs actual outcomes.
+
         Args:
             insight: Dictionary containing insight data with optional fields:
                 - health_score: Overall system health (0.0-1.0)
@@ -174,14 +387,20 @@ class InsightToTaskGenerator:
         if insight.get("severity") == "high" or insight.get("priority") == "high":
             return "high"
 
-        # Health score based impact
+        # IMP-TASK-002: Get calibrated thresholds
+        calibrated = self._get_calibrated_thresholds()
+        critical_threshold = calibrated["critical"]
+        high_threshold = calibrated["high"]
+        medium_threshold = calibrated["medium"]
+
+        # Health score based impact (using calibrated thresholds)
         health_score = insight.get("health_score")
         if health_score is not None:
-            if health_score < CRITICAL_HEALTH_THRESHOLD:
+            if health_score < critical_threshold:
                 return "critical"
-            if health_score < HIGH_IMPACT_THRESHOLD:
+            if health_score < high_threshold:
                 return "high"
-            if health_score < MEDIUM_IMPACT_THRESHOLD:
+            if health_score < medium_threshold:
                 return "medium"
 
         # Escalation rate based impact

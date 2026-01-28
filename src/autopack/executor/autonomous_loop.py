@@ -20,10 +20,7 @@ from autopack.autonomous.budgeting import (
     get_budget_remaining_pct,
     is_budget_exhausted,
 )
-from autopack.autonomy.parallelism_gate import (
-    ParallelismPolicyGate,
-    ScopeBasedParallelismChecker,
-)
+from autopack.autonomy.parallelism_gate import ParallelismPolicyGate, ScopeBasedParallelismChecker
 from autopack.config import settings
 from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
@@ -1803,6 +1800,36 @@ class AutonomousLoop:
         )
         return context
 
+    def _get_feedback_loop_health(self) -> str:
+        """Get the current feedback loop health status (IMP-LOOP-001).
+
+        Determines health based on:
+        - Circuit breaker state (if enabled)
+        - Phase failure ratio
+        - Overall execution statistics
+
+        Returns:
+            Health status string: "healthy", "degraded", or "attention_required"
+        """
+        # Check circuit breaker state first (most critical)
+        if self._circuit_breaker is not None:
+            cb_state = self._circuit_breaker.state
+            if cb_state == CircuitBreakerState.OPEN:
+                return FeedbackLoopHealth.ATTENTION_REQUIRED.value
+            elif cb_state == CircuitBreakerState.HALF_OPEN:
+                return FeedbackLoopHealth.DEGRADED.value
+
+        # Check failure ratio
+        total_phases = self._total_phases_executed + self._total_phases_failed
+        if total_phases > 0:
+            failure_ratio = self._total_phases_failed / total_phases
+            if failure_ratio >= 0.5:  # 50%+ failures
+                return FeedbackLoopHealth.ATTENTION_REQUIRED.value
+            elif failure_ratio >= 0.25:  # 25%+ failures
+                return FeedbackLoopHealth.DEGRADED.value
+
+        return FeedbackLoopHealth.HEALTHY.value
+
     def _estimate_tokens(self, context: str) -> int:
         """Estimate token count for a context string.
 
@@ -2840,10 +2867,20 @@ class AutonomousLoop:
             self._persist_loop_insights()
 
             # IMP-ARCH-009: Generate improvement tasks from telemetry for self-improvement loop
-            try:
-                self._generate_improvement_tasks()
-            except Exception as e:
-                logger.warning(f"Failed to generate improvement tasks: {e}")
+            # IMP-LOOP-001: Gate task generation on feedback loop health
+            health_status = self._get_feedback_loop_health()
+            if health_status in (
+                FeedbackLoopHealth.HEALTHY.value,
+                FeedbackLoopHealth.DEGRADED.value,
+            ):
+                try:
+                    self._generate_improvement_tasks()
+                except Exception as e:
+                    logger.warning(f"Failed to generate improvement tasks: {e}")
+            else:
+                logger.warning(
+                    f"[IMP-LOOP-001] Skipping task generation due to health status: {health_status}"
+                )
 
             # Log run completion summary to CONSOLIDATED_BUILD.md
             try:

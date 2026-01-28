@@ -4,6 +4,7 @@ Prioritizes tasks based on historical learnings:
 - Past success rate by category/complexity
 - Blocking pattern detection (skip likely blockers)
 - Dependency chain optimization
+- Task effectiveness feedback (IMP-LOOP-019)
 
 This module bridges the memory->task_generation link in the self-improvement loop
 by using historical outcomes to inform what tasks to work on next.
@@ -15,10 +16,11 @@ import logging
 import re
 from collections import defaultdict, deque
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from ..memory.learning_db import LearningDatabase
+    from ..telemetry.analyzer import TaskEffectivenessStats
 
 
 @dataclass
@@ -88,29 +90,41 @@ class PriorityEngine:
     - Known blocking patterns (e.g., "dependency conflict" blocks 30% of tasks)
     - Complexity estimation from improvement descriptions
     - Recent trend analysis
+    - Task effectiveness feedback from completion telemetry (IMP-LOOP-019)
 
     Attributes:
         learning_db: The learning database containing historical outcomes.
+        effectiveness_stats: Optional task effectiveness stats for feedback closure.
     """
 
     # Weight factors for priority calculation
-    CATEGORY_SUCCESS_WEIGHT = 0.35
-    BLOCKING_RISK_WEIGHT = 0.25
-    PRIORITY_LEVEL_WEIGHT = 0.25
+    # IMP-LOOP-019: Adjusted weights to include effectiveness factor
+    CATEGORY_SUCCESS_WEIGHT = 0.30
+    BLOCKING_RISK_WEIGHT = 0.20
+    PRIORITY_LEVEL_WEIGHT = 0.20
     COMPLEXITY_WEIGHT = 0.15
+    EFFECTIVENESS_WEIGHT = 0.15  # IMP-LOOP-019: Weight for historical effectiveness
 
     # Thresholds
     HIGH_BLOCKING_RISK_THRESHOLD = 0.3
     LOW_SUCCESS_RATE_THRESHOLD = 0.4
 
-    def __init__(self, learning_db: LearningDatabase) -> None:
+    def __init__(
+        self,
+        learning_db: LearningDatabase,
+        effectiveness_stats: Optional[TaskEffectivenessStats] = None,
+    ) -> None:
         """Initialize the PriorityEngine.
 
         Args:
             learning_db: The learning database containing historical outcomes.
+            effectiveness_stats: Optional task effectiveness stats for feedback
+                closure (IMP-LOOP-019). If provided, historical task completion
+                outcomes will factor into priority calculation.
         """
         self.learning_db = learning_db
         self._patterns_cache: dict[str, Any] | None = None
+        self._effectiveness_stats = effectiveness_stats
 
     def _get_cached_patterns(self) -> dict[str, Any]:
         """Get historical patterns, caching for performance."""
@@ -121,6 +135,103 @@ class PriorityEngine:
     def clear_cache(self) -> None:
         """Clear the cached patterns to force reload."""
         self._patterns_cache = None
+
+    def set_effectiveness_stats(self, stats: TaskEffectivenessStats) -> None:
+        """Set or update task effectiveness stats (IMP-LOOP-019).
+
+        Call this method to provide updated effectiveness data from
+        task completion telemetry. This enables the feedback loop
+        where past task outcomes influence future prioritization.
+
+        Args:
+            stats: TaskEffectivenessStats from TelemetryAnalyzer.
+        """
+        self._effectiveness_stats = stats
+        logger.debug(
+            "[IMP-LOOP-019] Updated effectiveness stats: success_rate=%.1f%%, "
+            "target_achievement_rate=%.1f%%",
+            stats.success_rate * 100,
+            stats.target_achievement_rate * 100,
+        )
+
+    def get_effectiveness_factor(self, improvement: dict[str, Any]) -> float:
+        """Get effectiveness factor based on historical task outcomes (IMP-LOOP-019).
+
+        Calculates an effectiveness multiplier based on how well similar tasks
+        have performed historically. This creates a feedback loop where task
+        types with poor historical outcomes are deprioritized.
+
+        Args:
+            improvement: The improvement record to evaluate.
+
+        Returns:
+            Effectiveness factor between 0.5 and 1.2:
+            - 1.0: No historical data or average effectiveness
+            - > 1.0: Above-average historical success (boosted priority)
+            - < 1.0: Below-average historical success (reduced priority)
+        """
+        if self._effectiveness_stats is None:
+            return 1.0  # No feedback data available
+
+        # Try to match by task type first
+        category = self._extract_category(improvement)
+        priority_level = self._extract_priority_level(improvement)
+
+        # Get effectiveness by type if available
+        type_effectiveness = self._effectiveness_stats.effectiveness_by_type.get(category, {})
+        type_success_rate = type_effectiveness.get("success_rate")
+        type_target_rate = type_effectiveness.get("target_rate")
+
+        # Get effectiveness by priority if available
+        priority_effectiveness = self._effectiveness_stats.effectiveness_by_priority.get(
+            priority_level, {}
+        )
+        priority_success_rate = priority_effectiveness.get("success_rate")
+        priority_target_rate = priority_effectiveness.get("target_rate")
+
+        # Calculate weighted effectiveness score
+        # Combine success rate and target achievement rate
+        scores: list[float] = []
+
+        if type_success_rate is not None:
+            # Weight success rate (execution success) and target rate (goal achievement)
+            type_score = type_success_rate * 0.6 + (type_target_rate or type_success_rate) * 0.4
+            scores.append(type_score)
+
+        if priority_success_rate is not None:
+            priority_score = (
+                priority_success_rate * 0.6 + (priority_target_rate or priority_success_rate) * 0.4
+            )
+            scores.append(priority_score)
+
+        if not scores:
+            # Fall back to overall success rate
+            overall = self._effectiveness_stats.success_rate
+            if overall > 0:
+                scores.append(overall)
+            else:
+                return 1.0
+
+        # Average the scores and normalize to a factor
+        avg_effectiveness = sum(scores) / len(scores)
+
+        # Scale to factor range [0.5, 1.2]
+        # 0% effectiveness -> 0.5 factor (50% reduction)
+        # 50% effectiveness -> 0.85 factor
+        # 100% effectiveness -> 1.2 factor (20% boost)
+        factor = 0.5 + (avg_effectiveness * 0.7)
+
+        logger.debug(
+            "[IMP-LOOP-019] Effectiveness factor for %s: %.2f (category=%s, "
+            "type_rate=%s, priority_rate=%s)",
+            improvement.get("imp_id", improvement.get("id", "unknown")),
+            factor,
+            category,
+            type_success_rate,
+            priority_success_rate,
+        )
+
+        return factor
 
     def _extract_category(self, improvement: dict[str, Any]) -> str:
         """Extract the category from an improvement record.
@@ -262,6 +373,7 @@ class PriorityEngine:
         - Blocking risk: Likelihood of hitting known blockers
         - Priority level: The assigned priority (critical, high, medium, low)
         - Complexity estimate: Estimated complexity from description
+        - Effectiveness factor: Historical task completion outcomes (IMP-LOOP-019)
 
         Args:
             improvement: The improvement record to score. Expected keys:
@@ -292,27 +404,33 @@ class PriorityEngine:
         # Estimate complexity
         complexity_factor = self._estimate_complexity(improvement)
 
+        # IMP-LOOP-019: Get effectiveness factor from task completion telemetry
+        effectiveness_factor = self.get_effectiveness_factor(improvement)
+
         # Calculate weighted score
         # Higher category success rate -> higher score
         # Lower blocking risk -> higher score (invert the risk)
         # Higher priority level -> higher score
         # Higher complexity factor (simpler tasks) -> higher score
+        # Higher effectiveness factor -> higher score (IMP-LOOP-019)
         score = (
             (category_success_rate * self.CATEGORY_SUCCESS_WEIGHT)
             + ((1.0 - blocking_risk) * self.BLOCKING_RISK_WEIGHT)
             + (priority_base * self.PRIORITY_LEVEL_WEIGHT)
             + (complexity_factor * self.COMPLEXITY_WEIGHT)
+            + (effectiveness_factor * self.EFFECTIVENESS_WEIGHT)
         )
 
         logger.debug(
             "Priority score for %s: %.3f (category=%.2f, block_risk=%.2f, "
-            "priority=%.2f, complexity=%.2f)",
+            "priority=%.2f, complexity=%.2f, effectiveness=%.2f)",
             improvement.get("imp_id", improvement.get("id", "unknown")),
             score,
             category_success_rate,
             blocking_risk,
             priority_base,
             complexity_factor,
+            effectiveness_factor,
         )
 
         return round(score, 3)

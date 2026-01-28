@@ -5,6 +5,7 @@ suggestions from telemetry insights:
 - Detects operational anomalies
 - Creates structured IMP entries
 - Prioritizes based on impact estimate
+- Adjusts confidence based on historical success rates (IMP-LOOP-019)
 
 This module bridges the telemetry->task_generation link in the self-improvement
 loop by converting detected patterns into actionable improvement suggestions.
@@ -15,10 +16,11 @@ from __future__ import annotations
 import logging
 from collections import Counter
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from autopack.analytics.telemetry_analyzer import TelemetryAnalyzer
+    from autopack.telemetry.analyzer import TaskEffectivenessStats
 
 logger = logging.getLogger(__name__)
 
@@ -54,16 +56,43 @@ class InsightToTaskGenerator:
 
     Attributes:
         analyzer: TelemetryAnalyzer instance for generating insights.
+        effectiveness_stats: Optional task effectiveness stats for feedback
+            closure (IMP-LOOP-019).
     """
 
-    def __init__(self, analyzer: TelemetryAnalyzer) -> None:
+    def __init__(
+        self,
+        analyzer: TelemetryAnalyzer,
+        effectiveness_stats: Optional[TaskEffectivenessStats] = None,
+    ) -> None:
         """Initialize the InsightToTaskGenerator.
 
         Args:
             analyzer: TelemetryAnalyzer instance to use for insight generation.
+            effectiveness_stats: Optional task effectiveness stats for adjusting
+                insight confidence based on historical success rates (IMP-LOOP-019).
         """
         self.analyzer = analyzer
         self._imp_counter: Counter[str] = Counter()
+        self._effectiveness_stats = effectiveness_stats
+
+    def set_effectiveness_stats(self, stats: TaskEffectivenessStats) -> None:
+        """Set or update task effectiveness stats (IMP-LOOP-019).
+
+        Call this method to provide updated effectiveness data from
+        task completion telemetry. This enables adjusting insight
+        confidence based on historical success rates.
+
+        Args:
+            stats: TaskEffectivenessStats from TelemetryAnalyzer.
+        """
+        self._effectiveness_stats = stats
+        logger.debug(
+            "[IMP-LOOP-019] Updated effectiveness stats for insight generator: "
+            "success_rate=%.1f%%, by_type=%d categories",
+            stats.success_rate * 100,
+            len(stats.effectiveness_by_type),
+        )
 
     def _generate_imp_id(self, category: str) -> str:
         """Generate a unique IMP ID for a category.
@@ -76,6 +105,48 @@ class InsightToTaskGenerator:
         """
         self._imp_counter[category] += 1
         return f"IMP-{category}-{self._imp_counter[category]:03d}"
+
+    def get_success_rate_for_insight_type(self, insight_source: str) -> float:
+        """Get historical success rate for an insight type (IMP-LOOP-019).
+
+        Looks up the success rate for tasks generated from similar insight
+        types to adjust confidence in new task generation.
+
+        Args:
+            insight_source: The source of the insight (e.g., "slot_reliability").
+
+        Returns:
+            Historical success rate between 0.0 and 1.0, or 1.0 if no data.
+        """
+        if self._effectiveness_stats is None:
+            return 1.0
+
+        # Map insight sources to task type categories
+        source_to_type = {
+            "slot_reliability": "slot_reliability",
+            "nudge_effectiveness": "nudge_effectiveness",
+            "flaky_tests": "flaky_tests",
+            "escalation_patterns": "escalation_patterns",
+            "timing_analysis": "timing_analysis",
+            "cost_sink": "cost_sink",
+            "failure_mode": "failure_mode",
+            "retry_cause": "retry_cause",
+        }
+
+        task_type = source_to_type.get(insight_source, insight_source)
+
+        # Check if we have effectiveness data for this type
+        type_stats = self._effectiveness_stats.effectiveness_by_type.get(task_type, {})
+        success_rate = type_stats.get("success_rate")
+
+        if success_rate is not None:
+            return success_rate
+
+        # Fall back to overall success rate
+        if self._effectiveness_stats.success_rate > 0:
+            return self._effectiveness_stats.success_rate
+
+        return 1.0  # Default if no data
 
     def estimate_impact(self, insight: dict[str, Any]) -> str:
         """Classify impact: critical, high, medium, low.
@@ -145,7 +216,8 @@ class InsightToTaskGenerator:
 
         Creates a structured improvement entry compatible with the improvement
         tracking system. Each entry includes metadata for prioritization and
-        tracking.
+        tracking. IMP-LOOP-019: Adjusts confidence based on historical success
+        rates for similar task types.
 
         Args:
             insight: Dictionary containing insight data with fields:
@@ -166,11 +238,16 @@ class InsightToTaskGenerator:
             - status: Current status (always "pending" for new entries)
             - evidence: Supporting data from the insight
             - recommended_action: Specific action to take
+            - confidence: Task confidence adjusted by historical success rate (IMP-LOOP-019)
+            - historical_success_rate: Success rate for similar tasks (IMP-LOOP-019)
         """
         source = insight.get("source", "unknown")
         category = INSIGHT_TO_CATEGORY.get(source, "GEN")
         imp_id = self._generate_imp_id(category)
         impact = self.estimate_impact(insight)
+
+        # IMP-LOOP-019: Get historical success rate for this insight type
+        historical_success_rate = self.get_success_rate_for_insight_type(source)
 
         # Build title from action or source
         action = insight.get("action", "")
@@ -235,6 +312,31 @@ class InsightToTaskGenerator:
             if key in insight and insight[key] is not None:
                 evidence[key] = insight[key]
 
+        # IMP-LOOP-019: Calculate task confidence adjusted by historical success rate
+        # Base confidence from insight's own indicators
+        base_confidence = insight.get("confidence", 0.8)
+        if isinstance(base_confidence, (int, float)):
+            # Adjust confidence based on historical success rate
+            # If historical success rate is low, reduce confidence
+            adjusted_confidence = base_confidence * historical_success_rate
+        else:
+            adjusted_confidence = 0.8 * historical_success_rate
+
+        # IMP-LOOP-019: Add historical context to description if success rate is low
+        if historical_success_rate < 0.5:
+            description_parts.append(
+                f"[Note: Historical success rate for {source} tasks is {historical_success_rate:.0%}]"
+            )
+
+        logger.debug(
+            "[IMP-LOOP-019] Generated IMP %s with confidence=%.2f "
+            "(base=%.2f, historical_rate=%.2f)",
+            imp_id,
+            adjusted_confidence,
+            base_confidence if isinstance(base_confidence, (int, float)) else 0.8,
+            historical_success_rate,
+        )
+
         return {
             "id": imp_id,
             "title": title,
@@ -246,6 +348,9 @@ class InsightToTaskGenerator:
             "status": "pending",
             "evidence": evidence,
             "recommended_action": insight.get("action", insight.get("recommendation", "")),
+            # IMP-LOOP-019: Add effectiveness feedback data
+            "confidence": round(adjusted_confidence, 3),
+            "historical_success_rate": round(historical_success_rate, 3),
         }
 
     def generate_improvements_from_insights(self) -> list[dict[str, Any]]:

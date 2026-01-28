@@ -40,6 +40,45 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# IMP-MEM-012: Content Compression for Write Path
+# ---------------------------------------------------------------------------
+
+# Max content length before compression/truncation is applied
+MAX_CONTENT_LENGTH = 5000
+
+
+def _compress_content(content: str, max_length: int = MAX_CONTENT_LENGTH) -> tuple[str, bool]:
+    """Compress or truncate content that exceeds max length.
+
+    IMP-MEM-012: Long entries >5000 chars are compressed before writing
+    to prevent unbounded memory growth in vector DB.
+
+    Args:
+        content: Content string to potentially compress
+        max_length: Maximum allowed length (default: 5000)
+
+    Returns:
+        Tuple of (processed_content, was_compressed) where was_compressed
+        is True if content was modified
+    """
+    if len(content) <= max_length:
+        return content, False
+
+    # Truncate with preservation of key sections (start and end)
+    # Keep first 80% of allowed length from start, last 20% from end
+    # This preserves context at boundaries which often contain important info
+    start_len = int(max_length * 0.8)
+    end_len = max_length - start_len - 50  # Reserve 50 chars for marker
+
+    truncated = (
+        content[:start_len] + "\n\n[... truncated middle section ...]\n\n" + content[-end_len:]
+    )
+
+    logger.debug(f"[IMP-MEM-012] Compressed content from {len(content)} to {len(truncated)} chars")
+    return truncated, True
+
+
+# ---------------------------------------------------------------------------
 # IMP-LOOP-003: Memory Retrieval Freshness Check
 # ---------------------------------------------------------------------------
 
@@ -1206,9 +1245,10 @@ class MemoryService:
         if not self.enabled:
             return ""
 
-        text = (
-            f"Phase {phase_id}: {summary}\nChanges: {', '.join(changes)}\nCI: {ci_result or 'N/A'}"
-        )
+        # IMP-MEM-012: Compress summary if too long
+        compressed_summary, was_compressed = _compress_content(summary)
+
+        text = f"Phase {phase_id}: {compressed_summary}\nChanges: {', '.join(changes)}\nCI: {ci_result or 'N/A'}"
         vector = sync_embed_text(text)
 
         point_id = f"summary:{run_id}:{phase_id}"
@@ -1218,10 +1258,11 @@ class MemoryService:
             "phase_id": phase_id,
             "project_id": project_id,
             "task_type": task_type,
-            "summary": summary,
+            "summary": compressed_summary,
             "changes": changes,
             "ci_result": ci_result,
             "timestamp": datetime.now(timezone.utc).isoformat(),
+            "compressed": was_compressed,  # IMP-MEM-012: Track compression status
         }
 
         self._safe_store_call(
@@ -1320,9 +1361,12 @@ class MemoryService:
         if not self.enabled:
             return ""
 
-        text = f"Error in {phase_id}: {error_text[:2000]}"
+        # IMP-MEM-012: Compress error text if too long
+        compressed_error, was_compressed = _compress_content(error_text)
+
+        text = f"Error in {phase_id}: {compressed_error[:2000]}"
         if test_name:
-            text = f"Test {test_name} failed: {error_text[:2000]}"
+            text = f"Test {test_name} failed: {compressed_error[:2000]}"
         vector = sync_embed_text(text)
 
         point_id = (
@@ -1335,8 +1379,9 @@ class MemoryService:
             "project_id": project_id,
             "error_type": error_type,
             "test_name": test_name,
-            "error_text": error_text[:5000],
+            "error_text": compressed_error,
             "timestamp": datetime.now(timezone.utc).isoformat(),
+            "compressed": was_compressed,  # IMP-MEM-012: Track compression status
         }
 
         self._safe_store_call(

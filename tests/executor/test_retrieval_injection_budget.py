@@ -30,15 +30,21 @@ class TestSOTBudgetGating:
         assert gate.budget_remaining == 6000  # 10000 - 4000
 
     def test_gate_denies_with_insufficient_budget(self):
-        """Test gate denies retrieval when budget is insufficient."""
+        """Test gate denies retrieval when budget ratio is below minimum threshold.
+
+        Note: With IMP-RET-001 progressive degradation, we use ratio-based thresholds.
+        Denial only occurs when budget_ratio < 15% (SUMMARY_ONLY_THRESHOLD).
+        """
         injection = RetrievalInjection(sot_budget_limit=4000, reserve_budget=2000, enabled=True)
 
-        # Need 6000 (4000 + 2000), but only have 5000
-        gate = injection.gate_sot_retrieval(max_context_chars=5000, phase_id="test_phase")
+        # With total_budget=50000, 5000 chars = 10% = below 15% threshold = denied
+        gate = injection.gate_sot_retrieval(
+            max_context_chars=5000, phase_id="test_phase", total_budget=50000
+        )
 
         assert gate.allowed is False
-        assert "insufficient budget" in gate.reason.lower()
-        assert gate.budget_remaining == 5000
+        assert "too tight" in gate.reason.lower()
+        assert gate.retrieval_mode == "none"
 
     def test_gate_exactly_at_minimum(self):
         """Test gate behavior when budget exactly meets minimum."""
@@ -51,13 +57,20 @@ class TestSOTBudgetGating:
         assert gate.budget_remaining == 2000
 
     def test_gate_one_char_below_minimum(self):
-        """Test gate denies when one char below minimum."""
+        """Test gate behavior just below the summary threshold.
+
+        Note: With IMP-RET-001 progressive degradation, denial only occurs
+        when budget_ratio < 15%. This test verifies boundary behavior.
+        """
         injection = RetrievalInjection(sot_budget_limit=4000, reserve_budget=2000, enabled=True)
 
-        # One char below minimum
-        gate = injection.gate_sot_retrieval(max_context_chars=5999, phase_id="test_phase")
+        # With total_budget=40000, 5999 chars = 14.99% = just below 15% = denied
+        gate = injection.gate_sot_retrieval(
+            max_context_chars=5999, phase_id="test_phase", total_budget=40000
+        )
 
         assert gate.allowed is False
+        assert gate.retrieval_mode == "none"
 
     def test_gate_with_zero_budget(self):
         """Test gate behavior with zero budget."""
@@ -397,17 +410,22 @@ class TestEdgeCases:
         assert gate.budget_remaining == 2000
 
     def test_custom_reserve_budget(self):
-        """Test with custom reserve budget."""
+        """Test with custom reserve budget using progressive degradation.
+
+        Note: With IMP-RET-001 progressive degradation, denial requires
+        budget_ratio < 15%. This test uses total_budget to achieve denial.
+        """
         injection = RetrievalInjection(
             sot_budget_limit=4000,
             reserve_budget=5000,
             enabled=True,  # Custom reserve
         )
 
-        gate = injection.gate_sot_retrieval(max_context_chars=8000)
+        # With total_budget=100000, 8000 chars = 8% = below 15% = denied
+        gate = injection.gate_sot_retrieval(max_context_chars=8000, total_budget=100000)
 
-        # Should deny: need 9000 (4000 + 5000), have 8000
         assert gate.allowed is False
+        assert gate.retrieval_mode == "none"
 
     def test_phase_id_optional(self):
         """Test that phase_id is optional."""

@@ -17,6 +17,7 @@ The pipeline ensures that lessons learned from each phase execution are:
 """
 
 import logging
+import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -159,9 +160,21 @@ class FeedbackPipeline:
         self._hint_occurrences: Dict[str, int] = {}
         self._hint_promotion_threshold = 3
 
+        # IMP-LOOP-004: Auto-flush configuration for pending insights
+        # Flush every 5 minutes (300 seconds) or at 100 insight threshold
+        self._auto_flush_interval = 300  # 5 minutes in seconds
+        self._insight_threshold = 100
+        self._flush_timer: Optional[threading.Timer] = None
+        self._auto_flush_enabled = enabled  # Only auto-flush if pipeline is enabled
+
+        # Start auto-flush timer if enabled
+        if self._auto_flush_enabled:
+            self._start_auto_flush_timer()
+
         logger.info(
             f"[IMP-LOOP-001] FeedbackPipeline initialized "
-            f"(run_id={self.run_id}, project_id={self.project_id}, enabled={self.enabled})"
+            f"(run_id={self.run_id}, project_id={self.project_id}, enabled={self.enabled}, "
+            f"auto_flush={'enabled' if self._auto_flush_enabled else 'disabled'})"
         )
 
     def process_phase_outcome(self, outcome: PhaseOutcome) -> Dict[str, Any]:
@@ -207,6 +220,9 @@ class FeedbackPipeline:
             insight = self._create_insight_from_outcome(outcome)
             self._pending_insights.append(insight)
             result["insights_created"] += 1
+
+            # IMP-LOOP-004: Check if insight threshold reached for immediate flush
+            self._check_threshold_flush()
 
             # 2. Persist to memory service
             if self.memory_service and getattr(self.memory_service, "enabled", False):
@@ -433,6 +449,75 @@ class FeedbackPipeline:
         self._pending_insights.clear()
         logger.info(f"[IMP-LOOP-001] Flushed {flushed} pending insights")
         return flushed
+
+    def _start_auto_flush_timer(self) -> None:
+        """Start the auto-flush timer for periodic insight persistence.
+
+        IMP-LOOP-004: Schedules automatic flush of pending insights every
+        5 minutes to ensure telemetry data is persisted without manual
+        intervention.
+        """
+        if self._flush_timer is not None:
+            self._flush_timer.cancel()
+
+        self._flush_timer = threading.Timer(self._auto_flush_interval, self._auto_flush)
+        self._flush_timer.daemon = True
+        self._flush_timer.start()
+        logger.debug(
+            f"[IMP-LOOP-004] Auto-flush timer started " f"(interval={self._auto_flush_interval}s)"
+        )
+
+    def _auto_flush(self) -> None:
+        """Perform automatic flush of pending insights.
+
+        IMP-LOOP-004: Called by the timer to flush insights. Also checks
+        if insight threshold is reached. Reschedules itself after completion.
+        """
+        try:
+            pending_count = len(self._pending_insights)
+            if pending_count > 0:
+                logger.info(f"[IMP-LOOP-004] Auto-flushing {pending_count} pending insights")
+                flushed = self.flush_pending_insights()
+                logger.info(f"[IMP-LOOP-004] Auto-flush complete: {flushed} insights persisted")
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-004] Auto-flush failed: {e}")
+        finally:
+            # Reschedule the timer for the next flush cycle
+            if self._auto_flush_enabled:
+                self._start_auto_flush_timer()
+
+    def _check_threshold_flush(self) -> None:
+        """Check if insight threshold is reached and trigger flush if needed.
+
+        IMP-LOOP-004: Called after adding insights to check if the threshold
+        of 100 insights is reached, triggering an immediate flush.
+        """
+        if len(self._pending_insights) >= self._insight_threshold:
+            logger.info(
+                f"[IMP-LOOP-004] Insight threshold ({self._insight_threshold}) reached, "
+                "triggering flush"
+            )
+            self.flush_pending_insights()
+
+    def stop_auto_flush(self) -> None:
+        """Stop the auto-flush timer.
+
+        IMP-LOOP-004: Call this when shutting down the pipeline to cleanly
+        stop the background timer and flush any remaining insights.
+        """
+        self._auto_flush_enabled = False
+        if self._flush_timer is not None:
+            self._flush_timer.cancel()
+            self._flush_timer = None
+            logger.info("[IMP-LOOP-004] Auto-flush timer stopped")
+
+        # Flush any remaining insights on shutdown
+        if self._pending_insights:
+            logger.info(
+                f"[IMP-LOOP-004] Flushing {len(self._pending_insights)} "
+                "remaining insights on shutdown"
+            )
+            self.flush_pending_insights()
 
     def persist_learning_hints(self) -> int:
         """Persist accumulated learning hints to memory.

@@ -11,7 +11,8 @@ Tests cover:
 
 from unittest.mock import Mock
 
-from autopack.feedback_pipeline import FeedbackPipeline, PhaseContext, PhaseOutcome
+from autopack.feedback_pipeline import (FeedbackPipeline, PhaseContext,
+                                        PhaseOutcome)
 
 
 class TestPhaseOutcome:
@@ -628,3 +629,132 @@ class TestSuggestedActionGeneration:
         action = pipeline._generate_suggested_action(outcome)
 
         assert "context" in action.lower() or "reduce" in action.lower()
+
+
+class TestAutoFlushTimer:
+    """Tests for IMP-LOOP-004 auto-flush functionality."""
+
+    def test_auto_flush_timer_starts_when_enabled(self):
+        """Auto-flush timer should start when pipeline is enabled."""
+        pipeline = FeedbackPipeline(enabled=True)
+
+        assert pipeline._auto_flush_enabled is True
+        assert pipeline._flush_timer is not None
+
+        # Clean up
+        pipeline.stop_auto_flush()
+
+    def test_auto_flush_timer_not_started_when_disabled(self):
+        """Auto-flush timer should not start when pipeline is disabled."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        assert pipeline._auto_flush_enabled is False
+        assert pipeline._flush_timer is None
+
+    def test_auto_flush_interval_default(self):
+        """Auto-flush interval should default to 300 seconds (5 minutes)."""
+        pipeline = FeedbackPipeline(enabled=False)  # Don't start timer
+
+        assert pipeline._auto_flush_interval == 300
+
+    def test_insight_threshold_default(self):
+        """Insight threshold should default to 100."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        assert pipeline._insight_threshold == 100
+
+    def test_stop_auto_flush(self):
+        """stop_auto_flush should cancel timer and flush remaining insights."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_task_execution_feedback = Mock()
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=True)
+
+        # Add some pending insights
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=True,
+            status="completed",
+        )
+        pipeline.process_phase_outcome(outcome)
+
+        # Stop auto-flush
+        pipeline.stop_auto_flush()
+
+        assert pipeline._auto_flush_enabled is False
+        assert pipeline._flush_timer is None
+        assert len(pipeline._pending_insights) == 0  # Flushed on stop
+
+    def test_threshold_flush_triggered(self):
+        """Flush should trigger when insight threshold is reached."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_task_execution_feedback = Mock()
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+        pipeline._insight_threshold = 3  # Lower threshold for testing
+
+        # Add insights up to threshold
+        for i in range(3):
+            outcome = PhaseOutcome(
+                phase_id=f"phase_{i}",
+                phase_type="build",
+                success=True,
+                status="completed",
+                run_id=f"run_{i}",  # Unique run_id to avoid deduplication
+            )
+            pipeline.process_phase_outcome(outcome)
+
+        # Should have been flushed when threshold reached
+        assert len(pipeline._pending_insights) == 0
+
+    def test_auto_flush_method_flushes_insights(self):
+        """_auto_flush method should flush pending insights."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+
+        # Manually add an insight
+        pipeline._pending_insights.append({"test": "insight"})
+
+        # Call auto-flush directly
+        pipeline._auto_flush()
+
+        # Insight should be flushed
+        assert len(pipeline._pending_insights) == 0
+        mock_memory.write_telemetry_insight.assert_called_once()
+
+    def test_auto_flush_handles_errors_gracefully(self):
+        """_auto_flush should handle errors without crashing."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock(side_effect=Exception("Test error"))
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+        pipeline._pending_insights.append({"test": "insight"})
+
+        # Should not raise exception
+        pipeline._auto_flush()
+
+        # Insights should be cleared even on error
+        assert len(pipeline._pending_insights) == 0
+
+    def test_check_threshold_flush_below_threshold(self):
+        """_check_threshold_flush should not flush below threshold."""
+        pipeline = FeedbackPipeline(enabled=False)
+        pipeline._insight_threshold = 100
+
+        # Add insights below threshold
+        for i in range(50):
+            pipeline._pending_insights.append({"test": f"insight_{i}"})
+
+        pipeline._check_threshold_flush()
+
+        # Should not be flushed
+        assert len(pipeline._pending_insights) == 50

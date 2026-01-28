@@ -20,6 +20,7 @@ Related modules:
 - learning_pipeline.py: Learning hint recording
 """
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from enum import Enum
@@ -113,7 +114,7 @@ class ResultHandler:
             True if posting succeeded
         """
         logger.info(f"[{phase_id}] Processing builder result...")
-        return self.builder_result_poster.post_result(phase_id, result, allowed_paths)
+        return asyncio.run(self.builder_result_poster.post_result(phase_id, result, allowed_paths))
 
     def process_auditor_result(
         self,

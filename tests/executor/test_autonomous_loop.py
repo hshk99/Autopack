@@ -8,12 +8,28 @@ Tests cover:
 - Adaptive sleep behavior
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
 from autopack.executor.autonomous_loop import AutonomousLoop
 from autopack.supervisor.api_client import SupervisorApiHttpError
+
+
+@pytest.fixture(autouse=True)
+def mock_memory_service():
+    """Prevent real MemoryService creation to avoid Qdrant connection timeouts.
+
+    AutonomousLoop._execute_loop() calls multiple code paths that create
+    MemoryService() or AutonomousTaskGenerator() (which creates MemoryService internally).
+    Without this mock, tests wait 24s per timeout attempting to connect to Qdrant.
+    """
+    mock = MagicMock()
+    mock.enabled = True
+    mock_class = MagicMock(return_value=mock)
+    with patch("autopack.memory.context_injector.MemoryService", mock_class):
+        with patch("autopack.roadc.task_generator.MemoryService", mock_class):
+            yield
 
 
 class TestAutonomousLoopRecovery:

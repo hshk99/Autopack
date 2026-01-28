@@ -84,6 +84,7 @@ class TestGapScannerDocDriftIntegration:
         with (
             patch("autopack.gaps.scanner.run_doc_drift_check") as mock_drift,
             patch("autopack.gaps.scanner.run_sot_summary_check") as mock_sot,
+            patch("autopack.gaps.scanner.run_doc_tests") as mock_doc_tests,
         ):
             mock_drift.return_value = DocDriftResult(
                 passed=True,
@@ -96,6 +97,13 @@ class TestGapScannerDocDriftIntegration:
                 passed=True,
                 exit_code=0,
                 command="python scripts/tidy/sot_summary_refresh.py --check",
+                stdout="OK",
+                stderr="",
+            )
+            mock_doc_tests.return_value = DocDriftResult(
+                passed=True,
+                exit_code=0,
+                command="pytest tests/docs/",
                 stdout="OK",
                 stderr="",
             )
@@ -111,6 +119,7 @@ class TestGapScannerDocDriftIntegration:
         with (
             patch("autopack.gaps.scanner.run_doc_drift_check") as mock_drift,
             patch("autopack.gaps.scanner.run_sot_summary_check") as mock_sot,
+            patch("autopack.gaps.scanner.run_doc_tests") as mock_doc_tests,
         ):
             mock_drift.return_value = DocDriftResult(
                 passed=False,
@@ -123,6 +132,13 @@ class TestGapScannerDocDriftIntegration:
                 passed=True,
                 exit_code=0,
                 command="python scripts/tidy/sot_summary_refresh.py --check",
+                stdout="OK",
+                stderr="",
+            )
+            mock_doc_tests.return_value = DocDriftResult(
+                passed=True,
+                exit_code=0,
+                command="pytest tests/docs/",
                 stdout="OK",
                 stderr="",
             )
@@ -140,6 +156,7 @@ class TestGapScannerDocDriftIntegration:
         with (
             patch("autopack.gaps.scanner.run_doc_drift_check") as mock_drift,
             patch("autopack.gaps.scanner.run_sot_summary_check") as mock_sot,
+            patch("autopack.gaps.scanner.run_doc_tests") as mock_doc_tests,
         ):
             mock_drift.return_value = DocDriftResult(
                 passed=False,
@@ -150,6 +167,9 @@ class TestGapScannerDocDriftIntegration:
             )
             mock_sot.return_value = DocDriftResult(
                 passed=True, exit_code=0, command="check", stdout="OK", stderr=""
+            )
+            mock_doc_tests.return_value = DocDriftResult(
+                passed=True, exit_code=0, command="pytest tests/docs/", stdout="OK", stderr=""
             )
 
             scanner = GapScanner(Path("."))
@@ -176,7 +196,11 @@ class TestDocDriftScriptNotFound:
 
     def test_scanner_handles_missing_scripts_gracefully(self):
         """Scanner should handle missing scripts without crashing."""
-        with patch("autopack.gaps.scanner.run_doc_drift_check") as mock_drift:
+        with (
+            patch("autopack.gaps.scanner.run_doc_drift_check") as mock_drift,
+            patch("autopack.gaps.scanner.run_sot_summary_check") as mock_sot,
+            patch("autopack.gaps.scanner.run_doc_tests") as mock_doc_tests,
+        ):
             mock_drift.return_value = DocDriftResult(
                 passed=False,
                 exit_code=-1,
@@ -184,6 +208,12 @@ class TestDocDriftScriptNotFound:
                 stdout="",
                 stderr="",
                 error="Script not found",
+            )
+            mock_sot.return_value = DocDriftResult(
+                passed=True, exit_code=0, command="check", stdout="OK", stderr=""
+            )
+            mock_doc_tests.return_value = DocDriftResult(
+                passed=True, exit_code=0, command="pytest tests/docs/", stdout="OK", stderr=""
             )
 
             scanner = GapScanner(Path("."))

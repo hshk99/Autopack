@@ -150,7 +150,11 @@ class TestWorkspaceDigestEdgeCases:
 
     def test_scanner_uses_deterministic_digest(self):
         """GapScanner should use the deterministic digest function."""
-        with patch("autopack.gaps.scanner._compute_workspace_digest") as mock_digest:
+        # Mock the full scan to avoid all subprocess and file operations
+        with (
+            patch("autopack.gaps.scanner._compute_workspace_digest") as mock_digest,
+            patch("autopack.gaps.scanner.GapScanner.scan", return_value=[]),
+        ):
             mock_digest.return_value = "abc123def456"
 
             report = scan_workspace(Path("."), "test-project", "test-run")

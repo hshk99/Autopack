@@ -956,5 +956,162 @@ class TestMandatoryFeedbackPipeline:
             assert loop._feedback_pipeline_enabled is True
 
 
+class TestHealthGateTaskGeneration:
+    """Tests for health gate blocking task generation (IMP-LOOP-001)."""
+
+    def test_get_feedback_loop_health_returns_healthy_by_default(self):
+        """Verify health returns HEALTHY when no issues detected."""
+        mock_executor = Mock()
+        loop = AutonomousLoop(mock_executor)
+
+        # Reset counters to ensure clean state
+        loop._total_phases_executed = 10
+        loop._total_phases_failed = 0
+        loop._circuit_breaker = None
+
+        health = loop._get_feedback_loop_health()
+
+        assert health == "healthy"
+
+    def test_get_feedback_loop_health_degraded_on_high_failure_ratio(self):
+        """Verify health returns DEGRADED when failure ratio is 25-50%."""
+        mock_executor = Mock()
+        loop = AutonomousLoop(mock_executor)
+
+        loop._total_phases_executed = 7
+        loop._total_phases_failed = 3  # 30% failure rate
+        loop._circuit_breaker = None
+
+        health = loop._get_feedback_loop_health()
+
+        assert health == "degraded"
+
+    def test_get_feedback_loop_health_attention_required_on_critical_failure_ratio(self):
+        """Verify health returns ATTENTION_REQUIRED when failure ratio >= 50%."""
+        mock_executor = Mock()
+        loop = AutonomousLoop(mock_executor)
+
+        loop._total_phases_executed = 5
+        loop._total_phases_failed = 5  # 50% failure rate
+        loop._circuit_breaker = None
+
+        health = loop._get_feedback_loop_health()
+
+        assert health == "attention_required"
+
+    def test_get_feedback_loop_health_attention_required_when_circuit_open(self):
+        """Verify health returns ATTENTION_REQUIRED when circuit breaker is OPEN."""
+        from autopack.executor.autonomous_loop import CircuitBreaker, CircuitBreakerState
+
+        mock_executor = Mock()
+        loop = AutonomousLoop(mock_executor)
+
+        loop._circuit_breaker = CircuitBreaker()
+        loop._circuit_breaker._state = CircuitBreakerState.OPEN
+
+        health = loop._get_feedback_loop_health()
+
+        assert health == "attention_required"
+
+    def test_get_feedback_loop_health_degraded_when_circuit_half_open(self):
+        """Verify health returns DEGRADED when circuit breaker is HALF_OPEN."""
+        from autopack.executor.autonomous_loop import CircuitBreaker, CircuitBreakerState
+
+        mock_executor = Mock()
+        loop = AutonomousLoop(mock_executor)
+
+        loop._circuit_breaker = CircuitBreaker()
+        loop._circuit_breaker._state = CircuitBreakerState.HALF_OPEN
+
+        health = loop._get_feedback_loop_health()
+
+        assert health == "degraded"
+
+    def test_health_gate_blocks_task_gen_when_attention_required(self):
+        """Verify task generation is skipped when health is ATTENTION_REQUIRED (IMP-LOOP-001)."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+
+        loop = AutonomousLoop(mock_executor)
+
+        # Set up unhealthy state
+        loop._total_phases_executed = 5
+        loop._total_phases_failed = 5  # 50% failure triggers ATTENTION_REQUIRED
+
+        # Track whether _generate_improvement_tasks is called
+        with patch.object(loop, "_generate_improvement_tasks") as mock_gen:
+            with patch.object(loop, "_persist_loop_insights"):
+                with patch("autopack.executor.autonomous_loop.log_build_event"):
+                    # Call _finalize_execution with no_more_executable_phases
+                    stats = {
+                        "iteration": 10,
+                        "phases_executed": 5,
+                        "phases_failed": 5,
+                        "stop_reason": "no_more_executable_phases",
+                    }
+                    loop._finalize_execution(stats)
+
+            # Task generation should NOT be called
+            mock_gen.assert_not_called()
+
+    def test_health_gate_allows_task_gen_when_healthy(self):
+        """Verify task generation proceeds when health is HEALTHY (IMP-LOOP-001)."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+        mock_executor._get_project_slug = Mock(return_value="test-project")
+
+        loop = AutonomousLoop(mock_executor)
+
+        # Set up healthy state
+        loop._total_phases_executed = 10
+        loop._total_phases_failed = 0
+
+        # Track whether _generate_improvement_tasks is called
+        with patch.object(loop, "_generate_improvement_tasks") as mock_gen:
+            with patch.object(loop, "_persist_loop_insights"):
+                with patch("autopack.executor.autonomous_loop.log_build_event"):
+                    with patch.object(loop.executor, "_best_effort_write_run_summary"):
+                        # Call _finalize_execution with no_more_executable_phases
+                        stats = {
+                            "iteration": 10,
+                            "phases_executed": 10,
+                            "phases_failed": 0,
+                            "stop_reason": "no_more_executable_phases",
+                        }
+                        loop._finalize_execution(stats)
+
+            # Task generation SHOULD be called
+            mock_gen.assert_called_once()
+
+    def test_health_gate_allows_task_gen_when_degraded(self):
+        """Verify task generation proceeds when health is DEGRADED (IMP-LOOP-001)."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+        mock_executor._get_project_slug = Mock(return_value="test-project")
+
+        loop = AutonomousLoop(mock_executor)
+
+        # Set up degraded state (25-50% failure rate)
+        loop._total_phases_executed = 7
+        loop._total_phases_failed = 3  # 30% failure rate
+
+        # Track whether _generate_improvement_tasks is called
+        with patch.object(loop, "_generate_improvement_tasks") as mock_gen:
+            with patch.object(loop, "_persist_loop_insights"):
+                with patch("autopack.executor.autonomous_loop.log_build_event"):
+                    with patch.object(loop.executor, "_best_effort_write_run_summary"):
+                        # Call _finalize_execution with no_more_executable_phases
+                        stats = {
+                            "iteration": 10,
+                            "phases_executed": 7,
+                            "phases_failed": 3,
+                            "stop_reason": "no_more_executable_phases",
+                        }
+                        loop._finalize_execution(stats)
+
+            # Task generation SHOULD be called (DEGRADED allows generation)
+            mock_gen.assert_called_once()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

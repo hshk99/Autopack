@@ -16,7 +16,11 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class LearningHint:
-    """Lesson learned during troubleshooting"""
+    """Lesson learned during troubleshooting
+
+    IMP-MEM-001: Includes confidence scoring based on evidence quality
+    and occurrence count to rank hints by reliability.
+    """
 
     phase_id: str
     hint_type: str  # auditor_reject, ci_fail, patch_apply_error, etc.
@@ -24,6 +28,53 @@ class LearningHint:
     source_issue_keys: List[str]
     recorded_at: float
     task_category: Optional[str] = None
+    # IMP-MEM-001: Confidence scoring fields
+    confidence: float = 0.5  # 0.0-1.0 scale
+    occurrence_count: int = 1
+    validation_successes: int = 0
+    validation_failures: int = 0
+
+    def calculate_confidence(self) -> float:
+        """Calculate confidence based on occurrences and validation history.
+
+        IMP-MEM-001: Confidence algorithm:
+        - Base score from occurrence count (capped at 10 occurrences)
+        - Weighted by validation success rate if validations exist
+        - Higher occurrence count + higher success rate = higher confidence
+
+        Returns:
+            Confidence score between 0.0 and 1.0
+        """
+        # Base confidence from occurrence count (max at 10 occurrences)
+        base = min(self.occurrence_count / 10.0, 1.0)
+
+        total_validations = self.validation_successes + self.validation_failures
+        if total_validations > 0:
+            success_rate = self.validation_successes / total_validations
+            # Weight: 50% from occurrence count, 50% from success rate
+            self.confidence = base * 0.5 + success_rate * 0.5
+        else:
+            # No validations yet, use half of base confidence
+            self.confidence = base * 0.5
+
+        return self.confidence
+
+    def record_validation(self, success: bool) -> None:
+        """Record a validation result and recalculate confidence.
+
+        Args:
+            success: True if the hint led to a successful outcome
+        """
+        if success:
+            self.validation_successes += 1
+        else:
+            self.validation_failures += 1
+        self.calculate_confidence()
+
+    def increment_occurrence(self) -> None:
+        """Increment occurrence count and recalculate confidence."""
+        self.occurrence_count += 1
+        self.calculate_confidence()
 
 
 class LearningPipeline:
@@ -104,25 +155,29 @@ class LearningPipeline:
 
     def get_hints_for_phase(self, phase: Dict, task_category: Optional[str] = None) -> List[str]:
         """
-        Get relevant hints for a phase.
+        Get relevant hints for a phase, sorted by confidence.
+
+        IMP-MEM-001: Hints are now sorted by confidence score so that
+        hints with more occurrences and higher validation success rates
+        are prioritized over less reliable hints.
 
         Args:
             phase: Phase specification dict
             task_category: Optional task category filter
 
         Returns:
-            List of hint text strings
+            List of hint text strings, sorted by confidence (highest first)
         """
         phase_id = phase.get("phase_id")
         phase_task_category = phase.get("task_category")
 
         # Filter hints by category or phase
-        relevant_hints = []
+        relevant_hints: List[LearningHint] = []
 
         for hint in self._hints:
             # Same phase ID
             if hint.phase_id == phase_id:
-                relevant_hints.append(hint.hint_text)
+                relevant_hints.append(hint)
                 continue
 
             # Same category (if available on both hint and phase)
@@ -131,9 +186,12 @@ class LearningPipeline:
                 and hint.task_category is not None
                 and hint.task_category == phase_task_category
             ):
-                relevant_hints.append(hint.hint_text)
+                relevant_hints.append(hint)
 
-        return relevant_hints[:10]  # Limit to top 10
+        # IMP-MEM-001: Sort by confidence (highest first)
+        relevant_hints.sort(key=lambda h: h.confidence, reverse=True)
+
+        return [h.hint_text for h in relevant_hints[:10]]  # Limit to top 10
 
     def get_all_hints(self) -> List[LearningHint]:
         """Get all recorded hints"""

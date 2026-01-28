@@ -4,7 +4,7 @@ Contract tests for Learning Pipeline Module (PR-EXE-10)
 Tests the LearningPipeline class that records lessons learned during troubleshooting.
 """
 
-from autopack.executor.learning_pipeline import LearningPipeline
+from autopack.executor.learning_pipeline import LearningHint, LearningPipeline
 
 
 class TestHintRecording:
@@ -624,3 +624,193 @@ class TestPersistToMemory:
         pipeline.persist_to_memory(memory_service=MockMemoryService(), project_id="my-project-id")
 
         assert captured_project_id == "my-project-id"
+
+
+class TestConfidenceScoring:
+    """Test IMP-MEM-001: Confidence scoring for learning hints"""
+
+    def test_default_confidence_value(self):
+        """Test hints have default confidence of 0.5"""
+        pipeline = LearningPipeline(run_id="test-run")
+        phase = {"phase_id": "test", "name": "Test Phase"}
+
+        pipeline.record_hint(phase, "auditor_reject", "Details")
+
+        hint = pipeline.get_all_hints()[0]
+        assert hint.confidence == 0.5
+        assert hint.occurrence_count == 1
+        assert hint.validation_successes == 0
+        assert hint.validation_failures == 0
+
+    def test_calculate_confidence_with_occurrences(self):
+        """Test confidence increases with occurrence count"""
+
+        hint = LearningHint(
+            phase_id="test",
+            hint_type="auditor_reject",
+            hint_text="Test hint",
+            source_issue_keys=[],
+            recorded_at=0.0,
+            occurrence_count=1,
+        )
+
+        # Initial confidence with 1 occurrence: 0.1 * 0.5 = 0.05
+        conf1 = hint.calculate_confidence()
+        assert conf1 == 0.05
+
+        # Increase occurrences to 10 (max)
+        hint.occurrence_count = 10
+        conf10 = hint.calculate_confidence()
+        assert conf10 == 0.5  # 1.0 * 0.5 = 0.5
+
+        # Beyond 10 occurrences should still cap at 1.0 base
+        hint.occurrence_count = 20
+        conf20 = hint.calculate_confidence()
+        assert conf20 == 0.5  # Still 0.5 (capped)
+
+    def test_calculate_confidence_with_validations(self):
+        """Test confidence incorporates validation success rate"""
+
+        hint = LearningHint(
+            phase_id="test",
+            hint_type="auditor_reject",
+            hint_text="Test hint",
+            source_issue_keys=[],
+            recorded_at=0.0,
+            occurrence_count=10,  # Max base = 1.0
+            validation_successes=8,
+            validation_failures=2,
+        )
+
+        # base = 1.0, success_rate = 0.8
+        # confidence = 1.0 * 0.5 + 0.8 * 0.5 = 0.9
+        conf = hint.calculate_confidence()
+        assert conf == 0.9
+
+    def test_calculate_confidence_with_all_failures(self):
+        """Test confidence with only validation failures"""
+
+        hint = LearningHint(
+            phase_id="test",
+            hint_type="auditor_reject",
+            hint_text="Test hint",
+            source_issue_keys=[],
+            recorded_at=0.0,
+            occurrence_count=10,  # Max base = 1.0
+            validation_successes=0,
+            validation_failures=10,
+        )
+
+        # base = 1.0, success_rate = 0.0
+        # confidence = 1.0 * 0.5 + 0.0 * 0.5 = 0.5
+        conf = hint.calculate_confidence()
+        assert conf == 0.5
+
+    def test_record_validation_success(self):
+        """Test record_validation updates confidence on success"""
+
+        hint = LearningHint(
+            phase_id="test",
+            hint_type="auditor_reject",
+            hint_text="Test hint",
+            source_issue_keys=[],
+            recorded_at=0.0,
+            occurrence_count=10,
+        )
+
+        initial_conf = hint.calculate_confidence()
+        assert initial_conf == 0.5  # No validations yet
+
+        hint.record_validation(success=True)
+        assert hint.validation_successes == 1
+        assert hint.validation_failures == 0
+        # New confidence: 1.0 * 0.5 + 1.0 * 0.5 = 1.0
+        assert hint.confidence == 1.0
+
+    def test_record_validation_failure(self):
+        """Test record_validation updates confidence on failure"""
+
+        hint = LearningHint(
+            phase_id="test",
+            hint_type="auditor_reject",
+            hint_text="Test hint",
+            source_issue_keys=[],
+            recorded_at=0.0,
+            occurrence_count=10,
+        )
+
+        hint.record_validation(success=False)
+        assert hint.validation_successes == 0
+        assert hint.validation_failures == 1
+        # New confidence: 1.0 * 0.5 + 0.0 * 0.5 = 0.5
+        assert hint.confidence == 0.5
+
+    def test_increment_occurrence(self):
+        """Test increment_occurrence updates count and recalculates confidence"""
+
+        hint = LearningHint(
+            phase_id="test",
+            hint_type="auditor_reject",
+            hint_text="Test hint",
+            source_issue_keys=[],
+            recorded_at=0.0,
+            occurrence_count=1,
+        )
+
+        initial_conf = hint.calculate_confidence()
+        assert hint.occurrence_count == 1
+        assert initial_conf == 0.05  # 0.1 * 0.5
+
+        hint.increment_occurrence()
+        assert hint.occurrence_count == 2
+        # New confidence: 0.2 * 0.5 = 0.1
+        assert hint.confidence == 0.1
+
+    def test_hints_sorted_by_confidence_in_get_hints_for_phase(self):
+        """Test hints are returned sorted by confidence (highest first)"""
+
+        pipeline = LearningPipeline(run_id="test-run")
+        phase = {"phase_id": "test", "name": "Test Phase"}
+
+        # Record 3 hints with default confidence
+        pipeline.record_hint(phase, "auditor_reject", "Low conf hint")
+        pipeline.record_hint(phase, "ci_fail", "Medium conf hint")
+        pipeline.record_hint(phase, "patch_apply_error", "High conf hint")
+
+        # Manually adjust confidences
+        hints = pipeline.get_all_hints()
+        hints[0].confidence = 0.1  # Low
+        hints[1].confidence = 0.5  # Medium
+        hints[2].confidence = 0.9  # High
+
+        # Get hints - should be sorted by confidence
+        sorted_hints = pipeline.get_hints_for_phase(phase)
+
+        assert len(sorted_hints) == 3
+        assert "High conf hint" in sorted_hints[0]
+        assert "Medium conf hint" in sorted_hints[1]
+        assert "Low conf hint" in sorted_hints[2]
+
+    def test_mixed_validation_results(self):
+        """Test confidence with mixed validation results"""
+
+        hint = LearningHint(
+            phase_id="test",
+            hint_type="auditor_reject",
+            hint_text="Test hint",
+            source_issue_keys=[],
+            recorded_at=0.0,
+            occurrence_count=10,
+        )
+
+        # Simulate real-world usage with mixed results
+        hint.record_validation(success=True)
+        hint.record_validation(success=True)
+        hint.record_validation(success=False)
+        hint.record_validation(success=True)
+
+        assert hint.validation_successes == 3
+        assert hint.validation_failures == 1
+        # success_rate = 3/4 = 0.75
+        # confidence = 1.0 * 0.5 + 0.75 * 0.5 = 0.875
+        assert hint.confidence == 0.875

@@ -19,6 +19,7 @@ import json
 import logging
 import threading
 import uuid
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -48,6 +49,9 @@ class FaissStore:
     - scroll(collection, filter, limit)
     - delete(collection, ids)
     """
+
+    # Maximum payload entries per collection before LRU eviction kicks in
+    MAX_PAYLOAD_ENTRIES = 10000
 
     def __init__(self, index_dir: str = ".autonomous_runs/file-organizer-app-v1/.faiss"):
         """
@@ -96,7 +100,7 @@ class FaissStore:
                 try:
                     index = faiss.read_index(str(index_path))
                     with open(payload_path, "r", encoding="utf-8") as f:
-                        payloads = json.load(f)
+                        payloads = OrderedDict(json.load(f))
                     with open(id_map_path, "r", encoding="utf-8") as f:
                         id_map = json.load(f)
                     self._collections[name] = {
@@ -117,7 +121,7 @@ class FaissStore:
                 index = None  # Fallback to in-memory list
             self._collections[name] = {
                 "index": index,
-                "payloads": {},
+                "payloads": OrderedDict(),  # Use OrderedDict for LRU eviction
                 "id_map": {},
                 "dim": size,
                 "vectors": [] if not FAISS_AVAILABLE else None,  # Fallback storage
@@ -133,11 +137,47 @@ class FaissStore:
             if FAISS_AVAILABLE and col["index"] is not None:
                 faiss.write_index(col["index"], str(self._index_path(name)))
             with open(self._payload_path(name), "w", encoding="utf-8") as f:
-                json.dump(col["payloads"], f)
+                json.dump(dict(col["payloads"]), f)
             with open(self._id_map_path(name), "w", encoding="utf-8") as f:
                 json.dump(col["id_map"], f)
         except Exception as e:
             logger.error(f"[FAISS] Failed to save collection '{name}': {e}")
+
+    def _evict_if_needed(self, collection_name: str) -> int:
+        """
+        Evict oldest entries from payload cache if over MAX_PAYLOAD_ENTRIES.
+
+        Uses LRU policy - oldest entries (first in OrderedDict) are evicted first.
+
+        Args:
+            collection_name: Name of the collection to evict from
+
+        Returns:
+            Number of entries evicted
+        """
+        col = self._collections.get(collection_name)
+        if col is None:
+            return 0
+
+        payloads = col["payloads"]
+        evicted = 0
+
+        while len(payloads) > self.MAX_PAYLOAD_ENTRIES:
+            # Remove oldest entry (first item in OrderedDict)
+            oldest_key = next(iter(payloads))
+            del payloads[oldest_key]
+            # Also remove from id_map to keep them in sync
+            if oldest_key in col["id_map"]:
+                del col["id_map"][oldest_key]
+            evicted += 1
+
+        if evicted > 0:
+            logger.info(
+                f"[FAISS] Evicted {evicted} entries from '{collection_name}' "
+                f"(max: {self.MAX_PAYLOAD_ENTRIES})"
+            )
+
+        return evicted
 
     def upsert(
         self,
@@ -183,6 +223,9 @@ class FaissStore:
 
                 col["payloads"][point_id] = payload
                 count += 1
+
+            # Evict oldest entries if over limit
+            self._evict_if_needed(collection)
 
             self._save_collection(collection)
             return count
@@ -243,6 +286,10 @@ class FaissStore:
                     if filter and not self._matches_filter(payload, filter):
                         continue
 
+                    # Mark as recently used for LRU eviction
+                    if point_id in col["payloads"]:
+                        col["payloads"].move_to_end(point_id)
+
                     results.append(
                         {
                             "id": point_id,
@@ -289,6 +336,10 @@ class FaissStore:
 
             if filter and not self._matches_filter(payload, filter):
                 continue
+
+            # Mark as recently used for LRU eviction
+            if point_id in col["payloads"]:
+                col["payloads"].move_to_end(point_id)
 
             score = cosine_sim(query_vector, vector)
             scored.append({"id": point_id, "score": score, "payload": payload})
@@ -340,7 +391,11 @@ class FaissStore:
         self.ensure_collection(collection)
         with self._lock:
             col = self._collections[collection]
-            return col["payloads"].get(point_id)
+            payload = col["payloads"].get(point_id)
+            # Mark as recently used for LRU eviction
+            if payload is not None:
+                col["payloads"].move_to_end(point_id)
+            return payload
 
     def update_payload(self, collection: str, point_id: str, payload: Dict[str, Any]) -> bool:
         """Update payload for an existing point ID."""
@@ -350,6 +405,8 @@ class FaissStore:
             if point_id not in col["payloads"]:
                 return False
             col["payloads"][point_id] = payload
+            # Mark as recently used for LRU eviction
+            col["payloads"].move_to_end(point_id)
             self._save_collection(collection)
             return True
 

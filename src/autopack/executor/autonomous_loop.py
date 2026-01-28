@@ -10,6 +10,7 @@ import logging
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
@@ -20,7 +21,10 @@ from autopack.autonomous.budgeting import (
     get_budget_remaining_pct,
     is_budget_exhausted,
 )
-from autopack.autonomy.parallelism_gate import ParallelismPolicyGate, ScopeBasedParallelismChecker
+from autopack.autonomy.parallelism_gate import (
+    ParallelismPolicyGate,
+    ScopeBasedParallelismChecker,
+)
 from autopack.config import settings
 from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
@@ -2703,6 +2707,13 @@ class AutonomousLoop:
                                     f"[IMP-LOOP-006] Circuit breaker tripped after parallel "
                                     f"phase {phase_id_result} failure."
                                 )
+                                # IMP-MEM-004: Record circuit breaker event for root cause analysis
+                                if self._feedback_pipeline is not None:
+                                    self._feedback_pipeline.record_circuit_breaker_event(
+                                        failure_count=self._circuit_breaker.consecutive_failures,
+                                        last_failure_reason=f"Parallel phase {phase_id_result} failed with status: {status}",
+                                        timestamp=datetime.now(timezone.utc),
+                                    )
                                 stop_reason = "circuit_breaker_tripped"
                                 break
 
@@ -2881,6 +2892,13 @@ class AutonomousLoop:
                             f"Total trips: {self._circuit_breaker.total_trips}. "
                             f"Execution will be blocked until reset."
                         )
+                        # IMP-MEM-004: Record circuit breaker event for root cause analysis
+                        if self._feedback_pipeline is not None:
+                            self._feedback_pipeline.record_circuit_breaker_event(
+                                failure_count=self._circuit_breaker.consecutive_failures,
+                                last_failure_reason=f"Phase {phase_id} failed with status: {status}",
+                                timestamp=datetime.now(timezone.utc),
+                            )
                         stop_reason = "circuit_breaker_tripped"
                         break
 

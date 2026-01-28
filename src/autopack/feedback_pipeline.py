@@ -856,3 +856,91 @@ class FeedbackPipeline:
             f"For {phase_type} phases: Review past failures of type '{hint_type}' "
             "and implement preventive measures.",
         )
+
+    def record_circuit_breaker_event(
+        self,
+        failure_count: int,
+        last_failure_reason: str,
+        timestamp: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
+        """Record a circuit breaker open event for root cause analysis.
+
+        IMP-MEM-004: Persists circuit breaker trip events as telemetry insights
+        to enable cross-run root cause analysis. When the circuit breaker opens
+        due to consecutive failures, this method captures the failure context
+        and stores it in memory for later investigation.
+
+        Args:
+            failure_count: Number of consecutive failures that triggered the trip
+            last_failure_reason: Description of the most recent failure
+            timestamp: When the circuit breaker tripped (defaults to now)
+
+        Returns:
+            Dictionary with recording results:
+            - success: Whether recording succeeded
+            - insight_id: ID of the persisted insight (if successful)
+            - error: Error message if recording failed
+        """
+        if not self.enabled:
+            logger.debug("[IMP-MEM-004] FeedbackPipeline disabled, skipping circuit breaker event")
+            return {"success": True, "insight_id": None}
+
+        result = {"success": False, "insight_id": None, "error": None}
+
+        try:
+            event_timestamp = timestamp or datetime.now(timezone.utc)
+
+            # Create insight for the circuit breaker event
+            insight = {
+                "insight_type": "circuit_breaker_open",
+                "description": f"Circuit breaker opened after {failure_count} consecutive failures",
+                "content": f"Circuit breaker tripped: {failure_count} failures. Last error: {last_failure_reason}",
+                "metadata": {
+                    "failure_count": failure_count,
+                    "last_failure_reason": last_failure_reason,
+                    "timestamp": event_timestamp.isoformat(),
+                    "event_type": "circuit_breaker_trip",
+                },
+                "severity": "critical",
+                "confidence": 1.0,
+                "run_id": self.run_id,
+                "suggested_action": (
+                    "Investigate root cause of consecutive failures. "
+                    "Check logs for error patterns, verify external service availability, "
+                    "and review recent code changes that may have introduced instability."
+                ),
+                "timestamp": event_timestamp.isoformat(),
+            }
+
+            # Persist to memory service
+            if self.memory_service and getattr(self.memory_service, "enabled", False):
+                try:
+                    self.memory_service.write_telemetry_insight(
+                        insight=insight,
+                        project_id=self.project_id,
+                        validate=True,
+                        strict=False,
+                    )
+                    self._stats["insights_persisted"] += 1
+                    result["success"] = True
+                    logger.info(
+                        f"[IMP-MEM-004] Recorded circuit breaker event: "
+                        f"{failure_count} failures, reason: {last_failure_reason[:100]}"
+                    )
+                except Exception as e:
+                    logger.warning(f"[IMP-MEM-004] Failed to persist circuit breaker insight: {e}")
+                    result["error"] = str(e)
+            else:
+                # Queue for later flush if memory service unavailable
+                self._pending_insights.append(insight)
+                result["success"] = True
+                logger.info(
+                    f"[IMP-MEM-004] Queued circuit breaker event for later persistence: "
+                    f"{failure_count} failures"
+                )
+
+        except Exception as e:
+            result["error"] = str(e)
+            logger.error(f"[IMP-MEM-004] Failed to record circuit breaker event: {e}")
+
+        return result

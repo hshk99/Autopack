@@ -4,8 +4,8 @@ Extracted from autonomous_executor.py as part of PR-EXE-12.
 Handles posting Builder execution results to the Autopack API.
 """
 
+import asyncio
 import logging
-import time
 from pathlib import Path
 from typing import TYPE_CHECKING, List, Optional
 
@@ -32,7 +32,7 @@ class BuilderResultPoster:
     def __init__(self, executor: "AutonomousExecutor"):
         self.executor = executor
 
-    def post_result(
+    async def post_result(
         self, phase_id: str, result: BuilderResult, allowed_paths: Optional[List[str]] = None
     ):
         """Post Builder result to API server.
@@ -127,9 +127,8 @@ class BuilderResultPoster:
                         )
 
                         # BUILD-195: One-shot payload correction via tracker
-                        from autopack.executor.payload_correction import (
-                            should_attempt_payload_correction,
-                        )
+                        from autopack.executor.payload_correction import \
+                            should_attempt_payload_correction
 
                         # Check budget and attempt correction (one-shot via tracker)
                         budget_remaining = 1.0 - (attempt / 3.0)
@@ -173,10 +172,8 @@ class BuilderResultPoster:
 
                         raise  # Re-raise the 422 error
 
-                    # For non-422 errors, handle below
-                    raise
-                except SupervisorApiHttpError as e_inner:
-                    status_code = e_inner.status_code
+                    # Handle HTTP 5xx errors with retry logic
+                    status_code = e.status_code
                     if status_code and status_code >= 500:
                         self.executor._run_http_500_count += 1
                         logger.warning(
@@ -187,7 +184,7 @@ class BuilderResultPoster:
                             logger.info(
                                 f"[{phase_id}] Retrying builder_result POST after {backoff}s (attempt {attempt + 2}/3)"
                             )
-                            time.sleep(backoff)
+                            await asyncio.sleep(backoff)
                             continue
                         if self.executor._run_http_500_count >= self.executor.MAX_HTTP_500_PER_RUN:
                             logger.error(

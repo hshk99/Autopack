@@ -36,6 +36,7 @@ from autopack.telemetry.anomaly_detector import (AlertSeverity,
                                                  TelemetryAnomalyDetector)
 from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
                                              FeedbackLoopHealthReport,
+                                             GoalDriftDetector,
                                              MetaMetricsTracker,
                                              PipelineLatencyTracker,
                                              PipelineStage)
@@ -568,6 +569,20 @@ class AutonomousLoop:
         # IMP-TELE-001: Pipeline latency tracker for loop cycle time measurement
         # Tracks timestamps across pipeline stages to diagnose bottlenecks
         self._latency_tracker: Optional[PipelineLatencyTracker] = None
+
+        # IMP-LOOP-023: Goal drift detector for self-improvement alignment monitoring
+        # Detects when generated tasks drift from stated improvement objectives
+        self._goal_drift_detector: Optional[GoalDriftDetector] = None
+        self._goal_drift_enabled = getattr(settings, "goal_drift_detection_enabled", True)
+        self._goal_drift_threshold = getattr(settings, "goal_drift_threshold", 0.3)
+        if self._goal_drift_enabled:
+            self._goal_drift_detector = GoalDriftDetector(
+                drift_threshold=self._goal_drift_threshold
+            )
+            logger.info(
+                f"[IMP-LOOP-023] Goal drift detector initialized "
+                f"(threshold={self._goal_drift_threshold})"
+            )
 
     def get_loop_stats(self) -> Dict:
         """Get current loop statistics for monitoring (IMP-LOOP-006, IMP-AUTO-002).
@@ -3602,6 +3617,35 @@ class AutonomousLoop:
                         f"[IMP-LOOP-021] Registered {len(result.tasks_generated)} tasks "
                         "for execution verification"
                     )
+
+                # IMP-LOOP-023: Check goal alignment to detect drift from stated objectives
+                if self._goal_drift_detector is not None:
+                    try:
+                        drift_result = self._goal_drift_detector.calculate_drift(
+                            result.tasks_generated
+                        )
+                        if drift_result.is_drifting(self._goal_drift_threshold):
+                            self._emit_alert(
+                                f"Goal drift detected in task generation. "
+                                f"Drift score: {drift_result.drift_score:.2f} "
+                                f"(threshold: {self._goal_drift_threshold}). "
+                                f"Misaligned tasks: {len(drift_result.misaligned_tasks)}/{drift_result.total_task_count}"
+                            )
+                            logger.warning(
+                                f"[IMP-LOOP-023] Goal drift detected: "
+                                f"score={drift_result.drift_score:.3f}, "
+                                f"aligned={drift_result.aligned_task_count}/{drift_result.total_task_count}"
+                            )
+                        else:
+                            logger.info(
+                                f"[IMP-LOOP-023] Tasks aligned with objectives: "
+                                f"drift_score={drift_result.drift_score:.3f}, "
+                                f"aligned={drift_result.aligned_task_count}/{drift_result.total_task_count}"
+                            )
+                    except Exception as drift_err:
+                        logger.debug(
+                            f"[IMP-LOOP-023] Goal drift check failed (non-fatal): {drift_err}"
+                        )
 
             return result.tasks_generated
         except Exception as e:

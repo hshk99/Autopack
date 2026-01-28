@@ -1669,3 +1669,319 @@ class RetrievalQualityTracker:
                 col: s.to_dict() for col, s in self.get_collection_breakdown().items()
             },
         }
+
+
+# =============================================================================
+# IMP-LOOP-023: Goal Drift Detection
+# =============================================================================
+
+
+@dataclass
+class GoalDriftResult:
+    """Result of goal drift analysis for generated tasks.
+
+    IMP-LOOP-023: Tracks alignment between generated tasks and stated objectives.
+    """
+
+    drift_score: float  # 0.0 = perfect alignment, 1.0 = complete drift
+    aligned_task_count: int
+    total_task_count: int
+    alignment_details: Dict[str, float]  # Per-task alignment scores
+    misaligned_tasks: List[str]  # Task IDs with low alignment
+    timestamp: datetime = field(default_factory=datetime.utcnow)
+
+    def is_drifting(self, threshold: float = 0.3) -> bool:
+        """Check if drift score exceeds threshold.
+
+        Args:
+            threshold: Drift threshold (default 0.3 = 30% drift)
+
+        Returns:
+            True if drift score exceeds threshold
+        """
+        return self.drift_score > threshold
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "drift_score": self.drift_score,
+            "aligned_task_count": self.aligned_task_count,
+            "total_task_count": self.total_task_count,
+            "alignment_details": self.alignment_details,
+            "misaligned_tasks": self.misaligned_tasks,
+            "timestamp": self.timestamp.isoformat(),
+        }
+
+
+class GoalDriftDetector:
+    """Detect goal drift in the self-improvement loop.
+
+    IMP-LOOP-023: Monitors whether generated improvement tasks align with
+    the stated objectives of the self-improvement system. Detects when the
+    loop starts optimizing for unintended metrics or drifting from core goals.
+
+    Default objectives for self-improvement:
+    - Reduce execution cost (tokens, API calls)
+    - Improve success rate
+    - Fix recurring failures
+    - Reduce retry frequency
+    - Improve system performance
+    - Enhance reliability
+
+    Usage:
+        detector = GoalDriftDetector()
+        tasks = [GeneratedTask(...), ...]
+        result = detector.calculate_drift(tasks)
+        if result.is_drifting():
+            alert("Goal drift detected!")
+    """
+
+    # Default stated objectives with associated keywords
+    DEFAULT_OBJECTIVES: Dict[str, List[str]] = {
+        "reduce_cost": [
+            "cost",
+            "token",
+            "budget",
+            "expensive",
+            "efficiency",
+            "optimize",
+            "reduce",
+            "save",
+            "spending",
+        ],
+        "improve_success": [
+            "success",
+            "improve",
+            "enhance",
+            "better",
+            "increase",
+            "accuracy",
+            "quality",
+            "effective",
+        ],
+        "fix_failures": [
+            "fail",
+            "error",
+            "bug",
+            "fix",
+            "repair",
+            "resolve",
+            "issue",
+            "problem",
+            "broken",
+        ],
+        "reduce_retries": [
+            "retry",
+            "attempt",
+            "repeat",
+            "loop",
+            "redundant",
+            "duplicate",
+            "excessive",
+        ],
+        "improve_performance": [
+            "performance",
+            "speed",
+            "latency",
+            "fast",
+            "slow",
+            "timeout",
+            "delay",
+            "throughput",
+        ],
+        "enhance_reliability": [
+            "reliable",
+            "stable",
+            "consistent",
+            "robust",
+            "resilient",
+            "availability",
+            "uptime",
+        ],
+    }
+
+    # Default threshold for drift alerting
+    DEFAULT_DRIFT_THRESHOLD: float = 0.3  # 30% drift triggers alert
+
+    def __init__(
+        self,
+        objectives: Optional[Dict[str, List[str]]] = None,
+        drift_threshold: float = DEFAULT_DRIFT_THRESHOLD,
+        min_alignment_score: float = 0.2,
+    ):
+        """Initialize the goal drift detector.
+
+        Args:
+            objectives: Custom objectives with keywords (uses defaults if None)
+            drift_threshold: Threshold for drift alerts (0.0-1.0)
+            min_alignment_score: Minimum score for a task to be considered aligned
+        """
+        self.objectives = objectives or self.DEFAULT_OBJECTIVES
+        self.drift_threshold = drift_threshold
+        self.min_alignment_score = min_alignment_score
+        self._drift_history: List[GoalDriftResult] = []
+
+    def calculate_drift(self, tasks: List[Any]) -> GoalDriftResult:
+        """Calculate goal drift for a set of generated tasks.
+
+        Analyzes each task's title and description to determine alignment
+        with stated objectives using keyword-based similarity scoring.
+
+        Args:
+            tasks: List of GeneratedTask objects (or objects with title/description)
+
+        Returns:
+            GoalDriftResult with drift analysis
+        """
+        if not tasks:
+            return GoalDriftResult(
+                drift_score=0.0,
+                aligned_task_count=0,
+                total_task_count=0,
+                alignment_details={},
+                misaligned_tasks=[],
+            )
+
+        alignment_scores: Dict[str, float] = {}
+        misaligned_tasks: List[str] = []
+        aligned_count = 0
+
+        for task in tasks:
+            task_id = getattr(task, "task_id", str(id(task)))
+            title = getattr(task, "title", "").lower()
+            description = getattr(task, "description", "").lower()
+            text = f"{title} {description}"
+
+            # Calculate alignment score for this task
+            score = self._calculate_task_alignment(text)
+            alignment_scores[task_id] = score
+
+            if score >= self.min_alignment_score:
+                aligned_count += 1
+            else:
+                misaligned_tasks.append(task_id)
+
+        # Calculate overall drift score (inverse of alignment)
+        total_tasks = len(tasks)
+        avg_alignment = sum(alignment_scores.values()) / total_tasks
+        drift_score = 1.0 - avg_alignment
+
+        result = GoalDriftResult(
+            drift_score=drift_score,
+            aligned_task_count=aligned_count,
+            total_task_count=total_tasks,
+            alignment_details=alignment_scores,
+            misaligned_tasks=misaligned_tasks,
+        )
+
+        # Track history for trend analysis
+        self._drift_history.append(result)
+
+        logger.debug(
+            f"[IMP-LOOP-023] Goal drift calculated: score={drift_score:.3f}, "
+            f"aligned={aligned_count}/{total_tasks}"
+        )
+
+        return result
+
+    def _calculate_task_alignment(self, text: str) -> float:
+        """Calculate alignment score for a task text against objectives.
+
+        Uses keyword matching to determine how well the task aligns with
+        stated objectives. Higher score = better alignment.
+
+        Args:
+            text: Combined title and description text (lowercase)
+
+        Returns:
+            Alignment score (0.0-1.0)
+        """
+        if not text:
+            return 0.0
+
+        # Count keyword matches across all objectives
+        total_keywords = 0
+        matched_keywords = 0
+        objective_matches: Dict[str, int] = {}
+
+        for objective, keywords in self.objectives.items():
+            matches = sum(1 for kw in keywords if kw in text)
+            objective_matches[objective] = matches
+            matched_keywords += matches
+            total_keywords += len(keywords)
+
+        # Base score from keyword density
+        if total_keywords == 0:
+            return 0.0
+
+        keyword_score = min(1.0, matched_keywords / 3)  # Cap at 3 matches = 1.0
+
+        # Bonus for matching multiple objectives (diverse alignment)
+        objectives_hit = sum(1 for m in objective_matches.values() if m > 0)
+        diversity_bonus = min(0.2, objectives_hit * 0.05)
+
+        return min(1.0, keyword_score + diversity_bonus)
+
+    def get_drift_trend(self, window_size: int = 5) -> Optional[str]:
+        """Analyze trend in drift scores over recent measurements.
+
+        Args:
+            window_size: Number of recent measurements to analyze
+
+        Returns:
+            Trend direction: "improving", "stable", "worsening", or None if insufficient data
+        """
+        if len(self._drift_history) < window_size:
+            return None
+
+        recent = self._drift_history[-window_size:]
+        scores = [r.drift_score for r in recent]
+
+        # Calculate trend direction
+        first_half_avg = sum(scores[: window_size // 2]) / (window_size // 2)
+        second_half_avg = sum(scores[window_size // 2 :]) / (window_size - window_size // 2)
+
+        diff = second_half_avg - first_half_avg
+
+        if diff < -0.05:
+            return "improving"  # Drift decreasing
+        elif diff > 0.05:
+            return "worsening"  # Drift increasing
+        else:
+            return "stable"
+
+    def get_average_drift(self, window_size: int = 10) -> float:
+        """Get average drift score over recent measurements.
+
+        Args:
+            window_size: Number of recent measurements to average
+
+        Returns:
+            Average drift score (0.0-1.0)
+        """
+        if not self._drift_history:
+            return 0.0
+
+        recent = self._drift_history[-window_size:]
+        return sum(r.drift_score for r in recent) / len(recent)
+
+    def clear_history(self) -> None:
+        """Clear drift measurement history."""
+        self._drift_history.clear()
+        logger.debug("[IMP-LOOP-023] Cleared goal drift history")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert detector state to dictionary for serialization.
+
+        Returns:
+            Dict with configuration and recent measurements
+        """
+        return {
+            "drift_threshold": self.drift_threshold,
+            "min_alignment_score": self.min_alignment_score,
+            "objectives": list(self.objectives.keys()),
+            "history_size": len(self._drift_history),
+            "average_drift": self.get_average_drift(),
+            "drift_trend": self.get_drift_trend(),
+            "recent_measurements": [r.to_dict() for r in self._drift_history[-5:]],
+        }

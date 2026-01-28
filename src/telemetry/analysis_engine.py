@@ -1,12 +1,17 @@
 """Telemetry analysis engine for pattern detection and insights."""
 
+import json
+import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from .pattern_detector import PatternDetector
 from .unified_event_log import UnifiedEventLog
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -36,14 +41,43 @@ class AnalysisEngine:
     issue identification, and bottleneck detection capabilities.
     """
 
-    def __init__(self, event_log: UnifiedEventLog) -> None:
+    PATTERN_REGISTRY_PATH = Path.home() / ".autopack" / "pattern_registry.json"
+
+    def __init__(self, event_log: UnifiedEventLog, registry_path: Optional[Path] = None) -> None:
         """Initialize the analysis engine.
 
         Args:
             event_log: UnifiedEventLog instance to analyze.
+            registry_path: Optional path for pattern registry persistence.
+                If not provided, defaults to ~/.autopack/pattern_registry.json.
         """
         self.event_log = event_log
-        self.pattern_detector = PatternDetector()
+        self.registry_path = registry_path or self.PATTERN_REGISTRY_PATH
+        self.pattern_detector = self._load_or_create_detector()
+
+    def _load_or_create_detector(self) -> PatternDetector:
+        """Load pattern detector from persistent storage or create new.
+
+        Returns:
+            PatternDetector instance, either loaded from disk or newly created.
+        """
+        if self.registry_path.exists():
+            try:
+                with open(self.registry_path, encoding="utf-8") as f:
+                    data = json.load(f)
+                detector = PatternDetector.from_dict(data)
+                logger.info(f"Loaded {len(detector.patterns)} patterns from registry")
+                return detector
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.warning(f"Failed to load pattern registry: {e}")
+        return PatternDetector()
+
+    def save_patterns(self) -> None:
+        """Persist pattern registry to disk."""
+        self.registry_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.registry_path, "w", encoding="utf-8") as f:
+            json.dump(self.pattern_detector.to_dict(), f, indent=2)
+        logger.debug(f"Saved {len(self.pattern_detector.patterns)} patterns")
 
     def detect_error_patterns(
         self,

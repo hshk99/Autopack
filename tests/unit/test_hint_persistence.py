@@ -1,4 +1,4 @@
-"""Tests for cross-run hint persistence (IMP-LOOP-020).
+"""Tests for cross-run hint persistence (IMP-LOOP-020, IMP-LEARN-002).
 
 Tests cover:
 - Hint occurrence loading from file
@@ -6,6 +6,8 @@ Tests cover:
 - Cross-run persistence simulation
 - Guaranteed persistence with retry logic
 - Persistence verification
+- IMP-LEARN-002: Individual hint persistence with retry and verification
+- IMP-LEARN-002: Single hint verification method
 """
 
 import json
@@ -14,10 +16,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.executor.learning_pipeline import (
-    HintPersistenceError,
-    LearningPipeline,
-)
+from autopack.executor.learning_pipeline import (HintPersistenceError,
+                                                 LearningPipeline)
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 
 
@@ -222,9 +222,20 @@ class TestGuaranteedPersistence:
             project_id="test_project",
         )
 
-        # Record a hint
-        phase = {"phase_id": "test-phase", "name": "Test Phase"}
-        pipeline.record_hint(phase, "ci_fail", "Test failure")
+        # Add hint directly to avoid triggering _persist_hint_to_memory via record_hint
+        # (IMP-LEARN-002 added retry logic to record_hint's persistence path)
+        import time
+
+        from autopack.executor.learning_pipeline import LearningHint
+
+        hint = LearningHint(
+            phase_id="test-phase",
+            hint_type="ci_fail",
+            hint_text="Test failure hint",
+            source_issue_keys=["ci_fail_test-phase"],
+            recorded_at=time.time(),
+        )
+        pipeline._hints.append(hint)
 
         # Persist with guaranteed delivery (no verification to simplify test)
         count = pipeline.persist_hints_guaranteed(verify=False)
@@ -384,3 +395,410 @@ class TestCrossRunLearning:
 
         # Should have accumulated to 2 occurrences
         assert pipeline3._hint_occurrences.get("ci_fail:build") == 2
+
+
+class TestIndividualHintPersistence:
+    """Tests for IMP-LEARN-002: Individual hint persistence with retry and verification."""
+
+    def test_persist_hint_to_memory_success_first_attempt(self):
+        """_persist_hint_to_memory should succeed on first attempt."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight.return_value = True
+        mock_memory.retrieve_insights.return_value = [
+            {"content": "test-phase ci_fail", "phase_id": "test-phase"}
+        ]
+
+        pipeline = LearningPipeline(
+            run_id="test-run",
+            memory_service=mock_memory,
+            project_id="test_project",
+        )
+
+        # Create a hint directly
+        import time
+
+        from autopack.executor.learning_pipeline import LearningHint
+
+        hint = LearningHint(
+            phase_id="test-phase",
+            hint_type="ci_fail",
+            hint_text="Test hint",
+            source_issue_keys=["ci_fail_test-phase"],
+            recorded_at=time.time(),
+        )
+
+        # Persist the hint
+        result = pipeline._persist_hint_to_memory(hint, max_retries=3, verify=True)
+
+        assert result is True
+        mock_memory.write_telemetry_insight.assert_called_once()
+
+    def test_persist_hint_to_memory_retry_on_failure(self):
+        """_persist_hint_to_memory should retry on transient failures."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+
+        # Fail first 2 attempts, succeed on third
+        call_count = [0]
+
+        def write_side_effect(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] < 3:
+                raise Exception("Transient error")
+            return True
+
+        mock_memory.write_telemetry_insight.side_effect = write_side_effect
+        mock_memory.retrieve_insights.return_value = [{"content": "test-phase ci_fail"}]
+
+        pipeline = LearningPipeline(
+            run_id="test-run",
+            memory_service=mock_memory,
+            project_id="test_project",
+        )
+
+        import time
+
+        from autopack.executor.learning_pipeline import LearningHint
+
+        hint = LearningHint(
+            phase_id="test-phase",
+            hint_type="ci_fail",
+            hint_text="Test hint",
+            source_issue_keys=["ci_fail_test-phase"],
+            recorded_at=time.time(),
+        )
+
+        # Persist with retry (no verification to simplify test)
+        result = pipeline._persist_hint_to_memory(hint, max_retries=3, verify=False)
+
+        assert result is True
+        assert call_count[0] == 3  # Should have retried
+
+    def test_persist_hint_to_memory_returns_false_after_max_retries(self):
+        """_persist_hint_to_memory should return False after all retries fail."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight.side_effect = Exception("Persistent error")
+
+        pipeline = LearningPipeline(
+            run_id="test-run",
+            memory_service=mock_memory,
+            project_id="test_project",
+        )
+
+        import time
+
+        from autopack.executor.learning_pipeline import LearningHint
+
+        hint = LearningHint(
+            phase_id="test-phase",
+            hint_type="ci_fail",
+            hint_text="Test hint",
+            source_issue_keys=["ci_fail_test-phase"],
+            recorded_at=time.time(),
+        )
+
+        # Should return False after 3 retries (not raise, since individual hint
+        # persistence shouldn't break execution)
+        result = pipeline._persist_hint_to_memory(hint, max_retries=3, verify=False)
+
+        assert result is False
+        assert mock_memory.write_telemetry_insight.call_count == 3
+
+    def test_persist_hint_to_memory_verification_failure_retries(self):
+        """_persist_hint_to_memory should retry if verification fails."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight.return_value = True
+
+        # Return empty results for first 2 verification attempts
+        verify_call_count = [0]
+
+        def retrieve_side_effect(*args, **kwargs):
+            verify_call_count[0] += 1
+            if verify_call_count[0] < 3:
+                return []  # Verification fails
+            return [{"content": "test-phase ci_fail"}]
+
+        mock_memory.retrieve_insights.side_effect = retrieve_side_effect
+
+        pipeline = LearningPipeline(
+            run_id="test-run",
+            memory_service=mock_memory,
+            project_id="test_project",
+        )
+
+        import time
+
+        from autopack.executor.learning_pipeline import LearningHint
+
+        hint = LearningHint(
+            phase_id="test-phase",
+            hint_type="ci_fail",
+            hint_text="Test hint",
+            source_issue_keys=["ci_fail_test-phase"],
+            recorded_at=time.time(),
+        )
+
+        # Persist with verification
+        result = pipeline._persist_hint_to_memory(hint, max_retries=3, verify=True)
+
+        assert result is True
+        assert verify_call_count[0] == 3
+
+    def test_persist_hint_to_memory_disabled_service(self):
+        """_persist_hint_to_memory should return False if service disabled."""
+        mock_memory = Mock()
+        mock_memory.enabled = False
+
+        pipeline = LearningPipeline(
+            run_id="test-run",
+            memory_service=mock_memory,
+            project_id="test_project",
+        )
+
+        import time
+
+        from autopack.executor.learning_pipeline import LearningHint
+
+        hint = LearningHint(
+            phase_id="test-phase",
+            hint_type="ci_fail",
+            hint_text="Test hint",
+            source_issue_keys=["ci_fail_test-phase"],
+            recorded_at=time.time(),
+        )
+
+        result = pipeline._persist_hint_to_memory(hint)
+
+        assert result is False
+        mock_memory.write_telemetry_insight.assert_not_called()
+
+    def test_persist_hint_to_memory_no_service(self):
+        """_persist_hint_to_memory should return False if no memory service."""
+        pipeline = LearningPipeline(
+            run_id="test-run",
+            memory_service=None,
+            project_id="test_project",
+        )
+
+        import time
+
+        from autopack.executor.learning_pipeline import LearningHint
+
+        hint = LearningHint(
+            phase_id="test-phase",
+            hint_type="ci_fail",
+            hint_text="Test hint",
+            source_issue_keys=["ci_fail_test-phase"],
+            recorded_at=time.time(),
+        )
+
+        result = pipeline._persist_hint_to_memory(hint)
+
+        assert result is False
+
+
+class TestSingleHintVerification:
+    """Tests for IMP-LEARN-002: _verify_single_hint_persistence method."""
+
+    def test_verify_single_hint_persistence_success_by_hint_id(self):
+        """Verification should succeed when hint_id matches."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.retrieve_insights.return_value = [
+            {"hint_id": "test-run:test-phase:ci_fail", "content": "some content"}
+        ]
+
+        pipeline = LearningPipeline(
+            run_id="test-run",
+            memory_service=mock_memory,
+            project_id="test_project",
+        )
+
+        import time
+
+        from autopack.executor.learning_pipeline import LearningHint
+
+        hint = LearningHint(
+            phase_id="test-phase",
+            hint_type="ci_fail",
+            hint_text="Test hint",
+            source_issue_keys=["ci_fail_test-phase"],
+            recorded_at=time.time(),
+        )
+
+        result = pipeline._verify_single_hint_persistence(hint)
+
+        assert result is True
+
+    def test_verify_single_hint_persistence_success_by_phase_id(self):
+        """Verification should succeed when phase_id is in content."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.retrieve_insights.return_value = [
+            {"content": "Hint for test-phase with failure", "description": ""}
+        ]
+
+        pipeline = LearningPipeline(
+            run_id="test-run",
+            memory_service=mock_memory,
+            project_id="test_project",
+        )
+
+        import time
+
+        from autopack.executor.learning_pipeline import LearningHint
+
+        hint = LearningHint(
+            phase_id="test-phase",
+            hint_type="ci_fail",
+            hint_text="Test hint",
+            source_issue_keys=["ci_fail_test-phase"],
+            recorded_at=time.time(),
+        )
+
+        result = pipeline._verify_single_hint_persistence(hint)
+
+        assert result is True
+
+    def test_verify_single_hint_persistence_success_by_insight_type(self):
+        """Verification should succeed when insight_type matches mapped type."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.retrieve_insights.return_value = [
+            {"insight_type": "failure_mode", "content": "some other content"}
+        ]
+
+        pipeline = LearningPipeline(
+            run_id="test-run",
+            memory_service=mock_memory,
+            project_id="test_project",
+        )
+
+        import time
+
+        from autopack.executor.learning_pipeline import LearningHint
+
+        hint = LearningHint(
+            phase_id="test-phase",
+            hint_type="ci_fail",  # Maps to "failure_mode"
+            hint_text="Test hint",
+            source_issue_keys=["ci_fail_test-phase"],
+            recorded_at=time.time(),
+        )
+
+        result = pipeline._verify_single_hint_persistence(hint)
+
+        assert result is True
+
+    def test_verify_single_hint_persistence_failure_no_match(self):
+        """Verification should fail when no results match."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.retrieve_insights.return_value = [
+            {"content": "unrelated content", "insight_type": "unrelated_type"}
+        ]
+
+        pipeline = LearningPipeline(
+            run_id="test-run",
+            memory_service=mock_memory,
+            project_id="test_project",
+        )
+
+        import time
+
+        from autopack.executor.learning_pipeline import LearningHint
+
+        hint = LearningHint(
+            phase_id="test-phase",
+            hint_type="ci_fail",
+            hint_text="Test hint",
+            source_issue_keys=["ci_fail_test-phase"],
+            recorded_at=time.time(),
+        )
+
+        result = pipeline._verify_single_hint_persistence(hint)
+
+        assert result is False
+
+    def test_verify_single_hint_persistence_failure_empty_results(self):
+        """Verification should fail when no results returned."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.retrieve_insights.return_value = []
+
+        pipeline = LearningPipeline(
+            run_id="test-run",
+            memory_service=mock_memory,
+            project_id="test_project",
+        )
+
+        import time
+
+        from autopack.executor.learning_pipeline import LearningHint
+
+        hint = LearningHint(
+            phase_id="test-phase",
+            hint_type="ci_fail",
+            hint_text="Test hint",
+            source_issue_keys=["ci_fail_test-phase"],
+            recorded_at=time.time(),
+        )
+
+        result = pipeline._verify_single_hint_persistence(hint)
+
+        assert result is False
+
+    def test_verify_single_hint_persistence_handles_exception(self):
+        """Verification should return False on exception."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.retrieve_insights.side_effect = Exception("Query failed")
+
+        pipeline = LearningPipeline(
+            run_id="test-run",
+            memory_service=mock_memory,
+            project_id="test_project",
+        )
+
+        import time
+
+        from autopack.executor.learning_pipeline import LearningHint
+
+        hint = LearningHint(
+            phase_id="test-phase",
+            hint_type="ci_fail",
+            hint_text="Test hint",
+            source_issue_keys=["ci_fail_test-phase"],
+            recorded_at=time.time(),
+        )
+
+        result = pipeline._verify_single_hint_persistence(hint)
+
+        assert result is False
+
+    def test_verify_single_hint_persistence_no_memory_service(self):
+        """Verification should return False if no memory service."""
+        pipeline = LearningPipeline(
+            run_id="test-run",
+            memory_service=None,
+            project_id="test_project",
+        )
+
+        import time
+
+        from autopack.executor.learning_pipeline import LearningHint
+
+        hint = LearningHint(
+            phase_id="test-phase",
+            hint_type="ci_fail",
+            hint_text="Test hint",
+            source_issue_keys=["ci_fail_test-phase"],
+            recorded_at=time.time(),
+        )
+
+        result = pipeline._verify_single_hint_persistence(hint)
+
+        assert result is False

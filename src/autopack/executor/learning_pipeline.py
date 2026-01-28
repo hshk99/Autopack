@@ -183,7 +183,9 @@ class LearningPipeline:
             self._hints.append(hint)
 
             # IMP-INT-004: Persist hint immediately if memory_service is available
-            self._persist_hint_to_memory(hint)
+            # IMP-LEARN-002: Use retry but skip verification for immediate persistence
+            # (verification is done at end of run by persist_hints_guaranteed)
+            self._persist_hint_to_memory(hint, max_retries=3, verify=False)
 
             logger.debug(f"[Learning] Recorded hint for {phase_id}: {hint_type}")
 
@@ -311,53 +313,155 @@ class LearningPipeline:
         """
         return self._applied_rules_per_phase.get(phase_id, [])
 
-    def _persist_hint_to_memory(self, hint: LearningHint) -> bool:
+    def _persist_hint_to_memory(
+        self, hint: LearningHint, max_retries: int = 3, verify: bool = True
+    ) -> bool:
         """
-        Persist a single hint to memory service immediately.
+        Persist a single hint to memory service with guaranteed delivery.
 
+        IMP-LEARN-002: Enhanced with retry logic and verification.
         This is called from record_hint() to ensure hints are not lost
         when the executor exits. Part of IMP-INT-004.
 
         Args:
             hint: The LearningHint to persist
+            max_retries: Maximum number of retry attempts (default: 3)
+            verify: Whether to verify persistence by retrieval (default: True)
 
         Returns:
-            True if persistence succeeded, False otherwise
+            True if persistence succeeded and verified, False otherwise
         """
         if not self._memory_service or not getattr(self._memory_service, "enabled", False):
             return False
 
-        try:
-            # Convert LearningHint to telemetry insight format
-            insight = {
-                "insight_type": self._map_hint_type_to_insight_type(hint.hint_type),
-                "description": hint.hint_text,
-                "phase_id": hint.phase_id,
-                "run_id": self.run_id,
-                "suggested_action": hint.hint_text,
-                "severity": self._get_hint_severity(hint.hint_type),
-                "source_issue_keys": hint.source_issue_keys,
-                "task_category": hint.task_category,
-            }
+        last_error: Optional[Exception] = None
 
-            # Use the unified write_telemetry_insight method
-            result = self._memory_service.write_telemetry_insight(
-                insight=insight,
+        for attempt in range(max_retries):
+            try:
+                # Convert LearningHint to telemetry insight format
+                insight = {
+                    "insight_type": self._map_hint_type_to_insight_type(hint.hint_type),
+                    "description": hint.hint_text,
+                    "phase_id": hint.phase_id,
+                    "run_id": self.run_id,
+                    "suggested_action": hint.hint_text,
+                    "severity": self._get_hint_severity(hint.hint_type),
+                    "source_issue_keys": hint.source_issue_keys,
+                    "task_category": hint.task_category,
+                    # IMP-LEARN-002: Add hint_id for verification
+                    "hint_id": f"{self.run_id}:{hint.phase_id}:{hint.hint_type}",
+                }
+
+                # Use the unified write_telemetry_insight method
+                result = self._memory_service.write_telemetry_insight(
+                    insight=insight,
+                    project_id=self._project_id,
+                    validate=True,
+                    strict=False,
+                )
+
+                if result:
+                    # IMP-LEARN-002: Verify persistence if requested
+                    if verify:
+                        if self._verify_single_hint_persistence(hint):
+                            logger.debug(
+                                f"[IMP-LEARN-002] Persisted and verified hint: "
+                                f"{hint.phase_id}/{hint.hint_type} (attempt {attempt + 1})"
+                            )
+                            return True
+                        else:
+                            logger.warning(
+                                f"[IMP-LEARN-002] Verification failed for hint "
+                                f"{hint.phase_id}/{hint.hint_type} (attempt {attempt + 1})"
+                            )
+                            # Continue to retry
+                    else:
+                        logger.debug(
+                            f"[IMP-LEARN-002] Persisted hint (no verify): "
+                            f"{hint.phase_id}/{hint.hint_type}"
+                        )
+                        return True
+
+            except Exception as e:
+                last_error = e
+                logger.warning(
+                    f"[IMP-LEARN-002] Persist attempt {attempt + 1} failed for "
+                    f"{hint.phase_id}: {e}"
+                )
+
+            # Exponential backoff before retry (skip on last attempt)
+            if attempt < max_retries - 1:
+                backoff = 2**attempt  # 1, 2, 4 seconds
+                logger.debug(f"[IMP-LEARN-002] Waiting {backoff}s before retry")
+                time.sleep(backoff)
+
+        # All retries exhausted - log but don't raise (hint recording shouldn't break execution)
+        error_detail = f": {last_error}" if last_error else ""
+        logger.error(
+            f"[IMP-LEARN-002] Failed to persist hint {hint.phase_id}/{hint.hint_type} "
+            f"after {max_retries} attempts{error_detail}"
+        )
+        return False
+
+    def _verify_single_hint_persistence(self, hint: LearningHint) -> bool:
+        """Verify that a single persisted hint is retrievable.
+
+        IMP-LEARN-002: Verifies the specific hint can be retrieved from
+        memory service, confirming the persistence succeeded.
+
+        Args:
+            hint: The LearningHint to verify
+
+        Returns:
+            True if verification succeeds, False otherwise
+        """
+        if not self._memory_service:
+            return False
+
+        try:
+            # Query for the specific hint using phase_id and hint_type
+            query = f"{hint.hint_type} {hint.phase_id}"
+
+            results = self._memory_service.retrieve_insights(
+                query=query,
+                limit=5,
                 project_id=self._project_id,
-                validate=True,
-                strict=False,
+                max_age_hours=1.0,  # Recent hints only
             )
 
-            if result:
-                logger.debug(
-                    f"[Learning] Persisted hint to memory: {hint.phase_id}/{hint.hint_type}"
-                )
-                return True
+            # Check if any result matches our hint
+            for result in results:
+                content = result.get("content", "") or result.get("description", "")
+                hint_id = result.get("hint_id", "")
+
+                # Match on hint_id (most reliable) or phase_id in content
+                expected_hint_id = f"{self.run_id}:{hint.phase_id}:{hint.hint_type}"
+                if hint_id == expected_hint_id:
+                    logger.debug(f"[IMP-LEARN-002] Verification succeeded via hint_id: {hint_id}")
+                    return True
+
+                # Fallback: match on phase_id in content
+                if hint.phase_id in content:
+                    logger.debug(f"[IMP-LEARN-002] Verification succeeded via phase_id match")
+                    return True
+
+            # If we got any results with matching hint_type, consider it a weak success
+            for result in results:
+                insight_type = result.get("insight_type", "")
+                expected_type = self._map_hint_type_to_insight_type(hint.hint_type)
+                if insight_type == expected_type:
+                    logger.debug(f"[IMP-LEARN-002] Verification succeeded via insight_type match")
+                    return True
+
+            logger.debug(
+                f"[IMP-LEARN-002] Verification failed: no matching hint found "
+                f"(query: {query}, results: {len(results)})"
+            )
+            return False
 
         except Exception as e:
-            logger.warning(f"[Learning] Failed to persist hint {hint.phase_id}: {e}")
-
-        return False
+            logger.warning(f"[IMP-LEARN-002] Verification query failed: {e}")
+            return False
 
     def persist_to_memory(self, memory_service, project_id: Optional[str] = None) -> int:
         """

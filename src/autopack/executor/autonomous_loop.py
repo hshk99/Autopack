@@ -1057,6 +1057,17 @@ class AutonomousLoop:
                     else improvement_context
                 )
 
+            # IMP-LOOP-028: Warn when all context sources return empty (parallel path)
+            if not combined_context.strip():
+                logger.warning(
+                    "All context sources returned empty - phase executing without historical guidance",
+                    extra={
+                        "phase": phase_id,
+                        "memory_empty": not memory_context,
+                        "improvement_empty": not improvement_context,
+                    },
+                )
+
             if combined_context:
                 combined_context = self._inject_context_with_ceiling(combined_context)
                 if combined_context:
@@ -2826,6 +2837,18 @@ class AutonomousLoop:
                     combined_context + "\n\n" + improvement_context
                     if combined_context
                     else improvement_context
+                )
+
+            # IMP-LOOP-028: Warn when all context sources return empty
+            if not combined_context.strip():
+                logger.warning(
+                    "All context sources returned empty - phase executing without historical guidance",
+                    extra={
+                        "phase": phase_id,
+                        "memory_empty": not memory_context,
+                        "feedback_empty": not feedback_context,
+                        "improvement_empty": not improvement_context,
+                    },
                 )
 
             # IMP-PERF-002: Apply context ceiling enforcement

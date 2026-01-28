@@ -3,11 +3,15 @@
 Retrieves historical context (past errors, strategies, hints, insights) from
 vector memory and formats them for injection into builder prompts, enabling
 the builder to learn from past experience.
+
+IMP-MEM-002: Includes cross-phase conflict detection for hints to prevent
+contradictory lessons from being active simultaneously.
 """
 
 import logging
+import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .memory_service import ContextMetadata, MemoryService
 
@@ -171,11 +175,21 @@ class ContextInjector:
             hints_result = self._memory.search_doctor_hints(
                 query=hints_query,
                 project_id=project_id,
-                limit=2,
+                limit=5,  # Get more for conflict resolution
             )
-            doctor_hints = [
+            raw_doctor_hints = [
                 h.get("payload", {}).get("hint", h.get("content", "")) for h in hints_result
             ]
+
+            # IMP-MEM-002: Apply conflict resolution to hints
+            doctor_hints, conflicts_resolved = self._resolve_conflicts_plain(raw_doctor_hints)
+            doctor_hints = doctor_hints[:2]  # Limit to 2 after conflict resolution
+
+            if conflicts_resolved > 0:
+                logger.info(
+                    f"[IMP-MEM-002] Resolved {conflicts_resolved} conflicting plain hints "
+                    f"for phase={phase_type}"
+                )
 
             # Query for relevant insights to current goal
             insights_query = current_goal
@@ -426,8 +440,18 @@ class ContextInjector:
             # Extract the relevant lists and limit to 3 items each
             past_errors = error_metadata.get("errors", [])[:3]
             strategies = strategy_metadata.get("summaries", [])[:3]
-            hints = hints_metadata.get("hints", [])[:2]
+            raw_hints = hints_metadata.get("hints", [])[:5]  # Get more for conflict resolution
             insights = insights_metadata.get("code", [])[:3]
+
+            # IMP-MEM-002: Apply conflict resolution to hints before using them
+            hints, conflicts_resolved = self._resolve_conflicts(raw_hints)
+            hints = hints[:2]  # Limit to 2 after conflict resolution
+
+            if conflicts_resolved > 0:
+                logger.info(
+                    f"[IMP-MEM-002] Resolved {conflicts_resolved} conflicting hints "
+                    f"for phase={phase_type}, goal='{current_goal[:50]}...'"
+                )
 
             # Get discovery context (no metadata for external sources)
             discovery_insights = self.get_discovery_context(
@@ -449,6 +473,9 @@ class ContextInjector:
             # Calculate quality summary
             all_metadata_items = past_errors + strategies + hints + insights
             quality_summary = self._calculate_quality_summary(all_metadata_items)
+
+            # IMP-MEM-002: Add conflict resolution info to quality summary
+            quality_summary["conflicts_resolved"] = conflicts_resolved
 
             # Determine if we should warn about low confidence
             has_warning = quality_summary.get("has_low_confidence_warning", False)
@@ -520,6 +547,239 @@ class ContextInjector:
             "avg_age_hours": round(avg_age, 1) if avg_age >= 0 else -1.0,
             "has_low_confidence_warning": has_warning,
         }
+
+    # -------------------------------------------------------------------------
+    # IMP-MEM-002: Cross-Phase Conflict Detection for Hints
+    # -------------------------------------------------------------------------
+
+    # Patterns that indicate contradictory advice
+    _CONTRADICTION_PATTERNS: List[Tuple[str, str]] = [
+        (r"\buse\b", r"\bavoid\b"),
+        (r"\balways\b", r"\bnever\b"),
+        (r"\benable\b", r"\bdisable\b"),
+        (r"\bprefer\b", r"\bavoid\b"),
+        (r"\bdo\b", r"\bdon'?t\b"),
+        (r"\bshould\b", r"\bshould\s*n'?t\b"),
+        (r"\bsync\b", r"\basync\b"),
+        (r"\binclude\b", r"\bexclude\b"),
+        (r"\badd\b", r"\bremove\b"),
+        (r"\bincrease\b", r"\bdecrease\b"),
+    ]
+
+    def _extract_topic(self, content: str) -> str:
+        """Extract the main topic/keyword from hint content.
+
+        IMP-MEM-002: Extracts a normalized topic key for grouping hints.
+        Uses the first significant noun phrase or key technical term.
+
+        Args:
+            content: Hint content string
+
+        Returns:
+            Normalized topic string for grouping
+        """
+        if not content:
+            return ""
+
+        # Normalize content
+        content_lower = content.lower().strip()
+
+        # Remove common prefixes that don't contribute to topic
+        prefixes_to_remove = [
+            r"^(always|never|do|don't|should|shouldn't|try to|avoid|prefer|use)\s+",
+            r"^(when|if|before|after|during)\s+\w+\s*,?\s*",
+        ]
+        for pattern in prefixes_to_remove:
+            content_lower = re.sub(pattern, "", content_lower, flags=re.IGNORECASE)
+
+        # Extract key technical terms (typically nouns and compound terms)
+        # Look for common programming/technical patterns
+        tech_patterns = [
+            r"\b(async|sync|await|promise|callback)\b",
+            r"\b(cache|caching|memory|storage)\b",
+            r"\b(retry|timeout|backoff|rate.?limit)\b",
+            r"\b(test|testing|mock|stub)\b",
+            r"\b(error|exception|handling|logging)\b",
+            r"\b(database|db|query|sql|orm)\b",
+            r"\b(api|endpoint|route|request|response)\b",
+            r"\b(import|export|module|package)\b",
+            r"\b(config|configuration|setting|option)\b",
+            r"\b(type|typing|annotation|hint)\b",
+        ]
+
+        for pattern in tech_patterns:
+            match = re.search(pattern, content_lower)
+            if match:
+                return match.group(1).replace("-", "").replace("_", "")
+
+        # Fallback: extract first significant word (>3 chars, not common words)
+        common_words = {
+            "the",
+            "and",
+            "for",
+            "with",
+            "that",
+            "this",
+            "from",
+            "have",
+            "been",
+            "will",
+            "your",
+            "code",
+            "when",
+            "make",
+            "sure",
+        }
+        words = re.findall(r"\b[a-z][a-z_-]{2,}\b", content_lower)
+        for word in words:
+            if word not in common_words:
+                return word
+
+        # Last resort: use hash of content
+        return f"topic_{hash(content_lower) % 10000}"
+
+    def _are_conflicting(self, content1: str, content2: str) -> bool:
+        """Detect if two hints contradict each other.
+
+        IMP-MEM-002: Checks if two hints give contradictory advice by looking
+        for opposing action patterns applied to similar topics.
+
+        Args:
+            content1: First hint content
+            content2: Second hint content
+
+        Returns:
+            True if hints appear to contradict each other
+        """
+        if not content1 or not content2:
+            return False
+
+        c1_lower = content1.lower()
+        c2_lower = content2.lower()
+
+        # Check for contradiction patterns
+        for positive_pattern, negative_pattern in self._CONTRADICTION_PATTERNS:
+            # Check if one hint has positive pattern and other has negative
+            c1_has_positive = bool(re.search(positive_pattern, c1_lower, re.IGNORECASE))
+            c1_has_negative = bool(re.search(negative_pattern, c1_lower, re.IGNORECASE))
+            c2_has_positive = bool(re.search(positive_pattern, c2_lower, re.IGNORECASE))
+            c2_has_negative = bool(re.search(negative_pattern, c2_lower, re.IGNORECASE))
+
+            # Contradiction: one says "use X" and other says "avoid X"
+            if (c1_has_positive and c2_has_negative) or (c1_has_negative and c2_has_positive):
+                # Verify they're talking about similar topic
+                topic1 = self._extract_topic(content1)
+                topic2 = self._extract_topic(content2)
+                if topic1 and topic2 and topic1 == topic2:
+                    return True
+
+        return False
+
+    def _resolve_conflicts(self, hints: List[ContextMetadata]) -> Tuple[List[ContextMetadata], int]:
+        """Remove conflicting hints, keeping highest confidence.
+
+        IMP-MEM-002: Groups hints by topic and resolves contradictions by
+        keeping the hint with the highest confidence score.
+
+        Args:
+            hints: List of ContextMetadata hint objects
+
+        Returns:
+            Tuple of (filtered hints list, number of conflicts resolved)
+        """
+        if not hints:
+            return [], 0
+
+        # Sort by confidence descending so we process high-confidence first
+        sorted_hints = sorted(hints, key=lambda h: h.confidence, reverse=True)
+
+        seen_topics: Dict[str, ContextMetadata] = {}
+        conflicts_resolved = 0
+
+        for hint in sorted_hints:
+            topic = self._extract_topic(hint.content)
+
+            if topic not in seen_topics:
+                # First hint for this topic - check for conflicts with existing topics
+                has_conflict = False
+                for existing_topic, existing_hint in seen_topics.items():
+                    if self._are_conflicting(hint.content, existing_hint.content):
+                        # Conflict detected - skip this hint (existing has higher confidence)
+                        has_conflict = True
+                        conflicts_resolved += 1
+                        logger.debug(
+                            f"[IMP-MEM-002] Conflict detected: '{hint.content[:50]}...' "
+                            f"conflicts with '{existing_hint.content[:50]}...'. "
+                            f"Keeping higher confidence hint ({existing_hint.confidence:.2f} > {hint.confidence:.2f})"
+                        )
+                        break
+
+                if not has_conflict:
+                    seen_topics[topic] = hint
+            else:
+                # Same topic - check if contradictory
+                existing_hint = seen_topics[topic]
+                if self._are_conflicting(hint.content, existing_hint.content):
+                    # Already have higher confidence hint for this topic
+                    conflicts_resolved += 1
+                    logger.debug(
+                        f"[IMP-MEM-002] Duplicate topic conflict: '{hint.content[:50]}...' "
+                        f"Keeping existing hint with confidence {existing_hint.confidence:.2f}"
+                    )
+
+        if conflicts_resolved > 0:
+            logger.info(
+                f"[IMP-MEM-002] Resolved {conflicts_resolved} conflicting hints, "
+                f"kept {len(seen_topics)} hints"
+            )
+
+        return list(seen_topics.values()), conflicts_resolved
+
+    def _resolve_conflicts_plain(self, hints: List[str]) -> Tuple[List[str], int]:
+        """Remove conflicting hints from plain string list.
+
+        IMP-MEM-002: Simpler conflict resolution for plain string hints.
+        Groups by topic and keeps first occurrence (assumed higher relevance).
+
+        Args:
+            hints: List of hint content strings
+
+        Returns:
+            Tuple of (filtered hints list, number of conflicts resolved)
+        """
+        if not hints:
+            return [], 0
+
+        seen_topics: Dict[str, str] = {}
+        conflicts_resolved = 0
+
+        for hint in hints:
+            topic = self._extract_topic(hint)
+
+            if topic not in seen_topics:
+                # Check for conflicts with existing hints
+                has_conflict = False
+                for existing_topic, existing_hint in seen_topics.items():
+                    if self._are_conflicting(hint, existing_hint):
+                        has_conflict = True
+                        conflicts_resolved += 1
+                        logger.debug(
+                            f"[IMP-MEM-002] Plain hint conflict: '{hint[:50]}...' "
+                            f"conflicts with existing hint"
+                        )
+                        break
+
+                if not has_conflict:
+                    seen_topics[topic] = hint
+            else:
+                existing_hint = seen_topics[topic]
+                if self._are_conflicting(hint, existing_hint):
+                    conflicts_resolved += 1
+
+        if conflicts_resolved > 0:
+            logger.info(f"[IMP-MEM-002] Resolved {conflicts_resolved} conflicting plain hints")
+
+        return list(seen_topics.values()), conflicts_resolved
 
     def format_enriched_for_prompt(
         self,

@@ -1128,6 +1128,7 @@ class MemoryService:
         query: str,
         project_id: str,
         limit: Optional[int] = None,
+        max_age_hours: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
         Search code_docs collection.
@@ -1136,6 +1137,8 @@ class MemoryService:
             query: Search query (natural language or code snippet)
             project_id: Project to search within
             limit: Max results (default: top_k from config)
+            max_age_hours: Optional maximum age in hours for freshness filtering.
+                          IMP-MEM-010: When provided, filters out stale results.
 
         Returns:
             List of {"id", "score", "payload"} dicts
@@ -1144,6 +1147,8 @@ class MemoryService:
             return []
 
         limit = limit or self.top_k
+        # IMP-MEM-010: Over-fetch when filtering to ensure enough fresh results
+        fetch_limit = limit * 2 if max_age_hours is not None else limit
         query_vector = sync_embed_text(query)
         results = self._safe_store_call(
             "search_code/search",
@@ -1151,10 +1156,20 @@ class MemoryService:
                 COLLECTION_CODE_DOCS,
                 query_vector,
                 filter={"project_id": project_id},
-                limit=limit,
+                limit=fetch_limit,
             ),
             [],
         )
+
+        # IMP-MEM-010: Apply freshness filtering if max_age_hours specified
+        if max_age_hours is not None and results:
+            results = [
+                r
+                for r in results
+                if _is_fresh(r.get("payload", {}).get("timestamp"), max_age_hours)
+            ]
+            results = results[:limit]
+
         # IMP-MEM-005: Record retrieval quality metrics
         self._record_retrieval_metrics(query, results, "code")
         return results
@@ -1226,12 +1241,27 @@ class MemoryService:
         project_id: str,
         run_id: Optional[str] = None,
         limit: Optional[int] = None,
+        max_age_hours: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        """Search run_summaries collection."""
+        """Search run_summaries collection.
+
+        Args:
+            query: Search query string
+            project_id: Project to search within
+            run_id: Optional run ID to filter by
+            limit: Max results (default: top_k from config)
+            max_age_hours: Optional maximum age in hours for freshness filtering.
+                          IMP-MEM-010: When provided, filters out stale results.
+
+        Returns:
+            List of {"id", "score", "payload"} dicts
+        """
         if not self.enabled:
             return []
 
         limit = limit or self.top_k
+        # IMP-MEM-010: Over-fetch when filtering to ensure enough fresh results
+        fetch_limit = limit * 2 if max_age_hours is not None else limit
         query_vector = sync_embed_text(query)
         filter_dict = {"project_id": project_id}
         if run_id:
@@ -1242,10 +1272,20 @@ class MemoryService:
                 COLLECTION_RUN_SUMMARIES,
                 query_vector,
                 filter=filter_dict,
-                limit=limit,
+                limit=fetch_limit,
             ),
             [],
         )
+
+        # IMP-MEM-010: Apply freshness filtering if max_age_hours specified
+        if max_age_hours is not None and results:
+            results = [
+                r
+                for r in results
+                if _is_fresh(r.get("payload", {}).get("timestamp"), max_age_hours)
+            ]
+            results = results[:limit]
+
         # IMP-MEM-005: Record retrieval quality metrics
         self._record_retrieval_metrics(query, results, "summaries")
         return results
@@ -1315,12 +1355,26 @@ class MemoryService:
         query: str,
         project_id: str,
         limit: Optional[int] = None,
+        max_age_hours: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        """Search errors_ci collection for similar errors."""
+        """Search errors_ci collection for similar errors.
+
+        Args:
+            query: Search query string
+            project_id: Project to search within
+            limit: Max results (default: top_k from config)
+            max_age_hours: Optional maximum age in hours for freshness filtering.
+                          IMP-MEM-010: When provided, filters out stale results.
+
+        Returns:
+            List of {"id", "score", "payload"} dicts
+        """
         if not self.enabled:
             return []
 
         limit = limit or self.top_k
+        # IMP-MEM-010: Over-fetch when filtering to ensure enough fresh results
+        fetch_limit = limit * 2 if max_age_hours is not None else limit
         query_vector = sync_embed_text(query)
         results = self._safe_store_call(
             "search_errors/search",
@@ -1328,10 +1382,20 @@ class MemoryService:
                 COLLECTION_ERRORS_CI,
                 query_vector,
                 filter={"project_id": project_id},
-                limit=limit,
+                limit=fetch_limit,
             ),
             [],
         )
+
+        # IMP-MEM-010: Apply freshness filtering if max_age_hours specified
+        if max_age_hours is not None and results:
+            results = [
+                r
+                for r in results
+                if _is_fresh(r.get("payload", {}).get("timestamp"), max_age_hours)
+            ]
+            results = results[:limit]
+
         # IMP-MEM-005: Record retrieval quality metrics
         self._record_retrieval_metrics(query, results, "errors")
         return results
@@ -1918,12 +1982,26 @@ class MemoryService:
         query: str,
         project_id: str,
         limit: Optional[int] = None,
+        max_age_hours: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        """Search doctor_hints collection for similar situations."""
+        """Search doctor_hints collection for similar situations.
+
+        Args:
+            query: Search query string
+            project_id: Project to search within
+            limit: Max results (default: top_k from config)
+            max_age_hours: Optional maximum age in hours for freshness filtering.
+                          IMP-MEM-010: When provided, filters out stale results.
+
+        Returns:
+            List of {"id", "score", "payload"} dicts
+        """
         if not self.enabled:
             return []
 
         limit = limit or self.top_k
+        # IMP-MEM-010: Over-fetch when filtering to ensure enough fresh results
+        fetch_limit = limit * 2 if max_age_hours is not None else limit
         query_vector = sync_embed_text(query)
         results = self._safe_store_call(
             "search_doctor_hints/search",
@@ -1931,10 +2009,20 @@ class MemoryService:
                 COLLECTION_DOCTOR_HINTS,
                 query_vector,
                 filter={"project_id": project_id},
-                limit=limit,
+                limit=fetch_limit,
             ),
             [],
         )
+
+        # IMP-MEM-010: Apply freshness filtering if max_age_hours specified
+        if max_age_hours is not None and results:
+            results = [
+                r
+                for r in results
+                if _is_fresh(r.get("payload", {}).get("timestamp"), max_age_hours)
+            ]
+            results = results[:limit]
+
         # IMP-MEM-005: Record retrieval quality metrics
         self._record_retrieval_metrics(query, results, "hints")
         return results

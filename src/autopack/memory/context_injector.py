@@ -162,11 +162,13 @@ class ContextInjector:
 
         try:
             # Query for past errors related to this phase type
+            # IMP-MEM-010: Apply freshness threshold to prevent stale context injection
             error_query = f"{phase_type} error failure issue"
             errors_result = self._memory.search_errors(
                 query=error_query,
                 project_id=project_id,
                 limit=3,
+                max_age_hours=168,  # 7 days freshness threshold
             )
             past_errors = [
                 e.get("payload", {}).get("error_snippet", e.get("content", ""))
@@ -174,11 +176,13 @@ class ContextInjector:
             ]
 
             # Query for successful strategies
+            # IMP-MEM-010: Apply freshness threshold to prevent stale context injection
             success_query = f"{phase_type} success strategy approach solution"
             summaries_result = self._memory.search_summaries(
                 query=success_query,
                 project_id=project_id,
                 limit=3,
+                max_age_hours=168,  # 7 days freshness threshold
             )
             successful_strategies = [
                 s.get("payload", {}).get("summary", s.get("content", ""))[
@@ -188,11 +192,13 @@ class ContextInjector:
             ]
 
             # Query for doctor hints
+            # IMP-MEM-010: Apply freshness threshold to prevent stale context injection
             hints_query = f"doctor recommendation hint {current_goal}"
             hints_result = self._memory.search_doctor_hints(
                 query=hints_query,
                 project_id=project_id,
                 limit=5,  # Get more for conflict resolution
+                max_age_hours=168,  # 7 days freshness threshold
             )
             raw_doctor_hints = [
                 h.get("payload", {}).get("hint", h.get("content", "")) for h in hints_result
@@ -209,11 +215,13 @@ class ContextInjector:
                 )
 
             # Query for relevant insights to current goal
+            # IMP-MEM-010: Apply freshness threshold to prevent stale context injection
             insights_query = current_goal
             code_result = self._memory.search_code(
                 query=insights_query,
                 project_id=project_id,
                 limit=3,
+                max_age_hours=168,  # 7 days freshness threshold
             )
             relevant_insights = [
                 c.get("payload", {}).get("content", c.get("content", ""))[:200] for c in code_result

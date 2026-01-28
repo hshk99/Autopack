@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, List
 
 if TYPE_CHECKING:
     from autopack.task_generation.priority_engine import PriorityEngine
@@ -29,6 +29,49 @@ POOR_EFFECTIVENESS = 0.3  # Task achieved less than 30% of target
 EXCELLENT_WEIGHT_BOOST = 1.2  # Boost category weight by 20%
 GOOD_WEIGHT_BOOST = 1.1  # Boost category weight by 10%
 POOR_WEIGHT_PENALTY = 0.9  # Reduce category weight by 10%
+
+# IMP-LOOP-017: Thresholds for automatic rule generation
+MIN_SAMPLE_SIZE = 5  # Minimum observations before generating rules
+LOW_SUCCESS_THRESHOLD = 0.5  # Below this → avoid_pattern rule
+HIGH_SUCCESS_THRESHOLD = 0.8  # Above this → prefer_pattern rule
+
+
+@dataclass
+class EffectivenessLearningRule:
+    """Rule generated from task effectiveness patterns.
+
+    IMP-LOOP-017: Automatically created when task patterns cross thresholds,
+    enabling the learning system to guide future task generation.
+
+    Attributes:
+        rule_type: "avoid_pattern" for low success, "prefer_pattern" for high success
+        pattern: The task category or pattern this rule applies to
+        confidence: Confidence level derived from success rate (0.0-1.0)
+        reason: Human-readable explanation for why this rule was created
+        sample_size: Number of observations this rule is based on
+        success_rate: The measured success rate that triggered the rule
+        created_at: Timestamp when the rule was generated
+    """
+
+    rule_type: str  # "avoid_pattern" or "prefer_pattern"
+    pattern: str  # Task category/type
+    confidence: float  # Derived from success rate
+    reason: str  # Human-readable explanation
+    sample_size: int = 0
+    success_rate: float = 0.0
+    created_at: datetime = field(default_factory=datetime.now)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "rule_type": self.rule_type,
+            "pattern": self.pattern,
+            "confidence": self.confidence,
+            "reason": self.reason,
+            "sample_size": self.sample_size,
+            "success_rate": self.success_rate,
+            "created_at": self.created_at.isoformat(),
+        }
 
 
 @dataclass
@@ -472,3 +515,78 @@ class TaskEffectivenessTracker:
         )
 
         return report
+
+    def analyze_effectiveness_patterns(self) -> List[EffectivenessLearningRule]:
+        """Generate learning rules when task patterns cross thresholds.
+
+        IMP-LOOP-017: Analyzes effectiveness data by category and creates
+        learning rules when patterns show consistent success or failure.
+
+        Rules are generated when:
+        - Category has at least MIN_SAMPLE_SIZE observations
+        - Success rate < LOW_SUCCESS_THRESHOLD → "avoid_pattern" rule
+        - Success rate > HIGH_SUCCESS_THRESHOLD → "prefer_pattern" rule
+
+        Returns:
+            List of EffectivenessLearningRule objects for patterns crossing thresholds
+        """
+        rules: List[EffectivenessLearningRule] = []
+
+        for category, stats in self.history.category_stats.items():
+            total_tasks = stats.get("total_tasks", 0)
+
+            # Require minimum sample size for statistical significance
+            if total_tasks < MIN_SAMPLE_SIZE:
+                continue
+
+            # Calculate success rate from effective_count
+            effective_count = stats.get("effective_count", 0)
+            success_rate = effective_count / total_tasks
+
+            # Generate avoid_pattern rule for low success rate
+            if success_rate < LOW_SUCCESS_THRESHOLD:
+                confidence = 1.0 - success_rate  # Higher confidence when success is lower
+                rule = EffectivenessLearningRule(
+                    rule_type="avoid_pattern",
+                    pattern=category,
+                    confidence=confidence,
+                    reason=f"Low success rate: {success_rate:.2%} ({effective_count}/{total_tasks} effective)",
+                    sample_size=total_tasks,
+                    success_rate=success_rate,
+                )
+                rules.append(rule)
+                logger.info(
+                    "[IMP-LOOP-017] Generated avoid_pattern rule for '%s': "
+                    "success_rate=%.2f%%, confidence=%.2f",
+                    category,
+                    success_rate * 100,
+                    confidence,
+                )
+
+            # Generate prefer_pattern rule for high success rate
+            elif success_rate > HIGH_SUCCESS_THRESHOLD:
+                confidence = success_rate  # Confidence matches success rate
+                rule = EffectivenessLearningRule(
+                    rule_type="prefer_pattern",
+                    pattern=category,
+                    confidence=confidence,
+                    reason=f"High success rate: {success_rate:.2%} ({effective_count}/{total_tasks} effective)",
+                    sample_size=total_tasks,
+                    success_rate=success_rate,
+                )
+                rules.append(rule)
+                logger.info(
+                    "[IMP-LOOP-017] Generated prefer_pattern rule for '%s': "
+                    "success_rate=%.2f%%, confidence=%.2f",
+                    category,
+                    success_rate * 100,
+                    confidence,
+                )
+
+        logger.info(
+            "[IMP-LOOP-017] Analyzed effectiveness patterns: %d categories, %d rules generated",
+            len(self.history.category_stats),
+            len(rules),
+        )
+
+        return rules

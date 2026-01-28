@@ -9,18 +9,25 @@ This module integrates:
 - Persistent storage of insights to memory service
 - Learning rule extraction from patterns
 - Context enrichment for next phase planning
+- IMP-LOOP-017: Task effectiveness analysis for automatic rule generation
 
 The pipeline ensures that lessons learned from each phase execution are:
 1. Captured as telemetry insights
 2. Persisted to vector memory for future retrieval
 3. Used to inform subsequent phase planning
+4. IMP-LOOP-017: Analyzed for effectiveness patterns that generate learning rules
 """
 
 import logging
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from autopack.task_generation.task_effectiveness_tracker import (
+        TaskEffectivenessTracker,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +126,7 @@ class FeedbackPipeline:
         memory_service: Optional[Any] = None,
         telemetry_analyzer: Optional[Any] = None,
         learning_pipeline: Optional[Any] = None,
+        effectiveness_tracker: Optional["TaskEffectivenessTracker"] = None,
         run_id: Optional[str] = None,
         project_id: Optional[str] = None,
         enabled: bool = True,
@@ -129,6 +137,8 @@ class FeedbackPipeline:
             memory_service: MemoryService instance for persistent storage
             telemetry_analyzer: TelemetryAnalyzer for pattern detection
             learning_pipeline: LearningPipeline for recording hints
+            effectiveness_tracker: IMP-LOOP-017: TaskEffectivenessTracker for
+                analyzing patterns and generating learning rules
             run_id: Current run identifier
             project_id: Project identifier for namespacing
             enabled: Whether the pipeline is active (default: True)
@@ -136,6 +146,7 @@ class FeedbackPipeline:
         self.memory_service = memory_service
         self.telemetry_analyzer = telemetry_analyzer
         self.learning_pipeline = learning_pipeline
+        self._effectiveness_tracker = effectiveness_tracker
         self.run_id = run_id or datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         self.project_id = project_id or "default"
         self.enabled = enabled
@@ -153,6 +164,7 @@ class FeedbackPipeline:
             "context_retrievals": 0,
             "learning_hints_recorded": 0,
             "hints_promoted_to_rules": 0,
+            "effectiveness_rules_created": 0,  # IMP-LOOP-017
         }
 
         # IMP-LOOP-015: Track hint occurrences for automatic promotion to rules
@@ -288,11 +300,105 @@ class FeedbackPipeline:
                 f"(success={outcome.success}, insights={result['insights_created']})"
             )
 
+            # IMP-LOOP-017: Check effectiveness patterns and create rules
+            self._check_effectiveness_rules()
+
         except Exception as e:
             result["error"] = str(e)
             logger.error(f"[IMP-LOOP-001] Failed to process phase outcome: {e}")
 
         return result
+
+    def _check_effectiveness_rules(self) -> int:
+        """Check if effectiveness patterns warrant new learning rules.
+
+        IMP-LOOP-017: Analyzes task effectiveness patterns and creates
+        learning rules when success/failure patterns cross thresholds.
+
+        Returns:
+            Number of rules created
+        """
+        if not self._effectiveness_tracker:
+            return 0
+
+        try:
+            rules = self._effectiveness_tracker.analyze_effectiveness_patterns()
+            if not rules:
+                return 0
+
+            rules_created = 0
+            for rule in rules:
+                # Persist rule to memory as a telemetry insight
+                if self.memory_service and getattr(self.memory_service, "enabled", False):
+                    try:
+                        insight = {
+                            "insight_type": "effectiveness_rule",
+                            "description": f"{rule.rule_type}: {rule.pattern} - {rule.reason}",
+                            "content": rule.reason,
+                            "metadata": {
+                                "rule_type": rule.rule_type,
+                                "pattern": rule.pattern,
+                                "confidence": rule.confidence,
+                                "sample_size": rule.sample_size,
+                                "success_rate": rule.success_rate,
+                            },
+                            "severity": "medium",
+                            "confidence": rule.confidence,
+                            "run_id": self.run_id,
+                            "suggested_action": self._generate_rule_action_from_effectiveness(
+                                rule.rule_type, rule.pattern
+                            ),
+                            "is_rule": True,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }
+
+                        self.memory_service.write_telemetry_insight(
+                            insight=insight,
+                            project_id=self.project_id,
+                            validate=True,
+                            strict=False,
+                        )
+                        rules_created += 1
+                        self._stats["effectiveness_rules_created"] += 1
+
+                        logger.info(
+                            f"[IMP-LOOP-017] Created {rule.rule_type} rule for '{rule.pattern}' "
+                            f"(confidence={rule.confidence:.2f}, sample_size={rule.sample_size})"
+                        )
+
+                    except Exception as e:
+                        logger.warning(f"[IMP-LOOP-017] Failed to persist effectiveness rule: {e}")
+
+            return rules_created
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-017] Failed to check effectiveness rules: {e}")
+            return 0
+
+    def _generate_rule_action_from_effectiveness(self, rule_type: str, pattern: str) -> str:
+        """Generate actionable guidance from effectiveness-based rule.
+
+        Args:
+            rule_type: "avoid_pattern" or "prefer_pattern"
+            pattern: Task category/type
+
+        Returns:
+            Suggested action string for the rule
+        """
+        if rule_type == "avoid_pattern":
+            return (
+                f"Avoid or deprioritize tasks in the '{pattern}' category. "
+                f"Historical data shows low success rate. Consider breaking down "
+                f"tasks into smaller units or investigating root causes."
+            )
+        elif rule_type == "prefer_pattern":
+            return (
+                f"Prioritize tasks in the '{pattern}' category. "
+                f"Historical data shows high success rate. This pattern is "
+                f"effective and should be used when applicable."
+            )
+        else:
+            return f"Review effectiveness patterns for '{pattern}' category."
 
     def get_context_for_phase(
         self,

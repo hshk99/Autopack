@@ -13,6 +13,7 @@ from ..roadi import RegressionProtector
 from ..roadi.regression_protector import RiskAssessment
 from ..telemetry.analyzer import RankedIssue, TelemetryAnalyzer
 from ..telemetry.causal_analysis import CausalAnalyzer
+from ..telemetry.cost_tracker import BudgetStatus
 from .discovery_context_merger import DiscoveryContextMerger
 
 logger = logging.getLogger(__name__)
@@ -600,6 +601,8 @@ class GeneratedTask:
     # IMP-LOOP-018: Risk assessment fields
     requires_approval: bool = False  # True for medium-risk tasks needing approval gate
     risk_severity: Optional[str] = None  # low, medium, high, critical
+    # IMP-COST-001: Estimated token cost for budget gating
+    estimated_cost: int = 0  # Estimated tokens required to execute this task
 
 
 @dataclass
@@ -740,6 +743,7 @@ class AutonomousTaskGenerator:
         run_id: Optional[str] = None,
         max_age_hours: Optional[float] = None,
         backlog: Optional[List[Dict[str, Any]]] = None,
+        budget_status: Optional[BudgetStatus] = None,
     ) -> TaskGenerationResult:
         """Generate improvement tasks from recent telemetry insights.
 
@@ -757,6 +761,9 @@ class AutonomousTaskGenerator:
             backlog: Optional list of phase dicts representing the current run's backlog.
                     If provided, high-priority (critical) tasks will be injected into
                     this backlog for same-run execution (IMP-LOOP-003).
+            budget_status: Optional budget status for cost-aware filtering (IMP-COST-001).
+                          When provided and budget is constrained (<50% remaining),
+                          high-cost tasks are filtered out to defer expensive work.
 
         Returns:
             TaskGenerationResult containing generated tasks and statistics
@@ -858,6 +865,18 @@ class AutonomousTaskGenerator:
 
                     # Add regression protection for each task
                     self._ensure_regression_protection(task)
+
+            # IMP-COST-001: Filter tasks based on budget constraints
+            # When budget is constrained (<50% remaining), filter out high-cost tasks
+            if budget_status and budget_status.constrained:
+                original_task_count = len(tasks)
+                tasks = [t for t in tasks if t.estimated_cost <= budget_status.low_cost_threshold]
+                filtered_count = original_task_count - len(tasks)
+                if filtered_count > 0:
+                    logger.info(
+                        f"[IMP-COST-001] Budget constrained ({budget_status.remaining_percentage:.0%} remaining), "
+                        f"filtered {filtered_count} high-cost tasks, kept {len(tasks)} low-cost tasks"
+                    )
 
             generation_time_ms = (datetime.now() - start_time).total_seconds() * 1000
 
@@ -1250,6 +1269,10 @@ class AutonomousTaskGenerator:
         # Generate task details from pattern
         title = f"Fix recurring {pattern['type']} issues"
         description = self._generate_description(pattern)
+        estimated_effort = self._estimate_effort(pattern)
+
+        # IMP-COST-001: Estimate token cost based on effort and pattern complexity
+        estimated_cost = self._estimate_task_cost(pattern, estimated_effort)
 
         return GeneratedTask(
             task_id=f"TASK-{uuid.uuid4().hex[:8].upper()}",
@@ -1258,8 +1281,9 @@ class AutonomousTaskGenerator:
             priority=self._severity_to_priority(pattern["severity"]),
             source_insights=[e.get("id", "") for e in pattern["examples"]],
             suggested_files=self._suggest_files(pattern),
-            estimated_effort=self._estimate_effort(pattern),
+            estimated_effort=estimated_effort,
             created_at=datetime.now(),
+            estimated_cost=estimated_cost,
         )
 
     def _generate_description(self, pattern: dict) -> str:
@@ -1310,6 +1334,54 @@ Analyze the pattern and implement a fix to prevent recurrence.
         elif occurrences > 2:
             return "M"
         return "S"
+
+    def _estimate_task_cost(self, pattern: dict, estimated_effort: str) -> int:
+        """Estimate token cost for executing a task (IMP-COST-001).
+
+        Cost estimation is based on:
+        - Task effort level (S, M, L, XL)
+        - Pattern type (cost_sink issues typically require more tokens to fix)
+        - Number of occurrences (more occurrences = more work)
+
+        Args:
+            pattern: The detected pattern dict
+            estimated_effort: Effort estimation (S, M, L, XL)
+
+        Returns:
+            Estimated token cost for this task
+        """
+        # Base cost multipliers by effort level
+        effort_base_cost = {
+            "S": 10_000,  # Small tasks: ~10k tokens
+            "M": 30_000,  # Medium tasks: ~30k tokens
+            "L": 75_000,  # Large tasks: ~75k tokens
+            "XL": 150_000,  # Extra large: ~150k tokens
+        }
+
+        base_cost = effort_base_cost.get(estimated_effort, 30_000)
+
+        # Pattern type multiplier (some issues are costlier to fix)
+        pattern_type = pattern.get("type", "unknown")
+        type_multipliers = {
+            "cost_sink": 1.5,  # Cost optimization requires analysis
+            "failure_mode": 1.3,  # Failure fixes need investigation
+            "retry_cause": 1.2,  # Retry issues need debugging
+            "unknown": 1.0,
+        }
+        type_multiplier = type_multipliers.get(pattern_type, 1.0)
+
+        # Occurrence scaling (more occurrences = slightly more work)
+        occurrences = pattern.get("occurrences", 1)
+        occurrence_factor = 1.0 + (min(occurrences, 10) * 0.05)  # Up to 50% increase
+
+        estimated_cost = int(base_cost * type_multiplier * occurrence_factor)
+
+        logger.debug(
+            f"[IMP-COST-001] Estimated cost for {pattern_type} task: {estimated_cost:,} tokens "
+            f"(effort={estimated_effort}, occurrences={occurrences})"
+        )
+
+        return estimated_cost
 
     def _ensure_regression_protection(self, task: GeneratedTask) -> None:
         """Ensure regression protection exists for task's issue pattern.

@@ -213,6 +213,8 @@ class ExecutionResult:
         rollback_performed: Whether rollback was executed
         error_message: Error message (if failed)
         commit_sha: Git commit SHA (if succeeded)
+        conflict_lines: Lines that conflicted during patch application
+        retry_context: Context information for retry attempts
     """
 
     success: bool
@@ -224,3 +226,5 @@ class ExecutionResult:
     rollback_performed: bool
     error_message: Optional[str] = None
     commit_sha: Optional[str] = None
+    conflict_lines: Optional[List[int]] = None
+    retry_context: Optional[Dict[str, Any]] = None

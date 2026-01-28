@@ -139,19 +139,43 @@ class DecisionExecutor:
 
             patch_result = self._apply_patch(decision.patch)
             if not patch_result["success"]:
-                logger.error(
-                    f"[DecisionExecutor] Patch application failed: {patch_result['error']}"
+                logger.warning(
+                    f"[DecisionExecutor] Direct patch failed, attempting recovery: "
+                    f"{patch_result['error']}"
                 )
-                return ExecutionResult(
-                    success=False,
-                    decision_id=decision_id,
-                    save_point=save_point,
-                    patch_applied=False,
-                    deliverables_validated=False,
-                    tests_passed=False,
-                    rollback_performed=False,
-                    error_message=f"Patch application failed: {patch_result['error']}",
+
+                # Extract conflict information for retry context
+                conflict_lines = self._extract_conflict_lines(
+                    decision.patch, patch_result.get("error", "")
                 )
+
+                # Attempt explicit 3-way merge as recovery
+                merge_result = self._attempt_three_way_merge(decision.patch)
+                if merge_result["success"]:
+                    logger.info("[DecisionExecutor] 3-way merge recovery succeeded")
+                    # Continue with execution - patch is now applied
+                else:
+                    logger.error(
+                        f"[DecisionExecutor] 3-way merge also failed: {merge_result['error']}"
+                    )
+
+                    # Log conflict details for next round
+                    return ExecutionResult(
+                        success=False,
+                        decision_id=decision_id,
+                        save_point=save_point,
+                        patch_applied=False,
+                        deliverables_validated=False,
+                        tests_passed=False,
+                        rollback_performed=False,
+                        error_message=f"Patch application failed: {patch_result['error']}",
+                        conflict_lines=conflict_lines,
+                        retry_context={
+                            "original_error": str(patch_result.get("error", "")),
+                            "merge_attempted": True,
+                            "merge_error": str(merge_result.get("error", "")),
+                        },
+                    )
 
             logger.info("[DecisionExecutor] Patch applied successfully")
 
@@ -304,6 +328,103 @@ class DecisionExecutor:
 
         except Exception as e:
             return {"success": False, "error": str(e)}
+        finally:
+            # Clean up temp file
+            if patch_file.exists():
+                patch_file.unlink()
+
+    def _extract_conflict_lines(self, patch_content: str, error_message: str) -> List[int]:
+        """
+        Extract conflicting line numbers from patch content and error message.
+
+        Parses git apply error output and patch hunks to identify which lines
+        failed to apply. This information helps the next retry round understand
+        which specific lines need attention.
+
+        Args:
+            patch_content: The patch that failed to apply
+            error_message: Error message from git apply
+
+        Returns:
+            List of line numbers that conflicted
+        """
+        conflict_lines: List[int] = []
+
+        # Parse error message for line numbers (e.g., "error: patch failed: file.py:42")
+        import re
+
+        # Match line numbers after file extensions (e.g., ".py:42" or ".js:100")
+        line_pattern = re.compile(r"\.\w+:(\d+)")
+        for match in line_pattern.finditer(error_message):
+            try:
+                line_num = int(match.group(1))
+                if line_num not in conflict_lines:
+                    conflict_lines.append(line_num)
+            except ValueError:
+                pass
+
+        # Also parse patch hunks for @@ -start,count +start,count @@ patterns
+        hunk_pattern = re.compile(r"@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+        for match in hunk_pattern.finditer(patch_content):
+            try:
+                target_line = int(match.group(2))
+                if target_line not in conflict_lines:
+                    conflict_lines.append(target_line)
+            except ValueError:
+                pass
+
+        logger.debug(f"[DecisionExecutor] Extracted conflict lines: {conflict_lines}")
+        return sorted(conflict_lines)
+
+    def _attempt_three_way_merge(self, patch_content: str) -> Dict[str, Any]:
+        """
+        Attempt a 3-way merge for the given patch.
+
+        Uses git apply --3way which attempts to apply the patch using a
+        3-way merge when the patch doesn't apply cleanly. This can resolve
+        conflicts when the file has changed since the patch was created
+        but the changes don't overlap.
+
+        Args:
+            patch_content: The patch content to apply
+
+        Returns:
+            Dict with success status, error message, and conflict details
+        """
+        # Write patch to temp file
+        patch_file = self.workspace / ".autonomous_runs" / self.run_id / "temp_3way.patch"
+        patch_file.parent.mkdir(parents=True, exist_ok=True)
+        patch_file.write_text(patch_content, encoding="utf-8")
+
+        try:
+            result = subprocess.run(
+                ["git", "apply", "--3way", str(patch_file)],
+                cwd=self.workspace,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode == 0:
+                logger.info("[DecisionExecutor] 3-way merge succeeded")
+                return {"success": True, "error": None, "merge_used": True}
+            else:
+                error_msg = result.stderr.strip() or result.stdout.strip()
+                logger.warning(f"[DecisionExecutor] 3-way merge failed: {error_msg}")
+                return {
+                    "success": False,
+                    "error": error_msg,
+                    "merge_used": True,
+                }
+
+        except subprocess.TimeoutExpired:
+            return {
+                "success": False,
+                "error": "3-way merge timed out after 30 seconds",
+                "merge_used": True,
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e), "merge_used": True}
         finally:
             # Clean up temp file
             if patch_file.exists():

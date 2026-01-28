@@ -92,7 +92,9 @@ class TestRecordPhaseIssueContract:
 
         mock_db = MagicMock()
         mock_query = MagicMock()
-        mock_query.filter.return_value.first.return_value = None
+        mock_query.options.return_value = mock_query  # Support .options() chaining (IMP-PERF-001)
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = None
         mock_db.query.return_value = mock_query
 
         with pytest.raises(HTTPException) as exc_info:
@@ -121,21 +123,16 @@ class TestRecordPhaseIssueContract:
         mock_phase.run_id = "test-run"
         mock_phase.phase_id = "test-phase"
         mock_phase.tier_id = 999
+        mock_phase.tier = None  # Eager-loaded tier is None (IMP-PERF-001)
 
         mock_db = MagicMock()
 
-        # First query returns phase, second returns None (no tier)
-        def query_side_effect(model):
-            mock_query = MagicMock()
-            from autopack import models
-
-            if model == models.Phase:
-                mock_query.filter.return_value.first.return_value = mock_phase
-            else:  # Tier
-                mock_query.filter.return_value.first.return_value = None
-            return mock_query
-
-        mock_db.query.side_effect = query_side_effect
+        # Query returns phase with tier=None (eager-loaded via joinedload)
+        mock_query = MagicMock()
+        mock_query.options.return_value = mock_query  # Support .options() chaining
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = mock_phase
+        mock_db.query.return_value = mock_query
 
         with pytest.raises(HTTPException) as exc_info:
             record_phase_issue(
@@ -166,7 +163,9 @@ class TestSubmitBuilderResultContract:
 
         mock_db = MagicMock()
         mock_query = MagicMock()
-        mock_query.filter.return_value.first.return_value = None
+        mock_query.options.return_value = mock_query  # Support .options() chaining (IMP-PERF-001)
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = None
         mock_db.query.return_value = mock_query
 
         builder_result = BuilderResult(
@@ -199,12 +198,16 @@ class TestSubmitBuilderResultContract:
         mock_phase.run_id = "test-run"
         mock_phase.phase_id = "test-phase"
         mock_phase.tier_id = 1
+        mock_phase.tier = MagicMock()  # Eager-loaded tier (IMP-PERF-001)
+        mock_phase.tier.tier_id = "T1"
         mock_phase.state = MagicMock()
         mock_phase.state.value = "complete"
 
         mock_db = MagicMock()
         mock_query = MagicMock()
-        mock_query.filter.return_value.first.return_value = mock_phase
+        mock_query.options.return_value = mock_query  # Support .options() chaining (IMP-PERF-001)
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = mock_phase
         mock_db.query.return_value = mock_query
 
         builder_result = BuilderResult(

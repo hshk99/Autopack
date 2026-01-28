@@ -117,9 +117,25 @@ class IterativeInvestigator:
         evidence["initial_diagnostics"] = self._outcome_to_dict(initial_outcome)
         all_probes.extend(initial_outcome.probe_results)
 
+        # IMP-DIAG-002: Include deep retrieval results in evidence for decision maker
+        if initial_outcome.deep_retrieval_results:
+            evidence["deep_retrieval"] = initial_outcome.deep_retrieval_results
+            logger.debug(
+                f"[IterativeInvestigator] Passing deep retrieval results to decision maker"
+            )
+
+        # IMP-DIAG-002: Include second opinion triage in evidence for decision maker
+        if initial_outcome.second_opinion:
+            evidence["second_opinion"] = initial_outcome.second_opinion.to_dict()
+            logger.debug(
+                f"[IterativeInvestigator] Passing second opinion triage "
+                f"(confidence: {initial_outcome.second_opinion.confidence:.2f}) to decision maker"
+            )
+
         timeline.append(
             f"Round 1 complete: {len(initial_outcome.probe_results)} probes, "
-            f"deep_retrieval={'yes' if initial_outcome.deep_retrieval_triggered else 'no'}"
+            f"deep_retrieval={'yes' if initial_outcome.deep_retrieval_triggered else 'no'}, "
+            f"second_opinion={'yes' if initial_outcome.second_opinion else 'no'}"
         )
 
         # Analyze evidence and decide if we can proceed
@@ -451,7 +467,7 @@ class IterativeInvestigator:
 
     def _outcome_to_dict(self, outcome: DiagnosticOutcome) -> Dict[str, Any]:
         """Convert DiagnosticOutcome to dictionary for evidence storage."""
-        return {
+        result = {
             "failure_class": outcome.failure_class,
             "probe_count": len(outcome.probe_results),
             "ledger_summary": outcome.ledger_summary,
@@ -459,3 +475,13 @@ class IterativeInvestigator:
             "budget_exhausted": outcome.budget_exhausted,
             "deep_retrieval_triggered": outcome.deep_retrieval_triggered,
         }
+
+        # IMP-DIAG-002: Include deep retrieval results if available
+        if outcome.deep_retrieval_results:
+            result["deep_retrieval_results"] = outcome.deep_retrieval_results
+
+        # IMP-DIAG-002: Include second opinion if available
+        if outcome.second_opinion:
+            result["second_opinion"] = outcome.second_opinion.to_dict()
+
+        return result

@@ -23,6 +23,11 @@ from autopack.diagnostics.retrieval_triggers import (
     RetrievalTrigger,
     RetrievalTriggerDetector,
 )
+from autopack.diagnostics.second_opinion import (
+    SecondOpinionConfig,
+    SecondOpinionTriageSystem,
+    TriageReport,
+)
 from autopack.memory import MemoryService
 
 if TYPE_CHECKING:
@@ -38,6 +43,7 @@ class DiagnosticOutcome:
     budget_exhausted: bool = False
     deep_retrieval_triggered: bool = False
     deep_retrieval_results: Optional[Dict] = None
+    second_opinion: Optional[TriageReport] = None
 
 
 class DiagnosticsAgent:
@@ -109,6 +115,13 @@ class DiagnosticsAgent:
 
         # IMP-LOOP-016: Telemetry analyzer for bridging diagnostic findings
         self.telemetry_analyzer = telemetry_analyzer
+
+        # IMP-DIAG-002: Second opinion triage system for enhanced diagnostics
+        self.second_opinion: Optional[SecondOpinionTriageSystem] = None
+        if enable_second_opinion:
+            self.second_opinion = SecondOpinionTriageSystem(
+                config=SecondOpinionConfig(enabled=True)
+            )
 
     def retrieve_deep_context_if_needed(
         self, error_context: Dict[str, Any], query: str
@@ -240,6 +253,36 @@ class DiagnosticsAgent:
                 logger = logging.getLogger(__name__)
                 logger.warning(f"[DiagnosticsAgent] Deep retrieval failed: {e}")
 
+            # IMP-DIAG-002: Generate second opinion triage if enabled
+            second_opinion_result: Optional[TriageReport] = None
+            if self.enable_second_opinion and self.second_opinion:
+                try:
+                    import logging
+
+                    logger = logging.getLogger(__name__)
+                    logger.info("[DiagnosticsAgent] Generating second opinion triage")
+
+                    second_opinion_result = self.second_opinion.generate_triage(
+                        handoff_bundle=handoff_bundle,
+                        phase_context=context,
+                    )
+
+                    if second_opinion_result:
+                        # Persist second opinion report
+                        second_opinion_path = self.diagnostics_dir / "second_opinion.json"
+                        self.second_opinion.save_triage_report(
+                            second_opinion_result, second_opinion_path
+                        )
+                        logger.info(
+                            f"[DiagnosticsAgent] Second opinion triage complete - "
+                            f"confidence: {second_opinion_result.confidence:.2f}"
+                        )
+                except Exception as e:
+                    import logging
+
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"[DiagnosticsAgent] Second opinion triage failed: {e}")
+
             return DiagnosticOutcome(
                 failure_class=failure_class,
                 probe_results=probe_results,
@@ -249,6 +292,7 @@ class DiagnosticsAgent:
                 or (time.monotonic() - start) >= self.max_seconds,
                 deep_retrieval_triggered=deep_retrieval_triggered,
                 deep_retrieval_results=deep_retrieval_results,
+                second_opinion=second_opinion_result,
             )
         finally:
             self._lock.release()

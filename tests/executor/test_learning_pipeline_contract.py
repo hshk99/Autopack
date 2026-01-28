@@ -814,3 +814,163 @@ class TestConfidenceScoring:
         # success_rate = 3/4 = 0.75
         # confidence = 1.0 * 0.5 + 0.75 * 0.5 = 0.875
         assert hint.confidence == 0.875
+
+
+class TestDecayScoring:
+    """Test IMP-MEM-003: Decay scoring for in-memory hints"""
+
+    def test_fresh_hint_no_decay(self):
+        """Test freshly created hint has no decay applied"""
+        import time
+
+        hint = LearningHint(
+            phase_id="test",
+            hint_type="auditor_reject",
+            hint_text="Test hint",
+            source_issue_keys=[],
+            recorded_at=time.time(),  # Created just now
+            confidence=0.8,
+        )
+
+        decay_score = hint.calculate_decay_score()
+        # Fresh hint should have minimal decay
+        assert decay_score >= 0.79  # Within 1% of original confidence
+
+    def test_old_hint_decays(self):
+        """Test hint older than 1 week has significant decay"""
+        import time
+
+        # Create hint from 1 week ago
+        one_week_ago = time.time() - (168 * 3600)  # 168 hours = 1 week
+        hint = LearningHint(
+            phase_id="test",
+            hint_type="auditor_reject",
+            hint_text="Test hint",
+            source_issue_keys=[],
+            recorded_at=one_week_ago,
+            confidence=1.0,
+        )
+
+        decay_score = hint.calculate_decay_score()
+        # After 1 week, decay_factor should be 0.1 (minimum)
+        # decay_score = 1.0 * 0.1 - 0 = 0.1
+        assert decay_score <= 0.1
+
+    def test_half_week_partial_decay(self):
+        """Test hint at half-life point has ~50% decay"""
+        import time
+
+        # Create hint from 84 hours ago (half of 168 hours)
+        half_week_ago = time.time() - (84 * 3600)
+        hint = LearningHint(
+            phase_id="test",
+            hint_type="auditor_reject",
+            hint_text="Test hint",
+            source_issue_keys=[],
+            recorded_at=half_week_ago,
+            confidence=1.0,
+        )
+
+        decay_score = hint.calculate_decay_score()
+        # At half-life: decay_factor = 1.0 - (84/168) = 0.5
+        # decay_score = 1.0 * 0.5 = 0.5
+        assert 0.45 <= decay_score <= 0.55
+
+    def test_validation_failures_increase_decay(self):
+        """Test validation failures apply additional penalty"""
+        import time
+
+        hint = LearningHint(
+            phase_id="test",
+            hint_type="auditor_reject",
+            hint_text="Test hint",
+            source_issue_keys=[],
+            recorded_at=time.time(),  # Fresh hint
+            confidence=1.0,
+            validation_failures=3,  # 3 failures = 0.3 penalty
+        )
+
+        decay_score = hint.calculate_decay_score()
+        # Fresh hint with 3 failures:
+        # decay_factor ≈ 1.0, failure_penalty = 0.3
+        # decay_score = 1.0 * 1.0 - 0.3 = 0.7
+        assert 0.65 <= decay_score <= 0.75
+
+    def test_combined_age_and_failures_decay(self):
+        """Test both age and failures contribute to decay"""
+        import time
+
+        # 84 hours old with 2 failures
+        half_week_ago = time.time() - (84 * 3600)
+        hint = LearningHint(
+            phase_id="test",
+            hint_type="auditor_reject",
+            hint_text="Test hint",
+            source_issue_keys=[],
+            recorded_at=half_week_ago,
+            confidence=1.0,
+            validation_failures=2,
+        )
+
+        decay_score = hint.calculate_decay_score()
+        # decay_factor = 0.5, failure_penalty = 0.2
+        # decay_score = 1.0 * 0.5 - 0.2 = 0.3
+        assert 0.25 <= decay_score <= 0.35
+
+    def test_decay_cannot_go_negative(self):
+        """Test decay score is capped at 0.0 minimum"""
+        import time
+
+        hint = LearningHint(
+            phase_id="test",
+            hint_type="auditor_reject",
+            hint_text="Test hint",
+            source_issue_keys=[],
+            recorded_at=time.time() - (200 * 3600),  # Very old
+            confidence=0.5,
+            validation_failures=10,  # Many failures
+        )
+
+        decay_score = hint.calculate_decay_score()
+        # Should be capped at 0.0
+        assert decay_score == 0.0
+
+    def test_decay_minimum_factor_preserved(self):
+        """Test very old hints still have minimum 0.1 decay factor"""
+        import time
+
+        # Create hint from 3 weeks ago
+        three_weeks_ago = time.time() - (504 * 3600)  # 504 hours = 3 weeks
+        hint = LearningHint(
+            phase_id="test",
+            hint_type="auditor_reject",
+            hint_text="Test hint",
+            source_issue_keys=[],
+            recorded_at=three_weeks_ago,
+            confidence=1.0,
+            validation_failures=0,
+        )
+
+        decay_score = hint.calculate_decay_score()
+        # decay_factor should be capped at 0.1 minimum
+        # decay_score = 1.0 * 0.1 - 0 = 0.1
+        assert decay_score == 0.1
+
+    def test_low_confidence_with_decay(self):
+        """Test decay applies proportionally to confidence"""
+        import time
+
+        hint = LearningHint(
+            phase_id="test",
+            hint_type="auditor_reject",
+            hint_text="Test hint",
+            source_issue_keys=[],
+            recorded_at=time.time(),  # Fresh
+            confidence=0.3,  # Low confidence
+            validation_failures=0,
+        )
+
+        decay_score = hint.calculate_decay_score()
+        # Fresh hint: decay_factor ≈ 1.0
+        # decay_score = 0.3 * 1.0 - 0 = 0.3
+        assert 0.29 <= decay_score <= 0.31

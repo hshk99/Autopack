@@ -76,6 +76,25 @@ class LearningHint:
         self.occurrence_count += 1
         self.calculate_confidence()
 
+    def calculate_decay_score(self) -> float:
+        """Calculate time-based decay score for hint relevance.
+
+        IMP-MEM-003: Applies same decay logic as learned_rules.py pattern,
+        but with shorter timeframe suitable for in-memory hints (1 week half-life).
+
+        Decay formula:
+        - decay_factor = 1.0 - (age_hours / 168), minimum 0.1
+        - failure_penalty = 0.1 * validation_failures
+        - final_score = confidence * decay_factor - failure_penalty, minimum 0.0
+
+        Returns:
+            Decayed confidence score between 0.0 and 1.0
+        """
+        age_hours = (time.time() - self.recorded_at) / 3600
+        decay_factor = max(0.1, 1.0 - (age_hours / 168.0))  # 1 week half-life
+        failure_penalty = 0.1 * self.validation_failures
+        return max(0.0, self.confidence * decay_factor - failure_penalty)
+
 
 class LearningPipeline:
     """

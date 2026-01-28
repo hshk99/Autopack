@@ -19,6 +19,7 @@ import logging
 import os
 import socket
 import subprocess
+import threading
 import time
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
@@ -975,6 +976,12 @@ class MemoryService:
             f"[MemoryService] Initialized (backend={self.backend}, enabled={self.enabled}, top_k={self.top_k})"
         )
 
+        # IMP-AUTO-003: Concurrent write safety for parallel phase execution
+        # Lock protects against concurrent write_telemetry_insight calls
+        self._write_lock = threading.Lock()
+        # Track content hashes to deduplicate insights with identical content
+        self._content_hashes: set = set()
+
     def _safe_store_call(self, label: str, fn, default):
         try:
             return fn()
@@ -1310,6 +1317,7 @@ class MemoryService:
         or write_doctor_hint based on insight type.
 
         IMP-LOOP-002: Added validation support to ensure data integrity before storage.
+        IMP-AUTO-003: Added concurrent write safety with content-hash deduplication.
 
         Args:
             insight: TelemetryInsight object to persist
@@ -1319,6 +1327,7 @@ class MemoryService:
 
         Returns:
             Document ID of written insight, or empty string if validation fails
+            or if duplicate content detected
 
         Raises:
             TelemetryFeedbackValidationError: If strict=True and validation fails
@@ -1339,9 +1348,22 @@ class MemoryService:
 
         insight_type = insight.get("insight_type", "unknown")
         description = insight.get("description", "")
+        content = insight.get("content", description)
         phase_id = insight.get("phase_id", "unknown")
         run_id = insight.get("run_id", "telemetry")
         suggested_action = insight.get("suggested_action")
+
+        # IMP-AUTO-003: Compute content hash for deduplication
+        content_hash = hashlib.sha256(f"{insight_type}:{content}".encode()).hexdigest()[:16]
+
+        # IMP-AUTO-003: Thread-safe duplicate check and write
+        with self._write_lock:
+            if content_hash in self._content_hashes:
+                logger.debug(f"[IMP-AUTO-003] Duplicate insight skipped: {content_hash}")
+                return ""
+
+            # Track the hash before writing to prevent race conditions
+            self._content_hashes.add(content_hash)
 
         # Route to appropriate write method based on insight type
         if insight_type == "cost_sink":

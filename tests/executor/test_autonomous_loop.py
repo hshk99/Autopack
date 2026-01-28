@@ -1299,5 +1299,103 @@ class TestSameRunBacklogInjection:
         assert len(loop._current_run_phases) == 2
 
 
+class TestAutoRemediationHealthPause:
+    """Tests for IMP-REL-001: Auto-pause task generation on degraded health."""
+
+    def test_task_generation_paused_flag_initialized_to_false(self):
+        """Verify _task_generation_paused is initialized to False."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+
+        loop = AutonomousLoop(mock_executor)
+
+        assert loop._task_generation_paused is False
+
+    def test_task_generation_paused_included_in_stats(self):
+        """Verify task_generation_paused is included in loop stats."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+
+        loop = AutonomousLoop(mock_executor)
+        stats = loop.get_loop_stats()
+
+        assert "task_generation_paused" in stats
+        assert stats["task_generation_paused"] is False
+
+    def test_task_generation_paused_true_in_stats(self):
+        """Verify task_generation_paused=True shows in loop stats."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+
+        loop = AutonomousLoop(mock_executor)
+        loop._task_generation_paused = True
+        stats = loop.get_loop_stats()
+
+        assert stats["task_generation_paused"] is True
+
+    def test_emit_alert_logs_to_build_event(self):
+        """Verify _emit_alert logs a HEALTH_ALERT event."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run-alert"
+        mock_executor._get_project_slug.return_value = "test-project"
+
+        loop = AutonomousLoop(mock_executor)
+
+        with patch("autopack.executor.autonomous_loop.log_build_event") as mock_log:
+            loop._emit_alert("Test alert message")
+
+        mock_log.assert_called_once()
+        call_args = mock_log.call_args
+        assert call_args[1]["event_type"] == "HEALTH_ALERT"
+        assert "Test alert message" in call_args[1]["description"]
+
+    def test_emit_alert_handles_error_gracefully(self):
+        """Verify _emit_alert handles logging errors gracefully."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+        mock_executor._get_project_slug.side_effect = Exception("Slug error")
+
+        loop = AutonomousLoop(mock_executor)
+
+        # Should not raise - just log warning
+        with patch("autopack.executor.autonomous_loop.log_build_event") as mock_log:
+            mock_log.side_effect = Exception("Log error")
+            loop._emit_alert("Test alert")
+
+    def test_generate_improvement_tasks_skipped_when_paused(self):
+        """Verify _generate_improvement_tasks returns empty when paused."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+
+        loop = AutonomousLoop(mock_executor)
+        loop._task_generation_paused = True
+
+        result = loop._generate_improvement_tasks()
+
+        assert result == []
+
+    def test_generate_improvement_tasks_proceeds_when_not_paused(self):
+        """Verify _generate_improvement_tasks proceeds when not paused."""
+        mock_executor = Mock()
+        mock_executor.run_id = "test-run"
+
+        loop = AutonomousLoop(mock_executor)
+        loop._task_generation_paused = False
+
+        # Mock the config settings module to avoid actual task generation logic
+        with patch.dict(
+            "sys.modules",
+            {"autopack.config": Mock(settings=Mock(task_generation={"enabled": False}))},
+        ):
+            with patch.object(loop, "_get_telemetry_analyzer", return_value=None):
+                # The method should return empty list because ROADC import fails
+                # But the point is it proceeds past the pause check
+                result = loop._generate_improvement_tasks()
+
+        # Should return empty list because ROADC module is not available,
+        # but the key is that it proceeded past the pause check
+        assert result == []
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

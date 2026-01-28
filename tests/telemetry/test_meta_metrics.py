@@ -1139,3 +1139,83 @@ class TestSLABreachAlert:
         assert result["actual_ms"] == 600000
         assert result["message"] == "End-to-end SLA breached"
         assert "timestamp" in result
+
+
+# Tests for IMP-REL-001: Auto-pause task generation on degraded health
+
+
+class TestShouldPauseTaskGeneration:
+    """Tests for should_pause_task_generation method (IMP-REL-001)."""
+
+    @pytest.fixture
+    def tracker(self):
+        """Create MetaMetricsTracker instance."""
+        return MetaMetricsTracker()
+
+    @pytest.fixture
+    def healthy_report(self, tracker):
+        """Create a health report with HEALTHY status."""
+        from autopack.telemetry.meta_metrics import FeedbackLoopHealthReport
+
+        return FeedbackLoopHealthReport(
+            timestamp="2026-01-28T00:00:00Z",
+            overall_status=FeedbackLoopHealth.HEALTHY,
+            overall_score=0.85,
+            component_reports={},
+            critical_issues=[],
+            warnings=[],
+        )
+
+    @pytest.fixture
+    def degraded_report(self, tracker):
+        """Create a health report with DEGRADED status."""
+        from autopack.telemetry.meta_metrics import FeedbackLoopHealthReport
+
+        return FeedbackLoopHealthReport(
+            timestamp="2026-01-28T00:00:00Z",
+            overall_status=FeedbackLoopHealth.DEGRADED,
+            overall_score=0.55,
+            component_reports={},
+            critical_issues=[],
+            warnings=["Some component is degrading"],
+        )
+
+    @pytest.fixture
+    def attention_required_report(self, tracker):
+        """Create a health report with ATTENTION_REQUIRED status."""
+        from autopack.telemetry.meta_metrics import FeedbackLoopHealthReport
+
+        return FeedbackLoopHealthReport(
+            timestamp="2026-01-28T00:00:00Z",
+            overall_status=FeedbackLoopHealth.ATTENTION_REQUIRED,
+            overall_score=0.35,
+            component_reports={},
+            critical_issues=["Critical issue 1", "Critical issue 2"],
+            warnings=[],
+        )
+
+    def test_should_not_pause_when_healthy(self, tracker, healthy_report):
+        """Test that task generation is NOT paused when health is HEALTHY."""
+        assert tracker.should_pause_task_generation(healthy_report) is False
+
+    def test_should_not_pause_when_degraded(self, tracker, degraded_report):
+        """Test that task generation is NOT paused when health is DEGRADED."""
+        assert tracker.should_pause_task_generation(degraded_report) is False
+
+    def test_should_pause_when_attention_required(self, tracker, attention_required_report):
+        """Test that task generation IS paused when health is ATTENTION_REQUIRED."""
+        assert tracker.should_pause_task_generation(attention_required_report) is True
+
+    def test_should_not_pause_when_unknown(self, tracker):
+        """Test that task generation is NOT paused when health is UNKNOWN."""
+        from autopack.telemetry.meta_metrics import FeedbackLoopHealthReport
+
+        unknown_report = FeedbackLoopHealthReport(
+            timestamp="2026-01-28T00:00:00Z",
+            overall_status=FeedbackLoopHealth.UNKNOWN,
+            overall_score=0.5,
+            component_reports={},
+            critical_issues=[],
+            warnings=[],
+        )
+        assert tracker.should_pause_task_generation(unknown_report) is False

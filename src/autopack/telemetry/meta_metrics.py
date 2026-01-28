@@ -1224,3 +1224,18 @@ class MetaMetricsTracker:
             return FeedbackLoopHealth.UNKNOWN, overall_score
         else:
             return FeedbackLoopHealth.HEALTHY, overall_score
+
+    def should_pause_task_generation(self, health_report: FeedbackLoopHealthReport) -> bool:
+        """Determine if task generation should be paused based on health status.
+
+        IMP-REL-001: Returns True when the feedback loop health is in
+        ATTENTION_REQUIRED state, indicating that automatic task generation
+        should be paused until the underlying issues are resolved.
+
+        Args:
+            health_report: The current feedback loop health report
+
+        Returns:
+            True if task generation should be paused, False otherwise
+        """
+        return health_report.overall_status == FeedbackLoopHealth.ATTENTION_REQUIRED

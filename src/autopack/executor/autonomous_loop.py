@@ -548,6 +548,10 @@ class AutonomousLoop:
         # to be injected into the current run's backlog for immediate execution
         self._current_run_phases: Optional[List[Dict]] = None
 
+        # IMP-REL-001: Task generation pause flag for auto-remediation
+        # When True, task generation is paused due to ATTENTION_REQUIRED health status
+        self._task_generation_paused: bool = False
+
     def get_loop_stats(self) -> Dict:
         """Get current loop statistics for monitoring (IMP-LOOP-006, IMP-AUTO-002).
 
@@ -586,6 +590,9 @@ class AutonomousLoop:
         else:
             stats["task_effectiveness"] = {"enabled": self._task_effectiveness_enabled}
 
+        # IMP-REL-001: Add task generation pause status
+        stats["task_generation_paused"] = self._task_generation_paused
+
         return stats
 
     def reset_circuit_breaker(self) -> bool:
@@ -600,6 +607,30 @@ class AutonomousLoop:
             self._circuit_breaker.reset()
             return True
         return False
+
+    def _emit_alert(self, message: str) -> None:
+        """Emit an alert for critical system events.
+
+        IMP-REL-001: Logs critical events to the build log for visibility.
+        Used when task generation is auto-paused due to degraded health.
+
+        Args:
+            message: The alert message to log
+        """
+        try:
+            log_build_event(
+                event_type="HEALTH_ALERT",
+                description=message,
+                deliverables=[
+                    f"Run ID: {self.executor.run_id}",
+                    f"Iteration: {self._iteration_count}",
+                    f"Phases executed: {self._total_phases_executed}",
+                    f"Phases failed: {self._total_phases_failed}",
+                ],
+                project_slug=self.executor._get_project_slug(),
+            )
+        except Exception as e:
+            logger.warning(f"[IMP-REL-001] Failed to emit alert: {e}")
 
     # =========================================================================
     # IMP-AUTO-002: Parallel Phase Execution Support
@@ -1387,6 +1418,18 @@ class AutonomousLoop:
                     f"(score={health_report.overall_score:.2f}, "
                     f"critical_issues={len(health_report.critical_issues)})"
                 )
+                # IMP-REL-001: Auto-pause task generation when health is critical
+                if self._meta_metrics_tracker.should_pause_task_generation(health_report):
+                    if not self._task_generation_paused:
+                        logger.warning(
+                            "[IMP-REL-001] Auto-pausing task generation due to "
+                            "ATTENTION_REQUIRED status"
+                        )
+                        self._task_generation_paused = True
+                        self._emit_alert(
+                            "Task generation auto-paused - manual intervention required. "
+                            f"Health score: {health_report.overall_score:.2f}"
+                        )
             elif health_report.overall_status == FeedbackLoopHealth.DEGRADED:
                 logger.info(
                     f"[IMP-FBK-002] Feedback loop health: DEGRADED "
@@ -2907,8 +2950,15 @@ class AutonomousLoop:
                     except Exception as e:
                         logger.warning(f"Failed to generate improvement tasks: {e}")
             else:
+                # IMP-REL-001: Auto-pause task generation on critical health issues
                 logger.warning(
-                    f"[IMP-LOOP-001] Skipping task generation due to health status: {health_status}"
+                    f"[IMP-REL-001] Auto-pausing task generation due to "
+                    f"ATTENTION_REQUIRED status (health_status={health_status})"
+                )
+                self._task_generation_paused = True
+                self._emit_alert(
+                    "Task generation auto-paused - manual intervention required. "
+                    f"Health status: {health_status}"
                 )
 
             # Log run completion summary to CONSOLIDATED_BUILD.md
@@ -3374,6 +3424,11 @@ class AutonomousLoop:
         Returns:
             List of GeneratedTask objects
         """
+        # IMP-REL-001: Check if task generation is paused due to health issues
+        if self._task_generation_paused:
+            logger.info("[IMP-REL-001] Task generation skipped - paused due to health issues")
+            return []
+
         try:
             from autopack.config import settings as config_settings
             from autopack.roadc import AutonomousTaskGenerator

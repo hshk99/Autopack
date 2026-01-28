@@ -10,7 +10,8 @@ Provides:
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from .faiss_store import FaissStore
 from .memory_service import (
@@ -238,6 +239,151 @@ def run_maintenance(
 
     logger.info(f"[Maintenance] Completed: {stats}")
     return stats
+
+
+# IMP-LOOP-017: Maintenance scheduling constants and state
+MAINTENANCE_TIMESTAMP_FILE = Path(".autonomous_runs/.last_maintenance")
+DEFAULT_MAINTENANCE_INTERVAL_HOURS = 24
+
+
+def _load_maintenance_config() -> Dict[str, Any]:
+    """Load maintenance configuration from config/memory.yaml."""
+    config = _load_memory_config()
+    maintenance_config = config.get("maintenance", {})
+    return {
+        "auto_maintenance_enabled": maintenance_config.get("auto_maintenance_enabled", True),
+        "maintenance_interval_hours": maintenance_config.get(
+            "maintenance_interval_hours", DEFAULT_MAINTENANCE_INTERVAL_HOURS
+        ),
+        "max_age_days": maintenance_config.get("max_age_days", DEFAULT_TTL_DAYS),
+        "prune_threshold": maintenance_config.get("prune_threshold", 1000),
+        "planning_keep_versions": maintenance_config.get("planning_keep_versions", 3),
+    }
+
+
+def _get_last_maintenance_time() -> Optional[datetime]:
+    """Get the timestamp of the last maintenance run.
+
+    Returns:
+        datetime of last maintenance, or None if never run
+    """
+    if not MAINTENANCE_TIMESTAMP_FILE.exists():
+        return None
+
+    try:
+        content = MAINTENANCE_TIMESTAMP_FILE.read_text().strip()
+        return datetime.fromisoformat(content)
+    except (ValueError, OSError) as e:
+        logger.warning(f"[Maintenance] Failed to read last maintenance time: {e}")
+        return None
+
+
+def _update_last_maintenance_time() -> None:
+    """Update the timestamp file with current time."""
+    try:
+        MAINTENANCE_TIMESTAMP_FILE.parent.mkdir(parents=True, exist_ok=True)
+        MAINTENANCE_TIMESTAMP_FILE.write_text(datetime.now(timezone.utc).isoformat())
+    except OSError as e:
+        logger.warning(f"[Maintenance] Failed to update maintenance timestamp: {e}")
+
+
+def is_maintenance_due(interval_hours: Optional[int] = None) -> bool:
+    """Check if maintenance is due based on the configured interval.
+
+    Args:
+        interval_hours: Hours between maintenance runs. If None, uses config value.
+
+    Returns:
+        True if maintenance should run, False otherwise
+    """
+    config = _load_maintenance_config()
+
+    if not config["auto_maintenance_enabled"]:
+        return False
+
+    if interval_hours is None:
+        interval_hours = config["maintenance_interval_hours"]
+
+    last_run = _get_last_maintenance_time()
+
+    if last_run is None:
+        # Never run before, maintenance is due
+        logger.debug("[Maintenance] No previous maintenance found, due for first run")
+        return True
+
+    elapsed = datetime.now(timezone.utc) - last_run
+    hours_since_last = elapsed.total_seconds() / 3600
+
+    if hours_since_last >= interval_hours:
+        logger.debug(
+            f"[Maintenance] {hours_since_last:.1f}h since last run, "
+            f"threshold is {interval_hours}h - maintenance due"
+        )
+        return True
+
+    logger.debug(
+        f"[Maintenance] {hours_since_last:.1f}h since last run, "
+        f"threshold is {interval_hours}h - not due yet"
+    )
+    return False
+
+
+def run_maintenance_if_due(
+    project_id: str = "autopack",
+    store: Optional[FaissStore] = None,
+) -> Optional[Dict[str, Any]]:
+    """Run maintenance if enough time has passed since last run.
+
+    This is the main entry point for automated maintenance scheduling.
+    It checks if maintenance is due based on the configured interval,
+    runs maintenance if needed, and updates the timestamp.
+
+    Args:
+        project_id: Project to maintain (default: "autopack")
+        store: Optional FaissStore instance. If None, creates via MemoryService.
+
+    Returns:
+        Maintenance stats dict if maintenance was run, None otherwise
+    """
+    if not is_maintenance_due():
+        return None
+
+    config = _load_maintenance_config()
+
+    logger.info(
+        f"[IMP-LOOP-017] Auto-maintenance triggered for project '{project_id}' "
+        f"(interval: {config['maintenance_interval_hours']}h)"
+    )
+
+    try:
+        # Import here to avoid circular imports
+        from .memory_service import MemoryService
+
+        if store is None:
+            service = MemoryService()
+            store = service.store
+
+        stats = run_maintenance(
+            store=store,
+            project_id=project_id,
+            ttl_days=config["max_age_days"],
+            planning_keep_versions=config["planning_keep_versions"],
+        )
+
+        _update_last_maintenance_time()
+
+        logger.info(
+            f"[IMP-LOOP-017] Auto-maintenance completed: "
+            f"pruned={stats['pruned']}, tombstoned={stats['planning_tombstoned']}"
+        )
+
+        return stats
+
+    except Exception as e:
+        logger.error(f"[IMP-LOOP-017] Auto-maintenance failed: {e}")
+        # Still update timestamp to prevent retry storm
+        _update_last_maintenance_time()
+        return {"pruned": 0, "planning_tombstoned": 0, "compressed": 0, "errors": [str(e)]}
 
 
 def main():

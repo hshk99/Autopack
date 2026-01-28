@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any, Optional
 if TYPE_CHECKING:
     from ..memory.learning_db import LearningDatabase
     from ..telemetry.analyzer import TaskEffectivenessStats
+    from .task_effectiveness_tracker import TaskEffectivenessTracker
 
 
 @dataclass
@@ -91,10 +92,12 @@ class PriorityEngine:
     - Complexity estimation from improvement descriptions
     - Recent trend analysis
     - Task effectiveness feedback from completion telemetry (IMP-LOOP-019)
+    - Category effectiveness from TaskEffectivenessTracker (IMP-TASK-001)
 
     Attributes:
         learning_db: The learning database containing historical outcomes.
         effectiveness_stats: Optional task effectiveness stats for feedback closure.
+        effectiveness_tracker: Optional TaskEffectivenessTracker for category effectiveness.
     """
 
     # Weight factors for priority calculation
@@ -113,6 +116,7 @@ class PriorityEngine:
         self,
         learning_db: LearningDatabase,
         effectiveness_stats: Optional[TaskEffectivenessStats] = None,
+        effectiveness_tracker: Optional[TaskEffectivenessTracker] = None,
     ) -> None:
         """Initialize the PriorityEngine.
 
@@ -121,10 +125,14 @@ class PriorityEngine:
             effectiveness_stats: Optional task effectiveness stats for feedback
                 closure (IMP-LOOP-019). If provided, historical task completion
                 outcomes will factor into priority calculation.
+            effectiveness_tracker: Optional TaskEffectivenessTracker for category
+                effectiveness feedback (IMP-TASK-001). If provided, category-level
+                effectiveness data will dynamically adjust priority weights.
         """
         self.learning_db = learning_db
         self._patterns_cache: dict[str, Any] | None = None
         self._effectiveness_stats = effectiveness_stats
+        self._effectiveness_tracker = effectiveness_tracker
 
     def _get_cached_patterns(self) -> dict[str, Any]:
         """Get historical patterns, caching for performance."""
@@ -154,12 +162,31 @@ class PriorityEngine:
             stats.target_achievement_rate * 100,
         )
 
-    def get_effectiveness_factor(self, improvement: dict[str, Any]) -> float:
-        """Get effectiveness factor based on historical task outcomes (IMP-LOOP-019).
+    def set_effectiveness_tracker(self, tracker: TaskEffectivenessTracker) -> None:
+        """Set or update the TaskEffectivenessTracker (IMP-TASK-001).
 
-        Calculates an effectiveness multiplier based on how well similar tasks
-        have performed historically. This creates a feedback loop where task
-        types with poor historical outcomes are deprioritized.
+        Call this method to connect the priority engine to a TaskEffectivenessTracker
+        for category-level effectiveness feedback. This enables dynamic adjustment
+        of priority weights based on historical category success rates.
+
+        Args:
+            tracker: TaskEffectivenessTracker instance for category effectiveness.
+        """
+        self._effectiveness_tracker = tracker
+        # Clear cache to force recalculation with new effectiveness data
+        self.clear_cache()
+        logger.debug("[IMP-TASK-001] Connected effectiveness tracker to priority engine")
+
+    def get_effectiveness_factor(self, improvement: dict[str, Any]) -> float:
+        """Get effectiveness factor based on historical task outcomes.
+
+        IMP-LOOP-019 + IMP-TASK-001: Calculates an effectiveness multiplier based
+        on how well similar tasks have performed historically. This creates a
+        feedback loop where task types with poor historical outcomes are deprioritized.
+
+        The method combines data from two sources:
+        1. TaskEffectivenessStats (telemetry-based, IMP-LOOP-019)
+        2. TaskEffectivenessTracker (category-based, IMP-TASK-001)
 
         Args:
             improvement: The improvement record to evaluate.
@@ -170,47 +197,61 @@ class PriorityEngine:
             - > 1.0: Above-average historical success (boosted priority)
             - < 1.0: Below-average historical success (reduced priority)
         """
-        if self._effectiveness_stats is None:
-            return 1.0  # No feedback data available
-
-        # Try to match by task type first
         category = self._extract_category(improvement)
         priority_level = self._extract_priority_level(improvement)
-
-        # Get effectiveness by type if available
-        type_effectiveness = self._effectiveness_stats.effectiveness_by_type.get(category, {})
-        type_success_rate = type_effectiveness.get("success_rate")
-        type_target_rate = type_effectiveness.get("target_rate")
-
-        # Get effectiveness by priority if available
-        priority_effectiveness = self._effectiveness_stats.effectiveness_by_priority.get(
-            priority_level, {}
-        )
-        priority_success_rate = priority_effectiveness.get("success_rate")
-        priority_target_rate = priority_effectiveness.get("target_rate")
-
-        # Calculate weighted effectiveness score
-        # Combine success rate and target achievement rate
         scores: list[float] = []
 
-        if type_success_rate is not None:
-            # Weight success rate (execution success) and target rate (goal achievement)
-            type_score = type_success_rate * 0.6 + (type_target_rate or type_success_rate) * 0.4
-            scores.append(type_score)
-
-        if priority_success_rate is not None:
-            priority_score = (
-                priority_success_rate * 0.6 + (priority_target_rate or priority_success_rate) * 0.4
+        # IMP-TASK-001: Get category effectiveness from TaskEffectivenessTracker
+        if self._effectiveness_tracker is not None:
+            # Check if we have data for this category (use -1.0 as sentinel for "no data")
+            category_effectiveness = (
+                self._effectiveness_tracker.get_category_effectiveness_with_history(
+                    category, default=-1.0
+                )
             )
-            scores.append(priority_score)
+            # Only use effectiveness if we have actual data (not the sentinel default)
+            if category_effectiveness >= 0:
+                scores.append(category_effectiveness)
+                logger.debug(
+                    "[IMP-TASK-001] Category effectiveness for %s (%s): %.2f%%",
+                    improvement.get("imp_id", improvement.get("id", "unknown")),
+                    category,
+                    category_effectiveness * 100,
+                )
 
+        # IMP-LOOP-019: Get effectiveness from TaskEffectivenessStats (telemetry)
+        if self._effectiveness_stats is not None:
+            # Get effectiveness by type if available
+            type_effectiveness = self._effectiveness_stats.effectiveness_by_type.get(category, {})
+            type_success_rate = type_effectiveness.get("success_rate")
+            type_target_rate = type_effectiveness.get("target_rate")
+
+            # Get effectiveness by priority if available
+            priority_effectiveness = self._effectiveness_stats.effectiveness_by_priority.get(
+                priority_level, {}
+            )
+            priority_success_rate = priority_effectiveness.get("success_rate")
+            priority_target_rate = priority_effectiveness.get("target_rate")
+
+            if type_success_rate is not None:
+                # Weight success rate (execution success) and target rate (goal achievement)
+                type_score = type_success_rate * 0.6 + (type_target_rate or type_success_rate) * 0.4
+                scores.append(type_score)
+
+            if priority_success_rate is not None:
+                priority_score = (
+                    priority_success_rate * 0.6
+                    + (priority_target_rate or priority_success_rate) * 0.4
+                )
+                scores.append(priority_score)
+
+            # Fall back to overall success rate if no type/priority data
+            if not scores and self._effectiveness_stats.success_rate > 0:
+                scores.append(self._effectiveness_stats.success_rate)
+
+        # No data from either source
         if not scores:
-            # Fall back to overall success rate
-            overall = self._effectiveness_stats.success_rate
-            if overall > 0:
-                scores.append(overall)
-            else:
-                return 1.0
+            return 1.0
 
         # Average the scores and normalize to a factor
         avg_effectiveness = sum(scores) / len(scores)
@@ -222,13 +263,13 @@ class PriorityEngine:
         factor = 0.5 + (avg_effectiveness * 0.7)
 
         logger.debug(
-            "[IMP-LOOP-019] Effectiveness factor for %s: %.2f (category=%s, "
-            "type_rate=%s, priority_rate=%s)",
+            "[IMP-TASK-001] Effectiveness factor for %s: %.2f (category=%s, "
+            "avg_effectiveness=%.2f%%, sources=%d)",
             improvement.get("imp_id", improvement.get("id", "unknown")),
             factor,
             category,
-            type_success_rate,
-            priority_success_rate,
+            avg_effectiveness * 100,
+            len(scores),
         )
 
         return factor

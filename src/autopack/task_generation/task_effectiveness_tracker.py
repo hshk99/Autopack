@@ -16,6 +16,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, List
 
 if TYPE_CHECKING:
+    from autopack.memory.learning_db import LearningDatabase
     from autopack.task_generation.priority_engine import PriorityEngine
 
 logger = logging.getLogger(__name__)
@@ -224,19 +225,32 @@ class TaskEffectivenessTracker:
     Attributes:
         history: EffectivenessHistory containing all tracked reports.
         priority_engine: Optional PriorityEngine for feedback integration.
+        learning_db: Optional LearningDatabase for persisting effectiveness data.
     """
 
-    def __init__(self, priority_engine: PriorityEngine | None = None) -> None:
+    def __init__(
+        self,
+        priority_engine: PriorityEngine | None = None,
+        learning_db: LearningDatabase | None = None,
+    ) -> None:
         """Initialize the TaskEffectivenessTracker.
 
         Args:
             priority_engine: Optional PriorityEngine instance for feedback.
                 If not provided, feedback will be stored but not applied.
+            learning_db: Optional LearningDatabase for persisting effectiveness
+                data across runs. IMP-TASK-001: Enables effectiveness feedback
+                to influence future task prioritization.
         """
         self.history = EffectivenessHistory()
         self.priority_engine = priority_engine
+        self._learning_db = learning_db
         # IMP-LOOP-021: Track registered tasks for execution verification
         self._registered_tasks: dict[str, RegisteredTask] = {}
+
+        # IMP-TASK-001: Load historical effectiveness from learning database
+        if self._learning_db is not None:
+            self._load_from_learning_db()
 
     def measure_impact(
         self,
@@ -772,3 +786,196 @@ class TaskEffectivenessTracker:
             "by_priority": by_priority,
             "unexecuted_tasks": [t.task_id for t in unexecuted],
         }
+
+    # IMP-TASK-001: Persistence methods for effectiveness feedback loop
+
+    def set_learning_db(self, learning_db: LearningDatabase) -> None:
+        """Set or update the learning database for persistence.
+
+        IMP-TASK-001: Allows connecting the effectiveness tracker to a learning
+        database after initialization.
+
+        Args:
+            learning_db: LearningDatabase instance for persistence.
+        """
+        self._learning_db = learning_db
+        logger.debug("[IMP-TASK-001] Connected effectiveness tracker to learning database")
+
+    def persist_effectiveness_report(self, report: TaskImpactReport) -> bool:
+        """Persist an effectiveness report to the learning database.
+
+        IMP-TASK-001: Stores effectiveness data to influence future task
+        prioritization. Maps effectiveness scores to improvement outcomes.
+
+        Args:
+            report: TaskImpactReport to persist.
+
+        Returns:
+            True if persistence was successful, False otherwise.
+        """
+        if self._learning_db is None:
+            logger.debug("[IMP-TASK-001] No learning database configured, skipping persistence")
+            return False
+
+        # Map effectiveness score to outcome
+        grade = report.get_effectiveness_grade()
+        if grade == "excellent":
+            outcome = "implemented"
+        elif grade == "good":
+            outcome = "implemented"
+        elif grade == "moderate":
+            outcome = "partial"
+        else:
+            outcome = "blocked"
+
+        # Create notes with effectiveness details
+        notes = (
+            f"effectiveness={report.effectiveness_score:.2f}, "
+            f"actual_improvement={report.actual_improvement:.2%}, "
+            f"target={report.target_improvement:.2%}"
+        )
+
+        # Record to learning database
+        success = self._learning_db.record_improvement_outcome(
+            imp_id=report.task_id,
+            outcome=outcome,
+            notes=notes,
+            category=report.category or "general",
+            priority=None,  # Priority not tracked in report
+        )
+
+        if success:
+            logger.info(
+                "[IMP-TASK-001] Persisted effectiveness report for %s: "
+                "category=%s, grade=%s, outcome=%s",
+                report.task_id,
+                report.category,
+                grade,
+                outcome,
+            )
+        else:
+            logger.warning(
+                "[IMP-TASK-001] Failed to persist effectiveness report for %s",
+                report.task_id,
+            )
+
+        return success
+
+    def persist_all_reports(self) -> int:
+        """Persist all effectiveness reports to the learning database.
+
+        IMP-TASK-001: Batch persistence of all tracked effectiveness reports.
+        Useful at the end of a run to ensure all data is saved.
+
+        Returns:
+            Number of reports successfully persisted.
+        """
+        if self._learning_db is None:
+            logger.debug(
+                "[IMP-TASK-001] No learning database configured, skipping batch persistence"
+            )
+            return 0
+
+        persisted_count = 0
+        for report in self.history.reports:
+            if self.persist_effectiveness_report(report):
+                persisted_count += 1
+
+        logger.info(
+            "[IMP-TASK-001] Batch persisted %d of %d effectiveness reports",
+            persisted_count,
+            len(self.history.reports),
+        )
+
+        return persisted_count
+
+    def _load_from_learning_db(self) -> None:
+        """Load historical effectiveness data from the learning database.
+
+        IMP-TASK-001: Initializes category stats from persisted historical data,
+        enabling effectiveness-based prioritization from the start of a run.
+        """
+        if self._learning_db is None:
+            return
+
+        try:
+            patterns = self._learning_db.get_historical_patterns()
+            category_rates = patterns.get("category_success_rates", {})
+
+            for category, stats in category_rates.items():
+                total = stats.get("total", 0)
+                implemented = stats.get("implemented", 0)
+
+                if total > 0:
+                    # Create synthetic stats for the category
+                    success_rate = implemented / total
+
+                    # Initialize category stats if not present
+                    if category not in self.history.category_stats:
+                        self.history.category_stats[category] = {
+                            "total_tasks": total,
+                            "total_effectiveness": success_rate * total,
+                            "avg_effectiveness": success_rate,
+                            "effective_count": implemented,
+                        }
+                        logger.debug(
+                            "[IMP-TASK-001] Loaded historical effectiveness for %s: "
+                            "success_rate=%.2f%% (%d/%d)",
+                            category,
+                            success_rate * 100,
+                            implemented,
+                            total,
+                        )
+
+            logger.info(
+                "[IMP-TASK-001] Loaded historical effectiveness for %d categories",
+                len(category_rates),
+            )
+
+        except Exception as e:
+            logger.warning(
+                "[IMP-TASK-001] Failed to load historical effectiveness: %s",
+                e,
+            )
+
+    def get_category_effectiveness_with_history(
+        self,
+        category: str,
+        default: float = 0.5,
+    ) -> float:
+        """Get category effectiveness combining current and historical data.
+
+        IMP-TASK-001: Enhanced method that combines in-memory effectiveness
+        data with historical data from the learning database.
+
+        Args:
+            category: Category to query.
+            default: Default value if no data available. Use -1.0 as sentinel
+                to distinguish "no data" from "0% effectiveness".
+
+        Returns:
+            Effectiveness score between 0.0 and 1.0, or default if no data.
+        """
+        # First check in-memory history
+        if category in self.history.category_stats:
+            stats = self.history.category_stats[category]
+            if stats.get("total_tasks", 0) > 0:
+                # Return actual avg_effectiveness even if it's 0.0
+                return stats["avg_effectiveness"]
+
+        # Fall back to learning database
+        if self._learning_db is not None:
+            historical_rate = self._learning_db.get_success_rate(category)
+            # Note: get_success_rate returns 0.0 for unknown categories,
+            # but also for categories with 0% success. Check if category exists.
+            patterns = self._learning_db.get_historical_patterns()
+            category_rates = patterns.get("category_success_rates", {})
+            if category in category_rates:
+                logger.debug(
+                    "[IMP-TASK-001] Using historical effectiveness for %s: %.2f%%",
+                    category,
+                    historical_rate * 100,
+                )
+                return historical_rate
+
+        return default

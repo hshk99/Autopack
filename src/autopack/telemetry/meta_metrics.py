@@ -1239,3 +1239,56 @@ class MetaMetricsTracker:
             True if task generation should be paused, False otherwise
         """
         return health_report.overall_status == FeedbackLoopHealth.ATTENTION_REQUIRED
+
+    def export_to_prometheus(
+        self, telemetry_data: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Export ROAD component health scores as Prometheus-compatible metrics.
+
+        IMP-OBS-001: Provides Prometheus Gauge-compatible metrics for feedback loop
+        health monitoring. Returns component health scores (0.0-1.0) that can be
+        scraped by Prometheus and used for alerting on component degradation.
+
+        Args:
+            telemetry_data: Optional telemetry data for analysis. If not provided,
+                uses empty dict which yields baseline scores.
+
+        Returns:
+            Dict of metric names to float values suitable for Prometheus Gauges:
+            - autopack_feedback_loop_health: Overall loop health (0.0-1.0)
+            - autopack_telemetry_health: ROAD-B telemetry analysis health
+            - autopack_task_gen_health: ROAD-C task generation health
+            - autopack_validation_health: ROAD-E validation coverage health
+            - autopack_policy_health: ROAD-F policy promotion health
+            - autopack_anomaly_health: ROAD-G anomaly detection health
+            - autopack_healing_health: ROAD-J auto-healing health
+            - autopack_model_health: ROAD-L model optimization health
+        """
+        # Use empty dict if no telemetry data provided - yields baseline scores
+        data = telemetry_data or {}
+        health = self.analyze_feedback_loop_health(data)
+
+        # Map component names to metric-friendly keys
+        component_mapping = {
+            "ROAD-B": "autopack_telemetry_health",
+            "ROAD-C": "autopack_task_gen_health",
+            "ROAD-E": "autopack_validation_health",
+            "ROAD-F": "autopack_policy_health",
+            "ROAD-G": "autopack_anomaly_health",
+            "ROAD-J": "autopack_healing_health",
+            "ROAD-L": "autopack_model_health",
+        }
+
+        metrics: Dict[str, Any] = {
+            "autopack_feedback_loop_health": health.overall_score,
+        }
+
+        # Add component health scores
+        for component_name, metric_name in component_mapping.items():
+            report = health.component_reports.get(component_name)
+            if report:
+                metrics[metric_name] = report.overall_score
+            else:
+                metrics[metric_name] = 0.0
+
+        return metrics

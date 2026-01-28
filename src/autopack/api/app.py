@@ -1298,4 +1298,9 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router)
 
+    # Mount metrics router (IMP-OBS-001: Feedback loop observability)
+    from .routes.metrics import router as metrics_router
+
+    app.include_router(metrics_router)
+
     return app

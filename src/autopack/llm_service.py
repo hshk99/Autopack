@@ -38,12 +38,8 @@ def estimate_tokens(text: str, *, chars_per_token: float = 4.0) -> int:
 
 
 from .dual_auditor import DualAuditor
-from .error_recovery import (
-    DoctorContextSummary,
-    DoctorRequest,
-    DoctorResponse,
-    choose_doctor_model,
-)
+from .error_recovery import (DoctorContextSummary, DoctorRequest,
+                             DoctorResponse, choose_doctor_model)
 from .exceptions import ScopeReductionError
 from .llm import doctor
 from .llm.client_resolution import resolve_client_and_model
@@ -65,7 +61,8 @@ except (ImportError, Exception):
 
 # Import Anthropic clients with graceful fallback
 try:
-    from .anthropic_clients import AnthropicAuditorClient, AnthropicBuilderClient
+    from .anthropic_clients import (AnthropicAuditorClient,
+                                    AnthropicBuilderClient)
 
     ANTHROPIC_AVAILABLE = True
 except ImportError:
@@ -103,6 +100,61 @@ class LlmService:
     2. Delegates to OpenAI or Anthropic clients based on model selection
     3. Records usage in database via LlmUsageEvent
     """
+
+    @staticmethod
+    def _estimate_dict_tokens(obj, depth: int = 0) -> int:
+        """
+        IMP-PERF-004: Estimate tokens directly from dict structure without JSON serialization.
+
+        This method traverses the object structure recursively to estimate token count,
+        avoiding the expensive json.dumps() call for large contexts (5MB+).
+
+        Args:
+            obj: The object to estimate tokens for (dict, list, str, int, float, bool, None)
+            depth: Current recursion depth (max 10 to prevent infinite recursion)
+
+        Returns:
+            Estimated token count based on structure traversal
+        """
+        # Prevent infinite recursion on deeply nested structures
+        if depth > 10:
+            return 100  # Conservative estimate for truncated branches
+
+        if obj is None:
+            return 1
+
+        if isinstance(obj, bool):
+            # Handle bool before int since bool is subclass of int
+            return 1
+
+        if isinstance(obj, str):
+            # ~4 chars per token (consistent with estimate_tokens)
+            return max(1, len(obj) // 4)
+
+        if isinstance(obj, (int, float)):
+            return 1
+
+        if isinstance(obj, list):
+            # Sum of items plus structural overhead (brackets, commas)
+            if not obj:
+                return 1  # Empty list
+            return sum(LlmService._estimate_dict_tokens(item, depth + 1) for item in obj) + len(obj)
+
+        if isinstance(obj, dict):
+            # Sum of key-value pairs plus structural overhead (braces, colons, commas)
+            if not obj:
+                return 1  # Empty dict
+            total = 0
+            for k, v in obj.items():
+                # Key token estimate (~4 chars per token)
+                key_tokens = max(1, len(str(k)) // 4)
+                value_tokens = LlmService._estimate_dict_tokens(v, depth + 1)
+                total += key_tokens + value_tokens
+            # Add structural overhead (braces, colons, commas)
+            return total + len(obj) * 2
+
+        # Unknown type - conservative estimate
+        return 10
 
     def __init__(
         self,
@@ -263,16 +315,14 @@ class LlmService:
         # Estimate input tokens from all text components
         estimated_input = 0
 
-        # Phase spec (convert to JSON string for estimation)
+        # Phase spec - IMP-PERF-004: Use direct dict traversal instead of json.dumps()
         if phase_spec:
-            phase_text = json.dumps(phase_spec, default=str)
-            estimated_input += estimate_tokens(phase_text)
+            estimated_input += self._estimate_dict_tokens(phase_spec)
 
-        # File context
+        # File context - IMP-PERF-004: Use direct dict traversal instead of json.dumps()
+        # This is critical for large contexts (5MB+) where json.dumps() is expensive
         if file_context:
-            # File context can be a dict with file contents
-            context_text = json.dumps(file_context, default=str)
-            estimated_input += estimate_tokens(context_text)
+            estimated_input += self._estimate_dict_tokens(file_context)
 
         # Project rules
         if project_rules:

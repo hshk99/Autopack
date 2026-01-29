@@ -776,6 +776,236 @@ class TestCheckPreCallBudget:
 
 
 # =============================================================================
+# Tests for LlmService._estimate_dict_tokens (IMP-PERF-004)
+# =============================================================================
+
+
+class TestEstimateDictTokens:
+    """Tests for _estimate_dict_tokens static method (IMP-PERF-004).
+
+    This method estimates tokens directly from dict structures without
+    JSON serialization, improving performance for large contexts (5MB+).
+    """
+
+    def test_estimate_none_returns_one(self):
+        """None value returns 1 token."""
+        from autopack.llm_service import LlmService
+
+        result = LlmService._estimate_dict_tokens(None)
+        assert result == 1
+
+    def test_estimate_bool_returns_one(self):
+        """Boolean values return 1 token each."""
+        from autopack.llm_service import LlmService
+
+        assert LlmService._estimate_dict_tokens(True) == 1
+        assert LlmService._estimate_dict_tokens(False) == 1
+
+    def test_estimate_int_returns_one(self):
+        """Integer values return 1 token."""
+        from autopack.llm_service import LlmService
+
+        assert LlmService._estimate_dict_tokens(0) == 1
+        assert LlmService._estimate_dict_tokens(42) == 1
+        assert LlmService._estimate_dict_tokens(-100) == 1
+
+    def test_estimate_float_returns_one(self):
+        """Float values return 1 token."""
+        from autopack.llm_service import LlmService
+
+        assert LlmService._estimate_dict_tokens(3.14) == 1
+        assert LlmService._estimate_dict_tokens(0.0) == 1
+
+    def test_estimate_short_string(self):
+        """Short strings return minimum of 1 token."""
+        from autopack.llm_service import LlmService
+
+        # Less than 4 chars -> 1 token
+        assert LlmService._estimate_dict_tokens("abc") == 1
+        assert LlmService._estimate_dict_tokens("") == 1
+
+    def test_estimate_longer_string(self):
+        """Longer strings estimate ~4 chars per token."""
+        from autopack.llm_service import LlmService
+
+        # 40 chars / 4 = 10 tokens
+        result = LlmService._estimate_dict_tokens("a" * 40)
+        assert result == 10
+
+    def test_estimate_empty_list(self):
+        """Empty list returns 1 token."""
+        from autopack.llm_service import LlmService
+
+        result = LlmService._estimate_dict_tokens([])
+        assert result == 1
+
+    def test_estimate_list_with_items(self):
+        """List estimates sum of items plus structural overhead."""
+        from autopack.llm_service import LlmService
+
+        # [1, 2, 3] -> 3 items (1 token each) + 3 structural overhead
+        result = LlmService._estimate_dict_tokens([1, 2, 3])
+        assert result == 6
+
+    def test_estimate_empty_dict(self):
+        """Empty dict returns 1 token."""
+        from autopack.llm_service import LlmService
+
+        result = LlmService._estimate_dict_tokens({})
+        assert result == 1
+
+    def test_estimate_simple_dict(self):
+        """Simple dict estimates keys, values, and structural overhead."""
+        from autopack.llm_service import LlmService
+
+        # {"a": 1} -> key "a" (1 token) + value 1 (1 token) + overhead (2)
+        result = LlmService._estimate_dict_tokens({"a": 1})
+        assert result == 4
+
+    def test_estimate_nested_dict(self):
+        """Nested dicts are traversed recursively."""
+        from autopack.llm_service import LlmService
+
+        nested = {"outer": {"inner": "value"}}
+        result = LlmService._estimate_dict_tokens(nested)
+        # Should be > 0 and handle nesting
+        assert result > 0
+
+    def test_estimate_deeply_nested_stops_at_depth_limit(self):
+        """Recursion stops at depth 10 with conservative estimate."""
+        from autopack.llm_service import LlmService
+
+        # Create deeply nested structure
+        deep = {"level": 0}
+        current = deep
+        for i in range(15):
+            current["nested"] = {"level": i + 1}
+            current = current["nested"]
+
+        result = LlmService._estimate_dict_tokens(deep)
+        # Should complete without error and return a positive value
+        assert result > 0
+
+    def test_estimate_mixed_content(self):
+        """Complex mixed content is handled correctly."""
+        from autopack.llm_service import LlmService
+
+        mixed = {
+            "string_field": "hello world",
+            "int_field": 42,
+            "float_field": 3.14,
+            "bool_field": True,
+            "null_field": None,
+            "list_field": [1, 2, 3],
+            "nested": {"key": "value"},
+        }
+
+        result = LlmService._estimate_dict_tokens(mixed)
+        # Should complete and return positive estimate
+        assert result > 0
+
+    def test_estimate_large_file_context_structure(self):
+        """Large file context structure is estimated efficiently."""
+        from autopack.llm_service import LlmService
+
+        # Simulate file context structure with multiple files
+        file_context = {f"src/file_{i}.py": "x" * 1000 for i in range(10)}  # 1000 chars per file
+
+        result = LlmService._estimate_dict_tokens(file_context)
+        # 10 files * ~250 tokens per file content + overhead
+        assert result > 2000
+
+    def test_estimate_unknown_type_returns_default(self):
+        """Unknown types return conservative default estimate."""
+        from autopack.llm_service import LlmService
+
+        # Create a custom object type
+        class CustomObject:
+            pass
+
+        result = LlmService._estimate_dict_tokens(CustomObject())
+        assert result == 10  # Default for unknown types
+
+    def test_performance_no_json_serialization(self):
+        """Verify no JSON serialization is used (performance test)."""
+        from autopack.llm_service import LlmService
+
+        # Create a moderately large context
+        context = {f"file_{i}": "content " * 100 for i in range(50)}
+
+        # This should complete quickly without json.dumps overhead
+        import time
+
+        start = time.time()
+        for _ in range(100):
+            LlmService._estimate_dict_tokens(context)
+        elapsed = time.time() - start
+
+        # Should be fast (< 1 second for 100 iterations)
+        assert elapsed < 1.0
+
+
+class TestCheckPreCallBudgetWithDictEstimation:
+    """Tests for _check_pre_call_budget using new dict estimation (IMP-PERF-004)."""
+
+    def _create_mock_service(self):
+        """Create a mock LlmService for testing."""
+        from autopack.llm_service import LlmService
+
+        with patch.object(LlmService, "__init__", lambda self, *args, **kwargs: None):
+            service = LlmService.__new__(LlmService)
+            return service
+
+    def test_budget_check_with_large_file_context(self):
+        """Budget check handles large file context without JSON serialization."""
+        service = self._create_mock_service()
+
+        # Large file context (simulating 5MB+ scenario)
+        large_context = {f"file_{i}.py": "x" * 10000 for i in range(50)}
+
+        result = service._check_pre_call_budget(
+            phase_spec={"task": "test"},
+            file_context=large_context,
+            project_rules=None,
+            run_hints=None,
+            retrieved_context=None,
+            run_token_budget=1000000,
+            tokens_used_so_far=0,
+        )
+
+        # Should complete without error
+        assert "within_budget" in result
+        assert "estimated_input_tokens" in result
+        assert result["estimated_input_tokens"] > 0
+
+    def test_budget_check_estimates_nested_dict_correctly(self):
+        """Budget check estimates nested dict structures correctly."""
+        service = self._create_mock_service()
+
+        nested_spec = {
+            "task_category": "security",
+            "complexity": "high",
+            "metadata": {
+                "files": ["file1.py", "file2.py"],
+                "options": {"strict": True, "verbose": False},
+            },
+        }
+
+        result = service._check_pre_call_budget(
+            phase_spec=nested_spec,
+            file_context=None,
+            project_rules=None,
+            run_hints=None,
+            retrieved_context=None,
+            run_token_budget=100000,
+            tokens_used_so_far=0,
+        )
+
+        assert result["within_budget"] is True
+        assert result["estimated_input_tokens"] > 0
+
+
+# =============================================================================
 # Tests for LlmService._model_to_provider
 # =============================================================================
 

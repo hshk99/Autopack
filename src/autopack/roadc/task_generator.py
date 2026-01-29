@@ -1946,3 +1946,88 @@ Analyze the pattern and implement a fix to prevent recurrence.
             f"{result['queued']} queued"
         )
         return result
+
+    # =========================================================================
+    # Memory Promotion Integration (IMP-LOOP-032)
+    # =========================================================================
+
+    def promote_recurring_insights(
+        self,
+        run_id: Optional[str] = None,
+        promotion_threshold: int = 3,
+        max_promotions: int = 10,
+    ) -> Dict[str, Any]:
+        """Promote recurring memory insights to tasks.
+
+        IMP-LOOP-032: This method integrates with MemoryTaskPromoter to scan
+        memory for insights with high occurrence counts and automatically
+        promote them to tasks for execution.
+
+        This enables the self-improvement loop to proactively address
+        recurring issues without manual intervention.
+
+        Args:
+            run_id: Optional run ID to associate with promoted tasks.
+            promotion_threshold: Minimum occurrence count for promotion.
+            max_promotions: Maximum number of insights to promote.
+
+        Returns:
+            Dict containing:
+            - scanned: Number of insights scanned
+            - promoted: Number of insights promoted to tasks
+            - failed: Number of promotion failures
+            - task_ids: List of generated task IDs
+        """
+        from ..memory.task_promoter import MemoryTaskPromoter
+
+        logger.info(
+            "[IMP-LOOP-032] Starting memory insight promotion " "(threshold=%d, max=%d)",
+            promotion_threshold,
+            max_promotions,
+        )
+
+        result = {
+            "scanned": 0,
+            "promoted": 0,
+            "failed": 0,
+            "task_ids": [],
+        }
+
+        try:
+            # Create promoter with current services
+            promoter = MemoryTaskPromoter(
+                memory_service=self._memory,
+                task_generator=self,
+                promotion_threshold=promotion_threshold,
+                project_id=self._project_id,
+            )
+
+            # Scan for promotable insights
+            promotable = promoter.scan_for_promotable_insights(limit=max_promotions)
+            result["scanned"] = len(promotable)
+
+            if not promotable:
+                logger.debug("[IMP-LOOP-032] No insights eligible for promotion")
+                return result
+
+            # Promote each insight
+            for insight in promotable:
+                promotion_result = promoter.promote_insight_to_task(insight, run_id=run_id)
+                if promotion_result.success:
+                    result["promoted"] += 1
+                    if promotion_result.task_id:
+                        result["task_ids"].append(promotion_result.task_id)
+                else:
+                    result["failed"] += 1
+
+            logger.info(
+                "[IMP-LOOP-032] Memory promotion complete: " "scanned=%d, promoted=%d, failed=%d",
+                result["scanned"],
+                result["promoted"],
+                result["failed"],
+            )
+
+        except Exception as e:
+            logger.error("[IMP-LOOP-032] Error during memory insight promotion: %s", e)
+
+        return result

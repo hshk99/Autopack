@@ -1700,3 +1700,425 @@ class TestHintToRulePromotion:
         assert call_kwargs["project_id"] == "test_project"
         assert call_kwargs["validate"] is True
         assert call_kwargs["strict"] is False
+
+
+class TestFeedbackLoopClosure:
+    """Tests for IMP-LOOP-026: Complete Feedback Loop Closure.
+
+    Tests cover:
+    - _persist_outcome_to_learning_memory() method
+    - _emit_to_task_generator() method
+    - Integration with LearningMemoryManager
+    - Follow-up task generation from outcomes
+    """
+
+    def test_persist_outcome_without_learning_memory_manager(self):
+        """Test graceful handling when LearningMemoryManager not configured."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+            error_message="Build error",
+        )
+
+        result = pipeline._persist_outcome_to_learning_memory(outcome)
+
+        assert result is False
+
+    def test_persist_outcome_with_learning_memory_manager(self):
+        """Test outcome persistence to LEARNING_MEMORY.json."""
+        mock_lmm = Mock()
+        mock_lmm.record_improvement_outcome = Mock()
+        mock_lmm.record_failure_category = Mock()
+        mock_lmm.save = Mock()
+
+        pipeline = FeedbackPipeline(
+            learning_memory_manager=mock_lmm,
+            enabled=False,
+            run_id="test_run",
+            project_id="test_project",
+        )
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+            error_message="Build error",
+        )
+
+        result = pipeline._persist_outcome_to_learning_memory(outcome)
+
+        assert result is True
+        mock_lmm.record_improvement_outcome.assert_called_once()
+        mock_lmm.record_failure_category.assert_called_once()
+        mock_lmm.save.assert_called_once()
+
+    def test_persist_successful_outcome_no_failure_category(self):
+        """Test successful outcomes don't record failure category."""
+        mock_lmm = Mock()
+        mock_lmm.record_improvement_outcome = Mock()
+        mock_lmm.record_failure_category = Mock()
+        mock_lmm.save = Mock()
+
+        pipeline = FeedbackPipeline(
+            learning_memory_manager=mock_lmm,
+            enabled=False,
+        )
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=True,
+            status="completed",
+        )
+
+        result = pipeline._persist_outcome_to_learning_memory(outcome)
+
+        assert result is True
+        mock_lmm.record_improvement_outcome.assert_called_once()
+        mock_lmm.record_failure_category.assert_not_called()
+        mock_lmm.save.assert_called_once()
+
+    def test_determine_failure_category_code_failure(self):
+        """Test code_failure category detection."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+            error_message="Compilation error in module X",
+        )
+
+        category = pipeline._determine_failure_category(outcome)
+
+        assert category == "code_failure"
+
+    def test_determine_failure_category_unrelated_ci(self):
+        """Test unrelated_ci category detection for infrastructure issues."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+            error_message="Network timeout during build",
+        )
+
+        category = pipeline._determine_failure_category(outcome)
+
+        assert category == "unrelated_ci"
+
+    def test_determine_failure_category_flaky_test(self):
+        """Test flaky_test category detection."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="test",
+            success=False,
+            status="failed",
+            error_message="Test flaky - passes intermittently",
+        )
+
+        category = pipeline._determine_failure_category(outcome)
+
+        assert category == "flaky_test"
+
+    def test_should_generate_followup_task_repeated_failure(self):
+        """Test follow-up task generation for repeated failures."""
+        pipeline = FeedbackPipeline(enabled=False)
+        # Simulate 2 previous occurrences
+        pipeline._hint_occurrences["ci_fail:build"] = 2
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+            error_message="Test failed",
+        )
+
+        should_generate = pipeline._should_generate_followup_task(outcome)
+
+        assert should_generate is True
+
+    def test_should_generate_followup_task_high_token_usage(self):
+        """Test follow-up task generation for high token usage."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=True,
+            status="completed",
+            tokens_used=80000,  # Above 75000 threshold
+        )
+
+        should_generate = pipeline._should_generate_followup_task(outcome)
+
+        assert should_generate is True
+
+    def test_should_generate_followup_task_slow_execution(self):
+        """Test follow-up task generation for slow execution."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=True,
+            status="completed",
+            execution_time_seconds=400,  # Above 300s threshold
+        )
+
+        should_generate = pipeline._should_generate_followup_task(outcome)
+
+        assert should_generate is True
+
+    def test_should_not_generate_followup_task_normal_outcome(self):
+        """Test no follow-up task for normal successful outcomes."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=True,
+            status="completed",
+            tokens_used=5000,
+            execution_time_seconds=30,
+        )
+
+        should_generate = pipeline._should_generate_followup_task(outcome)
+
+        assert should_generate is False
+
+    def test_create_followup_task_for_failure(self):
+        """Test follow-up task creation for failure outcomes."""
+        pipeline = FeedbackPipeline(enabled=False, run_id="test_run")
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+            error_message="Build failed",
+        )
+
+        task = pipeline._create_followup_task_from_outcome(outcome)
+
+        assert task is not None
+        assert "FOLLOWUP-test_run-phase_1" == task["task_id"]
+        assert task["priority"] == "high"
+        assert task["feedback_source"] == "IMP-LOOP-026"
+        assert "ci_fail" in task["title"]
+
+    def test_create_followup_task_for_high_token_usage(self):
+        """Test follow-up task creation for high token usage."""
+        pipeline = FeedbackPipeline(enabled=False, run_id="test_run")
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=True,
+            status="completed",
+            tokens_used=100000,
+        )
+
+        task = pipeline._create_followup_task_from_outcome(outcome)
+
+        assert task is not None
+        assert "OPTIMIZE-test_run-phase_1" == task["task_id"]
+        assert task["priority"] == "medium"
+        assert "token" in task["title"].lower()
+
+    def test_create_followup_task_for_slow_execution(self):
+        """Test follow-up task creation for slow execution."""
+        pipeline = FeedbackPipeline(enabled=False, run_id="test_run")
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=True,
+            status="completed",
+            execution_time_seconds=600,
+        )
+
+        task = pipeline._create_followup_task_from_outcome(outcome)
+
+        assert task is not None
+        assert "PERF-test_run-phase_1" == task["task_id"]
+        assert task["priority"] == "medium"
+        assert "performance" in task["title"].lower()
+
+    def test_emit_to_task_generator_no_followup_needed(self):
+        """Test no emission when no follow-up task is needed."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=True,
+            status="completed",
+            tokens_used=5000,
+            execution_time_seconds=30,
+        )
+
+        result = pipeline._emit_to_task_generator(outcome)
+
+        assert result is False
+
+    def test_append_task_to_queue_creates_file(self, tmp_path):
+        """Test task queue file creation."""
+        pipeline = FeedbackPipeline(enabled=False)
+        queue_file = tmp_path / "ROADC_TASK_QUEUE.json"
+
+        task = {
+            "task_id": "TEST-001",
+            "title": "Test Task",
+            "description": "Test description",
+            "priority": "high",
+        }
+
+        pipeline._append_task_to_queue(task, queue_file)
+
+        assert queue_file.exists()
+
+        import json
+
+        with open(queue_file, "r") as f:
+            data = json.load(f)
+
+        assert len(data["tasks"]) == 1
+        assert data["tasks"][0]["task_id"] == "TEST-001"
+        assert data["updated_at"] is not None
+
+    def test_append_task_to_existing_queue(self, tmp_path):
+        """Test appending to existing queue file."""
+        import json
+
+        pipeline = FeedbackPipeline(enabled=False)
+        queue_file = tmp_path / "ROADC_TASK_QUEUE.json"
+
+        # Create existing queue
+        existing_data = {
+            "tasks": [{"task_id": "EXISTING-001", "title": "Existing"}],
+            "updated_at": "2024-01-01T00:00:00Z",
+        }
+        with open(queue_file, "w") as f:
+            json.dump(existing_data, f)
+
+        new_task = {
+            "task_id": "NEW-001",
+            "title": "New Task",
+        }
+
+        pipeline._append_task_to_queue(new_task, queue_file)
+
+        with open(queue_file, "r") as f:
+            data = json.load(f)
+
+        assert len(data["tasks"]) == 2
+        assert data["tasks"][0]["task_id"] == "EXISTING-001"
+        assert data["tasks"][1]["task_id"] == "NEW-001"
+
+    def test_set_learning_memory_manager(self):
+        """Test setting LearningMemoryManager after initialization."""
+        pipeline = FeedbackPipeline(enabled=False)
+        assert pipeline._learning_memory_manager is None
+
+        mock_lmm = Mock()
+        pipeline.set_learning_memory_manager(mock_lmm)
+
+        assert pipeline._learning_memory_manager is mock_lmm
+
+    def test_learning_memory_manager_property(self):
+        """Test learning_memory_manager property."""
+        mock_lmm = Mock()
+        pipeline = FeedbackPipeline(
+            learning_memory_manager=mock_lmm,
+            enabled=False,
+        )
+
+        assert pipeline.learning_memory_manager is mock_lmm
+
+    def test_process_phase_outcome_calls_feedback_loop_methods(self):
+        """Test that process_phase_outcome calls IMP-LOOP-026 methods."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_task_execution_feedback = Mock()
+        mock_memory.write_telemetry_insight = Mock()
+
+        mock_lmm = Mock()
+        mock_lmm.record_improvement_outcome = Mock()
+        mock_lmm.record_failure_category = Mock()
+        mock_lmm.save = Mock()
+
+        pipeline = FeedbackPipeline(
+            memory_service=mock_memory,
+            learning_memory_manager=mock_lmm,
+            enabled=True,
+        )
+        pipeline.stop_auto_flush()
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=True,
+            status="completed",
+        )
+
+        result = pipeline.process_phase_outcome(outcome)
+
+        assert result["success"] is True
+        # Verify LearningMemoryManager was called
+        mock_lmm.record_improvement_outcome.assert_called_once()
+        mock_lmm.save.assert_called_once()
+
+    def test_persist_outcome_handles_exception_gracefully(self):
+        """Test graceful error handling in persist_outcome_to_learning_memory."""
+        mock_lmm = Mock()
+        mock_lmm.record_improvement_outcome = Mock(side_effect=Exception("LMM error"))
+
+        pipeline = FeedbackPipeline(
+            learning_memory_manager=mock_lmm,
+            enabled=False,
+        )
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=True,
+            status="completed",
+        )
+
+        # Should not raise exception
+        result = pipeline._persist_outcome_to_learning_memory(outcome)
+
+        assert result is False
+
+    def test_emit_to_task_generator_handles_exception_gracefully(self):
+        """Test graceful error handling in emit_to_task_generator."""
+        pipeline = FeedbackPipeline(enabled=False, run_id="test_run")
+        pipeline._hint_occurrences["ci_fail:build"] = 5
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+            error_message="Test failed",
+        )
+
+        # Mock _append_task_to_queue to raise exception
+        pipeline._append_task_to_queue = Mock(side_effect=Exception("Queue error"))
+
+        # Should not raise exception
+        result = pipeline._emit_to_task_generator(outcome)
+
+        assert result is False

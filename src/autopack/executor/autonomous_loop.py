@@ -16,33 +16,32 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from autopack.archive_consolidator import log_build_event
-from autopack.autonomous.budgeting import (BudgetExhaustedError,
-                                           get_budget_remaining_pct,
-                                           is_budget_exhausted)
-from autopack.autonomy.parallelism_gate import (ParallelismPolicyGate,
-                                                ScopeBasedParallelismChecker)
+from autopack.autonomous.budgeting import (
+    BudgetExhaustedError,
+    get_budget_remaining_pct,
+    is_budget_exhausted,
+)
+from autopack.autonomy.parallelism_gate import ParallelismPolicyGate, ScopeBasedParallelismChecker
 from autopack.config import settings
-from autopack.database import (SESSION_HEALTH_CHECK_INTERVAL,
-                               ensure_session_healthy)
+from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
 from autopack.memory.maintenance import run_maintenance_if_due
 from autopack.task_generation.roi_analyzer import ROIAnalyzer
-from autopack.task_generation.task_effectiveness_tracker import \
-    TaskEffectivenessTracker
+from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
 from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
-from autopack.telemetry.anomaly_detector import (AlertSeverity,
-                                                 TelemetryAnomalyDetector)
-from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
-                                             FeedbackLoopHealthReport,
-                                             GoalDriftDetector,
-                                             MetaMetricsTracker,
-                                             PipelineLatencyTracker,
-                                             PipelineStage)
-from autopack.telemetry.telemetry_to_memory_bridge import \
-    TelemetryToMemoryBridge
+from autopack.telemetry.anomaly_detector import AlertSeverity, TelemetryAnomalyDetector
+from autopack.telemetry.meta_metrics import (
+    FeedbackLoopHealth,
+    FeedbackLoopHealthReport,
+    GoalDriftDetector,
+    MetaMetricsTracker,
+    PipelineLatencyTracker,
+    PipelineStage,
+)
+from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
@@ -667,6 +666,69 @@ class AutonomousLoop:
             self._circuit_breaker.reset()
             return True
         return False
+
+    def queue_contains(self, task_id: str) -> bool:
+        """Check if a task is present in the execution queue (IMP-LOOP-001).
+
+        Searches the current phase list for a phase with the given ID.
+
+        Args:
+            task_id: The task/phase ID to search for.
+
+        Returns:
+            True if task is found in queue, False otherwise.
+        """
+        if self._current_run_phases is None:
+            return False
+
+        for phase in self._current_run_phases:
+            if phase.get("phase_id") == task_id:
+                return True
+
+        return False
+
+    def get_queued_task_ids(self) -> List[str]:
+        """Get list of all queued task IDs (IMP-LOOP-001).
+
+        Returns:
+            List of phase_ids for phases with QUEUED status.
+        """
+        if self._current_run_phases is None:
+            return []
+
+        return [
+            p.get("phase_id")
+            for p in self._current_run_phases
+            if p.get("status", "").upper() == "QUEUED" and p.get("phase_id")
+        ]
+
+    def get_injection_stats(self) -> Dict[str, int]:
+        """Get statistics about injected tasks (IMP-LOOP-001).
+
+        Returns:
+            Dictionary with counts of total phases, queued phases,
+            and generated (injected) tasks.
+        """
+        stats = {
+            "total_phases": 0,
+            "queued_count": 0,
+            "generated_task_count": 0,
+        }
+
+        if self._current_run_phases is None:
+            return stats
+
+        stats["total_phases"] = len(self._current_run_phases)
+
+        for phase in self._current_run_phases:
+            if phase.get("status", "").upper() == "QUEUED":
+                stats["queued_count"] += 1
+
+            metadata = phase.get("metadata", {})
+            if metadata.get("generated_task"):
+                stats["generated_task_count"] += 1
+
+        return stats
 
     def _emit_alert(self, message: str) -> None:
         """Emit an alert for critical system events.
@@ -2593,6 +2655,8 @@ class AutonomousLoop:
         allowing them to be picked up by get_next_queued_phase() and executed
         alongside regular phases.
 
+        IMP-LOOP-001: Added injection verification to ensure tasks appear in queue.
+
         Args:
             run_data: The current run data dict containing phases
 
@@ -2610,6 +2674,25 @@ class AutonomousLoop:
         # They will be picked up when no other queued phases remain
         run_data["phases"] = existing_phases + generated_phases
 
+        # IMP-LOOP-001: Verify injection and log results
+        injected_count = len(generated_phases)
+        injected_ids = [p.get("phase_id") for p in generated_phases]
+
+        # Verify all injected tasks are present
+        verification_passed = True
+        for phase_id in injected_ids:
+            found = any(p.get("phase_id") == phase_id for p in run_data.get("phases", []))
+            if not found:
+                logger.error(
+                    f"[IMP-LOOP-001] Verification failed: Task {phase_id} not found in queue"
+                )
+                verification_passed = False
+
+        if verification_passed:
+            logger.info(f"[IMP-LOOP-001] Injection verified: {injected_count} tasks in queue")
+        else:
+            logger.warning(f"[IMP-LOOP-001] Injection verification failed for some tasks")
+
         logger.info(
             f"[IMP-LOOP-004] Injected {len(generated_phases)} generated task phases into backlog"
         )
@@ -2617,8 +2700,7 @@ class AutonomousLoop:
 
     def _initialize_intention_loop(self):
         """Initialize intention-first loop for the run."""
-        from autopack.autonomous.executor_wiring import \
-            initialize_intention_first_loop
+        from autopack.autonomous.executor_wiring import initialize_intention_first_loop
         from autopack.intention_anchor.storage import IntentionAnchorStorage
 
         # IMP-ARCH-012: Load pending improvement tasks from self-improvement loop
@@ -2640,7 +2722,10 @@ class AutonomousLoop:
                 from datetime import datetime, timezone
 
                 from autopack.intention_anchor.models import (
-                    IntentionAnchor, IntentionBudgets, IntentionConstraints)
+                    IntentionAnchor,
+                    IntentionBudgets,
+                    IntentionConstraints,
+                )
 
                 intention_anchor = IntentionAnchor(
                     anchor_id=f"default-{self.executor.run_id}",

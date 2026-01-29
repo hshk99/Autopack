@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING, Any, List
 
 if TYPE_CHECKING:
     from autopack.memory.learning_db import LearningDatabase
-    from autopack.task_generation.insight_to_task import InsightToTaskGenerator
     from autopack.task_generation.priority_engine import PriorityEngine
 
 logger = logging.getLogger(__name__)
@@ -276,7 +275,6 @@ class TaskEffectivenessTracker:
         self,
         priority_engine: PriorityEngine | None = None,
         learning_db: LearningDatabase | None = None,
-        insight_to_task: InsightToTaskGenerator | None = None,
     ) -> None:
         """Initialize the TaskEffectivenessTracker.
 
@@ -286,8 +284,6 @@ class TaskEffectivenessTracker:
             learning_db: Optional LearningDatabase for persisting effectiveness
                 data across runs. IMP-TASK-001: Enables effectiveness feedback
                 to influence future task prioritization.
-            insight_to_task: Optional InsightToTaskGenerator for creating
-                corrective tasks (IMP-LOOP-022).
         """
         self.history = EffectivenessHistory()
         self.priority_engine = priority_engine
@@ -299,7 +295,6 @@ class TaskEffectivenessTracker:
         self._failure_counts: dict[str, int] = {}
         self._failure_errors: dict[str, list[str]] = {}
         self._corrective_tasks: list[CorrectiveTask] = []
-        self._insight_to_task = insight_to_task
         self._corrective_task_counter: int = 0
 
         # IMP-TASK-001: Load historical effectiveness from learning database
@@ -810,18 +805,6 @@ class TaskEffectivenessTracker:
 
     # IMP-LOOP-022: Corrective task generation methods
 
-    def set_insight_to_task(self, insight_to_task: InsightToTaskGenerator) -> None:
-        """Set or update the InsightToTaskGenerator for corrective task creation.
-
-        IMP-LOOP-022: Allows connecting the effectiveness tracker to a task
-        generator after initialization for creating corrective tasks.
-
-        Args:
-            insight_to_task: InsightToTaskGenerator instance for task creation.
-        """
-        self._insight_to_task = insight_to_task
-        logger.debug("[IMP-LOOP-022] Connected insight_to_task generator for corrective tasks")
-
     def record_outcome(
         self,
         task_id: str,
@@ -949,14 +932,6 @@ class TaskEffectivenessTracker:
             failure_count,
             error_pattern[:50] if error_pattern else "None",
         )
-
-        # Forward to InsightToTaskGenerator if connected
-        if self._insight_to_task is not None:
-            self._insight_to_task.create_corrective_task(corrective_task)
-            logger.info(
-                "[IMP-LOOP-022] Forwarded corrective task %s to InsightToTaskGenerator",
-                corrective_id,
-            )
 
         return corrective_task
 

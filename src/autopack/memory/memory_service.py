@@ -23,7 +23,7 @@ import threading
 import time
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -355,6 +355,71 @@ def _enrich_with_metadata(
         source_type=source_type or payload.get("type", ""),
         source_id=source_id,
     )
+
+
+# ---------------------------------------------------------------------------
+# IMP-MEM-020: Memory Quality Control and Cleanup
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class CleanupResult:
+    """Result of memory cleanup operation.
+
+    IMP-MEM-020: Tracks the outcome of stale entry cleanup operations
+    including counts of removed, archived, and retained entries.
+
+    Attributes:
+        total_scanned: Total number of entries examined
+        stale_removed: Number of stale entries removed (age > max_age_days)
+        low_relevance_removed: Number of low-relevance entries removed
+        total_removed: Total entries removed (stale + low_relevance)
+        retained: Number of entries retained after cleanup
+        collections_processed: List of collection names that were processed
+        errors: List of any errors encountered during cleanup
+    """
+
+    total_scanned: int
+    stale_removed: int
+    low_relevance_removed: int
+    total_removed: int
+    retained: int
+    collections_processed: List[str]
+    errors: List[str] = dataclass_field(default_factory=list)
+
+
+@dataclass
+class MemoryQualityReport:
+    """Report of memory quality metrics.
+
+    IMP-MEM-020: Provides signal-to-noise ratio and staleness metrics
+    to assess the overall quality of memory entries.
+
+    Attributes:
+        total_entries: Total number of memory entries across all collections
+        fresh_entries: Entries younger than freshness threshold
+        stale_entries: Entries older than staleness threshold
+        high_relevance_entries: Entries with relevance score >= 0.6
+        low_relevance_entries: Entries with relevance score < 0.3
+        avg_relevance_score: Average relevance/confidence score
+        avg_age_hours: Average age of entries in hours
+        signal_to_noise_ratio: Ratio of high-relevance to low-relevance entries
+        staleness_ratio: Ratio of stale entries to total entries
+        quality_score: Overall quality score (0.0-1.0) combining metrics
+        collection_stats: Per-collection breakdown of metrics
+    """
+
+    total_entries: int
+    fresh_entries: int
+    stale_entries: int
+    high_relevance_entries: int
+    low_relevance_entries: int
+    avg_relevance_score: float
+    avg_age_hours: float
+    signal_to_noise_ratio: float
+    staleness_ratio: float
+    quality_score: float
+    collection_stats: Dict[str, Dict[str, Any]] = dataclass_field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -3789,6 +3854,354 @@ class MemoryService:
                 sections.append("\n".join(sot_section))
 
         return "\n\n".join(sections) if sections else ""
+
+    # -------------------------------------------------------------------------
+    # IMP-MEM-020: Memory Quality Control and Cleanup
+    # -------------------------------------------------------------------------
+
+    def cleanup_stale_entries(
+        self,
+        project_id: str,
+        max_age_days: int = 90,
+        min_relevance: float = 0.3,
+        collections: Optional[List[str]] = None,
+    ) -> "CleanupResult":
+        """Remove stale or low-relevance memory entries.
+
+        IMP-MEM-020: Cleans up memory by removing entries that are either:
+        1. Older than max_age_days
+        2. Have a relevance/confidence score below min_relevance
+
+        This prevents unbounded memory growth and maintains retrieval quality
+        by removing outdated or low-quality entries.
+
+        Args:
+            project_id: Project to cleanup within
+            max_age_days: Maximum age in days before an entry is considered stale
+                         (default: 90 days)
+            min_relevance: Minimum relevance score to retain (default: 0.3)
+            collections: Collections to cleanup (default: all except code_docs)
+
+        Returns:
+            CleanupResult with counts of removed and retained entries
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
+        """
+        if not self.enabled:
+            return CleanupResult(
+                total_scanned=0,
+                stale_removed=0,
+                low_relevance_removed=0,
+                total_removed=0,
+                retained=0,
+                collections_processed=[],
+                errors=["Memory service is disabled"],
+            )
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "cleanup_stale_entries")
+
+        if collections is None:
+            # Don't cleanup code_docs by default (may want to keep indexed files)
+            collections = [
+                COLLECTION_RUN_SUMMARIES,
+                COLLECTION_ERRORS_CI,
+                COLLECTION_DOCTOR_HINTS,
+                COLLECTION_PLANNING,
+            ]
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+        cutoff_iso = cutoff.isoformat()
+
+        total_scanned = 0
+        stale_removed = 0
+        low_relevance_removed = 0
+        errors: List[str] = []
+
+        for collection in collections:
+            try:
+                # Scroll all documents for this project
+                docs = self._safe_store_call(
+                    f"cleanup_stale_entries/{collection}/scroll",
+                    lambda c=collection: self.store.scroll(
+                        c,
+                        filter={"project_id": project_id},
+                        limit=10000,
+                    ),
+                    [],
+                )
+
+                if not docs:
+                    continue
+
+                total_scanned += len(docs)
+                stale_ids: List[str] = []
+                low_relevance_ids: List[str] = []
+
+                for doc in docs:
+                    payload = doc.get("payload", {})
+                    point_id = doc.get("id", "")
+
+                    if not point_id:
+                        continue
+
+                    # Check staleness
+                    timestamp = payload.get("timestamp", "")
+                    if timestamp and timestamp < cutoff_iso:
+                        stale_ids.append(point_id)
+                        continue
+
+                    # Check relevance/confidence
+                    # Try various relevance-related fields
+                    relevance = payload.get("relevance_score")
+                    if relevance is None:
+                        relevance = payload.get("confidence")
+                    if relevance is None:
+                        relevance = payload.get("score")
+
+                    if relevance is not None and float(relevance) < min_relevance:
+                        low_relevance_ids.append(point_id)
+
+                # Delete stale entries
+                if stale_ids:
+                    deleted = self._safe_store_call(
+                        f"cleanup_stale_entries/{collection}/delete_stale",
+                        lambda c=collection, ids=stale_ids: self.store.delete(c, ids),
+                        0,
+                    )
+                    stale_removed += deleted
+                    logger.info(
+                        f"[IMP-MEM-020] Removed {deleted} stale entries from '{collection}' "
+                        f"(project={project_id}, older than {max_age_days} days)"
+                    )
+
+                # Delete low-relevance entries
+                if low_relevance_ids:
+                    deleted = self._safe_store_call(
+                        f"cleanup_stale_entries/{collection}/delete_low_relevance",
+                        lambda c=collection, ids=low_relevance_ids: self.store.delete(c, ids),
+                        0,
+                    )
+                    low_relevance_removed += deleted
+                    logger.info(
+                        f"[IMP-MEM-020] Removed {deleted} low-relevance entries from '{collection}' "
+                        f"(project={project_id}, relevance < {min_relevance})"
+                    )
+
+            except Exception as e:
+                error_msg = f"Failed to cleanup '{collection}': {e}"
+                errors.append(error_msg)
+                logger.error(f"[IMP-MEM-020] {error_msg}")
+
+        total_removed = stale_removed + low_relevance_removed
+        retained = total_scanned - total_removed
+
+        result = CleanupResult(
+            total_scanned=total_scanned,
+            stale_removed=stale_removed,
+            low_relevance_removed=low_relevance_removed,
+            total_removed=total_removed,
+            retained=retained,
+            collections_processed=collections,
+            errors=errors,
+        )
+
+        logger.info(
+            f"[IMP-MEM-020] Cleanup completed: scanned={total_scanned}, "
+            f"removed={total_removed} (stale={stale_removed}, low_relevance={low_relevance_removed}), "
+            f"retained={retained}"
+        )
+
+        return result
+
+    def measure_memory_quality(
+        self,
+        project_id: str,
+        collections: Optional[List[str]] = None,
+    ) -> "MemoryQualityReport":
+        """Calculate signal-to-noise ratio and staleness metrics.
+
+        IMP-MEM-020: Measures the overall quality of memory entries by analyzing:
+        1. Staleness: How many entries are fresh vs stale
+        2. Relevance: Distribution of high vs low relevance scores
+        3. Signal-to-noise ratio: Ratio of useful to noisy entries
+
+        This helps assess when cleanup is needed and track memory health over time.
+
+        Args:
+            project_id: Project to measure within
+            collections: Collections to analyze (default: all collections)
+
+        Returns:
+            MemoryQualityReport with comprehensive quality metrics
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
+        """
+        if not self.enabled:
+            return MemoryQualityReport(
+                total_entries=0,
+                fresh_entries=0,
+                stale_entries=0,
+                high_relevance_entries=0,
+                low_relevance_entries=0,
+                avg_relevance_score=0.0,
+                avg_age_hours=0.0,
+                signal_to_noise_ratio=0.0,
+                staleness_ratio=0.0,
+                quality_score=0.0,
+                collection_stats={},
+            )
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "measure_memory_quality")
+
+        if collections is None:
+            collections = list(ALL_COLLECTIONS)
+
+        now = datetime.now(timezone.utc)
+        collection_stats: Dict[str, Dict[str, Any]] = {}
+
+        # Aggregate metrics
+        total_entries = 0
+        fresh_entries = 0
+        stale_entries = 0
+        high_relevance_entries = 0
+        low_relevance_entries = 0
+        relevance_scores: List[float] = []
+        ages_hours: List[float] = []
+
+        for collection in collections:
+            try:
+                # Scroll all documents for this project
+                docs = self._safe_store_call(
+                    f"measure_memory_quality/{collection}/scroll",
+                    lambda c=collection: self.store.scroll(
+                        c,
+                        filter={"project_id": project_id},
+                        limit=10000,
+                    ),
+                    [],
+                )
+
+                if not docs:
+                    collection_stats[collection] = {
+                        "total": 0,
+                        "fresh": 0,
+                        "stale": 0,
+                        "high_relevance": 0,
+                        "low_relevance": 0,
+                    }
+                    continue
+
+                coll_fresh = 0
+                coll_stale = 0
+                coll_high_rel = 0
+                coll_low_rel = 0
+                coll_relevance_scores: List[float] = []
+
+                for doc in docs:
+                    payload = doc.get("payload", {})
+                    total_entries += 1
+
+                    # Calculate age
+                    timestamp_str = payload.get("timestamp")
+                    age_hours = _calculate_age_hours(timestamp_str, now)
+
+                    if age_hours >= 0:
+                        ages_hours.append(age_hours)
+
+                        # Fresh = less than 24 hours, Stale = more than 7 days (168 hours)
+                        if age_hours <= FRESH_AGE_HOURS:
+                            fresh_entries += 1
+                            coll_fresh += 1
+                        elif age_hours >= STALE_AGE_HOURS:
+                            stale_entries += 1
+                            coll_stale += 1
+
+                    # Get relevance/confidence score
+                    relevance = payload.get("relevance_score")
+                    if relevance is None:
+                        relevance = payload.get("confidence")
+                    if relevance is None:
+                        relevance = payload.get("score")
+
+                    if relevance is not None:
+                        try:
+                            rel_float = float(relevance)
+                            relevance_scores.append(rel_float)
+                            coll_relevance_scores.append(rel_float)
+
+                            if rel_float >= MEDIUM_CONFIDENCE_THRESHOLD:  # 0.6
+                                high_relevance_entries += 1
+                                coll_high_rel += 1
+                            elif rel_float < LOW_CONFIDENCE_THRESHOLD:  # 0.3
+                                low_relevance_entries += 1
+                                coll_low_rel += 1
+                        except (ValueError, TypeError):
+                            pass
+
+                collection_stats[collection] = {
+                    "total": len(docs),
+                    "fresh": coll_fresh,
+                    "stale": coll_stale,
+                    "high_relevance": coll_high_rel,
+                    "low_relevance": coll_low_rel,
+                    "avg_relevance": (
+                        sum(coll_relevance_scores) / len(coll_relevance_scores)
+                        if coll_relevance_scores
+                        else 0.0
+                    ),
+                }
+
+            except Exception as e:
+                logger.warning(f"[IMP-MEM-020] Failed to analyze '{collection}': {e}")
+                collection_stats[collection] = {"error": str(e)}
+
+        # Calculate aggregate metrics
+        avg_relevance = sum(relevance_scores) / len(relevance_scores) if relevance_scores else 0.0
+        avg_age = sum(ages_hours) / len(ages_hours) if ages_hours else 0.0
+
+        # Signal-to-noise ratio: high relevance / low relevance (avoid div by zero)
+        signal_to_noise = (
+            high_relevance_entries / max(low_relevance_entries, 1)
+            if low_relevance_entries > 0
+            else float(high_relevance_entries) if high_relevance_entries > 0 else 0.0
+        )
+
+        # Staleness ratio: stale entries / total entries
+        staleness_ratio = stale_entries / total_entries if total_entries > 0 else 0.0
+
+        # Quality score (0-1): combines relevance and freshness
+        # Higher is better: high avg_relevance, low staleness_ratio
+        quality_score = 0.0
+        if total_entries > 0:
+            relevance_component = min(1.0, avg_relevance)  # Normalize to 0-1
+            freshness_component = 1.0 - staleness_ratio  # 1 = all fresh, 0 = all stale
+            quality_score = 0.6 * relevance_component + 0.4 * freshness_component
+
+        report = MemoryQualityReport(
+            total_entries=total_entries,
+            fresh_entries=fresh_entries,
+            stale_entries=stale_entries,
+            high_relevance_entries=high_relevance_entries,
+            low_relevance_entries=low_relevance_entries,
+            avg_relevance_score=round(avg_relevance, 3),
+            avg_age_hours=round(avg_age, 1),
+            signal_to_noise_ratio=round(signal_to_noise, 2),
+            staleness_ratio=round(staleness_ratio, 3),
+            quality_score=round(quality_score, 3),
+            collection_stats=collection_stats,
+        )
+
+        logger.info(
+            f"[IMP-MEM-020] Memory quality report: total={total_entries}, "
+            f"fresh={fresh_entries}, stale={stale_entries}, "
+            f"quality_score={quality_score:.3f}, signal_to_noise={signal_to_noise:.2f}"
+        )
+
+        return report
 
 
 # ---------------------------------------------------------------------------

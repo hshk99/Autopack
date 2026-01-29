@@ -10,6 +10,7 @@ contradictory lessons from being active simultaneously.
 
 import logging
 import re
+import warnings
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -134,6 +135,10 @@ class ContextInjector:
     ) -> ContextInjection:
         """Retrieve relevant context for a phase.
 
+        .. deprecated::
+            Use :meth:`get_context_for_phase_with_metadata` instead for enriched
+            context with source, timestamp, and freshness metadata (IMP-LOOP-024).
+
         Queries memory for:
         - Past errors related to this phase type
         - Successful strategies used before
@@ -149,6 +154,13 @@ class ContextInjector:
         Returns:
             ContextInjection with retrieved context items
         """
+        # IMP-LOOP-024: Deprecation warning - prefer EnrichedContextInjection
+        warnings.warn(
+            "get_context_for_phase() is deprecated, use get_context_for_phase_with_metadata() "
+            "for enriched context with source, timestamp, and freshness metadata (IMP-LOOP-024)",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not self._memory.enabled:
             logger.debug("[ContextInjector] Memory disabled, returning empty context")
             return ContextInjection(
@@ -275,6 +287,10 @@ class ContextInjector:
     def format_for_prompt(self, injection: ContextInjection) -> str:
         """Format context injection for builder prompt.
 
+        .. deprecated::
+            Use :meth:`format_enriched_for_prompt` instead for enriched context
+            formatting with confidence warnings (IMP-LOOP-024).
+
         Creates a structured markdown section with historical context that can
         be injected into the builder prompt.
 
@@ -284,6 +300,13 @@ class ContextInjector:
         Returns:
             Formatted string suitable for prompt injection, or empty string if no context
         """
+        # IMP-LOOP-024: Deprecation warning - prefer format_enriched_for_prompt
+        warnings.warn(
+            "format_for_prompt() is deprecated, use format_enriched_for_prompt() "
+            "for enriched context formatting with confidence warnings (IMP-LOOP-024)",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         sections = []
 
         if injection.past_errors:

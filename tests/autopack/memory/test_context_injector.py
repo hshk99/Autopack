@@ -12,11 +12,9 @@ Tests cover:
 
 from unittest.mock import MagicMock, Mock, patch
 
-from autopack.memory.context_injector import (
-    ContextInjection,
-    ContextInjector,
-    EnrichedContextInjection,
-)
+from autopack.memory.context_injector import (ContextInjection,
+                                              ContextInjector,
+                                              EnrichedContextInjection)
 from autopack.memory.memory_service import ContextMetadata
 
 
@@ -1017,3 +1015,171 @@ class TestConflictResolutionIntegration:
             # Should have resolved conflicts
             assert len(result.doctor_hints) == 1
             assert result.doctor_hints[0] == "Use async patterns"
+
+
+# IMP-LOOP-024: Tests for mandating EnrichedContextInjection everywhere
+
+
+class TestDeprecationWarnings:
+    """Tests for deprecation warnings on legacy methods (IMP-LOOP-024)."""
+
+    def test_get_context_for_phase_raises_deprecation_warning(self):
+        """IMP-LOOP-024: get_context_for_phase should emit deprecation warning."""
+        import warnings
+
+        mock_memory = Mock()
+        mock_memory.enabled = False
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            injector.get_context_for_phase(
+                phase_type="build",
+                current_goal="test",
+                project_id="test-project",
+            )
+
+            # Check that a deprecation warning was issued
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "get_context_for_phase_with_metadata" in str(w[0].message)
+            assert "IMP-LOOP-024" in str(w[0].message)
+
+    def test_format_for_prompt_raises_deprecation_warning(self):
+        """IMP-LOOP-024: format_for_prompt should emit deprecation warning."""
+        import warnings
+
+        mock_memory = Mock()
+        injector = ContextInjector(memory_service=mock_memory)
+
+        injection = ContextInjection(
+            past_errors=["error1"],
+            successful_strategies=[],
+            doctor_hints=[],
+            relevant_insights=[],
+            discovery_insights=[],
+            total_token_estimate=10,
+        )
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            injector.format_for_prompt(injection)
+
+            # Check that a deprecation warning was issued
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "format_enriched_for_prompt" in str(w[0].message)
+            assert "IMP-LOOP-024" in str(w[0].message)
+
+
+class TestEnrichedContextMandated:
+    """Tests verifying enriched context is mandated (IMP-LOOP-024)."""
+
+    def test_enriched_injection_has_metadata_fields(self):
+        """IMP-LOOP-024: EnrichedContextInjection has required metadata."""
+        error_meta = ContextMetadata(
+            content="error content",
+            relevance_score=0.9,
+            age_hours=10.0,
+            confidence=0.85,
+            is_low_confidence=False,
+        )
+
+        enriched = EnrichedContextInjection(
+            past_errors=[error_meta],
+            successful_strategies=[],
+            doctor_hints=[],
+            relevant_insights=[],
+            discovery_insights=[],
+            total_token_estimate=50,
+            quality_summary={"total_items": 1, "avg_confidence": 0.85},
+            has_low_confidence_warning=False,
+        )
+
+        # Verify metadata is accessible
+        assert len(enriched.past_errors) == 1
+        assert enriched.past_errors[0].relevance_score == 0.9
+        assert enriched.past_errors[0].age_hours == 10.0
+        assert enriched.past_errors[0].confidence == 0.85
+        assert enriched.avg_confidence == 0.85
+
+    def test_enriched_injection_to_plain_preserves_content(self):
+        """IMP-LOOP-024: to_plain_injection extracts content strings."""
+        error_meta = ContextMetadata(
+            content="error content",
+            relevance_score=0.9,
+            age_hours=10.0,
+            confidence=0.85,
+            is_low_confidence=False,
+        )
+
+        enriched = EnrichedContextInjection(
+            past_errors=[error_meta],
+            successful_strategies=[],
+            doctor_hints=[],
+            relevant_insights=[],
+            discovery_insights=["discovery1"],
+            total_token_estimate=50,
+        )
+
+        plain = enriched.to_plain_injection()
+
+        assert isinstance(plain, ContextInjection)
+        assert plain.past_errors == ["error content"]
+        assert plain.discovery_insights == ["discovery1"]
+
+    def test_get_context_for_phase_with_metadata_preferred(self):
+        """IMP-LOOP-024: get_context_for_phase_with_metadata returns EnrichedContextInjection."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.retrieve_context_with_metadata.return_value = {
+            "errors": [],
+            "summaries": [],
+            "hints": [],
+            "code": [],
+        }
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        with patch.object(injector, "get_discovery_context", return_value=[]):
+            result = injector.get_context_for_phase_with_metadata(
+                phase_type="build",
+                current_goal="test goal",
+                project_id="test-project",
+            )
+
+        # Should return EnrichedContextInjection, not plain ContextInjection
+        assert isinstance(result, EnrichedContextInjection)
+        assert hasattr(result, "quality_summary")
+        assert hasattr(result, "has_low_confidence_warning")
+        assert hasattr(result, "avg_confidence")
+
+    def test_format_enriched_includes_confidence_warning(self):
+        """IMP-LOOP-024: format_enriched_for_prompt includes confidence warnings."""
+        mock_memory = Mock()
+        injector = ContextInjector(memory_service=mock_memory)
+
+        low_confidence_error = ContextMetadata(
+            content="low confidence error",
+            relevance_score=0.5,
+            age_hours=100.0,
+            confidence=0.3,
+            is_low_confidence=True,
+        )
+
+        enriched = EnrichedContextInjection(
+            past_errors=[low_confidence_error],
+            successful_strategies=[],
+            doctor_hints=[],
+            relevant_insights=[],
+            discovery_insights=[],
+            total_token_estimate=50,
+            quality_summary={"avg_confidence": 0.3},
+            has_low_confidence_warning=True,
+        )
+
+        formatted = injector.format_enriched_for_prompt(enriched, include_confidence_warnings=True)
+
+        assert "Context Quality Warning" in formatted
+        assert "low confidence" in formatted.lower()

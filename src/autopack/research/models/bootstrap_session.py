@@ -7,7 +7,6 @@ for bootstrap sessions that coordinate multiple research phases in parallel.
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Optional

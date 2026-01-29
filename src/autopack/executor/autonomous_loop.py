@@ -2691,7 +2691,7 @@ class AutonomousLoop:
         if verification_passed:
             logger.info(f"[IMP-LOOP-001] Injection verified: {injected_count} tasks in queue")
         else:
-            logger.warning(f"[IMP-LOOP-001] Injection verification failed for some tasks")
+            logger.warning("[IMP-LOOP-001] Injection verification failed for some tasks")
 
         logger.info(
             f"[IMP-LOOP-004] Injected {len(generated_phases)} generated task phases into backlog"

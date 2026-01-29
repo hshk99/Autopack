@@ -8,10 +8,9 @@ appear in the autonomous executor's phase queue.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List
-from unittest.mock import Mock, patch
+from typing import List
+from unittest.mock import Mock
 
 import pytest
 

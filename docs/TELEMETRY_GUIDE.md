@@ -18,6 +18,40 @@ Autopack collects telemetry on token usage to improve token budget estimation ac
 
 ---
 
+## Task Generation from Telemetry Insights
+
+**IMP-LOOP-007**: Task generation is now **enabled by default**. This enables the self-improvement loop to automatically generate improvement tasks from telemetry insights.
+
+### Configuration
+
+| Setting | Default | Environment Variable | Description |
+|---------|---------|---------------------|-------------|
+| `task_generation_enabled` | `True` | `AUTOPACK_TASK_GENERATION_ENABLED` | Enable/disable automatic task generation |
+| `task_generation_auto_execute` | `True` | `AUTOPACK_TASK_GENERATION_AUTO_EXECUTE` | Auto-execute generated tasks |
+| `task_generation_max_tasks_per_run` | `10` | `AUTOPACK_TASK_GENERATION_MAX_TASKS` | Max tasks per run |
+| `task_generation_min_confidence` | `0.7` | `AUTOPACK_TASK_GENERATION_MIN_CONFIDENCE` | Min confidence threshold |
+
+### Disabling Task Generation
+
+To disable task generation (e.g., for debugging):
+
+```bash
+# Windows PowerShell
+$env:AUTOPACK_TASK_GENERATION_ENABLED="false"
+
+# Linux/Mac
+export AUTOPACK_TASK_GENERATION_ENABLED=false
+```
+
+### How It Works
+
+1. Telemetry collects metrics during autonomous execution
+2. The TelemetryAnalyzer identifies patterns and insights
+3. The AutonomousTaskGenerator creates improvement tasks
+4. Tasks are auto-executed if `task_generation_auto_execute=True`
+
+---
+
 ## 1. Enabling Telemetry
 
 ### Quick Start

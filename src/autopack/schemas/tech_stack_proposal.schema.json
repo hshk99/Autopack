@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autopack.dev/schemas/tech_stack_proposal.schema.json",
+  "title": "TechStackProposal",
+  "description": "Schema for technology stack proposals with multiple options and recommendations",
+  "type": "object",
+  "required": ["project_type", "options"],
+  "properties": {
+    "project_type": {
+      "type": "string",
+      "enum": ["ecommerce", "trading", "content", "automation", "other"],
+      "description": "Type of project this proposal is for"
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Requirements considered in this proposal"
+    },
+    "options": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "$ref": "#/$defs/TechStackOption"
+      },
+      "description": "At least 2 technology options"
+    },
+    "recommendation": {
+      "type": ["string", "null"],
+      "description": "Recommended option name (if clear winner exists)"
+    },
+    "recommendation_reasoning": {
+      "type": ["string", "null"],
+      "description": "Detailed reasoning for the recommendation"
+    },
+    "confidence_score": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Confidence in the proposal"
+    }
+  },
+  "$defs": {
+    "TechStackOption": {
+      "type": "object",
+      "required": ["name", "category", "description", "estimated_cost"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the technology/stack"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category (e.g., 'Full Stack Framework', 'Payment Provider')"
+        },
+        "description": {
+          "type": "string",
+          "description": "Brief description of the technology"
+        },
+        "pros": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of advantages"
+        },
+        "cons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of disadvantages"
+        },
+        "estimated_cost": {
+          "$ref": "#/$defs/CostEstimate"
+        },
+        "mcp_available": {
+          "type": "boolean",
+          "description": "Whether MCP (Model Context Protocol) server is available"
+        },
+        "mcp_server_name": {
+          "type": ["string", "null"],
+          "description": "Name of the MCP server if available"
+        },
+        "tos_risks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TosRisk"
+          },
+          "description": "Terms of Service and legal risks"
+        },
+        "setup_complexity": {
+          "type": "string",
+          "enum": ["low", "medium", "high"],
+          "description": "Setup complexity level"
+        },
+        "documentation_url": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "URL to official documentation"
+        },
+        "recommended_for": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Scenarios this option is recommended for"
+        }
+      }
+    },
+    "CostEstimate": {
+      "type": "object",
+      "required": ["monthly_min", "monthly_max"],
+      "properties": {
+        "monthly_min": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Minimum monthly cost in USD"
+        },
+        "monthly_max": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum monthly cost in USD"
+        },
+        "currency": {
+          "type": "string",
+          "default": "USD",
+          "description": "Currency code"
+        },
+        "tier": {
+          "type": "string",
+          "enum": ["free", "low", "medium", "high", "variable"],
+          "description": "Cost tier classification"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional cost notes"
+        }
+      }
+    },
+    "TosRisk": {
+      "type": "object",
+      "required": ["description", "level"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Description of the ToS/legal risk"
+        },
+        "level": {
+          "type": "string",
+          "enum": ["none", "low", "medium", "high", "critical"],
+          "description": "Risk level"
+        },
+        "mitigation": {
+          "type": ["string", "null"],
+          "description": "How to mitigate this risk"
+        }
+      }
+    }
+  }
+}

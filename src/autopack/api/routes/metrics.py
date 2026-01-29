@@ -1,6 +1,7 @@
 """Metrics endpoints for Prometheus monitoring.
 
 IMP-OBS-001: Feedback loop observability dashboard and Prometheus metrics.
+IMP-TELE-010: Real-time pipeline health dashboard.
 
 Provides endpoints for exposing feedback loop health metrics to Prometheus
 for monitoring and alerting on component degradation.
@@ -8,12 +9,15 @@ for monitoring and alerting on component degradation.
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Query
+from pydantic import BaseModel, Field
 
 from autopack.telemetry.loop_metrics import LoopMetricsCollector
-from autopack.telemetry.meta_metrics import MetaMetricsTracker
+from autopack.telemetry.meta_metrics import (MetaMetricsTracker,
+                                             PipelineLatencyTracker,
+                                             PipelineSLAConfig)
 
 logger = logging.getLogger(__name__)
 
@@ -188,3 +192,184 @@ async def get_loop_summary() -> Dict[str, Any]:
     summary = collector.get_summary()
     summary["timestamp"] = datetime.now(timezone.utc).isoformat()
     return summary
+
+
+# ---------------------------------------------------------------------------
+# IMP-TELE-010: Real-Time Pipeline Health Dashboard
+# ---------------------------------------------------------------------------
+
+
+class LatencyMetrics(BaseModel):
+    """Latency measurements for pipeline stages.
+
+    IMP-TELE-010: Provides detailed latency tracking for the ROAD-B to ROAD-C
+    pipeline stages.
+    """
+
+    telemetry_to_analysis_ms: float = Field(
+        default=0.0, description="Latency from telemetry collection to analysis (ms)"
+    )
+    analysis_to_task_ms: float = Field(
+        default=0.0, description="Latency from analysis to task generation (ms)"
+    )
+    total_latency_ms: float = Field(
+        default=0.0, description="Total end-to-end pipeline latency (ms)"
+    )
+    sla_threshold_ms: float = Field(
+        default=300000.0, description="SLA threshold for total latency (ms)"
+    )
+    stage_latencies: Dict[str, Optional[float]] = Field(
+        default_factory=dict, description="Per-stage latency breakdown"
+    )
+
+
+class SLAComplianceMetrics(BaseModel):
+    """SLA compliance status and metrics.
+
+    IMP-TELE-010: Tracks whether the pipeline is meeting its SLA targets.
+    """
+
+    status: str = Field(
+        default="unknown",
+        description="SLA status: excellent, good, acceptable, warning, or breached",
+    )
+    is_within_sla: bool = Field(default=True, description="Whether SLA is being met")
+    breach_amount_ms: float = Field(
+        default=0.0, description="Amount by which SLA is breached (0 if within)"
+    )
+    threshold_ms: float = Field(default=300000.0, description="SLA threshold in ms")
+    active_breaches: List[Dict[str, Any]] = Field(
+        default_factory=list, description="List of active SLA breach alerts"
+    )
+
+
+class ComponentHealthMetrics(BaseModel):
+    """Health status for a single ROAD component.
+
+    IMP-TELE-010: Provides per-component health scores and status.
+    """
+
+    component: str = Field(description="Component name (e.g., ROAD-B)")
+    status: str = Field(description="Status: improving, stable, degrading, or insufficient_data")
+    score: float = Field(description="Health score from 0.0 to 1.0")
+    issues: List[str] = Field(default_factory=list, description="List of detected issues")
+
+
+class PipelineHealthResponse(BaseModel):
+    """Complete pipeline health response.
+
+    IMP-TELE-010: Aggregates latency, SLA compliance, and component health
+    metrics for the real-time pipeline health dashboard.
+    """
+
+    timestamp: str = Field(description="ISO 8601 timestamp of the response")
+    latency: LatencyMetrics = Field(description="Pipeline latency metrics")
+    sla_compliance: SLAComplianceMetrics = Field(description="SLA compliance status")
+    component_health: Dict[str, ComponentHealthMetrics] = Field(
+        description="Health metrics per ROAD component"
+    )
+    overall_health_score: float = Field(description="Overall pipeline health score (0.0-1.0)")
+    overall_status: str = Field(
+        description="Overall status: healthy, degraded, attention_required, or unknown"
+    )
+
+
+# Global pipeline latency tracker for real-time monitoring
+_pipeline_latency_tracker: PipelineLatencyTracker | None = None
+
+
+def get_pipeline_latency_tracker() -> PipelineLatencyTracker:
+    """Get the global PipelineLatencyTracker instance.
+
+    IMP-TELE-010: Provides access to the shared pipeline latency tracker
+    for recording and querying pipeline stage timestamps.
+
+    Returns:
+        The global PipelineLatencyTracker instance.
+    """
+    global _pipeline_latency_tracker
+    if _pipeline_latency_tracker is None:
+        _pipeline_latency_tracker = PipelineLatencyTracker(sla_config=PipelineSLAConfig())
+        logger.info("[IMP-TELE-010] Initialized global PipelineLatencyTracker")
+    return _pipeline_latency_tracker
+
+
+def reset_pipeline_latency_tracker() -> None:
+    """Reset the global PipelineLatencyTracker instance.
+
+    IMP-TELE-010: For testing purposes, allows resetting the tracker.
+    """
+    global _pipeline_latency_tracker
+    _pipeline_latency_tracker = None
+    logger.info("[IMP-TELE-010] Reset global PipelineLatencyTracker")
+
+
+@router.get("/metrics/pipeline-health", response_model=PipelineHealthResponse)
+async def get_pipeline_health() -> PipelineHealthResponse:
+    """Return real-time pipeline health metrics from MetaMetricsTracker.
+
+    IMP-TELE-010: Provides operational visibility into the self-improvement
+    pipeline with:
+    - ROAD-B to ROAD-C latency measurements
+    - SLA compliance status and breach alerts
+    - Per-component health indicators
+
+    This endpoint powers the Pipeline Health Dashboard for monitoring
+    pipeline performance in real-time.
+
+    Returns:
+        PipelineHealthResponse with latency, SLA compliance, and component health
+    """
+    tracker = MetaMetricsTracker()
+    latency_tracker = get_pipeline_latency_tracker()
+
+    # Get component health report
+    health_report = tracker.analyze_feedback_loop_health({})
+
+    # Build latency metrics from tracker
+    latency_data = latency_tracker.to_feedback_loop_latency()
+    latency = LatencyMetrics(
+        telemetry_to_analysis_ms=latency_data.telemetry_to_analysis_ms,
+        analysis_to_task_ms=latency_data.analysis_to_task_ms,
+        total_latency_ms=latency_data.total_latency_ms,
+        sla_threshold_ms=latency_data.sla_threshold_ms,
+        stage_latencies=latency_tracker.get_stage_latencies(),
+    )
+
+    # Build SLA compliance metrics
+    breaches = latency_tracker.check_sla_breaches()
+    sla_compliance = SLAComplianceMetrics(
+        status=latency_tracker.get_sla_status(),
+        is_within_sla=latency_tracker.is_within_sla(),
+        breach_amount_ms=latency_data.get_breach_amount_ms(),
+        threshold_ms=latency_data.sla_threshold_ms,
+        active_breaches=[breach.to_dict() for breach in breaches],
+    )
+
+    # Build component health metrics
+    component_health: Dict[str, ComponentHealthMetrics] = {}
+    for component_name, report in health_report.component_reports.items():
+        component_health[component_name] = ComponentHealthMetrics(
+            component=component_name,
+            status=report.status.value,
+            score=report.overall_score,
+            issues=report.issues,
+        )
+
+    response = PipelineHealthResponse(
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        latency=latency,
+        sla_compliance=sla_compliance,
+        component_health=component_health,
+        overall_health_score=health_report.overall_score,
+        overall_status=health_report.overall_status.value,
+    )
+
+    logger.debug(
+        "[IMP-TELE-010] Returning pipeline health: status=%s, score=%.2f, sla=%s",
+        response.overall_status,
+        response.overall_health_score,
+        response.sla_compliance.status,
+    )
+
+    return response

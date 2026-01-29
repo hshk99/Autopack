@@ -11,6 +11,7 @@ import RunsInbox from '@pages/RunsInbox';
 import RunArtifacts from '@pages/RunArtifacts';
 import RunBrowserArtifacts from '@pages/RunBrowserArtifacts';
 import RunProgress from '@pages/RunProgress';
+import Metrics from '@pages/Metrics';
 
 function App() {
   return (
@@ -23,6 +24,8 @@ function App() {
         <Route path="/runs/:runId/artifacts" element={<RunArtifacts />} />
         <Route path="/runs/:runId/browser" element={<RunBrowserArtifacts />} />
         <Route path="/runs/:runId/progress" element={<RunProgress />} />
+        {/* IMP-TELE-010: Pipeline Health Dashboard */}
+        <Route path="/metrics" element={<Metrics />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </div>

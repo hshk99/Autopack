@@ -1140,6 +1140,252 @@ class TestBacklogInjection:
         assert "[AUTO-CRITICAL]" in phase["description"]
 
 
+class TestTaskDeduplication:
+    """Tests for IMP-REL-016: Task-level deduplication in task generation."""
+
+    @pytest.fixture
+    def mock_memory_service(self):
+        """Create a mock memory service."""
+        service = Mock()
+        service.retrieve_insights = Mock(return_value=[])
+        return service
+
+    def test_compute_task_fingerprint_returns_consistent_hash(self, mock_memory_service):
+        """Test that fingerprint is consistent for identical tasks."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        task1 = GeneratedTask(
+            task_id="TASK-001",
+            title="Fix timeout issues",
+            description="Description about fixing timeout issues in the build",
+            priority="high",
+            source_insights=["i1"],
+            suggested_files=["src/build.py", "src/config.py"],
+            estimated_effort="M",
+            created_at=datetime.now(),
+        )
+
+        task2 = GeneratedTask(
+            task_id="TASK-002",  # Different ID
+            title="Fix timeout issues",  # Same title
+            description="Description about fixing timeout issues in the build",  # Same desc
+            priority="medium",  # Different priority (not part of fingerprint)
+            source_insights=["i2"],  # Different insights (not part of fingerprint)
+            suggested_files=["src/config.py", "src/build.py"],  # Same files, different order
+            estimated_effort="L",  # Different effort (not part of fingerprint)
+            created_at=datetime.now(),
+        )
+
+        fp1 = generator._compute_task_fingerprint(task1)
+        fp2 = generator._compute_task_fingerprint(task2)
+
+        assert (
+            fp1 == fp2
+        ), "Tasks with same title, files, and description should have same fingerprint"
+
+    def test_compute_task_fingerprint_differs_for_different_titles(self, mock_memory_service):
+        """Test that fingerprint differs when titles are different."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        task1 = GeneratedTask(
+            task_id="TASK-001",
+            title="Fix timeout issues",
+            description="Same description",
+            priority="high",
+            source_insights=["i1"],
+            suggested_files=["src/build.py"],
+            estimated_effort="M",
+            created_at=datetime.now(),
+        )
+
+        task2 = GeneratedTask(
+            task_id="TASK-002",
+            title="Fix memory issues",  # Different title
+            description="Same description",
+            priority="high",
+            source_insights=["i1"],
+            suggested_files=["src/build.py"],
+            estimated_effort="M",
+            created_at=datetime.now(),
+        )
+
+        fp1 = generator._compute_task_fingerprint(task1)
+        fp2 = generator._compute_task_fingerprint(task2)
+
+        assert fp1 != fp2, "Tasks with different titles should have different fingerprints"
+
+    def test_compute_task_fingerprint_differs_for_different_files(self, mock_memory_service):
+        """Test that fingerprint differs when suggested files are different."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        task1 = GeneratedTask(
+            task_id="TASK-001",
+            title="Fix issues",
+            description="Same description",
+            priority="high",
+            source_insights=["i1"],
+            suggested_files=["src/build.py"],
+            estimated_effort="M",
+            created_at=datetime.now(),
+        )
+
+        task2 = GeneratedTask(
+            task_id="TASK-002",
+            title="Fix issues",
+            description="Same description",
+            priority="high",
+            source_insights=["i1"],
+            suggested_files=["src/deploy.py"],  # Different file
+            estimated_effort="M",
+            created_at=datetime.now(),
+        )
+
+        fp1 = generator._compute_task_fingerprint(task1)
+        fp2 = generator._compute_task_fingerprint(task2)
+
+        assert fp1 != fp2, "Tasks with different files should have different fingerprints"
+
+    def test_compute_task_fingerprint_case_insensitive(self, mock_memory_service):
+        """Test that fingerprint is case-insensitive."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        task1 = GeneratedTask(
+            task_id="TASK-001",
+            title="Fix TIMEOUT Issues",
+            description="Description here",
+            priority="high",
+            source_insights=["i1"],
+            suggested_files=["SRC/Build.py"],
+            estimated_effort="M",
+            created_at=datetime.now(),
+        )
+
+        task2 = GeneratedTask(
+            task_id="TASK-002",
+            title="fix timeout issues",  # Lowercase
+            description="description here",  # Lowercase
+            priority="high",
+            source_insights=["i1"],
+            suggested_files=["src/build.py"],  # Lowercase
+            estimated_effort="M",
+            created_at=datetime.now(),
+        )
+
+        fp1 = generator._compute_task_fingerprint(task1)
+        fp2 = generator._compute_task_fingerprint(task2)
+
+        assert fp1 == fp2, "Fingerprint should be case-insensitive"
+
+    def test_compute_task_fingerprint_file_order_independent(self, mock_memory_service):
+        """Test that fingerprint is independent of file order."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        task1 = GeneratedTask(
+            task_id="TASK-001",
+            title="Fix issues",
+            description="Description",
+            priority="high",
+            source_insights=["i1"],
+            suggested_files=["a.py", "b.py", "c.py"],
+            estimated_effort="M",
+            created_at=datetime.now(),
+        )
+
+        task2 = GeneratedTask(
+            task_id="TASK-002",
+            title="Fix issues",
+            description="Description",
+            priority="high",
+            source_insights=["i1"],
+            suggested_files=["c.py", "a.py", "b.py"],  # Different order
+            estimated_effort="M",
+            created_at=datetime.now(),
+        )
+
+        fp1 = generator._compute_task_fingerprint(task1)
+        fp2 = generator._compute_task_fingerprint(task2)
+
+        assert fp1 == fp2, "Fingerprint should be independent of file order"
+
+    def test_generate_tasks_deduplicates_identical_tasks(self, mock_memory_service):
+        """Test that generate_tasks filters out duplicate tasks."""
+        # Create insights that will generate duplicate patterns
+        # (same issue type appearing multiple times should create one task)
+        mock_memory_service.retrieve_insights.return_value = [
+            {"issue_type": "error", "content": "Same error", "id": "1", "severity": "high"},
+            {"issue_type": "error", "content": "Same error", "id": "2", "severity": "high"},
+            {"issue_type": "error", "content": "Same error", "id": "3", "severity": "high"},
+            {"issue_type": "error", "content": "Same error", "id": "4", "severity": "high"},
+        ]
+
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        result = generator.generate_tasks(
+            max_tasks=10,
+            min_confidence=0.0,
+        )
+
+        # Should generate at most one task for the error pattern
+        # (patterns group by issue_type, so all 4 errors become 1 pattern -> 1 task)
+        assert isinstance(result, TaskGenerationResult)
+        assert result.patterns_detected <= 1  # One "error" pattern
+        assert len(result.tasks_generated) <= 1  # One task for that pattern
+
+    def test_fingerprint_uses_first_100_chars_of_description(self, mock_memory_service):
+        """Test that fingerprint only uses first 100 characters of description."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        base_desc = "A" * 100  # First 100 characters
+        extra_content = "DIFFERENT_SUFFIX" * 50  # Additional content
+
+        task1 = GeneratedTask(
+            task_id="TASK-001",
+            title="Same title",
+            description=base_desc + extra_content,
+            priority="high",
+            source_insights=["i1"],
+            suggested_files=["file.py"],
+            estimated_effort="M",
+            created_at=datetime.now(),
+        )
+
+        task2 = GeneratedTask(
+            task_id="TASK-002",
+            title="Same title",
+            description=base_desc + "TOTALLY_DIFFERENT_SUFFIX",
+            priority="high",
+            source_insights=["i1"],
+            suggested_files=["file.py"],
+            estimated_effort="M",
+            created_at=datetime.now(),
+        )
+
+        fp1 = generator._compute_task_fingerprint(task1)
+        fp2 = generator._compute_task_fingerprint(task2)
+
+        assert fp1 == fp2, "Fingerprint should only consider first 100 chars of description"
+
+    def test_fingerprint_handles_empty_files_list(self, mock_memory_service):
+        """Test that fingerprint handles tasks with no suggested files."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        task = GeneratedTask(
+            task_id="TASK-001",
+            title="Fix issues",
+            description="Description",
+            priority="high",
+            source_insights=["i1"],
+            suggested_files=[],  # Empty files list
+            estimated_effort="M",
+            created_at=datetime.now(),
+        )
+
+        # Should not raise an exception
+        fingerprint = generator._compute_task_fingerprint(task)
+        assert fingerprint is not None
+        assert len(fingerprint) == 32  # MD5 hex digest length
+
+
 class TestExecutorQueueEmission:
     """Tests for IMP-LOOP-025: Wire ROAD-C task generation to executor queue."""
 

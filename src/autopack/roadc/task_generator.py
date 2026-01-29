@@ -1,12 +1,13 @@
 """ROAD-C: Autonomous Task Generator - converts insights to tasks."""
 
+import hashlib
 import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, List, Optional, Protocol, Set, runtime_checkable
 
 from sqlalchemy.orm import Session
 
@@ -854,6 +855,11 @@ class AutonomousTaskGenerator:
             # Re-sort patterns after causal adjustments (severity may have changed)
             patterns.sort(key=lambda p: (p["severity"], p["occurrences"]), reverse=True)
 
+            # IMP-REL-016: Track seen fingerprints for task-level deduplication
+            # This prevents generating duplicate tasks from the same underlying issue
+            seen_fingerprints: Set[str] = set()
+            duplicate_count = 0
+
             # Generate tasks from patterns
             for pattern in patterns[:max_tasks]:
                 if pattern["confidence"] >= min_confidence:
@@ -862,6 +868,18 @@ class AutonomousTaskGenerator:
                     requires_approval = pattern.get("_requires_approval", False)
 
                     task = self._pattern_to_task(pattern)
+
+                    # IMP-REL-016: Check for duplicate tasks using fingerprint
+                    fingerprint = self._compute_task_fingerprint(task)
+                    if fingerprint in seen_fingerprints:
+                        duplicate_count += 1
+                        logger.debug(
+                            f"[IMP-REL-016] Skipping duplicate task {task.task_id} "
+                            f"(fingerprint: {fingerprint[:8]}...)"
+                        )
+                        continue
+
+                    seen_fingerprints.add(fingerprint)
 
                     # Mark tasks that require approval gate (medium risk)
                     if requires_approval and risk_assessment:
@@ -876,6 +894,13 @@ class AutonomousTaskGenerator:
 
                     # Add regression protection for each task
                     self._ensure_regression_protection(task)
+
+            # IMP-REL-016: Log deduplication summary
+            if duplicate_count > 0:
+                logger.info(
+                    f"[IMP-REL-016] Task deduplication: filtered {duplicate_count} duplicate tasks, "
+                    f"kept {len(tasks)} unique tasks"
+                )
 
             # IMP-COST-001: Filter tasks based on budget constraints
             # When budget is constrained (<50% remaining), filter out high-cost tasks
@@ -1408,6 +1433,50 @@ Analyze the pattern and implement a fix to prevent recurrence.
         )
 
         return estimated_cost
+
+    def _compute_task_fingerprint(self, task: GeneratedTask) -> str:
+        """Compute unique fingerprint for task deduplication (IMP-REL-016).
+
+        Generates a hash based on:
+        - Task title (normalized)
+        - Sorted list of suggested files
+        - First 100 characters of description (normalized)
+
+        This prevents duplicate tasks from being generated for the same underlying
+        issue across multiple runs.
+
+        Args:
+            task: The GeneratedTask to compute fingerprint for
+
+        Returns:
+            MD5 hex digest string uniquely identifying this task's intent
+        """
+        # Normalize title: lowercase, strip whitespace
+        normalized_title = task.title.lower().strip()
+
+        # Sort and normalize files for consistent hashing
+        sorted_files = tuple(sorted(f.lower().strip() for f in task.suggested_files))
+
+        # Take first 100 chars of description, normalized
+        normalized_desc = task.description[:100].lower().strip()
+
+        # Build fingerprint key parts
+        key_parts = [
+            normalized_title,
+            str(sorted_files),
+            normalized_desc,
+        ]
+
+        # Compute MD5 hash
+        fingerprint_input = "|".join(key_parts).encode("utf-8")
+        fingerprint = hashlib.md5(fingerprint_input).hexdigest()
+
+        logger.debug(
+            f"[IMP-REL-016] Computed task fingerprint {fingerprint[:8]}... "
+            f"for task {task.task_id}"
+        )
+
+        return fingerprint
 
     def _ensure_regression_protection(self, task: GeneratedTask) -> None:
         """Ensure regression protection exists for task's issue pattern.

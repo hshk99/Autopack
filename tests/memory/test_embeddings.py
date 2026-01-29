@@ -7,22 +7,19 @@ Tests cover:
 - Batch embedding
 - Async embedding wrapper
 - Usage recording
+- IMP-PERF-005: Embedding result caching
 """
 
 import asyncio
 from unittest.mock import MagicMock, patch
 
-
-from autopack.memory.embeddings import (
-    EMBEDDING_SIZE,
-    MAX_EMBEDDING_CHARS,
-    _local_embed,
-    _record_embedding_usage,
-    async_embed_text,
-    semantic_embeddings_enabled,
-    sync_embed_text,
-    sync_embed_texts,
-)
+from autopack.memory.embeddings import (EMBEDDING_SIZE, MAX_EMBEDDING_CHARS,
+                                        _local_embed, _record_embedding_usage,
+                                        async_embed_text,
+                                        clear_embedding_cache,
+                                        get_embedding_cache_stats,
+                                        semantic_embeddings_enabled,
+                                        sync_embed_text, sync_embed_texts)
 
 
 class TestLocalEmbed:
@@ -107,6 +104,14 @@ class TestLocalEmbed:
 
 class TestSyncEmbedText:
     """Tests for synchronous text embedding."""
+
+    def setup_method(self):
+        """Clear embedding cache before each test to ensure isolation."""
+        clear_embedding_cache()
+
+    def teardown_method(self):
+        """Clear embedding cache after each test."""
+        clear_embedding_cache()
 
     def test_sync_embed_text_returns_correct_size(self):
         """Test that sync_embed_text returns correct size vector."""
@@ -201,6 +206,14 @@ class TestSyncEmbedText:
 class TestSyncEmbedTexts:
     """Tests for batch text embedding."""
 
+    def setup_method(self):
+        """Clear embedding cache before each test to ensure isolation."""
+        clear_embedding_cache()
+
+    def teardown_method(self):
+        """Clear embedding cache after each test."""
+        clear_embedding_cache()
+
     def test_sync_embed_texts_returns_correct_count(self):
         """Test that batch embedding returns correct number of vectors."""
         texts = ["hello", "world", "test"]
@@ -286,6 +299,14 @@ class TestSyncEmbedTexts:
 
 class TestAsyncEmbedText:
     """Tests for asynchronous text embedding."""
+
+    def setup_method(self):
+        """Clear embedding cache before each test to ensure isolation."""
+        clear_embedding_cache()
+
+    def teardown_method(self):
+        """Clear embedding cache after each test."""
+        clear_embedding_cache()
 
     def test_async_embed_text_returns_correct_size(self):
         """Test that async embedding returns correct size."""
@@ -444,3 +465,153 @@ class TestConstants:
     def test_embedding_size_value(self):
         """Test EMBEDDING_SIZE has expected value."""
         assert EMBEDDING_SIZE == 1536
+
+
+class TestEmbeddingCache:
+    """Tests for IMP-PERF-005: Embedding result caching."""
+
+    def setup_method(self):
+        """Clear cache before each test."""
+        clear_embedding_cache()
+
+    def teardown_method(self):
+        """Clear cache after each test."""
+        clear_embedding_cache()
+
+    def test_cache_hit_on_repeated_query(self):
+        """Test that repeated queries return cached results."""
+        text = "test text for caching"
+
+        # First call - cache miss
+        result1 = sync_embed_text(text)
+        stats1 = get_embedding_cache_stats()
+        assert stats1["misses"] == 1
+        assert stats1["hits"] == 0
+
+        # Second call - cache hit
+        result2 = sync_embed_text(text)
+        stats2 = get_embedding_cache_stats()
+        assert stats2["misses"] == 1
+        assert stats2["hits"] == 1
+
+        # Results should be identical
+        assert result1 == result2
+
+    def test_different_texts_cached_separately(self):
+        """Test that different texts have separate cache entries."""
+        result1 = sync_embed_text("hello")
+        result2 = sync_embed_text("world")
+
+        stats = get_embedding_cache_stats()
+        assert stats["size"] == 2
+        assert stats["misses"] == 2
+
+        # Results should be different
+        assert result1 != result2
+
+    def test_cache_respects_model_parameter(self):
+        """Test that different models have separate cache entries."""
+        text = "same text"
+
+        # Different models should create different cache entries
+        result1 = sync_embed_text(text, model="model-a")
+        result2 = sync_embed_text(text, model="model-b")
+
+        stats = get_embedding_cache_stats()
+        assert stats["size"] == 2
+        assert stats["misses"] == 2
+
+    def test_clear_embedding_cache_function(self):
+        """Test that cache can be cleared."""
+        # Populate cache
+        sync_embed_text("text1")
+        sync_embed_text("text2")
+
+        stats_before = get_embedding_cache_stats()
+        assert stats_before["size"] == 2
+
+        # Clear cache
+        clear_embedding_cache()
+
+        stats_after = get_embedding_cache_stats()
+        assert stats_after["size"] == 0
+        assert stats_after["hits"] == 0
+        assert stats_after["misses"] == 0
+
+    def test_cache_stats_hit_rate(self):
+        """Test that hit rate is calculated correctly."""
+        # 1 miss
+        sync_embed_text("unique text")
+
+        # 3 hits
+        sync_embed_text("unique text")
+        sync_embed_text("unique text")
+        sync_embed_text("unique text")
+
+        stats = get_embedding_cache_stats()
+        assert stats["hits"] == 3
+        assert stats["misses"] == 1
+        assert stats["hit_rate"] == 0.75  # 3 / 4
+
+    def test_cache_returns_list_not_tuple(self):
+        """Test that cached results are returned as lists for API compatibility."""
+        text = "test for type check"
+
+        result = sync_embed_text(text)
+        assert isinstance(result, list)
+
+        # Second call from cache should also return list
+        cached_result = sync_embed_text(text)
+        assert isinstance(cached_result, list)
+
+    @patch("autopack.memory.embeddings._USE_OPENAI", True)
+    def test_cache_prevents_redundant_api_calls(self):
+        """Test that cache hits prevent API calls."""
+        mock_embedding = [0.1] * EMBEDDING_SIZE
+        mock_response = MagicMock()
+        mock_response.data = [MagicMock(embedding=mock_embedding)]
+        mock_response.usage = MagicMock(total_tokens=10)
+
+        mock_client = MagicMock()
+        mock_client.embeddings.create.return_value = mock_response
+
+        with patch("autopack.memory.embeddings._openai_client", mock_client):
+            # First call - API should be called
+            sync_embed_text("test text")
+            assert mock_client.embeddings.create.call_count == 1
+
+            # Second call - should use cache, no additional API call
+            sync_embed_text("test text")
+            assert mock_client.embeddings.create.call_count == 1
+
+            stats = get_embedding_cache_stats()
+            assert stats["hits"] == 1
+            assert stats["misses"] == 1
+
+    def test_cache_handles_truncated_text(self):
+        """Test that truncated text is cached correctly."""
+        # Create text longer than MAX_EMBEDDING_CHARS
+        long_text = "a" * (MAX_EMBEDDING_CHARS + 1000)
+
+        # First call - will truncate and cache
+        result1 = sync_embed_text(long_text)
+
+        # Second call with same text - should hit cache
+        result2 = sync_embed_text(long_text)
+
+        stats = get_embedding_cache_stats()
+        assert stats["hits"] == 1
+        assert result1 == result2
+
+    def test_cache_maxsize_enforcement(self):
+        """Test that cache respects maxsize limit."""
+        from autopack.memory.embeddings import (_EMBEDDING_CACHE_MAXSIZE,
+                                                get_embedding_cache_stats)
+
+        # Fill cache beyond maxsize
+        for i in range(_EMBEDDING_CACHE_MAXSIZE + 100):
+            sync_embed_text(f"unique text {i}")
+
+        stats = get_embedding_cache_stats()
+        # Cache should not exceed maxsize
+        assert stats["size"] <= _EMBEDDING_CACHE_MAXSIZE

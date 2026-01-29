@@ -6,15 +6,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from autopack.task_generation.task_effectiveness_tracker import (
-    CORRECTIVE_TASK_FAILURE_THRESHOLD,
-    EXCELLENT_EFFECTIVENESS,
-    GOOD_EFFECTIVENESS,
-    POOR_EFFECTIVENESS,
-    CorrectiveTask,
-    EffectivenessHistory,
-    TaskEffectivenessTracker,
-    TaskImpactReport,
-)
+    CORRECTIVE_TASK_FAILURE_THRESHOLD, EXCELLENT_EFFECTIVENESS,
+    GOOD_EFFECTIVENESS, POOR_EFFECTIVENESS, CorrectiveTask,
+    EffectivenessHistory, TaskEffectivenessTracker, TaskImpactReport)
 
 
 class TestTaskImpactReport:
@@ -1261,34 +1255,6 @@ class TestCorrectiveTaskGeneration:
 
         corrective_tasks = tracker.get_corrective_tasks()
         assert corrective_tasks[0].category == "telemetry"
-
-    def test_insight_to_task_forwarding(self) -> None:
-        """Test corrective task is forwarded to InsightToTaskGenerator."""
-        mock_insight_to_task = MagicMock()
-        tracker = TaskEffectivenessTracker(insight_to_task=mock_insight_to_task)
-
-        for i in range(CORRECTIVE_TASK_FAILURE_THRESHOLD):
-            tracker.record_outcome(task_id="IMP-TEST-001", success=False)
-
-        # Verify create_corrective_task was called
-        mock_insight_to_task.create_corrective_task.assert_called_once()
-        call_args = mock_insight_to_task.create_corrective_task.call_args
-        corrective_task = call_args[0][0]
-        assert corrective_task.original_task_id == "IMP-TEST-001"
-
-    def test_set_insight_to_task(self) -> None:
-        """Test setting insight_to_task after initialization."""
-        tracker = TaskEffectivenessTracker()
-        mock_insight_to_task = MagicMock()
-
-        tracker.set_insight_to_task(mock_insight_to_task)
-
-        # Now trigger a corrective task
-        for i in range(CORRECTIVE_TASK_FAILURE_THRESHOLD):
-            tracker.record_outcome(task_id="IMP-TEST-001", success=False)
-
-        # Verify forwarding works
-        mock_insight_to_task.create_corrective_task.assert_called_once()
 
 
 class TestCorrectiveTaskSummary:

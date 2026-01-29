@@ -2,17 +2,18 @@
 
 Tests the feedback loop where task completion telemetry is used to improve
 future task generation by factoring historical effectiveness into priority
-calculation and insight conversion.
+calculation.
+
+Note: InsightToTaskGenerator tests have been removed (IMP-INT-010).
+Use AutonomousTaskGenerator from autopack.roadc.task_generator instead.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.task_generation.insight_to_task import InsightToTaskGenerator
 from autopack.task_generation.priority_engine import PriorityEngine
 from autopack.telemetry.analyzer import TaskEffectivenessStats
 
@@ -94,39 +95,6 @@ def priority_engine_with_stats(
     """Create a PriorityEngine with effectiveness stats."""
     engine = PriorityEngine(mock_learning_db, sample_effectiveness_stats)
     return engine
-
-
-@pytest.fixture
-def temp_state_dir(tmp_path: Path) -> Path:
-    """Create a temporary directory for state files."""
-    return tmp_path
-
-
-@pytest.fixture
-def mock_analyzer() -> MagicMock:
-    """Create a mock TelemetryAnalyzer."""
-    analyzer = MagicMock()
-    analyzer.generate_insights.return_value = {
-        "health_score": 0.85,
-        "prioritized_actions": [
-            {
-                "source": "slot_reliability",
-                "slot_id": 5,
-                "escalation_rate": 0.4,
-                "action": "Investigate slot 5 reliability",
-                "severity": "high",
-            },
-            {
-                "source": "cost_sink",
-                "phase_type": "build",
-                "action": "Optimize build phase cost",
-                "severity": "medium",
-            },
-        ],
-        "slot_reliability": {"problematic_slots": []},
-        "nudge_effectiveness": {"escalation_patterns": []},
-    }
-    return analyzer
 
 
 class TestPriorityEngineWithEffectivenessStats:
@@ -293,149 +261,6 @@ class TestPriorityEngineWithEffectivenessStats:
         assert ranked[1]["imp_id"] == "IMP-MEM-001"
 
 
-class TestInsightToTaskGeneratorWithEffectivenessStats:
-    """Tests for InsightToTaskGenerator with TaskEffectivenessStats integration."""
-
-    def test_init_with_effectiveness_stats(
-        self,
-        mock_analyzer: MagicMock,
-        sample_effectiveness_stats: TaskEffectivenessStats,
-    ) -> None:
-        """Test generator initializes with effectiveness stats."""
-        generator = InsightToTaskGenerator(mock_analyzer, sample_effectiveness_stats)
-        assert generator._effectiveness_stats is sample_effectiveness_stats
-
-    def test_init_without_effectiveness_stats(
-        self,
-        mock_analyzer: MagicMock,
-    ) -> None:
-        """Test generator works without effectiveness stats."""
-        generator = InsightToTaskGenerator(mock_analyzer)
-        assert generator._effectiveness_stats is None
-
-    def test_set_effectiveness_stats(
-        self,
-        mock_analyzer: MagicMock,
-        sample_effectiveness_stats: TaskEffectivenessStats,
-    ) -> None:
-        """Test setting effectiveness stats after init."""
-        generator = InsightToTaskGenerator(mock_analyzer)
-        assert generator._effectiveness_stats is None
-
-        generator.set_effectiveness_stats(sample_effectiveness_stats)
-        assert generator._effectiveness_stats is sample_effectiveness_stats
-
-    def test_get_success_rate_for_insight_type_no_stats(
-        self,
-        mock_analyzer: MagicMock,
-    ) -> None:
-        """Test success rate returns 1.0 when no stats available."""
-        generator = InsightToTaskGenerator(mock_analyzer)
-        rate = generator.get_success_rate_for_insight_type("slot_reliability")
-        assert rate == 1.0
-
-    def test_get_success_rate_for_known_type(
-        self,
-        mock_analyzer: MagicMock,
-        sample_effectiveness_stats: TaskEffectivenessStats,
-    ) -> None:
-        """Test success rate for known insight type."""
-        generator = InsightToTaskGenerator(mock_analyzer, sample_effectiveness_stats)
-
-        # slot_reliability has success_rate 0.80
-        rate = generator.get_success_rate_for_insight_type("slot_reliability")
-        assert rate == 0.80
-
-    def test_get_success_rate_for_unknown_type(
-        self,
-        mock_analyzer: MagicMock,
-        sample_effectiveness_stats: TaskEffectivenessStats,
-    ) -> None:
-        """Test success rate falls back to overall rate for unknown type."""
-        generator = InsightToTaskGenerator(mock_analyzer, sample_effectiveness_stats)
-
-        # Unknown type should fall back to overall success rate (0.75)
-        rate = generator.get_success_rate_for_insight_type("unknown_type")
-        assert rate == 0.75  # Falls back to overall success rate
-
-    def test_format_as_imp_includes_confidence(
-        self,
-        mock_analyzer: MagicMock,
-        sample_effectiveness_stats: TaskEffectivenessStats,
-    ) -> None:
-        """Test IMP entry includes confidence field."""
-        generator = InsightToTaskGenerator(mock_analyzer, sample_effectiveness_stats)
-
-        insight = {"source": "slot_reliability", "action": "Test action"}
-        imp = generator.format_as_imp(insight)
-
-        assert "confidence" in imp
-        assert "historical_success_rate" in imp
-
-    def test_format_as_imp_confidence_adjusted_by_success_rate(
-        self,
-        mock_analyzer: MagicMock,
-        sample_effectiveness_stats: TaskEffectivenessStats,
-    ) -> None:
-        """Test confidence is adjusted by historical success rate."""
-        generator = InsightToTaskGenerator(mock_analyzer, sample_effectiveness_stats)
-
-        # slot_reliability has 80% success rate
-        insight_high = {"source": "slot_reliability", "action": "Test", "confidence": 1.0}
-        imp_high = generator.format_as_imp(insight_high)
-
-        # cost_sink has 60% success rate
-        insight_low = {"source": "cost_sink", "action": "Test", "confidence": 1.0}
-        imp_low = generator.format_as_imp(insight_low)
-
-        # Higher success rate should result in higher confidence
-        assert imp_high["confidence"] > imp_low["confidence"]
-
-    def test_format_as_imp_includes_historical_rate(
-        self,
-        mock_analyzer: MagicMock,
-        sample_effectiveness_stats: TaskEffectivenessStats,
-    ) -> None:
-        """Test IMP includes historical success rate in output."""
-        generator = InsightToTaskGenerator(mock_analyzer, sample_effectiveness_stats)
-
-        insight = {"source": "slot_reliability", "action": "Test"}
-        imp = generator.format_as_imp(insight)
-
-        assert imp["historical_success_rate"] == 0.80
-
-    def test_format_as_imp_adds_note_for_low_success_rate(
-        self,
-        mock_analyzer: MagicMock,
-        low_effectiveness_stats: TaskEffectivenessStats,
-    ) -> None:
-        """Test description includes note when historical success rate is low."""
-        generator = InsightToTaskGenerator(mock_analyzer, low_effectiveness_stats)
-
-        # cost_sink has only 20% success rate in low_effectiveness_stats
-        insight = {"source": "cost_sink", "action": "Test action"}
-        imp = generator.format_as_imp(insight)
-
-        # Description should include warning note
-        assert "Historical success rate" in imp["description"] or "20%" in imp["description"]
-
-    def test_generate_improvements_with_effectiveness(
-        self,
-        mock_analyzer: MagicMock,
-        sample_effectiveness_stats: TaskEffectivenessStats,
-    ) -> None:
-        """Test improvements include effectiveness feedback data."""
-        generator = InsightToTaskGenerator(mock_analyzer, sample_effectiveness_stats)
-        improvements = generator.generate_improvements_from_insights()
-
-        # All improvements should have confidence and historical_success_rate
-        for imp in improvements:
-            assert "confidence" in imp
-            assert "historical_success_rate" in imp
-            assert 0.0 <= imp["confidence"] <= 1.0
-            assert 0.0 <= imp["historical_success_rate"] <= 1.0
-
-
 class TestFeedbackClosureIntegration:
     """Integration tests for the complete feedback closure loop."""
 
@@ -467,60 +292,6 @@ class TestFeedbackClosureIntegration:
 
         # Telemetry should be ranked higher due to better effectiveness
         assert ranked[0]["imp_id"] == "IMP-TEL-001"
-
-    def test_feedback_loop_comprehensive(
-        self,
-        mock_learning_db: MagicMock,
-        mock_analyzer: MagicMock,
-        sample_effectiveness_stats: TaskEffectivenessStats,
-    ) -> None:
-        """Test complete feedback loop from insight to prioritized task."""
-        # Step 1: Generate tasks from insights with effectiveness data
-        generator = InsightToTaskGenerator(mock_analyzer, sample_effectiveness_stats)
-        improvements = generator.generate_improvements_from_insights()
-
-        assert len(improvements) > 0
-
-        # Step 2: Verify improvements have feedback data
-        for imp in improvements:
-            assert "confidence" in imp
-            assert "historical_success_rate" in imp
-
-        # Step 3: Prioritize using effectiveness data
-        engine = PriorityEngine(mock_learning_db, sample_effectiveness_stats)
-        ranked = engine.rank_improvements(improvements, include_scores=True)
-
-        assert len(ranked) > 0
-
-        # Step 4: Verify scores incorporate effectiveness
-        for imp in ranked:
-            assert "priority_score" in imp
-            assert 0.0 <= imp["priority_score"] <= 1.0
-
-    def test_no_effectiveness_data_works(
-        self,
-        mock_learning_db: MagicMock,
-        mock_analyzer: MagicMock,
-    ) -> None:
-        """Test system works correctly without effectiveness data."""
-        # Generator without stats
-        generator = InsightToTaskGenerator(mock_analyzer)
-        improvements = generator.generate_improvements_from_insights()
-
-        # Should still have confidence (default) and historical_success_rate (1.0)
-        for imp in improvements:
-            assert "confidence" in imp
-            assert "historical_success_rate" in imp
-            assert imp["historical_success_rate"] == 1.0
-
-        # Engine without stats
-        engine = PriorityEngine(mock_learning_db)
-        ranked = engine.rank_improvements(improvements, include_scores=True)
-
-        # Should still produce valid rankings
-        assert len(ranked) > 0
-        for imp in ranked:
-            assert "priority_score" in imp
 
 
 class TestEffectivenessWeightConfiguration:

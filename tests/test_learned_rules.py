@@ -12,7 +12,8 @@ Tests cover:
 
 from datetime import datetime, timedelta, timezone
 
-from autopack.learned_rules import DiscoveryStage, LearnedRule, LearnedRuleAging
+from autopack.learned_rules import (DiscoveryStage, LearnedRule,
+                                    LearnedRuleAging)
 
 # ============================================================================
 # LearnedRuleAging Tests (IMP-LOOP-013)
@@ -293,13 +294,10 @@ import time
 from pathlib import Path
 from unittest.mock import patch
 
-from autopack.learned_rules import (
-    _project_rules_cache,
-    _project_rules_mtime,
-    clear_project_rules_cache,
-    load_project_rules,
-    _save_project_rules,
-)
+from autopack.learned_rules import (_project_rules_cache, _project_rules_mtime,
+                                    _save_project_rules,
+                                    clear_project_rules_cache,
+                                    load_project_rules)
 
 
 class TestProjectRulesCache:
@@ -583,3 +581,320 @@ class TestProjectRulesCache:
 
             assert project_id_1 not in _project_rules_cache
             assert project_id_2 in _project_rules_cache
+
+
+# ============================================================================
+# IMP-PERF-006: Run-Level Hints Cache Tests
+# ============================================================================
+
+from autopack.learned_rules import (RunRuleHint, _run_hints_cache,
+                                    _save_run_rule_hint, clear_run_hints_cache,
+                                    load_run_rule_hints)
+
+
+class TestRunHintsCache:
+    """Tests for run-level hints cache (IMP-PERF-006)."""
+
+    def setup_method(self):
+        """Clear cache before each test."""
+        clear_run_hints_cache()
+
+    def teardown_method(self):
+        """Clear cache after each test."""
+        clear_run_hints_cache()
+
+    def test_cache_hit_on_repeated_calls(self, tmp_path):
+        """Repeated calls should return cached data without re-reading file."""
+        run_id = "test_run_cache"
+        hints_file = tmp_path / run_id / "run_rule_hints.json"
+        hints_file.parent.mkdir(parents=True, exist_ok=True)
+
+        hints_data = {
+            "hints": [
+                {
+                    "run_id": run_id,
+                    "phase_index": 0,
+                    "phase_id": "phase_001",
+                    "tier_id": "tier_1",
+                    "task_category": "testing",
+                    "scope_paths": ["test.py"],
+                    "source_issue_keys": ["issue_001"],
+                    "hint_text": "Watch out for type errors",
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                }
+            ]
+        }
+        hints_file.write_text(json.dumps(hints_data))
+
+        # Mock _get_run_hints_file to return our temp file
+        with patch("autopack.learned_rules._get_run_hints_file", return_value=hints_file):
+            # First call should load from file
+            hints1 = load_run_rule_hints(run_id)
+            assert len(hints1) == 1
+            assert hints1[0].phase_id == "phase_001"
+
+            # Verify cache is populated
+            assert run_id in _run_hints_cache
+
+            # Second call should return cached data
+            hints2 = load_run_rule_hints(run_id)
+            assert len(hints2) == 1
+            assert hints2[0].phase_id == "phase_001"
+
+            # Should be the same object (from cache)
+            assert hints1 is hints2
+
+    def test_cache_populated_for_nonexistent_file(self):
+        """Non-existent file should cache empty result to avoid repeated checks."""
+        run_id = "nonexistent_run"
+        nonexistent_path = Path("/nonexistent/path/run_rule_hints.json")
+
+        with patch("autopack.learned_rules._get_run_hints_file", return_value=nonexistent_path):
+            # First call
+            hints1 = load_run_rule_hints(run_id)
+            assert hints1 == []
+
+            # Cache should contain empty list (not be absent)
+            assert run_id in _run_hints_cache
+            assert _run_hints_cache[run_id] == []
+
+            # Second call should return cached empty list
+            hints2 = load_run_rule_hints(run_id)
+            assert hints2 == []
+            assert hints1 is hints2
+
+    def test_clear_run_hints_cache_all(self, tmp_path):
+        """clear_run_hints_cache() should empty entire cache."""
+        run_id_1 = "run_1"
+        run_id_2 = "run_2"
+
+        hints_file_1 = tmp_path / run_id_1 / "run_rule_hints.json"
+        hints_file_2 = tmp_path / run_id_2 / "run_rule_hints.json"
+        hints_file_1.parent.mkdir(parents=True, exist_ok=True)
+        hints_file_2.parent.mkdir(parents=True, exist_ok=True)
+
+        hints_data = {"hints": []}
+        hints_file_1.write_text(json.dumps(hints_data))
+        hints_file_2.write_text(json.dumps(hints_data))
+
+        def mock_get_hints_file(run_id):
+            if run_id == run_id_1:
+                return hints_file_1
+            elif run_id == run_id_2:
+                return hints_file_2
+            return Path("/nonexistent")
+
+        with patch("autopack.learned_rules._get_run_hints_file", side_effect=mock_get_hints_file):
+            # Load both runs to populate cache
+            load_run_rule_hints(run_id_1)
+            load_run_rule_hints(run_id_2)
+            assert run_id_1 in _run_hints_cache
+            assert run_id_2 in _run_hints_cache
+
+            # Clear entire cache
+            clear_run_hints_cache()
+
+            # Cache should be empty
+            assert run_id_1 not in _run_hints_cache
+            assert run_id_2 not in _run_hints_cache
+
+    def test_clear_run_hints_cache_specific_run(self, tmp_path):
+        """clear_run_hints_cache(run_id) should only clear that run's cache."""
+        run_id_1 = "run_1"
+        run_id_2 = "run_2"
+
+        hints_file_1 = tmp_path / run_id_1 / "run_rule_hints.json"
+        hints_file_2 = tmp_path / run_id_2 / "run_rule_hints.json"
+        hints_file_1.parent.mkdir(parents=True, exist_ok=True)
+        hints_file_2.parent.mkdir(parents=True, exist_ok=True)
+
+        hints_data = {"hints": []}
+        hints_file_1.write_text(json.dumps(hints_data))
+        hints_file_2.write_text(json.dumps(hints_data))
+
+        def mock_get_hints_file(run_id):
+            if run_id == run_id_1:
+                return hints_file_1
+            elif run_id == run_id_2:
+                return hints_file_2
+            return Path("/nonexistent")
+
+        with patch("autopack.learned_rules._get_run_hints_file", side_effect=mock_get_hints_file):
+            # Load both runs to populate cache
+            load_run_rule_hints(run_id_1)
+            load_run_rule_hints(run_id_2)
+            assert run_id_1 in _run_hints_cache
+            assert run_id_2 in _run_hints_cache
+
+            # Clear only run_1's cache
+            clear_run_hints_cache(run_id_1)
+
+            # Only run_1 should be cleared
+            assert run_id_1 not in _run_hints_cache
+            assert run_id_2 in _run_hints_cache
+
+    def test_save_invalidates_cache(self, tmp_path):
+        """_save_run_rule_hint should invalidate cache for that run."""
+        run_id = "test_run_save"
+        hints_file = tmp_path / run_id / "run_rule_hints.json"
+        hints_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Create initial empty hints file
+        hints_data = {"hints": []}
+        hints_file.write_text(json.dumps(hints_data))
+
+        with patch("autopack.learned_rules._get_run_hints_file", return_value=hints_file):
+            # Load to populate cache
+            hints = load_run_rule_hints(run_id)
+            assert run_id in _run_hints_cache
+            assert len(hints) == 0
+
+            # Create and save a new hint
+            new_hint = RunRuleHint(
+                run_id=run_id,
+                phase_index=1,
+                phase_id="phase_002",
+                tier_id=None,
+                task_category="testing",
+                scope_paths=["new_file.py"],
+                source_issue_keys=[],
+                hint_text="New hint after save",
+                created_at=datetime.now(timezone.utc).isoformat(),
+            )
+            _save_run_rule_hint(run_id, new_hint)
+
+            # Cache should be invalidated
+            assert run_id not in _run_hints_cache
+
+            # Next load should get fresh data from file
+            hints_after = load_run_rule_hints(run_id)
+            assert len(hints_after) == 1
+            assert hints_after[0].phase_id == "phase_002"
+
+    def test_multiple_runs_cached_independently(self, tmp_path):
+        """Each run should have its own cache entry."""
+        run_id_1 = "run_1"
+        run_id_2 = "run_2"
+
+        hints_file_1 = tmp_path / run_id_1 / "run_rule_hints.json"
+        hints_file_2 = tmp_path / run_id_2 / "run_rule_hints.json"
+        hints_file_1.parent.mkdir(parents=True, exist_ok=True)
+        hints_file_2.parent.mkdir(parents=True, exist_ok=True)
+
+        hints_data_1 = {
+            "hints": [
+                {
+                    "run_id": run_id_1,
+                    "phase_index": 0,
+                    "phase_id": "run1_phase",
+                    "tier_id": None,
+                    "task_category": "testing",
+                    "scope_paths": [],
+                    "source_issue_keys": [],
+                    "hint_text": "Run 1 hint",
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                }
+            ]
+        }
+        hints_data_2 = {
+            "hints": [
+                {
+                    "run_id": run_id_2,
+                    "phase_index": 0,
+                    "phase_id": "run2_phase",
+                    "tier_id": None,
+                    "task_category": "testing",
+                    "scope_paths": [],
+                    "source_issue_keys": [],
+                    "hint_text": "Run 2 hint",
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                }
+            ]
+        }
+        hints_file_1.write_text(json.dumps(hints_data_1))
+        hints_file_2.write_text(json.dumps(hints_data_2))
+
+        def mock_get_hints_file(run_id):
+            if run_id == run_id_1:
+                return hints_file_1
+            elif run_id == run_id_2:
+                return hints_file_2
+            return Path("/nonexistent")
+
+        with patch("autopack.learned_rules._get_run_hints_file", side_effect=mock_get_hints_file):
+            # Load both runs
+            hints1 = load_run_rule_hints(run_id_1)
+            hints2 = load_run_rule_hints(run_id_2)
+
+            assert len(hints1) == 1
+            assert hints1[0].phase_id == "run1_phase"
+            assert len(hints2) == 1
+            assert hints2[0].phase_id == "run2_phase"
+
+            # Both should be cached
+            assert run_id_1 in _run_hints_cache
+            assert run_id_2 in _run_hints_cache
+
+            # Each run has its own cached data
+            assert _run_hints_cache[run_id_1][0].hint_text == "Run 1 hint"
+            assert _run_hints_cache[run_id_2][0].hint_text == "Run 2 hint"
+
+    def test_cache_handles_json_decode_error(self, tmp_path):
+        """Cache should handle malformed JSON files gracefully."""
+        run_id = "run_with_bad_json"
+        hints_file = tmp_path / run_id / "run_rule_hints.json"
+        hints_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write malformed JSON
+        hints_file.write_text("{ invalid json }")
+
+        with patch("autopack.learned_rules._get_run_hints_file", return_value=hints_file):
+            # Should return empty list and cache it
+            hints = load_run_rule_hints(run_id)
+            assert hints == []
+            assert run_id in _run_hints_cache
+            assert _run_hints_cache[run_id] == []
+
+    def test_cache_eliminates_redundant_reads(self, tmp_path):
+        """Verify that cache actually prevents file reads on subsequent calls."""
+        run_id = "test_run_read_count"
+        hints_file = tmp_path / run_id / "run_rule_hints.json"
+        hints_file.parent.mkdir(parents=True, exist_ok=True)
+
+        hints_data = {
+            "hints": [
+                {
+                    "run_id": run_id,
+                    "phase_index": 0,
+                    "phase_id": "phase_001",
+                    "tier_id": None,
+                    "task_category": "testing",
+                    "scope_paths": [],
+                    "source_issue_keys": [],
+                    "hint_text": "Test hint",
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                }
+            ]
+        }
+        hints_file.write_text(json.dumps(hints_data))
+
+        with patch("autopack.learned_rules._get_run_hints_file", return_value=hints_file):
+            # Use a mock to count file opens
+            original_open = open
+            open_call_count = [0]
+
+            def counting_open(*args, **kwargs):
+                if str(hints_file) in str(args[0]):
+                    open_call_count[0] += 1
+                return original_open(*args, **kwargs)
+
+            with patch("builtins.open", side_effect=counting_open):
+                # First call should read from file
+                load_run_rule_hints(run_id)
+                assert open_call_count[0] == 1
+
+                # Subsequent calls should use cache (no additional opens)
+                load_run_rule_hints(run_id)
+                load_run_rule_hints(run_id)
+                load_run_rule_hints(run_id)
+                assert open_call_count[0] == 1  # Still just 1 open

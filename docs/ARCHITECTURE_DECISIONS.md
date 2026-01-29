@@ -2696,11 +2696,11 @@ Fix Ratio = 47 / (47 + 10) = 82.5% ✅ (exceeds 70% threshold)
 **Status**: ✅ Implemented (BUILD-159)
 
 **Context**:
-The Intention Anchor system needed a way to safely consolidate run-local artifacts (stored in `.autonomous_runs/<run_id>/`) into canonical SOT ledgers (`docs/BUILD_HISTORY.md`, etc.) without creating "two truths" problems or risking SOT corruption through autonomous writes.
+The Intention Anchor system needed a way to safely consolidate run-local artifacts (stored in `.autonomous_runs/<project>/runs/<family>/<run_id>/`) into canonical SOT ledgers (`docs/BUILD_HISTORY.md`, etc.) without creating "two truths" problems or risking SOT corruption through autonomous writes.
 
 **Decision**:
 Establish a clear separation of concerns for SOT updates:
-1. **Autonomous execution writes run-local**: All runtime artifact generation (intention anchors, summaries, events) writes ONLY to `.autonomous_runs/<run_id>/` directories
+1. **Autonomous execution writes run-local**: All runtime artifact generation (intention anchors, summaries, events) writes ONLY to `.autonomous_runs/<project>/runs/<family>/<run_id>/` directories
 2. **Tidy consolidates to SOT**: Consolidation into SOT ledgers happens through explicit tidy operations with multiple safety gates
 3. **Never autonomous SOT writes**: Autonomous execution never directly modifies `docs/BUILD_HISTORY.md` or other SOT ledgers
 

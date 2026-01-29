@@ -216,6 +216,15 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://autopack:autopack@localhost:5432/autopack"
     autonomous_runs_dir: str = ".autonomous_runs"
 
+    # Project Isolation: Bootstrapped projects are stored OUTSIDE the Autopack repo
+    # to prevent lint conflicts, CI contamination, and path collisions during parallel builds.
+    # See docs/PROJECT_ISOLATION_ARCHITECTURE.md for details.
+    autopack_projects_root: str = Field(
+        default="C:\\dev\\AutopackProjects",
+        validation_alias=AliasChoices("AUTOPACK_PROJECTS_ROOT", "PROJECTS_ROOT"),
+        description="Root directory for bootstrapped projects (isolated from Autopack tool)",
+    )
+
     # Git repository path (per v7 architect recommendation)
     # In Docker: /workspace (mounted volume)
     # Outside Docker: current directory
@@ -1086,3 +1095,39 @@ def get_api_key() -> str:
         default="",
         required_in_production=True,  # API key required in production
     )
+
+
+def get_projects_root() -> Path:
+    """Get the root directory for bootstrapped projects.
+
+    Returns the path configured via AUTOPACK_PROJECTS_ROOT environment variable
+    or the default from settings. The directory is created if it doesn't exist.
+
+    See docs/PROJECT_ISOLATION_ARCHITECTURE.md for the rationale:
+    - Isolates project files from Autopack tool code
+    - Prevents lint/CI conflicts during parallel builds
+    - Enables independent project versioning
+
+    Returns:
+        Path to the projects root directory (created if needed).
+    """
+    projects_root = Path(settings.autopack_projects_root)
+
+    # Ensure directory exists
+    if not projects_root.exists():
+        projects_root.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Created projects root directory: {projects_root}")
+
+    return projects_root
+
+
+def get_project_path(project_name: str) -> Path:
+    """Get the path for a specific bootstrapped project.
+
+    Args:
+        project_name: Name of the project (e.g., 'etsy-listing-automator')
+
+    Returns:
+        Path to the project directory under projects root.
+    """
+    return get_projects_root() / project_name

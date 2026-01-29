@@ -23,6 +23,8 @@ These are the canonical references that should stay current and are designed to 
 - **`docs/MODEL_INTELLIGENCE_SYSTEM.md`**: Model catalog + recommendation system (evidence-based model upgrades).
 - **`docs/PROJECT_INDEX.json`**: Machine-friendly index for quick project orientation.
 - **`docs/LEARNED_RULES.json`**: Accumulated prevention rules / heuristics.
+- **`docs/PROJECT_ISOLATION_ARCHITECTURE.md`**: Project isolation design - bootstrapped projects stored outside Autopack repo.
+- **`docs/MIGRATION_PLAN_PROJECT_ISOLATION.md`**: Migration plan for project isolation implementation.
 
 **Note**: SOT docs are also used by Autopack features like artifact substitution (history pack / SOT doc summaries).
 

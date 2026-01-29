@@ -6,23 +6,34 @@ Creates a new autonomous project directory with all necessary files
 for the magic phrase pattern to work.
 
 Usage:
-    python .autonomous_runs/setup_new_project.py --name "MyApp"
+    # New projects go to AUTOPACK_PROJECTS_ROOT by default
+    python scripts/setup_new_project.py --name "MyApp"
 
-    # Slug is auto-generated from project name (e.g., "MyApp" → "my-app-v1")
-    # For custom slug: python .autonomous_runs/setup_new_project.py --name "MyApp" --slug "custom-slug-v1"
+    # Explicitly use isolated location (recommended)
+    python scripts/setup_new_project.py --name "MyApp" --isolated
 
-This script creates:
-- .autonomous_runs/<project-slug>/
-  ├── scripts/autopack_runner.py      (copied from template)
-  ├── FUTURE_PLAN.md          (empty template)
-  ├── PROJECT_README.md               (auto-generated)
-  └── run.sh                          (wrapper script)
+    # Use legacy .autonomous_runs location (for Autopack internal builds only)
+    python scripts/setup_new_project.py --name "MyApp" --internal
+
+    # Custom output location
+    python scripts/setup_new_project.py --name "MyApp" --output D:\\projects
+
+This script creates the project structure with:
+- scripts/autopack_runner.py      (copied from template)
+- FUTURE_PLAN.md                  (task definitions)
+- PROJECT_README.md               (auto-generated)
+- run.sh                          (wrapper script)
 
 After running this script, the magic phrase will work:
 "RUN AUTOPACK END-TO-END for <ProjectName> now."
+
+Project Isolation:
+    By default, projects are created in AUTOPACK_PROJECTS_ROOT to avoid
+    lint conflicts, CI contamination, and git noise. See docs/PROJECT_ISOLATION_ARCHITECTURE.md.
 """
 
 import argparse
+import os
 import re
 import shutil
 from pathlib import Path
@@ -31,6 +42,15 @@ from datetime import datetime
 # Repo root detection for dynamic paths
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
+
+# Default projects root (isolated from Autopack)
+DEFAULT_PROJECTS_ROOT = Path(os.environ.get(
+    "AUTOPACK_PROJECTS_ROOT",
+    "C:\\dev\\AutopackProjects"
+))
+
+# Legacy internal runs directory (for Autopack self-builds only)
+INTERNAL_RUNS_DIR = REPO_ROOT / ".autonomous_runs"
 
 
 def generate_slug_from_name(name: str, runs_root: Path) -> str:
@@ -356,13 +376,20 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Basic usage (slug auto-generated from name):
-  python setup_new_project.py --name "MyApp"
-  python setup_new_project.py --name "File Organizer"
-  python setup_new_project.py --name "Shopping Cart"
+  # Basic usage - creates in AUTOPACK_PROJECTS_ROOT (default: C:\\dev\\AutopackProjects)
+  python scripts/setup_new_project.py --name "MyApp"
+
+  # Explicitly use isolated location (recommended for new projects)
+  python scripts/setup_new_project.py --name "MyApp" --isolated
+
+  # Use legacy internal location (for Autopack self-builds only)
+  python scripts/setup_new_project.py --name "MyApp" --internal
+
+  # Custom output location
+  python scripts/setup_new_project.py --name "MyApp" --output D:\\projects
 
   # Custom slug (advanced):
-  python setup_new_project.py --name "MyApp" --slug "custom-app-v1"
+  python scripts/setup_new_project.py --name "MyApp" --slug "custom-app-v1"
 
 Slug Generation:
   By default, the slug is auto-generated from the project name:
@@ -372,6 +399,12 @@ Slug Generation:
 
   If the directory already exists, version is auto-incremented:
   - "MyApp" → "my-app-v2" (if v1 exists)
+
+Project Isolation (see docs/PROJECT_ISOLATION_ARCHITECTURE.md):
+  By default, projects are created in AUTOPACK_PROJECTS_ROOT to avoid:
+  - Lint conflicts (project code won't trigger Autopack linters)
+  - CI contamination (separate pipelines)
+  - Git noise (clean commit history)
 
 After setup, the magic phrase will work:
   "RUN AUTOPACK END-TO-END for <ProjectName> now."
@@ -388,9 +421,27 @@ After setup, the magic phrase will work:
     parser.add_argument(
         "--slug",
         type=str,
-        required=False,  # SLUG IS NOW OPTIONAL!
+        required=False,
         default=None,
         help="Project slug for directory name (optional, auto-generated from name if not provided)",
+    )
+
+    # Location options (mutually exclusive)
+    location_group = parser.add_mutually_exclusive_group()
+    location_group.add_argument(
+        "--isolated",
+        action="store_true",
+        help=f"Create in AUTOPACK_PROJECTS_ROOT (default: {DEFAULT_PROJECTS_ROOT})",
+    )
+    location_group.add_argument(
+        "--internal",
+        action="store_true",
+        help=f"Create in .autonomous_runs (legacy, for Autopack internal builds only)",
+    )
+    location_group.add_argument(
+        "--output",
+        type=str,
+        help="Custom output directory for the project",
     )
 
     parser.add_argument(
@@ -399,11 +450,20 @@ After setup, the magic phrase will work:
 
     args = parser.parse_args()
 
-    # Get base directory (.autonomous_runs)
-    base_dir = Path(__file__).parent
+    # Determine base directory based on location option
+    if args.output:
+        base_dir = Path(args.output)
+        print(f"[INFO] Using custom output location: {base_dir}")
+    elif args.internal:
+        base_dir = INTERNAL_RUNS_DIR
+        print(f"[INFO] Using internal (legacy) location: {base_dir}")
+    else:
+        # Default: isolated projects root
+        base_dir = DEFAULT_PROJECTS_ROOT
+        print(f"[INFO] Using isolated projects root: {base_dir}")
 
-    # Ensure .autonomous_runs directory exists
-    base_dir.mkdir(exist_ok=True)
+    # Ensure base directory exists
+    base_dir.mkdir(parents=True, exist_ok=True)
 
     # Determine slug: use provided slug, or auto-generate from name
     if args.slug:

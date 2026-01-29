@@ -17,6 +17,7 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 
 | Timestamp | DEC-ID | Decision | Status | Impact |
 |-----------|--------|----------|--------|--------|
+| 2026-01-29 | DEC-052 | Project Isolation Architecture (AUTOPACK_PROJECTS_ROOT) | ✅ Implemented | Prevents lint/CI/git conflicts; enables parallel project builds |
 | 2026-01-09 | DEC-051 | Python 3.11 Canonical for CI (3.12 Local Support) | ✅ Implemented | Single canonical CI version prevents cross-version drift; local 3.12 supported |
 | 2026-01-09 | DEC-050 | AUTHENTICATION.md Rewrite to Match src/autopack/auth/* | 🧭 Planned | Aligns auth documentation with current implementation; prevents operator confusion |
 | 2026-01-09 | DEC-049 | Guides/Cursor Docs Legacy Labeling (Not Normalized) | ✅ Implemented | Keeps historical docs intact while preventing them from becoming "second truth" |
@@ -67,6 +68,54 @@ Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUI
 | 2025-12-09 | DEC-007 | Documentation Consolidation Implementation Plan | ✅ Implemented |  |
 
 ## DECISIONS (Reverse Chronological)
+
+### DEC-052 | 2026-01-29 | Project Isolation Architecture (AUTOPACK_PROJECTS_ROOT)
+
+**Status**: ✅ Implemented
+**Build**: PROJECT-ISOLATION (Claude Code Research Bridge)
+**Context**: Bootstrapped projects were previously stored inside the Autopack repo under `.autonomous_runs/`. This caused lint failures when Autopack linters scanned project code, CI conflicts when project tests ran with Autopack tests, and git noise from mixed commits.
+
+**Decision**: **Separate project storage** from Autopack tool code. Bootstrapped projects are created in `AUTOPACK_PROJECTS_ROOT` (default: `C:\dev\AutopackProjects`), completely outside the Autopack repository.
+
+**Chosen Approach**:
+
+- **Environment Variable**: `AUTOPACK_PROJECTS_ROOT` configures project storage location
+- **Default**: `C:\dev\AutopackProjects` (Windows) or `~/dev/AutopackProjects` (Linux/Mac)
+- **Project Structure**: Each project has `.autopack/` subfolder for Autopack-managed data
+- **Backward Compatibility**: `.autonomous_runs/` retained for Autopack's own internal builds
+
+**Directory Structure**:
+```
+C:\dev\Autopack\                    # Tool (this repo)
+C:\dev\AutopackProjects\            # Bootstrapped projects (separate)
+    ├── .autopack-registry.yaml     # Project registry
+    └── {project-name}\
+        ├── .autopack\              # Project-specific Autopack data
+        │   ├── research\
+        │   ├── synthesis\
+        │   └── checkpoints\
+        ├── src\
+        ├── tests\
+        └── intention_anchor.yaml
+```
+
+**Rationale**:
+
+1. **Lint Isolation**: Autopack linters only scan tool code, not project code
+2. **CI Isolation**: Independent CI pipelines per project
+3. **Git Isolation**: Clean commit history (tool changes separate from project changes)
+4. **Parallel Safety**: Multiple projects can build simultaneously without path collisions
+
+**Implementation**:
+- Added `autopack_projects_root` to `src/autopack/config.py` Settings class
+- Added `get_projects_root()` and `get_project_path()` helper functions
+- Updated `/project-bootstrap` skill to use new paths
+- Updated `scripts/setup_new_project.py` with `--isolated`, `--internal`, `--output` options
+- Created migration plan: `docs/MIGRATION_PLAN_PROJECT_ISOLATION.md`
+
+**Alternative Rejected**: Keep projects inside `.autonomous_runs/` with gitignore - rejected because it doesn't solve lint/CI conflicts and creates path management complexity.
+
+---
 
 ### DEC-051 | 2026-01-09 | Python 3.11 Canonical for CI (3.12 Local Support)
 

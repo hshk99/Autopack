@@ -250,15 +250,13 @@ class TestTelemetryBridgeIntegration:
 
     def test_bridge_converts_and_persists_issues(self):
         """Test that bridge converts ranked issues and persists them."""
-        from src.autopack.telemetry.telemetry_to_memory_bridge import (
-            TelemetryToMemoryBridge,
-        )
+        from src.autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
 
         mock_memory = Mock(spec=MemoryService)
         mock_memory.enabled = True
         mock_memory.write_telemetry_insight = Mock(return_value="insight-001")
 
-        bridge = TelemetryToMemoryBridge(mock_memory, enabled=True)
+        bridge = TelemetryToMemoryBridge(mock_memory)
 
         ranked_issues = [
             {
@@ -281,15 +279,13 @@ class TestTelemetryBridgeIntegration:
 
     def test_bridge_deduplication_across_runs(self):
         """Test that bridge deduplicates insights within session."""
-        from src.autopack.telemetry.telemetry_to_memory_bridge import (
-            TelemetryToMemoryBridge,
-        )
+        from src.autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
 
         mock_memory = Mock(spec=MemoryService)
         mock_memory.enabled = True
         mock_memory.write_telemetry_insight = Mock(return_value="insight-001")
 
-        bridge = TelemetryToMemoryBridge(mock_memory, enabled=True)
+        bridge = TelemetryToMemoryBridge(mock_memory)
 
         ranked_issues = [
             {

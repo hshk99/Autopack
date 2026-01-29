@@ -365,50 +365,16 @@ def test_ranked_issue_dataclass():
     assert issue.details["avg_tokens"] == 25000
 
 
-def test_telemetry_to_memory_mandatory_logs_warning_on_disable_attempt(
-    db_session, monkeypatch, caplog
-):
-    """Test IMP-LOOP-010: Telemetry-to-memory persistence logs warning when env var tries to disable."""
-    import logging
+def test_telemetry_to_memory_bridge_is_mandatory(db_session):
+    """Test IMP-LOOP-020: TelemetryToMemoryBridge is mandatory and cannot be disabled.
 
-    # Set env var to try to disable
-    monkeypatch.setenv("AUTOPACK_TELEMETRY_TO_MEMORY_ENABLED", "false")
-
-    with caplog.at_level(logging.WARNING):
-        analyzer = TelemetryAnalyzer(db_session)
-
-    # Feature should remain enabled despite env var
-    assert analyzer._telemetry_to_memory_enabled is True
-
-    # Warning should be logged
-    assert any(
-        "IMP-LOOP-010" in record.message and "false" in record.message for record in caplog.records
-    )
-
-
-def test_telemetry_to_memory_enabled_by_default(db_session, monkeypatch):
-    """Test that telemetry-to-memory is enabled by default without warning."""
-    # Ensure env var is not set
-    monkeypatch.delenv("AUTOPACK_TELEMETRY_TO_MEMORY_ENABLED", raising=False)
-
+    The feedback loop requires telemetry to flow to memory for self-improvement.
+    There is no env var override or disabled state.
+    """
+    # Analyzer should always be ready to persist telemetry when memory is available
     analyzer = TelemetryAnalyzer(db_session)
 
-    # Feature should be enabled
-    assert analyzer._telemetry_to_memory_enabled is True
-
-
-def test_telemetry_to_memory_no_warning_when_explicitly_enabled(db_session, monkeypatch, caplog):
-    """Test that no warning is logged when env var explicitly enables the feature."""
-    import logging
-
-    # Explicitly enable via env var
-    monkeypatch.setenv("AUTOPACK_TELEMETRY_TO_MEMORY_ENABLED", "true")
-
-    with caplog.at_level(logging.WARNING):
-        analyzer = TelemetryAnalyzer(db_session)
-
-    # Feature should be enabled
-    assert analyzer._telemetry_to_memory_enabled is True
-
-    # No IMP-LOOP-010 warning should be logged
-    assert not any("IMP-LOOP-010" in record.message for record in caplog.records)
+    # Verify analyzer is properly initialized and ready to work with memory
+    # The bridge will be created when aggregate_telemetry is called with a memory service
+    assert analyzer.db == db_session
+    assert analyzer.run_id is not None

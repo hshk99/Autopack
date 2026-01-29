@@ -306,28 +306,55 @@ class FeedbackPipeline:
                         metadata={"insights_persisted": self._stats["insights_persisted"]},
                     )
 
-            # 3. Record learning hint if failure
-            if not outcome.success and self.learning_pipeline:
-                try:
-                    hint_type = self._determine_hint_type(outcome)
-                    self.learning_pipeline.record_hint(
-                        phase={"phase_id": outcome.phase_id, "phase_type": outcome.phase_type},
-                        hint_type=hint_type,
-                        details=outcome.error_message or outcome.status,
-                    )
-                    result["hints_recorded"] += 1
-                    self._stats["learning_hints_recorded"] += 1
+            # 3. Record learning hint if failure, or success pattern if success
+            if self.learning_pipeline:
+                if not outcome.success:
+                    # Record failure hint
+                    try:
+                        hint_type = self._determine_hint_type(outcome)
+                        self.learning_pipeline.record_hint(
+                            phase={
+                                "phase_id": outcome.phase_id,
+                                "phase_type": outcome.phase_type,
+                            },
+                            hint_type=hint_type,
+                            details=outcome.error_message or outcome.status,
+                        )
+                        result["hints_recorded"] += 1
+                        self._stats["learning_hints_recorded"] += 1
 
-                    # IMP-LOOP-015: Track hint occurrences and promote to rules
-                    # IMP-LOOP-020: Persist after each increment for cross-run learning
-                    hint_key = self._get_hint_promotion_key(hint_type, outcome)
-                    self._hint_occurrences[hint_key] = self._hint_occurrences.get(hint_key, 0) + 1
-                    self._save_hint_occurrences()
+                        # IMP-LOOP-015: Track hint occurrences and promote to rules
+                        # IMP-LOOP-020: Persist after each increment for cross-run learning
+                        hint_key = self._get_hint_promotion_key(hint_type, outcome)
+                        self._hint_occurrences[hint_key] = (
+                            self._hint_occurrences.get(hint_key, 0) + 1
+                        )
+                        self._save_hint_occurrences()
 
-                    if self._hint_occurrences[hint_key] >= self._hint_promotion_threshold:
-                        self._promote_hint_to_rule(hint_type, hint_key, outcome)
-                except Exception as e:
-                    logger.warning(f"[IMP-LOOP-001] Failed to record learning hint: {e}")
+                        if self._hint_occurrences[hint_key] >= self._hint_promotion_threshold:
+                            self._promote_hint_to_rule(hint_type, hint_key, outcome)
+                    except Exception as e:
+                        logger.warning(f"[IMP-LOOP-001] Failed to record learning hint: {e}")
+                else:
+                    # IMP-LOOP-027: Record success pattern for positive reinforcement
+                    try:
+                        self.learning_pipeline.record_success_pattern(
+                            phase={
+                                "phase_id": outcome.phase_id,
+                                "phase_type": outcome.phase_type,
+                                "task_category": getattr(outcome, "task_category", None),
+                            },
+                            action_taken=outcome.status or "Phase completed successfully",
+                            context_summary=self._build_success_context_summary(outcome),
+                        )
+                        self._stats["success_patterns_recorded"] = (
+                            self._stats.get("success_patterns_recorded", 0) + 1
+                        )
+                        logger.debug(
+                            f"[IMP-LOOP-027] Recorded success pattern for {outcome.phase_id}"
+                        )
+                    except Exception as e:
+                        logger.warning(f"[IMP-LOOP-027] Failed to record success pattern: {e}")
 
             # Mark as processed
             self._processed_outcomes.add(outcome_key)
@@ -1108,6 +1135,43 @@ class FeedbackPipeline:
             return "builder_guardrail"
 
         return "ci_fail"  # Default to CI fail for unknown failures
+
+    def _build_success_context_summary(self, outcome: PhaseOutcome) -> str:
+        """Build a context summary from a successful outcome.
+
+        IMP-LOOP-027: Creates a summary of the context that led to success,
+        for use in positive reinforcement learning.
+
+        Args:
+            outcome: PhaseOutcome to summarize
+
+        Returns:
+            Context summary string
+        """
+        parts = []
+
+        # Add phase type info
+        if outcome.phase_type:
+            parts.append(f"Phase type: {outcome.phase_type}")
+
+        # Add execution time if available
+        if outcome.execution_time_seconds:
+            parts.append(f"Execution time: {outcome.execution_time_seconds:.1f}s")
+
+        # Add tokens used if available
+        if outcome.tokens_used:
+            parts.append(f"Tokens used: {outcome.tokens_used}")
+
+        # Add learnings if available
+        if outcome.learnings:
+            learnings_str = "; ".join(outcome.learnings[:3])  # Limit to 3 learnings
+            parts.append(f"Key learnings: {learnings_str}")
+
+        # Add status if it provides useful context
+        if outcome.status and outcome.status not in ["success", "completed", "done"]:
+            parts.append(f"Status: {outcome.status}")
+
+        return " | ".join(parts) if parts else "Phase completed successfully"
 
     def _generate_suggested_action(self, outcome: PhaseOutcome) -> str:
         """Generate a suggested action from an outcome.

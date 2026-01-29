@@ -659,39 +659,13 @@ class AutonomousExecutor:
         self.api_server_lifecycle = APIServerLifecycle(self)
         logger.info("[PR-EXE-12] Large helper modules initialized")
 
-        # BUILD-127 Phase 1: Capture T0 test baseline (for regression detection)
-        try:
-            import subprocess
-
-            commit_sha_result = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                cwd=self.workspace,
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            if commit_sha_result.returncode == 0:
-                commit_sha = commit_sha_result.stdout.strip()
-                logger.info(f"[BUILD-127] Capturing T0 baseline at commit {commit_sha[:8]}...")
-                self.t0_baseline = self.baseline_tracker.capture_baseline(
-                    run_id=self.run_id,
-                    commit_sha=commit_sha,
-                    timeout=180,  # 3 minutes for baseline capture
-                )
-                logger.info(
-                    f"[BUILD-127] T0 baseline: {self.t0_baseline.total_tests} tests, "
-                    f"{self.t0_baseline.passing_tests} passing, "
-                    f"{self.t0_baseline.failing_tests} failing, "
-                    f"{self.t0_baseline.error_tests} errors"
-                )
-            else:
-                logger.warning(
-                    "[BUILD-127] Could not get git commit SHA - baseline tracking disabled"
-                )
-                self.t0_baseline = None
-        except Exception as e:
-            logger.warning(f"[BUILD-127] T0 baseline capture failed (non-blocking): {e}")
-            self.t0_baseline = None
+        # IMP-PERF-001: Move T0 baseline capture to background thread
+        # Previously blocked for ~180 seconds at startup, delaying all phase execution
+        self._t0_baseline = None
+        self._t0_baseline_lock = threading.Lock()
+        self._t0_baseline_ready = threading.Event()
+        self._t0_baseline_thread = None
+        self._start_background_baseline_capture()
 
         # PR-EXE-13: Initialize final helper modules - reach 5,000 lines!
         self.scope_context_validator = ScopeContextValidator(self)
@@ -705,6 +679,99 @@ class AutonomousExecutor:
         logger.info(
             "[PR-EXE-14] Batched deliverables executor initialized - exceeding 5,000 line target!"
         )
+
+    # =========================================================================
+    # IMP-PERF-001: BACKGROUND T0 BASELINE CAPTURE
+    # =========================================================================
+
+    def _start_background_baseline_capture(self) -> None:
+        """Start T0 baseline capture in a background thread.
+
+        IMP-PERF-001: Moves 180-second blocking baseline capture to background,
+        eliminating startup delay. Baseline is available via get_t0_baseline().
+        """
+        import subprocess
+
+        def capture_baseline_task():
+            try:
+                commit_sha_result = subprocess.run(
+                    ["git", "rev-parse", "HEAD"],
+                    cwd=self.workspace,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                if commit_sha_result.returncode == 0:
+                    commit_sha = commit_sha_result.stdout.strip()
+                    logger.info(
+                        f"[BUILD-127] Background: Capturing T0 baseline at commit {commit_sha[:8]}..."
+                    )
+                    baseline = self.baseline_tracker.capture_baseline(
+                        run_id=self.run_id,
+                        commit_sha=commit_sha,
+                        timeout=180,  # 3 minutes for baseline capture
+                    )
+                    with self._t0_baseline_lock:
+                        self._t0_baseline = baseline
+                    logger.info(
+                        f"[BUILD-127] Background: T0 baseline ready - {baseline.total_tests} tests, "
+                        f"{baseline.passing_tests} passing, "
+                        f"{baseline.failing_tests} failing, "
+                        f"{baseline.error_tests} errors"
+                    )
+                else:
+                    logger.warning(
+                        "[BUILD-127] Background: Could not get git commit SHA - baseline tracking disabled"
+                    )
+            except Exception as e:
+                logger.warning(f"[BUILD-127] Background: T0 baseline capture failed: {e}")
+            finally:
+                self._t0_baseline_ready.set()
+
+        self._t0_baseline_thread = threading.Thread(
+            target=capture_baseline_task,
+            name="T0BaselineCapture",
+            daemon=True,
+        )
+        self._t0_baseline_thread.start()
+        logger.info("[IMP-PERF-001] T0 baseline capture started in background thread")
+
+    def get_t0_baseline(self, timeout: Optional[float] = None):
+        """Get the T0 baseline, waiting for background capture if necessary.
+
+        IMP-PERF-001: Provides lazy-load access to T0 baseline. If the background
+        capture is still running, this will wait up to `timeout` seconds.
+
+        Args:
+            timeout: Maximum seconds to wait for baseline. None = wait indefinitely.
+                     0 = return immediately (no wait).
+
+        Returns:
+            TestBaseline object if available, None if not ready or capture failed.
+        """
+        if timeout == 0:
+            # Non-blocking check
+            if self._t0_baseline_ready.is_set():
+                with self._t0_baseline_lock:
+                    return self._t0_baseline
+            return None
+
+        # Wait for baseline to be ready
+        if self._t0_baseline_ready.wait(timeout=timeout):
+            with self._t0_baseline_lock:
+                return self._t0_baseline
+        else:
+            logger.warning(f"[IMP-PERF-001] T0 baseline not ready after {timeout}s timeout")
+            return None
+
+    @property
+    def t0_baseline(self):
+        """Property for backward compatibility - waits for baseline if needed.
+
+        IMP-PERF-001: Maintains backward compatibility with code that accesses
+        self.t0_baseline directly. Waits up to 60 seconds for baseline.
+        """
+        return self.get_t0_baseline(timeout=60)
 
     # =========================================================================
     # BACKLOG MAINTENANCE (propose-first apply with auditor gating)

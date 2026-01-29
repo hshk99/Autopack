@@ -2,28 +2,25 @@
 
 Tests the NotificationChain implementation with Telegram -> Email -> SMS fallback.
 Ensures resilience against single point of failure in approval notifications.
+
+Also includes IMP-REL-012 tests for Telegram retry logic with exponential backoff.
 """
 
 from __future__ import annotations
 
-from unittest.mock import patch
+import urllib.error
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from autopack.approvals.notification_chain import (
-    EmailChannel,
-    NotificationChain,
-    NotificationChannel,
-    SMSChannel,
-    TelegramChannel,
-    create_notification_chain,
-)
-from autopack.approvals.service import (
-    ApprovalRequest,
-    ApprovalResult,
-    ApprovalTriggerReason,
-    ChainedApprovalService,
-)
+from autopack.approvals.notification_chain import (EmailChannel,
+                                                   NotificationChain,
+                                                   NotificationChannel,
+                                                   SMSChannel, TelegramChannel,
+                                                   create_notification_chain)
+from autopack.approvals.service import (ApprovalRequest, ApprovalResult,
+                                        ApprovalTriggerReason,
+                                        ChainedApprovalService)
 
 
 @pytest.fixture
@@ -412,10 +409,171 @@ class TestGetApprovalServiceWithChain:
                 "TELEGRAM_CHAT_ID": "12345",
             },
         ):
-            from autopack.approvals.service import (
-                NoopApprovalService,
-                get_approval_service,
-            )
+            from autopack.approvals.service import (NoopApprovalService,
+                                                    get_approval_service)
 
             service = get_approval_service()
             assert isinstance(service, NoopApprovalService)
+
+
+class TestTelegramChannelRetry:
+    """Tests for IMP-REL-012: Telegram retry logic with exponential backoff."""
+
+    def test_retry_on_url_error(self, sample_request):
+        """Should retry on URLError and succeed after recovery."""
+        channel = TelegramChannel(bot_token="test-token", chat_id="12345")
+
+        # Create a mock that fails twice then succeeds
+        call_count = 0
+
+        def mock_urlopen(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise urllib.error.URLError("Network unreachable")
+            # Return successful response on third try
+            mock_response = MagicMock()
+            mock_response.read.return_value = b'{"ok": true}'
+            mock_response.__enter__ = MagicMock(return_value=mock_response)
+            mock_response.__exit__ = MagicMock(return_value=False)
+            return mock_response
+
+        with patch("urllib.request.urlopen", side_effect=mock_urlopen):
+            result = channel.send(sample_request)
+
+        assert result.success is True
+        assert call_count == 3  # Two failures + one success
+
+    def test_retry_on_timeout_error(self, sample_request):
+        """Should retry on TimeoutError and succeed after recovery."""
+        channel = TelegramChannel(bot_token="test-token", chat_id="12345")
+
+        call_count = 0
+
+        def mock_urlopen(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise TimeoutError("Connection timed out")
+            mock_response = MagicMock()
+            mock_response.read.return_value = b'{"ok": true}'
+            mock_response.__enter__ = MagicMock(return_value=mock_response)
+            mock_response.__exit__ = MagicMock(return_value=False)
+            return mock_response
+
+        with patch("urllib.request.urlopen", side_effect=mock_urlopen):
+            result = channel.send(sample_request)
+
+        assert result.success is True
+        assert call_count == 2  # One failure + one success
+
+    def test_retry_exhausted_returns_failure(self, sample_request):
+        """Should return failure after all retries are exhausted."""
+        channel = TelegramChannel(bot_token="test-token", chat_id="12345")
+
+        call_count = 0
+
+        def mock_urlopen(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            raise urllib.error.URLError("Network unreachable")
+
+        with patch("urllib.request.urlopen", side_effect=mock_urlopen):
+            result = channel.send(sample_request)
+
+        assert result.success is False
+        assert result.error_reason == "telegram_exception"
+        assert call_count == 3  # All 3 attempts made
+
+    def test_no_retry_on_api_error(self, sample_request):
+        """Should not retry on non-network API errors."""
+        channel = TelegramChannel(bot_token="test-token", chat_id="12345")
+
+        call_count = 0
+
+        def mock_urlopen(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            mock_response = MagicMock()
+            mock_response.read.return_value = b'{"ok": false, "error": "Bad Request"}'
+            mock_response.__enter__ = MagicMock(return_value=mock_response)
+            mock_response.__exit__ = MagicMock(return_value=False)
+            return mock_response
+
+        with patch("urllib.request.urlopen", side_effect=mock_urlopen):
+            result = channel.send(sample_request)
+
+        assert result.success is False
+        assert result.error_reason == "telegram_api_error"
+        assert call_count == 1  # No retries on API error
+
+    def test_retry_on_os_error(self, sample_request):
+        """Should retry on OSError (e.g., connection reset)."""
+        channel = TelegramChannel(bot_token="test-token", chat_id="12345")
+
+        call_count = 0
+
+        def mock_urlopen(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise OSError("Connection reset by peer")
+            mock_response = MagicMock()
+            mock_response.read.return_value = b'{"ok": true}'
+            mock_response.__enter__ = MagicMock(return_value=mock_response)
+            mock_response.__exit__ = MagicMock(return_value=False)
+            return mock_response
+
+        with patch("urllib.request.urlopen", side_effect=mock_urlopen):
+            result = channel.send(sample_request)
+
+        assert result.success is True
+        assert call_count == 2
+
+
+class TestTelegramApprovalServiceRetry:
+    """Tests for IMP-REL-012: TelegramApprovalService retry logic."""
+
+    def test_retry_on_network_failure(self, sample_request):
+        """Should retry on network failure and succeed after recovery."""
+        from autopack.approvals.telegram import TelegramApprovalService
+
+        service = TelegramApprovalService(bot_token="test-token", chat_id="12345")
+
+        call_count = 0
+
+        def mock_urlopen(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise urllib.error.URLError("Network unreachable")
+            mock_response = MagicMock()
+            mock_response.read.return_value = b'{"ok": true}'
+            mock_response.__enter__ = MagicMock(return_value=mock_response)
+            mock_response.__exit__ = MagicMock(return_value=False)
+            return mock_response
+
+        with patch("urllib.request.urlopen", side_effect=mock_urlopen):
+            result = service.request_approval(sample_request)
+
+        assert result.success is True
+        assert call_count == 3
+
+    def test_retry_exhausted_returns_failure(self, sample_request):
+        """Should return failure after all retries are exhausted."""
+        from autopack.approvals.telegram import TelegramApprovalService
+
+        service = TelegramApprovalService(bot_token="test-token", chat_id="12345")
+
+        call_count = 0
+
+        def mock_urlopen(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            raise urllib.error.URLError("Network unreachable")
+
+        with patch("urllib.request.urlopen", side_effect=mock_urlopen):
+            result = service.request_approval(sample_request)
+
+        assert result.success is False
+        assert call_count == 3  # All 3 attempts made

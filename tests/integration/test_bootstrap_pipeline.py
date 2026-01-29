@@ -4,8 +4,6 @@ Tests the full bootstrap pipeline from idea to READY_FOR_BUILD marker.
 """
 
 import json
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -16,8 +14,8 @@ from autopack.cli.commands.bootstrap import (
 )
 from autopack.intention_anchor.v2 import IntentionAnchorV2
 from autopack.research.anchor_mapper import ResearchToAnchorMapper
-from autopack.research.idea_parser import IdeaParser, ParsedIdea, ProjectType, RiskProfile
-from autopack.research.models.bootstrap_session import BootstrapPhase, BootstrapSession
+from autopack.research.idea_parser import IdeaParser, ProjectType, RiskProfile
+from autopack.research.models.bootstrap_session import BootstrapPhase
 from autopack.research.orchestrator import ResearchOrchestrator
 from autopack.research.qa_controller import AnswerSource, QAController
 

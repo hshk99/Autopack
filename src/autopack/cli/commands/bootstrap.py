@@ -25,7 +25,7 @@ import click
 
 from autopack.intention_anchor.v2 import IntentionAnchorV2
 from autopack.research.anchor_mapper import ResearchToAnchorMapper
-from autopack.research.idea_parser import IdeaParser, ParsedIdea, ProjectType
+from autopack.research.idea_parser import IdeaParser, ParsedIdea
 from autopack.research.models.bootstrap_session import BootstrapSession
 from autopack.research.orchestrator import ResearchOrchestrator
 from autopack.research.qa_controller import AnswerSource, QAController
@@ -104,7 +104,6 @@ class BootstrapRunner:
         """
         logger.info("[Bootstrap] Starting bootstrap pipeline")
 
-        errors: list[str] = []
         warnings: list[str] = []
 
         # Step 1: Get idea text

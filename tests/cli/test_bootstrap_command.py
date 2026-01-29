@@ -1,7 +1,6 @@
 """Tests for bootstrap CLI command (IMP-RES-007)."""
 
 import json
-from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
@@ -12,7 +11,7 @@ from autopack.cli.commands.bootstrap import (
     BootstrapRunner,
     bootstrap_group,
 )
-from autopack.research.idea_parser import ParsedIdea, ProjectType, RiskProfile
+from autopack.research.idea_parser import ProjectType, RiskProfile
 
 
 @pytest.fixture

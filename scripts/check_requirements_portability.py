@@ -68,8 +68,8 @@ def check_python_magic_marker(lines: List[str], filename: str) -> List[str]:
         if line.strip().startswith("#") or not line.strip():
             continue
 
-        # Check for python-magic with non-win32 marker
-        if re.match(r"^python-magic==", line):
+        # Check for python-magic with non-win32 marker (any version specifier)
+        if re.match(r"^python-magic[><=~!]", line):
             if re.search(r"""sys_platform\s*!=\s*["']win32["']""", line):
                 has_python_magic_non_win = True
                 break

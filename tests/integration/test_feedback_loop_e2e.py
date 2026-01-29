@@ -14,14 +14,11 @@ import threading
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from autopack.feedback_pipeline import (FeedbackPipeline, PhaseContext,
-                                        PhaseOutcome)
-from autopack.telemetry.telemetry_to_memory_bridge import \
-    TelemetryToMemoryBridge
+from autopack.feedback_pipeline import FeedbackPipeline, PhaseContext, PhaseOutcome
+from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
 
 # =============================================================================
 # Test Fixtures
@@ -372,7 +369,7 @@ class TestFullFeedbackLoopCycle:
         feedback_pipeline.process_phase_outcome(outcome)
 
         # Retrieve context and verify errors are available
-        context = feedback_pipeline.get_context_for_phase(
+        feedback_pipeline.get_context_for_phase(
             phase_type="test",
             phase_goal="Fix failing test",
             include_errors=True,
@@ -441,7 +438,7 @@ class TestFullFeedbackLoopCycle:
         )
         pipeline2.stop_auto_flush()
 
-        context = pipeline2.get_context_for_phase(
+        pipeline2.get_context_for_phase(
             phase_type="build",
             phase_goal="Build the project",
         )
@@ -724,7 +721,7 @@ class TestMemoryToContextRetrieval:
             }
         )
 
-        context = feedback_pipeline.get_context_for_phase(
+        feedback_pipeline.get_context_for_phase(
             phase_type="build",
             phase_goal="Build the project",
             include_errors=True,
@@ -746,7 +743,7 @@ class TestMemoryToContextRetrieval:
             }
         )
 
-        context = feedback_pipeline.get_context_for_phase(
+        feedback_pipeline.get_context_for_phase(
             phase_type="build",
             phase_goal="Build the project",
             include_success_patterns=True,
@@ -843,7 +840,7 @@ class TestContextAffectsPlanning:
         feedback_pipeline.process_phase_outcome(failure_outcome)
 
         # Get context for new phase
-        context = feedback_pipeline.get_context_for_phase(
+        feedback_pipeline.get_context_for_phase(
             phase_type="build",
             phase_goal="Build the project",
             include_errors=True,
@@ -867,7 +864,7 @@ class TestContextAffectsPlanning:
         feedback_pipeline.process_phase_outcome(success_outcome)
 
         # Get context for new phase
-        context = feedback_pipeline.get_context_for_phase(
+        feedback_pipeline.get_context_for_phase(
             phase_type="test",
             phase_goal="Run tests",
             include_success_patterns=True,
@@ -925,7 +922,7 @@ class TestContextAffectsPlanning:
         feedback_pipeline.process_phase_outcome(failure_outcome)
 
         # Get hints for phase
-        hints = feedback_pipeline.get_learning_hints_for_context(
+        feedback_pipeline.get_learning_hints_for_context(
             phase={"phase_id": "new_phase", "phase_type": "build"},
         )
 

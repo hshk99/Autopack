@@ -796,9 +796,7 @@ class TestComputeExecutionPlan:
 class TestSessionPenalties:
     """Tests for session-local penalties (IMP-LOOP-021)."""
 
-    def test_update_from_effectiveness_failure(
-        self, priority_engine: PriorityEngine
-    ) -> None:
+    def test_update_from_effectiveness_failure(self, priority_engine: PriorityEngine) -> None:
         """Test that failures add session penalties."""
         priority_engine.update_from_effectiveness(
             task_id="IMP-TEST-001",
@@ -830,9 +828,7 @@ class TestSessionPenalties:
         penalty = priority_engine.get_session_penalty("IMP-TEST-001")
         assert penalty == pytest.approx(0.3)  # 0.1 + 0.2 (capped by min in implementation)
 
-    def test_update_from_effectiveness_penalty_cap(
-        self, priority_engine: PriorityEngine
-    ) -> None:
+    def test_update_from_effectiveness_penalty_cap(self, priority_engine: PriorityEngine) -> None:
         """Test that penalties are capped at 0.5."""
         # Multiple failures with high failure_count
         for i in range(10):
@@ -894,9 +890,7 @@ class TestSessionPenalties:
         cat_penalty = priority_engine._session_penalties.get("_category:telemetry", 0.0)
         assert cat_penalty > 0.0
 
-    def test_get_session_penalty_with_category(
-        self, priority_engine: PriorityEngine
-    ) -> None:
+    def test_get_session_penalty_with_category(self, priority_engine: PriorityEngine) -> None:
         """Test combined task and category penalty."""
         priority_engine.update_from_effectiveness(
             task_id="IMP-TEST-001",
@@ -929,9 +923,7 @@ class TestSessionPenalties:
 
         assert len(priority_engine._session_penalties) == 0
 
-    def test_session_penalty_affects_priority_score(
-        self, priority_engine: PriorityEngine
-    ) -> None:
+    def test_session_penalty_affects_priority_score(self, priority_engine: PriorityEngine) -> None:
         """Test that session penalty reduces priority score."""
         imp = {"imp_id": "IMP-TEST-001", "title": "Test task", "priority": "high"}
 
@@ -967,9 +959,7 @@ class TestSessionPenalties:
         score = priority_engine.calculate_priority_score(imp)
         assert score >= 0.0
 
-    def test_update_from_effectiveness_none_metrics(
-        self, priority_engine: PriorityEngine
-    ) -> None:
+    def test_update_from_effectiveness_none_metrics(self, priority_engine: PriorityEngine) -> None:
         """Test update_from_effectiveness with None metrics."""
         # Should not raise
         priority_engine.update_from_effectiveness(

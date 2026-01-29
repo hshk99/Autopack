@@ -4,18 +4,22 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from autopack.telemetry.meta_metrics import (ComponentStatus,
-                                             FeedbackLoopHealth,
-                                             FeedbackLoopLatency,
-                                             LoopCompletenessMetric,
-                                             LoopCompletenessSnapshot,
-                                             LoopFidelityMetric,
-                                             LoopLatencyMetric,
-                                             MetaMetricsTracker, MetricTrend,
-                                             PipelineLatencyTracker,
-                                             PipelineSLAConfig, PipelineStage,
-                                             PipelineStageTimestamp,
-                                             SLABreachAlert)
+from autopack.telemetry.meta_metrics import (
+    ComponentStatus,
+    FeedbackLoopHealth,
+    FeedbackLoopLatency,
+    LoopCompletenessMetric,
+    LoopCompletenessSnapshot,
+    LoopFidelityMetric,
+    LoopLatencyMetric,
+    MetaMetricsTracker,
+    MetricTrend,
+    PipelineLatencyTracker,
+    PipelineSLAConfig,
+    PipelineStage,
+    PipelineStageTimestamp,
+    SLABreachAlert,
+)
 
 
 @pytest.fixture
@@ -1232,7 +1236,6 @@ class TestLoopCompletenessMetric:
     @pytest.fixture
     def metric(self):
         """Create a LoopCompletenessMetric instance."""
-        from autopack.telemetry.meta_metrics import LoopCompletenessMetric
 
         return LoopCompletenessMetric()
 
@@ -1472,8 +1475,6 @@ class TestLoopCompletenessMetric:
 
     def test_get_trend_improving(self):
         """Test get_trend detects improving trend."""
-        from autopack.telemetry.meta_metrics import (LoopCompletenessMetric,
-                                                     LoopCompletenessSnapshot)
 
         metric = LoopCompletenessMetric()
         # Manually add snapshots with improving scores
@@ -1492,8 +1493,6 @@ class TestLoopCompletenessMetric:
 
     def test_get_trend_degrading(self):
         """Test get_trend detects degrading trend."""
-        from autopack.telemetry.meta_metrics import (LoopCompletenessMetric,
-                                                     LoopCompletenessSnapshot)
 
         metric = LoopCompletenessMetric()
         # Manually add snapshots with degrading scores
@@ -1512,8 +1511,6 @@ class TestLoopCompletenessMetric:
 
     def test_get_trend_stable(self):
         """Test get_trend detects stable trend."""
-        from autopack.telemetry.meta_metrics import (LoopCompletenessMetric,
-                                                     LoopCompletenessSnapshot)
 
         metric = LoopCompletenessMetric()
         # Manually add snapshots with stable scores
@@ -1607,7 +1604,6 @@ class TestLoopCompletenessSnapshot:
 
     def test_snapshot_creation(self):
         """Test LoopCompletenessSnapshot instantiation."""
-        from autopack.telemetry.meta_metrics import LoopCompletenessSnapshot
 
         snapshot = LoopCompletenessSnapshot(
             total_insights=10,
@@ -1625,7 +1621,6 @@ class TestLoopCompletenessSnapshot:
 
     def test_snapshot_to_dict(self):
         """Test LoopCompletenessSnapshot serialization."""
-        from autopack.telemetry.meta_metrics import LoopCompletenessSnapshot
 
         snapshot = LoopCompletenessSnapshot(
             total_insights=10,
@@ -1651,7 +1646,6 @@ class TestLoopLatencyMetric:
     @pytest.fixture
     def metric(self):
         """Create a LoopLatencyMetric instance."""
-        from autopack.telemetry.meta_metrics import LoopLatencyMetric
 
         return LoopLatencyMetric()
 
@@ -1690,7 +1684,7 @@ class TestLoopLatencyMetric:
         metric.record_task_completed("task-001")
 
         assert "task-001" in metric._completion_timestamps
-        latencies = [l for l in metric._latencies if l["type"] == "task_to_completion"]
+        latencies = [lat for lat in metric._latencies if lat["type"] == "task_to_completion"]
         assert len(latencies) == 1
         assert latencies[0]["latency_ms"] > 0
 
@@ -1737,7 +1731,6 @@ class TestLoopFidelityMetric:
     @pytest.fixture
     def metric(self):
         """Create a LoopFidelityMetric instance."""
-        from autopack.telemetry.meta_metrics import LoopFidelityMetric
 
         return LoopFidelityMetric()
 

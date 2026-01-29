@@ -65,9 +65,7 @@ class TestRuleLifecycleTracking:
                     "phase_id": "phase_1",
                 }
 
-                memory_service.write_telemetry_insight(
-                    rule_insight, project_id="test_project"
-                )
+                memory_service.write_telemetry_insight(rule_insight, project_id="test_project")
 
                 # Verify upsert was called
                 assert memory_service.store.upsert.called

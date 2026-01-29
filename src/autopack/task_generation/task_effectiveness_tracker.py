@@ -852,9 +852,7 @@ class TaskEffectivenessTracker:
                 category,
             )
         else:
-            logger.debug(
-                "[IMP-LOOP-021] No priority engine connected, skipping real-time feedback"
-            )
+            logger.debug("[IMP-LOOP-021] No priority engine connected, skipping real-time feedback")
 
         # Also record execution status for verification tracking
         self.record_execution(task_id, success)

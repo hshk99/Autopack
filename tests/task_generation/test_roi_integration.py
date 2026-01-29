@@ -11,8 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from autopack.task_generation.priority_engine import PriorityEngine
-from autopack.task_generation.roi_analyzer import (PaybackAnalysis,
-                                                   ROIAnalyzer)
+from autopack.task_generation.roi_analyzer import PaybackAnalysis, ROIAnalyzer
 
 
 @pytest.fixture

@@ -6,9 +6,11 @@ added to MetaMetricsTracker.
 
 import pytest
 
-from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
-                                             FeedbackLoopHealthReport,
-                                             MetaMetricsTracker)
+from autopack.telemetry.meta_metrics import (
+    FeedbackLoopHealth,
+    FeedbackLoopHealthReport,
+    MetaMetricsTracker,
+)
 
 
 @pytest.fixture

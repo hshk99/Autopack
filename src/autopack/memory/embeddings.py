@@ -7,13 +7,17 @@ Provides:
 - sync_embed_text: Synchronous embedding (OpenAI or local)
 - async_embed_text: Async wrapper via asyncio.to_thread
 - Local deterministic embedding (SHA256-based) when OpenAI unavailable
+
+IMP-PERF-005: Caching added to prevent redundant embedding API calls.
 """
 
 import asyncio
+import functools
 import hashlib
 import logging
 import os
-from typing import List, Optional
+import threading
+from typing import List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -23,6 +27,14 @@ logger = logging.getLogger(__name__)
 # Safe character limit as heuristic to avoid errors.
 MAX_EMBEDDING_CHARS = 30000
 EMBEDDING_SIZE = 1536
+
+# IMP-PERF-005: Embedding cache to prevent redundant API calls
+# Cache stores (text_hash, model) -> embedding_result
+_EMBEDDING_CACHE_MAXSIZE = 1000
+_embedding_cache: dict[str, Tuple[float, ...]] = {}
+_embedding_cache_lock = threading.Lock()
+_embedding_cache_hits = 0
+_embedding_cache_misses = 0
 
 # Check for OpenAI availability
 _USE_OPENAI = False
@@ -48,6 +60,80 @@ except ImportError:
 def semantic_embeddings_enabled() -> bool:
     """True when embeddings are backed by OpenAI (semantically meaningful)."""
     return bool(_USE_OPENAI and _openai_client)
+
+
+def _get_cache_key(text: str, model: str) -> str:
+    """Generate a cache key from text and model.
+
+    IMP-PERF-005: Uses SHA256 hash of text to keep cache keys manageable
+    while avoiding collisions for different texts.
+    """
+    text_hash = hashlib.sha256(text.encode("utf-8", errors="ignore")).hexdigest()
+    return f"{model}:{text_hash}"
+
+
+def _get_cached_embedding(cache_key: str) -> Optional[Tuple[float, ...]]:
+    """Get embedding from cache if it exists.
+
+    IMP-PERF-005: Thread-safe cache lookup.
+    """
+    global _embedding_cache_hits
+    with _embedding_cache_lock:
+        if cache_key in _embedding_cache:
+            _embedding_cache_hits += 1
+            return _embedding_cache[cache_key]
+    return None
+
+
+def _put_cached_embedding(cache_key: str, embedding: List[float]) -> None:
+    """Store embedding in cache with LRU-like eviction.
+
+    IMP-PERF-005: Thread-safe cache storage with size limit.
+    When cache is full, removes oldest entries (FIFO eviction).
+    """
+    global _embedding_cache_misses
+    with _embedding_cache_lock:
+        _embedding_cache_misses += 1
+
+        # Evict oldest entries if cache is full
+        if len(_embedding_cache) >= _EMBEDDING_CACHE_MAXSIZE:
+            # Remove oldest 10% of entries
+            to_remove = max(1, _EMBEDDING_CACHE_MAXSIZE // 10)
+            keys_to_remove = list(_embedding_cache.keys())[:to_remove]
+            for key in keys_to_remove:
+                del _embedding_cache[key]
+
+        # Store as tuple for immutability
+        _embedding_cache[cache_key] = tuple(embedding)
+
+
+def clear_embedding_cache() -> None:
+    """Clear the embedding cache.
+
+    IMP-PERF-005: Useful for testing and memory management.
+    """
+    global _embedding_cache_hits, _embedding_cache_misses
+    with _embedding_cache_lock:
+        _embedding_cache.clear()
+        _embedding_cache_hits = 0
+        _embedding_cache_misses = 0
+
+
+def get_embedding_cache_stats() -> dict:
+    """Get embedding cache statistics.
+
+    IMP-PERF-005: Returns cache hit rate and size for monitoring.
+    """
+    with _embedding_cache_lock:
+        total = _embedding_cache_hits + _embedding_cache_misses
+        hit_rate = _embedding_cache_hits / total if total > 0 else 0.0
+        return {
+            "size": len(_embedding_cache),
+            "maxsize": _EMBEDDING_CACHE_MAXSIZE,
+            "hits": _embedding_cache_hits,
+            "misses": _embedding_cache_misses,
+            "hit_rate": hit_rate,
+        }
 
 
 def _local_embed(text: str, size: int = EMBEDDING_SIZE) -> List[float]:
@@ -131,6 +217,10 @@ def sync_embed_text(
     """
     Synchronous wrapper for OpenAI embedding with input truncation.
 
+    IMP-PERF-005: Results are cached to prevent redundant embedding API calls.
+    Cache lookup is based on (text, model). Usage recording only occurs on
+    cache misses when an actual API call is made.
+
     Args:
         text: Text to embed
         model: OpenAI embedding model (default: text-embedding-3-small)
@@ -147,7 +237,17 @@ def sync_embed_text(
         )
         text = text[:MAX_EMBEDDING_CHARS]
 
+    # IMP-PERF-005: Check cache first
+    cache_key = _get_cache_key(text, model)
+    cached_result = _get_cached_embedding(cache_key)
+    if cached_result is not None:
+        logger.debug(f"Embedding cache hit for key {cache_key[:20]}...")
+        return list(cached_result)
+
+    # Cache miss - compute embedding
     preview = text[:50].replace("\n", " ")
+    result: List[float]
+
     if _USE_OPENAI and _openai_client:
         logger.debug(f"Calling OpenAI embedding for preview: '{preview}...'")
         try:
@@ -155,15 +255,20 @@ def sync_embed_text(
                 input=text,
                 model=model,
             )
-            # Record embedding usage if db session provided
+            # Record embedding usage if db session provided (only on API calls)
             _record_embedding_usage(response, model, db, run_id, phase_id)
-            return list(response.data[0].embedding)
+            result = list(response.data[0].embedding)
         except Exception as e:
             logger.warning(f"OpenAI embedding failed ({e}); falling back to local embedding.")
-            return _local_embed(text)
+            result = _local_embed(text)
     else:
         logger.debug(f"Using local offline embedding for preview: '{preview}...'")
-        return _local_embed(text)
+        result = _local_embed(text)
+
+    # IMP-PERF-005: Store in cache
+    _put_cached_embedding(cache_key, result)
+
+    return result
 
 
 def sync_embed_texts(

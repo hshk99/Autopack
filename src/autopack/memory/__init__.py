@@ -8,18 +8,12 @@
 # - goal_drift.py: Goal drift detection for pre-apply gating
 # - learning_db.py: Historical learning database for cross-cycle memory
 
-from .embeddings import (
-    EMBEDDING_SIZE,
-    MAX_EMBEDDING_CHARS,
-    async_embed_text,
-    sync_embed_text,
-)
+from .embeddings import (EMBEDDING_SIZE, MAX_EMBEDDING_CHARS, async_embed_text,
+                         clear_embedding_cache, get_embedding_cache_stats,
+                         sync_embed_text)
 from .faiss_store import FaissStore
-from .goal_drift import (
-    check_goal_drift,
-    extract_goal_from_description,
-    should_block_on_drift,
-)
+from .goal_drift import (check_goal_drift, extract_goal_from_description,
+                         should_block_on_drift)
 from .learning_db import LearningDatabase
 from .memory_service import MemoryService
 from .qdrant_store import QDRANT_AVAILABLE, QdrantStore
@@ -29,6 +23,8 @@ __all__ = [
     "async_embed_text",
     "EMBEDDING_SIZE",
     "MAX_EMBEDDING_CHARS",
+    "clear_embedding_cache",
+    "get_embedding_cache_stats",
     "FaissStore",
     "QdrantStore",
     "QDRANT_AVAILABLE",

@@ -2,13 +2,10 @@
 
 from unittest.mock import patch
 
-from autopack.context_budgeter import (
-    _lexical_score,
-    get_embedding_stats,
-    reset_embedding_cache,
-    select_files_for_context,
-    set_cache_persistence,
-)
+from autopack.context_budgeter import (_lexical_score, get_embedding_stats,
+                                       reset_embedding_cache,
+                                       select_files_for_context,
+                                       set_cache_persistence)
 
 
 class TestContextBudgeter:
@@ -267,3 +264,207 @@ class TestContextBudgeter:
         # Should fall back to lexical on API failure
         assert result.mode == "lexical"
         assert "src/a.py" in result.kept
+
+
+class TestCacheThreadSafety:
+    """Test suite for thread-safe cache operations.
+
+    These tests verify that the TOCTOU fix is working correctly by testing
+    concurrent cache operations don't cause race conditions.
+    """
+
+    def setup_method(self):
+        """Reset cache before each test."""
+        set_cache_persistence(True)
+        reset_embedding_cache()
+
+    def teardown_method(self):
+        """Cleanup after each test."""
+        set_cache_persistence(True)
+        reset_embedding_cache()
+
+    def test_concurrent_cache_clear_no_race(self):
+        """Test that concurrent cache clear operations don't cause race conditions.
+
+        This validates the TOCTOU fix: the lock is held across both check and clear.
+        """
+        import threading
+
+        from autopack import context_budgeter
+
+        # Disable persistence so clear actually clears the cache
+        set_cache_persistence(False)
+
+        # Manually populate cache to test clearing
+        with context_budgeter._CACHE_LOCK:
+            for i in range(100):
+                context_budgeter._EMBEDDING_CACHE[f"key_{i}"] = [0.1] * 1536
+
+        stats = get_embedding_stats()
+        assert stats["cache_size"] == 100
+
+        errors = []
+        clear_count = [0]
+
+        def clear_cache():
+            try:
+                for _ in range(10):
+                    reset_embedding_cache()
+                    clear_count[0] += 1
+            except Exception as e:
+                errors.append(e)
+
+        # Start multiple threads trying to clear cache concurrently
+        threads = [threading.Thread(target=clear_cache) for _ in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # No errors should occur
+        assert len(errors) == 0, f"Errors during concurrent clear: {errors}"
+        # Cache should be empty after all clears
+        stats = get_embedding_stats()
+        assert stats["cache_size"] == 0
+
+    def test_concurrent_read_clear_no_race(self):
+        """Test that concurrent read and clear operations don't cause race conditions."""
+        import threading
+
+        from autopack import context_budgeter
+
+        # Disable persistence so clear actually clears the cache
+        set_cache_persistence(False)
+
+        # Populate cache
+        with context_budgeter._CACHE_LOCK:
+            for i in range(50):
+                context_budgeter._EMBEDDING_CACHE[f"key_{i}"] = [0.1] * 1536
+
+        errors = []
+        read_results = []
+
+        def read_stats():
+            try:
+                for _ in range(20):
+                    stats = get_embedding_stats()
+                    read_results.append(stats["cache_size"])
+            except Exception as e:
+                errors.append(e)
+
+        def clear_cache():
+            try:
+                for _ in range(5):
+                    reset_embedding_cache()
+                    # Re-populate for more iterations
+                    with context_budgeter._CACHE_LOCK:
+                        for i in range(10):
+                            context_budgeter._EMBEDDING_CACHE[f"new_{i}"] = [0.2] * 1536
+            except Exception as e:
+                errors.append(e)
+
+        # Start reader and clearer threads
+        readers = [threading.Thread(target=read_stats) for _ in range(3)]
+        clearers = [threading.Thread(target=clear_cache) for _ in range(2)]
+
+        all_threads = readers + clearers
+        for t in all_threads:
+            t.start()
+        for t in all_threads:
+            t.join()
+
+        # No errors should occur
+        assert len(errors) == 0, f"Errors during concurrent read/clear: {errors}"
+        # All read results should be valid integers >= 0
+        assert all(isinstance(r, int) and r >= 0 for r in read_results)
+
+    def test_concurrent_persistence_toggle_no_race(self):
+        """Test that concurrent persistence toggle and clear don't cause issues."""
+        import threading
+
+        from autopack import context_budgeter
+
+        # Populate cache
+        with context_budgeter._CACHE_LOCK:
+            for i in range(30):
+                context_budgeter._EMBEDDING_CACHE[f"key_{i}"] = [0.1] * 1536
+
+        errors = []
+
+        def toggle_persistence():
+            try:
+                for i in range(20):
+                    set_cache_persistence(i % 2 == 0)
+            except Exception as e:
+                errors.append(e)
+
+        def clear_cache():
+            try:
+                for _ in range(10):
+                    reset_embedding_cache()
+            except Exception as e:
+                errors.append(e)
+
+        # Start toggler and clearer threads
+        togglers = [threading.Thread(target=toggle_persistence) for _ in range(2)]
+        clearers = [threading.Thread(target=clear_cache) for _ in range(2)]
+
+        all_threads = togglers + clearers
+        for t in all_threads:
+            t.start()
+        for t in all_threads:
+            t.join()
+
+        # No errors should occur
+        assert len(errors) == 0, f"Errors during concurrent toggle/clear: {errors}"
+
+    def test_cache_state_consistency_under_load(self):
+        """Test cache state remains consistent under concurrent access."""
+        import threading
+
+        from autopack import context_budgeter
+
+        set_cache_persistence(True)  # Keep cache between resets
+        reset_embedding_cache()
+
+        errors = []
+        inconsistencies = []
+
+        def writer():
+            try:
+                for i in range(50):
+                    with context_budgeter._CACHE_LOCK:
+                        key = f"thread_{threading.current_thread().name}_{i}"
+                        context_budgeter._EMBEDDING_CACHE[key] = [float(i)] * 1536
+            except Exception as e:
+                errors.append(e)
+
+        def reader():
+            try:
+                for _ in range(100):
+                    stats = get_embedding_stats()
+                    # Cache size should never be negative
+                    if stats["cache_size"] < 0:
+                        inconsistencies.append(f"Negative cache size: {stats['cache_size']}")
+            except Exception as e:
+                errors.append(e)
+
+        def resetter():
+            try:
+                for _ in range(10):
+                    reset_embedding_cache()
+            except Exception as e:
+                errors.append(e)
+
+        writers = [threading.Thread(target=writer, name=f"writer_{i}") for i in range(3)]
+        readers = [threading.Thread(target=reader, name=f"reader_{i}") for i in range(3)]
+        resetters = [threading.Thread(target=resetter, name=f"resetter_{i}") for i in range(2)]
+
+        all_threads = writers + readers + resetters
+        for t in all_threads:
+            t.start()
+        for t in all_threads:
+            t.join()
+
+        assert len(errors) == 0, f"Errors during load test: {errors}"
+        assert len(inconsistencies) == 0, f"Inconsistencies found: {inconsistencies}"

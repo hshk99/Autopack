@@ -1846,36 +1846,6 @@ class AutonomousExecutor:
 
         return None
 
-    def get_next_executable_phase(self) -> Optional[Dict]:
-        """Find next executable phase using database state (BUILD-041)
-
-        Queries database for phases that are either:
-        1. QUEUED (not yet started), OR
-        2. EXECUTING with retries available (retry_attempt < MAX_RETRY_ATTEMPTS), OR
-        3. FAILED with retries available (auto-reset to QUEUED for retry)
-
-        This replaces instance-based phase selection with database-backed selection,
-        fixing the infinite loop bug where phases stuck in EXECUTING state weren't
-        being retried.
-
-        AUTO-RESET FEATURE:
-        FAILED phases with remaining retry attempts are automatically reset to QUEUED.
-        This eliminates the need for manual intervention when phases fail due to
-        transient issues (max_tokens truncation, network errors, etc.).
-
-        Returns:
-            Phase dict if found, None otherwise
-        """
-        try:
-            # BUILD-115: models.py removed, database ORM queries replaced with API calls
-            # This method is obsolete - executor uses _select_next_queued_phase_from_tiers() instead
-            logger.debug("[BUILD-115] get_next_executable_phase() is obsolete - returning None")
-            return None
-
-        except Exception as e:
-            logger.error(f"[{self.run_id}] Failed to query executable phases from database: {e}")
-            return None
-
     def execute_phase(self, phase: Dict, **kwargs) -> Tuple[bool, str]:
         """Execute Builder -> Auditor -> QualityGate pipeline for a phase
 

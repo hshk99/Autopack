@@ -32,6 +32,9 @@ from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 # IMP-MEM-005: Import retrieval quality tracker for metrics collection
 from ..telemetry.meta_metrics import RetrievalQualityTracker
+
+# IMP-LOOP-034: Import confidence manager for decay lifecycle
+from .confidence_manager import ConfidenceManager
 from .embeddings import EMBEDDING_SIZE, MAX_EMBEDDING_CHARS, sync_embed_text
 from .faiss_store import FaissStore
 from .qdrant_store import QDRANT_AVAILABLE, QdrantStore
@@ -909,6 +912,9 @@ class MemoryService:
 
         # IMP-MEM-005: Initialize retrieval quality tracker (must happen before early return)
         self._retrieval_quality_tracker: Optional[RetrievalQualityTracker] = None
+
+        # IMP-LOOP-034: Initialize confidence manager for decay lifecycle
+        self._confidence_manager: Optional[ConfidenceManager] = None
 
         if not self.enabled:
             self.store = NullStore()
@@ -2998,7 +3004,17 @@ class MemoryService:
                     stale_count,
                 )
 
+            # IMP-LOOP-034: Apply confidence decay based on age
+            # This must happen before confidence filtering to use decayed values
+            if self._confidence_manager is not None:
+                insights = self.apply_confidence_decay(insights)
+                logger.debug(
+                    "[IMP-LOOP-034] Applied confidence decay to %d insights",
+                    len(insights),
+                )
+
             # IMP-LOOP-016: Apply confidence filtering if threshold is specified
+            # Uses decayed confidence values after IMP-LOOP-034 decay application
             if min_confidence is not None:
                 pre_filter_count = len(insights)
                 insights = [i for i in insights if i.get("confidence", 1.0) >= min_confidence]
@@ -3127,6 +3143,92 @@ class MemoryService:
             insight_id,
         )
         return False
+
+    def set_confidence_manager(self, confidence_manager: ConfidenceManager) -> None:
+        """Set the confidence manager for decay lifecycle management.
+
+        IMP-LOOP-034: The ConfidenceManager handles confidence decay over time
+        and updates based on task outcomes. Setting it here enables automatic
+        decay application when retrieving insights.
+
+        Args:
+            confidence_manager: ConfidenceManager instance for decay calculations.
+        """
+        self._confidence_manager = confidence_manager
+        # Connect memory service to confidence manager for persistence
+        confidence_manager.set_memory_service(self)
+        logger.debug("[IMP-LOOP-034] Confidence manager connected to MemoryService")
+
+    def get_confidence_manager(self) -> Optional[ConfidenceManager]:
+        """Get the confidence manager instance.
+
+        Returns:
+            ConfidenceManager if set, None otherwise.
+        """
+        return self._confidence_manager
+
+    def get_decayed_confidence(
+        self,
+        insight_id: str,
+        original_confidence: float = 1.0,
+        created_at: Optional[datetime] = None,
+    ) -> float:
+        """Get confidence with decay applied for an insight.
+
+        IMP-LOOP-034: Uses the ConfidenceManager to calculate decayed confidence
+        based on age and task outcomes. Falls back to original confidence if
+        no confidence manager is configured.
+
+        Args:
+            insight_id: Unique identifier for the insight.
+            original_confidence: Original confidence score if not tracked.
+            created_at: Creation timestamp if not tracked.
+
+        Returns:
+            Decayed confidence score (0.0-1.0).
+        """
+        if self._confidence_manager is None:
+            logger.debug(
+                "[IMP-LOOP-034] No confidence manager configured, returning original confidence"
+            )
+            return original_confidence
+
+        return self._confidence_manager.get_effective_confidence(
+            insight_id=insight_id,
+            original_confidence=original_confidence,
+            created_at=created_at,
+        )
+
+    def apply_confidence_decay(
+        self,
+        insights: List[Dict[str, Any]],
+        confidence_field: str = "confidence",
+        timestamp_field: str = "timestamp",
+    ) -> List[Dict[str, Any]]:
+        """Apply confidence decay to a list of insights.
+
+        IMP-LOOP-034: Applies time-based decay to insights using the
+        ConfidenceManager. Modifies the confidence field in-place.
+
+        Args:
+            insights: List of insight dictionaries.
+            confidence_field: Name of the confidence field in each insight.
+            timestamp_field: Name of the timestamp field for age calculation.
+
+        Returns:
+            The same list with decayed confidence values applied.
+        """
+        if self._confidence_manager is None:
+            logger.debug(
+                "[IMP-LOOP-034] No confidence manager configured, skipping decay application"
+            )
+            return insights
+
+        return self._confidence_manager.apply_decay_to_insights(
+            insights=insights,
+            confidence_field=confidence_field,
+            created_at_field=timestamp_field,
+        )
 
     def get_high_occurrence_insights(
         self,

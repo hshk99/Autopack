@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Protocol, Set, runtime_checkable
 
 from sqlalchemy.orm import Session
 
+from ..memory.confidence_manager import ConfidenceManager
 from ..memory.memory_service import DEFAULT_MEMORY_FRESHNESS_HOURS, MemoryService
 from ..roadi import RegressionProtector
 from ..roadi.regression_protector import RiskAssessment
@@ -638,6 +639,7 @@ class AutonomousTaskGenerator:
         causal_analyzer: Optional[CausalAnalyzer] = None,
         db_session: Optional[Session] = None,
         project_id: str = "default",
+        confidence_manager: Optional[ConfidenceManager] = None,
     ):
         self._memory = memory_service or MemoryService()
         self._regression = regression_protector or RegressionProtector()
@@ -645,6 +647,12 @@ class AutonomousTaskGenerator:
         self._project_id = project_id
         # IMP-FBK-005: CausalAnalyzer for risk-based task prioritization
         self._causal_analyzer = causal_analyzer or CausalAnalyzer()
+        # IMP-LOOP-034: Initialize confidence manager for decay lifecycle
+        # If not provided, create a default one connected to the memory service
+        self._confidence_manager = confidence_manager or ConfidenceManager()
+        if self._memory is not None:
+            self._memory.set_confidence_manager(self._confidence_manager)
+        logger.debug("[IMP-LOOP-034] ConfidenceManager initialized for decay lifecycle")
         # IMP-ARCH-017: Reconnect TelemetryAnalyzer when db_session is available.
         # This enables automatic aggregation of telemetry data (cost sinks, failure
         # modes, retry patterns) to feed directly into task generation.
@@ -1577,6 +1585,147 @@ Analyze the pattern and implement a fix to prevent recurrence.
             raise
         finally:
             session.close()
+
+    # =========================================================================
+    # IMP-LOOP-034: Confidence Manager Integration
+    # =========================================================================
+
+    def set_confidence_manager(self, confidence_manager: ConfidenceManager) -> None:
+        """Set or update the confidence manager for decay lifecycle.
+
+        IMP-LOOP-034: Allows updating the confidence manager after initialization.
+        Also connects it to the memory service for persistence.
+
+        Args:
+            confidence_manager: ConfidenceManager instance for decay calculations.
+        """
+        self._confidence_manager = confidence_manager
+        if self._memory is not None:
+            self._memory.set_confidence_manager(confidence_manager)
+        logger.debug("[IMP-LOOP-034] Confidence manager updated in task generator")
+
+    def get_confidence_manager(self) -> Optional[ConfidenceManager]:
+        """Get the confidence manager instance.
+
+        Returns:
+            ConfidenceManager if configured, None otherwise.
+        """
+        return self._confidence_manager
+
+    def report_task_outcome(
+        self,
+        task_id: str,
+        outcome: str,
+        insight_ids: Optional[List[str]] = None,
+    ) -> Dict[str, float]:
+        """Report task outcome to update confidence of source insights.
+
+        IMP-LOOP-034: When a task completes (success/failure/partial),
+        this method updates the confidence scores of the insights that
+        generated the task.
+
+        Args:
+            task_id: The completed task's ID.
+            outcome: Outcome of the task ('success', 'failure', 'partial').
+            insight_ids: Optional list of source insight IDs. If not provided,
+                        attempts to look up from task's source_insights.
+
+        Returns:
+            Dict mapping insight_id to new confidence score.
+        """
+        if self._confidence_manager is None:
+            logger.debug("[IMP-LOOP-034] No confidence manager configured, skipping outcome update")
+            return {}
+
+        # Try to get insight IDs from the task if not provided
+        if insight_ids is None:
+            insight_ids = self._get_insight_ids_for_task(task_id)
+
+        if not insight_ids:
+            logger.debug(
+                "[IMP-LOOP-034] No insight IDs found for task %s, skipping confidence update",
+                task_id,
+            )
+            return {}
+
+        updated_confidences = {}
+        for insight_id in insight_ids:
+            new_confidence = self._confidence_manager.update_confidence_from_outcome(
+                insight_id=insight_id,
+                task_outcome=outcome,
+                persist=True,
+            )
+            updated_confidences[insight_id] = new_confidence
+
+        logger.info(
+            "[IMP-LOOP-034] Updated confidence for %d insights after task %s %s",
+            len(updated_confidences),
+            task_id,
+            outcome,
+        )
+
+        return updated_confidences
+
+    def _get_insight_ids_for_task(self, task_id: str) -> List[str]:
+        """Get the source insight IDs for a task from database.
+
+        Args:
+            task_id: The task ID to look up.
+
+        Returns:
+            List of insight IDs that generated this task.
+        """
+        from ..database import SessionLocal
+        from ..models import GeneratedTaskModel
+
+        session = SessionLocal()
+        try:
+            task = session.query(GeneratedTaskModel).filter_by(task_id=task_id).first()
+            if task and task.source_insights:
+                # source_insights is stored as JSON array of insight IDs
+                if isinstance(task.source_insights, str):
+                    import json
+
+                    return json.loads(task.source_insights)
+                return task.source_insights
+            return []
+        except Exception as e:
+            logger.warning(
+                "[IMP-LOOP-034] Failed to look up insight IDs for task %s: %s",
+                task_id,
+                e,
+            )
+            return []
+        finally:
+            session.close()
+
+    def get_decayed_confidence(
+        self,
+        insight_id: str,
+        original_confidence: float = 1.0,
+        created_at: Optional[datetime] = None,
+    ) -> float:
+        """Get confidence with decay applied for an insight.
+
+        IMP-LOOP-034: Convenience method to query decayed confidence
+        through the confidence manager.
+
+        Args:
+            insight_id: The insight identifier.
+            original_confidence: Original confidence score if not tracked.
+            created_at: Creation timestamp if not tracked.
+
+        Returns:
+            Decayed confidence score (0.0-1.0).
+        """
+        if self._confidence_manager is None:
+            return original_confidence
+
+        return self._confidence_manager.get_effective_confidence(
+            insight_id=insight_id,
+            original_confidence=original_confidence,
+            created_at=created_at,
+        )
 
     # =========================================================================
     # Task Retrieval (IMP-ARCH-012)

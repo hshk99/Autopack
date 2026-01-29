@@ -1,9 +1,11 @@
 """ROAD-C: Autonomous Task Generator - converts insights to tasks."""
 
+import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 from sqlalchemy.orm import Session
@@ -903,6 +905,21 @@ class AutonomousTaskGenerator:
                         f"current run backlog for same-run execution"
                     )
 
+            # IMP-LOOP-025: Emit tasks to executor queue for direct consumption
+            # This provides a faster path than database polling for task execution
+            if tasks:
+                try:
+                    queued_count = self._emit_to_executor_queue(tasks)
+                    if queued_count > 0:
+                        logger.info(
+                            f"[IMP-LOOP-025] Emitted {queued_count} tasks to executor queue"
+                        )
+                except Exception as emit_err:
+                    # Non-blocking - tasks are still in database via persist_tasks
+                    logger.warning(
+                        f"[IMP-LOOP-025] Failed to emit tasks to queue (non-blocking): {emit_err}"
+                    )
+
             return TaskGenerationResult(
                 tasks_generated=tasks,
                 insights_processed=len(insights),
@@ -1676,3 +1693,151 @@ Analyze the pattern and implement a fix to prevent recurrence.
             raise
         finally:
             session.close()
+
+    # =========================================================================
+    # Task Queue Emission (IMP-LOOP-025)
+    # =========================================================================
+
+    # Default queue file path for ROAD-C task emission
+    ROADC_TASK_QUEUE_FILE = Path(".autopack/ROADC_TASK_QUEUE.json")
+
+    def _emit_to_executor_queue(
+        self,
+        tasks: List[GeneratedTask],
+        queue_file: Optional[Path] = None,
+    ) -> int:
+        """Emit tasks to the executor queue file for immediate consumption (IMP-LOOP-025).
+
+        This method provides a direct path from task generation to executor consumption,
+        bypassing the database for faster task execution. Tasks are written to a JSON
+        file that the autonomous executor polls.
+
+        The queue file format is:
+        {
+            "tasks": [
+                {
+                    "task_id": "TASK-XXXX",
+                    "title": "...",
+                    "description": "...",
+                    "priority": "critical|high|medium|low",
+                    "source_insights": [...],
+                    "suggested_files": [...],
+                    "estimated_effort": "S|M|L|XL",
+                    "created_at": "ISO timestamp",
+                    "queued_at": "ISO timestamp"
+                },
+                ...
+            ],
+            "updated_at": "ISO timestamp"
+        }
+
+        Args:
+            tasks: List of GeneratedTask objects to emit
+            queue_file: Optional path to queue file (defaults to ROADC_TASK_QUEUE_FILE)
+
+        Returns:
+            Number of tasks emitted to the queue
+        """
+        if not tasks:
+            logger.debug("[IMP-LOOP-025] No tasks to emit to executor queue")
+            return 0
+
+        queue_path = queue_file or self.ROADC_TASK_QUEUE_FILE
+        queue_path.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            # Load existing queue if it exists
+            existing_queue = {"tasks": [], "updated_at": None}
+            if queue_path.exists():
+                try:
+                    existing_queue = json.loads(queue_path.read_text())
+                except (json.JSONDecodeError, Exception) as e:
+                    logger.warning(
+                        f"[IMP-LOOP-025] Failed to load existing queue, starting fresh: {e}"
+                    )
+                    existing_queue = {"tasks": [], "updated_at": None}
+
+            # Get existing task IDs to avoid duplicates
+            existing_task_ids = {t.get("task_id") for t in existing_queue.get("tasks", [])}
+
+            # Convert tasks to queue format and add new ones
+            queued_at = datetime.now(timezone.utc).isoformat()
+            new_tasks_added = 0
+
+            for task in tasks:
+                if task.task_id in existing_task_ids:
+                    logger.debug(f"[IMP-LOOP-025] Task {task.task_id} already in queue, skipping")
+                    continue
+
+                task_entry = {
+                    "task_id": task.task_id,
+                    "title": task.title,
+                    "description": task.description,
+                    "priority": task.priority,
+                    "source_insights": task.source_insights,
+                    "suggested_files": task.suggested_files,
+                    "estimated_effort": task.estimated_effort,
+                    "created_at": task.created_at.isoformat() if task.created_at else queued_at,
+                    "queued_at": queued_at,
+                    "requires_approval": task.requires_approval,
+                    "risk_severity": task.risk_severity,
+                    "estimated_cost": task.estimated_cost,
+                }
+                existing_queue["tasks"].append(task_entry)
+                new_tasks_added += 1
+
+            # Update timestamp and write back
+            existing_queue["updated_at"] = queued_at
+            queue_path.write_text(json.dumps(existing_queue, indent=2))
+
+            logger.info(
+                f"[IMP-LOOP-025] Emitted {new_tasks_added} tasks to executor queue "
+                f"(total in queue: {len(existing_queue['tasks'])})"
+            )
+            return new_tasks_added
+
+        except Exception as e:
+            logger.error(f"[IMP-LOOP-025] Failed to emit tasks to executor queue: {e}")
+            raise
+
+    def emit_tasks_for_execution(
+        self,
+        tasks: List[GeneratedTask],
+        persist_to_db: bool = True,
+        emit_to_queue: bool = True,
+        run_id: Optional[str] = None,
+    ) -> Dict[str, int]:
+        """Emit tasks to both database and executor queue (IMP-LOOP-025).
+
+        This method provides a unified interface for task emission that ensures
+        tasks are both persisted for durability (database) and available for
+        immediate execution (queue file).
+
+        Args:
+            tasks: List of GeneratedTask objects to emit
+            persist_to_db: Whether to persist tasks to database (default: True)
+            emit_to_queue: Whether to emit tasks to executor queue (default: True)
+            run_id: Optional run ID to associate with tasks
+
+        Returns:
+            Dict with counts: {"persisted": N, "queued": M}
+        """
+        result = {"persisted": 0, "queued": 0}
+
+        if persist_to_db:
+            try:
+                result["persisted"] = self.persist_tasks(tasks, run_id=run_id)
+            except Exception as e:
+                logger.warning(f"[IMP-LOOP-025] Failed to persist tasks to DB: {e}")
+
+        if emit_to_queue:
+            try:
+                result["queued"] = self._emit_to_executor_queue(tasks)
+            except Exception as e:
+                logger.warning(f"[IMP-LOOP-025] Failed to emit tasks to queue: {e}")
+
+        logger.info(
+            f"[IMP-LOOP-025] Task emission complete: {result['persisted']} persisted, "
+            f"{result['queued']} queued"
+        )
+        return result

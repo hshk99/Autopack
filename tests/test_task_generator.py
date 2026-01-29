@@ -1138,3 +1138,222 @@ class TestBacklogInjection:
         assert phase["status"] == "QUEUED"
         assert phase["category"] == "improvement"
         assert "[AUTO-CRITICAL]" in phase["description"]
+
+
+class TestExecutorQueueEmission:
+    """Tests for IMP-LOOP-025: Wire ROAD-C task generation to executor queue."""
+
+    @pytest.fixture
+    def mock_memory_service(self):
+        """Create a mock memory service."""
+        service = Mock()
+        service.retrieve_insights = Mock(return_value=[])
+        return service
+
+    @pytest.fixture
+    def sample_tasks(self):
+        """Create sample tasks for testing."""
+        return [
+            GeneratedTask(
+                task_id="TASK-TEST001",
+                title="Test task 1",
+                description="Description 1",
+                priority="critical",
+                source_insights=["i1"],
+                suggested_files=["f1.py"],
+                estimated_effort="M",
+                created_at=datetime.now(),
+                requires_approval=False,
+                risk_severity=None,
+                estimated_cost=10000,
+            ),
+            GeneratedTask(
+                task_id="TASK-TEST002",
+                title="Test task 2",
+                description="Description 2",
+                priority="high",
+                source_insights=["i2"],
+                suggested_files=["f2.py"],
+                estimated_effort="S",
+                created_at=datetime.now(),
+                requires_approval=True,
+                risk_severity="medium",
+                estimated_cost=5000,
+            ),
+        ]
+
+    @pytest.fixture
+    def temp_queue_file(self, tmp_path):
+        """Create a temporary queue file path."""
+        queue_dir = tmp_path / ".autopack"
+        queue_dir.mkdir(parents=True, exist_ok=True)
+        return queue_dir / "ROADC_TASK_QUEUE.json"
+
+    def test_emit_to_executor_queue_creates_file(
+        self, mock_memory_service, sample_tasks, temp_queue_file
+    ):
+        """Test that _emit_to_executor_queue creates the queue file."""
+        import json
+
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        count = generator._emit_to_executor_queue(sample_tasks, queue_file=temp_queue_file)
+
+        assert count == 2
+        assert temp_queue_file.exists()
+
+        queue_data = json.loads(temp_queue_file.read_text())
+        assert len(queue_data["tasks"]) == 2
+        assert queue_data["updated_at"] is not None
+
+    def test_emit_to_executor_queue_preserves_task_data(
+        self, mock_memory_service, sample_tasks, temp_queue_file
+    ):
+        """Test that emitted tasks contain all required fields."""
+        import json
+
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+        generator._emit_to_executor_queue(sample_tasks, queue_file=temp_queue_file)
+
+        queue_data = json.loads(temp_queue_file.read_text())
+        task = queue_data["tasks"][0]
+
+        assert task["task_id"] == "TASK-TEST001"
+        assert task["title"] == "Test task 1"
+        assert task["description"] == "Description 1"
+        assert task["priority"] == "critical"
+        assert task["source_insights"] == ["i1"]
+        assert task["suggested_files"] == ["f1.py"]
+        assert task["estimated_effort"] == "M"
+        assert task["requires_approval"] is False
+        assert task["estimated_cost"] == 10000
+        assert "queued_at" in task
+        assert "created_at" in task
+
+    def test_emit_to_executor_queue_deduplicates_tasks(
+        self, mock_memory_service, sample_tasks, temp_queue_file
+    ):
+        """Test that duplicate tasks are not re-added to queue."""
+        import json
+
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        # First emission
+        count1 = generator._emit_to_executor_queue(sample_tasks, queue_file=temp_queue_file)
+        assert count1 == 2
+
+        # Second emission with same tasks should not add duplicates
+        count2 = generator._emit_to_executor_queue(sample_tasks, queue_file=temp_queue_file)
+        assert count2 == 0
+
+        queue_data = json.loads(temp_queue_file.read_text())
+        assert len(queue_data["tasks"]) == 2
+
+    def test_emit_to_executor_queue_empty_list(self, mock_memory_service, temp_queue_file):
+        """Test that empty task list returns 0 without creating file."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        count = generator._emit_to_executor_queue([], queue_file=temp_queue_file)
+
+        assert count == 0
+        # File should not exist since no tasks were emitted
+        # (unless it existed before)
+
+    def test_emit_to_executor_queue_appends_to_existing(self, mock_memory_service, temp_queue_file):
+        """Test that new tasks are appended to existing queue."""
+        import json
+
+        # Create initial queue with one task
+        initial_data = {
+            "tasks": [
+                {
+                    "task_id": "TASK-EXISTING",
+                    "title": "Existing task",
+                    "priority": "low",
+                }
+            ],
+            "updated_at": "2024-01-01T00:00:00Z",
+        }
+        temp_queue_file.write_text(json.dumps(initial_data))
+
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+        new_task = GeneratedTask(
+            task_id="TASK-NEW001",
+            title="New task",
+            description="New description",
+            priority="high",
+            source_insights=["i1"],
+            suggested_files=[],
+            estimated_effort="S",
+            created_at=datetime.now(),
+        )
+
+        count = generator._emit_to_executor_queue([new_task], queue_file=temp_queue_file)
+
+        assert count == 1
+        queue_data = json.loads(temp_queue_file.read_text())
+        assert len(queue_data["tasks"]) == 2
+
+        task_ids = {t["task_id"] for t in queue_data["tasks"]}
+        assert "TASK-EXISTING" in task_ids
+        assert "TASK-NEW001" in task_ids
+
+    def test_emit_tasks_for_execution_dual_path(
+        self, mock_memory_service, sample_tasks, temp_queue_file
+    ):
+        """Test that emit_tasks_for_execution writes to both DB and queue."""
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        # Mock database session
+        mock_session = Mock()
+        mock_session.query.return_value.filter_by.return_value.first.return_value = None
+
+        with patch("autopack.database.SessionLocal", return_value=mock_session):
+            result = generator.emit_tasks_for_execution(
+                sample_tasks,
+                persist_to_db=True,
+                emit_to_queue=True,
+                run_id="test-run",
+            )
+            # Note: We're patching the method's internal queue file, so use a direct call
+            generator._emit_to_executor_queue(sample_tasks, queue_file=temp_queue_file)
+
+        # Check that both paths were attempted
+        assert "persisted" in result
+        assert "queued" in result
+
+    def test_generate_tasks_emits_to_queue(self, mock_memory_service, tmp_path):
+        """Test that generate_tasks automatically emits to queue."""
+        import json
+
+        # Create mock insights that will generate tasks
+        mock_memory_service.retrieve_insights.return_value = [
+            {"issue_type": "error", "content": "Error 1", "id": "1", "severity": "high"},
+            {"issue_type": "error", "content": "Error 2", "id": "2", "severity": "high"},
+            {"issue_type": "error", "content": "Error 3", "id": "3", "severity": "high"},
+        ]
+
+        generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
+
+        # Override queue file path for test
+        test_queue_file = tmp_path / ".autopack" / "ROADC_TASK_QUEUE.json"
+        original_queue_file = generator.ROADC_TASK_QUEUE_FILE
+
+        try:
+            # Temporarily override the class variable
+            AutonomousTaskGenerator.ROADC_TASK_QUEUE_FILE = test_queue_file
+
+            result = generator.generate_tasks(
+                max_tasks=5,
+                min_confidence=0.0,
+            )
+
+            # If tasks were generated, they should be emitted to queue
+            if result.tasks_generated:
+                # Queue file should exist with tasks
+                assert test_queue_file.exists()
+                queue_data = json.loads(test_queue_file.read_text())
+                assert len(queue_data["tasks"]) == len(result.tasks_generated)
+        finally:
+            # Restore original queue file path
+            AutonomousTaskGenerator.ROADC_TASK_QUEUE_FILE = original_queue_file

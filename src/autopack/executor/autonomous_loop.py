@@ -21,7 +21,10 @@ from autopack.autonomous.budgeting import (
     get_budget_remaining_pct,
     is_budget_exhausted,
 )
-from autopack.autonomy.parallelism_gate import ParallelismPolicyGate, ScopeBasedParallelismChecker
+from autopack.autonomy.parallelism_gate import (
+    ParallelismPolicyGate,
+    ScopeBasedParallelismChecker,
+)
 from autopack.config import settings
 from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
@@ -2789,6 +2792,171 @@ class AutonomousLoop:
         )
         return run_data
 
+    # =========================================================================
+    # ROAD-C Task Queue Consumption (IMP-LOOP-025)
+    # =========================================================================
+
+    def _consume_roadc_tasks(self) -> List[Dict]:
+        """Consume tasks from the ROAD-C task queue file (IMP-LOOP-025).
+
+        This method implements direct task consumption from the file-based queue,
+        providing a faster path than database polling for task execution.
+
+        The method:
+        1. Reads tasks from the ROADC_TASK_QUEUE.json file
+        2. Converts them to executable phase specifications
+        3. Removes consumed tasks from the queue file
+
+        Returns:
+            List of phase spec dicts ready for execution, or empty list if no tasks.
+        """
+        from pathlib import Path
+
+        queue_file = Path(".autopack/ROADC_TASK_QUEUE.json")
+
+        if not queue_file.exists():
+            logger.debug("[IMP-LOOP-025] No ROAD-C task queue file found")
+            return []
+
+        try:
+            import json
+
+            queue_data = json.loads(queue_file.read_text())
+            tasks = queue_data.get("tasks", [])
+
+            if not tasks:
+                logger.debug("[IMP-LOOP-025] ROAD-C task queue is empty")
+                return []
+
+            # Check if task execution is enabled
+            if not settings.task_generation_auto_execute:
+                logger.debug("[IMP-LOOP-025] Generated task execution is disabled")
+                return []
+
+            # Limit to max tasks per run
+            max_tasks = settings.task_generation_max_tasks_per_run
+            tasks_to_process = tasks[:max_tasks]
+            remaining_tasks = tasks[max_tasks:]
+
+            # Convert tasks to phase specs
+            phase_specs = []
+            for idx, task in enumerate(tasks_to_process):
+                # Use ROI-based priority order if analyzer is available
+                if self._roi_analyzer is not None:
+                    priority_order = idx + 1
+                else:
+                    priority_map = {"critical": 1, "high": 2, "medium": 3, "low": 4}
+                    priority_order = priority_map.get(task.get("priority", "medium"), 3)
+
+                phase_spec = {
+                    "phase_id": f"roadc-queue-task-{task.get('task_id', 'unknown')}",
+                    "phase_type": "generated-task-execution",
+                    "description": f"[ROADC-QUEUE] {task.get('title', 'Unknown task')}\n\n{task.get('description', '')}",
+                    "status": "QUEUED",
+                    "priority_order": priority_order,
+                    "category": "improvement",
+                    "scope": {
+                        "paths": task.get("suggested_files", []),
+                    },
+                    "_generated_task": {
+                        "task_id": task.get("task_id"),
+                        "title": task.get("title"),
+                        "description": task.get("description"),
+                        "priority": task.get("priority"),
+                        "source_insights": task.get("source_insights", []),
+                        "suggested_files": task.get("suggested_files", []),
+                        "estimated_effort": task.get("estimated_effort"),
+                        "requires_approval": task.get("requires_approval", False),
+                        "risk_severity": task.get("risk_severity"),
+                        "estimated_cost": task.get("estimated_cost", 0),
+                    },
+                    "_roadc_queue_source": True,  # Mark as coming from queue file
+                }
+                phase_specs.append(phase_spec)
+
+                logger.info(
+                    f"[IMP-LOOP-025] Consumed ROAD-C task {task.get('task_id')} from queue: "
+                    f"{task.get('title')}"
+                )
+
+            # Update queue file with remaining tasks
+            queue_data["tasks"] = remaining_tasks
+            queue_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+            queue_data["last_consumption"] = {
+                "consumed_count": len(tasks_to_process),
+                "remaining_count": len(remaining_tasks),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            queue_file.write_text(json.dumps(queue_data, indent=2))
+
+            logger.info(
+                f"[IMP-LOOP-025] Consumed {len(phase_specs)} tasks from ROAD-C queue "
+                f"({len(remaining_tasks)} remaining)"
+            )
+            return phase_specs
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-025] Failed to consume ROAD-C tasks: {e}")
+            return []
+
+    def _process_roadc_tasks(self, tasks: List[Dict]) -> Dict:
+        """Process consumed ROAD-C tasks and inject them into the backlog (IMP-LOOP-025).
+
+        This method processes tasks consumed from the ROAD-C queue and adds them
+        to the current run's phase backlog for execution.
+
+        Args:
+            tasks: List of phase spec dicts from _consume_roadc_tasks()
+
+        Returns:
+            Dict with processing stats: {"injected": N, "skipped": M}
+        """
+        if not tasks:
+            return {"injected": 0, "skipped": 0}
+
+        injected = 0
+        skipped = 0
+
+        try:
+            # Get existing phase IDs to avoid duplicates
+            existing_phase_ids = {
+                p.get("phase_id") for p in getattr(self, "_current_run_phases", [])
+            }
+
+            for task in tasks:
+                phase_id = task.get("phase_id")
+
+                if phase_id in existing_phase_ids:
+                    logger.debug(f"[IMP-LOOP-025] Task {phase_id} already in backlog, skipping")
+                    skipped += 1
+                    continue
+
+                # Insert at front of backlog for high priority, or append for normal priority
+                task_priority = task.get("_generated_task", {}).get("priority", "medium")
+                if task_priority == "critical":
+                    # Insert at front for immediate execution
+                    if hasattr(self, "_current_run_phases") and self._current_run_phases:
+                        self._current_run_phases.insert(0, task)
+                    injected += 1
+                    logger.info(
+                        f"[IMP-LOOP-025] Injected critical ROAD-C task {phase_id} at front of queue"
+                    )
+                else:
+                    # Append to end of backlog
+                    if hasattr(self, "_current_run_phases") and self._current_run_phases:
+                        self._current_run_phases.append(task)
+                    injected += 1
+                    logger.info(f"[IMP-LOOP-025] Appended ROAD-C task {phase_id} to backlog")
+
+            logger.info(
+                f"[IMP-LOOP-025] Processed ROAD-C tasks: {injected} injected, {skipped} skipped"
+            )
+            return {"injected": injected, "skipped": skipped}
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-025] Failed to process ROAD-C tasks: {e}")
+            return {"injected": injected, "skipped": skipped}
+
     def _initialize_intention_loop(self):
         """Initialize intention-first loop for the run."""
         from autopack.autonomous.executor_wiring import initialize_intention_first_loop
@@ -2974,6 +3142,23 @@ class AutonomousLoop:
                 logger.warning(
                     f"[IMP-LOOP-004] Failed to inject generated tasks (non-blocking): {e}"
                 )
+
+            # IMP-LOOP-025: Consume and process tasks from ROAD-C queue file
+            # This provides a direct path from task generation to execution,
+            # bypassing database polling for faster task consumption
+            try:
+                roadc_tasks = self._consume_roadc_tasks()
+                if roadc_tasks:
+                    process_result = self._process_roadc_tasks(roadc_tasks)
+                    if process_result["injected"] > 0:
+                        # Update run_data with injected tasks
+                        run_data["phases"] = self._current_run_phases
+                        logger.info(
+                            f"[IMP-LOOP-025] ROAD-C queue tasks processed: "
+                            f"{process_result['injected']} injected"
+                        )
+            except Exception as e:
+                logger.warning(f"[IMP-LOOP-025] Failed to consume ROAD-C tasks (non-blocking): {e}")
 
             # IMP-LOOP-003: Store reference to current run's phases for same-run task injection
             # This allows high-priority tasks generated during execution to be injected

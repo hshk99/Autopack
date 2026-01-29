@@ -28,6 +28,62 @@ from .models import (
 
 logger = logging.getLogger(__name__)
 
+
+# IMP-GAP-001: Pre-phase gap scan result for lightweight checks
+class GapScanResult:
+    """Result of a lightweight pre-phase gap scan.
+
+    This class provides a simplified view of gap scan results for pre-phase
+    checks, focusing on whether there are any blockers that should prevent
+    phase execution.
+
+    Attributes:
+        gaps: List of detected gaps
+        has_blockers: True if any gap has blocks_autopilot=True
+        blocker_count: Number of gaps with blocks_autopilot=True
+        scan_duration_ms: Duration of the scan in milliseconds
+    """
+
+    def __init__(self, gaps: List[Gap], scan_duration_ms: int = 0):
+        """Initialize GapScanResult.
+
+        Args:
+            gaps: List of detected Gap objects
+            scan_duration_ms: Duration of the scan in milliseconds
+        """
+        self.gaps = gaps
+        self.scan_duration_ms = scan_duration_ms
+        self._blockers = [g for g in gaps if g.blocks_autopilot]
+
+    @property
+    def has_blockers(self) -> bool:
+        """Check if any gaps block autopilot execution."""
+        return len(self._blockers) > 0
+
+    @property
+    def blocker_count(self) -> int:
+        """Return count of blocking gaps."""
+        return len(self._blockers)
+
+    @property
+    def blockers(self) -> List[Gap]:
+        """Return list of blocking gaps."""
+        return self._blockers
+
+    def get_blocker_summary(self) -> str:
+        """Return a human-readable summary of blockers.
+
+        Returns:
+            String summary of blocking gaps, or empty string if none
+        """
+        if not self.has_blockers:
+            return ""
+        summaries = []
+        for gap in self._blockers:
+            summaries.append(f"- {gap.gap_type}: {gap.title or gap.description}")
+        return "\n".join(summaries)
+
+
 SCANNER_VERSION = "1.1.0"  # BUILD-180: Mechanical drift checks
 
 # Deterministic sentinel for git unavailable (BUILD-180)
@@ -48,43 +104,79 @@ class GapScanner:
     8. protected_path_violation: Writes to protected paths
     9. db_lock_contention: Database lock issues
     10. git_state_corruption: Git state inconsistencies
+
+    IMP-GAP-001: Supports lightweight mode for fast pre-phase checks that
+    only run critical blocker detectors (git_state_corruption, db_lock_contention,
+    protected_path_violation, test_infra_drift, windows_encoding_issue).
     """
 
-    def __init__(self, workspace_root: Path):
+    # IMP-GAP-001: Gap types that are considered critical blockers for pre-phase checks
+    BLOCKER_GAP_TYPES = {
+        "git_state_corruption",
+        "db_lock_contention",
+        "protected_path_violation",
+        "test_infra_drift",
+        "windows_encoding_issue",
+    }
+
+    def __init__(self, workspace_root: Path, lightweight: bool = False):
         """Initialize gap scanner.
 
         Args:
             workspace_root: Root directory of workspace
+            lightweight: If True, only run critical blocker detectors for fast
+                        pre-phase checks (IMP-GAP-001)
         """
         self.workspace_root = workspace_root
+        self.lightweight = lightweight
         self.gaps: List[Gap] = []
 
     def scan(self) -> List[Gap]:
-        """Run all gap detectors.
+        """Run gap detectors.
+
+        In lightweight mode (IMP-GAP-001), only critical blocker detectors are run
+        for fast pre-phase checks. In full mode, all 10 gap types plus plugins are scanned.
 
         Returns:
             List of detected gaps
         """
         start_time = datetime.now(timezone.utc)
 
-        # Run all detectors
+        # Run detectors based on mode
         self.gaps = []
-        self.gaps.extend(self._detect_doc_drift())
-        self.gaps.extend(self._detect_root_clutter())
-        self.gaps.extend(self._detect_sot_duplicates())
-        self.gaps.extend(self._detect_test_infra_drift())
-        self.gaps.extend(self._detect_memory_budget_issues())
-        self.gaps.extend(self._detect_windows_encoding_issues())
-        self.gaps.extend(self._detect_baseline_policy_drift())
-        self.gaps.extend(self._detect_protected_path_violations())
-        self.gaps.extend(self._detect_db_lock_contention())
-        self.gaps.extend(self._detect_git_state_corruption())
 
-        # Run plugin detectors
-        self.gaps.extend(self._run_plugin_detectors())
+        if self.lightweight:
+            # IMP-GAP-001: Lightweight mode - only run critical blocker detectors
+            # These are the gaps that should block phase execution
+            self.gaps.extend(self._detect_git_state_corruption())
+            self.gaps.extend(self._detect_db_lock_contention())
+            self.gaps.extend(self._detect_protected_path_violations())
+            self.gaps.extend(self._detect_test_infra_drift())
+            self.gaps.extend(self._detect_windows_encoding_issues())
+            logger.debug(
+                f"[IMP-GAP-001] Lightweight gap scan running {len(self.BLOCKER_GAP_TYPES)} detectors"
+            )
+        else:
+            # Full mode - run all detectors
+            self.gaps.extend(self._detect_doc_drift())
+            self.gaps.extend(self._detect_root_clutter())
+            self.gaps.extend(self._detect_sot_duplicates())
+            self.gaps.extend(self._detect_test_infra_drift())
+            self.gaps.extend(self._detect_memory_budget_issues())
+            self.gaps.extend(self._detect_windows_encoding_issues())
+            self.gaps.extend(self._detect_baseline_policy_drift())
+            self.gaps.extend(self._detect_protected_path_violations())
+            self.gaps.extend(self._detect_db_lock_contention())
+            self.gaps.extend(self._detect_git_state_corruption())
+
+            # Run plugin detectors (only in full mode)
+            self.gaps.extend(self._run_plugin_detectors())
 
         elapsed_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
-        logger.info(f"Gap scan completed in {elapsed_ms}ms: {len(self.gaps)} gaps found")
+        mode_str = "lightweight" if self.lightweight else "full"
+        logger.info(
+            f"Gap scan ({mode_str}) completed in {elapsed_ms}ms: {len(self.gaps)} gaps found"
+        )
 
         # Record telemetry for each detected gap (best-effort, never raises)
         recorder = GapTelemetryRecorder()
@@ -102,6 +194,42 @@ class GapScanner:
             recorder.record_detection(event)
 
         return self.gaps
+
+    def scan_for_phase(self, phase: dict) -> GapScanResult:
+        """Lightweight gap scan before phase execution (IMP-GAP-001).
+
+        This method runs a quick subset of gap detectors to check for critical
+        blockers before executing a phase. It's designed to be fast (<100ms)
+        while still catching the most important issues.
+
+        Args:
+            phase: Phase specification dict containing phase_id, scope, etc.
+
+        Returns:
+            GapScanResult with detected gaps and blocker information
+        """
+        start_time = datetime.now(timezone.utc)
+        phase_id = phase.get("phase_id", "unknown")
+
+        logger.debug(f"[IMP-GAP-001] Running pre-phase gap check for phase '{phase_id}'")
+
+        # Use lightweight mode for fast pre-phase checks
+        self.lightweight = True
+        gaps = self.scan()
+
+        elapsed_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
+        result = GapScanResult(gaps=gaps, scan_duration_ms=elapsed_ms)
+
+        if result.has_blockers:
+            logger.warning(
+                f"[IMP-GAP-001] Pre-phase check for '{phase_id}' found {result.blocker_count} blocker(s)"
+            )
+            for gap in result.blockers:
+                logger.warning(f"  - {gap.gap_type}: {gap.title or gap.description}")
+        else:
+            logger.debug(f"[IMP-GAP-001] Pre-phase check for '{phase_id}' passed ({elapsed_ms}ms)")
+
+        return result
 
     def _detect_doc_drift(self) -> List[Gap]:
         """Detect documentation drift via mechanical checks (BUILD-180).

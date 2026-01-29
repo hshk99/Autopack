@@ -17,6 +17,7 @@ Related modules:
 - doctor_integration.py: Doctor invocation and budget tracking
 - replan_trigger.py: Approach flaw detection and replanning
 - intention_stuck_handler.py: Intention-first stuck handling (BUILD-161)
+- gaps/scanner.py: Gap detection for pre-phase checks (IMP-GAP-001)
 """
 
 import logging
@@ -25,14 +26,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
-from autopack.autonomous.budgeting import (
-    get_phase_budget_remaining_pct,
-    is_phase_budget_exceeded,
-)
+from autopack.autonomous.budgeting import get_phase_budget_remaining_pct, is_phase_budget_exceeded
 from autopack.config import settings
 from autopack.time_watchdog import TimeWatchdog
+
+# IMP-GAP-001: Import gap scanner for pre-phase checks
+if TYPE_CHECKING:
+    from autopack.gaps.scanner import GapScanner, GapScanResult
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +159,7 @@ class PhaseOrchestrator:
     - Recovery strategy selection
     - State updates
     - IMP-TEL-004: Real-time anomaly detection and alert routing
+    - IMP-GAP-001: Pre-phase gap scanning for early blocker detection
     """
 
     def __init__(
@@ -164,6 +167,7 @@ class PhaseOrchestrator:
         max_retry_attempts: int = 5,
         anomaly_detector: Optional[Any] = None,
         alert_router: Optional[Any] = None,
+        enable_pre_phase_gap_check: bool = True,
     ):
         """Initialize the PhaseOrchestrator.
 
@@ -175,11 +179,15 @@ class PhaseOrchestrator:
             alert_router: Optional AlertRouter for routing detected anomaly alerts.
                          If provided, alerts are routed to appropriate handlers
                          (logging, auto-healing, persistence).
+            enable_pre_phase_gap_check: If True (default), run lightweight gap scanner
+                         before each phase to detect potential blockers early (IMP-GAP-001).
         """
         self.max_retry_attempts = max_retry_attempts
         # IMP-TEL-004: Anomaly detection and alert routing
         self.anomaly_detector = anomaly_detector
         self.alert_router = alert_router
+        # IMP-GAP-001: Pre-phase gap checking
+        self.enable_pre_phase_gap_check = enable_pre_phase_gap_check
 
     def execute_phase_attempt(self, context: ExecutionContext) -> ExecutionResult:
         """
@@ -210,6 +218,11 @@ class PhaseOrchestrator:
         phase_timeout_result = self._check_phase_timeout(context)
         if phase_timeout_result:
             return phase_timeout_result
+
+        # IMP-GAP-001: Run pre-phase gap check for early blocker detection
+        gap_check_result = self._run_pre_phase_gap_check(context)
+        if gap_check_result:
+            return gap_check_result
 
         # Check if already exhausted attempts
         if context.attempt_index >= self.max_retry_attempts:
@@ -481,6 +494,129 @@ class PhaseOrchestrator:
             )
 
         return None  # Time OK, proceed with execution
+
+    def _run_pre_phase_gap_check(self, context: ExecutionContext) -> Optional[ExecutionResult]:
+        """IMP-GAP-001: Run lightweight gap scan before phase execution.
+
+        Detects potential blockers early before spending resources on phase execution.
+        Only runs critical blocker detectors for fast (<100ms) checks.
+
+        Returns ExecutionResult if blockers found, None if OK to proceed.
+        """
+        if not self.enable_pre_phase_gap_check:
+            return None
+
+        phase_id = context.phase.get("phase_id")
+
+        try:
+            from autopack.gaps.scanner import GapScanner
+
+            # Get workspace root from context or use cwd
+            workspace_root = Path(context.workspace_root) if context.workspace_root else Path.cwd()
+
+            # Create lightweight scanner for fast pre-phase checks
+            scanner = GapScanner(workspace_root=workspace_root, lightweight=True)
+            gap_result = scanner.scan_for_phase(context.phase)
+
+            if gap_result.has_blockers:
+                blocker_summary = gap_result.get_blocker_summary()
+                error_msg = (
+                    f"Phase {phase_id} blocked by {gap_result.blocker_count} gap(s):\n"
+                    f"{blocker_summary}\n"
+                    f"Resolve these issues before phase execution can proceed."
+                )
+                logger.error(f"[IMP-GAP-001] {error_msg}")
+
+                # Emit telemetry for blocked phase
+                self._emit_gap_telemetry(context, gap_result)
+
+                if context.mark_phase_failed_in_db:
+                    context.mark_phase_failed_in_db(phase_id, "PRE_PHASE_GAP_BLOCKER")
+
+                # Record phase outcome for telemetry
+                self._record_phase_outcome(
+                    phase_id=phase_id,
+                    run_id=context.run_id,
+                    outcome="BLOCKED",
+                    stop_reason="pre_phase_gap_blocker",
+                    rationale=f"{gap_result.blocker_count} blocker(s) detected",
+                    tokens_used=None,  # No tokens spent yet
+                    duration_seconds=gap_result.scan_duration_ms / 1000.0,
+                    model_used=None,
+                    phase_type=context.phase.get("category"),
+                )
+
+                return ExecutionResult(
+                    success=False,
+                    status="PRE_PHASE_GAP_BLOCKER",
+                    phase_result=PhaseResult.BLOCKED,
+                    updated_counters={
+                        "total_failures": context.run_total_failures,
+                        "http_500_count": context.run_http_500_count,
+                        "patch_failure_count": context.run_patch_failure_count,
+                        "doctor_calls": context.run_doctor_calls,
+                        "replan_count": context.run_replan_count,
+                    },
+                    should_continue=False,
+                )
+
+            logger.debug(
+                f"[IMP-GAP-001] Phase {phase_id}: pre-phase gap check passed "
+                f"({gap_result.scan_duration_ms}ms)"
+            )
+            return None  # No blockers, proceed with execution
+
+        except ImportError as e:
+            # GapScanner not available - log and continue
+            logger.debug(f"[IMP-GAP-001] Gap scanner not available: {e}")
+            return None
+        except Exception as e:
+            # Don't let gap check failures block phase execution
+            logger.warning(f"[IMP-GAP-001] Pre-phase gap check failed for {phase_id}: {e}")
+            return None
+
+    def _emit_gap_telemetry(self, context: ExecutionContext, gap_result: "GapScanResult") -> None:
+        """IMP-GAP-001: Emit telemetry for detected gaps.
+
+        Records gap detection events for monitoring and analysis.
+        """
+        if os.getenv("TELEMETRY_DB_ENABLED", "false").lower() != "true":
+            return
+
+        phase_id = context.phase.get("phase_id")
+
+        try:
+            from datetime import datetime, timezone
+
+            from autopack.database import SessionLocal
+            from autopack.models import GapBlockerEvent
+
+            db = SessionLocal()
+            try:
+                for gap in gap_result.blockers:
+                    event = GapBlockerEvent(
+                        run_id=context.run_id,
+                        phase_id=phase_id,
+                        gap_id=gap.gap_id,
+                        gap_type=gap.gap_type,
+                        risk_classification=gap.risk_classification,
+                        blocks_autopilot=gap.blocks_autopilot,
+                        detected_at=datetime.now(timezone.utc),
+                        scan_duration_ms=gap_result.scan_duration_ms,
+                    )
+                    db.add(event)
+                db.commit()
+                logger.debug(
+                    f"[IMP-GAP-001] Recorded {gap_result.blocker_count} gap blocker event(s) "
+                    f"for phase {phase_id}"
+                )
+            finally:
+                db.close()
+        except ImportError:
+            # Model not available - skip telemetry
+            logger.debug("[IMP-GAP-001] GapBlockerEvent model not available")
+        except Exception as e:
+            logger.warning(f"[IMP-GAP-001] Failed to record gap telemetry: {e}")
 
     def _create_exhausted_result(self, context: ExecutionContext) -> ExecutionResult:
         """Create result when max attempts are exhausted."""
@@ -1770,9 +1906,7 @@ class GeneratedTaskHandler:
         else:
             # Fallback: try to use builder orchestration directly
             try:
-                from autopack.executor.attempt_runner import (
-                    run_single_attempt_with_recovery,
-                )
+                from autopack.executor.attempt_runner import run_single_attempt_with_recovery
 
                 # Create a minimal executor context
                 class MinimalExecutor:

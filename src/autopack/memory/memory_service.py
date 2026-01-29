@@ -40,6 +40,42 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# IMP-MEM-015: Project Namespace Isolation Validation
+# ---------------------------------------------------------------------------
+
+
+class ProjectNamespaceError(ValueError):
+    """Raised when project_id is missing or empty for memory operations.
+
+    IMP-MEM-015: All memory operations require a valid project_id to prevent
+    cross-project contamination in vector memory.
+    """
+
+    pass
+
+
+def _validate_project_id(project_id: str, operation: str = "memory operation") -> None:
+    """Validate that project_id is provided and non-empty.
+
+    IMP-MEM-015: Project isolation is critical for multi-project usage.
+    This validator ensures all memory operations are properly namespaced.
+
+    Args:
+        project_id: The project identifier to validate
+        operation: Description of the operation for error messages
+
+    Raises:
+        ProjectNamespaceError: If project_id is None, empty, or whitespace-only
+    """
+    if not project_id or not project_id.strip():
+        raise ProjectNamespaceError(
+            f"[IMP-MEM-015] project_id is required for {operation}. "
+            "All memory operations must be namespaced by project to prevent "
+            "cross-project contamination."
+        )
+
+
+# ---------------------------------------------------------------------------
 # IMP-MEM-012: Content Compression for Write Path
 # ---------------------------------------------------------------------------
 
@@ -1130,9 +1166,15 @@ class MemoryService:
 
         Returns:
             Point ID
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
         """
         if not self.enabled:
             return ""
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "index_file")
 
         # Truncate content for embedding
         content_truncated = content[: self.max_embed_chars]
@@ -1182,9 +1224,15 @@ class MemoryService:
 
         Returns:
             List of {"id", "score", "payload"} dicts
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
         """
         if not self.enabled:
             return []
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "search_code")
 
         limit = limit or self.top_k
         # IMP-MEM-010: Over-fetch when filtering to ensure enough fresh results
@@ -1242,9 +1290,15 @@ class MemoryService:
 
         Returns:
             Point ID
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
         """
         if not self.enabled:
             return ""
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "write_phase_summary")
 
         # IMP-MEM-012: Compress summary if too long
         compressed_summary, was_compressed = _compress_content(summary)
@@ -1297,9 +1351,15 @@ class MemoryService:
 
         Returns:
             List of {"id", "score", "payload"} dicts
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
         """
         if not self.enabled:
             return []
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "search_summaries")
 
         limit = limit or self.top_k
         # IMP-MEM-010: Over-fetch when filtering to ensure enough fresh results
@@ -1358,9 +1418,15 @@ class MemoryService:
 
         Returns:
             Point ID
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
         """
         if not self.enabled:
             return ""
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "write_error")
 
         # IMP-MEM-012: Compress error text if too long
         compressed_error, was_compressed = _compress_content(error_text)
@@ -1414,9 +1480,15 @@ class MemoryService:
 
         Returns:
             List of {"id", "score", "payload"} dicts
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
         """
         if not self.enabled:
             return []
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "search_errors")
 
         limit = limit or self.top_k
         # IMP-MEM-010: Over-fetch when filtering to ensure enough fresh results
@@ -1472,9 +1544,15 @@ class MemoryService:
 
         Returns:
             Point ID
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
         """
         if not self.enabled:
             return ""
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "write_doctor_hint")
 
         text = f"Doctor hint for {phase_id}: {hint}\nAction: {action or 'N/A'}\nOutcome: {outcome or 'pending'}"
         vector = sync_embed_text(text)
@@ -2041,9 +2119,15 @@ class MemoryService:
 
         Returns:
             List of {"id", "score", "payload"} dicts
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
         """
         if not self.enabled:
             return []
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "search_doctor_hints")
 
         limit = limit or self.top_k
         # IMP-MEM-010: Over-fetch when filtering to ensure enough fresh results
@@ -2110,9 +2194,15 @@ class MemoryService:
 
         Returns:
             Point ID of the stored feedback
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
         """
         if not self.enabled:
             return ""
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "write_task_execution_feedback")
 
         # Build a rich text representation for embedding
         status_str = "succeeded" if success else "failed"
@@ -2198,9 +2288,15 @@ class MemoryService:
 
         Returns:
             List of {"id", "score", "payload"} dicts with execution feedback
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
         """
         if not self.enabled:
             return []
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "search_execution_feedback")
 
         limit = limit or self.top_k
         query_vector = sync_embed_text(query)
@@ -2432,9 +2528,15 @@ class MemoryService:
 
         Returns:
             List of {"id", "score", "payload"} dicts
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
         """
         if not self.enabled:
             return []
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "search_sot")
 
         limit = limit or self.top_k
         query_vector = sync_embed_text(query)
@@ -2469,9 +2571,16 @@ class MemoryService:
         replaced_by: Optional[int] = None,
         timestamp: Optional[str] = None,
     ) -> str:
-        """Embed a planning artifact (templates/prompts/compiled plans)."""
+        """Embed a planning artifact (templates/prompts/compiled plans).
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
+        """
         if not self.enabled:
             return ""
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "write_planning_artifact")
 
         content_truncated = content[: self.max_embed_chars]
         summary_text = (summary or content_truncated[:600]).strip()
@@ -2519,9 +2628,16 @@ class MemoryService:
         replaced_by: Optional[int] = None,
         timestamp: Optional[str] = None,
     ) -> str:
-        """Embed a plan change (diff/summary) entry."""
+        """Embed a plan change (diff/summary) entry.
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
+        """
         if not self.enabled:
             return ""
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "write_plan_change")
 
         timestamp = timestamp or datetime.now(timezone.utc).isoformat()
         text = f"Plan change summary: {summary}\nRationale: {rationale}"
@@ -2562,9 +2678,16 @@ class MemoryService:
         alternatives: Optional[str] = None,
         timestamp: Optional[str] = None,
     ) -> str:
-        """Embed a decision log summary for recall."""
+        """Embed a decision log summary for recall.
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
+        """
         if not self.enabled:
             return ""
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "write_decision_log")
 
         timestamp = timestamp or datetime.now(timezone.utc).isoformat()
         text = (
@@ -2605,9 +2728,16 @@ class MemoryService:
         limit: Optional[int] = None,
         types: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
-        """Search planning collection (artifacts, plan changes, decisions)."""
+        """Search planning collection (artifacts, plan changes, decisions).
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
+        """
         if not self.enabled:
             return []
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "search_planning")
 
         limit = limit or self.top_k
         query_vector = sync_embed_text(query)
@@ -2628,7 +2758,14 @@ class MemoryService:
         return results
 
     def latest_plan_change(self, project_id: str) -> List[Dict[str, Any]]:
-        """Return latest plan changes (sorted newest first)."""
+        """Return latest plan changes (sorted newest first).
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
+        """
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "latest_plan_change")
+
         docs = self._safe_store_call(
             "latest_plan_change/scroll",
             lambda: self.store.scroll(
@@ -2694,8 +2831,8 @@ class MemoryService:
     def retrieve_insights(
         self,
         query: str,
+        project_id: str,
         limit: int = 10,
-        project_id: Optional[str] = None,
         max_age_hours: Optional[float] = None,
         min_confidence: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
@@ -2717,10 +2854,12 @@ class MemoryService:
         IMP-LOOP-016: Added confidence filtering to exclude low-confidence insights
         from task generation, improving decision quality.
 
+        IMP-MEM-015: project_id is now REQUIRED to prevent cross-project contamination.
+
         Args:
             query: Search query to find relevant insights
+            project_id: Project ID to filter by (REQUIRED - IMP-MEM-015)
             limit: Maximum number of results to return
-            project_id: Optional project ID to filter by
             max_age_hours: Maximum age in hours for insights to be considered fresh.
                           Defaults to DEFAULT_MEMORY_FRESHNESS_HOURS (720 hours / 30 days).
                           Must be positive; attempts to disable are ignored.
@@ -2729,10 +2868,16 @@ class MemoryService:
 
         Returns:
             List of insight dictionaries with content, metadata, and score
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
         """
         if not self.enabled:
             logger.debug("[MemoryService] Memory disabled, returning empty insights")
             return []
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "retrieve_insights")
 
         # IMP-LOOP-014: Enforce mandatory freshness filtering with validation
         # IMP-MEM-004: When max_age_hours is None, use per-collection thresholds
@@ -2747,18 +2892,19 @@ class MemoryService:
             use_per_collection_freshness = True
 
         # IMP-LOOP-014/IMP-MEM-004: Audit log for freshness filter applied
+        # IMP-MEM-015: project_id is now required - no fallback to "all"
         if use_per_collection_freshness:
             logger.info(
                 "[IMP-MEM-004] Retrieving insights with per-collection freshness thresholds, "
                 "project_id=%s, limit=%s",
-                project_id or "all",
+                project_id,
                 limit,
             )
         else:
             logger.info(
                 "[IMP-LOOP-014] Retrieving insights with freshness_filter=%sh, project_id=%s, limit=%s",
                 max_age_hours,
-                project_id or "all",
+                project_id,
                 limit,
             )
 
@@ -2786,9 +2932,11 @@ class MemoryService:
                     collection_max_age = max_age_hours
 
                 # Build filter for telemetry insights
-                search_filter = {"task_type": "telemetry_insight"}
-                if project_id:
-                    search_filter["project_id"] = project_id
+                # IMP-MEM-015: project_id is now required - always include in filter
+                search_filter = {
+                    "task_type": "telemetry_insight",
+                    "project_id": project_id,
+                }
 
                 results = self._safe_store_call(
                     f"retrieve_insights/{collection}",
@@ -2906,6 +3054,9 @@ class MemoryService:
 
         Returns:
             Dict with keys: "code", "summaries", "errors", "hints", "planning", "plan_changes", "decisions", "sot"
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
         """
         from ..config import settings
 
@@ -2920,6 +3071,9 @@ class MemoryService:
                 "decisions": [],
                 "sot": [],
             }
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "retrieve_context")
 
         # Initialize results with all possible keys (consistent structure)
         results: Dict[str, List[Dict[str, Any]]] = {
@@ -3003,6 +3157,9 @@ class MemoryService:
             Dict with keys mapping to lists of ContextMetadata objects.
             Each ContextMetadata includes confidence signals to help
             callers determine if the context is reliable.
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
         """
         results: Dict[str, List[ContextMetadata]] = {
             "code": [],
@@ -3013,6 +3170,9 @@ class MemoryService:
 
         if not self.enabled:
             return results
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "retrieve_context_with_metadata")
 
         now = datetime.now(timezone.utc)
 

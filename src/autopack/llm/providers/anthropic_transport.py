@@ -20,8 +20,7 @@ except ImportError:
     ContentBlock = None
     Usage = None
 
-from autopack.circuit_breaker import (CircuitBreaker, CircuitBreakerConfig,
-                                      CircuitBreakerOpenError)
+from autopack.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitBreakerOpenError
 
 logger = logging.getLogger(__name__)
 

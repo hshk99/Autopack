@@ -4,8 +4,11 @@ from datetime import datetime
 
 import pytest
 
-from autopack.telemetry.anomaly_detector import (AlertSeverity, AnomalyAlert,
-                                                 TelemetryAnomalyDetector)
+from autopack.telemetry.anomaly_detector import (
+    AlertSeverity,
+    AnomalyAlert,
+    TelemetryAnomalyDetector,
+)
 
 
 @pytest.fixture

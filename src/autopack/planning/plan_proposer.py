@@ -23,9 +23,16 @@ from typing import List, Optional
 from ..executor.safety_profile import SafetyProfile, derive_safety_profile
 from ..gaps.models import Gap, GapReportV1
 from ..intention_anchor.v2 import IntentionAnchorV2
-from .models import (Action, BudgetCompliance, EstimatedCost, GovernanceChecks,
-                     PlanMetadata, PlanProposalV1, PlanSummary,
-                     ProtectedPathCheck)
+from .models import (
+    Action,
+    BudgetCompliance,
+    EstimatedCost,
+    GovernanceChecks,
+    PlanMetadata,
+    PlanProposalV1,
+    PlanSummary,
+    ProtectedPathCheck,
+)
 
 logger = logging.getLogger(__name__)
 

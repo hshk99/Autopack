@@ -9,7 +9,8 @@ import pytest
 
 from autopack.executor.db_events import (
     maybe_apply_retry_max_tokens_from_db,
-    try_record_token_budget_escalation_event)
+    try_record_token_budget_escalation_event,
+)
 
 
 class TestMaybeApplyRetryMaxTokensFromDb:

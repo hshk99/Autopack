@@ -10,10 +10,13 @@ Tests cover:
 
 from unittest.mock import MagicMock, patch
 
-from autopack.memory.goal_drift import (_load_goal_drift_config,
-                                        check_goal_drift, cosine_similarity,
-                                        extract_goal_from_description,
-                                        should_block_on_drift)
+from autopack.memory.goal_drift import (
+    _load_goal_drift_config,
+    check_goal_drift,
+    cosine_similarity,
+    extract_goal_from_description,
+    should_block_on_drift,
+)
 
 
 class TestCosineSimilarity:

@@ -9,10 +9,13 @@ import tempfile
 from unittest.mock import MagicMock
 
 from autopack.intention_anchor import (
-    IntentionConstraints, create_anchor,
+    IntentionConstraints,
+    create_anchor,
     load_and_render_for_auditor_with_telemetry,
     load_and_render_for_builder_with_telemetry,
-    load_and_render_for_doctor_with_telemetry, save_anchor)
+    load_and_render_for_doctor_with_telemetry,
+    save_anchor,
+)
 
 # =============================================================================
 # Builder Telemetry Tests

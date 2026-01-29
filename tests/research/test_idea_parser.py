@@ -2,8 +2,7 @@
 
 import pytest
 
-from autopack.research.idea_parser import (IdeaParser, ParsedIdea, ProjectType,
-                                           RiskProfile)
+from autopack.research.idea_parser import IdeaParser, ParsedIdea, ProjectType, RiskProfile
 
 
 class TestProjectTypeEnum:

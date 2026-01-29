@@ -171,8 +171,7 @@ def test_file_extraction_filters_non_paths():
 
 def test_auditor_parse_result_serialization():
     """AuditorParseResult serializes to dict correctly."""
-    from autopack.executor.auditor_parsing import (AuditorParseResult,
-                                                   ParsedIssue)
+    from autopack.executor.auditor_parsing import AuditorParseResult, ParsedIssue
 
     result = AuditorParseResult(
         parse_status="parsed",

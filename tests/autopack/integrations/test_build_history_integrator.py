@@ -8,7 +8,9 @@ _extract_from_markdown, _analyze_patterns methods and additional __init__ parame
 import pytest
 
 from autopack.integrations.build_history_integrator import (
-    BuildHistoryInsight, BuildHistoryIntegrator)
+    BuildHistoryInsight,
+    BuildHistoryIntegrator,
+)
 
 pytestmark = [
     pytest.mark.skip(

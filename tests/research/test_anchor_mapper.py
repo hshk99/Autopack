@@ -3,13 +3,19 @@
 import pytest
 
 from autopack.intention_anchor.v2 import IntentionAnchorV2
-from autopack.research.anchor_mapper import (CONFIDENCE_THRESHOLD,
-                                             MappingConfidence, PivotMapping,
-                                             PivotType, ResearchToAnchorMapper)
+from autopack.research.anchor_mapper import (
+    CONFIDENCE_THRESHOLD,
+    MappingConfidence,
+    PivotMapping,
+    PivotType,
+    ResearchToAnchorMapper,
+)
 from autopack.research.idea_parser import ParsedIdea, ProjectType, RiskProfile
-from autopack.research.models.bootstrap_session import (BootstrapPhase,
-                                                        BootstrapSession,
-                                                        ResearchPhaseResult)
+from autopack.research.models.bootstrap_session import (
+    BootstrapPhase,
+    BootstrapSession,
+    ResearchPhaseResult,
+)
 
 
 class TestMappingConfidence:

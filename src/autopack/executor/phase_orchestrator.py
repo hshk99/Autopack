@@ -28,8 +28,7 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
-from autopack.autonomous.budgeting import (get_phase_budget_remaining_pct,
-                                           is_phase_budget_exceeded)
+from autopack.autonomous.budgeting import get_phase_budget_remaining_pct, is_phase_budget_exceeded
 from autopack.config import settings
 from autopack.time_watchdog import TimeWatchdog
 
@@ -263,8 +262,7 @@ class PhaseOrchestrator:
 
         # INSERTION POINT 2: Track phase state for intention-first loop (BUILD-161 Phase A)
         if context.intention_wiring is not None:
-            from autopack.autonomous.executor_wiring import \
-                get_or_create_phase_state
+            from autopack.autonomous.executor_wiring import get_or_create_phase_state
 
             phase_state = get_or_create_phase_state(context.intention_wiring, phase_id)
             # Increment iterations_used at phase start
@@ -663,10 +661,8 @@ class PhaseOrchestrator:
 
         Delegates to attempt_runner module for the execution wrapper.
         """
-        from autopack.executor.attempt_runner import \
-            run_single_attempt_with_recovery
-        from autopack.executor.db_events import \
-            maybe_apply_retry_max_tokens_from_db
+        from autopack.executor.attempt_runner import run_single_attempt_with_recovery
+        from autopack.executor.db_events import maybe_apply_retry_max_tokens_from_db
         from autopack.executor.retry_policy import AttemptContext
 
         # PR-B: Build attempt context for retry policy decisions
@@ -776,8 +772,7 @@ class PhaseOrchestrator:
         - Replan triggers
         - Attempt increment and retry
         """
-        from autopack.executor.retry_policy import (AttemptContext,
-                                                    next_attempt_state)
+        from autopack.executor.retry_policy import AttemptContext, next_attempt_state
 
         phase_id = context.phase.get("phase_id")
         status = result.status
@@ -1091,7 +1086,9 @@ class PhaseOrchestrator:
         try:
             from autopack.database import SessionLocal
             from autopack.usage_recorder import (
-                estimate_doctor_tokens_avoided, record_phase6_metrics)
+                estimate_doctor_tokens_avoided,
+                record_phase6_metrics,
+            )
 
             db = SessionLocal()
             try:
@@ -1257,8 +1254,7 @@ class PhaseOrchestrator:
         if not (context.intention_wiring is not None and context.intention_anchor is not None):
             return None
 
-        from autopack.executor.intention_stuck_handler import \
-            IntentionStuckHandler
+        from autopack.executor.intention_stuck_handler import IntentionStuckHandler
 
         phase_id = context.phase.get("phase_id")
 
@@ -1910,8 +1906,7 @@ class GeneratedTaskHandler:
         else:
             # Fallback: try to use builder orchestration directly
             try:
-                from autopack.executor.attempt_runner import \
-                    run_single_attempt_with_recovery
+                from autopack.executor.attempt_runner import run_single_attempt_with_recovery
 
                 # Create a minimal executor context
                 class MinimalExecutor:

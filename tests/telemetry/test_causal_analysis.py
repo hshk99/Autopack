@@ -4,8 +4,12 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from autopack.telemetry.causal_analysis import (CausalAnalyzer, CausalStrength,
-                                                ChangeEvent, OutcomeMetric)
+from autopack.telemetry.causal_analysis import (
+    CausalAnalyzer,
+    CausalStrength,
+    ChangeEvent,
+    OutcomeMetric,
+)
 
 
 @pytest.fixture

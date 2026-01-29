@@ -8,10 +8,12 @@ must be classified as requires_approval and not executed.
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from autopack.autonomy.action_allowlist import (REPO_WRITE_PATHS,
-                                                SAFE_ACTION_TYPES,
-                                                ActionClassification,
-                                                classify_action)
+from autopack.autonomy.action_allowlist import (
+    REPO_WRITE_PATHS,
+    SAFE_ACTION_TYPES,
+    ActionClassification,
+    classify_action,
+)
 from autopack.autonomy.action_executor import ActionType, SafeActionExecutor
 
 
@@ -305,8 +307,7 @@ class TestLoadProposalImplementation:
 
         from autopack.autonomy.autopilot import AutopilotController
         from autopack.file_layout import RunFileLayout
-        from autopack.planning.models import (Action, PlanProposalV1,
-                                              PlanSummary)
+        from autopack.planning.models import Action, PlanProposalV1, PlanSummary
 
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
@@ -405,8 +406,7 @@ class TestLoadProposalImplementation:
         from autopack.autonomy.autopilot import AutopilotController
         from autopack.autonomy.models import AutopilotSessionV1
         from autopack.file_layout import RunFileLayout
-        from autopack.planning.models import (Action, PlanProposalV1,
-                                              PlanSummary)
+        from autopack.planning.models import Action, PlanProposalV1, PlanSummary
 
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)

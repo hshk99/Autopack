@@ -8,15 +8,17 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from autopack.apply.quality import (check_file_truncation,
-                                    check_merge_conflict_markers,
-                                    check_structural_similarity,
-                                    check_symbol_preservation,
-                                    check_yaml_truncation,
-                                    detect_truncated_content,
-                                    extract_python_symbols,
-                                    validate_patch_quality,
-                                    validate_python_syntax)
+from autopack.apply.quality import (
+    check_file_truncation,
+    check_merge_conflict_markers,
+    check_structural_similarity,
+    check_symbol_preservation,
+    check_yaml_truncation,
+    detect_truncated_content,
+    extract_python_symbols,
+    validate_patch_quality,
+    validate_python_syntax,
+)
 
 
 class TestExtractPythonSymbols:

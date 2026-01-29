@@ -12,11 +12,15 @@ import json
 from datetime import datetime, timezone
 from unittest.mock import Mock
 
-from autopack.governance_requests import (approve_request, assess_risk_level,
-                                          can_auto_approve,
-                                          create_governance_request,
-                                          create_protected_path_error,
-                                          deny_request, get_pending_requests)
+from autopack.governance_requests import (
+    approve_request,
+    assess_risk_level,
+    can_auto_approve,
+    create_governance_request,
+    create_protected_path_error,
+    deny_request,
+    get_pending_requests,
+)
 
 
 class TestAutoApprovalPolicy:

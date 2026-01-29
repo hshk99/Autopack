@@ -9,8 +9,11 @@ from sqlalchemy.orm import sessionmaker
 
 from autopack.database import Base
 from autopack.model_intelligence.catalog_ingest import (
-    extract_models_from_config, ingest_catalog, ingest_pricing,
-    parse_provider_and_family)
+    extract_models_from_config,
+    ingest_catalog,
+    ingest_pricing,
+    parse_provider_and_family,
+)
 from autopack.model_intelligence.models import ModelCatalog, ModelPricing
 
 

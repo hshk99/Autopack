@@ -11,8 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from telemetry.metrics_aggregator import (BATCH_SIZE, MetricsAggregator,
-                                          StreamingAggregator)
+from telemetry.metrics_aggregator import BATCH_SIZE, MetricsAggregator, StreamingAggregator
 
 
 @pytest.fixture

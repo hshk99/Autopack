@@ -12,8 +12,13 @@ from pathlib import Path
 
 import pytest
 
-from autopack.trading import (RiskLimitType, RiskViolation, TradingMode,
-                              TradingRiskConfig, TradingRiskGate)
+from autopack.trading import (
+    RiskLimitType,
+    RiskViolation,
+    TradingMode,
+    TradingRiskConfig,
+    TradingRiskGate,
+)
 
 
 class TestTradingMode:

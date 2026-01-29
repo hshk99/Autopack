@@ -239,8 +239,7 @@ class TestParallelExecutionIntegration:
     @pytest.mark.asyncio
     async def test_parallel_orchestrator_bounded_concurrency(self, tmp_path):
         """Test that parallel orchestrator enforces concurrency limits."""
-        from autopack.parallel_orchestrator import (ParallelRunConfig,
-                                                    ParallelRunOrchestrator)
+        from autopack.parallel_orchestrator import ParallelRunConfig, ParallelRunOrchestrator
 
         config = ParallelRunConfig(
             max_concurrent_runs=2,
@@ -259,7 +258,10 @@ class TestParallelExecutionIntegration:
         from datetime import datetime, timezone
 
         from autopack.intention_anchor.v2 import (
-            IntentionAnchorV2, ParallelismIsolationIntention, PivotIntentions)
+            IntentionAnchorV2,
+            ParallelismIsolationIntention,
+            PivotIntentions,
+        )
         from autopack.parallel_orchestrator import execute_parallel_runs
 
         # Mock executor function

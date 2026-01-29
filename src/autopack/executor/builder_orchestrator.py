@@ -17,7 +17,9 @@ if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
 
 from autopack.deliverables_validator import (
-    format_validation_feedback_for_builder, validate_deliverables)
+    format_validation_feedback_for_builder,
+    validate_deliverables,
+)
 from autopack.governed_apply import GovernedApplyPath
 
 logger = logging.getLogger(__name__)
@@ -675,8 +677,7 @@ class BuilderOrchestrator:
             None - failures are logged but don't crash executor
         """
         try:
-            from autopack.deliverables_validator import \
-                extract_deliverables_from_scope
+            from autopack.deliverables_validator import extract_deliverables_from_scope
 
             scope_cfg = phase.get("scope") or {}
             expected_paths = extract_deliverables_from_scope(scope_cfg)
@@ -1178,8 +1179,7 @@ class BuilderOrchestrator:
 
         # Persist P10 decision to DB
         if os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in ["1", "true", "yes"]:
-            from autopack.executor.db_events import \
-                try_record_token_budget_escalation_event
+            from autopack.executor.db_events import try_record_token_budget_escalation_event
 
             try_record_token_budget_escalation_event(
                 run_id=self.run_id,
@@ -1449,8 +1449,7 @@ class BuilderOrchestrator:
 
                 # Persist P10 decision to DB
                 if os.environ.get("TELEMETRY_DB_ENABLED", "").lower() in ["1", "true", "yes"]:
-                    from autopack.executor.db_events import \
-                        try_record_token_budget_escalation_event
+                    from autopack.executor.db_events import try_record_token_budget_escalation_event
 
                     try_record_token_budget_escalation_event(
                         run_id=self.run_id,
@@ -1628,7 +1627,8 @@ class BuilderOrchestrator:
         try:
             from autopack.deliverables_validator import (
                 extract_deliverables_from_scope,
-                validate_new_json_deliverables_in_patch)
+                validate_new_json_deliverables_in_patch,
+            )
 
             scope_config = phase.get("scope", {})
             expected_paths = extract_deliverables_from_scope(scope_config or {})
@@ -1687,7 +1687,8 @@ class BuilderOrchestrator:
         try:
             from autopack.deliverables_validator import (
                 repair_empty_required_json_deliverables_in_patch,
-                validate_new_json_deliverables_in_patch)
+                validate_new_json_deliverables_in_patch,
+            )
 
             repaired, repaired_patch, repairs = repair_empty_required_json_deliverables_in_patch(
                 patch_content=builder_result.patch_content or "",
@@ -1763,8 +1764,7 @@ class BuilderOrchestrator:
             if not intention_anchor:
                 # Try to load from storage
                 try:
-                    from autopack.intention_anchor.storage import \
-                        IntentionAnchorStorage
+                    from autopack.intention_anchor.storage import IntentionAnchorStorage
 
                     intention_anchor = IntentionAnchorStorage.load_anchor(self.run_id)
                 except Exception:

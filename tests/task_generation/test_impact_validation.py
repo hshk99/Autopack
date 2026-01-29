@@ -7,10 +7,16 @@ import pytest
 
 from autopack.analytics.telemetry_analyzer import TelemetryAnalyzer
 from autopack.task_generation.insight_to_task import (
-    CRITICAL_HEALTH_THRESHOLD, HIGH_IMPACT_THRESHOLD, IMPACT_LEVELS,
-    MAX_THRESHOLD_ADJUSTMENT, MEDIUM_IMPACT_THRESHOLD,
-    MIN_HISTORY_FOR_CALIBRATION, MIN_THRESHOLD_ADJUSTMENT,
-    ImpactValidationRecord, InsightToTaskGenerator)
+    CRITICAL_HEALTH_THRESHOLD,
+    HIGH_IMPACT_THRESHOLD,
+    IMPACT_LEVELS,
+    MAX_THRESHOLD_ADJUSTMENT,
+    MEDIUM_IMPACT_THRESHOLD,
+    MIN_HISTORY_FOR_CALIBRATION,
+    MIN_THRESHOLD_ADJUSTMENT,
+    ImpactValidationRecord,
+    InsightToTaskGenerator,
+)
 
 
 @pytest.fixture

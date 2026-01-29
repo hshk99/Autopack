@@ -4,13 +4,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.autonomous.research_hooks import (ResearchHooks,
-                                                ResearchTriggerConfig)
-from autopack.integrations.build_history_integrator import \
-    BuildHistoryIntegrator
+from autopack.autonomous.research_hooks import ResearchHooks, ResearchTriggerConfig
+from autopack.integrations.build_history_integrator import BuildHistoryIntegrator
 from autopack.phases.research_phase import ResearchPhase, ResearchPhaseConfig
-from autopack.workflow.research_review import (ResearchReviewWorkflow,
-                                               ReviewConfig)
+from autopack.workflow.research_review import ResearchReviewWorkflow, ReviewConfig
 
 
 @pytest.fixture

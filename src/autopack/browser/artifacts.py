@@ -16,8 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from ..artifacts import (ArtifactClass, ArtifactMetadata, ArtifactRedactor,
-                         ArtifactRetentionManager)
+from ..artifacts import ArtifactClass, ArtifactMetadata, ArtifactRedactor, ArtifactRetentionManager
 
 logger = logging.getLogger(__name__)
 

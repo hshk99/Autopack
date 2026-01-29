@@ -2,12 +2,12 @@
 
 
 <!-- AUTO-GENERATED SUMMARY - DO NOT EDIT MANUALLY -->
-**Summary**: 48 decision(s) documented | Last updated: 2026-01-09
+**Summary**: 49 decision(s) documented | Last updated: 2026-01-29 22:54:44
 <!-- END AUTO-GENERATED SUMMARY -->
 
 <!-- META
-Last_Updated: 2026-01-09T09:30:00.000000Z
-Total_Decisions: 48
+Last_Updated: 2026-01-29T22:54:44.824512Z
+Total_Decisions: 49
 Format_Version: 2.0
 Auto_Generated: True
 Sources: CONSOLIDATED_STRATEGY, CONSOLIDATED_REFERENCE, archive/, BUILD-153, BUILD-155

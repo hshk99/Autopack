@@ -13,9 +13,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.task_generation.priority_engine import (COMPLEXITY_KEYWORDS,
-                                                      ExecutionPlanResult,
-                                                      PriorityEngine)
+from autopack.task_generation.priority_engine import (
+    COMPLEXITY_KEYWORDS,
+    ExecutionPlanResult,
+    PriorityEngine,
+)
 
 
 @pytest.fixture

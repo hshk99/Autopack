@@ -12,9 +12,7 @@ import json
 
 import pytest
 
-from autopack.calibration_reporter import (CalibrationReport,
-                                           CalibrationReporter,
-                                           CoefficientChange)
+from autopack.calibration_reporter import CalibrationReport, CalibrationReporter, CoefficientChange
 
 
 class TestCoefficientChange:

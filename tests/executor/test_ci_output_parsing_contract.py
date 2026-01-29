@@ -12,8 +12,7 @@ Coverage:
 
 import pytest
 
-from autopack.executor.ci_runner import (parse_pytest_counts, persist_ci_log,
-                                         trim_ci_output)
+from autopack.executor.ci_runner import parse_pytest_counts, persist_ci_log, trim_ci_output
 
 
 class TestPytestOutputParsing:

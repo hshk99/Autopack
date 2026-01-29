@@ -17,10 +17,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
-from autopack.model_routing_snapshot import (ModelRoutingEntry,
-                                             ModelRoutingSnapshot,
-                                             RoutingSnapshotStorage,
-                                             create_default_snapshot)
+from autopack.model_routing_snapshot import (
+    ModelRoutingEntry,
+    ModelRoutingSnapshot,
+    RoutingSnapshotStorage,
+    create_default_snapshot,
+)
 
 logger = logging.getLogger(__name__)
 

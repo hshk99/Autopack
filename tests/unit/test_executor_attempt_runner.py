@@ -10,8 +10,7 @@ from typing import Any, Callable, Tuple
 
 import pytest
 
-from autopack.executor.attempt_runner import (AttemptRunResult,
-                                              run_single_attempt_with_recovery)
+from autopack.executor.attempt_runner import AttemptRunResult, run_single_attempt_with_recovery
 
 
 @dataclass

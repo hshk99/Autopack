@@ -7,9 +7,13 @@ from unittest.mock import Mock
 
 import pytest
 
-from autopack.circuit_breaker import (CircuitBreaker, CircuitBreakerConfig,
-                                      CircuitBreakerMetrics,
-                                      CircuitBreakerOpenError, CircuitState)
+from autopack.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerMetrics,
+    CircuitBreakerOpenError,
+    CircuitState,
+)
 
 
 @pytest.fixture

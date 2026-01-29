@@ -9,8 +9,12 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from autopack.phase_proof_writer import write_minimal_phase_proof
-from autopack.proof_metrics import (ProofMetrics, count_changed_files,
-                                    get_proof_metrics, list_changed_files)
+from autopack.proof_metrics import (
+    ProofMetrics,
+    count_changed_files,
+    get_proof_metrics,
+    list_changed_files,
+)
 
 
 class TestCountChangedFiles:

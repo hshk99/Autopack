@@ -11,8 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from autopack.database import Base
-from autopack.llm.usage import (get_client_usage, record_usage,
-                                record_usage_total_only)
+from autopack.llm.usage import get_client_usage, record_usage, record_usage_total_only
 from autopack.usage_recorder import LlmUsageEvent
 
 

@@ -7,8 +7,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from src.autopack.memory.memory_service import MemoryService
-from src.autopack.telemetry.telemetry_to_memory_bridge import \
-    TelemetryToMemoryBridge
+from src.autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
 
 
 @pytest.fixture

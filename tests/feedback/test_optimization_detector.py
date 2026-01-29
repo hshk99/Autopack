@@ -4,8 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from feedback.optimization_detector import (OptimizationDetector,
-                                            OptimizationSuggestion)
+from feedback.optimization_detector import OptimizationDetector, OptimizationSuggestion
 
 
 @pytest.fixture

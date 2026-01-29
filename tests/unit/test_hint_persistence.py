@@ -16,8 +16,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.executor.learning_pipeline import (HintPersistenceError,
-                                                 LearningPipeline)
+from autopack.executor.learning_pipeline import HintPersistenceError, LearningPipeline
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 
 

@@ -34,8 +34,13 @@ from ..planning.plan_proposer import propose_plan
 from .action_allowlist import ActionClassification
 from .action_executor import ExecutionBatch, SafeActionExecutor
 from .executor_integration import ExecutorContext, create_executor_context
-from .models import (ApprovalRequest, AutopilotMetadata, AutopilotSessionV1,
-                     ErrorLogEntry, ExecutionSummary)
+from .models import (
+    ApprovalRequest,
+    AutopilotMetadata,
+    AutopilotSessionV1,
+    ErrorLogEntry,
+    ExecutionSummary,
+)
 
 logger = logging.getLogger(__name__)
 

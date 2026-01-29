@@ -6,10 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from autopack.circuit_breaker import (CircuitBreaker, CircuitBreakerConfig,
-                                      CircuitBreakerOpenError, CircuitState)
-from autopack.circuit_breaker_file_persistence import \
-    FileBasedCircuitBreakerPersistence
+from autopack.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerOpenError,
+    CircuitState,
+)
+from autopack.circuit_breaker_file_persistence import FileBasedCircuitBreakerPersistence
 
 
 class TestCircuitBreakerPersistenceMandatory:

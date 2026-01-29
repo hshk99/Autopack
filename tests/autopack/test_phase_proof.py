@@ -10,8 +10,13 @@ from datetime import datetime
 import pytest
 
 from autopack.config import settings
-from autopack.phase_proof import (PhaseChange, PhaseProof, PhaseProofStorage,
-                                  PhaseVerification, render_proof_as_markdown)
+from autopack.phase_proof import (
+    PhaseChange,
+    PhaseProof,
+    PhaseProofStorage,
+    PhaseVerification,
+    render_proof_as_markdown,
+)
 
 
 @pytest.fixture

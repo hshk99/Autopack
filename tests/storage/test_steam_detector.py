@@ -193,8 +193,7 @@ class TestGameDetection:
     @patch("pathlib.Path.glob")
     def test_detect_installed_games(self, mock_glob):
         """Test detecting all installed games."""
-        from autopack.storage_optimizer.steam_detector import (
-            SteamGame, SteamGameDetector)
+        from autopack.storage_optimizer.steam_detector import SteamGame, SteamGameDetector
 
         # Mock manifest files
         mock_manifests = [
@@ -242,8 +241,7 @@ class TestGameFiltering:
 
     def test_find_unplayed_games_by_size(self):
         """Test filtering games by minimum size."""
-        from autopack.storage_optimizer.steam_detector import (
-            SteamGame, SteamGameDetector)
+        from autopack.storage_optimizer.steam_detector import SteamGame, SteamGameDetector
 
         detector = SteamGameDetector()
         detector.steam_path = Path("c:/steam")
@@ -265,8 +263,7 @@ class TestGameFiltering:
 
     def test_find_unplayed_games_by_age(self):
         """Test filtering games by minimum age."""
-        from autopack.storage_optimizer.steam_detector import (
-            SteamGame, SteamGameDetector)
+        from autopack.storage_optimizer.steam_detector import SteamGame, SteamGameDetector
 
         detector = SteamGameDetector()
         detector.steam_path = Path("c:/steam")
@@ -289,8 +286,7 @@ class TestGameFiltering:
 
     def test_find_unplayed_games_sorted_by_size(self):
         """Test games are sorted by size descending."""
-        from autopack.storage_optimizer.steam_detector import (
-            SteamGame, SteamGameDetector)
+        from autopack.storage_optimizer.steam_detector import SteamGame, SteamGameDetector
 
         detector = SteamGameDetector()
         detector.steam_path = Path("c:/steam")
@@ -312,8 +308,7 @@ class TestGameFiltering:
 
     def test_find_unplayed_games_no_last_updated(self):
         """Test handling games with no last_updated timestamp."""
-        from autopack.storage_optimizer.steam_detector import (
-            SteamGame, SteamGameDetector)
+        from autopack.storage_optimizer.steam_detector import SteamGame, SteamGameDetector
 
         detector = SteamGameDetector()
         detector.steam_path = Path("c:/steam")

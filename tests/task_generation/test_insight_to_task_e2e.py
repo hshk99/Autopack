@@ -15,9 +15,7 @@ from unittest.mock import Mock
 import pytest
 
 from autopack.analytics.telemetry_analyzer import TelemetryAnalyzer
-from autopack.executor.backlog_maintenance import (BacklogMaintenance,
-                                                   InjectionResult,
-                                                   TaskCandidate)
+from autopack.executor.backlog_maintenance import BacklogMaintenance, InjectionResult, TaskCandidate
 from autopack.task_generation.insight_to_task import InsightToTaskGenerator
 
 

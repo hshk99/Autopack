@@ -8,10 +8,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from autopack.database import Base
-from autopack.model_intelligence.models import (ModelCatalog, ModelPricing,
-                                                ModelRuntimeStats)
+from autopack.model_intelligence.models import ModelCatalog, ModelPricing, ModelRuntimeStats
 from autopack.model_intelligence.runtime_stats import (
-    compute_cost_estimate, compute_runtime_stats, compute_token_percentiles)
+    compute_cost_estimate,
+    compute_runtime_stats,
+    compute_token_percentiles,
+)
 from autopack.usage_recorder import LlmUsageEvent
 
 

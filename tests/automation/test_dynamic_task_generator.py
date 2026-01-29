@@ -7,8 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from src.automation.anomaly_detector import Anomaly
-from src.automation.dynamic_task_generator import (DynamicTaskGenerator,
-                                                   GeneratedTask)
+from src.automation.dynamic_task_generator import DynamicTaskGenerator, GeneratedTask
 
 
 class TestDynamicTaskGenerator:

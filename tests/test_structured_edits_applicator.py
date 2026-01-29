@@ -1,7 +1,11 @@
 from pathlib import Path
 
-from autopack.structured_edits import (EditOperation, EditOperationType,
-                                       EditPlan, StructuredEditApplicator)
+from autopack.structured_edits import (
+    EditOperation,
+    EditOperationType,
+    EditPlan,
+    StructuredEditApplicator,
+)
 
 
 def test_structured_edits_allows_creating_new_file_without_context(tmp_path: Path) -> None:

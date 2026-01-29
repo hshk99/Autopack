@@ -11,10 +11,13 @@ import json
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
-from autopack.learned_rules import (DiscoveryStage, LearnedRule,
-                                    RuleAgingTracker,
-                                    get_active_rules_for_phase,
-                                    record_rule_validation_outcome)
+from autopack.learned_rules import (
+    DiscoveryStage,
+    LearnedRule,
+    RuleAgingTracker,
+    get_active_rules_for_phase,
+    record_rule_validation_outcome,
+)
 
 # ============================================================================
 # RuleAgingTracker Tests

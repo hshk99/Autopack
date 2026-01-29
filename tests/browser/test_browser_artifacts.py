@@ -5,8 +5,7 @@ import tempfile
 from pathlib import Path
 
 from autopack.artifacts import ArtifactClass
-from autopack.browser.artifacts import (BrowserArtifactManager,
-                                        BrowserArtifactPolicy)
+from autopack.browser.artifacts import BrowserArtifactManager, BrowserArtifactPolicy
 
 
 class TestBrowserArtifactPolicy:

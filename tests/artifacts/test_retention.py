@@ -6,8 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from autopack.artifacts import (DEFAULT_RETENTION_POLICIES, ArtifactClass,
-                                ArtifactMetadata, ArtifactRetentionManager)
+from autopack.artifacts import (
+    DEFAULT_RETENTION_POLICIES,
+    ArtifactClass,
+    ArtifactMetadata,
+    ArtifactRetentionManager,
+)
 
 
 class TestArtifactClass:

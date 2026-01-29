@@ -6,10 +6,16 @@ BUILD-188: Ensures sensitive data is properly redacted before persistence.
 
 import pytest
 
-from autopack.sanitizer import (REDACTED, sanitize_context, sanitize_dict,
-                                sanitize_headers, sanitize_query_params,
-                                sanitize_stack_frames, sanitize_url,
-                                sanitize_value)
+from autopack.sanitizer import (
+    REDACTED,
+    sanitize_context,
+    sanitize_dict,
+    sanitize_headers,
+    sanitize_query_params,
+    sanitize_stack_frames,
+    sanitize_url,
+    sanitize_value,
+)
 
 
 class TestSanitizeHeaders:

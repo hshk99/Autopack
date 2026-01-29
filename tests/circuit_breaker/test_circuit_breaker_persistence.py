@@ -7,8 +7,7 @@ restored correctly after process restarts.
 import fakeredis
 import pytest
 
-from src.autopack.circuit_breaker import (CircuitBreaker, CircuitBreakerConfig,
-                                          CircuitState)
+from src.autopack.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitState
 from src.autopack.circuit_breaker_persistence import CircuitBreakerPersistence
 from src.autopack.circuit_breaker_registry import CircuitBreakerRegistry
 

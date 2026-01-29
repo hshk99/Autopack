@@ -13,9 +13,14 @@ Key components:
 - patcher.py: Generate proposed YAML patches for approved recommendations
 """
 
-from .models import (ModelBenchmark, ModelCatalog, ModelPricing,
-                     ModelRecommendation, ModelRuntimeStats,
-                     ModelSentimentSignal)
+from .models import (
+    ModelBenchmark,
+    ModelCatalog,
+    ModelPricing,
+    ModelRecommendation,
+    ModelRuntimeStats,
+    ModelSentimentSignal,
+)
 
 __all__ = [
     "ModelCatalog",

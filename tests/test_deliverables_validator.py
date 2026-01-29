@@ -3,9 +3,12 @@
 from pathlib import Path
 
 from autopack.deliverables_validator import (
-    extract_deliverables_from_scope, extract_paths_from_patch,
-    format_validation_feedback_for_builder, normalize_path,
-    validate_deliverables)
+    extract_deliverables_from_scope,
+    extract_paths_from_patch,
+    format_validation_feedback_for_builder,
+    normalize_path,
+    validate_deliverables,
+)
 
 
 class TestExtractPathsFromPatch:

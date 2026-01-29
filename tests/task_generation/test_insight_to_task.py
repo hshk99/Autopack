@@ -16,9 +16,14 @@ from autopack.analytics.telemetry_analyzer import TelemetryAnalyzer
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     from autopack.task_generation.insight_to_task import (
-        CRITICAL_ESCALATION_RATE, CRITICAL_FLAKINESS,
-        CRITICAL_HEALTH_THRESHOLD, HIGH_ESCALATION_RATE, HIGH_FLAKINESS,
-        HIGH_IMPACT_THRESHOLD, InsightToTaskGenerator)
+        CRITICAL_ESCALATION_RATE,
+        CRITICAL_FLAKINESS,
+        CRITICAL_HEALTH_THRESHOLD,
+        HIGH_ESCALATION_RATE,
+        HIGH_FLAKINESS,
+        HIGH_IMPACT_THRESHOLD,
+        InsightToTaskGenerator,
+    )
 
 
 @pytest.fixture
@@ -562,8 +567,7 @@ class TestCreateCorrectiveTask:
 
     def test_create_from_object_with_to_dict(self, generator: InsightToTaskGenerator) -> None:
         """Test creating corrective task from object with to_dict method."""
-        from autopack.task_generation.task_effectiveness_tracker import \
-            CorrectiveTask
+        from autopack.task_generation.task_effectiveness_tracker import CorrectiveTask
 
         corrective_task = CorrectiveTask(
             corrective_id="CORR-002",

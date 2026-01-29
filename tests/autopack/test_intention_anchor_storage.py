@@ -12,8 +12,13 @@ from pathlib import Path
 
 import pytest
 
-from autopack.intention_anchor import (create_anchor, get_canonical_path,
-                                       load_anchor, save_anchor, update_anchor)
+from autopack.intention_anchor import (
+    create_anchor,
+    get_canonical_path,
+    load_anchor,
+    save_anchor,
+    update_anchor,
+)
 
 
 def test_get_canonical_path():

@@ -9,8 +9,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.memory.memory_service import (LOW_CONFIDENCE_THRESHOLD,
-                                            ContextMetadata, MemoryService)
+from autopack.memory.memory_service import LOW_CONFIDENCE_THRESHOLD, ContextMetadata, MemoryService
 
 
 class TestRetrieveContextWithMetadataConfidenceFiltering:

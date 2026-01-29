@@ -12,9 +12,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.llm.client_resolution import (resolve_auditor_client,
-                                            resolve_builder_client,
-                                            resolve_client_and_model)
+from autopack.llm.client_resolution import (
+    resolve_auditor_client,
+    resolve_builder_client,
+    resolve_client_and_model,
+)
 
 
 class TestClientResolutionFallbacks:

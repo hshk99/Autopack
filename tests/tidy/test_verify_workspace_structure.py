@@ -18,13 +18,16 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts" / "tidy"))
-from verify_workspace_structure import (ARCHIVE_REQUIRED_BUCKETS,
-                                        DOCS_ALLOWED_PATTERNS,
-                                        ROOT_ALLOWED_DIRS,
-                                        is_docs_file_allowed, matches_pattern,
-                                        verify_archive_structure,
-                                        verify_docs_structure,
-                                        verify_root_structure)
+from verify_workspace_structure import (
+    ARCHIVE_REQUIRED_BUCKETS,
+    DOCS_ALLOWED_PATTERNS,
+    ROOT_ALLOWED_DIRS,
+    is_docs_file_allowed,
+    matches_pattern,
+    verify_archive_structure,
+    verify_docs_structure,
+    verify_root_structure,
+)
 
 
 class TestRootSecurityDirectoryAllowlist:

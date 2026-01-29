@@ -11,8 +11,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from ..deliverables_validator import (
-    extract_deliverables_from_scope, format_validation_feedback_for_builder,
-    validate_deliverables, validate_new_file_diffs_have_complete_structure)
+    extract_deliverables_from_scope,
+    format_validation_feedback_for_builder,
+    validate_deliverables,
+    validate_new_file_diffs_have_complete_structure,
+)
 from ..governed_apply import GovernedApplyPath
 from ..llm_client import BuilderResult
 

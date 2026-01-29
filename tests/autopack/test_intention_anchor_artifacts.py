@@ -8,14 +8,19 @@ correctly generated and can be consolidated without direct writes to SOT ledgers
 import tempfile
 from pathlib import Path
 
-from autopack.intention_anchor import (IntentionConstraints, create_anchor,
-                                       generate_anchor_diff_summary,
-                                       generate_anchor_summary,
-                                       get_anchor_events_path,
-                                       get_anchor_summary_path,
-                                       log_anchor_event, read_anchor_events,
-                                       save_anchor, save_anchor_summary,
-                                       update_anchor)
+from autopack.intention_anchor import (
+    IntentionConstraints,
+    create_anchor,
+    generate_anchor_diff_summary,
+    generate_anchor_summary,
+    get_anchor_events_path,
+    get_anchor_summary_path,
+    log_anchor_event,
+    read_anchor_events,
+    save_anchor,
+    save_anchor_summary,
+    update_anchor,
+)
 
 # =============================================================================
 # Artifact Path Tests

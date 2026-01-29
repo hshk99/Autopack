@@ -9,14 +9,19 @@ from datetime import datetime, timezone
 import pytest
 
 from src.autopack.intention_anchor.phase_type_registry import (
-    CustomPivot, PhaseTypePivots, PhaseTypeRegistry)
-from src.autopack.intention_anchor.v2 import (BudgetCostIntention,
-                                              EvidenceVerificationIntention,
-                                              IntentionAnchorV2,
-                                              NorthStarIntention,
-                                              PivotIntentions,
-                                              SafetyRiskIntention,
-                                              ScopeBoundariesIntention)
+    CustomPivot,
+    PhaseTypePivots,
+    PhaseTypeRegistry,
+)
+from src.autopack.intention_anchor.v2 import (
+    BudgetCostIntention,
+    EvidenceVerificationIntention,
+    IntentionAnchorV2,
+    NorthStarIntention,
+    PivotIntentions,
+    SafetyRiskIntention,
+    ScopeBoundariesIntention,
+)
 
 
 @pytest.fixture

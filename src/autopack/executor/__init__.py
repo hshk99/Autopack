@@ -17,7 +17,9 @@ and pivot types for autonomous execution guidance.
 
 # PR-EXE-6: Heuristic context loader extraction (IMP-REF-002)
 from autopack.executor.context_loading_heuristic import (
-    HeuristicContextLoader, get_default_priority_files)
+    HeuristicContextLoader,
+    get_default_priority_files,
+)
 
 __all__ = [
     "HeuristicContextLoader",

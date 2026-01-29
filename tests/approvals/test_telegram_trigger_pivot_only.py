@@ -13,9 +13,11 @@ from unittest.mock import patch
 
 def test_telegram_triggers_on_pivot_intention_change():
     """Telegram approval requested when pivot intention is changed."""
-    from autopack.approvals.service import (ApprovalRequest,
-                                            ApprovalTriggerReason,
-                                            should_trigger_approval)
+    from autopack.approvals.service import (
+        ApprovalRequest,
+        ApprovalTriggerReason,
+        should_trigger_approval,
+    )
 
     request = ApprovalRequest(
         request_id="req-001",
@@ -34,9 +36,11 @@ def test_telegram_triggers_on_pivot_intention_change():
 
 def test_telegram_triggers_on_pivot_constraint_violation():
     """Telegram approval requested when pivot constraint is violated."""
-    from autopack.approvals.service import (ApprovalRequest,
-                                            ApprovalTriggerReason,
-                                            should_trigger_approval)
+    from autopack.approvals.service import (
+        ApprovalRequest,
+        ApprovalTriggerReason,
+        should_trigger_approval,
+    )
 
     request = ApprovalRequest(
         request_id="req-002",
@@ -55,9 +59,11 @@ def test_telegram_triggers_on_pivot_constraint_violation():
 
 def test_telegram_triggers_on_governance_escalation():
     """Telegram approval requested when governance escalation required."""
-    from autopack.approvals.service import (ApprovalRequest,
-                                            ApprovalTriggerReason,
-                                            should_trigger_approval)
+    from autopack.approvals.service import (
+        ApprovalRequest,
+        ApprovalTriggerReason,
+        should_trigger_approval,
+    )
 
     request = ApprovalRequest(
         request_id="req-003",
@@ -76,9 +82,11 @@ def test_telegram_triggers_on_governance_escalation():
 
 def test_telegram_not_triggered_for_normal_retry():
     """Telegram NOT triggered for normal phase retry."""
-    from autopack.approvals.service import (ApprovalRequest,
-                                            ApprovalTriggerReason,
-                                            should_trigger_approval)
+    from autopack.approvals.service import (
+        ApprovalRequest,
+        ApprovalTriggerReason,
+        should_trigger_approval,
+    )
 
     request = ApprovalRequest(
         request_id="req-004",
@@ -97,9 +105,11 @@ def test_telegram_not_triggered_for_normal_retry():
 
 def test_telegram_not_triggered_for_replan():
     """Telegram NOT triggered for normal replan within pivot bounds."""
-    from autopack.approvals.service import (ApprovalRequest,
-                                            ApprovalTriggerReason,
-                                            should_trigger_approval)
+    from autopack.approvals.service import (
+        ApprovalRequest,
+        ApprovalTriggerReason,
+        should_trigger_approval,
+    )
 
     request = ApprovalRequest(
         request_id="req-005",
@@ -118,9 +128,11 @@ def test_telegram_not_triggered_for_replan():
 
 def test_telegram_not_triggered_for_model_escalation_within_bounds():
     """Telegram NOT triggered for model escalation within pivot budget."""
-    from autopack.approvals.service import (ApprovalRequest,
-                                            ApprovalTriggerReason,
-                                            should_trigger_approval)
+    from autopack.approvals.service import (
+        ApprovalRequest,
+        ApprovalTriggerReason,
+        should_trigger_approval,
+    )
 
     request = ApprovalRequest(
         request_id="req-006",
@@ -152,8 +164,7 @@ def test_telegram_never_active_in_ci():
 
 def test_telegram_disabled_by_default():
     """Telegram service is disabled by default."""
-    from autopack.approvals.service import (NoopApprovalService,
-                                            get_approval_service)
+    from autopack.approvals.service import NoopApprovalService, get_approval_service
 
     # No environment variables set
     with patch.dict("os.environ", {}, clear=True):
@@ -184,8 +195,7 @@ def test_telegram_enabled_only_with_explicit_config():
 
 def test_telegram_misconfigured_fails_safely():
     """Misconfigured Telegram records evidence and halts if approval required."""
-    from autopack.approvals.service import (ApprovalRequest,
-                                            ApprovalTriggerReason)
+    from autopack.approvals.service import ApprovalRequest, ApprovalTriggerReason
     from autopack.approvals.telegram import TelegramApprovalService
 
     # Missing required config
@@ -212,8 +222,7 @@ def test_approval_request_serializable():
     """ApprovalRequest can be serialized for evidence storage."""
     import json
 
-    from autopack.approvals.service import (ApprovalRequest,
-                                            ApprovalTriggerReason)
+    from autopack.approvals.service import ApprovalRequest, ApprovalTriggerReason
 
     request = ApprovalRequest(
         request_id="req-008",

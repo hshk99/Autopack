@@ -39,8 +39,14 @@ import sys
 
 from .classifier import FileClassifier
 from .models import CleanupCandidate, CleanupPlan, ScanResult, StorageReport
-from .policy import (CategoryPolicy, RetentionPolicy, StoragePolicy,
-                     get_category_for_path, is_path_protected, load_policy)
+from .policy import (
+    CategoryPolicy,
+    RetentionPolicy,
+    StoragePolicy,
+    get_category_for_path,
+    is_path_protected,
+    load_policy,
+)
 from .reporter import StorageReporter
 from .scanner import StorageScanner
 

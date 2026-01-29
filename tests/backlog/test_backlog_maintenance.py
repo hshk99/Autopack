@@ -13,11 +13,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from autopack.backlog_maintenance import (BacklogItem, backlog_items_to_phases,
-                                          create_git_checkpoint,
-                                          parse_backlog_markdown,
-                                          parse_patch_stats,
-                                          revert_to_checkpoint, write_plan)
+from autopack.backlog_maintenance import (
+    BacklogItem,
+    backlog_items_to_phases,
+    create_git_checkpoint,
+    parse_backlog_markdown,
+    parse_patch_stats,
+    revert_to_checkpoint,
+    write_plan,
+)
 
 
 class TestBacklogItemParsing:

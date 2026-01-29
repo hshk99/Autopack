@@ -17,8 +17,11 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "scripts" / "tidy"))
 
-from consolidate_intention_anchors import (apply_consolidation_entry,
-                                           check_marker_exists, run_apply_mode)
+from consolidate_intention_anchors import (
+    apply_consolidation_entry,
+    check_marker_exists,
+    run_apply_mode,
+)
 
 # Import intention anchor utilities
 sys.path.insert(0, str(project_root / "src"))

@@ -30,8 +30,7 @@ class TestIMPSEC006WebhookSecretRequired:
         This prevents webhook spoofing attacks where attackers send fake
         Telegram callbacks to trigger unauthorized actions.
         """
-        from autopack.notifications.telegram_webhook_security import \
-            verify_telegram_webhook
+        from autopack.notifications.telegram_webhook_security import verify_telegram_webhook
 
         mock_request = MagicMock()
         mock_request.headers.get.return_value = None
@@ -53,8 +52,7 @@ class TestIMPSEC006WebhookSecretRequired:
 
         Even if secret is configured, requests with invalid tokens must be rejected.
         """
-        from autopack.notifications.telegram_webhook_security import \
-            verify_telegram_webhook
+        from autopack.notifications.telegram_webhook_security import verify_telegram_webhook
 
         mock_request = MagicMock()
         mock_request.headers.get.return_value = "attacker-supplied-token"
@@ -75,8 +73,7 @@ class TestIMPSEC006WebhookSecretRequired:
     @pytest.mark.asyncio
     async def test_production_accepts_valid_secret_token(self):
         """Production MUST accept webhooks with correct secret token."""
-        from autopack.notifications.telegram_webhook_security import \
-            verify_telegram_webhook
+        from autopack.notifications.telegram_webhook_security import verify_telegram_webhook
 
         mock_request = MagicMock()
         mock_request.headers.get.return_value = "correct-secret-token"
@@ -97,8 +94,7 @@ class TestIMPSEC006WebhookSecretRequired:
     @pytest.mark.asyncio
     async def test_development_allows_without_secret_configured(self):
         """Development mode allows webhooks without secret for local testing."""
-        from autopack.notifications.telegram_webhook_security import \
-            verify_telegram_webhook
+        from autopack.notifications.telegram_webhook_security import verify_telegram_webhook
 
         mock_request = MagicMock()
         mock_request.headers.get.return_value = None
@@ -117,8 +113,7 @@ class TestIMPSEC006WebhookSecretRequired:
         """Production must log error when secret is missing."""
         import asyncio
 
-        from autopack.notifications.telegram_webhook_security import \
-            verify_telegram_webhook
+        from autopack.notifications.telegram_webhook_security import verify_telegram_webhook
 
         mock_request = MagicMock()
         mock_request.headers.get.return_value = None
@@ -140,8 +135,7 @@ class TestWebhookSecretConfiguration:
 
     def test_is_verification_required_in_production(self):
         """Production always requires verification."""
-        from autopack.notifications.telegram_webhook_security import \
-            is_verification_required
+        from autopack.notifications.telegram_webhook_security import is_verification_required
 
         with patch.dict(os.environ, {"AUTOPACK_ENV": "production"}, clear=False):
             os.environ.pop("TELEGRAM_WEBHOOK_SECRET", None)
@@ -153,8 +147,7 @@ class TestWebhookSecretConfiguration:
 
     def test_is_verification_required_when_secret_set(self):
         """Verification required when secret is configured (any environment)."""
-        from autopack.notifications.telegram_webhook_security import \
-            is_verification_required
+        from autopack.notifications.telegram_webhook_security import is_verification_required
 
         with patch.dict(
             os.environ,
@@ -166,8 +159,7 @@ class TestWebhookSecretConfiguration:
 
     def test_verification_not_required_dev_no_secret(self):
         """Development without secret does not require verification."""
-        from autopack.notifications.telegram_webhook_security import \
-            is_verification_required
+        from autopack.notifications.telegram_webhook_security import is_verification_required
 
         with patch.dict(os.environ, {"AUTOPACK_ENV": "development"}, clear=False):
             os.environ.pop("TELEGRAM_WEBHOOK_SECRET", None)

@@ -9,8 +9,7 @@ Tests cover:
 
 from unittest.mock import patch
 
-from autopack.roadc.discovery_context_merger import (DiscoveryContextMerger,
-                                                     DiscoveryInsight)
+from autopack.roadc.discovery_context_merger import DiscoveryContextMerger, DiscoveryInsight
 
 
 class TestDiscoveryInsight:

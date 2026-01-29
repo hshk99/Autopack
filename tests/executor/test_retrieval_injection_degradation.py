@@ -9,10 +9,12 @@ Tests the tiered degradation behavior implemented in IMP-RET-001:
 This ensures graceful degradation instead of binary all-or-nothing behavior.
 """
 
-from autopack.executor.retrieval_injection import (FULL_RETRIEVAL_THRESHOLD,
-                                                   REDUCED_RETRIEVAL_THRESHOLD,
-                                                   SUMMARY_ONLY_THRESHOLD,
-                                                   RetrievalInjection)
+from autopack.executor.retrieval_injection import (
+    FULL_RETRIEVAL_THRESHOLD,
+    REDUCED_RETRIEVAL_THRESHOLD,
+    SUMMARY_ONLY_THRESHOLD,
+    RetrievalInjection,
+)
 
 
 class TestProgressiveDegradationThresholds:

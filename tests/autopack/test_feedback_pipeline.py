@@ -11,8 +11,7 @@ Tests cover:
 
 from unittest.mock import Mock
 
-from autopack.feedback_pipeline import (FeedbackPipeline, PhaseContext,
-                                        PhaseOutcome)
+from autopack.feedback_pipeline import FeedbackPipeline, PhaseContext, PhaseOutcome
 
 
 class TestPhaseOutcome:

@@ -6,11 +6,15 @@ from pathlib import Path
 
 import pytest
 
-from autopack.auth.oauth_lifecycle import (CredentialHealth, CredentialStatus,
-                                           OAuthCredential,
-                                           OAuthCredentialManager,
-                                           RefreshAttemptResult, RefreshResult,
-                                           create_generic_oauth2_handler)
+from autopack.auth.oauth_lifecycle import (
+    CredentialHealth,
+    CredentialStatus,
+    OAuthCredential,
+    OAuthCredentialManager,
+    RefreshAttemptResult,
+    RefreshResult,
+    create_generic_oauth2_handler,
+)
 
 
 class TestOAuthCredential:

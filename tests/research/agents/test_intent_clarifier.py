@@ -1,7 +1,6 @@
 """Tests for Intent Clarification Agent."""
 
-from autopack.research.agents.intent_clarifier import (IntentClarifier,
-                                                       ResearchIntent)
+from autopack.research.agents.intent_clarifier import IntentClarifier, ResearchIntent
 
 
 class TestIntentClarifier:

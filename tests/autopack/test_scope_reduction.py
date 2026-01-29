@@ -8,14 +8,14 @@ from datetime import datetime
 
 import pytest
 
-from autopack.intention_anchor.models import (IntentionAnchor,
-                                              IntentionConstraints,
-                                              IntentionScope)
-from autopack.scope_reduction import (ScopeReductionDiff,
-                                      ScopeReductionProposal,
-                                      ScopeReductionRationale,
-                                      generate_scope_reduction_prompt,
-                                      validate_scope_reduction)
+from autopack.intention_anchor.models import IntentionAnchor, IntentionConstraints, IntentionScope
+from autopack.scope_reduction import (
+    ScopeReductionDiff,
+    ScopeReductionProposal,
+    ScopeReductionRationale,
+    generate_scope_reduction_prompt,
+    validate_scope_reduction,
+)
 
 
 @pytest.fixture

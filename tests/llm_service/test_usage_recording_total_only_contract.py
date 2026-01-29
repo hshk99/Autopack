@@ -13,9 +13,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.autopack.database import Base
-from src.autopack.llm.usage import (aggregate_usage_by_model,
-                                    aggregate_usage_by_run, model_to_provider,
-                                    record_usage, record_usage_total_only)
+from src.autopack.llm.usage import (
+    aggregate_usage_by_model,
+    aggregate_usage_by_run,
+    model_to_provider,
+    record_usage,
+    record_usage_total_only,
+)
 from src.autopack.usage_recorder import LlmUsageEvent
 
 

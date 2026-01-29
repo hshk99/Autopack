@@ -30,8 +30,7 @@ import warnings
 
 from .priority_engine import PriorityEngine
 from .roi_analyzer import PaybackAnalysis, ROIAnalyzer
-from .task_effectiveness_tracker import (TaskEffectivenessTracker,
-                                         TaskImpactReport)
+from .task_effectiveness_tracker import TaskEffectivenessTracker, TaskImpactReport
 
 
 def __getattr__(name: str):
@@ -44,8 +43,7 @@ def __getattr__(name: str):
             DeprecationWarning,
             stacklevel=2,
         )
-        from autopack.task_generation.insight_to_task import \
-            InsightToTaskGenerator
+        from autopack.task_generation.insight_to_task import InsightToTaskGenerator
 
         return InsightToTaskGenerator
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

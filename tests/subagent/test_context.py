@@ -6,8 +6,12 @@ BUILD-197: Claude Code sub-agent glue work
 
 import pytest
 
-from autopack.subagent.context import (ContextFile, ContextFileManager,
-                                       SubagentFinding, SubagentProposal)
+from autopack.subagent.context import (
+    ContextFile,
+    ContextFileManager,
+    SubagentFinding,
+    SubagentProposal,
+)
 
 
 class TestSubagentFinding:

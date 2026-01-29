@@ -2,9 +2,11 @@
 
 import sys
 
-from autopack.subprocess_streaming import (read_last_n_lines,
-                                           run_with_streaming,
-                                           run_with_streaming_legacy_compat)
+from autopack.subprocess_streaming import (
+    read_last_n_lines,
+    run_with_streaming,
+    run_with_streaming_legacy_compat,
+)
 
 
 def test_run_with_streaming_success(tmp_path):

@@ -11,8 +11,12 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from autopack.publishing import (ComplianceFlag, PublishPacket,
-                                 PublishPacketStatus, PublishPreflightGate)
+from autopack.publishing import (
+    ComplianceFlag,
+    PublishPacket,
+    PublishPacketStatus,
+    PublishPreflightGate,
+)
 from autopack.publishing.models import ComplianceFlagSeverity
 
 

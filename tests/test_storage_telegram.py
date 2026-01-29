@@ -10,8 +10,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from autopack.models import StorageScan
-from autopack.storage_optimizer.telegram_notifications import \
-    StorageTelegramNotifier
+from autopack.storage_optimizer.telegram_notifications import StorageTelegramNotifier
 
 
 class TestStorageTelegramNotifier:

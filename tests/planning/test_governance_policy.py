@@ -17,13 +17,15 @@ from datetime import datetime, timezone
 import pytest
 
 from autopack.gaps.models import Gap, GapEvidence, GapExcerpt, GapReportV1
-from autopack.intention_anchor.v2 import (GovernanceReviewIntention,
-                                          IntentionAnchorV2,
-                                          NorthStarIntention, PivotIntentions,
-                                          SafetyRiskIntention,
-                                          ScopeBoundariesIntention)
-from autopack.planning.plan_proposer import (NEVER_AUTO_APPROVE_PATTERNS,
-                                             propose_plan)
+from autopack.intention_anchor.v2 import (
+    GovernanceReviewIntention,
+    IntentionAnchorV2,
+    NorthStarIntention,
+    PivotIntentions,
+    SafetyRiskIntention,
+    ScopeBoundariesIntention,
+)
+from autopack.planning.plan_proposer import NEVER_AUTO_APPROVE_PATTERNS, propose_plan
 
 # =============================================================================
 # Helper functions to create valid model instances

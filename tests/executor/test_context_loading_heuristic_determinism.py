@@ -9,7 +9,9 @@ Part of PR-EXE-6 (god file refactoring Item 1.1).
 from unittest.mock import Mock, patch
 
 from autopack.executor.context_loading_heuristic import (
-    HeuristicContextLoader, get_default_priority_files)
+    HeuristicContextLoader,
+    get_default_priority_files,
+)
 
 
 class TestFilePriorityOrdering:

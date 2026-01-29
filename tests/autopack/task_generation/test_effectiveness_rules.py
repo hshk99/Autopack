@@ -12,8 +12,12 @@ from unittest.mock import Mock
 
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 from autopack.task_generation.task_effectiveness_tracker import (
-    HIGH_SUCCESS_THRESHOLD, LOW_SUCCESS_THRESHOLD, MIN_SAMPLE_SIZE,
-    EffectivenessLearningRule, TaskEffectivenessTracker)
+    HIGH_SUCCESS_THRESHOLD,
+    LOW_SUCCESS_THRESHOLD,
+    MIN_SAMPLE_SIZE,
+    EffectivenessLearningRule,
+    TaskEffectivenessTracker,
+)
 
 
 class TestEffectivenessLearningRule:

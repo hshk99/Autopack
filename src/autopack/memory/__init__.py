@@ -17,10 +17,15 @@ from .embeddings import (
     sync_embed_text,
 )
 from .faiss_store import FaissStore
-from .goal_drift import check_goal_drift, extract_goal_from_description, should_block_on_drift
+from .goal_drift import (
+    check_goal_drift,
+    extract_goal_from_description,
+    should_block_on_drift,
+)
 from .learning_db import LearningDatabase
 from .memory_service import MemoryService
 from .qdrant_store import QDRANT_AVAILABLE, QdrantStore
+from .task_promoter import MemoryTaskPromoter, PromotableInsight, PromotionResult
 
 __all__ = [
     "sync_embed_text",
@@ -37,4 +42,8 @@ __all__ = [
     "should_block_on_drift",
     "extract_goal_from_description",
     "LearningDatabase",
+    # IMP-LOOP-032: Memory-to-Task Promoter
+    "MemoryTaskPromoter",
+    "PromotableInsight",
+    "PromotionResult",
 ]

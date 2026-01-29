@@ -3128,6 +3128,130 @@ class MemoryService:
         )
         return False
 
+    def get_high_occurrence_insights(
+        self,
+        project_id: str,
+        min_occurrences: int = 3,
+        min_confidence: float = 0.5,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        """Get insights that have occurred multiple times.
+
+        IMP-LOOP-032: This method supports the MemoryTaskPromoter by querying
+        for insights with high occurrence counts, indicating recurring patterns
+        that should be automatically promoted to tasks.
+
+        Args:
+            project_id: Project ID for namespace isolation (required).
+            min_occurrences: Minimum occurrence count for inclusion.
+            min_confidence: Minimum confidence score for inclusion.
+            limit: Maximum number of insights to return.
+
+        Returns:
+            List of insight dictionaries with occurrence_count field,
+            sorted by occurrence count descending.
+
+        Raises:
+            ProjectNamespaceError: If project_id is empty or None.
+        """
+        if not self.enabled:
+            logger.debug("[IMP-LOOP-032] Memory disabled, returning empty high-occurrence insights")
+            return []
+
+        # IMP-MEM-015: Validate project namespace isolation
+        _validate_project_id(project_id, "get_high_occurrence_insights")
+
+        logger.debug(
+            "[IMP-LOOP-032] Querying for high-occurrence insights "
+            "(min_occurrences=%d, min_confidence=%.2f, limit=%d)",
+            min_occurrences,
+            min_confidence,
+            limit,
+        )
+
+        try:
+            # Query using a broad search vector for failure patterns
+            query = "failure error recurring pattern problem issue retry"
+            query_vector = sync_embed_text(query)
+
+            # Collections where insights may be stored
+            insight_collections = [
+                COLLECTION_RUN_SUMMARIES,
+                COLLECTION_ERRORS_CI,
+                COLLECTION_DOCTOR_HINTS,
+            ]
+
+            high_occurrence_insights: List[Dict[str, Any]] = []
+
+            for collection in insight_collections:
+                # Build filter for telemetry insights
+                search_filter = {
+                    "task_type": "telemetry_insight",
+                    "project_id": project_id,
+                }
+
+                results = self._safe_store_call(
+                    f"get_high_occurrence_insights/{collection}",
+                    lambda col=collection, flt=search_filter: self.store.search(
+                        collection=col,
+                        query_vector=query_vector,
+                        filter=flt,
+                        limit=limit * 2,  # Fetch extra for filtering
+                    ),
+                    [],
+                )
+
+                for result in results:
+                    payload = getattr(result, "payload", {}) or {}
+
+                    # Only include telemetry insights
+                    if payload.get("task_type") != "telemetry_insight":
+                        continue
+
+                    # Check occurrence count
+                    occurrence_count = payload.get("occurrence_count", 1)
+                    if occurrence_count < min_occurrences:
+                        continue
+
+                    # Check confidence
+                    confidence = payload.get("confidence", 1.0)
+                    if confidence < min_confidence:
+                        continue
+
+                    insight = {
+                        "id": getattr(result, "id", None),
+                        "content": payload.get("content", payload.get("summary", "")),
+                        "payload": payload,
+                        "score": getattr(result, "score", 0.0),
+                        "issue_type": payload.get("issue_type", "unknown"),
+                        "severity": payload.get("severity", "medium"),
+                        "occurrence_count": occurrence_count,
+                        "confidence": confidence,
+                        "last_occurrence": payload.get("last_occurrence"),
+                        "collection": collection,
+                    }
+                    high_occurrence_insights.append(insight)
+
+            # Sort by occurrence count descending
+            high_occurrence_insights.sort(key=lambda x: x.get("occurrence_count", 0), reverse=True)
+
+            # Apply limit
+            insights = high_occurrence_insights[:limit]
+
+            logger.info(
+                "[IMP-LOOP-032] Found %d high-occurrence insights "
+                "(min_occurrences=%d, project=%s)",
+                len(insights),
+                min_occurrences,
+                project_id,
+            )
+
+            return insights
+
+        except Exception as e:
+            logger.warning("[IMP-LOOP-032] Failed to get high-occurrence insights: %s", e)
+            return []
+
     # -------------------------------------------------------------------------
     # Combined Retrieval (for prompts)
     # -------------------------------------------------------------------------

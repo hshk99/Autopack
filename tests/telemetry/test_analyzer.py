@@ -378,3 +378,465 @@ def test_telemetry_to_memory_bridge_is_mandatory(db_session):
     # The bridge will be created when aggregate_telemetry is called with a memory service
     assert analyzer.db == db_session
     assert analyzer.run_id is not None
+
+
+# =============================================================================
+# IMP-TST-005: Tests for ingest_diagnostic_findings()
+# =============================================================================
+
+
+class TestIngestDiagnosticFindings:
+    """Test suite for ingest_diagnostic_findings() edge cases (IMP-TST-005).
+
+    Covers severity/resolution combinations, evidence aggregation,
+    and zero/null metrics handling.
+    """
+
+    @pytest.fixture
+    def analyzer(self, db_session):
+        """Create a TelemetryAnalyzer for testing."""
+        return TelemetryAnalyzer(db_session)
+
+    # -------------------------------------------------------------------------
+    # Severity/Resolution Combinations
+    # -------------------------------------------------------------------------
+
+    def test_high_severity_unresolved(self, analyzer):
+        """Test high severity unresolved finding gets maximum weight."""
+        findings = [
+            {
+                "failure_class": "compilation_error",
+                "probe_name": "syntax_probe",
+                "resolved": False,
+                "severity": "high",
+                "evidence": "Syntax error on line 42",
+                "commands_run": 3,
+                "exit_codes": [1, 1, 0],
+            }
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert len(result) == 1
+        issue = result[0]
+        # high (3.0) * unresolved (2.0) = 6.0
+        assert issue.metric_value == 6.0
+        assert issue.issue_type == "diagnostic"
+        assert issue.details["severity"] == "high"
+        assert issue.details["resolved"] is False
+
+    def test_high_severity_resolved(self, analyzer):
+        """Test high severity resolved finding gets reduced weight."""
+        findings = [
+            {
+                "failure_class": "compilation_error",
+                "probe_name": "syntax_probe",
+                "resolved": True,
+                "severity": "high",
+                "evidence": "Fixed syntax error",
+                "commands_run": 5,
+                "exit_codes": [1, 1, 1, 0, 0],
+            }
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert len(result) == 1
+        issue = result[0]
+        # high (3.0) * resolved (1.0) = 3.0
+        assert issue.metric_value == 3.0
+        assert issue.details["resolved"] is True
+
+    def test_medium_severity_unresolved(self, analyzer):
+        """Test medium severity unresolved finding."""
+        findings = [
+            {
+                "failure_class": "test_failure",
+                "probe_name": "test_probe",
+                "resolved": False,
+                "severity": "medium",
+                "evidence": "Test assertion failed",
+                "commands_run": 2,
+                "exit_codes": [1, 1],
+            }
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert len(result) == 1
+        issue = result[0]
+        # medium (2.0) * unresolved (2.0) = 4.0
+        assert issue.metric_value == 4.0
+        assert issue.details["severity"] == "medium"
+
+    def test_medium_severity_resolved(self, analyzer):
+        """Test medium severity resolved finding."""
+        findings = [
+            {
+                "failure_class": "test_failure",
+                "probe_name": "test_probe",
+                "resolved": True,
+                "severity": "medium",
+                "evidence": "Test now passes",
+                "commands_run": 4,
+                "exit_codes": [1, 0, 0, 0],
+            }
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert len(result) == 1
+        issue = result[0]
+        # medium (2.0) * resolved (1.0) = 2.0
+        assert issue.metric_value == 2.0
+
+    def test_low_severity_unresolved(self, analyzer):
+        """Test low severity unresolved finding."""
+        findings = [
+            {
+                "failure_class": "lint_warning",
+                "probe_name": "lint_probe",
+                "resolved": False,
+                "severity": "low",
+                "evidence": "Unused import detected",
+                "commands_run": 1,
+                "exit_codes": [0],
+            }
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert len(result) == 1
+        issue = result[0]
+        # low (1.0) * unresolved (2.0) = 2.0
+        assert issue.metric_value == 2.0
+        assert issue.details["severity"] == "low"
+
+    def test_low_severity_resolved(self, analyzer):
+        """Test low severity resolved finding gets minimum weight."""
+        findings = [
+            {
+                "failure_class": "lint_warning",
+                "probe_name": "lint_probe",
+                "resolved": True,
+                "severity": "low",
+                "evidence": "Import removed",
+                "commands_run": 2,
+                "exit_codes": [0, 0],
+            }
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert len(result) == 1
+        issue = result[0]
+        # low (1.0) * resolved (1.0) = 1.0
+        assert issue.metric_value == 1.0
+
+    def test_all_severity_resolution_combinations(self, analyzer):
+        """Test all six severity/resolution combinations at once."""
+        findings = [
+            {"severity": "high", "resolved": False, "failure_class": "high_unresolved"},
+            {"severity": "high", "resolved": True, "failure_class": "high_resolved"},
+            {"severity": "medium", "resolved": False, "failure_class": "medium_unresolved"},
+            {"severity": "medium", "resolved": True, "failure_class": "medium_resolved"},
+            {"severity": "low", "resolved": False, "failure_class": "low_unresolved"},
+            {"severity": "low", "resolved": True, "failure_class": "low_resolved"},
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert len(result) == 6
+        # Check metric values match expected weights
+        expected_weights = [6.0, 3.0, 4.0, 2.0, 2.0, 1.0]
+        for issue, expected in zip(result, expected_weights):
+            assert issue.metric_value == expected
+
+    # -------------------------------------------------------------------------
+    # Evidence Aggregation
+    # -------------------------------------------------------------------------
+
+    def test_evidence_preserved_in_details(self, analyzer):
+        """Test that evidence string is preserved in issue details."""
+        evidence_text = "Stack trace:\n  File 'main.py', line 42\n  TypeError: expected int"
+        findings = [
+            {
+                "failure_class": "runtime_error",
+                "probe_name": "exception_probe",
+                "resolved": False,
+                "severity": "high",
+                "evidence": evidence_text,
+                "commands_run": 1,
+                "exit_codes": [1],
+            }
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert result[0].details["evidence"] == evidence_text
+
+    def test_multiple_findings_preserve_all_evidence(self, analyzer):
+        """Test multiple findings each preserve their evidence."""
+        findings = [
+            {"failure_class": "error_a", "evidence": "Evidence for A"},
+            {"failure_class": "error_b", "evidence": "Evidence for B"},
+            {"failure_class": "error_c", "evidence": "Evidence for C"},
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert len(result) == 3
+        assert result[0].details["evidence"] == "Evidence for A"
+        assert result[1].details["evidence"] == "Evidence for B"
+        assert result[2].details["evidence"] == "Evidence for C"
+
+    def test_exit_codes_aggregated_correctly(self, analyzer):
+        """Test exit codes list is preserved in details."""
+        exit_codes = [0, 1, 2, 127, 255]
+        findings = [
+            {
+                "failure_class": "multi_command",
+                "exit_codes": exit_codes,
+                "commands_run": 5,
+            }
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert result[0].details["exit_codes"] == exit_codes
+        assert result[0].details["commands_run"] == 5
+
+    # -------------------------------------------------------------------------
+    # Zero/Null Metrics Handling
+    # -------------------------------------------------------------------------
+
+    def test_zero_commands_run(self, analyzer):
+        """Test handling of zero commands run."""
+        findings = [
+            {
+                "failure_class": "static_analysis",
+                "probe_name": "static_probe",
+                "commands_run": 0,
+                "exit_codes": [],
+            }
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert len(result) == 1
+        assert result[0].details["commands_run"] == 0
+        assert result[0].details["exit_codes"] == []
+
+    def test_empty_exit_codes(self, analyzer):
+        """Test handling of empty exit_codes list."""
+        findings = [
+            {
+                "failure_class": "no_commands",
+                "exit_codes": [],
+            }
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert result[0].details["exit_codes"] == []
+
+    def test_null_evidence(self, analyzer):
+        """Test handling of None evidence."""
+        findings = [
+            {
+                "failure_class": "no_evidence",
+                "evidence": None,
+            }
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        # Should use empty string when None provided (get with default)
+        # The implementation uses .get() which returns None if key exists with None value
+        # But our code does finding.get("evidence", "") which uses "" only if key missing
+        assert result[0].details["evidence"] is None or result[0].details["evidence"] == ""
+
+    def test_missing_evidence_field(self, analyzer):
+        """Test handling of missing evidence field entirely."""
+        findings = [
+            {
+                "failure_class": "minimal_finding",
+            }
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        # Should default to empty string
+        assert result[0].details["evidence"] == ""
+
+    def test_missing_all_optional_fields(self, analyzer):
+        """Test finding with no optional fields at all."""
+        findings = [{}]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert len(result) == 1
+        issue = result[0]
+        # All defaults should be applied
+        assert issue.details["failure_class"] == "unknown"
+        assert issue.details["probe_name"] == "unknown_probe"
+        assert issue.details["resolved"] is False
+        assert issue.details["severity"] == "medium"
+        assert issue.details["evidence"] == ""
+        assert issue.details["commands_run"] == 0
+        assert issue.details["exit_codes"] == []
+        # Default severity (medium=2.0) * unresolved (2.0) = 4.0
+        assert issue.metric_value == 4.0
+
+    def test_null_severity_uses_default(self, analyzer):
+        """Test that null/missing severity defaults to medium."""
+        findings = [
+            {"failure_class": "test", "severity": None},
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        # None severity should be treated like missing, defaulting to medium
+        # The .get() returns None, so severity_weights.get(None, 2.0) = 2.0
+        assert result[0].metric_value == 4.0  # medium (2.0) * unresolved (2.0)
+
+    def test_invalid_severity_uses_default(self, analyzer):
+        """Test that invalid severity string defaults to medium weight."""
+        findings = [
+            {"failure_class": "test", "severity": "critical"},  # Not a valid value
+            {"failure_class": "test2", "severity": "INVALID"},
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        # Invalid severity should use default weight of 2.0 (medium)
+        assert result[0].metric_value == 4.0  # default (2.0) * unresolved (2.0)
+        assert result[1].metric_value == 4.0
+
+    # -------------------------------------------------------------------------
+    # Ranking and Ordering
+    # -------------------------------------------------------------------------
+
+    def test_findings_ranked_by_input_order(self, analyzer):
+        """Test that findings are ranked 1, 2, 3... by input order."""
+        findings = [
+            {"failure_class": "first"},
+            {"failure_class": "second"},
+            {"failure_class": "third"},
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert result[0].rank == 1
+        assert result[1].rank == 2
+        assert result[2].rank == 3
+
+    def test_empty_findings_list(self, analyzer):
+        """Test handling of empty findings list."""
+        result = analyzer.ingest_diagnostic_findings([])
+
+        assert result == []
+
+    # -------------------------------------------------------------------------
+    # Phase ID and Run ID Handling
+    # -------------------------------------------------------------------------
+
+    def test_run_id_preserved_in_details(self, analyzer):
+        """Test that run_id is preserved in issue details."""
+        findings = [{"failure_class": "test"}]
+
+        result = analyzer.ingest_diagnostic_findings(findings, run_id="run-12345")
+
+        assert result[0].details["run_id"] == "run-12345"
+
+    def test_phase_id_used_when_provided(self, analyzer):
+        """Test that provided phase_id is used in issue."""
+        findings = [{"failure_class": "test"}]
+
+        result = analyzer.ingest_diagnostic_findings(findings, phase_id="custom-phase-id")
+
+        assert result[0].phase_id == "custom-phase-id"
+
+    def test_phase_id_derived_from_failure_class_when_not_provided(self, analyzer):
+        """Test that phase_id is derived from failure_class when not provided."""
+        findings = [{"failure_class": "my_error_type"}]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert result[0].phase_id == "diag-my_error_type"
+
+    def test_null_run_id_and_phase_id(self, analyzer):
+        """Test handling when both run_id and phase_id are None."""
+        findings = [{"failure_class": "test_class"}]
+
+        result = analyzer.ingest_diagnostic_findings(findings, run_id=None, phase_id=None)
+
+        assert result[0].details["run_id"] is None
+        assert result[0].phase_id == "diag-test_class"
+
+    # -------------------------------------------------------------------------
+    # Issue Type and Phase Type
+    # -------------------------------------------------------------------------
+
+    def test_issue_type_is_diagnostic(self, analyzer):
+        """Test that all issues have issue_type='diagnostic'."""
+        findings = [
+            {"failure_class": "a"},
+            {"failure_class": "b"},
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        for issue in result:
+            assert issue.issue_type == "diagnostic"
+
+    def test_phase_type_includes_failure_class(self, analyzer):
+        """Test that phase_type is 'diagnostic:{failure_class}'."""
+        findings = [{"failure_class": "my_failure_class"}]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert result[0].phase_type == "diagnostic:my_failure_class"
+
+    def test_source_is_diagnostics_agent(self, analyzer):
+        """Test that source is always 'diagnostics_agent'."""
+        findings = [{"failure_class": "test"}]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert result[0].details["source"] == "diagnostics_agent"
+
+    # -------------------------------------------------------------------------
+    # Complex Scenarios
+    # -------------------------------------------------------------------------
+
+    def test_large_number_of_findings(self, analyzer):
+        """Test handling of many findings at once."""
+        findings = [{"failure_class": f"error_{i}", "severity": "medium"} for i in range(100)]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        assert len(result) == 100
+        # Verify ranking is correct
+        for i, issue in enumerate(result):
+            assert issue.rank == i + 1
+
+    def test_mixed_severity_resolution_ranking(self, analyzer):
+        """Test mixed findings maintain correct order and weights."""
+        findings = [
+            {"severity": "low", "resolved": True, "failure_class": "a"},
+            {"severity": "high", "resolved": False, "failure_class": "b"},
+            {"severity": "medium", "resolved": True, "failure_class": "c"},
+        ]
+
+        result = analyzer.ingest_diagnostic_findings(findings)
+
+        # Order should be preserved as input
+        assert result[0].details["failure_class"] == "a"
+        assert result[0].metric_value == 1.0  # low resolved
+
+        assert result[1].details["failure_class"] == "b"
+        assert result[1].metric_value == 6.0  # high unresolved
+
+        assert result[2].details["failure_class"] == "c"
+        assert result[2].metric_value == 2.0  # medium resolved

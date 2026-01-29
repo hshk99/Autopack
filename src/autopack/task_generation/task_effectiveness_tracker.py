@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, List
 
 if TYPE_CHECKING:
@@ -236,6 +236,93 @@ class TaskAttributionOutcome:
 
 
 @dataclass
+class ScheduledCheck:
+    """Represents a scheduled follow-up effectiveness check.
+
+    IMP-LOOP-033: Long-term impact tracking requires checking task effectiveness
+    at 7, 30, and 90 day intervals to measure whether improvements prevent
+    future regressions over time.
+
+    Attributes:
+        task_id: The task identifier to check.
+        check_date: When the check should be performed.
+        interval_days: The interval for this check (7, 30, or 90 days).
+        created_at: When this scheduled check was created.
+        executed: Whether the check has been executed.
+        executed_at: When the check was executed.
+        result: The result of the check when executed.
+    """
+
+    task_id: str
+    check_date: datetime
+    interval_days: int
+    created_at: datetime = field(default_factory=datetime.now)
+    executed: bool = False
+    executed_at: datetime | None = None
+    result: dict[str, Any] | None = None
+
+    def is_due(self) -> bool:
+        """Check if this scheduled check is due for execution."""
+        return not self.executed and datetime.now() >= self.check_date
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "task_id": self.task_id,
+            "check_date": self.check_date.isoformat(),
+            "interval_days": self.interval_days,
+            "created_at": self.created_at.isoformat(),
+            "executed": self.executed,
+            "executed_at": self.executed_at.isoformat() if self.executed_at else None,
+            "result": self.result,
+        }
+
+
+@dataclass
+class FollowupCheckResult:
+    """Result of a follow-up effectiveness check.
+
+    IMP-LOOP-033: Captures the result of a scheduled follow-up check,
+    measuring long-term impact of an improvement task.
+
+    Attributes:
+        task_id: The task identifier that was checked.
+        interval_days: The interval for this check (7, 30, or 90 days).
+        check_date: When the check was performed.
+        related_test_count: Number of tests related to this task.
+        failures_since_task: Number of test failures since task completion.
+        success_rate_since_task: Success rate of related tests since task.
+        regressions_prevented: Estimated regressions prevented (if measurable).
+        effectiveness_maintained: Whether initial effectiveness is maintained.
+        notes: Additional notes about the check.
+    """
+
+    task_id: str
+    interval_days: int
+    check_date: datetime
+    related_test_count: int = 0
+    failures_since_task: int = 0
+    success_rate_since_task: float = 0.0
+    regressions_prevented: int = 0
+    effectiveness_maintained: bool = True
+    notes: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "task_id": self.task_id,
+            "interval_days": self.interval_days,
+            "check_date": self.check_date.isoformat(),
+            "related_test_count": self.related_test_count,
+            "failures_since_task": self.failures_since_task,
+            "success_rate_since_task": self.success_rate_since_task,
+            "regressions_prevented": self.regressions_prevented,
+            "effectiveness_maintained": self.effectiveness_maintained,
+            "notes": self.notes,
+        }
+
+
+@dataclass
 class TaskImpactReport:
     """Report of actual task impact vs. target.
 
@@ -379,6 +466,10 @@ class TaskEffectivenessTracker:
         # IMP-LOOP-028: Task attribution tracking for end-to-end traceability
         self._task_execution_mappings: dict[str, TaskExecutionMapping] = {}
         self._task_attribution_outcomes: list[TaskAttributionOutcome] = []
+
+        # IMP-LOOP-033: Long-term impact tracking with scheduled follow-up checks
+        self._scheduled_checks: list[ScheduledCheck] = []
+        self._followup_results: list[FollowupCheckResult] = []
 
         # IMP-TASK-001: Load historical effectiveness from learning database
         if self._learning_db is not None:
@@ -1686,3 +1777,232 @@ class TaskEffectivenessTracker:
                 return historical_rate
 
         return default
+
+    # IMP-LOOP-033: Long-term impact tracking methods
+
+    def schedule_followup_check(
+        self,
+        task_id: str,
+        days: list[int] | None = None,
+    ) -> list[ScheduledCheck]:
+        """Schedule follow-up effectiveness checks at specified intervals.
+
+        IMP-LOOP-033: Schedules 7, 30, and 90 day follow-up checks to measure
+        whether improvements prevent future regressions over the long term.
+
+        Args:
+            task_id: The task identifier to schedule checks for.
+            days: List of day intervals for checks. Defaults to [7, 30, 90].
+
+        Returns:
+            List of ScheduledCheck instances that were created.
+        """
+        if days is None:
+            days = [7, 30, 90]
+
+        created_checks: list[ScheduledCheck] = []
+        now = datetime.now()
+
+        for day in days:
+            check_date = now + timedelta(days=day)
+
+            # Check if a check already exists for this task/interval
+            existing = next(
+                (
+                    c
+                    for c in self._scheduled_checks
+                    if c.task_id == task_id and c.interval_days == day
+                ),
+                None,
+            )
+
+            if existing:
+                logger.debug(
+                    "[IMP-LOOP-033] Follow-up check already scheduled: "
+                    "task_id=%s, interval=%d days",
+                    task_id,
+                    day,
+                )
+                continue
+
+            scheduled_check = ScheduledCheck(
+                task_id=task_id,
+                check_date=check_date,
+                interval_days=day,
+            )
+            self._scheduled_checks.append(scheduled_check)
+            created_checks.append(scheduled_check)
+
+            logger.info(
+                "[IMP-LOOP-033] Scheduled follow-up check: task_id=%s, "
+                "interval=%d days, check_date=%s",
+                task_id,
+                day,
+                check_date.isoformat(),
+            )
+
+        return created_checks
+
+    def get_due_checks(self) -> list[ScheduledCheck]:
+        """Get all scheduled checks that are due for execution.
+
+        IMP-LOOP-033: Returns checks where check_date has passed and
+        the check has not yet been executed.
+
+        Returns:
+            List of ScheduledCheck instances that are due.
+        """
+        return [c for c in self._scheduled_checks if c.is_due()]
+
+    def execute_followup_check(
+        self,
+        scheduled_check: ScheduledCheck,
+        related_test_count: int = 0,
+        failures_since_task: int = 0,
+        success_rate_since_task: float = 0.0,
+    ) -> FollowupCheckResult:
+        """Execute a scheduled follow-up check and record the result.
+
+        IMP-LOOP-033: Performs the follow-up check by recording the current
+        state of related tests and computing whether effectiveness is maintained.
+
+        Args:
+            scheduled_check: The ScheduledCheck to execute.
+            related_test_count: Number of tests related to this task.
+            failures_since_task: Number of failures since task completion.
+            success_rate_since_task: Success rate since task completion.
+
+        Returns:
+            FollowupCheckResult with the check results.
+        """
+        now = datetime.now()
+
+        # Determine if effectiveness is maintained
+        # We consider effectiveness maintained if success rate > 70%
+        effectiveness_maintained = success_rate_since_task >= 0.7
+
+        # Estimate regressions prevented based on failure reduction
+        # If the task had an original effectiveness score, compare
+        original_effectiveness = self.get_effectiveness(scheduled_check.task_id)
+        regressions_prevented = 0
+
+        if original_effectiveness > 0 and failures_since_task < related_test_count:
+            # Simple heuristic: prevented failures = expected - actual
+            expected_failures = int(related_test_count * (1 - original_effectiveness))
+            regressions_prevented = max(0, expected_failures - failures_since_task)
+
+        result = FollowupCheckResult(
+            task_id=scheduled_check.task_id,
+            interval_days=scheduled_check.interval_days,
+            check_date=now,
+            related_test_count=related_test_count,
+            failures_since_task=failures_since_task,
+            success_rate_since_task=success_rate_since_task,
+            regressions_prevented=regressions_prevented,
+            effectiveness_maintained=effectiveness_maintained,
+            notes=f"Check at {scheduled_check.interval_days} days post-task",
+        )
+
+        # Mark the scheduled check as executed
+        scheduled_check.executed = True
+        scheduled_check.executed_at = now
+        scheduled_check.result = result.to_dict()
+
+        # Store the result
+        self._followup_results.append(result)
+
+        logger.info(
+            "[IMP-LOOP-033] Executed follow-up check: task_id=%s, interval=%d days, "
+            "effectiveness_maintained=%s, regressions_prevented=%d",
+            scheduled_check.task_id,
+            scheduled_check.interval_days,
+            effectiveness_maintained,
+            regressions_prevented,
+        )
+
+        return result
+
+    def get_followup_results_for_task(self, task_id: str) -> list[FollowupCheckResult]:
+        """Get all follow-up check results for a specific task.
+
+        IMP-LOOP-033: Returns the history of follow-up checks for a task,
+        enabling analysis of long-term effectiveness trends.
+
+        Args:
+            task_id: The task identifier to query.
+
+        Returns:
+            List of FollowupCheckResult instances for the task.
+        """
+        return [r for r in self._followup_results if r.task_id == task_id]
+
+    def get_long_term_impact_summary(self) -> dict[str, Any]:
+        """Get a summary of long-term impact tracking status.
+
+        IMP-LOOP-033: Provides visibility into the long-term tracking pipeline,
+        showing scheduled checks, executed checks, and effectiveness trends.
+
+        Returns:
+            Dictionary containing:
+            - total_scheduled: Number of scheduled checks
+            - pending_checks: Number of checks not yet executed
+            - executed_checks: Number of checks that have been executed
+            - due_checks: Number of checks that are due for execution
+            - total_results: Number of follow-up results recorded
+            - avg_success_rate: Average success rate across all follow-ups
+            - effectiveness_maintained_rate: Rate of tasks maintaining effectiveness
+            - total_regressions_prevented: Sum of regressions prevented
+            - by_interval: Breakdown by interval (7, 30, 90 days)
+        """
+        scheduled = self._scheduled_checks
+        results = self._followup_results
+
+        pending = [c for c in scheduled if not c.executed]
+        executed = [c for c in scheduled if c.executed]
+        due = [c for c in scheduled if c.is_due()]
+
+        # Calculate averages from results
+        if results:
+            avg_success_rate = sum(r.success_rate_since_task for r in results) / len(results)
+            maintained_count = sum(1 for r in results if r.effectiveness_maintained)
+            effectiveness_maintained_rate = maintained_count / len(results)
+            total_regressions_prevented = sum(r.regressions_prevented for r in results)
+        else:
+            avg_success_rate = 0.0
+            effectiveness_maintained_rate = 0.0
+            total_regressions_prevented = 0
+
+        # Breakdown by interval
+        by_interval: dict[int, dict[str, Any]] = {}
+        for interval in [7, 30, 90]:
+            interval_scheduled = [c for c in scheduled if c.interval_days == interval]
+            interval_results = [r for r in results if r.interval_days == interval]
+
+            if interval_results:
+                interval_avg_success = sum(
+                    r.success_rate_since_task for r in interval_results
+                ) / len(interval_results)
+                interval_maintained = sum(1 for r in interval_results if r.effectiveness_maintained)
+            else:
+                interval_avg_success = 0.0
+                interval_maintained = 0
+
+            by_interval[interval] = {
+                "scheduled": len(interval_scheduled),
+                "executed": len([c for c in interval_scheduled if c.executed]),
+                "results": len(interval_results),
+                "avg_success_rate": interval_avg_success,
+                "effectiveness_maintained": interval_maintained,
+            }
+
+        return {
+            "total_scheduled": len(scheduled),
+            "pending_checks": len(pending),
+            "executed_checks": len(executed),
+            "due_checks": len(due),
+            "total_results": len(results),
+            "avg_success_rate": avg_success_rate,
+            "effectiveness_maintained_rate": effectiveness_maintained_rate,
+            "total_regressions_prevented": total_regressions_prevented,
+            "by_interval": by_interval,
+        }

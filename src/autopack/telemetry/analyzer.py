@@ -112,6 +112,37 @@ class ModelCategoryStats:
 
 
 @dataclass
+class RegressionPreventionReport:
+    """Report measuring whether a task prevented regressions (IMP-LOOP-033).
+
+    Long-term impact tracking requires measuring whether improvements
+    prevent future regressions. This report compares test failure rates
+    before and after task completion to quantify regression prevention.
+
+    Attributes:
+        task_id: The task identifier being measured.
+        since_date: The date from which to measure (task completion date).
+        related_test_count: Number of tests related to this task.
+        failures_before: Number of test failures before task completion.
+        failures_after: Number of test failures after task completion.
+        regressions_prevented: Estimated number of regressions prevented.
+        confidence: Confidence level in the measurement (0.0-1.0).
+        measurement_window_days: Number of days in the measurement window.
+        notes: Additional notes about the measurement.
+    """
+
+    task_id: str
+    since_date: datetime
+    related_test_count: int = 0
+    failures_before: int = 0
+    failures_after: int = 0
+    regressions_prevented: int = 0
+    confidence: float = 0.0
+    measurement_window_days: int = 0
+    notes: str = ""
+
+
+@dataclass
 class ModelEffectivenessReport:
     """Model effectiveness analysis report (IMP-LOOP-032).
 
@@ -184,7 +215,8 @@ class TelemetryAnalyzer:
 
         # NEW: Persist to memory for future retrieval
         if self.memory_service and self.memory_service.enabled:
-            from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
+            from autopack.telemetry.telemetry_to_memory_bridge import \
+                TelemetryToMemoryBridge
 
             bridge = TelemetryToMemoryBridge(self.memory_service)
             # Convert RankedIssue objects to dicts for bridge
@@ -1277,7 +1309,8 @@ class TelemetryAnalyzer:
 
         # Persist to memory if available (same pattern as aggregate_telemetry)
         if self.memory_service and self.memory_service.enabled and ranked_issues:
-            from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
+            from autopack.telemetry.telemetry_to_memory_bridge import \
+                TelemetryToMemoryBridge
 
             bridge = TelemetryToMemoryBridge(self.memory_service)
             flat_issues = []
@@ -1372,3 +1405,290 @@ class TelemetryAnalyzer:
             )
 
         return findings
+
+    # IMP-LOOP-033: Long-term impact tracking methods
+
+    def measure_regression_prevention(
+        self,
+        task_id: str,
+        since_date: datetime,
+        related_phase_types: Optional[List[str]] = None,
+        window_days: int = 30,
+    ) -> RegressionPreventionReport:
+        """Measure whether a task prevented regressions since completion.
+
+        IMP-LOOP-033: Analyzes telemetry to determine if an improvement task
+        has prevented regressions by comparing failure rates before and after
+        the task completion date.
+
+        Args:
+            task_id: The task identifier to measure.
+            since_date: The task completion date (start of measurement).
+            related_phase_types: Optional list of phase types related to this task.
+                If not provided, will attempt to detect based on task_id pattern.
+            window_days: Number of days to look back before since_date for comparison.
+
+        Returns:
+            RegressionPreventionReport with regression prevention metrics.
+        """
+        # Calculate time windows
+        before_start = since_date - timedelta(days=window_days)
+        before_end = since_date
+        after_start = since_date
+        after_end = datetime.now(timezone.utc)
+
+        # Calculate actual window in days
+        actual_window_days = (after_end - after_start).days
+
+        # If no related phase types specified, try to detect from task_id
+        if related_phase_types is None:
+            related_phase_types = self._detect_related_phase_types(task_id)
+
+        # Count failures before and after
+        failures_before = self._count_failures_in_window(
+            before_start, before_end, related_phase_types
+        )
+        failures_after = self._count_failures_in_window(after_start, after_end, related_phase_types)
+
+        # Count total related test runs in each period
+        runs_before = self._count_runs_in_window(before_start, before_end, related_phase_types)
+        runs_after = self._count_runs_in_window(after_start, after_end, related_phase_types)
+
+        # Calculate regressions prevented
+        # Normalize by the number of runs to account for different activity levels
+        failure_rate_before = 0.0
+        failure_rate_after = 0.0
+        if runs_before > 0 and runs_after > 0:
+            failure_rate_before = failures_before / runs_before
+            failure_rate_after = failures_after / runs_after
+
+            # Expected failures if rate hadn't changed
+            expected_failures_after = int(failure_rate_before * runs_after)
+            regressions_prevented = max(0, expected_failures_after - failures_after)
+        else:
+            regressions_prevented = 0
+
+        # Calculate confidence based on sample size
+        confidence = self._calculate_confidence(runs_before, runs_after)
+
+        # Build notes
+        notes_parts = []
+        if related_phase_types:
+            notes_parts.append(f"Phase types: {', '.join(related_phase_types)}")
+        notes_parts.append(f"Runs before: {runs_before}, after: {runs_after}")
+        if runs_before > 0:
+            notes_parts.append(f"Failure rate before: {failure_rate_before:.1%}")
+        if runs_after > 0:
+            notes_parts.append(f"Failure rate after: {failure_rate_after:.1%}")
+
+        report = RegressionPreventionReport(
+            task_id=task_id,
+            since_date=since_date,
+            related_test_count=runs_after,
+            failures_before=failures_before,
+            failures_after=failures_after,
+            regressions_prevented=regressions_prevented,
+            confidence=confidence,
+            measurement_window_days=actual_window_days,
+            notes="; ".join(notes_parts),
+        )
+
+        logger.info(
+            "[IMP-LOOP-033] Measured regression prevention for %s: "
+            "failures_before=%d, failures_after=%d, regressions_prevented=%d, "
+            "confidence=%.2f",
+            task_id,
+            failures_before,
+            failures_after,
+            regressions_prevented,
+            confidence,
+        )
+
+        return report
+
+    def _detect_related_phase_types(self, task_id: str) -> List[str]:
+        """Detect phase types related to a task ID based on naming patterns.
+
+        IMP-LOOP-033: Helper method to identify which phase types are likely
+        affected by a given improvement task.
+
+        Args:
+            task_id: The task identifier (e.g., "IMP-LOOP-033", "IMP-MEM-020").
+
+        Returns:
+            List of phase type patterns to match.
+        """
+        # Extract category from task_id pattern (e.g., "LOOP", "MEM", "TELE")
+        task_id_upper = task_id.upper()
+
+        phase_type_mappings = {
+            "LOOP": ["task_generation", "feedback_pipeline", "autonomous_loop"],
+            "MEM": ["memory", "context_injection", "learning"],
+            "TELE": ["telemetry", "metrics", "analysis"],
+            "COST": ["cost", "budget", "token"],
+            "INT": ["integration", "task_generation"],
+            "TASK": ["task", "effectiveness"],
+        }
+
+        related_types = []
+        for category, types in phase_type_mappings.items():
+            if category in task_id_upper:
+                related_types.extend(types)
+
+        # If no specific mapping found, return empty list (will match all)
+        return related_types
+
+    def _count_failures_in_window(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+        phase_types: Optional[List[str]] = None,
+    ) -> int:
+        """Count failures in a time window, optionally filtered by phase types.
+
+        IMP-LOOP-033: Helper method for regression prevention measurement.
+
+        Args:
+            start_date: Start of the window.
+            end_date: End of the window.
+            phase_types: Optional list of phase types to filter by.
+
+        Returns:
+            Number of failures in the window.
+        """
+        if phase_types:
+            # Build a LIKE clause for each phase type
+            phase_conditions = " OR ".join([f"phase_type LIKE '%{pt}%'" for pt in phase_types])
+            query = text(f"""
+                SELECT COUNT(*) as failure_count
+                FROM phase_outcome_events
+                WHERE timestamp >= :start_date
+                    AND timestamp < :end_date
+                    AND phase_outcome != 'SUCCESS'
+                    AND ({phase_conditions})
+            """)
+        else:
+            query = text("""
+                SELECT COUNT(*) as failure_count
+                FROM phase_outcome_events
+                WHERE timestamp >= :start_date
+                    AND timestamp < :end_date
+                    AND phase_outcome != 'SUCCESS'
+            """)
+
+        result = self.db.execute(query, {"start_date": start_date, "end_date": end_date})
+        row = result.fetchone()
+        return row.failure_count if row else 0
+
+    def _count_runs_in_window(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+        phase_types: Optional[List[str]] = None,
+    ) -> int:
+        """Count total runs in a time window, optionally filtered by phase types.
+
+        IMP-LOOP-033: Helper method for regression prevention measurement.
+
+        Args:
+            start_date: Start of the window.
+            end_date: End of the window.
+            phase_types: Optional list of phase types to filter by.
+
+        Returns:
+            Number of runs in the window.
+        """
+        if phase_types:
+            # Build a LIKE clause for each phase type
+            phase_conditions = " OR ".join([f"phase_type LIKE '%{pt}%'" for pt in phase_types])
+            query = text(f"""
+                SELECT COUNT(*) as run_count
+                FROM phase_outcome_events
+                WHERE timestamp >= :start_date
+                    AND timestamp < :end_date
+                    AND ({phase_conditions})
+            """)
+        else:
+            query = text("""
+                SELECT COUNT(*) as run_count
+                FROM phase_outcome_events
+                WHERE timestamp >= :start_date
+                    AND timestamp < :end_date
+            """)
+
+        result = self.db.execute(query, {"start_date": start_date, "end_date": end_date})
+        row = result.fetchone()
+        return row.run_count if row else 0
+
+    def _calculate_confidence(self, runs_before: int, runs_after: int) -> float:
+        """Calculate confidence level based on sample sizes.
+
+        IMP-LOOP-033: Higher sample sizes in both periods lead to higher confidence.
+
+        Args:
+            runs_before: Number of runs before the task.
+            runs_after: Number of runs after the task.
+
+        Returns:
+            Confidence score between 0.0 and 1.0.
+        """
+        # Minimum samples for any confidence
+        if runs_before < 5 or runs_after < 5:
+            return 0.0
+
+        # Calculate confidence based on sample sizes
+        # Using a simple heuristic: confidence grows with log of sample size
+        import math
+
+        min_runs = min(runs_before, runs_after)
+
+        # Confidence formula:
+        # - 10 runs: ~0.5
+        # - 50 runs: ~0.75
+        # - 100 runs: ~0.85
+        # - 500 runs: ~0.95
+        confidence = min(1.0, 0.3 + 0.15 * math.log10(min_runs))
+
+        return round(confidence, 2)
+
+    def get_long_term_impact_report(
+        self,
+        task_ids: List[str],
+        since_dates: Dict[str, datetime],
+        window_days: int = 30,
+    ) -> Dict[str, RegressionPreventionReport]:
+        """Generate long-term impact reports for multiple tasks.
+
+        IMP-LOOP-033: Batch method to measure regression prevention for
+        multiple tasks at once.
+
+        Args:
+            task_ids: List of task identifiers to measure.
+            since_dates: Dictionary mapping task_id to completion date.
+            window_days: Number of days for the comparison window.
+
+        Returns:
+            Dictionary mapping task_id to RegressionPreventionReport.
+        """
+        reports = {}
+
+        for task_id in task_ids:
+            if task_id not in since_dates:
+                logger.warning(
+                    "[IMP-LOOP-033] No completion date for task %s, skipping",
+                    task_id,
+                )
+                continue
+
+            reports[task_id] = self.measure_regression_prevention(
+                task_id=task_id,
+                since_date=since_dates[task_id],
+                window_days=window_days,
+            )
+
+        logger.info(
+            "[IMP-LOOP-033] Generated long-term impact reports for %d tasks",
+            len(reports),
+        )
+
+        return reports

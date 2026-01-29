@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any, Optional
 if TYPE_CHECKING:
     from ..memory.learning_db import LearningDatabase
     from ..telemetry.analyzer import TaskEffectivenessStats
+    from .roi_analyzer import ROIAnalyzer
     from .task_effectiveness_tracker import TaskEffectivenessTracker
 
 
@@ -108,6 +109,12 @@ class PriorityEngine:
     COMPLEXITY_WEIGHT = 0.15
     EFFECTIVENESS_WEIGHT = 0.15  # IMP-LOOP-019: Weight for historical effectiveness
 
+    # IMP-TASK-002: ROI payback thresholds for priority boost
+    # Shorter payback = higher priority multiplier
+    ROI_QUICK_PAYBACK_PHASES = 10  # Phases for 2x boost
+    ROI_NEUTRAL_PAYBACK_PHASES = 30  # Phases for 1x (neutral)
+    ROI_SLOW_PAYBACK_PHASES = 90  # Phases for 0.5x reduction
+
     # Thresholds
     HIGH_BLOCKING_RISK_THRESHOLD = 0.3
     LOW_SUCCESS_RATE_THRESHOLD = 0.4
@@ -117,6 +124,7 @@ class PriorityEngine:
         learning_db: LearningDatabase,
         effectiveness_stats: Optional[TaskEffectivenessStats] = None,
         effectiveness_tracker: Optional[TaskEffectivenessTracker] = None,
+        roi_analyzer: Optional[ROIAnalyzer] = None,
     ) -> None:
         """Initialize the PriorityEngine.
 
@@ -128,11 +136,16 @@ class PriorityEngine:
             effectiveness_tracker: Optional TaskEffectivenessTracker for category
                 effectiveness feedback (IMP-TASK-001). If provided, category-level
                 effectiveness data will dynamically adjust priority weights.
+            roi_analyzer: Optional ROIAnalyzer for economic ROI consideration
+                (IMP-TASK-002). If provided, tasks with shorter payback periods
+                receive priority boosts.
         """
         self.learning_db = learning_db
         self._patterns_cache: dict[str, Any] | None = None
         self._effectiveness_stats = effectiveness_stats
         self._effectiveness_tracker = effectiveness_tracker
+        # IMP-TASK-002: ROI analyzer for payback-based priority adjustment
+        self._roi_analyzer = roi_analyzer
         # IMP-TASK-003: Category multipliers for effectiveness feedback loop
         self._category_multipliers: dict[str, float] = {}
 
@@ -179,6 +192,19 @@ class PriorityEngine:
         self.clear_cache()
         logger.debug("[IMP-TASK-001] Connected effectiveness tracker to priority engine")
 
+    def set_roi_analyzer(self, roi_analyzer: ROIAnalyzer) -> None:
+        """Set or update the ROIAnalyzer (IMP-TASK-002).
+
+        Call this method to connect the priority engine to an ROIAnalyzer
+        for economic ROI-based priority adjustment. Tasks with shorter payback
+        periods will receive priority boosts.
+
+        Args:
+            roi_analyzer: ROIAnalyzer instance for payback period calculation.
+        """
+        self._roi_analyzer = roi_analyzer
+        logger.debug("[IMP-TASK-002] Connected ROI analyzer to priority engine")
+
     def update_category_weight_multiplier(self, category: str, multiplier: float) -> None:
         """Update the weight multiplier for a category based on effectiveness feedback.
 
@@ -215,6 +241,107 @@ class PriorityEngine:
             The weight multiplier (default 1.0 if not set).
         """
         return self._category_multipliers.get(category, 1.0)
+
+    def get_roi_factor(self, improvement: dict[str, Any]) -> float:
+        """Calculate ROI-based priority factor from payback period.
+
+        IMP-TASK-002: Calculates a priority multiplier based on the estimated
+        payback period for an improvement. Tasks with shorter payback periods
+        receive higher priority to maximize return on investment.
+
+        The factor is calculated using linear interpolation:
+        - 10 phases or less payback = 2.0x boost (maximum)
+        - 30 phases payback = 1.0x (neutral)
+        - 90+ phases payback = 0.5x (minimum)
+
+        Args:
+            improvement: The improvement record to evaluate. Expected keys:
+                - imp_id or id: Improvement identifier
+                - estimated_tokens or estimated_cost: Token cost estimate
+                - estimated_savings or token_reduction: Expected savings per phase
+                - category: Optional category for effectiveness lookup
+
+        Returns:
+            ROI factor between 0.5 and 2.0:
+            - > 1.0: Quick payback, priority boost
+            - 1.0: Neutral payback
+            - < 1.0: Slow payback, priority reduction
+        """
+        if self._roi_analyzer is None:
+            return 1.0
+
+        try:
+            # Extract task parameters for ROI calculation
+            task_id = improvement.get("imp_id", improvement.get("id", "unknown"))
+            category = self._extract_category(improvement)
+
+            # Get cost estimate (default to 1000 tokens if not specified)
+            execution_cost = improvement.get(
+                "estimated_tokens",
+                improvement.get("estimated_cost", 1000.0),
+            )
+
+            # Get savings estimate (default to 50 tokens/phase if not specified)
+            estimated_savings = improvement.get(
+                "estimated_savings",
+                improvement.get("token_reduction", 50.0),
+            )
+
+            # Calculate payback using ROIAnalyzer
+            analysis = self._roi_analyzer.calculate_payback_period(
+                task_id=task_id,
+                estimated_token_reduction=estimated_savings,
+                execution_cost=execution_cost,
+                confidence=0.8,
+                category=category,
+            )
+
+            payback_phases = analysis.payback_phases
+
+            # Calculate factor using linear interpolation
+            # Quick payback (10 phases): 2.0x
+            # Neutral payback (30 phases): 1.0x
+            # Slow payback (90 phases): 0.5x
+            if payback_phases <= self.ROI_QUICK_PAYBACK_PHASES:
+                # Maximum boost for quick payback
+                roi_factor = 2.0
+            elif payback_phases >= self.ROI_SLOW_PAYBACK_PHASES:
+                # Minimum factor for slow payback
+                roi_factor = 0.5
+            elif payback_phases <= self.ROI_NEUTRAL_PAYBACK_PHASES:
+                # Interpolate between quick (2.0) and neutral (1.0)
+                # 10 phases = 2.0, 30 phases = 1.0
+                ratio = (payback_phases - self.ROI_QUICK_PAYBACK_PHASES) / (
+                    self.ROI_NEUTRAL_PAYBACK_PHASES - self.ROI_QUICK_PAYBACK_PHASES
+                )
+                roi_factor = 2.0 - ratio  # 2.0 -> 1.0
+            else:
+                # Interpolate between neutral (1.0) and slow (0.5)
+                # 30 phases = 1.0, 90 phases = 0.5
+                ratio = (payback_phases - self.ROI_NEUTRAL_PAYBACK_PHASES) / (
+                    self.ROI_SLOW_PAYBACK_PHASES - self.ROI_NEUTRAL_PAYBACK_PHASES
+                )
+                roi_factor = 1.0 - (ratio * 0.5)  # 1.0 -> 0.5
+
+            logger.debug(
+                "[IMP-TASK-002] ROI factor for %s: %.2f (payback=%d phases, "
+                "roi=%.2f, category=%s)",
+                task_id,
+                roi_factor,
+                payback_phases,
+                analysis.risk_adjusted_roi,
+                category,
+            )
+
+            return roi_factor
+
+        except Exception as e:
+            logger.warning(
+                "[IMP-TASK-002] ROI calculation failed for %s: %s",
+                improvement.get("imp_id", improvement.get("id", "unknown")),
+                e,
+            )
+            return 1.0  # Neutral factor on error
 
     def get_effectiveness_factor(self, improvement: dict[str, Any]) -> float:
         """Get effectiveness factor based on historical task outcomes.
@@ -454,6 +581,7 @@ class PriorityEngine:
         - Priority level: The assigned priority (critical, high, medium, low)
         - Complexity estimate: Estimated complexity from description
         - Effectiveness factor: Historical task completion outcomes (IMP-LOOP-019)
+        - ROI factor: Economic payback period consideration (IMP-TASK-002)
 
         Args:
             improvement: The improvement record to score. Expected keys:
@@ -461,9 +589,11 @@ class PriorityEngine:
                 - priority: Priority level (critical, high, medium, low)
                 - category: Optional explicit category
                 - title, description: Text for complexity estimation
+                - estimated_tokens, estimated_savings: For ROI calculation
 
         Returns:
-            Priority score between 0.0 and 1.0, where higher is better priority.
+            Priority score where higher is better priority. The base score
+            (0.0-1.0) is multiplied by category and ROI factors.
         """
         category = self._extract_category(improvement)
         priority_level = self._extract_priority_level(improvement)
@@ -503,11 +633,16 @@ class PriorityEngine:
 
         # IMP-TASK-003: Apply category weight multiplier from effectiveness feedback
         category_multiplier = self.get_category_weight_multiplier(category)
-        score = base_score * category_multiplier
+
+        # IMP-TASK-002: Apply ROI factor based on payback period
+        roi_factor = self.get_roi_factor(improvement)
+
+        score = base_score * category_multiplier * roi_factor
 
         logger.debug(
             "Priority score for %s: %.3f (category=%.2f, block_risk=%.2f, "
-            "priority=%.2f, complexity=%.2f, effectiveness=%.2f, category_mult=%.2f)",
+            "priority=%.2f, complexity=%.2f, effectiveness=%.2f, "
+            "category_mult=%.2f, roi_factor=%.2f)",
             improvement.get("imp_id", improvement.get("id", "unknown")),
             score,
             category_success_rate,
@@ -516,6 +651,7 @@ class PriorityEngine:
             complexity_factor,
             effectiveness_factor,
             category_multiplier,
+            roi_factor,
         )
 
         return round(score, 3)

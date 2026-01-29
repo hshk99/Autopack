@@ -29,6 +29,7 @@ from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
 from autopack.memory.maintenance import run_maintenance_if_due
+from autopack.task_generation.roi_analyzer import ROIAnalyzer
 from autopack.task_generation.task_effectiveness_tracker import \
     TaskEffectivenessTracker
 from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
@@ -591,6 +592,19 @@ class AutonomousLoop:
                 f"[IMP-LOOP-023] Goal drift detector initialized "
                 f"(threshold={self._goal_drift_threshold})"
             )
+
+        # IMP-TASK-002: ROI analyzer for economic prioritization of generated tasks
+        # Tasks with shorter payback periods receive higher priority
+        self._roi_analyzer: Optional[ROIAnalyzer] = None
+        self._roi_prioritization_enabled = getattr(
+            settings, "roi_task_prioritization_enabled", True
+        )
+        if self._roi_prioritization_enabled:
+            self._roi_analyzer = ROIAnalyzer(
+                effectiveness_tracker=self._task_effectiveness_tracker,
+                phases_horizon=getattr(settings, "roi_phases_horizon", 100),
+            )
+            logger.info("[IMP-TASK-002] ROI analyzer initialized for task prioritization")
 
     def get_loop_stats(self) -> Dict:
         """Get current loop statistics for monitoring (IMP-LOOP-006, IMP-AUTO-002).
@@ -2440,6 +2454,9 @@ class AutonomousLoop:
         2. Converting GeneratedTask objects into executable phase specifications
         3. Marking tasks as "in_progress" when they start execution
 
+        IMP-TASK-002: Tasks are now sorted by ROI payback period before execution.
+        Tasks with shorter payback periods receive higher priority.
+
         The generated phases use the "generated-task-execution" phase type which
         routes to the specialized handler in phase_dispatch.py.
 
@@ -2465,12 +2482,63 @@ class AutonomousLoop:
                 logger.debug("[IMP-LOOP-004] No pending generated tasks to execute")
                 return []
 
+            # IMP-TASK-002: Calculate ROI payback for each task and sort by payback period
+            tasks_with_roi = []
+            for task in pending_tasks:
+                payback_phases = float("inf")  # Default to infinite payback
+
+                if self._roi_analyzer is not None:
+                    try:
+                        # Extract cost and savings estimates from task
+                        execution_cost = getattr(task, "estimated_effort", 1000.0) or 1000.0
+                        # Estimate savings based on priority (higher priority = higher expected savings)
+                        savings_map = {
+                            "critical": 200.0,
+                            "high": 100.0,
+                            "medium": 50.0,
+                            "low": 25.0,
+                        }
+                        estimated_savings = savings_map.get(task.priority, 50.0)
+
+                        analysis = self._roi_analyzer.calculate_payback_period(
+                            task_id=task.task_id,
+                            estimated_token_reduction=estimated_savings,
+                            execution_cost=execution_cost,
+                            confidence=0.8,
+                            category=getattr(task, "category", "general") or "general",
+                        )
+                        payback_phases = analysis.payback_phases
+
+                        logger.debug(
+                            f"[IMP-TASK-002] Task {task.task_id} ROI: "
+                            f"payback={payback_phases} phases, roi={analysis.risk_adjusted_roi:.2f}"
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"[IMP-TASK-002] ROI calculation failed for {task.task_id}: {e}"
+                        )
+
+                tasks_with_roi.append((task, payback_phases))
+
+            # Sort by payback period (shorter = better priority)
+            tasks_with_roi.sort(key=lambda x: x[1])
+
+            if self._roi_analyzer is not None and len(tasks_with_roi) > 1:
+                logger.info(
+                    f"[IMP-TASK-002] Sorted {len(tasks_with_roi)} tasks by ROI payback period"
+                )
+
             # Convert GeneratedTask objects to executable phase specs
             phase_specs = []
-            for task in pending_tasks:
-                # Map task priority to phase priority
-                priority_map = {"critical": 1, "high": 2, "medium": 3, "low": 4}
-                priority_order = priority_map.get(task.priority, 3)
+            for idx, (task, payback_phases) in enumerate(tasks_with_roi):
+                # IMP-TASK-002: Use ROI-based priority order instead of static priority
+                # Lower index = better ROI = lower priority_order number
+                if self._roi_analyzer is not None:
+                    priority_order = idx + 1  # 1-based index (1 = highest priority)
+                else:
+                    # Fall back to static priority mapping
+                    priority_map = {"critical": 1, "high": 2, "medium": 3, "low": 4}
+                    priority_order = priority_map.get(task.priority, 3)
 
                 # Build phase spec from GeneratedTask
                 phase_spec = {
@@ -2494,6 +2562,11 @@ class AutonomousLoop:
                         "estimated_effort": task.estimated_effort,
                         "run_id": task.run_id,
                     },
+                    # IMP-TASK-002: Store ROI metadata for tracking
+                    "_roi_metadata": {
+                        "payback_phases": payback_phases,
+                        "roi_priority_order": idx + 1,
+                    },
                 }
                 phase_specs.append(phase_spec)
 
@@ -2502,7 +2575,8 @@ class AutonomousLoop:
                     task.task_id, "in_progress", executed_in_run_id=self.executor.run_id
                 )
                 logger.info(
-                    f"[IMP-LOOP-004] Queued generated task {task.task_id} for execution: {task.title}"
+                    f"[IMP-LOOP-004] Queued generated task {task.task_id} for execution: "
+                    f"{task.title} (payback={payback_phases} phases)"
                 )
 
             logger.info(f"[IMP-LOOP-004] Fetched {len(phase_specs)} generated tasks for execution")

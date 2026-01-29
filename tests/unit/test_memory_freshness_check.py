@@ -11,24 +11,12 @@ from unittest.mock import Mock, patch
 import pytest
 
 from autopack.memory.memory_service import (  # IMP-LOOP-019: New imports
-    COLLECTION_CODE_DOCS,
-    COLLECTION_DOCTOR_HINTS,
-    COLLECTION_ERRORS_CI,
-    COLLECTION_FRESHNESS_HOURS,
-    COLLECTION_PLANNING,
-    COLLECTION_RUN_SUMMARIES,
-    COLLECTION_SOT_DOCS,
-    DEFAULT_MEMORY_FRESHNESS_HOURS,
-    LOW_CONFIDENCE_THRESHOLD,
-    ContextMetadata,
-    MemoryService,
-    _calculate_age_hours,
-    _calculate_confidence,
-    _enrich_with_metadata,
-    _is_fresh,
-    _parse_timestamp,
-    get_freshness_threshold,
-)
+    COLLECTION_CODE_DOCS, COLLECTION_DOCTOR_HINTS, COLLECTION_ERRORS_CI,
+    COLLECTION_FRESHNESS_HOURS, COLLECTION_PLANNING, COLLECTION_RUN_SUMMARIES,
+    COLLECTION_SOT_DOCS, DEFAULT_MEMORY_FRESHNESS_HOURS,
+    LOW_CONFIDENCE_THRESHOLD, ContextMetadata, MemoryService,
+    _calculate_age_hours, _calculate_confidence, _enrich_with_metadata,
+    _is_fresh, _parse_timestamp, get_freshness_threshold)
 
 
 class TestTimestampParsing:
@@ -114,7 +102,8 @@ class TestFreshnessCheck:
 
     def test_default_freshness_constant(self):
         """Test default freshness hours constant is defined."""
-        assert DEFAULT_MEMORY_FRESHNESS_HOURS == 72  # 3 days
+        # IMP-LOOP-023: Increased to 30 days for cross-cycle learning
+        assert DEFAULT_MEMORY_FRESHNESS_HOURS == 720  # 30 days
 
 
 class TestMemoryServiceFreshnessFiltering:
@@ -882,8 +871,8 @@ class TestCollectionFreshnessConstants:
         assert COLLECTION_FRESHNESS_HOURS[COLLECTION_PLANNING] == 168
         # SOT docs are reference material (336h = 2 weeks)
         assert COLLECTION_FRESHNESS_HOURS[COLLECTION_SOT_DOCS] == 336
-        # Default fallback
-        assert COLLECTION_FRESHNESS_HOURS["default"] == 72
+        # Default fallback - IMP-LOOP-023: increased to 30 days
+        assert COLLECTION_FRESHNESS_HOURS["default"] == 720
 
     def test_errors_ci_has_shortest_threshold(self):
         """Test that errors_ci has the shortest freshness threshold."""
@@ -920,9 +909,10 @@ class TestGetFreshnessThreshold:
 
     def test_get_freshness_threshold_unknown_collection(self):
         """Test getting freshness threshold for unknown collection returns default."""
-        assert get_freshness_threshold("unknown_collection") == 72
-        assert get_freshness_threshold("") == 72
-        assert get_freshness_threshold("custom_collection") == 72
+        # IMP-LOOP-023: Default increased to 720 (30 days)
+        assert get_freshness_threshold("unknown_collection") == 720
+        assert get_freshness_threshold("") == 720
+        assert get_freshness_threshold("custom_collection") == 720
 
     def test_get_freshness_threshold_default(self):
         """Test that default threshold matches DEFAULT_MEMORY_FRESHNESS_HOURS."""

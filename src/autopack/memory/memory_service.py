@@ -83,7 +83,8 @@ def _compress_content(content: str, max_length: int = MAX_CONTENT_LENGTH) -> tup
 # ---------------------------------------------------------------------------
 
 # Default maximum age for memory retrieval in task generation (hours)
-DEFAULT_MEMORY_FRESHNESS_HOURS = 72  # 3 days
+# IMP-LOOP-023: Increased from 72h to 720h for better cross-cycle learning
+DEFAULT_MEMORY_FRESHNESS_HOURS = 720  # 30 days
 
 
 def _parse_timestamp(timestamp_str: Optional[str]) -> Optional[datetime]:
@@ -504,7 +505,7 @@ COLLECTION_FRESHNESS_HOURS: Dict[str, int] = {
     COLLECTION_CODE_DOCS: 168,  # Code docs change less frequently (1 week)
     COLLECTION_PLANNING: 168,  # Planning artifacts are more stable
     COLLECTION_SOT_DOCS: 336,  # SOT docs are reference material (2 weeks)
-    "default": 72,  # Fallback to DEFAULT_MEMORY_FRESHNESS_HOURS
+    "default": 720,  # Fallback to DEFAULT_MEMORY_FRESHNESS_HOURS (IMP-LOOP-023: 30 days)
 }
 
 
@@ -2721,7 +2722,7 @@ class MemoryService:
             limit: Maximum number of results to return
             project_id: Optional project ID to filter by
             max_age_hours: Maximum age in hours for insights to be considered fresh.
-                          Defaults to DEFAULT_MEMORY_FRESHNESS_HOURS (72 hours).
+                          Defaults to DEFAULT_MEMORY_FRESHNESS_HOURS (720 hours / 30 days).
                           Must be positive; attempts to disable are ignored.
             min_confidence: Optional minimum confidence threshold (0.0-1.0).
                            If provided, insights with confidence below this are filtered.

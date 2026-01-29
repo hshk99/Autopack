@@ -8,7 +8,8 @@ from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 from sqlalchemy.orm import Session
 
-from ..memory.memory_service import DEFAULT_MEMORY_FRESHNESS_HOURS, MemoryService
+from ..memory.memory_service import (DEFAULT_MEMORY_FRESHNESS_HOURS,
+                                     MemoryService)
 from ..roadi import RegressionProtector
 from ..roadi.regression_protector import RiskAssessment
 from ..telemetry.analyzer import RankedIssue, TelemetryAnalyzer
@@ -756,8 +757,8 @@ class AutonomousTaskGenerator:
             run_id: Optional run ID for telemetry tracking (IMP-LOOP-004)
             max_age_hours: Maximum age in hours for memory insights to be considered fresh.
                           Only applies when retrieving from memory (not direct telemetry).
-                          Defaults to DEFAULT_MEMORY_FRESHNESS_HOURS (72 hours).
-                          IMP-LOOP-003: Ensures only recent data is used for task generation.
+                          Defaults to DEFAULT_MEMORY_FRESHNESS_HOURS (720 hours / 30 days).
+                          IMP-LOOP-003/IMP-LOOP-023: Ensures cross-cycle learning.
             backlog: Optional list of phase dicts representing the current run's backlog.
                     If provided, high-priority (critical) tasks will be injected into
                     this backlog for same-run execution (IMP-LOOP-003).

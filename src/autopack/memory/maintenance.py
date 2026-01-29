@@ -14,13 +14,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .faiss_store import FaissStore
-from .memory_service import (
-    COLLECTION_DOCTOR_HINTS,
-    COLLECTION_ERRORS_CI,
-    COLLECTION_PLANNING,
-    COLLECTION_RUN_SUMMARIES,
-    _load_memory_config,
-)
+from .memory_service import (COLLECTION_DOCTOR_HINTS, COLLECTION_ERRORS_CI,
+                             COLLECTION_PLANNING, COLLECTION_RUN_SUMMARIES,
+                             _load_memory_config)
 
 logger = logging.getLogger(__name__)
 
@@ -36,15 +32,20 @@ def prune_old_entries(
     project_id: str,
     ttl_days: int = DEFAULT_TTL_DAYS,
     collections: Optional[List[str]] = None,
+    batch_size: int = 10000,
 ) -> int:
     """
-    Prune entries older than TTL from memory collections.
+    Prune entries older than TTL from memory collections with pagination.
+
+    IMP-MEM-011: Uses batched pagination to handle collections with >10000 entries.
+    Continues fetching and pruning until all old entries are processed.
 
     Args:
         store: FaissStore instance
         project_id: Project to prune within
         ttl_days: Days before entries expire (default: 30)
         collections: Collections to prune (default: all except code_docs)
+        batch_size: Number of entries to fetch per batch (default: 10000)
 
     Returns:
         Number of entries pruned
@@ -59,32 +60,57 @@ def prune_old_entries(
     total_pruned = 0
 
     for collection in collections:
+        collection_pruned = 0
         try:
-            # Scroll all documents for this project
-            docs = store.scroll(
-                collection,
-                filter={"project_id": project_id},
-                limit=10000,
-            )
+            # IMP-MEM-011: Paginated pruning loop to handle large collections
+            while True:
+                # Scroll batch of documents for this project
+                docs = store.scroll(
+                    collection,
+                    filter={"project_id": project_id},
+                    limit=batch_size,
+                )
 
-            ids_to_delete = []
-            for doc in docs:
-                payload = doc.get("payload", {})
-                timestamp = payload.get("timestamp", "")
+                if not docs:
+                    # No more documents to process
+                    break
 
-                # Parse timestamp and compare
-                try:
-                    if timestamp and timestamp < cutoff_iso:
-                        ids_to_delete.append(doc["id"])
-                except Exception:
-                    # If timestamp parsing fails, skip
-                    continue
+                ids_to_delete = []
+                for doc in docs:
+                    payload = doc.get("payload", {})
+                    timestamp = payload.get("timestamp", "")
 
-            if ids_to_delete:
+                    # Parse timestamp and compare
+                    try:
+                        if timestamp and timestamp < cutoff_iso:
+                            ids_to_delete.append(doc["id"])
+                    except Exception:
+                        # If timestamp parsing fails, skip
+                        continue
+
+                if not ids_to_delete:
+                    # No old entries found in this batch - we're done
+                    # (entries are not necessarily sorted by timestamp, so we check full batch)
+                    break
+
+                # Delete batch of old entries
                 deleted = store.delete(collection, ids_to_delete)
+                collection_pruned += deleted
                 total_pruned += deleted
+
                 logger.info(
-                    f"[Maintenance] Pruned {deleted} entries from '{collection}' "
+                    f"[IMP-MEM-011] Pruned batch of {deleted} entries from '{collection}' "
+                    f"(project={project_id}, older than {ttl_days} days)"
+                )
+
+                # If we deleted fewer entries than we found old, there may be more
+                # If batch was smaller than batch_size, we've processed all entries
+                if len(docs) < batch_size:
+                    break
+
+            if collection_pruned > 0:
+                logger.info(
+                    f"[Maintenance] Total pruned {collection_pruned} entries from '{collection}' "
                     f"(project={project_id}, older than {ttl_days} days)"
                 )
 

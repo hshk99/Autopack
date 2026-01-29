@@ -383,9 +383,9 @@ class TestPriorityEngineFreshnessIntegration:
 class TestFreshnessConstants:
     """Tests for freshness-related constants."""
 
-    def test_default_freshness_hours_is_72(self) -> None:
-        """Test default freshness threshold is 72 hours."""
-        assert DEFAULT_INSIGHT_FRESHNESS_HOURS == 72
+    def test_default_freshness_hours_is_720(self) -> None:
+        """Test default freshness threshold is 720 hours (30 days) per IMP-LOOP-023."""
+        assert DEFAULT_INSIGHT_FRESHNESS_HOURS == 720
 
     def test_boost_threshold_less_than_neutral(self) -> None:
         """Test boost threshold is less than neutral threshold."""

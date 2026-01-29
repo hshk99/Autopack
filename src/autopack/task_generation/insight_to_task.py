@@ -57,7 +57,8 @@ INSIGHT_TO_CATEGORY = {
 
 # IMP-MEM-001: Freshness filtering constants for task generation
 # Default maximum age for insights to be considered fresh (hours)
-DEFAULT_INSIGHT_FRESHNESS_HOURS = 72  # 3 days - matches MemoryService default
+# IMP-LOOP-023: Increased to 30 days for cross-cycle learning
+DEFAULT_INSIGHT_FRESHNESS_HOURS = 720  # 30 days - matches MemoryService default
 
 # Impact validation constants (IMP-TASK-002)
 IMPACT_LEVELS = ["critical", "high", "medium", "low"]
@@ -116,7 +117,7 @@ class InsightToTaskGenerator:
             memory_service: Optional MemoryService for freshness checking
                 (IMP-MEM-001). When provided, enables stale insight filtering.
             freshness_hours: Optional freshness threshold in hours (IMP-MEM-001).
-                Defaults to DEFAULT_INSIGHT_FRESHNESS_HOURS (72 hours).
+                Defaults to DEFAULT_INSIGHT_FRESHNESS_HOURS (720 hours / 30 days).
         """
         self.analyzer = analyzer
         self._imp_counter: Counter[str] = Counter()

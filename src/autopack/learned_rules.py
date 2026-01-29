@@ -8,6 +8,7 @@ Per GPT architect + user consensus on learned rules design.
 
 import json
 import logging
+import os
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
@@ -16,6 +17,25 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+# ============================================================================
+# IMP-PERF-003: Process-level cache for project rules loading
+# ============================================================================
+
+# Cache for project rules keyed by project_id
+_project_rules_cache: Dict[str, List["LearnedRule"]] = {}
+
+# Track file modification times for cache invalidation
+_project_rules_mtime: Dict[str, float] = {}
+
+
+def clear_project_rules_cache() -> None:
+    """Clear the project rules cache.
+
+    Call this when rules are modified externally or between test runs.
+    """
+    _project_rules_cache.clear()
+    _project_rules_mtime.clear()
 
 
 class DiscoveryStage(Enum):
@@ -1091,7 +1111,11 @@ def promote_hints_with_conflict_check(
 
 
 def load_project_rules(project_id: str) -> List[LearnedRule]:
-    """Load all project rules
+    """Load all project rules with mtime-based caching.
+
+    IMP-PERF-003: Uses process-level cache with mtime checking to avoid
+    redundant file reads. Cache is invalidated when file modification
+    time changes.
 
     Args:
         project_id: Project ID
@@ -1101,13 +1125,36 @@ def load_project_rules(project_id: str) -> List[LearnedRule]:
     """
     rules_file = _get_project_rules_file(project_id)
     if not rules_file.exists():
+        # Clear any stale cache entry if file was deleted
+        _project_rules_cache.pop(project_id, None)
+        _project_rules_mtime.pop(project_id, None)
         return []
 
     try:
+        # Get current file modification time
+        current_mtime = os.path.getmtime(rules_file)
+
+        # Check cache: return cached data if mtime unchanged
+        if project_id in _project_rules_cache:
+            cached_mtime = _project_rules_mtime.get(project_id)
+            if cached_mtime == current_mtime:
+                return _project_rules_cache[project_id]
+
+        # Cache miss or stale: read from file
         with open(rules_file, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return [LearnedRule.from_dict(r) for r in data.get("rules", [])]
+
+        rules = [LearnedRule.from_dict(r) for r in data.get("rules", [])]
+
+        # Update cache
+        _project_rules_cache[project_id] = rules
+        _project_rules_mtime[project_id] = current_mtime
+
+        return rules
     except (json.JSONDecodeError, KeyError, TypeError):
+        return []
+    except OSError:
+        # Handle file system errors gracefully
         return []
 
 
@@ -1602,12 +1649,20 @@ def _save_run_rule_hint(run_id: str, hint: RunRuleHint):
 
 
 def _save_project_rules(project_id: str, rules: List[LearnedRule]):
-    """Save rules to project rules file"""
+    """Save rules to project rules file.
+
+    IMP-PERF-003: Invalidates the cache for this project to ensure
+    subsequent loads reflect the saved changes.
+    """
     rules_file = _get_project_rules_file(project_id)
     rules_file.parent.mkdir(parents=True, exist_ok=True)
 
     with open(rules_file, "w", encoding="utf-8") as f:
         json.dump({"rules": [r.to_dict() for r in rules]}, f, indent=2)
+
+    # Invalidate cache after save to ensure fresh read on next load
+    _project_rules_cache.pop(project_id, None)
+    _project_rules_mtime.pop(project_id, None)
 
 
 # ============================================================================

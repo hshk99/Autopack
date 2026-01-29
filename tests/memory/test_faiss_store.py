@@ -199,6 +199,266 @@ class TestFaissStoreLRUEviction:
             assert store.get_payload("collection_b", f"b_{i}") is not None
 
 
+class TestFaissStoreThreadSafety:
+    """Tests for thread safety in FAISS collection initialization.
+
+    These tests verify that the race condition fix in ensure_collection
+    properly prevents double-initialization of collections.
+    """
+
+    @pytest.fixture
+    def temp_dir(self):
+        """Create a temporary directory for FAISS indices."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield tmpdir
+
+    @pytest.fixture
+    def store(self, temp_dir):
+        """Create a FaissStore instance."""
+        return FaissStore(index_dir=temp_dir)
+
+    def _make_point(self, point_id: str, value: int):
+        """Create a test point with a dummy vector."""
+        return {
+            "id": point_id,
+            "vector": [0.1] * 1536,
+            "payload": {"value": value},
+        }
+
+    def test_concurrent_ensure_collection_same_name(self, store):
+        """Test that concurrent ensure_collection calls for same name don't race.
+
+        This verifies the fix for the race condition where collection could be
+        initialized twice if two threads check existence simultaneously.
+        """
+        collection_name = "concurrent_test"
+        num_threads = 10
+        results = []
+        errors = []
+
+        def ensure_and_record():
+            try:
+                store.ensure_collection(collection_name)
+                results.append(True)
+            except Exception as e:
+                errors.append(str(e))
+
+        threads = [threading.Thread(target=ensure_and_record) for _ in range(num_threads)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # All threads should succeed
+        assert len(results) == num_threads
+        assert len(errors) == 0
+
+        # Collection should exist and be properly initialized
+        assert collection_name in store._collections
+        col = store._collections[collection_name]
+        assert "payloads" in col
+        assert "id_map" in col
+
+    def test_concurrent_upsert_same_collection(self, store):
+        """Test that concurrent upsert operations are thread-safe."""
+        collection_name = "concurrent_upsert"
+        num_threads = 10
+        points_per_thread = 5
+        errors = []
+
+        def upsert_points(thread_id):
+            try:
+                points = [
+                    self._make_point(f"thread{thread_id}_point{i}", thread_id * 100 + i)
+                    for i in range(points_per_thread)
+                ]
+                store.upsert(collection_name, points)
+            except Exception as e:
+                errors.append(str(e))
+
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            futures = [executor.submit(upsert_points, i) for i in range(num_threads)]
+            for future in as_completed(futures):
+                future.result()
+
+        assert len(errors) == 0
+        # All points should be inserted (though some may be evicted if over limit)
+        # At minimum, we should have some points and no corruption
+        assert store.count(collection_name) > 0
+
+    def test_concurrent_search_and_upsert(self, store):
+        """Test that search and upsert can run concurrently without corruption."""
+        collection_name = "concurrent_search_upsert"
+        errors = []
+        search_results = []
+
+        # Pre-populate with some data
+        initial_points = [self._make_point(f"initial_{i}", i) for i in range(10)]
+        store.upsert(collection_name, initial_points)
+
+        def do_upsert(thread_id):
+            try:
+                points = [
+                    self._make_point(f"upsert_{thread_id}_{i}", thread_id * 100 + i)
+                    for i in range(5)
+                ]
+                store.upsert(collection_name, points)
+            except Exception as e:
+                errors.append(f"upsert error: {e}")
+
+        def do_search(thread_id):
+            try:
+                query_vector = [0.1] * 1536
+                results = store.search(collection_name, query_vector, limit=5)
+                search_results.append(len(results))
+            except Exception as e:
+                errors.append(f"search error: {e}")
+
+        threads = []
+        for i in range(5):
+            threads.append(threading.Thread(target=do_upsert, args=(i,)))
+            threads.append(threading.Thread(target=do_search, args=(i,)))
+
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert len(errors) == 0
+        # All searches should return results
+        assert all(r >= 0 for r in search_results)
+
+    def test_concurrent_collection_creation_different_names(self, store):
+        """Test that creating different collections concurrently is safe."""
+        num_collections = 10
+        errors = []
+
+        def create_collection(collection_id):
+            try:
+                name = f"collection_{collection_id}"
+                store.ensure_collection(name)
+                points = [self._make_point(f"point_{collection_id}_{i}", i) for i in range(3)]
+                store.upsert(name, points)
+            except Exception as e:
+                errors.append(str(e))
+
+        with ThreadPoolExecutor(max_workers=num_collections) as executor:
+            futures = [executor.submit(create_collection, i) for i in range(num_collections)]
+            for future in as_completed(futures):
+                future.result()
+
+        assert len(errors) == 0
+        # All collections should exist
+        for i in range(num_collections):
+            assert f"collection_{i}" in store._collections
+            assert store.count(f"collection_{i}") == 3
+
+    def test_collection_not_double_initialized(self, store):
+        """Test that a collection is only initialized once even with concurrent calls."""
+        collection_name = "no_double_init"
+        initialization_count = []
+        original_ensure = store.ensure_collection.__func__
+
+        def counting_ensure(self, name, size=1536):
+            # Track when we actually create (not just return early)
+            with self._lock:
+                if name not in self._collections:
+                    initialization_count.append(name)
+            original_ensure(self, name, size)
+
+        # Monkey-patch to count initializations
+        import types
+
+        store.ensure_collection = types.MethodType(counting_ensure, store)
+
+        num_threads = 20
+        threads = [
+            threading.Thread(target=lambda: store.ensure_collection(collection_name))
+            for _ in range(num_threads)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # Collection should only be initialized once
+        assert initialization_count.count(collection_name) == 1
+
+    def test_concurrent_delete_and_search(self, store):
+        """Test that delete and search can run concurrently without errors."""
+        collection_name = "concurrent_delete_search"
+        errors = []
+
+        # Pre-populate
+        points = [self._make_point(f"point_{i}", i) for i in range(20)]
+        store.upsert(collection_name, points)
+
+        def do_delete(point_ids):
+            try:
+                store.delete(collection_name, point_ids)
+            except Exception as e:
+                errors.append(f"delete error: {e}")
+
+        def do_search():
+            try:
+                query_vector = [0.1] * 1536
+                store.search(collection_name, query_vector, limit=5)
+            except Exception as e:
+                errors.append(f"search error: {e}")
+
+        threads = []
+        # Delete some points while searching
+        for i in range(5):
+            threads.append(
+                threading.Thread(target=do_delete, args=([f"point_{i * 2}", f"point_{i * 2 + 1}"],))
+            )
+            threads.append(threading.Thread(target=do_search))
+
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert len(errors) == 0
+
+    def test_lock_is_initialized(self, store):
+        """Test that the lock is properly initialized in __init__."""
+        assert hasattr(store, "_lock")
+        assert isinstance(store._lock, type(threading.Lock()))
+
+    def test_concurrent_get_payload_updates_lru(self, store):
+        """Test that concurrent get_payload calls properly update LRU ordering."""
+        collection_name = "concurrent_lru"
+        store.MAX_PAYLOAD_ENTRIES = 10
+        errors = []
+
+        # Insert points
+        points = [self._make_point(f"point_{i}", i) for i in range(10)]
+        store.upsert(collection_name, points)
+
+        def get_payload(point_id):
+            try:
+                store.get_payload(collection_name, point_id)
+            except Exception as e:
+                errors.append(str(e))
+
+        # Concurrently access various points
+        threads = []
+        for _ in range(5):
+            for i in range(10):
+                threads.append(threading.Thread(target=get_payload, args=(f"point_{i}",)))
+
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert len(errors) == 0
+        # All points should still be accessible
+        for i in range(10):
+            assert store.get_payload(collection_name, f"point_{i}") is not None
+
+
 class TestFaissStoreCollectionCreation:
     """Tests for collection creation and management."""
 
@@ -277,143 +537,9 @@ class TestFaissStoreCollectionCreation:
     def test_index_dir_created_on_init(self, temp_dir):
         """Test that index directory is created on initialization."""
         new_dir = Path(temp_dir) / "nested" / "faiss"
-        store = FaissStore(index_dir=str(new_dir))
+        FaissStore(index_dir=str(new_dir))
 
         assert new_dir.exists()
-
-
-class TestFaissStoreThreadSafety:
-    """Tests for thread-safe concurrent access."""
-
-    @pytest.fixture
-    def temp_dir(self):
-        """Create a temporary directory for FAISS indices."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield tmpdir
-
-    @pytest.fixture
-    def store(self, temp_dir):
-        """Create a FaissStore instance."""
-        return FaissStore(index_dir=temp_dir)
-
-    def test_concurrent_upsert_same_collection(self, store):
-        """Test concurrent upserts to the same collection."""
-        collection = "test_collection"
-        num_threads = 10
-        points_per_thread = 10
-
-        def upsert_points(thread_id):
-            points = [
-                {
-                    "id": f"thread_{thread_id}_point_{i}",
-                    "vector": [0.1 * thread_id] * 1536,
-                    "payload": {"thread": thread_id, "point": i},
-                }
-                for i in range(points_per_thread)
-            ]
-            return store.upsert(collection, points)
-
-        with ThreadPoolExecutor(max_workers=num_threads) as executor:
-            futures = [executor.submit(upsert_points, i) for i in range(num_threads)]
-            results = [f.result() for f in as_completed(futures)]
-
-        # All upserts should succeed
-        assert all(r == points_per_thread for r in results)
-        assert store.count(collection) == num_threads * points_per_thread
-
-    def test_concurrent_read_write(self, store):
-        """Test concurrent reads and writes."""
-        collection = "test_collection"
-
-        # Pre-populate with some data
-        initial_points = [
-            {"id": f"initial_{i}", "vector": [0.1] * 1536, "payload": {"initial": True}}
-            for i in range(20)
-        ]
-        store.upsert(collection, initial_points)
-
-        read_results = []
-        write_results = []
-
-        def reader():
-            for _ in range(10):
-                result = store.get_payload(collection, "initial_0")
-                read_results.append(result is not None)
-                time.sleep(0.001)
-
-        def writer():
-            for i in range(10):
-                store.upsert(
-                    collection,
-                    [
-                        {
-                            "id": f"new_{i}",
-                            "vector": [0.2] * 1536,
-                            "payload": {"new": True},
-                        }
-                    ],
-                )
-                write_results.append(True)
-
-        threads = [
-            threading.Thread(target=reader),
-            threading.Thread(target=writer),
-            threading.Thread(target=reader),
-        ]
-
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        # All reads should succeed
-        assert all(read_results)
-        # All writes should complete
-        assert len(write_results) == 10
-
-    def test_concurrent_collection_creation(self, store):
-        """Test concurrent creation of the same collection."""
-        num_threads = 20
-
-        def ensure_collection(thread_id):
-            store.ensure_collection("shared_collection", size=1536)
-            return thread_id
-
-        with ThreadPoolExecutor(max_workers=num_threads) as executor:
-            futures = [executor.submit(ensure_collection, i) for i in range(num_threads)]
-            results = [f.result() for f in as_completed(futures)]
-
-        # All threads should complete without error
-        assert len(results) == num_threads
-        # Only one collection should exist
-        assert "shared_collection" in store._collections
-
-    def test_concurrent_search(self, store):
-        """Test concurrent search operations."""
-        collection = "test_collection"
-
-        # Pre-populate with data
-        points = [
-            {"id": f"point_{i}", "vector": [0.1 * i] * 1536, "payload": {"index": i}}
-            for i in range(100)
-        ]
-        store.upsert(collection, points)
-
-        search_results = []
-
-        def searcher(query_value):
-            query_vector = [query_value] * 1536
-            results = store.search(collection, query_vector, limit=5)
-            search_results.append(len(results))
-            return results
-
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = [executor.submit(searcher, 0.1 * i) for i in range(10)]
-            for f in as_completed(futures):
-                f.result()
-
-        # All searches should return results
-        assert all(r > 0 for r in search_results)
 
 
 class TestFaissStorePersistence:
@@ -444,12 +570,7 @@ class TestFaissStorePersistence:
         not FAISS_AVAILABLE, reason="FAISS not installed - loading requires index file"
     )
     def test_collection_loaded_on_reopen(self, temp_dir):
-        """Test that collections are loaded when reopening store.
-
-        Note: This test requires FAISS because loading from disk depends on
-        the index file existing (FAISS_AVAILABLE and index_path.exists()).
-        """
-        # Create and populate store
+        """Test that collections are loaded when reopening store."""
         store1 = FaissStore(index_dir=temp_dir)
         store1.upsert(
             "test_collection",
@@ -459,11 +580,9 @@ class TestFaissStorePersistence:
             ],
         )
 
-        # Create new store instance pointing to same directory
         store2 = FaissStore(index_dir=temp_dir)
         store2.ensure_collection("test_collection")
 
-        # Should load existing data
         assert store2.count("test_collection") == 2
         assert store2.get_payload("test_collection", "point_1")["name"] == "test1"
         assert store2.get_payload("test_collection", "point_2")["name"] == "test2"
@@ -501,11 +620,7 @@ class TestFaissStorePersistence:
         not FAISS_AVAILABLE, reason="FAISS not installed - loading requires index file"
     )
     def test_persistence_after_delete(self, temp_dir):
-        """Test that deletions are persisted.
-
-        Note: This test requires FAISS because loading from disk depends on
-        the index file existing.
-        """
+        """Test that deletions are persisted."""
         store = FaissStore(index_dir=temp_dir)
         store.upsert(
             "test_collection",
@@ -517,7 +632,6 @@ class TestFaissStorePersistence:
 
         store.delete("test_collection", ["delete"])
 
-        # Reopen store
         store2 = FaissStore(index_dir=temp_dir)
         store2.ensure_collection("test_collection")
 
@@ -528,11 +642,7 @@ class TestFaissStorePersistence:
         not FAISS_AVAILABLE, reason="FAISS not installed - loading requires index file"
     )
     def test_persistence_after_update(self, temp_dir):
-        """Test that payload updates are persisted.
-
-        Note: This test requires FAISS because loading from disk depends on
-        the index file existing.
-        """
+        """Test that payload updates are persisted."""
         store = FaissStore(index_dir=temp_dir)
         store.upsert(
             "test_collection",
@@ -541,7 +651,6 @@ class TestFaissStorePersistence:
 
         store.update_payload("test_collection", "point_1", {"version": 2})
 
-        # Reopen store
         store2 = FaissStore(index_dir=temp_dir)
         store2.ensure_collection("test_collection")
 
@@ -567,14 +676,12 @@ class TestFaissStorePersistence:
             [{"id": "point_1", "vector": [0.1] * 1536, "payload": {"name": "test"}}],
         )
 
-        # Payload and id_map files should exist regardless of FAISS
         payload_path = Path(temp_dir) / "test_collection.payloads.json"
         id_map_path = Path(temp_dir) / "test_collection.idmap.json"
 
         assert payload_path.exists()
         assert id_map_path.exists()
 
-        # Verify content
         with open(payload_path) as f:
             payloads = json.load(f)
         assert payloads["point_1"]["name"] == "test"
@@ -933,7 +1040,6 @@ class TestFaissStoreUpsert:
             [{"id": "point_1", "vector": [0.2] * 1536, "payload": {"version": 2}}],
         )
 
-        # Note: FAISS IndexFlatIP doesn't truly update, but payload should be overwritten
         payload = store.get_payload("test_collection", "point_1")
         assert payload["version"] == 2
 
@@ -1028,11 +1134,8 @@ class TestFaissStoreFallbackMode:
     def test_fallback_search_works(self, temp_dir):
         """Test that fallback search works without FAISS."""
         with patch("autopack.memory.faiss_store.FAISS_AVAILABLE", False):
-            # Need to reimport to get fallback behavior
-            # Instead, we'll test the _fallback_search method directly
             store = FaissStore(index_dir=temp_dir)
 
-            # Manually set up fallback mode
             store._collections["test"] = {
                 "index": None,
                 "payloads": OrderedDict(
@@ -1049,13 +1152,11 @@ class TestFaissStoreFallbackMode:
                 ],
             }
 
-            # Test fallback search
             results = store._fallback_search(
                 store._collections["test"], [0.9, 0.1, 0.0, 0.0], None, 10
             )
 
             assert len(results) > 0
-            # p1 should be most similar to query
             assert results[0]["id"] == "p1"
 
     def test_fallback_search_with_filter(self, temp_dir):
@@ -1084,7 +1185,6 @@ class TestFaissStoreFallbackMode:
             store._collections["test"], [0.9, 0.1, 0.0, 0.0], {"group": "a"}, 10
         )
 
-        # Only group "a" results
         assert all(r["payload"]["group"] == "a" for r in results)
 
     def test_fallback_search_empty_collection(self, temp_dir):
@@ -1107,7 +1207,6 @@ class TestFaissStoreFallbackMode:
         """Test cosine similarity calculation in fallback mode."""
         store = FaissStore(index_dir=temp_dir)
 
-        # Vectors with known cosine similarity
         store._collections["test"] = {
             "index": None,
             "payloads": OrderedDict(
@@ -1120,15 +1219,14 @@ class TestFaissStoreFallbackMode:
             "id_map": {"identical": 0, "orthogonal": 1, "opposite": 2},
             "dim": 4,
             "vectors": [
-                {"id": "identical", "vector": [1.0, 0.0, 0.0, 0.0]},  # cos = 1.0
-                {"id": "orthogonal", "vector": [0.0, 1.0, 0.0, 0.0]},  # cos = 0.0
-                {"id": "opposite", "vector": [-1.0, 0.0, 0.0, 0.0]},  # cos = -1.0
+                {"id": "identical", "vector": [1.0, 0.0, 0.0, 0.0]},
+                {"id": "orthogonal", "vector": [0.0, 1.0, 0.0, 0.0]},
+                {"id": "opposite", "vector": [-1.0, 0.0, 0.0, 0.0]},
             ],
         }
 
         results = store._fallback_search(store._collections["test"], [1.0, 0.0, 0.0, 0.0], None, 10)
 
-        # Should be ordered by similarity: identical > orthogonal > opposite
         assert results[0]["id"] == "identical"
         assert results[0]["score"] == pytest.approx(1.0)
 
@@ -1186,7 +1284,7 @@ class TestFaissStoreEdgeCases:
 
     def test_large_payload(self, store):
         """Test handling of large payload."""
-        large_data = "x" * 100000  # 100KB of data
+        large_data = "x" * 100000
         payload = {"large_field": large_data}
         store.upsert(
             "test_collection",

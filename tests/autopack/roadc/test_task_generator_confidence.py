@@ -152,7 +152,8 @@ class TestMemoryInsightConsumerConfidence:
 
     def test_memory_consumer_extracts_confidence(self, mock_memory_service):
         """MemoryInsightConsumer should extract confidence from raw insights."""
-        consumer = MemoryInsightConsumer(mock_memory_service)
+        # IMP-MEM-015: project_id is now required for namespace isolation
+        consumer = MemoryInsightConsumer(mock_memory_service, project_id="test-project")
         result = consumer.get_insights(limit=100)
 
         assert len(result.insights) == 3
@@ -170,7 +171,8 @@ class TestMemoryInsightConsumerConfidence:
                 "severity": "low",
             }
         ]
-        consumer = MemoryInsightConsumer(mock_memory_service)
+        # IMP-MEM-015: project_id is now required for namespace isolation
+        consumer = MemoryInsightConsumer(mock_memory_service, project_id="test-project")
         result = consumer.get_insights(limit=100)
 
         assert len(result.insights) == 1

@@ -304,15 +304,18 @@ class MemoryInsightConsumer:
     def __init__(
         self,
         memory_service: MemoryService,
+        project_id: str,
         query: str = "error failure bottleneck improvement opportunity",
     ):
         """Initialize with a MemoryService instance.
 
         Args:
             memory_service: MemoryService instance
+            project_id: Project ID for namespace isolation (IMP-MEM-015)
             query: Search query for retrieving insights
         """
         self._memory = memory_service
+        self._project_id = project_id
         self._query = query
 
     def get_insights(
@@ -336,8 +339,10 @@ class MemoryInsightConsumer:
         )
 
         # Retrieve from memory
+        # IMP-MEM-015: project_id is now required for namespace isolation
         raw_insights = self._memory.retrieve_insights(
             query=self._query,
+            project_id=self._project_id,
             limit=limit,
             max_age_hours=effective_max_age,
         )
@@ -626,9 +631,12 @@ class AutonomousTaskGenerator:
         regression_protector: Optional[RegressionProtector] = None,
         causal_analyzer: Optional[CausalAnalyzer] = None,
         db_session: Optional[Session] = None,
+        project_id: str = "default",
     ):
         self._memory = memory_service or MemoryService()
         self._regression = regression_protector or RegressionProtector()
+        # IMP-MEM-015: Store project_id for namespace isolation
+        self._project_id = project_id
         # IMP-FBK-005: CausalAnalyzer for risk-based task prioritization
         self._causal_analyzer = causal_analyzer or CausalAnalyzer()
         # IMP-ARCH-017: Reconnect TelemetryAnalyzer when db_session is available.
@@ -700,7 +708,8 @@ class AutonomousTaskGenerator:
             return AnalyzerInsightConsumer(self._telemetry_analyzer, window_days=7)
 
         logger.debug("[IMP-LOOP-013] Using MemoryInsightConsumer (fallback)")
-        return MemoryInsightConsumer(self._memory)
+        # IMP-MEM-015: Pass project_id for namespace isolation
+        return MemoryInsightConsumer(self._memory, project_id=self._project_id)
 
     def _convert_telemetry_to_insights(
         self, telemetry_data: Dict[str, List[RankedIssue]]

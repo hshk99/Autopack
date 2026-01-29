@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from telemetry.analysis_engine import AnalysisEngine
-from telemetry.pattern_detector import Pattern, PatternDetector
+from telemetry.pattern_detector import PatternDetector
 from telemetry.unified_event_log import UnifiedEventLog
 
 

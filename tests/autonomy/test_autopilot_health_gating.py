@@ -4,7 +4,6 @@ This module tests the health transition handling and auto-resume functionality
 in the AutopilotController.
 """
 
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest

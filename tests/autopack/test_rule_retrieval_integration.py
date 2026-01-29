@@ -7,9 +7,8 @@ Tests cover:
 - Handling of missing/disabled memory service
 """
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
-import pytest
 
 from autopack.feedback_pipeline import FeedbackPipeline
 

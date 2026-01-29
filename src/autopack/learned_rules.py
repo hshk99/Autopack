@@ -9,13 +9,13 @@ Per GPT architect + user consensus on learned rules design.
 import json
 import logging
 from collections import defaultdict
-
-logger = logging.getLogger(__name__)
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 class DiscoveryStage(Enum):
@@ -673,7 +673,7 @@ def detect_hint_conflicts(
                         (
                             hint1,
                             hint2,
-                            f"Scope overlap with conflicting directives",
+                            "Scope overlap with conflicting directives",
                         )
                     )
 

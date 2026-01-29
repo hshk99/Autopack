@@ -507,7 +507,7 @@ class TestBudgetFilteringIntegration:
         # Check that filtering happened and was logged
         # The log message should mention budget constraint
         log_messages = [r.message for r in caplog.records]
-        budget_logs = [m for m in log_messages if "IMP-COST-001" in m]
+        [m for m in log_messages if "IMP-COST-001" in m]
         # Either filtering happened or tasks were generated below threshold
         # We just verify the code path works without errors
         assert result is not None

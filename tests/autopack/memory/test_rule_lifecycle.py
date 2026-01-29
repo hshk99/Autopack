@@ -65,7 +65,7 @@ class TestRuleLifecycleTracking:
                     "phase_id": "phase_1",
                 }
 
-                result = memory_service.write_telemetry_insight(
+                memory_service.write_telemetry_insight(
                     rule_insight, project_id="test_project"
                 )
 

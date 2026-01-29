@@ -37,13 +37,8 @@ class TestContextWarning:
             with patch.object(loop, "_get_feedback_pipeline_context", return_value=""):
                 with patch.object(loop, "_get_improvement_task_context", return_value=""):
                     with patch.object(loop, "_get_telemetry_adjustments", return_value={}):
-                        with patch("autopack.executor.autonomous_loop.logger") as mock_logger:
+                        with patch("autopack.executor.autonomous_loop.logger"):
                             # Create a test phase
-                            test_phase = {
-                                "phase_id": "test-phase-001",
-                                "phase_type": "build",
-                                "description": "Test phase",
-                            }
 
                             # Directly test the context combination logic
                             # by simulating what happens in _execute_loop

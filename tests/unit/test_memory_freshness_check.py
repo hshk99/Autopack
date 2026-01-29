@@ -955,11 +955,6 @@ class TestPerCollectionStalenessFiltering:
         summaries_fresh_ts = (now - timedelta(hours=40)).isoformat()
 
         call_count = [0]
-        collection_order = [
-            "run_summaries",  # First collection queried
-            "errors_ci",  # Second collection queried
-            "doctor_hints",  # Third collection queried
-        ]
 
         def mock_search_side_effect(collection, query_vector, filter, limit):
             idx = call_count[0]

@@ -9,7 +9,7 @@ Tests cover:
 """
 
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -17,7 +17,6 @@ from autopack.diagnostics.diagnostics_agent import DiagnosticOutcome
 from autopack.diagnostics.diagnostics_models import DecisionType, PhaseSpec
 from autopack.diagnostics.goal_aware_decision import GoalAwareDecisionMaker
 from autopack.diagnostics.iterative_investigator import IterativeInvestigator
-from autopack.diagnostics.probes import ProbeRunResult
 
 
 class TestDeepRetrievalPassthrough:

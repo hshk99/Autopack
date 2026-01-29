@@ -34,7 +34,7 @@ from autopack.time_watchdog import TimeWatchdog
 
 # IMP-GAP-001: Import gap scanner for pre-phase checks
 if TYPE_CHECKING:
-    from autopack.gaps.scanner import GapScanner, GapScanResult
+    from autopack.gaps.scanner import GapScanResult
 
 logger = logging.getLogger(__name__)
 

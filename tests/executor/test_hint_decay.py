@@ -7,7 +7,6 @@ ensuring old hints are filtered out and fresh hints are prioritized.
 
 import time
 
-import pytest
 
 from autopack.executor.learning_pipeline import LearningHint, LearningPipeline
 
@@ -204,7 +203,7 @@ class TestGetHintsWithDecayScores:
         hints_with_scores = pipeline.get_hints_with_decay_scores(phase, decay_threshold=0.0)
 
         # Find scores by hint text
-        scores = {text: score for text, score in hints_with_scores}
+        {text: score for text, score in hints_with_scores}
         assert "Fresh" in str(hints_with_scores)
         assert "Older" in str(hints_with_scores)
 

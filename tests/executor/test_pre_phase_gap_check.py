@@ -5,10 +5,8 @@ that detects potential blockers before phase execution.
 """
 
 import tempfile
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
-import pytest
 
 from autopack.executor.phase_orchestrator import (
     ExecutionContext,

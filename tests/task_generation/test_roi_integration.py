@@ -6,14 +6,12 @@ tasks with shorter payback periods receive priority boosts.
 
 from __future__ import annotations
 
-from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from autopack.task_generation.priority_engine import PriorityEngine
-from autopack.task_generation.roi_analyzer import (DEFAULT_EFFECTIVENESS,
-                                                   PaybackAnalysis,
+from autopack.task_generation.roi_analyzer import (PaybackAnalysis,
                                                    ROIAnalyzer)
 
 

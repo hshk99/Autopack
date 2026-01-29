@@ -8,7 +8,7 @@ for monitoring and alerting on component degradation.
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from fastapi import APIRouter, Query
 

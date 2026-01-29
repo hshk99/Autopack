@@ -64,6 +64,9 @@ class AuditorResult:
     completion_tokens: Optional[int] = (
         None  # BUILD-143: Exact completion tokens from provider (replaces heuristic splits)
     )
+    confidence: Optional[float] = (
+        None  # IMP-PERF-002: Confidence score (0.0-1.0) for early-exit dual audit
+    )
 
 
 @dataclass

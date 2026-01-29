@@ -12,11 +12,43 @@ from typing import Any, Dict
 
 from fastapi import APIRouter, Query
 
+from autopack.telemetry.loop_metrics import LoopMetricsCollector
 from autopack.telemetry.meta_metrics import MetaMetricsTracker
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["metrics"])
+
+# IMP-OBS-001: Global LoopMetricsCollector instance for closed-loop observability
+# This instance is shared across the application to track feedback loop effectiveness
+_loop_metrics_collector: LoopMetricsCollector | None = None
+
+
+def get_loop_metrics_collector() -> LoopMetricsCollector:
+    """Get the global LoopMetricsCollector instance.
+
+    IMP-OBS-001: Provides access to the shared loop metrics collector
+    for recording insight detections, task generations, and outcomes.
+
+    Returns:
+        The global LoopMetricsCollector instance.
+    """
+    global _loop_metrics_collector
+    if _loop_metrics_collector is None:
+        _loop_metrics_collector = LoopMetricsCollector()
+        logger.info("[IMP-OBS-001] Initialized global LoopMetricsCollector")
+    return _loop_metrics_collector
+
+
+def reset_loop_metrics_collector() -> None:
+    """Reset the global LoopMetricsCollector instance.
+
+    IMP-OBS-001: For testing purposes, allows resetting the collector.
+    """
+    global _loop_metrics_collector
+    if _loop_metrics_collector is not None:
+        _loop_metrics_collector.reset()
+        logger.info("[IMP-OBS-001] Reset global LoopMetricsCollector")
 
 
 @router.get("/metrics/feedback-loop")
@@ -77,3 +109,82 @@ async def get_feedback_loop_metrics(
         }
 
     return response
+
+
+@router.get("/metrics/loop-effectiveness")
+async def get_loop_effectiveness_metrics(
+    include_funnel: bool = Query(
+        default=True,
+        description="Include conversion funnel breakdown in response",
+    ),
+    include_sources: bool = Query(
+        default=True,
+        description="Include source-level breakdown in response",
+    ),
+    include_calibration: bool = Query(
+        default=False,
+        description="Include confidence calibration breakdown in response",
+    ),
+) -> Dict[str, Any]:
+    """Expose closed-loop effectiveness metrics for dashboard and monitoring.
+
+    IMP-OBS-001: Returns feedback loop effectiveness metrics including:
+    - Conversion funnel: insights -> tasks -> outcomes
+    - Success rates by insight source
+    - Failure prevention count
+    - Confidence calibration score
+
+    These metrics enable monitoring of the self-improvement loop's ROI
+    and identifying which insight sources produce the most effective tasks.
+
+    Args:
+        include_funnel: If True, includes conversion funnel breakdown
+        include_sources: If True, includes per-source metrics
+        include_calibration: If True, includes confidence calibration data
+
+    Returns:
+        Dict with effectiveness metrics and optional breakdowns
+    """
+    collector = get_loop_metrics_collector()
+    metrics = collector.get_metrics()
+
+    response: Dict[str, Any] = {
+        "metrics": metrics.to_dict(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if include_funnel:
+        response["conversion_funnel"] = collector.get_conversion_funnel()
+
+    if include_sources:
+        response["source_breakdown"] = collector.get_source_breakdown()
+
+    if include_calibration:
+        response["calibration_breakdown"] = collector.get_calibration_breakdown()
+
+    logger.debug(
+        "[IMP-OBS-001] Returning loop effectiveness metrics: "
+        "insights=%d, tasks=%d, success_rate=%.2f%%",
+        metrics.insights_detected,
+        metrics.tasks_generated,
+        metrics.success_rate * 100,
+    )
+
+    return response
+
+
+@router.get("/metrics/loop-summary")
+async def get_loop_summary() -> Dict[str, Any]:
+    """Get a comprehensive summary of all loop metrics.
+
+    IMP-OBS-001: Returns the complete summary including all metrics,
+    breakdowns, and conversion funnel data in a single response.
+    Useful for dashboard widgets that need all data at once.
+
+    Returns:
+        Dict with complete loop metrics summary
+    """
+    collector = get_loop_metrics_collector()
+    summary = collector.get_summary()
+    summary["timestamp"] = datetime.now(timezone.utc).isoformat()
+    return summary

@@ -118,10 +118,30 @@ class IterativeInvestigator:
         all_probes.extend(initial_outcome.probe_results)
 
         # IMP-DIAG-002: Include deep retrieval results in evidence for decision maker
+        # IMP-DIAG-004: Also extract memory_entries and similar_errors at top level
         if initial_outcome.deep_retrieval_results:
             evidence["deep_retrieval"] = initial_outcome.deep_retrieval_results
+
+            # IMP-DIAG-004: Extract memory_entries for easier access by decision maker
+            memory_entries = initial_outcome.deep_retrieval_results.get("memory_entries", [])
+            if memory_entries:
+                evidence["memory_entries"] = memory_entries
+                # Extract similar_errors (memory entries from error collection)
+                similar_errors = [e for e in memory_entries if e.get("source") == "memory:error"]
+                if similar_errors:
+                    evidence["similar_errors"] = similar_errors
+
+            # Log retrieval statistics for debugging
+            stats = initial_outcome.deep_retrieval_results.get("stats", {})
+            total_entries = (
+                stats.get("run_artifacts_count", 0)
+                + stats.get("sot_files_count", 0)
+                + stats.get("memory_entries_count", 0)
+            )
             logger.debug(
-                f"[IterativeInvestigator] Passing deep retrieval results to decision maker"
+                f"[IterativeInvestigator] Passing {total_entries} deep retrieval entries "
+                f"to decision maker (memory_entries={len(memory_entries)}, "
+                f"similar_errors={len(evidence.get('similar_errors', []))})"
             )
 
         # IMP-DIAG-002: Include second opinion triage in evidence for decision maker
@@ -477,8 +497,17 @@ class IterativeInvestigator:
         }
 
         # IMP-DIAG-002: Include deep retrieval results if available
+        # IMP-DIAG-004: Also extract memory_entries and similar_errors at top level
         if outcome.deep_retrieval_results:
             result["deep_retrieval_results"] = outcome.deep_retrieval_results
+            # Extract memory entries for easier access
+            memory_entries = outcome.deep_retrieval_results.get("memory_entries", [])
+            if memory_entries:
+                result["memory_entries"] = memory_entries
+                # Extract similar errors (memory entries from error collection)
+                result["similar_errors"] = [
+                    e for e in memory_entries if e.get("source") == "memory:error"
+                ]
 
         # IMP-DIAG-002: Include second opinion if available
         if outcome.second_opinion:

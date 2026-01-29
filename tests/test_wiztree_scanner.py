@@ -170,10 +170,6 @@ C:\\temp\\cache.txt,100000000,104857600,"2025-12-01 08:00:00","-",10,1,10.5
                     )
 
     @patch("subprocess.run")
-    @pytest.mark.skip(
-        reason="API change: ScanResult.__init__() no longer accepts 'is_directory' parameter. "
-        "Test needs update to match new ScanResult API."
-    )
     def test_scan_drive_falls_back_on_csv_not_created(self, mock_run):
         """Test fallback to Python scanner when WizTree fails to create CSV."""
         with patch.dict("os.environ", {"WIZTREE_PATH": "C:/wiztree64.exe"}):
@@ -194,8 +190,8 @@ C:\\temp\\cache.txt,100000000,104857600,"2025-12-01 08:00:00","-",10,1,10.5
                 ScanResult(
                     path="C:\\fallback\\file.txt",
                     size_bytes=1000,
-                    is_directory=False,
-                    last_modified=datetime.now(timezone.utc),
+                    is_folder=False,
+                    modified=datetime.now(timezone.utc),
                 )
             ]
             scanner.fallback_scanner.scan_drive = Mock(return_value=mock_fallback_results)
@@ -207,10 +203,6 @@ C:\\temp\\cache.txt,100000000,104857600,"2025-12-01 08:00:00","-",10,1,10.5
             scanner.fallback_scanner.scan_drive.assert_called_once()
 
     @patch("subprocess.run")
-    @pytest.mark.skip(
-        reason="API change: ScanResult.__init__() no longer accepts 'is_directory' parameter. "
-        "Test needs update to match new ScanResult API."
-    )
     def test_scan_drive_falls_back_on_timeout(self, mock_run):
         """Test fallback to Python scanner on WizTree timeout."""
         from subprocess import TimeoutExpired
@@ -227,8 +219,8 @@ C:\\temp\\cache.txt,100000000,104857600,"2025-12-01 08:00:00","-",10,1,10.5
             ScanResult(
                 path="C:\\fallback\\file.txt",
                 size_bytes=1000,
-                is_directory=False,
-                last_modified=datetime.now(timezone.utc),
+                is_folder=False,
+                modified=datetime.now(timezone.utc),
             )
         ]
         scanner.fallback_scanner.scan_drive = Mock(return_value=mock_fallback_results)

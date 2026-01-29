@@ -348,52 +348,6 @@ def test_glm_auditor_prompt_includes_anchor():
         assert "80% code coverage" in prompt
 
 
-@pytest.mark.skip(reason="AnthropicAuditorClient was removed during refactoring")
-def test_anthropic_auditor_prompt_includes_anchor():
-    """Test that Anthropic Auditor prompts include intention anchor when available."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        # Create anchor
-        anchor = create_anchor(
-            run_id="test-anthropic-auditor",
-            project_id="test-project",
-            north_star="Maintain API backwards compatibility.",
-            constraints=IntentionConstraints(must_not=["Change existing API response formats"]),
-        )
-        save_anchor(anchor, base_dir=tmpdir)
-
-        # Import and create client
-        from autopack.anthropic_clients import AnthropicAuditorClient
-
-        client = AnthropicAuditorClient(api_key="test-key")
-
-        # Build prompt
-        phase_spec = {
-            "run_id": "test-anthropic-auditor",
-            "task_category": "feature",
-            "complexity": "medium",
-            "description": "Add new API endpoint",
-        }
-
-        # Temporarily change working directory to tmpdir
-        import os
-
-        original_cwd = os.getcwd()
-        try:
-            os.chdir(tmpdir)
-            prompt = client._build_user_prompt(
-                patch_content="diff --git a/api.py b/api.py\n+@app.get('/new')",
-                phase_spec=phase_spec,
-                file_context=None,
-                project_rules=None,
-            )
-        finally:
-            os.chdir(original_cwd)
-
-        # Verify anchor content is in prompt
-        assert "Maintain API backwards compatibility" in prompt
-        assert "Change existing API response formats" in prompt
-
-
 # =============================================================================
 # Doctor Prompt Wiring Tests
 # =============================================================================

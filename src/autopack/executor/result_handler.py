@@ -515,8 +515,6 @@ class ResultHandler:
                 )
 
         except Exception as e:
-            logger.warning(
-                f"[IMP-TEL-001] Failed to check SLA breaches for phase {phase_id}: {e}"
-            )
+            logger.warning(f"[IMP-TEL-001] Failed to check SLA breaches for phase {phase_id}: {e}")
 
         return breaches

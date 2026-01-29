@@ -12,7 +12,6 @@ Tests cover:
 import asyncio
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from autopack.memory.embeddings import (
     EMBEDDING_SIZE,

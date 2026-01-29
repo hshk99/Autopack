@@ -2512,10 +2512,10 @@ class LoopLatencyMetric:
         with self._lock:
             latencies = self._latencies
             if latency_type:
-                latencies = [l for l in latencies if l["type"] == latency_type]
+                latencies = [lat for lat in latencies if lat["type"] == latency_type]
             if not latencies:
                 return 0.0
-            return sum(l["latency_ms"] for l in latencies) / len(latencies)
+            return sum(lat["latency_ms"] for lat in latencies) / len(latencies)
 
     def is_within_target(self) -> bool:
         """Check if average latency is within target.

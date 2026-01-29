@@ -13,11 +13,10 @@ Tests cover:
 import json
 import tempfile
 import threading
-import time
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 

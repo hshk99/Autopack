@@ -297,9 +297,7 @@ class PriorityEngine:
                 category_penalty_key = f"_category:{category}"
                 current_cat_penalty = self._session_penalties.get(category_penalty_key, 0.0)
                 # Category penalty is smaller (0.05 per failure)
-                self._session_penalties[category_penalty_key] = min(
-                    0.3, current_cat_penalty + 0.05
-                )
+                self._session_penalties[category_penalty_key] = min(0.3, current_cat_penalty + 0.05)
 
             logger.info(
                 "[IMP-LOOP-021] Updated session penalty for %s: penalty=%.2f "

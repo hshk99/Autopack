@@ -8,7 +8,6 @@ import logging
 from unittest.mock import patch
 
 
-
 class TestMemoryServiceExceptionLogging:
     """Tests for exception logging in memory_service.py."""
 

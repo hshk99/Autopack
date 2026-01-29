@@ -5,6 +5,9 @@ Handles backlog cleanup, stuck phase detection, and health monitoring.
 
 IMP-LOOP-001: Added injection verification to ensure generated tasks
 properly appear in the execution queue after injection.
+
+IMP-LOOP-030: Added task execution authorization criteria using risk-based
+gating from RegressionProtector before task injection.
 """
 
 import json
@@ -12,16 +15,17 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
-from autopack.backlog_maintenance import (create_git_checkpoint,
-                                          parse_patch_stats)
+from autopack.backlog_maintenance import create_git_checkpoint, parse_patch_stats
 from autopack.governed_apply import GovernedApplyPath
 from autopack.maintenance_auditor import AuditorInput, DiffStats, TestResult
 from autopack.maintenance_auditor import evaluate as audit_evaluate
+from autopack.roadi.regression_protector import RegressionProtector, RiskSeverity
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
+    from autopack.autonomy.approval_service import ApprovalService
 
 logger = logging.getLogger(__name__)
 
@@ -319,8 +323,7 @@ class BacklogMaintenance:
                                 logger.info(
                                     "[Backlog][Apply] Reverting to checkpoint due to failure"
                                 )
-                                from autopack.backlog_maintenance import \
-                                    revert_to_checkpoint
+                                from autopack.backlog_maintenance import revert_to_checkpoint
 
                                 revert_to_checkpoint(Path(self.executor.workspace), checkpoint_hash)
                 else:
@@ -346,8 +349,7 @@ class BacklogMaintenance:
                         logger.warning(f"[Backlog][Apply] Failed for {phase_id}: {err}")
                         if checkpoint_hash:
                             logger.info("[Backlog][Apply] Reverting to checkpoint due to failure")
-                            from autopack.backlog_maintenance import \
-                                revert_to_checkpoint
+                            from autopack.backlog_maintenance import revert_to_checkpoint
 
                             revert_to_checkpoint(Path(self.executor.workspace), checkpoint_hash)
             elif apply and patch_path is None:
@@ -384,21 +386,31 @@ class BacklogMaintenance:
 
     # =========================================================================
     # IMP-LOOP-001: Task Injection Verification
+    # IMP-LOOP-030: Task Execution Authorization
     # =========================================================================
 
     def inject_tasks(
         self,
         tasks: List[TaskCandidate],
         on_injection: Optional[Callable[[str], None]] = None,
+        approval_service: Optional["ApprovalService"] = None,
+        skip_authorization: bool = False,
     ) -> InjectionResult:
         """Inject tasks into the execution queue with verification (IMP-LOOP-001).
 
-        This method validates tasks before injection, performs the injection,
-        and verifies that injected tasks appear in the execution queue.
+        IMP-LOOP-030: Added authorization check using risk assessment from
+        RegressionProtector. Only low-risk tasks are auto-injected; medium/high
+        risk tasks are queued for approval.
+
+        This method validates tasks before injection, checks authorization,
+        performs the injection, and verifies that injected tasks appear in
+        the execution queue.
 
         Args:
             tasks: List of TaskCandidate objects to inject.
             on_injection: Optional callback invoked for each successfully injected task.
+            approval_service: Optional ApprovalService for queuing pending approvals.
+            skip_authorization: If True, skip authorization check (for pre-approved tasks).
 
         Returns:
             InjectionResult with details of the injection operation.
@@ -417,20 +429,160 @@ class BacklogMaintenance:
             result.failed_ids = [t.task_id for t in tasks]
             return result
 
-        # Step 2: Perform injection with tracking
-        result = self._perform_injection(validated, on_injection)
+        # Step 2 (IMP-LOOP-030): Check authorization for each task
+        if skip_authorization:
+            authorized_tasks = validated
+            pending_approval: List[Tuple[TaskCandidate, str]] = []
+        else:
+            authorized_tasks, pending_approval = self._check_task_authorization(
+                validated, approval_service
+            )
 
-        # Step 3: Verify injection success
+        # Step 3: Queue pending approval tasks if approval_service provided
+        if pending_approval and approval_service:
+            self._queue_pending_approvals(pending_approval, approval_service)
+
+        # Track tasks not authorized as failed
+        for task, reason in pending_approval:
+            result.failed_ids.append(task.task_id)
+
+        # Step 4: Perform injection with tracking (only authorized tasks)
+        if authorized_tasks:
+            injection_result = self._perform_injection(authorized_tasks, on_injection)
+            result.injected_ids.extend(injection_result.injected_ids)
+            result.failed_ids.extend(injection_result.failed_ids)
+        else:
+            logger.info("[IMP-LOOP-030] No tasks authorized for auto-execution")
+
+        # Step 5: Verify injection success
         self._verify_injection(result)
 
         logger.info(
-            "[IMP-LOOP-001] Injection complete: %d injected, %d failed, verified=%s",
+            "[IMP-LOOP-001] Injection complete: %d injected, %d failed (including %d pending approval), verified=%s",
             result.success_count,
             result.failure_count,
+            len(pending_approval),
             result.verified,
         )
 
         return result
+
+    def _check_task_authorization(
+        self,
+        tasks: List[TaskCandidate],
+        approval_service: Optional["ApprovalService"] = None,
+    ) -> Tuple[List[TaskCandidate], List[Tuple[TaskCandidate, str]]]:
+        """Check authorization for tasks using risk assessment (IMP-LOOP-030).
+
+        Evaluates each task's risk using RegressionProtector and determines
+        if it can be auto-executed or needs manual approval.
+
+        Args:
+            tasks: List of validated task candidates.
+            approval_service: Optional ApprovalService (used if available).
+
+        Returns:
+            Tuple of:
+            - List of authorized tasks (can auto-execute)
+            - List of (task, reason) tuples for tasks needing approval
+        """
+        authorized: List[TaskCandidate] = []
+        pending_approval: List[Tuple[TaskCandidate, str]] = []
+
+        # Create regression protector for risk assessment
+        protector = RegressionProtector()
+
+        for task in tasks:
+            # Build pattern from task for risk assessment
+            issue_pattern = f"{task.title}: {task.metadata.get('description', '')}"
+            pattern_context = {
+                "phase_id": task.task_id,
+                "issue_type": task.metadata.get("issue_type", ""),
+                "source": task.source,
+                "priority": task.priority,
+            }
+
+            # Get risk assessment
+            risk = protector.assess_regression_risk(issue_pattern, pattern_context)
+
+            # Determine authorization based on risk level
+            if risk.severity == RiskSeverity.LOW:
+                authorized.append(task)
+                logger.debug(
+                    "[IMP-LOOP-030] Task %s authorized: low risk (confidence=%.2f)",
+                    task.task_id,
+                    risk.confidence,
+                )
+            elif risk.severity == RiskSeverity.MEDIUM:
+                reason = f"Medium risk - requires approval: {', '.join(risk.evidence[:2])}"
+                pending_approval.append((task, reason))
+                logger.info(
+                    "[IMP-LOOP-030] Task %s requires approval: %s",
+                    task.task_id,
+                    reason,
+                )
+            else:  # HIGH or CRITICAL
+                evidence_summary = (
+                    "; ".join(risk.evidence[:3]) if risk.evidence else "High risk pattern"
+                )
+                reason = f"High risk ({risk.severity.value}): {evidence_summary}"
+                pending_approval.append((task, reason))
+                logger.warning(
+                    "[IMP-LOOP-030] Task %s blocked: %s",
+                    task.task_id,
+                    reason,
+                )
+
+        logger.info(
+            "[IMP-LOOP-030] Authorization check: %d authorized, %d pending approval",
+            len(authorized),
+            len(pending_approval),
+        )
+
+        return authorized, pending_approval
+
+    def _queue_pending_approvals(
+        self,
+        pending_tasks: List[Tuple[TaskCandidate, str]],
+        approval_service: "ApprovalService",
+    ) -> int:
+        """Queue tasks that need approval (IMP-LOOP-030).
+
+        Creates PendingApproval entries for tasks that failed authorization
+        and need manual review before execution.
+
+        Args:
+            pending_tasks: List of (task, reason) tuples.
+            approval_service: ApprovalService to queue approvals.
+
+        Returns:
+            Number of tasks queued for approval.
+        """
+        from autopack.autonomy.approval_service import PendingApproval
+
+        queued = 0
+        for task, reason in pending_tasks:
+            pending = PendingApproval(
+                action_id=task.task_id,
+                session_id=self.executor.run_id if hasattr(self.executor, "run_id") else "unknown",
+                approval_status="requires_approval",
+                reason=reason,
+                action_type="task_injection",
+                action_description=task.title,
+                created_at=datetime.now(),
+                proposal_summary=task.metadata.get("description", ""),
+            )
+            approval_service.queue.pending.append(pending)
+            queued += 1
+
+        if queued > 0:
+            approval_service._save_queue()
+            logger.info(
+                "[IMP-LOOP-030] Queued %d tasks for approval",
+                queued,
+            )
+
+        return queued
 
     def _validate_injection_candidates(self, tasks: List[TaskCandidate]) -> List[TaskCandidate]:
         """Validate task candidates before injection (IMP-LOOP-001).

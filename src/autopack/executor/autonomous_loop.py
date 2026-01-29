@@ -686,6 +686,21 @@ class AutonomousLoop:
             ),
         }
 
+        # IMP-LOOP-025: Add task generation throughput and wiring verification
+        if self._meta_metrics_tracker is not None:
+            try:
+                throughput = self._meta_metrics_tracker.get_task_generation_throughput()
+                wiring_status = self._meta_metrics_tracker.verify_execution_wiring()
+                stats["task_generation_throughput"] = throughput.to_dict()
+                stats["execution_wiring"] = wiring_status
+            except Exception as e:
+                logger.debug(f"[IMP-LOOP-025] Failed to get throughput stats: {e}")
+                stats["task_generation_throughput"] = {"error": str(e)}
+                stats["execution_wiring"] = {"error": str(e)}
+        else:
+            stats["task_generation_throughput"] = {"enabled": False}
+            stats["execution_wiring"] = {"enabled": False}
+
         return stats
 
     def reset_circuit_breaker(self) -> bool:
@@ -1793,7 +1808,11 @@ class AutonomousLoop:
         try:
             # IMP-INT-003: Generate tasks directly from the ranked issues that were just persisted
             db_session = getattr(self.executor, "db_session", None)
-            generator = AutonomousTaskGenerator(db_session=db_session)
+            # IMP-LOOP-025: Pass metrics tracker for throughput observability
+            generator = AutonomousTaskGenerator(
+                db_session=db_session,
+                metrics_tracker=self._meta_metrics_tracker,
+            )
 
             run_id = getattr(self.executor, "run_id", None)
             # IMP-LOOP-003: Pass current run phases as backlog for same-run injection
@@ -2625,8 +2644,12 @@ class AutonomousLoop:
             from autopack.roadc.task_generator import AutonomousTaskGenerator
 
             # IMP-ARCH-017: Pass db_session to enable telemetry aggregation
+            # IMP-LOOP-025: Pass metrics tracker for throughput observability
             db_session = getattr(self.executor, "db_session", None)
-            generator = AutonomousTaskGenerator(db_session=db_session)
+            generator = AutonomousTaskGenerator(
+                db_session=db_session,
+                metrics_tracker=self._meta_metrics_tracker,
+            )
             completed_count = 0
 
             for task in improvement_tasks:
@@ -2671,8 +2694,12 @@ class AutonomousLoop:
             from autopack.roadc.task_generator import AutonomousTaskGenerator
 
             # IMP-ARCH-017: Pass db_session to enable telemetry aggregation
+            # IMP-LOOP-025: Pass metrics tracker for throughput observability
             db_session = getattr(self.executor, "db_session", None)
-            generator = AutonomousTaskGenerator(db_session=db_session)
+            generator = AutonomousTaskGenerator(
+                db_session=db_session,
+                metrics_tracker=self._meta_metrics_tracker,
+            )
             retry_count = 0
             failed_count = 0
 
@@ -2915,8 +2942,12 @@ class AutonomousLoop:
             from autopack.roadc.task_generator import AutonomousTaskGenerator
 
             # IMP-ARCH-017: Pass db_session to enable telemetry aggregation
+            # IMP-LOOP-025: Pass metrics tracker for throughput observability
             db_session = getattr(self.executor, "db_session", None)
-            generator = AutonomousTaskGenerator(db_session=db_session)
+            generator = AutonomousTaskGenerator(
+                db_session=db_session,
+                metrics_tracker=self._meta_metrics_tracker,
+            )
             max_tasks = getattr(settings, "task_generation_max_tasks_per_run", 5)
             pending_tasks = generator.get_pending_tasks(status="pending", limit=max_tasks)
 
@@ -2975,8 +3006,12 @@ class AutonomousLoop:
         try:
             from autopack.roadc.task_generator import AutonomousTaskGenerator
 
+            # IMP-LOOP-025: Pass metrics tracker for throughput observability
             db_session = getattr(self.executor, "db_session", None)
-            generator = AutonomousTaskGenerator(db_session=db_session)
+            generator = AutonomousTaskGenerator(
+                db_session=db_session,
+                metrics_tracker=self._meta_metrics_tracker,
+            )
 
             # Fetch pending tasks (limit to avoid overwhelming the run)
             max_tasks_per_run = settings.task_generation_max_tasks_per_run
@@ -3180,7 +3215,11 @@ class AutonomousLoop:
 
             # Create task generator with db_session for telemetry access
             db_session = getattr(self.executor, "db_session", None)
-            task_generator = AutonomousTaskGenerator(db_session=db_session)
+            # IMP-LOOP-025: Pass metrics tracker for throughput observability
+            task_generator = AutonomousTaskGenerator(
+                db_session=db_session,
+                metrics_tracker=self._meta_metrics_tracker,
+            )
 
             # Generate tasks with run context
             max_tasks = settings.task_generation_max_tasks_per_run
@@ -3257,12 +3296,9 @@ class AutonomousLoop:
         """
         logger.debug(f"[IMP-LOOP-029] Task {task_id} injected into queue")
 
-        # Track injection in meta-metrics if available
+        # IMP-LOOP-025: Mark task as queued for execution in metrics tracker
         if self._meta_metrics_tracker is not None:
-            self._meta_metrics_tracker.record_event(
-                event_type="task_injected",
-                metadata={"task_id": task_id, "source": "autonomous_task_generator"},
-            )
+            self._meta_metrics_tracker.mark_task_queued(task_id)
 
     def _find_phase_id_for_task(self, task_id: str) -> Optional[str]:
         """Find the phase_id associated with a task after injection (IMP-LOOP-029).
@@ -4701,8 +4737,12 @@ class AutonomousLoop:
 
             # IMP-ARCH-017: Pass db_session to enable telemetry aggregation in task generator
             # The generator can now call aggregate_telemetry() internally if no insights provided
+            # IMP-LOOP-025: Pass metrics tracker for throughput observability
             db_session = getattr(self.executor, "db_session", None)
-            generator = AutonomousTaskGenerator(db_session=db_session)
+            generator = AutonomousTaskGenerator(
+                db_session=db_session,
+                metrics_tracker=self._meta_metrics_tracker,
+            )
             result = generator.generate_tasks(
                 max_tasks=task_gen_config.get("max_tasks_per_run", 10),
                 min_confidence=task_gen_config.get("min_confidence", 0.7),

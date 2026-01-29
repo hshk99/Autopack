@@ -479,6 +479,120 @@ class FeedbackLoopHealthReport:
 HealthTransitionCallback = Any  # Callable[[FeedbackLoopHealth, FeedbackLoopHealth], None]
 
 
+# =============================================================================
+# IMP-LOOP-025: Task Generation Throughput Metrics
+# =============================================================================
+
+
+@dataclass
+class TaskGenerationEvent:
+    """Record of a single task generation event for throughput tracking.
+
+    IMP-LOOP-025: Captures individual task generation events to enable
+    throughput analysis and verify execution wiring.
+
+    Attributes:
+        task_id: Unique identifier for the generated task
+        source: Source of the insight that triggered task generation
+        generation_time_ms: Time taken to generate this task
+        insights_consumed: Number of insights that contributed to this task
+        timestamp: When the task was generated
+        run_id: Optional run ID for context
+        queued_for_execution: Whether the task was queued for execution
+    """
+
+    task_id: str
+    source: str  # "direct", "analyzer", "memory"
+    generation_time_ms: float
+    insights_consumed: int = 1
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    run_id: Optional[str] = None
+    queued_for_execution: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "task_id": self.task_id,
+            "source": self.source,
+            "generation_time_ms": round(self.generation_time_ms, 2),
+            "insights_consumed": self.insights_consumed,
+            "timestamp": self.timestamp.isoformat(),
+            "run_id": self.run_id,
+            "queued_for_execution": self.queued_for_execution,
+        }
+
+
+@dataclass
+class TaskGenerationThroughputMetrics:
+    """Aggregated metrics for task generation throughput.
+
+    IMP-LOOP-025: Provides observability into the task generation pipeline,
+    enabling verification that tasks are being generated and queued for execution.
+
+    Attributes:
+        total_tasks_generated: Total number of tasks generated in the window
+        tasks_queued_for_execution: Number of tasks queued for execution
+        total_insights_consumed: Total insights that led to tasks
+        avg_generation_time_ms: Average time to generate a task
+        generation_rate_per_minute: Rate of task generation
+        insights_per_task_ratio: Average insights consumed per task
+        queue_rate: Fraction of generated tasks that were queued
+        window_start: Start of the measurement window
+        window_end: End of the measurement window
+        by_source: Breakdown by insight source
+    """
+
+    total_tasks_generated: int
+    tasks_queued_for_execution: int
+    total_insights_consumed: int
+    avg_generation_time_ms: float
+    generation_rate_per_minute: float
+    insights_per_task_ratio: float
+    queue_rate: float
+    window_start: datetime
+    window_end: datetime
+    by_source: Dict[str, int] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "total_tasks_generated": self.total_tasks_generated,
+            "tasks_queued_for_execution": self.tasks_queued_for_execution,
+            "total_insights_consumed": self.total_insights_consumed,
+            "avg_generation_time_ms": round(self.avg_generation_time_ms, 2),
+            "generation_rate_per_minute": round(self.generation_rate_per_minute, 4),
+            "insights_per_task_ratio": round(self.insights_per_task_ratio, 2),
+            "queue_rate": round(self.queue_rate, 4),
+            "window_start": self.window_start.isoformat(),
+            "window_end": self.window_end.isoformat(),
+            "by_source": self.by_source,
+        }
+
+    @property
+    def execution_wiring_verified(self) -> bool:
+        """Check if execution wiring is verified (tasks are being queued).
+
+        IMP-LOOP-025: Returns True if at least some generated tasks are
+        being queued for execution, verifying the wiring is working.
+        """
+        return self.tasks_queued_for_execution > 0 if self.total_tasks_generated > 0 else True
+
+    @property
+    def throughput_status(self) -> str:
+        """Get human-readable throughput status.
+
+        Returns:
+            Status string: "healthy", "low", "stalled", or "unknown"
+        """
+        if self.total_tasks_generated == 0:
+            return "unknown"
+        if self.generation_rate_per_minute >= 0.1:  # At least 1 task per 10 minutes
+            return "healthy"
+        if self.generation_rate_per_minute >= 0.01:  # At least 1 task per 100 minutes
+            return "low"
+        return "stalled"
+
+
 class MetaMetricsTracker:
     """Track and analyze meta-metrics for feedback loop quality.
 
@@ -515,6 +629,221 @@ class MetaMetricsTracker:
         self._previous_health_status: Optional[FeedbackLoopHealth] = None
         self._health_transition_callbacks: List[HealthTransitionCallback] = []
         self._task_generation_paused: bool = False
+
+        # IMP-LOOP-025: Task generation throughput tracking
+        self._task_generation_events: List[TaskGenerationEvent] = []
+        self._max_generation_events: int = 1000  # Rolling window size
+        self._task_generation_lock = __import__("threading").Lock()
+
+    # =========================================================================
+    # IMP-LOOP-025: Task Generation Throughput Tracking
+    # =========================================================================
+
+    def record_task_generated(
+        self,
+        task_id: str,
+        source: str = "unknown",
+        generation_time_ms: float = 0.0,
+        insights_consumed: int = 1,
+        run_id: Optional[str] = None,
+        queued_for_execution: bool = False,
+    ) -> TaskGenerationEvent:
+        """Record a task generation event for throughput tracking.
+
+        IMP-LOOP-025: Captures task generation events to enable throughput
+        analysis and verify the wiring between task generator and execution loop.
+
+        Args:
+            task_id: Unique identifier for the generated task
+            source: Source of insights ("direct", "analyzer", "memory")
+            generation_time_ms: Time taken to generate this task
+            insights_consumed: Number of insights that contributed to this task
+            run_id: Optional run ID for context
+            queued_for_execution: Whether the task was queued for execution
+
+        Returns:
+            TaskGenerationEvent that was recorded
+        """
+        event = TaskGenerationEvent(
+            task_id=task_id,
+            source=source,
+            generation_time_ms=generation_time_ms,
+            insights_consumed=insights_consumed,
+            run_id=run_id,
+            queued_for_execution=queued_for_execution,
+        )
+
+        with self._task_generation_lock:
+            self._task_generation_events.append(event)
+            # Trim to max size (rolling window)
+            if len(self._task_generation_events) > self._max_generation_events:
+                self._task_generation_events = self._task_generation_events[
+                    -self._max_generation_events :
+                ]
+
+        logger.info(
+            f"[IMP-LOOP-025] Recorded task generation: task_id={task_id}, "
+            f"source={source}, queued={queued_for_execution}, "
+            f"generation_time={generation_time_ms:.1f}ms"
+        )
+
+        return event
+
+    def mark_task_queued(self, task_id: str) -> bool:
+        """Mark a previously generated task as queued for execution.
+
+        IMP-LOOP-025: Updates the queued_for_execution flag for a task,
+        enabling verification of the execution wiring.
+
+        Args:
+            task_id: The task ID to mark as queued
+
+        Returns:
+            True if task was found and updated, False otherwise
+        """
+        with self._task_generation_lock:
+            for event in reversed(self._task_generation_events):
+                if event.task_id == task_id:
+                    event.queued_for_execution = True
+                    logger.debug(f"[IMP-LOOP-025] Marked task {task_id} as queued for execution")
+                    return True
+        logger.warning(f"[IMP-LOOP-025] Task {task_id} not found for queue marking")
+        return False
+
+    def get_task_generation_throughput(
+        self,
+        window_minutes: float = 60.0,
+    ) -> TaskGenerationThroughputMetrics:
+        """Get task generation throughput metrics for a time window.
+
+        IMP-LOOP-025: Calculates throughput metrics to verify that tasks
+        are being generated and queued for execution at expected rates.
+
+        Args:
+            window_minutes: Time window in minutes to analyze
+
+        Returns:
+            TaskGenerationThroughputMetrics with throughput analysis
+        """
+        now = datetime.now(timezone.utc)
+        window_start = now - __import__("datetime").timedelta(minutes=window_minutes)
+
+        with self._task_generation_lock:
+            # Filter events within the window
+            window_events = [e for e in self._task_generation_events if e.timestamp >= window_start]
+
+        if not window_events:
+            return TaskGenerationThroughputMetrics(
+                total_tasks_generated=0,
+                tasks_queued_for_execution=0,
+                total_insights_consumed=0,
+                avg_generation_time_ms=0.0,
+                generation_rate_per_minute=0.0,
+                insights_per_task_ratio=0.0,
+                queue_rate=0.0,
+                window_start=window_start,
+                window_end=now,
+                by_source={},
+            )
+
+        # Calculate metrics
+        total_tasks = len(window_events)
+        tasks_queued = sum(1 for e in window_events if e.queued_for_execution)
+        total_insights = sum(e.insights_consumed for e in window_events)
+        total_generation_time = sum(e.generation_time_ms for e in window_events)
+
+        # Calculate actual window duration
+        if len(window_events) >= 2:
+            actual_start = min(e.timestamp for e in window_events)
+            actual_end = max(e.timestamp for e in window_events)
+            actual_duration_minutes = (actual_end - actual_start).total_seconds() / 60.0
+        else:
+            actual_duration_minutes = window_minutes
+
+        # Avoid division by zero
+        actual_duration_minutes = max(actual_duration_minutes, 0.001)
+
+        # Breakdown by source
+        by_source: Dict[str, int] = {}
+        for event in window_events:
+            by_source[event.source] = by_source.get(event.source, 0) + 1
+
+        metrics = TaskGenerationThroughputMetrics(
+            total_tasks_generated=total_tasks,
+            tasks_queued_for_execution=tasks_queued,
+            total_insights_consumed=total_insights,
+            avg_generation_time_ms=total_generation_time / total_tasks,
+            generation_rate_per_minute=total_tasks / actual_duration_minutes,
+            insights_per_task_ratio=total_insights / total_tasks if total_tasks > 0 else 0.0,
+            queue_rate=tasks_queued / total_tasks if total_tasks > 0 else 0.0,
+            window_start=window_start,
+            window_end=now,
+            by_source=by_source,
+        )
+
+        logger.debug(
+            f"[IMP-LOOP-025] Task generation throughput: "
+            f"tasks={total_tasks}, queued={tasks_queued}, "
+            f"rate={metrics.generation_rate_per_minute:.3f}/min, "
+            f"queue_rate={metrics.queue_rate:.1%}"
+        )
+
+        return metrics
+
+    def verify_execution_wiring(self, window_minutes: float = 60.0) -> Dict[str, Any]:
+        """Verify that the task generation to execution wiring is working.
+
+        IMP-LOOP-025: Checks that generated tasks are being queued for execution,
+        providing a diagnostic report on the wiring health.
+
+        Args:
+            window_minutes: Time window in minutes to analyze
+
+        Returns:
+            Dict with wiring verification results:
+            - wiring_verified: True if wiring appears healthy
+            - tasks_generated: Number of tasks generated
+            - tasks_queued: Number of tasks queued for execution
+            - queue_rate: Fraction of tasks that were queued
+            - status: Human-readable status message
+            - recommendations: List of recommendations if wiring issues detected
+        """
+        throughput = self.get_task_generation_throughput(window_minutes)
+
+        recommendations = []
+        status = "healthy"
+
+        if throughput.total_tasks_generated == 0:
+            status = "no_tasks"
+            recommendations.append(
+                "No tasks generated in window. Check if insights are being produced "
+                "by TelemetryAnalyzer and if task_generation is enabled in settings."
+            )
+        elif throughput.queue_rate < 0.5:
+            status = "low_queue_rate"
+            recommendations.append(
+                f"Only {throughput.queue_rate:.1%} of generated tasks are being queued. "
+                "Check BacklogMaintenance.inject_tasks() wiring and "
+                "task_generation_auto_execute setting."
+            )
+        elif not throughput.execution_wiring_verified:
+            status = "wiring_issue"
+            recommendations.append(
+                "No tasks have been queued for execution. "
+                "Verify AutonomousLoop._generate_and_inject_tasks() is being called."
+            )
+
+        return {
+            "wiring_verified": throughput.execution_wiring_verified
+            and throughput.queue_rate >= 0.5,
+            "tasks_generated": throughput.total_tasks_generated,
+            "tasks_queued": throughput.tasks_queued_for_execution,
+            "queue_rate": throughput.queue_rate,
+            "throughput_status": throughput.throughput_status,
+            "status": status,
+            "recommendations": recommendations,
+            "metrics": throughput.to_dict(),
+        }
 
     def analyze_feedback_loop_health(
         self, telemetry_data: Dict[str, Any], baseline_data: Optional[Dict[str, Any]] = None

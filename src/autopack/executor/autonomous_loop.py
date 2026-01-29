@@ -528,7 +528,9 @@ class AutonomousLoop:
         # Tracks last maintenance check to avoid repeated checks every iteration
         self._last_maintenance_check = 0.0  # Timestamp of last check
         self._maintenance_check_interval = getattr(
-            settings, "maintenance_check_interval_seconds", 300.0  # Check every 5 minutes
+            settings,
+            "maintenance_check_interval_seconds",
+            300.0,  # Check every 5 minutes
         )
         self._auto_maintenance_enabled = getattr(settings, "auto_memory_maintenance_enabled", True)
 
@@ -536,7 +538,9 @@ class AutonomousLoop:
         # Triggers maintenance after N memory writes to prevent unbounded growth
         self._memory_write_count = 0  # Total memory writes since last maintenance
         self._maintenance_write_threshold = getattr(
-            settings, "maintenance_write_threshold", 100  # Trigger after 100 writes
+            settings,
+            "maintenance_write_threshold",
+            100,  # Trigger after 100 writes
         )
         self._last_maintenance_write_count = 0  # Write count at last maintenance
 
@@ -1055,14 +1059,17 @@ class AutonomousLoop:
             success, status = self.executor.execute_phase(phase, **adjustments)
             return [(phase, success, status)]
 
+        # IMP-REL-015: Cap thread pool size to prevent thread exhaustion
+        max_workers = min(len(phases), os.cpu_count() or 4, 10)
         logger.info(
-            f"[IMP-AUTO-002] Executing {len(phases)} phases in parallel: "
+            f"[IMP-AUTO-002] Executing {len(phases)} phases in parallel "
+            f"(max_workers={max_workers}): "
             f"{[p.get('phase_id', 'unknown') for p in phases]}"
         )
 
         # Use ThreadPoolExecutor for parallel execution
         # Note: Using threads (not processes) to share executor state
-        with ThreadPoolExecutor(max_workers=len(phases)) as executor:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all phases for execution
             future_to_phase = {}
             for phase in phases:

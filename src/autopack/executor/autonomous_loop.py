@@ -3845,6 +3845,13 @@ class AutonomousLoop:
                 # IMP-TEL-001: Check for SLA breaches and emit alerts
                 self._check_and_emit_sla_alerts(phase_id)
 
+                # IMP-REL-015: Save checkpoint after phase completion
+                # This enables crash recovery by persisting progress
+                try:
+                    self.executor.save_checkpoint()
+                except Exception as ckpt_err:
+                    logger.warning(f"[IMP-REL-015] Checkpoint save failed (non-fatal): {ckpt_err}")
+
                 # IMP-AUTOPILOT-001: Periodic autopilot invocation after successful phases
                 if (
                     hasattr(self.executor, "autopilot")
@@ -3901,6 +3908,13 @@ class AutonomousLoop:
                     )
                     stop_reason = "stop_on_first_failure"
                     break
+
+                # IMP-REL-015: Save checkpoint after phase failure
+                # This enables recovery even when phases fail
+                try:
+                    self.executor.save_checkpoint()
+                except Exception as ckpt_err:
+                    logger.warning(f"[IMP-REL-015] Checkpoint save failed (non-fatal): {ckpt_err}")
 
             # IMP-INT-005: Immediate cost check after phase completion
             # Check cost recommendations before waiting, to stop faster if budget is exceeded
@@ -4045,6 +4059,13 @@ class AutonomousLoop:
                     )
             except Exception as e:
                 logger.warning(f"Failed to promote hints to rules: {e}")
+
+            # IMP-REL-015: Mark run as completed in checkpoint (clean completion)
+            try:
+                self.executor.mark_run_completed()
+                logger.info("[IMP-REL-015] Run marked as completed in checkpoint")
+            except Exception as e:
+                logger.warning(f"[IMP-REL-015] Failed to mark run complete: {e}")
         else:
             # Non-terminal stop: keep the run resumable.
             # Still log a lightweight event for visibility.

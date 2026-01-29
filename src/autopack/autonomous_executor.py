@@ -88,16 +88,16 @@ from autopack.executor.context_loading_heuristic import (
 from autopack.executor.error_analysis import ErrorAnalyzer
 from autopack.executor.execute_fix_handler import ExecuteFixHandler
 from autopack.executor.learning_pipeline import LearningPipeline
-
-# IMP-MEM-016: Learning memory manager for cross-cycle learning
-from autopack.learning_memory_manager import LearningMemoryManager
 from autopack.executor.phase_approach_reviser import PhaseApproachReviser
 
 # PR-EXE-9: Phase state persistence manager
 from autopack.executor.phase_state_manager import PhaseStateManager
 
+# IMP-REL-015: Executor crash recovery with state persistence
 # PR-EXE-4: Run checkpoint and rollback extraction
 from autopack.executor.run_checkpoint import (
+    ExecutorState,
+    ExecutorStateCheckpoint,
     create_deletion_savepoint,
     create_run_checkpoint,
     rollback_to_run_checkpoint,
@@ -116,6 +116,9 @@ from autopack.learned_rules import (
     load_project_rules,
     save_run_hint,
 )
+
+# IMP-MEM-016: Learning memory manager for cross-cycle learning
+from autopack.learning_memory_manager import LearningMemoryManager
 from autopack.llm_client import AuditorResult, BuilderResult
 from autopack.llm_service import LlmService
 
@@ -410,8 +413,12 @@ class AutonomousExecutor:
         if self.enable_autonomous_fixes and self.diagnostics_agent:
             try:
                 from autopack.diagnostics.decision_executor import DecisionExecutor
-                from autopack.diagnostics.goal_aware_decision import GoalAwareDecisionMaker
-                from autopack.diagnostics.iterative_investigator import IterativeInvestigator
+                from autopack.diagnostics.goal_aware_decision import (
+                    GoalAwareDecisionMaker,
+                )
+                from autopack.diagnostics.iterative_investigator import (
+                    IterativeInvestigator,
+                )
 
                 decision_maker = GoalAwareDecisionMaker(
                     low_risk_threshold=100,
@@ -469,15 +476,15 @@ class AutonomousExecutor:
         # [Goal Anchoring] Per GPT_RESPONSE27: Prevent context drift during re-planning
         # PhaseGoal-lite implementation - lightweight anchor + telemetry (Phase 1)
         # Note: These are still used for goal anchoring (not moved to PhaseStateManager)
-        self._phase_original_intent: Dict[
-            str, str
-        ] = {}  # phase_id -> one-line intent extracted from description
-        self._phase_original_description: Dict[
-            str, str
-        ] = {}  # phase_id -> original description before any replanning
-        self._phase_replan_history: Dict[
-            str, List[Dict]
-        ] = {}  # phase_id -> list of {attempt, description, reason, alignment}
+        self._phase_original_intent: Dict[str, str] = (
+            {}
+        )  # phase_id -> one-line intent extracted from description
+        self._phase_original_description: Dict[str, str] = (
+            {}
+        )  # phase_id -> original description before any replanning
+        self._phase_replan_history: Dict[str, List[Dict]] = (
+            {}
+        )  # phase_id -> list of {attempt, description, reason, alignment}
         self._run_replan_telemetry: List[Dict] = []  # All replans in this run for telemetry
 
         # PR-EXE-9: Initialize phase state manager for database state persistence
@@ -591,12 +598,12 @@ class AutonomousExecutor:
         self._doctor_context_by_phase: Dict[str, DoctorContextSummary] = {}
         self._doctor_calls_by_phase: Dict[str, int] = {}  # (run_id:phase_id) -> doctor call count
         self._last_doctor_response_by_phase: Dict[str, DoctorResponse] = {}
-        self._last_error_category_by_phase: Dict[
-            str, str
-        ] = {}  # Track error categories for is_complex_failure
-        self._distinct_error_cats_by_phase: Dict[
-            str, set
-        ] = {}  # Track distinct error categories per (run, phase)
+        self._last_error_category_by_phase: Dict[str, str] = (
+            {}
+        )  # Track error categories for is_complex_failure
+        self._distinct_error_cats_by_phase: Dict[str, set] = (
+            {}
+        )  # Track distinct error categories per (run, phase)
         # Run-level Doctor budgets
         self._run_doctor_calls: int = 0  # Total Doctor calls this run
         self._run_doctor_strong_calls: int = 0  # Strong-model Doctor calls this run
@@ -666,6 +673,16 @@ class AutonomousExecutor:
         self.api_server_lifecycle = APIServerLifecycle(self)
         logger.info("[PR-EXE-12] Large helper modules initialized")
 
+        # IMP-REL-015: Initialize executor state checkpoint for crash recovery
+        self.state_checkpoint = ExecutorStateCheckpoint(
+            run_id=self.run_id, workspace=self.workspace
+        )
+        logger.info("[IMP-REL-015] Executor state checkpoint initialized")
+
+        # IMP-REL-015: Check for interrupted run and recover if needed
+        self._recovered_state: Optional[ExecutorState] = None
+        self._recover_if_interrupted()
+
         # IMP-PERF-001: Move T0 baseline capture to background thread
         # Previously blocked for ~180 seconds at startup, delaying all phase execution
         self._t0_baseline = None
@@ -686,6 +703,137 @@ class AutonomousExecutor:
         logger.info(
             "[PR-EXE-14] Batched deliverables executor initialized - exceeding 5,000 line target!"
         )
+
+    # =========================================================================
+    # IMP-REL-015: EXECUTOR CRASH RECOVERY
+    # =========================================================================
+
+    def _recover_if_interrupted(self) -> None:
+        """Check for and recover from interrupted run state.
+
+        IMP-REL-015: Called during __init__ to detect if the previous execution
+        crashed mid-run. If interrupted state is found, restores executor state
+        so execution can resume from where it left off.
+        """
+        interrupted_state = self.state_checkpoint.recover_interrupted_run()
+        if interrupted_state:
+            logger.info(
+                f"[IMP-REL-015] Recovering from interrupted run: "
+                f"run_id={interrupted_state.run_id}"
+            )
+            self._restore_state(interrupted_state)
+            self._recovered_state = interrupted_state
+        else:
+            logger.debug("[IMP-REL-015] No interrupted run detected - clean start")
+
+    def _restore_state(self, state: ExecutorState) -> None:
+        """Restore executor state from checkpoint.
+
+        IMP-REL-015: Applies recovered state to executor instance so that
+        execution can resume from the last known good state.
+
+        Args:
+            state: ExecutorState recovered from checkpoint
+        """
+        logger.info(
+            f"[IMP-REL-015] Restoring state: "
+            f"wave={state.current_wave}, "
+            f"completed_phases={len(state.completed_phases)}, "
+            f"in_progress_phase={state.in_progress_phase}"
+        )
+
+        # Store recovery info for the autonomous loop to use
+        # The actual phase re-execution is handled by the loop checking DB state
+        self._recovered_wave = state.current_wave
+        self._recovered_completed_phases = set(state.completed_phases)
+        self._recovered_in_progress_phase = state.in_progress_phase
+        self._recovered_iteration = state.iteration_count
+
+        # Log recovery metrics for observability
+        logger.info(
+            f"[IMP-REL-015] Recovery complete: "
+            f"will resume from wave {state.current_wave}, "
+            f"skipping {len(state.completed_phases)} already-completed phases"
+        )
+
+    def _get_current_state(self) -> ExecutorState:
+        """Get current executor state for checkpointing.
+
+        IMP-REL-015: Captures current execution state into an ExecutorState
+        object that can be persisted to disk.
+
+        Returns:
+            ExecutorState snapshot of current execution state
+        """
+        # Get loop stats if available
+        loop_stats = {}
+        if hasattr(self, "autonomous_loop") and self.autonomous_loop:
+            try:
+                loop_stats = self.autonomous_loop.get_loop_stats()
+            except Exception:
+                pass
+
+        # Get completed/pending phases from loop if available
+        completed_phases = []
+        pending_phases = []
+        in_progress_phase = None
+        current_wave = 0
+
+        if hasattr(self.autonomous_loop, "_wave_phases_completed"):
+            # Flatten completed phases from all waves
+            for wave_completed in self.autonomous_loop._wave_phases_completed.values():
+                completed_phases.extend(wave_completed)
+            current_wave = getattr(self.autonomous_loop, "_current_wave_number", 0)
+
+        if hasattr(self.autonomous_loop, "_current_run_phases"):
+            run_phases = self.autonomous_loop._current_run_phases or []
+            for phase in run_phases:
+                phase_id = phase.get("phase_id", phase.get("id", ""))
+                if phase_id and phase_id not in completed_phases:
+                    state = phase.get("state", "")
+                    if state == "IN_PROGRESS":
+                        in_progress_phase = phase_id
+                    elif state in ("QUEUED", "PENDING"):
+                        pending_phases.append(phase_id)
+
+        return ExecutorState(
+            run_id=self.run_id,
+            status="in_progress",
+            current_wave=current_wave,
+            completed_phases=completed_phases,
+            pending_phases=pending_phases,
+            in_progress_phase=in_progress_phase,
+            iteration_count=loop_stats.get("iteration_count", 0),
+            phases_executed=loop_stats.get("total_phases_executed", 0),
+            phases_failed=loop_stats.get("total_phases_failed", 0),
+        )
+
+    def save_checkpoint(self) -> bool:
+        """Save current state to checkpoint file.
+
+        IMP-REL-015: Called periodically during execution to persist state.
+        If the process crashes, this state can be recovered on restart.
+
+        Returns:
+            True if checkpoint saved successfully
+        """
+        try:
+            state = self._get_current_state()
+            return self.state_checkpoint.save_state(state)
+        except Exception as e:
+            logger.warning(f"[IMP-REL-015] Failed to save checkpoint: {e}")
+            return False
+
+    def mark_run_completed(self) -> bool:
+        """Mark run as cleanly completed in checkpoint.
+
+        IMP-REL-015: Called when run finishes successfully to prevent
+        false recovery attempts on next startup.
+
+        Returns:
+            True if marked successfully
+        """
+        return self.state_checkpoint.mark_completed()
 
     # =========================================================================
     # IMP-PERF-001: BACKGROUND T0 BASELINE CAPTURE
@@ -2496,7 +2644,10 @@ class AutonomousExecutor:
                 )
 
                 # Construct PhaseSpec from phase
-                from autopack.diagnostics.diagnostics_models import DecisionType, PhaseSpec
+                from autopack.diagnostics.diagnostics_models import (
+                    DecisionType,
+                    PhaseSpec,
+                )
 
                 phase_spec = PhaseSpec(
                     phase_id=phase.get("phase_id", "unknown"),
@@ -3226,7 +3377,10 @@ class AutonomousExecutor:
                 logger.info(f"[BUILD-113] Running proactive decision analysis for {phase_id}")
 
                 try:
-                    from autopack.diagnostics.diagnostics_models import DecisionType, PhaseSpec
+                    from autopack.diagnostics.diagnostics_models import (
+                        DecisionType,
+                        PhaseSpec,
+                    )
 
                     # Use GoalAwareDecisionMaker directly (no investigation needed for fresh features)
                     decision_maker = self.iterative_investigator.decision_maker
@@ -3776,7 +3930,9 @@ class AutonomousExecutor:
         allowed_paths: Optional[List[str]],
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for Chunk 2B (research-gatherers-web-compilation)."""
-        from autopack.executor.phase_handlers import batched_research_gatherers_web_compilation
+        from autopack.executor.phase_handlers import (
+            batched_research_gatherers_web_compilation,
+        )
 
         return batched_research_gatherers_web_compilation.execute(
             self, phase=phase, attempt_index=attempt_index, allowed_paths=allowed_paths

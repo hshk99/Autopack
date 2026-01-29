@@ -56,6 +56,7 @@ class PhaseOutcome:
         project_id: Project identifier for namespacing
         context_injected: IMP-LOOP-029: Whether memory context was injected
         context_item_count: IMP-LOOP-029: Number of context items injected
+        generated_task_id: IMP-LOOP-028: ID of the generated task that triggered this phase
     """
 
     phase_id: str
@@ -70,6 +71,7 @@ class PhaseOutcome:
     project_id: Optional[str] = None
     context_injected: Optional[bool] = None  # IMP-LOOP-029
     context_item_count: Optional[int] = None  # IMP-LOOP-029
+    generated_task_id: Optional[str] = None  # IMP-LOOP-028
 
 
 @dataclass
@@ -481,6 +483,9 @@ class FeedbackPipeline:
             # IMP-LOOP-026: Emit feedback to task generator for next-cycle task generation
             self._emit_to_task_generator(outcome)
 
+            # IMP-LOOP-028: Track task attribution for end-to-end traceability
+            self._track_task_attribution(outcome)
+
         except Exception as e:
             result["error"] = str(e)
             logger.error(f"[IMP-LOOP-001] Failed to process phase outcome: {e}")
@@ -660,6 +665,78 @@ class FeedbackPipeline:
             return result.to_dict()
         except Exception as e:
             logger.warning(f"[IMP-LOOP-029] Failed to get effectiveness: {e}")
+            return {"error": str(e)}
+
+    def _track_task_attribution(self, outcome: PhaseOutcome) -> None:
+        """Track task attribution for end-to-end traceability.
+
+        IMP-LOOP-028: Links generated tasks to their execution outcomes,
+        enabling closed-loop learning. When a phase has a generated_task_id,
+        this records the outcome to the effectiveness tracker.
+
+        Args:
+            outcome: The phase outcome to track
+        """
+        if not self._effectiveness_tracker:
+            return
+
+        # Check if this phase has an associated generated task
+        task_id = outcome.generated_task_id
+        if not task_id:
+            logger.debug(
+                f"[IMP-LOOP-028] No generated_task_id for phase {outcome.phase_id}, "
+                "skipping attribution tracking"
+            )
+            return
+
+        try:
+            # Register the task-to-phase mapping
+            self._effectiveness_tracker.register_task_execution(
+                task_id=task_id,
+                phase_id=outcome.phase_id,
+            )
+
+            # Record the outcome with full metrics
+            self._effectiveness_tracker.record_task_attribution_outcome(
+                task_id=task_id,
+                phase_id=outcome.phase_id,
+                success=outcome.success,
+                execution_time_seconds=outcome.execution_time_seconds or 0.0,
+                tokens_used=outcome.tokens_used or 0,
+                error_message=outcome.error_message,
+                metadata={
+                    "phase_type": outcome.phase_type,
+                    "run_id": outcome.run_id,
+                    "project_id": outcome.project_id,
+                    "context_injected": outcome.context_injected,
+                    "context_item_count": outcome.context_item_count,
+                },
+            )
+
+            logger.info(
+                f"[IMP-LOOP-028] Tracked task attribution: task_id={task_id}, "
+                f"phase_id={outcome.phase_id}, success={outcome.success}"
+            )
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-028] Failed to track task attribution: {e}")
+
+    def get_task_attribution_summary(self) -> Dict[str, Any]:
+        """Get the current task attribution tracking summary.
+
+        IMP-LOOP-028: Returns metrics about the end-to-end task attribution
+        pipeline, including mapped tasks, outcomes, and success rates.
+
+        Returns:
+            Dict with attribution tracking metrics
+        """
+        if not self._effectiveness_tracker:
+            return {"error": "Effectiveness tracker not initialized"}
+
+        try:
+            return self._effectiveness_tracker.get_task_attribution_summary()
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-028] Failed to get attribution summary: {e}")
             return {"error": str(e)}
 
     def get_context_for_phase(

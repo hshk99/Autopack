@@ -158,6 +158,85 @@ class CorrectiveTask:
 
 
 @dataclass
+class TaskExecutionMapping:
+    """Maps a generated task to its phase execution for attribution tracking.
+
+    IMP-LOOP-028: Enables end-to-end tracing from task generation to execution
+    outcome. This is the core linking mechanism for closed-loop learning.
+
+    Attributes:
+        task_id: The generated task identifier (e.g., IMP-LOOP-028).
+        phase_id: The phase execution identifier where this task runs.
+        registered_at: Timestamp when the mapping was created.
+        outcome_recorded: Whether the outcome has been recorded.
+        outcome_recorded_at: Timestamp when outcome was recorded.
+    """
+
+    task_id: str
+    phase_id: str
+    registered_at: datetime = field(default_factory=datetime.now)
+    outcome_recorded: bool = False
+    outcome_recorded_at: datetime | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "task_id": self.task_id,
+            "phase_id": self.phase_id,
+            "registered_at": self.registered_at.isoformat(),
+            "outcome_recorded": self.outcome_recorded,
+            "outcome_recorded_at": (
+                self.outcome_recorded_at.isoformat() if self.outcome_recorded_at else None
+            ),
+        }
+
+
+@dataclass
+class TaskAttributionOutcome:
+    """Outcome metrics for a task execution, linked via attribution.
+
+    IMP-LOOP-028: Captures the outcome of a task execution with full
+    traceability back to the generated task. Enables measuring whether
+    generated tasks achieve their intended improvements.
+
+    Attributes:
+        task_id: The generated task identifier.
+        phase_id: The phase execution identifier.
+        success: Whether the execution was successful.
+        execution_time_seconds: Duration of execution.
+        tokens_used: Number of tokens consumed.
+        error_message: Error message if execution failed.
+        effectiveness_score: Computed effectiveness (0.0-1.0).
+        recorded_at: Timestamp when the outcome was recorded.
+        metadata: Additional outcome metadata.
+    """
+
+    task_id: str
+    phase_id: str
+    success: bool
+    execution_time_seconds: float = 0.0
+    tokens_used: int = 0
+    error_message: str | None = None
+    effectiveness_score: float = 0.0
+    recorded_at: datetime = field(default_factory=datetime.now)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "task_id": self.task_id,
+            "phase_id": self.phase_id,
+            "success": self.success,
+            "execution_time_seconds": self.execution_time_seconds,
+            "tokens_used": self.tokens_used,
+            "error_message": self.error_message,
+            "effectiveness_score": self.effectiveness_score,
+            "recorded_at": self.recorded_at.isoformat(),
+            "metadata": self.metadata,
+        }
+
+
+@dataclass
 class TaskImpactReport:
     """Report of actual task impact vs. target.
 
@@ -301,6 +380,10 @@ class TaskEffectivenessTracker:
         self._corrective_tasks: list[CorrectiveTask] = []
         self._insight_to_task = insight_to_task
         self._corrective_task_counter: int = 0
+
+        # IMP-LOOP-028: Task attribution tracking for end-to-end traceability
+        self._task_execution_mappings: dict[str, TaskExecutionMapping] = {}
+        self._task_attribution_outcomes: list[TaskAttributionOutcome] = []
 
         # IMP-TASK-001: Load historical effectiveness from learning database
         if self._learning_db is not None:
@@ -807,6 +890,211 @@ class TaskEffectivenessTracker:
             List of RegisteredTask instances that have not been executed.
         """
         return [task for task in self._registered_tasks.values() if not task.executed]
+
+    # IMP-LOOP-028: End-to-end task attribution methods
+
+    def register_task_execution(self, task_id: str, phase_id: str) -> TaskExecutionMapping:
+        """Link a generated task to its phase execution for attribution tracking.
+
+        IMP-LOOP-028: Creates the mapping that enables end-to-end tracing from
+        task generation through phase execution to outcome metrics. This is the
+        critical link that closes the feedback loop.
+
+        Args:
+            task_id: The generated task identifier (e.g., IMP-LOOP-028).
+            phase_id: The phase execution identifier where this task runs.
+
+        Returns:
+            TaskExecutionMapping instance representing the link.
+        """
+        # Check if mapping already exists
+        if task_id in self._task_execution_mappings:
+            existing = self._task_execution_mappings[task_id]
+            logger.debug(
+                "[IMP-LOOP-028] Task %s already mapped to phase %s, updating to %s",
+                task_id,
+                existing.phase_id,
+                phase_id,
+            )
+            existing.phase_id = phase_id
+            return existing
+
+        mapping = TaskExecutionMapping(
+            task_id=task_id,
+            phase_id=phase_id,
+        )
+        self._task_execution_mappings[task_id] = mapping
+
+        logger.info(
+            "[IMP-LOOP-028] Registered task execution: task_id=%s -> phase_id=%s",
+            task_id,
+            phase_id,
+        )
+
+        return mapping
+
+    def record_task_attribution_outcome(
+        self,
+        task_id: str,
+        phase_id: str,
+        success: bool,
+        execution_time_seconds: float = 0.0,
+        tokens_used: int = 0,
+        error_message: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> TaskAttributionOutcome:
+        """Record the outcome of a task execution for attribution tracking.
+
+        IMP-LOOP-028: Closes the attribution loop by recording the outcome
+        metrics linked to a generated task. This enables measuring whether
+        generated tasks achieve their intended improvements.
+
+        Args:
+            task_id: The generated task identifier.
+            phase_id: The phase execution identifier.
+            success: Whether the execution was successful.
+            execution_time_seconds: Duration of execution.
+            tokens_used: Number of tokens consumed.
+            error_message: Error message if execution failed.
+            metadata: Additional outcome metadata.
+
+        Returns:
+            TaskAttributionOutcome instance with computed effectiveness.
+        """
+        # Compute effectiveness score based on success and efficiency
+        if success:
+            base_effectiveness = 0.8
+            efficiency_bonus = 0.0
+
+            # Fast execution bonus (< 60 seconds)
+            if execution_time_seconds > 0 and execution_time_seconds < 60:
+                efficiency_bonus += 0.1
+
+            # Low token usage bonus (< 10000 tokens)
+            if tokens_used > 0 and tokens_used < 10000:
+                efficiency_bonus += 0.1
+
+            effectiveness_score = min(1.0, base_effectiveness + efficiency_bonus)
+        else:
+            effectiveness_score = 0.0
+
+        outcome = TaskAttributionOutcome(
+            task_id=task_id,
+            phase_id=phase_id,
+            success=success,
+            execution_time_seconds=execution_time_seconds,
+            tokens_used=tokens_used,
+            error_message=error_message,
+            effectiveness_score=effectiveness_score,
+            metadata=metadata or {},
+        )
+
+        self._task_attribution_outcomes.append(outcome)
+
+        # Update the mapping if it exists
+        if task_id in self._task_execution_mappings:
+            mapping = self._task_execution_mappings[task_id]
+            mapping.outcome_recorded = True
+            mapping.outcome_recorded_at = datetime.now()
+
+        logger.info(
+            "[IMP-LOOP-028] Recorded task attribution outcome: "
+            "task_id=%s, phase_id=%s, success=%s, effectiveness=%.2f",
+            task_id,
+            phase_id,
+            success,
+            effectiveness_score,
+        )
+
+        # Also record to the standard outcome tracking for corrective task generation
+        self.record_outcome(
+            task_id=task_id,
+            success=success,
+            error=error_message,
+            category=metadata.get("category", "") if metadata else "",
+        )
+
+        return outcome
+
+    def get_task_execution_mapping(self, task_id: str) -> TaskExecutionMapping | None:
+        """Get the execution mapping for a task.
+
+        IMP-LOOP-028: Retrieves the task-to-phase mapping for a given task.
+
+        Args:
+            task_id: The generated task identifier.
+
+        Returns:
+            TaskExecutionMapping if found, None otherwise.
+        """
+        return self._task_execution_mappings.get(task_id)
+
+    def get_attribution_outcomes_for_task(self, task_id: str) -> list[TaskAttributionOutcome]:
+        """Get all attribution outcomes for a specific task.
+
+        IMP-LOOP-028: Retrieves outcome history for a generated task,
+        useful for analyzing task effectiveness over multiple executions.
+
+        Args:
+            task_id: The generated task identifier.
+
+        Returns:
+            List of TaskAttributionOutcome instances for the task.
+        """
+        return [o for o in self._task_attribution_outcomes if o.task_id == task_id]
+
+    def get_attribution_outcomes_for_phase(self, phase_id: str) -> list[TaskAttributionOutcome]:
+        """Get all attribution outcomes for a specific phase.
+
+        IMP-LOOP-028: Retrieves outcomes linked to a phase execution,
+        useful for analyzing what generated tasks contributed to a phase.
+
+        Args:
+            phase_id: The phase execution identifier.
+
+        Returns:
+            List of TaskAttributionOutcome instances for the phase.
+        """
+        return [o for o in self._task_attribution_outcomes if o.phase_id == phase_id]
+
+    def get_task_attribution_summary(self) -> dict[str, Any]:
+        """Get a summary of task attribution tracking status.
+
+        IMP-LOOP-028: Provides visibility into the end-to-end attribution
+        pipeline, showing how many tasks are mapped, how many outcomes
+        recorded, and the overall success rate.
+
+        Returns:
+            Dictionary containing:
+            - total_mappings: Number of task-to-phase mappings
+            - mappings_with_outcomes: Mappings that have recorded outcomes
+            - total_outcomes: Total number of outcome records
+            - successful_outcomes: Number of successful outcomes
+            - success_rate: Overall success rate of attributed tasks
+            - avg_effectiveness: Average effectiveness score
+            - unmapped_tasks: List of task IDs without mappings
+        """
+        mappings = list(self._task_execution_mappings.values())
+        mappings_with_outcomes = [m for m in mappings if m.outcome_recorded]
+        outcomes = self._task_attribution_outcomes
+
+        successful = [o for o in outcomes if o.success]
+        total_effectiveness = sum(o.effectiveness_score for o in outcomes)
+
+        # Find tasks that were registered but never mapped
+        registered_task_ids = set(self._registered_tasks.keys())
+        mapped_task_ids = set(self._task_execution_mappings.keys())
+        unmapped_tasks = list(registered_task_ids - mapped_task_ids)
+
+        return {
+            "total_mappings": len(mappings),
+            "mappings_with_outcomes": len(mappings_with_outcomes),
+            "total_outcomes": len(outcomes),
+            "successful_outcomes": len(successful),
+            "success_rate": len(successful) / len(outcomes) if outcomes else 0.0,
+            "avg_effectiveness": total_effectiveness / len(outcomes) if outcomes else 0.0,
+            "unmapped_tasks": unmapped_tasks,
+        }
 
     # IMP-LOOP-022: Corrective task generation methods
 

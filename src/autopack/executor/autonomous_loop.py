@@ -45,6 +45,7 @@ from autopack.telemetry.meta_metrics import (
     PipelineStage,
 )
 from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
+from generation.autonomous_wave_planner import AutonomousWavePlanner, WavePlan
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
@@ -612,6 +613,17 @@ class AutonomousLoop:
             )
             logger.info("[IMP-TASK-002] ROI analyzer initialized for task prioritization")
 
+        # IMP-LOOP-027: Wave planner integration for parallel IMP wave execution
+        # The wave planner groups IMPs into waves that can be executed in parallel
+        # while respecting dependencies and file conflicts
+        self._wave_planner: Optional[AutonomousWavePlanner] = None
+        self._current_wave_plan: Optional[WavePlan] = None
+        self._current_wave_number: int = 0
+        self._wave_phases_loaded: Dict[int, List[Dict]] = {}  # wave_number -> loaded phases
+        self._wave_phases_completed: Dict[int, List[str]] = {}  # wave_number -> completed phase_ids
+        self._wave_planner_enabled = getattr(settings, "wave_planner_enabled", True)
+        self._wave_plan_path: Optional[Path] = None
+
     def get_loop_stats(self) -> Dict:
         """Get current loop statistics for monitoring (IMP-LOOP-006, IMP-AUTO-002).
 
@@ -658,6 +670,20 @@ class AutonomousLoop:
             stats["pipeline_latency"] = self._latency_tracker.to_dict()
         else:
             stats["pipeline_latency"] = {"enabled": False}
+
+        # IMP-LOOP-027: Add wave planner statistics
+        stats["wave_planner"] = {
+            "enabled": self._wave_planner_enabled,
+            "current_wave_number": self._current_wave_number,
+            "total_waves": (len(self._current_wave_plan.waves) if self._current_wave_plan else 0),
+            "waves_loaded": len(self._wave_phases_loaded),
+            "waves_completed": sum(
+                1
+                for wave_num, completed in self._wave_phases_completed.items()
+                if wave_num in self._wave_phases_loaded
+                and len(completed) >= len(self._wave_phases_loaded.get(wave_num, []))
+            ),
+        }
 
         return stats
 
@@ -736,6 +762,260 @@ class AutonomousLoop:
                 stats["generated_task_count"] += 1
 
         return stats
+
+    # =========================================================================
+    # IMP-LOOP-027: Wave Planner Integration
+    # =========================================================================
+
+    def _initialize_wave_planner(self, wave_plan_path: Optional[Path] = None) -> bool:
+        """Initialize the wave planner with discovered IMPs or from a wave plan file.
+
+        IMP-LOOP-027: Loads wave plan from file if provided, otherwise attempts
+        to discover IMPs and generate a wave plan dynamically.
+
+        Args:
+            wave_plan_path: Optional path to an existing wave plan JSON file.
+
+        Returns:
+            True if wave planner was successfully initialized, False otherwise.
+        """
+        if not self._wave_planner_enabled:
+            logger.info("[IMP-LOOP-027] Wave planner is disabled in settings")
+            return False
+
+        try:
+            # Try to load from file first
+            if wave_plan_path and wave_plan_path.exists():
+                self._wave_plan_path = wave_plan_path
+                import json
+
+                plan_data = json.loads(wave_plan_path.read_text())
+
+                # Reconstruct IMPs from wave plan file
+                discovered_imps = []
+                for wave_data in plan_data.get("waves", []):
+                    for phase in wave_data.get("phases", []):
+                        discovered_imps.append(
+                            {
+                                "imp_id": phase.get("imp_id"),
+                                "title": phase.get("title", ""),
+                                "files_affected": phase.get("files", []),
+                                "dependencies": phase.get("dependencies", []),
+                            }
+                        )
+
+                if discovered_imps:
+                    self._wave_planner = AutonomousWavePlanner(discovered_imps)
+                    self._current_wave_plan = self._wave_planner.plan_waves()
+                    logger.info(
+                        f"[IMP-LOOP-027] Wave planner loaded from {wave_plan_path}: "
+                        f"{len(self._current_wave_plan.waves)} waves, "
+                        f"{len(discovered_imps)} IMPs"
+                    )
+                    return True
+
+            # Try default wave plan path
+            default_path = Path(".autopack/AUTOPACK_WAVE_PLAN.json")
+            if default_path.exists():
+                return self._initialize_wave_planner(default_path)
+
+            logger.debug("[IMP-LOOP-027] No wave plan file found, wave planner not initialized")
+            return False
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-027] Failed to initialize wave planner: {e}")
+            return False
+
+    def _current_wave_complete(self) -> bool:
+        """Check if all phases in the current wave are complete.
+
+        IMP-LOOP-027: Compares completed phase IDs against loaded phase IDs
+        for the current wave number.
+
+        Returns:
+            True if current wave is complete (or no wave is active), False otherwise.
+        """
+        if self._current_wave_number == 0:
+            # No wave currently active
+            return True
+
+        if self._current_wave_plan is None:
+            return True
+
+        # Get phases loaded for current wave
+        loaded_phases = self._wave_phases_loaded.get(self._current_wave_number, [])
+        if not loaded_phases:
+            return True
+
+        # Get completed phase IDs for current wave
+        completed_ids = set(self._wave_phases_completed.get(self._current_wave_number, []))
+
+        # Check if all loaded phases are completed
+        loaded_ids = {p.get("phase_id") for p in loaded_phases if p.get("phase_id")}
+
+        is_complete = loaded_ids.issubset(completed_ids)
+
+        if is_complete:
+            logger.info(
+                f"[IMP-LOOP-027] Wave {self._current_wave_number} complete: "
+                f"{len(completed_ids)}/{len(loaded_ids)} phases"
+            )
+
+        return is_complete
+
+    def _get_next_wave(self) -> Optional[Dict]:
+        """Get the next wave from the wave plan.
+
+        IMP-LOOP-027: Returns the next wave to execute after the current wave
+        is complete.
+
+        Returns:
+            Wave data dictionary if next wave exists, None otherwise.
+        """
+        if self._current_wave_plan is None:
+            return None
+
+        next_wave_num = self._current_wave_number + 1
+
+        if next_wave_num not in self._current_wave_plan.waves:
+            logger.info(
+                f"[IMP-LOOP-027] No more waves to execute (completed {self._current_wave_number} waves)"
+            )
+            return None
+
+        imp_ids = self._current_wave_plan.waves[next_wave_num]
+
+        wave_data = {
+            "wave_number": next_wave_num,
+            "imp_ids": imp_ids,
+            "phases": [
+                {
+                    "imp_id": imp_id,
+                    "title": self._wave_planner.imps.get(imp_id, {}).get("title", ""),
+                    "files": self._wave_planner.imps.get(imp_id, {}).get("files_affected", []),
+                    "dependencies": list(self._wave_planner.dependency_graph.get(imp_id, set())),
+                }
+                for imp_id in imp_ids
+            ],
+        }
+
+        logger.info(
+            f"[IMP-LOOP-027] Next wave: {next_wave_num} with {len(imp_ids)} IMPs: {imp_ids}"
+        )
+
+        return wave_data
+
+    def _load_wave_phases(self, wave: Dict) -> int:
+        """Load phases from a wave plan into the execution queue.
+
+        IMP-LOOP-027: Converts wave IMP entries into executable phase specs
+        and injects them into the current run's phase list.
+
+        Args:
+            wave: Wave data dictionary with wave_number, imp_ids, and phases.
+
+        Returns:
+            Number of phases successfully loaded into the queue.
+        """
+        if wave is None:
+            return 0
+
+        wave_number = wave.get("wave_number", 0)
+        phases = wave.get("phases", [])
+
+        if not phases:
+            logger.warning(f"[IMP-LOOP-027] Wave {wave_number} has no phases to load")
+            return 0
+
+        loaded_phases = []
+        for phase_data in phases:
+            imp_id = phase_data.get("imp_id")
+            if not imp_id:
+                continue
+
+            # Create executable phase spec
+            phase_spec = {
+                "phase_id": f"wave{wave_number}-{imp_id.lower().replace('-', '')}",
+                "phase_type": "wave-imp-execution",
+                "status": "QUEUED",
+                "imp_id": imp_id,
+                "title": phase_data.get("title", f"Execute {imp_id}"),
+                "description": f"Wave {wave_number} execution of {imp_id}",
+                "files_affected": phase_data.get("files", []),
+                "dependencies": phase_data.get("dependencies", []),
+                "metadata": {
+                    "wave_number": wave_number,
+                    "wave_planner_generated": True,
+                    "imp_id": imp_id,
+                },
+            }
+
+            loaded_phases.append(phase_spec)
+
+        # Store loaded phases for wave completion tracking
+        self._wave_phases_loaded[wave_number] = loaded_phases
+        self._wave_phases_completed[wave_number] = []
+
+        # Update current wave number
+        self._current_wave_number = wave_number
+
+        # Inject phases into the current run's phase list
+        if self._current_run_phases is not None:
+            # Insert wave phases at the front of the queue (high priority)
+            for phase_spec in reversed(loaded_phases):
+                self._current_run_phases.insert(0, phase_spec)
+
+            logger.info(
+                f"[IMP-LOOP-027] Loaded {len(loaded_phases)} phases from wave {wave_number} "
+                f"into execution queue"
+            )
+        else:
+            logger.warning(f"[IMP-LOOP-027] Cannot inject wave phases - no current run phases list")
+
+        return len(loaded_phases)
+
+    def _mark_wave_phase_complete(self, phase_id: str) -> None:
+        """Mark a wave phase as complete for tracking.
+
+        IMP-LOOP-027: Updates wave completion tracking when a phase finishes.
+
+        Args:
+            phase_id: The phase ID that completed.
+        """
+        if self._current_wave_number == 0:
+            return
+
+        completed_list = self._wave_phases_completed.get(self._current_wave_number, [])
+        if phase_id not in completed_list:
+            completed_list.append(phase_id)
+            self._wave_phases_completed[self._current_wave_number] = completed_list
+
+            loaded = len(self._wave_phases_loaded.get(self._current_wave_number, []))
+            completed = len(completed_list)
+            logger.debug(
+                f"[IMP-LOOP-027] Wave {self._current_wave_number} progress: "
+                f"{completed}/{loaded} phases complete"
+            )
+
+    def _check_and_load_next_wave(self) -> int:
+        """Check if current wave is complete and load next wave if available.
+
+        IMP-LOOP-027: Orchestrates wave transitions during the execution loop.
+
+        Returns:
+            Number of phases loaded from the next wave, or 0 if no wave transition.
+        """
+        if not self._wave_planner_enabled or self._wave_planner is None:
+            return 0
+
+        if not self._current_wave_complete():
+            return 0
+
+        next_wave = self._get_next_wave()
+        if next_wave is None:
+            return 0
+
+        return self._load_wave_phases(next_wave)
 
     def _emit_alert(self, message: str) -> None:
         """Emit an alert for critical system events.
@@ -2504,6 +2784,9 @@ class AutonomousLoop:
         # IMP-LOOP-001: Initialize feedback pipeline for self-improvement loop
         self._initialize_feedback_pipeline()
 
+        # IMP-LOOP-027: Initialize wave planner for parallel IMP execution
+        self._initialize_wave_planner()
+
         # Main execution loop
         stats = self._execute_loop(poll_interval, max_iterations, stop_on_first_failure)
 
@@ -3160,6 +3443,18 @@ class AutonomousLoop:
             except Exception as e:
                 logger.warning(f"[IMP-LOOP-025] Failed to consume ROAD-C tasks (non-blocking): {e}")
 
+            # IMP-LOOP-027: Check if current wave is complete and load next wave
+            # This enables automatic wave transitions during execution
+            try:
+                wave_phases_loaded = self._check_and_load_next_wave()
+                if wave_phases_loaded > 0:
+                    logger.info(
+                        f"[IMP-LOOP-027] Wave transition: loaded {wave_phases_loaded} phases "
+                        f"from wave {self._current_wave_number}"
+                    )
+            except Exception as e:
+                logger.warning(f"[IMP-LOOP-027] Wave check failed (non-blocking): {e}")
+
             # IMP-LOOP-003: Store reference to current run's phases for same-run task injection
             # This allows high-priority tasks generated during execution to be injected
             # into the current run's backlog for immediate execution
@@ -3266,6 +3561,9 @@ class AutonomousLoop:
                         logger.info(f"Phase {phase_id_result} completed successfully (parallel)")
                         phases_executed += 1
                         self.executor._phase_failure_counts[phase_id_result] = 0
+
+                        # IMP-LOOP-027: Track wave phase completion
+                        self._mark_wave_phase_complete(phase_id_result)
 
                         # IMP-TEL-001: Record phase completion stage for parallel execution
                         if self._latency_tracker is not None:
@@ -3452,6 +3750,9 @@ class AutonomousLoop:
                 phases_executed += 1
                 # Reset failure count on success
                 self.executor._phase_failure_counts[phase_id] = 0
+
+                # IMP-LOOP-027: Track wave phase completion
+                self._mark_wave_phase_complete(phase_id)
 
                 # IMP-TEL-001: Record phase completion stage for latency tracking
                 if self._latency_tracker is not None:

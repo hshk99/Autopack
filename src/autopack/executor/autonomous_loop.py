@@ -754,6 +754,62 @@ class AutonomousLoop:
         except Exception as e:
             logger.warning(f"[IMP-REL-001] Failed to emit alert: {e}")
 
+    def _check_and_emit_sla_alerts(self, phase_id: str) -> None:
+        """Check for pipeline SLA breaches and emit alerts.
+
+        IMP-TEL-001: After phase completion, checks the pipeline latency tracker
+        for any SLA breaches and emits alerts for visibility. This enables
+        runtime enforcement of the 5-minute feedback loop SLA.
+
+        Args:
+            phase_id: ID of the phase that just completed
+        """
+        if self._latency_tracker is None:
+            return
+
+        try:
+            # Check for any SLA breaches
+            breaches = self._latency_tracker.check_sla_breaches()
+            if not breaches:
+                return
+
+            # Get overall SLA status for logging
+            sla_status = self._latency_tracker.get_sla_status()
+
+            for breach in breaches:
+                # Emit alert for each breach
+                alert_message = (
+                    f"[IMP-TEL-001] Pipeline SLA breach detected after phase {phase_id}: "
+                    f"{breach.message} "
+                    f"(level={breach.level}, actual={breach.actual_ms:.0f}ms, "
+                    f"threshold={breach.threshold_ms:.0f}ms, "
+                    f"breach_amount={breach.breach_amount_ms:.0f}ms)"
+                )
+
+                if breach.level == "critical":
+                    logger.critical(alert_message)
+                    self._emit_alert(
+                        f"Critical pipeline SLA breach: {breach.message}. "
+                        f"Actual latency: {breach.actual_ms / 1000:.1f}s, "
+                        f"Threshold: {breach.threshold_ms / 1000:.1f}s"
+                    )
+                else:
+                    logger.warning(alert_message)
+
+            # Log overall pipeline latency status
+            e2e_latency = self._latency_tracker.get_end_to_end_latency_ms()
+            if e2e_latency is not None:
+                logger.info(
+                    f"[IMP-TEL-001] Pipeline latency summary: "
+                    f"status={sla_status}, "
+                    f"end_to_end={e2e_latency / 1000:.1f}s, "
+                    f"breaches={len(breaches)}"
+                )
+
+        except Exception as e:
+            # Non-fatal - SLA alerting failure should not block execution
+            logger.warning(f"[IMP-TEL-001] Failed to check SLA breaches (non-fatal): {e}")
+
     # =========================================================================
     # IMP-AUTO-002: Parallel Phase Execution Support
     # =========================================================================
@@ -1307,6 +1363,18 @@ class AutonomousLoop:
                 f"[IMP-INT-002] Persisted {persisted_count} insights to memory "
                 f"(context={context}, run_id={run_id})"
             )
+
+            # IMP-TEL-001: Record memory persistence stage for latency tracking
+            if self._latency_tracker is not None and persisted_count > 0:
+                self._latency_tracker.record_stage(
+                    PipelineStage.MEMORY_PERSISTED,
+                    metadata={
+                        "persisted_count": persisted_count,
+                        "context": context,
+                        "run_id": run_id,
+                    },
+                )
+
             return persisted_count
 
         except Exception as e:
@@ -1456,6 +1524,13 @@ class AutonomousLoop:
         try:
             # Aggregate telemetry from database
             ranked_issues = analyzer.aggregate_telemetry(window_days=7)
+
+            # IMP-TEL-001: Record telemetry collection stage for latency tracking
+            if self._latency_tracker is not None:
+                self._latency_tracker.record_stage(
+                    PipelineStage.TELEMETRY_COLLECTED,
+                    metadata={"phase_id": phase_id, "forced": force},
+                )
 
             # Reset throttle counter
             self._phases_since_last_aggregation = 0
@@ -2991,6 +3066,17 @@ class AutonomousLoop:
                         phases_executed += 1
                         self.executor._phase_failure_counts[phase_id_result] = 0
 
+                        # IMP-TEL-001: Record phase completion stage for parallel execution
+                        if self._latency_tracker is not None:
+                            self._latency_tracker.record_stage(
+                                PipelineStage.PHASE_COMPLETE,
+                                metadata={
+                                    "phase_id": phase_id_result,
+                                    "phase_type": phase_type_result,
+                                    "parallel": True,
+                                },
+                            )
+
                         if self._circuit_breaker is not None:
                             self._circuit_breaker.record_success()
 
@@ -3001,6 +3087,9 @@ class AutonomousLoop:
                             logger.warning(
                                 f"[IMP-INT-001] Telemetry aggregation failed (non-fatal): {agg_err}"
                             )
+
+                        # IMP-TEL-001: Check for SLA breaches after parallel phase
+                        self._check_and_emit_sla_alerts(phase_id_result)
                     else:
                         logger.warning(
                             f"Phase {phase_id_result} finished with status: {status} (parallel)"
@@ -3163,6 +3252,17 @@ class AutonomousLoop:
                 # Reset failure count on success
                 self.executor._phase_failure_counts[phase_id] = 0
 
+                # IMP-TEL-001: Record phase completion stage for latency tracking
+                if self._latency_tracker is not None:
+                    self._latency_tracker.record_stage(
+                        PipelineStage.PHASE_COMPLETE,
+                        metadata={
+                            "phase_id": phase_id,
+                            "phase_type": phase_type,
+                            "execution_time_seconds": execution_time,
+                        },
+                    )
+
                 # IMP-LOOP-006: Record success with circuit breaker
                 if self._circuit_breaker is not None:
                     self._circuit_breaker.record_success()
@@ -3175,6 +3275,9 @@ class AutonomousLoop:
                     logger.warning(
                         f"[IMP-INT-001] Telemetry aggregation failed (non-fatal): {agg_err}"
                     )
+
+                # IMP-TEL-001: Check for SLA breaches and emit alerts
+                self._check_and_emit_sla_alerts(phase_id)
 
                 # IMP-AUTOPILOT-001: Periodic autopilot invocation after successful phases
                 if (

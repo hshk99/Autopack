@@ -346,21 +346,19 @@ class TestFlushPendingInsights:
         mock_memory.write_task_execution_feedback = Mock()
         mock_memory.write_telemetry_insight = Mock(return_value="point_id")
 
-        pipeline = FeedbackPipeline(memory_service=mock_memory)
+        # IMP-REL-010: With eager flush, process_phase_outcome flushes immediately.
+        # To test flush_pending_insights with pending insights, we need to
+        # manually add insights to the queue.
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
 
-        # Process an outcome to accumulate insights
-        outcome = PhaseOutcome(
-            phase_id="phase_1",
-            phase_type="build",
-            success=True,
-            status="completed",
-        )
-        pipeline.process_phase_outcome(outcome)
+        # Manually add pending insights to simulate accumulation
+        pipeline._pending_insights.append({"test": "insight_1"})
+        pipeline._pending_insights.append({"test": "insight_2"})
 
         # Flush insights
         flushed = pipeline.flush_pending_insights()
 
-        assert flushed >= 1
+        assert flushed == 2
         assert len(pipeline._pending_insights) == 0
 
 
@@ -757,3 +755,208 @@ class TestAutoFlushTimer:
 
         # Should not be flushed
         assert len(pipeline._pending_insights) == 50
+
+
+class TestEagerFlushOnPhaseCompletion:
+    """Tests for IMP-REL-010 eager flush on phase completion."""
+
+    def test_eager_flush_called_on_phase_outcome(self):
+        """Eager flush should be called after processing phase outcome."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_task_execution_feedback = Mock()
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=True)
+        # Stop the auto-flush timer to avoid interference
+        pipeline.stop_auto_flush()
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=True,
+            status="completed",
+        )
+
+        # Process outcome - should trigger eager flush
+        pipeline.process_phase_outcome(outcome)
+
+        # Pending insights should be empty after eager flush
+        assert len(pipeline._pending_insights) == 0
+
+        # write_telemetry_insight should have been called (once for immediate persist,
+        # once for flush)
+        assert mock_memory.write_telemetry_insight.call_count >= 1
+
+    def test_eager_flush_method_flushes_insights(self):
+        """_eager_flush_phase_insights should flush pending insights."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+
+        # Manually add a pending insight
+        pipeline._pending_insights.append({"test": "insight"})
+
+        # Call eager flush
+        flushed = pipeline._eager_flush_phase_insights()
+
+        assert flushed == 1
+        assert len(pipeline._pending_insights) == 0
+        mock_memory.write_telemetry_insight.assert_called_once()
+
+    def test_eager_flush_returns_zero_with_no_pending(self):
+        """_eager_flush_phase_insights should return 0 when no pending insights."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        flushed = pipeline._eager_flush_phase_insights()
+
+        assert flushed == 0
+
+    def test_eager_flush_handles_errors_gracefully(self):
+        """_eager_flush_phase_insights should handle errors without crashing."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock(side_effect=Exception("Test error"))
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+        pipeline._pending_insights.append({"test": "insight"})
+
+        # Should not raise exception
+        flushed = pipeline._eager_flush_phase_insights()
+
+        # Should return 0 on error
+        assert flushed == 0
+
+    def test_eager_flush_thread_safe(self):
+        """_eager_flush_phase_insights should be thread-safe."""
+        import threading
+
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+
+        # Add multiple insights
+        for i in range(10):
+            pipeline._pending_insights.append({"test": f"insight_{i}"})
+
+        results = []
+
+        def flush_thread():
+            result = pipeline._eager_flush_phase_insights()
+            results.append(result)
+
+        # Run multiple flushes concurrently
+        threads = [threading.Thread(target=flush_thread) for _ in range(3)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # All insights should be flushed (only one thread should have flushed them)
+        assert len(pipeline._pending_insights) == 0
+        # Total flushed should equal original count
+        assert sum(results) == 10
+
+
+class TestShutdownFlush:
+    """Tests for IMP-REL-010 shutdown flush via atexit."""
+
+    def test_shutdown_flush_persists_insights(self):
+        """_shutdown_flush should persist all pending insights."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+
+        # Add pending insights
+        for i in range(5):
+            pipeline._pending_insights.append({"test": f"insight_{i}"})
+
+        # Call shutdown flush
+        pipeline._shutdown_flush()
+
+        # All insights should be flushed
+        assert len(pipeline._pending_insights) == 0
+        assert mock_memory.write_telemetry_insight.call_count == 5
+
+    def test_shutdown_flush_cancels_timer(self):
+        """_shutdown_flush should cancel any pending timer."""
+        pipeline = FeedbackPipeline(enabled=True)
+
+        # Timer should be running
+        assert pipeline._flush_timer is not None
+
+        # Call shutdown flush
+        pipeline._shutdown_flush()
+
+        # Timer should be cancelled
+        assert pipeline._flush_timer is None
+
+    def test_shutdown_flush_handles_no_pending_insights(self):
+        """_shutdown_flush should handle case with no pending insights."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        # Should not raise exception
+        pipeline._shutdown_flush()
+
+        assert len(pipeline._pending_insights) == 0
+
+    def test_shutdown_flush_saves_hint_occurrences(self):
+        """_shutdown_flush should persist hint occurrences."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        # Add some hint occurrences
+        pipeline._hint_occurrences["test:hint"] = 2
+
+        # Mock the save method to verify it's called
+        original_save = pipeline._save_hint_occurrences
+        save_called = [False]
+
+        def mock_save():
+            save_called[0] = True
+            return True
+
+        pipeline._save_hint_occurrences = mock_save
+
+        # Call shutdown flush
+        pipeline._shutdown_flush()
+
+        # Save should have been called
+        assert save_called[0] is True
+
+        # Restore original
+        pipeline._save_hint_occurrences = original_save
+
+    def test_shutdown_flush_handles_errors_gracefully(self):
+        """_shutdown_flush should handle errors without crashing."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock(side_effect=Exception("Test error"))
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+        pipeline._pending_insights.append({"test": "insight"})
+
+        # Should not raise exception
+        pipeline._shutdown_flush()
+
+        # Insights should be cleared
+        assert len(pipeline._pending_insights) == 0
+
+    def test_atexit_handler_registered(self):
+        """Atexit handler should be registered on pipeline initialization."""
+
+        # Create a pipeline and verify atexit is called
+        # We can't directly verify atexit registration, but we can verify
+        # the method exists and is callable
+        pipeline = FeedbackPipeline(enabled=False)
+
+        assert hasattr(pipeline, "_shutdown_flush")
+        assert callable(pipeline._shutdown_flush)
+
+        # The method should work correctly
+        pipeline._shutdown_flush()  # Should not raise

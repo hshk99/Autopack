@@ -16,34 +16,32 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from autopack.archive_consolidator import log_build_event
-from autopack.autonomous.budgeting import (
-    BudgetExhaustedError,
-    get_budget_remaining_pct,
-    is_budget_exhausted,
-)
-from autopack.autonomy.parallelism_gate import (
-    ParallelismPolicyGate,
-    ScopeBasedParallelismChecker,
-)
+from autopack.autonomous.budgeting import (BudgetExhaustedError,
+                                           get_budget_remaining_pct,
+                                           is_budget_exhausted)
+from autopack.autonomy.parallelism_gate import (ParallelismPolicyGate,
+                                                ScopeBasedParallelismChecker)
 from autopack.config import settings
-from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
+from autopack.database import (SESSION_HEALTH_CHECK_INTERVAL,
+                               ensure_session_healthy)
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
 from autopack.memory.maintenance import run_maintenance_if_due
-from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
+from autopack.task_generation.task_effectiveness_tracker import \
+    TaskEffectivenessTracker
 from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
-from autopack.telemetry.anomaly_detector import AlertSeverity, TelemetryAnomalyDetector
-from autopack.telemetry.meta_metrics import (
-    FeedbackLoopHealth,
-    FeedbackLoopHealthReport,
-    GoalDriftDetector,
-    MetaMetricsTracker,
-    PipelineLatencyTracker,
-    PipelineStage,
-)
-from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
+from autopack.telemetry.anomaly_detector import (AlertSeverity,
+                                                 TelemetryAnomalyDetector)
+from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
+                                             FeedbackLoopHealthReport,
+                                             GoalDriftDetector,
+                                             MetaMetricsTracker,
+                                             PipelineLatencyTracker,
+                                             PipelineStage)
+from autopack.telemetry.telemetry_to_memory_bridge import \
+    TelemetryToMemoryBridge
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
@@ -533,6 +531,14 @@ class AutonomousLoop:
             settings, "maintenance_check_interval_seconds", 300.0  # Check every 5 minutes
         )
         self._auto_maintenance_enabled = getattr(settings, "auto_memory_maintenance_enabled", True)
+
+        # IMP-MEM-011: Write-count based maintenance triggering
+        # Triggers maintenance after N memory writes to prevent unbounded growth
+        self._memory_write_count = 0  # Total memory writes since last maintenance
+        self._maintenance_write_threshold = getattr(
+            settings, "maintenance_write_threshold", 100  # Trigger after 100 writes
+        )
+        self._last_maintenance_write_count = 0  # Write count at last maintenance
 
         # IMP-FBK-002: Meta-metrics and anomaly detection for circuit breaker health checks
         # These enable holistic health assessment before circuit breaker reset
@@ -2236,6 +2242,55 @@ class AutonomousLoop:
         except Exception as e:
             logger.warning(f"[IMP-DB-001] Failed to collect pool health metrics: {e}")
 
+    def _increment_memory_write_count(self, count: int = 1) -> None:
+        """Increment memory write counter and trigger maintenance if threshold reached.
+
+        IMP-MEM-011: Tracks memory writes to trigger maintenance before collections
+        grow unbounded. Maintenance is triggered after every N writes (default: 100).
+
+        Args:
+            count: Number of writes to add to the counter (default: 1)
+        """
+        self._memory_write_count += count
+
+        # Check if maintenance should be triggered
+        writes_since_maintenance = self._memory_write_count - self._last_maintenance_write_count
+        if writes_since_maintenance >= self._maintenance_write_threshold:
+            self._run_write_triggered_maintenance()
+
+    def _run_write_triggered_maintenance(self) -> None:
+        """Run maintenance triggered by write count threshold.
+
+        IMP-MEM-011: Runs maintenance and updates the last maintenance write count.
+        This complements the time-based maintenance (IMP-LOOP-017) by ensuring
+        maintenance runs frequently during high-write-volume periods.
+        """
+        if not self._auto_maintenance_enabled:
+            return
+
+        try:
+            logger.info(
+                f"[IMP-MEM-011] Triggering maintenance after {self._memory_write_count} "
+                f"total writes (threshold: {self._maintenance_write_threshold})"
+            )
+            maintenance_result = run_maintenance_if_due()
+
+            # Update the last maintenance write count regardless of whether
+            # run_maintenance_if_due actually ran (it may skip if recently run)
+            self._last_maintenance_write_count = self._memory_write_count
+
+            if maintenance_result is not None:
+                logger.info(
+                    f"[IMP-MEM-011] Write-triggered maintenance completed: "
+                    f"pruned={maintenance_result.get('pruned', 0)}, "
+                    f"tombstoned={maintenance_result.get('planning_tombstoned', 0)}"
+                )
+        except Exception as e:
+            # Non-blocking - log and continue
+            logger.warning(f"[IMP-MEM-011] Write-triggered maintenance failed: {e}")
+            # Still update count to prevent retry storm
+            self._last_maintenance_write_count = self._memory_write_count
+
     def run(
         self,
         poll_interval: float = 0.5,
@@ -2488,7 +2543,8 @@ class AutonomousLoop:
 
     def _initialize_intention_loop(self):
         """Initialize intention-first loop for the run."""
-        from autopack.autonomous.executor_wiring import initialize_intention_first_loop
+        from autopack.autonomous.executor_wiring import \
+            initialize_intention_first_loop
         from autopack.intention_anchor.storage import IntentionAnchorStorage
 
         # IMP-ARCH-012: Load pending improvement tasks from self-improvement loop
@@ -2510,10 +2566,7 @@ class AutonomousLoop:
                 from datetime import datetime, timezone
 
                 from autopack.intention_anchor.models import (
-                    IntentionAnchor,
-                    IntentionBudgets,
-                    IntentionConstraints,
-                )
+                    IntentionAnchor, IntentionBudgets, IntentionConstraints)
 
                 intention_anchor = IntentionAnchor(
                     anchor_id=f"default-{self.executor.run_id}",
@@ -3300,6 +3353,9 @@ class AutonomousLoop:
                 context_summary=context_summary,
                 learnings=learnings,
             )
+
+            # IMP-MEM-011: Track memory write for maintenance scheduling
+            self._increment_memory_write_count()
 
             logger.info(
                 f"[IMP-LOOP-005] Recorded execution feedback for phase {phase_id} "

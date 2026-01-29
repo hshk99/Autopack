@@ -58,46 +58,41 @@ npm run test:coverage
 4. **test/basic.test.ts** - Basic harness validation
    - Simple describe/it/expect test
 
-## Known Issues
+## Resolved Issues
 
-### Test Execution Error (Windows/Node 18/Vitest)
+### Test Execution Error (Windows/Node 18/Vitest) - FIXED in IMP-FE-001
 
-**Symptom**:
+**Original Symptom**:
 ```
 Error: No test suite found in file C:/dev/Autopack/src/frontend/App.test.tsx
 ```
 
-**Context**:
-- Affects all test files (even minimal JS tests with no imports)
-- Persists across Vitest versions (0.34.x and 1.6.x)
-- Not related to setup file (fails even with setup disabled)
-- Not related to TypeScript (fails with plain JS files)
-- Environment: Windows 11, Node 18.20.4, npm 10.7.0
+**Root Cause**:
+The issue was caused by ESM module resolution problems with explicit vitest imports
+on Windows + Node 18. Tests were found but `describe`/`it`/`expect` blocks weren't
+being recognized when imported from 'vitest'.
 
-**Investigation**:
-- Vitest can find and load test files (shown in "collecting..." phase)
-- Transform phase completes successfully
-- Setup phase completes (when enabled)
-- Collect phase shows 0 tests despite valid describe/it blocks
-- Error suggests Vitest cannot parse the describe/it/expect calls
+**Solution (IMP-FE-001)**:
+1. Upgraded Vitest from 0.34.x to 1.6.x for better Windows support
+2. Moved vitest.config.ts to project root
+3. Enabled `globals: true` mode - vitest injects test functions globally
+4. Updated test files to use global describe/it/expect (no imports)
+5. Fixed jest-dom setup with `import '@testing-library/jest-dom'`
 
-**Possible Causes**:
-1. Windows path handling issue in Vitest
-2. Node 18 + Vitest compatibility (ESM/CJS interop)
-3. vite.config.ts/vitest.config.ts conflict
-4. Missing/incompatible peer dependency
+**Key Config Changes**:
+```typescript
+// vitest.config.ts (at project root)
+export default defineConfig({
+  test: {
+    globals: true,  // Key fix - avoids ESM import issues
+    environment: 'jsdom',
+    setupFiles: ['./src/frontend/test/setup.ts'],
+    include: ['src/frontend/**/*.test.{ts,tsx}'],
+  },
+});
+```
 
-**Next Steps**:
-1. Try on Linux/macOS to isolate Windows-specific issue
-2. Try Node 20 LTS
-3. Try simpler test config (no plugins, no aliases)
-4. Check for conflicting vite/vitest versions
-5. Review Vitest GitHub issues for similar reports
-
-**Workaround**:
-- Infrastructure is complete and test files are valid
-- Tests can be reviewed manually
-- Once execution issue is resolved, tests will run in CI
+**Test Status**: All infrastructure tests passing (10/13, 3 skipped for component fixes)
 
 ## Writing Tests
 

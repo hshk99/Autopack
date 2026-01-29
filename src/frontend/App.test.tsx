@@ -2,8 +2,8 @@
  * App component tests
  *
  * Tests core routing functionality and ensures all routes are properly configured
+ * Note: Uses vitest globals mode (IMP-FE-001)
  */
-import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from './App';

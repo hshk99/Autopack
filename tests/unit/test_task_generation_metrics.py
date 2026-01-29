@@ -5,8 +5,15 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from autopack.models import TaskGenerationEvent
-from autopack.roadc.task_generator import AutonomousTaskGenerator, _emit_task_generation_event
-from autopack.telemetry.analyzer import RankedIssue, TaskGenerationStats, TelemetryAnalyzer
+from autopack.roadc.task_generator import (
+    AutonomousTaskGenerator,
+    _emit_task_generation_event,
+)
+from autopack.telemetry.analyzer import (
+    RankedIssue,
+    TaskGenerationStats,
+    TelemetryAnalyzer,
+)
 
 
 class TestTaskGenerationEvent:
@@ -127,6 +134,8 @@ class TestAutonomousTaskGeneratorMetrics:
         """Create a mock regression protector."""
         mock = MagicMock()
         mock.check_protection.return_value = MagicMock(is_protected=True)
+        # Mock filter_patterns_with_risk_assessment to return patterns unchanged with empty risk dict
+        mock.filter_patterns_with_risk_assessment.side_effect = lambda patterns: (patterns, {})
         return mock
 
     @patch("autopack.roadc.task_generator._emit_task_generation_event")

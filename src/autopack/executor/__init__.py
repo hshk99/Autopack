@@ -14,3 +14,14 @@ NOT to be confused with "Intentions Framework v2" from BUILD-178
 (src/autopack/intention_anchor/) which covers intention anchoring
 and pivot types for autonomous execution guidance.
 """
+
+# PR-EXE-6: Heuristic context loader extraction (IMP-REF-002)
+from autopack.executor.context_loading_heuristic import (
+    HeuristicContextLoader,
+    get_default_priority_files,
+)
+
+__all__ = [
+    "HeuristicContextLoader",
+    "get_default_priority_files",
+]

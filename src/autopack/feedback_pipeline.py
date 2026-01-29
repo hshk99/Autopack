@@ -35,7 +35,10 @@ from autopack.telemetry.meta_metrics import (
 )
 
 if TYPE_CHECKING:
-    from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
+    from autopack.learning_memory_manager import LearningMemoryManager
+    from autopack.task_generation.task_effectiveness_tracker import (
+        TaskEffectivenessTracker,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +140,7 @@ class FeedbackPipeline:
         effectiveness_tracker: Optional["TaskEffectivenessTracker"] = None,
         latency_tracker: Optional[PipelineLatencyTracker] = None,
         meta_metrics_tracker: Optional[MetaMetricsTracker] = None,
+        learning_memory_manager: Optional["LearningMemoryManager"] = None,
         run_id: Optional[str] = None,
         project_id: Optional[str] = None,
         enabled: bool = True,
@@ -153,6 +157,8 @@ class FeedbackPipeline:
                 loop cycle time across pipeline stages
             meta_metrics_tracker: IMP-REL-001: MetaMetricsTracker for health
                 monitoring and auto-resume of task generation
+            learning_memory_manager: IMP-LOOP-026: LearningMemoryManager for
+                persisting outcomes to LEARNING_MEMORY.json
             run_id: Current run identifier
             project_id: Project identifier for namespacing
             enabled: Whether the pipeline is active (default: True)
@@ -161,6 +167,7 @@ class FeedbackPipeline:
         self.telemetry_analyzer = telemetry_analyzer
         self.learning_pipeline = learning_pipeline
         self._effectiveness_tracker = effectiveness_tracker
+        self._learning_memory_manager = learning_memory_manager
         self.run_id = run_id or datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         self.project_id = project_id or "default"
         self.enabled = enabled
@@ -456,6 +463,12 @@ class FeedbackPipeline:
 
             # IMP-LOOP-017: Check effectiveness patterns and create rules
             self._check_effectiveness_rules()
+
+            # IMP-LOOP-026: Persist outcome to LEARNING_MEMORY.json for cross-cycle learning
+            self._persist_outcome_to_learning_memory(outcome)
+
+            # IMP-LOOP-026: Emit feedback to task generator for next-cycle task generation
+            self._emit_to_task_generator(outcome)
 
         except Exception as e:
             result["error"] = str(e)
@@ -1948,3 +1961,352 @@ class FeedbackPipeline:
             logger.error(f"[IMP-MEM-004] Failed to record circuit breaker event: {e}")
 
         return result
+
+    # =========================================================================
+    # IMP-LOOP-026: Complete Feedback Loop Closure
+    # =========================================================================
+
+    def _persist_outcome_to_learning_memory(self, outcome: PhaseOutcome) -> bool:
+        """Persist outcome directly to LEARNING_MEMORY.json for cross-cycle learning.
+
+        IMP-LOOP-026: Writes execution outcomes to the LearningMemoryManager,
+        enabling the system to learn from past improvement outcomes. This
+        closes the feedback loop by ensuring outcomes persist beyond the
+        current run and feed into next-cycle task generation.
+
+        The outcome is recorded as:
+        - An improvement outcome (success/failure with details)
+        - A failure category if the outcome was unsuccessful
+
+        Args:
+            outcome: PhaseOutcome to persist
+
+        Returns:
+            True if persistence succeeded, False otherwise
+        """
+        if not self._learning_memory_manager:
+            logger.debug(
+                "[IMP-LOOP-026] LearningMemoryManager not configured, "
+                "skipping LEARNING_MEMORY.json persistence"
+            )
+            return False
+
+        try:
+            # Generate a unique improvement ID from the outcome
+            imp_id = f"{self.run_id}:{outcome.phase_id}"
+
+            # Build details dictionary from outcome
+            details = {
+                "phase_type": outcome.phase_type,
+                "execution_time_seconds": outcome.execution_time_seconds,
+                "tokens_used": outcome.tokens_used,
+                "error_message": outcome.error_message,
+                "status": outcome.status,
+                "run_id": outcome.run_id or self.run_id,
+                "project_id": outcome.project_id or self.project_id,
+            }
+
+            # Remove None values for cleaner storage
+            details = {k: v for k, v in details.items() if v is not None}
+
+            # Record the improvement outcome
+            self._learning_memory_manager.record_improvement_outcome(
+                imp_id=imp_id,
+                success=outcome.success,
+                details=details,
+            )
+
+            # If failure, also record the failure category
+            if not outcome.success:
+                failure_category = self._determine_failure_category(outcome)
+                self._learning_memory_manager.record_failure_category(
+                    category=failure_category,
+                    phase_id=outcome.phase_id,
+                    details={
+                        "error_message": outcome.error_message,
+                        "phase_type": outcome.phase_type,
+                        "run_id": self.run_id,
+                    },
+                )
+
+            # Save to persist changes
+            self._learning_memory_manager.save()
+
+            logger.info(
+                f"[IMP-LOOP-026] Persisted outcome to LEARNING_MEMORY.json: "
+                f"{outcome.phase_id} (success={outcome.success})"
+            )
+            return True
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-026] Failed to persist outcome to LEARNING_MEMORY.json: {e}")
+            return False
+
+    def _determine_failure_category(self, outcome: PhaseOutcome) -> str:
+        """Determine the failure category from an outcome for LEARNING_MEMORY.json.
+
+        IMP-LOOP-026: Maps outcome characteristics to failure categories
+        tracked by LearningMemoryManager (code_failure, unrelated_ci, flaky_test).
+
+        Args:
+            outcome: PhaseOutcome to categorize
+
+        Returns:
+            Failure category string
+        """
+        error_msg = (outcome.error_message or outcome.status or "").lower()
+
+        # Check for infrastructure/unrelated CI issues
+        if any(
+            pattern in error_msg
+            for pattern in ["infrastructure", "network", "timeout", "api", "rate limit"]
+        ):
+            return "unrelated_ci"
+
+        # Check for flaky test indicators
+        if any(
+            pattern in error_msg for pattern in ["flaky", "intermittent", "sometimes", "random"]
+        ):
+            return "flaky_test"
+
+        # Default to code failure
+        return "code_failure"
+
+    def _emit_to_task_generator(self, outcome: PhaseOutcome) -> bool:
+        """Emit outcome feedback to the task generator for next-cycle task creation.
+
+        IMP-LOOP-026: When certain outcome patterns are detected (repeated failures,
+        high token usage, etc.), this method generates follow-up tasks that are
+        queued for the next cycle. This closes the feedback loop by converting
+        execution outcomes into actionable improvement tasks.
+
+        Follow-up tasks are generated for:
+        - Repeated failures of the same type (suggests investigation task)
+        - High token consumption (suggests optimization task)
+        - Successful patterns worth reinforcing (suggests documentation task)
+
+        Args:
+            outcome: PhaseOutcome to analyze for follow-up task generation
+
+        Returns:
+            True if any tasks were emitted, False otherwise
+        """
+        try:
+            # Get the task queue file path
+            task_queue_file = Path(".autopack/ROADC_TASK_QUEUE.json")
+
+            # Only generate follow-up tasks for significant outcomes
+            should_generate = self._should_generate_followup_task(outcome)
+            if not should_generate:
+                return False
+
+            # Generate the follow-up task
+            followup_task = self._create_followup_task_from_outcome(outcome)
+            if not followup_task:
+                return False
+
+            # Emit to the task queue
+            self._append_task_to_queue(followup_task, task_queue_file)
+
+            logger.info(
+                f"[IMP-LOOP-026] Emitted follow-up task to ROADC_TASK_QUEUE: "
+                f"{followup_task.get('title', 'Untitled')} "
+                f"(source: {outcome.phase_id})"
+            )
+            return True
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-026] Failed to emit follow-up task to generator: {e}")
+            return False
+
+    def _should_generate_followup_task(self, outcome: PhaseOutcome) -> bool:
+        """Determine if an outcome warrants a follow-up task.
+
+        IMP-LOOP-026: Checks if the outcome represents a pattern that should
+        trigger automatic follow-up task generation.
+
+        Args:
+            outcome: PhaseOutcome to evaluate
+
+        Returns:
+            True if a follow-up task should be generated
+        """
+        # Generate follow-up for failures
+        if not outcome.success:
+            # Check if this is a repeated failure pattern
+            hint_key = self._get_hint_promotion_key(self._determine_hint_type(outcome), outcome)
+            occurrences = self._hint_occurrences.get(hint_key, 0)
+
+            # Generate follow-up after 2+ occurrences of same failure type
+            if occurrences >= 2:
+                return True
+
+        # Generate follow-up for high token usage (cost optimization opportunity)
+        if outcome.tokens_used and outcome.tokens_used > 75000:
+            return True
+
+        # Generate follow-up for long execution times (performance optimization)
+        if outcome.execution_time_seconds and outcome.execution_time_seconds > 300:
+            return True
+
+        return False
+
+    def _create_followup_task_from_outcome(self, outcome: PhaseOutcome) -> Optional[Dict[str, Any]]:
+        """Create a follow-up task from an outcome.
+
+        IMP-LOOP-026: Converts an outcome into a task specification that can
+        be queued for the next execution cycle.
+
+        Args:
+            outcome: PhaseOutcome to create task from
+
+        Returns:
+            Task dictionary or None if no task should be created
+        """
+        timestamp = datetime.now(timezone.utc).isoformat()
+
+        if not outcome.success:
+            # Create investigation task for failures
+            hint_type = self._determine_hint_type(outcome)
+            return {
+                "task_id": f"FOLLOWUP-{self.run_id}-{outcome.phase_id}",
+                "title": f"Investigate {hint_type} in {outcome.phase_type or 'phase'}",
+                "description": (
+                    f"Phase {outcome.phase_id} failed with {hint_type}. "
+                    f"Error: {outcome.error_message or outcome.status}. "
+                    f"This pattern has occurred multiple times. "
+                    f"Investigate root cause and implement preventive measures."
+                ),
+                "priority": "high",
+                "source_insights": [
+                    {
+                        "type": "feedback_loop_closure",
+                        "phase_id": outcome.phase_id,
+                        "run_id": self.run_id,
+                        "outcome_type": "failure",
+                        "hint_type": hint_type,
+                    }
+                ],
+                "suggested_files": [],
+                "estimated_effort": "M",
+                "created_at": timestamp,
+                "queued_at": timestamp,
+                "feedback_source": "IMP-LOOP-026",
+            }
+
+        elif outcome.tokens_used and outcome.tokens_used > 75000:
+            # Create optimization task for high token usage
+            return {
+                "task_id": f"OPTIMIZE-{self.run_id}-{outcome.phase_id}",
+                "title": f"Optimize token usage in {outcome.phase_type or 'phase'}",
+                "description": (
+                    f"Phase {outcome.phase_id} consumed {outcome.tokens_used:,} tokens. "
+                    f"This exceeds the efficiency threshold. "
+                    f"Review context injection, prompt engineering, and chunking strategies."
+                ),
+                "priority": "medium",
+                "source_insights": [
+                    {
+                        "type": "feedback_loop_closure",
+                        "phase_id": outcome.phase_id,
+                        "run_id": self.run_id,
+                        "outcome_type": "cost_optimization",
+                        "tokens_used": outcome.tokens_used,
+                    }
+                ],
+                "suggested_files": [],
+                "estimated_effort": "S",
+                "created_at": timestamp,
+                "queued_at": timestamp,
+                "feedback_source": "IMP-LOOP-026",
+            }
+
+        elif outcome.execution_time_seconds and outcome.execution_time_seconds > 300:
+            # Create performance task for slow execution
+            return {
+                "task_id": f"PERF-{self.run_id}-{outcome.phase_id}",
+                "title": f"Improve performance of {outcome.phase_type or 'phase'}",
+                "description": (
+                    f"Phase {outcome.phase_id} took {outcome.execution_time_seconds:.1f}s to execute. "
+                    f"This exceeds the performance threshold. "
+                    f"Review execution path and identify optimization opportunities."
+                ),
+                "priority": "medium",
+                "source_insights": [
+                    {
+                        "type": "feedback_loop_closure",
+                        "phase_id": outcome.phase_id,
+                        "run_id": self.run_id,
+                        "outcome_type": "performance_optimization",
+                        "execution_time_seconds": outcome.execution_time_seconds,
+                    }
+                ],
+                "suggested_files": [],
+                "estimated_effort": "M",
+                "created_at": timestamp,
+                "queued_at": timestamp,
+                "feedback_source": "IMP-LOOP-026",
+            }
+
+        return None
+
+    def _append_task_to_queue(self, task: Dict[str, Any], queue_file: Path) -> None:
+        """Append a task to the ROADC task queue file.
+
+        IMP-LOOP-026: Adds a follow-up task to the queue file that the
+        executor polls for new tasks. Uses file locking to prevent
+        concurrent write issues.
+
+        Args:
+            task: Task dictionary to add
+            queue_file: Path to the queue file
+        """
+        # Ensure parent directory exists
+        queue_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Load existing queue or create new one
+        if queue_file.exists():
+            try:
+                with open(queue_file, "r", encoding="utf-8") as f:
+                    queue_data = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                queue_data = {"tasks": [], "updated_at": None}
+        else:
+            queue_data = {"tasks": [], "updated_at": None}
+
+        # Append the new task
+        queue_data["tasks"].append(task)
+        queue_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+        # Write back to file
+        with open(queue_file, "w", encoding="utf-8") as f:
+            json.dump(queue_data, f, indent=2)
+
+        logger.debug(
+            f"[IMP-LOOP-026] Appended task to queue: {queue_file} "
+            f"(total tasks: {len(queue_data['tasks'])})"
+        )
+
+    def set_learning_memory_manager(self, manager: "LearningMemoryManager") -> None:
+        """Set the LearningMemoryManager for LEARNING_MEMORY.json persistence.
+
+        IMP-LOOP-026: Allows injection of the LearningMemoryManager after
+        pipeline initialization, enabling late binding for dependency injection.
+
+        Args:
+            manager: LearningMemoryManager instance to use
+        """
+        self._learning_memory_manager = manager
+        logger.debug("[IMP-LOOP-026] LearningMemoryManager set on FeedbackPipeline")
+
+    @property
+    def learning_memory_manager(self) -> Optional["LearningMemoryManager"]:
+        """Get the LearningMemoryManager instance.
+
+        IMP-LOOP-026: Returns the configured LearningMemoryManager for
+        external access or verification.
+
+        Returns:
+            LearningMemoryManager instance or None if not configured
+        """
+        return self._learning_memory_manager

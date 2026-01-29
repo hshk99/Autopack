@@ -202,3 +202,74 @@ class TestSettingsDefaults:
         # Create fresh settings instance
         settings = Settings()
         assert settings.autopack_sot_retrieval_enabled is False
+
+
+class TestTaskGenerationDefaults:
+    """Test suite for task generation configuration defaults (IMP-LOOP-007)."""
+
+    def test_task_generation_enabled_by_default(self):
+        """Verify task generation is enabled by default.
+
+        IMP-LOOP-007: Enable task generation by default to enable the
+        self-improvement loop. Task generation allows automatic creation
+        of improvement tasks from telemetry insights.
+        """
+        from autopack.config import Settings
+
+        settings = Settings()
+        assert settings.task_generation_enabled is True
+
+    def test_task_generation_auto_execute_enabled_by_default(self):
+        """Verify task auto-execution is enabled by default.
+
+        IMP-LOOP-007: Auto-execute generated tasks for continuous improvement.
+        """
+        from autopack.config import Settings
+
+        settings = Settings()
+        assert settings.task_generation_auto_execute is True
+
+    def test_task_generation_can_be_disabled_via_env(self, monkeypatch):
+        """Verify task generation can be disabled via environment variable."""
+        monkeypatch.setenv("AUTOPACK_TASK_GENERATION_ENABLED", "false")
+
+        from autopack.config import Settings
+
+        settings = Settings()
+        assert settings.task_generation_enabled is False
+
+    def test_task_generation_auto_execute_can_be_disabled_via_env(self, monkeypatch):
+        """Verify task auto-execution can be disabled via environment variable."""
+        monkeypatch.setenv("AUTOPACK_TASK_GENERATION_AUTO_EXECUTE", "false")
+
+        from autopack.config import Settings
+
+        settings = Settings()
+        assert settings.task_generation_auto_execute is False
+
+    def test_task_generation_property_returns_dict(self):
+        """Verify task_generation property returns expected dict structure."""
+        from autopack.config import Settings
+
+        settings = Settings()
+        task_gen = settings.task_generation
+
+        assert isinstance(task_gen, dict)
+        assert task_gen["enabled"] is True
+        assert task_gen["max_tasks_per_run"] == 10
+        assert task_gen["min_confidence"] == 0.7
+        assert task_gen["auto_execute"]["enabled"] is True
+
+    def test_task_generation_max_tasks_default(self):
+        """Verify default max tasks per run."""
+        from autopack.config import Settings
+
+        settings = Settings()
+        assert settings.task_generation_max_tasks_per_run == 10
+
+    def test_task_generation_min_confidence_default(self):
+        """Verify default minimum confidence threshold."""
+        from autopack.config import Settings
+
+        settings = Settings()
+        assert settings.task_generation_min_confidence == 0.7

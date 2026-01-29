@@ -3,9 +3,9 @@
 This module validates that extracted research findings contain accurate citations
 that match the source documents.
 
-CURRENT STATUS: Contains known issues that will be fixed in citation validity improvement phases:
-- Phase 1: Numeric verification is too strict (checks both content AND extraction_span) ✅ FIXED
-- Phase 2: Text normalization is too basic (misses HTML entities, Unicode, markdown) ✅ FIXED
+FIXES APPLIED:
+- Phase 1 (2025-12-16): Numeric verification only checks extraction_span, not content
+- Phase 2 (2025-12-16): Enhanced text normalization (HTML entities, Unicode, whitespace)
 """
 
 import re
@@ -42,9 +42,9 @@ class CitationValidator:
     2. Content hash verification
     3. Numeric verification for market/competitive intelligence
 
-    KNOWN ISSUES (to be fixed in citation improvement phases):
-    - Check 3 is too strict: compares numbers in content vs extraction_span
-    - Text normalization is too basic: misses HTML entities, Unicode, markdown
+    Previous issues fixed:
+    - Phase 1 (2025-12-16): Check 3 now only verifies extraction_span contains numbers
+    - Phase 2 (2025-12-16): Text normalization handles HTML entities, Unicode, markdown
     """
 
     def __init__(self):
@@ -79,8 +79,8 @@ class CitationValidator:
             )
 
         # Check 3: If numeric claim, validate extraction
-        # BUG: This is too strict - checks BOTH content and span
-        # Will be fixed in Phase 1 to only check extraction_span
+        # Phase 1 fix applied: Only checks extraction_span contains numbers,
+        # no longer validates content (which may legitimately paraphrase numbers)
         if finding.category in ["market_intelligence", "competitive_analysis"]:
             numeric_valid = self._verify_numeric_extraction(finding, normalized_span)
             if not numeric_valid:

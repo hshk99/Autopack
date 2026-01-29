@@ -7,14 +7,9 @@ import pytest
 
 from autopack.analytics.telemetry_analyzer import TelemetryAnalyzer
 from autopack.task_generation.insight_to_task import (
-    CRITICAL_ESCALATION_RATE,
-    CRITICAL_FLAKINESS,
-    CRITICAL_HEALTH_THRESHOLD,
-    HIGH_ESCALATION_RATE,
-    HIGH_FLAKINESS,
-    HIGH_IMPACT_THRESHOLD,
-    InsightToTaskGenerator,
-)
+    CRITICAL_ESCALATION_RATE, CRITICAL_FLAKINESS, CRITICAL_HEALTH_THRESHOLD,
+    HIGH_ESCALATION_RATE, HIGH_FLAKINESS, HIGH_IMPACT_THRESHOLD,
+    InsightToTaskGenerator)
 
 
 @pytest.fixture
@@ -528,3 +523,157 @@ class TestEdgeCases:
         imp = generator.format_as_imp(insight)
 
         assert imp["priority"] == "critical"
+
+
+class TestCreateCorrectiveTask:
+    """Tests for create_corrective_task method (IMP-LOOP-022)."""
+
+    @pytest.fixture
+    def generator(self, temp_state_dir: Path) -> InsightToTaskGenerator:
+        """Create a generator instance for testing."""
+        analyzer = TelemetryAnalyzer(state_dir=str(temp_state_dir))
+        return InsightToTaskGenerator(analyzer)
+
+    def test_create_from_dict(self, generator: InsightToTaskGenerator) -> None:
+        """Test creating corrective task from dictionary."""
+        corrective_data = {
+            "corrective_id": "CORR-001",
+            "original_task_id": "IMP-TEST-001",
+            "failure_count": 3,
+            "error_patterns": ["timeout error"],
+            "category": "telemetry",
+        }
+        imp = generator.create_corrective_task(corrective_data)
+
+        assert imp["id"] == "CORR-001"
+        assert imp["priority"] == "high"
+        assert imp["type"] == "corrective"
+        assert imp["original_task_id"] == "IMP-TEST-001"
+        assert imp["failure_count"] == 3
+
+    def test_create_from_object_with_to_dict(self, generator: InsightToTaskGenerator) -> None:
+        """Test creating corrective task from object with to_dict method."""
+        from autopack.task_generation.task_effectiveness_tracker import \
+            CorrectiveTask
+
+        corrective_task = CorrectiveTask(
+            corrective_id="CORR-002",
+            original_task_id="IMP-TEST-002",
+            failure_count=5,
+            error_patterns=["connection error"],
+            category="memory",
+        )
+        imp = generator.create_corrective_task(corrective_task)
+
+        assert imp["id"] == "CORR-002"
+        assert imp["original_task_id"] == "IMP-TEST-002"
+        assert imp["failure_count"] == 5
+
+    def test_corrective_task_has_high_priority(self, generator: InsightToTaskGenerator) -> None:
+        """Test corrective tasks always have high priority."""
+        corrective_data = {
+            "corrective_id": "CORR-001",
+            "original_task_id": "IMP-TEST-001",
+            "failure_count": 3,
+        }
+        imp = generator.create_corrective_task(corrective_data)
+
+        assert imp["priority"] == "high"
+
+    def test_corrective_task_includes_evidence(self, generator: InsightToTaskGenerator) -> None:
+        """Test corrective task includes failure evidence."""
+        corrective_data = {
+            "corrective_id": "CORR-001",
+            "original_task_id": "IMP-TEST-001",
+            "failure_count": 3,
+            "error_patterns": ["timeout", "connection_reset"],
+        }
+        imp = generator.create_corrective_task(corrective_data)
+
+        assert "evidence" in imp
+        assert imp["evidence"]["original_task_id"] == "IMP-TEST-001"
+        assert imp["evidence"]["failure_count"] == 3
+        assert imp["evidence"]["error_patterns"] == ["timeout", "connection_reset"]
+
+    def test_corrective_task_description_includes_failure_info(
+        self, generator: InsightToTaskGenerator
+    ) -> None:
+        """Test corrective task description includes failure context."""
+        corrective_data = {
+            "corrective_id": "CORR-001",
+            "original_task_id": "IMP-TEST-001",
+            "failure_count": 5,
+            "error_patterns": ["timeout error"],
+        }
+        imp = generator.create_corrective_task(corrective_data)
+
+        assert "IMP-TEST-001" in imp["description"]
+        assert "5 times" in imp["description"]
+        assert "timeout error" in imp["description"]
+
+    def test_corrective_task_title_includes_original_task(
+        self, generator: InsightToTaskGenerator
+    ) -> None:
+        """Test corrective task title mentions original task."""
+        corrective_data = {
+            "corrective_id": "CORR-001",
+            "original_task_id": "IMP-MEM-005",
+            "failure_count": 3,
+        }
+        imp = generator.create_corrective_task(corrective_data)
+
+        assert "IMP-MEM-005" in imp["title"]
+
+    def test_corrective_task_preserves_category(self, generator: InsightToTaskGenerator) -> None:
+        """Test corrective task preserves original category."""
+        corrective_data = {
+            "corrective_id": "CORR-001",
+            "original_task_id": "IMP-TEST-001",
+            "failure_count": 3,
+            "category": "telemetry",
+        }
+        imp = generator.create_corrective_task(corrective_data)
+
+        assert imp["category"] == "telemetry"
+
+    def test_corrective_task_status_is_pending(self, generator: InsightToTaskGenerator) -> None:
+        """Test corrective task starts with pending status."""
+        corrective_data = {
+            "corrective_id": "CORR-001",
+            "original_task_id": "IMP-TEST-001",
+            "failure_count": 3,
+        }
+        imp = generator.create_corrective_task(corrective_data)
+
+        assert imp["status"] == "pending"
+
+    def test_corrective_task_has_created_at(self, generator: InsightToTaskGenerator) -> None:
+        """Test corrective task includes creation timestamp."""
+        corrective_data = {
+            "corrective_id": "CORR-001",
+            "original_task_id": "IMP-TEST-001",
+            "failure_count": 3,
+        }
+        imp = generator.create_corrective_task(corrective_data)
+
+        assert "created_at" in imp
+        # Should be a valid ISO timestamp
+        from datetime import datetime
+
+        datetime.fromisoformat(imp["created_at"])
+
+    def test_corrective_task_with_empty_error_patterns(
+        self, generator: InsightToTaskGenerator
+    ) -> None:
+        """Test corrective task handles empty error patterns."""
+        corrective_data = {
+            "corrective_id": "CORR-001",
+            "original_task_id": "IMP-TEST-001",
+            "failure_count": 3,
+            "error_patterns": [],
+        }
+        imp = generator.create_corrective_task(corrective_data)
+
+        # Should not crash
+        assert imp["id"] == "CORR-001"
+        assert "error_patterns" not in imp["description"]  # Empty patterns not mentioned

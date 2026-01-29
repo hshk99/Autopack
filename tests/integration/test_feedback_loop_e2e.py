@@ -2033,8 +2033,8 @@ class TestInsightCorrelationEngineIntegration:
     def test_confidence_updates_on_outcomes(self):
         """Test confidence is updated based on task outcomes."""
         from autopack.task_generation.insight_correlation import (
-            InsightCorrelationEngine,
             MIN_SAMPLE_SIZE_FOR_UPDATE,
+            InsightCorrelationEngine,
         )
 
         engine = InsightCorrelationEngine()
@@ -2282,3 +2282,348 @@ class TestConfidenceLifecycleIntegration:
         assert stats.successful_tasks == 3
         assert stats.failed_tasks == 1
         assert stats.success_rate == 0.75
+
+
+# =============================================================================
+# Task Generation Throughput and Execution Wiring Tests (IMP-LOOP-025)
+# =============================================================================
+
+
+class TestTaskGenerationThroughputMetrics:
+    """Integration tests for task generation throughput metrics (IMP-LOOP-025).
+
+    These tests validate that task generation events are properly tracked
+    and that the execution wiring between AutonomousTaskGenerator and
+    the execution loop is verified.
+    """
+
+    def test_meta_metrics_tracker_records_task_generation(self):
+        """Test MetaMetricsTracker records task generation events."""
+        from autopack.telemetry.meta_metrics import MetaMetricsTracker
+
+        tracker = MetaMetricsTracker()
+
+        # Record task generation events
+        event1 = tracker.record_task_generated(
+            task_id="TASK-001",
+            source="analyzer",
+            generation_time_ms=150.0,
+            insights_consumed=2,
+            run_id="run_001",
+            queued_for_execution=True,
+        )
+
+        event2 = tracker.record_task_generated(
+            task_id="TASK-002",
+            source="memory",
+            generation_time_ms=200.0,
+            insights_consumed=1,
+            run_id="run_001",
+            queued_for_execution=False,
+        )
+
+        # Verify events were recorded
+        assert event1.task_id == "TASK-001"
+        assert event1.source == "analyzer"
+        assert event1.queued_for_execution is True
+
+        assert event2.task_id == "TASK-002"
+        assert event2.source == "memory"
+        assert event2.queued_for_execution is False
+
+    def test_throughput_metrics_calculation(self):
+        """Test throughput metrics are calculated correctly."""
+        from autopack.telemetry.meta_metrics import MetaMetricsTracker
+
+        tracker = MetaMetricsTracker()
+
+        # Record multiple task generation events
+        for i in range(5):
+            tracker.record_task_generated(
+                task_id=f"TASK-{i:03d}",
+                source="analyzer",
+                generation_time_ms=100.0 + i * 10,
+                insights_consumed=2,
+                run_id="run_001",
+                queued_for_execution=i < 3,  # First 3 queued, last 2 not
+            )
+
+        # Get throughput metrics
+        metrics = tracker.get_task_generation_throughput(window_minutes=60.0)
+
+        # Verify calculations
+        assert metrics.total_tasks_generated == 5
+        assert metrics.tasks_queued_for_execution == 3
+        assert metrics.total_insights_consumed == 10  # 5 tasks * 2 insights each
+        assert metrics.queue_rate == 0.6  # 3/5
+
+        # Average generation time should be calculated
+        # (100 + 110 + 120 + 130 + 140) / 5 = 120
+        assert metrics.avg_generation_time_ms == 120.0
+
+        # Breakdown by source should be correct
+        assert metrics.by_source.get("analyzer", 0) == 5
+
+    def test_mark_task_queued_updates_event(self):
+        """Test that mark_task_queued updates existing events."""
+        from autopack.telemetry.meta_metrics import MetaMetricsTracker
+
+        tracker = MetaMetricsTracker()
+
+        # Record a task that's not initially queued
+        tracker.record_task_generated(
+            task_id="TASK-MARK-001",
+            source="direct",
+            queued_for_execution=False,
+        )
+
+        # Mark it as queued
+        result = tracker.mark_task_queued("TASK-MARK-001")
+        assert result is True
+
+        # Verify the update is reflected in metrics
+        metrics = tracker.get_task_generation_throughput()
+        assert metrics.tasks_queued_for_execution == 1
+
+    def test_verify_execution_wiring_healthy(self):
+        """Test wiring verification reports healthy when tasks are queued."""
+        from autopack.telemetry.meta_metrics import MetaMetricsTracker
+
+        tracker = MetaMetricsTracker()
+
+        # Record tasks that are all queued
+        for i in range(3):
+            tracker.record_task_generated(
+                task_id=f"TASK-WIRED-{i:03d}",
+                source="analyzer",
+                queued_for_execution=True,
+            )
+
+        # Verify wiring
+        result = tracker.verify_execution_wiring()
+
+        assert result["wiring_verified"] is True
+        assert result["status"] == "healthy"
+        assert result["queue_rate"] == 1.0
+        assert len(result["recommendations"]) == 0
+
+    def test_verify_execution_wiring_low_queue_rate(self):
+        """Test wiring verification detects low queue rate."""
+        from autopack.telemetry.meta_metrics import MetaMetricsTracker
+
+        tracker = MetaMetricsTracker()
+
+        # Record tasks with low queue rate (only 1 of 5 queued)
+        for i in range(5):
+            tracker.record_task_generated(
+                task_id=f"TASK-LOW-{i:03d}",
+                source="analyzer",
+                queued_for_execution=i == 0,  # Only first one queued
+            )
+
+        # Verify wiring
+        result = tracker.verify_execution_wiring()
+
+        assert result["wiring_verified"] is False
+        assert result["status"] == "low_queue_rate"
+        assert result["queue_rate"] == 0.2  # 1/5
+        assert len(result["recommendations"]) >= 1
+
+    def test_verify_execution_wiring_no_tasks(self):
+        """Test wiring verification handles no tasks gracefully."""
+        from autopack.telemetry.meta_metrics import MetaMetricsTracker
+
+        tracker = MetaMetricsTracker()
+
+        # No tasks recorded
+        result = tracker.verify_execution_wiring()
+
+        assert result["status"] == "no_tasks"
+        assert len(result["recommendations"]) >= 1
+
+    def test_throughput_status_levels(self):
+        """Test throughput status classification."""
+        from datetime import datetime, timezone
+
+        from autopack.telemetry.meta_metrics import TaskGenerationThroughputMetrics
+
+        now = datetime.now(timezone.utc)
+
+        # No tasks - unknown status
+        metrics_unknown = TaskGenerationThroughputMetrics(
+            total_tasks_generated=0,
+            tasks_queued_for_execution=0,
+            total_insights_consumed=0,
+            avg_generation_time_ms=0.0,
+            generation_rate_per_minute=0.0,
+            insights_per_task_ratio=0.0,
+            queue_rate=0.0,
+            window_start=now,
+            window_end=now,
+        )
+        assert metrics_unknown.throughput_status == "unknown"
+
+        # High rate - healthy
+        metrics_healthy = TaskGenerationThroughputMetrics(
+            total_tasks_generated=10,
+            tasks_queued_for_execution=10,
+            total_insights_consumed=20,
+            avg_generation_time_ms=100.0,
+            generation_rate_per_minute=0.5,  # 1 task per 2 minutes
+            insights_per_task_ratio=2.0,
+            queue_rate=1.0,
+            window_start=now,
+            window_end=now,
+        )
+        assert metrics_healthy.throughput_status == "healthy"
+
+        # Low rate
+        metrics_low = TaskGenerationThroughputMetrics(
+            total_tasks_generated=1,
+            tasks_queued_for_execution=1,
+            total_insights_consumed=1,
+            avg_generation_time_ms=100.0,
+            generation_rate_per_minute=0.05,  # 1 task per 20 minutes
+            insights_per_task_ratio=1.0,
+            queue_rate=1.0,
+            window_start=now,
+            window_end=now,
+        )
+        assert metrics_low.throughput_status == "low"
+
+        # Stalled
+        metrics_stalled = TaskGenerationThroughputMetrics(
+            total_tasks_generated=1,
+            tasks_queued_for_execution=1,
+            total_insights_consumed=1,
+            avg_generation_time_ms=100.0,
+            generation_rate_per_minute=0.001,  # Very low
+            insights_per_task_ratio=1.0,
+            queue_rate=1.0,
+            window_start=now,
+            window_end=now,
+        )
+        assert metrics_stalled.throughput_status == "stalled"
+
+    def test_execution_wiring_verified_property(self):
+        """Test execution_wiring_verified property."""
+        from datetime import datetime, timezone
+
+        from autopack.telemetry.meta_metrics import TaskGenerationThroughputMetrics
+
+        now = datetime.now(timezone.utc)
+
+        # Tasks generated and queued - verified
+        metrics_verified = TaskGenerationThroughputMetrics(
+            total_tasks_generated=5,
+            tasks_queued_for_execution=3,
+            total_insights_consumed=10,
+            avg_generation_time_ms=100.0,
+            generation_rate_per_minute=0.1,
+            insights_per_task_ratio=2.0,
+            queue_rate=0.6,
+            window_start=now,
+            window_end=now,
+        )
+        assert metrics_verified.execution_wiring_verified is True
+
+        # Tasks generated but none queued - not verified
+        metrics_not_verified = TaskGenerationThroughputMetrics(
+            total_tasks_generated=5,
+            tasks_queued_for_execution=0,
+            total_insights_consumed=10,
+            avg_generation_time_ms=100.0,
+            generation_rate_per_minute=0.1,
+            insights_per_task_ratio=2.0,
+            queue_rate=0.0,
+            window_start=now,
+            window_end=now,
+        )
+        assert metrics_not_verified.execution_wiring_verified is False
+
+        # No tasks generated - trivially verified
+        metrics_empty = TaskGenerationThroughputMetrics(
+            total_tasks_generated=0,
+            tasks_queued_for_execution=0,
+            total_insights_consumed=0,
+            avg_generation_time_ms=0.0,
+            generation_rate_per_minute=0.0,
+            insights_per_task_ratio=0.0,
+            queue_rate=0.0,
+            window_start=now,
+            window_end=now,
+        )
+        assert metrics_empty.execution_wiring_verified is True
+
+    def test_throughput_metrics_rolling_window(self):
+        """Test that throughput metrics use a rolling window."""
+        from autopack.telemetry.meta_metrics import MetaMetricsTracker
+
+        tracker = MetaMetricsTracker()
+        tracker._max_generation_events = 5  # Small window for testing
+
+        # Record more events than the window size
+        for i in range(10):
+            tracker.record_task_generated(
+                task_id=f"TASK-ROLL-{i:03d}",
+                source="analyzer",
+                queued_for_execution=True,
+            )
+
+        # Check that only the last 5 events are kept
+        assert len(tracker._task_generation_events) == 5
+
+        # The events should be the last 5 (TASK-ROLL-005 through TASK-ROLL-009)
+        task_ids = [e.task_id for e in tracker._task_generation_events]
+        assert task_ids[0] == "TASK-ROLL-005"
+        assert task_ids[-1] == "TASK-ROLL-009"
+
+    def test_task_generation_event_serialization(self):
+        """Test TaskGenerationEvent serializes to dict correctly."""
+        from autopack.telemetry.meta_metrics import TaskGenerationEvent
+
+        event = TaskGenerationEvent(
+            task_id="TASK-SER-001",
+            source="analyzer",
+            generation_time_ms=150.5,
+            insights_consumed=3,
+            run_id="run_123",
+            queued_for_execution=True,
+        )
+
+        event_dict = event.to_dict()
+
+        assert event_dict["task_id"] == "TASK-SER-001"
+        assert event_dict["source"] == "analyzer"
+        assert event_dict["generation_time_ms"] == 150.5
+        assert event_dict["insights_consumed"] == 3
+        assert event_dict["run_id"] == "run_123"
+        assert event_dict["queued_for_execution"] is True
+        assert "timestamp" in event_dict
+
+    def test_throughput_metrics_serialization(self):
+        """Test TaskGenerationThroughputMetrics serializes to dict correctly."""
+        from autopack.telemetry.meta_metrics import MetaMetricsTracker
+
+        tracker = MetaMetricsTracker()
+
+        # Record some events
+        tracker.record_task_generated(
+            task_id="TASK-SER-001",
+            source="analyzer",
+            generation_time_ms=100.0,
+            queued_for_execution=True,
+        )
+
+        metrics = tracker.get_task_generation_throughput()
+        metrics_dict = metrics.to_dict()
+
+        # Verify all expected fields are present
+        assert "total_tasks_generated" in metrics_dict
+        assert "tasks_queued_for_execution" in metrics_dict
+        assert "avg_generation_time_ms" in metrics_dict
+        assert "generation_rate_per_minute" in metrics_dict
+        assert "queue_rate" in metrics_dict
+        assert "window_start" in metrics_dict
+        assert "window_end" in metrics_dict
+        assert "by_source" in metrics_dict

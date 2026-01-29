@@ -7,9 +7,21 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol, Set, runtime_checkable
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    Optional,
+    Protocol,
+    Set,
+    runtime_checkable,
+)
 
 from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from ..telemetry.meta_metrics import MetaMetricsTracker
 
 from ..memory.confidence_manager import ConfidenceManager
 from ..memory.memory_service import DEFAULT_MEMORY_FRESHNESS_HOURS, MemoryService
@@ -640,6 +652,7 @@ class AutonomousTaskGenerator:
         db_session: Optional[Session] = None,
         project_id: str = "default",
         confidence_manager: Optional[ConfidenceManager] = None,
+        metrics_tracker: Optional["MetaMetricsTracker"] = None,
     ):
         self._memory = memory_service or MemoryService()
         self._regression = regression_protector or RegressionProtector()
@@ -662,6 +675,10 @@ class AutonomousTaskGenerator:
             self._telemetry_analyzer = TelemetryAnalyzer(db_session, memory_service=self._memory)
             logger.debug("[IMP-ARCH-017] TelemetryAnalyzer initialized for task generation")
         logger.debug("[IMP-FBK-005] CausalAnalyzer initialized for task prioritization")
+        # IMP-LOOP-025: MetaMetricsTracker for task generation throughput observability
+        self._metrics_tracker = metrics_tracker
+        if metrics_tracker is not None:
+            logger.debug("[IMP-LOOP-025] MetaMetricsTracker connected for throughput metrics")
 
     def _unified_insights_to_dicts(
         self, unified_insights: List[UnifiedInsight]
@@ -976,6 +993,7 @@ class AutonomousTaskGenerator:
 
             # IMP-LOOP-025: Emit tasks to executor queue for direct consumption
             # This provides a faster path than database polling for task execution
+            queued_count = 0
             if tasks:
                 try:
                     queued_count = self._emit_to_executor_queue(tasks)
@@ -988,6 +1006,24 @@ class AutonomousTaskGenerator:
                     logger.warning(
                         f"[IMP-LOOP-025] Failed to emit tasks to queue (non-blocking): {emit_err}"
                     )
+
+            # IMP-LOOP-025: Record task generation metrics for throughput observability
+            if self._metrics_tracker is not None and tasks:
+                for task in tasks:
+                    try:
+                        self._metrics_tracker.record_task_generated(
+                            task_id=task.task_id,
+                            source=telemetry_source or "unknown",
+                            generation_time_ms=generation_time_ms / len(tasks),
+                            insights_consumed=len(task.source_insights),
+                            run_id=run_id,
+                            queued_for_execution=queued_count > 0,
+                        )
+                    except Exception as metric_err:
+                        # Non-blocking - metrics recording should not fail task generation
+                        logger.warning(
+                            f"[IMP-LOOP-025] Failed to record task metrics: {metric_err}"
+                        )
 
             return TaskGenerationResult(
                 tasks_generated=tasks,

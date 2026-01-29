@@ -475,6 +475,10 @@ class FeedbackLoopHealthReport:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
+# Type alias for health transition callbacks
+HealthTransitionCallback = Any  # Callable[[FeedbackLoopHealth, FeedbackLoopHealth], None]
+
+
 class MetaMetricsTracker:
     """Track and analyze meta-metrics for feedback loop quality.
 
@@ -486,6 +490,9 @@ class MetaMetricsTracker:
     - ROAD-G: Anomaly detection accuracy (alert precision, false positives)
     - ROAD-J: Healing effectiveness (success rate, escalation rate)
     - ROAD-L: Model optimization (success rate trends, token efficiency)
+
+    IMP-REL-001: Includes health transition monitoring with callback support
+    for auto-resume of task generation when health recovers.
     """
 
     def __init__(
@@ -503,6 +510,11 @@ class MetaMetricsTracker:
         self.min_samples_for_trend = min_samples_for_trend
         self.degradation_threshold = degradation_threshold
         self.improvement_threshold = improvement_threshold
+
+        # IMP-REL-001: Track previous health state for transition detection
+        self._previous_health_status: Optional[FeedbackLoopHealth] = None
+        self._health_transition_callbacks: List[HealthTransitionCallback] = []
+        self._task_generation_paused: bool = False
 
     def analyze_feedback_loop_health(
         self, telemetry_data: Dict[str, Any], baseline_data: Optional[Dict[str, Any]] = None
@@ -1232,13 +1244,119 @@ class MetaMetricsTracker:
         ATTENTION_REQUIRED state, indicating that automatic task generation
         should be paused until the underlying issues are resolved.
 
+        Also triggers health transition callbacks if the health status has changed,
+        enabling auto-resume when health recovers.
+
         Args:
             health_report: The current feedback loop health report
 
         Returns:
             True if task generation should be paused, False otherwise
         """
-        return health_report.overall_status == FeedbackLoopHealth.ATTENTION_REQUIRED
+        current_status = health_report.overall_status
+        should_pause = current_status == FeedbackLoopHealth.ATTENTION_REQUIRED
+
+        # IMP-REL-001: Detect and handle health transitions
+        if self._previous_health_status is not None:
+            if current_status != self._previous_health_status:
+                self._on_health_transition(self._previous_health_status, current_status)
+
+        # Update previous status and pause state
+        self._previous_health_status = current_status
+        self._task_generation_paused = should_pause
+
+        return should_pause
+
+    def register_health_transition_callback(self, callback: HealthTransitionCallback) -> None:
+        """Register a callback to be invoked when health status changes.
+
+        IMP-REL-001: Callbacks are invoked with (old_status, new_status) when
+        the feedback loop health transitions between states. This enables
+        auto-resume of task generation when health recovers.
+
+        Args:
+            callback: Function that takes (old_status, new_status) as arguments
+        """
+        self._health_transition_callbacks.append(callback)
+        logger.debug(
+            f"[IMP-REL-001] Registered health transition callback "
+            f"(total callbacks: {len(self._health_transition_callbacks)})"
+        )
+
+    def unregister_health_transition_callback(self, callback: HealthTransitionCallback) -> bool:
+        """Unregister a previously registered health transition callback.
+
+        Args:
+            callback: The callback function to unregister
+
+        Returns:
+            True if callback was found and removed, False otherwise
+        """
+        try:
+            self._health_transition_callbacks.remove(callback)
+            logger.debug("[IMP-REL-001] Unregistered health transition callback")
+            return True
+        except ValueError:
+            return False
+
+    def _on_health_transition(
+        self, old_status: FeedbackLoopHealth, new_status: FeedbackLoopHealth
+    ) -> None:
+        """Handle health state transitions for auto-resume logic.
+
+        IMP-REL-001: Called when health status changes. Invokes all registered
+        callbacks and logs the transition. Specifically handles the recovery
+        case where health transitions from ATTENTION_REQUIRED to HEALTHY,
+        which should trigger auto-resume of task generation.
+
+        Args:
+            old_status: Previous health status
+            new_status: New health status
+        """
+        logger.info(
+            f"[IMP-REL-001] Health transition detected: "
+            f"{old_status.value} -> {new_status.value}"
+        )
+
+        # Check for recovery transition (auto-resume trigger)
+        if (
+            old_status == FeedbackLoopHealth.ATTENTION_REQUIRED
+            and new_status == FeedbackLoopHealth.HEALTHY
+        ):
+            logger.info(
+                "[IMP-REL-001] Health recovered from ATTENTION_REQUIRED to HEALTHY. "
+                "Task generation can resume."
+            )
+            self._task_generation_paused = False
+
+        # Invoke all registered callbacks
+        for callback in self._health_transition_callbacks:
+            try:
+                callback(old_status, new_status)
+            except Exception as e:
+                logger.warning(f"[IMP-REL-001] Health transition callback failed: {e}")
+
+    def is_task_generation_paused(self) -> bool:
+        """Check if task generation is currently paused.
+
+        IMP-REL-001: Returns the current pause state of task generation.
+        This is updated by should_pause_task_generation() based on health status.
+
+        Returns:
+            True if task generation is paused, False otherwise
+        """
+        return self._task_generation_paused
+
+    def get_previous_health_status(self) -> Optional[FeedbackLoopHealth]:
+        """Get the previous health status for transition analysis.
+
+        IMP-REL-001: Returns the last known health status, useful for
+        understanding recent health transitions.
+
+        Returns:
+            Previous FeedbackLoopHealth status or None if not yet established
+        """
+        return self._previous_health_status
 
     def export_to_prometheus(
         self, telemetry_data: Optional[Dict[str, Any]] = None

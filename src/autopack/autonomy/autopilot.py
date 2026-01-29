@@ -13,13 +13,15 @@ BUILD-181 Integration:
 - ExecutorContext for usage tracking, safety profile, scope reduction
 - Approval service for pivot-impacting changes
 - Coverage metrics processing
+
+IMP-REL-001: Health-gated task generation with auto-resume support.
 """
 
 import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from ..file_layout import RunFileLayout
 from ..gaps.scanner import scan_workspace
@@ -29,13 +31,8 @@ from ..planning.plan_proposer import propose_plan
 from .action_allowlist import ActionClassification
 from .action_executor import ExecutionBatch, SafeActionExecutor
 from .executor_integration import ExecutorContext, create_executor_context
-from .models import (
-    ApprovalRequest,
-    AutopilotMetadata,
-    AutopilotSessionV1,
-    ErrorLogEntry,
-    ExecutionSummary,
-)
+from .models import (ApprovalRequest, AutopilotMetadata, AutopilotSessionV1,
+                     ErrorLogEntry, ExecutionSummary)
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +47,10 @@ class AutopilotController:
         enabled: Whether autopilot is enabled (default: False)
         session: Current autopilot session
         executor_ctx: BUILD-181 ExecutorContext for integrated handling
+
+    IMP-REL-001: Includes health-gated task generation with auto-resume support.
+    Task generation can be paused when feedback loop health is degraded and
+    automatically resumed when health recovers to HEALTHY.
     """
 
     def __init__(
@@ -74,6 +75,11 @@ class AutopilotController:
         self.layout = RunFileLayout(run_id=run_id, project_id=project_id)
         self.session: Optional[AutopilotSessionV1] = None
         self.executor_ctx: Optional[ExecutorContext] = None
+
+        # IMP-REL-001: Health-gated task generation state
+        self._task_generation_paused: bool = False
+        self._pause_reason: Optional[str] = None
+        self._resume_callbacks: list[Callable[[], None]] = []
 
     def run_session(self, anchor: IntentionAnchorV2) -> AutopilotSessionV1:
         """Run autopilot session with safe execution gates.
@@ -207,6 +213,127 @@ class AutopilotController:
             )
 
         return self.session
+
+    def on_health_transition(
+        self, old_status: "FeedbackLoopHealth", new_status: "FeedbackLoopHealth"
+    ) -> None:
+        """Handle health state transitions for auto-resume logic.
+
+        IMP-REL-001: This callback is invoked when the feedback loop health
+        transitions between states. When health recovers from ATTENTION_REQUIRED
+        to HEALTHY, task generation is automatically resumed.
+
+        Args:
+            old_status: Previous health status
+            new_status: New health status
+        """
+        from ..telemetry.meta_metrics import FeedbackLoopHealth
+
+        logger.info(
+            f"[IMP-REL-001] Autopilot received health transition: "
+            f"{old_status.value} -> {new_status.value}"
+        )
+
+        # Check for recovery transition
+        if (
+            old_status == FeedbackLoopHealth.ATTENTION_REQUIRED
+            and new_status == FeedbackLoopHealth.HEALTHY
+        ):
+            self._trigger_task_generation_resume()
+        elif new_status == FeedbackLoopHealth.ATTENTION_REQUIRED:
+            self._pause_task_generation("Health status is ATTENTION_REQUIRED")
+
+    def _trigger_task_generation_resume(self) -> None:
+        """Trigger resumption of task generation after health recovery.
+
+        IMP-REL-001: Called when health transitions from ATTENTION_REQUIRED
+        to HEALTHY. Invokes all registered resume callbacks and updates
+        internal state to allow task generation.
+        """
+        if not self._task_generation_paused:
+            logger.debug("[IMP-REL-001] Task generation not paused, no resume needed")
+            return
+
+        logger.info("[IMP-REL-001] Triggering task generation resume after health recovery")
+
+        self._task_generation_paused = False
+        self._pause_reason = None
+
+        # Invoke all registered resume callbacks
+        for callback in self._resume_callbacks:
+            try:
+                callback()
+            except Exception as e:
+                logger.warning(f"[IMP-REL-001] Task generation resume callback failed: {e}")
+
+        logger.info("[IMP-REL-001] Task generation resumed successfully")
+
+    def _pause_task_generation(self, reason: str) -> None:
+        """Pause task generation due to health degradation.
+
+        IMP-REL-001: Called when health transitions to ATTENTION_REQUIRED.
+        Updates internal state to prevent new task generation until health
+        recovers.
+
+        Args:
+            reason: Human-readable reason for the pause
+        """
+        if self._task_generation_paused:
+            logger.debug(f"[IMP-REL-001] Task generation already paused: {self._pause_reason}")
+            return
+
+        logger.warning(f"[IMP-REL-001] Pausing task generation: {reason}")
+        self._task_generation_paused = True
+        self._pause_reason = reason
+
+    def register_resume_callback(self, callback: Callable[[], None]) -> None:
+        """Register a callback to be invoked when task generation resumes.
+
+        IMP-REL-001: Callbacks are invoked when health recovers and task
+        generation is resumed. Use this to restart any paused task generation
+        processes.
+
+        Args:
+            callback: Function to call when task generation resumes
+        """
+        self._resume_callbacks.append(callback)
+        logger.debug(
+            f"[IMP-REL-001] Registered resume callback " f"(total: {len(self._resume_callbacks)})"
+        )
+
+    def unregister_resume_callback(self, callback: Callable[[], None]) -> bool:
+        """Unregister a previously registered resume callback.
+
+        Args:
+            callback: The callback function to unregister
+
+        Returns:
+            True if callback was found and removed, False otherwise
+        """
+        try:
+            self._resume_callbacks.remove(callback)
+            return True
+        except ValueError:
+            return False
+
+    def is_task_generation_paused(self) -> bool:
+        """Check if task generation is currently paused due to health issues.
+
+        IMP-REL-001: Returns True if task generation has been paused due
+        to feedback loop health being in ATTENTION_REQUIRED state.
+
+        Returns:
+            True if task generation is paused, False otherwise
+        """
+        return self._task_generation_paused
+
+    def get_pause_reason(self) -> Optional[str]:
+        """Get the reason task generation is paused.
+
+        Returns:
+            Reason string if paused, None if not paused
+        """
+        return self._pause_reason if self._task_generation_paused else None
 
     def _handle_approval_required(self, proposal: PlanProposalV1) -> None:
         """Handle case where approval is required.

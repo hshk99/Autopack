@@ -26,12 +26,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from autopack.telemetry.meta_metrics import PipelineLatencyTracker, PipelineStage
+from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
+                                             MetaMetricsTracker,
+                                             PipelineLatencyTracker,
+                                             PipelineStage)
 
 if TYPE_CHECKING:
-    from autopack.task_generation.task_effectiveness_tracker import (
-        TaskEffectivenessTracker,
-    )
+    from autopack.task_generation.task_effectiveness_tracker import \
+        TaskEffectivenessTracker
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +134,7 @@ class FeedbackPipeline:
         learning_pipeline: Optional[Any] = None,
         effectiveness_tracker: Optional["TaskEffectivenessTracker"] = None,
         latency_tracker: Optional[PipelineLatencyTracker] = None,
+        meta_metrics_tracker: Optional[MetaMetricsTracker] = None,
         run_id: Optional[str] = None,
         project_id: Optional[str] = None,
         enabled: bool = True,
@@ -146,6 +149,8 @@ class FeedbackPipeline:
                 analyzing patterns and generating learning rules
             latency_tracker: IMP-TELE-001: PipelineLatencyTracker for measuring
                 loop cycle time across pipeline stages
+            meta_metrics_tracker: IMP-REL-001: MetaMetricsTracker for health
+                monitoring and auto-resume of task generation
             run_id: Current run identifier
             project_id: Project identifier for namespacing
             enabled: Whether the pipeline is active (default: True)
@@ -160,6 +165,11 @@ class FeedbackPipeline:
 
         # IMP-TELE-001: Pipeline latency tracking for loop cycle time measurement
         self._latency_tracker = latency_tracker
+
+        # IMP-REL-001: Meta-metrics tracking for health monitoring and auto-resume
+        self._meta_metrics_tracker = meta_metrics_tracker or MetaMetricsTracker()
+        self._task_generation_paused = False
+        self._health_resume_callbacks: List[Any] = []
 
         # Track processed outcomes for deduplication
         self._processed_outcomes: set = set()
@@ -1048,6 +1058,153 @@ class FeedbackPipeline:
         if persist:
             self._save_hint_occurrences()
             logger.info("[IMP-LOOP-020] Cleared and persisted empty hint occurrences")
+
+    # =========================================================================
+    # IMP-REL-001: Health Monitoring and Auto-Resume Support
+    # =========================================================================
+
+    def check_health_and_update_pause_state(
+        self, telemetry_data: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """Check feedback loop health and update task generation pause state.
+
+        IMP-REL-001: Monitors the feedback loop health and automatically
+        manages task generation pause/resume state. When health degrades
+        to ATTENTION_REQUIRED, task generation is paused. When health
+        recovers to HEALTHY, task generation is automatically resumed.
+
+        Args:
+            telemetry_data: Optional telemetry data for health analysis.
+                If not provided, uses empty dict (baseline scores).
+
+        Returns:
+            True if task generation should be paused, False otherwise
+        """
+        if not self.enabled:
+            return False
+
+        try:
+            # Analyze current health state
+            health_report = self._meta_metrics_tracker.analyze_feedback_loop_health(
+                telemetry_data or {}
+            )
+
+            # Check if we should pause (this also triggers transition callbacks)
+            should_pause = self._meta_metrics_tracker.should_pause_task_generation(health_report)
+
+            # Update our local pause state
+            self._task_generation_paused = should_pause
+
+            if should_pause:
+                logger.warning(
+                    f"[IMP-REL-001] Task generation paused: health={health_report.overall_status.value}, "
+                    f"score={health_report.overall_score:.2f}"
+                )
+            elif (
+                self._meta_metrics_tracker.get_previous_health_status()
+                == FeedbackLoopHealth.ATTENTION_REQUIRED
+            ):
+                # Just recovered - log the resume
+                logger.info(
+                    f"[IMP-REL-001] Task generation can resume: health={health_report.overall_status.value}, "
+                    f"score={health_report.overall_score:.2f}"
+                )
+
+            return should_pause
+
+        except Exception as e:
+            logger.warning(f"[IMP-REL-001] Failed to check health status: {e}")
+            return False
+
+    def register_health_resume_callback(self, callback: Any) -> None:
+        """Register a callback to be invoked when health recovers.
+
+        IMP-REL-001: Callbacks are invoked with (old_status, new_status) when
+        health transitions from ATTENTION_REQUIRED to HEALTHY, enabling
+        external components to resume their operations.
+
+        Args:
+            callback: Function that takes (old_status, new_status) as arguments
+        """
+        self._health_resume_callbacks.append(callback)
+        # Also register with the MetaMetricsTracker
+        self._meta_metrics_tracker.register_health_transition_callback(callback)
+        logger.debug(
+            f"[IMP-REL-001] Registered health resume callback "
+            f"(total: {len(self._health_resume_callbacks)})"
+        )
+
+    def unregister_health_resume_callback(self, callback: Any) -> bool:
+        """Unregister a previously registered health resume callback.
+
+        Args:
+            callback: The callback function to unregister
+
+        Returns:
+            True if callback was found and removed, False otherwise
+        """
+        try:
+            self._health_resume_callbacks.remove(callback)
+            self._meta_metrics_tracker.unregister_health_transition_callback(callback)
+            return True
+        except ValueError:
+            return False
+
+    def is_task_generation_paused(self) -> bool:
+        """Check if task generation is currently paused due to health issues.
+
+        IMP-REL-001: Returns True if task generation has been paused due
+        to feedback loop health being in ATTENTION_REQUIRED state.
+
+        Returns:
+            True if task generation is paused, False otherwise
+        """
+        return self._task_generation_paused
+
+    def get_health_status(self) -> Dict[str, Any]:
+        """Get current health status summary.
+
+        IMP-REL-001: Returns a summary of the current feedback loop health
+        status including whether task generation is paused.
+
+        Returns:
+            Dictionary with health status information
+        """
+        previous_status = self._meta_metrics_tracker.get_previous_health_status()
+        return {
+            "task_generation_paused": self._task_generation_paused,
+            "previous_health_status": previous_status.value if previous_status else None,
+            "meta_metrics_paused": self._meta_metrics_tracker.is_task_generation_paused(),
+            "registered_callbacks": len(self._health_resume_callbacks),
+        }
+
+    @property
+    def meta_metrics_tracker(self) -> MetaMetricsTracker:
+        """Get the meta-metrics tracker.
+
+        IMP-REL-001: Returns the MetaMetricsTracker for external access,
+        allowing integration with autopilot health gating.
+
+        Returns:
+            MetaMetricsTracker instance
+        """
+        return self._meta_metrics_tracker
+
+    def set_meta_metrics_tracker(self, tracker: MetaMetricsTracker) -> None:
+        """Set the meta-metrics tracker.
+
+        IMP-REL-001: Allows injection of a MetaMetricsTracker after
+        pipeline initialization.
+
+        Args:
+            tracker: MetaMetricsTracker instance to use
+        """
+        # Re-register any existing callbacks with the new tracker
+        for callback in self._health_resume_callbacks:
+            tracker.register_health_transition_callback(callback)
+
+        self._meta_metrics_tracker = tracker
+        logger.debug("[IMP-REL-001] Meta-metrics tracker set on FeedbackPipeline")
 
     def _create_insight_from_outcome(self, outcome: PhaseOutcome) -> Dict[str, Any]:
         """Create a telemetry insight from a phase outcome.

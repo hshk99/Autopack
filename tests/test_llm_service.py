@@ -1490,6 +1490,7 @@ class TestRunDualAudit:
         service._record_usage = MagicMock()
         service._model_to_provider = MagicMock(return_value="anthropic")
 
+        # IMP-PERF-002: Set early_exit_threshold to 1.0 to force both auditors to run
         primary, secondary = service._run_dual_audit(
             patch_content="diff content",
             phase_spec={"task_category": "security"},
@@ -1500,6 +1501,7 @@ class TestRunDualAudit:
             run_hints=[],
             run_id="test-run",
             phase_id="phase-1",
+            early_exit_threshold=1.0,  # Disable early exit for this test
         )
 
         assert primary.approved is True
@@ -1529,6 +1531,7 @@ class TestRunDualAudit:
         service._record_usage = MagicMock()
         service._model_to_provider = MagicMock(return_value="anthropic")
 
+        # IMP-PERF-002: Set early_exit_threshold to 1.0 to force both auditors to run
         service._run_dual_audit(
             patch_content="diff",
             phase_spec={},
@@ -1539,6 +1542,7 @@ class TestRunDualAudit:
             run_hints=None,
             run_id="test-run",
             phase_id="phase-1",
+            early_exit_threshold=1.0,  # Disable early exit for this test
         )
 
         # Should record usage for both auditors
@@ -1806,3 +1810,439 @@ class TestAdditionalEdgeCases:
 
         # OpenAI is the fallback, should not be disabled
         service.model_router.disable_provider.assert_not_called()
+
+
+# =============================================================================
+# Tests for IMP-PERF-002: Adaptive Dual Audit with Early Exit
+# =============================================================================
+
+
+class TestCalculateAuditorConfidence:
+    """Tests for _calculate_auditor_confidence method (IMP-PERF-002)."""
+
+    def _create_mock_service(self):
+        """Create a mock LlmService for testing."""
+        from autopack.llm_service import LlmService
+
+        with patch.object(LlmService, "__init__", lambda self, *args, **kwargs: None):
+            service = LlmService.__new__(LlmService)
+            return service
+
+    def test_confidence_error_state_returns_zero(self):
+        """Error state returns 0.0 confidence."""
+        from autopack.llm_client import AuditorResult
+
+        service = self._create_mock_service()
+
+        result = AuditorResult(
+            approved=True,
+            issues_found=[],
+            auditor_messages=[],
+            tokens_used=50,
+            model_used="test-model",
+            error="Some error occurred",
+        )
+
+        confidence = service._calculate_auditor_confidence(result)
+        assert confidence == 0.0
+
+    def test_confidence_approved_no_issues_high(self):
+        """Approved with no issues returns very high confidence (0.98)."""
+        from autopack.llm_client import AuditorResult
+
+        service = self._create_mock_service()
+
+        result = AuditorResult(
+            approved=True,
+            issues_found=[],
+            auditor_messages=["LGTM"],
+            tokens_used=50,
+            model_used="test-model",
+        )
+
+        confidence = service._calculate_auditor_confidence(result)
+        assert confidence == 0.98
+
+    def test_confidence_approved_with_minor_issues(self):
+        """Approved with minor issues reduces confidence."""
+        from autopack.llm_client import AuditorResult
+
+        service = self._create_mock_service()
+
+        result = AuditorResult(
+            approved=True,
+            issues_found=[
+                {"severity": "minor", "description": "Style issue"},
+                {"severity": "low", "description": "Minor concern"},
+            ],
+            auditor_messages=[],
+            tokens_used=50,
+            model_used="test-model",
+        )
+
+        confidence = service._calculate_auditor_confidence(result)
+        # 1.0 - (2 * 0.05) = 0.90
+        assert confidence == 0.90
+
+    def test_confidence_approved_with_major_issues(self):
+        """Approved with major issues significantly reduces confidence."""
+        from autopack.llm_client import AuditorResult
+
+        service = self._create_mock_service()
+
+        result = AuditorResult(
+            approved=True,
+            issues_found=[
+                {"severity": "major", "description": "Important issue"},
+            ],
+            auditor_messages=[],
+            tokens_used=50,
+            model_used="test-model",
+        )
+
+        confidence = service._calculate_auditor_confidence(result)
+        # 1.0 - (1 * 0.15) = 0.85
+        assert confidence == 0.85
+
+    def test_confidence_rejected_base(self):
+        """Rejected starts at 0.8 confidence."""
+        from autopack.llm_client import AuditorResult
+
+        service = self._create_mock_service()
+
+        result = AuditorResult(
+            approved=False,
+            issues_found=[],
+            auditor_messages=["Rejected"],
+            tokens_used=50,
+            model_used="test-model",
+        )
+
+        confidence = service._calculate_auditor_confidence(result)
+        assert confidence == 0.8
+
+    def test_confidence_mixed_severity_issues(self):
+        """Mixed severity issues reduce confidence appropriately."""
+        from autopack.llm_client import AuditorResult
+
+        service = self._create_mock_service()
+
+        result = AuditorResult(
+            approved=True,
+            issues_found=[
+                {"severity": "critical", "description": "Critical issue"},
+                {"severity": "high", "description": "High severity"},
+                {"severity": "minor", "description": "Minor issue"},
+            ],
+            auditor_messages=[],
+            tokens_used=50,
+            model_used="test-model",
+        )
+
+        confidence = service._calculate_auditor_confidence(result)
+        # 1.0 - (2 * 0.15) - (1 * 0.05) = 0.65
+        # Use approximate comparison for floating point
+        assert abs(confidence - 0.65) < 0.001
+
+    def test_confidence_clamped_to_valid_range(self):
+        """Confidence is clamped between 0.0 and 1.0."""
+        from autopack.llm_client import AuditorResult
+
+        service = self._create_mock_service()
+
+        # Many issues should clamp to 0.0, not go negative
+        result = AuditorResult(
+            approved=True,
+            issues_found=[{"severity": "major", "description": f"Issue {i}"} for i in range(10)],
+            auditor_messages=[],
+            tokens_used=50,
+            model_used="test-model",
+        )
+
+        confidence = service._calculate_auditor_confidence(result)
+        assert confidence >= 0.0
+        assert confidence <= 1.0
+
+
+class TestAdaptiveDualAuditEarlyExit:
+    """Tests for _run_dual_audit early exit behavior (IMP-PERF-002)."""
+
+    def _create_mock_service(self):
+        """Create a mock LlmService for testing."""
+        from autopack.llm_service import LlmService
+
+        with patch.object(LlmService, "__init__", lambda self, *args, **kwargs: None):
+            service = LlmService.__new__(LlmService)
+            service._resolve_client_and_model = MagicMock()
+            service._record_usage = MagicMock()
+            service._record_usage_total_only = MagicMock()
+            service._model_to_provider = MagicMock(return_value="anthropic")
+            return service
+
+    def test_early_exit_when_primary_high_confidence(self):
+        """Early exit when primary approves with high confidence."""
+        from autopack.llm_client import AuditorResult
+
+        service = self._create_mock_service()
+
+        # Mock primary auditor result - approved with no issues (high confidence)
+        primary_result = AuditorResult(
+            approved=True,
+            issues_found=[],
+            auditor_messages=["LGTM"],
+            tokens_used=50,
+            model_used="primary-model",
+            prompt_tokens=40,
+            completion_tokens=10,
+        )
+
+        mock_primary_client = MagicMock()
+        mock_primary_client.review_patch.return_value = primary_result
+
+        mock_secondary_client = MagicMock()
+
+        # First call returns primary client, second would return secondary
+        service._resolve_client_and_model.side_effect = [
+            (mock_primary_client, "primary-model"),
+            (mock_secondary_client, "secondary-model"),
+        ]
+
+        # Run dual audit
+        result_primary, result_secondary = service._run_dual_audit(
+            patch_content="test patch",
+            phase_spec={"task_category": "general"},
+            primary_model="primary-model",
+            secondary_model="secondary-model",
+            max_tokens=1000,
+            project_rules=None,
+            run_hints=None,
+            run_id="test-run",
+            phase_id="phase-1",
+        )
+
+        # Should early exit - secondary should be None
+        assert result_secondary is None
+        assert result_primary.approved is True
+        assert result_primary.confidence == 0.98
+
+        # Secondary client should NOT have been called
+        mock_secondary_client.review_patch.assert_not_called()
+
+    def test_no_early_exit_when_primary_low_confidence(self):
+        """No early exit when primary has low confidence."""
+        from autopack.llm_client import AuditorResult
+
+        service = self._create_mock_service()
+
+        # Mock primary auditor result - approved but with issues (lower confidence)
+        primary_result = AuditorResult(
+            approved=True,
+            issues_found=[
+                {"severity": "major", "description": "Issue 1"},
+                {"severity": "major", "description": "Issue 2"},
+            ],
+            auditor_messages=["Approved with concerns"],
+            tokens_used=50,
+            model_used="primary-model",
+            prompt_tokens=40,
+            completion_tokens=10,
+        )
+
+        secondary_result = AuditorResult(
+            approved=True,
+            issues_found=[],
+            auditor_messages=["LGTM"],
+            tokens_used=30,
+            model_used="secondary-model",
+            prompt_tokens=20,
+            completion_tokens=10,
+        )
+
+        mock_primary_client = MagicMock()
+        mock_primary_client.review_patch.return_value = primary_result
+
+        mock_secondary_client = MagicMock()
+        mock_secondary_client.review_patch.return_value = secondary_result
+
+        service._resolve_client_and_model.side_effect = [
+            (mock_primary_client, "primary-model"),
+            (mock_secondary_client, "secondary-model"),
+        ]
+
+        # Run dual audit
+        result_primary, result_secondary = service._run_dual_audit(
+            patch_content="test patch",
+            phase_spec={"task_category": "general"},
+            primary_model="primary-model",
+            secondary_model="secondary-model",
+            max_tokens=1000,
+            project_rules=None,
+            run_hints=None,
+            run_id="test-run",
+            phase_id="phase-1",
+        )
+
+        # Should NOT early exit - both results should be present
+        assert result_secondary is not None
+        assert result_primary.approved is True
+        # Primary confidence with 2 major issues: 1.0 - (2 * 0.15) = 0.70
+        assert result_primary.confidence == 0.70
+
+        # Secondary client should have been called
+        mock_secondary_client.review_patch.assert_called_once()
+
+    def test_no_early_exit_when_primary_rejects(self):
+        """No early exit when primary rejects (even with high confidence)."""
+        from autopack.llm_client import AuditorResult
+
+        service = self._create_mock_service()
+
+        # Mock primary auditor result - rejected
+        primary_result = AuditorResult(
+            approved=False,
+            issues_found=[{"severity": "critical", "description": "Critical bug"}],
+            auditor_messages=["Rejected"],
+            tokens_used=50,
+            model_used="primary-model",
+            prompt_tokens=40,
+            completion_tokens=10,
+        )
+
+        secondary_result = AuditorResult(
+            approved=False,
+            issues_found=[],
+            auditor_messages=["Also rejected"],
+            tokens_used=30,
+            model_used="secondary-model",
+            prompt_tokens=20,
+            completion_tokens=10,
+        )
+
+        mock_primary_client = MagicMock()
+        mock_primary_client.review_patch.return_value = primary_result
+
+        mock_secondary_client = MagicMock()
+        mock_secondary_client.review_patch.return_value = secondary_result
+
+        service._resolve_client_and_model.side_effect = [
+            (mock_primary_client, "primary-model"),
+            (mock_secondary_client, "secondary-model"),
+        ]
+
+        # Run dual audit
+        result_primary, result_secondary = service._run_dual_audit(
+            patch_content="test patch",
+            phase_spec={"task_category": "general"},
+            primary_model="primary-model",
+            secondary_model="secondary-model",
+            max_tokens=1000,
+            project_rules=None,
+            run_hints=None,
+            run_id="test-run",
+            phase_id="phase-1",
+        )
+
+        # Should NOT early exit when rejected - secondary should be present
+        assert result_secondary is not None
+        assert result_primary.approved is False
+
+        # Secondary client should have been called
+        mock_secondary_client.review_patch.assert_called_once()
+
+    def test_custom_early_exit_threshold(self):
+        """Custom early exit threshold is respected."""
+        from autopack.llm_client import AuditorResult
+
+        service = self._create_mock_service()
+
+        # Mock primary result with 1 minor issue (confidence = 0.95)
+        primary_result = AuditorResult(
+            approved=True,
+            issues_found=[{"severity": "minor", "description": "Minor style issue"}],
+            auditor_messages=["Mostly good"],
+            tokens_used=50,
+            model_used="primary-model",
+            prompt_tokens=40,
+            completion_tokens=10,
+        )
+
+        secondary_result = AuditorResult(
+            approved=True,
+            issues_found=[],
+            auditor_messages=["LGTM"],
+            tokens_used=30,
+            model_used="secondary-model",
+            prompt_tokens=20,
+            completion_tokens=10,
+        )
+
+        mock_primary_client = MagicMock()
+        mock_primary_client.review_patch.return_value = primary_result
+
+        mock_secondary_client = MagicMock()
+        mock_secondary_client.review_patch.return_value = secondary_result
+
+        service._resolve_client_and_model.side_effect = [
+            (mock_primary_client, "primary-model"),
+            (mock_secondary_client, "secondary-model"),
+        ]
+
+        # With default threshold (0.9), confidence 0.95 should early exit
+        result_primary, result_secondary = service._run_dual_audit(
+            patch_content="test patch",
+            phase_spec={"task_category": "general"},
+            primary_model="primary-model",
+            secondary_model="secondary-model",
+            max_tokens=1000,
+            project_rules=None,
+            run_hints=None,
+            run_id="test-run",
+            phase_id="phase-1",
+            early_exit_threshold=0.9,
+        )
+
+        # Confidence 0.95 > 0.9, should early exit
+        assert result_secondary is None
+        assert result_primary.confidence == 0.95
+
+    def test_early_exit_records_usage_for_primary_only(self):
+        """Early exit records usage only for primary auditor."""
+        from autopack.llm_client import AuditorResult
+
+        service = self._create_mock_service()
+
+        primary_result = AuditorResult(
+            approved=True,
+            issues_found=[],
+            auditor_messages=["LGTM"],
+            tokens_used=50,
+            model_used="primary-model",
+            prompt_tokens=40,
+            completion_tokens=10,
+        )
+
+        mock_primary_client = MagicMock()
+        mock_primary_client.review_patch.return_value = primary_result
+
+        service._resolve_client_and_model.return_value = (
+            mock_primary_client,
+            "primary-model",
+        )
+
+        # Run dual audit (should early exit)
+        service._run_dual_audit(
+            patch_content="test patch",
+            phase_spec={"task_category": "general"},
+            primary_model="primary-model",
+            secondary_model="secondary-model",
+            max_tokens=1000,
+            project_rules=None,
+            run_hints=None,
+            run_id="test-run",
+            phase_id="phase-1",
+        )
+
+        # Should record usage for primary only
+        service._record_usage.assert_called_once()
+        call_args = service._record_usage.call_args
+        assert call_args.kwargs["role"] == "auditor:primary"

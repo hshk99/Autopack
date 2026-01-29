@@ -630,7 +630,7 @@ class LlmService:
 
         # Run dual audit only if enabled and configured for this category
         if settings.dual_audit_enabled and self._should_use_dual_audit(task_category):
-            # Run dual audit
+            # Run dual audit (may early-exit if primary has high confidence)
             primary_result, secondary_result = self._run_dual_audit(
                 patch_content=patch_content,
                 phase_spec=phase_spec,
@@ -643,41 +643,56 @@ class LlmService:
                 phase_id=phase_id,
             )
 
-            # Detect disagreement
-            disagreement = self._detect_dual_audit_disagreement(primary_result, secondary_result)
+            # IMP-PERF-002: Handle early-exit case (secondary_result is None)
+            if secondary_result is None:
+                # Early exit - primary approved with high confidence
+                result = primary_result
+                resolved_model = primary_result.model_used
+                logger.info(
+                    f"[DUAL-AUDIT] Early exit applied - using primary result only "
+                    f"(confidence={primary_result.confidence:.2f})"
+                )
+            else:
+                # Full dual audit - detect disagreement and merge
+                # Detect disagreement
+                disagreement = self._detect_dual_audit_disagreement(
+                    primary_result, secondary_result
+                )
 
-            # Escalate to judge if disagreement detected
-            judge_result = None
-            if disagreement["has_disagreement"]:
-                judge_result = self._run_judge_audit(
-                    patch_content=patch_content,
-                    phase_spec=phase_spec,
+                # Escalate to judge if disagreement detected
+                judge_result = None
+                if disagreement["has_disagreement"]:
+                    judge_result = self._run_judge_audit(
+                        patch_content=patch_content,
+                        phase_spec=phase_spec,
+                        primary_result=primary_result,
+                        secondary_result=secondary_result,
+                        disagreement=disagreement,
+                        max_tokens=max_tokens,
+                        project_rules=project_rules,
+                        run_hints=run_hints,
+                        run_id=run_id,
+                        phase_id=phase_id,
+                    )
+
+                # Merge results
+                result = self._merge_dual_audit_results(
+                    primary_result, secondary_result, judge_result
+                )
+                resolved_model = result.model_used
+
+                # Log telemetry
+                self._log_dual_audit_telemetry(
+                    phase_id=phase_id or "unknown",
+                    task_category=task_category,
+                    primary_model=model,
+                    secondary_model=secondary_model,
                     primary_result=primary_result,
                     secondary_result=secondary_result,
                     disagreement=disagreement,
-                    max_tokens=max_tokens,
-                    project_rules=project_rules,
-                    run_hints=run_hints,
-                    run_id=run_id,
-                    phase_id=phase_id,
+                    judge_result=judge_result,
+                    final_result=result,
                 )
-
-            # Merge results
-            result = self._merge_dual_audit_results(primary_result, secondary_result, judge_result)
-            resolved_model = result.model_used
-
-            # Log telemetry
-            self._log_dual_audit_telemetry(
-                phase_id=phase_id or "unknown",
-                task_category=task_category,
-                primary_model=model,
-                secondary_model=secondary_model,
-                primary_result=primary_result,
-                secondary_result=secondary_result,
-                disagreement=disagreement,
-                judge_result=judge_result,
-                final_result=result,
-            )
         else:
             # Standard single-auditor path
             # Resolve client and model (handling fallbacks)
@@ -1021,6 +1036,55 @@ class LlmService:
         logger.debug("[DUAL-AUDIT] No secondary model configured, using default: claude-sonnet-4-5")
         return "claude-sonnet-4-5"
 
+    def _calculate_auditor_confidence(self, result: AuditorResult) -> float:
+        """Calculate confidence score for an auditor result.
+
+        IMP-PERF-002: Used for adaptive dual audit early-exit decisions.
+
+        Confidence is based on:
+        - Approval status
+        - Number and severity of issues found
+        - Error state
+
+        Args:
+            result: The auditor result to evaluate
+
+        Returns:
+            Confidence score between 0.0 and 1.0
+        """
+        # Error state = no confidence
+        if result.error:
+            return 0.0
+
+        # Start with base confidence for approval status
+        if result.approved:
+            confidence = 1.0
+        else:
+            # Rejection starts at 0.8 confidence (we're confident it should be rejected)
+            confidence = 0.8
+
+        # Reduce confidence based on issues found
+        issues = result.issues_found or []
+        if issues:
+            # Count issues by severity
+            major_count = sum(
+                1
+                for i in issues
+                if isinstance(i, dict) and i.get("severity") in ("major", "critical", "high")
+            )
+            minor_count = len(issues) - major_count
+
+            # Major issues reduce confidence more
+            confidence -= major_count * 0.15
+            confidence -= minor_count * 0.05
+
+        # For approved results with no issues, very high confidence
+        if result.approved and not issues:
+            confidence = 0.98
+
+        # Clamp to valid range
+        return max(0.0, min(1.0, confidence))
+
     def _run_dual_audit(
         self,
         patch_content: str,
@@ -1032,8 +1096,13 @@ class LlmService:
         run_hints: Optional[List],
         run_id: Optional[str],
         phase_id: Optional[str],
-    ) -> Tuple[AuditorResult, AuditorResult]:
-        """Run both primary and secondary auditors.
+        early_exit_threshold: float = 0.9,
+    ) -> Tuple[AuditorResult, Optional[AuditorResult]]:
+        """Run primary auditor, and optionally secondary with early-exit optimization.
+
+        IMP-PERF-002: Adaptive dual audit with early exit.
+        If primary auditor approves with high confidence (>0.9), skip secondary
+        to reduce LLM costs.
 
         Args:
             patch_content: Git diff/patch to review
@@ -1045,9 +1114,10 @@ class LlmService:
             run_hints: Run hints
             run_id: Run identifier
             phase_id: Phase identifier
+            early_exit_threshold: Confidence threshold for skipping secondary (default 0.9)
 
         Returns:
-            Tuple of (primary_result, secondary_result)
+            Tuple of (primary_result, secondary_result or None if early-exit)
         """
         logger.info(
             f"[DUAL-AUDIT] Running dual audit: primary={primary_model}, secondary={secondary_model}"
@@ -1064,6 +1134,46 @@ class LlmService:
             run_hints=run_hints,
         )
 
+        # IMP-PERF-002: Calculate confidence and check for early exit
+        primary_confidence = self._calculate_auditor_confidence(primary_result)
+        primary_result.confidence = primary_confidence
+
+        if primary_result.approved and primary_confidence > early_exit_threshold:
+            logger.info(
+                f"[DUAL-AUDIT] Early exit: primary approved with confidence {primary_confidence:.2f} "
+                f"> threshold {early_exit_threshold}. Skipping secondary auditor."
+            )
+            # Record usage for primary only
+            if primary_result.tokens_used > 0:
+                if (
+                    primary_result.prompt_tokens is not None
+                    and primary_result.completion_tokens is not None
+                ):
+                    self._record_usage(
+                        provider=self._model_to_provider(resolved_primary),
+                        model=resolved_primary,
+                        role="auditor:primary",
+                        prompt_tokens=primary_result.prompt_tokens,
+                        completion_tokens=primary_result.completion_tokens,
+                        run_id=run_id,
+                        phase_id=phase_id,
+                    )
+                else:
+                    self._record_usage_total_only(
+                        provider=self._model_to_provider(resolved_primary),
+                        model=resolved_primary,
+                        role="auditor:primary",
+                        total_tokens=primary_result.tokens_used,
+                        run_id=run_id,
+                        phase_id=phase_id,
+                    )
+            return primary_result, None
+
+        logger.info(
+            f"[DUAL-AUDIT] Running secondary auditor: primary confidence={primary_confidence:.2f}, "
+            f"approved={primary_result.approved}"
+        )
+
         # Run secondary auditor
         secondary_client, resolved_secondary = self._resolve_client_and_model(
             "auditor", secondary_model
@@ -1076,6 +1186,7 @@ class LlmService:
             project_rules=project_rules,
             run_hints=run_hints,
         )
+        secondary_result.confidence = self._calculate_auditor_confidence(secondary_result)
 
         # Record usage for both
         for result, model, role_suffix in [

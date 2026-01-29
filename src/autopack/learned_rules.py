@@ -29,6 +29,28 @@ _project_rules_cache: Dict[str, List["LearnedRule"]] = {}
 _project_rules_mtime: Dict[str, float] = {}
 
 
+# ============================================================================
+# IMP-PERF-006: Run-level cache for hint loading
+# ============================================================================
+
+# Cache for run hints keyed by run_id
+_run_hints_cache: Dict[str, List["RunRuleHint"]] = {}
+
+
+def clear_run_hints_cache(run_id: Optional[str] = None) -> None:
+    """Clear the run hints cache.
+
+    Call this between runs or when hints are modified externally.
+
+    Args:
+        run_id: Optional specific run_id to clear. If None, clears all cached hints.
+    """
+    if run_id is not None:
+        _run_hints_cache.pop(run_id, None)
+    else:
+        _run_hints_cache.clear()
+
+
 def clear_project_rules_cache() -> None:
     """Clear the project rules cache.
 
@@ -468,7 +490,11 @@ def record_run_rule_hint(
 
 
 def load_run_rule_hints(run_id: str) -> List[RunRuleHint]:
-    """Load all hints for a run
+    """Load all hints for a run with caching.
+
+    IMP-PERF-006: Uses run-level cache to avoid redundant file reads
+    within the same run. Hints are cached per run_id and only read
+    from disk once per run.
 
     Args:
         run_id: Run ID
@@ -476,16 +502,27 @@ def load_run_rule_hints(run_id: str) -> List[RunRuleHint]:
     Returns:
         List of RunRuleHint objects
     """
+    # Check cache first
+    if run_id in _run_hints_cache:
+        return _run_hints_cache[run_id]
+
     hints_file = _get_run_hints_file(run_id)
     if not hints_file.exists():
-        return []
+        # Cache empty result to avoid repeated file existence checks
+        _run_hints_cache[run_id] = []
+        return _run_hints_cache[run_id]
 
     try:
         with open(hints_file, "r") as f:
             data = json.load(f)
-        return [RunRuleHint.from_dict(h) for h in data.get("hints", [])]
+        hints = [RunRuleHint.from_dict(h) for h in data.get("hints", [])]
+        # Cache the result
+        _run_hints_cache[run_id] = hints
+        return hints
     except (json.JSONDecodeError, KeyError, TypeError):
-        return []
+        # Cache empty result on parse errors
+        _run_hints_cache[run_id] = []
+        return _run_hints_cache[run_id]
 
 
 def get_relevant_hints_for_phase(run_id: str, phase: Dict, max_hints: int = 5) -> List[RunRuleHint]:
@@ -1635,17 +1672,24 @@ def _get_project_rules_file(project_id: str) -> Path:
 
 
 def _save_run_rule_hint(run_id: str, hint: RunRuleHint):
-    """Save hint to run hints file"""
+    """Save hint to run hints file.
+
+    IMP-PERF-006: Invalidates the cache for this run_id to ensure
+    subsequent loads reflect the saved changes.
+    """
     hints_file = _get_run_hints_file(run_id)
     hints_file.parent.mkdir(parents=True, exist_ok=True)
 
-    # Load existing hints
+    # Load existing hints (may come from cache)
     hints = load_run_rule_hints(run_id)
     hints.append(hint)
 
     # Save
     with open(hints_file, "w", encoding="utf-8") as f:
         json.dump({"hints": [h.to_dict() for h in hints]}, f, indent=2)
+
+    # Invalidate cache after save to ensure fresh read on next load
+    clear_run_hints_cache(run_id)
 
 
 def _save_project_rules(project_id: str, rules: List[LearnedRule]):

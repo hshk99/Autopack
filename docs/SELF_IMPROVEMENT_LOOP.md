@@ -598,7 +598,7 @@ autopack goals drift-history --run <run_id>
 
 ## Related Documentation
 
-- [ARCHITECTURE.md](../ARCHITECTURE.md) - Overall system architecture
-- [MEMORY_SERVICE_OPERATOR_GUIDE.md](../MEMORY_SERVICE_OPERATOR_GUIDE.md) - Memory service operations
-- [OPERATOR_RUNBOOK.md](../OPERATOR_RUNBOOK.md) - Operational procedures
-- [PHASE_LIFECYCLE.md](../PHASE_LIFECYCLE.md) - Phase execution lifecycle
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Overall system architecture
+- [MEMORY_SERVICE_OPERATOR_GUIDE.md](MEMORY_SERVICE_OPERATOR_GUIDE.md) - Memory service operations
+- [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md) - Operational procedures
+- [PHASE_LIFECYCLE.md](PHASE_LIFECYCLE.md) - Phase execution lifecycle

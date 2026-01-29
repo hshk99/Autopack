@@ -12,6 +12,7 @@ Key responsibilities:
 - Handle success/failure outcomes
 - Record learning hints from failures
 - Update phase state and telemetry
+- IMP-TEL-001: Emit SLA breach alerts for pipeline latency enforcement
 
 Related modules:
 - builder_result_poster.py: Builder result posting
@@ -22,7 +23,7 @@ Related modules:
 
 import asyncio
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -52,12 +53,51 @@ class ResultAction:
 
 
 @dataclass
+class SLABreachInfo:
+    """IMP-TEL-001: Information about an SLA breach for alerting.
+
+    Attributes:
+        breached: Whether an SLA breach was detected
+        level: Severity level ("warning" or "critical")
+        threshold_ms: SLA threshold in milliseconds
+        actual_ms: Actual latency in milliseconds
+        breach_amount_ms: Amount by which SLA was exceeded
+        message: Human-readable breach message
+        stage_from: Starting pipeline stage (if applicable)
+        stage_to: Ending pipeline stage (if applicable)
+    """
+
+    breached: bool = False
+    level: str = ""
+    threshold_ms: float = 0.0
+    actual_ms: float = 0.0
+    breach_amount_ms: float = 0.0
+    message: str = ""
+    stage_from: Optional[str] = None
+    stage_to: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "breached": self.breached,
+            "level": self.level,
+            "threshold_ms": self.threshold_ms,
+            "actual_ms": self.actual_ms,
+            "breach_amount_ms": self.breach_amount_ms,
+            "message": self.message,
+            "stage_from": self.stage_from,
+            "stage_to": self.stage_to,
+        }
+
+
+@dataclass
 class ProcessingResult:
     """Result of result processing"""
 
     outcome: ResultOutcome
     action: ResultAction
     posted_to_api: bool = False
+    sla_breaches: List[SLABreachInfo] = field(default_factory=list)
 
 
 class ResultHandler:
@@ -393,3 +433,90 @@ class ResultHandler:
             last_files_changed=[],  # Would need proper tracking
             timeout_seconds=timeout_seconds,
         )
+
+    def emit_sla_breach_alert(
+        self,
+        phase_id: str,
+        breach_info: SLABreachInfo,
+    ) -> None:
+        """Emit an alert for SLA breach.
+
+        IMP-TEL-001: Logs SLA breach alerts for visibility and records them
+        for operational monitoring. Critical breaches (>50% over threshold)
+        are logged at critical level.
+
+        Args:
+            phase_id: Phase identifier where breach was detected
+            breach_info: SLA breach information
+        """
+        if not breach_info.breached:
+            return
+
+        alert_msg = (
+            f"[IMP-TEL-001] SLA breach for phase {phase_id}: "
+            f"{breach_info.message} "
+            f"(actual={breach_info.actual_ms:.0f}ms, "
+            f"threshold={breach_info.threshold_ms:.0f}ms, "
+            f"breach_amount={breach_info.breach_amount_ms:.0f}ms)"
+        )
+
+        if breach_info.level == "critical":
+            logger.critical(alert_msg)
+        else:
+            logger.warning(alert_msg)
+
+    def check_and_emit_sla_breaches(
+        self,
+        phase_id: str,
+        latency_tracker: Any,
+    ) -> List[SLABreachInfo]:
+        """Check latency tracker for SLA breaches and emit alerts.
+
+        IMP-TEL-001: Inspects the pipeline latency tracker for any SLA
+        breaches and emits alerts for each detected breach.
+
+        Args:
+            phase_id: Phase identifier
+            latency_tracker: PipelineLatencyTracker instance
+
+        Returns:
+            List of SLABreachInfo for detected breaches
+        """
+        breaches: List[SLABreachInfo] = []
+
+        if latency_tracker is None:
+            return breaches
+
+        try:
+            # Import here to avoid circular imports
+            from autopack.telemetry.meta_metrics import SLABreachAlert
+
+            raw_breaches: List[SLABreachAlert] = latency_tracker.check_sla_breaches()
+
+            for raw_breach in raw_breaches:
+                breach_info = SLABreachInfo(
+                    breached=True,
+                    level=raw_breach.level,
+                    threshold_ms=raw_breach.threshold_ms,
+                    actual_ms=raw_breach.actual_ms,
+                    breach_amount_ms=raw_breach.breach_amount_ms,
+                    message=raw_breach.message,
+                    stage_from=raw_breach.stage_from,
+                    stage_to=raw_breach.stage_to,
+                )
+                breaches.append(breach_info)
+
+                # Emit alert for each breach
+                self.emit_sla_breach_alert(phase_id, breach_info)
+
+            if breaches:
+                logger.info(
+                    f"[IMP-TEL-001] Detected {len(breaches)} SLA breach(es) for phase {phase_id}"
+                )
+
+        except Exception as e:
+            logger.warning(
+                f"[IMP-TEL-001] Failed to check SLA breaches for phase {phase_id}: {e}"
+            )
+
+        return breaches

@@ -20,7 +20,7 @@ def mock_memory_service():
 @pytest.fixture
 def bridge(mock_memory_service):
     """Create TelemetryToMemoryBridge instance."""
-    return TelemetryToMemoryBridge(mock_memory_service, enabled=True)
+    return TelemetryToMemoryBridge(mock_memory_service)
 
 
 @pytest.fixture
@@ -91,13 +91,19 @@ def test_deduplication(bridge, mock_memory_service, sample_ranked_issues):
     assert mock_memory_service.write_telemetry_insight.call_count == 3
 
 
-def test_disabled_service(bridge, mock_memory_service, sample_ranked_issues):
-    """Test that disabled service returns 0."""
-    bridge.enabled = False
-    count = bridge.persist_insights(sample_ranked_issues, run_id="test-run")
+def test_bridge_is_mandatory(bridge, mock_memory_service, sample_ranked_issues):
+    """Test IMP-LOOP-020: Bridge is mandatory and cannot be disabled.
 
-    assert count == 0
-    mock_memory_service.write_telemetry_insight.assert_not_called()
+    The bridge persists insights whenever memory service is available and enabled.
+    There is no 'enabled' parameter - the bridge is always active.
+    """
+    # Verify bridge has no 'enabled' attribute (removed by IMP-LOOP-020)
+    assert not hasattr(bridge, "enabled")
+
+    # Verify insights are persisted
+    count = bridge.persist_insights(sample_ranked_issues, run_id="test-run")
+    assert count == 3
+    assert mock_memory_service.write_telemetry_insight.call_count == 3
 
 
 def test_clear_cache(bridge, mock_memory_service, sample_ranked_issues):

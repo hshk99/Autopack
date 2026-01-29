@@ -9,11 +9,14 @@ except ImportError:
 
 
 class TelemetryToMemoryBridge:
-    """Bridges telemetry insights to memory service for persistent storage."""
+    """Bridges telemetry insights to memory service for persistent storage.
 
-    def __init__(self, memory_service: Optional["MemoryService"] = None, enabled: bool = True):
+    IMP-LOOP-020: This bridge is MANDATORY and cannot be disabled.
+    The feedback loop requires telemetry to flow to memory for self-improvement.
+    """
+
+    def __init__(self, memory_service: Optional["MemoryService"] = None):
         self.memory_service = memory_service
-        self.enabled = enabled
         self._persisted_insights: set = set()  # For deduplication
 
     def persist_insights(
@@ -29,10 +32,7 @@ class TelemetryToMemoryBridge:
         Returns:
             Number of insights persisted
         """
-        if not self.enabled or not self.memory_service:
-            return 0
-
-        if not self.memory_service.enabled:
+        if not self.memory_service or not self.memory_service.enabled:
             return 0
 
         persisted_count = 0

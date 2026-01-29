@@ -2980,6 +2980,7 @@ class MemoryService:
         include_summaries: bool = True,
         include_errors: bool = True,
         include_hints: bool = True,
+        min_confidence: Optional[float] = None,
     ) -> Dict[str, List["ContextMetadata"]]:
         """
         Retrieve context with relevance and confidence metadata.
@@ -2987,11 +2988,15 @@ class MemoryService:
         IMP-LOOP-019: Returns ContextMetadata objects instead of raw dicts,
         providing relevance_score, age_hours, and confidence signals.
 
+        IMP-MEM-013: Filters out low-confidence entries below threshold.
+
         Args:
             query: Search query
             project_id: Project to search within
             run_id: Optional run to scope summaries
             include_*: Flags to include/exclude collections
+            min_confidence: Minimum confidence threshold (defaults to LOW_CONFIDENCE_THRESHOLD).
+                           Set to 0.0 to disable filtering.
 
         Returns:
             Dict with keys mapping to lists of ContextMetadata objects.
@@ -3049,16 +3054,37 @@ class MemoryService:
         for key in results:
             results[key].sort(key=lambda x: x.confidence, reverse=True)
 
+        # IMP-MEM-013: Filter out low-confidence entries
+        # Use provided threshold or default to LOW_CONFIDENCE_THRESHOLD
+        confidence_threshold = (
+            min_confidence if min_confidence is not None else LOW_CONFIDENCE_THRESHOLD
+        )
+
+        total_before_filter = sum(len(v) for v in results.values())
+        filtered_count = 0
+
+        if confidence_threshold > 0:
+            for key in results:
+                original_len = len(results[key])
+                results[key] = [
+                    item for item in results[key] if item.confidence >= confidence_threshold
+                ]
+                filtered_count += original_len - len(results[key])
+
         # Log summary with confidence information
         total_items = sum(len(v) for v in results.values())
         low_confidence_items = sum(
             1 for items in results.values() for item in items if item.is_low_confidence
         )
-        if total_items > 0:
-            logger.info(
-                f"[MemoryService] Retrieved {total_items} context items with metadata "
-                f"({low_confidence_items} low confidence)"
-            )
+        if total_before_filter > 0:
+            log_msg = f"[MemoryService] Retrieved {total_items} context items with metadata"
+            if filtered_count > 0:
+                log_msg += (
+                    f" (filtered {filtered_count} below {confidence_threshold:.1%} confidence)"
+                )
+            if low_confidence_items > 0:
+                log_msg += f" ({low_confidence_items} low confidence)"
+            logger.info(log_msg)
 
         return results
 

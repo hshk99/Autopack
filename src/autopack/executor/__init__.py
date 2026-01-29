@@ -33,6 +33,15 @@ from autopack.executor.circuit_breaker import (
     SOTDriftError,
 )
 
+# IMP-MAINT-001: Additional module extractions for executor split
+from autopack.executor.doctor_facade import DoctorFacade, DoctorState, HealthBudget
+from autopack.executor.learning_context_manager import LearningContextManager
+from autopack.executor.run_lifecycle_manager import (
+    ApiKeyValidationError,
+    RunLifecycleManager,
+)
+from autopack.executor.stale_phase_handler import StalePhaseHandler
+
 __all__ = [
     "HeuristicContextLoader",
     "get_default_priority_files",
@@ -43,4 +52,12 @@ __all__ = [
     "CircuitBreakerOpenError",
     "CircuitBreakerState",
     "SOTDriftError",
+    # IMP-MAINT-001: New extraction modules
+    "DoctorFacade",
+    "DoctorState",
+    "HealthBudget",
+    "LearningContextManager",
+    "RunLifecycleManager",
+    "ApiKeyValidationError",
+    "StalePhaseHandler",
 ]

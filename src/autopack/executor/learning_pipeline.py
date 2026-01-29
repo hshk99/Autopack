@@ -7,12 +7,17 @@ Records lessons learned during troubleshooting to help:
 
 IMP-LOOP-020: Adds guaranteed persistence with retry logic and verification
 for cross-run learning persistence.
+
+IMP-MEM-016: Adds persistence to LEARNING_MEMORY.json for cross-cycle learning.
 """
 
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from autopack.learning_memory_manager import LearningMemoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +168,7 @@ class LearningPipeline:
         run_id: str,
         memory_service: Optional[Any] = None,
         project_id: Optional[str] = None,
+        learning_memory_manager: Optional["LearningMemoryManager"] = None,
     ):
         """
         Initialize LearningPipeline.
@@ -171,6 +177,8 @@ class LearningPipeline:
             run_id: Run identifier for tracking hints
             memory_service: Optional MemoryService instance for hint persistence
             project_id: Optional project identifier for namespacing persisted hints
+            learning_memory_manager: Optional LearningMemoryManager for persisting
+                hints to LEARNING_MEMORY.json (IMP-MEM-016)
         """
         self.run_id = run_id
         self._hints: List[LearningHint] = []
@@ -180,6 +188,8 @@ class LearningPipeline:
         self._project_id = project_id
         # IMP-LOOP-018: Track applied rules per phase for effectiveness tracking
         self._applied_rules_per_phase: Dict[str, List[str]] = {}
+        # IMP-MEM-016: Learning memory manager for LEARNING_MEMORY.json persistence
+        self._learning_memory_manager = learning_memory_manager
 
     def record_hint(self, phase: Dict, hint_type: str, details: str):
         """
@@ -224,6 +234,9 @@ class LearningPipeline:
             # IMP-LEARN-002: Use retry but skip verification for immediate persistence
             # (verification is done at end of run by persist_hints_guaranteed)
             self._persist_hint_to_memory(hint, max_retries=3, verify=False)
+
+            # IMP-MEM-016: Persist hint to LEARNING_MEMORY.json for cross-cycle learning
+            self._persist_to_learning_memory(hint)
 
             logger.debug(f"[Learning] Recorded hint for {phase_id}: {hint_type}")
 
@@ -361,7 +374,7 @@ class LearningPipeline:
 
         except Exception as e:
             logger.warning(
-                f"[Learning] Failed to persist success pattern for " f"{pattern.phase_id}: {e}"
+                f"[Learning] Failed to persist success pattern for {pattern.phase_id}: {e}"
             )
 
         return False
@@ -426,6 +439,75 @@ class LearningPipeline:
             Count of success patterns
         """
         return len(self._success_patterns)
+
+    def set_learning_memory_manager(self, learning_memory_manager: "LearningMemoryManager") -> None:
+        """Set the learning memory manager for LEARNING_MEMORY.json persistence.
+
+        IMP-MEM-016: Allows connecting a LearningMemoryManager after initialization.
+        This is useful when the manager needs to be created after the pipeline.
+
+        Args:
+            learning_memory_manager: LearningMemoryManager instance
+        """
+        self._learning_memory_manager = learning_memory_manager
+        logger.debug("[IMP-MEM-016] Learning memory manager connected to pipeline")
+
+    def persist_all_to_learning_memory(self) -> int:
+        """Persist all accumulated hints to LEARNING_MEMORY.json.
+
+        IMP-MEM-016: Call this at the end of a run to ensure all hints are
+        written to LEARNING_MEMORY.json. This is useful as a final flush
+        to guarantee persistence of all learning data.
+
+        Returns:
+            Number of hints successfully persisted
+        """
+        if not self._learning_memory_manager:
+            logger.debug(
+                "[IMP-MEM-016] No learning memory manager configured, skipping batch persistence"
+            )
+            return 0
+
+        if not self._hints and not self._success_patterns:
+            logger.debug("[IMP-MEM-016] No hints or patterns to persist")
+            return 0
+
+        persisted_count = 0
+
+        # Persist all hints
+        for hint in self._hints:
+            if self._persist_to_learning_memory(hint):
+                persisted_count += 1
+
+        # Persist success patterns as success outcomes
+        for pattern in self._success_patterns:
+            try:
+                self._learning_memory_manager.record_improvement_outcome(
+                    imp_id=f"{self.run_id}:{pattern.phase_id}:success_pattern",
+                    success=True,
+                    details={
+                        "pattern_type": "success_pattern",
+                        "action_taken": pattern.action_taken,
+                        "context_summary": pattern.context_summary[:200],
+                        "task_category": pattern.task_category,
+                        "confidence": pattern.confidence,
+                        "occurrence_count": pattern.occurrence_count,
+                    },
+                )
+                persisted_count += 1
+            except Exception as e:
+                logger.warning(f"[IMP-MEM-016] Failed to persist success pattern: {e}")
+
+        # Save after batch persistence
+        try:
+            self._learning_memory_manager.save()
+            logger.info(
+                f"[IMP-MEM-016] Batch persisted {persisted_count} items to LEARNING_MEMORY.json"
+            )
+        except Exception as e:
+            logger.warning(f"[IMP-MEM-016] Failed to save learning memory: {e}")
+
+        return persisted_count
 
     def get_hints_for_phase(
         self,
@@ -685,8 +767,7 @@ class LearningPipeline:
             except Exception as e:
                 last_error = e
                 logger.warning(
-                    f"[IMP-LEARN-002] Persist attempt {attempt + 1} failed for "
-                    f"{hint.phase_id}: {e}"
+                    f"[IMP-LEARN-002] Persist attempt {attempt + 1} failed for {hint.phase_id}: {e}"
                 )
 
             # Exponential backoff before retry (skip on last attempt)
@@ -761,6 +842,91 @@ class LearningPipeline:
 
         except Exception as e:
             logger.warning(f"[IMP-LEARN-002] Verification query failed: {e}")
+            return False
+
+    def _persist_to_learning_memory(self, hint: LearningHint) -> bool:
+        """Persist a hint to LEARNING_MEMORY.json for cross-cycle learning.
+
+        IMP-MEM-016: This method writes hints to LEARNING_MEMORY.json via the
+        LearningMemoryManager. This enables the system to learn from past
+        success/failure patterns across discovery cycles.
+
+        The hint is recorded as a failure pattern if it indicates an issue
+        (auditor_reject, ci_fail, patch_apply_error, etc.) or as a success
+        pattern if it indicates a successful outcome (success_after_retry).
+
+        Args:
+            hint: The LearningHint to persist
+
+        Returns:
+            True if persistence succeeded, False otherwise
+        """
+        if not self._learning_memory_manager:
+            logger.debug(
+                "[IMP-MEM-016] No learning memory manager configured, "
+                "skipping LEARNING_MEMORY.json persistence"
+            )
+            return False
+
+        try:
+            # Determine if this is a success or failure pattern
+            success_hint_types = {"success_after_retry"}
+            is_success = hint.hint_type in success_hint_types
+
+            # Build details dict for the outcome
+            details = {
+                "hint_type": hint.hint_type,
+                "phase_id": hint.phase_id,
+                "run_id": self.run_id,
+                "task_category": hint.task_category,
+                "confidence": hint.confidence,
+                "occurrence_count": hint.occurrence_count,
+            }
+
+            # Record the outcome - use phase_id as the imp_id since hints
+            # are associated with phases
+            self._learning_memory_manager.record_improvement_outcome(
+                imp_id=f"{self.run_id}:{hint.phase_id}:{hint.hint_type}",
+                success=is_success,
+                details=details,
+            )
+
+            # Also record failure category for pattern analysis
+            if not is_success:
+                # Map hint_type to failure category
+                failure_category_map = {
+                    "ci_fail": "code_failure",
+                    "auditor_reject": "code_failure",
+                    "patch_apply_error": "code_failure",
+                    "builder_guardrail": "code_failure",
+                    "builder_churn_limit_exceeded": "code_failure",
+                    "infra_error": "unrelated_ci",
+                    "deliverables_validation_failed": "code_failure",
+                }
+                failure_category = failure_category_map.get(hint.hint_type, "code_failure")
+
+                self._learning_memory_manager.record_failure_category(
+                    category=failure_category,
+                    phase_id=hint.phase_id,
+                    details={
+                        "hint_type": hint.hint_type,
+                        "run_id": self.run_id,
+                        "hint_text": hint.hint_text[:200],  # Truncate for storage
+                    },
+                )
+
+            # Save immediately to ensure persistence
+            self._learning_memory_manager.save()
+
+            logger.debug(
+                f"[IMP-MEM-016] Persisted hint to LEARNING_MEMORY.json: "
+                f"{hint.phase_id}/{hint.hint_type}"
+            )
+            return True
+
+        except Exception as e:
+            # Don't let persistence errors break execution
+            logger.warning(f"[IMP-MEM-016] Failed to persist hint to LEARNING_MEMORY.json: {e}")
             return False
 
     def persist_to_memory(self, memory_service, project_id: Optional[str] = None) -> int:

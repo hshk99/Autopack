@@ -546,9 +546,9 @@ class TestPersistToMemory:
 
         for hint_type, expected_insight_type in hint_type_mappings.items():
             mapped = pipeline._map_hint_type_to_insight_type(hint_type)
-            assert (
-                mapped == expected_insight_type
-            ), f"Expected {expected_insight_type} for {hint_type}, got {mapped}"
+            assert mapped == expected_insight_type, (
+                f"Expected {expected_insight_type} for {hint_type}, got {mapped}"
+            )
 
     def test_persist_maps_unknown_hint_type_to_unknown(self):
         """Test unknown hint types map to 'unknown' insight type"""
@@ -979,3 +979,216 @@ class TestDecayScoring:
         # Fresh hint: decay_factor ≈ 1.0
         # decay_score = 0.3 * 1.0 - 0 = 0.3
         assert 0.29 <= decay_score <= 0.31
+
+
+class TestLearningMemoryPersistence:
+    """Test IMP-MEM-016: Persistence to LEARNING_MEMORY.json"""
+
+    def test_persist_to_learning_memory_when_manager_not_set(self):
+        """Test returns False when no learning memory manager is set"""
+        pipeline = LearningPipeline(run_id="test-run")
+        phase = {"phase_id": "test", "name": "Test Phase"}
+
+        pipeline.record_hint(phase, "auditor_reject", "Details")
+
+        # Without learning_memory_manager, should return False
+        hint = pipeline.get_all_hints()[0]
+        result = pipeline._persist_to_learning_memory(hint)
+        assert result is False
+
+    def test_set_learning_memory_manager(self):
+        """Test learning memory manager can be set after initialization"""
+        from unittest.mock import Mock
+
+        pipeline = LearningPipeline(run_id="test-run")
+        mock_manager = Mock()
+        mock_manager.record_improvement_outcome = Mock()
+        mock_manager.record_failure_category = Mock()
+        mock_manager.save = Mock()
+
+        pipeline.set_learning_memory_manager(mock_manager)
+
+        assert pipeline._learning_memory_manager is mock_manager
+
+    def test_persist_to_learning_memory_records_outcome(self):
+        """Test hint is recorded as improvement outcome"""
+        from unittest.mock import Mock
+
+        mock_manager = Mock()
+        mock_manager.record_improvement_outcome = Mock()
+        mock_manager.record_failure_category = Mock()
+        mock_manager.save = Mock()
+
+        pipeline = LearningPipeline(run_id="test-run", learning_memory_manager=mock_manager)
+        phase = {"phase_id": "test-phase", "name": "Test Phase"}
+
+        pipeline.record_hint(phase, "auditor_reject", "Code quality issues")
+
+        # Verify record_improvement_outcome was called
+        mock_manager.record_improvement_outcome.assert_called()
+        call_kwargs = mock_manager.record_improvement_outcome.call_args[1]
+
+        # Check the imp_id format
+        assert "test-run:test-phase:auditor_reject" == call_kwargs["imp_id"]
+        # auditor_reject is a failure, so success should be False
+        assert call_kwargs["success"] is False
+        assert "hint_type" in call_kwargs["details"]
+
+    def test_persist_to_learning_memory_records_success_hint(self):
+        """Test success_after_retry hint is recorded as success outcome"""
+        from unittest.mock import Mock
+
+        mock_manager = Mock()
+        mock_manager.record_improvement_outcome = Mock()
+        mock_manager.record_failure_category = Mock()
+        mock_manager.save = Mock()
+
+        pipeline = LearningPipeline(run_id="test-run", learning_memory_manager=mock_manager)
+        phase = {"phase_id": "test-phase", "name": "Test Phase"}
+
+        pipeline.record_hint(phase, "success_after_retry", "Succeeded on attempt 3")
+
+        # Verify record_improvement_outcome was called with success=True
+        mock_manager.record_improvement_outcome.assert_called()
+        call_kwargs = mock_manager.record_improvement_outcome.call_args[1]
+
+        assert call_kwargs["success"] is True
+
+    def test_persist_to_learning_memory_records_failure_category(self):
+        """Test failure hints record failure category"""
+        from unittest.mock import Mock
+
+        mock_manager = Mock()
+        mock_manager.record_improvement_outcome = Mock()
+        mock_manager.record_failure_category = Mock()
+        mock_manager.save = Mock()
+
+        pipeline = LearningPipeline(run_id="test-run", learning_memory_manager=mock_manager)
+        phase = {"phase_id": "test-phase", "name": "Test Phase"}
+
+        pipeline.record_hint(phase, "ci_fail", "Tests failed")
+
+        # Verify record_failure_category was called for failure hints
+        mock_manager.record_failure_category.assert_called()
+        call_kwargs = mock_manager.record_failure_category.call_args[1]
+
+        assert call_kwargs["category"] == "code_failure"
+        assert call_kwargs["phase_id"] == "test-phase"
+
+    def test_persist_to_learning_memory_maps_failure_categories(self):
+        """Test hint types are correctly mapped to failure categories"""
+        from unittest.mock import Mock
+
+        failure_category_mappings = {
+            "ci_fail": "code_failure",
+            "auditor_reject": "code_failure",
+            "patch_apply_error": "code_failure",
+            "builder_guardrail": "code_failure",
+            "builder_churn_limit_exceeded": "code_failure",
+            "infra_error": "unrelated_ci",
+        }
+
+        for hint_type, expected_category in failure_category_mappings.items():
+            mock_manager = Mock()
+            mock_manager.record_improvement_outcome = Mock()
+            mock_manager.record_failure_category = Mock()
+            mock_manager.save = Mock()
+
+            pipeline = LearningPipeline(run_id="test-run", learning_memory_manager=mock_manager)
+            phase = {"phase_id": "test-phase", "name": "Test Phase"}
+
+            pipeline.record_hint(phase, hint_type, f"Details for {hint_type}")
+
+            call_kwargs = mock_manager.record_failure_category.call_args[1]
+            assert call_kwargs["category"] == expected_category, (
+                f"Expected {expected_category} for {hint_type}, got {call_kwargs['category']}"
+            )
+
+    def test_persist_to_learning_memory_calls_save(self):
+        """Test save is called after persisting to learning memory"""
+        from unittest.mock import Mock
+
+        mock_manager = Mock()
+        mock_manager.record_improvement_outcome = Mock()
+        mock_manager.record_failure_category = Mock()
+        mock_manager.save = Mock()
+
+        pipeline = LearningPipeline(run_id="test-run", learning_memory_manager=mock_manager)
+        phase = {"phase_id": "test-phase", "name": "Test Phase"}
+
+        pipeline.record_hint(phase, "auditor_reject", "Details")
+
+        # Verify save was called
+        mock_manager.save.assert_called_once()
+
+    def test_persist_to_learning_memory_handles_exception(self):
+        """Test exception during persistence doesn't break execution"""
+        from unittest.mock import Mock
+
+        mock_manager = Mock()
+        mock_manager.record_improvement_outcome = Mock(side_effect=Exception("Save failed"))
+        mock_manager.save = Mock()
+
+        pipeline = LearningPipeline(run_id="test-run", learning_memory_manager=mock_manager)
+        phase = {"phase_id": "test-phase", "name": "Test Phase"}
+
+        # Should not raise exception
+        pipeline.record_hint(phase, "auditor_reject", "Details")
+
+        # Pipeline should still be operational
+        assert pipeline.get_hint_count() == 1
+
+    def test_persist_all_to_learning_memory(self):
+        """Test batch persistence of all hints"""
+        from unittest.mock import Mock
+
+        mock_manager = Mock()
+        mock_manager.record_improvement_outcome = Mock()
+        mock_manager.record_failure_category = Mock()
+        mock_manager.save = Mock()
+
+        pipeline = LearningPipeline(run_id="test-run", learning_memory_manager=mock_manager)
+
+        # Record multiple hints
+        phase = {"phase_id": "test-phase", "name": "Test Phase"}
+        pipeline.record_hint(phase, "auditor_reject", "Details 1")
+        pipeline.record_hint(phase, "ci_fail", "Details 2")
+        pipeline.record_hint(phase, "success_after_retry", "Details 3")
+
+        # Reset the mock to count persist_all calls only
+        mock_manager.reset_mock()
+
+        # Persist all
+        result = pipeline.persist_all_to_learning_memory()
+
+        # Should have persisted 3 hints
+        assert result == 3
+
+    def test_persist_all_to_learning_memory_without_manager(self):
+        """Test persist_all returns 0 when no manager is set"""
+        pipeline = LearningPipeline(run_id="test-run")
+        phase = {"phase_id": "test-phase", "name": "Test Phase"}
+
+        pipeline.record_hint(phase, "auditor_reject", "Details")
+
+        result = pipeline.persist_all_to_learning_memory()
+        assert result == 0
+
+    def test_persist_all_to_learning_memory_with_no_hints(self):
+        """Test persist_all returns 0 when no hints to persist"""
+        from unittest.mock import Mock
+
+        mock_manager = Mock()
+        pipeline = LearningPipeline(run_id="test-run", learning_memory_manager=mock_manager)
+
+        result = pipeline.persist_all_to_learning_memory()
+        assert result == 0
+
+    def test_learning_memory_manager_passed_to_init(self):
+        """Test learning memory manager can be passed to __init__"""
+        from unittest.mock import Mock
+
+        mock_manager = Mock()
+        pipeline = LearningPipeline(run_id="test-run", learning_memory_manager=mock_manager)
+
+        assert pipeline._learning_memory_manager is mock_manager

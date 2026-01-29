@@ -477,7 +477,7 @@ def check_goal_drift(
 | IMP-REL-011 | Telemetry resilience | telemetry_to_memory_bridge.py |
 | IMP-REL-015 | Executor crash recovery | run_checkpoint.py |
 | IMP-AUTO-002 | Parallel phase execution | autonomous_loop.py |
-| IMP-TASK-002 | Impact validation/calibration | insight_to_task.py |
+| IMP-TASK-002 | Impact validation/calibration | task_generator.py |
 | IMP-TASK-003 | ROI prediction learning | roi_analyzer.py |
 
 ## Use Cases

@@ -1113,7 +1113,7 @@ class AutonomousTaskGenerator:
                     confidence_boost = 0.15
                     severity_boost = 2
                     # Extra boost for very high token consumers
-                    max_tokens = max((i.get("metric_value", 0) for i in group), default=0)
+                    max_tokens = max((i.get("metric_value") or 0 for i in group), default=0)
                     if max_tokens > 100000:
                         severity_boost += 1
                 elif error_type == "failure_mode":

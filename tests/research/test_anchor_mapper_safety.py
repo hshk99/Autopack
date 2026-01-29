@@ -4,13 +4,9 @@ These tests verify critical safety invariants, particularly that
 SafetyRisk.never_allow is NEVER auto-populated by the mapper.
 """
 
-import pytest
-
 from autopack.research.anchor_mapper import PivotType, ResearchToAnchorMapper
 from autopack.research.idea_parser import ParsedIdea, ProjectType, RiskProfile
-from autopack.research.models.bootstrap_session import (BootstrapPhase,
-                                                        BootstrapSession,
-                                                        ResearchPhaseResult)
+from autopack.research.models.bootstrap_session import BootstrapSession
 
 
 class TestNeverAllowIsNeverAutoPopulated:

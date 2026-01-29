@@ -1,7 +1,5 @@
 """Unit tests for ResearchToAnchorMapper module."""
 
-from datetime import datetime, timezone
-
 import pytest
 
 from autopack.intention_anchor.v2 import IntentionAnchorV2

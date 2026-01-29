@@ -1,7 +1,8 @@
 /**
  * Basic test to verify test harness works
+ *
+ * Note: Uses vitest globals mode (IMP-FE-001) - no explicit imports needed
  */
-import { describe, it, expect } from 'vitest';
 
 describe('Basic test suite', () => {
   it('should run a simple test', () => {

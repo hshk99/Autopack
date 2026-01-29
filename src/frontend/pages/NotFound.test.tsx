@@ -2,8 +2,8 @@
  * NotFound component tests
  *
  * Tests the 404 page rendering and navigation link
+ * Note: Uses vitest globals mode (IMP-FE-001)
  */
-import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import NotFound from './NotFound';

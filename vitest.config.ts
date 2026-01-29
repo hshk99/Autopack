@@ -1,12 +1,12 @@
 /// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
 /**
  * Vitest configuration for Autopack frontend tests
  *
- * Uses same path aliases as vite.config.ts for consistency
+ * Root-level config for better Windows/Node 18 compatibility (IMP-FE-001)
  * Configured with jsdom environment for React component testing
  */
 export default defineConfig({
@@ -14,7 +14,13 @@ export default defineConfig({
 
   test: {
     environment: 'jsdom',
-    // setupFiles: ['./src/frontend/test/setup.ts'],
+    // Enable globals mode - vitest injects describe/it/expect globally
+    // This avoids ESM import issues on Windows/Node 18
+    globals: true,
+    // Setup file loads jest-dom matchers (toBeInTheDocument, etc.)
+    setupFiles: ['./src/frontend/test/setup.ts'],
+    // Include test files from src/frontend
+    include: ['src/frontend/**/*.test.{ts,tsx}'],
     css: true,
     coverage: {
       provider: 'v8',

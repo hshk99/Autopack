@@ -9,12 +9,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from autopack.executor.scoped_context_loader import (
-    ScopedContextLoader,
-    _cached_read_file,
-    clear_file_cache,
-    get_file_cache_info,
-)
+from autopack.executor.scoped_context_loader import (ScopedContextLoader,
+                                                     _cached_read_file,
+                                                     clear_file_cache,
+                                                     get_file_cache_info)
 
 
 @pytest.fixture(autouse=True)

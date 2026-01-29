@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Index, Integer, String
+from sqlalchemy import (JSON, Boolean, Column, DateTime, Float, Index, Integer,
+                        String)
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 

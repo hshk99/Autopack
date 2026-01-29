@@ -24,7 +24,6 @@ Usage:
 """
 
 import os
-
 # Add src to path
 import sys
 from pathlib import Path

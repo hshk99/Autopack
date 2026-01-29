@@ -10,10 +10,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from autopack.schema_validation import (
-    SchemaValidationError,
-    validate_intention_anchor_v2,
-)
+from autopack.schema_validation import (SchemaValidationError,
+                                        validate_intention_anchor_v2)
 
 
 def test_minimal_valid_intention_anchor_v2():

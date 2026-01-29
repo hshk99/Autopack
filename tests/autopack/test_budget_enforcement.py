@@ -2,11 +2,9 @@
 
 import pytest
 
-from autopack.autonomous.budgeting import (
-    BudgetExhaustedError,
-    get_budget_remaining_pct,
-    is_budget_exhausted,
-)
+from autopack.autonomous.budgeting import (BudgetExhaustedError,
+                                           get_budget_remaining_pct,
+                                           is_budget_exhausted)
 
 
 class TestBudgetExhaustion:

@@ -514,8 +514,8 @@ class TestEmbeddingCache:
         text = "same text"
 
         # Different models should create different cache entries
-        result1 = sync_embed_text(text, model="model-a")
-        result2 = sync_embed_text(text, model="model-b")
+        sync_embed_text(text, model="model-a")
+        sync_embed_text(text, model="model-b")
 
         stats = get_embedding_cache_stats()
         assert stats["size"] == 2

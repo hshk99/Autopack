@@ -301,7 +301,8 @@ class TestDashboardAPILogging:
 
         from fastapi import HTTPException
 
-        from autopack.api.routes.dashboard import get_dashboard_consolidated_metrics
+        from autopack.api.routes.dashboard import \
+            get_dashboard_consolidated_metrics
 
         caplog.set_level(logging.INFO)
 

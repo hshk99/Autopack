@@ -55,7 +55,8 @@ class TestAnomalyDetectorExceptionLogging:
 
     def test_check_duration_anomaly_logs_calculation_failure(self, caplog):
         """P95 calculation failure should be logged."""
-        from autopack.telemetry.anomaly_detector import TelemetryAnomalyDetector
+        from autopack.telemetry.anomaly_detector import \
+            TelemetryAnomalyDetector
 
         detector = TelemetryAnomalyDetector()
         # Add minimal history that might cause calculation issues
@@ -74,7 +75,8 @@ class TestAnomalyDetectorExceptionLogging:
 
     def test_calculate_correlation_logs_failure(self, caplog):
         """Correlation calculation failure should be logged."""
-        from autopack.telemetry.anomaly_detector import TelemetryAnomalyDetector
+        from autopack.telemetry.anomaly_detector import \
+            TelemetryAnomalyDetector
 
         detector = TelemetryAnomalyDetector()
         outcomes_a = [True, False, True, False, True]

@@ -10,7 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from telemetry.correlator import DEFAULT_PREFETCH_WINDOW_HOURS, TelemetryCorrelator
+from telemetry.correlator import (DEFAULT_PREFETCH_WINDOW_HOURS,
+                                  TelemetryCorrelator)
 from telemetry.event_schema import TelemetryEvent
 from telemetry.unified_event_log import UnifiedEventLog
 

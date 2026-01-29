@@ -13,13 +13,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from autopack.memory.maintenance import (
-    _get_last_maintenance_time,
-    _load_maintenance_config,
-    _update_last_maintenance_time,
-    is_maintenance_due,
-    run_maintenance_if_due,
-)
+from autopack.memory.maintenance import (_get_last_maintenance_time,
+                                         _load_maintenance_config,
+                                         _update_last_maintenance_time,
+                                         is_maintenance_due,
+                                         run_maintenance_if_due)
 
 
 @pytest.fixture

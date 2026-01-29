@@ -5,7 +5,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from autopack.research.models import ResearchQuery, ResearchStage
-from autopack.research.orchestrator import ResearchOrchestrator, ResearchSession
+from autopack.research.orchestrator import (ResearchOrchestrator,
+                                            ResearchSession)
 
 
 class TestResearchOrchestrator:

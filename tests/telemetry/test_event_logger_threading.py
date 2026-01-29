@@ -5,7 +5,6 @@ import tempfile
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-
 from telemetry.event_logger import EventLogger, get_logger
 
 

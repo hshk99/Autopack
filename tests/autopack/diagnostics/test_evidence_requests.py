@@ -9,16 +9,9 @@ import json
 import pytest
 
 from autopack.diagnostics.evidence_requests import (
-    EvidenceRequest,
-    EvidenceRequestType,
-    create_clarification_request,
-    create_decision_request,
-    create_example_request,
-    format_evidence_request,
-    format_multiple_requests,
-    load_evidence_requests,
-    save_evidence_requests,
-)
+    EvidenceRequest, EvidenceRequestType, create_clarification_request,
+    create_decision_request, create_example_request, format_evidence_request,
+    format_multiple_requests, load_evidence_requests, save_evidence_requests)
 
 
 class TestEvidenceRequest:

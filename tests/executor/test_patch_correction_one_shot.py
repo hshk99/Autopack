@@ -13,7 +13,8 @@ import json
 
 def test_should_attempt_correction_within_budget():
     """Correction should be attempted when budget allows."""
-    from autopack.executor.patch_correction import should_attempt_patch_correction
+    from autopack.executor.patch_correction import \
+        should_attempt_patch_correction
 
     http_422_detail = {
         "error": "validation_failed",
@@ -28,7 +29,8 @@ def test_should_attempt_correction_within_budget():
 
 def test_should_not_attempt_correction_low_budget():
     """Correction should not be attempted when budget is too low."""
-    from autopack.executor.patch_correction import should_attempt_patch_correction
+    from autopack.executor.patch_correction import \
+        should_attempt_patch_correction
 
     http_422_detail = {
         "error": "validation_failed",
@@ -43,10 +45,8 @@ def test_should_not_attempt_correction_low_budget():
 
 def test_correct_patch_once_returns_result():
     """Correction attempt returns structured result."""
-    from autopack.executor.patch_correction import (
-        CorrectedPatchResult,
-        correct_patch_once,
-    )
+    from autopack.executor.patch_correction import (CorrectedPatchResult,
+                                                    correct_patch_once)
 
     original_patch = '{"data": {}}'
     validator_error = {

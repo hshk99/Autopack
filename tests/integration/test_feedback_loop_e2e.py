@@ -17,8 +17,10 @@ from typing import Any, Dict, List, Optional
 
 import pytest
 
-from autopack.feedback_pipeline import FeedbackPipeline, PhaseContext, PhaseOutcome
-from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
+from autopack.feedback_pipeline import (FeedbackPipeline, PhaseContext,
+                                        PhaseOutcome)
+from autopack.telemetry.telemetry_to_memory_bridge import \
+    TelemetryToMemoryBridge
 
 # =============================================================================
 # Test Fixtures

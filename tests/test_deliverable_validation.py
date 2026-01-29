@@ -9,13 +9,10 @@ from datetime import datetime, timezone
 import pytest
 
 from autopack.builder import DeliverableValidator, ValidationResult
-from autopack.intention_anchor.v2 import (
-    EvidenceVerificationIntention,
-    IntentionAnchorV2,
-    NorthStarIntention,
-    PivotIntentions,
-    SafetyRiskIntention,
-)
+from autopack.intention_anchor.v2 import (EvidenceVerificationIntention,
+                                          IntentionAnchorV2,
+                                          NorthStarIntention, PivotIntentions,
+                                          SafetyRiskIntention)
 
 
 class TestDeliverableValidator:

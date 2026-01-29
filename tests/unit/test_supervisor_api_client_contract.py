@@ -15,12 +15,9 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from autopack.supervisor import (
-    SupervisorApiClient,
-    SupervisorApiHttpError,
-    SupervisorApiNetworkError,
-    SupervisorApiTimeoutError,
-)
+from autopack.supervisor import (SupervisorApiClient, SupervisorApiHttpError,
+                                 SupervisorApiNetworkError,
+                                 SupervisorApiTimeoutError)
 
 
 class TestSupervisorApiClientConstruction:

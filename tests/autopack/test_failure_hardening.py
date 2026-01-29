@@ -1,12 +1,9 @@
 """Tests for failure hardening system (Phase 4 of True Autonomy)."""
 
-from autopack.failure_hardening import (
-    FailureHardeningRegistry,
-    FailurePattern,
-    MitigationResult,
-    detect_and_mitigate_failure,
-    get_registry,
-)
+from autopack.failure_hardening import (FailureHardeningRegistry,
+                                        FailurePattern, MitigationResult,
+                                        detect_and_mitigate_failure,
+                                        get_registry)
 
 
 class TestFailurePattern:

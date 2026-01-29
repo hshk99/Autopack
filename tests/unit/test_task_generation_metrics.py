@@ -5,15 +5,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from autopack.models import TaskGenerationEvent
-from autopack.roadc.task_generator import (
-    AutonomousTaskGenerator,
-    _emit_task_generation_event,
-)
-from autopack.telemetry.analyzer import (
-    RankedIssue,
-    TaskGenerationStats,
-    TelemetryAnalyzer,
-)
+from autopack.roadc.task_generator import (AutonomousTaskGenerator,
+                                           _emit_task_generation_event)
+from autopack.telemetry.analyzer import (RankedIssue, TaskGenerationStats,
+                                         TelemetryAnalyzer)
 
 
 class TestTaskGenerationEvent:

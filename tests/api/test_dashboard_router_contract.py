@@ -238,7 +238,8 @@ class TestGetDashboardConsolidatedMetricsContract:
 
         from fastapi import HTTPException
 
-        from autopack.api.routes.dashboard import get_dashboard_consolidated_metrics
+        from autopack.api.routes.dashboard import \
+            get_dashboard_consolidated_metrics
 
         mock_db = MagicMock()
 
@@ -257,7 +258,8 @@ class TestGetDashboardConsolidatedMetricsContract:
 
         from fastapi import HTTPException
 
-        from autopack.api.routes.dashboard import get_dashboard_consolidated_metrics
+        from autopack.api.routes.dashboard import \
+            get_dashboard_consolidated_metrics
 
         mock_db = MagicMock()
 

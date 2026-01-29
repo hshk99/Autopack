@@ -8,12 +8,8 @@ import pytest
 
 from autopack.subagent.context import ContextFileManager, SubagentFinding
 from autopack.subagent.output_contract import OutputType
-from autopack.subagent.task_brief import (
-    CONSTRAINT_DESCRIPTIONS,
-    TaskBrief,
-    TaskBriefGenerator,
-    TaskConstraint,
-)
+from autopack.subagent.task_brief import (CONSTRAINT_DESCRIPTIONS, TaskBrief,
+                                          TaskBriefGenerator, TaskConstraint)
 
 
 class TestTaskConstraint:

@@ -69,10 +69,7 @@ class TestParallelismCheckerInitialization:
         from datetime import datetime, timezone
 
         from autopack.intention_anchor.v2 import (
-            IntentionAnchorV2,
-            ParallelismIsolationIntention,
-            PivotIntentions,
-        )
+            IntentionAnchorV2, ParallelismIsolationIntention, PivotIntentions)
 
         executor = Mock()
         executor.workspace = "/test"

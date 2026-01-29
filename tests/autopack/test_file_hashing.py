@@ -11,11 +11,9 @@ import time
 
 import pytest
 
-from autopack.file_hashing import (
-    clear_file_hash_cache,
-    compute_file_hash_cached,
-    compute_file_hash_with_cache,
-)
+from autopack.file_hashing import (clear_file_hash_cache,
+                                   compute_file_hash_cached,
+                                   compute_file_hash_with_cache)
 
 
 class TestFileHashCaching:

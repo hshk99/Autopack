@@ -695,7 +695,6 @@ class TestDeprecationWarnings:
         """Test InsightToTaskGenerator class is marked as deprecated."""
         # The deprecated library adds deprecation warnings on class instantiation
         # We verify this by checking that a warning is emitted
-        import os
         import tempfile
 
         from autopack.analytics.telemetry_analyzer import TelemetryAnalyzer

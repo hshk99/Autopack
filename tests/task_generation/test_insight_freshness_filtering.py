@@ -14,15 +14,10 @@ import pytest
 
 from autopack.analytics.telemetry_analyzer import TelemetryAnalyzer
 from autopack.task_generation.insight_to_task import (
-    DEFAULT_INSIGHT_FRESHNESS_HOURS,
-    InsightToTaskGenerator,
-)
+    DEFAULT_INSIGHT_FRESHNESS_HOURS, InsightToTaskGenerator)
 from autopack.task_generation.priority_engine import (
-    FRESHNESS_BOOST_THRESHOLD_HOURS,
-    FRESHNESS_DECAY_THRESHOLD_HOURS,
-    FRESHNESS_NEUTRAL_THRESHOLD_HOURS,
-    PriorityEngine,
-)
+    FRESHNESS_BOOST_THRESHOLD_HOURS, FRESHNESS_DECAY_THRESHOLD_HOURS,
+    FRESHNESS_NEUTRAL_THRESHOLD_HOURS, PriorityEngine)
 
 
 @pytest.fixture

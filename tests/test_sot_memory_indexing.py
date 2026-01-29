@@ -14,15 +14,12 @@ from unittest.mock import patch
 import pytest
 
 from autopack.memory.memory_service import MemoryService
-from autopack.memory.sot_indexing import (
-    chunk_sot_file,
-    chunk_sot_json,
-    chunk_text,
-    extract_heading_from_chunk,
-    extract_timestamp_from_chunk,
-    json_to_embedding_text,
-    stable_chunk_id,
-)
+from autopack.memory.sot_indexing import (chunk_sot_file, chunk_sot_json,
+                                          chunk_text,
+                                          extract_heading_from_chunk,
+                                          extract_timestamp_from_chunk,
+                                          json_to_embedding_text,
+                                          stable_chunk_id)
 
 
 class TestSOTChunking:

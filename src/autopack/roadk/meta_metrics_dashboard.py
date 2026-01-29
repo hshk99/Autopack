@@ -8,12 +8,9 @@ MetaMetricsTracker for analysis.
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from ..telemetry.meta_metrics import (
-    FeedbackLoopHealth,
-    PipelineLatencyTracker,
-    PipelineSLAConfig,
-    SLABreachAlert,
-)
+from ..telemetry.meta_metrics import (FeedbackLoopHealth,
+                                      PipelineLatencyTracker,
+                                      PipelineSLAConfig, SLABreachAlert)
 from .dashboard_data import DashboardDataProvider, LoopHealthMetrics
 
 

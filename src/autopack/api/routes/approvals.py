@@ -19,9 +19,8 @@ from autopack import models
 from autopack.api.deps import limiter, verify_api_key, verify_read_access
 from autopack.database import get_db
 from autopack.notifications.telegram_notifier import answer_telegram_callback
-from autopack.notifications.telegram_webhook_security import (
-    verify_telegram_webhook as verify_telegram_webhook_crypto,
-)
+from autopack.notifications.telegram_webhook_security import \
+    verify_telegram_webhook as verify_telegram_webhook_crypto
 
 logger = logging.getLogger(__name__)
 
@@ -283,14 +282,10 @@ async def _handle_storage_callback(
     - storage_details:{scan_id} - View scan details
     - storage_skip:{scan_id} - Skip this scan
     """
-    from autopack.storage_optimizer.db import (
-        create_approval_decision,
-        get_cleanup_candidates_by_scan,
-    )
+    from autopack.storage_optimizer.db import (create_approval_decision,
+                                               get_cleanup_candidates_by_scan)
     from autopack.storage_optimizer.telegram_notifications import (
-        StorageTelegramNotifier,
-        answer_telegram_callback,
-    )
+        StorageTelegramNotifier, answer_telegram_callback)
 
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     notifier = StorageTelegramNotifier()

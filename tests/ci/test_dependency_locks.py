@@ -1,7 +1,6 @@
 """Tests for dependency lock file verification."""
 
 import json
-
 # Import from scripts location
 import sys
 import tempfile
@@ -11,13 +10,10 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "ci"))
 
-from check_dependency_locks import (
-    LockCheckResult,
-    check_package_lock_json,
-    check_platform_markers,
-    check_requirements_dev_txt,
-    check_requirements_txt,
-)
+from check_dependency_locks import (LockCheckResult, check_package_lock_json,
+                                    check_platform_markers,
+                                    check_requirements_dev_txt,
+                                    check_requirements_txt)
 
 
 class TestLockCheckResult:

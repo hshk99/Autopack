@@ -4,13 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from autopack.roadi import (
-    ProtectionResult,
-    RegressionProtector,
-    RegressionTest,
-    RiskAssessment,
-    RiskSeverity,
-)
+from autopack.roadi import (ProtectionResult, RegressionProtector,
+                            RegressionTest, RiskAssessment, RiskSeverity)
 
 
 class TestRegressionProtector:

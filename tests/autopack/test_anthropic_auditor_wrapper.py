@@ -10,7 +10,8 @@ import logging
 import os
 from unittest.mock import MagicMock, patch
 
-from autopack.dual_auditor import AnthropicAuditorClientWrapper, StubClaudeAuditor
+from autopack.dual_auditor import (AnthropicAuditorClientWrapper,
+                                   StubClaudeAuditor)
 from autopack.llm_client import AuditorResult
 
 

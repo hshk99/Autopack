@@ -9,16 +9,14 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
-from autopack.executor.run_checkpoint import (
-    create_checkpoint,
-    create_deletion_savepoint,
-    create_execute_fix_checkpoint,
-    create_run_checkpoint,
-    list_checkpoints,
-    rollback_to_checkpoint,
-    rollback_to_run_checkpoint,
-    write_audit_log,
-)
+from autopack.executor.run_checkpoint import (create_checkpoint,
+                                              create_deletion_savepoint,
+                                              create_execute_fix_checkpoint,
+                                              create_run_checkpoint,
+                                              list_checkpoints,
+                                              rollback_to_checkpoint,
+                                              rollback_to_run_checkpoint,
+                                              write_audit_log)
 
 
 class TestCreateCheckpoint:

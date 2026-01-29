@@ -2,7 +2,8 @@
 
 import pytest
 
-from autopack.research.frameworks.competitive_intensity import CompetitiveIntensity
+from autopack.research.frameworks.competitive_intensity import \
+    CompetitiveIntensity
 
 
 class TestCompetitiveIntensity:

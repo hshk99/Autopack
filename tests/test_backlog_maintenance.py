@@ -1,12 +1,10 @@
 from pathlib import Path
 
-from autopack.backlog_maintenance import (
-    backlog_items_to_phases,
-    create_git_checkpoint,
-    parse_backlog_markdown,
-    parse_patch_stats,
-    revert_to_checkpoint,
-)
+from autopack.backlog_maintenance import (backlog_items_to_phases,
+                                          create_git_checkpoint,
+                                          parse_backlog_markdown,
+                                          parse_patch_stats,
+                                          revert_to_checkpoint)
 
 
 def test_parse_backlog_markdown_collects_bullets(tmp_path: Path):

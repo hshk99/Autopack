@@ -6,7 +6,8 @@ Verifies clamping, determinism, and edge cases for budget_remaining computation.
 
 import pytest
 
-from autopack.autonomous.budgeting import BudgetInputs, compute_budget_remaining
+from autopack.autonomous.budgeting import (BudgetInputs,
+                                           compute_budget_remaining)
 
 
 class TestComputeBudgetRemaining:

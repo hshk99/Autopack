@@ -10,7 +10,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from autopack.database import Base
-from autopack.external_actions import ExternalActionLedger, ExternalActionStatus
+from autopack.external_actions import (ExternalActionLedger,
+                                       ExternalActionStatus)
 
 
 @pytest.fixture

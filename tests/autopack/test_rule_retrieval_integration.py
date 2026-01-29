@@ -9,7 +9,6 @@ Tests cover:
 
 from unittest.mock import Mock
 
-
 from autopack.feedback_pipeline import FeedbackPipeline
 
 

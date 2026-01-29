@@ -14,7 +14,8 @@ import pytest
 
 def test_extract_changed_files_from_patch_empty():
     """Empty patch returns unknown status, not empty list."""
-    from autopack.executor.changed_files import extract_changed_files_from_patch
+    from autopack.executor.changed_files import \
+        extract_changed_files_from_patch
 
     result = extract_changed_files_from_patch("")
 
@@ -25,7 +26,8 @@ def test_extract_changed_files_from_patch_empty():
 
 def test_extract_changed_files_from_patch_valid():
     """Valid patch extracts files deterministically."""
-    from autopack.executor.changed_files import extract_changed_files_from_patch
+    from autopack.executor.changed_files import \
+        extract_changed_files_from_patch
 
     patch = """diff --git a/src/foo.py b/src/foo.py
 --- a/src/foo.py
@@ -51,7 +53,8 @@ diff --git a/src/bar.py b/src/bar.py
 
 def test_extract_changed_files_from_patch_deterministic():
     """Same patch always produces same output."""
-    from autopack.executor.changed_files import extract_changed_files_from_patch
+    from autopack.executor.changed_files import \
+        extract_changed_files_from_patch
 
     patch = """diff --git a/z.py b/z.py
 +++ b/z.py
@@ -110,9 +113,7 @@ def test_changed_files_result_to_dict():
 def test_format_changed_files_unknown():
     """Format displays unknown status correctly."""
     from autopack.executor.changed_files import (
-        ChangedFilesResult,
-        format_changed_files_for_display,
-    )
+        ChangedFilesResult, format_changed_files_for_display)
 
     result = ChangedFilesResult(files=None, status="unknown", evidence_flag="git_unavailable")
 
@@ -125,9 +126,7 @@ def test_format_changed_files_unknown():
 def test_format_changed_files_available():
     """Format displays available files correctly."""
     from autopack.executor.changed_files import (
-        ChangedFilesResult,
-        format_changed_files_for_display,
-    )
+        ChangedFilesResult, format_changed_files_for_display)
 
     result = ChangedFilesResult(files=["a.py", "b.py"], status="available")
 

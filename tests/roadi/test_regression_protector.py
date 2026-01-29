@@ -4,16 +4,11 @@ Tests the regression check and fix verification functionality added to
 regression_protector.py.
 """
 
-from datetime import datetime, timedelta
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
 import pytest
 
 from autopack.roadi.regression_protector import (FixVerificationResult,
                                                  RegressionCheckResult,
-                                                 RegressionProtector,
-                                                 RiskAssessment, RiskSeverity)
+                                                 RegressionProtector)
 
 
 class TestRegressionCheckResult:

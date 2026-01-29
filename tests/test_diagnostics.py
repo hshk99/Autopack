@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from autopack.diagnostics.command_runner import CommandResult, GovernedCommandRunner
+from autopack.diagnostics.command_runner import (CommandResult,
+                                                 GovernedCommandRunner)
 from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
 from autopack.diagnostics.probes import ProbeLibrary
 

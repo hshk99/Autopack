@@ -6,13 +6,10 @@ BUILD-197: Claude Code sub-agent guardrails
 
 import pytest
 
-from autopack.subagent.guardrails import (
-    GuardrailResult,
-    GuardrailType,
-    GuardrailViolation,
-    SubagentGuardrails,
-    ViolationSeverity,
-)
+from autopack.subagent.guardrails import (GuardrailResult, GuardrailType,
+                                          GuardrailViolation,
+                                          SubagentGuardrails,
+                                          ViolationSeverity)
 from autopack.subagent.output_contract import OutputType, SubagentOutput
 
 

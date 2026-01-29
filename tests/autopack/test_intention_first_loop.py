@@ -10,28 +10,19 @@ from datetime import datetime
 
 import pytest
 
-from autopack.autonomous.intention_first_loop import (
-    IntentionFirstLoop,
-    PhaseLoopState,
-    RunLoopState,
-)
+from autopack.autonomous.intention_first_loop import (IntentionFirstLoop,
+                                                      PhaseLoopState,
+                                                      RunLoopState)
 from autopack.config import settings
-from autopack.intention_anchor.models import (
-    IntentionAnchor,
-    IntentionConstraints,
-    IntentionRiskProfile,
-)
+from autopack.intention_anchor.models import (IntentionAnchor,
+                                              IntentionConstraints,
+                                              IntentionRiskProfile)
 from autopack.phase_proof import PhaseChange, PhaseProof, PhaseVerification
-from autopack.scope_reduction import (
-    ScopeReductionDiff,
-    ScopeReductionProposal,
-    ScopeReductionRationale,
-)
-from autopack.stuck_handling import (
-    StuckHandlingPolicy,
-    StuckReason,
-    StuckResolutionDecision,
-)
+from autopack.scope_reduction import (ScopeReductionDiff,
+                                      ScopeReductionProposal,
+                                      ScopeReductionRationale)
+from autopack.stuck_handling import (StuckHandlingPolicy, StuckReason,
+                                     StuckResolutionDecision)
 
 
 @pytest.fixture

@@ -18,7 +18,6 @@ loop by converting detected patterns into actionable improvement suggestions.
 from __future__ import annotations
 
 import logging
-import warnings
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone

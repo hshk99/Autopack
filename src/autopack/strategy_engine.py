@@ -10,14 +10,9 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from .config import settings
-from .strategy_schemas import (
-    CategoryDefaults,
-    PhaseStrategySlice,
-    ProjectImplementationStrategy,
-    ProjectRuleset,
-    SafetyProfileConfig,
-    TierStrategySlice,
-)
+from .strategy_schemas import (CategoryDefaults, PhaseStrategySlice,
+                               ProjectImplementationStrategy, ProjectRuleset,
+                               SafetyProfileConfig, TierStrategySlice)
 
 
 class StrategyEngine:

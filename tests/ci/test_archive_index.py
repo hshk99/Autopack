@@ -88,7 +88,8 @@ def test_archive_index_recent_files_bounded():
     data = json.loads(index_path.read_text(encoding="utf-8"))
 
     # Import the limit constant
-    from scripts.archive.generate_archive_index import TOP_RECENT_FILES_PER_ROOT
+    from scripts.archive.generate_archive_index import \
+        TOP_RECENT_FILES_PER_ROOT
 
     for root in data["archive_roots"]:
         recent_count = len(root.get("recent_files", []))
@@ -120,7 +121,8 @@ def test_archive_index_generator_is_deterministic():
 
 def test_archive_index_validation_catches_absolute_paths():
     """Verify _validate_no_absolute_paths catches absolute paths."""
-    from scripts.archive.generate_archive_index import _validate_no_absolute_paths
+    from scripts.archive.generate_archive_index import \
+        _validate_no_absolute_paths
 
     # Test with clean index
     clean_index = {

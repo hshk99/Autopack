@@ -2,11 +2,9 @@
 
 from datetime import datetime, timedelta, timezone
 
-from autopack.gaps.gap_telemetry import (
-    GapDetectionEvent,
-    GapRemediationEvent,
-    GapTelemetryRecorder,
-)
+from autopack.gaps.gap_telemetry import (GapDetectionEvent,
+                                         GapRemediationEvent,
+                                         GapTelemetryRecorder)
 from autopack.models import GapDetection, GapRemediation
 
 

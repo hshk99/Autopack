@@ -10,15 +10,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from autopack.browser.playwright_runner import (
-    ActionLimitExceededError,
-    ActionRecord,
-    BrowserAction,
-    BrowserSessionConfig,
-    BrowserSessionError,
-    PlaywrightRunner,
-    PlaywrightSession,
-)
+from autopack.browser.playwright_runner import (ActionLimitExceededError,
+                                                ActionRecord, BrowserAction,
+                                                BrowserSessionConfig,
+                                                BrowserSessionError,
+                                                PlaywrightRunner,
+                                                PlaywrightSession)
 
 
 class TestBrowserSessionConfig:

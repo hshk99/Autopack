@@ -9,7 +9,8 @@ import time
 
 import pytest
 
-from autopack.api.app import StartupError, StartupPhaseLogger, StartupPhaseResult
+from autopack.api.app import (StartupError, StartupPhaseLogger,
+                              StartupPhaseResult)
 
 
 class TestStartupPhaseResult:

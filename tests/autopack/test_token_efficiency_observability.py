@@ -7,14 +7,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
-from autopack.artifact_loader import ArtifactLoader, get_artifact_substitution_stats
+from autopack.artifact_loader import (ArtifactLoader,
+                                      get_artifact_substitution_stats)
 from autopack.context_budgeter import BudgetSelection
 from autopack.database import Base
-from autopack.usage_recorder import (
-    TokenEfficiencyMetrics,
-    get_token_efficiency_stats,
-    record_token_efficiency_metrics,
-)
+from autopack.usage_recorder import (TokenEfficiencyMetrics,
+                                     get_token_efficiency_stats,
+                                     record_token_efficiency_metrics)
 
 
 @pytest.fixture

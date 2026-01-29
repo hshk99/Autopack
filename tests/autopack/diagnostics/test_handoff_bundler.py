@@ -84,7 +84,8 @@ class TestHandoffBundler:
 
     def test_handoff_bundle_structure(self, temp_run_dir: Path) -> None:
         """Test that handoff bundle has correct structure."""
-        from autopack.diagnostics.handoff_bundler import generate_handoff_bundle
+        from autopack.diagnostics.handoff_bundler import \
+            generate_handoff_bundle
 
         handoff_dir = generate_handoff_bundle(temp_run_dir)
 
@@ -102,7 +103,8 @@ class TestHandoffBundler:
 
     def test_index_json_structure(self, temp_run_dir: Path) -> None:
         """Test that index.json has correct structure and content."""
-        from autopack.diagnostics.handoff_bundler import generate_handoff_bundle
+        from autopack.diagnostics.handoff_bundler import \
+            generate_handoff_bundle
 
         handoff_dir = generate_handoff_bundle(temp_run_dir)
         index_path = handoff_dir / "index.json"
@@ -127,7 +129,8 @@ class TestHandoffBundler:
 
     def test_summary_md_content(self, temp_run_dir: Path) -> None:
         """Test that summary.md contains high-signal narrative."""
-        from autopack.diagnostics.handoff_bundler import generate_handoff_bundle
+        from autopack.diagnostics.handoff_bundler import \
+            generate_handoff_bundle
 
         handoff_dir = generate_handoff_bundle(temp_run_dir)
         summary_path = handoff_dir / "summary.md"
@@ -140,7 +143,8 @@ class TestHandoffBundler:
 
     def test_excerpts_directory(self, temp_run_dir: Path) -> None:
         """Test that excerpts directory contains tailed snippets."""
-        from autopack.diagnostics.handoff_bundler import generate_handoff_bundle
+        from autopack.diagnostics.handoff_bundler import \
+            generate_handoff_bundle
 
         handoff_dir = generate_handoff_bundle(temp_run_dir)
         excerpts_dir = handoff_dir / "excerpts"
@@ -151,7 +155,8 @@ class TestHandoffBundler:
 
     def test_deterministic_output(self, temp_run_dir: Path) -> None:
         """Test that bundle generation is deterministic."""
-        from autopack.diagnostics.handoff_bundler import generate_handoff_bundle
+        from autopack.diagnostics.handoff_bundler import \
+            generate_handoff_bundle
 
         # Generate bundle twice
         handoff_dir1 = generate_handoff_bundle(temp_run_dir)
@@ -172,14 +177,16 @@ class TestHandoffBundler:
 
     def test_invalid_run_dir(self) -> None:
         """Test error handling for invalid run directory."""
-        from autopack.diagnostics.handoff_bundler import generate_handoff_bundle
+        from autopack.diagnostics.handoff_bundler import \
+            generate_handoff_bundle
 
         with pytest.raises(ValueError, match="does not exist|not found|invalid"):
             generate_handoff_bundle(Path("/nonexistent/path"))
 
     def test_empty_run_dir(self, empty_run_dir: Path) -> None:
         """Test handling of empty run directory."""
-        from autopack.diagnostics.handoff_bundler import generate_handoff_bundle
+        from autopack.diagnostics.handoff_bundler import \
+            generate_handoff_bundle
 
         # Should either succeed with minimal output or raise clear error
         try:
@@ -192,7 +199,8 @@ class TestHandoffBundler:
 
     def test_large_file_excerpts(self, temp_run_dir: Path) -> None:
         """Test that large files are properly excerpted."""
-        from autopack.diagnostics.handoff_bundler import generate_handoff_bundle
+        from autopack.diagnostics.handoff_bundler import \
+            generate_handoff_bundle
 
         # Create a large log file
         large_log = "\n".join([f"Line {i}: " + "x" * 100 for i in range(10000)])
@@ -210,7 +218,8 @@ class TestHandoffBundler:
 
     def test_special_characters_in_paths(self, temp_run_dir: Path) -> None:
         """Test handling of special characters in artifact paths."""
-        from autopack.diagnostics.handoff_bundler import generate_handoff_bundle
+        from autopack.diagnostics.handoff_bundler import \
+            generate_handoff_bundle
 
         # Create file with special characters (that are valid on most filesystems)
         special_dir = temp_run_dir / "special_chars"
@@ -227,7 +236,8 @@ class TestHandoffBundler:
 
     def test_nested_directory_structure(self, temp_run_dir: Path) -> None:
         """Test handling of deeply nested directory structures."""
-        from autopack.diagnostics.handoff_bundler import generate_handoff_bundle
+        from autopack.diagnostics.handoff_bundler import \
+            generate_handoff_bundle
 
         # Create nested structure
         nested = temp_run_dir / "a" / "b" / "c" / "d" / "e"
@@ -246,7 +256,8 @@ class TestHandoffBundler:
 
     def test_binary_file_handling(self, temp_run_dir: Path) -> None:
         """Test handling of binary files."""
-        from autopack.diagnostics.handoff_bundler import generate_handoff_bundle
+        from autopack.diagnostics.handoff_bundler import \
+            generate_handoff_bundle
 
         # Create a binary file
         binary_content = bytes(range(256))
@@ -264,7 +275,8 @@ class TestHandoffBundler:
 
     def test_symlink_handling(self, temp_run_dir: Path) -> None:
         """Test handling of symbolic links."""
-        from autopack.diagnostics.handoff_bundler import generate_handoff_bundle
+        from autopack.diagnostics.handoff_bundler import \
+            generate_handoff_bundle
 
         # Create a symlink (skip on Windows if not supported)
         target = temp_run_dir / "target.txt"
@@ -283,7 +295,8 @@ class TestHandoffBundler:
 
     def test_regenerate_overwrites(self, temp_run_dir: Path) -> None:
         """Test that regenerating bundle overwrites existing."""
-        from autopack.diagnostics.handoff_bundler import generate_handoff_bundle
+        from autopack.diagnostics.handoff_bundler import \
+            generate_handoff_bundle
 
         # Generate initial bundle
         handoff_dir = generate_handoff_bundle(temp_run_dir)
@@ -305,7 +318,8 @@ class TestHandoffBundlerEdgeCases:
 
     def test_unicode_content(self) -> None:
         """Test handling of unicode content in files."""
-        from autopack.diagnostics.handoff_bundler import generate_handoff_bundle
+        from autopack.diagnostics.handoff_bundler import \
+            generate_handoff_bundle
 
         with tempfile.TemporaryDirectory() as tmpdir:
             run_dir = Path(tmpdir) / "unicode-run"
@@ -323,7 +337,8 @@ class TestHandoffBundlerEdgeCases:
 
     def test_empty_files(self) -> None:
         """Test handling of empty files."""
-        from autopack.diagnostics.handoff_bundler import generate_handoff_bundle
+        from autopack.diagnostics.handoff_bundler import \
+            generate_handoff_bundle
 
         with tempfile.TemporaryDirectory() as tmpdir:
             run_dir = Path(tmpdir) / "empty-files-run"
@@ -351,7 +366,8 @@ class TestHandoffBundlerEdgeCases:
         """Test that concurrent generation doesn't cause issues."""
         import concurrent.futures
 
-        from autopack.diagnostics.handoff_bundler import generate_handoff_bundle
+        from autopack.diagnostics.handoff_bundler import \
+            generate_handoff_bundle
 
         def generate():
             return generate_handoff_bundle(temp_run_dir)

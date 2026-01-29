@@ -7,13 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from telemetry.performance_metrics import (
-    PerformanceCollector,
-    PerformanceMetric,
-    SlotUtilization,
-    get_collector,
-    record_metric_from_ps,
-)
+from telemetry.performance_metrics import (PerformanceCollector,
+                                           PerformanceMetric, SlotUtilization,
+                                           get_collector,
+                                           record_metric_from_ps)
 
 
 @pytest.fixture

@@ -33,12 +33,9 @@ class TestWebhookSecurityModule:
     def test_module_is_importable(self):
         """Module must be importable without errors."""
         from autopack.notifications.telegram_webhook_security import (
-            get_verification_status,
-            get_webhook_secret,
-            is_verification_required,
-            verify_secret_token,
-            verify_telegram_webhook,
-        )
+            get_verification_status, get_webhook_secret,
+            is_verification_required, verify_secret_token,
+            verify_telegram_webhook)
 
         # All functions should be callable
         assert callable(get_webhook_secret)
@@ -53,21 +50,24 @@ class TestSecretTokenVerification:
 
     def test_verify_with_matching_secret(self):
         """Valid token should pass verification."""
-        from autopack.notifications.telegram_webhook_security import verify_secret_token
+        from autopack.notifications.telegram_webhook_security import \
+            verify_secret_token
 
         with patch.dict(os.environ, {"TELEGRAM_WEBHOOK_SECRET": "test-secret-12345"}):
             assert verify_secret_token("test-secret-12345") is True
 
     def test_verify_with_wrong_secret(self):
         """Invalid token should fail verification."""
-        from autopack.notifications.telegram_webhook_security import verify_secret_token
+        from autopack.notifications.telegram_webhook_security import \
+            verify_secret_token
 
         with patch.dict(os.environ, {"TELEGRAM_WEBHOOK_SECRET": "test-secret-12345"}):
             assert verify_secret_token("wrong-secret") is False
 
     def test_verify_with_empty_token(self):
         """Empty token should fail verification."""
-        from autopack.notifications.telegram_webhook_security import verify_secret_token
+        from autopack.notifications.telegram_webhook_security import \
+            verify_secret_token
 
         with patch.dict(os.environ, {"TELEGRAM_WEBHOOK_SECRET": "test-secret-12345"}):
             assert verify_secret_token("") is False
@@ -75,7 +75,8 @@ class TestSecretTokenVerification:
 
     def test_verify_without_configured_secret(self):
         """No configured secret should fail verification."""
-        from autopack.notifications.telegram_webhook_security import verify_secret_token
+        from autopack.notifications.telegram_webhook_security import \
+            verify_secret_token
 
         with patch.dict(os.environ, {}, clear=True):
             os.environ.pop("TELEGRAM_WEBHOOK_SECRET", None)
@@ -87,9 +88,8 @@ class TestProductionRequirements:
 
     def test_production_requires_verification(self):
         """Production mode should require verification."""
-        from autopack.notifications.telegram_webhook_security import (
-            is_verification_required,
-        )
+        from autopack.notifications.telegram_webhook_security import \
+            is_verification_required
 
         with patch.dict(os.environ, {"AUTOPACK_ENV": "production"}, clear=False):
             os.environ.pop("TELEGRAM_WEBHOOK_SECRET", None)
@@ -97,9 +97,8 @@ class TestProductionRequirements:
 
     def test_production_with_secret_requires_verification(self):
         """Production with secret should require verification."""
-        from autopack.notifications.telegram_webhook_security import (
-            is_verification_required,
-        )
+        from autopack.notifications.telegram_webhook_security import \
+            is_verification_required
 
         with patch.dict(
             os.environ,
@@ -109,9 +108,8 @@ class TestProductionRequirements:
 
     def test_development_without_secret_no_requirement(self):
         """Development mode without secret should not require verification."""
-        from autopack.notifications.telegram_webhook_security import (
-            is_verification_required,
-        )
+        from autopack.notifications.telegram_webhook_security import \
+            is_verification_required
 
         with patch.dict(os.environ, {"AUTOPACK_ENV": "development"}, clear=False):
             os.environ.pop("TELEGRAM_WEBHOOK_SECRET", None)
@@ -119,9 +117,8 @@ class TestProductionRequirements:
 
     def test_development_with_secret_requires_verification(self):
         """Development with secret should require verification."""
-        from autopack.notifications.telegram_webhook_security import (
-            is_verification_required,
-        )
+        from autopack.notifications.telegram_webhook_security import \
+            is_verification_required
 
         with patch.dict(
             os.environ,
@@ -136,9 +133,8 @@ class TestWebhookVerification:
     @pytest.mark.asyncio
     async def test_production_rejects_without_secret_config(self):
         """Production should reject if no secret is configured."""
-        from autopack.notifications.telegram_webhook_security import (
-            verify_telegram_webhook,
-        )
+        from autopack.notifications.telegram_webhook_security import \
+            verify_telegram_webhook
 
         mock_request = MagicMock()
         mock_request.headers.get.return_value = None
@@ -151,9 +147,8 @@ class TestWebhookVerification:
     @pytest.mark.asyncio
     async def test_production_rejects_invalid_token(self):
         """Production should reject invalid token."""
-        from autopack.notifications.telegram_webhook_security import (
-            verify_telegram_webhook,
-        )
+        from autopack.notifications.telegram_webhook_security import \
+            verify_telegram_webhook
 
         mock_request = MagicMock()
         mock_request.headers.get.return_value = "wrong-token"
@@ -168,9 +163,8 @@ class TestWebhookVerification:
     @pytest.mark.asyncio
     async def test_production_accepts_valid_token(self):
         """Production should accept valid token."""
-        from autopack.notifications.telegram_webhook_security import (
-            verify_telegram_webhook,
-        )
+        from autopack.notifications.telegram_webhook_security import \
+            verify_telegram_webhook
 
         mock_request = MagicMock()
         mock_request.headers.get.return_value = "correct-token"
@@ -185,9 +179,8 @@ class TestWebhookVerification:
     @pytest.mark.asyncio
     async def test_development_allows_without_token(self):
         """Development should allow requests without token (no secret configured)."""
-        from autopack.notifications.telegram_webhook_security import (
-            verify_telegram_webhook,
-        )
+        from autopack.notifications.telegram_webhook_security import \
+            verify_telegram_webhook
 
         mock_request = MagicMock()
         mock_request.headers.get.return_value = None
@@ -257,9 +250,8 @@ class TestVerificationStatus:
 
     def test_get_verification_status_returns_dict(self):
         """get_verification_status should return status dict."""
-        from autopack.notifications.telegram_webhook_security import (
-            get_verification_status,
-        )
+        from autopack.notifications.telegram_webhook_security import \
+            get_verification_status
 
         status = get_verification_status()
 
@@ -270,9 +262,8 @@ class TestVerificationStatus:
 
     def test_status_reflects_configuration(self):
         """Status should reflect current configuration."""
-        from autopack.notifications.telegram_webhook_security import (
-            get_verification_status,
-        )
+        from autopack.notifications.telegram_webhook_security import \
+            get_verification_status
 
         with patch.dict(
             os.environ,

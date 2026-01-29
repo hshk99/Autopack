@@ -8,7 +8,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from feedback.loop_controller import FeedbackLoopController, LoopAction, LoopState
+from feedback.loop_controller import (FeedbackLoopController, LoopAction,
+                                      LoopState)
 from feedback.optimization_detector import OptimizationSuggestion
 
 

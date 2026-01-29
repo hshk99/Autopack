@@ -89,7 +89,8 @@ class TestReadinessEndpointContract:
 
     def test_ready_returns_200_after_initialization(self):
         """Readiness returns 200 when fully initialized."""
-        from autopack.api.routes.health import mark_app_initialized, readiness_check
+        from autopack.api.routes.health import (mark_app_initialized,
+                                                readiness_check)
 
         # Mark as initialized
         mark_app_initialized()
@@ -112,7 +113,8 @@ class TestReadinessEndpointContract:
 
     def test_ready_returns_required_fields(self):
         """Readiness response includes all required fields."""
-        from autopack.api.routes.health import mark_app_initialized, readiness_check
+        from autopack.api.routes.health import (mark_app_initialized,
+                                                readiness_check)
 
         mark_app_initialized()
 
@@ -143,10 +145,8 @@ class TestReadinessEndpointContract:
 
     def test_ready_shows_initialization_errors(self):
         """Readiness shows initialization errors in response."""
-        from autopack.api.routes.health import (
-            mark_initialization_failed,
-            readiness_check,
-        )
+        from autopack.api.routes.health import (mark_initialization_failed,
+                                                readiness_check)
 
         mark_initialization_failed("Database init failed")
 

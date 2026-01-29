@@ -12,7 +12,6 @@ IMP-PERF-005: Caching added to prevent redundant embedding API calls.
 """
 
 import asyncio
-import functools
 import hashlib
 import logging
 import os

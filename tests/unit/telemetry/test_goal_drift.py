@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import List
 
-
 from autopack.telemetry.meta_metrics import GoalDriftDetector, GoalDriftResult
 
 

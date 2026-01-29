@@ -11,7 +11,8 @@ class TestDBEventPersisterRollback:
 
     def test_rollback_on_commit_failure(self):
         """Verify session.rollback() is called when commit fails."""
-        from autopack.executor.db_events import try_record_token_budget_escalation_event
+        from autopack.executor.db_events import \
+            try_record_token_budget_escalation_event
 
         mock_session = MagicMock()
         mock_session.commit.side_effect = Exception("commit failed")
@@ -43,7 +44,8 @@ class TestDBEventPersisterRollback:
 
     def test_successful_commit_no_rollback(self):
         """Verify rollback is NOT called on successful commit."""
-        from autopack.executor.db_events import try_record_token_budget_escalation_event
+        from autopack.executor.db_events import \
+            try_record_token_budget_escalation_event
 
         mock_session = MagicMock()
         mock_event_class = Mock()
@@ -77,7 +79,8 @@ class TestDBEventPersisterRollback:
         """Verify rollback handles SQLAlchemy OperationalError."""
         from sqlalchemy.exc import OperationalError
 
-        from autopack.executor.db_events import try_record_token_budget_escalation_event
+        from autopack.executor.db_events import \
+            try_record_token_budget_escalation_event
 
         mock_session = MagicMock()
         mock_session.commit.side_effect = OperationalError("statement", {}, Exception())
@@ -107,7 +110,8 @@ class TestDBEventPersisterRollback:
 
     def test_session_closed_even_when_rollback_fails(self):
         """Verify session.close() is called even if rollback fails."""
-        from autopack.executor.db_events import try_record_token_budget_escalation_event
+        from autopack.executor.db_events import \
+            try_record_token_budget_escalation_event
 
         mock_session = MagicMock()
         mock_session.commit.side_effect = Exception("commit failed")
@@ -142,7 +146,8 @@ class TestMaybeApplyRetryMaxTokensFromDB:
 
     def test_read_does_not_mutate_on_failure(self):
         """Verify read operation doesn't modify phase dict on DB failure."""
-        from autopack.executor.db_events import maybe_apply_retry_max_tokens_from_db
+        from autopack.executor.db_events import \
+            maybe_apply_retry_max_tokens_from_db
 
         phase = {"phase_id": "test-phase"}
 
@@ -162,7 +167,8 @@ class TestMaybeApplyRetryMaxTokensFromDB:
 
     def test_read_applies_escalated_tokens_on_success(self):
         """Verify escalated tokens are applied when event found."""
-        from autopack.executor.db_events import maybe_apply_retry_max_tokens_from_db
+        from autopack.executor.db_events import \
+            maybe_apply_retry_max_tokens_from_db
 
         phase = {"phase_id": "test-phase"}
 
@@ -198,7 +204,8 @@ class TestMaybeApplyRetryMaxTokensFromDB:
 
     def test_read_filters_by_run_and_phase_id(self):
         """Verify query filters correctly by run_id and phase_id."""
-        from autopack.executor.db_events import maybe_apply_retry_max_tokens_from_db
+        from autopack.executor.db_events import \
+            maybe_apply_retry_max_tokens_from_db
 
         phase = {"phase_id": "phase-123"}
 
@@ -235,7 +242,8 @@ class TestMaybeApplyRetryMaxTokensFromDB:
 
     def test_read_no_event_when_attempt_mismatch(self):
         """Verify _escalated_tokens not applied when attempt index doesn't match."""
-        from autopack.executor.db_events import maybe_apply_retry_max_tokens_from_db
+        from autopack.executor.db_events import \
+            maybe_apply_retry_max_tokens_from_db
 
         phase = {"phase_id": "test-phase"}
 
@@ -271,7 +279,8 @@ class TestMaybeApplyRetryMaxTokensFromDB:
 
     def test_read_session_always_closed(self):
         """Verify session is always closed, even on success."""
-        from autopack.executor.db_events import maybe_apply_retry_max_tokens_from_db
+        from autopack.executor.db_events import \
+            maybe_apply_retry_max_tokens_from_db
 
         phase = {"phase_id": "test-phase"}
 
@@ -303,7 +312,8 @@ class TestMaybeApplyRetryMaxTokensFromDB:
 
     def test_read_handles_close_failure(self):
         """Verify read operation handles session.close() failure gracefully."""
-        from autopack.executor.db_events import maybe_apply_retry_max_tokens_from_db
+        from autopack.executor.db_events import \
+            maybe_apply_retry_max_tokens_from_db
 
         phase = {"phase_id": "test-phase"}
 
@@ -341,7 +351,8 @@ class TestTokenBudgetEscalationEventWrite:
 
     def test_record_with_all_fields(self):
         """Verify all fields are passed to event constructor."""
-        from autopack.executor.db_events import try_record_token_budget_escalation_event
+        from autopack.executor.db_events import \
+            try_record_token_budget_escalation_event
 
         mock_session = MagicMock()
         mock_event_class = Mock()
@@ -378,7 +389,8 @@ class TestTokenBudgetEscalationEventWrite:
 
     def test_record_with_minimal_fields(self):
         """Verify record works with only required fields."""
-        from autopack.executor.db_events import try_record_token_budget_escalation_event
+        from autopack.executor.db_events import \
+            try_record_token_budget_escalation_event
 
         mock_session = MagicMock()
         mock_event_class = Mock()
@@ -405,7 +417,8 @@ class TestTokenBudgetEscalationEventWrite:
 
     def test_record_handles_none_optional_fields(self):
         """Verify None values for optional fields are handled correctly."""
-        from autopack.executor.db_events import try_record_token_budget_escalation_event
+        from autopack.executor.db_events import \
+            try_record_token_budget_escalation_event
 
         mock_session = MagicMock()
         mock_event_class = Mock()
@@ -440,7 +453,8 @@ class TestTokenBudgetEscalationEventWrite:
 
     def test_record_reason_field_variations(self):
         """Verify different reason field values work correctly."""
-        from autopack.executor.db_events import try_record_token_budget_escalation_event
+        from autopack.executor.db_events import \
+            try_record_token_budget_escalation_event
 
         for reason_value in ["truncation", "utilization", "budget_exceeded", "custom"]:
             mock_session = MagicMock()
@@ -470,7 +484,8 @@ class TestBestEffortGracefulFailure:
 
     def test_write_never_raises_on_any_error(self):
         """Verify write never raises exception - returns False instead."""
-        from autopack.executor.db_events import try_record_token_budget_escalation_event
+        from autopack.executor.db_events import \
+            try_record_token_budget_escalation_event
 
         error_types = [
             Exception("generic"),
@@ -505,7 +520,8 @@ class TestBestEffortGracefulFailure:
 
     def test_read_never_raises_on_any_error(self):
         """Verify read never raises exception - silently ignored."""
-        from autopack.executor.db_events import maybe_apply_retry_max_tokens_from_db
+        from autopack.executor.db_events import \
+            maybe_apply_retry_max_tokens_from_db
 
         error_types = [
             Exception("generic"),

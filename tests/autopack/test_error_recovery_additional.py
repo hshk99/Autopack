@@ -122,7 +122,8 @@ class TestErrorRecoveryClassification:
     def test_error_recovery_classifies_network_errors(self):
         """Verify network errors classified as transient."""
         try:
-            from autopack.error_recovery import ErrorCategory, ErrorRecoverySystem
+            from autopack.error_recovery import (ErrorCategory,
+                                                 ErrorRecoverySystem)
         except ImportError:
             pytest.skip("ErrorRecovery classification not available")
 
@@ -146,7 +147,8 @@ class TestErrorRecoveryClassification:
     def test_error_recovery_classifies_encoding_errors(self):
         """Verify encoding errors classified correctly."""
         try:
-            from autopack.error_recovery import ErrorCategory, ErrorRecoverySystem
+            from autopack.error_recovery import (ErrorCategory,
+                                                 ErrorRecoverySystem)
         except ImportError:
             pytest.skip("ErrorRecovery classification not available")
 

@@ -13,7 +13,8 @@ Test Coverage:
 
 import pytest
 
-from autopack.executor.context_preflight import ContextPreflight, FileSizeBucket
+from autopack.executor.context_preflight import (ContextPreflight,
+                                                 FileSizeBucket)
 
 
 class TestFileSizeBucket:

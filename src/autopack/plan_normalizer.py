@@ -413,13 +413,8 @@ class PlanNormalizer:
             primary = detected_toolchains[0]
 
             # Get adapter instance
-            from .toolchain import (
-                GoAdapter,
-                JavaAdapter,
-                NodeAdapter,
-                PythonAdapter,
-                RustAdapter,
-            )
+            from .toolchain import (GoAdapter, JavaAdapter, NodeAdapter,
+                                    PythonAdapter, RustAdapter)
 
             adapter_map = {
                 "python": PythonAdapter(),

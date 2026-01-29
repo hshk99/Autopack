@@ -13,18 +13,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Literal
 
-from .doc_drift import run_doc_drift_check, run_doc_tests, run_sot_summary_check
+from .doc_drift import (run_doc_drift_check, run_doc_tests,
+                        run_sot_summary_check)
 from .gap_plugin import GapResult, PluginRegistry
 from .gap_telemetry import GapDetectionEvent, GapTelemetryRecorder
-from .models import (
-    CommandEvidence,
-    Gap,
-    GapEvidence,
-    GapMetadata,
-    GapReportV1,
-    GapSummary,
-    SafeRemediation,
-)
+from .models import (CommandEvidence, Gap, GapEvidence, GapMetadata,
+                     GapReportV1, GapSummary, SafeRemediation)
 
 logger = logging.getLogger(__name__)
 

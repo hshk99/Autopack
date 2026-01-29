@@ -3,12 +3,10 @@
 from pathlib import Path
 from textwrap import dedent
 
-from autopack.diagnostics.package_detector import (
-    PackageDetectionResult,
-    PackageDetector,
-    PackageRequirement,
-    detect_missing_packages,
-)
+from autopack.diagnostics.package_detector import (PackageDetectionResult,
+                                                   PackageDetector,
+                                                   PackageRequirement,
+                                                   detect_missing_packages)
 
 
 class TestPackageDetector:

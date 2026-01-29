@@ -11,7 +11,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.roadc.task_generator import AutonomousTaskGenerator, GeneratedTask
+from autopack.roadc.task_generator import (AutonomousTaskGenerator,
+                                           GeneratedTask)
 
 
 class TestTaskStatusFeedbackLoop:

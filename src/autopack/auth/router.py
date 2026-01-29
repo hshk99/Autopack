@@ -25,14 +25,9 @@ from autopack.database import get_db
 from .models import User
 from .rate_limiter import login_rate_limiter
 from .schemas import Token, UserCreate, UserResponse
-from .security import (
-    create_access_token,
-    decode_access_token,
-    ensure_keys,
-    generate_jwk_from_public_pem,
-    hash_password,
-    verify_password,
-)
+from .security import (create_access_token, decode_access_token, ensure_keys,
+                       generate_jwk_from_public_pem, hash_password,
+                       verify_password)
 
 router = APIRouter(
     prefix="/api/auth",

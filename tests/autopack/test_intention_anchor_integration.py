@@ -7,14 +7,10 @@ Anchor system with phase binding and prompt rendering.
 
 import tempfile
 
-from autopack.intention_anchor import (
-    IntentionConstraints,
-    create_anchor,
-    load_and_render_for_auditor,
-    load_and_render_for_builder,
-    load_and_render_for_doctor,
-    save_anchor,
-)
+from autopack.intention_anchor import (IntentionConstraints, create_anchor,
+                                       load_and_render_for_auditor,
+                                       load_and_render_for_builder,
+                                       load_and_render_for_doctor, save_anchor)
 from autopack.plan_utils import validate_intention_refs
 from autopack.schemas import IntentionRefs, PhaseCreate
 

@@ -18,7 +18,11 @@ from autopack.telemetry.anomaly_detector import (
     AnomalyAlert,
     TelemetryAnomalyDetector,
 )
-from autopack.telemetry.auto_healer import AutoHealingEngine, HealingAction, HealingDecision
+from autopack.telemetry.auto_healer import (
+    AutoHealingEngine,
+    HealingAction,
+    HealingDecision,
+)
 from autopack.telemetry.causal_analysis import (
     CausalAnalysisReport,
     CausalAnalyzer,
@@ -29,6 +33,12 @@ from autopack.telemetry.causal_analysis import (
 )
 from autopack.telemetry.cost_aggregator import CostAggregation, CostAggregator
 from autopack.telemetry.cost_tracker import ContextPrepCost, ContextPrepTracker
+from autopack.telemetry.loop_metrics import (
+    InsightSource,
+    LoopEffectivenessMetrics,
+    LoopMetricsCollector,
+    TaskOutcome,
+)
 from autopack.telemetry.meta_metrics import (
     ComponentHealthReport,
     ComponentStatus,
@@ -84,4 +94,9 @@ __all__ = [
     "FixStabilityReport",
     "CostAggregator",
     "CostAggregation",
+    # IMP-OBS-001: Closed-loop observability metrics
+    "LoopMetricsCollector",
+    "LoopEffectivenessMetrics",
+    "InsightSource",
+    "TaskOutcome",
 ]

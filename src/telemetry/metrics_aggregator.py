@@ -201,7 +201,7 @@ class MetricsAggregator:
                             event_time = datetime.fromisoformat(event["timestamp"])
                             if event_time >= since:
                                 yield event
-                        except (json.JSONDecodeError, KeyError) as e:
+                        except (json.JSONDecodeError, KeyError, ValueError, TypeError) as e:
                             # Log but continue - don't let one bad event crash aggregation
                             logger.warning(f"Skipping malformed event in {log_file}: {e}")
                             continue
@@ -263,45 +263,62 @@ class MetricsAggregator:
         Returns:
             List of AggregatedMetric objects, one per time period.
         """
-        cutoff = datetime.now() - timedelta(hours=since_hours)
-        events = self._read_events(cutoff)
+        try:
+            cutoff = datetime.now() - timedelta(hours=since_hours)
+            events = self._read_events(cutoff)
+        except Exception as e:
+            logger.error(f"Failed to read events for period aggregation: {e}")
+            return []
 
         if not events:
             return []
 
         # Group events by time period
         buckets: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        skipped_count = 0
 
         for event in events:
-            event_time = datetime.fromisoformat(event["timestamp"])
-            # Calculate bucket start time
-            bucket_start = cutoff + timedelta(
-                seconds=(
-                    (event_time - cutoff).total_seconds()
-                    // period.total_seconds()
-                    * period.total_seconds()
+            try:
+                event_time = datetime.fromisoformat(event["timestamp"])
+                # Calculate bucket start time
+                bucket_start = cutoff + timedelta(
+                    seconds=(
+                        (event_time - cutoff).total_seconds()
+                        // period.total_seconds()
+                        * period.total_seconds()
+                    )
                 )
-            )
-            bucket_key = bucket_start.isoformat()
-            buckets[bucket_key].append(event)
+                bucket_key = bucket_start.isoformat()
+                buckets[bucket_key].append(event)
+            except (KeyError, TypeError, ValueError) as err:
+                skipped_count += 1
+                logger.warning(f"Skipping malformed event in period aggregation: {err}")
+                continue
+
+        if skipped_count > 0:
+            logger.debug(f"Skipped {skipped_count} malformed events in period aggregation")
 
         # Convert buckets to AggregatedMetric objects
         results: List[AggregatedMetric] = []
         for period_key, bucket_events in sorted(buckets.items()):
-            count = len(bucket_events)
-            # For events, we aggregate counts (value=1 per event)
-            results.append(
-                AggregatedMetric(
-                    metric_name=metric_name,
-                    period=period_key,
-                    count=count,
-                    sum_value=float(count),
-                    avg_value=1.0,
-                    min_value=1.0,
-                    max_value=1.0,
-                    metadata={"event_types": list({e.get("type") for e in bucket_events})},
+            try:
+                count = len(bucket_events)
+                # For events, we aggregate counts (value=1 per event)
+                results.append(
+                    AggregatedMetric(
+                        metric_name=metric_name,
+                        period=period_key,
+                        count=count,
+                        sum_value=float(count),
+                        avg_value=1.0,
+                        min_value=1.0,
+                        max_value=1.0,
+                        metadata={"event_types": list({e.get("type") for e in bucket_events})},
+                    )
                 )
-            )
+            except (TypeError, ValueError) as err:
+                logger.warning(f"Error creating metric for period '{period_key}': {err}")
+                continue
 
         return results
 
@@ -322,34 +339,51 @@ class MetricsAggregator:
         Returns:
             Dictionary mapping component names to AggregatedMetric objects.
         """
-        cutoff = datetime.now() - timedelta(hours=since_hours)
-        events = self._read_events(cutoff)
+        try:
+            cutoff = datetime.now() - timedelta(hours=since_hours)
+            events = self._read_events(cutoff)
+        except Exception as e:
+            logger.error(f"Failed to read events for component aggregation: {e}")
+            return {}
 
         if not events:
             return {}
 
         # Group events by component (using 'type' as component proxy)
         components: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        skipped_count = 0
 
         for event in events:
-            component = event.get("type", "unknown")
-            components[component].append(event)
+            try:
+                component = event.get("type", "unknown")
+                components[component].append(event)
+            except (AttributeError, TypeError) as err:
+                skipped_count += 1
+                logger.warning(f"Skipping malformed event in component aggregation: {err}")
+                continue
+
+        if skipped_count > 0:
+            logger.debug(f"Skipped {skipped_count} malformed events in component aggregation")
 
         # Convert to AggregatedMetric objects
         results: Dict[str, AggregatedMetric] = {}
         for component, component_events in components.items():
-            count = len(component_events)
-            results[component] = AggregatedMetric(
-                metric_name=metric_name,
-                period=component,
-                count=count,
-                sum_value=float(count),
-                avg_value=1.0,
-                min_value=1.0,
-                max_value=1.0,
-                metadata={
-                    "slots": list({e.get("slot") for e in component_events if e.get("slot")}),
-                },
-            )
+            try:
+                count = len(component_events)
+                results[component] = AggregatedMetric(
+                    metric_name=metric_name,
+                    period=component,
+                    count=count,
+                    sum_value=float(count),
+                    avg_value=1.0,
+                    min_value=1.0,
+                    max_value=1.0,
+                    metadata={
+                        "slots": list({e.get("slot") for e in component_events if e.get("slot")}),
+                    },
+                )
+            except (TypeError, ValueError) as err:
+                logger.warning(f"Error creating metric for component '{component}': {err}")
+                continue
 
         return results

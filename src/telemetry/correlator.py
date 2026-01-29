@@ -82,21 +82,43 @@ class TelemetryCorrelator:
         Returns:
             Correlated event with all related events from different sources.
         """
-        # Query for events matching both slot_id and pr_number
-        slot_events = self.event_log.query({"slot_id": slot_id})
-        pr_events = self.event_log.query({"pr_number": pr_number})
+        try:
+            # Query for events matching both slot_id and pr_number
+            slot_events = self.event_log.query({"slot_id": slot_id})
+            pr_events = self.event_log.query({"pr_number": pr_number})
+        except Exception as e:
+            logger.error(f"Failed to query events for slot-PR correlation: {e}")
+            return CorrelatedEvent(
+                primary_event=None,
+                related_events=[],
+                correlation_confidence=0.0,
+                inferred_root_cause=None,
+                correlation_type="none",
+            )
 
         # Combine and deduplicate events
         all_events = []
-        seen_keys = set()
+        seen_keys: set[Tuple[datetime, str, str]] = set()
+        skipped_count = 0
         for event in slot_events + pr_events:
-            key = (event.timestamp, event.source, event.event_type)
-            if key not in seen_keys:
-                seen_keys.add(key)
-                all_events.append(event)
+            try:
+                key = (event.timestamp, event.source, event.event_type)
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    all_events.append(event)
+            except (AttributeError, TypeError) as err:
+                skipped_count += 1
+                logger.warning(f"Skipping malformed event in slot-PR correlation: {err}")
+                continue
+
+        if skipped_count > 0:
+            logger.debug(f"Skipped {skipped_count} malformed events in slot-PR correlation")
 
         # Sort by timestamp
-        all_events.sort(key=lambda e: e.timestamp)
+        try:
+            all_events.sort(key=lambda e: e.timestamp)
+        except (AttributeError, TypeError) as e:
+            logger.warning(f"Error sorting events: {e}")
 
         if not all_events:
             return CorrelatedEvent(
@@ -133,20 +155,51 @@ class TelemetryCorrelator:
         chain_events = [final_event]
         current = final_event
 
-        # IMP-TEL-005: Cycle detection - track visited events
-        visited: set[Tuple[datetime, str, str]] = {self._get_event_key(final_event)}
+        try:
+            # IMP-TEL-005: Cycle detection - track visited events
+            visited: set[Tuple[datetime, str, str]] = {self._get_event_key(final_event)}
+        except (AttributeError, TypeError) as e:
+            logger.error(f"Failed to get event key for final event: {e}")
+            # Return single-event chain on failure
+            return CausationChain(
+                chain_id=f"chain_error_{datetime.now().isoformat()}",
+                events=chain_events,
+                root_cause_event=final_event,
+                final_effect_event=final_event,
+                confidence=0.0,
+            )
 
         # IMP-TEL-005: Pre-fetch events in one query instead of repeated queries
         # This reduces O(n^2) to O(n) for deep chains
         time_window = timedelta(hours=DEFAULT_PREFETCH_WINDOW_HOURS)
-        prefetched_events = self._prefetch_events(
-            end_time=final_event.timestamp,
-            time_window=time_window,
-            slot_id=final_event.slot_id,
-        )
+        try:
+            prefetched_events = self._prefetch_events(
+                end_time=final_event.timestamp,
+                time_window=time_window,
+                slot_id=final_event.slot_id,
+            )
+        except Exception as e:
+            logger.error(f"Failed to pre-fetch events for causation chain: {e}")
+            return CausationChain(
+                chain_id=f"chain_{final_event.timestamp.isoformat()}",
+                events=chain_events,
+                root_cause_event=final_event,
+                final_effect_event=final_event,
+                confidence=0.0,
+            )
 
         # Build index for efficient lookup: group events by timestamp range
-        events_by_time = self._build_time_index(prefetched_events)
+        try:
+            events_by_time = self._build_time_index(prefetched_events)
+        except Exception as e:
+            logger.error(f"Failed to build time index for causation chain: {e}")
+            return CausationChain(
+                chain_id=f"chain_{final_event.timestamp.isoformat()}",
+                events=chain_events,
+                root_cause_event=final_event,
+                final_effect_event=final_event,
+                confidence=0.0,
+            )
 
         # IMP-REL-004: Add iteration counter to prevent unbounded loops
         depth = 0
@@ -154,31 +207,35 @@ class TelemetryCorrelator:
         while depth < MAX_CAUSATION_CHAIN_DEPTH:
             depth += 1
 
-            # Find potential causes from pre-fetched events
-            potential_causes = self._get_potential_causes_from_index(
-                current, events_by_time, visited
-            )
-
-            if not potential_causes:
-                break
-
-            # Find most likely cause
-            cause = self._find_likely_cause(current, potential_causes)
-            if cause is None:
-                break
-
-            # IMP-TEL-005: Check for cycle before adding
-            cause_key = self._get_event_key(cause)
-            if cause_key in visited:
-                logger.warning(
-                    f"Cycle detected in causation chain at event: "
-                    f"{cause.source}:{cause.event_type}"
+            try:
+                # Find potential causes from pre-fetched events
+                potential_causes = self._get_potential_causes_from_index(
+                    current, events_by_time, visited
                 )
-                break
 
-            visited.add(cause_key)
-            chain_events.insert(0, cause)
-            current = cause
+                if not potential_causes:
+                    break
+
+                # Find most likely cause
+                cause = self._find_likely_cause(current, potential_causes)
+                if cause is None:
+                    break
+
+                # IMP-TEL-005: Check for cycle before adding
+                cause_key = self._get_event_key(cause)
+                if cause_key in visited:
+                    logger.warning(
+                        f"Cycle detected in causation chain at event: "
+                        f"{cause.source}:{cause.event_type}"
+                    )
+                    break
+
+                visited.add(cause_key)
+                chain_events.insert(0, cause)
+                current = cause
+            except (AttributeError, TypeError, KeyError) as err:
+                logger.warning(f"Error processing causation chain at depth {depth}: {err}")
+                break
         else:
             # IMP-REL-004: Max depth reached - log warning
             logger.warning(
@@ -311,24 +368,42 @@ class TelemetryCorrelator:
             List of correlated events within the window.
         """
         window = window or self.correlation_window
-        start = center_event.timestamp - window
-        end = center_event.timestamp + window
 
-        events = self.event_log.query({"since": start, "until": end})
+        try:
+            start = center_event.timestamp - window
+            end = center_event.timestamp + window
+        except (AttributeError, TypeError) as e:
+            logger.error(f"Failed to calculate time window for correlation: {e}")
+            return []
+
+        try:
+            events = self.event_log.query({"since": start, "until": end})
+        except Exception as e:
+            logger.error(f"Failed to query events for time window correlation: {e}")
+            return []
 
         # Build correlated events for each related event
         correlated = []
+        skipped_count = 0
         for event in events:
-            if event != center_event:
-                correlated.append(
-                    CorrelatedEvent(
-                        primary_event=center_event,
-                        related_events=[event],
-                        correlation_confidence=self._temporal_confidence(center_event, event),
-                        inferred_root_cause=None,
-                        correlation_type="temporal",
+            try:
+                if event != center_event:
+                    correlated.append(
+                        CorrelatedEvent(
+                            primary_event=center_event,
+                            related_events=[event],
+                            correlation_confidence=self._temporal_confidence(center_event, event),
+                            inferred_root_cause=None,
+                            correlation_type="temporal",
+                        )
                     )
-                )
+            except (AttributeError, TypeError) as err:
+                skipped_count += 1
+                logger.warning(f"Skipping malformed event in time window correlation: {err}")
+                continue
+
+        if skipped_count > 0:
+            logger.debug(f"Skipped {skipped_count} malformed events in time window correlation")
 
         return correlated
 
@@ -357,9 +432,17 @@ class TelemetryCorrelator:
         """
         if not events:
             return None
-        # Find earliest event - likely root cause
-        earliest = min(events, key=lambda e: e.timestamp)
-        return f"{earliest.source}: {earliest.event_type}"
+        try:
+            # Filter out events with invalid timestamps
+            valid_events = [e for e in events if e.timestamp is not None]
+            if not valid_events:
+                return None
+            # Find earliest event - likely root cause
+            earliest = min(valid_events, key=lambda e: e.timestamp)
+            return f"{earliest.source}: {earliest.event_type}"
+        except (AttributeError, TypeError) as err:
+            logger.warning(f"Error inferring root cause: {err}")
+            return None
 
     def _find_likely_cause(
         self,

@@ -867,3 +867,205 @@ class TestRecordTaskOutcome:
 
         # Zero tokens doesn't get low token bonus (0.8 + 0.1 + 0.0 = 0.9)
         assert report.effectiveness_score == pytest.approx(0.9)
+
+
+class TestOnTaskComplete:
+    """Tests for on_task_complete method (IMP-LOOP-021)."""
+
+    def test_on_task_complete_without_engine(self) -> None:
+        """Test on_task_complete is no-op without priority engine."""
+        tracker = TaskEffectivenessTracker()
+
+        # Should not raise
+        tracker.on_task_complete(
+            task_id="IMP-TEST-001",
+            success=False,
+            metrics={"failure_count": 1},
+        )
+
+    def test_on_task_complete_calls_priority_engine(self) -> None:
+        """Test on_task_complete forwards to priority engine."""
+        mock_engine = MagicMock()
+        tracker = TaskEffectivenessTracker(priority_engine=mock_engine)
+
+        tracker.on_task_complete(
+            task_id="IMP-TEST-001",
+            success=False,
+            metrics={"failure_count": 2},
+        )
+
+        mock_engine.update_from_effectiveness.assert_called_once_with(
+            task_id="IMP-TEST-001",
+            success=False,
+            metrics={"failure_count": 2},
+        )
+
+    def test_on_task_complete_records_execution(self) -> None:
+        """Test on_task_complete also records execution status."""
+        tracker = TaskEffectivenessTracker()
+
+        # Register task first
+        tracker.register_task("IMP-TEST-001", priority="high", category="telemetry")
+
+        tracker.on_task_complete(
+            task_id="IMP-TEST-001",
+            success=True,
+        )
+
+        # Verify execution was recorded
+        registered = tracker._registered_tasks["IMP-TEST-001"]
+        assert registered.executed is True
+        assert registered.execution_success is True
+
+    def test_on_task_complete_adds_category_from_registered_task(self) -> None:
+        """Test on_task_complete includes category from registered task."""
+        mock_engine = MagicMock()
+        tracker = TaskEffectivenessTracker(priority_engine=mock_engine)
+
+        # Register task with category
+        tracker.register_task("IMP-TEST-001", priority="high", category="memory")
+
+        tracker.on_task_complete(
+            task_id="IMP-TEST-001",
+            success=False,
+        )
+
+        # Verify category was added to metrics
+        call_args = mock_engine.update_from_effectiveness.call_args
+        assert call_args[1]["metrics"]["category"] == "memory"
+
+    def test_on_task_complete_with_metrics(self) -> None:
+        """Test on_task_complete passes all metrics."""
+        mock_engine = MagicMock()
+        tracker = TaskEffectivenessTracker(priority_engine=mock_engine)
+
+        tracker.on_task_complete(
+            task_id="IMP-TEST-001",
+            success=False,
+            metrics={
+                "failure_count": 3,
+                "error_type": "timeout",
+                "category": "telemetry",
+            },
+        )
+
+        call_args = mock_engine.update_from_effectiveness.call_args
+        assert call_args[1]["metrics"]["failure_count"] == 3
+        assert call_args[1]["metrics"]["error_type"] == "timeout"
+        assert call_args[1]["metrics"]["category"] == "telemetry"
+
+
+class TestNotifyTaskOutcome:
+    """Tests for notify_task_outcome method (IMP-LOOP-021)."""
+
+    def test_notify_task_outcome_returns_report(self) -> None:
+        """Test notify_task_outcome returns TaskImpactReport."""
+        tracker = TaskEffectivenessTracker()
+
+        report = tracker.notify_task_outcome(
+            task_id="IMP-TEST-001",
+            success=True,
+            execution_time_seconds=30.0,
+            tokens_used=5000,
+        )
+
+        assert report.task_id == "IMP-TEST-001"
+        assert report.effectiveness_score > 0
+
+    def test_notify_task_outcome_records_history(self) -> None:
+        """Test notify_task_outcome adds to history."""
+        tracker = TaskEffectivenessTracker()
+
+        tracker.notify_task_outcome(
+            task_id="IMP-TEST-001",
+            success=True,
+        )
+
+        assert len(tracker.history.reports) == 1
+
+    def test_notify_task_outcome_calls_priority_engine(self) -> None:
+        """Test notify_task_outcome forwards to priority engine."""
+        mock_engine = MagicMock()
+        tracker = TaskEffectivenessTracker(priority_engine=mock_engine)
+
+        tracker.notify_task_outcome(
+            task_id="IMP-TEST-001",
+            success=False,
+            failure_count=2,
+            error_type="build_error",
+            category="build",
+        )
+
+        mock_engine.update_from_effectiveness.assert_called_once()
+        call_args = mock_engine.update_from_effectiveness.call_args
+        assert call_args[1]["task_id"] == "IMP-TEST-001"
+        assert call_args[1]["success"] is False
+        assert call_args[1]["metrics"]["failure_count"] == 2
+        assert call_args[1]["metrics"]["error_type"] == "build_error"
+
+    def test_notify_task_outcome_with_category(self) -> None:
+        """Test notify_task_outcome records category."""
+        tracker = TaskEffectivenessTracker()
+
+        report = tracker.notify_task_outcome(
+            task_id="IMP-TEST-001",
+            success=True,
+            category="testing",
+        )
+
+        assert report.category == "testing"
+        assert "testing" in tracker.history.category_stats
+
+    def test_notify_task_outcome_failed_task(self) -> None:
+        """Test notify_task_outcome for failed task."""
+        tracker = TaskEffectivenessTracker()
+
+        report = tracker.notify_task_outcome(
+            task_id="IMP-TEST-001",
+            success=False,
+            failure_count=1,
+        )
+
+        assert report.effectiveness_score == 0.0
+        assert report.get_effectiveness_grade() == "poor"
+
+    def test_notify_task_outcome_successful_efficient_task(self) -> None:
+        """Test notify_task_outcome for efficient successful task."""
+        tracker = TaskEffectivenessTracker()
+
+        report = tracker.notify_task_outcome(
+            task_id="IMP-TEST-001",
+            success=True,
+            execution_time_seconds=30.0,  # Fast
+            tokens_used=5000,  # Low tokens
+        )
+
+        # Should get full bonus: 0.8 + 0.1 (fast) + 0.1 (low tokens) = 1.0
+        assert report.effectiveness_score == pytest.approx(1.0)
+
+    def test_notify_task_outcome_combined_flow(self) -> None:
+        """Test notify_task_outcome combines recording and feedback."""
+        mock_engine = MagicMock()
+        tracker = TaskEffectivenessTracker(priority_engine=mock_engine)
+
+        # Register task first
+        tracker.register_task("IMP-TEST-001", priority="critical", category="memory")
+
+        report = tracker.notify_task_outcome(
+            task_id="IMP-TEST-001",
+            success=False,
+            failure_count=3,
+        )
+
+        # Verify report was created
+        assert report.task_id == "IMP-TEST-001"
+        assert report.effectiveness_score == 0.0
+
+        # Verify history was updated
+        assert len(tracker.history.reports) == 1
+
+        # Verify priority engine was notified
+        mock_engine.update_from_effectiveness.assert_called_once()
+
+        # Verify execution was recorded
+        assert tracker._registered_tasks["IMP-TEST-001"].executed is True

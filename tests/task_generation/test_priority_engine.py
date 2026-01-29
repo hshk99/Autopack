@@ -791,3 +791,192 @@ class TestComputeExecutionPlan:
         assert hasattr(result, "pareto_frontier_count")
         assert hasattr(result, "budget_constrained")
         assert result.pareto_frontier_count >= 1
+
+
+class TestSessionPenalties:
+    """Tests for session-local penalties (IMP-LOOP-021)."""
+
+    def test_update_from_effectiveness_failure(
+        self, priority_engine: PriorityEngine
+    ) -> None:
+        """Test that failures add session penalties."""
+        priority_engine.update_from_effectiveness(
+            task_id="IMP-TEST-001",
+            success=False,
+            metrics={"failure_count": 1},
+        )
+
+        penalty = priority_engine.get_session_penalty("IMP-TEST-001")
+        assert penalty > 0.0
+        assert penalty == 0.1  # Single failure = 0.1 penalty
+
+    def test_update_from_effectiveness_multiple_failures(
+        self, priority_engine: PriorityEngine
+    ) -> None:
+        """Test that multiple failures accumulate penalties."""
+        # First failure
+        priority_engine.update_from_effectiveness(
+            task_id="IMP-TEST-001",
+            success=False,
+            metrics={"failure_count": 1},
+        )
+        # Second failure
+        priority_engine.update_from_effectiveness(
+            task_id="IMP-TEST-001",
+            success=False,
+            metrics={"failure_count": 2},
+        )
+
+        penalty = priority_engine.get_session_penalty("IMP-TEST-001")
+        assert penalty == pytest.approx(0.3)  # 0.1 + 0.2 (capped by min in implementation)
+
+    def test_update_from_effectiveness_penalty_cap(
+        self, priority_engine: PriorityEngine
+    ) -> None:
+        """Test that penalties are capped at 0.5."""
+        # Multiple failures with high failure_count
+        for i in range(10):
+            priority_engine.update_from_effectiveness(
+                task_id="IMP-TEST-001",
+                success=False,
+                metrics={"failure_count": 5},
+            )
+
+        penalty = priority_engine.get_session_penalty("IMP-TEST-001")
+        assert penalty <= 0.5
+
+    def test_update_from_effectiveness_success_reduces_penalty(
+        self, priority_engine: PriorityEngine
+    ) -> None:
+        """Test that success reduces existing penalty."""
+        # Add penalty
+        priority_engine.update_from_effectiveness(
+            task_id="IMP-TEST-001",
+            success=False,
+            metrics={"failure_count": 2},
+        )
+        initial_penalty = priority_engine.get_session_penalty("IMP-TEST-001")
+
+        # Success reduces penalty
+        priority_engine.update_from_effectiveness(
+            task_id="IMP-TEST-001",
+            success=True,
+        )
+
+        reduced_penalty = priority_engine.get_session_penalty("IMP-TEST-001")
+        assert reduced_penalty < initial_penalty
+
+    def test_update_from_effectiveness_no_penalty_on_new_success(
+        self, priority_engine: PriorityEngine
+    ) -> None:
+        """Test that success on new task doesn't create penalty."""
+        priority_engine.update_from_effectiveness(
+            task_id="IMP-TEST-001",
+            success=True,
+        )
+
+        penalty = priority_engine.get_session_penalty("IMP-TEST-001")
+        assert penalty == 0.0
+
+    def test_category_penalty(self, priority_engine: PriorityEngine) -> None:
+        """Test that category penalty is applied."""
+        priority_engine.update_from_effectiveness(
+            task_id="IMP-TEST-001",
+            success=False,
+            metrics={"failure_count": 1, "category": "telemetry"},
+        )
+
+        # Task penalty
+        task_penalty = priority_engine._session_penalties.get("IMP-TEST-001", 0.0)
+        assert task_penalty > 0.0
+
+        # Category penalty
+        cat_penalty = priority_engine._session_penalties.get("_category:telemetry", 0.0)
+        assert cat_penalty > 0.0
+
+    def test_get_session_penalty_with_category(
+        self, priority_engine: PriorityEngine
+    ) -> None:
+        """Test combined task and category penalty."""
+        priority_engine.update_from_effectiveness(
+            task_id="IMP-TEST-001",
+            success=False,
+            metrics={"failure_count": 1, "category": "telemetry"},
+        )
+
+        # Combined penalty includes both task and category
+        combined = priority_engine.get_session_penalty("IMP-TEST-001", "telemetry")
+        task_only = priority_engine.get_session_penalty("IMP-TEST-001")
+
+        assert combined > task_only
+
+    def test_clear_session_penalties(self, priority_engine: PriorityEngine) -> None:
+        """Test clearing all session penalties."""
+        priority_engine.update_from_effectiveness(
+            task_id="IMP-TEST-001",
+            success=False,
+            metrics={"failure_count": 2},
+        )
+        priority_engine.update_from_effectiveness(
+            task_id="IMP-TEST-002",
+            success=False,
+            metrics={"failure_count": 1},
+        )
+
+        assert len(priority_engine._session_penalties) > 0
+
+        priority_engine.clear_session_penalties()
+
+        assert len(priority_engine._session_penalties) == 0
+
+    def test_session_penalty_affects_priority_score(
+        self, priority_engine: PriorityEngine
+    ) -> None:
+        """Test that session penalty reduces priority score."""
+        imp = {"imp_id": "IMP-TEST-001", "title": "Test task", "priority": "high"}
+
+        # Score without penalty
+        score_without_penalty = priority_engine.calculate_priority_score(imp)
+
+        # Add penalty
+        priority_engine.update_from_effectiveness(
+            task_id="IMP-TEST-001",
+            success=False,
+            metrics={"failure_count": 3},
+        )
+
+        # Score with penalty
+        score_with_penalty = priority_engine.calculate_priority_score(imp)
+
+        assert score_with_penalty < score_without_penalty
+
+    def test_session_penalty_doesnt_make_score_negative(
+        self, priority_engine: PriorityEngine
+    ) -> None:
+        """Test that score doesn't go negative with high penalty."""
+        imp = {"imp_id": "IMP-TEST-001", "title": "Test task", "priority": "low"}
+
+        # Add maximum penalty
+        for _ in range(10):
+            priority_engine.update_from_effectiveness(
+                task_id="IMP-TEST-001",
+                success=False,
+                metrics={"failure_count": 5},
+            )
+
+        score = priority_engine.calculate_priority_score(imp)
+        assert score >= 0.0
+
+    def test_update_from_effectiveness_none_metrics(
+        self, priority_engine: PriorityEngine
+    ) -> None:
+        """Test update_from_effectiveness with None metrics."""
+        # Should not raise
+        priority_engine.update_from_effectiveness(
+            task_id="IMP-TEST-001",
+            success=False,
+            metrics=None,
+        )
+
+        penalty = priority_engine.get_session_penalty("IMP-TEST-001")
+        assert penalty == 0.1  # Default failure_count of 1

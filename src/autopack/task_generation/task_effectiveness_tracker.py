@@ -797,6 +797,120 @@ class TaskEffectivenessTracker:
             "unexecuted_tasks": [t.task_id for t in unexecuted],
         }
 
+    # IMP-LOOP-021: Real-time feedback callback methods
+
+    def on_task_complete(
+        self,
+        task_id: str,
+        success: bool,
+        metrics: dict[str, Any] | None = None,
+    ) -> None:
+        """Callback for real-time task completion feedback to PriorityEngine.
+
+        IMP-LOOP-021: This method bridges TaskEffectivenessTracker to PriorityEngine,
+        enabling session-local learning. When a task completes, this callback
+        notifies the priority engine to update its session penalties.
+
+        This creates a real-time feedback loop where:
+        - Task failures immediately decrease priority for similar tasks
+        - The priority engine can adjust its scoring during the current run
+        - Historical learning (via feed_back_to_priority_engine) handles long-term
+
+        Args:
+            task_id: The task identifier (e.g., improvement ID).
+            success: Whether the task completed successfully.
+            metrics: Optional dict with additional context. Expected keys:
+                - failure_count: Number of failures for this task
+                - error_type: Type of error encountered
+                - execution_time: Time taken to execute
+                - tokens_used: Tokens consumed
+        """
+        if metrics is None:
+            metrics = {}
+
+        # Get category from registered task if available
+        category = ""
+        if task_id in self._registered_tasks:
+            category = self._registered_tasks[task_id].category
+
+        # Include category in metrics for priority engine
+        if category and "category" not in metrics:
+            metrics["category"] = category
+
+        # Forward to priority engine if connected
+        if self.priority_engine is not None:
+            self.priority_engine.update_from_effectiveness(
+                task_id=task_id,
+                success=success,
+                metrics=metrics,
+            )
+            logger.info(
+                "[IMP-LOOP-021] Sent real-time feedback to priority engine: "
+                "task_id=%s, success=%s, category=%s",
+                task_id,
+                success,
+                category,
+            )
+        else:
+            logger.debug(
+                "[IMP-LOOP-021] No priority engine connected, skipping real-time feedback"
+            )
+
+        # Also record execution status for verification tracking
+        self.record_execution(task_id, success)
+
+    def notify_task_outcome(
+        self,
+        task_id: str,
+        success: bool,
+        execution_time_seconds: float = 0.0,
+        tokens_used: int = 0,
+        failure_count: int = 1,
+        error_type: str = "",
+        category: str = "",
+    ) -> TaskImpactReport:
+        """Combined method for recording outcome and sending real-time feedback.
+
+        IMP-LOOP-021: Convenience method that combines record_task_outcome with
+        on_task_complete, ensuring both historical tracking and real-time
+        priority adjustment happen together.
+
+        Args:
+            task_id: Unique identifier for the task/phase.
+            success: Whether the task completed successfully.
+            execution_time_seconds: Time taken to execute the task.
+            tokens_used: Number of tokens consumed during execution.
+            failure_count: Number of failures for this task (for repeated failures).
+            error_type: Type of error encountered (for pattern detection).
+            category: Category for aggregation (e.g., "build", "test").
+
+        Returns:
+            TaskImpactReport with calculated effectiveness metrics.
+        """
+        # Record the outcome for historical tracking
+        report = self.record_task_outcome(
+            task_id=task_id,
+            success=success,
+            execution_time_seconds=execution_time_seconds,
+            tokens_used=tokens_used,
+            category=category,
+        )
+
+        # Send real-time feedback to priority engine
+        self.on_task_complete(
+            task_id=task_id,
+            success=success,
+            metrics={
+                "failure_count": failure_count,
+                "error_type": error_type,
+                "category": category,
+                "execution_time": execution_time_seconds,
+                "tokens_used": tokens_used,
+            },
+        )
+
+        return report
+
     # IMP-TASK-001: Persistence methods for effectiveness feedback loop
 
     def set_learning_db(self, learning_db: LearningDatabase) -> None:

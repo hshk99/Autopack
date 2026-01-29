@@ -16,32 +16,33 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from autopack.archive_consolidator import log_build_event
-from autopack.autonomous.budgeting import (
-    BudgetExhaustedError,
-    get_budget_remaining_pct,
-    is_budget_exhausted,
-)
-from autopack.autonomy.parallelism_gate import ParallelismPolicyGate, ScopeBasedParallelismChecker
+from autopack.autonomous.budgeting import (BudgetExhaustedError,
+                                           get_budget_remaining_pct,
+                                           is_budget_exhausted)
+from autopack.autonomy.parallelism_gate import (ParallelismPolicyGate,
+                                                ScopeBasedParallelismChecker)
 from autopack.config import settings
-from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
+from autopack.database import (SESSION_HEALTH_CHECK_INTERVAL,
+                               ensure_session_healthy)
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
 from autopack.memory.maintenance import run_maintenance_if_due
 from autopack.task_generation.roi_analyzer import ROIAnalyzer
-from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
+from autopack.task_generation.task_effectiveness_tracker import \
+    TaskEffectivenessTracker
 from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
-from autopack.telemetry.anomaly_detector import AlertSeverity, TelemetryAnomalyDetector
-from autopack.telemetry.meta_metrics import (
-    FeedbackLoopHealth,
-    FeedbackLoopHealthReport,
-    GoalDriftDetector,
-    MetaMetricsTracker,
-    PipelineLatencyTracker,
-    PipelineStage,
-)
-from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
+from autopack.telemetry.anomaly_detector import (AlertSeverity,
+                                                 TelemetryAnomalyDetector)
+from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
+                                             FeedbackLoopHealthReport,
+                                             GoalDriftDetector,
+                                             MetaMetricsTracker,
+                                             PipelineLatencyTracker,
+                                             PipelineStage)
+from autopack.telemetry.telemetry_to_memory_bridge import \
+    TelemetryToMemoryBridge
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
@@ -2035,7 +2036,8 @@ class AutonomousLoop:
 
         try:
             injector = ContextInjector()
-            injection = injector.get_context_for_phase(
+            # IMP-LOOP-024: Use EnrichedContextInjection for metadata (source, timestamp, freshness)
+            injection = injector.get_context_for_phase_with_metadata(
                 phase_type=phase_type,
                 current_goal=goal,
                 project_id=project_id,
@@ -2043,15 +2045,23 @@ class AutonomousLoop:
             )
 
             if injection.total_token_estimate > 0:
+                # IMP-LOOP-024: Log enriched context with quality signals
+                quality_info = ""
+                if injection.has_low_confidence_warning:
+                    quality_info = f", LOW_CONFIDENCE avg={injection.avg_confidence:.2f}"
+                else:
+                    quality_info = f", confidence={injection.avg_confidence:.2f}"
+
                 logger.info(
-                    f"[IMP-ARCH-002] Injecting {injection.total_token_estimate} tokens of memory context "
+                    f"[IMP-LOOP-024] Injecting {injection.total_token_estimate} tokens of enriched memory context "
                     f"({len(injection.past_errors)} errors, "
                     f"{len(injection.successful_strategies)} strategies, "
                     f"{len(injection.doctor_hints)} hints, "
-                    f"{len(injection.relevant_insights)} insights)"
+                    f"{len(injection.relevant_insights)} insights{quality_info})"
                 )
 
-            memory_context = injector.format_for_prompt(injection)
+            # IMP-LOOP-024: Use enriched formatting with confidence warnings
+            memory_context = injector.format_enriched_for_prompt(injection)
 
             # IMP-LOOP-025: Retrieve and inject promoted rules into execution context
             # Promoted rules are high-priority patterns that have occurred 3+ times
@@ -2782,7 +2792,8 @@ class AutonomousLoop:
 
     def _initialize_intention_loop(self):
         """Initialize intention-first loop for the run."""
-        from autopack.autonomous.executor_wiring import initialize_intention_first_loop
+        from autopack.autonomous.executor_wiring import \
+            initialize_intention_first_loop
         from autopack.intention_anchor.storage import IntentionAnchorStorage
 
         # IMP-ARCH-012: Load pending improvement tasks from self-improvement loop
@@ -2804,10 +2815,7 @@ class AutonomousLoop:
                 from datetime import datetime, timezone
 
                 from autopack.intention_anchor.models import (
-                    IntentionAnchor,
-                    IntentionBudgets,
-                    IntentionConstraints,
-                )
+                    IntentionAnchor, IntentionBudgets, IntentionConstraints)
 
                 intention_anchor = IntentionAnchor(
                     anchor_id=f"default-{self.executor.run_id}",

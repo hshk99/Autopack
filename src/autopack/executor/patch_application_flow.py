@@ -338,9 +338,8 @@ class PatchApplicationFlow:
             List of allowed path prefixes, or None if derivation fails
         """
         try:
-            from autopack.executor.deliverables_validator import (
-                extract_deliverables_from_scope,
-            )
+            from autopack.executor.deliverables_validator import \
+                extract_deliverables_from_scope
 
             scope_config = phase.get("scope")
             expected_paths = extract_deliverables_from_scope(scope_config or {})

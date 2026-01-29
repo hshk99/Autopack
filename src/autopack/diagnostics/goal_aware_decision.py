@@ -18,13 +18,9 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
-from autopack.diagnostics.diagnostics_models import (
-    Decision,
-    DecisionType,
-    FixStrategy,
-    PhaseSpec,
-    RiskLevel,
-)
+from autopack.diagnostics.diagnostics_models import (Decision, DecisionType,
+                                                     FixStrategy, PhaseSpec,
+                                                     RiskLevel)
 
 logger = logging.getLogger(__name__)
 

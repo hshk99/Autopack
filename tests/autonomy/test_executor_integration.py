@@ -4,10 +4,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.autonomy.executor_integration import (
-    ExecutorContext,
-    create_executor_context,
-)
+from autopack.autonomy.executor_integration import (ExecutorContext,
+                                                    create_executor_context)
 from autopack.stuck_handling import StuckReason, StuckResolutionDecision
 
 

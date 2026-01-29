@@ -7,10 +7,8 @@ reinforcement learning by capturing 'what works' alongside 'what fails'.
 
 from unittest.mock import Mock
 
-from autopack.executor.learning_pipeline import (
-    LearningPipeline,
-    SuccessPattern,
-)
+from autopack.executor.learning_pipeline import (LearningPipeline,
+                                                 SuccessPattern)
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 
 

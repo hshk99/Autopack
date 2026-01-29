@@ -6,17 +6,13 @@ extracted from governed_apply.py.
 
 from __future__ import annotations
 
-from autopack.apply.policy import (
-    ALLOWED_PATHS,
-    MAINTENANCE_RUN_TYPES,
-    PROTECTED_PATHS,
-    extract_justification_from_patch,
-    get_effective_allowed_paths,
-    get_effective_protected_paths,
-    is_path_protected,
-    normalize_relpath,
-    validate_patch_paths,
-)
+from autopack.apply.policy import (ALLOWED_PATHS, MAINTENANCE_RUN_TYPES,
+                                   PROTECTED_PATHS,
+                                   extract_justification_from_patch,
+                                   get_effective_allowed_paths,
+                                   get_effective_protected_paths,
+                                   is_path_protected, normalize_relpath,
+                                   validate_patch_paths)
 
 
 class TestProtectedPathsConfig:

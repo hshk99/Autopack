@@ -11,12 +11,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.autopack.database import Base
-from src.autopack.usage_recorder import (
-    AUDITOR_ROLE,
-    BUILDER_ROLE,
-    EMBEDDING_ROLE,
-    LlmUsageEvent,
-)
+from src.autopack.usage_recorder import (AUDITOR_ROLE, BUILDER_ROLE,
+                                         EMBEDDING_ROLE, LlmUsageEvent)
 
 
 @pytest.fixture

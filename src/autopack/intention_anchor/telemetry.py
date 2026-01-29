@@ -13,11 +13,8 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from .render import (
-    load_and_render_for_auditor,
-    load_and_render_for_builder,
-    load_and_render_for_doctor,
-)
+from .render import (load_and_render_for_auditor, load_and_render_for_builder,
+                     load_and_render_for_doctor)
 
 logger = logging.getLogger(__name__)
 

@@ -7,7 +7,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-
 from autopack.gaps.scanner import GapScanner, GapScanResult
 
 

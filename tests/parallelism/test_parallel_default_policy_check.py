@@ -9,11 +9,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from autopack.autonomy.parallelism_gate import ParallelismPolicyViolation
-from autopack.parallel_orchestrator import (
-    ParallelRunConfig,
-    ParallelRunOrchestrator,
-    execute_parallel_runs,
-)
+from autopack.parallel_orchestrator import (ParallelRunConfig,
+                                            ParallelRunOrchestrator,
+                                            execute_parallel_runs)
 
 
 class TestParallelExecutionRequiresAnchor:
@@ -90,10 +88,7 @@ class TestPolicyCheckedAsDefault:
         from datetime import datetime, timezone
 
         from autopack.intention_anchor.v2 import (
-            IntentionAnchorV2,
-            ParallelismIsolationIntention,
-            PivotIntentions,
-        )
+            IntentionAnchorV2, ParallelismIsolationIntention, PivotIntentions)
 
         config = ParallelRunConfig(max_concurrent_runs=3)
         orchestrator = ParallelRunOrchestrator(config)
@@ -172,7 +167,8 @@ class TestClearErrorMessages:
     @pytest.mark.asyncio
     async def test_policy_violation_error_is_actionable(self):
         """Policy violation error should provide actionable guidance."""
-        from autopack.autonomy.parallelism_gate import ParallelismPolicyViolation
+        from autopack.autonomy.parallelism_gate import \
+            ParallelismPolicyViolation
 
         error = ParallelismPolicyViolation("Parallelism not allowed by intention anchor")
 

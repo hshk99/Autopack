@@ -7,14 +7,11 @@ from __future__ import annotations
 
 import pytest
 
-from autopack.executor.retry_policy import (
-    AttemptContext,
-    AttemptDecision,
-    choose_model_for_attempt,
-    next_attempt_state,
-    should_escalate,
-    should_run_diagnostics,
-)
+from autopack.executor.retry_policy import (AttemptContext, AttemptDecision,
+                                            choose_model_for_attempt,
+                                            next_attempt_state,
+                                            should_escalate,
+                                            should_run_diagnostics)
 
 
 # ============================================================================

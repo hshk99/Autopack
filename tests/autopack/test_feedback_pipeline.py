@@ -1041,7 +1041,7 @@ class TestTimerCleanup:
 
         # Create and destroy pipeline
         pipeline = FeedbackPipeline(enabled=True)
-        pipeline_id = id(pipeline)
+        _pipeline_id = id(pipeline)  # noqa: F841 - intentionally unused
 
         # Delete reference
         del pipeline

@@ -15,13 +15,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from autopack.executor.phase_orchestrator import (
-    ExecutionContext,
-    PhaseOrchestrator,
-    PhaseResult,
-    create_default_time_watchdog,
-)
-from autopack.executor.phase_state_manager import PhaseStateManager, StateUpdateRequest
+from autopack.executor.phase_orchestrator import (ExecutionContext,
+                                                  PhaseOrchestrator,
+                                                  PhaseResult,
+                                                  create_default_time_watchdog)
+from autopack.executor.phase_state_manager import (PhaseStateManager,
+                                                   StateUpdateRequest)
 from autopack.models import Phase, PhaseState, Run, RunState, Tier, TierState
 
 

@@ -12,11 +12,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from autopack.executor.phase_orchestrator import (
-    ExecutionContext,
-    PhaseOrchestrator,
-    create_default_time_watchdog,
-)
+from autopack.executor.phase_orchestrator import (ExecutionContext,
+                                                  PhaseOrchestrator,
+                                                  create_default_time_watchdog)
 from autopack.executor.phase_runner import PhaseRunner
 from autopack.time_watchdog import TimeWatchdog
 

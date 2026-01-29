@@ -8,15 +8,10 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from autopack.apply.engine import (
-    PatchApplyError,
-    apply_patch_directly,
-    check_existing_files_for_new_patches,
-    check_git_apply,
-    is_ndjson_synthetic_patch,
-    run_git_apply,
-    validate_patch_context,
-)
+from autopack.apply.engine import (PatchApplyError, apply_patch_directly,
+                                   check_existing_files_for_new_patches,
+                                   check_git_apply, is_ndjson_synthetic_patch,
+                                   run_git_apply, validate_patch_context)
 
 
 class TestPatchApplyError:

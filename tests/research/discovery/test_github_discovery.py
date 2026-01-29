@@ -2,11 +2,9 @@
 
 from unittest.mock import Mock, patch
 
-from autopack.research.discovery.github_discovery import (
-    GitHubDiscovery,
-    GitHubIssue,
-    GitHubRepository,
-)
+from autopack.research.discovery.github_discovery import (GitHubDiscovery,
+                                                          GitHubIssue,
+                                                          GitHubRepository)
 
 
 class TestGitHubDiscovery:

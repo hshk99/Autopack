@@ -221,9 +221,8 @@ class TestWebhookSecurityModule:
 
     def test_verify_telegram_webhook_exists_in_security_module(self):
         """verify_telegram_webhook function must exist in security module."""
-        from autopack.notifications.telegram_webhook_security import (
-            verify_telegram_webhook,
-        )
+        from autopack.notifications.telegram_webhook_security import \
+            verify_telegram_webhook
 
         assert callable(verify_telegram_webhook)
 

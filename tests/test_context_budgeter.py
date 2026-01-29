@@ -1,9 +1,7 @@
-from autopack.context_budgeter import (
-    get_embedding_stats,
-    reset_embedding_cache,
-    select_files_for_context,
-    set_cache_persistence,
-)
+from autopack.context_budgeter import (get_embedding_stats,
+                                       reset_embedding_cache,
+                                       select_files_for_context,
+                                       set_cache_persistence)
 
 
 def test_budgeter_pins_deliverables_and_respects_budget():

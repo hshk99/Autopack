@@ -10,14 +10,10 @@ from pathlib import Path
 
 import pytest
 
-from autopack.credentials import (
-    DEFAULT_ROTATION_POLICIES,
-    CredentialEnvironment,
-    CredentialRecord,
-    CredentialRotationTracker,
-    CredentialScope,
-    RotationPolicy,
-)
+from autopack.credentials import (DEFAULT_ROTATION_POLICIES,
+                                  CredentialEnvironment, CredentialRecord,
+                                  CredentialRotationTracker, CredentialScope,
+                                  RotationPolicy)
 
 
 class TestCredentialRecord:

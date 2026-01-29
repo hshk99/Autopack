@@ -7,12 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from decision_logging.decision_logger import (
-    Decision,
-    DecisionLog,
-    DecisionLogger,
-    get_decision_logger,
-)
+from decision_logging.decision_logger import (Decision, DecisionLog,
+                                              DecisionLogger,
+                                              get_decision_logger)
 
 
 @pytest.fixture

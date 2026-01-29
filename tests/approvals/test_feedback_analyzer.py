@@ -10,13 +10,11 @@ from datetime import datetime, timezone
 
 import pytest
 
-from autopack.approvals.feedback_analyzer import (
-    ApprovalFeedback,
-    ApprovalFeedbackAnalyzer,
-    HumanAction,
-    PriorityWeightUpdate,
-    RejectionPattern,
-)
+from autopack.approvals.feedback_analyzer import (ApprovalFeedback,
+                                                  ApprovalFeedbackAnalyzer,
+                                                  HumanAction,
+                                                  PriorityWeightUpdate,
+                                                  RejectionPattern)
 
 
 class TestHumanAction:

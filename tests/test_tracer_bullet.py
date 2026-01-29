@@ -22,13 +22,9 @@ pytest.skip(
 
 from research_tracer.calculator import Calculator  # pragma: no cover
 from research_tracer.extractor import (  # pragma: no cover
-    PromptInjectionDetector,
-    StructuredExtractor,
-)
-from research_tracer.pipeline import (  # pragma: no cover
-    PipelineConfig,
-    ResearchPipeline,
-)
+    PromptInjectionDetector, StructuredExtractor)
+from research_tracer.pipeline import (PipelineConfig,  # pragma: no cover
+                                      ResearchPipeline)
 from research_tracer.scraper import WebScraper  # pragma: no cover
 
 

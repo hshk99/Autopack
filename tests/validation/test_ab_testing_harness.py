@@ -1,6 +1,7 @@
 """Tests for A-B testing harness (IMP-ARCH-005)."""
 
-from src.autopack.validation.ab_testing_harness import ABTestingHarness, ABTestResult
+from src.autopack.validation.ab_testing_harness import (ABTestingHarness,
+                                                        ABTestResult)
 
 
 class TestABTestingHarness:

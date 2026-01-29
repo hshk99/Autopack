@@ -6,7 +6,8 @@ Tests continuation-based recovery from truncation.
 
 import pytest
 
-from autopack.continuation_recovery import ContinuationContext, ContinuationRecovery
+from autopack.continuation_recovery import (ContinuationContext,
+                                            ContinuationRecovery)
 
 
 class TestContinuationContext:

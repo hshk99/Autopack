@@ -13,17 +13,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.roadc.task_generator import (
-    AutonomousTaskGenerator,
-    GeneratedTask,
-)
+from autopack.roadc.task_generator import (AutonomousTaskGenerator,
+                                           GeneratedTask)
 from autopack.telemetry.cost_tracker import (
-    DEFAULT_BUDGET_CONSTRAINT_THRESHOLD,
-    DEFAULT_DAILY_TOKEN_BUDGET,
-    DEFAULT_LOW_COST_TASK_THRESHOLD,
-    BudgetStatus,
-    CostTracker,
-)
+    DEFAULT_BUDGET_CONSTRAINT_THRESHOLD, DEFAULT_DAILY_TOKEN_BUDGET,
+    DEFAULT_LOW_COST_TASK_THRESHOLD, BudgetStatus, CostTracker)
 
 
 class TestBudgetStatus:

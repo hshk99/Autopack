@@ -5,11 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from scripts.ci.check_windows_console_unicode import (
-    PRAGMA_ALLOW,
-    UNICODE_ARROW_CHARS,
-    check_file,
-    check_python_source_for_violations,
-)
+    PRAGMA_ALLOW, UNICODE_ARROW_CHARS, check_file,
+    check_python_source_for_violations)
 
 
 class TestCheckPythonSourceForViolations:

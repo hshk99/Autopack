@@ -6,13 +6,9 @@ Tests truncation-tolerant NDJSON parsing and application.
 
 import pytest
 
-from autopack.ndjson_format import (
-    NDJSONApplier,
-    NDJSONOperation,
-    NDJSONParser,
-    NDJSONParseResult,
-    detect_ndjson_format,
-)
+from autopack.ndjson_format import (NDJSONApplier, NDJSONOperation,
+                                    NDJSONParser, NDJSONParseResult,
+                                    detect_ndjson_format)
 
 
 class TestNDJSONOperation:

@@ -10,11 +10,8 @@ from __future__ import annotations
 
 import json
 
-from autopack.pr.proposal_artifacts import (
-    PrProposal,
-    PrProposalStorage,
-    _format_proposal_md,
-)
+from autopack.pr.proposal_artifacts import (PrProposal, PrProposalStorage,
+                                            _format_proposal_md)
 
 
 def test_proposal_dataclass():

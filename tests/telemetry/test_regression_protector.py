@@ -6,12 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from autopack.telemetry.regression_protector import (
-    IssueFix,
-    IssueType,
-    RegressionProtector,
-    RegressionSeverity,
-)
+from autopack.telemetry.regression_protector import (IssueFix, IssueType,
+                                                     RegressionProtector,
+                                                     RegressionSeverity)
 
 
 @pytest.fixture

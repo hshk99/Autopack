@@ -21,18 +21,13 @@ except ImportError:
     Anthropic = None
 
 from .journal_reader import get_prevention_prompt_injection
-
 # PR-CLIENT-2: Import parser modules for output format handling
 from .llm.anthropic.parsers import FullFileParser, NDJSONParserWrapper
-
 # PR-CLIENT-1: Import phase execution orchestrator
 from .llm.anthropic.phase_executor import AnthropicPhaseExecutor
-
 # PR-LLM-1: Import transport wrapper for clean separation of transport layer
-from .llm.providers.anthropic_transport import (
-    AnthropicTransport,
-    AnthropicTransportError,
-)
+from .llm.providers.anthropic_transport import (AnthropicTransport,
+                                                AnthropicTransportError)
 from .llm_client import AuditorResult, BuilderResult
 
 # BUILD-129 Phase 1: Deliverable-based token estimation
@@ -483,7 +478,8 @@ class AnthropicBuilderClient:
         import json
 
         from autopack.builder_config import BuilderOutputConfig
-        from autopack.structured_edits import EditOperation, EditOperationType, EditPlan
+        from autopack.structured_edits import (EditOperation,
+                                               EditOperationType, EditPlan)
 
         if config is None:
             config = BuilderOutputConfig()
@@ -523,7 +519,8 @@ class AnthropicBuilderClient:
                 logger.info(
                     "[Builder] Attempting JSON repair on malformed structured_edit output..."
                 )
-                from autopack.repair_helpers import JsonRepairHelper, save_repair_debug
+                from autopack.repair_helpers import (JsonRepairHelper,
+                                                     save_repair_debug)
 
                 json_repair = JsonRepairHelper()
                 error_msg = initial_parse_error or "Failed to parse JSON with 'operations' array"

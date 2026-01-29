@@ -14,14 +14,9 @@ from typing import Dict, List, Optional
 from pydantic import ValidationError
 
 from .config import settings
-from .issue_schemas import (
-    Issue,
-    PhaseIssueFile,
-    ProjectBacklogEntry,
-    ProjectIssueBacklog,
-    RunIssueIndex,
-    RunIssueIndexEntry,
-)
+from .issue_schemas import (Issue, PhaseIssueFile, ProjectBacklogEntry,
+                            ProjectIssueBacklog, RunIssueIndex,
+                            RunIssueIndexEntry)
 
 logger = logging.getLogger(__name__)
 

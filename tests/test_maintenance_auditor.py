@@ -1,4 +1,5 @@
-from autopack.maintenance_auditor import AuditorInput, DiffStats, TestResult, evaluate
+from autopack.maintenance_auditor import (AuditorInput, DiffStats, TestResult,
+                                          evaluate)
 
 
 def test_auditor_rejects_protected_path():

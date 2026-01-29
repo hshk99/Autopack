@@ -15,22 +15,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from autopack.model_routing_snapshot import (
-    ModelRoutingEntry,
-    ModelRoutingSnapshot,
-    refresh_or_load_snapshot,
-)
+from autopack.model_routing_snapshot import (ModelRoutingEntry,
+                                             ModelRoutingSnapshot,
+                                             refresh_or_load_snapshot)
 from autopack.phase_proof import PhaseProof, PhaseProofStorage
-from autopack.scope_reduction import (
-    ScopeReductionProposal,
-    generate_scope_reduction_prompt,
-    validate_scope_reduction,
-)
-from autopack.stuck_handling import (
-    StuckHandlingPolicy,
-    StuckReason,
-    StuckResolutionDecision,
-)
+from autopack.scope_reduction import (ScopeReductionProposal,
+                                      generate_scope_reduction_prompt,
+                                      validate_scope_reduction)
+from autopack.stuck_handling import (StuckHandlingPolicy, StuckReason,
+                                     StuckResolutionDecision)
 
 if TYPE_CHECKING:
     from autopack.intention_anchor.artifacts import IntentionAnchor

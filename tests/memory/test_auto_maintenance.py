@@ -9,7 +9,6 @@ Tests cover:
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
-
 from autopack.memory.maintenance import prune_old_entries
 
 

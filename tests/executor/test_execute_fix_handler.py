@@ -16,7 +16,8 @@ import autopack.executor.run_checkpoint
 sys.modules["autopack.checkpoint"] = type(sys)("autopack.checkpoint")
 sys.modules["autopack.checkpoint.run_checkpoint"] = autopack.executor.run_checkpoint
 
-from autopack.executor.execute_fix_handler import ExecuteFixHandler  # noqa: E402
+from autopack.executor.execute_fix_handler import \
+    ExecuteFixHandler  # noqa: E402
 
 
 class MockDoctorResponse:

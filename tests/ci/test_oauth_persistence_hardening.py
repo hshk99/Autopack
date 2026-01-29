@@ -18,9 +18,7 @@ class TestOAuthProductionHardening:
     def test_production_blocks_plaintext_save(self, tmp_path: Path):
         """In production, saving credentials should fail without explicit opt-in."""
         from autopack.auth.oauth_lifecycle import (
-            OAuthCredentialManager,
-            OAuthProductionSecurityError,
-        )
+            OAuthCredentialManager, OAuthProductionSecurityError)
 
         with patch.dict(
             os.environ,
@@ -138,7 +136,8 @@ class TestOAuthSecurityHelpers:
 
     def test_plaintext_persistence_allowed_development(self):
         """Plaintext persistence should be allowed in development."""
-        from autopack.auth.oauth_lifecycle import _is_plaintext_persistence_allowed
+        from autopack.auth.oauth_lifecycle import \
+            _is_plaintext_persistence_allowed
 
         with patch.dict(os.environ, {"AUTOPACK_ENV": "development"}, clear=False):
             os.environ.pop("AUTOPACK_OAUTH_ALLOW_PLAINTEXT_PERSISTENCE", None)
@@ -146,7 +145,8 @@ class TestOAuthSecurityHelpers:
 
     def test_plaintext_persistence_blocked_production(self):
         """Plaintext persistence should be blocked in production by default."""
-        from autopack.auth.oauth_lifecycle import _is_plaintext_persistence_allowed
+        from autopack.auth.oauth_lifecycle import \
+            _is_plaintext_persistence_allowed
 
         with patch.dict(os.environ, {"AUTOPACK_ENV": "production"}, clear=False):
             os.environ.pop("AUTOPACK_OAUTH_ALLOW_PLAINTEXT_PERSISTENCE", None)
@@ -154,7 +154,8 @@ class TestOAuthSecurityHelpers:
 
     def test_plaintext_persistence_opt_in_production(self):
         """Plaintext persistence should be allowed with explicit opt-in."""
-        from autopack.auth.oauth_lifecycle import _is_plaintext_persistence_allowed
+        from autopack.auth.oauth_lifecycle import \
+            _is_plaintext_persistence_allowed
 
         with patch.dict(
             os.environ,

@@ -404,10 +404,8 @@ class TestTokenEstimatorCaching:
 
     def test_pattern_based_estimate_cache(self):
         """Test that pattern-based estimates are cached."""
-        from autopack.token_estimator import (
-            _get_pattern_based_estimate,
-            clear_token_estimation_cache,
-        )
+        from autopack.token_estimator import (_get_pattern_based_estimate,
+                                              clear_token_estimation_cache)
 
         # Clear cache before test
         clear_token_estimation_cache()
@@ -441,10 +439,8 @@ class TestTokenEstimatorCaching:
 
     def test_pattern_based_estimate_common_types(self):
         """Test pattern estimates for common file types."""
-        from autopack.token_estimator import (
-            _get_pattern_based_estimate,
-            clear_token_estimation_cache,
-        )
+        from autopack.token_estimator import (_get_pattern_based_estimate,
+                                              clear_token_estimation_cache)
 
         clear_token_estimation_cache()
 
@@ -525,10 +521,8 @@ class TestTokenEstimatorCaching:
 
     def test_file_complexity_cache(self, tmp_path):
         """Test that file complexity analysis is cached."""
-        from autopack.token_estimator import (
-            _cached_analyze_file_complexity,
-            clear_token_estimation_cache,
-        )
+        from autopack.token_estimator import (_cached_analyze_file_complexity,
+                                              clear_token_estimation_cache)
 
         clear_token_estimation_cache()
 
@@ -565,10 +559,8 @@ class TestTokenEstimatorCaching:
         """Test that complexity cache is invalidated when file changes."""
         import time
 
-        from autopack.token_estimator import (
-            _cached_analyze_file_complexity,
-            clear_token_estimation_cache,
-        )
+        from autopack.token_estimator import (_cached_analyze_file_complexity,
+                                              clear_token_estimation_cache)
 
         clear_token_estimation_cache()
 
@@ -593,12 +585,10 @@ class TestTokenEstimatorCaching:
 
     def test_clear_token_estimation_cache(self, tmp_path):
         """Test that clear_token_estimation_cache clears all caches."""
-        from autopack.token_estimator import (
-            _cached_analyze_file_complexity,
-            _get_pattern_based_estimate,
-            clear_token_estimation_cache,
-            get_token_estimation_cache_info,
-        )
+        from autopack.token_estimator import (_cached_analyze_file_complexity,
+                                              _get_pattern_based_estimate,
+                                              clear_token_estimation_cache,
+                                              get_token_estimation_cache_info)
 
         # Populate caches
         _get_pattern_based_estimate(".py", True, False, False, False, True)
@@ -622,11 +612,9 @@ class TestTokenEstimatorCaching:
 
     def test_get_token_estimation_cache_info(self, tmp_path):
         """Test cache info retrieval."""
-        from autopack.token_estimator import (
-            _get_pattern_based_estimate,
-            clear_token_estimation_cache,
-            get_token_estimation_cache_info,
-        )
+        from autopack.token_estimator import (_get_pattern_based_estimate,
+                                              clear_token_estimation_cache,
+                                              get_token_estimation_cache_info)
 
         clear_token_estimation_cache()
 
@@ -669,10 +657,8 @@ class TestTokenEstimatorCaching:
 
     def test_estimate_with_caching_performance(self, tmp_path):
         """Test that caching improves performance for repeated estimates."""
-        from autopack.token_estimator import (
-            clear_token_estimation_cache,
-            get_token_estimation_cache_info,
-        )
+        from autopack.token_estimator import (clear_token_estimation_cache,
+                                              get_token_estimation_cache_info)
 
         clear_token_estimation_cache()
 

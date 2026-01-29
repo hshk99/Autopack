@@ -279,7 +279,8 @@ class TestScannerFactory:
     )
     def test_create_scanner_falls_back_when_wiztree_unavailable(self):
         """Test factory returns StorageScanner when WizTree not available."""
-        from autopack.storage_optimizer.scanner import StorageScanner, create_scanner
+        from autopack.storage_optimizer.scanner import (StorageScanner,
+                                                        create_scanner)
 
         with patch("autopack.storage_optimizer.scanner.WizTreeScanner") as mock_wiztree_class:
             mock_wiztree_instance = Mock()
@@ -293,7 +294,8 @@ class TestScannerFactory:
 
     def test_create_scanner_returns_python_scanner_when_not_preferred(self):
         """Test factory returns StorageScanner when prefer_wiztree=False."""
-        from autopack.storage_optimizer.scanner import StorageScanner, create_scanner
+        from autopack.storage_optimizer.scanner import (StorageScanner,
+                                                        create_scanner)
 
         scanner = create_scanner(prefer_wiztree=False)
 

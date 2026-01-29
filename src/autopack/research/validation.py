@@ -10,7 +10,8 @@ from enum import Enum
 from typing import Any, List, Optional
 from urllib.parse import urlparse
 
-from autopack.research.models import Citation, Evidence, EvidenceQuality, ResearchReport
+from autopack.research.models import (Citation, Evidence, EvidenceQuality,
+                                      ResearchReport)
 
 
 class ValidationLevel(Enum):

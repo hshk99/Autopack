@@ -19,15 +19,13 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from autopack.diagnostics.diagnostics_agent import DiagnosticOutcome, DiagnosticsAgent
-from autopack.diagnostics.diagnostics_models import (
-    Decision,
-    DecisionType,
-    EvidenceGap,
-    EvidenceGapType,
-    InvestigationResult,
-    PhaseSpec,
-)
+from autopack.diagnostics.diagnostics_agent import (DiagnosticOutcome,
+                                                    DiagnosticsAgent)
+from autopack.diagnostics.diagnostics_models import (Decision, DecisionType,
+                                                     EvidenceGap,
+                                                     EvidenceGapType,
+                                                     InvestigationResult,
+                                                     PhaseSpec)
 from autopack.diagnostics.goal_aware_decision import GoalAwareDecisionMaker
 from autopack.diagnostics.probes import Probe, ProbeCommand, ProbeRunResult
 from autopack.memory import MemoryService

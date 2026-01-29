@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from src.autopack.validation.regression_guard import RegressionGuard, RegressionTest
+from src.autopack.validation.regression_guard import (RegressionGuard,
+                                                      RegressionTest)
 
 
 class TestRegressionGuard:

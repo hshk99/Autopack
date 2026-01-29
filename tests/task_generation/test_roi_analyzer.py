@@ -4,17 +4,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.task_generation.roi_analyzer import (
-    DEFAULT_EFFECTIVENESS,
-    DEFAULT_PHASES_HORIZON,
-    EXCELLENT_ROI,
-    GOOD_ROI,
-    MIN_SAVINGS_PER_PHASE,
-    MODERATE_ROI,
-    PaybackAnalysis,
-    ROIAnalyzer,
-    ROIHistory,
-)
+from autopack.task_generation.roi_analyzer import (DEFAULT_EFFECTIVENESS,
+                                                   DEFAULT_PHASES_HORIZON,
+                                                   EXCELLENT_ROI, GOOD_ROI,
+                                                   MIN_SAVINGS_PER_PHASE,
+                                                   MODERATE_ROI,
+                                                   PaybackAnalysis,
+                                                   ROIAnalyzer, ROIHistory)
 
 
 class TestPaybackAnalysis:

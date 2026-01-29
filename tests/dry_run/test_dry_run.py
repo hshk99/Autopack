@@ -10,7 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from autopack.dry_run import DryRunApproval, DryRunExecutor, DryRunResult, DryRunStatus
+from autopack.dry_run import (DryRunApproval, DryRunExecutor, DryRunResult,
+                              DryRunStatus)
 from autopack.dry_run.models import ExecutionResult, PredictedSideEffect
 
 

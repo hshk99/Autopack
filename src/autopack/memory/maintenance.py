@@ -14,13 +14,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .faiss_store import FaissStore
-from .memory_service import (
-    COLLECTION_DOCTOR_HINTS,
-    COLLECTION_ERRORS_CI,
-    COLLECTION_PLANNING,
-    COLLECTION_RUN_SUMMARIES,
-    _load_memory_config,
-)
+from .memory_service import (COLLECTION_DOCTOR_HINTS, COLLECTION_ERRORS_CI,
+                             COLLECTION_PLANNING, COLLECTION_RUN_SUMMARIES,
+                             _load_memory_config)
 
 logger = logging.getLogger(__name__)
 

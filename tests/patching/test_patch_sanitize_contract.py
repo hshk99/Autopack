@@ -5,15 +5,13 @@ Table-driven tests for various malformed patch inputs and expected sanitized out
 
 import pytest
 
-from autopack.patching.patch_sanitize import (
-    extract_file_paths,
-    fix_empty_file_diffs,
-    parse_hunk_header,
-    parse_patch_header,
-    repair_hunk_headers,
-    sanitize_patch,
-    validate_patch_format,
-)
+from autopack.patching.patch_sanitize import (extract_file_paths,
+                                              fix_empty_file_diffs,
+                                              parse_hunk_header,
+                                              parse_patch_header,
+                                              repair_hunk_headers,
+                                              sanitize_patch,
+                                              validate_patch_format)
 
 # =============================================================================
 # TEST DATA: Table-driven test cases

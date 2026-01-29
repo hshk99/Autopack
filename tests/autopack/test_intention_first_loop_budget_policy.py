@@ -7,7 +7,8 @@ Verifies:
 - Max 1 escalation per phase enforced at loop layer
 """
 
-from autopack.autonomous.intention_first_loop import IntentionFirstLoop, PhaseLoopState
+from autopack.autonomous.intention_first_loop import (IntentionFirstLoop,
+                                                      PhaseLoopState)
 from autopack.stuck_handling import StuckReason, StuckResolutionDecision
 
 

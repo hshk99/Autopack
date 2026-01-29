@@ -27,13 +27,10 @@ from autopack.executor_lock import ExecutorLockManager
 from autopack.test_baseline_tracker import TestBaselineTracker
 from autopack.workspace_lease import WorkspaceLease
 from autopack.workspace_manager import WorkspaceManager
-
 # Import synchronization utilities from conftest
-from tests.integration.conftest import (
-    DEFAULT_THREAD_TIMEOUT,
-    ThreadSyncPoint,
-    thread_wait_for_condition,
-)
+from tests.integration.conftest import (DEFAULT_THREAD_TIMEOUT,
+                                        ThreadSyncPoint,
+                                        thread_wait_for_condition)
 
 
 @pytest.fixture

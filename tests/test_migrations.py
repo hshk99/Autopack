@@ -14,13 +14,11 @@ import pytest
 from alembic.config import Config
 
 from autopack import models  # noqa: F401 - Import to register models
-from autopack.auth.models import APIKey, User  # noqa: F401 - Import to register models
+from autopack.auth.models import (  # noqa: F401 - Import to register models
+    APIKey, User)
 from autopack.database import run_migrations
 from autopack.usage_recorder import (  # noqa: F401 - Import to register models
-    DoctorUsageStats,
-    LlmUsageEvent,
-    TokenEfficiencyMetrics,
-)
+    DoctorUsageStats, LlmUsageEvent, TokenEfficiencyMetrics)
 
 
 @pytest.fixture

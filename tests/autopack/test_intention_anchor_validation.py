@@ -8,16 +8,11 @@ from datetime import datetime, timezone
 
 import pytest
 
-from autopack.intention_anchor.v2 import (
-    IntentionAnchorV2,
-    NorthStarIntention,
-    PivotIntentions,
-)
-from autopack.intention_anchor.validators import (
-    AnchorValidator,
-    safe_anchor_access,
-    validate_anchor_field,
-)
+from autopack.intention_anchor.v2 import (IntentionAnchorV2,
+                                          NorthStarIntention, PivotIntentions)
+from autopack.intention_anchor.validators import (AnchorValidator,
+                                                  safe_anchor_access,
+                                                  validate_anchor_field)
 
 
 class TestValidateAnchorField:

@@ -16,12 +16,8 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.exc import TimeoutError as SATimeoutError
 from sqlalchemy.orm import Session
 
-from autopack.database import (
-    ensure_session_healthy,
-    get_db,
-    get_pool_health,
-    run_migrations,
-)
+from autopack.database import (ensure_session_healthy, get_db, get_pool_health,
+                               run_migrations)
 from autopack.exceptions import DatabaseError
 
 

@@ -11,7 +11,6 @@ Validates:
 """
 
 import json
-
 # Add scripts/tidy to path
 import sys
 import tempfile

@@ -142,10 +142,8 @@ class TestEmbeddingCachePerPhaseReset:
     def test_per_phase_reset_cache(self):
         """Test that embedding cache respects persistence setting."""
         from autopack import context_budgeter
-        from autopack.context_budgeter import (
-            reset_embedding_cache,
-            set_cache_persistence,
-        )
+        from autopack.context_budgeter import (reset_embedding_cache,
+                                               set_cache_persistence)
 
         # Disable cross-phase persistence for this test (old behavior)
         set_cache_persistence(False)

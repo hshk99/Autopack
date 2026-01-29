@@ -14,13 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from .models import (
-    ComplianceFlag,
-    ComplianceFlagSeverity,
-    MediaAsset,
-    PublishPacket,
-    PublishPacketStatus,
-)
+from .models import (ComplianceFlag, ComplianceFlagSeverity, MediaAsset,
+                     PublishPacket, PublishPacketStatus)
 
 logger = logging.getLogger(__name__)
 

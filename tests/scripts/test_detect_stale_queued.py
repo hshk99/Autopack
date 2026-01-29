@@ -15,11 +15,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from autopack.database import SessionLocal, engine
 from autopack.models import Base, Phase, PhaseState, Run, Tier
-from scripts.detect_stale_queued import (
-    detect_stale_queued_phases,
-    format_stale_report,
-    mark_phase_as_failed,
-)
+from scripts.detect_stale_queued import (detect_stale_queued_phases,
+                                         format_stale_report,
+                                         mark_phase_as_failed)
 
 
 @pytest.fixture(scope="function")

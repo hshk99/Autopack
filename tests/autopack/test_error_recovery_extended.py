@@ -261,11 +261,9 @@ class TestBackoffMechanisms:
 
     def test_backoff_with_max_cap(self):
         """Test that all backoff strategies respect max delay cap."""
-        from autopack.error_recovery import (
-            calculate_backoff_delay,
-            calculate_fibonacci_backoff,
-            calculate_linear_backoff,
-        )
+        from autopack.error_recovery import (calculate_backoff_delay,
+                                             calculate_fibonacci_backoff,
+                                             calculate_linear_backoff)
 
         max_delay = 10.0
 

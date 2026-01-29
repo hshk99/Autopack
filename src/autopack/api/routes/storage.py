@@ -50,7 +50,8 @@ def trigger_storage_scan(request: schemas.StorageScanRequest, db: Session = Depe
     """
     from datetime import datetime, timezone
 
-    from autopack.storage_optimizer import FileClassifier, StorageScanner, load_policy
+    from autopack.storage_optimizer import (FileClassifier, StorageScanner,
+                                            load_policy)
 
     start_time = datetime.now(timezone.utc)
 
@@ -212,11 +213,9 @@ def get_storage_scan_detail(
         curl http://localhost:8000/storage/scans/123
         ```
     """
-    from autopack.storage_optimizer.db import (
-        get_candidate_stats_by_category,
-        get_cleanup_candidates_by_scan,
-        get_scan_by_id,
-    )
+    from autopack.storage_optimizer.db import (get_candidate_stats_by_category,
+                                               get_cleanup_candidates_by_scan,
+                                               get_scan_by_id)
 
     scan = get_scan_by_id(db, scan_id)
     if not scan:
@@ -258,7 +257,8 @@ def approve_cleanup_candidates(
           }'
         ```
     """
-    from autopack.storage_optimizer.db import create_approval_decision, get_scan_by_id
+    from autopack.storage_optimizer.db import (create_approval_decision,
+                                               get_scan_by_id)
 
     # Verify scan exists
     scan = get_scan_by_id(db, scan_id)
@@ -503,9 +503,8 @@ def analyze_approval_patterns(
         List of detected patterns sorted by confidence
     """
     from autopack.storage_optimizer import load_policy
-    from autopack.storage_optimizer.approval_pattern_analyzer import (
-        ApprovalPatternAnalyzer,
-    )
+    from autopack.storage_optimizer.approval_pattern_analyzer import \
+        ApprovalPatternAnalyzer
 
     policy = load_policy()
     analyzer = ApprovalPatternAnalyzer(db, policy)
@@ -580,9 +579,8 @@ def get_learned_rules(
 def approve_learned_rule(rule_id: int, approved_by: str, db: Session = Depends(get_db)):
     """Approve a learned rule for application to policy."""
     from autopack.storage_optimizer import load_policy
-    from autopack.storage_optimizer.approval_pattern_analyzer import (
-        ApprovalPatternAnalyzer,
-    )
+    from autopack.storage_optimizer.approval_pattern_analyzer import \
+        ApprovalPatternAnalyzer
 
     policy = load_policy()
     analyzer = ApprovalPatternAnalyzer(db, policy)
@@ -625,7 +623,8 @@ def get_storage_recommendations(
         List of recommendations with scan statistics
     """
     from autopack.storage_optimizer import load_policy
-    from autopack.storage_optimizer.recommendation_engine import RecommendationEngine
+    from autopack.storage_optimizer.recommendation_engine import \
+        RecommendationEngine
 
     policy = load_policy()
     engine = RecommendationEngine(db, policy)

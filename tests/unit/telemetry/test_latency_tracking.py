@@ -8,11 +8,8 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock
 
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
-from autopack.telemetry.meta_metrics import (
-    PipelineLatencyTracker,
-    PipelineSLAConfig,
-    PipelineStage,
-)
+from autopack.telemetry.meta_metrics import (PipelineLatencyTracker,
+                                             PipelineSLAConfig, PipelineStage)
 
 
 class TestPipelineLatencyTrackerIntegration:

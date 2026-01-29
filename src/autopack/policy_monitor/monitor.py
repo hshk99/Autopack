@@ -10,14 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from .models import (
-    PolicyCategory,
-    PolicyDiff,
-    PolicyGateResult,
-    PolicySnapshot,
-    PolicyStatus,
-    ProviderPolicyConfig,
-)
+from .models import (PolicyCategory, PolicyDiff, PolicyGateResult,
+                     PolicySnapshot, PolicyStatus, ProviderPolicyConfig)
 
 logger = logging.getLogger(__name__)
 

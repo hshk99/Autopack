@@ -6,7 +6,6 @@ plans with stable idempotency hashes and NEVER writes to SOT ledgers.
 """
 
 import json
-
 # Import the script functions directly
 import sys
 import tempfile
@@ -15,12 +14,10 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "scripts" / "tidy"))
 
-from consolidate_intention_anchors import (
-    compute_idempotency_hash,
-    generate_consolidation_block,
-    generate_consolidation_plan,
-    run_plan_mode,
-)
+from consolidate_intention_anchors import (compute_idempotency_hash,
+                                           generate_consolidation_block,
+                                           generate_consolidation_plan,
+                                           run_plan_mode)
 
 # Import intention anchor utilities
 sys.path.insert(0, str(project_root / "src"))

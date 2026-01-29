@@ -8,11 +8,8 @@ Validates gap analysis requirement 6.8:
 import os
 from unittest.mock import patch
 
-from autopack.credentials import (
-    CredentialHealthService,
-    CredentialStatus,
-    ProviderCredential,
-)
+from autopack.credentials import (CredentialHealthService, CredentialStatus,
+                                  ProviderCredential)
 
 
 class TestProviderCredential:

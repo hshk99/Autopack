@@ -28,17 +28,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from autopack.telemetry.meta_metrics import (
-    FeedbackLoopHealth,
-    MetaMetricsTracker,
-    PipelineLatencyTracker,
-    PipelineStage,
-)
+    ContextInjectionEffectivenessTracker, FeedbackLoopHealth,
+    MetaMetricsTracker, PipelineLatencyTracker, PipelineStage)
 
 if TYPE_CHECKING:
     from autopack.learning_memory_manager import LearningMemoryManager
-    from autopack.task_generation.task_effectiveness_tracker import (
-        TaskEffectivenessTracker,
-    )
+    from autopack.task_generation.task_effectiveness_tracker import \
+        TaskEffectivenessTracker
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +54,8 @@ class PhaseOutcome:
         learnings: List of key learnings from execution
         run_id: Identifier for the current run
         project_id: Project identifier for namespacing
+        context_injected: IMP-LOOP-029: Whether memory context was injected
+        context_item_count: IMP-LOOP-029: Number of context items injected
     """
 
     phase_id: str
@@ -70,6 +68,8 @@ class PhaseOutcome:
     learnings: Optional[List[str]] = None
     run_id: Optional[str] = None
     project_id: Optional[str] = None
+    context_injected: Optional[bool] = None  # IMP-LOOP-029
+    context_item_count: Optional[int] = None  # IMP-LOOP-029
 
 
 @dataclass
@@ -140,6 +140,7 @@ class FeedbackPipeline:
         effectiveness_tracker: Optional["TaskEffectivenessTracker"] = None,
         latency_tracker: Optional[PipelineLatencyTracker] = None,
         meta_metrics_tracker: Optional[MetaMetricsTracker] = None,
+        context_injection_tracker: Optional[ContextInjectionEffectivenessTracker] = None,
         learning_memory_manager: Optional["LearningMemoryManager"] = None,
         run_id: Optional[str] = None,
         project_id: Optional[str] = None,
@@ -157,6 +158,8 @@ class FeedbackPipeline:
                 loop cycle time across pipeline stages
             meta_metrics_tracker: IMP-REL-001: MetaMetricsTracker for health
                 monitoring and auto-resume of task generation
+            context_injection_tracker: IMP-LOOP-029: ContextInjectionEffectivenessTracker
+                for measuring effectiveness of context injection on outcomes
             learning_memory_manager: IMP-LOOP-026: LearningMemoryManager for
                 persisting outcomes to LEARNING_MEMORY.json
             run_id: Current run identifier
@@ -179,6 +182,11 @@ class FeedbackPipeline:
         self._meta_metrics_tracker = meta_metrics_tracker or MetaMetricsTracker()
         self._task_generation_paused = False
         self._health_resume_callbacks: List[Any] = []
+
+        # IMP-LOOP-029: Context injection effectiveness tracking
+        self._context_injection_tracker = (
+            context_injection_tracker or ContextInjectionEffectivenessTracker()
+        )
 
         # Track processed outcomes for deduplication
         self._processed_outcomes: set = set()
@@ -464,6 +472,9 @@ class FeedbackPipeline:
             # IMP-LOOP-017: Check effectiveness patterns and create rules
             self._check_effectiveness_rules()
 
+            # IMP-LOOP-029: Track context injection effectiveness
+            self._track_context_injection_effectiveness(outcome)
+
             # IMP-LOOP-026: Persist outcome to LEARNING_MEMORY.json for cross-cycle learning
             self._persist_outcome_to_learning_memory(outcome)
 
@@ -566,6 +577,90 @@ class FeedbackPipeline:
             )
         else:
             return f"Review effectiveness patterns for '{pattern}' category."
+
+    def _track_context_injection_effectiveness(self, outcome: PhaseOutcome) -> None:
+        """Track context injection effectiveness for this phase outcome.
+
+        IMP-LOOP-029: Records whether context was injected and whether the phase
+        succeeded, enabling A/B comparison of success rates with/without context.
+
+        Args:
+            outcome: The phase outcome to track
+        """
+        if not self._context_injection_tracker:
+            return
+
+        try:
+            # Determine if context was injected for this phase
+            # Check the outcome for context injection metadata
+            had_context = getattr(outcome, "context_injected", None)
+            memory_count = getattr(outcome, "context_item_count", 0)
+
+            # If not available on outcome, try to query from database
+            if had_context is None and self.telemetry_analyzer:
+                try:
+                    # Try to get context injection status from telemetry database
+                    from autopack.models import PhaseOutcomeEvent
+
+                    session = getattr(self.telemetry_analyzer, "db", None)
+                    if session:
+                        event = (
+                            session.query(PhaseOutcomeEvent)
+                            .filter(PhaseOutcomeEvent.phase_id == outcome.phase_id)
+                            .first()
+                        )
+                        if event:
+                            had_context = getattr(event, "context_injected", None)
+                            memory_count = getattr(event, "context_item_count", 0) or 0
+                except Exception as e:
+                    logger.debug(f"[IMP-LOOP-029] Could not query context injection status: {e}")
+
+            # Default to None/unknown if still not determined
+            if had_context is None:
+                logger.debug(
+                    f"[IMP-LOOP-029] Context injection status unknown for {outcome.phase_id}"
+                )
+                return
+
+            # Record the result
+            self._context_injection_tracker.record_result(
+                had_context=bool(had_context),
+                success=outcome.success,
+                memory_count=memory_count,
+                metrics={
+                    "phase_id": outcome.phase_id,
+                    "phase_type": outcome.phase_type,
+                    "execution_time_seconds": outcome.execution_time_seconds,
+                    "tokens_used": outcome.tokens_used,
+                },
+            )
+
+            logger.debug(
+                f"[IMP-LOOP-029] Tracked context injection: phase={outcome.phase_id}, "
+                f"had_context={had_context}, success={outcome.success}"
+            )
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-029] Failed to track context injection: {e}")
+
+    def get_context_injection_effectiveness(self) -> Dict[str, Any]:
+        """Get the current context injection effectiveness summary.
+
+        IMP-LOOP-029: Returns effectiveness metrics comparing success rates
+        with and without context injection.
+
+        Returns:
+            Dict with effectiveness metrics
+        """
+        if not self._context_injection_tracker:
+            return {"error": "Context injection tracker not initialized"}
+
+        try:
+            result = self._context_injection_tracker.calculate_effectiveness()
+            return result.to_dict()
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-029] Failed to get effectiveness: {e}")
+            return {"error": str(e)}
 
     def get_context_for_phase(
         self,

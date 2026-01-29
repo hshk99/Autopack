@@ -15,15 +15,14 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from autopack.memory.context_injector import (
-    ContextInjection,
-    ContextInjectionMetadata,
-    ContextInjector,
-    EnrichedContextInjection,
-)
+from autopack.memory.context_injector import (ContextInjection,
+                                              ContextInjectionMetadata,
+                                              ContextInjector,
+                                              EnrichedContextInjection)
 from autopack.memory.memory_service import ContextMetadata
 from autopack.models import Base, PhaseOutcomeEvent
-from autopack.telemetry.analyzer import ContextInjectionImpact, TelemetryAnalyzer
+from autopack.telemetry.analyzer import (ContextInjectionImpact,
+                                         TelemetryAnalyzer)
 
 # ---------------------------------------------------------------------------
 # IMP-LOOP-021: ContextInjectionMetadata Dataclass Tests
@@ -508,3 +507,213 @@ class TestContextInjectionTrackingIntegration:
         assert impact.with_context_count == 1
         assert impact.with_context_success_rate == 1.0
         assert impact.avg_context_item_count == 5.0  # 5 items injected
+
+
+# ---------------------------------------------------------------------------
+# IMP-LOOP-029: Injection Tracking Record Tests
+# ---------------------------------------------------------------------------
+
+
+class TestInjectionTrackingRecord:
+    """Tests for InjectionTrackingRecord dataclass."""
+
+    def test_record_has_all_required_fields(self):
+        """IMP-LOOP-029: InjectionTrackingRecord should have all required fields."""
+        from autopack.memory.context_injector import InjectionTrackingRecord
+
+        record = InjectionTrackingRecord(
+            injection_id="phase_1_abc12345",
+            phase_id="phase_1",
+            timestamp="2024-01-01T12:00:00",
+            memory_count=5,
+            had_context=True,
+        )
+
+        assert record.injection_id == "phase_1_abc12345"
+        assert record.phase_id == "phase_1"
+        assert record.timestamp == "2024-01-01T12:00:00"
+        assert record.memory_count == 5
+        assert record.had_context is True
+        assert record.outcome is None
+        assert record.metrics == {}
+
+    def test_record_to_dict(self):
+        """IMP-LOOP-029: to_dict should serialize all fields."""
+        from autopack.memory.context_injector import InjectionTrackingRecord
+
+        record = InjectionTrackingRecord(
+            injection_id="phase_1_abc12345",
+            phase_id="phase_1",
+            timestamp="2024-01-01T12:00:00",
+            memory_count=5,
+            had_context=True,
+            outcome={"success": True, "correlated_at": "2024-01-01T12:05:00"},
+            metrics={"tokens": 100},
+        )
+
+        result = record.to_dict()
+
+        assert result["injection_id"] == "phase_1_abc12345"
+        assert result["phase_id"] == "phase_1"
+        assert result["had_context"] is True
+        assert result["outcome"]["success"] is True
+
+
+# ---------------------------------------------------------------------------
+# IMP-LOOP-029: Injection Tracking Methods Tests
+# ---------------------------------------------------------------------------
+
+
+class TestContextInjectorInjectionTracking:
+    """Tests for ContextInjector injection tracking methods."""
+
+    def test_track_injection_generates_id(self):
+        """IMP-LOOP-029: track_injection should generate unique injection ID."""
+        mock_memory = Mock()
+        mock_memory.enabled = False
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        injection_id = injector.track_injection(
+            phase_id="test_phase",
+            memory_count=3,
+            had_context=True,
+        )
+
+        assert injection_id.startswith("test_phase_")
+        assert len(injection_id) > len("test_phase_")
+
+    def test_track_injection_stores_record(self):
+        """IMP-LOOP-029: track_injection should store injection record."""
+        mock_memory = Mock()
+        mock_memory.enabled = False
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        injection_id = injector.track_injection(
+            phase_id="test_phase",
+            memory_count=5,
+            had_context=True,
+        )
+
+        record = injector.get_injection_record(injection_id)
+        assert record is not None
+        assert record.phase_id == "test_phase"
+        assert record.memory_count == 5
+        assert record.had_context is True
+        assert record.outcome is None
+
+    def test_correlate_outcome_updates_record(self):
+        """IMP-LOOP-029: correlate_outcome should update injection record."""
+        mock_memory = Mock()
+        mock_memory.enabled = False
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        injection_id = injector.track_injection(
+            phase_id="test_phase",
+            memory_count=5,
+            had_context=True,
+        )
+
+        success = injector.correlate_outcome(
+            injection_id=injection_id,
+            success=True,
+            metrics={"tokens_used": 100},
+        )
+
+        assert success is True
+
+        record = injector.get_injection_record(injection_id)
+        assert record.outcome is not None
+        assert record.outcome["success"] is True
+        assert record.metrics["tokens_used"] == 100
+
+    def test_correlate_outcome_missing_id_returns_false(self):
+        """IMP-LOOP-029: correlate_outcome should return False for missing ID."""
+        mock_memory = Mock()
+        mock_memory.enabled = False
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        success = injector.correlate_outcome(
+            injection_id="nonexistent_id",
+            success=True,
+        )
+
+        assert success is False
+
+    def test_get_all_injection_records(self):
+        """IMP-LOOP-029: get_all_injection_records should return all records."""
+        mock_memory = Mock()
+        mock_memory.enabled = False
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        # Track multiple injections
+        injector.track_injection("phase_1", 3, True)
+        injector.track_injection("phase_2", 0, False)
+        injector.track_injection("phase_3", 5, True)
+
+        records = injector.get_all_injection_records()
+        assert len(records) == 3
+
+    def test_get_correlated_records(self):
+        """IMP-LOOP-029: get_correlated_records should return only correlated."""
+        mock_memory = Mock()
+        mock_memory.enabled = False
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        # Track and correlate some injections
+        id1 = injector.track_injection("phase_1", 3, True)
+        injector.track_injection("phase_2", 0, False)  # Not correlated
+        id3 = injector.track_injection("phase_3", 5, True)
+
+        injector.correlate_outcome(id1, True)
+        injector.correlate_outcome(id3, False)
+
+        correlated = injector.get_correlated_records()
+        assert len(correlated) == 2
+
+    def test_calculate_effectiveness_summary(self):
+        """IMP-LOOP-029: calculate_effectiveness_summary should compute stats."""
+        mock_memory = Mock()
+        mock_memory.enabled = False
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        # Track and correlate injections with context (80% success)
+        for i in range(10):
+            id_ = injector.track_injection(f"phase_with_{i}", 5, True)
+            injector.correlate_outcome(id_, success=(i < 8))
+
+        # Track and correlate injections without context (60% success)
+        for i in range(10):
+            id_ = injector.track_injection(f"phase_without_{i}", 0, False)
+            injector.correlate_outcome(id_, success=(i < 6))
+
+        summary = injector.calculate_effectiveness_summary()
+
+        assert summary["with_context_count"] == 10
+        assert summary["without_context_count"] == 10
+        assert summary["with_context_success_rate"] == pytest.approx(0.8)
+        assert summary["without_context_success_rate"] == pytest.approx(0.6)
+        assert summary["delta"] == pytest.approx(0.2)
+        assert summary["is_significant"] is True  # n>=10 and delta>=0.05
+
+    def test_clear_injection_records(self):
+        """IMP-LOOP-029: clear_injection_records should clear all records."""
+        mock_memory = Mock()
+        mock_memory.enabled = False
+
+        injector = ContextInjector(memory_service=mock_memory)
+
+        injector.track_injection("phase_1", 3, True)
+        injector.track_injection("phase_2", 0, False)
+
+        count = injector.clear_injection_records()
+        assert count == 2
+
+        records = injector.get_all_injection_records()
+        assert len(records) == 0

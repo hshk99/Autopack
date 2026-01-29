@@ -465,3 +465,196 @@ class TestBootstrapMarkerFile:
         # Should be able to parse as ISO datetime
         created_at = datetime.fromisoformat(marker_data["created_at"].replace("Z", "+00:00"))
         assert created_at is not None
+
+
+class TestFullBootstrapPipelineWithGaps:
+    """IMP-RES-008: Integration tests for full bootstrap pipeline with gap scanning and plan proposal.
+
+    Tests the complete pipeline: idea -> research -> anchor -> gaps -> plan -> (approval) -> build
+    """
+
+    def test_full_pipeline_creates_gap_report(self, tmp_path, ecommerce_idea):
+        """Test that full pipeline creates gap report file."""
+        runner = BootstrapRunner()
+        options = BootstrapOptions(
+            idea=ecommerce_idea,
+            autonomous=True,
+            skip_research=True,
+            output_dir=tmp_path / "test_project",
+        )
+
+        result = runner.run(options)
+
+        assert result.success
+        assert result.gap_report is not None
+
+        # Verify gap report file was created
+        gap_report_path = result.project_dir / "gap_report_v1.json"
+        assert gap_report_path.exists()
+
+        # Verify gap report content
+        gap_data = json.loads(gap_report_path.read_text())
+        assert gap_data["format_version"] == "v1"
+        assert "project_id" in gap_data
+        assert "gaps" in gap_data
+        assert "summary" in gap_data
+
+    def test_full_pipeline_creates_plan_proposal(self, tmp_path, ecommerce_idea):
+        """Test that full pipeline creates plan proposal file."""
+        runner = BootstrapRunner()
+        options = BootstrapOptions(
+            idea=ecommerce_idea,
+            autonomous=True,
+            skip_research=True,
+            output_dir=tmp_path / "test_project",
+        )
+
+        result = runner.run(options)
+
+        assert result.success
+        assert result.plan is not None
+
+        # Verify plan proposal file was created
+        plan_path = result.project_dir / "plan_proposal_v1.json"
+        assert plan_path.exists()
+
+        # Verify plan proposal content
+        plan_data = json.loads(plan_path.read_text())
+        assert plan_data["format_version"] == "v1"
+        assert "project_id" in plan_data
+        assert "actions" in plan_data
+        assert "summary" in plan_data
+
+    def test_first_build_requires_approval(self, tmp_path, ecommerce_idea):
+        """Test that first build always requires human approval."""
+        runner = BootstrapRunner()
+        options = BootstrapOptions(
+            idea=ecommerce_idea,
+            autonomous=True,
+            skip_research=True,
+            output_dir=tmp_path / "test_project",
+        )
+
+        result = runner.run(options)
+
+        assert result.success
+        assert result.plan is not None
+
+        # All actions should require approval on first build (none auto-approved)
+        if result.plan.summary:
+            assert result.plan.summary.auto_approved_actions == 0
+            # If there are any actions, they should all require approval
+            if result.plan.summary.total_actions > 0:
+                approved_count = result.plan.summary.requires_approval_actions
+                blocked_count = result.plan.summary.blocked_actions
+                assert approved_count + blocked_count == result.plan.summary.total_actions
+
+    def test_marker_includes_pipeline_status(self, tmp_path, ecommerce_idea):
+        """Test that READY_FOR_BUILD marker includes full pipeline status."""
+        runner = BootstrapRunner()
+        options = BootstrapOptions(
+            idea=ecommerce_idea,
+            autonomous=True,
+            skip_research=True,
+            output_dir=tmp_path / "test_project",
+        )
+
+        result = runner.run(options)
+
+        marker_path = result.project_dir / READY_FOR_BUILD_MARKER
+        marker_data = json.loads(marker_path.read_text())
+
+        # IMP-RES-008: Marker should include pipeline status
+        assert "pipeline" in marker_data
+        pipeline = marker_data["pipeline"]
+        assert pipeline["idea_parsed"] is True
+        assert pipeline["research_complete"] is True
+        assert pipeline["anchor_created"] is True
+        assert pipeline["gaps_scanned"] is True
+        assert pipeline["plan_proposed"] is True
+        assert pipeline["approval_required"] is True
+
+    def test_marker_includes_gap_summary(self, tmp_path, ecommerce_idea):
+        """Test that READY_FOR_BUILD marker includes gap summary."""
+        runner = BootstrapRunner()
+        options = BootstrapOptions(
+            idea=ecommerce_idea,
+            autonomous=True,
+            skip_research=True,
+            output_dir=tmp_path / "test_project",
+        )
+
+        result = runner.run(options)
+
+        marker_path = result.project_dir / READY_FOR_BUILD_MARKER
+        marker_data = json.loads(marker_path.read_text())
+
+        # IMP-RES-008: Marker should include gaps summary
+        assert "gaps" in marker_data
+        gaps = marker_data["gaps"]
+        assert "total" in gaps
+        assert "blockers" in gaps
+        assert isinstance(gaps["total"], int)
+
+    def test_marker_includes_plan_summary(self, tmp_path, ecommerce_idea):
+        """Test that READY_FOR_BUILD marker includes plan summary."""
+        runner = BootstrapRunner()
+        options = BootstrapOptions(
+            idea=ecommerce_idea,
+            autonomous=True,
+            skip_research=True,
+            output_dir=tmp_path / "test_project",
+        )
+
+        result = runner.run(options)
+
+        marker_path = result.project_dir / READY_FOR_BUILD_MARKER
+        marker_data = json.loads(marker_path.read_text())
+
+        # IMP-RES-008: Marker should include plan summary
+        assert "plan" in marker_data
+        plan = marker_data["plan"]
+        assert "total_actions" in plan
+        assert "requires_approval" in plan
+        assert "auto_approved" in plan
+        assert "blocked" in plan
+
+    def test_result_includes_gap_report_and_plan(self, tmp_path, ecommerce_idea):
+        """Test that BootstrapResult includes gap_report and plan."""
+        runner = BootstrapRunner()
+        options = BootstrapOptions(
+            idea=ecommerce_idea,
+            autonomous=True,
+            skip_research=True,
+            output_dir=tmp_path / "test_project",
+        )
+
+        result = runner.run(options)
+
+        assert result.success
+        # IMP-RES-008: Result should include gap_report and plan
+        assert result.gap_report is not None
+        assert result.plan is not None
+        assert result.gap_report.project_id == result.anchor.project_id
+        assert result.plan.project_id == result.anchor.project_id
+
+    def test_pipeline_with_trading_idea(self, tmp_path, trading_idea):
+        """Test full pipeline with high-risk trading idea."""
+        runner = BootstrapRunner()
+        options = BootstrapOptions(
+            idea=trading_idea,
+            autonomous=True,
+            skip_research=True,
+            output_dir=tmp_path / "trading_project",
+        )
+
+        result = runner.run(options)
+
+        assert result.success
+        assert result.gap_report is not None
+        assert result.plan is not None
+
+        # High-risk project should have stricter governance
+        # First build should still require approval
+        if result.plan.summary:
+            assert result.plan.summary.auto_approved_actions == 0

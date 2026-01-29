@@ -11,7 +11,9 @@ import logging
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Literal
+
+# Import for type hints - lazy import to avoid circular dependencies
+from typing import TYPE_CHECKING, List, Literal
 
 from .doc_drift import run_doc_drift_check, run_doc_tests, run_sot_summary_check
 from .gap_plugin import GapResult, PluginRegistry
@@ -25,6 +27,9 @@ from .models import (
     GapSummary,
     SafeRemediation,
 )
+
+if TYPE_CHECKING:
+    from ..intention_anchor.v2 import IntentionAnchorV2
 
 logger = logging.getLogger(__name__)
 
@@ -230,6 +235,154 @@ class GapScanner:
             logger.debug(f"[IMP-GAP-001] Pre-phase check for '{phase_id}' passed ({elapsed_ms}ms)")
 
         return result
+
+    def scan_from_anchor(
+        self,
+        anchor: "IntentionAnchorV2",
+        project_dir: Path,
+        run_id: str = "",
+    ) -> GapReportV1:
+        """Scan for gaps relative to an IntentionAnchorV2.
+
+        IMP-RES-008: This method integrates gap scanning with the bootstrap pipeline.
+        It uses anchor constraints to contextualize the scan and returns a full
+        GapReportV1 for downstream plan proposal.
+
+        Args:
+            anchor: IntentionAnchorV2 containing project intentions and constraints
+            project_dir: Directory to scan for gaps
+            run_id: Optional run identifier (generated if empty)
+
+        Returns:
+            GapReportV1 with detected gaps contextualized to anchor constraints
+        """
+        from uuid import uuid4
+
+        start_time = datetime.now(timezone.utc)
+
+        # Generate run_id if not provided
+        if not run_id:
+            run_id = f"bootstrap-{uuid4().hex[:8]}"
+
+        logger.info(
+            f"[IMP-RES-008] Scanning for gaps from anchor: "
+            f"project_id={anchor.project_id}, run_id={run_id}"
+        )
+
+        # Update workspace root if different from init
+        if project_dir != self.workspace_root:
+            self.workspace_root = project_dir
+
+        # Run full gap scan
+        gaps = self.scan()
+
+        # Filter/prioritize gaps based on anchor constraints
+        gaps = self._apply_anchor_filters(gaps, anchor)
+
+        # Sort gaps by risk (critical > high > medium > low > info)
+        risk_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+        gaps.sort(key=lambda g: risk_order.get(g.risk_classification, 5))
+
+        # Compute workspace digest
+        workspace_digest = _compute_workspace_digest(project_dir)
+
+        # Compute summary
+        summary = GapSummary(
+            total_gaps=len(gaps),
+            critical_gaps=sum(1 for g in gaps if g.risk_classification == "critical"),
+            high_gaps=sum(1 for g in gaps if g.risk_classification == "high"),
+            medium_gaps=sum(1 for g in gaps if g.risk_classification == "medium"),
+            low_gaps=sum(1 for g in gaps if g.risk_classification == "low"),
+            autopilot_blockers=sum(1 for g in gaps if g.blocks_autopilot),
+        )
+
+        # Compute metadata
+        elapsed_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
+        metadata = GapMetadata(
+            scanner_version=SCANNER_VERSION,
+            scan_duration_ms=elapsed_ms,
+        )
+
+        report = GapReportV1(
+            project_id=anchor.project_id,
+            run_id=run_id,
+            generated_at=datetime.now(timezone.utc),
+            workspace_state_digest=workspace_digest,
+            gaps=gaps,
+            summary=summary,
+            metadata=metadata,
+        )
+
+        logger.info(
+            f"[IMP-RES-008] Gap scan from anchor completed: "
+            f"{len(gaps)} gaps ({summary.autopilot_blockers} blockers) in {elapsed_ms}ms"
+        )
+
+        return report
+
+    def _apply_anchor_filters(
+        self,
+        gaps: List[Gap],
+        anchor: "IntentionAnchorV2",
+    ) -> List[Gap]:
+        """Apply anchor-based filtering and prioritization to gaps.
+
+        IMP-RES-008: Filters gaps based on anchor constraints:
+        - Gaps in protected paths get elevated priority
+        - Gaps outside allowed write roots may be deprioritized
+        - Safety/risk constraints affect gap classification
+
+        Args:
+            gaps: List of detected gaps
+            anchor: IntentionAnchorV2 with constraints
+
+        Returns:
+            Filtered/prioritized list of gaps
+        """
+        filtered_gaps = []
+
+        # Extract anchor constraints
+        protected_paths = []
+        allowed_write_roots = []
+        if anchor.pivot_intentions.scope_boundaries:
+            protected_paths = anchor.pivot_intentions.scope_boundaries.protected_paths
+            allowed_write_roots = anchor.pivot_intentions.scope_boundaries.allowed_write_roots
+
+        # Get risk tolerance from anchor
+        risk_tolerance = "low"
+        if anchor.pivot_intentions.safety_risk:
+            risk_tolerance = anchor.pivot_intentions.safety_risk.risk_tolerance
+
+        for gap in gaps:
+            # Check if gap affects protected paths - elevate priority
+            affects_protected = False
+            if gap.evidence and gap.evidence.file_paths:
+                for file_path in gap.evidence.file_paths:
+                    if any(file_path.startswith(p) for p in protected_paths):
+                        affects_protected = True
+                        break
+
+            # If gap affects protected paths and risk tolerance is minimal/low,
+            # ensure it blocks autopilot
+            if affects_protected and risk_tolerance in ("minimal", "low"):
+                if not gap.blocks_autopilot:
+                    # Create a copy with blocks_autopilot=True
+                    gap = Gap(
+                        gap_id=gap.gap_id,
+                        gap_type=gap.gap_type,
+                        title=gap.title,
+                        description=gap.description,
+                        detection_signals=gap.detection_signals
+                        + ["Elevated: affects protected path with low risk tolerance"],
+                        evidence=gap.evidence,
+                        risk_classification=gap.risk_classification,
+                        blocks_autopilot=True,  # Elevated
+                        safe_remediation=gap.safe_remediation,
+                    )
+
+            filtered_gaps.append(gap)
+
+        return filtered_gaps
 
     def _detect_doc_drift(self) -> List[Gap]:
         """Detect documentation drift via mechanical checks (BUILD-180).

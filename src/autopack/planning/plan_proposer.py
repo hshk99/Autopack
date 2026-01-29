@@ -632,3 +632,131 @@ def propose_plan(
     """
     proposer = PlanProposer(anchor, gap_report, workspace_root)
     return proposer.propose()
+
+
+def propose_from_gaps(
+    gap_report: GapReportV1,
+    anchor: IntentionAnchorV2,
+    workspace_root: Optional[Path] = None,
+    is_first_build: bool = True,
+) -> PlanProposalV1:
+    """Propose plan from gap report with approval gate logic.
+
+    IMP-RES-008: This function is part of the full bootstrap pipeline integration.
+    It generates a plan from gap scan results with special approval handling:
+    - First build of any project requires human approval
+    - Subsequent builds can be auto-approved per governance rules
+
+    Pipeline: idea -> research -> anchor -> gaps -> plan -> (approval) -> build
+
+    Args:
+        gap_report: GapReportV1 from gap scanner
+        anchor: IntentionAnchorV2 with project intentions
+        workspace_root: Workspace root for path checks
+        is_first_build: True if this is the first build (requires approval)
+
+    Returns:
+        PlanProposalV1 with actions and governance-aware approval status
+    """
+    logger.info(
+        f"[IMP-RES-008] Proposing plan from gaps: "
+        f"project_id={anchor.project_id}, gaps={len(gap_report.gaps)}, "
+        f"is_first_build={is_first_build}"
+    )
+
+    # Create proposer and generate base plan
+    proposer = PlanProposer(anchor, gap_report, workspace_root)
+    plan = proposer.propose()
+
+    # IMP-RES-008: Apply first-build approval gate
+    # First build of any project requires human approval regardless of auto-approve rules
+    if is_first_build:
+        plan = _apply_first_build_approval_gate(plan, anchor)
+
+    return plan
+
+
+def _apply_first_build_approval_gate(
+    plan: PlanProposalV1,
+    anchor: IntentionAnchorV2,
+) -> PlanProposalV1:
+    """Apply first-build approval gate to plan.
+
+    IMP-RES-008: Ensures human approval is required before first build of any project.
+    This is a safety measure to prevent fully autonomous operation until the project
+    has been reviewed at least once.
+
+    Args:
+        plan: PlanProposalV1 to modify
+        anchor: IntentionAnchorV2 for context
+
+    Returns:
+        Modified PlanProposalV1 with first-build approval requirements
+    """
+    modified_actions = []
+
+    for action in plan.actions:
+        # Override auto-approved actions to require approval on first build
+        if action.approval_status == "auto_approved":
+            action = Action(
+                action_id=action.action_id,
+                action_type=action.action_type,
+                title=action.title,
+                description=action.description,
+                target_gap_ids=action.target_gap_ids,
+                risk_score=action.risk_score,
+                risk_factors=action.risk_factors,
+                approval_status="requires_approval",
+                approval_reason=(
+                    f"First build gate: {action.approval_reason or 'auto-approved'} "
+                    f"(requires human review before first build)"
+                ),
+                target_paths=action.target_paths,
+                command=action.command,
+                estimated_cost=action.estimated_cost,
+                dependencies=action.dependencies,
+                rollback_strategy=action.rollback_strategy,
+            )
+            logger.debug(
+                f"[IMP-RES-008] First-build gate: action {action.action_id} "
+                f"changed from auto_approved to requires_approval"
+            )
+
+        modified_actions.append(action)
+
+    # Recompute summary
+    summary = PlanSummary(
+        total_actions=len(modified_actions),
+        auto_approved_actions=sum(
+            1 for a in modified_actions if a.approval_status == "auto_approved"
+        ),
+        requires_approval_actions=sum(
+            1 for a in modified_actions if a.approval_status == "requires_approval"
+        ),
+        blocked_actions=sum(1 for a in modified_actions if a.approval_status == "blocked"),
+        total_estimated_tokens=plan.summary.total_estimated_tokens if plan.summary else None,
+        total_estimated_time_seconds=(
+            plan.summary.total_estimated_time_seconds if plan.summary else None
+        ),
+    )
+
+    # Create modified plan
+    modified_plan = PlanProposalV1(
+        project_id=plan.project_id,
+        run_id=plan.run_id,
+        generated_at=plan.generated_at,
+        anchor_id=plan.anchor_id,
+        gap_report_id=plan.gap_report_id,
+        actions=modified_actions,
+        summary=summary,
+        governance_checks=plan.governance_checks,
+        metadata=plan.metadata,
+    )
+
+    logger.info(
+        f"[IMP-RES-008] First-build approval gate applied: "
+        f"{summary.requires_approval_actions} actions require approval "
+        f"(was {plan.summary.auto_approved_actions if plan.summary else 0} auto-approved)"
+    )
+
+    return modified_plan

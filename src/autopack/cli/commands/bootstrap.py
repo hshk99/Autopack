@@ -23,7 +23,11 @@ from typing import Optional
 
 import click
 
+from autopack.gaps.models import GapReportV1
+from autopack.gaps.scanner import GapScanner
 from autopack.intention_anchor.v2 import IntentionAnchorV2
+from autopack.planning.models import PlanProposalV1
+from autopack.planning.plan_proposer import propose_from_gaps
 from autopack.research.anchor_mapper import ResearchToAnchorMapper
 from autopack.research.idea_parser import IdeaParser, ParsedIdea
 from autopack.research.models.bootstrap_session import BootstrapSession
@@ -60,6 +64,8 @@ class BootstrapResult:
     anchor: Optional[IntentionAnchorV2] = None
     parsed_idea: Optional[ParsedIdea] = None
     bootstrap_session: Optional[BootstrapSession] = None
+    gap_report: Optional[GapReportV1] = None
+    plan: Optional[PlanProposalV1] = None
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -191,9 +197,44 @@ class BootstrapRunner:
             self._save_research_session(bootstrap_session, research_path)
             logger.info(f"[Bootstrap] Research written to: {research_path}")
 
-        # Step 7: Write READY_FOR_BUILD marker
+        # Step 7: IMP-RES-008 - Scan for gaps relative to anchor
+        logger.info("[Bootstrap] Scanning for gaps...")
+        gap_scanner = GapScanner(project_dir)
+        gap_report = gap_scanner.scan_from_anchor(
+            anchor=anchor,
+            project_dir=project_dir,
+        )
+
+        # Write gap report
+        gap_report_path = project_dir / "gap_report_v1.json"
+        gap_report.save_to_file(gap_report_path)
+        logger.info(
+            f"[Bootstrap] Gap report written to: {gap_report_path} "
+            f"({len(gap_report.gaps)} gaps, "
+            f"{gap_report.summary.autopilot_blockers if gap_report.summary else 0} blockers)"
+        )
+
+        # Step 8: IMP-RES-008 - Propose plan from gaps
+        logger.info("[Bootstrap] Proposing plan from gaps...")
+        plan = propose_from_gaps(
+            gap_report=gap_report,
+            anchor=anchor,
+            workspace_root=project_dir,
+            is_first_build=True,  # First build always requires approval
+        )
+
+        # Write plan proposal
+        plan_path = project_dir / "plan_proposal_v1.json"
+        plan.save_to_file(plan_path)
+        logger.info(
+            f"[Bootstrap] Plan written to: {plan_path} "
+            f"({plan.summary.total_actions if plan.summary else 0} actions, "
+            f"{plan.summary.requires_approval_actions if plan.summary else 0} require approval)"
+        )
+
+        # Step 9: Write READY_FOR_BUILD marker
         ready_marker_path = project_dir / READY_FOR_BUILD_MARKER
-        self._write_ready_marker(ready_marker_path, anchor, parsed_idea)
+        self._write_ready_marker(ready_marker_path, anchor, parsed_idea, gap_report, plan)
         logger.info(f"[Bootstrap] READY_FOR_BUILD marker written to: {ready_marker_path}")
 
         return BootstrapResult(
@@ -203,6 +244,8 @@ class BootstrapRunner:
             anchor=anchor,
             parsed_idea=parsed_idea,
             bootstrap_session=bootstrap_session,
+            gap_report=gap_report,
+            plan=plan,
             warnings=warnings,
         )
 
@@ -338,13 +381,19 @@ class BootstrapRunner:
         path: Path,
         anchor: IntentionAnchorV2,
         parsed_idea: ParsedIdea,
+        gap_report: Optional[GapReportV1] = None,
+        plan: Optional[PlanProposalV1] = None,
     ) -> None:
         """Write READY_FOR_BUILD marker file.
+
+        IMP-RES-008: Enhanced marker includes gap and plan summary for full pipeline.
 
         Args:
             path: Path to marker file
             anchor: Intention anchor
             parsed_idea: Parsed idea
+            gap_report: Optional gap report from scan
+            plan: Optional plan proposal
         """
         marker_content = {
             "status": "ready",
@@ -354,7 +403,34 @@ class BootstrapRunner:
             "project_type": parsed_idea.detected_project_type.value,
             "anchor_digest": anchor.raw_input_digest,
             "bootstrap_complete": True,
+            # IMP-RES-008: Full pipeline status
+            "pipeline": {
+                "idea_parsed": True,
+                "research_complete": True,
+                "anchor_created": True,
+                "gaps_scanned": gap_report is not None,
+                "plan_proposed": plan is not None,
+                "approval_required": True,  # First build always requires approval
+            },
         }
+
+        # Add gap summary if available
+        if gap_report and gap_report.summary:
+            marker_content["gaps"] = {
+                "total": gap_report.summary.total_gaps,
+                "blockers": gap_report.summary.autopilot_blockers,
+                "critical": gap_report.summary.critical_gaps,
+                "high": gap_report.summary.high_gaps,
+            }
+
+        # Add plan summary if available
+        if plan and plan.summary:
+            marker_content["plan"] = {
+                "total_actions": plan.summary.total_actions,
+                "auto_approved": plan.summary.auto_approved_actions,
+                "requires_approval": plan.summary.requires_approval_actions,
+                "blocked": plan.summary.blocked_actions,
+            }
 
         path.write_text(
             json.dumps(marker_content, indent=2, ensure_ascii=False),
@@ -500,7 +576,27 @@ def run_command(
             f"[Bootstrap] Project type: {result.parsed_idea.detected_project_type.value}",
             err=True,
         )
+
+        # IMP-RES-008: Report gap and plan status
+        if result.gap_report and result.gap_report.summary:
+            click.echo(
+                f"[Bootstrap] Gaps found: {result.gap_report.summary.total_gaps} "
+                f"({result.gap_report.summary.autopilot_blockers} blockers)",
+                err=True,
+            )
+        if result.plan and result.plan.summary:
+            click.echo(
+                f"[Bootstrap] Plan actions: {result.plan.summary.total_actions} "
+                f"({result.plan.summary.requires_approval_actions} require approval)",
+                err=True,
+            )
+
         click.echo("[Bootstrap] READY_FOR_BUILD marker created", err=True)
+        click.secho(
+            "[Bootstrap] NOTE: First build requires human approval before proceeding",
+            fg="yellow",
+            err=True,
+        )
 
         if result.warnings:
             for warning in result.warnings:
@@ -517,6 +613,24 @@ def run_command(
                 result.parsed_idea.detected_project_type.value if result.parsed_idea else None
             ),
             "ready_for_build": True,
+            # IMP-RES-008: Full pipeline status
+            "pipeline": {
+                "gaps_scanned": result.gap_report is not None,
+                "total_gaps": (
+                    result.gap_report.summary.total_gaps
+                    if result.gap_report and result.gap_report.summary
+                    else 0
+                ),
+                "plan_proposed": result.plan is not None,
+                "total_actions": (
+                    result.plan.summary.total_actions if result.plan and result.plan.summary else 0
+                ),
+                "requires_approval": (
+                    result.plan.summary.requires_approval_actions
+                    if result.plan and result.plan.summary
+                    else 0
+                ),
+            },
         }
         click.echo(json.dumps(summary, indent=2, ensure_ascii=False))
 

@@ -5,20 +5,51 @@ capabilities for the Autopack self-improvement loop.
 
 Components:
 - PriorityEngine: Prioritizes tasks based on historical success data
-- InsightToTaskGenerator: Generates improvement suggestions from telemetry insights
+- InsightToTaskGenerator: **DEPRECATED** - Use AutonomousTaskGenerator from
+  autopack.roadc.task_generator instead. Kept for backward compatibility.
 - TaskEffectivenessTracker: Tracks task effectiveness for closed-loop validation
 - TaskImpactReport: Report of actual task impact vs. target
 - ROIAnalyzer: Calculates ROI and payback period for task prioritization
 - PaybackAnalysis: Analysis of task ROI and payback period
+
+Migration Guide (IMP-INT-006):
+    Replace::
+
+        from autopack.task_generation import InsightToTaskGenerator
+        generator = InsightToTaskGenerator(analyzer)
+
+    With::
+
+        from autopack.roadc.task_generator import AutonomousTaskGenerator
+        generator = AutonomousTaskGenerator(db_session=session)
 """
 
 from __future__ import annotations
 
-from autopack.task_generation.insight_to_task import InsightToTaskGenerator
+import warnings
+
+
+def __getattr__(name: str):
+    """Lazy import with deprecation warning for InsightToTaskGenerator."""
+    if name == "InsightToTaskGenerator":
+        warnings.warn(
+            "InsightToTaskGenerator is deprecated. "
+            "Use AutonomousTaskGenerator from autopack.roadc.task_generator instead. "
+            "See IMP-INT-006 for migration details.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from autopack.task_generation.insight_to_task import \
+            InsightToTaskGenerator
+
+        return InsightToTaskGenerator
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 from .priority_engine import PriorityEngine
 from .roi_analyzer import PaybackAnalysis, ROIAnalyzer
-from .task_effectiveness_tracker import TaskEffectivenessTracker, TaskImpactReport
+from .task_effectiveness_tracker import (TaskEffectivenessTracker,
+                                         TaskImpactReport)
 
 __all__ = [
     "InsightToTaskGenerator",

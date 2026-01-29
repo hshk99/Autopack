@@ -1,15 +1,24 @@
-"""Tests for InsightToTaskGenerator in autopack.task_generation module."""
+"""Tests for InsightToTaskGenerator in autopack.task_generation module.
+
+Note: InsightToTaskGenerator is deprecated as of IMP-INT-006.
+Use AutonomousTaskGenerator from autopack.roadc.task_generator instead.
+"""
 
 import json
+import warnings
 from pathlib import Path
 
 import pytest
 
 from autopack.analytics.telemetry_analyzer import TelemetryAnalyzer
-from autopack.task_generation.insight_to_task import (
-    CRITICAL_ESCALATION_RATE, CRITICAL_FLAKINESS, CRITICAL_HEALTH_THRESHOLD,
-    HIGH_ESCALATION_RATE, HIGH_FLAKINESS, HIGH_IMPACT_THRESHOLD,
-    InsightToTaskGenerator)
+
+# Import with warning filter to suppress deprecation warnings during test collection
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    from autopack.task_generation.insight_to_task import (
+        CRITICAL_ESCALATION_RATE, CRITICAL_FLAKINESS,
+        CRITICAL_HEALTH_THRESHOLD, HIGH_ESCALATION_RATE, HIGH_FLAKINESS,
+        HIGH_IMPACT_THRESHOLD, InsightToTaskGenerator)
 
 
 @pytest.fixture
@@ -677,3 +686,108 @@ class TestCreateCorrectiveTask:
         # Should not crash
         assert imp["id"] == "CORR-001"
         assert "error_patterns" not in imp["description"]  # Empty patterns not mentioned
+
+
+class TestDeprecationWarnings:
+    """Tests for InsightToTaskGenerator deprecation (IMP-INT-006)."""
+
+    def test_class_emits_deprecation_on_use(self) -> None:
+        """Test InsightToTaskGenerator class is marked as deprecated."""
+        # The deprecated library adds deprecation warnings on class instantiation
+        # We verify this by checking that a warning is emitted
+        import os
+        import tempfile
+
+        from autopack.analytics.telemetry_analyzer import TelemetryAnalyzer
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            analyzer = TelemetryAnalyzer(temp_dir)
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                _generator = InsightToTaskGenerator(analyzer)
+
+                # Should have deprecation warning
+                deprecation_warnings = [
+                    warning for warning in w if issubclass(warning.category, DeprecationWarning)
+                ]
+                assert (
+                    len(deprecation_warnings) >= 1
+                ), "Expected DeprecationWarning when using InsightToTaskGenerator"
+
+    def test_instantiation_emits_deprecation_warning(self, temp_state_dir: Path) -> None:
+        """Test instantiating InsightToTaskGenerator emits DeprecationWarning."""
+        analyzer = TelemetryAnalyzer(temp_state_dir)
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            # This should emit a deprecation warning
+            _generator = InsightToTaskGenerator(analyzer)
+
+            # Check that a deprecation warning was issued
+            deprecation_warnings = [
+                warning for warning in w if issubclass(warning.category, DeprecationWarning)
+            ]
+            assert len(deprecation_warnings) >= 1, "Expected DeprecationWarning on instantiation"
+
+            # Check the warning message mentions AutonomousTaskGenerator
+            warning_messages = [str(warning.message) for warning in deprecation_warnings]
+            assert any(
+                "AutonomousTaskGenerator" in msg for msg in warning_messages
+            ), "Warning should mention AutonomousTaskGenerator as replacement"
+
+    def test_module_import_emits_deprecation_warning(self) -> None:
+        """Test importing InsightToTaskGenerator from __init__ emits warning."""
+        import importlib
+        import sys
+
+        # Remove from cache to force reimport
+        modules_to_remove = [key for key in sys.modules.keys() if "autopack.task_generation" in key]
+        for mod in modules_to_remove:
+            if mod in sys.modules:
+                del sys.modules[mod]
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+
+            # Import the module and access InsightToTaskGenerator
+            import autopack.task_generation
+
+            importlib.reload(autopack.task_generation)
+
+            # Access the deprecated class through the module
+            _ = autopack.task_generation.InsightToTaskGenerator
+
+            # Check for deprecation warning
+            deprecation_warnings = [
+                warning for warning in w if issubclass(warning.category, DeprecationWarning)
+            ]
+            # Should have at least one warning from __getattr__
+            assert (
+                len(deprecation_warnings) >= 1
+            ), "Expected DeprecationWarning when accessing InsightToTaskGenerator"
+
+    def test_deprecation_message_includes_migration_info(self, temp_state_dir: Path) -> None:
+        """Test deprecation warning includes migration information."""
+        analyzer = TelemetryAnalyzer(temp_state_dir)
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            _generator = InsightToTaskGenerator(analyzer)
+
+            deprecation_warnings = [
+                warning for warning in w if issubclass(warning.category, DeprecationWarning)
+            ]
+            warning_messages = " ".join(str(warning.message) for warning in deprecation_warnings)
+
+            # Should mention the replacement class
+            assert "AutonomousTaskGenerator" in warning_messages
+            # Should mention the roadc module
+            assert "roadc" in warning_messages
+
+    def test_autonomous_task_generator_is_preferred(self) -> None:
+        """Test AutonomousTaskGenerator is importable as the preferred class."""
+        from autopack.roadc.task_generator import AutonomousTaskGenerator
+
+        # Should be able to import without any deprecation warnings
+        assert AutonomousTaskGenerator is not None
+        assert hasattr(AutonomousTaskGenerator, "generate_tasks")

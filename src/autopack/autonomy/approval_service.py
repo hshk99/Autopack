@@ -21,9 +21,14 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Literal, Optional
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict
+
+from autopack.roadi.regression_protector import RegressionProtector, RiskAssessment, RiskSeverity
+
+if TYPE_CHECKING:
+    from autopack.executor.backlog_maintenance import TaskCandidate
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +108,46 @@ class ApprovalQueue:
             pending=[PendingApproval.model_validate(p) for p in data.get("pending", [])],
             decisions=[ApprovalDecision.model_validate(d) for d in data.get("decisions", [])],
         )
+
+
+@dataclass
+class AuthorizationDecision:
+    """Decision on whether a task can auto-execute (IMP-LOOP-030).
+
+    Used to gate task execution based on risk assessment from RegressionProtector.
+
+    Attributes:
+        authorized: Whether the task is authorized for auto-execution.
+        reason: Human-readable explanation of the decision.
+        risk_level: The assessed risk severity level.
+        requires_approval: Whether the task needs manual approval.
+        risk_assessment: Full risk assessment details (optional).
+    """
+
+    authorized: bool
+    reason: str
+    risk_level: RiskSeverity = RiskSeverity.LOW
+    requires_approval: bool = False
+    risk_assessment: Optional[RiskAssessment] = None
+
+    def to_dict(self) -> Dict:
+        """Convert to JSON-serializable dict."""
+        return {
+            "authorized": self.authorized,
+            "reason": self.reason,
+            "risk_level": self.risk_level.value,
+            "requires_approval": self.requires_approval,
+            "risk_assessment": (
+                {
+                    "severity": self.risk_assessment.severity.value,
+                    "blocking_recommended": self.risk_assessment.blocking_recommended,
+                    "confidence": self.risk_assessment.confidence,
+                    "evidence": self.risk_assessment.evidence,
+                }
+                if self.risk_assessment
+                else None
+            ),
+        }
 
 
 class ApprovalService:
@@ -382,3 +427,128 @@ class ApprovalService:
             "rejected": rejected,
             "deferred": deferred,
         }
+
+    # =========================================================================
+    # IMP-LOOP-030: Task Execution Authorization
+    # =========================================================================
+
+    def evaluate_task_authorization(
+        self,
+        task: TaskCandidate,
+        regression_protector: Optional[RegressionProtector] = None,
+    ) -> AuthorizationDecision:
+        """Determine if a task can auto-execute or needs approval (IMP-LOOP-030).
+
+        Evaluates the risk of executing a generated task based on:
+        - Risk assessment from RegressionProtector
+        - Task priority and source
+        - Historical regression patterns
+
+        Authorization criteria:
+        - LOW risk: Authorized for auto-execution
+        - MEDIUM risk: Requires manual approval
+        - HIGH/CRITICAL risk: Not authorized, requires approval
+
+        Args:
+            task: The TaskCandidate to evaluate for authorization.
+            regression_protector: Optional RegressionProtector instance.
+                                  If not provided, creates a default one.
+
+        Returns:
+            AuthorizationDecision indicating if task can auto-execute.
+        """
+        # Use provided protector or create default
+        protector = regression_protector or RegressionProtector()
+
+        # Build pattern from task for risk assessment
+        issue_pattern = f"{task.title}: {task.metadata.get('description', '')}"
+        pattern_context = {
+            "phase_id": task.task_id,
+            "issue_type": task.metadata.get("issue_type", ""),
+            "source": task.source,
+            "priority": task.priority,
+        }
+
+        # Get risk assessment from regression protector
+        risk = protector.assess_regression_risk(issue_pattern, pattern_context)
+
+        # Determine authorization based on risk level
+        if risk.severity == RiskSeverity.LOW:
+            return AuthorizationDecision(
+                authorized=True,
+                reason="Low risk task - authorized for auto-execution",
+                risk_level=risk.severity,
+                requires_approval=False,
+                risk_assessment=risk,
+            )
+
+        elif risk.severity == RiskSeverity.MEDIUM:
+            return AuthorizationDecision(
+                authorized=False,
+                reason=f"Medium risk - requires approval: {', '.join(risk.evidence[:2])}",
+                risk_level=risk.severity,
+                requires_approval=True,
+                risk_assessment=risk,
+            )
+
+        else:  # HIGH or CRITICAL
+            evidence_summary = (
+                "; ".join(risk.evidence[:3]) if risk.evidence else "High risk pattern"
+            )
+            return AuthorizationDecision(
+                authorized=False,
+                reason=f"High risk ({risk.severity.value}): {evidence_summary}",
+                risk_level=risk.severity,
+                requires_approval=True,
+                risk_assessment=risk,
+            )
+
+    def evaluate_tasks_authorization(
+        self,
+        tasks: List[TaskCandidate],
+        regression_protector: Optional[RegressionProtector] = None,
+    ) -> tuple[List[TaskCandidate], List[tuple[TaskCandidate, AuthorizationDecision]]]:
+        """Evaluate authorization for multiple tasks (IMP-LOOP-030).
+
+        Convenience method that separates tasks into authorized (can auto-execute)
+        and pending approval (need manual review).
+
+        Args:
+            tasks: List of TaskCandidate objects to evaluate.
+            regression_protector: Optional RegressionProtector instance.
+
+        Returns:
+            Tuple of:
+            - List of authorized tasks (can auto-execute)
+            - List of (task, decision) tuples for tasks needing approval
+        """
+        protector = regression_protector or RegressionProtector()
+
+        authorized: List[TaskCandidate] = []
+        pending_approval: List[tuple[TaskCandidate, AuthorizationDecision]] = []
+
+        for task in tasks:
+            decision = self.evaluate_task_authorization(task, protector)
+
+            if decision.authorized:
+                authorized.append(task)
+                logger.debug(
+                    "[IMP-LOOP-030] Task %s authorized: %s",
+                    task.task_id,
+                    decision.reason,
+                )
+            else:
+                pending_approval.append((task, decision))
+                logger.info(
+                    "[IMP-LOOP-030] Task %s requires approval: %s",
+                    task.task_id,
+                    decision.reason,
+                )
+
+        logger.info(
+            "[IMP-LOOP-030] Authorization complete: %d authorized, %d pending approval",
+            len(authorized),
+            len(pending_approval),
+        )
+
+        return authorized, pending_approval

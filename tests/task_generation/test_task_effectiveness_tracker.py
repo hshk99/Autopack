@@ -6,13 +6,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from autopack.task_generation.task_effectiveness_tracker import (
-    EXCELLENT_EFFECTIVENESS,
-    GOOD_EFFECTIVENESS,
-    POOR_EFFECTIVENESS,
-    EffectivenessHistory,
-    TaskEffectivenessTracker,
-    TaskImpactReport,
-)
+    CORRECTIVE_TASK_FAILURE_THRESHOLD, EXCELLENT_EFFECTIVENESS,
+    GOOD_EFFECTIVENESS, POOR_EFFECTIVENESS, CorrectiveTask,
+    EffectivenessHistory, TaskEffectivenessTracker, TaskImpactReport)
 
 
 class TestTaskImpactReport:
@@ -1069,3 +1065,312 @@ class TestNotifyTaskOutcome:
 
         # Verify execution was recorded
         assert tracker._registered_tasks["IMP-TEST-001"].executed is True
+
+
+class TestCorrectiveTask:
+    """Tests for CorrectiveTask dataclass (IMP-LOOP-022)."""
+
+    def test_basic_creation(self) -> None:
+        """Test creating a basic CorrectiveTask."""
+        task = CorrectiveTask(
+            corrective_id="CORR-001",
+            original_task_id="IMP-TEST-001",
+            failure_count=3,
+        )
+        assert task.corrective_id == "CORR-001"
+        assert task.original_task_id == "IMP-TEST-001"
+        assert task.failure_count == 3
+        assert task.priority == "high"
+
+    def test_to_dict(self) -> None:
+        """Test converting CorrectiveTask to dict."""
+        task = CorrectiveTask(
+            corrective_id="CORR-001",
+            original_task_id="IMP-TEST-001",
+            failure_count=3,
+            error_patterns=["timeout", "connection_error"],
+            category="telemetry",
+        )
+        data = task.to_dict()
+
+        assert data["corrective_id"] == "CORR-001"
+        assert data["original_task_id"] == "IMP-TEST-001"
+        assert data["failure_count"] == 3
+        assert data["error_patterns"] == ["timeout", "connection_error"]
+        assert data["type"] == "corrective"
+        assert data["priority"] == "high"
+
+    def test_error_patterns_default_empty(self) -> None:
+        """Test error_patterns defaults to empty list."""
+        task = CorrectiveTask(
+            corrective_id="CORR-001",
+            original_task_id="IMP-TEST-001",
+            failure_count=3,
+        )
+        assert task.error_patterns == []
+
+
+class TestRecordOutcome:
+    """Tests for record_outcome method (IMP-LOOP-022)."""
+
+    @pytest.fixture
+    def tracker(self) -> TaskEffectivenessTracker:
+        """Create a tracker for testing."""
+        return TaskEffectivenessTracker()
+
+    def test_record_failure_increments_count(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test recording a failure increments the count."""
+        tracker.record_outcome(task_id="IMP-TEST-001", success=False, error="test error")
+
+        assert tracker.get_failure_count("IMP-TEST-001") == 1
+
+    def test_record_multiple_failures(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test recording multiple failures."""
+        tracker.record_outcome(task_id="IMP-TEST-001", success=False, error="error 1")
+        tracker.record_outcome(task_id="IMP-TEST-001", success=False, error="error 2")
+
+        assert tracker.get_failure_count("IMP-TEST-001") == 2
+
+    def test_success_resets_failure_count(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test success resets the failure count."""
+        tracker.record_outcome(task_id="IMP-TEST-001", success=False)
+        tracker.record_outcome(task_id="IMP-TEST-001", success=False)
+        tracker.record_outcome(task_id="IMP-TEST-001", success=True)
+
+        assert tracker.get_failure_count("IMP-TEST-001") == 0
+
+    def test_errors_are_tracked(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test error messages are tracked."""
+        tracker.record_outcome(task_id="IMP-TEST-001", success=False, error="error 1")
+        tracker.record_outcome(task_id="IMP-TEST-001", success=False, error="error 2")
+
+        assert len(tracker._failure_errors["IMP-TEST-001"]) == 2
+        assert "error 1" in tracker._failure_errors["IMP-TEST-001"]
+        assert "error 2" in tracker._failure_errors["IMP-TEST-001"]
+
+    def test_corrective_task_generated_at_threshold(
+        self, tracker: TaskEffectivenessTracker
+    ) -> None:
+        """Test corrective task is generated at failure threshold."""
+        # Record failures up to threshold
+        for i in range(CORRECTIVE_TASK_FAILURE_THRESHOLD):
+            tracker.record_outcome(
+                task_id="IMP-TEST-001",
+                success=False,
+                error=f"error {i}",
+            )
+
+        corrective_tasks = tracker.get_corrective_tasks()
+        assert len(corrective_tasks) == 1
+        assert corrective_tasks[0].original_task_id == "IMP-TEST-001"
+        assert corrective_tasks[0].failure_count == CORRECTIVE_TASK_FAILURE_THRESHOLD
+
+    def test_corrective_task_not_generated_below_threshold(
+        self, tracker: TaskEffectivenessTracker
+    ) -> None:
+        """Test no corrective task is generated below threshold."""
+        # Record failures below threshold
+        for i in range(CORRECTIVE_TASK_FAILURE_THRESHOLD - 1):
+            tracker.record_outcome(
+                task_id="IMP-TEST-001",
+                success=False,
+                error=f"error {i}",
+            )
+
+        corrective_tasks = tracker.get_corrective_tasks()
+        assert len(corrective_tasks) == 0
+
+    def test_only_one_corrective_task_per_threshold(
+        self, tracker: TaskEffectivenessTracker
+    ) -> None:
+        """Test only one corrective task is generated at threshold crossing."""
+        # Record failures beyond threshold
+        for i in range(CORRECTIVE_TASK_FAILURE_THRESHOLD + 2):
+            tracker.record_outcome(
+                task_id="IMP-TEST-001",
+                success=False,
+                error=f"error {i}",
+            )
+
+        corrective_tasks = tracker.get_corrective_tasks()
+        # Should still only have 1 corrective task
+        assert len(corrective_tasks) == 1
+
+    def test_multiple_tasks_can_trigger_corrective_tasks(
+        self, tracker: TaskEffectivenessTracker
+    ) -> None:
+        """Test multiple different tasks can each trigger corrective tasks."""
+        # Trigger corrective task for task 1
+        for i in range(CORRECTIVE_TASK_FAILURE_THRESHOLD):
+            tracker.record_outcome(task_id="IMP-TEST-001", success=False)
+
+        # Trigger corrective task for task 2
+        for i in range(CORRECTIVE_TASK_FAILURE_THRESHOLD):
+            tracker.record_outcome(task_id="IMP-TEST-002", success=False)
+
+        corrective_tasks = tracker.get_corrective_tasks()
+        assert len(corrective_tasks) == 2
+        task_ids = [ct.original_task_id for ct in corrective_tasks]
+        assert "IMP-TEST-001" in task_ids
+        assert "IMP-TEST-002" in task_ids
+
+
+class TestCorrectiveTaskGeneration:
+    """Tests for corrective task generation and forwarding (IMP-LOOP-022)."""
+
+    @pytest.fixture
+    def tracker(self) -> TaskEffectivenessTracker:
+        """Create a tracker for testing."""
+        return TaskEffectivenessTracker()
+
+    def test_corrective_task_includes_error_pattern(
+        self, tracker: TaskEffectivenessTracker
+    ) -> None:
+        """Test corrective task includes error pattern analysis."""
+        errors = ["timeout error", "timeout occurred", "connection timeout"]
+        for error in errors:
+            tracker.record_outcome(task_id="IMP-TEST-001", success=False, error=error)
+
+        corrective_tasks = tracker.get_corrective_tasks()
+        assert len(corrective_tasks) == 1
+        # Should detect "timeout" as common pattern
+        assert len(corrective_tasks[0].error_patterns) > 0
+
+    def test_corrective_task_has_high_priority(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test corrective tasks always have high priority."""
+        for i in range(CORRECTIVE_TASK_FAILURE_THRESHOLD):
+            tracker.record_outcome(task_id="IMP-TEST-001", success=False)
+
+        corrective_tasks = tracker.get_corrective_tasks()
+        assert corrective_tasks[0].priority == "high"
+
+    def test_corrective_task_preserves_category(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test corrective task preserves original task category."""
+        for i in range(CORRECTIVE_TASK_FAILURE_THRESHOLD):
+            tracker.record_outcome(
+                task_id="IMP-TEST-001",
+                success=False,
+                category="telemetry",
+            )
+
+        corrective_tasks = tracker.get_corrective_tasks()
+        assert corrective_tasks[0].category == "telemetry"
+
+    def test_insight_to_task_forwarding(self) -> None:
+        """Test corrective task is forwarded to InsightToTaskGenerator."""
+        mock_insight_to_task = MagicMock()
+        tracker = TaskEffectivenessTracker(insight_to_task=mock_insight_to_task)
+
+        for i in range(CORRECTIVE_TASK_FAILURE_THRESHOLD):
+            tracker.record_outcome(task_id="IMP-TEST-001", success=False)
+
+        # Verify create_corrective_task was called
+        mock_insight_to_task.create_corrective_task.assert_called_once()
+        call_args = mock_insight_to_task.create_corrective_task.call_args
+        corrective_task = call_args[0][0]
+        assert corrective_task.original_task_id == "IMP-TEST-001"
+
+    def test_set_insight_to_task(self) -> None:
+        """Test setting insight_to_task after initialization."""
+        tracker = TaskEffectivenessTracker()
+        mock_insight_to_task = MagicMock()
+
+        tracker.set_insight_to_task(mock_insight_to_task)
+
+        # Now trigger a corrective task
+        for i in range(CORRECTIVE_TASK_FAILURE_THRESHOLD):
+            tracker.record_outcome(task_id="IMP-TEST-001", success=False)
+
+        # Verify forwarding works
+        mock_insight_to_task.create_corrective_task.assert_called_once()
+
+
+class TestCorrectiveTaskSummary:
+    """Tests for get_corrective_task_summary method (IMP-LOOP-022)."""
+
+    @pytest.fixture
+    def tracker(self) -> TaskEffectivenessTracker:
+        """Create a tracker for testing."""
+        return TaskEffectivenessTracker()
+
+    def test_empty_summary(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test summary with no failures."""
+        summary = tracker.get_corrective_task_summary()
+
+        assert summary["total_corrective_tasks"] == 0
+        assert summary["failure_threshold"] == CORRECTIVE_TASK_FAILURE_THRESHOLD
+        assert summary["tasks_at_risk"] == []
+        assert summary["tasks_exceeded_threshold"] == []
+        assert summary["corrective_tasks"] == []
+
+    def test_tasks_at_risk(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test tracking tasks at risk of triggering corrective action."""
+        # Record failures below threshold
+        tracker.record_outcome(task_id="IMP-TEST-001", success=False)
+        tracker.record_outcome(task_id="IMP-TEST-001", success=False)
+
+        summary = tracker.get_corrective_task_summary()
+
+        assert len(summary["tasks_at_risk"]) == 1
+        assert summary["tasks_at_risk"][0]["task_id"] == "IMP-TEST-001"
+        assert summary["tasks_at_risk"][0]["failure_count"] == 2
+
+    def test_tasks_exceeded_threshold(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test tracking tasks that exceeded threshold."""
+        for i in range(CORRECTIVE_TASK_FAILURE_THRESHOLD):
+            tracker.record_outcome(task_id="IMP-TEST-001", success=False)
+
+        summary = tracker.get_corrective_task_summary()
+
+        assert len(summary["tasks_exceeded_threshold"]) == 1
+        assert summary["tasks_exceeded_threshold"][0]["task_id"] == "IMP-TEST-001"
+        assert (
+            summary["tasks_exceeded_threshold"][0]["failure_count"]
+            == CORRECTIVE_TASK_FAILURE_THRESHOLD
+        )
+
+    def test_corrective_tasks_in_summary(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test corrective tasks are included in summary."""
+        for i in range(CORRECTIVE_TASK_FAILURE_THRESHOLD):
+            tracker.record_outcome(task_id="IMP-TEST-001", success=False)
+
+        summary = tracker.get_corrective_task_summary()
+
+        assert summary["total_corrective_tasks"] == 1
+        assert len(summary["corrective_tasks"]) == 1
+        assert summary["corrective_tasks"][0]["original_task_id"] == "IMP-TEST-001"
+
+
+class TestFindCommonErrorPattern:
+    """Tests for _find_common_error_pattern method (IMP-LOOP-022)."""
+
+    @pytest.fixture
+    def tracker(self) -> TaskEffectivenessTracker:
+        """Create a tracker for testing."""
+        return TaskEffectivenessTracker()
+
+    def test_single_error(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test pattern detection with single error."""
+        pattern = tracker._find_common_error_pattern(["Connection timeout"])
+        assert "Connection timeout" in pattern
+
+    def test_common_words(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test detection of common words across errors."""
+        errors = [
+            "Connection timeout in database",
+            "Connection reset by peer",
+            "Connection refused",
+        ]
+        pattern = tracker._find_common_error_pattern(errors)
+        assert "connection" in pattern.lower()
+
+    def test_empty_errors(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test pattern detection with empty error list."""
+        pattern = tracker._find_common_error_pattern([])
+        assert pattern == "Unknown error pattern"
+
+    def test_long_error_truncation(self, tracker: TaskEffectivenessTracker) -> None:
+        """Test long error messages are truncated."""
+        long_error = "x" * 300
+        pattern = tracker._find_common_error_pattern([long_error])
+        assert len(pattern) <= 200

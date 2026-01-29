@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, List
 
 if TYPE_CHECKING:
     from autopack.memory.learning_db import LearningDatabase
+    from autopack.task_generation.insight_to_task import InsightToTaskGenerator
     from autopack.task_generation.priority_engine import PriorityEngine
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,9 @@ POOR_WEIGHT_PENALTY = 0.9  # Reduce category weight by 10%
 MIN_SAMPLE_SIZE = 5  # Minimum observations before generating rules
 LOW_SUCCESS_THRESHOLD = 0.5  # Below this → avoid_pattern rule
 HIGH_SUCCESS_THRESHOLD = 0.8  # Above this → prefer_pattern rule
+
+# IMP-LOOP-022: Corrective task generation thresholds
+CORRECTIVE_TASK_FAILURE_THRESHOLD = 3  # Generate corrective task after this many failures
 
 
 @dataclass
@@ -110,6 +114,46 @@ class EffectivenessLearningRule:
             "sample_size": self.sample_size,
             "success_rate": self.success_rate,
             "created_at": self.created_at.isoformat(),
+        }
+
+
+@dataclass
+class CorrectiveTask:
+    """Represents a corrective task generated after repeated failures.
+
+    IMP-LOOP-022: When a task fails repeatedly (3+ times), the system
+    automatically generates a corrective task to investigate and fix
+    the root cause of the failures.
+
+    Attributes:
+        corrective_id: Unique identifier for the corrective task.
+        original_task_id: The task ID that triggered this corrective task.
+        failure_count: Number of failures that triggered this task.
+        error_patterns: Common error patterns detected across failures.
+        priority: Priority level (always "high" for corrective tasks).
+        category: Category of the original task.
+        created_at: Timestamp when the corrective task was created.
+    """
+
+    corrective_id: str
+    original_task_id: str
+    failure_count: int
+    error_patterns: list[str] = field(default_factory=list)
+    priority: str = "high"
+    category: str = ""
+    created_at: datetime = field(default_factory=datetime.now)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "corrective_id": self.corrective_id,
+            "original_task_id": self.original_task_id,
+            "failure_count": self.failure_count,
+            "error_patterns": self.error_patterns,
+            "priority": self.priority,
+            "category": self.category,
+            "created_at": self.created_at.isoformat(),
+            "type": "corrective",
         }
 
 
@@ -232,6 +276,7 @@ class TaskEffectivenessTracker:
         self,
         priority_engine: PriorityEngine | None = None,
         learning_db: LearningDatabase | None = None,
+        insight_to_task: InsightToTaskGenerator | None = None,
     ) -> None:
         """Initialize the TaskEffectivenessTracker.
 
@@ -241,12 +286,21 @@ class TaskEffectivenessTracker:
             learning_db: Optional LearningDatabase for persisting effectiveness
                 data across runs. IMP-TASK-001: Enables effectiveness feedback
                 to influence future task prioritization.
+            insight_to_task: Optional InsightToTaskGenerator for creating
+                corrective tasks (IMP-LOOP-022).
         """
         self.history = EffectivenessHistory()
         self.priority_engine = priority_engine
         self._learning_db = learning_db
         # IMP-LOOP-021: Track registered tasks for execution verification
         self._registered_tasks: dict[str, RegisteredTask] = {}
+
+        # IMP-LOOP-022: Track failure counts and corrective tasks
+        self._failure_counts: dict[str, int] = {}
+        self._failure_errors: dict[str, list[str]] = {}
+        self._corrective_tasks: list[CorrectiveTask] = []
+        self._insight_to_task = insight_to_task
+        self._corrective_task_counter: int = 0
 
         # IMP-TASK-001: Load historical effectiveness from learning database
         if self._learning_db is not None:
@@ -753,6 +807,216 @@ class TaskEffectivenessTracker:
             List of RegisteredTask instances that have not been executed.
         """
         return [task for task in self._registered_tasks.values() if not task.executed]
+
+    # IMP-LOOP-022: Corrective task generation methods
+
+    def set_insight_to_task(self, insight_to_task: InsightToTaskGenerator) -> None:
+        """Set or update the InsightToTaskGenerator for corrective task creation.
+
+        IMP-LOOP-022: Allows connecting the effectiveness tracker to a task
+        generator after initialization for creating corrective tasks.
+
+        Args:
+            insight_to_task: InsightToTaskGenerator instance for task creation.
+        """
+        self._insight_to_task = insight_to_task
+        logger.debug("[IMP-LOOP-022] Connected insight_to_task generator for corrective tasks")
+
+    def record_outcome(
+        self,
+        task_id: str,
+        success: bool,
+        error: str | None = None,
+        category: str = "",
+    ) -> None:
+        """Record task outcome and trigger corrective task if threshold reached.
+
+        IMP-LOOP-022: Records the outcome of a task execution and tracks failures.
+        When a task fails repeatedly (3+ times), automatically generates a
+        corrective task to investigate and fix the root cause.
+
+        Args:
+            task_id: Unique identifier for the task.
+            success: Whether the task completed successfully.
+            error: Optional error message if the task failed.
+            category: Optional category of the task.
+        """
+        if not success:
+            # Increment failure count
+            self._failure_counts[task_id] = self._failure_counts.get(task_id, 0) + 1
+            failure_count = self._failure_counts[task_id]
+
+            # Track error patterns
+            if error:
+                if task_id not in self._failure_errors:
+                    self._failure_errors[task_id] = []
+                self._failure_errors[task_id].append(error)
+
+            logger.info(
+                "[IMP-LOOP-022] Recorded failure for task %s: count=%d, error=%s",
+                task_id,
+                failure_count,
+                error[:100] if error else "None",
+            )
+
+            # Check if threshold reached for corrective task generation
+            if failure_count >= CORRECTIVE_TASK_FAILURE_THRESHOLD:
+                # Only generate corrective task once per threshold crossing
+                if failure_count == CORRECTIVE_TASK_FAILURE_THRESHOLD:
+                    self._generate_corrective_task(task_id, category)
+        else:
+            # Reset failure count on success
+            if task_id in self._failure_counts:
+                logger.debug(
+                    "[IMP-LOOP-022] Task %s succeeded, resetting failure count from %d",
+                    task_id,
+                    self._failure_counts[task_id],
+                )
+                self._failure_counts[task_id] = 0
+
+    def _find_common_error_pattern(self, errors: list[str]) -> str:
+        """Find common pattern across error messages.
+
+        IMP-LOOP-022: Analyzes error messages to find common patterns that
+        might indicate the root cause of repeated failures.
+
+        Args:
+            errors: List of error messages to analyze.
+
+        Returns:
+            Common error pattern or a summary of the errors.
+        """
+        if not errors:
+            return "Unknown error pattern"
+
+        # Simple pattern detection: find common substrings
+        if len(errors) == 1:
+            return errors[0][:200] if len(errors[0]) > 200 else errors[0]
+
+        # Find common words across all errors
+        word_sets = [set(err.lower().split()) for err in errors]
+        common_words = word_sets[0]
+        for ws in word_sets[1:]:
+            common_words = common_words.intersection(ws)
+
+        # Remove common stop words
+        stop_words = {"the", "a", "an", "in", "on", "at", "to", "for", "is", "was", "error"}
+        common_words = common_words - stop_words
+
+        if common_words:
+            return f"Common pattern: {', '.join(sorted(common_words)[:10])}"
+
+        # Fall back to first error summary
+        return errors[0][:200] if len(errors[0]) > 200 else errors[0]
+
+    def _generate_corrective_task(self, task_id: str, category: str = "") -> CorrectiveTask:
+        """Generate a corrective task after repeated failures.
+
+        IMP-LOOP-022: Creates a corrective task to investigate and fix the
+        root cause of repeated task failures. The corrective task includes
+        information about the failure patterns to aid investigation.
+
+        Args:
+            task_id: The original task ID that failed repeatedly.
+            category: Category of the original task.
+
+        Returns:
+            CorrectiveTask instance representing the generated task.
+        """
+        self._corrective_task_counter += 1
+        corrective_id = f"CORR-{self._corrective_task_counter:03d}"
+
+        failure_count = self._failure_counts.get(task_id, CORRECTIVE_TASK_FAILURE_THRESHOLD)
+        errors = self._failure_errors.get(task_id, [])
+        error_pattern = self._find_common_error_pattern(errors)
+
+        corrective_task = CorrectiveTask(
+            corrective_id=corrective_id,
+            original_task_id=task_id,
+            failure_count=failure_count,
+            error_patterns=[error_pattern] if error_pattern else [],
+            priority="high",
+            category=category,
+        )
+
+        self._corrective_tasks.append(corrective_task)
+
+        logger.info(
+            "[IMP-LOOP-022] Generated corrective task %s for %s: "
+            "failure_count=%d, error_pattern=%s",
+            corrective_id,
+            task_id,
+            failure_count,
+            error_pattern[:50] if error_pattern else "None",
+        )
+
+        # Forward to InsightToTaskGenerator if connected
+        if self._insight_to_task is not None:
+            self._insight_to_task.create_corrective_task(corrective_task)
+            logger.info(
+                "[IMP-LOOP-022] Forwarded corrective task %s to InsightToTaskGenerator",
+                corrective_id,
+            )
+
+        return corrective_task
+
+    def get_corrective_tasks(self) -> list[CorrectiveTask]:
+        """Get all generated corrective tasks.
+
+        IMP-LOOP-022: Returns the list of corrective tasks that have been
+        generated due to repeated failures.
+
+        Returns:
+            List of CorrectiveTask instances.
+        """
+        return list(self._corrective_tasks)
+
+    def get_failure_count(self, task_id: str) -> int:
+        """Get the current failure count for a task.
+
+        IMP-LOOP-022: Returns how many times a task has failed consecutively.
+
+        Args:
+            task_id: The task ID to check.
+
+        Returns:
+            Number of consecutive failures, or 0 if no failures recorded.
+        """
+        return self._failure_counts.get(task_id, 0)
+
+    def get_corrective_task_summary(self) -> dict[str, Any]:
+        """Get a summary of corrective task generation status.
+
+        IMP-LOOP-022: Provides visibility into the corrective task pipeline,
+        showing tasks at risk of triggering corrective action and tasks
+        that have already triggered corrective tasks.
+
+        Returns:
+            Dictionary containing:
+            - total_corrective_tasks: Number of corrective tasks generated
+            - tasks_at_risk: Tasks with failures but below threshold
+            - tasks_exceeded_threshold: Tasks that triggered corrective tasks
+            - corrective_tasks: List of corrective task summaries
+        """
+        tasks_at_risk = [
+            {"task_id": tid, "failure_count": count}
+            for tid, count in self._failure_counts.items()
+            if 0 < count < CORRECTIVE_TASK_FAILURE_THRESHOLD
+        ]
+
+        tasks_exceeded = [
+            {"task_id": tid, "failure_count": count}
+            for tid, count in self._failure_counts.items()
+            if count >= CORRECTIVE_TASK_FAILURE_THRESHOLD
+        ]
+
+        return {
+            "total_corrective_tasks": len(self._corrective_tasks),
+            "failure_threshold": CORRECTIVE_TASK_FAILURE_THRESHOLD,
+            "tasks_at_risk": tasks_at_risk,
+            "tasks_exceeded_threshold": tasks_exceeded,
+            "corrective_tasks": [ct.to_dict() for ct in self._corrective_tasks],
+        }
 
     def get_execution_verification_summary(self) -> dict[str, Any]:
         """Get a summary of task execution verification status.

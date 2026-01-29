@@ -13,8 +13,12 @@ Properties:
 from __future__ import annotations
 
 import logging
+import urllib.error
 from datetime import datetime, timezone
 from typing import Optional
+
+from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
+                      wait_exponential)
 
 from .service import ApprovalRequest, ApprovalResult, ApprovalService
 
@@ -186,24 +190,47 @@ Reply with /approve {request.request_id} or /deny {request.request_id}"""
             True if sent successfully
         """
         try:
-            import json
-            import urllib.parse
-            import urllib.request
-
-            url = f"https://api.telegram.org/bot{self._bot_token}/sendMessage"
-            data = urllib.parse.urlencode(
-                {
-                    "chat_id": self._chat_id,
-                    "text": message,
-                    "parse_mode": "HTML",
-                }
-            ).encode()
-
-            req = urllib.request.Request(url, data=data)
-            with urllib.request.urlopen(req, timeout=10) as response:
-                result = json.loads(response.read().decode())
-                return result.get("ok", False)
+            result = self._send_telegram_request(message)
+            return result.get("ok", False)
 
         except Exception as e:
             logger.error(f"[TelegramApproval] HTTP error: {e}")
             return False
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((urllib.error.URLError, TimeoutError, OSError)),
+        reraise=True,
+    )
+    def _send_telegram_request(self, message: str) -> dict:
+        """Send message to Telegram API with retry on network failures.
+
+        IMP-REL-012: Adds exponential backoff retry logic for transient network errors.
+
+        Args:
+            message: Message text to send
+
+        Returns:
+            Telegram API response dict
+
+        Raises:
+            urllib.error.URLError: On network failure after all retries
+            TimeoutError: On timeout after all retries
+        """
+        import json
+        import urllib.parse
+        import urllib.request
+
+        url = f"https://api.telegram.org/bot{self._bot_token}/sendMessage"
+        data = urllib.parse.urlencode(
+            {
+                "chat_id": self._chat_id,
+                "text": message,
+                "parse_mode": "HTML",
+            }
+        ).encode()
+
+        req = urllib.request.Request(url, data=data)
+        with urllib.request.urlopen(req, timeout=10) as response:
+            return json.loads(response.read().decode())

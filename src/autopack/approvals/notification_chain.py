@@ -27,12 +27,16 @@ import logging
 import os
 import smtplib
 import ssl
+import urllib.error
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any, Dict, List, Optional
+
+from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
+                      wait_exponential)
 
 from autopack.utils import create_safe_error_message
 
@@ -220,42 +224,27 @@ class TelegramChannel(NotificationChannel):
             )
 
         try:
-            import json
-            import urllib.parse
-            import urllib.request
-
             message = self._format_message(request)
+            result = self._send_telegram_request(message)
 
-            url = f"https://api.telegram.org/bot{self._bot_token}/sendMessage"
-            data = urllib.parse.urlencode(
-                {
-                    "chat_id": self._chat_id,
-                    "text": message,
-                    "parse_mode": "HTML",
-                }
-            ).encode()
-
-            req = urllib.request.Request(url, data=data)
-            with urllib.request.urlopen(req, timeout=10) as response:
-                result = json.loads(response.read().decode())
-                if result.get("ok", False):
-                    return ApprovalResult(
-                        success=True,
-                        approved=None,
-                        error_reason=None,
-                        evidence={
-                            "channel": "telegram",
-                            "chat_id": self._chat_id,
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
-                        },
-                    )
-                else:
-                    return ApprovalResult(
-                        success=False,
-                        approved=None,
-                        error_reason="telegram_api_error",
-                        evidence={"channel": "telegram", "error": result},
-                    )
+            if result.get("ok", False):
+                return ApprovalResult(
+                    success=True,
+                    approved=None,
+                    error_reason=None,
+                    evidence={
+                        "channel": "telegram",
+                        "chat_id": self._chat_id,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    },
+                )
+            else:
+                return ApprovalResult(
+                    success=False,
+                    approved=None,
+                    error_reason="telegram_api_error",
+                    evidence={"channel": "telegram", "error": result},
+                )
 
         except Exception as e:
             safe_error = create_safe_error_message(e)
@@ -266,6 +255,44 @@ class TelegramChannel(NotificationChannel):
                 error_reason="telegram_exception",
                 evidence={"channel": "telegram", "error": safe_error},
             )
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((urllib.error.URLError, TimeoutError, OSError)),
+        reraise=True,
+    )
+    def _send_telegram_request(self, message: str) -> dict:
+        """Send message to Telegram API with retry on network failures.
+
+        IMP-REL-012: Adds exponential backoff retry logic for transient network errors.
+
+        Args:
+            message: Message text to send
+
+        Returns:
+            Telegram API response dict
+
+        Raises:
+            urllib.error.URLError: On network failure after all retries
+            TimeoutError: On timeout after all retries
+        """
+        import json
+        import urllib.parse
+        import urllib.request
+
+        url = f"https://api.telegram.org/bot{self._bot_token}/sendMessage"
+        data = urllib.parse.urlencode(
+            {
+                "chat_id": self._chat_id,
+                "text": message,
+                "parse_mode": "HTML",
+            }
+        ).encode()
+
+        req = urllib.request.Request(url, data=data)
+        with urllib.request.urlopen(req, timeout=10) as response:
+            return json.loads(response.read().decode())
 
     def _format_message(self, request: ApprovalRequest) -> str:
         """Format approval request as Telegram message."""

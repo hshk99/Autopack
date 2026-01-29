@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from autopack.archive_consolidator import log_build_event
 from autopack.autonomous.budgeting import (
@@ -1040,6 +1040,70 @@ class AutonomousLoop:
             )
         except Exception as e:
             logger.warning(f"[IMP-REL-001] Failed to emit alert: {e}")
+
+    def _queue_correction_tasks(
+        self,
+        corrective_tasks: List[Dict[str, Any]],
+        generator: Any,
+        run_id: str,
+    ) -> None:
+        """Queue corrective tasks for drift correction at front of execution queue.
+
+        IMP-LOOP-028: When goal drift is detected, corrective tasks are generated
+        and need to be queued for execution. This method inserts them at high
+        priority to ensure drift is corrected before continuing normal execution.
+
+        Args:
+            corrective_tasks: List of corrective task dictionaries from realignment_action()
+            generator: The task generator instance for persisting tasks
+            run_id: The current run ID
+        """
+        if not corrective_tasks:
+            return
+
+        try:
+            # Convert corrective task dicts to GeneratedTask objects if needed
+            from autopack.task_generation.generated_task import GeneratedTask
+
+            generated_tasks = []
+            for task_dict in corrective_tasks:
+                task = GeneratedTask(
+                    task_id=task_dict.get("task_id", f"drift_correction_{len(generated_tasks)}"),
+                    title=task_dict.get("title", "Drift Correction Task"),
+                    description=task_dict.get("description", ""),
+                    priority=task_dict.get("priority", "high"),
+                    source_insights=[task_dict.get("source", "goal_drift_detector")],
+                    suggested_files=[],
+                    estimated_effort="S",
+                    metadata={
+                        "type": task_dict.get("type", "drift_correction"),
+                        "corrective_action": task_dict.get("corrective_action", {}),
+                        "drift_score": task_dict.get("drift_score", 0.0),
+                        "target_objective": task_dict.get("target_objective", ""),
+                    },
+                )
+                generated_tasks.append(task)
+
+            # Persist the corrective tasks with high priority
+            if generated_tasks:
+                persisted_count = generator.persist_tasks(generated_tasks, run_id)
+                logger.info(
+                    f"[IMP-LOOP-028] Persisted {persisted_count} corrective tasks for run {run_id}"
+                )
+
+                # Log the corrective action being taken
+                log_build_event(
+                    event_type="DRIFT_CORRECTION",
+                    description=f"Generated {len(generated_tasks)} corrective tasks for goal drift",
+                    deliverables=[
+                        f"Run ID: {run_id}",
+                        f"Corrective tasks: {[t.task_id for t in generated_tasks]}",
+                    ],
+                    project_slug=self.executor._get_project_slug(),
+                )
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-028] Failed to queue corrective tasks: {e}")
 
     def _check_and_emit_sla_alerts(self, phase_id: str) -> None:
         """Check for pipeline SLA breaches and emit alerts.
@@ -4498,6 +4562,7 @@ class AutonomousLoop:
                     )
 
                 # IMP-LOOP-023: Check goal alignment to detect drift from stated objectives
+                # IMP-LOOP-028: Auto-correct drift by generating corrective tasks
                 if self._goal_drift_detector is not None:
                     try:
                         drift_result = self._goal_drift_detector.calculate_drift(
@@ -4515,6 +4580,17 @@ class AutonomousLoop:
                                 f"score={drift_result.drift_score:.3f}, "
                                 f"aligned={drift_result.aligned_task_count}/{drift_result.total_task_count}"
                             )
+
+                            # IMP-LOOP-028: Generate corrective tasks for drift
+                            corrective_tasks = self._goal_drift_detector.realignment_action(
+                                result.tasks_generated
+                            )
+                            if corrective_tasks:
+                                self._queue_correction_tasks(corrective_tasks, generator, run_id)
+                                logger.info(
+                                    f"[IMP-LOOP-028] Queued {len(corrective_tasks)} "
+                                    f"corrective tasks for drift correction"
+                                )
                         else:
                             logger.info(
                                 f"[IMP-LOOP-023] Tasks aligned with objectives: "

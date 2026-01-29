@@ -3,14 +3,7 @@
 from datetime import datetime, timezone
 from enum import Enum
 
-from sqlalchemy import (
-    DECIMAL,
-    JSON,
-    BigInteger,
-    Boolean,
-    Column,
-    DateTime,
-)
+from sqlalchemy import DECIMAL, JSON, BigInteger, Boolean, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import (
     Float,
@@ -1200,6 +1193,55 @@ class AnomalyAlertEvent(Base):
     resolved = Column(Boolean, nullable=False, default=False, index=True)
     resolved_at = Column(DateTime, nullable=True)
     resolution_action = Column(String(100), nullable=True)  # auto_healed, escalated, ignored
+
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+
+class GapBlockerEvent(Base):
+    """Gap blocker telemetry event (IMP-GAP-001).
+
+    Records when pre-phase gap checks detect blockers that prevent phase execution.
+    Enables analysis of gap patterns and effectiveness of early blocker detection.
+
+    Gap types that can block:
+    - git_state_corruption: Git state inconsistencies
+    - db_lock_contention: Database lock issues
+    - protected_path_violation: Writes to protected paths
+    - test_infra_drift: Flaky or broken tests
+    - windows_encoding_issue: UTF-8 encoding problems
+    """
+
+    __tablename__ = "gap_blocker_events"
+    __table_args__ = (
+        Index("ix_gap_blocker_run_id", "run_id"),
+        Index("ix_gap_blocker_phase_id", "phase_id"),
+        Index("ix_gap_blocker_gap_type", "gap_type"),
+        Index("ix_gap_blocker_detected_at", "detected_at"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    run_id = Column(String, nullable=True, index=True)
+    phase_id = Column(String, nullable=True, index=True)
+
+    # Gap details
+    gap_id = Column(String(128), nullable=False, index=True)
+    gap_type = Column(String(50), nullable=False, index=True)
+    risk_classification = Column(String(20), nullable=False)  # critical, high, medium, low, info
+    blocks_autopilot = Column(Boolean, nullable=False, default=True)
+
+    # Timing
+    detected_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+    scan_duration_ms = Column(Integer, nullable=True)
 
     created_at = Column(
         DateTime,

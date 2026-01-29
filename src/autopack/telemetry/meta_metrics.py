@@ -2103,3 +2103,540 @@ class GoalDriftDetector:
             "drift_trend": self.get_drift_trend(),
             "recent_measurements": [r.to_dict() for r in self._drift_history[-5:]],
         }
+
+
+# =============================================================================
+# IMP-LOOP-025: Loop Completeness Observability Metrics
+# =============================================================================
+
+
+@dataclass
+class LoopCompletenessSnapshot:
+    """A point-in-time snapshot of loop completeness metrics.
+
+    IMP-LOOP-025: Captures the state of feedback loop health at a given moment.
+    """
+
+    total_insights: int
+    insights_to_tasks: int
+    task_successes: int
+    task_total: int
+    completeness_score: float
+    timestamp: datetime = field(default_factory=datetime.utcnow)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "total_insights": self.total_insights,
+            "insights_to_tasks": self.insights_to_tasks,
+            "task_successes": self.task_successes,
+            "task_total": self.task_total,
+            "completeness_score": round(self.completeness_score, 4),
+            "timestamp": self.timestamp.isoformat(),
+        }
+
+
+class LoopCompletenessMetric:
+    """Tracks overall feedback loop health and completeness.
+
+    IMP-LOOP-025: Provides a single metric answering 'how well is the feedback
+    loop working?' by measuring the ratio of insights that convert to successful
+    tasks.
+
+    Formula: (insights_converted_to_tasks * task_success_rate) / total_insights
+    Target: >70% completeness score
+
+    The metric captures two key aspects:
+    1. Conversion rate: What fraction of insights become actionable tasks?
+    2. Success rate: What fraction of those tasks succeed?
+
+    A high completeness score indicates a healthy feedback loop where:
+    - Insights are being acted upon (high conversion)
+    - Actions are effective (high success rate)
+
+    Usage:
+        metric = LoopCompletenessMetric()
+        metric.record_insight(converted_to_task=True)
+        metric.record_task_outcome(success=True)
+        score = metric.calculate()  # Returns 0.0-1.0
+        if score >= 0.7:
+            print("Loop is healthy!")
+    """
+
+    # Target completeness score (70%)
+    TARGET_COMPLETENESS: float = 0.70
+
+    def __init__(self) -> None:
+        """Initialize the loop completeness metric tracker."""
+        self.total_insights: int = 0
+        self.insights_to_tasks: int = 0
+        self.task_successes: int = 0
+        self.task_total: int = 0
+        self._history: List[LoopCompletenessSnapshot] = []
+        self._lock = __import__("threading").Lock()
+
+    def record_insight(self, converted_to_task: bool) -> None:
+        """Record an insight and whether it was converted to a task.
+
+        Args:
+            converted_to_task: True if the insight resulted in a task
+        """
+        with self._lock:
+            self.total_insights += 1
+            if converted_to_task:
+                self.insights_to_tasks += 1
+
+        logger.debug(
+            f"[IMP-LOOP-025] Recorded insight: converted={converted_to_task}, "
+            f"total={self.total_insights}, converted_count={self.insights_to_tasks}"
+        )
+
+    def record_task_outcome(self, success: bool) -> None:
+        """Record a task execution outcome.
+
+        Args:
+            success: True if the task completed successfully
+        """
+        with self._lock:
+            self.task_total += 1
+            if success:
+                self.task_successes += 1
+
+        logger.debug(
+            f"[IMP-LOOP-025] Recorded task outcome: success={success}, "
+            f"total={self.task_total}, successes={self.task_successes}"
+        )
+
+    def _calculate_unlocked(self) -> float:
+        """Calculate the loop completeness score (internal, no lock).
+
+        Must be called with self._lock held.
+
+        Returns:
+            Completeness score from 0.0 to 1.0
+        """
+        if self.total_insights == 0:
+            return 0.0
+
+        conversion_rate = self.insights_to_tasks / self.total_insights
+        success_rate = self.task_successes / self.task_total if self.task_total > 0 else 0.0
+        return conversion_rate * success_rate
+
+    def calculate(self) -> float:
+        """Calculate the loop completeness score.
+
+        Formula: (insights_to_tasks / total_insights) * (task_successes / task_total)
+
+        This gives a combined score that reflects both:
+        1. How many insights become tasks (conversion rate)
+        2. How many tasks succeed (success rate)
+
+        Returns:
+            Completeness score from 0.0 to 1.0
+        """
+        with self._lock:
+            return self._calculate_unlocked()
+
+    def _get_conversion_rate_unlocked(self) -> float:
+        """Get the insight-to-task conversion rate (internal, no lock).
+
+        Must be called with self._lock held.
+
+        Returns:
+            Conversion rate from 0.0 to 1.0
+        """
+        if self.total_insights == 0:
+            return 0.0
+        return self.insights_to_tasks / self.total_insights
+
+    def get_conversion_rate(self) -> float:
+        """Get the insight-to-task conversion rate.
+
+        Returns:
+            Conversion rate from 0.0 to 1.0
+        """
+        with self._lock:
+            return self._get_conversion_rate_unlocked()
+
+    def _get_success_rate_unlocked(self) -> float:
+        """Get the task success rate (internal, no lock).
+
+        Must be called with self._lock held.
+
+        Returns:
+            Success rate from 0.0 to 1.0
+        """
+        if self.task_total == 0:
+            return 0.0
+        return self.task_successes / self.task_total
+
+    def get_success_rate(self) -> float:
+        """Get the task success rate.
+
+        Returns:
+            Success rate from 0.0 to 1.0
+        """
+        with self._lock:
+            return self._get_success_rate_unlocked()
+
+    def _is_healthy_unlocked(self) -> bool:
+        """Check if the loop completeness meets the target threshold (internal, no lock).
+
+        Must be called with self._lock held.
+
+        Returns:
+            True if completeness score >= 70%
+        """
+        return self._calculate_unlocked() >= self.TARGET_COMPLETENESS
+
+    def is_healthy(self) -> bool:
+        """Check if the loop completeness meets the target threshold.
+
+        Returns:
+            True if completeness score >= 70%
+        """
+        with self._lock:
+            return self._is_healthy_unlocked()
+
+    def _get_health_status_unlocked(self) -> str:
+        """Get human-readable health status based on completeness score (internal, no lock).
+
+        Must be called with self._lock held.
+
+        Returns:
+            Status string: "excellent", "good", "acceptable", "degraded", or "poor"
+        """
+        score = self._calculate_unlocked()
+
+        if score >= 0.85:
+            return "excellent"
+        elif score >= self.TARGET_COMPLETENESS:
+            return "good"
+        elif score >= 0.50:
+            return "acceptable"
+        elif score >= 0.30:
+            return "degraded"
+        else:
+            return "poor"
+
+    def get_health_status(self) -> str:
+        """Get human-readable health status based on completeness score.
+
+        Returns:
+            Status string: "excellent", "good", "acceptable", "degraded", or "poor"
+        """
+        with self._lock:
+            return self._get_health_status_unlocked()
+
+    def take_snapshot(self) -> LoopCompletenessSnapshot:
+        """Take a point-in-time snapshot of current metrics.
+
+        Returns:
+            LoopCompletenessSnapshot with current state
+        """
+        with self._lock:
+            snapshot = LoopCompletenessSnapshot(
+                total_insights=self.total_insights,
+                insights_to_tasks=self.insights_to_tasks,
+                task_successes=self.task_successes,
+                task_total=self.task_total,
+                completeness_score=self._calculate_unlocked(),
+            )
+            self._history.append(snapshot)
+            return snapshot
+
+    def get_trend(self, window_size: int = 5) -> Optional[str]:
+        """Analyze trend in completeness scores over recent snapshots.
+
+        Args:
+            window_size: Number of recent snapshots to analyze
+
+        Returns:
+            Trend direction: "improving", "stable", "degrading", or None if insufficient data
+        """
+        if len(self._history) < window_size:
+            return None
+
+        recent = self._history[-window_size:]
+        scores = [s.completeness_score for s in recent]
+
+        # Calculate trend direction
+        first_half_avg = sum(scores[: window_size // 2]) / (window_size // 2)
+        second_half_avg = sum(scores[window_size // 2 :]) / (window_size - window_size // 2)
+
+        diff = second_half_avg - first_half_avg
+
+        if diff > 0.05:
+            return "improving"
+        elif diff < -0.05:
+            return "degrading"
+        else:
+            return "stable"
+
+    def reset(self) -> None:
+        """Reset all counters to zero."""
+        with self._lock:
+            self.total_insights = 0
+            self.insights_to_tasks = 0
+            self.task_successes = 0
+            self.task_total = 0
+            self._history.clear()
+
+        logger.debug("[IMP-LOOP-025] Reset loop completeness metrics")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert current state to dictionary for serialization.
+
+        Returns:
+            Dict with all metric values and derived scores
+        """
+        with self._lock:
+            return {
+                "total_insights": self.total_insights,
+                "insights_to_tasks": self.insights_to_tasks,
+                "task_successes": self.task_successes,
+                "task_total": self.task_total,
+                "conversion_rate": round(self._get_conversion_rate_unlocked(), 4),
+                "success_rate": round(self._get_success_rate_unlocked(), 4),
+                "completeness_score": round(self._calculate_unlocked(), 4),
+                "target_completeness": self.TARGET_COMPLETENESS,
+                "is_healthy": self._is_healthy_unlocked(),
+                "health_status": self._get_health_status_unlocked(),
+                "trend": self.get_trend(),
+                "history_size": len(self._history),
+            }
+
+    def export_to_prometheus(self) -> Dict[str, float]:
+        """Export metrics in Prometheus-compatible format.
+
+        Returns:
+            Dict of metric names to float values suitable for Prometheus Gauges
+        """
+        return {
+            "autopack_loop_completeness_score": self.calculate(),
+            "autopack_loop_conversion_rate": self.get_conversion_rate(),
+            "autopack_loop_task_success_rate": self.get_success_rate(),
+            "autopack_loop_total_insights": float(self.total_insights),
+            "autopack_loop_total_tasks": float(self.task_total),
+        }
+
+
+class LoopLatencyMetric:
+    """Tracks time from insight generation to task execution.
+
+    IMP-LOOP-025: Measures how quickly the feedback loop responds to insights.
+    A lower latency indicates a more responsive self-improvement system.
+
+    Key latencies tracked:
+    - Insight to task creation
+    - Task creation to task execution
+    - End-to-end (insight to task completion)
+
+    Target: < 5 minutes end-to-end latency
+    """
+
+    # Target end-to-end latency (5 minutes in ms)
+    TARGET_LATENCY_MS: float = 300000
+
+    def __init__(self) -> None:
+        """Initialize the loop latency metric tracker."""
+        self._insight_timestamps: Dict[str, datetime] = {}
+        self._task_timestamps: Dict[str, datetime] = {}
+        self._completion_timestamps: Dict[str, datetime] = {}
+        self._latencies: List[Dict[str, Any]] = []
+        self._lock = __import__("threading").Lock()
+
+    def record_insight_created(self, insight_id: str) -> None:
+        """Record when an insight is created.
+
+        Args:
+            insight_id: Unique identifier for the insight
+        """
+        with self._lock:
+            self._insight_timestamps[insight_id] = datetime.utcnow()
+
+    def record_task_created(self, insight_id: str, task_id: str) -> None:
+        """Record when a task is created from an insight.
+
+        Args:
+            insight_id: The source insight identifier
+            task_id: The created task identifier
+        """
+        with self._lock:
+            self._task_timestamps[task_id] = datetime.utcnow()
+            # Link task to insight for latency calculation
+            if insight_id in self._insight_timestamps:
+                insight_time = self._insight_timestamps[insight_id]
+                task_time = self._task_timestamps[task_id]
+                latency_ms = (task_time - insight_time).total_seconds() * 1000
+                self._latencies.append(
+                    {
+                        "type": "insight_to_task",
+                        "insight_id": insight_id,
+                        "task_id": task_id,
+                        "latency_ms": latency_ms,
+                        "timestamp": task_time,
+                    }
+                )
+
+    def record_task_completed(self, task_id: str) -> None:
+        """Record when a task completes execution.
+
+        Args:
+            task_id: The completed task identifier
+        """
+        with self._lock:
+            self._completion_timestamps[task_id] = datetime.utcnow()
+            if task_id in self._task_timestamps:
+                task_time = self._task_timestamps[task_id]
+                completion_time = self._completion_timestamps[task_id]
+                latency_ms = (completion_time - task_time).total_seconds() * 1000
+                self._latencies.append(
+                    {
+                        "type": "task_to_completion",
+                        "task_id": task_id,
+                        "latency_ms": latency_ms,
+                        "timestamp": completion_time,
+                    }
+                )
+
+    def get_average_latency_ms(self, latency_type: Optional[str] = None) -> float:
+        """Get average latency across recorded measurements.
+
+        Args:
+            latency_type: Optional filter for "insight_to_task" or "task_to_completion"
+
+        Returns:
+            Average latency in milliseconds
+        """
+        with self._lock:
+            latencies = self._latencies
+            if latency_type:
+                latencies = [l for l in latencies if l["type"] == latency_type]
+            if not latencies:
+                return 0.0
+            return sum(l["latency_ms"] for l in latencies) / len(latencies)
+
+    def is_within_target(self) -> bool:
+        """Check if average latency is within target.
+
+        Returns:
+            True if average latency <= target
+        """
+        return self.get_average_latency_ms() <= self.TARGET_LATENCY_MS
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "avg_insight_to_task_ms": self.get_average_latency_ms("insight_to_task"),
+            "avg_task_to_completion_ms": self.get_average_latency_ms("task_to_completion"),
+            "avg_total_latency_ms": self.get_average_latency_ms(),
+            "target_latency_ms": self.TARGET_LATENCY_MS,
+            "is_within_target": self.is_within_target(),
+            "measurement_count": len(self._latencies),
+        }
+
+
+class LoopFidelityMetric:
+    """Tracks accuracy of insight-to-task translation.
+
+    IMP-LOOP-025: Measures whether generated tasks accurately address the
+    original insights. High fidelity means tasks correctly target the issues
+    identified by insights.
+
+    Key aspects tracked:
+    - Task relevance to original insight
+    - Task scope accuracy (not too broad/narrow)
+    - Task actionability (can be completed)
+
+    Target: >80% fidelity score
+    """
+
+    # Target fidelity score (80%)
+    TARGET_FIDELITY: float = 0.80
+
+    def __init__(self) -> None:
+        """Initialize the loop fidelity metric tracker."""
+        self._fidelity_scores: List[Dict[str, Any]] = []
+        self._lock = __import__("threading").Lock()
+
+    def record_task_fidelity(
+        self,
+        task_id: str,
+        insight_id: str,
+        relevance_score: float,
+        scope_accuracy: float,
+        actionability_score: float,
+    ) -> float:
+        """Record fidelity scores for a task relative to its source insight.
+
+        Args:
+            task_id: The task identifier
+            insight_id: The source insight identifier
+            relevance_score: How relevant the task is to the insight (0.0-1.0)
+            scope_accuracy: Whether task scope matches insight severity (0.0-1.0)
+            actionability_score: Whether the task can be completed (0.0-1.0)
+
+        Returns:
+            Combined fidelity score (0.0-1.0)
+        """
+        # Weighted average: relevance most important
+        fidelity = relevance_score * 0.5 + scope_accuracy * 0.3 + actionability_score * 0.2
+
+        with self._lock:
+            self._fidelity_scores.append(
+                {
+                    "task_id": task_id,
+                    "insight_id": insight_id,
+                    "relevance_score": relevance_score,
+                    "scope_accuracy": scope_accuracy,
+                    "actionability_score": actionability_score,
+                    "fidelity_score": fidelity,
+                    "timestamp": datetime.utcnow(),
+                }
+            )
+
+        return fidelity
+
+    def get_average_fidelity(self) -> float:
+        """Get average fidelity score across all recorded tasks.
+
+        Returns:
+            Average fidelity score (0.0-1.0)
+        """
+        with self._lock:
+            if not self._fidelity_scores:
+                return 0.0
+            return sum(f["fidelity_score"] for f in self._fidelity_scores) / len(
+                self._fidelity_scores
+            )
+
+    def is_healthy(self) -> bool:
+        """Check if average fidelity meets target.
+
+        Returns:
+            True if fidelity >= 80%
+        """
+        return self.get_average_fidelity() >= self.TARGET_FIDELITY
+
+    def get_low_fidelity_tasks(self, threshold: float = 0.5) -> List[str]:
+        """Get task IDs with fidelity below threshold.
+
+        Args:
+            threshold: Fidelity threshold (default 0.5)
+
+        Returns:
+            List of task IDs with low fidelity
+        """
+        with self._lock:
+            return [f["task_id"] for f in self._fidelity_scores if f["fidelity_score"] < threshold]
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "average_fidelity": round(self.get_average_fidelity(), 4),
+            "target_fidelity": self.TARGET_FIDELITY,
+            "is_healthy": self.is_healthy(),
+            "total_measurements": len(self._fidelity_scores),
+            "low_fidelity_count": len(self.get_low_fidelity_tasks()),
+        }

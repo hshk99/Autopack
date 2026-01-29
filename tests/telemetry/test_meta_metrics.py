@@ -4,18 +4,18 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from autopack.telemetry.meta_metrics import (
-    ComponentStatus,
-    FeedbackLoopHealth,
-    FeedbackLoopLatency,
-    MetaMetricsTracker,
-    MetricTrend,
-    PipelineLatencyTracker,
-    PipelineSLAConfig,
-    PipelineStage,
-    PipelineStageTimestamp,
-    SLABreachAlert,
-)
+from autopack.telemetry.meta_metrics import (ComponentStatus,
+                                             FeedbackLoopHealth,
+                                             FeedbackLoopLatency,
+                                             LoopCompletenessMetric,
+                                             LoopCompletenessSnapshot,
+                                             LoopFidelityMetric,
+                                             LoopLatencyMetric,
+                                             MetaMetricsTracker, MetricTrend,
+                                             PipelineLatencyTracker,
+                                             PipelineSLAConfig, PipelineStage,
+                                             PipelineStageTimestamp,
+                                             SLABreachAlert)
 
 
 @pytest.fixture
@@ -1219,3 +1219,604 @@ class TestShouldPauseTaskGeneration:
             warnings=[],
         )
         assert tracker.should_pause_task_generation(unknown_report) is False
+
+
+# =============================================================================
+# Tests for IMP-LOOP-025: Loop Completeness Observability Metrics
+# =============================================================================
+
+
+class TestLoopCompletenessMetric:
+    """Tests for LoopCompletenessMetric class (IMP-LOOP-025)."""
+
+    @pytest.fixture
+    def metric(self):
+        """Create a LoopCompletenessMetric instance."""
+        from autopack.telemetry.meta_metrics import LoopCompletenessMetric
+
+        return LoopCompletenessMetric()
+
+    def test_initialization(self, metric):
+        """Test LoopCompletenessMetric initializes with zero values."""
+        assert metric.total_insights == 0
+        assert metric.insights_to_tasks == 0
+        assert metric.task_successes == 0
+        assert metric.task_total == 0
+
+    def test_record_insight_converted(self, metric):
+        """Test recording an insight that was converted to a task."""
+        metric.record_insight(converted_to_task=True)
+
+        assert metric.total_insights == 1
+        assert metric.insights_to_tasks == 1
+
+    def test_record_insight_not_converted(self, metric):
+        """Test recording an insight that was NOT converted to a task."""
+        metric.record_insight(converted_to_task=False)
+
+        assert metric.total_insights == 1
+        assert metric.insights_to_tasks == 0
+
+    def test_record_task_outcome_success(self, metric):
+        """Test recording a successful task outcome."""
+        metric.record_task_outcome(success=True)
+
+        assert metric.task_total == 1
+        assert metric.task_successes == 1
+
+    def test_record_task_outcome_failure(self, metric):
+        """Test recording a failed task outcome."""
+        metric.record_task_outcome(success=False)
+
+        assert metric.task_total == 1
+        assert metric.task_successes == 0
+
+    def test_calculate_zero_insights(self, metric):
+        """Test calculate returns 0.0 when no insights recorded."""
+        assert metric.calculate() == 0.0
+
+    def test_calculate_zero_tasks(self, metric):
+        """Test calculate returns 0.0 when insights exist but no tasks."""
+        metric.record_insight(converted_to_task=True)
+        # No task outcomes recorded
+        assert metric.calculate() == 0.0
+
+    def test_calculate_perfect_score(self, metric):
+        """Test calculate returns 1.0 for perfect conversion and success."""
+        # 10 insights, all converted to tasks
+        for _ in range(10):
+            metric.record_insight(converted_to_task=True)
+
+        # 10 tasks, all successful
+        for _ in range(10):
+            metric.record_task_outcome(success=True)
+
+        # conversion_rate = 10/10 = 1.0, success_rate = 10/10 = 1.0
+        # completeness = 1.0 * 1.0 = 1.0
+        assert metric.calculate() == 1.0
+
+    def test_calculate_partial_conversion(self, metric):
+        """Test calculate with partial insight conversion."""
+        # 10 insights, only 5 converted
+        for i in range(10):
+            metric.record_insight(converted_to_task=(i < 5))
+
+        # 5 tasks, all successful
+        for _ in range(5):
+            metric.record_task_outcome(success=True)
+
+        # conversion_rate = 5/10 = 0.5, success_rate = 5/5 = 1.0
+        # completeness = 0.5 * 1.0 = 0.5
+        assert metric.calculate() == 0.5
+
+    def test_calculate_partial_success(self, metric):
+        """Test calculate with partial task success."""
+        # 10 insights, all converted
+        for _ in range(10):
+            metric.record_insight(converted_to_task=True)
+
+        # 10 tasks, only 5 successful
+        for i in range(10):
+            metric.record_task_outcome(success=(i < 5))
+
+        # conversion_rate = 10/10 = 1.0, success_rate = 5/10 = 0.5
+        # completeness = 1.0 * 0.5 = 0.5
+        assert metric.calculate() == 0.5
+
+    def test_calculate_mixed_scenario(self, metric):
+        """Test calculate with both partial conversion and partial success."""
+        # 10 insights, 8 converted (80% conversion)
+        for i in range(10):
+            metric.record_insight(converted_to_task=(i < 8))
+
+        # 8 tasks, 6 successful (75% success)
+        for i in range(8):
+            metric.record_task_outcome(success=(i < 6))
+
+        # conversion_rate = 8/10 = 0.8, success_rate = 6/8 = 0.75
+        # completeness = 0.8 * 0.75 = 0.6
+        assert abs(metric.calculate() - 0.6) < 0.0001
+
+    def test_get_conversion_rate(self, metric):
+        """Test get_conversion_rate calculation."""
+        for i in range(10):
+            metric.record_insight(converted_to_task=(i < 7))
+
+        assert metric.get_conversion_rate() == 0.7
+
+    def test_get_conversion_rate_zero_insights(self, metric):
+        """Test get_conversion_rate returns 0.0 with no insights."""
+        assert metric.get_conversion_rate() == 0.0
+
+    def test_get_success_rate(self, metric):
+        """Test get_success_rate calculation."""
+        for i in range(10):
+            metric.record_task_outcome(success=(i < 8))
+
+        assert metric.get_success_rate() == 0.8
+
+    def test_get_success_rate_zero_tasks(self, metric):
+        """Test get_success_rate returns 0.0 with no tasks."""
+        assert metric.get_success_rate() == 0.0
+
+    def test_is_healthy_true(self, metric):
+        """Test is_healthy returns True when score >= 70%."""
+        # Set up for 80% completeness
+        for _ in range(10):
+            metric.record_insight(converted_to_task=True)
+        for i in range(10):
+            metric.record_task_outcome(success=(i < 8))
+
+        # 1.0 * 0.8 = 0.8 >= 0.7
+        assert metric.is_healthy() is True
+
+    def test_is_healthy_false(self, metric):
+        """Test is_healthy returns False when score < 70%."""
+        # Set up for 50% completeness
+        for i in range(10):
+            metric.record_insight(converted_to_task=(i < 5))
+        for _ in range(5):
+            metric.record_task_outcome(success=True)
+
+        # 0.5 * 1.0 = 0.5 < 0.7
+        assert metric.is_healthy() is False
+
+    def test_is_healthy_boundary(self, metric):
+        """Test is_healthy at exactly 70% boundary."""
+        # Set up for exactly 70% completeness
+        for _ in range(10):
+            metric.record_insight(converted_to_task=True)
+        for i in range(10):
+            metric.record_task_outcome(success=(i < 7))
+
+        # 1.0 * 0.7 = 0.7 >= 0.7
+        assert metric.is_healthy() is True
+
+    def test_get_health_status_excellent(self, metric):
+        """Test get_health_status returns 'excellent' for >= 85%."""
+        for _ in range(10):
+            metric.record_insight(converted_to_task=True)
+        for i in range(10):
+            metric.record_task_outcome(success=(i < 9))
+
+        assert metric.get_health_status() == "excellent"
+
+    def test_get_health_status_good(self, metric):
+        """Test get_health_status returns 'good' for 70-85%."""
+        for _ in range(10):
+            metric.record_insight(converted_to_task=True)
+        for i in range(10):
+            metric.record_task_outcome(success=(i < 8))
+
+        assert metric.get_health_status() == "good"
+
+    def test_get_health_status_acceptable(self, metric):
+        """Test get_health_status returns 'acceptable' for 50-70%."""
+        for i in range(10):
+            metric.record_insight(converted_to_task=(i < 6))
+        for _ in range(6):
+            metric.record_task_outcome(success=True)
+
+        # 0.6 * 1.0 = 0.6
+        assert metric.get_health_status() == "acceptable"
+
+    def test_get_health_status_degraded(self, metric):
+        """Test get_health_status returns 'degraded' for 30-50%."""
+        for i in range(10):
+            metric.record_insight(converted_to_task=(i < 4))
+        for _ in range(4):
+            metric.record_task_outcome(success=True)
+
+        # 0.4 * 1.0 = 0.4
+        assert metric.get_health_status() == "degraded"
+
+    def test_get_health_status_poor(self, metric):
+        """Test get_health_status returns 'poor' for < 30%."""
+        for i in range(10):
+            metric.record_insight(converted_to_task=(i < 2))
+        for _ in range(2):
+            metric.record_task_outcome(success=True)
+
+        # 0.2 * 1.0 = 0.2
+        assert metric.get_health_status() == "poor"
+
+    def test_take_snapshot(self, metric):
+        """Test take_snapshot creates a snapshot of current state."""
+        metric.record_insight(converted_to_task=True)
+        metric.record_task_outcome(success=True)
+
+        snapshot = metric.take_snapshot()
+
+        assert snapshot.total_insights == 1
+        assert snapshot.insights_to_tasks == 1
+        assert snapshot.task_successes == 1
+        assert snapshot.task_total == 1
+        assert snapshot.completeness_score == 1.0
+
+    def test_take_snapshot_adds_to_history(self, metric):
+        """Test take_snapshot adds to internal history."""
+        metric.record_insight(converted_to_task=True)
+        metric.record_task_outcome(success=True)
+
+        metric.take_snapshot()
+        metric.take_snapshot()
+
+        assert len(metric._history) == 2
+
+    def test_get_trend_insufficient_data(self, metric):
+        """Test get_trend returns None with insufficient snapshots."""
+        metric.take_snapshot()
+        metric.take_snapshot()
+
+        assert metric.get_trend(window_size=5) is None
+
+    def test_get_trend_improving(self):
+        """Test get_trend detects improving trend."""
+        from autopack.telemetry.meta_metrics import (LoopCompletenessMetric,
+                                                     LoopCompletenessSnapshot)
+
+        metric = LoopCompletenessMetric()
+        # Manually add snapshots with improving scores
+        for score in [0.2, 0.3, 0.4, 0.7, 0.9]:
+            metric._history.append(
+                LoopCompletenessSnapshot(
+                    total_insights=10,
+                    insights_to_tasks=10,
+                    task_successes=int(score * 10),
+                    task_total=10,
+                    completeness_score=score,
+                )
+            )
+
+        assert metric.get_trend(window_size=5) == "improving"
+
+    def test_get_trend_degrading(self):
+        """Test get_trend detects degrading trend."""
+        from autopack.telemetry.meta_metrics import (LoopCompletenessMetric,
+                                                     LoopCompletenessSnapshot)
+
+        metric = LoopCompletenessMetric()
+        # Manually add snapshots with degrading scores
+        for score in [0.9, 0.7, 0.5, 0.3, 0.2]:
+            metric._history.append(
+                LoopCompletenessSnapshot(
+                    total_insights=10,
+                    insights_to_tasks=10,
+                    task_successes=int(score * 10),
+                    task_total=10,
+                    completeness_score=score,
+                )
+            )
+
+        assert metric.get_trend(window_size=5) == "degrading"
+
+    def test_get_trend_stable(self):
+        """Test get_trend detects stable trend."""
+        from autopack.telemetry.meta_metrics import (LoopCompletenessMetric,
+                                                     LoopCompletenessSnapshot)
+
+        metric = LoopCompletenessMetric()
+        # Manually add snapshots with stable scores
+        for score in [0.7, 0.7, 0.7, 0.7, 0.7]:
+            metric._history.append(
+                LoopCompletenessSnapshot(
+                    total_insights=10,
+                    insights_to_tasks=10,
+                    task_successes=7,
+                    task_total=10,
+                    completeness_score=score,
+                )
+            )
+
+        assert metric.get_trend(window_size=5) == "stable"
+
+    def test_reset(self, metric):
+        """Test reset clears all counters."""
+        metric.record_insight(converted_to_task=True)
+        metric.record_task_outcome(success=True)
+        metric.take_snapshot()
+
+        metric.reset()
+
+        assert metric.total_insights == 0
+        assert metric.insights_to_tasks == 0
+        assert metric.task_successes == 0
+        assert metric.task_total == 0
+        assert len(metric._history) == 0
+
+    def test_to_dict(self, metric):
+        """Test to_dict serialization."""
+        metric.record_insight(converted_to_task=True)
+        metric.record_task_outcome(success=True)
+
+        result = metric.to_dict()
+
+        assert result["total_insights"] == 1
+        assert result["insights_to_tasks"] == 1
+        assert result["task_successes"] == 1
+        assert result["task_total"] == 1
+        assert result["conversion_rate"] == 1.0
+        assert result["success_rate"] == 1.0
+        assert result["completeness_score"] == 1.0
+        assert result["target_completeness"] == 0.70
+        assert result["is_healthy"] is True
+        assert result["health_status"] == "excellent"
+
+    def test_export_to_prometheus(self, metric):
+        """Test export_to_prometheus format."""
+        metric.record_insight(converted_to_task=True)
+        metric.record_task_outcome(success=True)
+
+        result = metric.export_to_prometheus()
+
+        assert "autopack_loop_completeness_score" in result
+        assert "autopack_loop_conversion_rate" in result
+        assert "autopack_loop_task_success_rate" in result
+        assert "autopack_loop_total_insights" in result
+        assert "autopack_loop_total_tasks" in result
+        assert result["autopack_loop_completeness_score"] == 1.0
+
+    def test_thread_safety(self, metric):
+        """Test metric operations are thread-safe."""
+        import threading
+
+        def record_insights():
+            for _ in range(100):
+                metric.record_insight(converted_to_task=True)
+
+        def record_tasks():
+            for _ in range(100):
+                metric.record_task_outcome(success=True)
+
+        threads = [
+            threading.Thread(target=record_insights),
+            threading.Thread(target=record_tasks),
+        ]
+
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert metric.total_insights == 100
+        assert metric.task_total == 100
+
+
+class TestLoopCompletenessSnapshot:
+    """Tests for LoopCompletenessSnapshot dataclass."""
+
+    def test_snapshot_creation(self):
+        """Test LoopCompletenessSnapshot instantiation."""
+        from autopack.telemetry.meta_metrics import LoopCompletenessSnapshot
+
+        snapshot = LoopCompletenessSnapshot(
+            total_insights=10,
+            insights_to_tasks=8,
+            task_successes=6,
+            task_total=8,
+            completeness_score=0.6,
+        )
+
+        assert snapshot.total_insights == 10
+        assert snapshot.insights_to_tasks == 8
+        assert snapshot.task_successes == 6
+        assert snapshot.task_total == 8
+        assert snapshot.completeness_score == 0.6
+
+    def test_snapshot_to_dict(self):
+        """Test LoopCompletenessSnapshot serialization."""
+        from autopack.telemetry.meta_metrics import LoopCompletenessSnapshot
+
+        snapshot = LoopCompletenessSnapshot(
+            total_insights=10,
+            insights_to_tasks=8,
+            task_successes=6,
+            task_total=8,
+            completeness_score=0.6,
+        )
+
+        result = snapshot.to_dict()
+
+        assert result["total_insights"] == 10
+        assert result["insights_to_tasks"] == 8
+        assert result["task_successes"] == 6
+        assert result["task_total"] == 8
+        assert result["completeness_score"] == 0.6
+        assert "timestamp" in result
+
+
+class TestLoopLatencyMetric:
+    """Tests for LoopLatencyMetric class (IMP-LOOP-025)."""
+
+    @pytest.fixture
+    def metric(self):
+        """Create a LoopLatencyMetric instance."""
+        from autopack.telemetry.meta_metrics import LoopLatencyMetric
+
+        return LoopLatencyMetric()
+
+    def test_initialization(self, metric):
+        """Test LoopLatencyMetric initializes with empty state."""
+        assert len(metric._insight_timestamps) == 0
+        assert len(metric._task_timestamps) == 0
+        assert len(metric._latencies) == 0
+
+    def test_record_insight_created(self, metric):
+        """Test recording insight creation timestamp."""
+        metric.record_insight_created("insight-001")
+
+        assert "insight-001" in metric._insight_timestamps
+
+    def test_record_task_created(self, metric):
+        """Test recording task creation and latency calculation."""
+        import time
+
+        metric.record_insight_created("insight-001")
+        time.sleep(0.01)  # Small delay
+        metric.record_task_created("insight-001", "task-001")
+
+        assert "task-001" in metric._task_timestamps
+        assert len(metric._latencies) == 1
+        assert metric._latencies[0]["type"] == "insight_to_task"
+        assert metric._latencies[0]["latency_ms"] > 0
+
+    def test_record_task_completed(self, metric):
+        """Test recording task completion and latency calculation."""
+        import time
+
+        metric.record_insight_created("insight-001")
+        metric.record_task_created("insight-001", "task-001")
+        time.sleep(0.01)  # Small delay
+        metric.record_task_completed("task-001")
+
+        assert "task-001" in metric._completion_timestamps
+        latencies = [l for l in metric._latencies if l["type"] == "task_to_completion"]
+        assert len(latencies) == 1
+        assert latencies[0]["latency_ms"] > 0
+
+    def test_get_average_latency_ms_empty(self, metric):
+        """Test average latency returns 0.0 with no data."""
+        assert metric.get_average_latency_ms() == 0.0
+
+    def test_get_average_latency_ms_filtered(self, metric):
+        """Test average latency with type filter."""
+        import time
+
+        metric.record_insight_created("insight-001")
+        time.sleep(0.01)
+        metric.record_task_created("insight-001", "task-001")
+        time.sleep(0.01)
+        metric.record_task_completed("task-001")
+
+        insight_to_task = metric.get_average_latency_ms("insight_to_task")
+        task_to_completion = metric.get_average_latency_ms("task_to_completion")
+
+        assert insight_to_task > 0
+        assert task_to_completion > 0
+
+    def test_is_within_target_true(self, metric):
+        """Test is_within_target returns True when under target."""
+        # No latencies = 0ms avg = within target
+        assert metric.is_within_target() is True
+
+    def test_to_dict(self, metric):
+        """Test to_dict serialization."""
+        result = metric.to_dict()
+
+        assert "avg_insight_to_task_ms" in result
+        assert "avg_task_to_completion_ms" in result
+        assert "avg_total_latency_ms" in result
+        assert "target_latency_ms" in result
+        assert "is_within_target" in result
+        assert "measurement_count" in result
+
+
+class TestLoopFidelityMetric:
+    """Tests for LoopFidelityMetric class (IMP-LOOP-025)."""
+
+    @pytest.fixture
+    def metric(self):
+        """Create a LoopFidelityMetric instance."""
+        from autopack.telemetry.meta_metrics import LoopFidelityMetric
+
+        return LoopFidelityMetric()
+
+    def test_initialization(self, metric):
+        """Test LoopFidelityMetric initializes with empty state."""
+        assert len(metric._fidelity_scores) == 0
+
+    def test_record_task_fidelity(self, metric):
+        """Test recording task fidelity scores."""
+        score = metric.record_task_fidelity(
+            task_id="task-001",
+            insight_id="insight-001",
+            relevance_score=0.9,
+            scope_accuracy=0.8,
+            actionability_score=0.7,
+        )
+
+        # Weighted: 0.9*0.5 + 0.8*0.3 + 0.7*0.2 = 0.45 + 0.24 + 0.14 = 0.83
+        assert score == 0.83
+        assert len(metric._fidelity_scores) == 1
+
+    def test_record_task_fidelity_perfect_score(self, metric):
+        """Test perfect fidelity score calculation."""
+        score = metric.record_task_fidelity(
+            task_id="task-001",
+            insight_id="insight-001",
+            relevance_score=1.0,
+            scope_accuracy=1.0,
+            actionability_score=1.0,
+        )
+
+        # 1.0*0.5 + 1.0*0.3 + 1.0*0.2 = 1.0
+        assert score == 1.0
+
+    def test_get_average_fidelity_empty(self, metric):
+        """Test average fidelity returns 0.0 with no data."""
+        assert metric.get_average_fidelity() == 0.0
+
+    def test_get_average_fidelity(self, metric):
+        """Test average fidelity calculation."""
+        metric.record_task_fidelity("t1", "i1", 0.8, 0.8, 0.8)  # 0.8
+        metric.record_task_fidelity("t2", "i2", 0.6, 0.6, 0.6)  # 0.6
+
+        # Average: (0.8 + 0.6) / 2 = 0.7
+        assert metric.get_average_fidelity() == 0.7
+
+    def test_is_healthy_true(self, metric):
+        """Test is_healthy returns True when >= 80%."""
+        metric.record_task_fidelity("t1", "i1", 0.9, 0.9, 0.9)  # 0.9
+
+        assert metric.is_healthy() is True
+
+    def test_is_healthy_false(self, metric):
+        """Test is_healthy returns False when < 80%."""
+        metric.record_task_fidelity("t1", "i1", 0.5, 0.5, 0.5)  # 0.5
+
+        assert metric.is_healthy() is False
+
+    def test_get_low_fidelity_tasks(self, metric):
+        """Test identifying low fidelity tasks."""
+        metric.record_task_fidelity("t1", "i1", 0.9, 0.9, 0.9)  # 0.9 - high
+        metric.record_task_fidelity("t2", "i2", 0.3, 0.3, 0.3)  # 0.3 - low
+        metric.record_task_fidelity("t3", "i3", 0.4, 0.4, 0.4)  # 0.4 - low
+
+        low_fidelity = metric.get_low_fidelity_tasks(threshold=0.5)
+
+        assert "t2" in low_fidelity
+        assert "t3" in low_fidelity
+        assert "t1" not in low_fidelity
+
+    def test_to_dict(self, metric):
+        """Test to_dict serialization."""
+        metric.record_task_fidelity("t1", "i1", 0.8, 0.8, 0.8)
+
+        result = metric.to_dict()
+
+        assert "average_fidelity" in result
+        assert "target_fidelity" in result
+        assert "is_healthy" in result
+        assert "total_measurements" in result
+        assert "low_fidelity_count" in result
+        assert result["target_fidelity"] == 0.80

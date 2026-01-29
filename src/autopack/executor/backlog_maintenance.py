@@ -14,7 +14,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
-from autopack.backlog_maintenance import create_git_checkpoint, parse_patch_stats
+from autopack.backlog_maintenance import (create_git_checkpoint,
+                                          parse_patch_stats)
 from autopack.governed_apply import GovernedApplyPath
 from autopack.maintenance_auditor import AuditorInput, DiffStats, TestResult
 from autopack.maintenance_auditor import evaluate as audit_evaluate
@@ -97,6 +98,39 @@ class TaskCandidate:
     priority: str = "medium"
     source: str = "unknown"
     metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+def generated_task_to_candidate(generated_task: Any) -> TaskCandidate:
+    """Convert a GeneratedTask to a TaskCandidate for injection (IMP-LOOP-029).
+
+    This function bridges the gap between the ROAD-C task generator output
+    (GeneratedTask objects) and the BacklogMaintenance injection interface
+    (TaskCandidate objects), enabling proper wiring of generated tasks
+    into the execution queue.
+
+    Args:
+        generated_task: A GeneratedTask object from AutonomousTaskGenerator.
+
+    Returns:
+        TaskCandidate ready for injection via BacklogMaintenance.inject_tasks().
+    """
+    return TaskCandidate(
+        task_id=generated_task.task_id,
+        title=generated_task.title,
+        priority=generated_task.priority,
+        source="autonomous_task_generator",
+        metadata={
+            "description": generated_task.description,
+            "source_insights": generated_task.source_insights,
+            "suggested_files": generated_task.suggested_files,
+            "estimated_effort": generated_task.estimated_effort,
+            "run_id": generated_task.run_id,
+            "requires_approval": getattr(generated_task, "requires_approval", False),
+            "risk_severity": getattr(generated_task, "risk_severity", None),
+            "estimated_cost": getattr(generated_task, "estimated_cost", 0),
+            "generated_task_id": generated_task.task_id,  # For attribution tracking
+        },
+    )
 
 
 class BacklogMaintenance:
@@ -285,7 +319,8 @@ class BacklogMaintenance:
                                 logger.info(
                                     "[Backlog][Apply] Reverting to checkpoint due to failure"
                                 )
-                                from autopack.backlog_maintenance import revert_to_checkpoint
+                                from autopack.backlog_maintenance import \
+                                    revert_to_checkpoint
 
                                 revert_to_checkpoint(Path(self.executor.workspace), checkpoint_hash)
                 else:
@@ -311,7 +346,8 @@ class BacklogMaintenance:
                         logger.warning(f"[Backlog][Apply] Failed for {phase_id}: {err}")
                         if checkpoint_hash:
                             logger.info("[Backlog][Apply] Reverting to checkpoint due to failure")
-                            from autopack.backlog_maintenance import revert_to_checkpoint
+                            from autopack.backlog_maintenance import \
+                                revert_to_checkpoint
 
                             revert_to_checkpoint(Path(self.executor.workspace), checkpoint_hash)
             elif apply and patch_path is None:

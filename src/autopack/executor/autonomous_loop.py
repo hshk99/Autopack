@@ -16,39 +16,38 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from autopack.archive_consolidator import log_build_event
-from autopack.autonomous.budgeting import (
-    BudgetExhaustedError,
-    get_budget_remaining_pct,
-    is_budget_exhausted,
-)
-from autopack.autonomy.parallelism_gate import (
-    ParallelismPolicyGate,
-    ScopeBasedParallelismChecker,
-)
+from autopack.autonomous.budgeting import (BudgetExhaustedError,
+                                           get_budget_remaining_pct,
+                                           is_budget_exhausted)
+from autopack.autonomy.parallelism_gate import (ParallelismPolicyGate,
+                                                ScopeBasedParallelismChecker)
 from autopack.config import settings
-from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
+from autopack.database import (SESSION_HEALTH_CHECK_INTERVAL,
+                               ensure_session_healthy)
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
 from autopack.memory.maintenance import run_maintenance_if_due
 from autopack.task_generation.roi_analyzer import ROIAnalyzer
-from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
+from autopack.task_generation.task_effectiveness_tracker import \
+    TaskEffectivenessTracker
 from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
-from autopack.telemetry.anomaly_detector import AlertSeverity, TelemetryAnomalyDetector
-from autopack.telemetry.meta_metrics import (
-    FeedbackLoopHealth,
-    FeedbackLoopHealthReport,
-    GoalDriftDetector,
-    MetaMetricsTracker,
-    PipelineLatencyTracker,
-    PipelineStage,
-)
-from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
+from autopack.telemetry.anomaly_detector import (AlertSeverity,
+                                                 TelemetryAnomalyDetector)
+from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
+                                             FeedbackLoopHealthReport,
+                                             GoalDriftDetector,
+                                             MetaMetricsTracker,
+                                             PipelineLatencyTracker,
+                                             PipelineStage)
+from autopack.telemetry.telemetry_to_memory_bridge import \
+    TelemetryToMemoryBridge
 from generation.autonomous_wave_planner import AutonomousWavePlanner, WavePlan
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
+    from autopack.executor.backlog_maintenance import InjectionResult
 
 logger = logging.getLogger(__name__)
 
@@ -970,7 +969,7 @@ class AutonomousLoop:
                 f"into execution queue"
             )
         else:
-            logger.warning(f"[IMP-LOOP-027] Cannot inject wave phases - no current run phases list")
+            logger.warning("[IMP-LOOP-027] Cannot inject wave phases - no current run phases list")
 
         return len(loaded_phases)
 
@@ -3140,6 +3139,157 @@ class AutonomousLoop:
         return run_data
 
     # =========================================================================
+    # IMP-LOOP-029: Complete Task Injection Wiring
+    # =========================================================================
+
+    def _generate_and_inject_tasks(self) -> Optional["InjectionResult"]:
+        """Generate tasks and inject them via BacklogMaintenance (IMP-LOOP-029).
+
+        This method completes the wiring between AutonomousTaskGenerator and
+        BacklogMaintenance.inject_tasks(), enabling generated tasks to be
+        properly injected into the execution queue with verification.
+
+        The wiring flow:
+        1. Create AutonomousTaskGenerator with db_session
+        2. Call generate_tasks() to get TaskGenerationResult
+        3. Convert GeneratedTask objects to TaskCandidate objects
+        4. Call BacklogMaintenance.inject_tasks() with candidates
+        5. Register task execution for attribution tracking (IMP-LOOP-028)
+
+        Returns:
+            InjectionResult with injection details, or None if no tasks generated.
+        """
+        # Check if task generation is enabled
+        if not settings.task_generation_auto_execute:
+            logger.debug("[IMP-LOOP-029] Generated task execution is disabled")
+            return None
+
+        # Check if task generation is paused (e.g., due to health issues)
+        if self._task_generation_paused:
+            logger.debug("[IMP-LOOP-029] Task generation is paused")
+            return None
+
+        try:
+            from autopack.executor.backlog_maintenance import (
+                InjectionResult, generated_task_to_candidate)
+            from autopack.roadc.task_generator import AutonomousTaskGenerator
+
+            # Create task generator with db_session for telemetry access
+            db_session = getattr(self.executor, "db_session", None)
+            task_generator = AutonomousTaskGenerator(db_session=db_session)
+
+            # Generate tasks with run context
+            max_tasks = settings.task_generation_max_tasks_per_run
+            generation_result = task_generator.generate_tasks(
+                max_tasks=max_tasks,
+                run_id=self.executor.run_id,
+            )
+
+            generated_tasks = generation_result.tasks_generated
+            if not generated_tasks:
+                logger.debug("[IMP-LOOP-029] No tasks generated")
+                return None
+
+            logger.info(
+                f"[IMP-LOOP-029] Generated {len(generated_tasks)} tasks "
+                f"({generation_result.insights_processed} insights, "
+                f"{generation_result.patterns_detected} patterns)"
+            )
+
+            # Convert GeneratedTask objects to TaskCandidate objects
+            candidates = [generated_task_to_candidate(task) for task in generated_tasks]
+
+            # Inject tasks via BacklogMaintenance
+            injection_result: InjectionResult = self.executor.backlog_maintenance.inject_tasks(
+                tasks=candidates,
+                on_injection=self._on_task_injected,  # Callback for attribution
+            )
+
+            # Log injection results
+            if injection_result.all_succeeded:
+                logger.info(
+                    f"[IMP-LOOP-029] Successfully injected {injection_result.success_count} tasks"
+                )
+            else:
+                logger.warning(
+                    f"[IMP-LOOP-029] Injection partial: "
+                    f"{injection_result.success_count} succeeded, "
+                    f"{injection_result.failure_count} failed"
+                )
+                if injection_result.verification_errors:
+                    for error in injection_result.verification_errors:
+                        logger.warning(f"[IMP-LOOP-029] Verification error: {error}")
+
+            # IMP-LOOP-028: Register task executions for attribution tracking
+            if self._task_effectiveness_tracker is not None:
+                for task_id in injection_result.injected_ids:
+                    # Find the corresponding phase_id in the queue
+                    phase_id = self._find_phase_id_for_task(task_id)
+                    if phase_id:
+                        self._task_effectiveness_tracker.register_task_execution(
+                            task_id=task_id,
+                            phase_id=phase_id,
+                        )
+                        logger.debug(
+                            f"[IMP-LOOP-029] Registered task {task_id} -> phase {phase_id} "
+                            "for attribution"
+                        )
+
+            return injection_result
+
+        except Exception as e:
+            logger.warning(f"[IMP-LOOP-029] Task injection wiring failed: {e}")
+            return None
+
+    def _on_task_injected(self, task_id: str) -> None:
+        """Callback invoked when a task is successfully injected (IMP-LOOP-029).
+
+        This callback is passed to BacklogMaintenance.inject_tasks() and
+        invoked for each successfully injected task, enabling real-time
+        tracking of injections.
+
+        Args:
+            task_id: The ID of the successfully injected task.
+        """
+        logger.debug(f"[IMP-LOOP-029] Task {task_id} injected into queue")
+
+        # Track injection in meta-metrics if available
+        if self._meta_metrics_tracker is not None:
+            self._meta_metrics_tracker.record_event(
+                event_type="task_injected",
+                metadata={"task_id": task_id, "source": "autonomous_task_generator"},
+            )
+
+    def _find_phase_id_for_task(self, task_id: str) -> Optional[str]:
+        """Find the phase_id associated with a task after injection (IMP-LOOP-029).
+
+        The phase_id is needed for attribution tracking (linking task -> phase -> outcome).
+
+        Args:
+            task_id: The task ID to look up.
+
+        Returns:
+            The phase_id if found, None otherwise.
+        """
+        if self._current_run_phases is None:
+            return None
+
+        for phase in self._current_run_phases:
+            # Check direct match
+            if phase.get("phase_id") == task_id:
+                return task_id
+            # Check generated task metadata
+            metadata = phase.get("metadata", {})
+            if metadata.get("original_metadata", {}).get("generated_task_id") == task_id:
+                return phase.get("phase_id")
+            # Check _generated_task metadata (from other injection paths)
+            gen_task = phase.get("_generated_task", {})
+            if gen_task.get("task_id") == task_id:
+                return phase.get("phase_id")
+
+        return task_id  # Fall back to using task_id as phase_id
+
+    # =========================================================================
     # ROAD-C Task Queue Consumption (IMP-LOOP-025)
     # =========================================================================
 
@@ -3306,7 +3456,8 @@ class AutonomousLoop:
 
     def _initialize_intention_loop(self):
         """Initialize intention-first loop for the run."""
-        from autopack.autonomous.executor_wiring import initialize_intention_first_loop
+        from autopack.autonomous.executor_wiring import \
+            initialize_intention_first_loop
         from autopack.intention_anchor.storage import IntentionAnchorStorage
 
         # IMP-ARCH-012: Load pending improvement tasks from self-improvement loop
@@ -3328,10 +3479,7 @@ class AutonomousLoop:
                 from datetime import datetime, timezone
 
                 from autopack.intention_anchor.models import (
-                    IntentionAnchor,
-                    IntentionBudgets,
-                    IntentionConstraints,
-                )
+                    IntentionAnchor, IntentionBudgets, IntentionConstraints)
 
                 intention_anchor = IntentionAnchor(
                     anchor_id=f"default-{self.executor.run_id}",
@@ -3506,6 +3654,23 @@ class AutonomousLoop:
                         )
             except Exception as e:
                 logger.warning(f"[IMP-LOOP-025] Failed to consume ROAD-C tasks (non-blocking): {e}")
+
+            # IMP-LOOP-029: Generate and inject tasks via BacklogMaintenance
+            # This completes the wiring between AutonomousTaskGenerator and
+            # BacklogMaintenance.inject_tasks() for proper verification and tracking
+            try:
+                injection_result = self._generate_and_inject_tasks()
+                if injection_result is not None and injection_result.success_count > 0:
+                    # Update run_data phases with newly injected tasks
+                    if self._current_run_phases:
+                        run_data["phases"] = self._current_run_phases
+                    logger.info(
+                        f"[IMP-LOOP-029] Task injection complete: "
+                        f"{injection_result.success_count} injected, "
+                        f"verified={injection_result.verified}"
+                    )
+            except Exception as e:
+                logger.warning(f"[IMP-LOOP-029] Task injection wiring failed (non-blocking): {e}")
 
             # IMP-LOOP-027: Check if current wave is complete and load next wave
             # This enables automatic wave transitions during execution

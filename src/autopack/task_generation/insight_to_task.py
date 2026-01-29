@@ -1,5 +1,9 @@
 """Insight-to-Task Generator.
 
+.. deprecated::
+    This module is deprecated. Use :class:`autopack.roadc.task_generator.AutonomousTaskGenerator`
+    instead, which provides the same functionality with better integration into the ROAD-C pipeline.
+
 Automates the discovery process by generating improvement
 suggestions from telemetry insights:
 - Detects operational anomalies
@@ -14,10 +18,13 @@ loop by converting detected patterns into actionable improvement suggestions.
 from __future__ import annotations
 
 import logging
+import warnings
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
+
+from deprecated import deprecated
 
 if TYPE_CHECKING:
     from autopack.analytics.telemetry_analyzer import TelemetryAnalyzer
@@ -88,8 +95,17 @@ class ImpactValidationRecord:
     timestamp: datetime = field(default_factory=datetime.now)
 
 
+@deprecated(
+    version="1.0.0",
+    reason="Use AutonomousTaskGenerator from autopack.roadc.task_generator instead. "
+    "It provides the same functionality with better integration into the ROAD-C pipeline "
+    "and unified insight consumption interface (IMP-LOOP-013).",
+)
 class InsightToTaskGenerator:
     """Generates improvement suggestions from telemetry insights.
+
+    .. deprecated::
+        Use :class:`autopack.roadc.task_generator.AutonomousTaskGenerator` instead.
 
     This class takes a TelemetryAnalyzer instance and converts its insights
     into structured IMP (improvement) entries that can be added to the

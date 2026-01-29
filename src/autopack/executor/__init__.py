@@ -21,7 +21,13 @@ from autopack.executor.context_loading_heuristic import (
     get_default_priority_files,
 )
 
+# IMP-MAINT-001: Goal anchoring and SOT manager extraction
+from autopack.executor.goal_anchoring import GoalAnchoringManager
+from autopack.executor.sot_manager import SOTManager
+
 __all__ = [
     "HeuristicContextLoader",
     "get_default_priority_files",
+    "GoalAnchoringManager",
+    "SOTManager",
 ]

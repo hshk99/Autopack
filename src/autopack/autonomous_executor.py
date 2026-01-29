@@ -87,6 +87,9 @@ from autopack.executor.context_loading_heuristic import (
 # PR-EXE-10: Error analysis and learning pipeline
 from autopack.executor.error_analysis import ErrorAnalyzer
 from autopack.executor.execute_fix_handler import ExecuteFixHandler
+
+# IMP-MAINT-001: Goal anchoring and SOT manager extraction
+from autopack.executor.goal_anchoring import GoalAnchoringManager
 from autopack.executor.learning_pipeline import LearningPipeline
 from autopack.executor.phase_approach_reviser import PhaseApproachReviser
 
@@ -106,6 +109,7 @@ from autopack.executor.run_checkpoint import (
 # PR-EXE-13: Final helper extraction - reach 5,000 lines!
 from autopack.executor.scope_context_validator import ScopeContextValidator
 from autopack.executor.scoped_context_loader import ScopedContextLoader
+from autopack.executor.sot_manager import SOTManager
 from autopack.executor_lock import ExecutorLockManager  # BUILD-048-T1
 from autopack.file_layout import RunFileLayout
 from autopack.governed_apply import GovernedApplyPath
@@ -516,6 +520,22 @@ class AutonomousExecutor:
             learning_memory_manager=self.learning_memory_manager,
         )
         logger.info("[PR-EXE-10] Error analyzer and learning pipeline initialized")
+
+        # IMP-MAINT-001: Initialize goal anchoring manager (extracted from executor)
+        self.goal_anchoring = GoalAnchoringManager(
+            run_id=self.run_id,
+            memory_service=self.memory_service,
+        )
+        logger.info("[IMP-MAINT-001] Goal anchoring manager initialized")
+
+        # IMP-MAINT-001: Initialize SOT manager (extracted from executor)
+        self.sot_manager = SOTManager(
+            workspace=self.workspace,
+            run_id=self.run_id,
+            memory_service=self.memory_service,
+            settings=settings,
+        )
+        logger.info("[IMP-MAINT-001] SOT manager initialized")
 
         # PR-EXE-11: Initialize Builder/Auditor pipeline orchestrators
         from autopack.executor.auditor_orchestrator import AuditorOrchestrator
@@ -2266,159 +2286,36 @@ class AutonomousExecutor:
         return self._phase_revised_specs.get(f"_replan_count_{phase_id}", 0)
 
     # =========================================================================
-    # GOAL ANCHORING METHODS (per GPT_RESPONSE27)
+    # GOAL ANCHORING METHODS (per GPT_RESPONSE27) - IMP-MAINT-001: Delegated to GoalAnchoringManager
     # =========================================================================
 
     def _extract_one_line_intent(self, description: str) -> str:
-        """
-        Extract a concise one-line intent from a phase description.
-
-        Per GPT_RESPONSE27: The original_intent should be a short, clear statement
-        of WHAT the phase achieves (not HOW it achieves it).
-
-        Args:
-            description: Full phase description
-
-        Returns:
-            One-line intent statement (first sentence, capped at 200 chars)
-        """
-        if not description:
-            return ""
-
-        # Get first sentence (ends with . ! or ?)
-        first_sentence_match = re.match(r"^[^.!?]*[.!?]", description.strip())
-        if first_sentence_match:
-            intent = first_sentence_match.group(0).strip()
-        else:
-            # No sentence ending found, use first 200 chars
-            intent = description.strip()[:200]
-            if len(description.strip()) > 200:
-                intent += "..."
-
-        # Cap at 200 chars
-        if len(intent) > 200:
-            intent = intent[:197] + "..."
-
-        return intent
+        """Extract one-line intent. Delegated to GoalAnchoringManager in IMP-MAINT-001."""
+        return self.goal_anchoring.extract_one_line_intent(description)
 
     def _initialize_phase_goal_anchor(self, phase: Dict) -> None:
-        """
-        Initialize goal anchoring for a phase on first execution.
-
-        Per GPT_RESPONSE27 Phase 1 Implementation: Store original intent and description
-        before any re-planning occurs.
-
-        Args:
-            phase: Phase specification dict
-        """
+        """Initialize goal anchor. Delegated to GoalAnchoringManager in IMP-MAINT-001."""
+        self.goal_anchoring.initialize_phase_goal_anchor(phase)
+        # Keep local state in sync for backward compatibility
         phase_id = phase.get("phase_id")
-        if not phase_id:
-            return
-
-        # Only initialize once (on first execution)
-        if phase_id not in self._phase_original_intent:
-            description = phase.get("description", "")
-            self._phase_original_intent[phase_id] = self._extract_one_line_intent(description)
-            self._phase_original_description[phase_id] = description
-            self._phase_replan_history[phase_id] = []
-
-            logger.debug(
-                f"[GoalAnchor] Initialized for {phase_id}: intent='{self._phase_original_intent[phase_id][:50]}...'"
+        if phase_id:
+            self._phase_original_intent[phase_id] = self.goal_anchoring.get_original_intent(
+                phase_id
             )
+            self._phase_original_description[phase_id] = (
+                self.goal_anchoring.get_original_description(phase_id)
+            )
+            self._phase_replan_history[phase_id] = self.goal_anchoring.get_replan_history(phase_id)
 
     def _detect_scope_narrowing(self, original: str, revised: str) -> bool:
-        """
-        Detect obvious scope narrowing using heuristics.
-
-        Per GPT_RESPONSE27: Fast pre-filter to detect when revision reduces scope.
-
-        Args:
-            original: Original phase description
-            revised: Revised phase description
-
-        Returns:
-            True if scope narrowing is detected
-        """
-        if not original or not revised:
-            return False
-
-        # Heuristic 1: Significant length shrinkage (>50%)
-        if len(revised) < len(original) * 0.5:
-            logger.debug("[GoalAnchor] Scope narrowing detected: length shrinkage")
-            return True
-
-        # Heuristic 2: Scope-reducing keywords
-        scope_reducing_keywords = [
-            "only",
-            "just",
-            "skip",
-            "ignore",
-            "defer",
-            "later",
-            "simplified",
-            "minimal",
-            "basic",
-            "stub",
-            "placeholder",
-            "without",
-            "except",
-            "excluding",
-            "partial",
-        ]
-
-        original_lower = original.lower()
-        revised_lower = revised.lower()
-
-        for keyword in scope_reducing_keywords:
-            # Check if keyword was added in revision
-            if keyword in revised_lower and keyword not in original_lower:
-                logger.debug(f"[GoalAnchor] Scope narrowing detected: added keyword '{keyword}'")
-                return True
-
-        return False
+        """Detect scope narrowing. Delegated to GoalAnchoringManager in IMP-MAINT-001."""
+        return self.goal_anchoring.detect_scope_narrowing(original, revised)
 
     def _classify_replan_alignment(
         self, original_intent: str, revised_description: str
     ) -> Dict[str, Any]:
-        """
-        Classify alignment of revised description vs original intent.
-
-        Per GPT_RESPONSE27: Use LLM to semantically compare original intent with
-        revised approach to detect goal drift.
-
-        Args:
-            original_intent: One-line intent from original description
-            revised_description: New description after re-planning
-
-        Returns:
-            Dict with {"alignment": "same_scope|narrower|broader|different_domain", "notes": "..."}
-        """
-        # First, apply fast heuristic pre-filter
-        if self._detect_scope_narrowing(original_intent, revised_description):
-            return {
-                "alignment": "narrower",
-                "notes": "Heuristic detection: revision appears to reduce scope",
-            }
-
-        # For Phase 1, we use simple heuristics + logging (no LLM call)
-        # Per GPT_RESPONSE27: Full semantic classification is Phase 2
-
-        # Simple keyword-based classification
-        revised_lower = revised_description.lower()
-
-        # Check for scope expansion
-        expansion_keywords = ["also", "additionally", "expand", "enhance", "add more", "including"]
-        has_expansion = any(kw in revised_lower for kw in expansion_keywords)
-
-        # Check for domain change (different technology/approach)
-        if has_expansion:
-            return {"alignment": "broader", "notes": "Revision appears to expand scope"}
-
-        # Default: assume same scope (conservative for Phase 1)
-        return {
-            "alignment": "same_scope",
-            "notes": "No obvious scope change detected (Phase 1 heuristic)",
-        }
+        """Classify alignment. Delegated to GoalAnchoringManager in IMP-MAINT-001."""
+        return self.goal_anchoring.classify_replan_alignment(original_intent, revised_description)
 
     def _record_replan_telemetry(
         self,
@@ -2430,48 +2327,19 @@ class AutonomousExecutor:
         alignment: Dict[str, Any],
         success: bool,
     ) -> None:
-        """
-        Record re-planning telemetry for monitoring and analysis.
-
-        Per GPT_RESPONSE27: Track replan_count, alignment, and outcomes.
-
-        Args:
-            phase_id: Phase identifier
-            attempt: Re-plan attempt number
-            original_description: Description before revision
-            revised_description: Description after revision
-            reason: Why re-planning was triggered
-            alignment: Alignment classification result
-            success: Whether the re-planning resulted in eventual phase success
-        """
-        telemetry_record = {
-            "run_id": self.run_id,
-            "phase_id": phase_id,
-            "attempt": attempt,
-            "timestamp": time.time(),
-            "reason": reason,
-            "alignment": alignment.get("alignment", "unknown"),
-            "alignment_notes": alignment.get("notes", ""),
-            "original_description_preview": original_description[:100],
-            "revised_description_preview": revised_description[:100],
-            "success": success,
-        }
-
-        # Add to phase-level history
-        if phase_id not in self._phase_replan_history:
-            self._phase_replan_history[phase_id] = []
-        self._phase_replan_history[phase_id].append(telemetry_record)
-
-        # Add to run-level telemetry
-        self._run_replan_telemetry.append(telemetry_record)
-
-        # Log for observability
-        logger.info(
-            f"[GoalAnchor] REPLAN_TELEMETRY: run_id={self.run_id} phase_id={phase_id} "
-            f"attempt={attempt} alignment={alignment.get('alignment')} "
-            f"replan_count_phase={len(self._phase_replan_history.get(phase_id, []))} "
-            f"replan_count_run={len(self._run_replan_telemetry)}"
+        """Record replan telemetry. Delegated to GoalAnchoringManager in IMP-MAINT-001."""
+        self.goal_anchoring.record_replan_telemetry(
+            phase_id=phase_id,
+            attempt=attempt,
+            original_description=original_description,
+            revised_description=revised_description,
+            reason=reason,
+            alignment=alignment,
+            success=success,
         )
+        # Keep local state in sync for backward compatibility
+        self._phase_replan_history[phase_id] = self.goal_anchoring.get_replan_history(phase_id)
+        self._run_replan_telemetry = self.goal_anchoring.state.run_replan_telemetry
 
     def _record_plan_change_entry(
         self,
@@ -2480,26 +2348,15 @@ class AutonomousExecutor:
         phase_id: Optional[str],
         replaces_version: Optional[int] = None,
     ) -> None:
-        """Persist plan change to DB and vector memory."""
+        """Persist plan change. Delegated to GoalAnchoringManager in IMP-MAINT-001."""
         project_id = self._get_project_slug() or self.run_id
-        timestamp = datetime.now(timezone.utc)
-
-        if self.memory_service:
-            try:
-                self.memory_service.write_plan_change(
-                    summary=summary,
-                    rationale=rationale,
-                    project_id=project_id,
-                    run_id=self.run_id,
-                    phase_id=phase_id,
-                    replaces_version=replaces_version,
-                    timestamp=timestamp.isoformat(),
-                )
-            except Exception as e:
-                logger.warning(f"[PlanChange] Failed to write to memory: {e}")
-
-        # BUILD-115: models.PlanChange removed - skip database write
-        logger.debug("[PlanChange] Skipped DB write (models.py removed)")
+        self.goal_anchoring.record_plan_change_entry(
+            summary=summary,
+            rationale=rationale,
+            phase_id=phase_id,
+            project_id=project_id,
+            replaces_version=replaces_version,
+        )
 
     def _record_decision_entry(
         self,
@@ -2509,27 +2366,16 @@ class AutonomousExecutor:
         phase_id: Optional[str],
         alternatives: Optional[str] = None,
     ) -> None:
-        """Persist decision log with memory embedding."""
+        """Persist decision log. Delegated to GoalAnchoringManager in IMP-MAINT-001."""
         project_id = self._get_project_slug() or self.run_id
-        timestamp = datetime.now(timezone.utc)
-
-        if self.memory_service:
-            try:
-                self.memory_service.write_decision_log(
-                    trigger=trigger,
-                    choice=choice,
-                    rationale=rationale,
-                    project_id=project_id,
-                    run_id=self.run_id,
-                    phase_id=phase_id,
-                    alternatives=alternatives,
-                    timestamp=timestamp.isoformat(),
-                )
-            except Exception as e:
-                logger.warning(f"[DecisionLog] Failed to write to memory: {e}")
-
-        # BUILD-115: models.DecisionLog removed - skip database write
-        logger.debug("[DecisionLog] Skipped DB write (models.py removed)")
+        self.goal_anchoring.record_decision_entry(
+            trigger=trigger,
+            choice=choice,
+            rationale=rationale,
+            phase_id=phase_id,
+            project_id=project_id,
+            alternatives=alternatives,
+        )
 
     def _should_trigger_replan(self, phase: Dict) -> Tuple[bool, Optional[str]]:
         """
@@ -4298,222 +4144,23 @@ class AutonomousExecutor:
         retrieved_context: dict,
         formatted_context: str,
     ) -> None:
-        """Record SOT retrieval telemetry to database.
-
-        Args:
-            phase_id: Phase identifier
-            include_sot: Whether SOT retrieval was attempted
-            max_context_chars: Total context budget allocated
-            retrieved_context: Raw context dict from retrieve_context()
-            formatted_context: Final formatted string from format_retrieved_context()
-
-        Notes:
-            - Only records when TELEMETRY_DB_ENABLED=1
-            - Failures are logged as warnings and do not crash execution
-            - See docs/SOT_MEMORY_INTEGRATION_EXAMPLE.md for metrics explanation
-        """
-        # Always emit an operator-visible log line so this can never be "silent bloat".
-        # DB persistence remains opt-in (TELEMETRY_DB_ENABLED=1).
-        try:
-            from autopack.config import settings
-
-            sot_chunks = retrieved_context.get("sot", []) or []
-            sot_chunks_retrieved = len(sot_chunks)
-            sot_chars_raw = sum(len(chunk.get("content", "")) for chunk in sot_chunks)
-            total_context_chars = len(formatted_context)
-            budget_utilization_pct = (
-                (total_context_chars / max_context_chars * 100) if max_context_chars > 0 else 0.0
-            )
-            logger.info(
-                f"[{phase_id}] [SOT] Context telemetry: include_sot={include_sot}, "
-                f"sot_chunks={sot_chunks_retrieved}, sot_chars_raw={sot_chars_raw}, "
-                f"total_chars={total_context_chars}/{max_context_chars} ({budget_utilization_pct:.1f}%), "
-                f"sot_cap={settings.autopack_sot_retrieval_max_chars}, top_k={settings.autopack_sot_retrieval_top_k}"
-            )
-        except Exception:
-            # Never block execution if telemetry formatting fails.
-            pass
-
-        # Skip DB persistence if telemetry disabled
-        if not os.getenv("TELEMETRY_DB_ENABLED") == "1":
-            return
-
-        try:
-            from datetime import datetime, timezone
-
-            from autopack.config import settings
-            from autopack.database import SessionLocal
-            from autopack.models import SOTRetrievalEvent
-
-            # Calculate metrics
-            sot_chunks = retrieved_context.get("sot", [])
-            sot_chunks_retrieved = len(sot_chunks)
-            sot_chars_raw = sum(len(chunk.get("content", "")) for chunk in sot_chunks)
-
-            total_context_chars = len(formatted_context)
-            budget_utilization_pct = (
-                (total_context_chars / max_context_chars * 100) if max_context_chars > 0 else 0.0
-            )
-
-            # Determine sections included
-            sections_included = [k for k, v in retrieved_context.items() if v]
-
-            # Estimate SOT contribution in formatted output (approximate)
-            # Since format_retrieved_context() doesn't expose per-section breakdowns,
-            # we can't measure exact SOT chars after formatting.
-            # For now, set to None if SOT wasn't included, or sot_chars_raw if it was
-            # (this is an upper bound - actual may be lower if truncated).
-            sot_chars_formatted = sot_chars_raw if include_sot and sot_chunks else None
-
-            # Detect if SOT was truncated (heuristic: raw > formatted and formatted < max)
-            sot_truncated = False
-            if include_sot and sot_chars_raw > 0:
-                # If total context hit the cap, SOT might have been truncated
-                sot_truncated = total_context_chars >= max_context_chars * 0.95  # Within 5% of cap
-
-            # Create telemetry event
-            session = SessionLocal()
-            try:
-                event = SOTRetrievalEvent(
-                    run_id=self.run_id,
-                    phase_id=phase_id,
-                    timestamp=datetime.now(timezone.utc),
-                    include_sot=include_sot,
-                    max_context_chars=max_context_chars,
-                    sot_budget_chars=settings.autopack_sot_retrieval_max_chars,
-                    sot_chunks_retrieved=sot_chunks_retrieved,
-                    sot_chars_raw=sot_chars_raw,
-                    total_context_chars=total_context_chars,
-                    sot_chars_formatted=sot_chars_formatted,
-                    budget_utilization_pct=budget_utilization_pct,
-                    sot_truncated=sot_truncated,
-                    sections_included=sections_included,
-                    retrieval_enabled=settings.autopack_sot_retrieval_enabled,
-                    top_k=settings.autopack_sot_retrieval_top_k,
-                    created_at=datetime.now(timezone.utc),
-                )
-                session.add(event)
-                session.commit()
-
-                logger.debug(
-                    f"[{phase_id}] SOT telemetry recorded: "
-                    f"include_sot={include_sot}, "
-                    f"chunks={sot_chunks_retrieved}, "
-                    f"chars_raw={sot_chars_raw}, "
-                    f"total={total_context_chars}/{max_context_chars} "
-                    f"({budget_utilization_pct:.1f}%)"
-                )
-            finally:
-                session.close()
-
-        except Exception as e:
-            logger.warning(f"[{phase_id}] Failed to record SOT retrieval telemetry: {e}")
-
-    def _resolve_project_docs_dir(self, project_id: str) -> Path:
-        """Resolve the correct docs directory for a project.
-
-        Args:
-            project_id: Project identifier (e.g., 'autopack', 'telemetry-collection-v5')
-
-        Returns:
-            Path to the project's docs directory
-
-        Notes:
-            - For repo-root projects (project_id == 'autopack'), uses <workspace>/docs
-            - For sub-projects, checks <workspace>/.autonomous_runs/<project_id>/docs
-            - Falls back to <workspace>/docs with a warning if sub-project docs not found
-        """
-        ws = Path(self.workspace)
-
-        # Check for sub-project docs directory
-        candidate = ws / ".autonomous_runs" / project_id / "docs"
-        if candidate.exists():
-            logger.debug(f"[Executor] Using sub-project docs dir: {candidate}")
-            return candidate
-
-        # Fallback to root docs directory
-        root_docs = ws / "docs"
-        if not candidate.exists() and project_id != "autopack":
-            logger.warning(
-                f"[Executor] Sub-project docs dir not found: {candidate}, "
-                f"falling back to {root_docs}"
-            )
-        return root_docs
-
-    def _maybe_index_sot_docs(self) -> None:
-        """Index SOT documentation files at startup if enabled.
-
-        Only indexes when:
-        - Memory service is enabled
-        - AUTOPACK_ENABLE_SOT_MEMORY_INDEXING=true
-
-        Failures are logged as warnings and do not crash the run.
-        """
-        # Log SOT configuration for operator visibility
-        logger.info(
-            f"[SOT] Configuration: "
-            f"indexing_enabled={settings.autopack_enable_sot_memory_indexing}, "
-            f"retrieval_enabled={settings.autopack_sot_retrieval_enabled}, "
-            f"memory_enabled={self.memory_service.enabled if self.memory_service else False}"
+        """Record SOT retrieval telemetry. Delegated to SOTManager in IMP-MAINT-001."""
+        self.sot_manager.record_sot_retrieval_telemetry(
+            phase_id=phase_id,
+            include_sot=include_sot,
+            max_context_chars=max_context_chars,
+            retrieved_context=retrieved_context,
+            formatted_context=formatted_context,
         )
 
-        if not self.memory_service or not self.memory_service.enabled:
-            logger.debug("[SOT] Memory service disabled, skipping SOT indexing")
-            return
+    def _resolve_project_docs_dir(self, project_id: str) -> Path:
+        """Resolve project docs directory. Delegated to SOTManager in IMP-MAINT-001."""
+        return self.sot_manager.resolve_project_docs_dir(project_id)
 
+    def _maybe_index_sot_docs(self) -> None:
+        """Index SOT docs at startup. Delegated to SOTManager in IMP-MAINT-001."""
         project_id = self._get_project_slug() or self.run_id
-
-        # Optional: if tidy marked SOT as dirty, we can opportunistically re-index at startup.
-        # This keeps the "tidy → SOT → semantic indexing → retrieval" pipeline fresh without re-indexing on every run.
-        ws = Path(self.workspace)
-        if project_id == "autopack":
-            dirty_marker = ws / ".autonomous_runs" / "sot_index_dirty_autopack.json"
-        else:
-            dirty_marker = (
-                ws / ".autonomous_runs" / project_id / ".autonomous_runs" / "sot_index_dirty.json"
-            )
-
-        dirty_requested = dirty_marker.exists()
-
-        if not settings.autopack_enable_sot_memory_indexing:
-            if dirty_requested:
-                logger.info(
-                    f"[SOT] Dirty marker present but indexing disabled; leaving marker in place: {dirty_marker}"
-                )
-            else:
-                logger.debug("[SOT] SOT indexing disabled by config")
-            return
-
-        try:
-            docs_dir = self._resolve_project_docs_dir(project_id=project_id)
-            if dirty_requested:
-                logger.info(f"[SOT] Dirty marker detected; re-indexing SOT now: {dirty_marker}")
-            logger.info(f"[SOT] Starting indexing for project={project_id}, docs_dir={docs_dir}")
-
-            result = self.memory_service.index_sot_docs(
-                project_id=project_id,
-                workspace_root=Path(self.workspace),
-                docs_dir=docs_dir,
-            )
-
-            if result.get("skipped"):
-                logger.info(f"[SOT] Indexing skipped: {result.get('reason', 'unknown')}")
-            else:
-                indexed_count = result.get("indexed", 0)
-                logger.info(
-                    f"[SOT] Indexing complete: {indexed_count} chunks indexed "
-                    f"(project={project_id}, docs={docs_dir})"
-                )
-
-            # Clear dirty marker only after a successful indexing attempt (even if it indexed 0).
-            if dirty_requested:
-                try:
-                    dirty_marker.unlink(missing_ok=True)
-                    logger.info(f"[SOT] Cleared dirty marker: {dirty_marker}")
-                except Exception as e:
-                    logger.warning(f"[SOT] Failed to clear dirty marker {dirty_marker}: {e}")
-        except Exception as e:
-            logger.warning(f"[SOT] Indexing failed: {e}", exc_info=True)
+        self.sot_manager.maybe_index_sot_docs(project_id)
 
     def _autofix_queued_phases(self, run_data: Dict[str, Any]) -> None:
         """

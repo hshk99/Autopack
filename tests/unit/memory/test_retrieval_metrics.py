@@ -4,8 +4,8 @@ IMP-MEM-005: Tests for MemoryRetrievalMetrics, RetrievalQualityTracker,
 and integration with MemoryService.
 """
 
-from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock, patch
+from datetime import datetime, timedelta
+from unittest.mock import patch
 
 import pytest
 

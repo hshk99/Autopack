@@ -21,7 +21,10 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional
+
+if TYPE_CHECKING:
+    from ..telemetry.meta_metrics import FeedbackLoopHealth
 
 from ..file_layout import RunFileLayout
 from ..gaps.scanner import scan_workspace

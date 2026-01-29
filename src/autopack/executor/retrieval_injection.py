@@ -176,12 +176,10 @@ class RetrievalInjection:
         if budget_ratio >= FULL_RETRIEVAL_THRESHOLD:
             retrieval_mode = "full"
             max_entries = 10
-            log_level = "info"
             reason = "Budget available for full SOT retrieval"
         elif budget_ratio >= REDUCED_RETRIEVAL_THRESHOLD:
             retrieval_mode = "reduced"
             max_entries = 5
-            log_level = "info"
             reason = "Budget tight - using reduced retrieval"
             logger.info(
                 f"{prefix}[SOT] Budget tight ({budget_ratio:.1%}) - using reduced retrieval"
@@ -189,7 +187,6 @@ class RetrievalInjection:
         elif budget_ratio >= SUMMARY_ONLY_THRESHOLD:
             retrieval_mode = "summary"
             max_entries = 2
-            log_level = "info"
             reason = "Budget very tight - summary only"
             logger.info(f"{prefix}[SOT] Budget very tight ({budget_ratio:.1%}) - summary only")
         else:

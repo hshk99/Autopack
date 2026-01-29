@@ -742,7 +742,7 @@ class LearningPipeline:
 
                 # Fallback: match on phase_id in content
                 if hint.phase_id in content:
-                    logger.debug(f"[IMP-LEARN-002] Verification succeeded via phase_id match")
+                    logger.debug("[IMP-LEARN-002] Verification succeeded via phase_id match")
                     return True
 
             # If we got any results with matching hint_type, consider it a weak success
@@ -750,7 +750,7 @@ class LearningPipeline:
                 insight_type = result.get("insight_type", "")
                 expected_type = self._map_hint_type_to_insight_type(hint.hint_type)
                 if insight_type == expected_type:
-                    logger.debug(f"[IMP-LEARN-002] Verification succeeded via insight_type match")
+                    logger.debug("[IMP-LEARN-002] Verification succeeded via insight_type match")
                     return True
 
             logger.debug(

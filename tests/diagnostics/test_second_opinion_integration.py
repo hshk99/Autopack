@@ -6,9 +6,8 @@ IterativeInvestigator's evidence dict for the GoalAwareDecisionMaker.
 """
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
 
 from autopack.diagnostics.command_runner import CommandResult
 from autopack.diagnostics.diagnostics_agent import DiagnosticOutcome, DiagnosticsAgent
@@ -16,7 +15,6 @@ from autopack.diagnostics.diagnostics_models import DecisionType, PhaseSpec
 from autopack.diagnostics.goal_aware_decision import GoalAwareDecisionMaker
 from autopack.diagnostics.iterative_investigator import IterativeInvestigator
 from autopack.diagnostics.second_opinion import (
-    SecondOpinionConfig,
     SecondOpinionTriageSystem,
     TriageReport,
 )
@@ -142,7 +140,7 @@ class TestDiagnosticsAgentSecondOpinionIntegration:
             enable_second_opinion=True,
         )
 
-        outcome = agent.run_diagnostics(
+        agent.run_diagnostics(
             failure_class="test_failure",
             context={"error_message": "Test error"},
         )
@@ -221,7 +219,7 @@ class TestIterativeInvestigatorSecondOpinionIntegration:
             "error_message": "Test error",
         }
 
-        result = investigator.investigate_and_resolve(failure_context, phase_spec)
+        investigator.investigate_and_resolve(failure_context, phase_spec)
 
         # Check that decision maker was called with evidence
         assert decision_maker.make_decision.called
@@ -275,7 +273,7 @@ class TestIterativeInvestigatorSecondOpinionIntegration:
             "error_message": "Test error",
         }
 
-        result = investigator.investigate_and_resolve(failure_context, phase_spec)
+        investigator.investigate_and_resolve(failure_context, phase_spec)
 
         # Check that evidence includes second opinion
         evidence = decision_maker.make_decision.call_args[0][0]

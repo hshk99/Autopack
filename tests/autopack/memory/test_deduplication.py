@@ -9,7 +9,7 @@ Tests cover:
 """
 
 import threading
-from datetime import datetime, timezone
+from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
@@ -233,7 +233,7 @@ class TestMergeInsights:
             "collection": "run_summaries",
         }
 
-        result = memory_service._merge_insights(
+        memory_service._merge_insights(
             existing,
             {"insight_type": "cost_sink", "description": "Test", "confidence": 0.9},
         )
@@ -250,7 +250,7 @@ class TestMergeInsights:
             "collection": "run_summaries",
         }
 
-        result = memory_service._merge_insights(
+        memory_service._merge_insights(
             existing,
             {"insight_type": "cost_sink", "description": "Test", "confidence": 0.6},
         )
@@ -267,7 +267,7 @@ class TestMergeInsights:
             "collection": "run_summaries",
         }
 
-        result = memory_service._merge_insights(
+        memory_service._merge_insights(
             existing, {"insight_type": "cost_sink", "description": "Test"}
         )
 

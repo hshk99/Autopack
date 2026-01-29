@@ -8,17 +8,13 @@ Tests cover:
 """
 
 import json
-import tempfile
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 from autopack.learned_rules import (
     DiscoveryStage,
     LearnedRule,
-    LearnedRuleAging,
     RuleAgingTracker,
     get_active_rules_for_phase,
     record_rule_validation_outcome,

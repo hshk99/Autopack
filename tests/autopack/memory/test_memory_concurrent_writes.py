@@ -11,7 +11,6 @@ Tests cover:
 
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import Mock, patch
 
 import pytest

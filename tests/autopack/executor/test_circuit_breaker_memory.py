@@ -10,7 +10,6 @@ Tests cover:
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
-import pytest
 
 from autopack.feedback_pipeline import FeedbackPipeline
 

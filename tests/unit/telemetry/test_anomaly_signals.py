@@ -6,13 +6,10 @@ anomaly detection.
 """
 
 from datetime import datetime, timedelta
-from unittest.mock import patch
 
-import pytest
 
 from autopack.telemetry.anomaly_detector import (
     AlertSeverity,
-    AnomalyAlert,
     TelemetryAnomalyDetector,
 )
 

@@ -31,7 +31,7 @@ from autopack.diagnostics.diagnostics_models import (Decision, DecisionType,
                                                      ExecutionResult,
                                                      PhaseSpec,
                                                      ValidationResult)
-from autopack.diagnostics.probes import Probe, ProbeLibrary, ProbeRunResult
+from autopack.diagnostics.probes import ProbeLibrary, ProbeRunResult
 from autopack.memory import MemoryService
 
 logger = logging.getLogger(__name__)

@@ -7,11 +7,8 @@ Tests the enhanced patch conflict recovery functionality that includes:
 """
 
 import subprocess
-import tempfile
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from autopack.diagnostics.decision_executor import DecisionExecutor
 from autopack.diagnostics.diagnostics_models import (

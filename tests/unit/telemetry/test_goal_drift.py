@@ -6,9 +6,8 @@ detects when task generation drifts from stated objectives.
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
-import pytest
 
 from autopack.telemetry.meta_metrics import GoalDriftDetector, GoalDriftResult
 

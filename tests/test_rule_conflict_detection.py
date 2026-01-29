@@ -12,7 +12,6 @@ Tests cover:
 
 from datetime import datetime, timezone
 
-import pytest
 
 from autopack.learned_rules import (
     DiscoveryStage,

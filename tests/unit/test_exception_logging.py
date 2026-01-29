@@ -5,9 +5,8 @@ now properly log exceptions with telemetry markers.
 """
 
 import logging
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 
 class TestMemoryServiceExceptionLogging:

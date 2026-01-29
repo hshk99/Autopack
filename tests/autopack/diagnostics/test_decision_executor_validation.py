@@ -8,10 +8,8 @@ Tests the post-execution validation functionality that includes:
 """
 
 import subprocess
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from autopack.diagnostics.command_runner import CommandResult
 from autopack.diagnostics.decision_executor import DecisionExecutor

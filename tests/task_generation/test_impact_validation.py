@@ -306,10 +306,10 @@ class TestEstimateImpactWithCalibration:
         # Try with a value that changes classification
         insight2 = {"health_score": 0.52}  # Between 0.5 and 0.6
         generator._threshold_adjustments["critical"] = 0.0
-        result_without_adj = generator.estimate_impact(insight2)
+        generator.estimate_impact(insight2)
 
         generator._threshold_adjustments["critical"] = 0.1
-        result_with_adj = generator.estimate_impact(insight2)
+        generator.estimate_impact(insight2)
 
         # 0.52 > 0.5 (base) -> high
         # 0.52 < 0.6 (adjusted) -> still high

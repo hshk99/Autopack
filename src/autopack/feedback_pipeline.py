@@ -28,13 +28,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from autopack.telemetry.meta_metrics import (
-    ContextInjectionEffectivenessTracker, FeedbackLoopHealth,
-    MetaMetricsTracker, PipelineLatencyTracker, PipelineStage)
+    ContextInjectionEffectivenessTracker,
+    FeedbackLoopHealth,
+    MetaMetricsTracker,
+    PipelineLatencyTracker,
+    PipelineStage,
+)
 
 if TYPE_CHECKING:
     from autopack.learning_memory_manager import LearningMemoryManager
-    from autopack.task_generation.task_effectiveness_tracker import \
-        TaskEffectivenessTracker
+    from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +59,9 @@ class PhaseOutcome:
         project_id: Project identifier for namespacing
         context_injected: IMP-LOOP-029: Whether memory context was injected
         context_item_count: IMP-LOOP-029: Number of context items injected
+        context_tokens: IMP-LOOP-036: Estimated tokens in injected context
         generated_task_id: IMP-LOOP-028: ID of the generated task that triggered this phase
+        metadata: IMP-LOOP-036: Extensible metadata dict for additional tracking
     """
 
     phase_id: str
@@ -71,7 +76,9 @@ class PhaseOutcome:
     project_id: Optional[str] = None
     context_injected: Optional[bool] = None  # IMP-LOOP-029
     context_item_count: Optional[int] = None  # IMP-LOOP-029
+    context_tokens: Optional[int] = None  # IMP-LOOP-036
     generated_task_id: Optional[str] = None  # IMP-LOOP-028
+    metadata: Optional[Dict[str, Any]] = None  # IMP-LOOP-036
 
 
 @dataclass
@@ -348,6 +355,13 @@ class FeedbackPipeline:
                 logger.debug(f"[IMP-LOOP-001] Outcome already processed: {outcome_key}")
                 result["success"] = True
                 return result
+
+            # IMP-LOOP-036: Track context injection in metadata
+            if outcome.metadata is None:
+                outcome.metadata = {}
+            outcome.metadata["context_injected"] = outcome.context_injected
+            outcome.metadata["context_item_count"] = outcome.context_item_count
+            outcome.metadata["context_tokens"] = outcome.context_tokens
 
             # 1. Create telemetry insight from outcome
             insight = self._create_insight_from_outcome(outcome)
@@ -627,6 +641,9 @@ class FeedbackPipeline:
                 )
                 return
 
+            # IMP-LOOP-036: Also track context_tokens
+            context_tokens = getattr(outcome, "context_tokens", None) or 0
+
             # Record the result
             self._context_injection_tracker.record_result(
                 had_context=bool(had_context),
@@ -637,12 +654,14 @@ class FeedbackPipeline:
                     "phase_type": outcome.phase_type,
                     "execution_time_seconds": outcome.execution_time_seconds,
                     "tokens_used": outcome.tokens_used,
+                    "context_tokens": context_tokens,  # IMP-LOOP-036
                 },
             )
 
             logger.debug(
                 f"[IMP-LOOP-029] Tracked context injection: phase={outcome.phase_id}, "
-                f"had_context={had_context}, success={outcome.success}"
+                f"had_context={had_context}, success={outcome.success}, "
+                f"context_tokens={context_tokens}"  # IMP-LOOP-036
             )
 
         except Exception as e:

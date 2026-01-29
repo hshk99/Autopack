@@ -95,6 +95,45 @@ class ContextInjectionImpact:
 
 
 @dataclass
+class ContextInjectionReport:
+    """Report measuring context injection effectiveness (IMP-LOOP-036).
+
+    Provides A/B comparison of phases with vs without context injection
+    to measure whether memory-based context retrieval actually improves
+    success rates. Includes statistical significance calculation.
+
+    Attributes:
+        success_rate_with_context: Success rate for phases with context injection.
+        success_rate_without_context: Success rate for phases without context injection.
+        lift: Absolute improvement (with - without).
+        lift_percentage: Relative improvement as percentage.
+        with_context_count: Number of phases with context injection.
+        without_context_count: Number of phases without context injection.
+        avg_context_tokens: Average tokens in injected context.
+        statistical_significance: P-value or significance indicator.
+        is_significant: True if lift is statistically significant.
+        analysis_window_days: Number of days analyzed.
+        generated_at: ISO timestamp when report was generated.
+    """
+
+    success_rate_with_context: float
+    success_rate_without_context: float
+    lift: float
+    lift_percentage: float
+    with_context_count: int
+    without_context_count: int
+    avg_context_tokens: float
+    statistical_significance: float
+    is_significant: bool
+    analysis_window_days: int = 7
+    generated_at: str = ""
+
+    def __post_init__(self):
+        if not self.generated_at:
+            self.generated_at = datetime.now(timezone.utc).isoformat()
+
+
+@dataclass
 class ModelCategoryStats:
     """Per-model statistics for a specific task category (IMP-LOOP-032).
 
@@ -290,8 +329,7 @@ class TelemetryAnalyzer:
 
         # NEW: Persist to memory for future retrieval
         if self.memory_service and self.memory_service.enabled:
-            from autopack.telemetry.telemetry_to_memory_bridge import \
-                TelemetryToMemoryBridge
+            from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
 
             bridge = TelemetryToMemoryBridge(self.memory_service)
             # Convert RankedIssue objects to dicts for bridge
@@ -1189,6 +1227,183 @@ class TelemetryAnalyzer:
 
         return impact
 
+    def measure_context_injection_effectiveness(
+        self, window_days: int = 7
+    ) -> ContextInjectionReport:
+        """Measure context injection effectiveness with statistical analysis (IMP-LOOP-036).
+
+        Compares success rates between phases with and without context injection
+        to measure the effectiveness of memory-based context retrieval. Includes
+        statistical significance calculation using chi-squared test approximation.
+
+        This method differs from analyze_context_injection_impact by:
+        - Returning a ContextInjectionReport with lift percentage and significance
+        - Including average context tokens (not just item count)
+        - Providing more detailed statistical analysis
+
+        Args:
+            window_days: Number of days to look back (default: 7)
+
+        Returns:
+            ContextInjectionReport with A/B comparison and statistical significance
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+
+        # Query phases with context injection
+        with_context_result = self.db.execute(
+            text("""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN phase_outcome = 'SUCCESS' THEN 1 ELSE 0 END) as successes,
+                AVG(context_item_count) as avg_items,
+                AVG(tokens_used) as avg_tokens
+            FROM phase_outcome_events
+            WHERE timestamp >= :cutoff
+                AND context_injected = true
+            """),
+            {"cutoff": cutoff},
+        )
+        with_row = with_context_result.fetchone()
+
+        # Query phases without context injection
+        without_context_result = self.db.execute(
+            text("""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN phase_outcome = 'SUCCESS' THEN 1 ELSE 0 END) as successes
+            FROM phase_outcome_events
+            WHERE timestamp >= :cutoff
+                AND (context_injected = false OR context_injected IS NULL)
+            """),
+            {"cutoff": cutoff},
+        )
+        without_row = without_context_result.fetchone()
+
+        # Extract values with defaults
+        with_count = with_row.total or 0 if with_row else 0
+        with_successes = with_row.successes or 0 if with_row else 0
+        avg_tokens = with_row.avg_tokens or 0.0 if with_row else 0.0
+
+        without_count = without_row.total or 0 if without_row else 0
+        without_successes = without_row.successes or 0 if without_row else 0
+
+        # Calculate success rates
+        success_with = with_successes / max(with_count, 1)
+        success_without = without_successes / max(without_count, 1)
+
+        # Calculate lift (absolute and percentage)
+        lift = success_with - success_without
+        lift_percentage = (lift / success_without * 100) if success_without > 0 else 0.0
+
+        # Calculate statistical significance using chi-squared approximation
+        statistical_significance = self._calculate_significance(
+            with_count, with_successes, without_count, without_successes
+        )
+
+        # Determine if significant (p < 0.05 and minimum sample sizes)
+        is_significant = (
+            statistical_significance < 0.05 and with_count >= 10 and without_count >= 10
+        )
+
+        report = ContextInjectionReport(
+            success_rate_with_context=success_with,
+            success_rate_without_context=success_without,
+            lift=lift,
+            lift_percentage=lift_percentage,
+            with_context_count=with_count,
+            without_context_count=without_count,
+            avg_context_tokens=avg_tokens,
+            statistical_significance=statistical_significance,
+            is_significant=is_significant,
+            analysis_window_days=window_days,
+        )
+
+        logger.info(
+            f"[IMP-LOOP-036] Context injection effectiveness: "
+            f"with_context={success_with:.1%} ({with_count} phases), "
+            f"without_context={success_without:.1%} ({without_count} phases), "
+            f"lift={lift:+.1%} ({lift_percentage:+.1f}%), "
+            f"significant={is_significant} (p={statistical_significance:.4f})"
+        )
+
+        return report
+
+    def _calculate_significance(
+        self,
+        n1: int,
+        successes1: int,
+        n2: int,
+        successes2: int,
+    ) -> float:
+        """Calculate statistical significance for A/B comparison (IMP-LOOP-036).
+
+        Uses a chi-squared approximation for testing whether the success rates
+        are significantly different between two groups.
+
+        Args:
+            n1: Sample size of group 1 (with context)
+            successes1: Number of successes in group 1
+            n2: Sample size of group 2 (without context)
+            successes2: Number of successes in group 2
+
+        Returns:
+            Approximate p-value (0.0-1.0). Lower values indicate more significant
+            difference. Returns 1.0 if sample sizes are too small.
+        """
+        import math
+
+        # Minimum sample size for meaningful analysis
+        if n1 < 5 or n2 < 5:
+            return 1.0
+
+        # Calculate proportions
+        p1 = successes1 / n1
+        p2 = successes2 / n2
+
+        # Pooled proportion
+        pooled = (successes1 + successes2) / (n1 + n2)
+
+        # Avoid division by zero
+        if pooled == 0 or pooled == 1:
+            return 1.0
+
+        # Standard error of the difference
+        se = math.sqrt(pooled * (1 - pooled) * (1 / n1 + 1 / n2))
+
+        # Avoid division by zero
+        if se == 0:
+            return 1.0
+
+        # Z-score
+        z = (p1 - p2) / se
+
+        # Two-tailed p-value approximation using normal CDF
+        # Using the approximation: p ≈ 2 * (1 - Φ(|z|))
+        # where Φ is the standard normal CDF
+        abs_z = abs(z)
+
+        # Simple approximation for normal CDF tail probability
+        # For |z| > 3, p-value is very small
+        if abs_z >= 3.5:
+            p_value = 0.0005
+        elif abs_z >= 3.0:
+            p_value = 0.003
+        elif abs_z >= 2.576:
+            p_value = 0.01
+        elif abs_z >= 2.326:
+            p_value = 0.02
+        elif abs_z >= 1.96:
+            p_value = 0.05
+        elif abs_z >= 1.645:
+            p_value = 0.10
+        elif abs_z >= 1.282:
+            p_value = 0.20
+        else:
+            # Linear interpolation for small z values
+            p_value = min(1.0, 0.5 - abs_z * 0.25)
+
+        return round(p_value, 4)
+
     def get_model_effectiveness_by_category(
         self, window_days: int = 7, min_samples: int = 5
     ) -> ModelEffectivenessReport:
@@ -1384,8 +1599,7 @@ class TelemetryAnalyzer:
 
         # Persist to memory if available (same pattern as aggregate_telemetry)
         if self.memory_service and self.memory_service.enabled and ranked_issues:
-            from autopack.telemetry.telemetry_to_memory_bridge import \
-                TelemetryToMemoryBridge
+            from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
 
             bridge = TelemetryToMemoryBridge(self.memory_service)
             flat_issues = []

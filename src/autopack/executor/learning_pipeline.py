@@ -110,6 +110,42 @@ class LearningHint:
         return max(0.0, self.confidence * decay_factor - failure_penalty)
 
 
+@dataclass
+class SuccessPattern:
+    """Pattern learned from successful phase execution.
+
+    IMP-LOOP-027: Captures positive reinforcement patterns from successes,
+    enabling the learning pipeline to know 'what works' not just 'what fails'.
+    """
+
+    phase_id: str
+    action_taken: str  # Description of the successful action
+    context_summary: str  # Context that led to success
+    recorded_at: float
+    task_category: Optional[str] = None
+    # Confidence scoring fields (similar to LearningHint)
+    confidence: float = 0.8  # Initial confidence for new patterns
+    occurrence_count: int = 1
+
+    def calculate_confidence(self) -> float:
+        """Calculate confidence based on occurrence count.
+
+        IMP-LOOP-027: Success patterns gain confidence with repeated occurrences,
+        capped at 1.0 after 5 occurrences.
+
+        Returns:
+            Confidence score between 0.0 and 1.0
+        """
+        # Base confidence starts at 0.8, increases with occurrences (max at 5)
+        self.confidence = min(1.0, 0.8 + (self.occurrence_count - 1) * 0.05)
+        return self.confidence
+
+    def increment_occurrence(self) -> None:
+        """Increment occurrence count and recalculate confidence."""
+        self.occurrence_count += 1
+        self.calculate_confidence()
+
+
 class LearningPipeline:
     """
     Records lessons learned during troubleshooting.
@@ -138,6 +174,8 @@ class LearningPipeline:
         """
         self.run_id = run_id
         self._hints: List[LearningHint] = []
+        # IMP-LOOP-027: Track success patterns for positive reinforcement learning
+        self._success_patterns: List[SuccessPattern] = []
         self._memory_service = memory_service
         self._project_id = project_id
         # IMP-LOOP-018: Track applied rules per phase for effectiveness tracking
@@ -192,6 +230,202 @@ class LearningPipeline:
         except Exception as e:
             # Don't let hint recording break phase execution
             logger.warning(f"[Learning] Failed to record hint: {e}")
+
+    def record_success_pattern(self, phase: Dict, action_taken: str, context_summary: str) -> None:
+        """
+        Record a success pattern for positive reinforcement learning.
+
+        IMP-LOOP-027: Captures successful patterns to enable the learning pipeline
+        to know 'what works' alongside 'what fails'. Success patterns are used to
+        reinforce effective strategies in future phases.
+
+        Args:
+            phase: Phase specification dict
+            action_taken: Description of the successful action/approach
+            context_summary: Summary of the context that led to success
+        """
+        try:
+            phase_id = phase.get("phase_id", "unknown")
+            task_category = phase.get("task_category")
+
+            # Check for similar existing pattern
+            existing = self._find_similar_success_pattern(phase_id, action_taken, task_category)
+
+            if existing:
+                # Boost confidence of existing pattern
+                existing.increment_occurrence()
+                logger.debug(
+                    f"[Learning] Boosted success pattern for {phase_id} "
+                    f"(occurrences: {existing.occurrence_count}, "
+                    f"confidence: {existing.confidence:.2f})"
+                )
+            else:
+                # Create new success pattern
+                pattern = SuccessPattern(
+                    phase_id=phase_id,
+                    action_taken=action_taken,
+                    context_summary=context_summary,
+                    recorded_at=time.time(),
+                    task_category=task_category,
+                    confidence=0.8,  # Initial confidence for new patterns
+                    occurrence_count=1,
+                )
+                self._success_patterns.append(pattern)
+
+                # Persist to memory if available
+                self._persist_success_pattern_to_memory(pattern)
+
+                logger.debug(f"[Learning] Recorded success pattern for {phase_id}")
+
+        except Exception as e:
+            # Don't let success pattern recording break phase execution
+            logger.warning(f"[Learning] Failed to record success pattern: {e}")
+
+    def _find_similar_success_pattern(
+        self,
+        phase_id: str,
+        action_taken: str,
+        task_category: Optional[str],
+    ) -> Optional[SuccessPattern]:
+        """
+        Find an existing similar success pattern.
+
+        IMP-LOOP-027: Matches patterns by phase_id and task_category to avoid
+        recording duplicate patterns.
+
+        Args:
+            phase_id: Phase identifier
+            action_taken: Action description
+            task_category: Task category for broader matching
+
+        Returns:
+            Existing SuccessPattern if found, None otherwise
+        """
+        for pattern in self._success_patterns:
+            # Match on phase_id (exact match)
+            if pattern.phase_id == phase_id:
+                return pattern
+
+            # Match on task_category if available (broader match)
+            if (
+                task_category is not None
+                and pattern.task_category is not None
+                and pattern.task_category == task_category
+                and pattern.action_taken == action_taken
+            ):
+                return pattern
+
+        return None
+
+    def _persist_success_pattern_to_memory(self, pattern: SuccessPattern) -> bool:
+        """
+        Persist a success pattern to memory service.
+
+        IMP-LOOP-027: Stores success patterns in memory for cross-run learning,
+        allowing future runs to benefit from successful strategies.
+
+        Args:
+            pattern: The SuccessPattern to persist
+
+        Returns:
+            True if persistence succeeded, False otherwise
+        """
+        if not self._memory_service or not getattr(self._memory_service, "enabled", False):
+            return False
+
+        try:
+            insight = {
+                "insight_type": "success_pattern",
+                "description": f"Success pattern for {pattern.phase_id}: {pattern.action_taken}",
+                "phase_id": pattern.phase_id,
+                "run_id": self.run_id,
+                "content": pattern.context_summary,
+                "suggested_action": pattern.action_taken,
+                "severity": "info",
+                "confidence": pattern.confidence,
+                "task_category": pattern.task_category,
+                "pattern_id": f"{self.run_id}:{pattern.phase_id}:success",
+                "occurrence_count": pattern.occurrence_count,
+            }
+
+            result = self._memory_service.write_telemetry_insight(
+                insight=insight,
+                project_id=self._project_id,
+                validate=True,
+                strict=False,
+            )
+
+            if result:
+                logger.debug(f"[Learning] Persisted success pattern for {pattern.phase_id}")
+                return True
+
+        except Exception as e:
+            logger.warning(
+                f"[Learning] Failed to persist success pattern for " f"{pattern.phase_id}: {e}"
+            )
+
+        return False
+
+    def get_success_patterns_for_phase(
+        self,
+        phase: Dict,
+        task_category: Optional[str] = None,
+    ) -> List[SuccessPattern]:
+        """
+        Get relevant success patterns for a phase.
+
+        IMP-LOOP-027: Returns success patterns that may be relevant to the
+        current phase based on phase_id or task_category matching.
+
+        Args:
+            phase: Phase specification dict
+            task_category: Optional task category filter
+
+        Returns:
+            List of relevant SuccessPattern objects, sorted by confidence
+        """
+        phase_id = phase.get("phase_id")
+        phase_task_category = phase.get("task_category") or task_category
+
+        relevant_patterns: List[SuccessPattern] = []
+
+        for pattern in self._success_patterns:
+            # Same phase ID
+            if pattern.phase_id == phase_id:
+                relevant_patterns.append(pattern)
+                continue
+
+            # Same category (if available on both pattern and phase)
+            if (
+                phase_task_category is not None
+                and pattern.task_category is not None
+                and pattern.task_category == phase_task_category
+            ):
+                relevant_patterns.append(pattern)
+
+        # Sort by confidence (highest first)
+        relevant_patterns.sort(key=lambda p: p.confidence, reverse=True)
+
+        return relevant_patterns[:10]  # Limit to top 10
+
+    def get_all_success_patterns(self) -> List[SuccessPattern]:
+        """Get all recorded success patterns.
+
+        IMP-LOOP-027: Returns the complete list of success patterns for
+        analysis or debugging purposes.
+
+        Returns:
+            List of all SuccessPattern objects
+        """
+        return self._success_patterns
+
+    def get_success_pattern_count(self) -> int:
+        """Get total number of success patterns recorded.
+
+        Returns:
+            Count of success patterns
+        """
+        return len(self._success_patterns)
 
     def get_hints_for_phase(
         self,

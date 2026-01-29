@@ -494,3 +494,217 @@ def create_execute_fix_checkpoint(workspace: Path, phase_id: str) -> bool:
     except Exception as e:
         logger.warning(f"[Doctor] Failed to create git checkpoint: {e}")
         return False
+
+
+# =============================================================================
+# IMP-REL-015: EXECUTOR CRASH RECOVERY WITH STATE PERSISTENCE
+# =============================================================================
+# These classes and functions support automatic recovery from executor crashes
+# mid-run. State is persisted to JSON file and checked on startup.
+
+
+import json
+from dataclasses import asdict, dataclass, field
+from typing import Any, Dict
+
+
+@dataclass
+class ExecutorState:
+    """Snapshot of executor state for crash recovery.
+
+    Captures the essential state needed to resume an interrupted run:
+    - run_id: Identifies which run was interrupted
+    - current_wave: Which wave was being executed (for wave-based execution)
+    - completed_phases: Phases that finished successfully
+    - pending_phases: Phases remaining to execute
+    - in_progress_phase: Phase that was executing when crash occurred
+    - iteration_count: Loop iteration number for progress tracking
+    - status: 'in_progress' while running, 'completed' when finished cleanly
+    """
+
+    run_id: str
+    status: str = "in_progress"
+    current_wave: int = 0
+    completed_phases: List[str] = field(default_factory=list)
+    pending_phases: List[str] = field(default_factory=list)
+    in_progress_phase: Optional[str] = None
+    iteration_count: int = 0
+    phases_executed: int = 0
+    phases_failed: int = 0
+    timestamp: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ExecutorState":
+        """Create from dictionary (JSON deserialization)."""
+        return cls(**data)
+
+
+class ExecutorStateCheckpoint:
+    """Manages executor state persistence for crash recovery.
+
+    IMP-REL-015: Provides checkpoint/recovery mechanism so that if the executor
+    process crashes mid-run, the next startup can detect and resume from the
+    last known state instead of starting over or leaving orphaned phases.
+
+    State is persisted to a JSON file in the .autopack directory.
+    """
+
+    CHECKPOINT_DIR = Path(".autopack")
+    CHECKPOINT_FILENAME = "executor_state.json"
+
+    def __init__(self, run_id: str, workspace: Path):
+        """Initialize checkpoint manager.
+
+        Args:
+            run_id: Unique run identifier
+            workspace: Workspace root path
+        """
+        self.run_id = run_id
+        self.workspace = Path(workspace).resolve()
+        self._checkpoint_path = self.workspace / self.CHECKPOINT_DIR / self.CHECKPOINT_FILENAME
+
+    @property
+    def checkpoint_path(self) -> Path:
+        """Get path to checkpoint file."""
+        return self._checkpoint_path
+
+    def save_state(self, state: ExecutorState) -> bool:
+        """Persist current executor state to checkpoint file.
+
+        Called periodically during execution (e.g., on each phase transition)
+        to capture progress. If the process crashes, this state can be recovered.
+
+        Args:
+            state: Current executor state to persist
+
+        Returns:
+            True if save succeeded, False otherwise
+        """
+        try:
+            # Ensure directory exists
+            self._checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Update timestamp
+            state.timestamp = datetime.utcnow().isoformat()
+            state.status = "in_progress"
+
+            # Write atomically by writing to temp file first
+            temp_path = self._checkpoint_path.with_suffix(".tmp")
+            temp_path.write_text(json.dumps(state.to_dict(), indent=2))
+            temp_path.replace(self._checkpoint_path)
+
+            logger.debug(
+                f"[IMP-REL-015] Checkpoint saved: phase={state.in_progress_phase}, "
+                f"iteration={state.iteration_count}, "
+                f"completed={len(state.completed_phases)}"
+            )
+            return True
+
+        except Exception as e:
+            logger.warning(f"[IMP-REL-015] Failed to save checkpoint: {e}")
+            return False
+
+    def recover_interrupted_run(self) -> Optional[ExecutorState]:
+        """Detect and restore state from an interrupted run.
+
+        Checks if a checkpoint file exists with status='in_progress', indicating
+        the previous execution crashed without completing cleanly.
+
+        Returns:
+            ExecutorState if interrupted run found, None otherwise
+        """
+        if not self._checkpoint_path.exists():
+            logger.debug("[IMP-REL-015] No checkpoint file found - clean start")
+            return None
+
+        try:
+            state_data = json.loads(self._checkpoint_path.read_text())
+            state = ExecutorState.from_dict(state_data)
+
+            # Only recover if same run_id and status is in_progress (not completed)
+            if state.run_id != self.run_id:
+                logger.debug(
+                    f"[IMP-REL-015] Checkpoint for different run: {state.run_id} != {self.run_id}"
+                )
+                return None
+
+            if state.status == "completed":
+                logger.debug("[IMP-REL-015] Previous run completed cleanly - no recovery needed")
+                return None
+
+            # Found interrupted run
+            logger.warning(
+                f"[IMP-REL-015] Detected interrupted run: "
+                f"run_id={state.run_id}, "
+                f"wave={state.current_wave}, "
+                f"in_progress_phase={state.in_progress_phase}, "
+                f"completed_phases={len(state.completed_phases)}, "
+                f"timestamp={state.timestamp}"
+            )
+            return state
+
+        except json.JSONDecodeError as e:
+            logger.warning(f"[IMP-REL-015] Corrupted checkpoint file: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"[IMP-REL-015] Failed to read checkpoint: {e}")
+            return None
+
+    def mark_completed(self) -> bool:
+        """Mark current run as cleanly completed.
+
+        Called when run finishes successfully. Updates status to 'completed'
+        so the next startup knows not to attempt recovery.
+
+        Returns:
+            True if update succeeded, False otherwise
+        """
+        if not self._checkpoint_path.exists():
+            # No checkpoint to update - that's fine
+            return True
+
+        try:
+            state_data = json.loads(self._checkpoint_path.read_text())
+
+            # Only update if this is our run
+            if state_data.get("run_id") != self.run_id:
+                logger.debug(f"[IMP-REL-015] Checkpoint for different run - not marking complete")
+                return True
+
+            state_data["status"] = "completed"
+            state_data["timestamp"] = datetime.utcnow().isoformat()
+            self._checkpoint_path.write_text(json.dumps(state_data, indent=2))
+
+            logger.info(
+                f"[IMP-REL-015] Run marked completed: {self.run_id} "
+                f"(phases_executed={state_data.get('phases_executed', 0)})"
+            )
+            return True
+
+        except Exception as e:
+            logger.warning(f"[IMP-REL-015] Failed to mark run complete: {e}")
+            return False
+
+    def clear_checkpoint(self) -> bool:
+        """Remove checkpoint file (optional cleanup).
+
+        Args:
+            None
+
+        Returns:
+            True if cleared or didn't exist, False on error
+        """
+        if not self._checkpoint_path.exists():
+            return True
+
+        try:
+            self._checkpoint_path.unlink()
+            logger.debug(f"[IMP-REL-015] Checkpoint cleared: {self._checkpoint_path}")
+            return True
+        except Exception as e:
+            logger.warning(f"[IMP-REL-015] Failed to clear checkpoint: {e}")
+            return False

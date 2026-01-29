@@ -18,6 +18,7 @@ The pipeline ensures that lessons learned from each phase execution are:
 4. IMP-LOOP-017: Analyzed for effectiveness patterns that generate learning rules
 """
 
+import atexit
 import json
 import logging
 import threading
@@ -26,14 +27,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
-                                             MetaMetricsTracker,
-                                             PipelineLatencyTracker,
-                                             PipelineStage)
+from autopack.telemetry.meta_metrics import (
+    FeedbackLoopHealth,
+    MetaMetricsTracker,
+    PipelineLatencyTracker,
+    PipelineStage,
+)
 
 if TYPE_CHECKING:
-    from autopack.task_generation.task_effectiveness_tracker import \
-        TaskEffectivenessTracker
+    from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
 
 logger = logging.getLogger(__name__)
 
@@ -207,6 +209,10 @@ class FeedbackPipeline:
         if self._auto_flush_enabled:
             self._start_auto_flush_timer()
 
+        # IMP-REL-010: Register atexit handler to flush on process shutdown
+        # This ensures insights are not lost if the process exits before auto-flush
+        atexit.register(self._shutdown_flush)
+
         logger.info(
             f"[IMP-LOOP-001] FeedbackPipeline initialized "
             f"(run_id={self.run_id}, project_id={self.project_id}, enabled={self.enabled}, "
@@ -375,6 +381,11 @@ class FeedbackPipeline:
                 f"[IMP-LOOP-001] Processed outcome for {outcome.phase_id} "
                 f"(success={outcome.success}, insights={result['insights_created']})"
             )
+
+            # IMP-REL-010: Eager flush on phase completion to prevent data loss
+            # This ensures insights are persisted immediately rather than waiting
+            # for the 5-minute auto-flush timer, which may not fire if process exits
+            self._eager_flush_phase_insights()
 
             # IMP-LOOP-017: Check effectiveness patterns and create rules
             self._check_effectiveness_rules()
@@ -650,7 +661,7 @@ class FeedbackPipeline:
         self._flush_timer.daemon = True
         self._flush_timer.start()
         logger.debug(
-            f"[IMP-LOOP-004] Auto-flush timer started " f"(interval={self._auto_flush_interval}s)"
+            f"[IMP-LOOP-004] Auto-flush timer started (interval={self._auto_flush_interval}s)"
         )
 
     def _auto_flush(self) -> None:
@@ -715,10 +726,67 @@ class FeedbackPipeline:
             has_pending = bool(self._pending_insights)
             pending_count = len(self._pending_insights)
         if has_pending:
-            logger.info(
-                f"[IMP-LOOP-004] Flushing {pending_count} " "remaining insights on shutdown"
-            )
+            logger.info(f"[IMP-LOOP-004] Flushing {pending_count} remaining insights on shutdown")
             self.flush_pending_insights()
+
+    def _shutdown_flush(self) -> None:
+        """Perform final flush on process shutdown.
+
+        IMP-REL-010: Called via atexit to ensure all pending insights are
+        persisted before the process terminates. This prevents data loss
+        when the process exits unexpectedly or before the auto-flush timer fires.
+        """
+        try:
+            # Cancel any pending timer to avoid conflicts
+            if self._flush_timer is not None:
+                self._flush_timer.cancel()
+                self._flush_timer = None
+
+            # IMP-AUTO-003: Thread-safe access to pending insights count
+            with self._insights_lock:
+                pending_count = len(self._pending_insights)
+
+            if pending_count > 0:
+                logger.info(
+                    f"[IMP-REL-010] Shutdown flush: persisting {pending_count} pending insights"
+                )
+                flushed = self.flush_pending_insights()
+                logger.info(f"[IMP-REL-010] Shutdown flush complete: {flushed} insights persisted")
+
+            # Also persist hint occurrences for cross-run learning
+            self._save_hint_occurrences()
+
+        except Exception as e:
+            # Log but don't raise - we're shutting down
+            logger.warning(f"[IMP-REL-010] Shutdown flush failed: {e}")
+
+    def _eager_flush_phase_insights(self) -> int:
+        """Perform eager flush of pending insights on phase completion.
+
+        IMP-REL-010: Called immediately after processing a phase outcome to
+        ensure insights are persisted without waiting for the auto-flush timer.
+        This prevents data loss if the process exits before the 5-minute timer fires.
+
+        Returns:
+            Number of insights flushed
+        """
+        # IMP-AUTO-003: Thread-safe access to pending insights count
+        with self._insights_lock:
+            pending_count = len(self._pending_insights)
+
+        if pending_count == 0:
+            return 0
+
+        try:
+            flushed = self.flush_pending_insights()
+            if flushed > 0:
+                logger.debug(
+                    f"[IMP-REL-010] Eager flush on phase completion: {flushed} insights persisted"
+                )
+            return flushed
+        except Exception as e:
+            logger.warning(f"[IMP-REL-010] Eager flush failed: {e}")
+            return 0
 
     def _check_and_alert_sla_breaches(self) -> List[Dict[str, Any]]:
         """Check for SLA breaches and generate alerts.
@@ -790,8 +858,7 @@ class FeedbackPipeline:
 
             if alerts_sent:
                 logger.info(
-                    f"[IMP-LOOP-022] Detected {len(alerts_sent)} SLA breach(es), "
-                    f"alerts generated"
+                    f"[IMP-LOOP-022] Detected {len(alerts_sent)} SLA breach(es), alerts generated"
                 )
 
             return alerts_sent

@@ -11,7 +11,8 @@ Tests cover:
 
 from unittest.mock import Mock
 
-from autopack.feedback_pipeline import FeedbackPipeline, PhaseContext, PhaseOutcome
+from autopack.feedback_pipeline import (FeedbackPipeline, PhaseContext,
+                                        PhaseOutcome)
 
 
 class TestPhaseOutcome:
@@ -960,3 +961,505 @@ class TestShutdownFlush:
 
         # The method should work correctly
         pipeline._shutdown_flush()  # Should not raise
+
+
+class TestHintToRulePromotion:
+    """Tests for IMP-TST-006: hint-to-rule promotion logic (_promote_hint_to_rule).
+
+    Tests cover:
+    - Multiple hint types (auditor_reject, ci_fail, patch_apply_error, etc.)
+    - Memory service failure during promotion
+    - Concurrent hint occurrences
+    - Promotion threshold behavior
+    - Edge cases for null/empty values
+    """
+
+    def test_promote_hint_with_memory_service(self):
+        """Promotion should succeed when memory service is enabled."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+        pipeline._hint_occurrences["ci_fail:build"] = 3
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+            error_message="Test failed",
+        )
+
+        result = pipeline._promote_hint_to_rule("ci_fail", "ci_fail:build", outcome)
+
+        assert result is True
+        mock_memory.write_telemetry_insight.assert_called_once()
+        assert pipeline._stats["hints_promoted_to_rules"] == 1
+
+    def test_promote_hint_without_memory_service(self):
+        """Promotion should fail gracefully without memory service."""
+        pipeline = FeedbackPipeline(memory_service=None, enabled=False)
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+        )
+
+        result = pipeline._promote_hint_to_rule("ci_fail", "ci_fail:build", outcome)
+
+        assert result is False
+        assert pipeline._stats["hints_promoted_to_rules"] == 0
+
+    def test_promote_hint_with_disabled_memory_service(self):
+        """Promotion should fail when memory service is disabled."""
+        mock_memory = Mock()
+        mock_memory.enabled = False
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+        )
+
+        result = pipeline._promote_hint_to_rule("ci_fail", "ci_fail:build", outcome)
+
+        assert result is False
+
+    def test_promote_auditor_reject_hint_type(self):
+        """Promotion should work for auditor_reject hint type."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+        pipeline._hint_occurrences["auditor_reject:review"] = 4
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="review",
+            success=False,
+            status="rejected",
+            error_message="Auditor rejected the code",
+        )
+
+        result = pipeline._promote_hint_to_rule("auditor_reject", "auditor_reject:review", outcome)
+
+        assert result is True
+        call_args = mock_memory.write_telemetry_insight.call_args
+        insight = call_args[1]["insight"]
+        assert insight["hint_type"] == "auditor_reject"
+        assert insight["is_rule"] is True
+
+    def test_promote_patch_apply_error_hint_type(self):
+        """Promotion should work for patch_apply_error hint type."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+        pipeline._hint_occurrences["patch_apply_error:fix"] = 5
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="fix",
+            success=False,
+            status="failed",
+            error_message="Patch could not be applied",
+        )
+
+        result = pipeline._promote_hint_to_rule(
+            "patch_apply_error", "patch_apply_error:fix", outcome
+        )
+
+        assert result is True
+        call_args = mock_memory.write_telemetry_insight.call_args
+        insight = call_args[1]["insight"]
+        assert insight["hint_type"] == "patch_apply_error"
+
+    def test_promote_infra_error_hint_type(self):
+        """Promotion should work for infra_error hint type."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+        pipeline._hint_occurrences["infra_error:deploy"] = 3
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="deploy",
+            success=False,
+            status="failed",
+            error_message="Network connection failed",
+        )
+
+        result = pipeline._promote_hint_to_rule("infra_error", "infra_error:deploy", outcome)
+
+        assert result is True
+        call_args = mock_memory.write_telemetry_insight.call_args
+        insight = call_args[1]["insight"]
+        assert insight["hint_type"] == "infra_error"
+
+    def test_promote_builder_guardrail_hint_type(self):
+        """Promotion should work for builder_guardrail hint type."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+        pipeline._hint_occurrences["builder_guardrail:build"] = 3
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+            error_message="Output exceeded guardrail limit",
+        )
+
+        result = pipeline._promote_hint_to_rule(
+            "builder_guardrail", "builder_guardrail:build", outcome
+        )
+
+        assert result is True
+        call_args = mock_memory.write_telemetry_insight.call_args
+        insight = call_args[1]["insight"]
+        assert insight["hint_type"] == "builder_guardrail"
+
+    def test_promote_hint_memory_service_failure(self):
+        """Promotion should handle memory service exceptions gracefully."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock(
+            side_effect=Exception("Memory service unavailable")
+        )
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+        pipeline._hint_occurrences["ci_fail:test"] = 3
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="test",
+            success=False,
+            status="failed",
+        )
+
+        result = pipeline._promote_hint_to_rule("ci_fail", "ci_fail:test", outcome)
+
+        assert result is False
+        # Stats should not be incremented on failure
+        assert pipeline._stats["hints_promoted_to_rules"] == 0
+
+    def test_promote_hint_concurrent_occurrences(self):
+        """Concurrent hint promotion should be thread-safe."""
+        import threading
+
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+        pipeline._hint_occurrences["ci_fail:build"] = 5
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+        )
+
+        results = []
+
+        def promote_thread():
+            result = pipeline._promote_hint_to_rule("ci_fail", "ci_fail:build", outcome)
+            results.append(result)
+
+        # Run multiple promotions concurrently
+        threads = [threading.Thread(target=promote_thread) for _ in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # All should succeed
+        assert all(results)
+        # Memory service should be called 5 times
+        assert mock_memory.write_telemetry_insight.call_count == 5
+
+    def test_promotion_threshold_not_reached(self):
+        """Hint should not be promoted before reaching threshold."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_learning = Mock()
+
+        pipeline = FeedbackPipeline(
+            memory_service=mock_memory,
+            learning_pipeline=mock_learning,
+            enabled=True,
+        )
+        pipeline.stop_auto_flush()
+        # Clear any persisted hint occurrences to ensure fresh start
+        pipeline._hint_occurrences = {}
+
+        # Process outcome twice (below threshold of 3)
+        for i in range(2):
+            outcome = PhaseOutcome(
+                phase_id=f"phase_{i}",
+                phase_type="build",
+                success=False,
+                status="failed",
+                error_message="Test failed",
+                run_id=f"run_{i}",
+            )
+            pipeline.process_phase_outcome(outcome)
+
+        # Promotion should not have occurred
+        assert pipeline._stats["hints_promoted_to_rules"] == 0
+
+    def test_promotion_threshold_reached(self):
+        """Hint should be promoted when threshold is reached."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_task_execution_feedback = Mock()
+        mock_memory.write_telemetry_insight = Mock()
+        mock_learning = Mock()
+
+        pipeline = FeedbackPipeline(
+            memory_service=mock_memory,
+            learning_pipeline=mock_learning,
+            enabled=True,
+        )
+        pipeline.stop_auto_flush()
+        # Clear any persisted hint occurrences to ensure fresh start
+        pipeline._hint_occurrences = {}
+
+        # Process outcome 3 times (at threshold)
+        for i in range(3):
+            outcome = PhaseOutcome(
+                phase_id=f"phase_{i}",
+                phase_type="build",
+                success=False,
+                status="failed",
+                error_message="Test failed",
+                run_id=f"run_{i}",
+            )
+            pipeline.process_phase_outcome(outcome)
+
+        # Promotion should have occurred on the 3rd occurrence
+        assert pipeline._stats["hints_promoted_to_rules"] == 1
+
+    def test_promotion_with_none_phase_type(self):
+        """Promotion should handle None phase_type gracefully."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+        pipeline._hint_occurrences["ci_fail:unknown"] = 3
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type=None,  # None phase type
+            success=False,
+            status="failed",
+        )
+
+        result = pipeline._promote_hint_to_rule("ci_fail", "ci_fail:unknown", outcome)
+
+        assert result is True
+        call_args = mock_memory.write_telemetry_insight.call_args
+        insight = call_args[1]["insight"]
+        assert insight["phase_type"] == "unknown"
+
+    def test_hint_promotion_key_generation(self):
+        """_get_hint_promotion_key should generate correct keys."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+        )
+
+        key = pipeline._get_hint_promotion_key("ci_fail", outcome)
+
+        assert key == "ci_fail:build"
+
+    def test_hint_promotion_key_with_none_phase_type(self):
+        """_get_hint_promotion_key should handle None phase_type."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type=None,
+            success=False,
+            status="failed",
+        )
+
+        key = pipeline._get_hint_promotion_key("ci_fail", outcome)
+
+        assert key == "ci_fail:unknown"
+
+    def test_generate_rule_action_auditor_reject(self):
+        """_generate_rule_action should generate appropriate action for auditor_reject."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        action = pipeline._generate_rule_action("auditor_reject", "review")
+
+        assert "review" in action.lower()
+        assert "error handling" in action.lower() or "quality" in action.lower()
+
+    def test_generate_rule_action_ci_fail(self):
+        """_generate_rule_action should generate appropriate action for ci_fail."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        action = pipeline._generate_rule_action("ci_fail", "test")
+
+        assert "test" in action.lower()
+
+    def test_generate_rule_action_patch_apply_error(self):
+        """_generate_rule_action should generate appropriate action for patch_apply_error."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        action = pipeline._generate_rule_action("patch_apply_error", "fix")
+
+        assert "fix" in action.lower()
+        assert "diff" in action.lower() or "patch" in action.lower() or "file" in action.lower()
+
+    def test_generate_rule_action_infra_error(self):
+        """_generate_rule_action should generate appropriate action for infra_error."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        action = pipeline._generate_rule_action("infra_error", "deploy")
+
+        assert "deploy" in action.lower()
+        assert "retry" in action.lower() or "api" in action.lower()
+
+    def test_generate_rule_action_builder_guardrail(self):
+        """_generate_rule_action should generate appropriate action for builder_guardrail."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        action = pipeline._generate_rule_action("builder_guardrail", "build")
+
+        assert "build" in action.lower()
+        assert "size" in action.lower() or "chunk" in action.lower() or "limit" in action.lower()
+
+    def test_generate_rule_action_unknown_type(self):
+        """_generate_rule_action should handle unknown hint types."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        action = pipeline._generate_rule_action("unknown_type", "build")
+
+        assert "build" in action.lower()
+        assert "unknown_type" in action.lower()
+
+    def test_promoted_rule_insight_structure(self):
+        """Promoted rule insight should have correct structure."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+        pipeline._hint_occurrences["ci_fail:build"] = 5
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+        )
+
+        pipeline._promote_hint_to_rule("ci_fail", "ci_fail:build", outcome)
+
+        call_args = mock_memory.write_telemetry_insight.call_args
+        insight = call_args[1]["insight"]
+
+        # Verify required fields
+        assert insight["insight_type"] == "promoted_rule"
+        assert insight["phase_type"] == "build"
+        assert insight["hint_type"] == "ci_fail"
+        assert insight["occurrences"] == 5
+        assert insight["severity"] == "high"
+        assert insight["is_rule"] is True
+        assert "suggested_action" in insight
+        assert "timestamp" in insight
+        assert "RULE" in insight["description"]
+
+    def test_promotion_updates_stats_incrementally(self):
+        """Each successful promotion should increment stats by 1."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+        )
+
+        # Promote multiple times
+        for i in range(3):
+            pipeline._hint_occurrences[f"ci_fail_{i}:build"] = 3
+            pipeline._promote_hint_to_rule("ci_fail", f"ci_fail_{i}:build", outcome)
+
+        assert pipeline._stats["hints_promoted_to_rules"] == 3
+
+    def test_promotion_uses_run_id_from_pipeline(self):
+        """Promoted rule should use run_id from pipeline."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(
+            memory_service=mock_memory, run_id="test_run_123", enabled=False
+        )
+        pipeline._hint_occurrences["ci_fail:build"] = 3
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+        )
+
+        pipeline._promote_hint_to_rule("ci_fail", "ci_fail:build", outcome)
+
+        call_args = mock_memory.write_telemetry_insight.call_args
+        insight = call_args[1]["insight"]
+        assert insight["run_id"] == "test_run_123"
+
+    def test_promotion_calls_write_telemetry_insight_with_correct_params(self):
+        """Promotion should call write_telemetry_insight with correct parameters."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(
+            memory_service=mock_memory, project_id="test_project", enabled=False
+        )
+        pipeline._hint_occurrences["ci_fail:build"] = 3
+
+        outcome = PhaseOutcome(
+            phase_id="phase_1",
+            phase_type="build",
+            success=False,
+            status="failed",
+        )
+
+        pipeline._promote_hint_to_rule("ci_fail", "ci_fail:build", outcome)
+
+        mock_memory.write_telemetry_insight.assert_called_once()
+        call_kwargs = mock_memory.write_telemetry_insight.call_args[1]
+        assert call_kwargs["project_id"] == "test_project"
+        assert call_kwargs["validate"] is True
+        assert call_kwargs["strict"] is False

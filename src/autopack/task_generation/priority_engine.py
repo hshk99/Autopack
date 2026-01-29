@@ -16,6 +16,7 @@ import logging
 import re
 from collections import defaultdict, deque
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
@@ -83,6 +84,12 @@ COMPLEXITY_KEYWORDS: dict[str, float] = {
     "update": 0.85,  # Updates are usually safe
 }
 
+# IMP-MEM-001: Freshness-based priority boost constants
+# Fresh insights (recently detected) should have priority boost
+FRESHNESS_BOOST_THRESHOLD_HOURS = 24  # Insights < 24h old get full boost
+FRESHNESS_NEUTRAL_THRESHOLD_HOURS = 72  # Insights < 72h get partial boost
+FRESHNESS_DECAY_THRESHOLD_HOURS = 168  # Insights > 168h (1 week) get penalized
+
 
 class PriorityEngine:
     """Data-driven task priority engine.
@@ -103,11 +110,13 @@ class PriorityEngine:
 
     # Weight factors for priority calculation
     # IMP-LOOP-019: Adjusted weights to include effectiveness factor
-    CATEGORY_SUCCESS_WEIGHT = 0.30
-    BLOCKING_RISK_WEIGHT = 0.20
+    # IMP-MEM-001: Added freshness weight for recency-based prioritization
+    CATEGORY_SUCCESS_WEIGHT = 0.25
+    BLOCKING_RISK_WEIGHT = 0.15
     PRIORITY_LEVEL_WEIGHT = 0.20
     COMPLEXITY_WEIGHT = 0.15
     EFFECTIVENESS_WEIGHT = 0.15  # IMP-LOOP-019: Weight for historical effectiveness
+    FRESHNESS_WEIGHT = 0.10  # IMP-MEM-001: Weight for insight freshness
 
     # IMP-TASK-002: ROI payback thresholds for priority boost
     # Shorter payback = higher priority multiplier
@@ -440,6 +449,98 @@ class PriorityEngine:
 
         return factor
 
+    def get_freshness_factor(self, improvement: dict[str, Any]) -> float:
+        """Calculate freshness-based priority factor from insight age (IMP-MEM-001).
+
+        Fresh insights (recently detected) receive a priority boost to ensure
+        timely handling, while stale insights are deprioritized. This prevents
+        acting on outdated information.
+
+        The factor is calculated using a decay curve:
+        - < 24 hours old = 1.2x boost (maximum, very fresh)
+        - 24-72 hours old = 1.0x to 1.2x (fresh, slight boost)
+        - 72-168 hours old = 0.7x to 1.0x (aging, slight penalty)
+        - > 168 hours old = 0.5x (stale, significant penalty)
+
+        Args:
+            improvement: The improvement record to evaluate. Expected keys:
+                - created_at or timestamp: ISO timestamp of insight creation
+                - detected_at: Alternative timestamp field
+
+        Returns:
+            Freshness factor between 0.5 and 1.2:
+            - > 1.0: Fresh insight, priority boost
+            - 1.0: Neutral age
+            - < 1.0: Stale insight, priority reduction
+        """
+        # Try to extract timestamp from various possible fields
+        timestamp_str = None
+        for field_name in ["created_at", "timestamp", "detected_at", "time"]:
+            ts_value = improvement.get(field_name)
+            if ts_value is not None:
+                timestamp_str = ts_value
+                break
+
+        # Also check nested evidence dict
+        if timestamp_str is None:
+            evidence = improvement.get("evidence", {})
+            if isinstance(evidence, dict):
+                timestamp_str = evidence.get("timestamp")
+
+        # No timestamp - assume fresh (neutral factor)
+        if timestamp_str is None:
+            return 1.0
+
+        # Parse timestamp
+        try:
+            if isinstance(timestamp_str, datetime):
+                timestamp = timestamp_str
+            else:
+                timestamp = datetime.fromisoformat(str(timestamp_str).replace("Z", "+00:00"))
+
+            # Ensure timezone-aware
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            # Can't parse - assume fresh
+            return 1.0
+
+        # Calculate age in hours
+        now = datetime.now(timezone.utc)
+        age_hours = (now - timestamp).total_seconds() / 3600
+
+        # Calculate freshness factor based on age
+        if age_hours < 0:
+            # Future timestamp (clock skew?) - treat as fresh
+            freshness_factor = 1.2
+        elif age_hours <= FRESHNESS_BOOST_THRESHOLD_HOURS:
+            # Very fresh (< 24h): 1.2x boost
+            freshness_factor = 1.2
+        elif age_hours <= FRESHNESS_NEUTRAL_THRESHOLD_HOURS:
+            # Fresh (24-72h): Linear decay from 1.2 to 1.0
+            ratio = (age_hours - FRESHNESS_BOOST_THRESHOLD_HOURS) / (
+                FRESHNESS_NEUTRAL_THRESHOLD_HOURS - FRESHNESS_BOOST_THRESHOLD_HOURS
+            )
+            freshness_factor = 1.2 - (ratio * 0.2)  # 1.2 -> 1.0
+        elif age_hours <= FRESHNESS_DECAY_THRESHOLD_HOURS:
+            # Aging (72-168h): Linear decay from 1.0 to 0.7
+            ratio = (age_hours - FRESHNESS_NEUTRAL_THRESHOLD_HOURS) / (
+                FRESHNESS_DECAY_THRESHOLD_HOURS - FRESHNESS_NEUTRAL_THRESHOLD_HOURS
+            )
+            freshness_factor = 1.0 - (ratio * 0.3)  # 1.0 -> 0.7
+        else:
+            # Stale (> 168h): Minimum factor
+            freshness_factor = 0.5
+
+        logger.debug(
+            "[IMP-MEM-001] Freshness factor for %s: %.2f (age=%.1f hours)",
+            improvement.get("imp_id", improvement.get("id", "unknown")),
+            freshness_factor,
+            age_hours,
+        )
+
+        return freshness_factor
+
     def _extract_category(self, improvement: dict[str, Any]) -> str:
         """Extract the category from an improvement record.
 
@@ -581,6 +682,7 @@ class PriorityEngine:
         - Priority level: The assigned priority (critical, high, medium, low)
         - Complexity estimate: Estimated complexity from description
         - Effectiveness factor: Historical task completion outcomes (IMP-LOOP-019)
+        - Freshness factor: Age-based recency consideration (IMP-MEM-001)
         - ROI factor: Economic payback period consideration (IMP-TASK-002)
 
         Args:
@@ -589,11 +691,12 @@ class PriorityEngine:
                 - priority: Priority level (critical, high, medium, low)
                 - category: Optional explicit category
                 - title, description: Text for complexity estimation
+                - created_at, timestamp: For freshness calculation
                 - estimated_tokens, estimated_savings: For ROI calculation
 
         Returns:
             Priority score where higher is better priority. The base score
-            (0.0-1.0) is multiplied by category and ROI factors.
+            (0.0-1.0) is multiplied by category, freshness, and ROI factors.
         """
         category = self._extract_category(improvement)
         priority_level = self._extract_priority_level(improvement)
@@ -617,18 +720,23 @@ class PriorityEngine:
         # IMP-LOOP-019: Get effectiveness factor from task completion telemetry
         effectiveness_factor = self.get_effectiveness_factor(improvement)
 
+        # IMP-MEM-001: Get freshness factor based on insight age
+        freshness_factor = self.get_freshness_factor(improvement)
+
         # Calculate weighted score
         # Higher category success rate -> higher score
         # Lower blocking risk -> higher score (invert the risk)
         # Higher priority level -> higher score
         # Higher complexity factor (simpler tasks) -> higher score
         # Higher effectiveness factor -> higher score (IMP-LOOP-019)
+        # Higher freshness factor -> higher score (IMP-MEM-001)
         base_score = (
             (category_success_rate * self.CATEGORY_SUCCESS_WEIGHT)
             + ((1.0 - blocking_risk) * self.BLOCKING_RISK_WEIGHT)
             + (priority_base * self.PRIORITY_LEVEL_WEIGHT)
             + (complexity_factor * self.COMPLEXITY_WEIGHT)
             + (effectiveness_factor * self.EFFECTIVENESS_WEIGHT)
+            + (freshness_factor * self.FRESHNESS_WEIGHT)
         )
 
         # IMP-TASK-003: Apply category weight multiplier from effectiveness feedback
@@ -641,7 +749,7 @@ class PriorityEngine:
 
         logger.debug(
             "Priority score for %s: %.3f (category=%.2f, block_risk=%.2f, "
-            "priority=%.2f, complexity=%.2f, effectiveness=%.2f, "
+            "priority=%.2f, complexity=%.2f, effectiveness=%.2f, freshness=%.2f, "
             "category_mult=%.2f, roi_factor=%.2f)",
             improvement.get("imp_id", improvement.get("id", "unknown")),
             score,
@@ -650,6 +758,7 @@ class PriorityEngine:
             priority_base,
             complexity_factor,
             effectiveness_factor,
+            freshness_factor,
             category_multiplier,
             roi_factor,
         )

@@ -16,11 +16,12 @@ from __future__ import annotations
 import logging
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from autopack.analytics.telemetry_analyzer import TelemetryAnalyzer
+    from autopack.memory.memory_service import MemoryService
     from autopack.telemetry.analyzer import TaskEffectivenessStats
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,10 @@ INSIGHT_TO_CATEGORY = {
     "auditor_reject": "AUD",
     "promoted_rule": "RUL",
 }
+
+# IMP-MEM-001: Freshness filtering constants for task generation
+# Default maximum age for insights to be considered fresh (hours)
+DEFAULT_INSIGHT_FRESHNESS_HOURS = 72  # 3 days - matches MemoryService default
 
 # Impact validation constants (IMP-TASK-002)
 IMPACT_LEVELS = ["critical", "high", "medium", "low"]
@@ -99,6 +104,8 @@ class InsightToTaskGenerator:
         self,
         analyzer: TelemetryAnalyzer,
         effectiveness_stats: Optional[TaskEffectivenessStats] = None,
+        memory_service: Optional[MemoryService] = None,
+        freshness_hours: Optional[float] = None,
     ) -> None:
         """Initialize the InsightToTaskGenerator.
 
@@ -106,10 +113,18 @@ class InsightToTaskGenerator:
             analyzer: TelemetryAnalyzer instance to use for insight generation.
             effectiveness_stats: Optional task effectiveness stats for adjusting
                 insight confidence based on historical success rates (IMP-LOOP-019).
+            memory_service: Optional MemoryService for freshness checking
+                (IMP-MEM-001). When provided, enables stale insight filtering.
+            freshness_hours: Optional freshness threshold in hours (IMP-MEM-001).
+                Defaults to DEFAULT_INSIGHT_FRESHNESS_HOURS (72 hours).
         """
         self.analyzer = analyzer
         self._imp_counter: Counter[str] = Counter()
         self._effectiveness_stats = effectiveness_stats
+
+        # IMP-MEM-001: Memory service for freshness checking
+        self._memory_service = memory_service
+        self._freshness_hours = freshness_hours or DEFAULT_INSIGHT_FRESHNESS_HOURS
 
         # IMP-TASK-002: Impact validation tracking
         self._impact_history: list[ImpactValidationRecord] = []
@@ -136,6 +151,139 @@ class InsightToTaskGenerator:
             stats.success_rate * 100,
             len(stats.effectiveness_by_type),
         )
+
+    def set_memory_service(
+        self, memory_service: MemoryService, freshness_hours: Optional[float] = None
+    ) -> None:
+        """Set or update the memory service for freshness checking (IMP-MEM-001).
+
+        Call this method to enable freshness filtering of insights.
+        Stale insights (older than freshness threshold) will be filtered
+        before task generation to prevent duplicate/stale task creation.
+
+        Args:
+            memory_service: MemoryService instance for freshness checking.
+            freshness_hours: Optional freshness threshold in hours.
+                Defaults to the current value or DEFAULT_INSIGHT_FRESHNESS_HOURS.
+        """
+        self._memory_service = memory_service
+        if freshness_hours is not None:
+            self._freshness_hours = freshness_hours
+        logger.debug(
+            "[IMP-MEM-001] Memory service connected for freshness filtering "
+            "(threshold=%d hours)",
+            self._freshness_hours,
+        )
+
+    def _parse_insight_timestamp(self, insight: dict[str, Any]) -> Optional[datetime]:
+        """Parse timestamp from an insight record (IMP-MEM-001).
+
+        Handles multiple timestamp field names and formats that may be
+        present in insights from different sources.
+
+        Args:
+            insight: The insight dictionary.
+
+        Returns:
+            Parsed datetime or None if no valid timestamp found.
+        """
+        # Check common timestamp field names
+        timestamp_fields = ["timestamp", "created_at", "detected_at", "time"]
+        for field_name in timestamp_fields:
+            ts_value = insight.get(field_name)
+            if ts_value is not None:
+                # Handle datetime objects directly
+                if isinstance(ts_value, datetime):
+                    # Ensure timezone-aware
+                    if ts_value.tzinfo is None:
+                        return ts_value.replace(tzinfo=timezone.utc)
+                    return ts_value
+
+                # Handle ISO format strings
+                if isinstance(ts_value, str):
+                    try:
+                        # Try parsing ISO format
+                        parsed = datetime.fromisoformat(ts_value.replace("Z", "+00:00"))
+                        if parsed.tzinfo is None:
+                            parsed = parsed.replace(tzinfo=timezone.utc)
+                        return parsed
+                    except ValueError:
+                        continue
+
+        return None
+
+    def _is_insight_fresh(self, insight: dict[str, Any]) -> bool:
+        """Check if an insight is within the freshness window (IMP-MEM-001).
+
+        Args:
+            insight: The insight dictionary to check.
+
+        Returns:
+            True if insight is fresh or has no timestamp (assumed fresh),
+            False if insight is stale (older than freshness threshold).
+        """
+        timestamp = self._parse_insight_timestamp(insight)
+        if timestamp is None:
+            # No timestamp - assume fresh (just created)
+            return True
+
+        now = datetime.now(timezone.utc)
+        age_hours = (now - timestamp).total_seconds() / 3600
+
+        is_fresh = age_hours <= self._freshness_hours
+
+        if not is_fresh:
+            logger.debug(
+                "[IMP-MEM-001] Stale insight detected (age=%.1f hours > threshold=%d hours): %s",
+                age_hours,
+                self._freshness_hours,
+                insight.get("source", "unknown"),
+            )
+
+        return is_fresh
+
+    def _filter_stale_insights(self, insights: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Filter out stale insights before task generation (IMP-MEM-001).
+
+        Removes insights that are older than the freshness threshold to prevent
+        duplicate or stale task creation. This is the primary freshness check
+        in the task generation pipeline.
+
+        Args:
+            insights: List of insight dictionaries to filter.
+
+        Returns:
+            List of fresh insights (within freshness window).
+        """
+        if not insights:
+            return []
+
+        fresh_insights = [i for i in insights if self._is_insight_fresh(i)]
+        stale_count = len(insights) - len(fresh_insights)
+
+        if stale_count > 0:
+            logger.info(
+                "[IMP-MEM-001] Filtered %d stale insights (threshold=%d hours), "
+                "kept %d fresh insights",
+                stale_count,
+                self._freshness_hours,
+                len(fresh_insights),
+            )
+
+        return fresh_insights
+
+    def get_freshness_stats(self) -> dict[str, Any]:
+        """Get freshness filtering statistics (IMP-MEM-001).
+
+        Returns:
+            Dictionary containing:
+            - freshness_threshold_hours: Current threshold
+            - memory_service_connected: Whether memory service is available
+        """
+        return {
+            "freshness_threshold_hours": self._freshness_hours,
+            "memory_service_connected": self._memory_service is not None,
+        }
 
     def validate_impact_estimate(self, task_id: str, predicted: str, actual: str) -> None:
         """Record and validate an impact estimate against actual outcome (IMP-TASK-002).
@@ -585,6 +733,10 @@ class InsightToTaskGenerator:
         Analyzes telemetry data through the TelemetryAnalyzer and converts
         all prioritized actions into structured improvement entries.
 
+        IMP-MEM-001: Filters stale insights before task generation to prevent
+        duplicate/stale task creation. Insights older than the freshness
+        threshold (default 72 hours) are excluded.
+
         Returns:
             List of improvement entries sorted by priority. Each entry is
             a dictionary in the format returned by format_as_imp().
@@ -598,18 +750,32 @@ class InsightToTaskGenerator:
 
         # Process prioritized actions
         prioritized_actions = insights.get("prioritized_actions", [])
-        for action in prioritized_actions:
+
+        # IMP-MEM-001: Filter stale prioritized actions before task generation
+        fresh_actions = self._filter_stale_insights(prioritized_actions)
+        stale_action_count = len(prioritized_actions) - len(fresh_actions)
+        if stale_action_count > 0:
+            logger.info(
+                "[IMP-MEM-001] Filtered %d stale prioritized actions from task generation",
+                stale_action_count,
+            )
+
+        for action in fresh_actions:
             imp = self.format_as_imp(action)
             improvements.append(imp)
 
         # Add improvements for problematic slots not already covered
         slot_reliability = insights.get("slot_reliability", {})
         problematic_slots = slot_reliability.get("problematic_slots", [])
+
+        # IMP-MEM-001: Filter stale problematic slots
+        fresh_slots = self._filter_stale_insights(problematic_slots)
+
         processed_slot_ids = {
-            a.get("slot_id") for a in prioritized_actions if a.get("slot_id") is not None
+            a.get("slot_id") for a in fresh_actions if a.get("slot_id") is not None
         }
 
-        for slot_info in problematic_slots:
+        for slot_info in fresh_slots:
             slot_id = slot_info.get("slot_id")
             if slot_id not in processed_slot_ids:
                 action = {
@@ -627,11 +793,15 @@ class InsightToTaskGenerator:
         # Add improvements for escalation patterns not already covered
         nudge_effectiveness = insights.get("nudge_effectiveness", {})
         escalation_patterns = nudge_effectiveness.get("escalation_patterns", [])
+
+        # IMP-MEM-001: Filter stale escalation patterns
+        fresh_patterns = self._filter_stale_insights(escalation_patterns)
+
         processed_triggers = {
-            a.get("trigger") for a in prioritized_actions if a.get("trigger") is not None
+            a.get("trigger") for a in fresh_actions if a.get("trigger") is not None
         }
 
-        for pattern in escalation_patterns:
+        for pattern in fresh_patterns:
             trigger = pattern.get("trigger")
             if trigger and trigger not in processed_triggers:
                 action = {

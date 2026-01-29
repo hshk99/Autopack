@@ -14,7 +14,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +107,11 @@ class LearnedRule:
 
     Stored in: .autonomous_runs/{project_id}/project_learned_rules.json
     Used for: All phases in all future runs
+
+    IMP-LOOP-034: Added effectiveness tracking fields for rule deprecation:
+    - effectiveness_score: Tracks how well the rule works (0.0-1.0)
+    - last_validated_at: When the rule was last validated
+    - deprecated: Whether the rule has been deprecated due to low effectiveness
     """
 
     rule_id: str  # e.g., "python.type_hints_required"
@@ -119,6 +124,10 @@ class LearnedRule:
     last_seen: str  # ISO format datetime
     status: str  # "active" | "deprecated"
     stage: str  # DiscoveryStage value ("new", "applied", "candidate_rule", "rule")
+    # IMP-LOOP-034: Effectiveness tracking fields
+    effectiveness_score: float = 1.0  # 0.0-1.0, starts at 1.0 (fully effective)
+    last_validated_at: Optional[str] = None  # ISO format datetime
+    deprecated: bool = False  # Explicit deprecation flag
 
     def to_dict(self) -> Dict:
         return asdict(self)
@@ -128,6 +137,13 @@ class LearnedRule:
         # Handle legacy rules without stage field
         if "stage" not in data:
             data["stage"] = DiscoveryStage.RULE.value
+        # IMP-LOOP-034: Handle legacy rules without effectiveness fields
+        if "effectiveness_score" not in data:
+            data["effectiveness_score"] = 1.0
+        if "last_validated_at" not in data:
+            data["last_validated_at"] = None
+        if "deprecated" not in data:
+            data["deprecated"] = False
         return cls(**data)
 
 
@@ -217,6 +233,66 @@ class LearnedRuleAging:
         # Successful validations can reduce failure impact over time
         # but age factor still applies
         self.decay_score = self.calculate_decay()
+
+
+# ============================================================================
+# IMP-LOOP-034: Rule Effectiveness Tracking
+# ============================================================================
+
+
+@dataclass
+class RuleApplication:
+    """Tracks a single application of a learned rule.
+
+    IMP-LOOP-034: Used to measure rule effectiveness over time.
+
+    Attributes:
+        rule_id: The rule that was applied
+        phase_id: The phase where the rule was applied
+        applied_at: When the rule was applied (ISO format)
+        successful: Whether the phase succeeded with this rule
+        context: Optional additional context about the application
+    """
+
+    rule_id: str
+    phase_id: str
+    applied_at: str  # ISO format datetime
+    successful: bool
+    context: Optional[Dict[str, Any]] = None
+
+    def to_dict(self) -> Dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "RuleApplication":
+        return cls(**data)
+
+
+@dataclass
+class RuleEffectivenessReport:
+    """Report on a rule's effectiveness based on recent applications.
+
+    IMP-LOOP-034: Used to evaluate whether rules are still working
+    and should be deprecated if effectiveness falls below threshold.
+
+    Attributes:
+        rule_id: The rule being evaluated
+        effectiveness_score: Success rate from 0.0 to 1.0
+        total_applications: Number of times the rule was applied
+        successful_applications: Number of successful applications
+        evaluation_period_days: The time period over which effectiveness was measured
+        recommendation: Suggested action ("keep", "monitor", "deprecate")
+    """
+
+    rule_id: str
+    effectiveness_score: float
+    total_applications: int
+    successful_applications: int
+    evaluation_period_days: int
+    recommendation: str  # "keep", "monitor", "deprecate"
+
+    def to_dict(self) -> Dict:
+        return asdict(self)
 
 
 # ============================================================================
@@ -428,6 +504,310 @@ def record_rule_validation_outcome(project_id: str, rule_ids: List[str], success
             tracker.record_validation_success(rule_id)
         else:
             tracker.record_validation_failure(rule_id)
+
+
+# ============================================================================
+# IMP-LOOP-034: Rule Effectiveness Manager
+# ============================================================================
+
+
+class RuleEffectivenessManager:
+    """Manages rule effectiveness evaluation and deprecation.
+
+    IMP-LOOP-034: Provides methods to:
+    - Track rule applications and their outcomes
+    - Evaluate rule effectiveness based on recent applications
+    - Deprecate rules that fall below effectiveness threshold
+
+    Rule applications are stored in a separate file:
+    - docs/RULE_APPLICATIONS.json (for autopack project)
+    - {autonomous_runs_dir}/{project}/docs/RULE_APPLICATIONS.json (for sub-projects)
+    """
+
+    def __init__(self, project_id: str = "autopack"):
+        """Initialize effectiveness manager for a project.
+
+        Args:
+            project_id: Project identifier for rule isolation
+        """
+        self.project_id = project_id
+        self._applications: List[RuleApplication] = []
+        self._load_applications()
+
+    def _get_applications_file(self) -> Path:
+        """Get path to rule applications data file."""
+        if self.project_id == "autopack":
+            return Path("docs") / "RULE_APPLICATIONS.json"
+        else:
+            from .config import settings
+
+            return (
+                Path(settings.autonomous_runs_dir)
+                / self.project_id
+                / "docs"
+                / "RULE_APPLICATIONS.json"
+            )
+
+    def _load_applications(self) -> None:
+        """Load rule applications from file."""
+        applications_file = self._get_applications_file()
+        if not applications_file.exists():
+            self._applications = []
+            return
+
+        try:
+            with open(applications_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self._applications = [
+                RuleApplication.from_dict(a) for a in data.get("applications", [])
+            ]
+        except (json.JSONDecodeError, KeyError, TypeError):
+            self._applications = []
+
+    def _save_applications(self) -> None:
+        """Persist rule applications to file."""
+        applications_file = self._get_applications_file()
+        applications_file.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(applications_file, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "applications": [a.to_dict() for a in self._applications],
+                    "last_updated": datetime.now(timezone.utc).isoformat(),
+                },
+                f,
+                indent=2,
+            )
+
+    def record_application(
+        self,
+        rule_id: str,
+        phase_id: str,
+        successful: bool,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> RuleApplication:
+        """Record a rule application.
+
+        Args:
+            rule_id: The rule that was applied
+            phase_id: The phase where the rule was applied
+            successful: Whether the phase succeeded
+            context: Optional additional context
+
+        Returns:
+            The created RuleApplication
+        """
+        application = RuleApplication(
+            rule_id=rule_id,
+            phase_id=phase_id,
+            applied_at=datetime.now(timezone.utc).isoformat(),
+            successful=successful,
+            context=context,
+        )
+        self._applications.append(application)
+        self._save_applications()
+        return application
+
+    def get_recent_applications(
+        self,
+        rule_id: str,
+        days: int = 30,
+    ) -> List[RuleApplication]:
+        """Get recent applications of a rule.
+
+        Args:
+            rule_id: The rule to get applications for
+            days: Number of days to look back (default 30)
+
+        Returns:
+            List of RuleApplication objects within the time window
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        recent = []
+
+        for app in self._applications:
+            if app.rule_id != rule_id:
+                continue
+
+            try:
+                app_date = datetime.fromisoformat(app.applied_at)
+                # Handle timezone-naive datetimes
+                if app_date.tzinfo is None:
+                    app_date = app_date.replace(tzinfo=timezone.utc)
+                if app_date >= cutoff:
+                    recent.append(app)
+            except (ValueError, AttributeError):
+                continue
+
+        return recent
+
+    def evaluate_rule_effectiveness(
+        self,
+        rule_id: str,
+        days: int = 30,
+    ) -> RuleEffectivenessReport:
+        """Evaluate rule's current effectiveness based on recent outcomes.
+
+        IMP-LOOP-034: Calculates effectiveness score as the success rate
+        of recent rule applications and provides a recommendation.
+
+        Args:
+            rule_id: The rule to evaluate
+            days: Evaluation period in days (default 30)
+
+        Returns:
+            RuleEffectivenessReport with effectiveness metrics and recommendation
+        """
+        recent_applications = self.get_recent_applications(rule_id, days)
+        total = len(recent_applications)
+
+        if total == 0:
+            # No recent applications - maintain current effectiveness
+            return RuleEffectivenessReport(
+                rule_id=rule_id,
+                effectiveness_score=1.0,  # Assume effective if not tested
+                total_applications=0,
+                successful_applications=0,
+                evaluation_period_days=days,
+                recommendation="monitor",  # Need more data
+            )
+
+        successful = sum(1 for a in recent_applications if a.successful)
+        effectiveness_score = successful / total
+
+        # Determine recommendation based on effectiveness
+        if effectiveness_score >= 0.7:
+            recommendation = "keep"
+        elif effectiveness_score >= 0.3:
+            recommendation = "monitor"
+        else:
+            recommendation = "deprecate"
+
+        return RuleEffectivenessReport(
+            rule_id=rule_id,
+            effectiveness_score=effectiveness_score,
+            total_applications=total,
+            successful_applications=successful,
+            evaluation_period_days=days,
+            recommendation=recommendation,
+        )
+
+    def deprecate_ineffective_rules(
+        self,
+        min_effectiveness: float = 0.3,
+        min_applications: int = 3,
+        days: int = 30,
+    ) -> List[str]:
+        """Deprecate rules below effectiveness threshold.
+
+        IMP-LOOP-034: Evaluates all active rules and deprecates those
+        that fall below the minimum effectiveness threshold, provided
+        they have enough applications for a meaningful evaluation.
+
+        Args:
+            min_effectiveness: Minimum effectiveness score to remain active (default 0.3)
+            min_applications: Minimum applications required for evaluation (default 3)
+            days: Evaluation period in days (default 30)
+
+        Returns:
+            List of rule IDs that were deprecated
+        """
+        rules = load_project_rules(self.project_id)
+        deprecated_ids: List[str] = []
+
+        for rule in rules:
+            # Skip already deprecated rules
+            if rule.deprecated or rule.status == "deprecated":
+                continue
+
+            # Evaluate effectiveness
+            report = self.evaluate_rule_effectiveness(rule.rule_id, days)
+
+            # Skip rules with insufficient data
+            if report.total_applications < min_applications:
+                continue
+
+            # Deprecate if below threshold
+            if report.effectiveness_score < min_effectiveness:
+                rule.deprecated = True
+                rule.status = "deprecated"
+                rule.effectiveness_score = report.effectiveness_score
+                rule.last_validated_at = datetime.now(timezone.utc).isoformat()
+                deprecated_ids.append(rule.rule_id)
+                logger.info(
+                    f"Deprecated rule {rule.rule_id}: effectiveness "
+                    f"{report.effectiveness_score:.2f} < {min_effectiveness}"
+                )
+            else:
+                # Update effectiveness score for active rules
+                rule.effectiveness_score = report.effectiveness_score
+                rule.last_validated_at = datetime.now(timezone.utc).isoformat()
+
+        # Save updated rules
+        if deprecated_ids or rules:
+            _save_project_rules(self.project_id, rules)
+
+        return deprecated_ids
+
+    def get_all_effectiveness_reports(self, days: int = 30) -> List[RuleEffectivenessReport]:
+        """Get effectiveness reports for all rules.
+
+        Args:
+            days: Evaluation period in days
+
+        Returns:
+            List of RuleEffectivenessReport for each rule
+        """
+        rules = load_project_rules(self.project_id)
+        reports = []
+
+        for rule in rules:
+            report = self.evaluate_rule_effectiveness(rule.rule_id, days)
+            reports.append(report)
+
+        return reports
+
+
+def evaluate_rule_effectiveness(
+    rule_id: str, project_id: str = "autopack", days: int = 30
+) -> RuleEffectivenessReport:
+    """Convenience function to evaluate a single rule's effectiveness.
+
+    IMP-LOOP-034: Wrapper around RuleEffectivenessManager for simple use cases.
+
+    Args:
+        rule_id: The rule to evaluate
+        project_id: Project identifier
+        days: Evaluation period in days
+
+    Returns:
+        RuleEffectivenessReport with effectiveness metrics
+    """
+    manager = RuleEffectivenessManager(project_id)
+    return manager.evaluate_rule_effectiveness(rule_id, days)
+
+
+def deprecate_ineffective_rules(
+    project_id: str = "autopack",
+    min_effectiveness: float = 0.3,
+    min_applications: int = 3,
+    days: int = 30,
+) -> List[str]:
+    """Convenience function to deprecate ineffective rules.
+
+    IMP-LOOP-034: Wrapper around RuleEffectivenessManager for simple use cases.
+
+    Args:
+        project_id: Project identifier
+        min_effectiveness: Minimum effectiveness threshold
+        min_applications: Minimum applications for evaluation
+        days: Evaluation period in days
+
+    Returns:
+        List of deprecated rule IDs
+    """
+    manager = RuleEffectivenessManager(project_id)
+    return manager.deprecate_ineffective_rules(min_effectiveness, min_applications, days)
 
 
 # ============================================================================

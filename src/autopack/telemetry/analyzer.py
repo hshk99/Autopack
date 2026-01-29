@@ -94,6 +94,63 @@ class ContextInjectionImpact:
     impact_significant: bool  # True if delta is statistically meaningful (>5% with n>=10)
 
 
+@dataclass
+class ModelCategoryStats:
+    """Per-model statistics for a specific task category (IMP-LOOP-032).
+
+    Tracks effectiveness metrics for a single model within a task category
+    to enable data-driven model selection.
+    """
+
+    model_id: str  # Model identifier (e.g., "claude-sonnet-4-5", "claude-opus-4-5")
+    task_category: str  # Task category (e.g., "test_generation", "code_review")
+    success_rate: float  # Success rate (0.0 - 1.0)
+    avg_latency_ms: float  # Average latency in milliseconds
+    avg_tokens_used: float  # Average tokens used per phase
+    cost_per_success: float  # Estimated cost per successful phase (tokens / success_rate)
+    sample_count: int  # Number of samples
+
+
+@dataclass
+class ModelEffectivenessReport:
+    """Model effectiveness analysis report (IMP-LOOP-032).
+
+    Tracks per-model success rates by task category to enable data-driven
+    model selection. Builder currently uses Claude Sonnet 4.5 -> Opus 4 -> GPT-4o
+    but this is hardcoded. This report provides the data to make selection adaptive.
+    """
+
+    # Stats grouped by model_id and task_category
+    stats_by_model_category: Dict[str, Dict[str, ModelCategoryStats]]
+    # Best model for each category (model_id with highest success_rate given sufficient samples)
+    best_model_by_category: Dict[str, str]
+    # Overall model rankings (model_id -> weighted success score)
+    overall_model_rankings: Dict[str, float]
+    # Analysis metadata
+    analysis_window_days: int
+    total_phases_analyzed: int
+    generated_at: str  # ISO timestamp
+
+    def best_model_for(self, task_category: str, min_samples: int = 5) -> Optional[str]:
+        """Get the best model for a specific task category.
+
+        Args:
+            task_category: The task category to find the best model for
+            min_samples: Minimum samples required for a model to be considered
+
+        Returns:
+            Model ID with highest success rate, or None if insufficient data
+        """
+        if task_category in self.best_model_by_category:
+            return self.best_model_by_category[task_category]
+
+        # Fallback: find model with highest overall ranking
+        if self.overall_model_rankings:
+            return max(self.overall_model_rankings.items(), key=lambda x: x[1])[0]
+
+        return None
+
+
 class TelemetryAnalyzer:
     """Analyze telemetry data and generate ranked issues."""
 
@@ -1024,6 +1081,134 @@ class TelemetryAnalyzer:
         )
 
         return impact
+
+    def get_model_effectiveness_by_category(
+        self, window_days: int = 7, min_samples: int = 5
+    ) -> ModelEffectivenessReport:
+        """Analyze success rates per model per task category (IMP-LOOP-032).
+
+        Enables data-driven model selection by tracking which models perform best
+        for which task categories. Builder uses Claude Sonnet 4.5 -> Opus 4 -> GPT-4o
+        but this is currently hardcoded. This method provides the data to make
+        model selection adaptive.
+
+        Args:
+            window_days: Number of days to look back (default: 7)
+            min_samples: Minimum samples required for a model-category pair to be
+                         considered for "best model" selection (default: 5)
+
+        Returns:
+            ModelEffectivenessReport with per-model-category statistics
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+
+        # Query model effectiveness grouped by model and task category
+        result = self.db.execute(
+            text("""
+            SELECT
+                model_used,
+                phase_type as task_category,
+                COUNT(*) as total,
+                SUM(CASE WHEN phase_outcome = 'SUCCESS' THEN 1 ELSE 0 END) as successes,
+                AVG(duration_seconds) as avg_duration_seconds,
+                AVG(tokens_used) as avg_tokens
+            FROM phase_outcome_events
+            WHERE timestamp >= :cutoff
+                AND model_used IS NOT NULL
+                AND phase_type IS NOT NULL
+            GROUP BY model_used, phase_type
+            ORDER BY model_used, phase_type
+            """),
+            {"cutoff": cutoff},
+        )
+
+        # Build stats by model and category
+        stats_by_model_category: Dict[str, Dict[str, ModelCategoryStats]] = {}
+        total_phases = 0
+
+        for row in result:
+            model_id = row.model_used
+            task_category = row.task_category
+            total = row.total or 0
+            successes = row.successes or 0
+            avg_duration_seconds = row.avg_duration_seconds or 0.0
+            avg_tokens = row.avg_tokens or 0.0
+
+            total_phases += total
+
+            # Calculate metrics
+            success_rate = successes / max(total, 1)
+            avg_latency_ms = avg_duration_seconds * 1000
+            # Cost per success: tokens used / success_rate (higher = more expensive)
+            cost_per_success = avg_tokens / max(success_rate, 0.01)
+
+            stats = ModelCategoryStats(
+                model_id=model_id,
+                task_category=task_category,
+                success_rate=success_rate,
+                avg_latency_ms=avg_latency_ms,
+                avg_tokens_used=avg_tokens,
+                cost_per_success=cost_per_success,
+                sample_count=total,
+            )
+
+            if model_id not in stats_by_model_category:
+                stats_by_model_category[model_id] = {}
+            stats_by_model_category[model_id][task_category] = stats
+
+        # Determine best model for each category
+        best_model_by_category: Dict[str, str] = {}
+        category_candidates: Dict[str, List[ModelCategoryStats]] = {}
+
+        # Group all stats by category
+        for model_id, categories in stats_by_model_category.items():
+            for task_category, stats in categories.items():
+                if task_category not in category_candidates:
+                    category_candidates[task_category] = []
+                category_candidates[task_category].append(stats)
+
+        # Find best model for each category (highest success rate with sufficient samples)
+        for task_category, candidates in category_candidates.items():
+            # Filter to models with sufficient samples
+            qualified = [c for c in candidates if c.sample_count >= min_samples]
+            if qualified:
+                # Sort by success rate (descending), then by cost_per_success (ascending)
+                qualified.sort(key=lambda x: (-x.success_rate, x.cost_per_success))
+                best_model_by_category[task_category] = qualified[0].model_id
+
+        # Calculate overall model rankings (weighted by sample count)
+        overall_model_rankings: Dict[str, float] = {}
+        for model_id, categories in stats_by_model_category.items():
+            total_successes = 0
+            total_samples = 0
+            for stats in categories.values():
+                total_successes += stats.success_rate * stats.sample_count
+                total_samples += stats.sample_count
+            if total_samples > 0:
+                overall_model_rankings[model_id] = total_successes / total_samples
+
+        # Sort rankings
+        overall_model_rankings = dict(
+            sorted(overall_model_rankings.items(), key=lambda x: x[1], reverse=True)
+        )
+
+        report = ModelEffectivenessReport(
+            stats_by_model_category=stats_by_model_category,
+            best_model_by_category=best_model_by_category,
+            overall_model_rankings=overall_model_rankings,
+            analysis_window_days=window_days,
+            total_phases_analyzed=total_phases,
+            generated_at=datetime.now(timezone.utc).isoformat(),
+        )
+
+        logger.info(
+            f"[IMP-LOOP-032] Model effectiveness analysis: "
+            f"analyzed {total_phases} phases, "
+            f"found {len(stats_by_model_category)} models, "
+            f"top model={next(iter(overall_model_rankings.keys()), 'none')}"
+        )
+
+        return report
 
     def ingest_diagnostic_findings(
         self,

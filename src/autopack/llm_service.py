@@ -970,6 +970,119 @@ class LlmService:
         return self.model_router.get_max_attempts()
 
     # =========================================================================
+    # DATA-DRIVEN MODEL SELECTION (IMP-LOOP-032)
+    # =========================================================================
+
+    def select_model_for_task(
+        self,
+        task_category: str,
+        fallback_model: Optional[str] = None,
+        min_samples: int = 5,
+    ) -> str:
+        """Select optimal model based on historical effectiveness data (IMP-LOOP-032).
+
+        Uses telemetry data to determine which model performs best for a given
+        task category. Falls back to the provided fallback_model or default
+        if insufficient data is available.
+
+        This enables data-driven model selection instead of hardcoded
+        escalation chains (Claude Sonnet 4.5 -> Opus 4 -> GPT-4o).
+
+        Args:
+            task_category: The task category to select a model for
+                          (e.g., "test_generation", "code_review")
+            fallback_model: Model to use if insufficient data (default: "claude-sonnet-4-5")
+            min_samples: Minimum samples required for data-driven selection
+
+        Returns:
+            Model ID string (e.g., "claude-sonnet-4-5", "claude-opus-4-5")
+        """
+        from .telemetry.analyzer import TelemetryAnalyzer
+
+        default_model = fallback_model or "claude-sonnet-4-5"
+
+        try:
+            # Create analyzer instance for this query
+            analyzer = TelemetryAnalyzer(db_session=self.db)
+
+            # Get model effectiveness report
+            report = analyzer.get_model_effectiveness_by_category(
+                window_days=7,
+                min_samples=min_samples,
+            )
+
+            # Find best model for this category
+            best_model = report.best_model_for(task_category, min_samples=min_samples)
+
+            if best_model:
+                # Verify the model is available (client is initialized)
+                if self._is_model_available(best_model):
+                    logger.info(
+                        f"[IMP-LOOP-032] Data-driven model selection for {task_category}: "
+                        f"selected {best_model} (success_rate based)"
+                    )
+                    return best_model
+                else:
+                    logger.warning(
+                        f"[IMP-LOOP-032] Best model {best_model} for {task_category} "
+                        f"is not available, falling back to {default_model}"
+                    )
+
+            # No data or insufficient samples - use fallback
+            logger.debug(
+                f"[IMP-LOOP-032] Insufficient data for {task_category}, "
+                f"using fallback model {default_model}"
+            )
+            return default_model
+
+        except Exception as e:
+            # On any error, fall back to default model
+            logger.warning(
+                f"[IMP-LOOP-032] Error in data-driven model selection: {e}, "
+                f"using fallback model {default_model}"
+            )
+            return default_model
+
+    def _is_model_available(self, model: str) -> bool:
+        """Check if a model's client is initialized and available.
+
+        Args:
+            model: Model ID to check
+
+        Returns:
+            True if the model can be used, False otherwise
+        """
+        if model.startswith("claude-") or model.startswith("opus-"):
+            return self.anthropic_builder is not None
+        elif model.startswith("gpt-") or model.startswith("o1-"):
+            return self.openai_builder is not None
+        elif model.startswith("gemini-"):
+            return self.gemini_builder is not None
+        # Default to True for unknown models (let the router handle it)
+        return True
+
+    def get_model_effectiveness_report(self, window_days: int = 7, min_samples: int = 5):
+        """Get the full model effectiveness report for analysis (IMP-LOOP-032).
+
+        This method provides visibility into model performance metrics for
+        debugging and operational monitoring.
+
+        Args:
+            window_days: Number of days to analyze
+            min_samples: Minimum samples for "best model" selection
+
+        Returns:
+            ModelEffectivenessReport with per-model-category statistics
+        """
+        from .telemetry.analyzer import TelemetryAnalyzer
+
+        analyzer = TelemetryAnalyzer(db_session=self.db)
+        return analyzer.get_model_effectiveness_by_category(
+            window_days=window_days,
+            min_samples=min_samples,
+        )
+
+    # =========================================================================
     # DOCTOR INVOCATION (per GPT_RESPONSE8 Section 3.2)
     # =========================================================================
 

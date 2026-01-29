@@ -2088,6 +2088,216 @@ class GoalDriftDetector:
         self._drift_history.clear()
         logger.debug("[IMP-LOOP-023] Cleared goal drift history")
 
+    def realignment_action(
+        self, tasks: List[Any], metrics: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """Generate corrective tasks when drift exceeds threshold.
+
+        IMP-LOOP-028: Automatic goal drift correction. When drift is detected,
+        this method analyzes the drift direction and generates corrective tasks
+        to realign the system with stated objectives.
+
+        Args:
+            tasks: List of generated tasks to analyze for drift
+            metrics: Optional additional metrics for context
+
+        Returns:
+            List of corrective task dictionaries, empty if no correction needed
+        """
+        drift_result = self.calculate_drift(tasks)
+
+        if not drift_result.is_drifting(self.drift_threshold):
+            logger.debug(
+                f"[IMP-LOOP-028] No drift correction needed: "
+                f"score={drift_result.drift_score:.3f} < threshold={self.drift_threshold}"
+            )
+            return []
+
+        logger.warning(
+            f"[IMP-LOOP-028] Goal drift detected, generating corrective tasks: "
+            f"score={drift_result.drift_score:.3f}"
+        )
+
+        # Analyze what's causing the drift
+        drift_analysis = self._analyze_drift_direction(tasks, drift_result, metrics)
+
+        corrective_tasks = []
+        for issue in drift_analysis:
+            task = {
+                "type": "drift_correction",
+                "priority": "high",
+                "task_id": f"drift_correction_{issue['objective']}_{len(corrective_tasks)}",
+                "title": f"Correct drift: Refocus on {issue['objective'].replace('_', ' ')}",
+                "description": issue["description"],
+                "corrective_action": issue["corrective_action"],
+                "source": "goal_drift_detector",
+                "drift_score": drift_result.drift_score,
+                "target_objective": issue["objective"],
+            }
+            corrective_tasks.append(task)
+            logger.info(f"[IMP-LOOP-028] Generated corrective task: {task['title']}")
+
+        return corrective_tasks
+
+    def _analyze_drift_direction(
+        self,
+        tasks: List[Any],
+        drift_result: "GoalDriftResult",
+        metrics: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Analyze what's causing drift and suggest corrections.
+
+        IMP-LOOP-028: Determines which objectives are being neglected and
+        generates specific corrective actions to address the drift.
+
+        Args:
+            tasks: The tasks that were analyzed for drift
+            drift_result: The drift analysis result
+            metrics: Optional additional metrics for context
+
+        Returns:
+            List of drift issues with descriptions and corrective actions
+        """
+        issues = []
+
+        # Calculate coverage for each objective
+        objective_coverage: Dict[str, int] = {obj: 0 for obj in self.objectives}
+
+        for task in tasks:
+            title = getattr(task, "title", "").lower()
+            description = getattr(task, "description", "").lower()
+            text = f"{title} {description}"
+
+            for objective, keywords in self.objectives.items():
+                if any(kw in text for kw in keywords):
+                    objective_coverage[objective] += 1
+
+        # Identify neglected objectives (zero or low coverage)
+        total_tasks = len(tasks) if tasks else 1
+        for objective, count in objective_coverage.items():
+            coverage_ratio = count / total_tasks
+
+            if coverage_ratio < 0.1:  # Less than 10% coverage
+                # Generate corrective action based on objective type
+                corrective_action = self._get_corrective_action_for_objective(objective, metrics)
+                issues.append(
+                    {
+                        "objective": objective,
+                        "coverage_ratio": coverage_ratio,
+                        "description": (
+                            f"Objective '{objective.replace('_', ' ')}' is underrepresented "
+                            f"in generated tasks ({coverage_ratio:.1%} coverage). "
+                            f"Consider generating tasks that address this objective."
+                        ),
+                        "corrective_action": corrective_action,
+                    }
+                )
+
+        # If there are misaligned tasks, add a general realignment issue
+        if drift_result.misaligned_tasks:
+            misaligned_count = len(drift_result.misaligned_tasks)
+            issues.append(
+                {
+                    "objective": "task_realignment",
+                    "coverage_ratio": 0.0,
+                    "description": (
+                        f"{misaligned_count} tasks are misaligned with stated objectives. "
+                        f"Review task generation criteria to ensure alignment."
+                    ),
+                    "corrective_action": {
+                        "action_type": "review_task_generation",
+                        "target": "task_generator",
+                        "parameters": {
+                            "misaligned_task_ids": drift_result.misaligned_tasks[:5],
+                            "review_criteria": list(self.objectives.keys()),
+                        },
+                    },
+                }
+            )
+
+        # Sort by coverage ratio (lowest first - most urgent)
+        issues.sort(key=lambda x: x["coverage_ratio"])
+
+        logger.debug(f"[IMP-LOOP-028] Analyzed drift direction: {len(issues)} issues found")
+
+        return issues
+
+    def _get_corrective_action_for_objective(
+        self, objective: str, metrics: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Generate a corrective action for a specific neglected objective.
+
+        Args:
+            objective: The objective that needs attention
+            metrics: Optional metrics for context
+
+        Returns:
+            Dictionary describing the corrective action
+        """
+        # Default corrective actions per objective type
+        corrective_actions = {
+            "reduce_cost": {
+                "action_type": "generate_cost_optimization_tasks",
+                "target": "cost_analyzer",
+                "parameters": {
+                    "focus_areas": ["token_usage", "api_calls", "resource_allocation"],
+                    "priority": "high",
+                },
+            },
+            "improve_success": {
+                "action_type": "generate_success_improvement_tasks",
+                "target": "success_analyzer",
+                "parameters": {
+                    "focus_areas": ["accuracy", "quality", "effectiveness"],
+                    "priority": "high",
+                },
+            },
+            "fix_failures": {
+                "action_type": "generate_failure_fix_tasks",
+                "target": "error_analyzer",
+                "parameters": {
+                    "focus_areas": ["recurring_errors", "bug_fixes", "issue_resolution"],
+                    "priority": "critical",
+                },
+            },
+            "reduce_retries": {
+                "action_type": "generate_retry_reduction_tasks",
+                "target": "retry_analyzer",
+                "parameters": {
+                    "focus_areas": ["redundancy", "duplicate_prevention", "efficiency"],
+                    "priority": "medium",
+                },
+            },
+            "improve_performance": {
+                "action_type": "generate_performance_tasks",
+                "target": "performance_analyzer",
+                "parameters": {
+                    "focus_areas": ["speed", "latency", "throughput"],
+                    "priority": "high",
+                },
+            },
+            "enhance_reliability": {
+                "action_type": "generate_reliability_tasks",
+                "target": "reliability_analyzer",
+                "parameters": {
+                    "focus_areas": ["stability", "consistency", "uptime"],
+                    "priority": "high",
+                },
+            },
+        }
+
+        return corrective_actions.get(
+            objective,
+            {
+                "action_type": "generate_objective_aligned_tasks",
+                "target": "task_generator",
+                "parameters": {
+                    "objective": objective,
+                    "priority": "medium",
+                },
+            },
+        )
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert detector state to dictionary for serialization.
 

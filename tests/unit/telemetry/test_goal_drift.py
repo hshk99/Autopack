@@ -301,3 +301,204 @@ class TestGoalDriftIntegration:
 
         # Multi-objective task should have lower drift (better alignment)
         assert result_multi.drift_score <= result_single.drift_score
+
+
+class TestGoalDriftAutoCorrection:
+    """Tests for IMP-LOOP-028: Goal drift auto-correction functionality."""
+
+    def test_realignment_action_no_drift(self):
+        """realignment_action should return empty list when drift is below threshold."""
+        detector = GoalDriftDetector(drift_threshold=0.5)
+
+        # Create well-aligned tasks
+        tasks = [
+            MockGeneratedTask(
+                task_id="task1",
+                title="Reduce token cost",
+                description="Optimize API calls to reduce expensive token usage",
+            ),
+            MockGeneratedTask(
+                task_id="task2",
+                title="Fix build failure",
+                description="Resolve recurring error in build process",
+            ),
+        ]
+
+        corrective_tasks = detector.realignment_action(tasks)
+
+        assert corrective_tasks == []
+
+    def test_realignment_action_generates_corrections_on_drift(self):
+        """realignment_action should generate corrective tasks when drift detected."""
+        detector = GoalDriftDetector(drift_threshold=0.3)
+
+        # Create misaligned tasks (no relevant keywords)
+        tasks = [
+            MockGeneratedTask(
+                task_id="task1",
+                title="Add new feature",
+                description="Implement a completely unrelated capability",
+            ),
+            MockGeneratedTask(
+                task_id="task2",
+                title="Update documentation",
+                description="Write some notes about the system",
+            ),
+        ]
+
+        corrective_tasks = detector.realignment_action(tasks)
+
+        # Should generate corrective tasks for neglected objectives
+        assert len(corrective_tasks) > 0
+        assert all(task["type"] == "drift_correction" for task in corrective_tasks)
+        assert all(task["priority"] == "high" for task in corrective_tasks)
+
+    def test_realignment_action_corrective_task_structure(self):
+        """Corrective tasks should have proper structure."""
+        detector = GoalDriftDetector(drift_threshold=0.3)
+
+        tasks = [
+            MockGeneratedTask(
+                task_id="unrelated",
+                title="Random update",
+                description="Make arbitrary changes",
+            ),
+        ]
+
+        corrective_tasks = detector.realignment_action(tasks)
+
+        # Verify corrective task structure
+        for task in corrective_tasks:
+            assert "task_id" in task
+            assert "title" in task
+            assert "description" in task
+            assert "type" in task
+            assert "priority" in task
+            assert "corrective_action" in task
+            assert "source" in task
+            assert task["source"] == "goal_drift_detector"
+
+    def test_analyze_drift_direction_identifies_neglected_objectives(self):
+        """_analyze_drift_direction should identify neglected objectives."""
+        detector = GoalDriftDetector()
+
+        # Create tasks that only focus on cost reduction
+        tasks = [
+            MockGeneratedTask(
+                task_id="cost1",
+                title="Reduce cost",
+                description="Optimize budget spending",
+            ),
+            MockGeneratedTask(
+                task_id="cost2",
+                title="Save money",
+                description="Reduce expensive operations",
+            ),
+        ]
+
+        drift_result = detector.calculate_drift(tasks)
+        issues = detector._analyze_drift_direction(tasks, drift_result)
+
+        # Should identify other objectives as neglected
+        neglected_objectives = [issue["objective"] for issue in issues]
+
+        # fix_failures should be neglected (no failure-related keywords)
+        assert any(
+            obj in neglected_objectives
+            for obj in [
+                "fix_failures",
+                "reduce_retries",
+                "improve_performance",
+                "enhance_reliability",
+            ]
+        )
+
+    def test_analyze_drift_direction_includes_misaligned_tasks_issue(self):
+        """_analyze_drift_direction should report misaligned tasks."""
+        detector = GoalDriftDetector()
+
+        # Create completely misaligned tasks
+        tasks = [
+            MockGeneratedTask(
+                task_id="misaligned1",
+                title="Random stuff",
+                description="Do something unrelated",
+            ),
+        ]
+
+        drift_result = detector.calculate_drift(tasks)
+        issues = detector._analyze_drift_direction(tasks, drift_result)
+
+        # Should include task_realignment issue
+        realignment_issues = [i for i in issues if i["objective"] == "task_realignment"]
+        assert len(realignment_issues) > 0
+
+    def test_corrective_action_for_each_objective_type(self):
+        """Each objective type should have a specific corrective action."""
+        detector = GoalDriftDetector()
+
+        objectives = [
+            "reduce_cost",
+            "improve_success",
+            "fix_failures",
+            "reduce_retries",
+            "improve_performance",
+            "enhance_reliability",
+        ]
+
+        for objective in objectives:
+            action = detector._get_corrective_action_for_objective(objective)
+
+            assert "action_type" in action
+            assert "target" in action
+            assert "parameters" in action
+            assert isinstance(action["parameters"], dict)
+
+    def test_realignment_action_with_empty_task_list(self):
+        """realignment_action should handle empty task list."""
+        detector = GoalDriftDetector()
+
+        corrective_tasks = detector.realignment_action([])
+
+        # Empty list = no drift = no corrections
+        assert corrective_tasks == []
+
+    def test_realignment_action_includes_drift_score(self):
+        """Corrective tasks should include the drift score."""
+        detector = GoalDriftDetector(drift_threshold=0.2)
+
+        tasks = [
+            MockGeneratedTask(
+                task_id="unaligned",
+                title="Something random",
+                description="Unrelated task description",
+            ),
+        ]
+
+        corrective_tasks = detector.realignment_action(tasks)
+
+        if corrective_tasks:
+            for task in corrective_tasks:
+                assert "drift_score" in task
+                assert isinstance(task["drift_score"], float)
+                assert 0.0 <= task["drift_score"] <= 1.0
+
+    def test_analyze_drift_direction_sorts_by_urgency(self):
+        """Issues should be sorted by coverage ratio (most urgent first)."""
+        detector = GoalDriftDetector()
+
+        # Create tasks that only match one objective
+        tasks = [
+            MockGeneratedTask(
+                task_id="task1",
+                title="Fix error",
+                description="Fix the bug issue problem",
+            ),
+        ]
+
+        drift_result = detector.calculate_drift(tasks)
+        issues = detector._analyze_drift_direction(tasks, drift_result)
+
+        # Issues should be sorted by coverage_ratio ascending
+        coverage_ratios = [i.get("coverage_ratio", 0.0) for i in issues]
+        assert coverage_ratios == sorted(coverage_ratios)

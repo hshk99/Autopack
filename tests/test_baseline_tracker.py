@@ -14,8 +14,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.test_baseline_tracker import (TestBaseline, TestBaselineTracker,
-                                            TestDelta)
+from autopack.test_baseline_tracker import TestBaseline, TestBaselineTracker, TestDelta
 
 
 @pytest.fixture

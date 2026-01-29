@@ -24,26 +24,39 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from ..approvals.service import (ApprovalRequest, ApprovalResult,
-                                 ApprovalService, ApprovalTriggerReason,
-                                 get_approval_service, should_trigger_approval)
-from ..executor.coverage_metrics import (CoverageInfo, compute_coverage_info,
-                                         format_coverage_for_display,
-                                         should_trust_coverage)
-from ..executor.patch_correction import (CorrectedPatchResult,
-                                         PatchCorrectionTracker,
-                                         should_attempt_patch_correction)
-from ..executor.safety_profile import (SafetyProfile, derive_safety_profile,
-                                       requires_elevated_review)
-from ..executor.scope_reduction_flow import (ScopeReductionProposal,
-                                             generate_scope_reduction_proposal,
-                                             write_scope_reduction_proposal)
-from ..executor.usage_accounting import (UsageEvent, UsageTotals,
-                                         aggregate_usage,
-                                         compute_budget_remaining,
-                                         save_usage_events)
-from ..stuck_handling import (StuckHandlingPolicy, StuckReason,
-                              StuckResolutionDecision)
+from ..approvals.service import (
+    ApprovalRequest,
+    ApprovalResult,
+    ApprovalService,
+    ApprovalTriggerReason,
+    get_approval_service,
+    should_trigger_approval,
+)
+from ..executor.coverage_metrics import (
+    CoverageInfo,
+    compute_coverage_info,
+    format_coverage_for_display,
+    should_trust_coverage,
+)
+from ..executor.patch_correction import (
+    CorrectedPatchResult,
+    PatchCorrectionTracker,
+    should_attempt_patch_correction,
+)
+from ..executor.safety_profile import SafetyProfile, derive_safety_profile, requires_elevated_review
+from ..executor.scope_reduction_flow import (
+    ScopeReductionProposal,
+    generate_scope_reduction_proposal,
+    write_scope_reduction_proposal,
+)
+from ..executor.usage_accounting import (
+    UsageEvent,
+    UsageTotals,
+    aggregate_usage,
+    compute_budget_remaining,
+    save_usage_events,
+)
+from ..stuck_handling import StuckHandlingPolicy, StuckReason, StuckResolutionDecision
 
 if TYPE_CHECKING:
     from ..file_layout import RunFileLayout

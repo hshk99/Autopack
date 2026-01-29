@@ -2,11 +2,15 @@
 
 import pytest
 
-from autopack.phases.research_phase import (ResearchPhase,
-                                            ResearchPhaseManager,
-                                            ResearchPriority, ResearchQuery,
-                                            ResearchResult, ResearchStatus,
-                                            create_research_phase_from_task)
+from autopack.phases.research_phase import (
+    ResearchPhase,
+    ResearchPhaseManager,
+    ResearchPriority,
+    ResearchQuery,
+    ResearchResult,
+    ResearchStatus,
+    create_research_phase_from_task,
+)
 
 
 @pytest.fixture

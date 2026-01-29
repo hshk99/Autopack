@@ -8,8 +8,7 @@ This module tests the safe_eval function to ensure it:
 
 import pytest
 
-from autopack.research.tracer_bullet.compiler import (compile_expression,
-                                                      safe_eval)
+from autopack.research.tracer_bullet.compiler import compile_expression, safe_eval
 
 
 class TestSafeEvalValidExpressions:

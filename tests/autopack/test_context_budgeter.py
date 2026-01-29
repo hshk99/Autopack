@@ -2,10 +2,13 @@
 
 from unittest.mock import patch
 
-from autopack.context_budgeter import (_lexical_score, get_embedding_stats,
-                                       reset_embedding_cache,
-                                       select_files_for_context,
-                                       set_cache_persistence)
+from autopack.context_budgeter import (
+    _lexical_score,
+    get_embedding_stats,
+    reset_embedding_cache,
+    select_files_for_context,
+    set_cache_persistence,
+)
 
 
 class TestContextBudgeter:

@@ -7,8 +7,7 @@ Used by tidy_workspace.py to automatically route files to the correct locations.
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from sqlalchemy import (ARRAY, Boolean, Column, DateTime, Integer, String,
-                        Text, UniqueConstraint)
+from sqlalchemy import ARRAY, Boolean, Column, DateTime, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Session
 
 from .database import Base

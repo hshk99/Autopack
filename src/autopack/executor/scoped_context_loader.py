@@ -414,8 +414,7 @@ class ScopedContextLoader:
 
         # BUILD-145 P1.1: Apply context budgeting to loaded files
         from autopack.config import settings
-        from autopack.context_budgeter import (reset_embedding_cache,
-                                               select_files_for_context)
+        from autopack.context_budgeter import reset_embedding_cache, select_files_for_context
 
         # BUILD-145 P1 (hardening): Reset embedding cache per phase to enforce per-phase cap
         reset_embedding_cache()

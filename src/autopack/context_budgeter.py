@@ -20,8 +20,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from autopack.config import settings
 from autopack.file_hashing import compute_cache_key
-from autopack.memory.embeddings import (semantic_embeddings_enabled,
-                                        sync_embed_texts)
+from autopack.memory.embeddings import semantic_embeddings_enabled, sync_embed_texts
 
 logger = logging.getLogger(__name__)
 

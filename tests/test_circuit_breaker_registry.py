@@ -5,8 +5,7 @@ from unittest.mock import Mock
 import pytest
 
 from autopack.circuit_breaker import CircuitBreakerConfig, CircuitState
-from autopack.circuit_breaker_registry import (CircuitBreakerRegistry,
-                                               get_global_registry)
+from autopack.circuit_breaker_registry import CircuitBreakerRegistry, get_global_registry
 
 
 class TestCircuitBreakerRegistry:

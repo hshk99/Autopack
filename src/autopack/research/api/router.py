@@ -25,7 +25,7 @@ import os
 from datetime import datetime
 from enum import Enum
 from functools import wraps
-from typing import Any, List, Optional
+from typing import List, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException

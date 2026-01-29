@@ -1,9 +1,12 @@
 """Tests for text normalization module."""
 
-from autopack.text_normalization import (decode_html_entities, normalize_text,
-                                         normalize_unicode,
-                                         normalize_whitespace,
-                                         strip_markdown_artifacts)
+from autopack.text_normalization import (
+    decode_html_entities,
+    normalize_text,
+    normalize_unicode,
+    normalize_whitespace,
+    strip_markdown_artifacts,
+)
 
 
 class TestDecodeHtmlEntities:

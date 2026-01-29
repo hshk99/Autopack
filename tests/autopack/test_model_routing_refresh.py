@@ -14,11 +14,14 @@ import pytest
 
 from autopack.config import settings
 from autopack.model_routing_refresh import (
-    ModelCatalogEntry, create_catalog_backed_snapshot, load_model_catalog,
-    refresh_or_load_snapshot_with_catalog, refresh_routing_snapshot,
-    select_best_model_for_tier)
-from autopack.model_routing_snapshot import (ModelRoutingEntry,
-                                             RoutingSnapshotStorage)
+    ModelCatalogEntry,
+    create_catalog_backed_snapshot,
+    load_model_catalog,
+    refresh_or_load_snapshot_with_catalog,
+    refresh_routing_snapshot,
+    select_best_model_for_tier,
+)
+from autopack.model_routing_snapshot import ModelRoutingEntry, RoutingSnapshotStorage
 
 
 @pytest.fixture

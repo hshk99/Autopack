@@ -17,14 +17,27 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from .policy import (extract_justification_from_patch,
-                     get_effective_allowed_paths,
-                     get_effective_protected_paths, is_path_protected,
-                     validate_patch_paths)
-from .quality import (backup_files, restore_file, validate_applied_files,
-                      validate_content_changes, validate_patch_quality)
-from .sanitize import (classify_patch_files, extract_files_from_patch,
-                       normalize_patch, repair_hunk_headers, sanitize_patch)
+from .policy import (
+    extract_justification_from_patch,
+    get_effective_allowed_paths,
+    get_effective_protected_paths,
+    is_path_protected,
+    validate_patch_paths,
+)
+from .quality import (
+    backup_files,
+    restore_file,
+    validate_applied_files,
+    validate_content_changes,
+    validate_patch_quality,
+)
+from .sanitize import (
+    classify_patch_files,
+    extract_files_from_patch,
+    normalize_patch,
+    repair_hunk_headers,
+    sanitize_patch,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -518,8 +531,7 @@ def apply_patch(
                     if v.startswith("Protected path:")
                 ]
                 if protected_path_violations:
-                    from autopack.governance_requests import \
-                        create_protected_path_error
+                    from autopack.governance_requests import create_protected_path_error
 
                     error_msg = create_protected_path_error(
                         violated_paths=protected_path_violations,
@@ -567,8 +579,7 @@ def apply_patch(
             ]
 
             if protected_path_violations:
-                from autopack.governance_requests import \
-                    create_protected_path_error
+                from autopack.governance_requests import create_protected_path_error
 
                 error_msg = create_protected_path_error(
                     violated_paths=protected_path_violations,

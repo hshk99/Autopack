@@ -14,8 +14,7 @@ import pytest
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from autopack.storage_optimizer.approval import (ExecutionApproval,
-                                                 compute_report_id)
+from autopack.storage_optimizer.approval import ExecutionApproval, compute_report_id
 
 
 def test_execute_without_approval_file_refuses():

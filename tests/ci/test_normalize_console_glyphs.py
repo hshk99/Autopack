@@ -10,9 +10,13 @@ import pytest
 # Add scripts to path for import
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "tools"))
 
-from normalize_console_glyphs import (GLYPH_REPLACEMENTS, check_file,
-                                      find_glyphs_in_file,
-                                      get_critical_scripts, normalize_content)
+from normalize_console_glyphs import (
+    GLYPH_REPLACEMENTS,
+    check_file,
+    find_glyphs_in_file,
+    get_critical_scripts,
+    normalize_content,
+)
 
 
 class TestNormalizeContent:

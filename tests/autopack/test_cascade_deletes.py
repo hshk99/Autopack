@@ -13,10 +13,17 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from autopack.database import Base
-from autopack.models import (ABTestResult, GovernanceRequest, Phase, Run,
-                             SOTRetrievalEvent, Tier, TierState,
-                             TokenBudgetEscalationEvent,
-                             TokenEstimationV2Event)
+from autopack.models import (
+    ABTestResult,
+    GovernanceRequest,
+    Phase,
+    Run,
+    SOTRetrievalEvent,
+    Tier,
+    TierState,
+    TokenBudgetEscalationEvent,
+    TokenEstimationV2Event,
+)
 
 
 @pytest.fixture(scope="function")

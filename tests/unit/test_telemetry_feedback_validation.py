@@ -7,8 +7,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from autopack.memory.memory_service import (TelemetryFeedbackValidationError,
-                                            TelemetryFeedbackValidator)
+from autopack.memory.memory_service import (
+    TelemetryFeedbackValidationError,
+    TelemetryFeedbackValidator,
+)
 
 
 class TestTelemetryFeedbackValidator:

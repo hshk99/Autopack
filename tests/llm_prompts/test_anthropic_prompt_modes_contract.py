@@ -16,7 +16,10 @@ Test Coverage:
 """
 
 from src.autopack.llm.prompts.anthropic_builder_prompts import (
-    build_minimal_system_prompt, build_system_prompt, build_user_prompt)
+    build_minimal_system_prompt,
+    build_system_prompt,
+    build_user_prompt,
+)
 
 
 class TestSystemPromptContractMarkers:

@@ -13,14 +13,20 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from autopack.approvals.notification_chain import (EmailChannel,
-                                                   NotificationChain,
-                                                   NotificationChannel,
-                                                   SMSChannel, TelegramChannel,
-                                                   create_notification_chain)
-from autopack.approvals.service import (ApprovalRequest, ApprovalResult,
-                                        ApprovalTriggerReason,
-                                        ChainedApprovalService)
+from autopack.approvals.notification_chain import (
+    EmailChannel,
+    NotificationChain,
+    NotificationChannel,
+    SMSChannel,
+    TelegramChannel,
+    create_notification_chain,
+)
+from autopack.approvals.service import (
+    ApprovalRequest,
+    ApprovalResult,
+    ApprovalTriggerReason,
+    ChainedApprovalService,
+)
 
 
 @pytest.fixture
@@ -409,8 +415,7 @@ class TestGetApprovalServiceWithChain:
                 "TELEGRAM_CHAT_ID": "12345",
             },
         ):
-            from autopack.approvals.service import (NoopApprovalService,
-                                                    get_approval_service)
+            from autopack.approvals.service import NoopApprovalService, get_approval_service
 
             service = get_approval_service()
             assert isinstance(service, NoopApprovalService)

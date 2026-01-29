@@ -31,8 +31,7 @@ class TestGetPendingGovernanceRequestsContract:
         """Contract: /governance/pending returns count and pending_requests list."""
         from unittest.mock import MagicMock, patch
 
-        from autopack.api.routes.governance import \
-            get_pending_governance_requests
+        from autopack.api.routes.governance import get_pending_governance_requests
 
         mock_db = MagicMock()
 
@@ -51,8 +50,7 @@ class TestGetPendingGovernanceRequestsContract:
         """Contract: /governance/pending returns serialized request objects."""
         from unittest.mock import MagicMock, patch
 
-        from autopack.api.routes.governance import \
-            get_pending_governance_requests
+        from autopack.api.routes.governance import get_pending_governance_requests
 
         mock_db = MagicMock()
 
@@ -80,8 +78,7 @@ class TestGetPendingGovernanceRequestsContract:
 
         from fastapi import HTTPException
 
-        from autopack.api.routes.governance import \
-            get_pending_governance_requests
+        from autopack.api.routes.governance import get_pending_governance_requests
 
         mock_db = MagicMock()
 

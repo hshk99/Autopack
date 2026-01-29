@@ -8,13 +8,16 @@ import json
 
 import pytest
 
-from autopack.subagent.output_contract import (ANALYSIS_CONTRACT,
-                                               PLAN_CONTRACT,
-                                               RESEARCH_CONTRACT,
-                                               OutputContract, OutputType,
-                                               SubagentOutput,
-                                               SubagentOutputValidator,
-                                               create_contract)
+from autopack.subagent.output_contract import (
+    ANALYSIS_CONTRACT,
+    PLAN_CONTRACT,
+    RESEARCH_CONTRACT,
+    OutputContract,
+    OutputType,
+    SubagentOutput,
+    SubagentOutputValidator,
+    create_contract,
+)
 
 
 class TestOutputContract:

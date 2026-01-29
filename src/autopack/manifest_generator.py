@@ -500,8 +500,7 @@ class ManifestGenerator:
         if isinstance(existing_deliverables_raw, dict):
             # Reuse deliverables sanitizer so we don't treat prose bullets as scope paths.
             try:
-                from autopack.deliverables_validator import \
-                    sanitize_deliverable_path
+                from autopack.deliverables_validator import sanitize_deliverable_path
             except Exception:
                 sanitize_deliverable_path = None  # type: ignore
             for v in existing_deliverables_raw.values():
@@ -523,8 +522,7 @@ class ManifestGenerator:
             if existing_deliverables_raw.strip():
                 it = existing_deliverables_raw.strip()
                 try:
-                    from autopack.deliverables_validator import \
-                        sanitize_deliverable_path
+                    from autopack.deliverables_validator import sanitize_deliverable_path
 
                     it = sanitize_deliverable_path(it)
                 except Exception:
@@ -532,8 +530,7 @@ class ManifestGenerator:
                 existing_deliverables = [it] if it else []
         elif isinstance(existing_deliverables_raw, (list, tuple, set)):
             try:
-                from autopack.deliverables_validator import \
-                    sanitize_deliverable_path
+                from autopack.deliverables_validator import sanitize_deliverable_path
             except Exception:
                 sanitize_deliverable_path = None  # type: ignore
             for item in existing_deliverables_raw:
@@ -800,8 +797,7 @@ class ManifestGenerator:
             global PlanAnalyzer
             if PlanAnalyzer is None:
                 # Lazy import (only when actually needed)
-                from autopack.plan_analyzer import \
-                    PlanAnalyzer as ImportedPlanAnalyzer
+                from autopack.plan_analyzer import PlanAnalyzer as ImportedPlanAnalyzer
 
                 PlanAnalyzer = ImportedPlanAnalyzer
 

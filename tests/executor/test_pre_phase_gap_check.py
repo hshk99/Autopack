@@ -7,11 +7,13 @@ that detects potential blockers before phase execution.
 import tempfile
 from unittest.mock import Mock, patch
 
-from autopack.executor.phase_orchestrator import (ExecutionContext,
-                                                  ExecutionResult,
-                                                  PhaseOrchestrator,
-                                                  PhaseResult,
-                                                  create_default_time_watchdog)
+from autopack.executor.phase_orchestrator import (
+    ExecutionContext,
+    ExecutionResult,
+    PhaseOrchestrator,
+    PhaseResult,
+    create_default_time_watchdog,
+)
 
 
 class TestPhaseOrchestratorGapCheckInit:

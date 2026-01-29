@@ -158,8 +158,7 @@ class TestScanDriveIntegration:
     def test_wiztree_fallback_calls_storage_scanner_scan_drive(self):
         """Test WizTreeScanner fallback to StorageScanner.scan_drive works."""
         try:
-            from autopack.storage_optimizer.wiztree_scanner import \
-                WizTreeScanner
+            from autopack.storage_optimizer.wiztree_scanner import WizTreeScanner
         except ImportError:
             pytest.skip("WizTreeScanner not available")
 

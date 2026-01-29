@@ -6,9 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from autopack.executor.state_persistence import (AttemptRecord, ExecutorState,
-                                                 ExecutorStateManager,
-                                                 PhaseState, PhaseStatus)
+from autopack.executor.state_persistence import (
+    AttemptRecord,
+    ExecutorState,
+    ExecutorStateManager,
+    PhaseState,
+    PhaseStatus,
+)
 
 
 class TestPhaseStatus:

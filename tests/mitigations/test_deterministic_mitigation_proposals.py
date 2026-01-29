@@ -15,8 +15,7 @@ from pathlib import Path
 
 def test_known_signature_to_rule_deterministic():
     """Same failure signature always produces same rule."""
-    from autopack.mitigations.deterministic_rules import \
-        known_signature_to_rule
+    from autopack.mitigations.deterministic_rules import known_signature_to_rule
 
     signature = "http_422_validation_failed:missing_field:name"
 
@@ -30,8 +29,7 @@ def test_known_signature_to_rule_deterministic():
 
 def test_known_signature_to_rule_unknown_returns_none():
     """Unknown failure signature returns None (no rule)."""
-    from autopack.mitigations.deterministic_rules import \
-        known_signature_to_rule
+    from autopack.mitigations.deterministic_rules import known_signature_to_rule
 
     signature = "completely_unknown_failure_type_xyz123"
 
@@ -43,7 +41,9 @@ def test_known_signature_to_rule_unknown_returns_none():
 def test_generate_mitigation_proposal_deterministic():
     """Same inputs always produce identical proposal output."""
     from autopack.mitigations.deterministic_rules import (
-        MitigationInputs, generate_mitigation_proposal)
+        MitigationInputs,
+        generate_mitigation_proposal,
+    )
 
     inputs = MitigationInputs(
         run_id="test-run-001",
@@ -66,8 +66,10 @@ def test_generate_mitigation_proposal_deterministic():
 def test_mitigation_proposal_schema_valid():
     """Mitigation proposal validates against schema."""
     from autopack.mitigations.deterministic_rules import (
-        MitigationInputs, generate_mitigation_proposal,
-        validate_mitigation_proposal)
+        MitigationInputs,
+        generate_mitigation_proposal,
+        validate_mitigation_proposal,
+    )
 
     inputs = MitigationInputs(
         run_id="test-run-001",
@@ -84,7 +86,9 @@ def test_mitigation_proposal_schema_valid():
 def test_mitigation_proposal_no_llm_required():
     """Mitigation proposal generation requires no LLM calls."""
     from autopack.mitigations.deterministic_rules import (
-        MitigationInputs, generate_mitigation_proposal)
+        MitigationInputs,
+        generate_mitigation_proposal,
+    )
 
     # No mock needed - function should work offline
     inputs = MitigationInputs(
@@ -104,8 +108,10 @@ def test_mitigation_proposal_written_run_locally():
     """Mitigation proposal is written to run-local path, not SOT."""
     from autopack.file_layout import RunFileLayout
     from autopack.mitigations.deterministic_rules import (
-        MitigationInputs, generate_mitigation_proposal,
-        write_mitigation_proposal)
+        MitigationInputs,
+        generate_mitigation_proposal,
+        write_mitigation_proposal,
+    )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         layout = RunFileLayout("test-run-001", base_dir=Path(tmpdir))
@@ -132,8 +138,7 @@ def test_mitigation_proposal_written_run_locally():
 
 def test_mitigation_rule_has_required_fields():
     """Each mitigation rule has required fields."""
-    from autopack.mitigations.deterministic_rules import \
-        known_signature_to_rule
+    from autopack.mitigations.deterministic_rules import known_signature_to_rule
 
     signature = "http_422_validation_failed:missing_field:name"
     rule = known_signature_to_rule(signature)
@@ -151,7 +156,9 @@ def test_mitigation_rule_has_required_fields():
 def test_mitigation_proposal_empty_signatures():
     """Empty failure signatures produce empty rules list."""
     from autopack.mitigations.deterministic_rules import (
-        MitigationInputs, generate_mitigation_proposal)
+        MitigationInputs,
+        generate_mitigation_proposal,
+    )
 
     inputs = MitigationInputs(
         run_id="test-run-001",
@@ -167,7 +174,9 @@ def test_mitigation_proposal_empty_signatures():
 def test_mitigation_proposal_deduplicates_rules():
     """Duplicate signatures produce deduplicated rules."""
     from autopack.mitigations.deterministic_rules import (
-        MitigationInputs, generate_mitigation_proposal)
+        MitigationInputs,
+        generate_mitigation_proposal,
+    )
 
     inputs = MitigationInputs(
         run_id="test-run-001",
@@ -189,7 +198,9 @@ def test_mitigation_proposal_deduplicates_rules():
 def test_mitigation_proposal_sorted_output():
     """Proposal rules are sorted deterministically."""
     from autopack.mitigations.deterministic_rules import (
-        MitigationInputs, generate_mitigation_proposal)
+        MitigationInputs,
+        generate_mitigation_proposal,
+    )
 
     inputs = MitigationInputs(
         run_id="test-run-001",
@@ -228,8 +239,10 @@ def test_mitigation_no_sot_writes():
     """Mitigation generator never writes to SOT paths."""
     from autopack.file_layout import RunFileLayout
     from autopack.mitigations.deterministic_rules import (
-        MitigationInputs, generate_mitigation_proposal,
-        write_mitigation_proposal)
+        MitigationInputs,
+        generate_mitigation_proposal,
+        write_mitigation_proposal,
+    )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         layout = RunFileLayout("test-run-001", base_dir=Path(tmpdir))

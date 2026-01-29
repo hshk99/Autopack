@@ -26,10 +26,13 @@ logger = logging.getLogger(__name__)
 
 # Import Doctor types and constants
 try:
-    from autopack.doctor import (DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
-                                 DOCTOR_MIN_BUILDER_ATTEMPTS,
-                                 DoctorContextSummary, DoctorRequest,
-                                 DoctorResponse)
+    from autopack.doctor import (
+        DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
+        DOCTOR_MIN_BUILDER_ATTEMPTS,
+        DoctorContextSummary,
+        DoctorRequest,
+        DoctorResponse,
+    )
 except ImportError:
     # Fallback if doctor module doesn't exist yet
     logger.warning("Could not import doctor module, using fallback constants")

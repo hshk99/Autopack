@@ -6,10 +6,14 @@ from governed_apply.py.
 
 from __future__ import annotations
 
-from autopack.apply.sanitize import (classify_patch_files,
-                                     extract_files_from_patch,
-                                     fix_empty_file_diffs, normalize_patch,
-                                     parse_patch_stats, sanitize_patch)
+from autopack.apply.sanitize import (
+    classify_patch_files,
+    extract_files_from_patch,
+    fix_empty_file_diffs,
+    normalize_patch,
+    parse_patch_stats,
+    sanitize_patch,
+)
 
 
 class TestFixEmptyFileDiffs:

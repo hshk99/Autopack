@@ -8,7 +8,9 @@ from sqlalchemy.orm import sessionmaker
 
 from autopack.models import Base, PhaseOutcomeEvent
 from autopack.telemetry.model_performance_tracker import (
-    ModelPerformance, TelemetryDrivenModelOptimizer)
+    ModelPerformance,
+    TelemetryDrivenModelOptimizer,
+)
 
 
 @pytest.fixture

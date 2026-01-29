@@ -7,8 +7,7 @@ anomaly detection.
 
 from datetime import datetime, timedelta
 
-from autopack.telemetry.anomaly_detector import (AlertSeverity,
-                                                 TelemetryAnomalyDetector)
+from autopack.telemetry.anomaly_detector import AlertSeverity, TelemetryAnomalyDetector
 
 
 class TestModelStalenessDetection:

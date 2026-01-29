@@ -13,13 +13,18 @@ Tests cover:
 import asyncio
 from unittest.mock import MagicMock, patch
 
-from autopack.memory.embeddings import (EMBEDDING_SIZE, MAX_EMBEDDING_CHARS,
-                                        _local_embed, _record_embedding_usage,
-                                        async_embed_text,
-                                        clear_embedding_cache,
-                                        get_embedding_cache_stats,
-                                        semantic_embeddings_enabled,
-                                        sync_embed_text, sync_embed_texts)
+from autopack.memory.embeddings import (
+    EMBEDDING_SIZE,
+    MAX_EMBEDDING_CHARS,
+    _local_embed,
+    _record_embedding_usage,
+    async_embed_text,
+    clear_embedding_cache,
+    get_embedding_cache_stats,
+    semantic_embeddings_enabled,
+    sync_embed_text,
+    sync_embed_texts,
+)
 
 
 class TestLocalEmbed:
@@ -605,8 +610,7 @@ class TestEmbeddingCache:
 
     def test_cache_maxsize_enforcement(self):
         """Test that cache respects maxsize limit."""
-        from autopack.memory.embeddings import (_EMBEDDING_CACHE_MAXSIZE,
-                                                get_embedding_cache_stats)
+        from autopack.memory.embeddings import _EMBEDDING_CACHE_MAXSIZE, get_embedding_cache_stats
 
         # Fill cache beyond maxsize
         for i in range(_EMBEDDING_CACHE_MAXSIZE + 100):

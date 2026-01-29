@@ -105,8 +105,7 @@ class TestRateLimitConfiguration:
 
     def test_request_parameter_added_to_approval_endpoints(self):
         """Verify Request parameter is added to approval endpoints."""
-        from autopack.api.routes.approvals import (request_approval,
-                                                   telegram_webhook)
+        from autopack.api.routes.approvals import request_approval, telegram_webhook
 
         # Both functions should have request parameter
         assert "request" in inspect.signature(request_approval).parameters
@@ -114,8 +113,7 @@ class TestRateLimitConfiguration:
 
     def test_request_parameter_added_to_oauth_endpoints(self):
         """Verify Request parameter is added to OAuth endpoints."""
-        from autopack.auth.oauth_router import (refresh_credential,
-                                                reset_failure_count)
+        from autopack.auth.oauth_router import refresh_credential, reset_failure_count
 
         # Both functions should have request parameter
         assert "request" in inspect.signature(refresh_credential).parameters

@@ -10,8 +10,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
-from .models import (DryRunApproval, DryRunResult, DryRunStatus,
-                     ExecutionResult, PredictedSideEffect)
+from .models import DryRunApproval, DryRunResult, DryRunStatus, ExecutionResult, PredictedSideEffect
 
 logger = logging.getLogger(__name__)
 

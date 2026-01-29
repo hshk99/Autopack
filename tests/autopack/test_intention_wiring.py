@@ -10,9 +10,11 @@ Validates:
 
 from unittest.mock import MagicMock, patch
 
-from autopack.intention_wiring import (IntentionContextInjector,
-                                       IntentionGoalDriftDetector,
-                                       inject_intention_into_prompt)
+from autopack.intention_wiring import (
+    IntentionContextInjector,
+    IntentionGoalDriftDetector,
+    inject_intention_into_prompt,
+)
 
 
 class TestIntentionContextInjector:

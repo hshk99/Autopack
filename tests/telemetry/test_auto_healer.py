@@ -3,8 +3,7 @@
 import pytest
 
 from autopack.telemetry.anomaly_detector import AlertSeverity, AnomalyAlert
-from autopack.telemetry.auto_healer import (AutoHealingEngine, HealingAction,
-                                            HealingDecision)
+from autopack.telemetry.auto_healer import AutoHealingEngine, HealingAction, HealingDecision
 
 
 @pytest.fixture

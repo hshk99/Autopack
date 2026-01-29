@@ -17,8 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 import pytest
 
 from autopack.database import SessionLocal, engine
-from autopack.models import (Base, Phase, PhaseState, Run, RunState, Tier,
-                             TierState)
+from autopack.models import Base, Phase, PhaseState, Run, RunState, Tier, TierState
 
 
 @pytest.fixture(scope="function")

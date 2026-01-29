@@ -9,6 +9,7 @@ Tests:
 """
 
 import os
+
 # Import migration functions
 import sys
 import tempfile
@@ -100,9 +101,7 @@ def test_median_estimation_function():
     """Test that estimate_doctor_tokens_avoided returns valid results"""
     from autopack.database import Base
     from autopack.models import Run
-    from autopack.usage_recorder import (UsageEventData,
-                                         estimate_doctor_tokens_avoided,
-                                         record_usage)
+    from autopack.usage_recorder import UsageEventData, estimate_doctor_tokens_avoided, record_usage
 
     # Use in-memory DB for test
     test_engine = create_engine("sqlite:///:memory:")

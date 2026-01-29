@@ -9,8 +9,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from autopack.models import (ABTestResult, Base, Phase, PhaseState, Run,
-                             RunState)
+from autopack.models import ABTestResult, Base, Phase, PhaseState, Run, RunState
 
 
 @pytest.fixture

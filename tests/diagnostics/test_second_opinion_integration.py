@@ -9,13 +9,11 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from autopack.diagnostics.command_runner import CommandResult
-from autopack.diagnostics.diagnostics_agent import (DiagnosticOutcome,
-                                                    DiagnosticsAgent)
+from autopack.diagnostics.diagnostics_agent import DiagnosticOutcome, DiagnosticsAgent
 from autopack.diagnostics.diagnostics_models import DecisionType, PhaseSpec
 from autopack.diagnostics.goal_aware_decision import GoalAwareDecisionMaker
 from autopack.diagnostics.iterative_investigator import IterativeInvestigator
-from autopack.diagnostics.second_opinion import (SecondOpinionTriageSystem,
-                                                 TriageReport)
+from autopack.diagnostics.second_opinion import SecondOpinionTriageSystem, TriageReport
 
 
 class _StubRunner:

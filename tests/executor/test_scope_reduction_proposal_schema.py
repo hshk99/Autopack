@@ -17,7 +17,9 @@ from pathlib import Path
 def test_scope_reduction_proposal_is_schema_valid():
     """Scope reduction proposal validates against schema."""
     from autopack.executor.scope_reduction_flow import (
-        ScopeReductionProposal, validate_scope_reduction_json)
+        ScopeReductionProposal,
+        validate_scope_reduction_json,
+    )
     from autopack.intention_anchor.v2 import IntentionAnchorV2, PivotIntentions
 
     anchor = IntentionAnchorV2(
@@ -74,7 +76,9 @@ def test_scope_reduction_never_auto_applies_by_default():
 def test_scope_reduction_writes_to_run_local_path():
     """Proposal is written to run-local artifact path."""
     from autopack.executor.scope_reduction_flow import (
-        ScopeReductionProposal, write_scope_reduction_proposal)
+        ScopeReductionProposal,
+        write_scope_reduction_proposal,
+    )
     from autopack.file_layout import RunFileLayout
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -109,11 +113,8 @@ def test_scope_reduction_writes_to_run_local_path():
 
 def test_scope_reduction_prompt_includes_anchor_context():
     """Scope reduction prompt includes anchor context for justification."""
-    from autopack.executor.scope_reduction_flow import \
-        build_scope_reduction_prompt
-    from autopack.intention_anchor.v2 import (IntentionAnchorV2,
-                                              NorthStarIntention,
-                                              PivotIntentions)
+    from autopack.executor.scope_reduction_flow import build_scope_reduction_prompt
+    from autopack.intention_anchor.v2 import IntentionAnchorV2, NorthStarIntention, PivotIntentions
 
     anchor = IntentionAnchorV2(
         project_id="test-project",
@@ -143,8 +144,7 @@ def test_scope_reduction_prompt_includes_anchor_context():
 
 def test_scope_reduction_validation_rejects_empty_proposed_scope():
     """Validation fails if proposed_scope is empty (cannot reduce to nothing)."""
-    from autopack.executor.scope_reduction_flow import \
-        validate_scope_reduction_json
+    from autopack.executor.scope_reduction_flow import validate_scope_reduction_json
     from autopack.intention_anchor.v2 import IntentionAnchorV2, PivotIntentions
 
     anchor = IntentionAnchorV2(
@@ -177,8 +177,7 @@ def test_scope_reduction_validation_rejects_empty_proposed_scope():
 
 def test_scope_reduction_validation_rejects_anchor_mismatch():
     """Validation fails if proposal anchor_digest doesn't match anchor."""
-    from autopack.executor.scope_reduction_flow import \
-        validate_scope_reduction_json
+    from autopack.executor.scope_reduction_flow import validate_scope_reduction_json
     from autopack.intention_anchor.v2 import IntentionAnchorV2, PivotIntentions
 
     anchor = IntentionAnchorV2(

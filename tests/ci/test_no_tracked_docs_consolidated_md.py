@@ -7,6 +7,7 @@ Policy enforced:
 """
 
 import subprocess
+
 # Add scripts/ci to path for import
 import sys
 from pathlib import Path

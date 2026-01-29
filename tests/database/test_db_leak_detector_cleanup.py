@@ -6,8 +6,7 @@ from unittest.mock import Mock
 import pytest
 from sqlalchemy import create_engine
 
-from autopack.db_leak_detector import (ConnectionLeakDetector,
-                                       _connection_checkout_times)
+from autopack.db_leak_detector import ConnectionLeakDetector, _connection_checkout_times
 
 
 @pytest.fixture

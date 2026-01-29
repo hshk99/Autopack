@@ -4,11 +4,13 @@ from datetime import datetime
 
 import pytest
 
-from autopack.research.models import (Citation, Evidence, EvidenceQuality,
-                                      ResearchReport)
-from autopack.research.validation import (CitationValidator, EvidenceValidator,
-                                          QualityValidator,
-                                          ValidationFramework)
+from autopack.research.models import Citation, Evidence, EvidenceQuality, ResearchReport
+from autopack.research.validation import (
+    CitationValidator,
+    EvidenceValidator,
+    QualityValidator,
+    ValidationFramework,
+)
 
 
 class TestEvidenceValidator:

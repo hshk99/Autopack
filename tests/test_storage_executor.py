@@ -23,8 +23,7 @@ from sqlalchemy.orm import sessionmaker
 
 from autopack.database import Base
 from autopack.models import CleanupCandidateDB, StorageScan
-from autopack.storage_optimizer.executor import (CleanupExecutor,
-                                                 ExecutionStatus)
+from autopack.storage_optimizer.executor import CleanupExecutor, ExecutionStatus
 from autopack.storage_optimizer.policy import CategoryPolicy, StoragePolicy
 
 # ==============================================================================

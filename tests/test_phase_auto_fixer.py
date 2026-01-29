@@ -1,6 +1,8 @@
-from autopack.phase_auto_fixer import (auto_fix_phase_scope,
-                                       derive_scope_paths_from_deliverables,
-                                       normalize_deliverables)
+from autopack.phase_auto_fixer import (
+    auto_fix_phase_scope,
+    derive_scope_paths_from_deliverables,
+    normalize_deliverables,
+)
 
 
 def test_normalize_deliverables_strips_annotations_and_normalizes_slashes():

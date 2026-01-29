@@ -38,8 +38,7 @@ from contextlib import contextmanager
 from typing import Any, Generator
 
 from sqlalchemy import create_engine, event, text
-from sqlalchemy.orm import (Session, declarative_base, scoped_session,
-                            sessionmaker)
+from sqlalchemy.orm import Session, declarative_base, scoped_session, sessionmaker
 
 from .config import get_database_url
 from .db_leak_detector import ConnectionLeakDetector

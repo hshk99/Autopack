@@ -1,7 +1,11 @@
 """Tests for the verification module."""
 
-from autopack.verification import (extract_numbers, verify_citation_in_source,
-                                   verify_extraction, verify_numeric_values)
+from autopack.verification import (
+    extract_numbers,
+    verify_citation_in_source,
+    verify_extraction,
+    verify_numeric_values,
+)
 
 
 class TestExtractNumbers:

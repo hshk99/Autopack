@@ -11,14 +11,18 @@ import json
 import pytest
 
 from autopack.error_recovery import DoctorRequest, DoctorResponse
-from autopack.service.doctor import (DOCTOR_SYSTEM_PROMPT, DoctorCallResult,
-                                     DoctorDiagnosisContext,
-                                     build_doctor_user_message,
-                                     calculate_health_ratio,
-                                     create_default_doctor_response,
-                                     parse_doctor_json,
-                                     should_consider_rollback,
-                                     validate_doctor_action, validate_fix_type)
+from autopack.service.doctor import (
+    DOCTOR_SYSTEM_PROMPT,
+    DoctorCallResult,
+    DoctorDiagnosisContext,
+    build_doctor_user_message,
+    calculate_health_ratio,
+    create_default_doctor_response,
+    parse_doctor_json,
+    should_consider_rollback,
+    validate_doctor_action,
+    validate_fix_type,
+)
 
 # ============================================================================
 # Fixtures

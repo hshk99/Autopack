@@ -3,7 +3,9 @@
 from unittest.mock import MagicMock, patch
 
 from autopack.telemetry.intention_effectiveness import (
-    IntentionEffectivenessTracker, IntentionOutcome)
+    IntentionEffectivenessTracker,
+    IntentionOutcome,
+)
 
 
 class TestIntentionEffectivenessTracker:

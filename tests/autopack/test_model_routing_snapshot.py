@@ -10,11 +10,13 @@ from datetime import datetime, timedelta
 import pytest
 
 from autopack.config import settings
-from autopack.model_routing_snapshot import (ModelRoutingEntry,
-                                             ModelRoutingSnapshot,
-                                             RoutingSnapshotStorage,
-                                             create_default_snapshot,
-                                             refresh_or_load_snapshot)
+from autopack.model_routing_snapshot import (
+    ModelRoutingEntry,
+    ModelRoutingSnapshot,
+    RoutingSnapshotStorage,
+    create_default_snapshot,
+    refresh_or_load_snapshot,
+)
 
 
 @pytest.fixture

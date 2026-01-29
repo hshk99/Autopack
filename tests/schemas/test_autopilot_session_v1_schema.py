@@ -4,8 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from autopack.schema_validation import (SchemaValidationError,
-                                        validate_autopilot_session_v1)
+from autopack.schema_validation import SchemaValidationError, validate_autopilot_session_v1
 
 
 def test_minimal_valid_autopilot_session_v1():
@@ -252,8 +251,7 @@ def test_error_log_entry_missing_timestamp():
 
 def test_pydantic_model_roundtrip():
     """Test that AutopilotSessionV1 Pydantic model can roundtrip through schema validation."""
-    from autopack.autonomy.models import (ApprovalRequest, AutopilotSessionV1,
-                                          ExecutionSummary)
+    from autopack.autonomy.models import ApprovalRequest, AutopilotSessionV1, ExecutionSummary
 
     session = AutopilotSessionV1(
         format_version="v1",

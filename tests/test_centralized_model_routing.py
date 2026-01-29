@@ -86,7 +86,8 @@ class TestErrorRecoveryUsesConfig:
         from src.autopack.error_recovery import (
             DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
             DOCTOR_MAX_BUILDER_ATTEMPTS_BEFORE_COMPLEX,
-            DOCTOR_MIN_CONFIDENCE_FOR_CHEAP)
+            DOCTOR_MIN_CONFIDENCE_FOR_CHEAP,
+        )
 
         assert DOCTOR_MIN_CONFIDENCE_FOR_CHEAP == doctor_config.min_confidence_for_cheap
         assert DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO == doctor_config.health_budget_near_limit_ratio
@@ -98,8 +99,10 @@ class TestErrorRecoveryUsesConfig:
     def test_error_recovery_uses_config_risk_categories(self):
         """error_recovery risk categories should match config."""
         from src.autopack.config_loader import doctor_config
-        from src.autopack.error_recovery import (DOCTOR_HIGH_RISK_CATEGORIES,
-                                                 DOCTOR_LOW_RISK_CATEGORIES)
+        from src.autopack.error_recovery import (
+            DOCTOR_HIGH_RISK_CATEGORIES,
+            DOCTOR_LOW_RISK_CATEGORIES,
+        )
 
         assert DOCTOR_HIGH_RISK_CATEGORIES == set(doctor_config.high_risk_categories)
         assert DOCTOR_LOW_RISK_CATEGORIES == set(doctor_config.low_risk_categories)

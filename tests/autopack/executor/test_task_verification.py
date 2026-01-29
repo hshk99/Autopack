@@ -12,7 +12,9 @@ Tests cover:
 from datetime import datetime
 
 from autopack.task_generation.task_effectiveness_tracker import (
-    RegisteredTask, TaskEffectivenessTracker)
+    RegisteredTask,
+    TaskEffectivenessTracker,
+)
 
 
 class TestRegisteredTask:

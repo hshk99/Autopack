@@ -6,6 +6,7 @@ stable output and NEVER writes to SOT ledgers.
 """
 
 import json
+
 # Import the script functions directly
 import sys
 import tempfile
@@ -14,11 +15,13 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "scripts" / "tidy"))
 
-from consolidate_intention_anchors import (analyze_anchor_artifacts,
-                                           find_runs_with_anchors,
-                                           generate_report_json,
-                                           generate_report_markdown,
-                                           run_report_mode)
+from consolidate_intention_anchors import (
+    analyze_anchor_artifacts,
+    find_runs_with_anchors,
+    generate_report_json,
+    generate_report_markdown,
+    run_report_mode,
+)
 
 # Import intention anchor utilities
 sys.path.insert(0, str(project_root / "src"))
@@ -560,8 +563,7 @@ def test_analyze_anchor_artifacts_missing_snapshots():
         save_anchor(anchor, base_dir=tmpdir_path, generate_artifacts=True)
 
         # Manually delete snapshot v2
-        from autopack.intention_anchor.artifacts import \
-            get_anchor_summary_version_path
+        from autopack.intention_anchor.artifacts import get_anchor_summary_version_path
 
         snapshot_v2_path = get_anchor_summary_version_path(
             "test-run-snapshots", 2, base_dir=tmpdir_path

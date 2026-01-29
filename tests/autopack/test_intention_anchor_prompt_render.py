@@ -7,13 +7,19 @@ and respects budget constraints (max bullets).
 
 import tempfile
 
-from autopack.intention_anchor import (IntentionConstraints, create_anchor,
-                                       load_and_render_for_auditor,
-                                       load_and_render_for_builder,
-                                       load_and_render_for_doctor,
-                                       render_compact, render_for_auditor,
-                                       render_for_builder, render_for_doctor,
-                                       render_for_prompt, save_anchor)
+from autopack.intention_anchor import (
+    IntentionConstraints,
+    create_anchor,
+    load_and_render_for_auditor,
+    load_and_render_for_builder,
+    load_and_render_for_doctor,
+    render_compact,
+    render_for_auditor,
+    render_for_builder,
+    render_for_doctor,
+    render_for_prompt,
+    save_anchor,
+)
 
 
 def test_render_for_prompt_minimal():

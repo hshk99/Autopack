@@ -2,9 +2,11 @@
 
 import pytest
 
-from autopack.autonomous.budgeting import (PhaseTokenBudgetExceededError,
-                                           get_phase_budget_remaining_pct,
-                                           is_phase_budget_exceeded)
+from autopack.autonomous.budgeting import (
+    PhaseTokenBudgetExceededError,
+    get_phase_budget_remaining_pct,
+    is_phase_budget_exceeded,
+)
 from autopack.config import Settings
 
 

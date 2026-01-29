@@ -8,8 +8,7 @@ from datetime import datetime, timezone
 import pytest
 from sqlalchemy.orm import Session
 
-from autopack.auth.api_key import (generate_api_key, get_api_key_from_db,
-                                   verify_api_key)
+from autopack.auth.api_key import generate_api_key, get_api_key_from_db, verify_api_key
 from autopack.auth.models import APIKey
 from autopack.database import Base, engine, get_db
 

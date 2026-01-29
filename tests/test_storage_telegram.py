@@ -34,10 +34,6 @@ class TestStorageTelegramNotifier:
         "os.environ", {"TELEGRAM_BOT_TOKEN": "test_token_123", "TELEGRAM_CHAT_ID": "123456789"}
     )
     @patch("requests.post")
-    @pytest.mark.skip(
-        reason="Test expects '20.0 GB' but format_size() produces '20.00 GB' (2 decimal places). "
-        "Formatting implementation changed. Test needs update."
-    )
     def test_send_scan_completion_sends_message_with_buttons(self, mock_post):
         """Test scan completion notification includes inline keyboard buttons."""
         # Mock successful Telegram API response
@@ -93,7 +89,7 @@ class TestStorageTelegramNotifier:
         assert "Storage Scan Complete" in message_text
         assert "C:" in message_text
         assert "150 items" in message_text
-        assert "20.0 GB" in message_text
+        assert "20.00 GB" in message_text
 
         # Verify inline keyboard
         keyboard = json_data["reply_markup"]["inline_keyboard"]
@@ -113,10 +109,6 @@ class TestStorageTelegramNotifier:
         "os.environ", {"TELEGRAM_BOT_TOKEN": "test_token_123", "TELEGRAM_CHAT_ID": "123456789"}
     )
     @patch("requests.post")
-    @pytest.mark.skip(
-        reason="Test expects '15.0 GB' but format_size() produces '15.00 GB' (2 decimal places). "
-        "Formatting implementation changed. Test needs update."
-    )
     def test_send_execution_complete_sends_summary(self, mock_post):
         """Test execution completion notification."""
         mock_response = Mock()
@@ -140,7 +132,7 @@ class TestStorageTelegramNotifier:
         json_data = mock_post.call_args[1]["json"]
         message_text = json_data["text"]
         assert "Cleanup Complete" in message_text
-        assert "15.0 GB" in message_text
+        assert "15.00 GB" in message_text
         assert "120" in message_text  # successful
         assert "5" in message_text  # failed
 
@@ -148,10 +140,6 @@ class TestStorageTelegramNotifier:
         "os.environ", {"TELEGRAM_BOT_TOKEN": "test_token_123", "TELEGRAM_CHAT_ID": "123456789"}
     )
     @patch("requests.post")
-    @pytest.mark.skip(
-        reason="Test expects '20.5 GB' but format_size() produces '20.50 GB' (2 decimal places). "
-        "Formatting implementation changed. Test needs update."
-    )
     def test_send_approval_confirmation(self, mock_post):
         """Test approval confirmation notification."""
         mock_response = Mock()
@@ -172,7 +160,7 @@ class TestStorageTelegramNotifier:
         message_text = json_data["text"]
         assert "Approval Confirmed" in message_text
         assert "150" in message_text
-        assert "20.5 GB" in message_text
+        assert "20.50 GB" in message_text
 
     @patch.dict(
         "os.environ", {"TELEGRAM_BOT_TOKEN": "test_token_123", "TELEGRAM_CHAT_ID": "123456789"}

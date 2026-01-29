@@ -14,7 +14,7 @@ Second-order metrics: Measure whether the improvement loop is improving.
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -2849,4 +2849,305 @@ class LoopFidelityMetric:
             "is_healthy": self.is_healthy(),
             "total_measurements": len(self._fidelity_scores),
             "low_fidelity_count": len(self.get_low_fidelity_tasks()),
+        }
+
+
+# =============================================================================
+# IMP-LOOP-029: Context Injection Effectiveness Measurement
+# =============================================================================
+
+
+@dataclass
+class ContextInjectionEffectivenessResult:
+    """Result of context injection effectiveness analysis.
+
+    IMP-LOOP-029: Captures the comparative success rates of phases
+    with and without context injection to measure memory system effectiveness.
+    """
+
+    with_context_success_rate: float  # Success rate when context was injected
+    without_context_success_rate: float  # Success rate when no context
+    delta: float  # Improvement from context (with - without)
+    with_context_count: int  # Number of samples with context
+    without_context_count: int  # Number of samples without context
+    improvement_percent: float  # Percentage improvement
+    is_significant: bool  # True if statistically meaningful (n>=10, delta>=5%)
+    avg_memory_items_injected: float  # Average items when context present
+    timestamp: datetime = field(default_factory=datetime.utcnow)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "with_context_success_rate": round(self.with_context_success_rate, 4),
+            "without_context_success_rate": round(self.without_context_success_rate, 4),
+            "delta": round(self.delta, 4),
+            "with_context_count": self.with_context_count,
+            "without_context_count": self.without_context_count,
+            "improvement_percent": round(self.improvement_percent, 2),
+            "is_significant": self.is_significant,
+            "avg_memory_items_injected": round(self.avg_memory_items_injected, 2),
+            "timestamp": self.timestamp.isoformat(),
+        }
+
+
+class ContextInjectionEffectivenessTracker:
+    """Track effectiveness of context injection on phase outcomes.
+
+    IMP-LOOP-029: Measures whether injecting memory context into phases
+    improves their success rates. This enables data-driven decisions about
+    memory retrieval strategies and context injection approaches.
+
+    The tracker compares success rates between:
+    - Phases with context injection (memory items provided)
+    - Phases without context injection (no memory items)
+
+    A positive delta indicates context injection is beneficial.
+
+    Usage:
+        tracker = ContextInjectionEffectivenessTracker()
+        tracker.record_result(had_context=True, success=True, memory_count=5)
+        tracker.record_result(had_context=False, success=False, memory_count=0)
+        effectiveness = tracker.calculate_effectiveness()
+        if effectiveness.is_significant and effectiveness.delta > 0:
+            logger.info("Context injection is improving outcomes!")
+    """
+
+    # Thresholds for significance
+    MIN_SAMPLES_FOR_SIGNIFICANCE: int = 10
+    MIN_DELTA_FOR_SIGNIFICANCE: float = 0.05  # 5% improvement
+
+    def __init__(self, min_samples: int = MIN_SAMPLES_FOR_SIGNIFICANCE):
+        """Initialize the effectiveness tracker.
+
+        Args:
+            min_samples: Minimum samples required for statistical significance
+        """
+        self.min_samples = min_samples
+        self._with_context_results: List[Dict[str, Any]] = []
+        self._without_context_results: List[Dict[str, Any]] = []
+        self._history: List[ContextInjectionEffectivenessResult] = []
+
+    def record_result(
+        self,
+        had_context: bool,
+        success: bool,
+        memory_count: int = 0,
+        metrics: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Record a phase result for effectiveness comparison.
+
+        Args:
+            had_context: Whether context was injected for this phase
+            success: Whether the phase succeeded
+            memory_count: Number of memory items injected (if any)
+            metrics: Optional additional metrics from phase execution
+        """
+        result = {
+            "success": success,
+            "memory_count": memory_count,
+            "metrics": metrics or {},
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+        if had_context:
+            self._with_context_results.append(result)
+        else:
+            self._without_context_results.append(result)
+
+        logger.debug(
+            f"[IMP-LOOP-029] Recorded result: had_context={had_context}, "
+            f"success={success}, memory_count={memory_count}"
+        )
+
+    def calculate_effectiveness(self) -> ContextInjectionEffectivenessResult:
+        """Calculate context injection effectiveness metrics.
+
+        Returns:
+            ContextInjectionEffectivenessResult with comparison metrics
+        """
+        # Calculate success rates
+        with_count = len(self._with_context_results)
+        without_count = len(self._without_context_results)
+
+        with_success = sum(1 for r in self._with_context_results if r["success"])
+        without_success = sum(1 for r in self._without_context_results if r["success"])
+
+        with_rate = with_success / with_count if with_count > 0 else 0.0
+        without_rate = without_success / without_count if without_count > 0 else 0.0
+
+        delta = with_rate - without_rate
+        improvement_percent = (delta / without_rate * 100) if without_rate > 0 else 0.0
+
+        # Calculate average memory items injected
+        total_memory = sum(r["memory_count"] for r in self._with_context_results)
+        avg_memory = total_memory / with_count if with_count > 0 else 0.0
+
+        # Determine significance
+        total_samples = with_count + without_count
+        is_significant = (
+            total_samples >= self.min_samples and abs(delta) >= self.MIN_DELTA_FOR_SIGNIFICANCE
+        )
+
+        result = ContextInjectionEffectivenessResult(
+            with_context_success_rate=with_rate,
+            without_context_success_rate=without_rate,
+            delta=delta,
+            with_context_count=with_count,
+            without_context_count=without_count,
+            improvement_percent=improvement_percent,
+            is_significant=is_significant,
+            avg_memory_items_injected=avg_memory,
+        )
+
+        # Track history
+        self._history.append(result)
+
+        logger.info(
+            f"[IMP-LOOP-029] Context injection effectiveness: "
+            f"with_context={with_rate:.2%} ({with_count}), "
+            f"without_context={without_rate:.2%} ({without_count}), "
+            f"delta={delta:+.2%}, significant={is_significant}"
+        )
+
+        return result
+
+    def get_trend(self, window_size: int = 5) -> Optional[str]:
+        """Analyze trend in effectiveness over recent measurements.
+
+        Args:
+            window_size: Number of recent measurements to analyze
+
+        Returns:
+            Trend direction: "improving", "stable", "declining", or None if insufficient data
+        """
+        if len(self._history) < window_size:
+            return None
+
+        recent = self._history[-window_size:]
+        deltas = [r.delta for r in recent]
+
+        first_half_avg = sum(deltas[: window_size // 2]) / (window_size // 2)
+        second_half_avg = sum(deltas[window_size // 2 :]) / (window_size - window_size // 2)
+
+        diff = second_half_avg - first_half_avg
+
+        if diff > 0.05:
+            return "improving"
+        elif diff < -0.05:
+            return "declining"
+        else:
+            return "stable"
+
+    def get_average_delta(self, window_size: int = 10) -> float:
+        """Get average effectiveness delta over recent measurements.
+
+        Args:
+            window_size: Number of recent measurements to average
+
+        Returns:
+            Average delta value
+        """
+        if not self._history:
+            return 0.0
+
+        recent = self._history[-window_size:]
+        return sum(r.delta for r in recent) / len(recent)
+
+    def is_context_beneficial(self) -> bool:
+        """Determine if context injection is beneficial based on current data.
+
+        Returns:
+            True if context injection shows statistically significant improvement
+        """
+        if not self._history:
+            effectiveness = self.calculate_effectiveness()
+        else:
+            effectiveness = self._history[-1]
+
+        return effectiveness.is_significant and effectiveness.delta > 0
+
+    def get_recommendation(self) -> str:
+        """Get a recommendation based on effectiveness data.
+
+        Returns:
+            Human-readable recommendation string
+        """
+        effectiveness = self.calculate_effectiveness()
+
+        if (
+            effectiveness.with_context_count + effectiveness.without_context_count
+            < self.min_samples
+        ):
+            return (
+                f"Insufficient data for recommendation. "
+                f"Need {self.min_samples} samples, have "
+                f"{effectiveness.with_context_count + effectiveness.without_context_count}."
+            )
+
+        if effectiveness.is_significant:
+            if effectiveness.delta > 0:
+                return (
+                    f"Context injection is beneficial! "
+                    f"Success rate improves by {effectiveness.delta:.1%} "
+                    f"({effectiveness.improvement_percent:.1f}% relative improvement). "
+                    f"Recommendation: Continue using context injection."
+                )
+            else:
+                return (
+                    f"Context injection may be harmful. "
+                    f"Success rate decreases by {abs(effectiveness.delta):.1%}. "
+                    f"Recommendation: Review context retrieval strategy."
+                )
+        else:
+            return (
+                f"No significant impact detected. "
+                f"Delta is {effectiveness.delta:+.1%} which is below the "
+                f"{self.MIN_DELTA_FOR_SIGNIFICANCE:.0%} threshold. "
+                f"Recommendation: Continue monitoring with more data."
+            )
+
+    def clear_results(self) -> int:
+        """Clear all recorded results.
+
+        Returns:
+            Number of results cleared
+        """
+        count = len(self._with_context_results) + len(self._without_context_results)
+        self._with_context_results.clear()
+        self._without_context_results.clear()
+        logger.debug(f"[IMP-LOOP-029] Cleared {count} effectiveness results")
+        return count
+
+    def clear_history(self) -> int:
+        """Clear effectiveness measurement history.
+
+        Returns:
+            Number of history entries cleared
+        """
+        count = len(self._history)
+        self._history.clear()
+        logger.debug(f"[IMP-LOOP-029] Cleared {count} effectiveness history entries")
+        return count
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert tracker state to dictionary for serialization.
+
+        Returns:
+            Dict with all tracker state and computed metrics
+        """
+        current_effectiveness = (
+            self._history[-1].to_dict()
+            if self._history
+            else self.calculate_effectiveness().to_dict()
+        )
+
+        return {
+            "with_context_count": len(self._with_context_results),
+            "without_context_count": len(self._without_context_results),
+            "history_size": len(self._history),
+            "current_effectiveness": current_effectiveness,
+            "trend": self.get_trend(),
+            "average_delta": round(self.get_average_delta(), 4),
+            "is_context_beneficial": self.is_context_beneficial(),
+            "recommendation": self.get_recommendation(),
         }

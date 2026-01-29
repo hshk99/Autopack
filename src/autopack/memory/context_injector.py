@@ -10,8 +10,10 @@ contradictory lessons from being active simultaneously.
 
 import logging
 import re
+import uuid
 import warnings
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from .memory_service import ContextMetadata, MemoryService
@@ -34,6 +36,44 @@ class ContextInjectionMetadata:
     hints_count: int  # Number of doctor hints injected
     insights_count: int  # Number of relevant insights injected
     discovery_count: int  # Number of discovery insights injected
+
+
+@dataclass
+class InjectionTrackingRecord:
+    """Record of a context injection for effectiveness measurement (IMP-LOOP-029).
+
+    Tracks an individual context injection event along with its outcome,
+    enabling correlation between context injection and phase success rates.
+
+    Attributes:
+        injection_id: Unique identifier for this injection event
+        phase_id: The phase this injection was for
+        timestamp: When the injection occurred
+        memory_count: Number of memory items injected
+        had_context: Whether any context was actually injected
+        outcome: Phase outcome (success/failure) after correlation
+        metrics: Additional metrics from phase execution
+    """
+
+    injection_id: str
+    phase_id: str
+    timestamp: str
+    memory_count: int
+    had_context: bool
+    outcome: Optional[Dict[str, Any]] = None
+    metrics: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "injection_id": self.injection_id,
+            "phase_id": self.phase_id,
+            "timestamp": self.timestamp,
+            "memory_count": self.memory_count,
+            "had_context": self.had_context,
+            "outcome": self.outcome,
+            "metrics": self.metrics,
+        }
 
 
 @dataclass
@@ -116,7 +156,11 @@ class EnrichedContextInjection:
 
 
 class ContextInjector:
-    """Retrieves and formats memory context for injection into builder prompts."""
+    """Retrieves and formats memory context for injection into builder prompts.
+
+    IMP-LOOP-029: Includes injection tracking for effectiveness measurement,
+    enabling correlation between context injection and phase outcomes.
+    """
 
     def __init__(self, memory_service: Optional[MemoryService] = None):
         """Initialize with optional memory service instance.
@@ -125,6 +169,8 @@ class ContextInjector:
             memory_service: MemoryService instance (creates default if None)
         """
         self._memory = memory_service or MemoryService()
+        # IMP-LOOP-029: Track injections for effectiveness measurement
+        self._injections: Dict[str, InjectionTrackingRecord] = {}
 
     def get_context_for_phase(
         self,
@@ -999,3 +1045,186 @@ class ContextInjector:
         )
 
         return metadata
+
+    # -------------------------------------------------------------------------
+    # IMP-LOOP-029: Context Injection Effectiveness Measurement
+    # -------------------------------------------------------------------------
+
+    def _generate_injection_id(self, phase_id: str) -> str:
+        """Generate a unique injection ID for tracking.
+
+        IMP-LOOP-029: Creates a unique identifier combining phase_id with a
+        UUID suffix for tracking injection events.
+
+        Args:
+            phase_id: The phase this injection is for
+
+        Returns:
+            Unique injection ID string
+        """
+        return f"{phase_id}_{uuid.uuid4().hex[:8]}"
+
+    def track_injection(
+        self,
+        phase_id: str,
+        memory_count: int,
+        had_context: bool,
+    ) -> str:
+        """Track a context injection for effectiveness measurement.
+
+        IMP-LOOP-029: Records an injection event for later correlation with
+        phase outcomes. Returns an injection_id that should be passed to
+        correlate_outcome() after phase execution completes.
+
+        Args:
+            phase_id: The phase this injection is for
+            memory_count: Number of memory items injected
+            had_context: Whether any context was actually injected
+
+        Returns:
+            injection_id for later outcome correlation
+        """
+        injection_id = self._generate_injection_id(phase_id)
+
+        record = InjectionTrackingRecord(
+            injection_id=injection_id,
+            phase_id=phase_id,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            memory_count=memory_count,
+            had_context=had_context,
+        )
+
+        self._injections[injection_id] = record
+
+        logger.debug(
+            f"[IMP-LOOP-029] Tracked injection: id={injection_id}, "
+            f"phase={phase_id}, memory_count={memory_count}, had_context={had_context}"
+        )
+
+        return injection_id
+
+    def correlate_outcome(
+        self,
+        injection_id: str,
+        success: bool,
+        metrics: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """Correlate an injection with its phase outcome for effectiveness analysis.
+
+        IMP-LOOP-029: Records the outcome of a phase that had context injected,
+        enabling comparison of success rates with/without context injection.
+
+        Args:
+            injection_id: The injection_id returned from track_injection()
+            success: Whether the phase succeeded
+            metrics: Optional additional metrics from phase execution
+
+        Returns:
+            True if correlation was recorded, False if injection_id not found
+        """
+        if injection_id not in self._injections:
+            logger.warning(
+                f"[IMP-LOOP-029] Cannot correlate outcome: injection_id={injection_id} not found"
+            )
+            return False
+
+        record = self._injections[injection_id]
+        record.outcome = {
+            "success": success,
+            "correlated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        record.metrics = metrics or {}
+
+        logger.debug(
+            f"[IMP-LOOP-029] Correlated outcome: id={injection_id}, "
+            f"success={success}, had_context={record.had_context}"
+        )
+
+        return True
+
+    def get_injection_record(self, injection_id: str) -> Optional[InjectionTrackingRecord]:
+        """Get the tracking record for an injection.
+
+        Args:
+            injection_id: The injection ID to look up
+
+        Returns:
+            InjectionTrackingRecord if found, None otherwise
+        """
+        return self._injections.get(injection_id)
+
+    def get_all_injection_records(self) -> List[InjectionTrackingRecord]:
+        """Get all tracked injection records.
+
+        Returns:
+            List of all InjectionTrackingRecord objects
+        """
+        return list(self._injections.values())
+
+    def get_correlated_records(self) -> List[InjectionTrackingRecord]:
+        """Get all injection records that have been correlated with outcomes.
+
+        Returns:
+            List of InjectionTrackingRecord objects with outcomes
+        """
+        return [r for r in self._injections.values() if r.outcome is not None]
+
+    def calculate_effectiveness_summary(self) -> Dict[str, Any]:
+        """Calculate summary statistics for context injection effectiveness.
+
+        IMP-LOOP-029: Computes success rates for phases with and without
+        context injection, enabling A/B comparison.
+
+        Returns:
+            Dict with effectiveness metrics:
+            - with_context_success_rate: Success rate when context was injected
+            - without_context_success_rate: Success rate when no context
+            - delta: Difference (with - without)
+            - with_context_count: Number of phases with context
+            - without_context_count: Number of phases without context
+            - improvement_percent: Percentage improvement from context
+        """
+        correlated = self.get_correlated_records()
+
+        with_context = [r for r in correlated if r.had_context]
+        without_context = [r for r in correlated if not r.had_context]
+
+        with_success = sum(1 for r in with_context if r.outcome and r.outcome.get("success"))
+        without_success = sum(1 for r in without_context if r.outcome and r.outcome.get("success"))
+
+        with_rate = with_success / len(with_context) if with_context else 0.0
+        without_rate = without_success / len(without_context) if without_context else 0.0
+
+        delta = with_rate - without_rate
+        improvement_percent = (delta / without_rate * 100) if without_rate > 0 else 0.0
+
+        summary = {
+            "with_context_success_rate": round(with_rate, 4),
+            "without_context_success_rate": round(without_rate, 4),
+            "delta": round(delta, 4),
+            "with_context_count": len(with_context),
+            "without_context_count": len(without_context),
+            "improvement_percent": round(improvement_percent, 2),
+            "total_correlated": len(correlated),
+            "is_significant": len(correlated) >= 10 and abs(delta) >= 0.05,
+        }
+
+        logger.info(
+            f"[IMP-LOOP-029] Effectiveness summary: "
+            f"with_context={with_rate:.2%} ({len(with_context)}), "
+            f"without_context={without_rate:.2%} ({len(without_context)}), "
+            f"delta={delta:+.2%}"
+        )
+
+        return summary
+
+    def clear_injection_records(self) -> int:
+        """Clear all tracked injection records.
+
+        Returns:
+            Number of records cleared
+        """
+        count = len(self._injections)
+        self._injections.clear()
+        logger.debug(f"[IMP-LOOP-029] Cleared {count} injection records")
+        return count

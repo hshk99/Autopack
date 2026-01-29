@@ -4,22 +4,18 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from autopack.telemetry.meta_metrics import (
-    ComponentStatus,
-    FeedbackLoopHealth,
-    FeedbackLoopLatency,
-    LoopCompletenessMetric,
-    LoopCompletenessSnapshot,
-    LoopFidelityMetric,
-    LoopLatencyMetric,
-    MetaMetricsTracker,
-    MetricTrend,
-    PipelineLatencyTracker,
-    PipelineSLAConfig,
-    PipelineStage,
-    PipelineStageTimestamp,
-    SLABreachAlert,
-)
+from autopack.telemetry.meta_metrics import (ComponentStatus,
+                                             FeedbackLoopHealth,
+                                             FeedbackLoopLatency,
+                                             LoopCompletenessMetric,
+                                             LoopCompletenessSnapshot,
+                                             LoopFidelityMetric,
+                                             LoopLatencyMetric,
+                                             MetaMetricsTracker, MetricTrend,
+                                             PipelineLatencyTracker,
+                                             PipelineSLAConfig, PipelineStage,
+                                             PipelineStageTimestamp,
+                                             SLABreachAlert)
 
 
 @pytest.fixture
@@ -1813,3 +1809,275 @@ class TestLoopFidelityMetric:
         assert "total_measurements" in result
         assert "low_fidelity_count" in result
         assert result["target_fidelity"] == 0.80
+
+
+# ===========================================================================
+# IMP-LOOP-029: ContextInjectionEffectivenessTracker Tests
+# ===========================================================================
+
+
+class TestContextInjectionEffectivenessResult:
+    """Tests for ContextInjectionEffectivenessResult dataclass."""
+
+    def test_result_has_all_fields(self):
+        """IMP-LOOP-029: Result should have all required fields."""
+        from autopack.telemetry.meta_metrics import \
+            ContextInjectionEffectivenessResult
+
+        result = ContextInjectionEffectivenessResult(
+            with_context_success_rate=0.8,
+            without_context_success_rate=0.6,
+            delta=0.2,
+            with_context_count=50,
+            without_context_count=100,
+            improvement_percent=33.33,
+            is_significant=True,
+            avg_memory_items_injected=4.5,
+        )
+
+        assert result.with_context_success_rate == 0.8
+        assert result.without_context_success_rate == 0.6
+        assert result.delta == 0.2
+        assert result.with_context_count == 50
+        assert result.without_context_count == 100
+        assert result.improvement_percent == 33.33
+        assert result.is_significant is True
+        assert result.avg_memory_items_injected == 4.5
+
+    def test_result_to_dict(self):
+        """IMP-LOOP-029: to_dict should serialize all fields."""
+        from autopack.telemetry.meta_metrics import \
+            ContextInjectionEffectivenessResult
+
+        result = ContextInjectionEffectivenessResult(
+            with_context_success_rate=0.8,
+            without_context_success_rate=0.6,
+            delta=0.2,
+            with_context_count=50,
+            without_context_count=100,
+            improvement_percent=33.33,
+            is_significant=True,
+            avg_memory_items_injected=4.5,
+        )
+
+        d = result.to_dict()
+
+        assert d["with_context_success_rate"] == 0.8
+        assert d["delta"] == 0.2
+        assert d["is_significant"] is True
+        assert "timestamp" in d
+
+
+class TestContextInjectionEffectivenessTracker:
+    """Tests for ContextInjectionEffectivenessTracker class."""
+
+    @pytest.fixture
+    def tracker(self):
+        """Create a fresh tracker for each test."""
+        from autopack.telemetry.meta_metrics import \
+            ContextInjectionEffectivenessTracker
+
+        return ContextInjectionEffectivenessTracker()
+
+    def test_record_result_with_context(self, tracker):
+        """IMP-LOOP-029: record_result should track results with context."""
+        tracker.record_result(had_context=True, success=True, memory_count=5)
+        tracker.record_result(had_context=True, success=False, memory_count=3)
+
+        effectiveness = tracker.calculate_effectiveness()
+        assert effectiveness.with_context_count == 2
+        assert effectiveness.with_context_success_rate == 0.5
+
+    def test_record_result_without_context(self, tracker):
+        """IMP-LOOP-029: record_result should track results without context."""
+        tracker.record_result(had_context=False, success=True)
+        tracker.record_result(had_context=False, success=True)
+        tracker.record_result(had_context=False, success=False)
+
+        effectiveness = tracker.calculate_effectiveness()
+        assert effectiveness.without_context_count == 3
+        assert effectiveness.without_context_success_rate == pytest.approx(0.6667, abs=0.01)
+
+    def test_calculate_effectiveness_with_mixed_results(self, tracker):
+        """IMP-LOOP-029: calculate_effectiveness should compute correct metrics."""
+        # With context: 8/10 = 80% success
+        for i in range(10):
+            tracker.record_result(had_context=True, success=(i < 8), memory_count=5)
+
+        # Without context: 6/10 = 60% success
+        for i in range(10):
+            tracker.record_result(had_context=False, success=(i < 6))
+
+        effectiveness = tracker.calculate_effectiveness()
+
+        assert effectiveness.with_context_success_rate == pytest.approx(0.8)
+        assert effectiveness.without_context_success_rate == pytest.approx(0.6)
+        assert effectiveness.delta == pytest.approx(0.2)
+        assert effectiveness.is_significant is True
+        assert effectiveness.avg_memory_items_injected == 5.0
+
+    def test_calculate_effectiveness_not_significant_small_sample(self, tracker):
+        """IMP-LOOP-029: Small sample should not be significant."""
+        tracker.record_result(had_context=True, success=True, memory_count=5)
+        tracker.record_result(had_context=False, success=False)
+
+        effectiveness = tracker.calculate_effectiveness()
+
+        assert effectiveness.is_significant is False  # Only 2 samples
+
+    def test_calculate_effectiveness_not_significant_small_delta(self, tracker):
+        """IMP-LOOP-029: Small delta should not be significant."""
+        # With context: 51% success
+        for i in range(100):
+            tracker.record_result(had_context=True, success=(i < 51), memory_count=3)
+
+        # Without context: 50% success
+        for i in range(100):
+            tracker.record_result(had_context=False, success=(i < 50))
+
+        effectiveness = tracker.calculate_effectiveness()
+
+        assert effectiveness.is_significant is False  # Delta only 1%
+
+    def test_is_context_beneficial(self, tracker):
+        """IMP-LOOP-029: is_context_beneficial should return True when helpful."""
+        # With context: 80% success
+        for i in range(10):
+            tracker.record_result(had_context=True, success=(i < 8), memory_count=5)
+
+        # Without context: 60% success
+        for i in range(10):
+            tracker.record_result(had_context=False, success=(i < 6))
+
+        assert tracker.is_context_beneficial() is True
+
+    def test_is_context_beneficial_false_when_harmful(self, tracker):
+        """IMP-LOOP-029: is_context_beneficial should return False when harmful."""
+        # With context: 50% success (worse)
+        for i in range(10):
+            tracker.record_result(had_context=True, success=(i < 5), memory_count=5)
+
+        # Without context: 80% success (better)
+        for i in range(10):
+            tracker.record_result(had_context=False, success=(i < 8))
+
+        assert tracker.is_context_beneficial() is False
+
+    def test_get_trend_insufficient_data(self, tracker):
+        """IMP-LOOP-029: get_trend should return None with insufficient data."""
+        tracker.calculate_effectiveness()
+        tracker.calculate_effectiveness()
+
+        assert tracker.get_trend(window_size=5) is None
+
+    def test_get_trend_improving(self, tracker):
+        """IMP-LOOP-029: get_trend should detect improving effectiveness."""
+        from autopack.telemetry.meta_metrics import \
+            ContextInjectionEffectivenessResult
+
+        # Manually add history entries with improving delta values
+        for delta in [0.0, 0.05, 0.1, 0.15, 0.2]:
+            result = ContextInjectionEffectivenessResult(
+                with_context_success_rate=0.5 + delta,
+                without_context_success_rate=0.5,
+                delta=delta,
+                with_context_count=10,
+                without_context_count=10,
+                improvement_percent=delta * 100,
+                is_significant=delta >= 0.05,
+                avg_memory_items_injected=5.0,
+            )
+            tracker._history.append(result)
+
+        assert tracker.get_trend(window_size=5) == "improving"
+
+    def test_get_average_delta(self, tracker):
+        """IMP-LOOP-029: get_average_delta should compute average."""
+        # Record a few effectiveness calculations
+        for _ in range(5):
+            # With context: 75% success
+            for i in range(4):
+                tracker.record_result(had_context=True, success=(i < 3))
+
+            # Without context: 50% success
+            for i in range(4):
+                tracker.record_result(had_context=False, success=(i < 2))
+
+            tracker.calculate_effectiveness()
+
+        avg_delta = tracker.get_average_delta(window_size=3)
+        assert avg_delta == pytest.approx(0.25, abs=0.01)
+
+    def test_get_recommendation_insufficient_data(self, tracker):
+        """IMP-LOOP-029: get_recommendation should note insufficient data."""
+        tracker.record_result(had_context=True, success=True)
+
+        recommendation = tracker.get_recommendation()
+        assert "Insufficient data" in recommendation
+
+    def test_get_recommendation_beneficial(self, tracker):
+        """IMP-LOOP-029: get_recommendation should recommend keeping context."""
+        for i in range(10):
+            tracker.record_result(had_context=True, success=(i < 8), memory_count=5)
+
+        for i in range(10):
+            tracker.record_result(had_context=False, success=(i < 6))
+
+        recommendation = tracker.get_recommendation()
+        assert "beneficial" in recommendation.lower()
+        assert "Continue using" in recommendation
+
+    def test_get_recommendation_harmful(self, tracker):
+        """IMP-LOOP-029: get_recommendation should warn when harmful."""
+        for i in range(10):
+            tracker.record_result(had_context=True, success=(i < 4), memory_count=5)
+
+        for i in range(10):
+            tracker.record_result(had_context=False, success=(i < 8))
+
+        recommendation = tracker.get_recommendation()
+        assert "harmful" in recommendation.lower()
+        assert "Review" in recommendation
+
+    def test_clear_results(self, tracker):
+        """IMP-LOOP-029: clear_results should remove all recorded results."""
+        tracker.record_result(had_context=True, success=True)
+        tracker.record_result(had_context=False, success=False)
+
+        count = tracker.clear_results()
+        assert count == 2
+
+        effectiveness = tracker.calculate_effectiveness()
+        assert effectiveness.with_context_count == 0
+        assert effectiveness.without_context_count == 0
+
+    def test_clear_history(self, tracker):
+        """IMP-LOOP-029: clear_history should remove history entries."""
+        tracker.record_result(had_context=True, success=True)
+        tracker.calculate_effectiveness()
+        tracker.calculate_effectiveness()
+
+        count = tracker.clear_history()
+        assert count == 2
+
+        assert tracker.get_trend() is None
+
+    def test_to_dict(self, tracker):
+        """IMP-LOOP-029: to_dict should serialize tracker state."""
+        for i in range(10):
+            tracker.record_result(had_context=True, success=(i < 8), memory_count=5)
+
+        for i in range(10):
+            tracker.record_result(had_context=False, success=(i < 6))
+
+        result = tracker.to_dict()
+
+        assert "with_context_count" in result
+        assert "without_context_count" in result
+        assert "current_effectiveness" in result
+        assert "trend" in result
+        assert "average_delta" in result
+        assert "is_context_beneficial" in result
+        assert "recommendation" in result
+        assert result["with_context_count"] == 10
+        assert result["without_context_count"] == 10

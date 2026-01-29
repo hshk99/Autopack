@@ -1,4 +1,4 @@
-"""Tests for confidence thresholding in task generation (IMP-LOOP-016).
+"""Tests for confidence thresholding in task generation (IMP-LOOP-016, IMP-LOOP-033).
 
 Tests cover:
 - UnifiedInsight confidence field
@@ -7,6 +7,9 @@ Tests cover:
 - AnalyzerInsightConsumer confidence propagation
 - generate_tasks insight confidence filtering
 - retrieve_insights min_confidence parameter
+- IMP-LOOP-033: MIN_CONFIDENCE_THRESHOLD floor enforcement
+- IMP-LOOP-033: Effective threshold calculation
+- IMP-LOOP-033: Confidence distribution statistics
 """
 
 from unittest.mock import Mock
@@ -14,6 +17,7 @@ from unittest.mock import Mock
 import pytest
 
 from autopack.roadc.task_generator import (
+    MIN_CONFIDENCE_THRESHOLD,
     AnalyzerInsightConsumer,
     DirectInsightConsumer,
     InsightSource,
@@ -436,3 +440,247 @@ class TestRetrieveInsightsConfidenceFiltering:
         filtered_insights = [i for i in insights if i.get("confidence", 1.0) >= min_confidence]
 
         assert len(filtered_insights) == 2
+
+
+class TestMinConfidenceThresholdConstant:
+    """Tests for MIN_CONFIDENCE_THRESHOLD constant (IMP-LOOP-033)."""
+
+    def test_min_confidence_threshold_exists(self):
+        """MIN_CONFIDENCE_THRESHOLD constant should exist and be importable."""
+        assert MIN_CONFIDENCE_THRESHOLD is not None
+
+    def test_min_confidence_threshold_value(self):
+        """MIN_CONFIDENCE_THRESHOLD should be 0.5."""
+        assert MIN_CONFIDENCE_THRESHOLD == 0.5
+
+    def test_min_confidence_threshold_is_float(self):
+        """MIN_CONFIDENCE_THRESHOLD should be a float."""
+        assert isinstance(MIN_CONFIDENCE_THRESHOLD, (int, float))
+
+    def test_min_confidence_threshold_range(self):
+        """MIN_CONFIDENCE_THRESHOLD should be between 0 and 1."""
+        assert 0.0 <= MIN_CONFIDENCE_THRESHOLD <= 1.0
+
+
+class TestEffectiveThresholdCalculation:
+    """Tests for effective threshold calculation (IMP-LOOP-033).
+
+    The effective threshold is the maximum of user-provided min_confidence
+    and the MIN_CONFIDENCE_THRESHOLD floor. This ensures low-confidence
+    insights never become tasks regardless of user configuration.
+    """
+
+    def test_effective_threshold_uses_floor_when_min_confidence_below(self):
+        """Effective threshold should use floor when min_confidence is below it."""
+        min_confidence = 0.3  # Below MIN_CONFIDENCE_THRESHOLD
+        effective_threshold = max(min_confidence, MIN_CONFIDENCE_THRESHOLD)
+
+        assert effective_threshold == MIN_CONFIDENCE_THRESHOLD
+        assert effective_threshold == 0.5
+
+    def test_effective_threshold_uses_min_confidence_when_above_floor(self):
+        """Effective threshold should use min_confidence when above floor."""
+        min_confidence = 0.7  # Above MIN_CONFIDENCE_THRESHOLD
+        effective_threshold = max(min_confidence, MIN_CONFIDENCE_THRESHOLD)
+
+        assert effective_threshold == min_confidence
+        assert effective_threshold == 0.7
+
+    def test_effective_threshold_equals_floor_when_exactly_at_floor(self):
+        """Effective threshold should equal floor when min_confidence equals floor."""
+        min_confidence = MIN_CONFIDENCE_THRESHOLD
+        effective_threshold = max(min_confidence, MIN_CONFIDENCE_THRESHOLD)
+
+        assert effective_threshold == MIN_CONFIDENCE_THRESHOLD
+
+    def test_effective_threshold_prevents_zero_threshold(self):
+        """Effective threshold should prevent zero threshold from bypassing floor."""
+        min_confidence = 0.0  # User tries to disable filtering
+        effective_threshold = max(min_confidence, MIN_CONFIDENCE_THRESHOLD)
+
+        # Should still use the floor
+        assert effective_threshold == MIN_CONFIDENCE_THRESHOLD
+        assert effective_threshold > 0.0
+
+    def test_filtering_with_effective_threshold_below_floor(self):
+        """Filtering should use floor when user provides threshold below floor."""
+        insights = [
+            UnifiedInsight(
+                id="above_floor",
+                issue_type="cost_sink",
+                content="Above floor",
+                severity="high",
+                confidence=0.6,  # Above 0.5 floor
+            ),
+            UnifiedInsight(
+                id="below_floor",
+                issue_type="failure_mode",
+                content="Below floor",
+                severity="high",
+                confidence=0.4,  # Below 0.5 floor
+            ),
+            UnifiedInsight(
+                id="at_user_threshold",
+                issue_type="retry_cause",
+                content="At user threshold",
+                severity="medium",
+                confidence=0.3,  # At user's requested threshold
+            ),
+        ]
+
+        # User requests 0.3 threshold, but floor is 0.5
+        min_confidence = 0.3
+        effective_threshold = max(min_confidence, MIN_CONFIDENCE_THRESHOLD)
+
+        filtered_insights = [i for i in insights if i.confidence >= effective_threshold]
+
+        # Only insight with confidence >= 0.5 should pass
+        assert len(filtered_insights) == 1
+        assert filtered_insights[0].id == "above_floor"
+        assert filtered_insights[0].confidence == 0.6
+
+    def test_filtering_with_effective_threshold_above_floor(self):
+        """Filtering should use user threshold when above floor."""
+        insights = [
+            UnifiedInsight(
+                id="above_user_threshold",
+                issue_type="cost_sink",
+                content="Above user threshold",
+                severity="high",
+                confidence=0.8,  # Above 0.7 user threshold
+            ),
+            UnifiedInsight(
+                id="between_thresholds",
+                issue_type="failure_mode",
+                content="Between thresholds",
+                severity="high",
+                confidence=0.6,  # Above floor (0.5), below user (0.7)
+            ),
+            UnifiedInsight(
+                id="below_floor",
+                issue_type="retry_cause",
+                content="Below floor",
+                severity="medium",
+                confidence=0.4,  # Below floor
+            ),
+        ]
+
+        # User requests 0.7 threshold, which is above floor
+        min_confidence = 0.7
+        effective_threshold = max(min_confidence, MIN_CONFIDENCE_THRESHOLD)
+
+        filtered_insights = [i for i in insights if i.confidence >= effective_threshold]
+
+        # Only insight with confidence >= 0.7 should pass
+        assert len(filtered_insights) == 1
+        assert filtered_insights[0].id == "above_user_threshold"
+        assert filtered_insights[0].confidence == 0.8
+
+
+class TestConfidenceDistributionStatistics:
+    """Tests for confidence distribution statistics calculation (IMP-LOOP-033).
+
+    The generate_tasks method calculates statistics about the confidence
+    distribution of insights for observability and debugging.
+    """
+
+    def test_confidence_statistics_calculation(self):
+        """Confidence statistics should be correctly calculated."""
+        insights = [
+            UnifiedInsight(
+                id="i1",
+                issue_type="cost_sink",
+                content="Test",
+                severity="high",
+                confidence=0.9,
+            ),
+            UnifiedInsight(
+                id="i2",
+                issue_type="failure_mode",
+                content="Test",
+                severity="high",
+                confidence=0.6,
+            ),
+            UnifiedInsight(
+                id="i3",
+                issue_type="retry_cause",
+                content="Test",
+                severity="medium",
+                confidence=0.3,
+            ),
+        ]
+
+        confidence_values = [i.confidence for i in insights]
+        avg_confidence = sum(confidence_values) / len(confidence_values)
+        min_conf = min(confidence_values)
+        max_conf = max(confidence_values)
+
+        assert avg_confidence == pytest.approx(0.6, rel=0.01)
+        assert min_conf == 0.3
+        assert max_conf == 0.9
+
+    def test_below_threshold_count(self):
+        """Count of insights below threshold should be accurate."""
+        insights = [
+            UnifiedInsight(
+                id="i1",
+                issue_type="cost_sink",
+                content="Test",
+                severity="high",
+                confidence=0.9,
+            ),
+            UnifiedInsight(
+                id="i2",
+                issue_type="failure_mode",
+                content="Test",
+                severity="high",
+                confidence=0.4,
+            ),
+            UnifiedInsight(
+                id="i3",
+                issue_type="retry_cause",
+                content="Test",
+                severity="medium",
+                confidence=0.3,
+            ),
+        ]
+
+        effective_threshold = 0.5
+        confidence_values = [i.confidence for i in insights]
+        below_threshold_count = sum(1 for c in confidence_values if c < effective_threshold)
+
+        assert below_threshold_count == 2  # 0.4 and 0.3 are below 0.5
+
+    def test_empty_insights_no_statistics(self):
+        """Empty insight list should not cause division by zero."""
+        insights = []
+
+        if len(insights) > 0:
+            confidence_values = [i.confidence for i in insights]
+            avg_confidence = sum(confidence_values) / len(confidence_values)
+        else:
+            avg_confidence = None
+
+        # Should not raise exception, avg should be None
+        assert avg_confidence is None
+
+    def test_single_insight_statistics(self):
+        """Single insight should produce valid statistics."""
+        insights = [
+            UnifiedInsight(
+                id="i1",
+                issue_type="cost_sink",
+                content="Test",
+                severity="high",
+                confidence=0.75,
+            ),
+        ]
+
+        confidence_values = [i.confidence for i in insights]
+        avg_confidence = sum(confidence_values) / len(confidence_values)
+        min_conf = min(confidence_values)
+        max_conf = max(confidence_values)
+
+        assert avg_confidence == 0.75
+        assert min_conf == 0.75
+        assert max_conf == 0.75

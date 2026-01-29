@@ -511,6 +511,11 @@ def _emit_task_generation_event(
 # Stale task threshold: tasks in_progress for longer than this are considered stale (IMP-REL-003)
 STALE_TASK_THRESHOLD_HOURS = 24
 
+# IMP-LOOP-033: Minimum confidence threshold for task generation
+# Insights below this threshold will never become tasks, regardless of user-provided min_confidence
+# This prevents low-confidence/unreliable insights from generating noise in the task queue
+MIN_CONFIDENCE_THRESHOLD = 0.5
+
 
 @dataclass
 class TaskCompletionEvent:
@@ -794,16 +799,37 @@ class AutonomousTaskGenerator:
                 max_age_hours=max_age_hours,
             )
 
-            # IMP-LOOP-016: Filter insights by confidence threshold before processing
-            # This prevents low-confidence insights from influencing task generation
+            # IMP-LOOP-033: Complete confidence filtering implementation
+            # Apply both the user-provided min_confidence AND the floor threshold
+            # This ensures low-confidence insights never become tasks regardless of config
+            effective_threshold = max(min_confidence, MIN_CONFIDENCE_THRESHOLD)
+
             original_count = len(consumer_result.insights)
+
+            # Calculate confidence distribution for observability
+            if original_count > 0:
+                confidence_values = [i.confidence for i in consumer_result.insights]
+                avg_confidence = sum(confidence_values) / len(confidence_values)
+                min_conf = min(confidence_values)
+                max_conf = max(confidence_values)
+                below_threshold_count = sum(1 for c in confidence_values if c < effective_threshold)
+                logger.debug(
+                    f"[IMP-LOOP-033] Insight confidence distribution: "
+                    f"avg={avg_confidence:.2f}, min={min_conf:.2f}, max={max_conf:.2f}, "
+                    f"below_threshold={below_threshold_count}/{original_count}"
+                )
+
+            # Filter insights by effective confidence threshold
             filtered_insights = [
-                i for i in consumer_result.insights if i.confidence >= min_confidence
+                i for i in consumer_result.insights if i.confidence >= effective_threshold
             ]
-            if len(filtered_insights) < original_count:
+            filtered_count = original_count - len(filtered_insights)
+
+            if filtered_count > 0:
                 logger.info(
-                    f"[IMP-LOOP-016] Confidence filtering: {original_count} -> "
-                    f"{len(filtered_insights)} insights (threshold: {min_confidence})"
+                    f"[IMP-LOOP-033] Confidence filtering: {original_count} -> "
+                    f"{len(filtered_insights)} insights (threshold: {effective_threshold:.2f}, "
+                    f"filtered {filtered_count} low-confidence insights)"
                 )
 
             # Convert to dict format for pattern detection
@@ -861,8 +887,9 @@ class AutonomousTaskGenerator:
             duplicate_count = 0
 
             # Generate tasks from patterns
+            # IMP-LOOP-033: Use effective_threshold for consistent confidence filtering
             for pattern in patterns[:max_tasks]:
-                if pattern["confidence"] >= min_confidence:
+                if pattern["confidence"] >= effective_threshold:
                     # IMP-LOOP-018: Include risk assessment in task generation
                     risk_assessment = pattern.get("_risk_assessment")
                     requires_approval = pattern.get("_requires_approval", False)

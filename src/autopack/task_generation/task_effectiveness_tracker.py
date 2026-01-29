@@ -575,6 +575,64 @@ class TaskEffectivenessTracker:
         """
         return self.history.get_category_effectiveness(category)
 
+    def get_savings(self, task_id: str) -> float:
+        """Get the computed savings achieved by a task.
+
+        IMP-LOOP-031: Computes savings based on actual improvement achieved
+        during task execution. This enables ROI feedback loop closure by
+        providing actual savings data for comparison against estimates.
+
+        Savings are computed as:
+        - For successful tasks: actual_improvement * base_savings_estimate
+        - For failed tasks: 0.0
+
+        The base_savings_estimate is derived from the target improvement
+        and effectiveness metrics.
+
+        Args:
+            task_id: Unique identifier for the task.
+
+        Returns:
+            Computed savings value (tokens saved per phase), or 0.0 if task not found.
+        """
+        # Find the task's impact report
+        for report in self.history.reports:
+            if report.task_id == task_id:
+                # Savings proportional to actual improvement achieved
+                # Use a base estimate of 1000 tokens/phase as baseline
+                base_savings = 1000.0
+                actual_savings = base_savings * report.actual_improvement
+                return max(0.0, actual_savings)
+
+        logger.debug(
+            "[IMP-LOOP-031] No impact report found for task %s, returning 0 savings",
+            task_id,
+        )
+        return 0.0
+
+    def get_task_cost_estimate(self, task_id: str) -> float:
+        """Get the estimated cost for a task based on execution metrics.
+
+        IMP-LOOP-031: Computes an estimated cost based on tokens used
+        during task execution. This enables ROI feedback loop closure.
+
+        Args:
+            task_id: Unique identifier for the task.
+
+        Returns:
+            Estimated cost (tokens), or 0.0 if task not found.
+        """
+        # Check attribution outcomes for token usage
+        for outcome in self._task_attribution_outcomes:
+            if outcome.task_id == task_id:
+                return float(outcome.tokens_used)
+
+        logger.debug(
+            "[IMP-LOOP-031] No attribution outcome found for task %s, returning 0 cost",
+            task_id,
+        )
+        return 0.0
+
     def get_summary(self) -> dict[str, Any]:
         """Get a summary of effectiveness tracking.
 

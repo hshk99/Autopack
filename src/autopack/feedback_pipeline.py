@@ -27,15 +27,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from autopack.telemetry.meta_metrics import (
-    FeedbackLoopHealth,
-    MetaMetricsTracker,
-    PipelineLatencyTracker,
-    PipelineStage,
-)
+from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
+                                             MetaMetricsTracker,
+                                             PipelineLatencyTracker,
+                                             PipelineStage)
 
 if TYPE_CHECKING:
-    from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
+    from autopack.task_generation.task_effectiveness_tracker import \
+        TaskEffectivenessTracker
 
 logger = logging.getLogger(__name__)
 
@@ -205,6 +204,10 @@ class FeedbackPipeline:
         self._flush_timer: Optional[threading.Timer] = None
         self._auto_flush_enabled = enabled  # Only auto-flush if pipeline is enabled
 
+        # IMP-REL-013: Track cleanup state to prevent double cleanup and timer leaks
+        self._cleanup_done = False
+        self._atexit_registered = False
+
         # Start auto-flush timer if enabled
         if self._auto_flush_enabled:
             self._start_auto_flush_timer()
@@ -212,12 +215,75 @@ class FeedbackPipeline:
         # IMP-REL-010: Register atexit handler to flush on process shutdown
         # This ensures insights are not lost if the process exits before auto-flush
         atexit.register(self._shutdown_flush)
+        self._atexit_registered = True
 
         logger.info(
             f"[IMP-LOOP-001] FeedbackPipeline initialized "
             f"(run_id={self.run_id}, project_id={self.project_id}, enabled={self.enabled}, "
             f"auto_flush={'enabled' if self._auto_flush_enabled else 'disabled'})"
         )
+
+    def __del__(self) -> None:
+        """Clean up resources when the object is garbage collected.
+
+        IMP-REL-013: Ensures timer threads are cancelled when the FeedbackPipeline
+        object is garbage collected, preventing thread leaks. This complements
+        the atexit handler for cases where the object is discarded before
+        process exit.
+        """
+        self._cleanup()
+
+    def _cleanup(self) -> None:
+        """Perform cleanup of timer and pending data.
+
+        IMP-REL-013: Idempotent cleanup method that cancels the timer,
+        flushes pending insights, and unregisters the atexit handler.
+        Safe to call multiple times.
+        """
+        if self._cleanup_done:
+            return
+
+        self._cleanup_done = True
+
+        # Cancel the timer if running
+        if self._flush_timer is not None:
+            try:
+                self._flush_timer.cancel()
+            except Exception:
+                pass  # Timer may already be cancelled or invalid
+            self._flush_timer = None
+
+        # Disable auto-flush to prevent timer restart
+        self._auto_flush_enabled = False
+
+        # Flush any pending insights
+        try:
+            # IMP-AUTO-003: Thread-safe access to pending insights count
+            with self._insights_lock:
+                pending_count = len(self._pending_insights)
+
+            if pending_count > 0:
+                logger.debug(f"[IMP-REL-013] Cleanup: flushing {pending_count} pending insights")
+                self.flush_pending_insights()
+        except Exception as e:
+            # Log but don't raise - we're cleaning up
+            logger.warning(f"[IMP-REL-013] Cleanup flush failed: {e}")
+
+        # Persist hint occurrences
+        try:
+            self._save_hint_occurrences()
+        except Exception as e:
+            logger.warning(f"[IMP-REL-013] Failed to save hint occurrences during cleanup: {e}")
+
+        # Unregister atexit handler to avoid double cleanup
+        if self._atexit_registered:
+            try:
+                atexit.unregister(self._shutdown_flush)
+                self._atexit_registered = False
+            except Exception:
+                pass  # May fail if atexit is already running
+
+        logger.debug("[IMP-REL-013] FeedbackPipeline cleanup complete")
 
     def process_phase_outcome(self, outcome: PhaseOutcome) -> Dict[str, Any]:
         """Process a phase execution outcome through the feedback loop.
@@ -713,21 +779,30 @@ class FeedbackPipeline:
         IMP-LOOP-004: Call this when shutting down the pipeline to cleanly
         stop the background timer and flush any remaining insights.
         IMP-AUTO-003: Thread-safe access to pending insights.
+        IMP-REL-013: Now also cancels the timer safely and respects cleanup state.
         """
         self._auto_flush_enabled = False
+
+        # IMP-REL-013: Safely cancel the timer
         if self._flush_timer is not None:
-            self._flush_timer.cancel()
+            try:
+                self._flush_timer.cancel()
+            except Exception:
+                pass  # Timer may already be cancelled
             self._flush_timer = None
             logger.info("[IMP-LOOP-004] Auto-flush timer stopped")
 
-        # Flush any remaining insights on shutdown
-        # IMP-AUTO-003: Thread-safe access to pending insights count
-        with self._insights_lock:
-            has_pending = bool(self._pending_insights)
-            pending_count = len(self._pending_insights)
-        if has_pending:
-            logger.info(f"[IMP-LOOP-004] Flushing {pending_count} remaining insights on shutdown")
-            self.flush_pending_insights()
+        # Flush any remaining insights on shutdown (unless full cleanup is done)
+        if not self._cleanup_done:
+            # IMP-AUTO-003: Thread-safe access to pending insights count
+            with self._insights_lock:
+                has_pending = bool(self._pending_insights)
+                pending_count = len(self._pending_insights)
+            if has_pending:
+                logger.info(
+                    f"[IMP-LOOP-004] Flushing {pending_count} remaining insights on shutdown"
+                )
+                self.flush_pending_insights()
 
     def _shutdown_flush(self) -> None:
         """Perform final flush on process shutdown.
@@ -735,26 +810,25 @@ class FeedbackPipeline:
         IMP-REL-010: Called via atexit to ensure all pending insights are
         persisted before the process terminates. This prevents data loss
         when the process exits unexpectedly or before the auto-flush timer fires.
+
+        IMP-REL-013: Now delegates to _cleanup() for idempotent cleanup that
+        also handles timer cancellation and atexit unregistration.
         """
         try:
-            # Cancel any pending timer to avoid conflicts
-            if self._flush_timer is not None:
-                self._flush_timer.cancel()
-                self._flush_timer = None
+            # IMP-REL-013: Use the unified cleanup method for idempotent cleanup
+            if not self._cleanup_done:
+                # IMP-AUTO-003: Thread-safe access to pending insights count
+                with self._insights_lock:
+                    pending_count = len(self._pending_insights)
 
-            # IMP-AUTO-003: Thread-safe access to pending insights count
-            with self._insights_lock:
-                pending_count = len(self._pending_insights)
+                if pending_count > 0:
+                    logger.info(
+                        f"[IMP-REL-010] Shutdown flush: persisting {pending_count} pending insights"
+                    )
 
-            if pending_count > 0:
-                logger.info(
-                    f"[IMP-REL-010] Shutdown flush: persisting {pending_count} pending insights"
-                )
-                flushed = self.flush_pending_insights()
-                logger.info(f"[IMP-REL-010] Shutdown flush complete: {flushed} insights persisted")
+                self._cleanup()
 
-            # Also persist hint occurrences for cross-run learning
-            self._save_hint_occurrences()
+                logger.info("[IMP-REL-010] Shutdown flush complete")
 
         except Exception as e:
             # Log but don't raise - we're shutting down

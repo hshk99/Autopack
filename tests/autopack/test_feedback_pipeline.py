@@ -11,7 +11,8 @@ Tests cover:
 
 from unittest.mock import Mock
 
-from autopack.feedback_pipeline import FeedbackPipeline, PhaseContext, PhaseOutcome
+from autopack.feedback_pipeline import (FeedbackPipeline, PhaseContext,
+                                        PhaseOutcome)
 
 
 class TestPhaseOutcome:
@@ -960,6 +961,244 @@ class TestShutdownFlush:
 
         # The method should work correctly
         pipeline._shutdown_flush()  # Should not raise
+
+
+class TestTimerCleanup:
+    """Tests for IMP-REL-013 timer thread leak fix."""
+
+    def test_cleanup_cancels_timer(self):
+        """_cleanup should cancel the timer if running."""
+        pipeline = FeedbackPipeline(enabled=True)
+
+        # Timer should be running
+        assert pipeline._flush_timer is not None
+
+        # Call cleanup
+        pipeline._cleanup()
+
+        # Timer should be cancelled
+        assert pipeline._flush_timer is None
+        assert pipeline._cleanup_done is True
+
+    def test_cleanup_is_idempotent(self):
+        """_cleanup should be safe to call multiple times."""
+        pipeline = FeedbackPipeline(enabled=True)
+
+        # Call cleanup multiple times
+        pipeline._cleanup()
+        pipeline._cleanup()
+        pipeline._cleanup()
+
+        # Should not raise and cleanup_done should be True
+        assert pipeline._cleanup_done is True
+
+    def test_cleanup_flushes_pending_insights(self):
+        """_cleanup should flush pending insights."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+
+        # Add pending insights
+        for i in range(3):
+            pipeline._pending_insights.append({"test": f"insight_{i}"})
+
+        # Call cleanup
+        pipeline._cleanup()
+
+        # Insights should be flushed
+        assert len(pipeline._pending_insights) == 0
+        assert mock_memory.write_telemetry_insight.call_count == 3
+
+    def test_cleanup_unregisters_atexit(self):
+        """_cleanup should unregister atexit handler."""
+        pipeline = FeedbackPipeline(enabled=True)
+
+        # atexit should be registered
+        assert pipeline._atexit_registered is True
+
+        # Call cleanup
+        pipeline._cleanup()
+
+        # atexit should be unregistered
+        assert pipeline._atexit_registered is False
+
+    def test_del_calls_cleanup(self):
+        """__del__ should call _cleanup."""
+        pipeline = FeedbackPipeline(enabled=True)
+
+        # Manually call __del__
+        pipeline.__del__()
+
+        # Cleanup should have been called
+        assert pipeline._cleanup_done is True
+        assert pipeline._flush_timer is None
+
+    def test_del_is_safe_on_garbage_collection(self):
+        """Object should be safely garbage collectible."""
+        import gc
+
+        # Create and destroy pipeline
+        pipeline = FeedbackPipeline(enabled=True)
+        pipeline_id = id(pipeline)
+
+        # Delete reference
+        del pipeline
+
+        # Force garbage collection
+        gc.collect()
+
+        # Should not raise - test passes if no exception
+
+    def test_cleanup_handles_timer_already_cancelled(self):
+        """_cleanup should handle already cancelled timers gracefully."""
+        pipeline = FeedbackPipeline(enabled=True)
+
+        # Manually cancel timer
+        pipeline._flush_timer.cancel()
+
+        # Cleanup should still work
+        pipeline._cleanup()
+
+        assert pipeline._cleanup_done is True
+        assert pipeline._flush_timer is None
+
+    def test_stop_auto_flush_respects_cleanup_state(self):
+        """stop_auto_flush should not flush if cleanup already done."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+
+        # Add pending insights
+        pipeline._pending_insights.append({"test": "insight"})
+
+        # Mark as cleaned up
+        pipeline._cleanup_done = True
+
+        # Stop auto flush
+        pipeline.stop_auto_flush()
+
+        # Should not have flushed (cleanup_done was True)
+        assert len(pipeline._pending_insights) == 1
+        mock_memory.write_telemetry_insight.assert_not_called()
+
+    def test_shutdown_flush_uses_cleanup(self):
+        """_shutdown_flush should use _cleanup for idempotent cleanup."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=True)
+        # Stop initial timer to avoid interference
+        pipeline._flush_timer.cancel()
+        pipeline._flush_timer = None
+
+        # Add pending insights
+        pipeline._pending_insights.append({"test": "insight"})
+
+        # Call shutdown flush
+        pipeline._shutdown_flush()
+
+        # Cleanup should have been done
+        assert pipeline._cleanup_done is True
+
+    def test_shutdown_flush_skips_if_already_cleaned(self):
+        """_shutdown_flush should not re-cleanup if already done."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock()
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+
+        # Add pending insights
+        pipeline._pending_insights.append({"test": "insight"})
+
+        # Mark as already cleaned up
+        pipeline._cleanup_done = True
+
+        # Call shutdown flush
+        pipeline._shutdown_flush()
+
+        # Should not have flushed anything
+        assert len(pipeline._pending_insights) == 1
+        mock_memory.write_telemetry_insight.assert_not_called()
+
+    def test_timer_is_daemon_thread(self):
+        """Timer thread should be a daemon to not block process exit."""
+        pipeline = FeedbackPipeline(enabled=True)
+
+        assert pipeline._flush_timer is not None
+        assert pipeline._flush_timer.daemon is True
+
+        # Clean up
+        pipeline._cleanup()
+
+    def test_cleanup_saves_hint_occurrences(self):
+        """_cleanup should save hint occurrences."""
+        pipeline = FeedbackPipeline(enabled=False)
+
+        # Add some hint occurrences
+        pipeline._hint_occurrences["test:hint"] = 2
+
+        # Mock save method
+        save_called = [False]
+        original_save = pipeline._save_hint_occurrences
+
+        def mock_save():
+            save_called[0] = True
+            return True
+
+        pipeline._save_hint_occurrences = mock_save
+
+        # Call cleanup
+        pipeline._cleanup()
+
+        # Save should have been called
+        assert save_called[0] is True
+
+        # Restore
+        pipeline._save_hint_occurrences = original_save
+
+    def test_cleanup_handles_flush_error_gracefully(self):
+        """_cleanup should handle flush errors without crashing."""
+        mock_memory = Mock()
+        mock_memory.enabled = True
+        mock_memory.write_telemetry_insight = Mock(side_effect=Exception("Flush error"))
+
+        pipeline = FeedbackPipeline(memory_service=mock_memory, enabled=False)
+        pipeline._pending_insights.append({"test": "insight"})
+
+        # Should not raise
+        pipeline._cleanup()
+
+        assert pipeline._cleanup_done is True
+
+    def test_multiple_pipeline_instances_cleanup_independently(self):
+        """Multiple FeedbackPipeline instances should cleanup independently."""
+        pipeline1 = FeedbackPipeline(enabled=True, run_id="run1")
+        pipeline2 = FeedbackPipeline(enabled=True, run_id="run2")
+
+        # Both should have timers
+        assert pipeline1._flush_timer is not None
+        assert pipeline2._flush_timer is not None
+
+        # Cleanup pipeline1
+        pipeline1._cleanup()
+
+        # pipeline1 should be cleaned up, pipeline2 should not be
+        assert pipeline1._cleanup_done is True
+        assert pipeline1._flush_timer is None
+        assert pipeline2._cleanup_done is False
+        assert pipeline2._flush_timer is not None
+
+        # Cleanup pipeline2
+        pipeline2._cleanup()
+
+        assert pipeline2._cleanup_done is True
+        assert pipeline2._flush_timer is None
 
 
 class TestHintToRulePromotion:

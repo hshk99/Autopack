@@ -28,6 +28,11 @@ from __future__ import annotations
 
 import warnings
 
+from .insight_correlation import (
+    InsightCorrelationEngine,
+    InsightEffectivenessStats,
+    InsightTaskCorrelation,
+)
 from .priority_engine import PriorityEngine
 from .roi_analyzer import PaybackAnalysis, ROIAnalyzer
 from .task_effectiveness_tracker import TaskEffectivenessTracker, TaskImpactReport
@@ -50,6 +55,9 @@ def __getattr__(name: str):
 
 
 __all__ = [
+    "InsightCorrelationEngine",
+    "InsightEffectivenessStats",
+    "InsightTaskCorrelation",
     "InsightToTaskGenerator",
     "PaybackAnalysis",
     "PriorityEngine",

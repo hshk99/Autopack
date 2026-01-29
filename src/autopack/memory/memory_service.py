@@ -3019,6 +3019,115 @@ class MemoryService:
             logger.warning(f"[MemoryService] Failed to retrieve insights: {e}")
             return []
 
+    def update_insight_confidence(
+        self,
+        insight_id: str,
+        confidence: float,
+        project_id: Optional[str] = None,
+    ) -> bool:
+        """Update the confidence score for a stored insight.
+
+        IMP-LOOP-031: This method is called by the InsightCorrelationEngine to
+        persist updated confidence scores back to stored insights. When tasks
+        generated from an insight succeed or fail, the confidence is adjusted
+        and persisted here to influence future task generation.
+
+        The method searches across all insight collections to find and update
+        the insight with the given ID.
+
+        Args:
+            insight_id: The unique identifier of the insight to update.
+            confidence: New confidence score (0.0-1.0). Will be clamped to
+                       valid range.
+            project_id: Optional project ID for namespace filtering.
+
+        Returns:
+            True if the insight was found and updated, False otherwise.
+        """
+        if not self.enabled:
+            logger.debug(
+                "[IMP-LOOP-031] Memory disabled, skipping confidence update for %s",
+                insight_id,
+            )
+            return False
+
+        # Clamp confidence to valid range
+        confidence = max(0.0, min(1.0, confidence))
+
+        # Collections where insights may be stored
+        insight_collections = [
+            COLLECTION_RUN_SUMMARIES,
+            COLLECTION_ERRORS_CI,
+            COLLECTION_DOCTOR_HINTS,
+        ]
+
+        for collection in insight_collections:
+            try:
+                # Try to get the payload for this insight
+                payload = self._safe_store_call(
+                    f"update_insight_confidence/{collection}/get_payload",
+                    lambda col=collection: self.store.get_payload(col, insight_id),
+                    None,
+                )
+
+                if payload is None:
+                    continue
+
+                # Verify this is a telemetry insight
+                if payload.get("task_type") != "telemetry_insight":
+                    continue
+
+                # Verify project ID if specified
+                if project_id and payload.get("project_id") != project_id:
+                    continue
+
+                # Record previous confidence for logging
+                old_confidence = payload.get("confidence", 1.0)
+
+                # Update the confidence in the payload
+                payload["confidence"] = confidence
+                payload["confidence_updated_at"] = datetime.now(timezone.utc).isoformat()
+
+                # Persist the update
+                success = self._safe_store_call(
+                    f"update_insight_confidence/{collection}/update_payload",
+                    lambda col=collection, pid=insight_id, pl=payload: self.store.update_payload(
+                        col, pid, pl
+                    ),
+                    False,
+                )
+
+                if success:
+                    logger.info(
+                        "[IMP-LOOP-031] Updated insight confidence: id=%s, "
+                        "collection=%s, confidence=%.2f -> %.2f",
+                        insight_id,
+                        collection,
+                        old_confidence,
+                        confidence,
+                    )
+                    return True
+                else:
+                    logger.warning(
+                        "[IMP-LOOP-031] Failed to persist confidence update for %s in %s",
+                        insight_id,
+                        collection,
+                    )
+
+            except Exception as e:
+                logger.warning(
+                    "[IMP-LOOP-031] Error updating confidence for %s in %s: %s",
+                    insight_id,
+                    collection,
+                    e,
+                )
+
+        logger.debug(
+            "[IMP-LOOP-031] Insight %s not found in any collection, confidence not updated",
+            insight_id,
+        )
+        return False
+
     # -------------------------------------------------------------------------
     # Combined Retrieval (for prompts)
     # -------------------------------------------------------------------------

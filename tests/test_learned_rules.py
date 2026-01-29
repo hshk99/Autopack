@@ -282,3 +282,304 @@ class TestLearnedRuleAgingEdgeCases:
         )
         decay = aging.calculate_decay()
         assert decay == 0.5  # Failure factor capped at 0.5
+
+
+# ============================================================================
+# IMP-PERF-003: Project Rules Cache Tests
+# ============================================================================
+
+import json
+import time
+from pathlib import Path
+from unittest.mock import patch
+
+from autopack.learned_rules import (
+    _project_rules_cache,
+    _project_rules_mtime,
+    clear_project_rules_cache,
+    load_project_rules,
+    _save_project_rules,
+)
+
+
+class TestProjectRulesCache:
+    """Tests for project rules LRU cache with mtime invalidation (IMP-PERF-003)."""
+
+    def setup_method(self):
+        """Clear cache before each test."""
+        clear_project_rules_cache()
+
+    def teardown_method(self):
+        """Clear cache after each test."""
+        clear_project_rules_cache()
+
+    def test_cache_hit_on_repeated_calls(self, tmp_path):
+        """Repeated calls should return cached data without re-reading file."""
+        # Create a rules file
+        project_id = "test_project_cache"
+        rules_file = tmp_path / "docs" / "LEARNED_RULES.json"
+        rules_file.parent.mkdir(parents=True, exist_ok=True)
+
+        rules_data = {
+            "rules": [
+                {
+                    "rule_id": "test.rule_001",
+                    "task_category": "testing",
+                    "scope_pattern": "*.py",
+                    "constraint": "Always use type hints",
+                    "source_hint_ids": ["run1:phase1"],
+                    "promotion_count": 3,
+                    "first_seen": datetime.now(timezone.utc).isoformat(),
+                    "last_seen": datetime.now(timezone.utc).isoformat(),
+                    "status": "active",
+                    "stage": "rule",
+                }
+            ]
+        }
+        rules_file.write_text(json.dumps(rules_data))
+
+        # Mock _get_project_rules_file to return our temp file
+        with patch("autopack.learned_rules._get_project_rules_file", return_value=rules_file):
+            # First call should load from file
+            rules1 = load_project_rules(project_id)
+            assert len(rules1) == 1
+            assert rules1[0].rule_id == "test.rule_001"
+
+            # Verify cache is populated
+            assert project_id in _project_rules_cache
+            assert project_id in _project_rules_mtime
+
+            # Second call should return cached data
+            rules2 = load_project_rules(project_id)
+            assert len(rules2) == 1
+            assert rules2[0].rule_id == "test.rule_001"
+
+            # Should be the same object (from cache)
+            assert rules1 is rules2
+
+    def test_cache_invalidation_on_file_change(self, tmp_path):
+        """Cache should be invalidated when file mtime changes."""
+        project_id = "test_project_invalidation"
+        rules_file = tmp_path / "docs" / "LEARNED_RULES.json"
+        rules_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Create initial rules file
+        rules_data_v1 = {
+            "rules": [
+                {
+                    "rule_id": "test.rule_v1",
+                    "task_category": "testing",
+                    "scope_pattern": "*.py",
+                    "constraint": "Version 1 rule",
+                    "source_hint_ids": [],
+                    "promotion_count": 1,
+                    "first_seen": datetime.now(timezone.utc).isoformat(),
+                    "last_seen": datetime.now(timezone.utc).isoformat(),
+                    "status": "active",
+                    "stage": "rule",
+                }
+            ]
+        }
+        rules_file.write_text(json.dumps(rules_data_v1))
+
+        with patch("autopack.learned_rules._get_project_rules_file", return_value=rules_file):
+            # First call loads version 1
+            rules1 = load_project_rules(project_id)
+            assert len(rules1) == 1
+            assert rules1[0].rule_id == "test.rule_v1"
+
+            # Ensure file system has different mtime
+            time.sleep(0.1)
+
+            # Modify the file
+            rules_data_v2 = {
+                "rules": [
+                    {
+                        "rule_id": "test.rule_v2",
+                        "task_category": "testing",
+                        "scope_pattern": "*.py",
+                        "constraint": "Version 2 rule",
+                        "source_hint_ids": [],
+                        "promotion_count": 2,
+                        "first_seen": datetime.now(timezone.utc).isoformat(),
+                        "last_seen": datetime.now(timezone.utc).isoformat(),
+                        "status": "active",
+                        "stage": "rule",
+                    }
+                ]
+            }
+            rules_file.write_text(json.dumps(rules_data_v2))
+
+            # Second call should detect mtime change and reload
+            rules2 = load_project_rules(project_id)
+            assert len(rules2) == 1
+            assert rules2[0].rule_id == "test.rule_v2"
+
+            # Should NOT be the same object (cache was invalidated)
+            assert rules1 is not rules2
+
+    def test_clear_project_rules_cache(self, tmp_path):
+        """clear_project_rules_cache should empty both cache dicts."""
+        project_id = "test_project_clear"
+        rules_file = tmp_path / "docs" / "LEARNED_RULES.json"
+        rules_file.parent.mkdir(parents=True, exist_ok=True)
+
+        rules_data = {"rules": []}
+        rules_file.write_text(json.dumps(rules_data))
+
+        with patch("autopack.learned_rules._get_project_rules_file", return_value=rules_file):
+            # Load to populate cache
+            load_project_rules(project_id)
+            assert project_id in _project_rules_cache
+            assert project_id in _project_rules_mtime
+
+            # Clear cache
+            clear_project_rules_cache()
+
+            # Cache should be empty
+            assert project_id not in _project_rules_cache
+            assert project_id not in _project_rules_mtime
+
+    def test_cache_handles_nonexistent_file(self):
+        """Cache should handle non-existent files gracefully."""
+        project_id = "nonexistent_project"
+        nonexistent_path = Path("/nonexistent/path/LEARNED_RULES.json")
+
+        with patch("autopack.learned_rules._get_project_rules_file", return_value=nonexistent_path):
+            rules = load_project_rules(project_id)
+            assert rules == []
+
+            # Cache should not contain entry for non-existent file
+            assert project_id not in _project_rules_cache
+            assert project_id not in _project_rules_mtime
+
+    def test_cache_clears_stale_entry_when_file_deleted(self, tmp_path):
+        """If a cached file is deleted, cache entry should be cleared."""
+        project_id = "test_project_delete"
+        rules_file = tmp_path / "docs" / "LEARNED_RULES.json"
+        rules_file.parent.mkdir(parents=True, exist_ok=True)
+
+        rules_data = {"rules": []}
+        rules_file.write_text(json.dumps(rules_data))
+
+        with patch("autopack.learned_rules._get_project_rules_file", return_value=rules_file):
+            # Load to populate cache
+            load_project_rules(project_id)
+            assert project_id in _project_rules_cache
+
+            # Delete the file
+            rules_file.unlink()
+
+            # Load again - should return empty and clear cache
+            rules = load_project_rules(project_id)
+            assert rules == []
+            assert project_id not in _project_rules_cache
+            assert project_id not in _project_rules_mtime
+
+    def test_save_invalidates_cache(self, tmp_path):
+        """_save_project_rules should invalidate cache for the project."""
+        project_id = "test_project_save"
+        rules_file = tmp_path / "docs" / "LEARNED_RULES.json"
+        rules_file.parent.mkdir(parents=True, exist_ok=True)
+
+        rules_data = {"rules": []}
+        rules_file.write_text(json.dumps(rules_data))
+
+        with patch("autopack.learned_rules._get_project_rules_file", return_value=rules_file):
+            # Load to populate cache
+            load_project_rules(project_id)
+            assert project_id in _project_rules_cache
+
+            # Save new rules
+            new_rule = LearnedRule(
+                rule_id="new.rule",
+                task_category="testing",
+                scope_pattern=None,
+                constraint="New rule",
+                source_hint_ids=[],
+                promotion_count=1,
+                first_seen=datetime.now(timezone.utc).isoformat(),
+                last_seen=datetime.now(timezone.utc).isoformat(),
+                status="active",
+                stage="new",
+            )
+            _save_project_rules(project_id, [new_rule])
+
+            # Cache should be invalidated
+            assert project_id not in _project_rules_cache
+            assert project_id not in _project_rules_mtime
+
+    def test_multiple_projects_cached_independently(self, tmp_path):
+        """Each project should have its own cache entry."""
+        project_id_1 = "project_1"
+        project_id_2 = "project_2"
+
+        rules_file_1 = tmp_path / "project1" / "LEARNED_RULES.json"
+        rules_file_2 = tmp_path / "project2" / "LEARNED_RULES.json"
+        rules_file_1.parent.mkdir(parents=True, exist_ok=True)
+        rules_file_2.parent.mkdir(parents=True, exist_ok=True)
+
+        rules_data_1 = {
+            "rules": [
+                {
+                    "rule_id": "project1.rule",
+                    "task_category": "testing",
+                    "scope_pattern": None,
+                    "constraint": "Project 1 rule",
+                    "source_hint_ids": [],
+                    "promotion_count": 1,
+                    "first_seen": datetime.now(timezone.utc).isoformat(),
+                    "last_seen": datetime.now(timezone.utc).isoformat(),
+                    "status": "active",
+                    "stage": "rule",
+                }
+            ]
+        }
+        rules_data_2 = {
+            "rules": [
+                {
+                    "rule_id": "project2.rule",
+                    "task_category": "testing",
+                    "scope_pattern": None,
+                    "constraint": "Project 2 rule",
+                    "source_hint_ids": [],
+                    "promotion_count": 1,
+                    "first_seen": datetime.now(timezone.utc).isoformat(),
+                    "last_seen": datetime.now(timezone.utc).isoformat(),
+                    "status": "active",
+                    "stage": "rule",
+                }
+            ]
+        }
+        rules_file_1.write_text(json.dumps(rules_data_1))
+        rules_file_2.write_text(json.dumps(rules_data_2))
+
+        def mock_get_rules_file(project_id):
+            if project_id == project_id_1:
+                return rules_file_1
+            elif project_id == project_id_2:
+                return rules_file_2
+            return Path("/nonexistent")
+
+        with patch(
+            "autopack.learned_rules._get_project_rules_file", side_effect=mock_get_rules_file
+        ):
+            # Load both projects
+            rules1 = load_project_rules(project_id_1)
+            rules2 = load_project_rules(project_id_2)
+
+            assert len(rules1) == 1
+            assert rules1[0].rule_id == "project1.rule"
+            assert len(rules2) == 1
+            assert rules2[0].rule_id == "project2.rule"
+
+            # Both should be cached
+            assert project_id_1 in _project_rules_cache
+            assert project_id_2 in _project_rules_cache
+
+            # Clear one project's cache shouldn't affect the other
+            _project_rules_cache.pop(project_id_1, None)
+            _project_rules_mtime.pop(project_id_1, None)
+
+            assert project_id_1 not in _project_rules_cache
+            assert project_id_2 in _project_rules_cache

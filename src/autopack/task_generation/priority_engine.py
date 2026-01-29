@@ -157,6 +157,8 @@ class PriorityEngine:
         self._roi_analyzer = roi_analyzer
         # IMP-TASK-003: Category multipliers for effectiveness feedback loop
         self._category_multipliers: dict[str, float] = {}
+        # IMP-LOOP-021: Session-local penalties for real-time feedback
+        self._session_penalties: dict[str, float] = {}
 
     def _get_cached_patterns(self) -> dict[str, Any]:
         """Get historical patterns, caching for performance."""
@@ -250,6 +252,106 @@ class PriorityEngine:
             The weight multiplier (default 1.0 if not set).
         """
         return self._category_multipliers.get(category, 1.0)
+
+    def update_from_effectiveness(
+        self,
+        task_id: str,
+        success: bool,
+        metrics: dict[str, Any] | None = None,
+    ) -> None:
+        """Receive real-time effectiveness feedback from current run.
+
+        IMP-LOOP-021: Updates session-local penalties based on task outcomes
+        from the current run. Failed tasks receive a penalty that decreases
+        priority for similar tasks in the same session.
+
+        This creates a real-time feedback loop where:
+        - Task failures immediately decrease priority for similar tasks
+        - The penalty accumulates with repeated failures
+        - Penalties are session-local (reset between runs)
+
+        Args:
+            task_id: The task identifier (e.g., improvement ID).
+            success: Whether the task completed successfully.
+            metrics: Optional dict with additional metrics. Expected keys:
+                - failure_count: Number of failures for this task (default: 1)
+                - category: Task category for category-level penalty
+                - error_type: Type of error for pattern detection
+        """
+        if metrics is None:
+            metrics = {}
+
+        if not success:
+            # Calculate penalty based on failure count
+            failure_count = metrics.get("failure_count", 1)
+            # Penalty increases with repeated failures: 0.1 per failure, max 0.5
+            penalty = min(0.5, failure_count * 0.1)
+
+            # Store session penalty for this task
+            current_penalty = self._session_penalties.get(task_id, 0.0)
+            self._session_penalties[task_id] = min(0.5, current_penalty + penalty)
+
+            # Also apply category-level penalty if category provided
+            category = metrics.get("category")
+            if category:
+                category_penalty_key = f"_category:{category}"
+                current_cat_penalty = self._session_penalties.get(category_penalty_key, 0.0)
+                # Category penalty is smaller (0.05 per failure)
+                self._session_penalties[category_penalty_key] = min(
+                    0.3, current_cat_penalty + 0.05
+                )
+
+            logger.info(
+                "[IMP-LOOP-021] Updated session penalty for %s: penalty=%.2f "
+                "(failure_count=%d, success=%s)",
+                task_id,
+                self._session_penalties[task_id],
+                failure_count,
+                success,
+            )
+        else:
+            # Successful task: reduce penalty if any exists
+            if task_id in self._session_penalties:
+                # Reduce penalty by half on success
+                self._session_penalties[task_id] *= 0.5
+                if self._session_penalties[task_id] < 0.01:
+                    del self._session_penalties[task_id]
+
+                logger.debug(
+                    "[IMP-LOOP-021] Reduced session penalty for %s on success",
+                    task_id,
+                )
+
+    def get_session_penalty(self, task_id: str, category: str | None = None) -> float:
+        """Get the session-local penalty for a task.
+
+        IMP-LOOP-021: Returns the accumulated penalty for a task based on
+        current-run failures.
+
+        Args:
+            task_id: The task identifier.
+            category: Optional category for category-level penalty lookup.
+
+        Returns:
+            Penalty value between 0.0 (no penalty) and 0.5 (max penalty).
+        """
+        task_penalty = self._session_penalties.get(task_id, 0.0)
+
+        # Also include category penalty if applicable
+        category_penalty = 0.0
+        if category:
+            category_penalty_key = f"_category:{category}"
+            category_penalty = self._session_penalties.get(category_penalty_key, 0.0)
+
+        return min(0.5, task_penalty + category_penalty)
+
+    def clear_session_penalties(self) -> None:
+        """Clear all session-local penalties.
+
+        IMP-LOOP-021: Called at the start of a new run to reset penalties.
+        """
+        self._session_penalties.clear()
+        logger.debug("[IMP-LOOP-021] Cleared all session penalties")
 
     def get_roi_factor(self, improvement: dict[str, Any]) -> float:
         """Calculate ROI-based priority factor from payback period.
@@ -745,12 +847,20 @@ class PriorityEngine:
         # IMP-TASK-002: Apply ROI factor based on payback period
         roi_factor = self.get_roi_factor(improvement)
 
-        score = base_score * category_multiplier * roi_factor
+        # IMP-LOOP-021: Get session penalty from current-run feedback
+        task_id = improvement.get("imp_id", improvement.get("id", ""))
+        session_penalty = self.get_session_penalty(task_id, category)
+
+        # Apply all factors: base * multipliers - session penalty
+        # Session penalty reduces the final score (max reduction of 0.5)
+        score = (base_score * category_multiplier * roi_factor) - session_penalty
+        # Ensure score doesn't go negative
+        score = max(0.0, score)
 
         logger.debug(
             "Priority score for %s: %.3f (category=%.2f, block_risk=%.2f, "
             "priority=%.2f, complexity=%.2f, effectiveness=%.2f, freshness=%.2f, "
-            "category_mult=%.2f, roi_factor=%.2f)",
+            "category_mult=%.2f, roi_factor=%.2f, session_penalty=%.2f)",
             improvement.get("imp_id", improvement.get("id", "unknown")),
             score,
             category_success_rate,
@@ -761,6 +871,7 @@ class PriorityEngine:
             freshness_factor,
             category_multiplier,
             roi_factor,
+            session_penalty,
         )
 
         return round(score, 3)

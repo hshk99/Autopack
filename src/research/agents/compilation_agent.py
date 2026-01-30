@@ -7,7 +7,7 @@ It aggregates, deduplicates, categorizes, and identifies gaps in the content.
 
 from typing import Any, Dict, List
 
-from src.research.gatherers.web_scraper import WebScraper
+from research.gatherers.web_scraper import WebScraper
 
 
 class CompilationAgent:

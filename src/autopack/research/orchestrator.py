@@ -13,6 +13,8 @@ from datetime import datetime, timedelta
 from typing import Any, Optional
 from uuid import uuid4
 
+from pathlib import Path
+
 from autopack.research.frameworks.competitive_intensity import CompetitiveIntensity
 from autopack.research.frameworks.market_attractiveness import MarketAttractiveness
 from autopack.research.frameworks.product_feasibility import ProductFeasibility
@@ -28,6 +30,13 @@ from autopack.research.models.research_session import ResearchSession
 from autopack.research.validators.evidence_validator import EvidenceValidator
 from autopack.research.validators.quality_validator import QualityValidator
 from autopack.research.validators.recency_validator import RecencyValidator
+
+# Analysis modules for cost-effectiveness, state tracking, and follow-up triggers
+from autopack.research.analysis import (
+    CostEffectivenessAnalyzer,
+    ResearchStateTracker,
+    FollowupResearchTrigger,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -128,17 +137,47 @@ class ResearchOrchestrator:
     Coordinates the entire research process from session initiation to
     validation and publication. Supports both traditional research sessions
     and bootstrap sessions with parallel execution and caching.
+
+    Enhanced with:
+    - Cost-effectiveness analysis for build/buy decisions
+    - Incremental research via state tracking
+    - Automated follow-up research triggers
     """
 
-    def __init__(self, cache_ttl_hours: int = CACHE_TTL_HOURS):
+    def __init__(
+        self,
+        cache_ttl_hours: int = CACHE_TTL_HOURS,
+        project_root: Optional[Path] = None,
+    ):
         """Initialize the ResearchOrchestrator.
 
         Args:
             cache_ttl_hours: TTL for research cache in hours (default: 24)
+            project_root: Root directory for project state files (optional)
         """
         self.sessions: dict[str, ResearchSession] = {}
         self.bootstrap_sessions: dict[str, BootstrapSession] = {}
         self._cache = ResearchCache(ttl_hours=cache_ttl_hours)
+
+        # Analysis components
+        self._cost_analyzer = CostEffectivenessAnalyzer()
+        self._followup_trigger = FollowupResearchTrigger()
+        self._state_tracker: Optional[ResearchStateTracker] = None
+
+        # Initialize state tracker if project root provided
+        if project_root:
+            self._state_tracker = ResearchStateTracker(project_root)
+
+    def initialize_state_tracking(self, project_root: Path, project_id: str) -> None:
+        """Initialize research state tracking for incremental research.
+
+        Args:
+            project_root: Root directory for project state files
+            project_id: Unique project identifier
+        """
+        self._state_tracker = ResearchStateTracker(project_root)
+        self._state_tracker.load_or_create_state(project_id)
+        logger.info(f"Initialized state tracking for project: {project_id}")
 
     def start_session(
         self, intent_title: str, intent_description: str, intent_objectives: list
@@ -440,6 +479,142 @@ class ResearchOrchestrator:
             session.mark_phase_failed(phase, [str(e)])
             logger.error(f"Technical feasibility failed for session {session.session_id}: {e}")
 
+    def run_cost_effectiveness_analysis(
+        self,
+        session: BootstrapSession,
+        build_vs_buy_results: list[dict[str, Any]],
+        ai_features: Optional[list[dict[str, Any]]] = None,
+        user_projections: Optional[dict[str, int]] = None,
+    ) -> dict[str, Any]:
+        """Run cost-effectiveness analysis on completed research.
+
+        Args:
+            session: BootstrapSession with completed phases
+            build_vs_buy_results: List of component build/buy/integrate decisions
+            ai_features: Optional list of AI feature specifications for token cost modeling
+            user_projections: Optional user growth projections {year: user_count}
+
+        Returns:
+            Cost-effectiveness analysis results including TCO, projections, and recommendations
+        """
+        logger.info(f"Running cost-effectiveness analysis for session {session.session_id}")
+
+        # Extract technical feasibility data if available
+        technical_feasibility = None
+        if session.technical_feasibility and session.technical_feasibility.data:
+            technical_feasibility = session.technical_feasibility.data
+
+        # Run cost analysis
+        cost_analysis = self._cost_analyzer.analyze(
+            project_name=session.parsed_idea_title,
+            build_vs_buy_results=build_vs_buy_results,
+            technical_feasibility=technical_feasibility,
+            tool_availability=None,  # Can be populated from tool-availability-agent
+            ai_features=ai_features,
+            user_projections=user_projections,
+        )
+
+        logger.info(
+            f"Cost analysis completed: Year 1 TCO = ${cost_analysis.get('executive_summary', {}).get('total_year_1_cost', 'N/A')}"
+        )
+
+        return cost_analysis
+
+    def analyze_followup_triggers(
+        self,
+        analysis_results: dict[str, Any],
+        validation_results: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        """Analyze research results for follow-up research triggers.
+
+        Identifies gaps, uncertainties, and areas needing deeper research.
+
+        Args:
+            analysis_results: Results from analysis phase
+            validation_results: Optional validation results
+
+        Returns:
+            Trigger analysis with recommended follow-up research
+        """
+        logger.info("Analyzing for follow-up research triggers")
+
+        trigger_result = self._followup_trigger.analyze(
+            analysis_results=analysis_results,
+            validation_results=validation_results,
+        )
+
+        if trigger_result.should_research:
+            logger.info(
+                f"Found {trigger_result.triggers_selected} triggers requiring follow-up research"
+            )
+        else:
+            logger.info("No follow-up research needed")
+
+        return trigger_result.to_dict()
+
+    def get_research_gaps(self) -> list[dict[str, Any]]:
+        """Get current research gaps from state tracker.
+
+        Returns:
+            List of identified research gaps with priorities
+        """
+        if not self._state_tracker:
+            return []
+
+        gaps = self._state_tracker.detect_gaps()
+        return [g.to_dict() for g in gaps]
+
+    def get_queries_to_skip(self) -> list[str]:
+        """Get list of queries that should be skipped (already researched).
+
+        Returns:
+            List of query strings to skip
+        """
+        if not self._state_tracker:
+            return []
+
+        return self._state_tracker.get_queries_to_skip()
+
+    def record_research_query(
+        self,
+        query: str,
+        agent: str,
+        sources_found: int,
+        quality_score: float,
+        findings: Any,
+    ) -> None:
+        """Record a completed research query for state tracking.
+
+        Args:
+            query: The research query executed
+            agent: Agent that performed the research
+            sources_found: Number of sources discovered
+            quality_score: Quality score of findings (0-1)
+            findings: The research findings
+        """
+        if not self._state_tracker:
+            return
+
+        self._state_tracker.record_completed_query(
+            query=query,
+            agent=agent,
+            sources_found=sources_found,
+            quality_score=quality_score,
+            findings=findings,
+        )
+        self._state_tracker.save_state()
+
+    def get_research_state_summary(self) -> dict[str, Any]:
+        """Get summary of current research state.
+
+        Returns:
+            Research state summary including coverage and gaps
+        """
+        if not self._state_tracker:
+            return {"error": "State tracking not initialized"}
+
+        return self._state_tracker.get_session_summary()
+
     def _get_market_indicators(self, project_type: ProjectType) -> list[str]:
         """Get market indicators for project type.
 
@@ -621,7 +796,7 @@ class ResearchOrchestrator:
             recommendation = "reconsider"
             confidence = "low"
 
-        return {
+        synthesis = {
             "project_title": parsed_idea.title,
             "project_type": parsed_idea.detected_project_type.value,
             "overall_recommendation": recommendation,
@@ -638,6 +813,12 @@ class ResearchOrchestrator:
             "research_phases_completed": len(session.get_completed_phases()),
             "parallel_execution": session.parallel_execution_used,
         }
+
+        # Add research state summary if tracking is enabled
+        if self._state_tracker:
+            synthesis["research_state"] = self._state_tracker.get_session_summary()
+
+        return synthesis
 
     def get_bootstrap_session(self, session_id: str) -> Optional[BootstrapSession]:
         """Get a bootstrap session by ID.

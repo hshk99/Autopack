@@ -1,26 +1,18 @@
 """
-Autopack Research Module.
+Analysis module for Autopack research.
 
-Provides comprehensive research capabilities including:
-- Market research and competitive analysis
-- Technical feasibility assessment
-- Cost-effectiveness analysis
-- Incremental research with state tracking
-- Automated follow-up research triggers
+Contains cost-effectiveness analysis, gap detection, and follow-up research triggers.
 """
 
-from autopack.research.orchestrator import ResearchOrchestrator, ResearchCache
-from autopack.research.idea_parser import IdeaParser, ParsedIdea
-
-# Analysis submodule exports
-from autopack.research.analysis import (
-    # Cost effectiveness
+from autopack.research.analysis.cost_effectiveness import (
     CostEffectivenessAnalyzer,
     ComponentCostData,
     ProjectCostProjection,
     CostCategory,
     ScalingModel,
-    # Research state tracking
+)
+
+from autopack.research.analysis.research_state import (
     ResearchStateTracker,
     ResearchState,
     ResearchGap,
@@ -29,7 +21,9 @@ from autopack.research.analysis import (
     GapPriority,
     ResearchDepth,
     CoverageMetrics,
-    # Follow-up research triggers
+)
+
+from autopack.research.analysis.followup_trigger import (
     FollowupResearchTrigger,
     FollowupTrigger,
     TriggerType,
@@ -39,11 +33,6 @@ from autopack.research.analysis import (
 )
 
 __all__ = [
-    # Main orchestration
-    "ResearchOrchestrator",
-    "ResearchCache",
-    "IdeaParser",
-    "ParsedIdea",
     # Cost effectiveness
     "CostEffectivenessAnalyzer",
     "ComponentCostData",

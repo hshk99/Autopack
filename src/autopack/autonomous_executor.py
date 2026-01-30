@@ -35,7 +35,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
-
 # Configure logging
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -48,92 +47,67 @@ from autopack.archive_consolidator import log_build_event
 from autopack.ci.custom_runner import CustomRunner
 from autopack.ci.pytest_runner import PytestRunner
 from autopack.debug_journal import log_error
-
 # Memory and validation imports
 # BUILD-115: models.py removed - database write code disabled below
 from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
-from autopack.error_recovery import (
-    DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
-    DOCTOR_MIN_BUILDER_ATTEMPTS,
-    DoctorContextSummary,
-    DoctorRequest,
-    DoctorResponse,
-    ErrorRecoverySystem,
-)
-
+from autopack.error_recovery import (DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
+                                     DOCTOR_MIN_BUILDER_ATTEMPTS,
+                                     DoctorContextSummary, DoctorRequest,
+                                     DoctorResponse, ErrorRecoverySystem)
 # PR-EXE-2: Approval flow consolidation
-from autopack.executor.approval_flow import (
-    request_build113_approval,
-    request_build113_clarification,
-    request_human_approval,
-)
+from autopack.executor.approval_flow import (request_build113_approval,
+                                             request_build113_clarification,
+                                             request_human_approval)
 from autopack.executor.autonomous_loop import AutonomousLoop
-
 # PR-EXE-12: Large helper method extraction
 from autopack.executor.backlog_maintenance import BacklogMaintenance
 from autopack.executor.batched_deliverables_executor import (
-    BatchedDeliverablesExecutor,
-    BatchedExecutionContext,
-)
-
+    BatchedDeliverablesExecutor, BatchedExecutionContext)
+# IMP-MAINT-006: Context loader and state manager extractions
+from autopack.executor.context_loader import ExecutorContextLoader
 # PR-EXE-6: Heuristic context loader extraction
 from autopack.executor.context_loading_heuristic import (
-    HeuristicContextLoader,
-    get_default_priority_files,
-)
-
+    HeuristicContextLoader, get_default_priority_files)
 # PR-EXE-10: Error analysis and learning pipeline
 from autopack.executor.error_analysis import ErrorAnalyzer
 from autopack.executor.execute_fix_handler import ExecuteFixHandler
-
 # IMP-MAINT-001: Goal anchoring and SOT manager extraction
 from autopack.executor.goal_anchoring import GoalAnchoringManager
-from autopack.executor.learning_pipeline import LearningPipeline
-from autopack.executor.phase_approach_reviser import PhaseApproachReviser
-
 # IMP-MAINT-001: Additional module extractions for executor split
 from autopack.executor.learning_context_manager import LearningContextManager
-from autopack.executor.run_lifecycle_manager import RunLifecycleManager
-from autopack.executor.stale_phase_handler import StalePhaseHandler
-
+from autopack.executor.learning_pipeline import LearningPipeline
+from autopack.executor.phase_approach_reviser import PhaseApproachReviser
 # PR-EXE-9: Phase state persistence manager
 from autopack.executor.phase_state_manager import PhaseStateManager
-
 # IMP-REL-015: Executor crash recovery with state persistence
 # PR-EXE-4: Run checkpoint and rollback extraction
-from autopack.executor.run_checkpoint import (
-    ExecutorState,
-    ExecutorStateCheckpoint,
-    create_deletion_savepoint,
-    create_run_checkpoint,
-    rollback_to_run_checkpoint,
-)
-
+from autopack.executor.run_checkpoint import (ExecutorState,
+                                              ExecutorStateCheckpoint,
+                                              create_deletion_savepoint,
+                                              create_run_checkpoint,
+                                              rollback_to_run_checkpoint)
+from autopack.executor.run_lifecycle_manager import RunLifecycleManager
 # PR-EXE-13: Final helper extraction - reach 5,000 lines!
 from autopack.executor.scope_context_validator import ScopeContextValidator
 from autopack.executor.scoped_context_loader import ScopedContextLoader
 from autopack.executor.sot_manager import SOTManager
+from autopack.executor.stale_phase_handler import StalePhaseHandler
+from autopack.executor.state_manager import ExecutorStateManager
 from autopack.executor_lock import ExecutorLockManager  # BUILD-048-T1
 from autopack.file_layout import RunFileLayout
 from autopack.governed_apply import GovernedApplyPath
 from autopack.health_checks import run_health_checks
-from autopack.learned_rules import (
-    get_active_rules_for_phase,
-    get_relevant_hints_for_phase,
-    load_project_rules,
-    save_run_hint,
-)
-
+from autopack.learned_rules import (get_active_rules_for_phase,
+                                    get_relevant_hints_for_phase,
+                                    load_project_rules, save_run_hint)
 # IMP-MEM-016: Learning memory manager for cross-cycle learning
 from autopack.learning_memory_manager import LearningMemoryManager
 from autopack.llm_client import AuditorResult, BuilderResult
 from autopack.llm_service import LlmService
-
 # BUILD-123v2: Manifest Generator imports
 from autopack.manifest_generator import ManifestGenerator
 from autopack.memory import MemoryService
 from autopack.phase_auto_fixer import auto_fix_phase_scope
-
 # BUILD-127 Phase 1: Completion authority with baseline tracking
 from autopack.phase_finalizer import PhaseFinalizer
 from autopack.quality_gate import QualityGate
@@ -285,7 +259,8 @@ class AutonomousExecutor:
 
         # Apply encoding fix immediately to prevent Unicode crashes
         # Create a dummy error context for encoding fix
-        from autopack.error_recovery import ErrorCategory, ErrorContext, ErrorSeverity
+        from autopack.error_recovery import (ErrorCategory, ErrorContext,
+                                             ErrorSeverity)
 
         dummy_ctx = ErrorContext(
             error=Exception("Pre-emptive encoding fix"),
@@ -419,13 +394,12 @@ class AutonomousExecutor:
         self.iterative_investigator = None
         if self.enable_autonomous_fixes and self.diagnostics_agent:
             try:
-                from autopack.diagnostics.decision_executor import DecisionExecutor
-                from autopack.diagnostics.goal_aware_decision import (
-                    GoalAwareDecisionMaker,
-                )
-                from autopack.diagnostics.iterative_investigator import (
-                    IterativeInvestigator,
-                )
+                from autopack.diagnostics.decision_executor import \
+                    DecisionExecutor
+                from autopack.diagnostics.goal_aware_decision import \
+                    GoalAwareDecisionMaker
+                from autopack.diagnostics.iterative_investigator import \
+                    IterativeInvestigator
 
                 decision_maker = GoalAwareDecisionMaker(
                     low_risk_threshold=100,
@@ -483,15 +457,15 @@ class AutonomousExecutor:
         # [Goal Anchoring] Per GPT_RESPONSE27: Prevent context drift during re-planning
         # PhaseGoal-lite implementation - lightweight anchor + telemetry (Phase 1)
         # Note: These are still used for goal anchoring (not moved to PhaseStateManager)
-        self._phase_original_intent: Dict[
-            str, str
-        ] = {}  # phase_id -> one-line intent extracted from description
-        self._phase_original_description: Dict[
-            str, str
-        ] = {}  # phase_id -> original description before any replanning
-        self._phase_replan_history: Dict[
-            str, List[Dict]
-        ] = {}  # phase_id -> list of {attempt, description, reason, alignment}
+        self._phase_original_intent: Dict[str, str] = (
+            {}
+        )  # phase_id -> one-line intent extracted from description
+        self._phase_original_description: Dict[str, str] = (
+            {}
+        )  # phase_id -> original description before any replanning
+        self._phase_replan_history: Dict[str, List[Dict]] = (
+            {}
+        )  # phase_id -> list of {attempt, description, reason, alignment}
         self._run_replan_telemetry: List[Dict] = []  # All replans in this run for telemetry
 
         # PR-EXE-9: Initialize phase state manager for database state persistence
@@ -568,11 +542,27 @@ class AutonomousExecutor:
         )
         logger.info("[IMP-MAINT-001] Run lifecycle manager initialized")
 
+        # IMP-MAINT-006: Initialize context loader (extracted from executor)
+        self.context_loader = ExecutorContextLoader(
+            workspace=self.workspace,
+            run_type=self.run_type,
+        )
+        logger.info("[IMP-MAINT-006] Context loader initialized")
+
+        # IMP-MAINT-006: Initialize state manager (extracted from executor)
+        self.state_manager = ExecutorStateManager(
+            run_id=self.run_id,
+            api_client=self.api_client,
+            write_run_summary_callback=self._best_effort_write_run_summary,
+        )
+        logger.info("[IMP-MAINT-006] State manager initialized")
+
         # PR-EXE-11: Initialize Builder/Auditor pipeline orchestrators
         from autopack.executor.auditor_orchestrator import AuditorOrchestrator
         from autopack.executor.builder_orchestrator import BuilderOrchestrator
         from autopack.executor.ci_execution_flow import CIExecutionFlow
-        from autopack.executor.patch_application_flow import PatchApplicationFlow
+        from autopack.executor.patch_application_flow import \
+            PatchApplicationFlow
 
         self.builder_orchestrator = BuilderOrchestrator(self)
         self.patch_flow = PatchApplicationFlow(self)
@@ -614,7 +604,8 @@ class AutonomousExecutor:
         self.MAX_PATCH_FAILURES_PER_RUN = 15  # Stop run after this many patch failures
 
         # BUILD-195: Payload correction tracker for one-shot 422 handling
-        from autopack.executor.payload_correction import PayloadCorrectionTracker
+        from autopack.executor.payload_correction import \
+            PayloadCorrectionTracker
 
         self._payload_correction_tracker = PayloadCorrectionTracker()
 
@@ -649,12 +640,12 @@ class AutonomousExecutor:
         self._doctor_context_by_phase: Dict[str, DoctorContextSummary] = {}
         self._doctor_calls_by_phase: Dict[str, int] = {}  # (run_id:phase_id) -> doctor call count
         self._last_doctor_response_by_phase: Dict[str, DoctorResponse] = {}
-        self._last_error_category_by_phase: Dict[
-            str, str
-        ] = {}  # Track error categories for is_complex_failure
-        self._distinct_error_cats_by_phase: Dict[
-            str, set
-        ] = {}  # Track distinct error categories per (run, phase)
+        self._last_error_category_by_phase: Dict[str, str] = (
+            {}
+        )  # Track error categories for is_complex_failure
+        self._distinct_error_cats_by_phase: Dict[str, set] = (
+            {}
+        )  # Track distinct error categories per (run, phase)
         # Run-level Doctor budgets
         self._run_doctor_calls: int = 0  # Total Doctor calls this run
         self._run_doctor_strong_calls: int = 0  # Strong-model Doctor calls this run
@@ -1858,7 +1849,8 @@ class AutonomousExecutor:
             # INSERTION POINT 4: Write phase proof on success (BUILD-161 Phase A)
             if hasattr(self, "_intention_wiring") and self._intention_wiring is not None:
                 try:
-                    from autopack.phase_proof_writer import write_minimal_phase_proof
+                    from autopack.phase_proof_writer import \
+                        write_minimal_phase_proof
 
                     write_minimal_phase_proof(
                         run_id=self.run_id,
@@ -1987,7 +1979,8 @@ class AutonomousExecutor:
             # INSERTION POINT 4: Write phase proof on failure (BUILD-161 Phase A)
             if hasattr(self, "_intention_wiring") and self._intention_wiring is not None:
                 try:
-                    from autopack.phase_proof_writer import write_minimal_phase_proof
+                    from autopack.phase_proof_writer import \
+                        write_minimal_phase_proof
 
                     write_minimal_phase_proof(
                         run_id=self.run_id,
@@ -2101,11 +2094,9 @@ class AutonomousExecutor:
         context_reduction_factor = kwargs.get("context_reduction_factor")
         model_downgrade = kwargs.get("model_downgrade")
         timeout_increase_factor = kwargs.get("timeout_increase_factor")
-        from autopack.executor.phase_orchestrator import (
-            ExecutionContext,
-            PhaseOrchestrator,
-            PhaseResult,
-        )
+        from autopack.executor.phase_orchestrator import (ExecutionContext,
+                                                          PhaseOrchestrator,
+                                                          PhaseResult)
 
         phase_id = phase.get("phase_id")
 
@@ -2521,9 +2512,7 @@ class AutonomousExecutor:
 
                 # Construct PhaseSpec from phase
                 from autopack.diagnostics.diagnostics_models import (
-                    DecisionType,
-                    PhaseSpec,
-                )
+                    DecisionType, PhaseSpec)
 
                 phase_spec = PhaseSpec(
                     phase_id=phase.get("phase_id", "unknown"),
@@ -3166,7 +3155,8 @@ class AutonomousExecutor:
         try:
             # Special-case phase handlers (in-phase batching) are routed via a tiny registry
             # to reduce merge conflicts in this file.
-            from autopack.executor.phase_dispatch import resolve_special_phase_method
+            from autopack.executor.phase_dispatch import \
+                resolve_special_phase_method
 
             special_method_name = resolve_special_phase_method(phase_id)
             if special_method_name:
@@ -3202,7 +3192,8 @@ class AutonomousExecutor:
 
                 # Clear the LRU file cache in ScopedContextLoader to force disk re-reads
                 try:
-                    from autopack.executor.scoped_context_loader import clear_file_cache
+                    from autopack.executor.scoped_context_loader import \
+                        clear_file_cache
 
                     clear_file_cache()
                     logger.debug(f"[IMP-COORD-001] Cleared LRU file cache for '{phase_id}'")
@@ -3254,9 +3245,7 @@ class AutonomousExecutor:
 
                 try:
                     from autopack.diagnostics.diagnostics_models import (
-                        DecisionType,
-                        PhaseSpec,
-                    )
+                        DecisionType, PhaseSpec)
 
                     # Use GoalAwareDecisionMaker directly (no investigation needed for fresh features)
                     decision_maker = self.iterative_investigator.decision_maker
@@ -3722,7 +3711,8 @@ class AutonomousExecutor:
         allowed_paths: Optional[List[str]],
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for followup-7 `diagnostics-deep-retrieval` (code → tests → docs)."""
-        from autopack.executor.phase_handlers import batched_diagnostics_deep_retrieval
+        from autopack.executor.phase_handlers import \
+            batched_diagnostics_deep_retrieval
 
         return batched_diagnostics_deep_retrieval.execute(
             self, phase=phase, attempt_index=attempt_index, allowed_paths=allowed_paths
@@ -3736,7 +3726,8 @@ class AutonomousExecutor:
         allowed_paths: Optional[List[str]],
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for followup-8 `diagnostics-iteration-loop` (code → tests → docs)."""
-        from autopack.executor.phase_handlers import batched_diagnostics_iteration_loop
+        from autopack.executor.phase_handlers import \
+            batched_diagnostics_iteration_loop
 
         return batched_diagnostics_iteration_loop.execute(
             self, phase=phase, attempt_index=attempt_index, allowed_paths=allowed_paths
@@ -3750,7 +3741,8 @@ class AutonomousExecutor:
         allowed_paths: Optional[List[str]],
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for followup-1 `diagnostics-handoff-bundle` (code → tests → docs)."""
-        from autopack.executor.phase_handlers import batched_diagnostics_handoff_bundle
+        from autopack.executor.phase_handlers import \
+            batched_diagnostics_handoff_bundle
 
         return batched_diagnostics_handoff_bundle.execute(
             self, phase=phase, attempt_index=attempt_index, allowed_paths=allowed_paths
@@ -3764,7 +3756,8 @@ class AutonomousExecutor:
         allowed_paths: Optional[List[str]],
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for followup-2 `diagnostics-cursor-prompt` (code → tests → docs)."""
-        from autopack.executor.phase_handlers import batched_diagnostics_cursor_prompt
+        from autopack.executor.phase_handlers import \
+            batched_diagnostics_cursor_prompt
 
         return batched_diagnostics_cursor_prompt.execute(
             self, phase=phase, attempt_index=attempt_index, allowed_paths=allowed_paths
@@ -3778,7 +3771,8 @@ class AutonomousExecutor:
         allowed_paths: Optional[List[str]],
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for followup-3 `diagnostics-second-opinion-triage` (code → tests → docs)."""
-        from autopack.executor.phase_handlers import batched_diagnostics_second_opinion
+        from autopack.executor.phase_handlers import \
+            batched_diagnostics_second_opinion
 
         return batched_diagnostics_second_opinion.execute(
             self, phase=phase, attempt_index=attempt_index, allowed_paths=allowed_paths
@@ -3792,7 +3786,8 @@ class AutonomousExecutor:
         allowed_paths: Optional[List[str]],
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for Chunk 0 (research-tracer-bullet)."""
-        from autopack.executor.phase_handlers import batched_research_tracer_bullet
+        from autopack.executor.phase_handlers import \
+            batched_research_tracer_bullet
 
         return batched_research_tracer_bullet.execute(
             self, phase=phase, attempt_index=attempt_index, allowed_paths=allowed_paths
@@ -3806,9 +3801,8 @@ class AutonomousExecutor:
         allowed_paths: Optional[List[str]],
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for Chunk 2B (research-gatherers-web-compilation)."""
-        from autopack.executor.phase_handlers import (
-            batched_research_gatherers_web_compilation,
-        )
+        from autopack.executor.phase_handlers import \
+            batched_research_gatherers_web_compilation
 
         return batched_research_gatherers_web_compilation.execute(
             self, phase=phase, attempt_index=attempt_index, allowed_paths=allowed_paths
@@ -3869,8 +3863,7 @@ class AutonomousExecutor:
     def _determine_workspace_root(self, scope_config: Dict) -> Path:
         """Determine workspace root based on scope configuration.
 
-        For external projects (project_build), derive workspace from first scope path.
-        For autopack_maintenance, use Autopack root.
+        IMP-MAINT-006: Delegates to ExecutorContextLoader.
 
         Args:
             scope_config: Scope configuration dict
@@ -3878,235 +3871,56 @@ class AutonomousExecutor:
         Returns:
             Workspace root Path
         """
-        # For autopack_maintenance, always use self.workspace (Autopack root)
-        if self.run_type in ["autopack_maintenance", "autopack_upgrade", "self_repair"]:
-            return Path(self.workspace)
-
-        # For project_build, derive workspace from first scope path.
-        # Scope paths can be either:
-        # - ".autonomous_runs/<project>/(...)" (historical)
-        # - "<project_slug>/(...)" e.g. "fileorganizer/frontend/..." (current external-project layout)
-        scope_paths = scope_config.get("paths", [])
-        if scope_paths:
-            first_path = scope_paths[0]
-            parts = Path(first_path).parts
-
-            # Look for .autonomous_runs prefix
-            if len(parts) >= 2 and parts[0] == ".autonomous_runs":
-                project_root = Path(self.workspace) / parts[0] / parts[1]
-                logger.info(f"[Scope] Workspace root determined: {project_root}")
-                return project_root
-
-            # Autopack monorepo heuristic: if scope paths start with standard repo-top-level buckets,
-            # the workspace root should be the repo root (NOT the bucket directory). This prevents
-            # accidental scope isolation where writes to e.g. "src/*" are blocked because the derived
-            # workspace is "docs/" or "tests/".
-            repo_root_buckets = {
-                "src",
-                "docs",
-                "tests",
-                "config",
-                "scripts",
-                "migrations",
-                "archive",
-                "examples",
-            }
-            if parts and parts[0] in repo_root_buckets:
-                repo_root = Path(self.workspace).resolve()
-                logger.info(
-                    f"[Scope] Workspace root determined as repo root for bucket '{parts[0]}': {repo_root}"
-                )
-                return repo_root
-
-            # Common external project layouts: "fileorganizer/<...>" or "file-organizer-app-v1/<...>"
-            # If the first segment exists as a directory under repo root, treat it as workspace root.
-            if parts:
-                candidate = (Path(self.workspace) / parts[0]).resolve()
-                if candidate.exists() and candidate.is_dir():
-                    logger.info(f"[Scope] Workspace root determined from scope prefix: {candidate}")
-                    return candidate
-
-        # Fallback to default workspace
-        logger.warning(
-            f"[Scope] Could not determine workspace from scope paths, using default: {self.workspace}"
-        )
-        return Path(self.workspace)
+        return self.context_loader.determine_workspace_root(scope_config)
 
     def _resolve_scope_target(
         self, scope_path: str, workspace_root: Path, *, must_exist: bool = False
     ) -> Optional[Tuple[Path, str]]:
-        """
-        Resolve a scope path to an absolute file/dir and builder-relative path.
+        """Resolve a scope path to an absolute file/dir and builder-relative path.
+
+        IMP-MAINT-006: Delegates to ExecutorContextLoader.
 
         Args:
-            scope_path: Path from scope configuration (can be relative or prefixed with .autonomous_runs)
+            scope_path: Path from scope configuration
             workspace_root: Project workspace root (from _determine_workspace_root)
             must_exist: If True, only return when the path exists on disk
 
         Returns:
             Tuple of (absolute_path, builder_relative_path) or None if outside workspace.
         """
-        base_workspace = Path(self.workspace).resolve()
-        workspace_root = workspace_root.resolve()
-        path_obj = Path(scope_path.strip())
-
-        candidates = []
-        if path_obj.is_absolute():
-            candidates.append(path_obj)
-        else:
-            candidates.append(base_workspace / path_obj)
-            candidates.append(workspace_root / path_obj)
-
-        seen = set()
-        for candidate in candidates:
-            resolved = candidate.resolve()
-            key = str(resolved)
-            if key in seen:
-                continue
-            seen.add(key)
-
-            # Ensure target is under workspace root
-            try:
-                resolved.relative_to(workspace_root)
-            except ValueError:
-                continue
-
-            if must_exist and not resolved.exists():
-                continue
-
-            try:
-                rel_to_base = resolved.relative_to(base_workspace)
-            except ValueError:
-                continue
-
-            rel_key = str(rel_to_base).replace("\\", "/")
-            return resolved, rel_key
-
-        return None
+        return self.context_loader.resolve_scope_target(
+            scope_path, workspace_root, must_exist=must_exist
+        )
 
     def _derive_allowed_paths_from_scope(
         self, scope_config: Optional[Dict], workspace_root: Optional[Path] = None
     ) -> List[str]:
-        """Derive allowed path prefixes for GovernedApply from scope configuration."""
-        if not scope_config or not scope_config.get("paths"):
-            return []
+        """Derive allowed path prefixes for GovernedApply from scope configuration.
 
-        workspace_root = workspace_root or self._determine_workspace_root(scope_config)
-        base_workspace = Path(self.workspace).resolve()
-
-        try:
-            rel_prefix = workspace_root.resolve().relative_to(base_workspace)
-        except ValueError:
-            return []
-
-        rel_str = str(rel_prefix).replace("\\", "/")
-        if not rel_str.endswith("/"):
-            rel_str += "/"
-
-        return [rel_str]
+        IMP-MAINT-006: Delegates to ExecutorContextLoader.
+        """
+        return self.context_loader.derive_allowed_paths_from_scope(scope_config, workspace_root)
 
     def _load_targeted_context_for_templates(self, phase: Dict) -> Dict:
-        """Load minimal context for country template phases (UK, CA, AU)
+        """Load minimal context for country template phases (UK, CA, AU).
 
-        These phases typically create:
-        - templates/countries/{country}/template.yaml
-        - src/autopack/document_categories.py (or similar)
-
-        We only need to load template-related files, not the entire codebase.
+        IMP-MAINT-006: Delegates to ExecutorContextLoader.
         """
-        workspace = Path(self.workspace)
-        existing_files = {}
-
-        # Load only template-related files
-        patterns = [
-            "templates/**/*.yaml",
-            "src/autopack/document_categories.py",
-            "src/autopack/validation.py",
-            "src/autopack/models.py",
-            "config/**/*.yaml",
-        ]
-
-        for pattern in patterns:
-            for filepath in workspace.glob(pattern):
-                if filepath.is_file() and "__pycache__" not in str(filepath):
-                    try:
-                        rel_path = str(filepath.relative_to(workspace))
-                        content = filepath.read_text(encoding="utf-8", errors="ignore")
-                        existing_files[rel_path] = content[:15000]
-                    except Exception as e:
-                        logger.debug(f"Could not load {filepath}: {e}")
-
-        logger.info(f"[Context] Loaded {len(existing_files)} template-related files (targeted)")
-        return {"existing_files": existing_files}
+        return self.context_loader.load_targeted_context_for_templates(Path(self.workspace))
 
     def _load_targeted_context_for_frontend(self, phase: Dict) -> Dict:
-        """Load minimal context for frontend phases
+        """Load minimal context for frontend phases.
 
-        Frontend phases only need:
-        - frontend/ directory contents
-        - package.json, vite.config.ts, tsconfig.json
+        IMP-MAINT-006: Delegates to ExecutorContextLoader.
         """
-        workspace = Path(self.workspace)
-        existing_files = {}
-
-        patterns = [
-            "frontend/**/*.ts",
-            "frontend/**/*.tsx",
-            "frontend/**/*.css",
-            "frontend/**/*.json",
-            "package.json",
-            "vite.config.ts",
-            "tsconfig.json",
-            "tailwind.config.js",
-        ]
-
-        for pattern in patterns:
-            for filepath in workspace.glob(pattern):
-                if filepath.is_file() and "node_modules" not in str(filepath):
-                    try:
-                        rel_path = str(filepath.relative_to(workspace))
-                        content = filepath.read_text(encoding="utf-8", errors="ignore")
-                        existing_files[rel_path] = content[:15000]
-                    except Exception as e:
-                        logger.debug(f"Could not load {filepath}: {e}")
-
-        logger.info(f"[Context] Loaded {len(existing_files)} frontend files (targeted)")
-        return {"existing_files": existing_files}
+        return self.context_loader.load_targeted_context_for_frontend(Path(self.workspace))
 
     def _load_targeted_context_for_docker(self, phase: Dict) -> Dict:
-        """Load minimal context for Docker/deployment phases
+        """Load minimal context for Docker/deployment phases.
 
-        Docker phases only need:
-        - Dockerfile, docker-compose.yml, .dockerignore
-        - Database initialization scripts
-        - Configuration files
+        IMP-MAINT-006: Delegates to ExecutorContextLoader.
         """
-        workspace = Path(self.workspace)
-        existing_files = {}
-
-        patterns = [
-            "Dockerfile",
-            "docker-compose.yml",
-            ".dockerignore",
-            "scripts/init-db.sql",
-            "scripts/**/*.sh",
-            "config/**/*.yaml",
-            "requirements.txt",
-            "package.json",
-        ]
-
-        for pattern in patterns:
-            for filepath in workspace.glob(pattern):
-                if filepath.is_file():
-                    try:
-                        rel_path = str(filepath.relative_to(workspace))
-                        content = filepath.read_text(encoding="utf-8", errors="ignore")
-                        existing_files[rel_path] = content[:15000]
-                    except Exception as e:
-                        logger.debug(f"Could not load {filepath}: {e}")
-
-        logger.info(f"[Context] Loaded {len(existing_files)} docker/deployment files (targeted)")
-        return {"existing_files": existing_files}
+        return self.context_loader.load_targeted_context_for_docker(Path(self.workspace))
 
     def _load_scoped_context(self, phase: Dict, scope_config: Dict) -> Dict:
         """Extracted to ScopedContextLoader in PR-EXE-12."""
@@ -4402,7 +4216,8 @@ class AutonomousExecutor:
 
         # BUILD-190: Integrate with Telegram approval flow
         try:
-            from autopack.notifications.telegram_notifier import TelegramNotifier
+            from autopack.notifications.telegram_notifier import \
+                TelegramNotifier
 
             notifier = TelegramNotifier()
             if notifier.is_configured():
@@ -4582,7 +4397,8 @@ class AutonomousExecutor:
             quality_report: QualityReport with risk assessment
         """
         try:
-            from autopack.notifications.telegram_notifier import TelegramNotifier
+            from autopack.notifications.telegram_notifier import \
+                TelegramNotifier
 
             notifier = TelegramNotifier()
 
@@ -4640,7 +4456,8 @@ class AutonomousExecutor:
             reason: Failure reason (e.g., "MAX_ATTEMPTS_EXHAUSTED", "BUILDER_FAILED")
         """
         try:
-            from autopack.notifications.telegram_notifier import TelegramNotifier
+            from autopack.notifications.telegram_notifier import \
+                TelegramNotifier
 
             notifier = TelegramNotifier()
 

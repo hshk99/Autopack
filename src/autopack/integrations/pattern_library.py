@@ -206,9 +206,13 @@ class PatternLibrary:
                 if len(word) > 3:
                     all_words[word] = all_words.get(word, 0) + 1
 
-        # Find words that appear in majority of contents
+        # Find words that appear in majority of contents (for context matching)
         threshold = len(contents) * 0.5
-        common_words = [word for word, count in all_words.items() if count >= threshold]
+        frequent_words = [word for word, count in all_words.items() if count >= threshold]
+
+        # Add frequent words as context hints
+        if frequent_words:
+            result["requirements"].extend(frequent_words[:3])
 
         # Identify requirements from common words
         requirement_keywords = ["requires", "needs", "must", "should", "install", "setup"]

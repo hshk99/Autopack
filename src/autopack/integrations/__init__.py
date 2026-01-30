@@ -19,6 +19,12 @@ Providers:
 - Trading broker execution
 """
 
+from .pattern_library import PatternLibrary, ReusablePattern
 from .runner import IntegrationResult, IntegrationRunner
 
-__all__ = ["IntegrationRunner", "IntegrationResult"]
+__all__ = [
+    "IntegrationRunner",
+    "IntegrationResult",
+    "PatternLibrary",
+    "ReusablePattern",
+]

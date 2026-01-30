@@ -14,13 +14,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .faiss_store import FaissStore
-from .memory_service import (
-    COLLECTION_DOCTOR_HINTS,
-    COLLECTION_ERRORS_CI,
-    COLLECTION_PLANNING,
-    COLLECTION_RUN_SUMMARIES,
-    _load_memory_config,
-)
+from .memory_service import (COLLECTION_DOCTOR_HINTS, COLLECTION_ERRORS_CI,
+                             COLLECTION_PLANNING, COLLECTION_RUN_SUMMARIES,
+                             _load_memory_config)
 
 logger = logging.getLogger(__name__)
 
@@ -306,6 +302,76 @@ async def compress_entry_content(
     return None
 
 
+def calculate_memory_freshness_metrics(
+    store: FaissStore,
+    project_id: str,
+    ttl_days: int = DEFAULT_TTL_DAYS,
+    collections: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """
+    Calculate freshness metrics for memory entries.
+
+    IMP-MEDIUM-001: Exposes memory freshness metrics for telemetry observability:
+    - freshness_ratio: percentage of entries within freshness window (0.0-1.0)
+    - stale_entries_count: number of entries past TTL window
+    - total_entries: total entries counted
+
+    Args:
+        store: FaissStore instance
+        project_id: Project to analyze
+        ttl_days: Days before entries are considered stale (default: 30)
+        collections: Collections to analyze (default: all except code_docs)
+
+    Returns:
+        Dict with freshness metrics including freshness_ratio, stale_entries_count, total_entries
+    """
+    if collections is None:
+        collections = [COLLECTION_RUN_SUMMARIES, COLLECTION_ERRORS_CI, COLLECTION_DOCTOR_HINTS]
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=ttl_days)
+    cutoff_iso = cutoff.isoformat()
+
+    total_entries = 0
+    stale_entries = 0
+
+    for collection in collections:
+        try:
+            # Scroll all documents in this collection for the project
+            docs = store.scroll(
+                collection,
+                filter={"project_id": project_id},
+                limit=10000,
+            )
+
+            for doc in docs:
+                total_entries += 1
+                payload = doc.get("payload", {})
+                timestamp = payload.get("timestamp", "")
+
+                # Check if entry is stale
+                try:
+                    if timestamp and timestamp < cutoff_iso:
+                        stale_entries += 1
+                except Exception:
+                    # If timestamp parsing fails, skip
+                    continue
+
+        except Exception as e:
+            logger.warning(
+                f"[IMP-MEDIUM-001] Failed to calculate freshness for '{collection}': {e}"
+            )
+
+    # Calculate freshness ratio
+    freshness_ratio = 0.0 if total_entries == 0 else (total_entries - stale_entries) / total_entries
+
+    return {
+        "freshness_ratio": round(freshness_ratio, 4),
+        "stale_entries_count": stale_entries,
+        "total_entries": total_entries,
+        "ttl_days": ttl_days,
+    }
+
+
 def run_maintenance(
     store: FaissStore,
     project_id: str,
@@ -336,7 +402,30 @@ def run_maintenance(
         "rules_pruned": 0,
         "compressed": 0,
         "errors": [],
+        "freshness_metrics": {},
     }
+
+    # IMP-MEDIUM-001: Calculate freshness metrics before pruning
+    try:
+        freshness_metrics = calculate_memory_freshness_metrics(
+            store,
+            project_id,
+            ttl_days,
+            collections=[
+                COLLECTION_RUN_SUMMARIES,
+                COLLECTION_ERRORS_CI,
+                COLLECTION_DOCTOR_HINTS,
+                COLLECTION_PLANNING,
+            ],
+        )
+        stats["freshness_metrics"] = freshness_metrics
+        logger.info(
+            f"[IMP-MEDIUM-001] Memory freshness: ratio={freshness_metrics['freshness_ratio']}, "
+            f"stale={freshness_metrics['stale_entries_count']}, total={freshness_metrics['total_entries']}"
+        )
+    except Exception as e:
+        stats["errors"].append(f"Freshness metrics failed: {e}")
+        logger.error(f"[IMP-MEDIUM-001] Freshness metrics failed: {e}")
 
     try:
         stats["pruned"] = prune_old_entries(
@@ -373,6 +462,16 @@ def run_maintenance(
     except Exception as e:
         stats["errors"].append(f"Rule prune failed: {e}")
         logger.error(f"[IMP-REL-002] Rule prune failed: {e}")
+
+    # IMP-MEDIUM-001: Calculate pruning effectiveness
+    # Ratio of entries pruned vs. total pruned operations
+    total_pruned_operations = stats["pruned"] + stats["planning_tombstoned"] + stats["rules_pruned"]
+    if total_pruned_operations > 0:
+        pruning_effectiveness = stats["pruned"] / total_pruned_operations
+        stats["pruning_effectiveness"] = round(pruning_effectiveness, 4)
+        logger.info(f"[IMP-MEDIUM-001] Pruning effectiveness: {stats['pruning_effectiveness']:.2%}")
+    else:
+        stats["pruning_effectiveness"] = 0.0
 
     logger.info(f"[Maintenance] Completed: {stats}")
     return stats

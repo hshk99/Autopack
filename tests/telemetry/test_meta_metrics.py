@@ -4,22 +4,18 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from autopack.telemetry.meta_metrics import (
-    ComponentStatus,
-    FeedbackLoopHealth,
-    FeedbackLoopLatency,
-    LoopCompletenessMetric,
-    LoopCompletenessSnapshot,
-    LoopFidelityMetric,
-    LoopLatencyMetric,
-    MetaMetricsTracker,
-    MetricTrend,
-    PipelineLatencyTracker,
-    PipelineSLAConfig,
-    PipelineStage,
-    PipelineStageTimestamp,
-    SLABreachAlert,
-)
+from autopack.telemetry.meta_metrics import (ComponentStatus,
+                                             FeedbackLoopHealth,
+                                             FeedbackLoopLatency,
+                                             LoopCompletenessMetric,
+                                             LoopCompletenessSnapshot,
+                                             LoopFidelityMetric,
+                                             LoopLatencyMetric,
+                                             MetaMetricsTracker, MetricTrend,
+                                             PipelineLatencyTracker,
+                                             PipelineSLAConfig, PipelineStage,
+                                             PipelineStageTimestamp,
+                                             SLABreachAlert)
 
 
 @pytest.fixture
@@ -1825,7 +1821,8 @@ class TestContextInjectionEffectivenessResult:
 
     def test_result_has_all_fields(self):
         """IMP-LOOP-029: Result should have all required fields."""
-        from autopack.telemetry.meta_metrics import ContextInjectionEffectivenessResult
+        from autopack.telemetry.meta_metrics import \
+            ContextInjectionEffectivenessResult
 
         result = ContextInjectionEffectivenessResult(
             with_context_success_rate=0.8,
@@ -1849,7 +1846,8 @@ class TestContextInjectionEffectivenessResult:
 
     def test_result_to_dict(self):
         """IMP-LOOP-029: to_dict should serialize all fields."""
-        from autopack.telemetry.meta_metrics import ContextInjectionEffectivenessResult
+        from autopack.telemetry.meta_metrics import \
+            ContextInjectionEffectivenessResult
 
         result = ContextInjectionEffectivenessResult(
             with_context_success_rate=0.8,
@@ -1876,7 +1874,8 @@ class TestContextInjectionEffectivenessTracker:
     @pytest.fixture
     def tracker(self):
         """Create a fresh tracker for each test."""
-        from autopack.telemetry.meta_metrics import ContextInjectionEffectivenessTracker
+        from autopack.telemetry.meta_metrics import \
+            ContextInjectionEffectivenessTracker
 
         return ContextInjectionEffectivenessTracker()
 
@@ -1973,7 +1972,8 @@ class TestContextInjectionEffectivenessTracker:
 
     def test_get_trend_improving(self, tracker):
         """IMP-LOOP-029: get_trend should detect improving effectiveness."""
-        from autopack.telemetry.meta_metrics import ContextInjectionEffectivenessResult
+        from autopack.telemetry.meta_metrics import \
+            ContextInjectionEffectivenessResult
 
         # Manually add history entries with improving delta values
         for delta in [0.0, 0.05, 0.1, 0.15, 0.2]:
@@ -2081,3 +2081,87 @@ class TestContextInjectionEffectivenessTracker:
         assert "recommendation" in result
         assert result["with_context_count"] == 10
         assert result["without_context_count"] == 10
+
+
+class TestMemoryFreshnessMetrics:
+    """Tests for IMP-MEDIUM-001: Memory freshness metrics recording."""
+
+    def test_record_memory_freshness_healthy(self, tracker):
+        """Test recording memory freshness metrics for healthy memory."""
+        metrics = tracker.record_memory_freshness(
+            freshness_ratio=0.95,
+            stale_entries_count=5,
+            total_entries=100,
+            ttl_days=30,
+            pruning_effectiveness=0.8,
+        )
+
+        assert metrics.freshness_ratio == 0.95
+        assert metrics.stale_entries_count == 5
+        assert metrics.total_entries == 100
+        assert metrics.ttl_days == 30
+        assert metrics.pruning_effectiveness == 0.8
+        assert metrics.health_status == "healthy"
+
+    def test_record_memory_freshness_degrading(self, tracker):
+        """Test recording memory freshness metrics for degrading memory."""
+        metrics = tracker.record_memory_freshness(
+            freshness_ratio=0.65,
+            stale_entries_count=35,
+            total_entries=100,
+            ttl_days=30,
+            pruning_effectiveness=0.5,
+        )
+
+        assert metrics.freshness_ratio == 0.65
+        assert metrics.stale_entries_count == 35
+        assert metrics.total_entries == 100
+        assert metrics.health_status == "degrading"
+
+    def test_record_memory_freshness_critical(self, tracker):
+        """Test recording memory freshness metrics for critical memory state."""
+        metrics = tracker.record_memory_freshness(
+            freshness_ratio=0.3,
+            stale_entries_count=70,
+            total_entries=100,
+            ttl_days=30,
+            pruning_effectiveness=0.2,
+        )
+
+        assert metrics.freshness_ratio == 0.3
+        assert metrics.stale_entries_count == 70
+        assert metrics.total_entries == 100
+        assert metrics.health_status == "critical"
+
+    def test_record_memory_freshness_empty(self, tracker):
+        """Test recording memory freshness metrics for empty memory."""
+        metrics = tracker.record_memory_freshness(
+            freshness_ratio=0.0,
+            stale_entries_count=0,
+            total_entries=0,
+            ttl_days=30,
+            pruning_effectiveness=0.0,
+        )
+
+        assert metrics.freshness_ratio == 0.0
+        assert metrics.total_entries == 0
+        assert metrics.health_status == "empty"
+
+    def test_memory_freshness_to_dict(self, tracker):
+        """Test serializing memory freshness metrics to dictionary."""
+        metrics = tracker.record_memory_freshness(
+            freshness_ratio=0.85,
+            stale_entries_count=15,
+            total_entries=100,
+            ttl_days=30,
+            pruning_effectiveness=0.75,
+        )
+
+        result = metrics.to_dict()
+
+        assert result["freshness_ratio"] == 0.85
+        assert result["stale_entries_count"] == 15
+        assert result["total_entries"] == 100
+        assert result["ttl_days"] == 30
+        assert result["pruning_effectiveness"] == 0.75
+        assert "timestamp" in result

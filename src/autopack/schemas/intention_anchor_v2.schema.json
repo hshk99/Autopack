@@ -219,6 +219,27 @@
               "description": "Maximum concurrent runs allowed"
             }
           }
+        },
+        "deployment": {
+          "type": "object",
+          "description": "Deployment phase configuration and requirements",
+          "properties": {
+            "hosting_requirements": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "List of hosting platform requirements (e.g., Docker, Kubernetes, serverless)"
+            },
+            "env_vars": {
+              "type": "object",
+              "additionalProperties": {"type": "string"},
+              "description": "Environment variables required for deployment"
+            },
+            "secrets_config": {
+              "type": "object",
+              "additionalProperties": true,
+              "description": "Secrets configuration and management requirements"
+            }
+          }
         }
       }
     },

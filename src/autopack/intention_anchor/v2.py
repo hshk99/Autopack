@@ -117,6 +117,16 @@ class ParallelismIsolationIntention(BaseModel):
     max_concurrent_runs: int = Field(default=1, ge=1)
 
 
+class DeploymentIntention(BaseModel):
+    """Deployment phase configuration and requirements."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    hosting_requirements: List[str] = Field(default_factory=list)
+    env_vars: Dict[str, str] = Field(default_factory=dict)
+    secrets_config: Dict[str, Any] = Field(default_factory=dict)
+
+
 class PivotIntentions(BaseModel):
     """All pivot intention types (universal)."""
 
@@ -130,6 +140,7 @@ class PivotIntentions(BaseModel):
     memory_continuity: Optional[MemoryContinuityIntention] = None
     governance_review: Optional[GovernanceReviewIntention] = None
     parallelism_isolation: Optional[ParallelismIsolationIntention] = None
+    deployment: Optional[DeploymentIntention] = None
 
 
 class IntentionMetadata(BaseModel):
@@ -283,6 +294,7 @@ def create_from_inputs(
     memory_continuity: Optional[Dict[str, Any]] = None,
     governance_review: Optional[Dict[str, Any]] = None,
     parallelism_isolation: Optional[Dict[str, Any]] = None,
+    deployment: Optional[Dict[str, Any]] = None,
     metadata: Optional[Dict[str, Any]] = None,
 ) -> IntentionAnchorV2:
     """Create IntentionAnchorV2 from inputs (deterministic-first).
@@ -301,6 +313,7 @@ def create_from_inputs(
         memory_continuity: MemoryContinuity intention dict
         governance_review: GovernanceReview intention dict
         parallelism_isolation: ParallelismIsolation intention dict
+        deployment: Deployment intention dict
         metadata: Metadata dict
 
     Returns:
@@ -334,6 +347,8 @@ def create_from_inputs(
         pivot_intentions_dict["parallelism_isolation"] = ParallelismIsolationIntention(
             **parallelism_isolation
         )
+    if deployment:
+        pivot_intentions_dict["deployment"] = DeploymentIntention(**deployment)
 
     pivot_intentions = PivotIntentions(**pivot_intentions_dict)
 
@@ -396,6 +411,11 @@ def validate_pivot_completeness(anchor: IntentionAnchorV2) -> List[str]:
 
     if not anchor.pivot_intentions.parallelism_isolation:
         questions.append("Is parallelism allowed, and if so, what isolation model is required?")
+
+    if not anchor.pivot_intentions.deployment:
+        questions.append(
+            "What are the deployment requirements, environment variables, and secrets configuration?"
+        )
 
     # Return at most 8 questions
     return questions[:8]

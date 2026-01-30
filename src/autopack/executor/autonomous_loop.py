@@ -7,12 +7,13 @@ IMP-AUTO-002: Extended to support parallel phase execution when file scopes don'
 IMP-MAINT-002: Modularized - CircuitBreaker extracted to circuit_breaker.py.
 IMP-MAINT-002: FeedbackContextRetriever and TelemetryPersistenceManager extracted
               to feedback_context.py and telemetry_persistence.py respectively.
+IMP-GOD-002: Further modularization - extracted wave_planner_integration.py,
+             parallel_execution.py, context_injection.py, and task_injection.py.
 """
 
 import logging
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
@@ -23,7 +24,6 @@ from autopack.autonomous.budgeting import (
     get_budget_remaining_pct,
     is_budget_exhausted,
 )
-from autopack.autonomy.parallelism_gate import ParallelismPolicyGate, ScopeBasedParallelismChecker
 from autopack.config import settings
 from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
 from autopack.executor.circuit_breaker import (
@@ -32,13 +32,16 @@ from autopack.executor.circuit_breaker import (
     CircuitBreakerState,
     SOTDriftError,
 )
+from autopack.executor.context_injection import ContextInjectionHelper
 from autopack.executor.feedback_context import FeedbackContextRetriever
 from autopack.executor.loop_telemetry_integration import LoopTelemetryIntegration
+from autopack.executor.parallel_execution import ParallelExecutionHelper
+from autopack.executor.task_injection import TaskInjectionHelper
 from autopack.executor.telemetry_persistence import TelemetryPersistenceManager
+from autopack.executor.wave_planner_integration import WavePlannerIntegration
 from autopack.feedback_pipeline import FeedbackPipeline
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
-from autopack.memory.context_injector import ContextInjector
 from autopack.memory.maintenance import run_maintenance_if_due
 from autopack.task_generation.roi_analyzer import ROIAnalyzer
 from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
@@ -52,11 +55,12 @@ from autopack.telemetry.meta_metrics import (
     PipelineStage,
 )
 from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
-from generation.autonomous_wave_planner import AutonomousWavePlanner, WavePlan
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
+    from autopack.autonomy.parallelism_gate import ScopeBasedParallelismChecker
     from autopack.executor.backlog_maintenance import InjectionResult
+    from generation.autonomous_wave_planner import AutonomousWavePlanner, WavePlan
 
 logger = logging.getLogger(__name__)
 
@@ -271,6 +275,38 @@ class AutonomousLoop:
             emit_alert=self._emit_alert,
         )
 
+        # IMP-GOD-002: Initialize extracted helper classes for modularized functionality
+        # WavePlannerIntegration handles wave planning and IMP execution
+        self._wave_planner_integration = WavePlannerIntegration(
+            wave_planner_enabled=self._wave_planner_enabled,
+        )
+
+        # ParallelExecutionHelper handles parallel phase execution
+        self._parallel_execution_helper = ParallelExecutionHelper(
+            executor=executor,
+            parallel_execution_enabled=self._parallel_execution_enabled,
+            max_parallel_phases=self._max_parallel_phases,
+        )
+
+        # ContextInjectionHelper handles memory context and token management
+        self._context_injection_helper = ContextInjectionHelper(
+            context_ceiling=self._context_ceiling,
+        )
+
+        # TaskInjectionHelper handles task generation and backlog injection
+        self._task_injection_helper = TaskInjectionHelper(
+            db_session=getattr(executor, "db_session", None),
+            run_id=getattr(executor, "run_id", None),
+            task_generation_auto_execute=getattr(settings, "task_generation_auto_execute", False),
+            task_generation_max_tasks_per_run=getattr(
+                settings, "task_generation_max_tasks_per_run", 5
+            ),
+            task_generation_enabled=getattr(settings, "task_generation_enabled", False),
+            roi_analyzer=self._roi_analyzer,
+            meta_metrics_tracker=self._meta_metrics_tracker,
+            task_effectiveness_tracker=self._task_effectiveness_tracker,
+        )
+
     def get_loop_stats(self) -> Dict:
         """Get current loop statistics for monitoring (IMP-LOOP-006, IMP-AUTO-002).
 
@@ -282,20 +318,15 @@ class AutonomousLoop:
             "iteration_count": self._iteration_count,
             "total_phases_executed": self._total_phases_executed,
             "total_phases_failed": self._total_phases_failed,
-            "context_tokens_used": self._total_context_tokens,
-            "context_ceiling": self._context_ceiling,
+            "context_tokens_used": self._context_injection_helper.total_context_tokens,
+            "context_ceiling": self._context_injection_helper.context_ceiling,
         }
 
         if self._circuit_breaker is not None:
             stats["circuit_breaker"] = self._circuit_breaker.get_stats()
 
-        # IMP-AUTO-002: Add parallel execution statistics
-        stats["parallel_execution"] = {
-            "enabled": self._parallel_execution_enabled,
-            "max_parallel_phases": self._max_parallel_phases,
-            "parallel_phases_executed": self._parallel_phases_executed,
-            "parallel_phases_skipped": self._parallel_phases_skipped,
-        }
+        # IMP-AUTO-002: Add parallel execution statistics (delegated to helper)
+        stats["parallel_execution"] = self._parallel_execution_helper.get_stats()
 
         # IMP-LOOP-001: Add feedback pipeline statistics
         if self._feedback_pipeline is not None:
@@ -318,19 +349,8 @@ class AutonomousLoop:
         else:
             stats["pipeline_latency"] = {"enabled": False}
 
-        # IMP-LOOP-027: Add wave planner statistics
-        stats["wave_planner"] = {
-            "enabled": self._wave_planner_enabled,
-            "current_wave_number": self._current_wave_number,
-            "total_waves": (len(self._current_wave_plan.waves) if self._current_wave_plan else 0),
-            "waves_loaded": len(self._wave_phases_loaded),
-            "waves_completed": sum(
-                1
-                for wave_num, completed in self._wave_phases_completed.items()
-                if wave_num in self._wave_phases_loaded
-                and len(completed) >= len(self._wave_phases_loaded.get(wave_num, []))
-            ),
-        }
+        # IMP-LOOP-027: Add wave planner statistics (delegated to helper)
+        stats["wave_planner"] = self._wave_planner_integration.get_stats()
 
         # IMP-LOOP-025: Add task generation throughput and wiring verification
         if self._meta_metrics_tracker is not None:
@@ -435,58 +455,15 @@ class AutonomousLoop:
         IMP-LOOP-027: Loads wave plan from file if provided, otherwise attempts
         to discover IMPs and generate a wave plan dynamically.
 
+        IMP-GOD-002: Delegates to WavePlannerIntegration helper.
+
         Args:
             wave_plan_path: Optional path to an existing wave plan JSON file.
 
         Returns:
             True if wave planner was successfully initialized, False otherwise.
         """
-        if not self._wave_planner_enabled:
-            logger.info("[IMP-LOOP-027] Wave planner is disabled in settings")
-            return False
-
-        try:
-            # Try to load from file first
-            if wave_plan_path and wave_plan_path.exists():
-                self._wave_plan_path = wave_plan_path
-                import json
-
-                plan_data = json.loads(wave_plan_path.read_text())
-
-                # Reconstruct IMPs from wave plan file
-                discovered_imps = []
-                for wave_data in plan_data.get("waves", []):
-                    for phase in wave_data.get("phases", []):
-                        discovered_imps.append(
-                            {
-                                "imp_id": phase.get("imp_id"),
-                                "title": phase.get("title", ""),
-                                "files_affected": phase.get("files", []),
-                                "dependencies": phase.get("dependencies", []),
-                            }
-                        )
-
-                if discovered_imps:
-                    self._wave_planner = AutonomousWavePlanner(discovered_imps)
-                    self._current_wave_plan = self._wave_planner.plan_waves()
-                    logger.info(
-                        f"[IMP-LOOP-027] Wave planner loaded from {wave_plan_path}: "
-                        f"{len(self._current_wave_plan.waves)} waves, "
-                        f"{len(discovered_imps)} IMPs"
-                    )
-                    return True
-
-            # Try default wave plan path
-            default_path = Path(".autopack/AUTOPACK_WAVE_PLAN.json")
-            if default_path.exists():
-                return self._initialize_wave_planner(default_path)
-
-            logger.debug("[IMP-LOOP-027] No wave plan file found, wave planner not initialized")
-            return False
-
-        except Exception as e:
-            logger.warning(f"[IMP-LOOP-027] Failed to initialize wave planner: {e}")
-            return False
+        return self._wave_planner_integration.initialize(wave_plan_path)
 
     def _current_wave_complete(self) -> bool:
         """Check if all phases in the current wave are complete.
@@ -494,36 +471,12 @@ class AutonomousLoop:
         IMP-LOOP-027: Compares completed phase IDs against loaded phase IDs
         for the current wave number.
 
+        IMP-GOD-002: Delegates to WavePlannerIntegration helper.
+
         Returns:
             True if current wave is complete (or no wave is active), False otherwise.
         """
-        if self._current_wave_number == 0:
-            # No wave currently active
-            return True
-
-        if self._current_wave_plan is None:
-            return True
-
-        # Get phases loaded for current wave
-        loaded_phases = self._wave_phases_loaded.get(self._current_wave_number, [])
-        if not loaded_phases:
-            return True
-
-        # Get completed phase IDs for current wave
-        completed_ids = set(self._wave_phases_completed.get(self._current_wave_number, []))
-
-        # Check if all loaded phases are completed
-        loaded_ids = {p.get("phase_id") for p in loaded_phases if p.get("phase_id")}
-
-        is_complete = loaded_ids.issubset(completed_ids)
-
-        if is_complete:
-            logger.info(
-                f"[IMP-LOOP-027] Wave {self._current_wave_number} complete: "
-                f"{len(completed_ids)}/{len(loaded_ids)} phases"
-            )
-
-        return is_complete
+        return self._wave_planner_integration.is_current_wave_complete()
 
     def _get_next_wave(self) -> Optional[Dict]:
         """Get the next wave from the wave plan.
@@ -531,41 +484,12 @@ class AutonomousLoop:
         IMP-LOOP-027: Returns the next wave to execute after the current wave
         is complete.
 
+        IMP-GOD-002: Delegates to WavePlannerIntegration helper.
+
         Returns:
             Wave data dictionary if next wave exists, None otherwise.
         """
-        if self._current_wave_plan is None:
-            return None
-
-        next_wave_num = self._current_wave_number + 1
-
-        if next_wave_num not in self._current_wave_plan.waves:
-            logger.info(
-                f"[IMP-LOOP-027] No more waves to execute (completed {self._current_wave_number} waves)"
-            )
-            return None
-
-        imp_ids = self._current_wave_plan.waves[next_wave_num]
-
-        wave_data = {
-            "wave_number": next_wave_num,
-            "imp_ids": imp_ids,
-            "phases": [
-                {
-                    "imp_id": imp_id,
-                    "title": self._wave_planner.imps.get(imp_id, {}).get("title", ""),
-                    "files": self._wave_planner.imps.get(imp_id, {}).get("files_affected", []),
-                    "dependencies": list(self._wave_planner.dependency_graph.get(imp_id, set())),
-                }
-                for imp_id in imp_ids
-            ],
-        }
-
-        logger.info(
-            f"[IMP-LOOP-027] Next wave: {next_wave_num} with {len(imp_ids)} IMPs: {imp_ids}"
-        )
-
-        return wave_data
+        return self._wave_planner_integration.get_next_wave()
 
     def _load_wave_phases(self, wave: Dict) -> int:
         """Load phases from a wave plan into the execution queue.
@@ -573,111 +497,39 @@ class AutonomousLoop:
         IMP-LOOP-027: Converts wave IMP entries into executable phase specs
         and injects them into the current run's phase list.
 
+        IMP-GOD-002: Delegates to WavePlannerIntegration helper.
+
         Args:
             wave: Wave data dictionary with wave_number, imp_ids, and phases.
 
         Returns:
             Number of phases successfully loaded into the queue.
         """
-        if wave is None:
-            return 0
-
-        wave_number = wave.get("wave_number", 0)
-        phases = wave.get("phases", [])
-
-        if not phases:
-            logger.warning(f"[IMP-LOOP-027] Wave {wave_number} has no phases to load")
-            return 0
-
-        loaded_phases = []
-        for phase_data in phases:
-            imp_id = phase_data.get("imp_id")
-            if not imp_id:
-                continue
-
-            # Create executable phase spec
-            phase_spec = {
-                "phase_id": f"wave{wave_number}-{imp_id.lower().replace('-', '')}",
-                "phase_type": "wave-imp-execution",
-                "status": "QUEUED",
-                "imp_id": imp_id,
-                "title": phase_data.get("title", f"Execute {imp_id}"),
-                "description": f"Wave {wave_number} execution of {imp_id}",
-                "files_affected": phase_data.get("files", []),
-                "dependencies": phase_data.get("dependencies", []),
-                "metadata": {
-                    "wave_number": wave_number,
-                    "wave_planner_generated": True,
-                    "imp_id": imp_id,
-                },
-            }
-
-            loaded_phases.append(phase_spec)
-
-        # Store loaded phases for wave completion tracking
-        self._wave_phases_loaded[wave_number] = loaded_phases
-        self._wave_phases_completed[wave_number] = []
-
-        # Update current wave number
-        self._current_wave_number = wave_number
-
-        # Inject phases into the current run's phase list
-        if self._current_run_phases is not None:
-            # Insert wave phases at the front of the queue (high priority)
-            for phase_spec in reversed(loaded_phases):
-                self._current_run_phases.insert(0, phase_spec)
-
-            logger.info(
-                f"[IMP-LOOP-027] Loaded {len(loaded_phases)} phases from wave {wave_number} "
-                f"into execution queue"
-            )
-        else:
-            logger.warning("[IMP-LOOP-027] Cannot inject wave phases - no current run phases list")
-
-        return len(loaded_phases)
+        return self._wave_planner_integration.load_wave_phases(wave, self._current_run_phases)
 
     def _mark_wave_phase_complete(self, phase_id: str) -> None:
         """Mark a wave phase as complete for tracking.
 
         IMP-LOOP-027: Updates wave completion tracking when a phase finishes.
 
+        IMP-GOD-002: Delegates to WavePlannerIntegration helper.
+
         Args:
             phase_id: The phase ID that completed.
         """
-        if self._current_wave_number == 0:
-            return
-
-        completed_list = self._wave_phases_completed.get(self._current_wave_number, [])
-        if phase_id not in completed_list:
-            completed_list.append(phase_id)
-            self._wave_phases_completed[self._current_wave_number] = completed_list
-
-            loaded = len(self._wave_phases_loaded.get(self._current_wave_number, []))
-            completed = len(completed_list)
-            logger.debug(
-                f"[IMP-LOOP-027] Wave {self._current_wave_number} progress: "
-                f"{completed}/{loaded} phases complete"
-            )
+        self._wave_planner_integration.mark_phase_complete(phase_id)
 
     def _check_and_load_next_wave(self) -> int:
         """Check if current wave is complete and load next wave if available.
 
         IMP-LOOP-027: Orchestrates wave transitions during the execution loop.
 
+        IMP-GOD-002: Delegates to WavePlannerIntegration helper.
+
         Returns:
             Number of phases loaded from the next wave, or 0 if no wave transition.
         """
-        if not self._wave_planner_enabled or self._wave_planner is None:
-            return 0
-
-        if not self._current_wave_complete():
-            return 0
-
-        next_wave = self._get_next_wave()
-        if next_wave is None:
-            return 0
-
-        return self._load_wave_phases(next_wave)
+        return self._wave_planner_integration.check_and_load_next_wave(self._current_run_phases)
 
     def _emit_alert(self, message: str) -> None:
         """Emit an alert for critical system events.
@@ -832,33 +684,10 @@ class AutonomousLoop:
 
         IMP-AUTO-002: Creates the parallelism checker with policy gate from
         the executor's intention anchor (if available).
+
+        IMP-GOD-002: Delegates to ParallelExecutionHelper.
         """
-        if not self._parallel_execution_enabled:
-            logger.debug("[IMP-AUTO-002] Parallel execution disabled by configuration")
-            return
-
-        # Get policy gate from intention anchor if available
-        policy_gate: Optional[ParallelismPolicyGate] = None
-        intention_anchor_v2 = getattr(self.executor, "_intention_anchor_v2", None)
-
-        if intention_anchor_v2 is not None:
-            try:
-                policy_gate = ParallelismPolicyGate(intention_anchor_v2)
-                if policy_gate.is_parallel_allowed():
-                    logger.info(
-                        f"[IMP-AUTO-002] Parallelism allowed by intention anchor "
-                        f"(max_concurrent={policy_gate.get_max_concurrent_runs()})"
-                    )
-                else:
-                    logger.info("[IMP-AUTO-002] Parallelism not allowed by intention anchor policy")
-            except Exception as e:
-                logger.warning(f"[IMP-AUTO-002] Failed to create parallelism policy gate: {e}")
-
-        self._parallelism_checker = ScopeBasedParallelismChecker(policy_gate)
-        logger.info(
-            f"[IMP-AUTO-002] Parallelism checker initialized "
-            f"(max_parallel_phases={self._max_parallel_phases})"
-        )
+        self._parallel_execution_helper.initialize_parallelism_checker()
 
     def _initialize_feedback_pipeline(self) -> None:
         """Initialize the unified feedback pipeline.
@@ -995,6 +824,7 @@ class AutonomousLoop:
         """Execute multiple phases in parallel using ThreadPoolExecutor.
 
         IMP-AUTO-002: Executes phases with non-overlapping scopes concurrently.
+        IMP-GOD-002: Delegates to ParallelExecutionHelper.
 
         Args:
             phases: List of phases to execute in parallel
@@ -1003,80 +833,9 @@ class AutonomousLoop:
         Returns:
             List of (phase, success, status) tuples for each executed phase
         """
-        results: List[Tuple[Dict, bool, str]] = []
-
-        if len(phases) == 1:
-            # Single phase - execute directly
-            phase = phases[0]
-            adjustments = phase_adjustments_map.get(phase.get("phase_id", ""), {})
-            success, status = self.executor.execute_phase(phase, **adjustments)
-            return [(phase, success, status)]
-
-        # IMP-REL-015: Cap thread pool size to prevent thread exhaustion
-        max_workers = min(len(phases), os.cpu_count() or 4, 10)
-        logger.info(
-            f"[IMP-AUTO-002] Executing {len(phases)} phases in parallel "
-            f"(max_workers={max_workers}): "
-            f"{[p.get('phase_id', 'unknown') for p in phases]}"
+        return self._parallel_execution_helper.execute_phases_parallel(
+            phases, phase_adjustments_map
         )
-
-        # Use ThreadPoolExecutor for parallel execution
-        # Note: Using threads (not processes) to share executor state
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all phases for execution
-            future_to_phase = {}
-            for phase in phases:
-                phase_id = phase.get("phase_id", "unknown")
-                adjustments = phase_adjustments_map.get(phase_id, {})
-
-                future = executor.submit(
-                    self._execute_single_phase_thread_safe,
-                    phase,
-                    adjustments,
-                )
-                future_to_phase[future] = phase
-
-            # Collect results as they complete
-            for future in as_completed(future_to_phase):
-                phase = future_to_phase[future]
-                phase_id = phase.get("phase_id", "unknown")
-
-                try:
-                    success, status = future.result()
-                    results.append((phase, success, status))
-                    logger.info(
-                        f"[IMP-AUTO-002] Parallel phase {phase_id} completed: "
-                        f"success={success}, status={status}"
-                    )
-                except Exception as e:
-                    logger.error(f"[IMP-AUTO-002] Parallel phase {phase_id} failed with error: {e}")
-                    results.append((phase, False, f"PARALLEL_EXECUTION_ERROR: {e}"))
-
-        self._parallel_phases_executed += len(phases)
-        return results
-
-    def _execute_single_phase_thread_safe(self, phase: Dict, adjustments: Dict) -> Tuple[bool, str]:
-        """Execute a single phase in a thread-safe manner.
-
-        IMP-AUTO-002: Wrapper for execute_phase to handle thread-safety concerns.
-
-        Args:
-            phase: Phase specification
-            adjustments: Telemetry-driven adjustments
-
-        Returns:
-            Tuple of (success, status)
-        """
-        phase_id = phase.get("phase_id", "unknown")
-
-        try:
-            # Execute via the executor
-            # Note: The executor's execute_phase method handles its own locking
-            success, status = self.executor.execute_phase(phase, **adjustments)
-            return success, status
-        except Exception as e:
-            logger.error(f"[IMP-AUTO-002] Thread execution error for phase {phase_id}: {e}")
-            return False, f"THREAD_ERROR: {str(e)}"
 
     def _try_parallel_execution(
         self, run_data: Dict, next_phase: Dict
@@ -1528,6 +1287,8 @@ class AutonomousLoop:
         Queries vector memory for historical context (past errors, successful strategies,
         doctor hints) related to the phase and injects it into the builder prompt.
 
+        IMP-GOD-002: Delegates to ContextInjectionHelper.
+
         Args:
             phase_type: Type of phase (e.g., 'build', 'test', 'deploy')
             goal: Phase goal/description
@@ -1535,72 +1296,13 @@ class AutonomousLoop:
         Returns:
             Formatted context string for prompt injection, or empty string if memory disabled
         """
-        # Get project ID for memory queries
         project_id = getattr(self.executor, "_get_project_slug", lambda: "default")()
-
-        try:
-            injector = ContextInjector()
-            # IMP-LOOP-024: Use EnrichedContextInjection for metadata (source, timestamp, freshness)
-            injection = injector.get_context_for_phase_with_metadata(
-                phase_type=phase_type,
-                current_goal=goal,
-                project_id=project_id,
-                max_tokens=500,
-            )
-
-            if injection.total_token_estimate > 0:
-                # IMP-LOOP-024: Log enriched context with quality signals
-                quality_info = ""
-                if injection.has_low_confidence_warning:
-                    quality_info = f", LOW_CONFIDENCE avg={injection.avg_confidence:.2f}"
-                else:
-                    quality_info = f", confidence={injection.avg_confidence:.2f}"
-
-                logger.info(
-                    f"[IMP-LOOP-024] Injecting {injection.total_token_estimate} tokens of enriched memory context "
-                    f"({len(injection.past_errors)} errors, "
-                    f"{len(injection.successful_strategies)} strategies, "
-                    f"{len(injection.doctor_hints)} hints, "
-                    f"{len(injection.relevant_insights)} insights{quality_info})"
-                )
-
-            # IMP-LOOP-024: Use enriched formatting with confidence warnings
-            memory_context = injector.format_enriched_for_prompt(injection)
-
-            # IMP-LOOP-025: Retrieve and inject promoted rules into execution context
-            # Promoted rules are high-priority patterns that have occurred 3+ times
-            if self._feedback_pipeline is not None:
-                try:
-                    promoted_rules = self._feedback_pipeline.get_promoted_rules(
-                        phase_type=phase_type, limit=5
-                    )
-                    if promoted_rules:
-                        rules_lines = ["\n\n## Promoted Rules (High-Priority Patterns)"]
-                        rules_lines.append(
-                            "The following rules were derived from recurring issues:"
-                        )
-                        for rule in promoted_rules:
-                            description = rule.get("description", "")[:200]
-                            action = rule.get("suggested_action", "")[:150]
-                            occurrences = rule.get("occurrences", 0)
-                            rules_lines.append(f"- **Rule** (seen {occurrences}x): {description}")
-                            if action:
-                                rules_lines.append(f"  → Action: {action}")
-                        rules_context = "\n".join(rules_lines)
-                        memory_context += rules_context
-                        logger.info(
-                            f"[IMP-LOOP-025] Injected {len(promoted_rules)} promoted rules "
-                            f"into execution context for phase_type={phase_type}"
-                        )
-                except Exception as rules_err:
-                    logger.warning(
-                        f"[IMP-LOOP-025] Failed to retrieve promoted rules (non-fatal): {rules_err}"
-                    )
-
-            return memory_context
-        except Exception as e:
-            logger.warning(f"[IMP-ARCH-002] Failed to retrieve memory context: {e}")
-            return ""
+        return self._context_injection_helper.get_memory_context(
+            phase_type=phase_type,
+            goal=goal,
+            project_id=project_id,
+            feedback_pipeline=self._feedback_pipeline,
+        )
 
     def _get_improvement_task_context(self) -> str:
         """Get improvement tasks as context for phase execution (IMP-ARCH-019).
@@ -1608,39 +1310,13 @@ class AutonomousLoop:
         Formats loaded improvement tasks into a context string that guides
         the Builder to address self-improvement opportunities.
 
+        IMP-GOD-002: Delegates to ContextInjectionHelper.
+
         Returns:
             Formatted context string, or empty string if no tasks
         """
         improvement_tasks = getattr(self.executor, "_improvement_tasks", [])
-        # Ensure it's a proper list (not a Mock or other non-list type)
-        if not improvement_tasks or not isinstance(improvement_tasks, list):
-            return ""
-
-        # Format tasks for injection
-        lines = ["## Self-Improvement Tasks (from previous runs)"]
-        lines.append("The following improvement opportunities were identified from telemetry:")
-        lines.append("")
-
-        for i, task in enumerate(improvement_tasks[:5], 1):  # Limit to 5 tasks
-            priority = task.get("priority", "medium")
-            title = task.get("title", "Unknown task")
-            description = task.get("description", "")[:200]  # Truncate long descriptions
-            files = task.get("suggested_files", [])
-
-            lines.append(f"### {i}. [{priority.upper()}] {title}")
-            if description:
-                lines.append(f"{description}")
-            if files:
-                lines.append(f"Suggested files: {', '.join(files[:3])}")
-            lines.append("")
-
-        lines.append("Consider addressing these issues if relevant to the current phase.")
-
-        context = "\n".join(lines)
-        logger.info(
-            f"[IMP-ARCH-019] Injecting {len(improvement_tasks)} improvement tasks into phase context"
-        )
-        return context
+        return self._context_injection_helper.get_improvement_task_context(improvement_tasks)
 
     def _get_feedback_loop_health(self) -> str:
         """Get the current feedback loop health status (IMP-LOOP-001).
@@ -1678,22 +1354,23 @@ class AutonomousLoop:
         Uses a rough heuristic of ~4 characters per token (common for English text).
         This is a fast approximation; actual token counts vary by model and content.
 
+        IMP-GOD-002: Delegates to ContextInjectionHelper.
+
         Args:
             context: The context string to estimate tokens for.
 
         Returns:
             Estimated token count.
         """
-        if not context:
-            return 0
-        # Rough estimate: ~4 characters per token (typical for English)
-        return len(context) // 4
+        return self._context_injection_helper.estimate_tokens(context)
 
     def _truncate_to_budget(self, context: str, token_budget: int) -> str:
         """Truncate context to fit within a token budget.
 
         Prioritizes keeping the most recent content (end of string).
         Truncates from the beginning to preserve recent context.
+
+        IMP-GOD-002: Delegates to ContextInjectionHelper.
 
         Args:
             context: The context string to truncate.
@@ -1702,28 +1379,7 @@ class AutonomousLoop:
         Returns:
             Truncated context string that fits within budget.
         """
-        if token_budget <= 0:
-            return ""
-
-        current_tokens = self._estimate_tokens(context)
-        if current_tokens <= token_budget:
-            return context
-
-        # Calculate approximate character limit (4 chars per token)
-        char_budget = token_budget * 4
-
-        # Truncate from beginning, keeping most recent content
-        truncated = context[-char_budget:]
-
-        # Try to find a clean break point (newline or space)
-        clean_break = truncated.find("\n")
-        if clean_break == -1:
-            clean_break = truncated.find(" ")
-
-        if clean_break > 0 and clean_break < len(truncated) // 2:
-            truncated = truncated[clean_break + 1 :]
-
-        return truncated
+        return self._context_injection_helper.truncate_to_budget(context, token_budget)
 
     def _inject_context_with_ceiling(self, context: str) -> str:
         """Inject context while enforcing the total context ceiling.
@@ -1731,41 +1387,15 @@ class AutonomousLoop:
         IMP-PERF-002: Prevents unbounded context accumulation across phases.
         Tracks total context tokens injected and truncates when ceiling is reached.
 
+        IMP-GOD-002: Delegates to ContextInjectionHelper.
+
         Args:
             context: The context string to inject.
 
         Returns:
             The context string (potentially truncated to fit within ceiling).
         """
-        if not context:
-            return ""
-
-        context_tokens = self._estimate_tokens(context)
-
-        if self._total_context_tokens + context_tokens > self._context_ceiling:
-            remaining_budget = self._context_ceiling - self._total_context_tokens
-
-            if remaining_budget <= 0:
-                logger.warning(
-                    f"[IMP-PERF-002] Context ceiling reached ({self._context_ceiling} tokens). "
-                    f"Skipping context injection entirely."
-                )
-                return ""
-
-            logger.warning(
-                f"[IMP-PERF-002] Context ceiling approaching ({self._total_context_tokens}/{self._context_ceiling} tokens). "
-                f"Truncating injection from {context_tokens} to {remaining_budget} tokens."
-            )
-            # Prioritize most recent context
-            context = self._truncate_to_budget(context, remaining_budget)
-            context_tokens = self._estimate_tokens(context)
-
-        self._total_context_tokens += context_tokens
-        logger.debug(
-            f"[IMP-PERF-002] Context injected: {context_tokens} tokens "
-            f"(total: {self._total_context_tokens}/{self._context_ceiling})"
-        )
-        return context
+        return self._context_injection_helper.inject_context_with_ceiling(context)
 
     def _mark_improvement_tasks_completed(self) -> None:
         """Mark improvement tasks as completed after successful run (IMP-ARCH-019).
@@ -2069,55 +1699,14 @@ class AutonomousLoop:
         - Tasks are persisted to database (IMP-ARCH-011)
         - This method retrieves pending tasks for execution
 
+        IMP-GOD-002: Delegates to TaskInjectionHelper.
+
         Returns:
             List of task dicts compatible with phase planning
         """
-        # Check if task generation is enabled
-        if not getattr(settings, "task_generation_enabled", False):
-            return []
-
-        try:
-            from autopack.roadc.task_generator import AutonomousTaskGenerator
-
-            # IMP-ARCH-017: Pass db_session to enable telemetry aggregation
-            # IMP-LOOP-025: Pass metrics tracker for throughput observability
-            db_session = getattr(self.executor, "db_session", None)
-            generator = AutonomousTaskGenerator(
-                db_session=db_session,
-                metrics_tracker=self._meta_metrics_tracker,
-            )
-            max_tasks = getattr(settings, "task_generation_max_tasks_per_run", 5)
-            pending_tasks = generator.get_pending_tasks(status="pending", limit=max_tasks)
-
-            if not pending_tasks:
-                logger.debug("[IMP-ARCH-012] No pending improvement tasks found")
-                return []
-
-            # Convert to planning-compatible format
-            task_items = []
-            for task in pending_tasks:
-                task_items.append(
-                    {
-                        "task_id": task.task_id,
-                        "title": task.title,
-                        "description": task.description,
-                        "priority": task.priority,
-                        "suggested_files": task.suggested_files,
-                        "source": "self_improvement",
-                        "estimated_effort": task.estimated_effort,
-                    }
-                )
-                # Mark as in_progress
-                generator.mark_task_status(
-                    task.task_id, "in_progress", executed_in_run_id=self.executor.run_id
-                )
-
-            logger.info(f"[IMP-ARCH-012] Loaded {len(task_items)} improvement tasks for this run")
-            return task_items
-
-        except Exception as e:
-            logger.warning(f"[IMP-ARCH-012] Failed to load improvement tasks: {e}")
-            return []
+        # Update helper's run_id to current value
+        self._task_injection_helper.set_run_id(getattr(self.executor, "run_id", None))
+        return self._task_injection_helper.load_improvement_tasks()
 
     def _fetch_generated_tasks(self) -> List[Dict]:
         """Fetch generated tasks and convert them to executable phase specs (IMP-LOOP-004).

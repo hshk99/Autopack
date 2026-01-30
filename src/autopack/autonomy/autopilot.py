@@ -17,6 +17,7 @@ BUILD-181 Integration:
 IMP-REL-001: Health-gated task generation with auto-resume support.
 """
 
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -31,7 +32,10 @@ from ..gaps.scanner import scan_workspace
 from ..intention_anchor.v2 import IntentionAnchorV2
 from ..planning.models import PlanProposalV1
 from ..planning.plan_proposer import propose_plan
-from ..research.analysis.followup_trigger import TriggerAnalysisResult
+from ..research.analysis.followup_trigger import (FollowupResearchTrigger,
+                                                  FollowupTrigger,
+                                                  TriggerAnalysisResult,
+                                                  TriggerExecutionResult)
 from .action_allowlist import ActionClassification
 from .action_executor import ExecutionBatch, SafeActionExecutor
 from .event_triggers import EventTriggerManager, EventType, WorkflowEvent
@@ -93,6 +97,11 @@ class AutopilotController:
         # IMP-AUTO-001: Research cycle triggering callbacks
         self._research_cycle_callbacks: list[Callable[[TriggerAnalysisResult], None]] = []
         self._last_research_trigger_result: Optional[TriggerAnalysisResult] = None
+
+        # IMP-HIGH-005: FollowupResearchTrigger instance for callback execution
+        self._followup_trigger: FollowupResearchTrigger = FollowupResearchTrigger()
+        self._mid_execution_research_enabled: bool = True
+        self._research_execution_results: list[TriggerExecutionResult] = []
 
         # IMP-AUTO-002: Event-driven workflow triggers
         self._event_trigger_manager = EventTriggerManager()
@@ -457,6 +466,10 @@ class AutopilotController:
         follow-up research when needed. This method integrates with the
         ResearchOrchestrator to detect gaps and invoke registered callbacks.
 
+        IMP-HIGH-005: Now uses the enhanced FollowupResearchTrigger with callback
+        execution mechanism. Callbacks registered via `register_followup_callback()`
+        are executed when triggers are detected.
+
         Args:
             analysis_results: Results from analysis phase
             validation_results: Optional validation results
@@ -469,17 +482,18 @@ class AutopilotController:
             return None
 
         try:
-            from ..research.analysis.followup_trigger import \
-                FollowupResearchTrigger
-
-            # Analyze findings for follow-up research triggers
-            followup_trigger = FollowupResearchTrigger()
-            trigger_result = followup_trigger.analyze(
+            # IMP-HIGH-005: Use instance-level followup trigger with callbacks
+            trigger_result = await self._followup_trigger.analyze_and_execute_async(
                 analysis_results=analysis_results,
                 validation_results=validation_results,
+                max_concurrent=3,
             )
 
             self._last_research_trigger_result = trigger_result
+
+            # Track execution results
+            if trigger_result.execution_result:
+                self._research_execution_results.append(trigger_result.execution_result)
 
             if trigger_result.should_research:
                 logger.info(
@@ -487,7 +501,17 @@ class AutopilotController:
                     f"{trigger_result.triggers_selected} triggers detected"
                 )
 
-                # Invoke all registered callbacks
+                # IMP-HIGH-005: Log callback execution summary
+                if trigger_result.execution_result:
+                    exec_result = trigger_result.execution_result
+                    logger.info(
+                        f"[IMP-HIGH-005] Callback execution: "
+                        f"{exec_result.successful_executions} successful, "
+                        f"{exec_result.failed_executions} failed, "
+                        f"{exec_result.total_execution_time_ms}ms"
+                    )
+
+                # Invoke legacy research cycle callbacks (for backwards compatibility)
                 for callback in self._research_cycle_callbacks:
                     try:
                         callback(trigger_result)
@@ -499,9 +523,6 @@ class AutopilotController:
                 logger.debug("[IMP-AUTO-001] No follow-up research needed")
                 return None
 
-        except ImportError as e:
-            logger.warning(f"[IMP-AUTO-001] Research orchestrator not available: {e}")
-            return None
         except Exception as e:
             logger.error(f"[IMP-AUTO-001] Research cycle trigger failed: {e}")
             return None
@@ -564,6 +585,219 @@ class AutopilotController:
             Last TriggerAnalysisResult or None if no research was triggered
         """
         return self._last_research_trigger_result
+
+    # === IMP-HIGH-005: Followup Research Callback Registration ===
+
+    def register_followup_callback(
+        self,
+        callback: Callable[[FollowupTrigger], Optional[Dict[str, Any]]],
+    ) -> None:
+        """Register a callback to handle followup research triggers.
+
+        IMP-HIGH-005: Callbacks are executed when followup research triggers
+        are detected and `trigger_research_cycle()` is called. Use this to
+        integrate custom research handlers.
+
+        Args:
+            callback: Function that takes a FollowupTrigger and returns
+                     optional result data (e.g., research findings).
+
+        Example:
+            ```python
+            def handle_research(trigger: FollowupTrigger) -> Optional[Dict]:
+                # Execute research based on trigger.research_plan
+                return {"findings": [...], "confidence": 0.8}
+
+            controller.register_followup_callback(handle_research)
+            ```
+        """
+        self._followup_trigger.register_callback(callback)
+        logger.debug(
+            f"[IMP-HIGH-005] Registered followup callback "
+            f"(total: {self._followup_trigger.get_callback_count()})"
+        )
+
+    def register_followup_async_callback(
+        self,
+        callback: Callable[[FollowupTrigger], "asyncio.Future[Optional[Dict[str, Any]]]"],
+    ) -> None:
+        """Register an async callback to handle followup research triggers.
+
+        IMP-HIGH-005: Async callbacks enable concurrent research execution
+        when `trigger_research_cycle()` is called.
+
+        Args:
+            callback: Async function that takes a FollowupTrigger and returns
+                     optional result data.
+
+        Example:
+            ```python
+            async def handle_research_async(trigger: FollowupTrigger) -> Optional[Dict]:
+                result = await research_orchestrator.execute(trigger.research_plan)
+                return {"findings": result.findings}
+
+            controller.register_followup_async_callback(handle_research_async)
+            ```
+        """
+        self._followup_trigger.register_async_callback(callback)
+        logger.debug(
+            f"[IMP-HIGH-005] Registered async followup callback "
+            f"(total: {self._followup_trigger.get_callback_count()})"
+        )
+
+    def unregister_followup_callback(
+        self,
+        callback: Callable[[FollowupTrigger], Optional[Dict[str, Any]]],
+    ) -> bool:
+        """Unregister a followup callback.
+
+        Args:
+            callback: The callback to unregister
+
+        Returns:
+            True if callback was found and removed, False otherwise
+        """
+        return self._followup_trigger.unregister_callback(callback)
+
+    def get_followup_callback_count(self) -> int:
+        """Get total number of registered followup callbacks.
+
+        Returns:
+            Total callback count (sync + async)
+        """
+        return self._followup_trigger.get_callback_count()
+
+    def get_research_execution_results(self) -> list[TriggerExecutionResult]:
+        """Get all research execution results from this session.
+
+        IMP-HIGH-005: Returns accumulated execution results from all
+        research cycles triggered during this session.
+
+        Returns:
+            List of TriggerExecutionResult from each research cycle
+        """
+        return self._research_execution_results.copy()
+
+    def enable_mid_execution_research(self, enabled: bool = True) -> None:
+        """Enable or disable mid-execution research triggering.
+
+        IMP-HIGH-005: When enabled, the execution loop will check for
+        followup research triggers after executing action batches.
+
+        Args:
+            enabled: Whether to enable mid-execution research
+        """
+        self._mid_execution_research_enabled = enabled
+        logger.info(f"[IMP-HIGH-005] Mid-execution research {'enabled' if enabled else 'disabled'}")
+
+    def is_mid_execution_research_enabled(self) -> bool:
+        """Check if mid-execution research is enabled.
+
+        Returns:
+            True if mid-execution research is enabled
+        """
+        return self._mid_execution_research_enabled
+
+    async def check_mid_execution_research(
+        self,
+        execution_results: Dict[str, Any],
+    ) -> Optional[TriggerAnalysisResult]:
+        """Check for and trigger mid-execution research if needed.
+
+        IMP-HIGH-005: Called during execution loop to detect gaps that
+        emerge from execution results and trigger followup research.
+
+        Args:
+            execution_results: Results from action execution including
+                              any errors, outputs, or state changes
+
+        Returns:
+            TriggerAnalysisResult if research was triggered, None otherwise
+        """
+        if not self._mid_execution_research_enabled:
+            return None
+
+        if self._task_generation_paused:
+            logger.debug("[IMP-HIGH-005] Mid-execution research skipped: paused")
+            return None
+
+        # Check budget before triggering research
+        budget_remaining = self.executor_ctx.get_budget_remaining() if self.executor_ctx else 1.0
+        if budget_remaining < 0.1:
+            logger.debug(
+                "[IMP-HIGH-005] Mid-execution research skipped: "
+                f"insufficient budget ({budget_remaining:.0%})"
+            )
+            return None
+
+        # Convert execution results to analysis format
+        analysis_results = self._execution_to_analysis_results(execution_results)
+
+        # Trigger research cycle if needed
+        return await self.trigger_research_cycle(analysis_results=analysis_results)
+
+    def _execution_to_analysis_results(
+        self,
+        execution_results: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Convert execution results to analysis format for trigger detection.
+
+        IMP-HIGH-005: Transforms execution outputs into the format expected
+        by FollowupResearchTrigger.analyze().
+
+        Args:
+            execution_results: Raw execution results
+
+        Returns:
+            Dict in analysis_results format
+        """
+        # Extract findings from execution outputs
+        findings = []
+
+        # Check for errors that might need research
+        errors = execution_results.get("errors", [])
+        for error in errors:
+            findings.append(
+                {
+                    "id": f"exec-error-{len(findings)}",
+                    "summary": f"Execution error: {error.get('message', 'Unknown')}",
+                    "confidence": 0.3,  # Low confidence triggers research
+                    "topic": error.get("type", "execution"),
+                }
+            )
+
+        # Check for warnings
+        warnings = execution_results.get("warnings", [])
+        for warning in warnings:
+            findings.append(
+                {
+                    "id": f"exec-warn-{len(findings)}",
+                    "summary": f"Warning: {warning.get('message', 'Unknown')}",
+                    "confidence": 0.5,
+                    "topic": warning.get("type", "execution"),
+                }
+            )
+
+        # Check for gaps in execution coverage
+        coverage = execution_results.get("coverage", {})
+        gaps = []
+        for area, covered in coverage.items():
+            if not covered:
+                gaps.append(
+                    {
+                        "category": area,
+                        "description": f"Execution did not cover: {area}",
+                        "suggested_queries": [f"{area} implementation guide"],
+                    }
+                )
+
+        return {
+            "findings": findings,
+            "identified_gaps": gaps,
+            "coverage_analysis": coverage,
+            "mentioned_entities": execution_results.get("entities", []),
+            "researched_entities": execution_results.get("resolved_entities", []),
+        }
 
     # === IMP-AUTO-002: Event-Driven Workflow Triggers ===
 
@@ -773,6 +1007,10 @@ class AutopilotController:
 
         BUILD-181: Records usage events for each action via ExecutorContext.
 
+        IMP-HIGH-005: After batch execution, prepares execution results for
+        mid-execution research triggering. Call `trigger_research_cycle()`
+        with these results to execute followup research callbacks.
+
         Args:
             proposal: Plan proposal with auto-approved actions
         """
@@ -894,6 +1132,81 @@ class AutopilotController:
             f"[Autopilot] Executed {len(executed)} actions "
             f"({successful} successful, {failed} failed, {requires_approval} require approval)"
         )
+
+        # IMP-HIGH-005: Prepare execution results for mid-execution research
+        self._prepare_research_from_execution(
+            executed_actions=executed,
+            failed_count=failed,
+            batch=batch,
+        )
+
+    def _prepare_research_from_execution(
+        self,
+        executed_actions: list[str],
+        failed_count: int,
+        batch: ExecutionBatch,
+    ) -> None:
+        """Prepare execution results for potential research triggering.
+
+        IMP-HIGH-005: Collects execution results and prepares them for
+        research trigger analysis. The results can be used by calling
+        `trigger_research_cycle()` after batch execution.
+
+        Args:
+            executed_actions: List of executed action IDs
+            failed_count: Number of failed actions
+            batch: ExecutionBatch with detailed results
+        """
+        if not self._mid_execution_research_enabled:
+            return
+
+        # Check if we have failures that might need research
+        if failed_count > 0:
+            logger.info(
+                f"[IMP-HIGH-005] {failed_count} action failures detected - "
+                "research may be triggered on next cycle"
+            )
+
+            # Prepare analysis results from execution
+            self._pending_execution_analysis = {
+                "findings": [
+                    {
+                        "id": f"exec-failure-{i}",
+                        "summary": f"Action execution failed",
+                        "confidence": 0.4,
+                        "topic": "execution_failure",
+                    }
+                    for i in range(failed_count)
+                ],
+                "identified_gaps": (
+                    [
+                        {
+                            "category": "execution",
+                            "description": f"{failed_count} actions failed during execution",
+                            "suggested_queries": ["error recovery strategies"],
+                        }
+                    ]
+                    if failed_count > 2
+                    else []
+                ),
+                "coverage_analysis": {
+                    "execution": len(executed_actions) > 0,
+                    "all_success": failed_count == 0,
+                },
+            }
+        else:
+            self._pending_execution_analysis = None
+
+    def get_pending_execution_analysis(self) -> Optional[Dict[str, Any]]:
+        """Get pending execution analysis results for research triggering.
+
+        IMP-HIGH-005: Returns analysis results prepared from the last
+        batch execution, if any failures occurred that might need research.
+
+        Returns:
+            Dict with analysis results, or None if no research needed
+        """
+        return getattr(self, "_pending_execution_analysis", None)
 
     def _get_command_for_action(self, action) -> Optional[str]:
         """Get command string for an action.

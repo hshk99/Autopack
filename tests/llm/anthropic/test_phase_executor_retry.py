@@ -64,15 +64,6 @@ def mock_client():
             model_used="claude-sonnet-4-5",
         )
     )
-    client._parse_legacy_diff_output = Mock(
-        return_value=BuilderResult(
-            success=True,
-            patch_content="diff content",
-            builder_messages=[],
-            tokens_used=1000,
-            model_used="claude-sonnet-4-5",
-        )
-    )
 
     return client
 

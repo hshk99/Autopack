@@ -29,7 +29,6 @@ class TestBuilderOutputConfig:
         assert config.max_lines_hard_limit == 1000
         assert config.max_shrinkage_percent == 60
         assert config.max_growth_multiplier == 3.0
-        assert config.legacy_diff_fallback_enabled is True
 
     def test_from_yaml(self):
         """Test loading from YAML"""
@@ -46,7 +45,6 @@ builder_output_mode:
   max_lines_hard_limit: 800
   max_shrinkage_percent: 50
   max_growth_multiplier: 2.5
-  legacy_diff_fallback_enabled: false
 """
                 f.write(yaml_content)
 
@@ -56,7 +54,6 @@ builder_output_mode:
             assert config.max_lines_hard_limit == 800
             assert config.max_shrinkage_percent == 50
             assert config.max_growth_multiplier == 2.5
-            assert config.legacy_diff_fallback_enabled is False
         finally:
             # Clean up
             try:
@@ -135,19 +132,18 @@ class TestPreflightGuard:
         use_full_file_mode = line_count <= config.max_lines_for_full_file
         assert use_full_file_mode is True
 
-    def test_bucket_b_switches_to_diff_mode(self):
-        """Pre-flight should switch to diff mode for 500-1000 line files (Bucket B)"""
+    def test_bucket_b_uses_structured_edit(self):
+        """Pre-flight should use structured edit for 500-1000 line files (Bucket B)"""
         config = BuilderOutputConfig()
 
-        # 700 line file should trigger diff mode
+        # 700 line file should use structured edit mode (not full-file)
         line_count = 700
         assert line_count > config.max_lines_for_full_file
         assert line_count <= config.max_lines_hard_limit
 
-        # Should switch to diff mode if enabled
-        if config.legacy_diff_fallback_enabled:
-            use_full_file_mode = False
-            assert use_full_file_mode is False
+        # Files in Bucket B use structured edit mode (not full-file, not legacy diff)
+        use_full_file_mode = False
+        assert use_full_file_mode is False
 
     def test_bucket_c_rejects_large_file(self):
         """Pre-flight should reject files >1000 lines (Bucket C)"""

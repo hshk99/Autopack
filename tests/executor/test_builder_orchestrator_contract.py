@@ -35,7 +35,6 @@ def make_builder_orchestrator(tmp_path: Path) -> BuilderOrchestrator:
     executor.builder_output_config = Mock()
     executor.builder_output_config.max_lines_hard_limit = 1000
     executor.builder_output_config.max_lines_for_full_file = 1000
-    executor.builder_output_config.legacy_diff_fallback_enabled = False
     executor._run_tokens_used = 0
     executor._last_file_context = None
     executor._last_builder_result = None

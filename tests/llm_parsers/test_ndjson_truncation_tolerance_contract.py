@@ -5,7 +5,7 @@ This test suite validates the NDJSON parser contract with 10+ scenarios:
 - Truncated last line (incomplete JSON object)
 - Missing newline at EOF
 - Empty lines handling
-- Format detection (structured_edit, legacy_diff, json_array)
+- Format detection (structured_edit, unsupported_diff, json_array)
 - Markdown fence removal
 - Fallback format conversion
 
@@ -132,9 +132,9 @@ class TestNDJSONTruncationToleranceContract:
         assert result.fallback_format == "structured_edit"
         assert "structured_edit" in result.error.lower()
 
-    # Test 8: Legacy diff format detection
-    def test_legacy_diff_detection(self, parser):
-        """Test detection of legacy diff format."""
+    # Test 8: Unsupported diff format detection
+    def test_unsupported_diff_detection(self, parser):
+        """Test detection of unsupported diff format (legacy diff removed)."""
         content = """diff --git a/test.py b/test.py
 index 1234567..abcdefg 100644
 --- a/test.py
@@ -144,7 +144,7 @@ index 1234567..abcdefg 100644
 +new line"""
         result = parser.parse(content)
         assert not result.success
-        assert result.fallback_format == "legacy_diff"
+        assert result.fallback_format == "unsupported_diff"
 
     # Test 9: JSON array format conversion
     def test_json_array_conversion(self, parser):
@@ -238,11 +238,11 @@ class TestNDJSONFormatDetection:
         detected = parser._detect_format(content)
         assert detected == "structured_edit"
 
-    def test_detect_legacy_diff_format(self, parser):
-        """Test legacy diff format detection."""
+    def test_detect_unsupported_diff_format(self, parser):
+        """Test unsupported diff format detection (legacy diff removed)."""
         content = "diff --git a/file.py b/file.py"
         detected = parser._detect_format(content)
-        assert detected == "legacy_diff"
+        assert detected == "unsupported_diff"
 
     def test_detect_json_array_format(self, parser):
         """Test JSON array format detection."""

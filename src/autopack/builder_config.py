@@ -44,9 +44,6 @@ class BuilderOutputConfig:
     strict_for_small_fixes: bool = True
     always_preserve: List[str] = field(default_factory=list)
 
-    # Legacy fallback
-    legacy_diff_fallback_enabled: bool = True
-
     @classmethod
     def from_yaml(cls, config_path: Path) -> "BuilderOutputConfig":
         """Load configuration from models.yaml
@@ -86,9 +83,6 @@ class BuilderOutputConfig:
                 ),
                 always_preserve=builder_config.get("symbol_validation", {}).get(
                     "always_preserve", []
-                ),
-                legacy_diff_fallback_enabled=builder_config.get(
-                    "legacy_diff_fallback_enabled", True
                 ),
             )
         except Exception as e:

@@ -338,12 +338,11 @@ discovery_promotion:
 # Per GPT_RESPONSE10/11: Full-file replacement mode (Option A/C hybrid)
 # LLM outputs complete file content, executor generates diff locally
 # This eliminates malformed git diff issues from LLM hunk arithmetic errors
-# Per GPT_RESPONSE15: Extended full-file mode to 1000 lines, disabled diff mode
+# Per GPT_RESPONSE15: Extended full-file mode to 1000 lines
+# Legacy diff mode removed in IMP-CLEAN-003 - diff mode was fundamentally broken
 builder_output_mode:
   # Enable full-file replacement mode (recommended)
   use_full_file_mode: true
-  # Legacy diff mode disabled per GPT_RESPONSE15 - diff mode fundamentally broken
-  legacy_diff_fallback_enabled: false
   # File size threshold for full-file mode (lines)
   # Extended from 500 to 1000 per GPT_RESPONSE15 recommendation
   max_lines_for_full_file: 1000

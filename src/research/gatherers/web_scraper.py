@@ -9,7 +9,7 @@ from typing import Dict, List
 import requests
 from bs4 import BeautifulSoup
 
-from src.research.gatherers.content_extractor import ContentExtractor
+from research.gatherers.content_extractor import ContentExtractor
 
 
 class WebScraper:

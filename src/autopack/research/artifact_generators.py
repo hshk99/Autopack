@@ -10,14 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Type
 
-from autopack.research.analysis.cost_effectiveness import CostEffectivenessAnalyzer
 from autopack.research.generators.cicd_generator import CICDWorkflowGenerator
-from autopack.research.idea_parser import ProjectType
-from autopack.research.tech_stack_proposer import (
-    TechStackOption,
-    TechStackProposal,
-    TechStackProposer,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -260,441 +253,6 @@ class MonetizationStrategyGenerator:
             section += f"**Differentiation**: {differentiation}\n\n"
 
         return section
-
-
-class TechStackProposalGenerator:
-    """Generates tech stack proposals with integrated cost analysis.
-
-    Combines TechStackProposer recommendations with CostEffectivenessAnalyzer
-    to produce comprehensive proposals including TCO (Total Cost of Ownership)
-    estimates for each technology option.
-    """
-
-    def __init__(
-        self,
-        include_mcp_options: bool = True,
-        cost_analyzer: Optional[CostEffectivenessAnalyzer] = None,
-    ):
-        """Initialize the TechStackProposalGenerator.
-
-        Args:
-            include_mcp_options: Whether to prioritize MCP-enabled options
-            cost_analyzer: Optional pre-configured CostEffectivenessAnalyzer
-        """
-        self.proposer = TechStackProposer(include_mcp_options=include_mcp_options)
-        self.cost_analyzer = cost_analyzer or CostEffectivenessAnalyzer()
-        self._build_vs_buy_analyzer: Optional[Any] = None
-
-        # Try to import BuildVsBuyAnalyzer if available (from IMP-HIGH-002)
-        try:
-            from autopack.research.analysis.build_vs_buy_analyzer import BuildVsBuyAnalyzer
-
-            self._build_vs_buy_analyzer = BuildVsBuyAnalyzer()
-            logger.debug("[TechStackProposalGenerator] BuildVsBuyAnalyzer integration enabled")
-        except ImportError:
-            logger.debug(
-                "[TechStackProposalGenerator] BuildVsBuyAnalyzer not available, "
-                "proceeding without build-vs-buy analysis"
-            )
-
-    def generate(
-        self,
-        project_type: ProjectType,
-        requirements: Optional[List[str]] = None,
-        user_projections: Optional[Dict[str, int]] = None,
-        include_cost_analysis: bool = True,
-    ) -> str:
-        """Generate a comprehensive tech stack proposal with cost analysis.
-
-        Args:
-            project_type: The type of project (e.g., ECOMMERCE, TRADING)
-            requirements: Optional list of specific requirements
-            user_projections: Optional user count projections (year_1, year_3, year_5)
-            include_cost_analysis: Whether to include TCO analysis
-
-        Returns:
-            Markdown string with tech stack proposal and cost analysis
-        """
-        logger.info(f"[TechStackProposalGenerator] Generating proposal for {project_type.value}")
-
-        # Get tech stack proposal
-        proposal = self.proposer.propose(
-            project_type=project_type,
-            requirements=requirements or [],
-        )
-
-        # Generate markdown content
-        content = self._generate_header(proposal)
-        content += self._generate_options_section(proposal.options)
-
-        if proposal.recommendation:
-            content += self._generate_recommendation_section(
-                proposal.recommendation,
-                proposal.recommendation_reasoning,
-            )
-
-        if include_cost_analysis:
-            cost_analysis = self.analyze_costs(
-                proposal=proposal,
-                user_projections=user_projections,
-            )
-            content += self._generate_cost_analysis_section(cost_analysis)
-            content += self._generate_tco_comparison_section(proposal.options, cost_analysis)
-
-        content += self._generate_risk_section(proposal.options)
-
-        return content
-
-    def analyze_costs(
-        self,
-        proposal: TechStackProposal,
-        user_projections: Optional[Dict[str, int]] = None,
-    ) -> Dict[str, Any]:
-        """Analyze costs for the tech stack proposal.
-
-        Args:
-            proposal: The TechStackProposal to analyze
-            user_projections: Optional user projections by year
-
-        Returns:
-            Cost analysis dictionary with TCO estimates
-        """
-        user_proj = user_projections or {
-            "year_1": 1000,
-            "year_3": 10000,
-            "year_5": 50000,
-        }
-
-        # Convert tech stack options to build-vs-buy format for cost analysis
-        build_vs_buy_results = self._convert_options_to_cost_data(proposal.options)
-
-        # Run cost effectiveness analysis
-        analysis = self.cost_analyzer.analyze(
-            project_name=f"{proposal.project_type.value} Project",
-            build_vs_buy_results=build_vs_buy_results,
-            user_projections=user_proj,
-        )
-
-        # Add per-option TCO if BuildVsBuyAnalyzer is available
-        if self._build_vs_buy_analyzer:
-            analysis["build_vs_buy_recommendations"] = self._get_build_vs_buy_analysis(
-                proposal.options
-            )
-
-        return analysis
-
-    def _convert_options_to_cost_data(self, options: List[TechStackOption]) -> List[Dict[str, Any]]:
-        """Convert TechStackOption objects to cost analysis format.
-
-        Args:
-            options: List of TechStackOption objects
-
-        Returns:
-            List of cost data dictionaries
-        """
-        results = []
-        for option in options:
-            cost_estimate = option.estimated_cost
-            monthly_avg = (cost_estimate.monthly_min + cost_estimate.monthly_max) / 2
-
-            results.append(
-                {
-                    "component": option.name,
-                    "description": option.description,
-                    "recommendation": {
-                        "choice": "buy" if option.mcp_available else "integrate",
-                        "specific": option.name,
-                        "rationale": option.pros if option.pros else ["Standard option"],
-                    },
-                    "cost_data": {
-                        "initial_cost": 0,
-                        "monthly_ongoing": monthly_avg,
-                        "scaling_model": (
-                            "flat" if cost_estimate.tier.value in ["free", "low"] else "linear"
-                        ),
-                        "year_1_total": monthly_avg * 12,
-                        "year_3_total": monthly_avg * 36,
-                        "year_5_total": monthly_avg * 60,
-                    },
-                    "vendor_lock_in": {
-                        "level": (
-                            "medium" if "vendor lock-in" in " ".join(option.cons).lower() else "low"
-                        ),
-                        "alternatives": [],
-                    },
-                    "is_core": option.category in ["Full Stack Framework", "Custom Stack"],
-                }
-            )
-        return results
-
-    def _get_build_vs_buy_analysis(self, options: List[TechStackOption]) -> List[Dict[str, Any]]:
-        """Get build-vs-buy recommendations for each option.
-
-        Args:
-            options: List of TechStackOption objects
-
-        Returns:
-            List of build-vs-buy analysis results
-        """
-        results = []
-        if not self._build_vs_buy_analyzer:
-            return results
-
-        for option in options:
-            try:
-                analysis = self._build_vs_buy_analyzer.analyze(
-                    tool_name=option.name,
-                    requirements={
-                        "category": option.category,
-                        "setup_complexity": option.setup_complexity,
-                        "mcp_available": option.mcp_available,
-                    },
-                )
-                results.append(
-                    {
-                        "option": option.name,
-                        "recommendation": analysis.recommendation,
-                        "build_cost": analysis.build_cost,
-                        "buy_cost": analysis.buy_cost,
-                        "rationale": analysis.rationale,
-                    }
-                )
-            except Exception as e:
-                logger.warning(
-                    f"[TechStackProposalGenerator] Build-vs-buy analysis failed "
-                    f"for {option.name}: {e}"
-                )
-        return results
-
-    def _generate_header(self, proposal: TechStackProposal) -> str:
-        """Generate the proposal header section.
-
-        Args:
-            proposal: The TechStackProposal
-
-        Returns:
-            Markdown header section
-        """
-        content = f"# Tech Stack Proposal: {proposal.project_type.value.title()}\n\n"
-        content += f"**Confidence Score**: {proposal.confidence_score:.0%}\n\n"
-
-        if proposal.requirements:
-            content += "## Requirements Considered\n\n"
-            for req in proposal.requirements:
-                content += f"- {req}\n"
-            content += "\n"
-
-        return content
-
-    def _generate_options_section(self, options: List[TechStackOption]) -> str:
-        """Generate the technology options section.
-
-        Args:
-            options: List of TechStackOption objects
-
-        Returns:
-            Markdown options section
-        """
-        content = "## Technology Options\n\n"
-
-        for i, option in enumerate(options, 1):
-            content += f"### Option {i}: {option.name}\n\n"
-            content += f"**Category**: {option.category}\n\n"
-            content += f"{option.description}\n\n"
-
-            # Cost estimate
-            cost = option.estimated_cost
-            content += f"**Estimated Cost**: ${cost.monthly_min:.0f}"
-            if cost.monthly_min != cost.monthly_max:
-                content += f" - ${cost.monthly_max:.0f}"
-            content += f"/month ({cost.tier.value})\n"
-            if cost.notes:
-                content += f"  - *{cost.notes}*\n"
-            content += "\n"
-
-            # MCP availability
-            if option.mcp_available:
-                content += f"✅ **MCP Server Available**: {option.mcp_server_name}\n\n"
-
-            # Pros
-            if option.pros:
-                content += "**Pros**:\n"
-                for pro in option.pros:
-                    content += f"- {pro}\n"
-                content += "\n"
-
-            # Cons
-            if option.cons:
-                content += "**Cons**:\n"
-                for con in option.cons:
-                    content += f"- {con}\n"
-                content += "\n"
-
-            # Setup complexity
-            content += f"**Setup Complexity**: {option.setup_complexity}\n\n"
-
-            if option.documentation_url:
-                content += f"📚 [Documentation]({option.documentation_url})\n\n"
-
-            content += "---\n\n"
-
-        return content
-
-    def _generate_recommendation_section(
-        self, recommendation: str, reasoning: Optional[str]
-    ) -> str:
-        """Generate the recommendation section.
-
-        Args:
-            recommendation: Recommended option name
-            reasoning: Reasoning for the recommendation
-
-        Returns:
-            Markdown recommendation section
-        """
-        content = "## Recommendation\n\n"
-        content += f"**Recommended Option**: {recommendation}\n\n"
-        if reasoning:
-            content += f"{reasoning}\n\n"
-        return content
-
-    def _generate_cost_analysis_section(self, cost_analysis: Dict[str, Any]) -> str:
-        """Generate the cost analysis section with TCO estimates.
-
-        Args:
-            cost_analysis: Cost analysis dictionary
-
-        Returns:
-            Markdown cost analysis section
-        """
-        content = "## Total Cost of Ownership (TCO) Analysis\n\n"
-
-        # Executive summary
-        if "executive_summary" in cost_analysis:
-            summary = cost_analysis["executive_summary"]
-            content += "### Executive Summary\n\n"
-            content += f"- **Year 1 Total**: ${summary.get('total_year_1_cost', 0):,.0f}\n"
-            content += f"- **Year 3 Total**: ${summary.get('total_year_3_cost', 0):,.0f}\n"
-            content += f"- **Year 5 Total**: ${summary.get('total_year_5_cost', 0):,.0f}\n\n"
-
-            if summary.get("primary_cost_drivers"):
-                content += "**Primary Cost Drivers**:\n"
-                for driver in summary["primary_cost_drivers"]:
-                    content += f"- {driver}\n"
-                content += "\n"
-
-            if summary.get("key_recommendations"):
-                content += "**Key Recommendations**:\n"
-                for rec in summary["key_recommendations"]:
-                    content += f"- {rec}\n"
-                content += "\n"
-
-        # Cost breakdown
-        if "total_cost_of_ownership" in cost_analysis:
-            tco = cost_analysis["total_cost_of_ownership"]
-            content += "### Cost Breakdown\n\n"
-            content += "| Category | Year 1 | Year 5 |\n"
-            content += "|----------|--------|--------|\n"
-
-            if "year_1" in tco:
-                y1 = tco["year_1"]
-                y5 = tco.get("year_5_cumulative", {})
-                for category in [
-                    "development",
-                    "infrastructure",
-                    "services",
-                    "ai_apis",
-                    "operational",
-                ]:
-                    if category in y1:
-                        content += f"| {category.replace('_', ' ').title()} | ${y1[category]:,.0f} | ${y5.get(category, 0):,.0f} |\n"
-                content += f"| **Total** | **${y1.get('total', 0):,.0f}** | **${y5.get('total', 0):,.0f}** |\n"
-                content += "\n"
-
-        # Optimization roadmap
-        if "cost_optimization_roadmap" in cost_analysis:
-            content += "### Optimization Roadmap\n\n"
-            for phase in cost_analysis["cost_optimization_roadmap"]:
-                content += f"**{phase.get('phase', '')}**: {phase.get('focus', '')}\n"
-                for action in phase.get("actions", []):
-                    content += f"  - {action}\n"
-                content += "\n"
-
-        return content
-
-    def _generate_tco_comparison_section(
-        self, options: List[TechStackOption], cost_analysis: Dict[str, Any]
-    ) -> str:
-        """Generate TCO comparison section for all options.
-
-        Args:
-            options: List of TechStackOption objects
-            cost_analysis: Cost analysis dictionary
-
-        Returns:
-            Markdown TCO comparison section
-        """
-        content = "### Option Cost Comparison\n\n"
-        content += "| Option | Monthly Cost | Year 1 TCO | Year 5 TCO |\n"
-        content += "|--------|-------------|------------|------------|\n"
-
-        for option in options:
-            cost = option.estimated_cost
-            monthly_avg = (cost.monthly_min + cost.monthly_max) / 2
-            year_1 = monthly_avg * 12
-            year_5 = monthly_avg * 60
-
-            content += (
-                f"| {option.name} | ${monthly_avg:,.0f} | ${year_1:,.0f} | ${year_5:,.0f} |\n"
-            )
-
-        content += "\n"
-        content += "*Note: TCO estimates are based on direct costs only. "
-        content += "Development and integration costs vary by team.*\n\n"
-
-        return content
-
-    def _generate_risk_section(self, options: List[TechStackOption]) -> str:
-        """Generate the risk assessment section.
-
-        Args:
-            options: List of TechStackOption objects
-
-        Returns:
-            Markdown risk section
-        """
-        content = "## Risk Assessment\n\n"
-
-        has_risks = False
-        for option in options:
-            if option.tos_risks:
-                has_risks = True
-                content += f"### {option.name}\n\n"
-                for risk in option.tos_risks:
-                    content += f"- **{risk.level.value.upper()}**: {risk.description}\n"
-                    if risk.mitigation:
-                        content += f"  - *Mitigation*: {risk.mitigation}\n"
-                content += "\n"
-
-        if not has_risks:
-            content += "No significant ToS or legal risks identified for the proposed options.\n\n"
-
-        return content
-
-    def generate_from_proposal(self, proposal: TechStackProposal) -> str:
-        """Generate markdown from an existing TechStackProposal.
-
-        Args:
-            proposal: Pre-generated TechStackProposal
-
-        Returns:
-            Markdown string with proposal and cost analysis
-        """
-        return self.generate(
-            project_type=proposal.project_type,
-            requirements=proposal.requirements,
-            include_cost_analysis=True,
-        )
 
 
 class ProjectReadmeGenerator:
@@ -1011,6 +569,594 @@ class ProjectReadmeGenerator:
         return section
 
 
+class ProjectBriefGenerator:
+    """Generates comprehensive PROJECT_BRIEF.md with monetization guidance.
+
+    Produces a project brief that includes technical requirements, feature
+    scope, and comprehensive monetization strategy with revenue models,
+    pricing strategy, market positioning, and unit economics analysis.
+    """
+
+    def generate(
+        self,
+        research_findings: Dict[str, Any],
+        tech_stack: Optional[Dict[str, Any]] = None,
+        competitive_data: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Generate comprehensive project brief with monetization.
+
+        Args:
+            research_findings: Research findings dict with project context
+            tech_stack: Optional tech stack proposal dict
+            competitive_data: Optional competitive analysis data
+
+        Returns:
+            Markdown string with comprehensive project brief
+        """
+        logger.info("[ProjectBriefGenerator] Generating project brief with monetization")
+
+        content = "# Project Brief\n\n"
+
+        # Executive Summary
+        content += self._generate_executive_summary(research_findings)
+
+        # Technical Requirements
+        content += self._generate_technical_section(research_findings, tech_stack)
+
+        # Feature Scope
+        content += self._generate_feature_scope(research_findings)
+
+        # Monetization Strategy (NEW)
+        content += self.generate_monetization(research_findings)
+
+        # Market Positioning (NEW)
+        content += self.generate_market_positioning(research_findings, competitive_data or {})
+
+        # Unit Economics (NEW)
+        content += self.analyze_unit_economics(research_findings)
+
+        # Growth Strategy
+        content += self._generate_growth_strategy(research_findings)
+
+        # Risk Assessment
+        content += self._generate_risk_assessment(research_findings)
+
+        return content
+
+    def _generate_executive_summary(self, research_findings: Dict[str, Any]) -> str:
+        """Generate executive summary section.
+
+        Args:
+            research_findings: Research findings dict
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Executive Summary\n\n"
+
+        # Problem Statement
+        problem = research_findings.get("problem_statement", "")
+        if problem:
+            section += f"**Problem**: {problem}\n\n"
+
+        # Solution
+        solution = research_findings.get("solution", "")
+        if solution:
+            section += f"**Solution**: {solution}\n\n"
+
+        # Market Opportunity
+        market = research_findings.get("market_opportunity", {})
+        if market:
+            tam = market.get("total_addressable_market", "")
+            if tam:
+                section += f"**Market Opportunity**: {tam} total addressable market\n\n"
+
+        # Target Audience
+        target = research_findings.get("target_audience", "")
+        if target:
+            section += f"**Target Audience**: {target}\n\n"
+
+        return section
+
+    def _generate_technical_section(
+        self,
+        research_findings: Dict[str, Any],
+        tech_stack: Optional[Dict[str, Any]],
+    ) -> str:
+        """Generate technical requirements section.
+
+        Args:
+            research_findings: Research findings dict
+            tech_stack: Tech stack proposal dict
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Technical Requirements\n\n"
+
+        if tech_stack:
+            # Languages and Frameworks
+            languages = tech_stack.get("languages", [])
+            if languages:
+                section += f"**Languages**: {', '.join(languages)}\n\n"
+
+            frameworks = tech_stack.get("frameworks", [])
+            if frameworks:
+                section += f"**Frameworks**: {', '.join(frameworks)}\n\n"
+
+            # Architecture
+            architecture = tech_stack.get("architecture_pattern", "")
+            if architecture:
+                section += f"**Architecture**: {architecture}\n\n"
+
+            # Infrastructure
+            infrastructure = tech_stack.get("infrastructure", [])
+            if infrastructure:
+                section += "**Infrastructure**:\n"
+                for item in infrastructure:
+                    section += f"- {item}\n"
+                section += "\n"
+
+        # Technical constraints from research
+        constraints = research_findings.get("technical_constraints", [])
+        if constraints:
+            section += "**Technical Constraints**:\n"
+            for constraint in constraints:
+                section += f"- {constraint}\n"
+            section += "\n"
+
+        return section
+
+    def _generate_feature_scope(self, research_findings: Dict[str, Any]) -> str:
+        """Generate feature scope section.
+
+        Args:
+            research_findings: Research findings dict
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Feature Scope\n\n"
+
+        # Core Features
+        features = research_findings.get("features", [])
+        if features:
+            section += "### Core Features\n\n"
+            for feature in features:
+                if isinstance(feature, dict):
+                    name = feature.get("name", "Feature")
+                    description = feature.get("description", "")
+                    priority = feature.get("priority", "")
+                    section += f"- **{name}**"
+                    if priority:
+                        section += f" [{priority}]"
+                    if description:
+                        section += f": {description}"
+                    section += "\n"
+                else:
+                    section += f"- {feature}\n"
+            section += "\n"
+
+        # MVP Scope
+        mvp = research_findings.get("mvp_features", [])
+        if mvp:
+            section += "### MVP Scope\n\n"
+            for item in mvp:
+                section += f"- {item}\n"
+            section += "\n"
+
+        # Future Features
+        future = research_findings.get("future_features", [])
+        if future:
+            section += "### Future Features\n\n"
+            for item in future:
+                section += f"- {item}\n"
+            section += "\n"
+
+        return section
+
+    def generate_monetization(self, research_findings: Dict[str, Any]) -> str:
+        """Generate monetization strategy section.
+
+        Includes revenue models, pricing strategy, and pricing tiers.
+
+        Args:
+            research_findings: Research findings dict with monetization data
+
+        Returns:
+            Markdown section string with monetization strategy
+        """
+        section = "## Monetization Strategy\n\n"
+
+        monetization = research_findings.get("monetization", {})
+        if not monetization:
+            # Provide default guidance if no monetization data
+            section += self._generate_default_monetization_guidance()
+            return section
+
+        # Revenue Models
+        models = monetization.get("revenue_models", [])
+        if models:
+            section += "### Revenue Models\n\n"
+            for model in models:
+                if isinstance(model, dict):
+                    name = model.get("name", "Model")
+                    description = model.get("description", "")
+                    fit_score = model.get("fit_score", "")
+                    section += f"**{name}**"
+                    if fit_score:
+                        section += f" (Fit: {fit_score}/10)"
+                    section += "\n"
+                    if description:
+                        section += f"{description}\n"
+                    section += "\n"
+                else:
+                    section += f"- {model}\n"
+
+        # Primary Revenue Model
+        primary = monetization.get("primary_model", "")
+        if primary:
+            section += f"**Primary Model**: {primary}\n\n"
+
+        # Pricing Strategy
+        pricing = monetization.get("pricing_strategy", {})
+        if pricing:
+            section += "### Pricing Strategy\n\n"
+            strategy_type = pricing.get("type", "")
+            if strategy_type:
+                section += f"**Strategy**: {strategy_type}\n\n"
+
+            rationale = pricing.get("rationale", "")
+            if rationale:
+                section += f"**Rationale**: {rationale}\n\n"
+
+        # Pricing Tiers
+        tiers = monetization.get("pricing_tiers", [])
+        if tiers:
+            section += "### Pricing Tiers\n\n"
+            section += "| Tier | Price | Features | Target |\n"
+            section += "|------|-------|----------|--------|\n"
+            for tier in tiers:
+                name = tier.get("name", "")
+                price = tier.get("price", "")
+                features = tier.get("features", "")
+                if isinstance(features, list):
+                    features = ", ".join(features[:3])
+                    if len(tier.get("features", [])) > 3:
+                        features += "..."
+                target = tier.get("target", "")
+                section += f"| {name} | {price} | {features} | {target} |\n"
+            section += "\n"
+
+        return section
+
+    def _generate_default_monetization_guidance(self) -> str:
+        """Generate default monetization guidance when no data available.
+
+        Returns:
+            Markdown string with default guidance
+        """
+        return (
+            "### Revenue Model Options\n\n"
+            "Consider the following monetization approaches:\n\n"
+            "1. **Subscription (SaaS)**: Recurring revenue, predictable income\n"
+            "   - Best for: B2B tools, continuous value delivery\n"
+            "   - Typical conversion: 2-5% free to paid\n\n"
+            "2. **Freemium**: Free tier with premium upgrades\n"
+            "   - Best for: Consumer apps, network effects\n"
+            "   - Typical conversion: 1-10% to paid\n\n"
+            "3. **Usage-Based**: Pay per use/API calls\n"
+            "   - Best for: APIs, infrastructure services\n"
+            "   - Aligns cost with value delivered\n\n"
+            "4. **One-Time Purchase**: Single payment\n"
+            "   - Best for: Desktop apps, plugins, templates\n"
+            "   - Lower LTV but simpler\n\n"
+            "5. **Marketplace/Commission**: Take percentage of transactions\n"
+            "   - Best for: Platforms connecting buyers/sellers\n"
+            "   - Typical rate: 5-20%\n\n"
+        )
+
+    def generate_market_positioning(
+        self,
+        research_findings: Dict[str, Any],
+        competitive_data: Dict[str, Any],
+    ) -> str:
+        """Generate market positioning analysis section.
+
+        Includes competitive positioning, differentiation strategy,
+        and target market analysis.
+
+        Args:
+            research_findings: Research findings dict
+            competitive_data: Competitive analysis data
+
+        Returns:
+            Markdown section string with market positioning
+        """
+        section = "## Market Positioning\n\n"
+
+        # Target Market
+        market = research_findings.get("market_opportunity", {})
+        if market:
+            section += "### Target Market\n\n"
+
+            tam = market.get("total_addressable_market", "")
+            sam = market.get("serviceable_addressable_market", "")
+            som = market.get("serviceable_obtainable_market", "")
+
+            if tam:
+                section += f"- **TAM (Total Addressable Market)**: {tam}\n"
+            if sam:
+                section += f"- **SAM (Serviceable Addressable Market)**: {sam}\n"
+            if som:
+                section += f"- **SOM (Serviceable Obtainable Market)**: {som}\n"
+            section += "\n"
+
+            segments = market.get("segments", [])
+            if segments:
+                section += "**Target Segments**:\n"
+                for segment in segments:
+                    if isinstance(segment, dict):
+                        name = segment.get("name", "")
+                        size = segment.get("size", "")
+                        section += f"- {name}"
+                        if size:
+                            section += f" ({size})"
+                        section += "\n"
+                    else:
+                        section += f"- {segment}\n"
+                section += "\n"
+
+        # Competitive Landscape
+        competitors = competitive_data.get("competitors", [])
+        if competitors:
+            section += "### Competitive Landscape\n\n"
+            section += "| Competitor | Strengths | Weaknesses | Price Point |\n"
+            section += "|------------|-----------|------------|-------------|\n"
+            for comp in competitors:
+                name = comp.get("name", "Unknown")
+                strengths = comp.get("strengths", [])
+                if isinstance(strengths, list):
+                    strengths = ", ".join(strengths[:2])
+                weaknesses = comp.get("weaknesses", [])
+                if isinstance(weaknesses, list):
+                    weaknesses = ", ".join(weaknesses[:2])
+                price = comp.get("price_point", "")
+                section += f"| {name} | {strengths} | {weaknesses} | {price} |\n"
+            section += "\n"
+
+        # Differentiation Strategy
+        differentiation = research_findings.get("differentiation", {})
+        if differentiation:
+            section += "### Differentiation Strategy\n\n"
+
+            unique_value = differentiation.get("unique_value_proposition", "")
+            if unique_value:
+                section += f"**Unique Value Proposition**: {unique_value}\n\n"
+
+            advantages = differentiation.get("competitive_advantages", [])
+            if advantages:
+                section += "**Competitive Advantages**:\n"
+                for adv in advantages:
+                    section += f"- {adv}\n"
+                section += "\n"
+
+            moat = differentiation.get("moat", "")
+            if moat:
+                section += f"**Competitive Moat**: {moat}\n\n"
+
+        # Positioning Statement
+        positioning = research_findings.get("positioning_statement", "")
+        if positioning:
+            section += f"### Positioning Statement\n\n> {positioning}\n\n"
+
+        return section
+
+    def analyze_unit_economics(self, research_findings: Dict[str, Any]) -> str:
+        """Analyze and generate unit economics section.
+
+        Includes CAC, LTV, margins, and payback period analysis.
+
+        Args:
+            research_findings: Research findings dict with economics data
+
+        Returns:
+            Markdown section string with unit economics analysis
+        """
+        section = "## Unit Economics\n\n"
+
+        economics = research_findings.get("unit_economics", {})
+        if not economics:
+            # Provide framework for analysis
+            section += self._generate_unit_economics_framework()
+            return section
+
+        # Key Metrics
+        section += "### Key Metrics\n\n"
+
+        cac = economics.get("customer_acquisition_cost", "")
+        if cac:
+            section += f"- **CAC (Customer Acquisition Cost)**: {cac}\n"
+
+        ltv = economics.get("lifetime_value", "")
+        if ltv:
+            section += f"- **LTV (Lifetime Value)**: {ltv}\n"
+
+        ltv_cac_ratio = economics.get("ltv_cac_ratio", "")
+        if ltv_cac_ratio:
+            section += f"- **LTV:CAC Ratio**: {ltv_cac_ratio}\n"
+
+        payback = economics.get("payback_period", "")
+        if payback:
+            section += f"- **Payback Period**: {payback}\n"
+
+        section += "\n"
+
+        # Margin Analysis
+        margins = economics.get("margins", {})
+        if margins:
+            section += "### Margin Analysis\n\n"
+
+            gross = margins.get("gross_margin", "")
+            if gross:
+                section += f"- **Gross Margin**: {gross}\n"
+
+            contribution = margins.get("contribution_margin", "")
+            if contribution:
+                section += f"- **Contribution Margin**: {contribution}\n"
+
+            net = margins.get("net_margin", "")
+            if net:
+                section += f"- **Net Margin**: {net}\n"
+
+            section += "\n"
+
+        # Revenue Projections
+        projections = economics.get("projections", {})
+        if projections:
+            section += "### Revenue Projections\n\n"
+            section += "| Timeframe | Revenue | Users | MRR |\n"
+            section += "|-----------|---------|-------|-----|\n"
+
+            for timeframe, data in projections.items():
+                if isinstance(data, dict):
+                    revenue = data.get("revenue", "")
+                    users = data.get("users", "")
+                    mrr = data.get("mrr", "")
+                    section += f"| {timeframe} | {revenue} | {users} | {mrr} |\n"
+
+            section += "\n"
+
+        # Break-even Analysis
+        breakeven = economics.get("breakeven", {})
+        if breakeven:
+            section += "### Break-even Analysis\n\n"
+
+            point = breakeven.get("point", "")
+            if point:
+                section += f"- **Break-even Point**: {point}\n"
+
+            timeline = breakeven.get("timeline", "")
+            if timeline:
+                section += f"- **Expected Timeline**: {timeline}\n"
+
+            assumptions = breakeven.get("assumptions", [])
+            if assumptions:
+                section += "- **Key Assumptions**:\n"
+                for assumption in assumptions:
+                    section += f"  - {assumption}\n"
+
+            section += "\n"
+
+        return section
+
+    def _generate_unit_economics_framework(self) -> str:
+        """Generate unit economics analysis framework.
+
+        Returns:
+            Markdown string with framework guidance
+        """
+        return (
+            "### Key Metrics to Track\n\n"
+            "**Customer Acquisition Cost (CAC)**:\n"
+            "- Total marketing & sales spend / New customers acquired\n"
+            "- Target: Below 1/3 of LTV\n\n"
+            "**Lifetime Value (LTV)**:\n"
+            "- Average revenue per user × Average customer lifespan\n"
+            "- Or: ARPU / Churn rate (for subscription)\n\n"
+            "**LTV:CAC Ratio**:\n"
+            "- Healthy: 3:1 or higher\n"
+            "- Below 1:1 indicates unsustainable growth\n\n"
+            "**Payback Period**:\n"
+            "- Months to recover CAC\n"
+            "- Target: Under 12 months for SaaS\n\n"
+            "### Margin Targets\n\n"
+            "| Business Type | Gross Margin | Net Margin |\n"
+            "|---------------|--------------|------------|\n"
+            "| SaaS | 70-85% | 10-20% |\n"
+            "| Marketplace | 20-40% | 5-15% |\n"
+            "| E-commerce | 30-50% | 5-10% |\n"
+            "| Services | 50-70% | 15-25% |\n\n"
+        )
+
+    def _generate_growth_strategy(self, research_findings: Dict[str, Any]) -> str:
+        """Generate growth strategy section.
+
+        Args:
+            research_findings: Research findings dict
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Growth Strategy\n\n"
+
+        growth = research_findings.get("growth_strategy", {})
+        if not growth:
+            return section + "*Growth strategy to be defined based on market validation.*\n\n"
+
+        # Acquisition Channels
+        channels = growth.get("acquisition_channels", [])
+        if channels:
+            section += "### Acquisition Channels\n\n"
+            for channel in channels:
+                if isinstance(channel, dict):
+                    name = channel.get("name", "")
+                    priority = channel.get("priority", "")
+                    section += f"- **{name}**"
+                    if priority:
+                        section += f" [{priority}]"
+                    section += "\n"
+                else:
+                    section += f"- {channel}\n"
+            section += "\n"
+
+        # Growth Levers
+        levers = growth.get("growth_levers", [])
+        if levers:
+            section += "### Growth Levers\n\n"
+            for lever in levers:
+                section += f"- {lever}\n"
+            section += "\n"
+
+        # Expansion Strategy
+        expansion = growth.get("expansion", "")
+        if expansion:
+            section += f"### Expansion Strategy\n\n{expansion}\n\n"
+
+        return section
+
+    def _generate_risk_assessment(self, research_findings: Dict[str, Any]) -> str:
+        """Generate risk assessment section.
+
+        Args:
+            research_findings: Research findings dict
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Risk Assessment\n\n"
+
+        risks = research_findings.get("risks", [])
+        if not risks:
+            return section + "*Risk assessment to be completed.*\n\n"
+
+        section += "| Risk | Impact | Likelihood | Mitigation |\n"
+        section += "|------|--------|------------|------------|\n"
+
+        for risk in risks:
+            if isinstance(risk, dict):
+                name = risk.get("name", "Unknown")
+                impact = risk.get("impact", "Medium")
+                likelihood = risk.get("likelihood", "Medium")
+                mitigation = risk.get("mitigation", "")
+                section += f"| {name} | {impact} | {likelihood} | {mitigation} |\n"
+            else:
+                section += f"| {risk} | Medium | Medium | TBD |\n"
+
+        section += "\n"
+        return section
+
+
 class ArtifactGeneratorRegistry:
     """Registry for artifact generators.
 
@@ -1028,11 +1174,7 @@ class ArtifactGeneratorRegistry:
         self.register("cicd", CICDWorkflowGenerator)
         self.register("monetization", MonetizationStrategyGenerator)
         self.register("readme", ProjectReadmeGenerator)
-        self.register(
-            "tech_stack",
-            TechStackProposalGenerator,
-            "Tech stack proposals with TCO analysis",
-        )
+        self.register("project_brief", ProjectBriefGenerator)
 
     def register(
         self,
@@ -1157,17 +1299,17 @@ def get_readme_generator(**kwargs: Any) -> ProjectReadmeGenerator:
     return generator
 
 
-def get_tech_stack_generator(**kwargs: Any) -> TechStackProposalGenerator:
-    """Convenience function to get the tech stack proposal generator.
+def get_project_brief_generator(**kwargs: Any) -> ProjectBriefGenerator:
+    """Convenience function to get the project brief generator.
 
     Args:
-        **kwargs: Arguments to pass to TechStackProposalGenerator
+        **kwargs: Arguments to pass to ProjectBriefGenerator
 
     Returns:
-        TechStackProposalGenerator instance
+        ProjectBriefGenerator instance
     """
-    generator = get_registry().get("tech_stack", **kwargs)
+    generator = get_registry().get("project_brief", **kwargs)
     if generator is None:
         # Fallback to direct instantiation
-        return TechStackProposalGenerator(**kwargs)
+        return ProjectBriefGenerator(**kwargs)
     return generator

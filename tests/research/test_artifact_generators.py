@@ -3,16 +3,9 @@
 from __future__ import annotations
 
 from autopack.research.artifact_generators import (
-    ArtifactGeneratorRegistry,
-    MonetizationStrategyGenerator,
-    ProjectReadmeGenerator,
-    TechStackProposalGenerator,
-    get_monetization_generator,
-    get_readme_generator,
-    get_registry,
-    get_tech_stack_generator,
-)
-from autopack.research.idea_parser import ProjectType
+    ArtifactGeneratorRegistry, MonetizationStrategyGenerator,
+    ProjectBriefGenerator, ProjectReadmeGenerator, get_monetization_generator,
+    get_project_brief_generator, get_readme_generator, get_registry)
 
 
 class TestProjectReadmeGenerator:
@@ -283,140 +276,428 @@ class TestMonetizationStrategyGenerator:
         assert "Slack" in content
 
 
-class TestTechStackProposalGenerator:
-    """Test TechStackProposalGenerator with cost analysis."""
+class TestProjectBriefGenerator:
+    """Test ProjectBriefGenerator with monetization enhancements."""
 
-    def test_generate_basic_proposal(self) -> None:
-        """Test generating a basic tech stack proposal."""
-        generator = TechStackProposalGenerator()
+    def test_generate_basic_project_brief(self) -> None:
+        """Test generating a basic project brief."""
+        generator = ProjectBriefGenerator()
 
-        proposal = generator.generate(
-            project_type=ProjectType.ECOMMERCE,
-            requirements=["payment processing", "inventory management"],
-            include_cost_analysis=True,
-        )
-
-        # Verify basic structure
-        assert "# Tech Stack Proposal" in proposal
-        assert "ECOMMERCE" in proposal.upper() or "Ecommerce" in proposal
-        assert "## Technology Options" in proposal
-        assert "## Total Cost of Ownership (TCO) Analysis" in proposal
-
-    def test_generate_with_user_projections(self) -> None:
-        """Test generating proposal with custom user projections."""
-        generator = TechStackProposalGenerator()
-
-        user_projections = {
-            "year_1": 5000,
-            "year_3": 50000,
-            "year_5": 200000,
+        research_findings = {
+            "problem_statement": "Users need better project management",
+            "solution": "AI-powered project tracking",
+            "target_audience": "Small to medium businesses",
+            "market_opportunity": {"total_addressable_market": "$10B"},
+            "features": [
+                {"name": "Task Tracking", "description": "Track tasks", "priority": "HIGH"},
+                {"name": "Reporting", "description": "Generate reports"},
+            ],
         }
 
-        proposal = generator.generate(
-            project_type=ProjectType.TRADING,
-            user_projections=user_projections,
-            include_cost_analysis=True,
+        brief = generator.generate(research_findings=research_findings)
+
+        # Verify structure
+        assert "# Project Brief" in brief
+        assert "## Executive Summary" in brief
+        assert "## Technical Requirements" in brief
+        assert "## Feature Scope" in brief
+        assert "## Monetization Strategy" in brief
+        assert "## Market Positioning" in brief
+        assert "## Unit Economics" in brief
+
+        # Verify content
+        assert "Users need better project management" in brief
+        assert "AI-powered project tracking" in brief
+        assert "$10B" in brief
+
+    def test_generate_monetization_with_data(self) -> None:
+        """Test monetization section with complete data."""
+        generator = ProjectBriefGenerator()
+
+        research_findings = {
+            "monetization": {
+                "revenue_models": [
+                    {
+                        "name": "Subscription",
+                        "description": "Monthly recurring revenue",
+                        "fit_score": "8",
+                    },
+                    {"name": "Usage-Based", "description": "Pay per API call"},
+                ],
+                "primary_model": "Subscription",
+                "pricing_strategy": {
+                    "type": "Value-based pricing",
+                    "rationale": "Align price with value delivered",
+                },
+                "pricing_tiers": [
+                    {
+                        "name": "Free",
+                        "price": "$0/mo",
+                        "features": ["5 projects", "1 user"],
+                        "target": "Individual users",
+                    },
+                    {
+                        "name": "Pro",
+                        "price": "$29/mo",
+                        "features": ["Unlimited projects", "5 users", "API access"],
+                        "target": "Small teams",
+                    },
+                    {
+                        "name": "Enterprise",
+                        "price": "Custom",
+                        "features": ["SSO", "Dedicated support"],
+                        "target": "Large organizations",
+                    },
+                ],
+            }
+        }
+
+        section = generator.generate_monetization(research_findings)
+
+        assert "## Monetization Strategy" in section
+        assert "### Revenue Models" in section
+        assert "Subscription" in section
+        assert "(Fit: 8/10)" in section
+        assert "### Pricing Strategy" in section
+        assert "Value-based pricing" in section
+        assert "### Pricing Tiers" in section
+        assert "| Free | $0/mo" in section
+        assert "| Pro | $29/mo" in section
+
+    def test_generate_monetization_without_data(self) -> None:
+        """Test monetization section generates default guidance when no data."""
+        generator = ProjectBriefGenerator()
+
+        research_findings = {}
+
+        section = generator.generate_monetization(research_findings)
+
+        assert "## Monetization Strategy" in section
+        assert "### Revenue Model Options" in section
+        assert "Subscription (SaaS)" in section
+        assert "Freemium" in section
+        assert "Usage-Based" in section
+
+    def test_generate_market_positioning_with_data(self) -> None:
+        """Test market positioning section with competitive data."""
+        generator = ProjectBriefGenerator()
+
+        research_findings = {
+            "market_opportunity": {
+                "total_addressable_market": "$50B",
+                "serviceable_addressable_market": "$5B",
+                "serviceable_obtainable_market": "$500M",
+                "segments": [
+                    {"name": "Enterprise", "size": "60%"},
+                    {"name": "SMB", "size": "40%"},
+                ],
+            },
+            "differentiation": {
+                "unique_value_proposition": "Only AI-native solution",
+                "competitive_advantages": [
+                    "10x faster processing",
+                    "Built-in integrations",
+                ],
+                "moat": "Proprietary ML models",
+            },
+            "positioning_statement": "For teams who need speed, we provide the fastest solution.",
+        }
+
+        competitive_data = {
+            "competitors": [
+                {
+                    "name": "Competitor A",
+                    "strengths": ["Market leader", "Brand recognition"],
+                    "weaknesses": ["Slow innovation", "High price"],
+                    "price_point": "$99/mo",
+                },
+                {
+                    "name": "Competitor B",
+                    "strengths": ["Low cost"],
+                    "weaknesses": ["Limited features"],
+                    "price_point": "$19/mo",
+                },
+            ]
+        }
+
+        section = generator.generate_market_positioning(research_findings, competitive_data)
+
+        assert "## Market Positioning" in section
+        assert "### Target Market" in section
+        assert "TAM" in section
+        assert "$50B" in section
+        assert "SAM" in section
+        assert "SOM" in section
+        assert "### Competitive Landscape" in section
+        assert "Competitor A" in section
+        assert "Competitor B" in section
+        assert "### Differentiation Strategy" in section
+        assert "Only AI-native solution" in section
+        assert "10x faster processing" in section
+        assert "Proprietary ML models" in section
+        assert "### Positioning Statement" in section
+
+    def test_analyze_unit_economics_with_data(self) -> None:
+        """Test unit economics analysis with complete data."""
+        generator = ProjectBriefGenerator()
+
+        research_findings = {
+            "unit_economics": {
+                "customer_acquisition_cost": "$150",
+                "lifetime_value": "$600",
+                "ltv_cac_ratio": "4:1",
+                "payback_period": "6 months",
+                "margins": {
+                    "gross_margin": "75%",
+                    "contribution_margin": "60%",
+                    "net_margin": "15%",
+                },
+                "projections": {
+                    "Year 1": {"revenue": "$100K", "users": "500", "mrr": "$8K"},
+                    "Year 2": {"revenue": "$500K", "users": "2000", "mrr": "$42K"},
+                },
+                "breakeven": {
+                    "point": "1,000 customers",
+                    "timeline": "18 months",
+                    "assumptions": ["5% monthly churn", "$50 ARPU"],
+                },
+            }
+        }
+
+        section = generator.analyze_unit_economics(research_findings)
+
+        assert "## Unit Economics" in section
+        assert "### Key Metrics" in section
+        assert "CAC" in section
+        assert "$150" in section
+        assert "LTV" in section
+        assert "$600" in section
+        assert "4:1" in section
+        assert "6 months" in section
+        assert "### Margin Analysis" in section
+        assert "75%" in section
+        assert "### Revenue Projections" in section
+        assert "Year 1" in section
+        assert "$100K" in section
+        assert "### Break-even Analysis" in section
+        assert "1,000 customers" in section
+
+    def test_analyze_unit_economics_without_data(self) -> None:
+        """Test unit economics generates framework when no data."""
+        generator = ProjectBriefGenerator()
+
+        research_findings = {}
+
+        section = generator.analyze_unit_economics(research_findings)
+
+        assert "## Unit Economics" in section
+        assert "### Key Metrics to Track" in section
+        assert "Customer Acquisition Cost (CAC)" in section
+        assert "Lifetime Value (LTV)" in section
+        assert "LTV:CAC Ratio" in section
+        assert "### Margin Targets" in section
+
+    def test_generate_executive_summary(self) -> None:
+        """Test executive summary section generation."""
+        generator = ProjectBriefGenerator()
+
+        research_findings = {
+            "problem_statement": "Complex problem",
+            "solution": "Simple solution",
+            "market_opportunity": {"total_addressable_market": "$1B"},
+            "target_audience": "Developers",
+        }
+
+        section = generator._generate_executive_summary(research_findings)
+
+        assert "## Executive Summary" in section
+        assert "Complex problem" in section
+        assert "Simple solution" in section
+        assert "$1B" in section
+        assert "Developers" in section
+
+    def test_generate_technical_section(self) -> None:
+        """Test technical requirements section generation."""
+        generator = ProjectBriefGenerator()
+
+        research_findings = {
+            "technical_constraints": ["Must support offline mode", "Low latency required"]
+        }
+
+        tech_stack = {
+            "languages": ["Python", "TypeScript"],
+            "frameworks": ["FastAPI", "React"],
+            "architecture_pattern": "Microservices",
+            "infrastructure": ["AWS", "Kubernetes"],
+        }
+
+        section = generator._generate_technical_section(research_findings, tech_stack)
+
+        assert "## Technical Requirements" in section
+        assert "Python, TypeScript" in section
+        assert "FastAPI, React" in section
+        assert "Microservices" in section
+        assert "AWS" in section
+        assert "Must support offline mode" in section
+
+    def test_generate_feature_scope(self) -> None:
+        """Test feature scope section generation."""
+        generator = ProjectBriefGenerator()
+
+        research_findings = {
+            "features": [
+                {"name": "Auth", "description": "User authentication", "priority": "HIGH"},
+                "Basic CRUD operations",
+            ],
+            "mvp_features": ["User login", "Basic dashboard"],
+            "future_features": ["AI recommendations", "Mobile app"],
+        }
+
+        section = generator._generate_feature_scope(research_findings)
+
+        assert "## Feature Scope" in section
+        assert "### Core Features" in section
+        assert "Auth" in section
+        assert "[HIGH]" in section
+        assert "Basic CRUD operations" in section
+        assert "### MVP Scope" in section
+        assert "User login" in section
+        assert "### Future Features" in section
+        assert "AI recommendations" in section
+
+    def test_generate_growth_strategy(self) -> None:
+        """Test growth strategy section generation."""
+        generator = ProjectBriefGenerator()
+
+        research_findings = {
+            "growth_strategy": {
+                "acquisition_channels": [
+                    {"name": "SEO", "priority": "HIGH"},
+                    {"name": "Content Marketing", "priority": "MEDIUM"},
+                ],
+                "growth_levers": ["Viral referrals", "API integrations"],
+                "expansion": "Expand to European markets in Year 2",
+            }
+        }
+
+        section = generator._generate_growth_strategy(research_findings)
+
+        assert "## Growth Strategy" in section
+        assert "SEO" in section
+        assert "[HIGH]" in section
+        assert "Viral referrals" in section
+        assert "European markets" in section
+
+    def test_generate_risk_assessment(self) -> None:
+        """Test risk assessment section generation."""
+        generator = ProjectBriefGenerator()
+
+        research_findings = {
+            "risks": [
+                {
+                    "name": "Market competition",
+                    "impact": "High",
+                    "likelihood": "Medium",
+                    "mitigation": "Differentiate on speed",
+                },
+                "Regulatory changes",
+            ]
+        }
+
+        section = generator._generate_risk_assessment(research_findings)
+
+        assert "## Risk Assessment" in section
+        assert "Market competition" in section
+        assert "High" in section
+        assert "Differentiate on speed" in section
+        assert "Regulatory changes" in section
+
+    def test_full_brief_generation_with_all_data(self) -> None:
+        """Test complete brief generation with all data provided."""
+        generator = ProjectBriefGenerator()
+
+        research_findings = {
+            "problem_statement": "Teams struggle with project visibility",
+            "solution": "Real-time collaborative dashboard",
+            "target_audience": "Engineering teams",
+            "market_opportunity": {
+                "total_addressable_market": "$25B",
+                "serviceable_addressable_market": "$2.5B",
+            },
+            "features": [
+                {"name": "Dashboard", "description": "Real-time metrics"},
+            ],
+            "monetization": {
+                "primary_model": "Subscription",
+                "pricing_tiers": [
+                    {
+                        "name": "Starter",
+                        "price": "$0",
+                        "features": ["Basic"],
+                        "target": "Individuals",
+                    }
+                ],
+            },
+            "unit_economics": {
+                "customer_acquisition_cost": "$100",
+                "lifetime_value": "$500",
+            },
+            "differentiation": {
+                "unique_value_proposition": "Built for remote teams",
+            },
+            "growth_strategy": {
+                "acquisition_channels": [{"name": "Product Hunt", "priority": "HIGH"}],
+            },
+            "risks": [
+                {
+                    "name": "Tech debt",
+                    "impact": "Medium",
+                    "likelihood": "High",
+                    "mitigation": "Regular refactoring",
+                }
+            ],
+        }
+
+        tech_stack = {
+            "languages": ["TypeScript"],
+            "frameworks": ["Next.js"],
+        }
+
+        competitive_data = {
+            "competitors": [
+                {
+                    "name": "Jira",
+                    "strengths": ["Market leader"],
+                    "weaknesses": ["Complex"],
+                    "price_point": "$10/user",
+                }
+            ]
+        }
+
+        brief = generator.generate(
+            research_findings=research_findings,
+            tech_stack=tech_stack,
+            competitive_data=competitive_data,
         )
 
-        # Verify cost analysis is included
-        assert "## Total Cost of Ownership (TCO) Analysis" in proposal
-        assert "Executive Summary" in proposal
-        assert "Cost Breakdown" in proposal
+        # Verify all major sections exist
+        assert "# Project Brief" in brief
+        assert "## Executive Summary" in brief
+        assert "## Technical Requirements" in brief
+        assert "## Feature Scope" in brief
+        assert "## Monetization Strategy" in brief
+        assert "## Market Positioning" in brief
+        assert "## Unit Economics" in brief
+        assert "## Growth Strategy" in brief
+        assert "## Risk Assessment" in brief
 
-    def test_generate_without_cost_analysis(self) -> None:
-        """Test generating proposal without cost analysis."""
-        generator = TechStackProposalGenerator()
-
-        proposal = generator.generate(
-            project_type=ProjectType.CONTENT,
-            include_cost_analysis=False,
-        )
-
-        # Verify no cost analysis section
-        assert "## Total Cost of Ownership (TCO) Analysis" not in proposal
-        # But still has options
-        assert "## Technology Options" in proposal
-
-    def test_generate_includes_recommendation(self) -> None:
-        """Test that generated proposal includes recommendation section."""
-        generator = TechStackProposalGenerator()
-
-        proposal = generator.generate(
-            project_type=ProjectType.AUTOMATION,
-            include_cost_analysis=True,
-        )
-
-        # Most proposals should include a recommendation
-        # (unless all options have critical risks)
-        assert "## Technology Options" in proposal
-
-    def test_generate_includes_risk_assessment(self) -> None:
-        """Test that generated proposal includes risk assessment."""
-        generator = TechStackProposalGenerator()
-
-        proposal = generator.generate(
-            project_type=ProjectType.TRADING,  # Trading has ToS risks
-            include_cost_analysis=True,
-        )
-
-        assert "## Risk Assessment" in proposal
-
-    def test_generate_option_cost_comparison(self) -> None:
-        """Test that TCO comparison table is generated."""
-        generator = TechStackProposalGenerator()
-
-        proposal = generator.generate(
-            project_type=ProjectType.ECOMMERCE,
-            include_cost_analysis=True,
-        )
-
-        assert "### Option Cost Comparison" in proposal
-        assert "Monthly Cost" in proposal
-        assert "Year 1 TCO" in proposal
-        assert "Year 5 TCO" in proposal
-
-    def test_analyze_costs_returns_dict(self) -> None:
-        """Test that analyze_costs returns a proper dictionary."""
-        generator = TechStackProposalGenerator()
-        proposer = generator.proposer
-
-        proposal = proposer.propose(
-            project_type=ProjectType.ECOMMERCE,
-            requirements=[],
-        )
-
-        cost_analysis = generator.analyze_costs(proposal=proposal)
-
-        assert isinstance(cost_analysis, dict)
-        assert "executive_summary" in cost_analysis
-        assert "total_cost_of_ownership" in cost_analysis
-        assert "cost_optimization_roadmap" in cost_analysis
-
-    def test_generator_initializes_with_mcp_options(self) -> None:
-        """Test that generator can be initialized with MCP options."""
-        generator_with_mcp = TechStackProposalGenerator(include_mcp_options=True)
-        generator_without_mcp = TechStackProposalGenerator(include_mcp_options=False)
-
-        # Both should work
-        assert generator_with_mcp.proposer.include_mcp_options is True
-        assert generator_without_mcp.proposer.include_mcp_options is False
-
-    def test_generate_from_proposal(self) -> None:
-        """Test generating markdown from an existing proposal."""
-        generator = TechStackProposalGenerator()
-
-        # First create a proposal
-        proposal = generator.proposer.propose(
-            project_type=ProjectType.CONTENT,
-            requirements=["blog support"],
-        )
-
-        # Then generate from it
-        markdown = generator.generate_from_proposal(proposal)
-
-        assert "# Tech Stack Proposal" in markdown
-        assert "Content" in markdown
-        assert "## Technology Options" in markdown
+        # Verify key content
+        assert "Teams struggle with project visibility" in brief
+        assert "$25B" in brief
+        assert "TypeScript" in brief
+        assert "Subscription" in brief
+        assert "$100" in brief
+        assert "Jira" in brief
 
 
 class TestArtifactGeneratorRegistry:
@@ -429,7 +710,7 @@ class TestArtifactGeneratorRegistry:
         assert registry.has_generator("cicd")
         assert registry.has_generator("monetization")
         assert registry.has_generator("readme")
-        assert registry.has_generator("tech_stack")
+        assert registry.has_generator("project_brief")
 
     def test_get_generator(self) -> None:
         """Test getting a generator from registry."""
@@ -502,15 +783,8 @@ class TestConvenienceFunctions:
 
         assert isinstance(generator, MonetizationStrategyGenerator)
 
-    def test_get_tech_stack_generator(self) -> None:
-        """Test getting tech stack generator via convenience function."""
-        generator = get_tech_stack_generator()
+    def test_get_project_brief_generator(self) -> None:
+        """Test getting project brief generator via convenience function."""
+        generator = get_project_brief_generator()
 
-        assert isinstance(generator, TechStackProposalGenerator)
-
-    def test_get_tech_stack_generator_with_params(self) -> None:
-        """Test getting tech stack generator with custom parameters."""
-        generator = get_tech_stack_generator(include_mcp_options=False)
-
-        assert isinstance(generator, TechStackProposalGenerator)
-        assert generator.proposer.include_mcp_options is False
+        assert isinstance(generator, ProjectBriefGenerator)

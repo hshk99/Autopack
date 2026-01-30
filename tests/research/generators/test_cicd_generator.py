@@ -4,12 +4,12 @@ import unittest
 
 import yaml
 
-from autopack.research.generators.cicd_generator import CICDWorkflowGenerator
 from autopack.research.artifact_generators import (
     ArtifactGeneratorRegistry,
     get_cicd_generator,
     get_registry,
 )
+from autopack.research.generators.cicd_generator import CICDWorkflowGenerator
 
 
 class TestCICDWorkflowGenerator(unittest.TestCase):

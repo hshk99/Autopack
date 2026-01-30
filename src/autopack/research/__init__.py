@@ -9,34 +9,30 @@ Provides comprehensive research capabilities including:
 - Automated follow-up research triggers
 """
 
-from autopack.research.orchestrator import ResearchOrchestrator, ResearchCache
-from autopack.research.idea_parser import IdeaParser, ParsedIdea
-
 # Analysis submodule exports
-from autopack.research.analysis import (
-    # Cost effectiveness
-    CostEffectivenessAnalyzer,
+from autopack.research.analysis import (  # Cost effectiveness; Research state tracking; Follow-up research triggers
     ComponentCostData,
-    ProjectCostProjection,
     CostCategory,
-    ScalingModel,
-    # Research state tracking
-    ResearchStateTracker,
-    ResearchState,
-    ResearchGap,
-    ResearchRequirements,
-    GapType,
-    GapPriority,
-    ResearchDepth,
+    CostEffectivenessAnalyzer,
     CoverageMetrics,
-    # Follow-up research triggers
     FollowupResearchTrigger,
     FollowupTrigger,
-    TriggerType,
-    TriggerPriority,
-    TriggerAnalysisResult,
+    GapPriority,
+    GapType,
+    ProjectCostProjection,
+    ResearchDepth,
+    ResearchGap,
     ResearchPlan,
+    ResearchRequirements,
+    ResearchState,
+    ResearchStateTracker,
+    ScalingModel,
+    TriggerAnalysisResult,
+    TriggerPriority,
+    TriggerType,
 )
+from autopack.research.idea_parser import IdeaParser, ParsedIdea
+from autopack.research.orchestrator import ResearchCache, ResearchOrchestrator
 
 __all__ = [
     # Main orchestration

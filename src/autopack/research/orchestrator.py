@@ -10,11 +10,16 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, Optional, Protocol
 from uuid import uuid4
 
-from pathlib import Path
-
+# Analysis modules for cost-effectiveness, state tracking, and follow-up triggers
+from autopack.research.analysis import (
+    CostEffectivenessAnalyzer,
+    FollowupResearchTrigger,
+    ResearchStateTracker,
+)
 from autopack.research.frameworks.competitive_intensity import CompetitiveIntensity
 from autopack.research.frameworks.market_attractiveness import MarketAttractiveness
 from autopack.research.frameworks.product_feasibility import ProductFeasibility
@@ -31,14 +36,27 @@ from autopack.research.validators.evidence_validator import EvidenceValidator
 from autopack.research.validators.quality_validator import QualityValidator
 from autopack.research.validators.recency_validator import RecencyValidator
 
-# Analysis modules for cost-effectiveness, state tracking, and follow-up triggers
-from autopack.research.analysis import (
-    CostEffectivenessAnalyzer,
-    ResearchStateTracker,
-    FollowupResearchTrigger,
-)
-
 logger = logging.getLogger(__name__)
+
+
+class BudgetTracker(Protocol):
+    """Protocol for budget tracking implementations.
+
+    Defines the interface for budget tracking to enforce cost limits
+    during research execution.
+    """
+
+    def can_proceed(self, phase_name: Optional[str] = None) -> bool:
+        """Check if research can proceed based on budget constraints.
+
+        Args:
+            phase_name: Optional name of phase to check budget for
+
+        Returns:
+            True if budget allows proceeding, False if exhausted
+        """
+        ...
+
 
 # Default cache TTL: 24 hours
 CACHE_TTL_HOURS = 24
@@ -148,16 +166,19 @@ class ResearchOrchestrator:
         self,
         cache_ttl_hours: int = CACHE_TTL_HOURS,
         project_root: Optional[Path] = None,
+        budget_tracker: Optional[BudgetTracker] = None,
     ):
         """Initialize the ResearchOrchestrator.
 
         Args:
             cache_ttl_hours: TTL for research cache in hours (default: 24)
             project_root: Root directory for project state files (optional)
+            budget_tracker: Optional budget tracker for enforcing cost limits
         """
         self.sessions: dict[str, ResearchSession] = {}
         self.bootstrap_sessions: dict[str, BootstrapSession] = {}
         self._cache = ResearchCache(ttl_hours=cache_ttl_hours)
+        self._budget_tracker = budget_tracker
 
         # Analysis components
         self._cost_analyzer = CostEffectivenessAnalyzer()
@@ -178,6 +199,24 @@ class ResearchOrchestrator:
         self._state_tracker = ResearchStateTracker(project_root)
         self._state_tracker.load_or_create_state(project_id)
         logger.info(f"Initialized state tracking for project: {project_id}")
+
+    def _check_budget_before_phase(self, phase_name: str) -> bool:
+        """Check budget before starting a research phase.
+
+        Args:
+            phase_name: Name of the research phase about to start
+
+        Returns:
+            True if budget allows proceeding, False if exhausted
+        """
+        if self._budget_tracker:
+            can_proceed = self._budget_tracker.can_proceed(phase_name)
+            if not can_proceed:
+                logger.warning(
+                    f"Budget exhausted, cannot proceed with research phase: {phase_name}"
+                )
+            return can_proceed
+        return True
 
     def start_session(
         self, intent_title: str, intent_description: str, intent_objectives: list
@@ -327,15 +366,21 @@ class ResearchOrchestrator:
         """
         logger.debug(f"Executing research phases in parallel for session {session.session_id}")
 
-        # Create tasks for parallel execution
-        tasks = [
-            self._run_market_research(session, parsed_idea),
-            self._run_competitive_analysis(session, parsed_idea),
-            self._run_technical_feasibility(session, parsed_idea),
-        ]
+        # Create tasks for parallel execution, checking budget before each phase
+        tasks = []
+
+        if self._check_budget_before_phase("market_research"):
+            tasks.append(self._run_market_research(session, parsed_idea))
+
+        if self._check_budget_before_phase("competitive_analysis"):
+            tasks.append(self._run_competitive_analysis(session, parsed_idea))
+
+        if self._check_budget_before_phase("technical_feasibility"):
+            tasks.append(self._run_technical_feasibility(session, parsed_idea))
 
         # Execute all tasks concurrently
-        await asyncio.gather(*tasks, return_exceptions=True)
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _execute_research_sequential(
         self,
@@ -350,9 +395,14 @@ class ResearchOrchestrator:
         """
         logger.debug(f"Executing research phases sequentially for session {session.session_id}")
 
-        await self._run_market_research(session, parsed_idea)
-        await self._run_competitive_analysis(session, parsed_idea)
-        await self._run_technical_feasibility(session, parsed_idea)
+        if self._check_budget_before_phase("market_research"):
+            await self._run_market_research(session, parsed_idea)
+
+        if self._check_budget_before_phase("competitive_analysis"):
+            await self._run_competitive_analysis(session, parsed_idea)
+
+        if self._check_budget_before_phase("technical_feasibility"):
+            await self._run_technical_feasibility(session, parsed_idea)
 
     async def _run_market_research(
         self,

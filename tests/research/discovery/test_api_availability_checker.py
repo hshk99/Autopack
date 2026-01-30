@@ -129,7 +129,7 @@ class TestAPIAvailabilityChecker:
         mock_response.elapsed = MagicMock()
         mock_response.elapsed.total_seconds = MagicMock(return_value=0.15)
 
-        with patch("autopack.research.discovery.api_availability_checker.httpx") as mock_httpx:
+        with patch("autopack.research.discovery.api_availability_checker.httpx") as _:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(return_value=mock_response)
             mock_client.is_closed = False
@@ -152,7 +152,7 @@ class TestAPIAvailabilityChecker:
         mock_response.elapsed = MagicMock()
         mock_response.elapsed.total_seconds = MagicMock(return_value=0.1)
 
-        with patch("autopack.research.discovery.api_availability_checker.httpx") as mock_httpx:
+        with patch("autopack.research.discovery.api_availability_checker.httpx") as _:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(return_value=mock_response)
             mock_client.is_closed = False
@@ -189,7 +189,7 @@ class TestAPIAvailabilityChecker:
         mock_response.elapsed = MagicMock()
         mock_response.elapsed.total_seconds = MagicMock(return_value=0.1)
 
-        with patch("autopack.research.discovery.api_availability_checker.httpx") as mock_httpx:
+        with patch("autopack.research.discovery.api_availability_checker.httpx") as _:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(return_value=mock_response)
             mock_client.is_closed = False
@@ -217,7 +217,7 @@ class TestAPIAvailabilityChecker:
         mock_response.elapsed = MagicMock()
         mock_response.elapsed.total_seconds = MagicMock(return_value=0.1)
 
-        with patch("autopack.research.discovery.api_availability_checker.httpx") as mock_httpx:
+        with patch("autopack.research.discovery.api_availability_checker.httpx") as _:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(return_value=mock_response)
             mock_client.is_closed = False
@@ -253,7 +253,7 @@ class TestAPIAvailabilityChecker:
         mock_response_503.elapsed = MagicMock()
         mock_response_503.elapsed.total_seconds = MagicMock(return_value=0.2)
 
-        with patch("autopack.research.discovery.api_availability_checker.httpx") as mock_httpx:
+        with patch("autopack.research.discovery.api_availability_checker.httpx") as _:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(
                 side_effect=[mock_response_200, mock_response_503],
@@ -281,7 +281,7 @@ class TestAPIAvailabilityChecker:
         mock_response.elapsed = MagicMock()
         mock_response.elapsed.total_seconds = MagicMock(return_value=0.1)
 
-        with patch("autopack.research.discovery.api_availability_checker.httpx") as mock_httpx:
+        with patch("autopack.research.discovery.api_availability_checker.httpx") as _:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(return_value=mock_response)
             mock_client.is_closed = False
@@ -312,7 +312,7 @@ class TestAPIAvailabilityChecker:
         mock_response_503.elapsed = MagicMock()
         mock_response_503.elapsed.total_seconds = MagicMock(return_value=0.1)
 
-        with patch("autopack.research.discovery.api_availability_checker.httpx") as mock_httpx:
+        with patch("autopack.research.discovery.api_availability_checker.httpx") as _:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(
                 side_effect=[mock_response_200, mock_response_503],
@@ -344,7 +344,7 @@ class TestAPIAvailabilityChecker:
         mock_response.elapsed = MagicMock()
         mock_response.elapsed.total_seconds = MagicMock(return_value=0.1)
 
-        with patch("autopack.research.discovery.api_availability_checker.httpx") as mock_httpx:
+        with patch("autopack.research.discovery.api_availability_checker.httpx") as _:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(return_value=mock_response)
             mock_client.is_closed = False
@@ -368,7 +368,7 @@ class TestAPIAvailabilityChecker:
         mock_response.elapsed = MagicMock()
         mock_response.elapsed.total_seconds = MagicMock(return_value=0.1)
 
-        with patch("autopack.research.discovery.api_availability_checker.httpx") as mock_httpx:
+        with patch("autopack.research.discovery.api_availability_checker.httpx") as _:
             mock_client = AsyncMock()
             mock_client.get = AsyncMock(return_value=mock_response)
             mock_client.is_closed = False

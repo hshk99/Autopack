@@ -1172,7 +1172,7 @@ class AutopilotController:
                 "findings": [
                     {
                         "id": f"exec-failure-{i}",
-                        "summary": f"Action execution failed",
+                        "summary": "Action execution failed",
                         "confidence": 0.4,
                         "topic": "execution_failure",
                     }

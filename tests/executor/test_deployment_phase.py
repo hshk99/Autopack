@@ -8,8 +8,6 @@ Tests cover:
 
 from unittest.mock import Mock
 
-import pytest
-
 from autopack.executor.deployment_phase import (
     DeploymentPhaseHandler,
     DeploymentProvider,
@@ -19,7 +17,6 @@ from autopack.executor.deployment_phase import (
 )
 from autopack.executor.phase_orchestrator import (
     ExecutionContext,
-    ExecutionResult,
     PhaseOrchestrator,
     PhaseResult,
     create_default_time_watchdog,

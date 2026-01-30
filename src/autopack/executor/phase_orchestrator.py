@@ -215,7 +215,7 @@ class PhaseOrchestrator:
 
         # IMP-HIGH-003: Handle deployment phase if applicable
         if self.should_handle_as_deployment_phase(context):
-            logger.info(f"[IMP-HIGH-003] Routing to deployment phase handler")
+            logger.info("[IMP-HIGH-003] Routing to deployment phase handler")
             return self._handle_deployment_phase(context)
 
         # IMP-COST-002: Check phase-level budget before execution

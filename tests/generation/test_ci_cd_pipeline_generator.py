@@ -4,8 +4,6 @@ Tests for CICDPipelineGenerator class that generates CI/CD configurations
 for GitHub Actions, GitLab CI, and generic pipeline platforms.
 """
 
-import json
-
 import pytest
 import yaml
 

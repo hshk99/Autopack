@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-
 from autopack.research.artifact_generators import (
     ArtifactGeneratorRegistry,
     MonetizationStrategyGenerator,
     ProjectReadmeGenerator,
+    TechStackProposalGenerator,
     get_monetization_generator,
     get_readme_generator,
     get_registry,
+    get_tech_stack_generator,
 )
+from autopack.research.idea_parser import ProjectType
 
 
 class TestProjectReadmeGenerator:
@@ -281,6 +283,142 @@ class TestMonetizationStrategyGenerator:
         assert "Slack" in content
 
 
+class TestTechStackProposalGenerator:
+    """Test TechStackProposalGenerator with cost analysis."""
+
+    def test_generate_basic_proposal(self) -> None:
+        """Test generating a basic tech stack proposal."""
+        generator = TechStackProposalGenerator()
+
+        proposal = generator.generate(
+            project_type=ProjectType.ECOMMERCE,
+            requirements=["payment processing", "inventory management"],
+            include_cost_analysis=True,
+        )
+
+        # Verify basic structure
+        assert "# Tech Stack Proposal" in proposal
+        assert "ECOMMERCE" in proposal.upper() or "Ecommerce" in proposal
+        assert "## Technology Options" in proposal
+        assert "## Total Cost of Ownership (TCO) Analysis" in proposal
+
+    def test_generate_with_user_projections(self) -> None:
+        """Test generating proposal with custom user projections."""
+        generator = TechStackProposalGenerator()
+
+        user_projections = {
+            "year_1": 5000,
+            "year_3": 50000,
+            "year_5": 200000,
+        }
+
+        proposal = generator.generate(
+            project_type=ProjectType.TRADING,
+            user_projections=user_projections,
+            include_cost_analysis=True,
+        )
+
+        # Verify cost analysis is included
+        assert "## Total Cost of Ownership (TCO) Analysis" in proposal
+        assert "Executive Summary" in proposal
+        assert "Cost Breakdown" in proposal
+
+    def test_generate_without_cost_analysis(self) -> None:
+        """Test generating proposal without cost analysis."""
+        generator = TechStackProposalGenerator()
+
+        proposal = generator.generate(
+            project_type=ProjectType.CONTENT,
+            include_cost_analysis=False,
+        )
+
+        # Verify no cost analysis section
+        assert "## Total Cost of Ownership (TCO) Analysis" not in proposal
+        # But still has options
+        assert "## Technology Options" in proposal
+
+    def test_generate_includes_recommendation(self) -> None:
+        """Test that generated proposal includes recommendation section."""
+        generator = TechStackProposalGenerator()
+
+        proposal = generator.generate(
+            project_type=ProjectType.AUTOMATION,
+            include_cost_analysis=True,
+        )
+
+        # Most proposals should include a recommendation
+        # (unless all options have critical risks)
+        assert "## Technology Options" in proposal
+
+    def test_generate_includes_risk_assessment(self) -> None:
+        """Test that generated proposal includes risk assessment."""
+        generator = TechStackProposalGenerator()
+
+        proposal = generator.generate(
+            project_type=ProjectType.TRADING,  # Trading has ToS risks
+            include_cost_analysis=True,
+        )
+
+        assert "## Risk Assessment" in proposal
+
+    def test_generate_option_cost_comparison(self) -> None:
+        """Test that TCO comparison table is generated."""
+        generator = TechStackProposalGenerator()
+
+        proposal = generator.generate(
+            project_type=ProjectType.ECOMMERCE,
+            include_cost_analysis=True,
+        )
+
+        assert "### Option Cost Comparison" in proposal
+        assert "Monthly Cost" in proposal
+        assert "Year 1 TCO" in proposal
+        assert "Year 5 TCO" in proposal
+
+    def test_analyze_costs_returns_dict(self) -> None:
+        """Test that analyze_costs returns a proper dictionary."""
+        generator = TechStackProposalGenerator()
+        proposer = generator.proposer
+
+        proposal = proposer.propose(
+            project_type=ProjectType.ECOMMERCE,
+            requirements=[],
+        )
+
+        cost_analysis = generator.analyze_costs(proposal=proposal)
+
+        assert isinstance(cost_analysis, dict)
+        assert "executive_summary" in cost_analysis
+        assert "total_cost_of_ownership" in cost_analysis
+        assert "cost_optimization_roadmap" in cost_analysis
+
+    def test_generator_initializes_with_mcp_options(self) -> None:
+        """Test that generator can be initialized with MCP options."""
+        generator_with_mcp = TechStackProposalGenerator(include_mcp_options=True)
+        generator_without_mcp = TechStackProposalGenerator(include_mcp_options=False)
+
+        # Both should work
+        assert generator_with_mcp.proposer.include_mcp_options is True
+        assert generator_without_mcp.proposer.include_mcp_options is False
+
+    def test_generate_from_proposal(self) -> None:
+        """Test generating markdown from an existing proposal."""
+        generator = TechStackProposalGenerator()
+
+        # First create a proposal
+        proposal = generator.proposer.propose(
+            project_type=ProjectType.CONTENT,
+            requirements=["blog support"],
+        )
+
+        # Then generate from it
+        markdown = generator.generate_from_proposal(proposal)
+
+        assert "# Tech Stack Proposal" in markdown
+        assert "Content" in markdown
+        assert "## Technology Options" in markdown
+
+
 class TestArtifactGeneratorRegistry:
     """Test ArtifactGeneratorRegistry."""
 
@@ -291,6 +429,7 @@ class TestArtifactGeneratorRegistry:
         assert registry.has_generator("cicd")
         assert registry.has_generator("monetization")
         assert registry.has_generator("readme")
+        assert registry.has_generator("tech_stack")
 
     def test_get_generator(self) -> None:
         """Test getting a generator from registry."""
@@ -362,3 +501,16 @@ class TestConvenienceFunctions:
         generator = get_monetization_generator()
 
         assert isinstance(generator, MonetizationStrategyGenerator)
+
+    def test_get_tech_stack_generator(self) -> None:
+        """Test getting tech stack generator via convenience function."""
+        generator = get_tech_stack_generator()
+
+        assert isinstance(generator, TechStackProposalGenerator)
+
+    def test_get_tech_stack_generator_with_params(self) -> None:
+        """Test getting tech stack generator with custom parameters."""
+        generator = get_tech_stack_generator(include_mcp_options=False)
+
+        assert isinstance(generator, TechStackProposalGenerator)
+        assert generator.proposer.include_mcp_options is False

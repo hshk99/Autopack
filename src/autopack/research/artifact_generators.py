@@ -10,7 +10,14 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Type
 
+from autopack.research.analysis.cost_effectiveness import CostEffectivenessAnalyzer
 from autopack.research.generators.cicd_generator import CICDWorkflowGenerator
+from autopack.research.idea_parser import ProjectType
+from autopack.research.tech_stack_proposer import (
+    TechStackOption,
+    TechStackProposal,
+    TechStackProposer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -253,6 +260,441 @@ class MonetizationStrategyGenerator:
             section += f"**Differentiation**: {differentiation}\n\n"
 
         return section
+
+
+class TechStackProposalGenerator:
+    """Generates tech stack proposals with integrated cost analysis.
+
+    Combines TechStackProposer recommendations with CostEffectivenessAnalyzer
+    to produce comprehensive proposals including TCO (Total Cost of Ownership)
+    estimates for each technology option.
+    """
+
+    def __init__(
+        self,
+        include_mcp_options: bool = True,
+        cost_analyzer: Optional[CostEffectivenessAnalyzer] = None,
+    ):
+        """Initialize the TechStackProposalGenerator.
+
+        Args:
+            include_mcp_options: Whether to prioritize MCP-enabled options
+            cost_analyzer: Optional pre-configured CostEffectivenessAnalyzer
+        """
+        self.proposer = TechStackProposer(include_mcp_options=include_mcp_options)
+        self.cost_analyzer = cost_analyzer or CostEffectivenessAnalyzer()
+        self._build_vs_buy_analyzer: Optional[Any] = None
+
+        # Try to import BuildVsBuyAnalyzer if available (from IMP-HIGH-002)
+        try:
+            from autopack.research.analysis.build_vs_buy_analyzer import BuildVsBuyAnalyzer
+
+            self._build_vs_buy_analyzer = BuildVsBuyAnalyzer()
+            logger.debug("[TechStackProposalGenerator] BuildVsBuyAnalyzer integration enabled")
+        except ImportError:
+            logger.debug(
+                "[TechStackProposalGenerator] BuildVsBuyAnalyzer not available, "
+                "proceeding without build-vs-buy analysis"
+            )
+
+    def generate(
+        self,
+        project_type: ProjectType,
+        requirements: Optional[List[str]] = None,
+        user_projections: Optional[Dict[str, int]] = None,
+        include_cost_analysis: bool = True,
+    ) -> str:
+        """Generate a comprehensive tech stack proposal with cost analysis.
+
+        Args:
+            project_type: The type of project (e.g., ECOMMERCE, TRADING)
+            requirements: Optional list of specific requirements
+            user_projections: Optional user count projections (year_1, year_3, year_5)
+            include_cost_analysis: Whether to include TCO analysis
+
+        Returns:
+            Markdown string with tech stack proposal and cost analysis
+        """
+        logger.info(f"[TechStackProposalGenerator] Generating proposal for {project_type.value}")
+
+        # Get tech stack proposal
+        proposal = self.proposer.propose(
+            project_type=project_type,
+            requirements=requirements or [],
+        )
+
+        # Generate markdown content
+        content = self._generate_header(proposal)
+        content += self._generate_options_section(proposal.options)
+
+        if proposal.recommendation:
+            content += self._generate_recommendation_section(
+                proposal.recommendation,
+                proposal.recommendation_reasoning,
+            )
+
+        if include_cost_analysis:
+            cost_analysis = self.analyze_costs(
+                proposal=proposal,
+                user_projections=user_projections,
+            )
+            content += self._generate_cost_analysis_section(cost_analysis)
+            content += self._generate_tco_comparison_section(proposal.options, cost_analysis)
+
+        content += self._generate_risk_section(proposal.options)
+
+        return content
+
+    def analyze_costs(
+        self,
+        proposal: TechStackProposal,
+        user_projections: Optional[Dict[str, int]] = None,
+    ) -> Dict[str, Any]:
+        """Analyze costs for the tech stack proposal.
+
+        Args:
+            proposal: The TechStackProposal to analyze
+            user_projections: Optional user projections by year
+
+        Returns:
+            Cost analysis dictionary with TCO estimates
+        """
+        user_proj = user_projections or {
+            "year_1": 1000,
+            "year_3": 10000,
+            "year_5": 50000,
+        }
+
+        # Convert tech stack options to build-vs-buy format for cost analysis
+        build_vs_buy_results = self._convert_options_to_cost_data(proposal.options)
+
+        # Run cost effectiveness analysis
+        analysis = self.cost_analyzer.analyze(
+            project_name=f"{proposal.project_type.value} Project",
+            build_vs_buy_results=build_vs_buy_results,
+            user_projections=user_proj,
+        )
+
+        # Add per-option TCO if BuildVsBuyAnalyzer is available
+        if self._build_vs_buy_analyzer:
+            analysis["build_vs_buy_recommendations"] = self._get_build_vs_buy_analysis(
+                proposal.options
+            )
+
+        return analysis
+
+    def _convert_options_to_cost_data(self, options: List[TechStackOption]) -> List[Dict[str, Any]]:
+        """Convert TechStackOption objects to cost analysis format.
+
+        Args:
+            options: List of TechStackOption objects
+
+        Returns:
+            List of cost data dictionaries
+        """
+        results = []
+        for option in options:
+            cost_estimate = option.estimated_cost
+            monthly_avg = (cost_estimate.monthly_min + cost_estimate.monthly_max) / 2
+
+            results.append(
+                {
+                    "component": option.name,
+                    "description": option.description,
+                    "recommendation": {
+                        "choice": "buy" if option.mcp_available else "integrate",
+                        "specific": option.name,
+                        "rationale": option.pros if option.pros else ["Standard option"],
+                    },
+                    "cost_data": {
+                        "initial_cost": 0,
+                        "monthly_ongoing": monthly_avg,
+                        "scaling_model": (
+                            "flat" if cost_estimate.tier.value in ["free", "low"] else "linear"
+                        ),
+                        "year_1_total": monthly_avg * 12,
+                        "year_3_total": monthly_avg * 36,
+                        "year_5_total": monthly_avg * 60,
+                    },
+                    "vendor_lock_in": {
+                        "level": (
+                            "medium" if "vendor lock-in" in " ".join(option.cons).lower() else "low"
+                        ),
+                        "alternatives": [],
+                    },
+                    "is_core": option.category in ["Full Stack Framework", "Custom Stack"],
+                }
+            )
+        return results
+
+    def _get_build_vs_buy_analysis(self, options: List[TechStackOption]) -> List[Dict[str, Any]]:
+        """Get build-vs-buy recommendations for each option.
+
+        Args:
+            options: List of TechStackOption objects
+
+        Returns:
+            List of build-vs-buy analysis results
+        """
+        results = []
+        if not self._build_vs_buy_analyzer:
+            return results
+
+        for option in options:
+            try:
+                analysis = self._build_vs_buy_analyzer.analyze(
+                    tool_name=option.name,
+                    requirements={
+                        "category": option.category,
+                        "setup_complexity": option.setup_complexity,
+                        "mcp_available": option.mcp_available,
+                    },
+                )
+                results.append(
+                    {
+                        "option": option.name,
+                        "recommendation": analysis.recommendation,
+                        "build_cost": analysis.build_cost,
+                        "buy_cost": analysis.buy_cost,
+                        "rationale": analysis.rationale,
+                    }
+                )
+            except Exception as e:
+                logger.warning(
+                    f"[TechStackProposalGenerator] Build-vs-buy analysis failed "
+                    f"for {option.name}: {e}"
+                )
+        return results
+
+    def _generate_header(self, proposal: TechStackProposal) -> str:
+        """Generate the proposal header section.
+
+        Args:
+            proposal: The TechStackProposal
+
+        Returns:
+            Markdown header section
+        """
+        content = f"# Tech Stack Proposal: {proposal.project_type.value.title()}\n\n"
+        content += f"**Confidence Score**: {proposal.confidence_score:.0%}\n\n"
+
+        if proposal.requirements:
+            content += "## Requirements Considered\n\n"
+            for req in proposal.requirements:
+                content += f"- {req}\n"
+            content += "\n"
+
+        return content
+
+    def _generate_options_section(self, options: List[TechStackOption]) -> str:
+        """Generate the technology options section.
+
+        Args:
+            options: List of TechStackOption objects
+
+        Returns:
+            Markdown options section
+        """
+        content = "## Technology Options\n\n"
+
+        for i, option in enumerate(options, 1):
+            content += f"### Option {i}: {option.name}\n\n"
+            content += f"**Category**: {option.category}\n\n"
+            content += f"{option.description}\n\n"
+
+            # Cost estimate
+            cost = option.estimated_cost
+            content += f"**Estimated Cost**: ${cost.monthly_min:.0f}"
+            if cost.monthly_min != cost.monthly_max:
+                content += f" - ${cost.monthly_max:.0f}"
+            content += f"/month ({cost.tier.value})\n"
+            if cost.notes:
+                content += f"  - *{cost.notes}*\n"
+            content += "\n"
+
+            # MCP availability
+            if option.mcp_available:
+                content += f"✅ **MCP Server Available**: {option.mcp_server_name}\n\n"
+
+            # Pros
+            if option.pros:
+                content += "**Pros**:\n"
+                for pro in option.pros:
+                    content += f"- {pro}\n"
+                content += "\n"
+
+            # Cons
+            if option.cons:
+                content += "**Cons**:\n"
+                for con in option.cons:
+                    content += f"- {con}\n"
+                content += "\n"
+
+            # Setup complexity
+            content += f"**Setup Complexity**: {option.setup_complexity}\n\n"
+
+            if option.documentation_url:
+                content += f"📚 [Documentation]({option.documentation_url})\n\n"
+
+            content += "---\n\n"
+
+        return content
+
+    def _generate_recommendation_section(
+        self, recommendation: str, reasoning: Optional[str]
+    ) -> str:
+        """Generate the recommendation section.
+
+        Args:
+            recommendation: Recommended option name
+            reasoning: Reasoning for the recommendation
+
+        Returns:
+            Markdown recommendation section
+        """
+        content = "## Recommendation\n\n"
+        content += f"**Recommended Option**: {recommendation}\n\n"
+        if reasoning:
+            content += f"{reasoning}\n\n"
+        return content
+
+    def _generate_cost_analysis_section(self, cost_analysis: Dict[str, Any]) -> str:
+        """Generate the cost analysis section with TCO estimates.
+
+        Args:
+            cost_analysis: Cost analysis dictionary
+
+        Returns:
+            Markdown cost analysis section
+        """
+        content = "## Total Cost of Ownership (TCO) Analysis\n\n"
+
+        # Executive summary
+        if "executive_summary" in cost_analysis:
+            summary = cost_analysis["executive_summary"]
+            content += "### Executive Summary\n\n"
+            content += f"- **Year 1 Total**: ${summary.get('total_year_1_cost', 0):,.0f}\n"
+            content += f"- **Year 3 Total**: ${summary.get('total_year_3_cost', 0):,.0f}\n"
+            content += f"- **Year 5 Total**: ${summary.get('total_year_5_cost', 0):,.0f}\n\n"
+
+            if summary.get("primary_cost_drivers"):
+                content += "**Primary Cost Drivers**:\n"
+                for driver in summary["primary_cost_drivers"]:
+                    content += f"- {driver}\n"
+                content += "\n"
+
+            if summary.get("key_recommendations"):
+                content += "**Key Recommendations**:\n"
+                for rec in summary["key_recommendations"]:
+                    content += f"- {rec}\n"
+                content += "\n"
+
+        # Cost breakdown
+        if "total_cost_of_ownership" in cost_analysis:
+            tco = cost_analysis["total_cost_of_ownership"]
+            content += "### Cost Breakdown\n\n"
+            content += "| Category | Year 1 | Year 5 |\n"
+            content += "|----------|--------|--------|\n"
+
+            if "year_1" in tco:
+                y1 = tco["year_1"]
+                y5 = tco.get("year_5_cumulative", {})
+                for category in [
+                    "development",
+                    "infrastructure",
+                    "services",
+                    "ai_apis",
+                    "operational",
+                ]:
+                    if category in y1:
+                        content += f"| {category.replace('_', ' ').title()} | ${y1[category]:,.0f} | ${y5.get(category, 0):,.0f} |\n"
+                content += f"| **Total** | **${y1.get('total', 0):,.0f}** | **${y5.get('total', 0):,.0f}** |\n"
+                content += "\n"
+
+        # Optimization roadmap
+        if "cost_optimization_roadmap" in cost_analysis:
+            content += "### Optimization Roadmap\n\n"
+            for phase in cost_analysis["cost_optimization_roadmap"]:
+                content += f"**{phase.get('phase', '')}**: {phase.get('focus', '')}\n"
+                for action in phase.get("actions", []):
+                    content += f"  - {action}\n"
+                content += "\n"
+
+        return content
+
+    def _generate_tco_comparison_section(
+        self, options: List[TechStackOption], cost_analysis: Dict[str, Any]
+    ) -> str:
+        """Generate TCO comparison section for all options.
+
+        Args:
+            options: List of TechStackOption objects
+            cost_analysis: Cost analysis dictionary
+
+        Returns:
+            Markdown TCO comparison section
+        """
+        content = "### Option Cost Comparison\n\n"
+        content += "| Option | Monthly Cost | Year 1 TCO | Year 5 TCO |\n"
+        content += "|--------|-------------|------------|------------|\n"
+
+        for option in options:
+            cost = option.estimated_cost
+            monthly_avg = (cost.monthly_min + cost.monthly_max) / 2
+            year_1 = monthly_avg * 12
+            year_5 = monthly_avg * 60
+
+            content += (
+                f"| {option.name} | ${monthly_avg:,.0f} | ${year_1:,.0f} | ${year_5:,.0f} |\n"
+            )
+
+        content += "\n"
+        content += "*Note: TCO estimates are based on direct costs only. "
+        content += "Development and integration costs vary by team.*\n\n"
+
+        return content
+
+    def _generate_risk_section(self, options: List[TechStackOption]) -> str:
+        """Generate the risk assessment section.
+
+        Args:
+            options: List of TechStackOption objects
+
+        Returns:
+            Markdown risk section
+        """
+        content = "## Risk Assessment\n\n"
+
+        has_risks = False
+        for option in options:
+            if option.tos_risks:
+                has_risks = True
+                content += f"### {option.name}\n\n"
+                for risk in option.tos_risks:
+                    content += f"- **{risk.level.value.upper()}**: {risk.description}\n"
+                    if risk.mitigation:
+                        content += f"  - *Mitigation*: {risk.mitigation}\n"
+                content += "\n"
+
+        if not has_risks:
+            content += "No significant ToS or legal risks identified for the proposed options.\n\n"
+
+        return content
+
+    def generate_from_proposal(self, proposal: TechStackProposal) -> str:
+        """Generate markdown from an existing TechStackProposal.
+
+        Args:
+            proposal: Pre-generated TechStackProposal
+
+        Returns:
+            Markdown string with proposal and cost analysis
+        """
+        return self.generate(
+            project_type=proposal.project_type,
+            requirements=proposal.requirements,
+            include_cost_analysis=True,
+        )
 
 
 class ProjectReadmeGenerator:
@@ -586,6 +1028,11 @@ class ArtifactGeneratorRegistry:
         self.register("cicd", CICDWorkflowGenerator)
         self.register("monetization", MonetizationStrategyGenerator)
         self.register("readme", ProjectReadmeGenerator)
+        self.register(
+            "tech_stack",
+            TechStackProposalGenerator,
+            "Tech stack proposals with TCO analysis",
+        )
 
     def register(
         self,
@@ -707,4 +1154,20 @@ def get_readme_generator(**kwargs: Any) -> ProjectReadmeGenerator:
     if generator is None:
         # Fallback to direct instantiation
         return ProjectReadmeGenerator(**kwargs)
+    return generator
+
+
+def get_tech_stack_generator(**kwargs: Any) -> TechStackProposalGenerator:
+    """Convenience function to get the tech stack proposal generator.
+
+    Args:
+        **kwargs: Arguments to pass to TechStackProposalGenerator
+
+    Returns:
+        TechStackProposalGenerator instance
+    """
+    generator = get_registry().get("tech_stack", **kwargs)
+    if generator is None:
+        # Fallback to direct instantiation
+        return TechStackProposalGenerator(**kwargs)
     return generator

@@ -1,1 +1,1 @@
-"""Tests for research analysis module."""
+"""Tests for research analysis modules."""

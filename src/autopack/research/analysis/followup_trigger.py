@@ -3,13 +3,21 @@ Follow-up Research Trigger for automated gap-filling research.
 
 Analyzes research findings to identify areas requiring deeper investigation
 and triggers targeted follow-up research automatically.
+
+IMP-HIGH-005: Implements callback execution mechanism for mid-execution
+research triggering. Callbacks are invoked when triggers are detected,
+enabling autonomous research loop closure.
 """
 
+import asyncio
 import hashlib
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set, Union
+
+logger = logging.getLogger(__name__)
 
 
 class TriggerType(Enum):
@@ -42,6 +50,32 @@ class ResearchPlan:
 
 
 @dataclass
+class CallbackResult:
+    """Result of a callback execution for a trigger.
+
+    IMP-HIGH-005: Tracks the outcome of callback execution including
+    any research results or errors.
+    """
+
+    trigger_id: str
+    success: bool
+    executed_at: datetime = field(default_factory=datetime.now)
+    result_data: Optional[Dict[str, Any]] = None
+    error_message: Optional[str] = None
+    execution_time_ms: int = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "trigger_id": self.trigger_id,
+            "success": self.success,
+            "executed_at": self.executed_at.isoformat(),
+            "result_data": self.result_data,
+            "error_message": self.error_message,
+            "execution_time_ms": self.execution_time_ms,
+        }
+
+
+@dataclass
 class FollowupTrigger:
     """A trigger for follow-up research."""
 
@@ -54,6 +88,8 @@ class FollowupTrigger:
     created_at: datetime = field(default_factory=datetime.now)
     addressed: bool = False
     addressed_at: Optional[datetime] = None
+    # IMP-HIGH-005: Track callback execution results
+    callback_results: List[CallbackResult] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -70,6 +106,50 @@ class FollowupTrigger:
             "created_at": self.created_at.isoformat(),
             "addressed": self.addressed,
             "addressed_at": self.addressed_at.isoformat() if self.addressed_at else None,
+            "callback_results": [r.to_dict() for r in self.callback_results],
+        }
+
+    def mark_executed(self, result: CallbackResult) -> None:
+        """Mark this trigger as having had a callback executed.
+
+        IMP-HIGH-005: Records callback result and updates addressed status.
+
+        Args:
+            result: The callback execution result
+        """
+        self.callback_results.append(result)
+        if result.success:
+            self.addressed = True
+            self.addressed_at = datetime.now()
+
+
+@dataclass
+class TriggerExecutionResult:
+    """Result of executing all callbacks for a set of triggers.
+
+    IMP-HIGH-005: Aggregates results from callback execution across
+    multiple triggers.
+    """
+
+    triggers_executed: int
+    callbacks_invoked: int
+    successful_executions: int
+    failed_executions: int
+    total_execution_time_ms: int
+    callback_results: List[CallbackResult] = field(default_factory=list)
+    integrated_findings: List[Dict[str, Any]] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "trigger_execution_result": {
+                "triggers_executed": self.triggers_executed,
+                "callbacks_invoked": self.callbacks_invoked,
+                "successful_executions": self.successful_executions,
+                "failed_executions": self.failed_executions,
+                "total_execution_time_ms": self.total_execution_time_ms,
+                "callback_results": [r.to_dict() for r in self.callback_results],
+                "integrated_findings_count": len(self.integrated_findings),
+            }
         }
 
 
@@ -84,9 +164,11 @@ class TriggerAnalysisResult:
     not_selected_triggers: List[Dict[str, Any]]
     should_research: bool
     execution_plan: Dict[str, Any]
+    # IMP-HIGH-005: Track execution results when callbacks are run
+    execution_result: Optional[TriggerExecutionResult] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        result = {
             "followup_trigger_analysis": {
                 "analysis_timestamp": datetime.now().isoformat(),
                 "triggers_detected": self.triggers_detected,
@@ -98,11 +180,43 @@ class TriggerAnalysisResult:
                 "research_execution_plan": self.execution_plan,
             }
         }
+        if self.execution_result:
+            result["followup_trigger_analysis"][
+                "execution_result"
+            ] = self.execution_result.to_dict()
+        return result
+
+
+# Type alias for callback functions
+# Callbacks receive the trigger and return optional result data
+TriggerCallback = Callable[[FollowupTrigger], Optional[Dict[str, Any]]]
+AsyncTriggerCallback = Callable[[FollowupTrigger], "asyncio.Future[Optional[Dict[str, Any]]]"]
 
 
 class FollowupResearchTrigger:
     """
     Analyzes findings and triggers automated follow-up research.
+
+    IMP-HIGH-005: Includes callback execution mechanism for mid-execution
+    research triggering. Register callbacks with `register_callback()` and
+    execute them with `execute_triggers()` or `execute_triggers_async()`.
+
+    Example usage:
+        ```python
+        trigger = FollowupResearchTrigger()
+
+        # Register a callback to handle research triggers
+        def handle_research(trigger: FollowupTrigger) -> Optional[Dict]:
+            # Perform research based on trigger.research_plan
+            return {"findings": [...]}
+
+        trigger.register_callback(handle_research)
+
+        # Analyze and execute
+        result = trigger.analyze(analysis_results)
+        if result.should_research:
+            execution_result = trigger.execute_triggers(result.selected_triggers)
+        ```
     """
 
     # Configuration
@@ -135,6 +249,9 @@ class FollowupResearchTrigger:
     def __init__(self):
         self._trigger_counter = 0
         self._addressed_triggers: Set[str] = set()
+        # IMP-HIGH-005: Callback registration
+        self._callbacks: List[TriggerCallback] = []
+        self._async_callbacks: List[AsyncTriggerCallback] = []
 
     def analyze(
         self,
@@ -554,3 +671,455 @@ class FollowupResearchTrigger:
 
         truly_new = new_findings - prev_findings
         return len(truly_new) / len(new_findings)
+
+    # === IMP-HIGH-005: Callback Registration and Execution ===
+
+    def register_callback(self, callback: TriggerCallback) -> None:
+        """Register a synchronous callback for trigger execution.
+
+        IMP-HIGH-005: Callbacks are invoked when `execute_triggers()` is called.
+        Each callback receives a FollowupTrigger and should return optional
+        result data (e.g., research findings).
+
+        Args:
+            callback: Function that takes a FollowupTrigger and returns
+                     optional Dict with result data.
+
+        Example:
+            ```python
+            def handle_research(trigger: FollowupTrigger) -> Optional[Dict]:
+                # Perform research based on trigger.research_plan
+                return {"findings": [...], "confidence": 0.8}
+
+            trigger.register_callback(handle_research)
+            ```
+        """
+        if callback not in self._callbacks:
+            self._callbacks.append(callback)
+            logger.debug(f"[IMP-HIGH-005] Registered callback (total: {len(self._callbacks)})")
+
+    def register_async_callback(self, callback: AsyncTriggerCallback) -> None:
+        """Register an asynchronous callback for trigger execution.
+
+        IMP-HIGH-005: Async callbacks are invoked when `execute_triggers_async()`
+        is called. They enable concurrent research execution.
+
+        Args:
+            callback: Async function that takes a FollowupTrigger and returns
+                     optional Dict with result data.
+
+        Example:
+            ```python
+            async def handle_research_async(trigger: FollowupTrigger) -> Optional[Dict]:
+                # Perform async research
+                result = await research_orchestrator.execute(trigger.research_plan)
+                return {"findings": result.findings}
+
+            trigger.register_async_callback(handle_research_async)
+            ```
+        """
+        if callback not in self._async_callbacks:
+            self._async_callbacks.append(callback)
+            logger.debug(
+                f"[IMP-HIGH-005] Registered async callback "
+                f"(total: {len(self._async_callbacks)})"
+            )
+
+    def unregister_callback(self, callback: TriggerCallback) -> bool:
+        """Unregister a synchronous callback.
+
+        Args:
+            callback: The callback to unregister
+
+        Returns:
+            True if callback was found and removed, False otherwise
+        """
+        try:
+            self._callbacks.remove(callback)
+            logger.debug(
+                f"[IMP-HIGH-005] Unregistered callback (remaining: {len(self._callbacks)})"
+            )
+            return True
+        except ValueError:
+            return False
+
+    def unregister_async_callback(self, callback: AsyncTriggerCallback) -> bool:
+        """Unregister an asynchronous callback.
+
+        Args:
+            callback: The async callback to unregister
+
+        Returns:
+            True if callback was found and removed, False otherwise
+        """
+        try:
+            self._async_callbacks.remove(callback)
+            logger.debug(
+                f"[IMP-HIGH-005] Unregistered async callback "
+                f"(remaining: {len(self._async_callbacks)})"
+            )
+            return True
+        except ValueError:
+            return False
+
+    def get_callback_count(self) -> int:
+        """Get total number of registered callbacks (sync + async).
+
+        Returns:
+            Total callback count
+        """
+        return len(self._callbacks) + len(self._async_callbacks)
+
+    def execute_triggers(
+        self,
+        triggers: List[FollowupTrigger],
+        stop_on_failure: bool = False,
+    ) -> TriggerExecutionResult:
+        """Execute all registered callbacks for the given triggers.
+
+        IMP-HIGH-005: Invokes all registered synchronous callbacks for each
+        trigger. Results are tracked and triggers are marked as addressed
+        upon successful execution.
+
+        Args:
+            triggers: List of triggers to execute callbacks for
+            stop_on_failure: If True, stop execution on first failure
+
+        Returns:
+            TriggerExecutionResult with execution summary and results
+
+        Example:
+            ```python
+            result = trigger.analyze(analysis_results)
+            if result.should_research:
+                exec_result = trigger.execute_triggers(result.selected_triggers)
+                print(f"Executed {exec_result.triggers_executed} triggers")
+            ```
+        """
+        import time
+
+        start_time = time.time()
+        callback_results: List[CallbackResult] = []
+        integrated_findings: List[Dict[str, Any]] = []
+        successful = 0
+        failed = 0
+
+        if not self._callbacks:
+            logger.warning("[IMP-HIGH-005] No callbacks registered for execution")
+            return TriggerExecutionResult(
+                triggers_executed=0,
+                callbacks_invoked=0,
+                successful_executions=0,
+                failed_executions=0,
+                total_execution_time_ms=0,
+            )
+
+        logger.info(
+            f"[IMP-HIGH-005] Executing {len(self._callbacks)} callbacks "
+            f"for {len(triggers)} triggers"
+        )
+
+        for trigger in triggers:
+            if trigger.trigger_id in self._addressed_triggers:
+                logger.debug(
+                    f"[IMP-HIGH-005] Skipping already addressed trigger: {trigger.trigger_id}"
+                )
+                continue
+
+            for callback in self._callbacks:
+                cb_start = time.time()
+                try:
+                    result_data = callback(trigger)
+                    cb_elapsed = int((time.time() - cb_start) * 1000)
+
+                    cb_result = CallbackResult(
+                        trigger_id=trigger.trigger_id,
+                        success=True,
+                        result_data=result_data,
+                        execution_time_ms=cb_elapsed,
+                    )
+                    callback_results.append(cb_result)
+                    trigger.mark_executed(cb_result)
+
+                    if result_data:
+                        integrated_findings.append(result_data)
+
+                    successful += 1
+                    self._addressed_triggers.add(trigger.trigger_id)
+
+                    logger.debug(
+                        f"[IMP-HIGH-005] Callback executed successfully for "
+                        f"{trigger.trigger_id} ({cb_elapsed}ms)"
+                    )
+
+                except Exception as e:
+                    cb_elapsed = int((time.time() - cb_start) * 1000)
+                    cb_result = CallbackResult(
+                        trigger_id=trigger.trigger_id,
+                        success=False,
+                        error_message=str(e),
+                        execution_time_ms=cb_elapsed,
+                    )
+                    callback_results.append(cb_result)
+                    trigger.mark_executed(cb_result)
+                    failed += 1
+
+                    logger.warning(f"[IMP-HIGH-005] Callback failed for {trigger.trigger_id}: {e}")
+
+                    if stop_on_failure:
+                        logger.info(
+                            "[IMP-HIGH-005] Stopping execution due to failure "
+                            "(stop_on_failure=True)"
+                        )
+                        break
+
+            if stop_on_failure and failed > 0:
+                break
+
+        total_time_ms = int((time.time() - start_time) * 1000)
+
+        result = TriggerExecutionResult(
+            triggers_executed=len(triggers),
+            callbacks_invoked=len(callback_results),
+            successful_executions=successful,
+            failed_executions=failed,
+            total_execution_time_ms=total_time_ms,
+            callback_results=callback_results,
+            integrated_findings=integrated_findings,
+        )
+
+        logger.info(
+            f"[IMP-HIGH-005] Execution complete: {successful} successful, "
+            f"{failed} failed, {total_time_ms}ms total"
+        )
+
+        return result
+
+    async def execute_triggers_async(
+        self,
+        triggers: List[FollowupTrigger],
+        max_concurrent: int = 3,
+        stop_on_failure: bool = False,
+    ) -> TriggerExecutionResult:
+        """Execute all registered async callbacks for the given triggers.
+
+        IMP-HIGH-005: Invokes all registered asynchronous callbacks concurrently,
+        up to max_concurrent at a time. Enables parallel research execution.
+
+        Args:
+            triggers: List of triggers to execute callbacks for
+            max_concurrent: Maximum number of concurrent callback executions
+            stop_on_failure: If True, stop execution on first failure
+
+        Returns:
+            TriggerExecutionResult with execution summary and results
+
+        Example:
+            ```python
+            result = trigger.analyze(analysis_results)
+            if result.should_research:
+                exec_result = await trigger.execute_triggers_async(
+                    result.selected_triggers,
+                    max_concurrent=5
+                )
+                print(f"Executed {exec_result.triggers_executed} triggers")
+            ```
+        """
+        import time
+
+        start_time = time.time()
+        callback_results: List[CallbackResult] = []
+        integrated_findings: List[Dict[str, Any]] = []
+        successful = 0
+        failed = 0
+
+        # Use both sync and async callbacks
+        all_callbacks = self._callbacks + self._async_callbacks
+
+        if not all_callbacks:
+            logger.warning("[IMP-HIGH-005] No callbacks registered for async execution")
+            return TriggerExecutionResult(
+                triggers_executed=0,
+                callbacks_invoked=0,
+                successful_executions=0,
+                failed_executions=0,
+                total_execution_time_ms=0,
+            )
+
+        logger.info(
+            f"[IMP-HIGH-005] Executing {len(all_callbacks)} callbacks "
+            f"for {len(triggers)} triggers (max_concurrent={max_concurrent})"
+        )
+
+        # Create semaphore for concurrency control
+        semaphore = asyncio.Semaphore(max_concurrent)
+
+        async def execute_single(
+            trigger: FollowupTrigger, callback: Union[TriggerCallback, AsyncTriggerCallback]
+        ) -> CallbackResult:
+            """Execute a single callback with semaphore control."""
+            async with semaphore:
+                cb_start = time.time()
+                try:
+                    # Check if callback is async
+                    if asyncio.iscoroutinefunction(callback):
+                        result_data = await callback(trigger)
+                    else:
+                        # Run sync callback in executor
+                        loop = asyncio.get_event_loop()
+                        result_data = await loop.run_in_executor(None, callback, trigger)
+
+                    cb_elapsed = int((time.time() - cb_start) * 1000)
+
+                    return CallbackResult(
+                        trigger_id=trigger.trigger_id,
+                        success=True,
+                        result_data=result_data,
+                        execution_time_ms=cb_elapsed,
+                    )
+
+                except Exception as e:
+                    cb_elapsed = int((time.time() - cb_start) * 1000)
+                    return CallbackResult(
+                        trigger_id=trigger.trigger_id,
+                        success=False,
+                        error_message=str(e),
+                        execution_time_ms=cb_elapsed,
+                    )
+
+        # Execute all trigger-callback combinations
+        tasks = []
+        for trigger in triggers:
+            if trigger.trigger_id in self._addressed_triggers:
+                logger.debug(
+                    f"[IMP-HIGH-005] Skipping already addressed trigger: {trigger.trigger_id}"
+                )
+                continue
+
+            for callback in all_callbacks:
+                tasks.append((trigger, execute_single(trigger, callback)))
+
+        # Gather results
+        should_stop = False
+        for trigger, task in tasks:
+            if should_stop:
+                break
+
+            try:
+                result = await task
+                callback_results.append(result)
+                trigger.mark_executed(result)
+
+                if result.success:
+                    successful += 1
+                    self._addressed_triggers.add(trigger.trigger_id)
+                    if result.result_data:
+                        integrated_findings.append(result.result_data)
+                else:
+                    failed += 1
+                    if stop_on_failure:
+                        logger.info("[IMP-HIGH-005] Stopping async execution due to failure")
+                        should_stop = True
+
+            except Exception as e:
+                logger.error(f"[IMP-HIGH-005] Unexpected error in async execution: {e}")
+                failed += 1
+                if stop_on_failure:
+                    should_stop = True
+
+        total_time_ms = int((time.time() - start_time) * 1000)
+
+        result = TriggerExecutionResult(
+            triggers_executed=len(triggers),
+            callbacks_invoked=len(callback_results),
+            successful_executions=successful,
+            failed_executions=failed,
+            total_execution_time_ms=total_time_ms,
+            callback_results=callback_results,
+            integrated_findings=integrated_findings,
+        )
+
+        logger.info(
+            f"[IMP-HIGH-005] Async execution complete: {successful} successful, "
+            f"{failed} failed, {total_time_ms}ms total"
+        )
+
+        return result
+
+    def analyze_and_execute(
+        self,
+        analysis_results: Dict[str, Any],
+        validation_results: Optional[Dict[str, Any]] = None,
+        previous_triggers: Optional[List[FollowupTrigger]] = None,
+    ) -> TriggerAnalysisResult:
+        """Analyze findings and execute callbacks in one operation.
+
+        IMP-HIGH-005: Convenience method that combines `analyze()` and
+        `execute_triggers()` into a single call. Use this for synchronous
+        research triggering in the autonomy loop.
+
+        Args:
+            analysis_results: Results from analysis phase
+            validation_results: Optional validation results
+            previous_triggers: Triggers from previous iteration (for dedup)
+
+        Returns:
+            TriggerAnalysisResult with execution_result populated if
+            callbacks were executed
+        """
+        result = self.analyze(
+            analysis_results=analysis_results,
+            validation_results=validation_results,
+            previous_triggers=previous_triggers,
+        )
+
+        if result.should_research and self._callbacks:
+            logger.info(
+                f"[IMP-HIGH-005] Executing callbacks for "
+                f"{result.triggers_selected} selected triggers"
+            )
+            execution_result = self.execute_triggers(result.selected_triggers)
+            result.execution_result = execution_result
+
+        return result
+
+    async def analyze_and_execute_async(
+        self,
+        analysis_results: Dict[str, Any],
+        validation_results: Optional[Dict[str, Any]] = None,
+        previous_triggers: Optional[List[FollowupTrigger]] = None,
+        max_concurrent: int = 3,
+    ) -> TriggerAnalysisResult:
+        """Analyze findings and execute async callbacks in one operation.
+
+        IMP-HIGH-005: Async version of `analyze_and_execute()` that uses
+        concurrent callback execution.
+
+        Args:
+            analysis_results: Results from analysis phase
+            validation_results: Optional validation results
+            previous_triggers: Triggers from previous iteration (for dedup)
+            max_concurrent: Maximum concurrent callback executions
+
+        Returns:
+            TriggerAnalysisResult with execution_result populated if
+            callbacks were executed
+        """
+        result = self.analyze(
+            analysis_results=analysis_results,
+            validation_results=validation_results,
+            previous_triggers=previous_triggers,
+        )
+
+        if result.should_research and (self._callbacks or self._async_callbacks):
+            logger.info(
+                f"[IMP-HIGH-005] Executing async callbacks for "
+                f"{result.triggers_selected} selected triggers"
+            )
+            execution_result = await self.execute_triggers_async(
+                result.selected_triggers,
+                max_concurrent=max_concurrent,
+            )
+            result.execution_result = execution_result
+
+        return result

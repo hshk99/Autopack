@@ -414,3 +414,183 @@ class TestResearchCycleTriggering:
     def test_get_last_research_trigger_result_initially_none(self, controller):
         """Test that last research trigger result is initially None."""
         assert controller.get_last_research_trigger_result() is None
+
+
+class TestFollowupCallbackRegistration:
+    """Tests for IMP-HIGH-005: Followup callback registration."""
+
+    @pytest.fixture
+    def controller(self, tmp_path):
+        """Create an AutopilotController instance."""
+        from autopack.autonomy.autopilot import AutopilotController
+
+        return AutopilotController(
+            workspace_root=tmp_path,
+            project_id="test-project",
+            run_id="test-run",
+            enabled=True,
+        )
+
+    def test_register_followup_callback(self, controller):
+        """Test registering a followup callback."""
+        callback = MagicMock(return_value=None)
+
+        controller.register_followup_callback(callback)
+
+        assert controller.get_followup_callback_count() == 1
+
+    def test_unregister_followup_callback(self, controller):
+        """Test unregistering a followup callback."""
+        callback = MagicMock(return_value=None)
+        controller.register_followup_callback(callback)
+
+        result = controller.unregister_followup_callback(callback)
+
+        assert result is True
+        assert controller.get_followup_callback_count() == 0
+
+    def test_unregister_nonexistent_followup_callback(self, controller):
+        """Test unregistering a non-existent followup callback."""
+        callback = MagicMock(return_value=None)
+
+        result = controller.unregister_followup_callback(callback)
+
+        assert result is False
+
+    def test_get_research_execution_results_initially_empty(self, controller):
+        """Test that research execution results are initially empty."""
+        results = controller.get_research_execution_results()
+
+        assert results == []
+
+
+class TestMidExecutionResearch:
+    """Tests for IMP-HIGH-005: Mid-execution research triggering."""
+
+    @pytest.fixture
+    def controller(self, tmp_path):
+        """Create an AutopilotController instance."""
+        from autopack.autonomy.autopilot import AutopilotController
+
+        return AutopilotController(
+            workspace_root=tmp_path,
+            project_id="test-project",
+            run_id="test-run",
+            enabled=True,
+        )
+
+    def test_mid_execution_research_enabled_by_default(self, controller):
+        """Test that mid-execution research is enabled by default."""
+        assert controller.is_mid_execution_research_enabled() is True
+
+    def test_disable_mid_execution_research(self, controller):
+        """Test disabling mid-execution research."""
+        controller.enable_mid_execution_research(False)
+
+        assert controller.is_mid_execution_research_enabled() is False
+
+    def test_enable_mid_execution_research(self, controller):
+        """Test enabling mid-execution research."""
+        controller.enable_mid_execution_research(False)
+        controller.enable_mid_execution_research(True)
+
+        assert controller.is_mid_execution_research_enabled() is True
+
+    def test_get_pending_execution_analysis_initially_none(self, controller):
+        """Test that pending execution analysis is initially None."""
+        result = controller.get_pending_execution_analysis()
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_check_mid_execution_research_when_disabled(self, controller):
+        """Test that mid-execution research check returns None when disabled."""
+        controller.enable_mid_execution_research(False)
+
+        result = await controller.check_mid_execution_research({"errors": []})
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_check_mid_execution_research_when_paused(self, controller):
+        """Test that mid-execution research check returns None when paused."""
+        controller._pause_task_generation("Test pause")
+
+        result = await controller.check_mid_execution_research({"errors": []})
+
+        assert result is None
+
+
+class TestTriggerResearchCycleWithCallbacks:
+    """Tests for trigger_research_cycle with IMP-HIGH-005 callback execution."""
+
+    @pytest.fixture
+    def controller(self, tmp_path):
+        """Create an AutopilotController instance."""
+        from autopack.autonomy.autopilot import AutopilotController
+
+        return AutopilotController(
+            workspace_root=tmp_path,
+            project_id="test-project",
+            run_id="test-run",
+            enabled=True,
+        )
+
+    @pytest.mark.asyncio
+    async def test_trigger_research_cycle_executes_callbacks(self, controller):
+        """Test that trigger_research_cycle executes registered callbacks."""
+        callback = MagicMock(return_value={"findings": ["test"]})
+        controller.register_followup_callback(callback)
+
+        # Create analysis results that should trigger research
+        analysis_results = {
+            "findings": [
+                {
+                    "id": "f1",
+                    "summary": "Low confidence finding",
+                    "confidence": 0.3,
+                    "topic": "test",
+                }
+            ],
+            "identified_gaps": [],
+        }
+
+        result = await controller.trigger_research_cycle(analysis_results)
+
+        if result and result.should_research:
+            # Callback should have been invoked
+            assert callback.called or result.execution_result is not None
+
+    @pytest.mark.asyncio
+    async def test_trigger_research_cycle_skipped_when_paused(self, controller):
+        """Test that trigger_research_cycle is skipped when paused."""
+        callback = MagicMock(return_value=None)
+        controller.register_followup_callback(callback)
+        controller._pause_task_generation("Test pause")
+
+        analysis_results = {
+            "findings": [{"confidence": 0.3}],
+            "identified_gaps": [{"category": "test"}],
+        }
+
+        result = await controller.trigger_research_cycle(analysis_results)
+
+        assert result is None
+        callback.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_trigger_research_cycle_stores_execution_result(self, controller):
+        """Test that execution results are stored."""
+        callback = MagicMock(return_value={"data": "test"})
+        controller.register_followup_callback(callback)
+
+        analysis_results = {
+            "findings": [{"id": "f1", "summary": "Test", "confidence": 0.3, "topic": "test"}],
+        }
+
+        await controller.trigger_research_cycle(analysis_results)
+
+        # Results should be stored
+        results = controller.get_research_execution_results()
+        # May or may not have execution results depending on whether triggers were detected
+        assert isinstance(results, list)

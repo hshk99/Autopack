@@ -6,11 +6,15 @@ Validates:
 - Size bounds enforcement
 - Goal drift detection with intention anchor
 - Graceful degradation when intention unavailable
+
+IMP-CLEAN-002: Updated to use IntentionAnchorV2Adapter instead of
+deprecated ProjectIntentionManager.
 """
 
 from unittest.mock import MagicMock, patch
 
 from autopack.intention_wiring import (
+    IntentionAnchorV2Adapter,
     IntentionContextInjector,
     IntentionGoalDriftDetector,
     inject_intention_into_prompt,
@@ -32,51 +36,51 @@ class TestIntentionContextInjector:
 
     def test_get_intention_context_with_cache(self):
         """Test that context is cached after first retrieval."""
-        mock_manager = MagicMock()
-        mock_manager.get_intention_context.return_value = "Test intention context"
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = "Test intention context"
 
         injector = IntentionContextInjector(
             run_id="test-run",
             project_id="test-project",
         )
-        injector._intention_manager = mock_manager
+        injector._intention_adapter = mock_adapter
 
         # First call
         context1 = injector.get_intention_context()
         assert "Test intention context" in context1
-        assert mock_manager.get_intention_context.call_count == 1
+        assert mock_adapter.get_intention_context.call_count == 1
 
         # Second call should use cache
         context2 = injector.get_intention_context()
         assert context1 == context2
-        assert mock_manager.get_intention_context.call_count == 1  # Not called again
+        assert mock_adapter.get_intention_context.call_count == 1  # Not called again
 
     def test_get_intention_context_respects_max_chars(self):
         """Test that context is bounded by max_chars."""
         long_context = "x" * 10000
 
-        mock_manager = MagicMock()
-        mock_manager.get_intention_context.return_value = long_context
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = long_context
 
         injector = IntentionContextInjector(
             run_id="test-run",
             project_id="test-project",
         )
-        injector._intention_manager = mock_manager
+        injector._intention_adapter = mock_adapter
 
         context = injector.get_intention_context(max_chars=1000)
         assert len(context) <= 1000
 
     def test_get_intention_context_with_header(self):
         """Test context formatting with header."""
-        mock_manager = MagicMock()
-        mock_manager.get_intention_context.return_value = "Test intention"
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = "Test intention"
 
         injector = IntentionContextInjector(
             run_id="test-run",
             project_id="test-project",
         )
-        injector._intention_manager = mock_manager
+        injector._intention_adapter = mock_adapter
 
         context = injector.get_intention_context(include_header=True)
         assert "Project Intention Context" in context
@@ -84,14 +88,14 @@ class TestIntentionContextInjector:
 
     def test_get_intention_context_without_header(self):
         """Test context without formatting header."""
-        mock_manager = MagicMock()
-        mock_manager.get_intention_context.return_value = "Test intention"
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = "Test intention"
 
         injector = IntentionContextInjector(
             run_id="test-run",
             project_id="test-project",
         )
-        injector._intention_manager = mock_manager
+        injector._intention_adapter = mock_adapter
 
         context = injector.get_intention_context(include_header=False)
         assert "Project Intention Context" not in context
@@ -99,28 +103,28 @@ class TestIntentionContextInjector:
 
     def test_get_intention_context_unavailable(self):
         """Test graceful handling when intention unavailable."""
-        mock_manager = MagicMock()
-        mock_manager.get_intention_context.return_value = ""
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = ""
 
         injector = IntentionContextInjector(
             run_id="test-run",
             project_id="test-project",
         )
-        injector._intention_manager = mock_manager
+        injector._intention_adapter = mock_adapter
 
         context = injector.get_intention_context()
         assert context == ""
 
     def test_inject_into_manifest_prompt(self):
         """Test injection into manifest generation prompt."""
-        mock_manager = MagicMock()
-        mock_manager.get_intention_context.return_value = "Build a REST API"
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = "Build a REST API"
 
         injector = IntentionContextInjector(
             run_id="test-run",
             project_id="test-project",
         )
-        injector._intention_manager = mock_manager
+        injector._intention_adapter = mock_adapter
 
         base_prompt = "Generate implementation manifest for:"
         enhanced = injector.inject_into_manifest_prompt(base_prompt)
@@ -130,14 +134,14 @@ class TestIntentionContextInjector:
 
     def test_inject_into_builder_prompt(self):
         """Test injection into builder phase prompt."""
-        mock_manager = MagicMock()
-        mock_manager.get_intention_context.return_value = "Build auth system"
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = "Build auth system"
 
         injector = IntentionContextInjector(
             run_id="test-run",
             project_id="test-project",
         )
-        injector._intention_manager = mock_manager
+        injector._intention_adapter = mock_adapter
 
         base_prompt = "Implement the following changes:"
         enhanced = injector.inject_into_builder_prompt(
@@ -153,14 +157,14 @@ class TestIntentionContextInjector:
 
     def test_inject_into_doctor_prompt(self):
         """Test injection into doctor/recovery prompt."""
-        mock_manager = MagicMock()
-        mock_manager.get_intention_context.return_value = "Build auth system"
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = "Build auth system"
 
         injector = IntentionContextInjector(
             run_id="test-run",
             project_id="test-project",
         )
-        injector._intention_manager = mock_manager
+        injector._intention_adapter = mock_adapter
 
         base_prompt = "Suggest fix for error:"
         error_context = "ImportError: No module named 'jwt'"
@@ -174,14 +178,14 @@ class TestIntentionContextInjector:
 
     def test_injection_without_intention(self):
         """Test that injection gracefully handles missing intention."""
-        mock_manager = MagicMock()
-        mock_manager.get_intention_context.return_value = ""
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = ""
 
         injector = IntentionContextInjector(
             run_id="test-run",
             project_id="test-project",
         )
-        injector._intention_manager = mock_manager
+        injector._intention_adapter = mock_adapter
 
         base_prompt = "Generate manifest"
 
@@ -205,14 +209,14 @@ class TestIntentionGoalDriftDetector:
 
     def test_check_drift_without_intention(self):
         """Test drift detection when no intention available."""
-        mock_intention_manager = MagicMock()
-        mock_intention_manager.get_intention_context.return_value = ""
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = ""
 
         detector = IntentionGoalDriftDetector(
             run_id="test-run",
             project_id="test-project",
         )
-        detector.intention_manager = mock_intention_manager
+        detector.intention_manager = mock_adapter
 
         # Mock goal_drift.check_goal_drift to return aligned result
         with patch("autopack.intention_wiring.goal_drift.check_goal_drift") as mock_check:
@@ -235,14 +239,14 @@ class TestIntentionGoalDriftDetector:
         Support login and logout endpoints.
         """
 
-        mock_intention_manager = MagicMock()
-        mock_intention_manager.get_intention_context.return_value = intention_text
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = intention_text
 
         detector = IntentionGoalDriftDetector(
             run_id="test-run",
             project_id="test-project",
         )
-        detector.intention_manager = mock_intention_manager
+        detector.intention_manager = mock_adapter
 
         # Mock goal_drift.check_goal_drift to return aligned result
         with patch("autopack.intention_wiring.goal_drift.check_goal_drift") as mock_check:
@@ -268,14 +272,14 @@ class TestIntentionGoalDriftDetector:
         Support login and logout endpoints.
         """
 
-        mock_intention_manager = MagicMock()
-        mock_intention_manager.get_intention_context.return_value = intention_text
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = intention_text
 
         detector = IntentionGoalDriftDetector(
             run_id="test-run",
             project_id="test-project",
         )
-        detector.intention_manager = mock_intention_manager
+        detector.intention_manager = mock_adapter
 
         # Mock goal_drift.check_goal_drift to return aligned result (for run goal)
         with patch("autopack.intention_wiring.goal_drift.check_goal_drift") as mock_check:
@@ -295,14 +299,14 @@ class TestIntentionGoalDriftDetector:
 
     def test_check_drift_combined_warning(self):
         """Test that warnings are combined from both detectors."""
-        mock_intention_manager = MagicMock()
-        mock_intention_manager.get_intention_context.return_value = "Build auth"
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = "Build auth"
 
         detector = IntentionGoalDriftDetector(
             run_id="test-run",
             project_id="test-project",
         )
-        detector.intention_manager = mock_intention_manager
+        detector.intention_manager = mock_adapter
 
         # Mock goal_drift.check_goal_drift to return drift detected
         with patch("autopack.intention_wiring.goal_drift.check_goal_drift") as mock_check:
@@ -324,11 +328,13 @@ class TestConvenienceFunction:
 
     def test_inject_intention_manifest_type(self):
         """Test injection with manifest prompt type."""
-        mock_manager = MagicMock()
-        mock_manager.get_intention_context.return_value = "Test intention"
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = "Test intention"
 
-        with patch("autopack.intention_wiring.ProjectIntentionManager") as mock_mgr_class:
-            mock_mgr_class.return_value = mock_manager
+        with patch(
+            "autopack.intention_wiring.IntentionAnchorV2Adapter"
+        ) as mock_adapter_class:
+            mock_adapter_class.return_value = mock_adapter
 
             enhanced = inject_intention_into_prompt(
                 prompt="Base prompt",
@@ -342,11 +348,13 @@ class TestConvenienceFunction:
 
     def test_inject_intention_builder_type(self):
         """Test injection with builder prompt type."""
-        mock_manager = MagicMock()
-        mock_manager.get_intention_context.return_value = "Test intention"
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = "Test intention"
 
-        with patch("autopack.intention_wiring.ProjectIntentionManager") as mock_mgr_class:
-            mock_mgr_class.return_value = mock_manager
+        with patch(
+            "autopack.intention_wiring.IntentionAnchorV2Adapter"
+        ) as mock_adapter_class:
+            mock_adapter_class.return_value = mock_adapter
 
             enhanced = inject_intention_into_prompt(
                 prompt="Base prompt",
@@ -362,11 +370,13 @@ class TestConvenienceFunction:
 
     def test_inject_intention_doctor_type(self):
         """Test injection with doctor prompt type."""
-        mock_manager = MagicMock()
-        mock_manager.get_intention_context.return_value = "Test intention"
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = "Test intention"
 
-        with patch("autopack.intention_wiring.ProjectIntentionManager") as mock_mgr_class:
-            mock_mgr_class.return_value = mock_manager
+        with patch(
+            "autopack.intention_wiring.IntentionAnchorV2Adapter"
+        ) as mock_adapter_class:
+            mock_adapter_class.return_value = mock_adapter
 
             enhanced = inject_intention_into_prompt(
                 prompt="Base prompt",
@@ -381,11 +391,13 @@ class TestConvenienceFunction:
 
     def test_inject_intention_general_type(self):
         """Test injection with general prompt type."""
-        mock_manager = MagicMock()
-        mock_manager.get_intention_context.return_value = "Test intention"
+        mock_adapter = MagicMock()
+        mock_adapter.get_intention_context.return_value = "Test intention"
 
-        with patch("autopack.intention_wiring.ProjectIntentionManager") as mock_mgr_class:
-            mock_mgr_class.return_value = mock_manager
+        with patch(
+            "autopack.intention_wiring.IntentionAnchorV2Adapter"
+        ) as mock_adapter_class:
+            mock_adapter_class.return_value = mock_adapter
 
             enhanced = inject_intention_into_prompt(
                 prompt="Base prompt",

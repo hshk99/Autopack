@@ -1,6 +1,5 @@
 """Tests for Package Scanner."""
 
-from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

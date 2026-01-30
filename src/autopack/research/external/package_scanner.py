@@ -364,7 +364,6 @@ class PackageScanner:
             if response.status_code == 200:
                 data = response.json()
                 info = data.get("info", {})
-                last_update = data.get("last_serial")
 
                 # Parse date if available
                 last_updated = None

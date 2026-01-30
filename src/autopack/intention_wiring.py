@@ -12,19 +12,142 @@ Key principles:
 - Stable formatting
 - Bounded embedding calls (respect caps)
 - Goal drift detection includes intention anchor
+
+IMP-CLEAN-002: Updated to use IntentionAnchorV2 instead of deprecated
+ProjectIntentionManager (v1 schema).
 """
 
+import json
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .file_layout import RunFileLayout
+from .intention_anchor.v2 import IntentionAnchorV2
 from .memory import goal_drift
 from .memory.memory_service import MemoryService
-from .project_intention import ProjectIntentionManager
 
 logger = logging.getLogger(__name__)
 
 # Intention context size cap for prompt injection
 MAX_INTENTION_CONTEXT_CHARS = 4096
+
+
+class IntentionAnchorV2Adapter:
+    """Adapter to provide intention context from IntentionAnchorV2.
+
+    IMP-CLEAN-002: This replaces the deprecated ProjectIntentionManager,
+    providing a compatible get_intention_context() interface for v2 anchors.
+    """
+
+    def __init__(
+        self,
+        run_id: str,
+        project_id: Optional[str] = None,
+        memory_service: Optional[MemoryService] = None,
+    ):
+        """Initialize the v2 anchor adapter.
+
+        Args:
+            run_id: Run identifier
+            project_id: Project identifier (auto-detected if not provided)
+            memory_service: Memory service instance (optional, for future use)
+        """
+        self.run_id = run_id
+        self.layout = RunFileLayout(run_id=run_id, project_id=project_id)
+        self.project_id = self.layout.project_id
+        self.memory = memory_service
+        self._cached_anchor: Optional[IntentionAnchorV2] = None
+
+    def _get_intention_v2_json_path(self) -> Path:
+        """Get path to IntentionAnchorV2 JSON artifact."""
+        return self.layout.base_dir / "intention" / "intention_anchor_v2.json"
+
+    def _load_anchor(self) -> Optional[IntentionAnchorV2]:
+        """Load IntentionAnchorV2 from disk.
+
+        Returns:
+            IntentionAnchorV2 if found, None otherwise
+        """
+        if self._cached_anchor is not None:
+            return self._cached_anchor
+
+        v2_json_path = self._get_intention_v2_json_path()
+        if not v2_json_path.exists():
+            logger.debug(f"[IntentionAnchorV2Adapter] No v2 artifact found: {v2_json_path}")
+            return None
+
+        try:
+            data = json.loads(v2_json_path.read_text(encoding="utf-8"))
+            self._cached_anchor = IntentionAnchorV2.from_json_dict(data)
+            logger.debug(
+                f"[IntentionAnchorV2Adapter] Loaded v2 anchor: "
+                f"project_id={self._cached_anchor.project_id}"
+            )
+            return self._cached_anchor
+        except Exception as exc:
+            logger.warning(f"[IntentionAnchorV2Adapter] Failed to load v2 anchor: {exc}")
+            return None
+
+    def get_intention_context(self, max_chars: int = 2048) -> str:
+        """Get intention context for prompt injection.
+
+        Extracts key intention information from IntentionAnchorV2 and formats
+        it for prompt injection, bounded by max_chars.
+
+        Args:
+            max_chars: Maximum characters to return
+
+        Returns:
+            Formatted intention context (empty string if unavailable)
+        """
+        anchor = self._load_anchor()
+        if not anchor:
+            logger.debug("[IntentionAnchorV2Adapter] No intention context available")
+            return ""
+
+        # Build context from v2 anchor sections
+        lines = ["# Project Intention (v2)", ""]
+
+        # North Star section
+        if anchor.pivot_intentions.north_star:
+            ns = anchor.pivot_intentions.north_star
+            if ns.desired_outcomes:
+                lines.append("## Desired Outcomes")
+                for outcome in ns.desired_outcomes[:5]:
+                    lines.append(f"- {outcome[:150]}")
+                lines.append("")
+
+            if ns.non_goals:
+                lines.append("## Non-Goals")
+                for ng in ns.non_goals[:3]:
+                    lines.append(f"- {ng[:150]}")
+                lines.append("")
+
+        # Safety/Risk section (abbreviated)
+        if anchor.pivot_intentions.safety_risk:
+            sr = anchor.pivot_intentions.safety_risk
+            if sr.never_allow:
+                lines.append("## Safety Constraints")
+                for constraint in sr.never_allow[:3]:
+                    lines.append(f"- NEVER: {constraint[:100]}")
+                lines.append("")
+
+        # Evidence/Verification section (abbreviated)
+        if anchor.pivot_intentions.evidence_verification:
+            ev = anchor.pivot_intentions.evidence_verification
+            if ev.hard_blocks:
+                lines.append("## Hard Blocks")
+                for block in ev.hard_blocks[:3]:
+                    lines.append(f"- {block[:100]}")
+                lines.append("")
+
+        # Join and enforce cap
+        context = "\n".join(lines)
+        if len(context) > max_chars:
+            context = context[: max_chars - 20] + "\n\n[truncated...]"
+
+        return context
 
 
 class IntentionContextInjector:
@@ -53,22 +176,26 @@ class IntentionContextInjector:
         self.project_id = project_id
         self.memory = memory_service
 
-        # Lazy-initialized intention manager
-        self._intention_manager: Optional[ProjectIntentionManager] = None
+        # Lazy-initialized intention adapter
+        self._intention_adapter: Optional[IntentionAnchorV2Adapter] = None
 
         # Cached context (loaded once per run)
         self._cached_context: Optional[str] = None
 
     @property
-    def intention_manager(self) -> ProjectIntentionManager:
-        """Lazy-load intention manager."""
-        if self._intention_manager is None:
-            self._intention_manager = ProjectIntentionManager(
+    def intention_manager(self) -> IntentionAnchorV2Adapter:
+        """Lazy-load intention adapter.
+
+        Note: Property kept as 'intention_manager' for backward compatibility
+        with existing tests and code that reference this property.
+        """
+        if self._intention_adapter is None:
+            self._intention_adapter = IntentionAnchorV2Adapter(
                 run_id=self.run_id,
                 project_id=self.project_id,
                 memory_service=self.memory,
             )
-        return self._intention_manager
+        return self._intention_adapter
 
     def get_intention_context(
         self,
@@ -88,7 +215,7 @@ class IntentionContextInjector:
         if self._cached_context is not None:
             context = self._cached_context
         else:
-            # Retrieve from manager (tries disk, then memory)
+            # Retrieve from adapter (tries disk)
             context = self.intention_manager.get_intention_context(max_chars=max_chars)
             self._cached_context = context
 
@@ -214,8 +341,8 @@ class IntentionGoalDriftDetector:
         self.project_id = project_id
         self.memory = memory_service
 
-        # Intention manager for anchor retrieval
-        self.intention_manager = ProjectIntentionManager(
+        # Intention adapter for anchor retrieval
+        self.intention_manager = IntentionAnchorV2Adapter(
             run_id=run_id,
             project_id=project_id,
             memory_service=memory_service,

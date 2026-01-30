@@ -21,15 +21,28 @@ import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Protocol, Tuple, runtime_checkable
 
 from .memory.memory_service import MemoryService
 from .pattern_matcher import PatternMatcher
 from .preflight_validator import PreflightValidator
-from .project_intention import ProjectIntentionManager
 from .repo_scanner import RepoScanner
 
 logger = logging.getLogger(__name__)
+
+
+@runtime_checkable
+class IntentionContextProvider(Protocol):
+    """Protocol for intention context providers.
+
+    IMP-CLEAN-002: This replaces the deprecated ProjectIntentionManager type hint.
+    Any object implementing get_intention_context() can be used.
+    """
+
+    def get_intention_context(self, max_chars: int = 2048) -> str:
+        """Get intention context for prompt injection."""
+        ...
+
 
 # Normalization defaults
 DEFAULT_TOKEN_CAP = 420000
@@ -68,7 +81,7 @@ class PlanNormalizer:
         run_id: str,
         project_id: Optional[str] = None,
         memory_service: Optional[MemoryService] = None,
-        intention_manager: Optional[ProjectIntentionManager] = None,
+        intention_manager: Optional[IntentionContextProvider] = None,
     ):
         """Initialize plan normalizer.
 
@@ -77,7 +90,8 @@ class PlanNormalizer:
             run_id: Run identifier
             project_id: Project identifier (optional)
             memory_service: Memory service for semantic guidance (optional)
-            intention_manager: Project intention manager (optional)
+            intention_manager: Intention context provider (optional). Any object with
+                get_intention_context(max_chars: int) -> str method.
         """
         self.workspace = Path(workspace)
         self.run_id = run_id
@@ -532,7 +546,7 @@ def normalize_plan(
     raw_plan: str,
     project_id: Optional[str] = None,
     memory_service: Optional[MemoryService] = None,
-    intention_manager: Optional[ProjectIntentionManager] = None,
+    intention_manager: Optional[IntentionContextProvider] = None,
     run_config: Optional[Dict[str, Any]] = None,
 ) -> NormalizationResult:
     """Convenience function: normalize unstructured plan.
@@ -543,7 +557,8 @@ def normalize_plan(
         raw_plan: Unstructured plan text
         project_id: Optional project identifier
         memory_service: Optional memory service
-        intention_manager: Optional intention manager
+        intention_manager: Optional intention context provider (any object with
+            get_intention_context(max_chars: int) -> str method)
         run_config: Optional run configuration overrides
 
     Returns:

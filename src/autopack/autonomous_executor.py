@@ -68,6 +68,8 @@ from autopack.executor.context_loader import ExecutorContextLoader
 # PR-EXE-6: Heuristic context loader extraction
 from autopack.executor.context_loading_heuristic import (
     HeuristicContextLoader, get_default_priority_files)
+from autopack.executor.deliverables_contract import DeliverablesContractBuilder
+from autopack.executor.doctor_integration import DoctorIntegration
 # PR-EXE-10: Error analysis and learning pipeline
 from autopack.executor.error_analysis import ErrorAnalyzer
 from autopack.executor.execute_fix_handler import ExecuteFixHandler
@@ -76,6 +78,7 @@ from autopack.executor.goal_anchoring import GoalAnchoringManager
 # IMP-MAINT-001: Additional module extractions for executor split
 from autopack.executor.learning_context_manager import LearningContextManager
 from autopack.executor.learning_pipeline import LearningPipeline
+from autopack.executor.notification_helpers import NotificationHelper
 from autopack.executor.phase_approach_reviser import PhaseApproachReviser
 # PR-EXE-9: Phase state persistence manager
 from autopack.executor.phase_state_manager import PhaseStateManager
@@ -92,6 +95,8 @@ from autopack.executor.scope_context_validator import ScopeContextValidator
 from autopack.executor.scoped_context_loader import ScopedContextLoader
 from autopack.executor.sot_manager import SOTManager
 from autopack.executor.stale_phase_handler import StalePhaseHandler
+# IMP-GOD-001: Additional module extractions to reduce god file
+from autopack.executor.startup_validation import StartupValidator
 from autopack.executor.state_manager import ExecutorStateManager
 from autopack.executor_lock import ExecutorLockManager  # BUILD-048-T1
 from autopack.file_layout import RunFileLayout
@@ -251,8 +256,15 @@ class AutonomousExecutor:
         self.anthropic_key = anthropic_key or os.getenv("ANTHROPIC_API_KEY")
         self.openai_key = openai_key or os.getenv("OPENAI_API_KEY")
 
-        # IMP-R06: Enhanced API key validation
-        self._validate_api_keys()
+        # IMP-GOD-001: Initialize startup validator for API key validation and startup checks
+        self.startup_validator = StartupValidator(
+            glm_key=self.glm_key,
+            anthropic_key=self.anthropic_key,
+            openai_key=self.openai_key,
+        )
+
+        # IMP-R06: Enhanced API key validation (delegated to StartupValidator)
+        self.startup_validator.validate_api_keys()
 
         # Initialize error recovery system
         self.error_recovery = ErrorRecoverySystem()
@@ -311,7 +323,8 @@ class AutonomousExecutor:
         )
 
         # Load Doctor execute_fix opt-in from models.yaml (user-controlled)
-        self._allow_execute_fix = self._load_execute_fix_flag(config_path)
+        # IMP-GOD-001: Delegated to StartupValidator
+        self._allow_execute_fix = self.startup_validator.load_execute_fix_flag(config_path)
         logger.info(f"Doctor execute_fix enabled: {self._allow_execute_fix}")
 
         # NEW: Initialize FileSizeTelemetry (per IMPLEMENTATION_PLAN2.md Phase 2.1)
@@ -364,7 +377,8 @@ class AutonomousExecutor:
 
         # Run file layout + diagnostics directories
         # Project ID is auto-detected from run_id prefix by RunFileLayout
-        self.project_id = self._detect_project_id(self.run_id)
+        # IMP-GOD-001: Delegated to StartupValidator
+        self.project_id = StartupValidator.detect_project_id(self.run_id)
         self.run_layout = RunFileLayout(self.run_id, project_id=self.project_id)
         logger.info(
             f"[FileLayout] Project: {self.project_id}, Family: {self.run_layout.family}, Base: {self.run_layout.base_dir}"
@@ -665,7 +679,8 @@ class AutonomousExecutor:
         self._rules_marker_mtime = None
 
         # Phase 1.4-1.5: Run proactive startup checks (from DEBUG_JOURNAL.md)
-        self._run_startup_checks()
+        # IMP-GOD-001: Delegated to StartupValidator
+        self.startup_validator.run_startup_checks()
 
         # [Phase C5] Create run checkpoint for rollback_run support
         checkpoint_success, checkpoint_error = self._create_run_checkpoint()
@@ -674,7 +689,8 @@ class AutonomousExecutor:
             logger.warning("[RunCheckpoint] Continuing without rollback_run support")
 
         # [GPT_RESPONSE26] Startup validation for token_soft_caps
-        self._validate_config_at_startup()
+        # IMP-GOD-001: Delegated to StartupValidator
+        self.startup_validator.validate_config_at_startup()
 
         # BUILD-123v2: Initialize Manifest Generator for deterministic scope generation
         autopack_internal_mode = self.run_type in [
@@ -745,6 +761,19 @@ class AutonomousExecutor:
         logger.info(
             "[PR-EXE-14] Batched deliverables executor initialized - exceeding 5,000 line target!"
         )
+
+        # IMP-GOD-001: Initialize additional helper modules for god file reduction
+        self.doctor_integration = DoctorIntegration(
+            max_doctor_calls_per_phase=self.MAX_DOCTOR_CALLS_PER_PHASE,
+            max_doctor_calls_per_run=self.MAX_DOCTOR_CALLS_PER_RUN,
+            max_doctor_strong_calls_per_run=self.MAX_DOCTOR_STRONG_CALLS_PER_RUN,
+            max_doctor_infra_calls_per_run=self.MAX_DOCTOR_INFRA_CALLS_PER_RUN,
+        )
+        self.deliverables_contract_builder = DeliverablesContractBuilder(
+            get_learning_context_fn=self._get_learning_context_for_phase,
+        )
+        self.notification_helper = NotificationHelper(run_id=self.run_id)
+        logger.info("[IMP-GOD-001] Additional helper modules initialized for god file reduction")
 
     # =========================================================================
     # IMP-REL-015: EXECUTOR CRASH RECOVERY
@@ -1001,199 +1030,15 @@ class AutonomousExecutor:
             auto_apply_low_risk=auto_apply_low_risk,
         )
 
-    def _validate_api_keys(self) -> None:
-        """IMP-R06: Validate API keys before execution.
-
-        Ensures at least one LLM API key is configured and validates format.
-        Prevents execution with invalid/missing API keys.
-
-        Raises:
-            ValueError: If no valid API keys are configured or keys have invalid format
-        """
-        invalid_keys = []
-
-        # Check if at least one key is present
-        if not self.glm_key and not self.anthropic_key and not self.openai_key:
-            raise ValueError(
-                "At least one LLM API key required: GLM_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY"
-            )
-
-        # Validate GLM key format if present
-        if self.glm_key:
-            if not isinstance(self.glm_key, str) or len(self.glm_key.strip()) == 0:
-                invalid_keys.append("GLM_API_KEY (empty or invalid format)")
-            elif len(self.glm_key) < 10:  # Basic length check
-                invalid_keys.append("GLM_API_KEY (suspiciously short)")
-
-        # Validate Anthropic key format if present
-        if self.anthropic_key:
-            if not isinstance(self.anthropic_key, str) or len(self.anthropic_key.strip()) == 0:
-                invalid_keys.append("ANTHROPIC_API_KEY (empty or invalid format)")
-            elif not self.anthropic_key.startswith("sk-"):
-                invalid_keys.append("ANTHROPIC_API_KEY (invalid format - must start with 'sk-')")
-            elif len(self.anthropic_key) < 20:
-                invalid_keys.append("ANTHROPIC_API_KEY (suspiciously short)")
-
-        # Validate OpenAI key format if present
-        if self.openai_key:
-            if not isinstance(self.openai_key, str) or len(self.openai_key.strip()) == 0:
-                invalid_keys.append("OPENAI_API_KEY (empty or invalid format)")
-            elif not self.openai_key.startswith("sk-"):
-                invalid_keys.append("OPENAI_API_KEY (invalid format - must start with 'sk-')")
-            elif len(self.openai_key) < 20:
-                invalid_keys.append("OPENAI_API_KEY (suspiciously short)")
-
-        # Raise error if any keys are invalid
-        if invalid_keys:
-            raise ValueError("Invalid API key(s) detected:\n  - " + "\n  - ".join(invalid_keys))
-
-        # IMP-SEC-002: Log masked credentials for debugging (never log full credentials)
-        configured_keys = []
-        if self.glm_key:
-            configured_keys.append(f"GLM_API_KEY={mask_credential(self.glm_key)}")
-        if self.anthropic_key:
-            configured_keys.append(f"ANTHROPIC_API_KEY={mask_credential(self.anthropic_key)}")
-        if self.openai_key:
-            configured_keys.append(f"OPENAI_API_KEY={mask_credential(self.openai_key)}")
-
-        logger.info(f"API key validation passed. Configured: {', '.join(configured_keys)}")
-
-    def _run_startup_checks(self):
-        """
-        Phase 1.4-1.5: Run proactive startup checks from DEBUG_JOURNAL.md
-
-        This implements the prevention system from ref5.md by applying
-        learned fixes BEFORE errors occur (proactive vs reactive).
-        """
-        from autopack.journal_reader import get_startup_checks
-
-        logger.info("Running proactive startup checks from DEBUG_JOURNAL.md...")
-
-        try:
-            checks = get_startup_checks()
-
-            for check_config in checks:
-                check_name = check_config.get("name")
-                check_fn = check_config.get("check")
-                fix_fn = check_config.get("fix")
-                priority = check_config.get("priority", "MEDIUM")
-                reason = check_config.get("reason", "")
-
-                # Skip placeholder checks (implemented elsewhere)
-                if check_fn == "implemented_in_executor":
-                    continue
-
-                logger.info(f"[{priority}] Checking: {check_name}")
-                logger.info(f"  Reason: {reason}")
-
-                try:
-                    # Run the check
-                    if callable(check_fn):
-                        passed = check_fn()
-                    else:
-                        # Skip non-callable checks
-                        continue
-
-                    if not passed:
-                        logger.warning("  Check FAILED - applying proactive fix...")
-                        if callable(fix_fn):
-                            fix_fn()
-                            logger.info("  Fix applied successfully")
-                        else:
-                            logger.warning("  No fix function available")
-                    else:
-                        logger.info("  Check PASSED")
-
-                except Exception as e:
-                    logger.warning(f"  Startup check failed with error: {e}")
-                    # Continue with other checks even if one fails
-
-        except Exception as e:
-            # Gracefully continue if startup checks system fails
-            logger.warning(f"Startup checks system unavailable: {e}")
-
-        # BUILD-130: Schema validation on startup (fail-fast if schema invalid)
-        try:
-            from autopack.config import get_database_url
-            from autopack.schema_validator import SchemaValidator
-
-            database_url = get_database_url()
-            if database_url:
-                validator = SchemaValidator(database_url)
-                schema_result = validator.validate_on_startup()
-
-                if not schema_result.is_valid:
-                    logger.error("[FATAL] Schema validation failed on startup!")
-                    logger.error(f"[FATAL] Found {len(schema_result.errors)} schema violations")
-                    logger.error("[FATAL] Run: python scripts/break_glass_repair.py diagnose")
-                    raise RuntimeError(
-                        f"Database schema validation failed: {len(schema_result.errors)} violations detected. "
-                        f"Run 'python scripts/break_glass_repair.py diagnose' to see details."
-                    )
-            else:
-                logger.warning(
-                    "[SchemaValidator] No database URL found - skipping schema validation"
-                )
-
-        except ImportError as e:
-            logger.warning(f"[SchemaValidator] Schema validator not available: {e}")
-        except Exception as e:
-            logger.warning(f"[SchemaValidator] Schema validation failed: {e}")
-
-        logger.info("Startup checks complete")
-
-    def _detect_project_id(self, run_id: str) -> str:
-        """Detect project ID from run_id prefix
-
-        Args:
-            run_id: Run identifier (e.g., 'fileorg-country-uk-20251205-132826')
-
-        Returns:
-            Project identifier (e.g., 'file-organizer-app-v1', 'autopack')
-        """
-        if run_id.startswith("fileorg-"):
-            return "file-organizer-app-v1"
-        elif run_id.startswith("backlog-"):
-            return "file-organizer-app-v1"
-        elif run_id.startswith("maintenance-"):
-            return "file-organizer-app-v1"
-        else:
-            return "autopack"
-
-    def _load_execute_fix_flag(self, config_path: Path) -> bool:
-        """
-        Read doctor.allow_execute_fix_global from models.yaml to decide whether
-        Doctor is permitted to run execute_fix during a run.
-
-        Defaults to False on missing/invalid config to stay safe.
-        """
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                config = yaml.safe_load(f) or {}
-            doctor_cfg = config.get("doctor", {}) or {}
-            return bool(doctor_cfg.get("allow_execute_fix_global", False))
-        except Exception as e:  # pragma: no cover - defensive guard
-            logger.warning(f"Failed to load execute_fix flag from {config_path}: {e}")
-            return False
-
-    def _validate_config_at_startup(self):
-        """
-        Run startup validations from config_loader.
-
-        Per GPT_RESPONSE26: Validate token_soft_caps configuration at startup.
-        """
-        try:
-            import yaml
-
-            config_path = Path(__file__).parent.parent.parent / "config" / "models.yaml"
-            if config_path.exists():
-                with open(config_path) as f:
-                    config = yaml.safe_load(f)
-                    from autopack.config_loader import validate_token_soft_caps
-
-                    validate_token_soft_caps(config)
-        except Exception as e:
-            logger.debug(f"[Config] Startup validation skipped: {e}")
+    # =========================================================================
+    # IMP-GOD-001: The following methods have been extracted to StartupValidator
+    # in autopack/executor/startup_validation.py:
+    # - _validate_api_keys -> startup_validator.validate_api_keys()
+    # - _run_startup_checks -> startup_validator.run_startup_checks()
+    # - _detect_project_id -> StartupValidator.detect_project_id()
+    # - _load_execute_fix_flag -> startup_validator.load_execute_fix_flag()
+    # - _validate_config_at_startup -> startup_validator.validate_config_at_startup()
+    # =========================================================================
 
     def _load_project_learning_context(self):
         """
@@ -1297,8 +1142,7 @@ class AutonomousExecutor:
         """
         Build deliverables contract as hard constraint for Builder prompt.
 
-        Per BUILD-050 Phase 1: Extract deliverables from phase scope and format them
-        as non-negotiable requirements BEFORE learning hints.
+        IMP-GOD-001: Delegated to DeliverablesContractBuilder.
 
         Args:
             phase: Phase specification dict
@@ -1307,137 +1151,7 @@ class AutonomousExecutor:
         Returns:
             Formatted deliverables contract string or None if no deliverables specified
         """
-        from os.path import commonpath
-
-        from .deliverables_validator import extract_deliverables_from_scope
-
-        scope = phase.get("scope")
-        if not scope:
-            return None
-
-        # Extract expected deliverables
-        expected_paths = extract_deliverables_from_scope(scope)
-        if not expected_paths:
-            return None
-
-        # Find common path prefix to emphasize structure
-        common_prefix = "/"
-        if len(expected_paths) > 1:
-            try:
-                common_prefix = commonpath(expected_paths)
-            except (ValueError, TypeError):
-                pass  # No common prefix, use root
-
-        # Get forbidden patterns from recent validation failures
-        forbidden_patterns: List[str] = []
-        learning_context = self._get_learning_context_for_phase(phase)
-        run_hints = learning_context.get("run_hints", [])
-
-        for hint in run_hints:
-            hint_text = hint if isinstance(hint, str) else getattr(hint, "hint_text", "")
-            # Extract patterns like "Wrong: path/to/file"
-            if "Wrong:" in hint_text and "→" in hint_text:
-                parts = hint_text.split("Wrong:")
-                if len(parts) > 1:
-                    wrong_part = parts[1].split("→")[0].strip()
-                    if wrong_part and wrong_part not in forbidden_patterns:
-                        forbidden_patterns.append(wrong_part)
-
-            # Also honor explicit "DO NOT create a top-level 'X/'" style hints.
-            # (We use these for repeated deliverables misplacement patterns.)
-            if "DO NOT create" in hint_text and "'" in hint_text:
-                try:
-                    # Example: DO NOT create a top-level 'tracer_bullet/' package.
-                    quoted = hint_text.split("'")[1]
-                    if quoted.endswith("/") and quoted not in forbidden_patterns:
-                        forbidden_patterns.append(quoted)
-                except Exception:
-                    pass
-
-        # Heuristic defaults: if expected paths indicate a specific required root,
-        # explicitly forbid common wrong roots even before we have structured "Wrong:" hints.
-        expected_set = set(expected_paths)
-        if any(p.startswith("src/autopack/research/tracer_bullet/") for p in expected_set):
-            for bad in ("tracer_bullet/", "src/tracer_bullet/", "tests/tracer_bullet/"):
-                if bad not in forbidden_patterns:
-                    forbidden_patterns.append(bad)
-            # Also forbid common "near-miss" placements inside src/autopack/
-            for bad in ("src/autopack/tracer_bullet.py", "src/autopack/tracer_bullet/"):
-                if bad not in forbidden_patterns:
-                    forbidden_patterns.append(bad)
-
-        # Strict allowlist roots derived from expected deliverables.
-        # This is used as a hard constraint in the prompt: Builder must not create files outside these roots.
-        allowed_roots: List[str] = []
-        preferred_roots = [
-            "src/autopack/research/",
-            "src/autopack/cli/",
-            "tests/research/",
-            "docs/research/",
-        ]
-        for r in preferred_roots:
-            if any(p.startswith(r) for p in expected_set) and r not in allowed_roots:
-                allowed_roots.append(r)
-
-        # Build contract
-        contract_parts = []
-        contract_parts.append("=" * 80)
-        contract_parts.append("⚠️  CRITICAL FILE PATH REQUIREMENTS (NON-NEGOTIABLE)")
-        contract_parts.append("=" * 80)
-        contract_parts.append("")
-        contract_parts.append("You MUST create files at these EXACT paths. This is not negotiable.")
-        contract_parts.append("")
-
-        if common_prefix and common_prefix != "/":
-            contract_parts.append(f"📁 All files MUST be under: {common_prefix}/")
-            contract_parts.append("")
-
-        if allowed_roots:
-            contract_parts.append("✅ ALLOWED ROOTS (HARD RULE):")
-            contract_parts.append(
-                "You may ONLY create/modify files under these root prefixes. Creating ANY file outside them will be rejected."
-            )
-            for r in allowed_roots:
-                contract_parts.append(f"   • {r}")
-            contract_parts.append("")
-
-        if forbidden_patterns:
-            contract_parts.append("❌ FORBIDDEN patterns (from previous failed attempts):")
-            for pattern in forbidden_patterns[:3]:  # Show first 3
-                contract_parts.append(f"   • DO NOT use: {pattern}")
-            contract_parts.append("")
-
-        contract_parts.append("✓ REQUIRED file paths:")
-        for path in expected_paths:
-            contract_parts.append(f"   {path}")
-        contract_parts.append("")
-
-        # Chunk 0 core requirement: gold_set.json must be non-empty valid JSON.
-        # We fail fast on empty/invalid JSON before apply (BUILD-070), but also harden the prompt contract here
-        # so the Builder stops emitting empty placeholders.
-        if any(
-            p.endswith("src/autopack/research/evaluation/gold_set.json")
-            or p.endswith("/gold_set.json")
-            for p in expected_set
-        ):
-            contract_parts.append("🧾 JSON DELIVERABLES (HARD RULE):")
-            contract_parts.append(
-                "- `src/autopack/research/evaluation/gold_set.json` MUST be valid, non-empty JSON."
-            )
-            contract_parts.append(
-                "- Minimal acceptable placeholder is `[]` (empty array) — but the file must NOT be blank."
-            )
-            contract_parts.append("- Any empty/invalid JSON will be rejected before patch apply.")
-            contract_parts.append("")
-
-        contract_parts.append("=" * 80)
-        contract_parts.append("")
-
-        logger.info(
-            f"[{phase_id}] Built deliverables contract: {len(expected_paths)} required paths, {len(forbidden_patterns)} forbidden patterns"
-        )
-
-        return "\n".join(contract_parts)
+        return self.deliverables_contract_builder.build_contract(phase, phase_id)
 
     def _mark_rules_updated(self, project_id: str, promoted_count: int):
         """
@@ -2597,10 +2311,7 @@ class AutonomousExecutor:
         """
         Determine if Doctor should be invoked for this failure.
 
-        Per GPT_RESPONSE8 Section 4 (Guardrails):
-        - Only invoke after DOCTOR_MIN_BUILDER_ATTEMPTS failures
-        - Respect per-phase and run-level Doctor call limits
-        - Invoke when health budget is near limit
+        IMP-GOD-001: Delegated to DoctorIntegration.
 
         Args:
             phase_id: Phase identifier
@@ -2610,81 +2321,23 @@ class AutonomousExecutor:
         Returns:
             True if Doctor should be invoked
         """
-        # DBG-014 / BUILD-049 coordination: deliverables validation failures are tactical path-correction
-        # problems that should be handled by the deliverables validator + learning hints loop.
-        #
-        # Invoking Doctor here can trigger re-planning which may introduce conflicting guidance and
-        # destabilize monotonic self-correction (see docs/DBG-014_REPLAN_INTERFERENCE_ANALYSIS.md).
-        #
-        # Defer Doctor until we've exhausted the normal retry budget for this phase.
-        if error_category == "deliverables_validation_failed":
-            try:
-                phase_db = self._get_phase_from_db(phase_id)
-                max_attempts = getattr(phase_db, "max_builder_attempts", None) if phase_db else None
-                if (
-                    isinstance(max_attempts, int)
-                    and max_attempts > 0
-                    and builder_attempts < max_attempts
-                ):
-                    logger.info(
-                        f"[Doctor] Deferring for deliverables validation failure "
-                        f"(attempt {builder_attempts}/{max_attempts}) - allowing learning hints to converge"
-                    )
-                    return False
-            except Exception as e:
-                # Best-effort safety: if DB read fails, still avoid Doctor on deliverables failures.
-                logger.warning(f"[Doctor] Failed to read phase max attempts for {phase_id}: {e}")
-                return False
-
-        is_infra = error_category == "infra_error"
-
-        # Check minimum builder attempts (only for non-infra failures)
-        if not is_infra and builder_attempts < DOCTOR_MIN_BUILDER_ATTEMPTS:
-            logger.debug(
-                f"[Doctor] Not invoking: builder_attempts={builder_attempts} < {DOCTOR_MIN_BUILDER_ATTEMPTS}"
-            )
-            return False
-
-        # Check per-(run, phase) Doctor call limit
-        phase_key = f"{self.run_id}:{phase_id}"
-        phase_doctor_calls = self._doctor_calls_by_phase.get(phase_key, 0)
-        if phase_doctor_calls >= self.MAX_DOCTOR_CALLS_PER_PHASE:
-            logger.info(
-                f"[Doctor] Not invoking: per-phase limit reached "
-                f"({phase_doctor_calls}/{self.MAX_DOCTOR_CALLS_PER_PHASE})"
-            )
-            return False
-
-        # Check run-level Doctor call limit (overall)
-        if self._run_doctor_calls >= self.MAX_DOCTOR_CALLS_PER_RUN:
-            logger.info(
-                f"[Doctor] Not invoking: run-level limit reached "
-                f"({self._run_doctor_calls}/{self.MAX_DOCTOR_CALLS_PER_RUN})"
-            )
-            return False
-
-        # Additional cap for infra-related diagnostics
-        if is_infra and self._run_doctor_infra_calls >= self.MAX_DOCTOR_INFRA_CALLS_PER_RUN:
-            logger.info(
-                f"[Doctor] Not invoking: run-level infra limit reached "
-                f"({self._run_doctor_infra_calls}/{self.MAX_DOCTOR_INFRA_CALLS_PER_RUN})"
-            )
-            return False
-
-        # Check health budget - invoke Doctor if near limit
-        health_ratio = self._run_total_failures / max(self.MAX_TOTAL_FAILURES_PER_RUN, 1)
-        if health_ratio >= DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO:
-            logger.info(f"[Doctor] Health budget near limit ({health_ratio:.2f}), invoking Doctor")
-            return True
-
-        # Default: invoke Doctor for diagnosis
-        return True
+        return self.doctor_integration.should_invoke_doctor(
+            phase_id=phase_id,
+            builder_attempts=builder_attempts,
+            error_category=error_category,
+            health_budget=self._get_health_budget(),
+            doctor_calls_by_phase=self._doctor_calls_by_phase,
+            run_doctor_calls=self._run_doctor_calls,
+            run_doctor_infra_calls=self._run_doctor_infra_calls,
+            run_id=self.run_id,
+            get_phase_from_db=self._get_phase_from_db,
+        )
 
     def _build_doctor_context(self, phase_id: str, error_category: str) -> DoctorContextSummary:
         """
         Build Doctor context summary for model routing decisions.
 
-        Per GPT_RESPONSE8 Section 2.1: Per-phase Doctor context tracking.
+        IMP-GOD-001: Delegated to DoctorIntegration.
 
         Args:
             phase_id: Phase identifier
@@ -2693,21 +2346,12 @@ class AutonomousExecutor:
         Returns:
             DoctorContextSummary for model selection
         """
-        # Track distinct error categories for this (run, phase)
-        phase_key = f"{self.run_id}:{phase_id}"
-        if phase_key not in self._distinct_error_cats_by_phase:
-            self._distinct_error_cats_by_phase[phase_key] = set()
-        self._distinct_error_cats_by_phase[phase_key].add(error_category)
-
-        # Get prior Doctor response if any
-        prior_response = self._last_doctor_response_by_phase.get(phase_key)
-        prior_action = prior_response.action if prior_response else None
-        prior_confidence = prior_response.confidence if prior_response else None
-
-        return DoctorContextSummary(
-            distinct_error_categories_for_phase=len(self._distinct_error_cats_by_phase[phase_key]),
-            prior_doctor_action=prior_action,
-            prior_doctor_confidence=prior_confidence,
+        return self.doctor_integration.build_doctor_context(
+            phase_id=phase_id,
+            error_category=error_category,
+            run_id=self.run_id,
+            distinct_error_cats_by_phase=self._distinct_error_cats_by_phase,
+            last_doctor_response_by_phase=self._last_doctor_response_by_phase,
         )
 
     def _invoke_doctor(
@@ -4390,106 +4034,24 @@ class AutonomousExecutor:
     def _send_deletion_notification(self, phase_id: str, quality_report) -> None:
         """
         Send informational Telegram notification for large deletions (100-200 lines).
-        This is notification-only - does not block execution.
+        IMP-GOD-001: Delegated to NotificationHelper.
 
         Args:
             phase_id: Phase identifier
             quality_report: QualityReport with risk assessment
         """
-        try:
-            from autopack.notifications.telegram_notifier import \
-                TelegramNotifier
-
-            notifier = TelegramNotifier()
-
-            if not notifier.is_configured():
-                return  # Silently skip if not configured
-
-            # Extract deletion info from risk assessment
-            risk_assessment = quality_report.risk_assessment
-            if not risk_assessment:
-                return
-
-            metadata = risk_assessment.get("metadata", {})
-            checks = risk_assessment.get("checks", {})
-            net_deletion = checks.get("net_deletion", 0)
-            loc_removed = metadata.get("loc_removed", 0)
-            loc_added = metadata.get("loc_added", 0)
-            risk_level = risk_assessment.get("risk_level", "unknown")
-            risk_score = risk_assessment.get("risk_score", 0)
-
-            # Determine emoji based on risk level
-            risk_emoji = {
-                "low": "✅",
-                "medium": "⚠️",
-                "high": "🔴",
-                "critical": "🚨",
-            }.get(risk_level, "❓")
-
-            # Format message
-            message = (
-                f"📊 *Autopack Deletion Notification*\\n\\n"
-                f"*Run*: `{self.run_id}`\\n"
-                f"*Phase*: `{phase_id}`\\n"
-                f"*Risk*: {risk_emoji} {risk_level.upper()} (score: {risk_score}/100)\\n\\n"
-                f"*Net Deletion*: {net_deletion} lines\\n"
-                f"  ├─ Removed: {loc_removed}\\n"
-                f"  └─ Added: {loc_added}\\n\\n"
-                f"ℹ️ _This is informational only. Execution continues automatically._\\n\\n"
-                f"_Time_: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC"
-            )
-
-            # Send notification (no buttons needed, just FYI)
-            notifier.send_completion_notice(phase_id=phase_id, status="info", message=message)
-
-            logger.info(f"[{phase_id}] Sent deletion notification to Telegram (informational only)")
-
-        except Exception as e:
-            logger.warning(f"[{phase_id}] Failed to send deletion notification: {e}")
+        self.notification_helper.send_deletion_notification(phase_id, quality_report)
 
     def _send_phase_failure_notification(self, phase_id: str, reason: str) -> None:
         """
         Send Telegram notification when a phase fails or gets stuck.
+        IMP-GOD-001: Delegated to NotificationHelper.
 
         Args:
             phase_id: Phase identifier
             reason: Failure reason (e.g., "MAX_ATTEMPTS_EXHAUSTED", "BUILDER_FAILED")
         """
-        try:
-            from autopack.notifications.telegram_notifier import \
-                TelegramNotifier
-
-            notifier = TelegramNotifier()
-
-            if not notifier.is_configured():
-                return  # Silently skip if not configured
-
-            # Determine emoji based on failure type
-            emoji = "❌"
-            if "EXHAUSTED" in reason:
-                emoji = "🔁"  # Retry exhausted
-            elif "TIMEOUT" in reason:
-                emoji = "⏱️"  # Timeout
-            elif "STUCK" in reason:
-                emoji = "⚠️"  # Stuck
-
-            # Format message
-            message = (
-                f"{emoji} *Autopack Phase Failed*\\n\\n"
-                f"*Run*: `{self.run_id}`\\n"
-                f"*Phase*: `{phase_id}`\\n"
-                f"*Reason*: {reason}\\n\\n"
-                f"The executor has halted. Please review the logs and take action.\\n\\n"
-                f"_Time_: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC"
-            )
-
-            # Send notification (no buttons needed for failures, just FYI)
-            notifier.send_completion_notice(phase_id=phase_id, status="failed", message=message)
-
-            logger.info(f"[{phase_id}] Sent failure notification to Telegram")
-
-        except Exception as e:
-            logger.warning(f"[{phase_id}] Failed to send Telegram notification: {e}")
+        self.notification_helper.send_phase_failure_notification(phase_id, reason)
 
     def _force_mark_phase_failed(self, phase_id: str) -> bool:
         """

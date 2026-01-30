@@ -24,39 +24,27 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from ..approvals.service import (
-    ApprovalRequest,
-    ApprovalResult,
-    ApprovalService,
-    ApprovalTriggerReason,
-    get_approval_service,
-    should_trigger_approval,
-)
-from ..executor.coverage_metrics import (
-    CoverageInfo,
-    compute_coverage_info,
-    format_coverage_for_display,
-    should_trust_coverage,
-)
-from ..executor.patch_correction import (
-    CorrectedPatchResult,
-    PatchCorrectionTracker,
-    should_attempt_patch_correction,
-)
-from ..executor.safety_profile import SafetyProfile, derive_safety_profile, requires_elevated_review
-from ..executor.scope_reduction_flow import (
-    ScopeReductionProposal,
-    generate_scope_reduction_proposal,
-    write_scope_reduction_proposal,
-)
-from ..executor.usage_accounting import (
-    UsageEvent,
-    UsageTotals,
-    aggregate_usage,
-    compute_budget_remaining,
-    save_usage_events,
-)
-from ..stuck_handling import StuckHandlingPolicy, StuckReason, StuckResolutionDecision
+from ..approvals.service import (ApprovalRequest, ApprovalResult,
+                                 ApprovalService, ApprovalTriggerReason,
+                                 get_approval_service, should_trigger_approval)
+from ..executor.circuit_breaker import CircuitBreaker
+from ..executor.coverage_metrics import (CoverageInfo, compute_coverage_info,
+                                         format_coverage_for_display,
+                                         should_trust_coverage)
+from ..executor.patch_correction import (CorrectedPatchResult,
+                                         PatchCorrectionTracker,
+                                         should_attempt_patch_correction)
+from ..executor.safety_profile import (SafetyProfile, derive_safety_profile,
+                                       requires_elevated_review)
+from ..executor.scope_reduction_flow import (ScopeReductionProposal,
+                                             generate_scope_reduction_proposal,
+                                             write_scope_reduction_proposal)
+from ..executor.usage_accounting import (UsageEvent, UsageTotals,
+                                         aggregate_usage,
+                                         compute_budget_remaining,
+                                         save_usage_events)
+from ..stuck_handling import (StuckHandlingPolicy, StuckReason,
+                              StuckResolutionDecision)
 
 if TYPE_CHECKING:
     from ..file_layout import RunFileLayout
@@ -96,6 +84,14 @@ class ExecutorContext:
         # Patch correction tracking
         self._patch_tracker = PatchCorrectionTracker()
 
+        # IMP-HIGH-001: Circuit breaker for runaway protection
+        self.circuit_breaker = CircuitBreaker(
+            failure_threshold=5,
+            reset_timeout_seconds=300,
+            half_open_max_calls=1,
+            health_threshold=0.5,
+        )
+
         # Approval service (lazy initialized)
         self._approval_service: Optional[ApprovalService] = None
 
@@ -110,7 +106,8 @@ class ExecutorContext:
         self._replan_attempted: bool = False
 
         logger.debug(
-            f"[ExecutorContext] Initialized for project={anchor.project_id}, run={layout.run_id}"
+            f"[ExecutorContext] Initialized for project={anchor.project_id}, run={layout.run_id}. "
+            f"[IMP-HIGH-001] Circuit breaker initialized with failure_threshold={self.circuit_breaker.failure_threshold}"
         )
 
     # === Safety Profile ===
@@ -211,12 +208,22 @@ class ExecutorContext:
 
         IMP-COST-001: Implements BudgetTracker protocol for research budget enforcement.
 
+        IMP-HIGH-001: Also checks circuit breaker state to block runaway execution.
+
         Args:
             phase_name: Optional name of phase to check budget for
 
         Returns:
-            True if budget allows proceeding, False if exhausted
+            True if budget allows proceeding, False if exhausted or circuit open
         """
+        # IMP-HIGH-001: Check circuit breaker first
+        if not self.circuit_breaker.is_available():
+            logger.warning(
+                f"[IMP-HIGH-001] Execution blocked: circuit breaker is {self.circuit_breaker.state.value}. "
+                f"Consecutive failures: {self.circuit_breaker.consecutive_failures}/{self.circuit_breaker.failure_threshold}"
+            )
+            return False
+
         budget_remaining = self.get_budget_remaining()
         # Allow proceeding if at least 5% of budget remains
         can_proceed = budget_remaining >= 0.05
@@ -264,12 +271,27 @@ class ExecutorContext:
         self._iterations_used += 1
 
     def record_failure(self) -> None:
-        """Record a consecutive failure."""
+        """Record a consecutive failure.
+
+        IMP-HIGH-001: Also records with circuit breaker for runaway protection.
+        """
         self._consecutive_failures += 1
+        self.circuit_breaker.record_failure()
+        logger.debug(
+            f"[IMP-HIGH-001] Failure recorded: {self._consecutive_failures} consecutive failures, "
+            f"circuit breaker state: {self.circuit_breaker.state.value}"
+        )
 
     def reset_failures(self) -> None:
-        """Reset consecutive failure count (after success)."""
+        """Reset consecutive failure count (after success).
+
+        IMP-HIGH-001: Also records success with circuit breaker for recovery tracking.
+        """
         self._consecutive_failures = 0
+        self.circuit_breaker.record_success()
+        logger.debug(
+            f"[IMP-HIGH-001] Success recorded: circuit breaker state: {self.circuit_breaker.state.value}"
+        )
 
     def record_replan(self) -> None:
         """Record that replan was attempted."""
@@ -446,7 +468,8 @@ class ExecutorContext:
             return False
 
         try:
-            from ..research.analysis.followup_trigger import FollowupResearchTrigger
+            from ..research.analysis.followup_trigger import \
+                FollowupResearchTrigger
 
             followup_trigger = FollowupResearchTrigger()
             trigger_result = followup_trigger.analyze(

@@ -15,7 +15,7 @@ Key responsibilities:
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +44,7 @@ class NotificationHelper:
             quality_report: QualityReport with risk assessment
         """
         try:
-            from autopack.notifications.telegram_notifier import \
-                TelegramNotifier
+            from autopack.notifications.telegram_notifier import TelegramNotifier
 
             notifier = TelegramNotifier()
 
@@ -105,8 +104,7 @@ class NotificationHelper:
             reason: Failure reason (e.g., "MAX_ATTEMPTS_EXHAUSTED", "BUILDER_FAILED")
         """
         try:
-            from autopack.notifications.telegram_notifier import \
-                TelegramNotifier
+            from autopack.notifications.telegram_notifier import TelegramNotifier
 
             notifier = TelegramNotifier()
 

@@ -18,7 +18,7 @@ Key responsibilities:
 
 import logging
 from os.path import commonpath
-from typing import Any, Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +54,7 @@ class DeliverablesContractBuilder:
         Returns:
             Formatted deliverables contract string or None if no deliverables specified
         """
-        from autopack.deliverables_validator import \
-            extract_deliverables_from_scope
+        from autopack.deliverables_validator import extract_deliverables_from_scope
 
         scope = phase.get("scope")
         if not scope:

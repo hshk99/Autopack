@@ -19,7 +19,6 @@ import logging
 import os
 import socket
 import subprocess
-import threading
 import time
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
@@ -35,8 +34,12 @@ from ..telemetry.meta_metrics import RetrievalQualityTracker
 
 # IMP-LOOP-034: Import confidence manager for decay lifecycle
 from .confidence_manager import ConfidenceManager
+
+# IMP-MAINT-003: Import extracted helper modules
+from .deduplication import ContentDeduplicator
 from .embeddings import EMBEDDING_SIZE, MAX_EMBEDDING_CHARS, sync_embed_text
 from .faiss_store import FaissStore
+from .insight_retrieval import InsightRetriever
 from .qdrant_store import QDRANT_AVAILABLE, QdrantStore
 
 logger = logging.getLogger(__name__)
@@ -669,19 +672,13 @@ class NullStore:
     def delete(self, collection: str, ids: List[str]) -> int:  # noqa: ARG002
         return 0
 
-    def count(
-        self, collection: str, filter: Optional[Dict[str, Any]] = None
-    ) -> int:  # noqa: ARG002
+    def count(self, collection: str, filter: Optional[Dict[str, Any]] = None) -> int:  # noqa: ARG002
         return 0
 
-    def get_payload(
-        self, collection: str, point_id: str
-    ) -> Optional[Dict[str, Any]]:  # noqa: ARG002
+    def get_payload(self, collection: str, point_id: str) -> Optional[Dict[str, Any]]:  # noqa: ARG002
         return None
 
-    def update_payload(
-        self, collection: str, point_id: str, payload: Dict[str, Any]
-    ) -> bool:  # noqa: ARG002
+    def update_payload(self, collection: str, point_id: str, payload: Dict[str, Any]) -> bool:  # noqa: ARG002
         return False
 
 
@@ -978,8 +975,9 @@ class MemoryService:
         # IMP-MEM-005: Initialize retrieval quality tracker (must happen before early return)
         self._retrieval_quality_tracker: Optional[RetrievalQualityTracker] = None
 
-        # IMP-LOOP-034: Initialize confidence manager for decay lifecycle
-        self._confidence_manager: Optional[ConfidenceManager] = None
+        # IMP-MAINT-003: Initialize extracted helper modules (must happen before early return)
+        self._deduplicator = ContentDeduplicator()
+        self._insight_retriever = InsightRetriever()
 
         if not self.enabled:
             self.store = NullStore()
@@ -1136,12 +1134,6 @@ class MemoryService:
         logger.info(
             f"[MemoryService] Initialized (backend={self.backend}, enabled={self.enabled}, top_k={self.top_k})"
         )
-
-        # IMP-AUTO-003: Concurrent write safety for parallel phase execution
-        # Lock protects against concurrent write_telemetry_insight calls
-        self._write_lock = threading.Lock()
-        # Track content hashes to deduplicate insights with identical content
-        self._content_hashes: set = set()
 
     def _safe_store_call(self, label: str, fn, default):
         try:
@@ -1717,19 +1709,14 @@ class MemoryService:
             if "application_count" not in insight["metadata"]:
                 insight["metadata"]["application_count"] = 0
 
-        # IMP-AUTO-003: Compute content hash for deduplication
-        content_hash = hashlib.sha256(f"{insight_type}:{content}".encode()).hexdigest()[:16]
+        # IMP-AUTO-003/IMP-MAINT-003: Compute content hash for deduplication
+        content_hash = self._deduplicator.compute_content_hash(insight_type, content)
 
-        # IMP-AUTO-003: Thread-safe duplicate check and write
-        with self._write_lock:
-            if content_hash in self._content_hashes:
-                logger.debug(f"[IMP-AUTO-003] Duplicate insight skipped: {content_hash}")
-                return ""
+        # IMP-AUTO-003/IMP-MAINT-003: Thread-safe duplicate check and write
+        if not self._deduplicator.check_and_track_hash(content_hash):
+            return ""  # Duplicate detected
 
-            # Track the hash before writing to prevent race conditions
-            self._content_hashes.add(content_hash)
-
-        # IMP-MEM-006: Check for semantically similar insights before storing
+        # IMP-MEM-006/IMP-MAINT-003: Check for semantically similar insights before storing
         # Skip semantic check for rules (they use different lifecycle tracking)
         if not is_rule and insight_type not in ("promoted_rule", "effectiveness_rule"):
             similar_insights = self._find_similar_insights(insight, threshold=0.9)
@@ -1791,7 +1778,8 @@ class MemoryService:
             )
 
     # -------------------------------------------------------------------------
-    # IMP-MEM-006: Content-based deduplication for insights
+    # IMP-MEM-006/IMP-MAINT-003: Content-based deduplication for insights
+    # Delegated to ContentDeduplicator module
     # -------------------------------------------------------------------------
 
     def _find_similar_insights(
@@ -1805,6 +1793,8 @@ class MemoryService:
         before storage. Uses vector similarity to find insights with similar
         content, even if not exact matches.
 
+        IMP-MAINT-003: Delegates to ContentDeduplicator module.
+
         Args:
             insight: The insight dict containing content/description to match.
             threshold: Minimum similarity score (0-1) to consider as duplicate.
@@ -1814,71 +1804,16 @@ class MemoryService:
             List of similar insights with their payloads and scores, sorted
             by similarity score descending. Empty list if no matches found.
         """
-        if not self.enabled:
-            return []
-
-        insight_type = insight.get("insight_type", "unknown")
-        description = insight.get("description", "")
-        content = insight.get("content", description)
-
-        # Build search text same as used for storage
-        search_text = f"{insight_type}:{content}"
-        if not search_text.strip(":"):
-            return []
-
-        try:
-            # Create embedding for similarity search
-            query_vector = sync_embed_text(search_text)
-
-            # Determine which collection to search based on insight type
-            if insight_type == "failure_mode":
-                collection = COLLECTION_ERRORS_CI
-            elif insight_type == "retry_cause":
-                collection = COLLECTION_DOCTOR_HINTS
-            else:
-                # cost_sink and generic insights go to run_summaries
-                collection = COLLECTION_RUN_SUMMARIES
-
-            # Search for similar insights with telemetry_insight task_type
-            results = self._safe_store_call(
-                f"_find_similar_insights/{collection}",
-                lambda: self.store.search(
-                    collection,
-                    query_vector,
-                    filter={"task_type": "telemetry_insight"},
-                    limit=5,
-                ),
-                [],
-            )
-
-            # Filter by similarity threshold and return with metadata
-            similar = []
-            for result in results:
-                score = result.get("score", 0)
-                if score >= threshold:
-                    similar.append(
-                        {
-                            "id": result.get("id"),
-                            "payload": result.get("payload", {}),
-                            "score": score,
-                            "collection": collection,
-                        }
-                    )
-
-            # Sort by score descending (highest similarity first)
-            similar.sort(key=lambda x: x.get("score", 0), reverse=True)
-
-            if similar:
-                logger.debug(
-                    f"[IMP-MEM-006] Found {len(similar)} similar insights "
-                    f"(threshold={threshold}): top score={similar[0]['score']:.3f}"
-                )
-
-            return similar
-
-        except Exception as e:
-            logger.warning(f"[IMP-MEM-006] Error finding similar insights: {e}")
-            return []
+        return self._deduplicator.find_similar_insights(
+            insight=insight,
+            enabled=self.enabled,
+            store=self.store,
+            safe_store_call=self._safe_store_call,
+            collection_errors_ci=COLLECTION_ERRORS_CI,
+            collection_doctor_hints=COLLECTION_DOCTOR_HINTS,
+            collection_run_summaries=COLLECTION_RUN_SUMMARIES,
+            threshold=threshold,
+        )
 
     def _merge_insights(
         self,
@@ -1891,6 +1826,8 @@ class MemoryService:
         the existing insight with merged metadata: increments occurrence count,
         updates timestamp, and preserves the highest confidence value.
 
+        IMP-MAINT-003: Delegates to ContentDeduplicator module.
+
         Args:
             existing: Dict containing 'id', 'payload', and 'collection' of
                       the existing similar insight.
@@ -1899,74 +1836,14 @@ class MemoryService:
         Returns:
             The existing insight's ID (now updated with merged data).
         """
-        if not self.enabled:
-            return ""
-
-        existing_id = existing.get("id", "")
-        collection = existing.get("collection", COLLECTION_RUN_SUMMARIES)
-        payload = existing.get("payload", {})
-
-        if not existing_id:
-            logger.warning("[IMP-MEM-006] Cannot merge: missing existing insight ID")
-            return ""
-
-        try:
-            # Update occurrence count
-            current_occurrences = payload.get("occurrence_count", 1)
-            new_occurrences = current_occurrences + 1
-
-            # Update timestamp to latest
-            new_timestamp = datetime.now(timezone.utc).isoformat()
-
-            # Merge metadata - keep highest confidence
-            existing_confidence = payload.get("confidence", 0.5)
-            new_confidence = new_insight.get("confidence", 0.5)
-            merged_confidence = max(existing_confidence, new_confidence)
-
-            # Prepare updated payload
-            updated_payload = {
-                "occurrence_count": new_occurrences,
-                "last_occurrence": new_timestamp,
-                "confidence": merged_confidence,
-                # Track merge history
-                "merge_count": payload.get("merge_count", 0) + 1,
-                "last_merged_at": new_timestamp,
-            }
-
-            # Preserve suggested_action if new one is provided
-            new_action = new_insight.get("suggested_action")
-            if new_action and new_action != payload.get("suggested_action"):
-                # Append to existing actions or set new one
-                existing_actions = payload.get("suggested_actions", [])
-                if payload.get("suggested_action"):
-                    existing_actions = [payload["suggested_action"]] + existing_actions
-                if new_action not in existing_actions:
-                    existing_actions.append(new_action)
-                updated_payload["suggested_actions"] = existing_actions[:5]  # Keep max 5
-
-            # Update the existing record
-            success = self._safe_store_call(
-                f"_merge_insights/{collection}",
-                lambda: self.store.update_payload(collection, existing_id, updated_payload),
-                False,
-            )
-
-            if success:
-                logger.info(
-                    f"[IMP-MEM-006] Merged insight into existing (id={existing_id}, "
-                    f"occurrences={new_occurrences}, confidence={merged_confidence:.2f})"
-                )
-                return existing_id
-            else:
-                logger.warning(
-                    f"[IMP-MEM-006] Failed to update existing insight {existing_id}, "
-                    "will store as new"
-                )
-                return ""
-
-        except Exception as e:
-            logger.warning(f"[IMP-MEM-006] Error merging insights: {e}")
-            return ""
+        return self._deduplicator.merge_insights(
+            existing=existing,
+            new_insight=new_insight,
+            enabled=self.enabled,
+            store=self.store,
+            safe_store_call=self._safe_store_call,
+            collection_run_summaries=COLLECTION_RUN_SUMMARIES,
+        )
 
     def _write_rule_with_lifecycle(
         self,
@@ -2896,7 +2773,8 @@ class MemoryService:
             return False
 
     # -------------------------------------------------------------------------
-    # Insights Retrieval (for ROAD-C task generation)
+    # IMP-MAINT-003: Insights Retrieval (for ROAD-C task generation)
+    # Delegated to InsightRetriever module
     # -------------------------------------------------------------------------
 
     def retrieve_insights(
@@ -2909,33 +2787,14 @@ class MemoryService:
     ) -> List[Dict[str, Any]]:
         """Retrieve insights from memory for task generation (IMP-ARCH-010/016).
 
-        This method is called by the ROAD-C AutonomousTaskGenerator to retrieve
-        telemetry insights that can be converted into improvement tasks.
-
-        IMP-ARCH-016: Fixed to query across collections where telemetry insights
-        are actually written (run_summaries, errors_ci, doctor_hints) and filter
-        for task_type="telemetry_insight".
-
-        IMP-LOOP-003: Added freshness check to filter out stale insights based on
-        timestamp. Stale data can lead to outdated context being used for task creation.
-
-        IMP-LOOP-014: Freshness filtering is MANDATORY. Attempts to disable via
-        0/negative values are ignored with a warning. Audit logging added.
-
-        IMP-LOOP-016: Added confidence filtering to exclude low-confidence insights
-        from task generation, improving decision quality.
-
-        IMP-MEM-015: project_id is now REQUIRED to prevent cross-project contamination.
+        IMP-MAINT-003: Delegates to InsightRetriever module.
 
         Args:
             query: Search query to find relevant insights
             project_id: Project ID to filter by (REQUIRED - IMP-MEM-015)
             limit: Maximum number of results to return
             max_age_hours: Maximum age in hours for insights to be considered fresh.
-                          Defaults to DEFAULT_MEMORY_FRESHNESS_HOURS (720 hours / 30 days).
-                          Must be positive; attempts to disable are ignored.
             min_confidence: Optional minimum confidence threshold (0.0-1.0).
-                           If provided, insights with confidence below this are filtered.
 
         Returns:
             List of insight dictionaries with content, metadata, and score
@@ -2943,162 +2802,23 @@ class MemoryService:
         Raises:
             ProjectNamespaceError: If project_id is empty or None (IMP-MEM-015)
         """
-        if not self.enabled:
-            logger.debug("[MemoryService] Memory disabled, returning empty insights")
-            return []
-
-        # IMP-MEM-015: Validate project namespace isolation
-        _validate_project_id(project_id, "retrieve_insights")
-
-        # IMP-LOOP-014: Enforce mandatory freshness filtering with validation
-        # IMP-MEM-004: When max_age_hours is None, use per-collection thresholds
-        use_per_collection_freshness = max_age_hours is None
-        if max_age_hours is not None and max_age_hours <= 0:
-            logger.warning(
-                "[IMP-LOOP-014] max_age_hours=%s is invalid (must be positive). "
-                "Freshness filtering is mandatory for the self-improvement loop. "
-                "Override ignored - using per-collection thresholds.",
-                max_age_hours,
-            )
-            use_per_collection_freshness = True
-
-        # IMP-LOOP-014/IMP-MEM-004: Audit log for freshness filter applied
-        # IMP-MEM-015: project_id is now required - no fallback to "all"
-        if use_per_collection_freshness:
-            logger.info(
-                "[IMP-MEM-004] Retrieving insights with per-collection freshness thresholds, "
-                "project_id=%s, limit=%s",
-                project_id,
-                limit,
-            )
-        else:
-            logger.info(
-                "[IMP-LOOP-014] Retrieving insights with freshness_filter=%sh, project_id=%s, limit=%s",
-                max_age_hours,
-                project_id,
-                limit,
-            )
-
-        try:
-            # Embed the query text
-            query_vector = sync_embed_text(query)
-
-            # Collections where write_telemetry_insight routes data
-            insight_collections = [
-                COLLECTION_RUN_SUMMARIES,  # cost_sink and generic insights
-                COLLECTION_ERRORS_CI,  # failure_mode insights
-                COLLECTION_DOCTOR_HINTS,  # retry_cause insights
-            ]
-
-            all_insights = []
-            stale_count = 0
-            # Fetch more results to account for freshness filtering
-            per_collection_limit = max((limit * 2) // len(insight_collections), 5)
-
-            for collection in insight_collections:
-                # IMP-MEM-004: Get collection-specific freshness threshold
-                if use_per_collection_freshness:
-                    collection_max_age = get_freshness_threshold(collection)
-                else:
-                    collection_max_age = max_age_hours
-
-                # Build filter for telemetry insights
-                # IMP-MEM-015: project_id is now required - always include in filter
-                search_filter = {
-                    "task_type": "telemetry_insight",
-                    "project_id": project_id,
-                }
-
-                results = self._safe_store_call(
-                    f"retrieve_insights/{collection}",
-                    lambda col=collection, flt=search_filter: self.store.search(
-                        collection=col,
-                        query_vector=query_vector,
-                        filter=flt,
-                        limit=per_collection_limit,
-                    ),
-                    [],
-                )
-
-                for result in results:
-                    payload = getattr(result, "payload", {}) or {}
-                    # Only include telemetry insights
-                    if payload.get("task_type") != "telemetry_insight":
-                        continue
-
-                    # IMP-LOOP-003/IMP-LOOP-014/IMP-MEM-004: Apply freshness check
-                    # Uses per-collection threshold when max_age_hours is not specified
-                    timestamp = payload.get("timestamp")
-                    if not _is_fresh(timestamp, collection_max_age):
-                        stale_count += 1
-                        logger.debug(
-                            "[IMP-MEM-004] Skipping stale insight (age > %sh for %s): "
-                            "id=%s, timestamp=%s",
-                            collection_max_age,
-                            collection,
-                            getattr(result, "id", "unknown"),
-                            timestamp,
-                        )
-                        continue
-
-                    # IMP-LOOP-016: Extract confidence from payload, default to 1.0
-                    confidence = payload.get("confidence", 1.0)
-                    insight = {
-                        "id": getattr(result, "id", None),
-                        "content": payload.get("content", payload.get("summary", "")),
-                        "metadata": payload,
-                        "score": getattr(result, "score", 0.0),
-                        "issue_type": payload.get("issue_type", "unknown"),
-                        "severity": payload.get("severity", "medium"),
-                        "file_path": payload.get("file_path"),
-                        "collection": collection,
-                        "timestamp": timestamp,  # IMP-LOOP-003: Include timestamp in result
-                        "freshness_threshold": collection_max_age,  # IMP-MEM-004: Include threshold
-                        "confidence": confidence,  # IMP-LOOP-016: Include confidence for filtering
-                    }
-                    all_insights.append(insight)
-
-            # Sort by score and limit
-            all_insights.sort(key=lambda x: x.get("score", 0), reverse=True)
-            insights = all_insights[:limit]
-
-            # IMP-LOOP-003/IMP-MEM-004: Log freshness filtering stats
-            if stale_count > 0:
-                logger.info(
-                    "[IMP-MEM-004] Filtered %d stale insights using per-collection thresholds",
-                    stale_count,
-                )
-
-            # IMP-LOOP-034: Apply confidence decay based on age
-            # This must happen before confidence filtering to use decayed values
-            if self._confidence_manager is not None:
-                insights = self.apply_confidence_decay(insights)
-                logger.debug(
-                    "[IMP-LOOP-034] Applied confidence decay to %d insights",
-                    len(insights),
-                )
-
-            # IMP-LOOP-016: Apply confidence filtering if threshold is specified
-            # Uses decayed confidence values after IMP-LOOP-034 decay application
-            if min_confidence is not None:
-                pre_filter_count = len(insights)
-                insights = [i for i in insights if i.get("confidence", 1.0) >= min_confidence]
-                filtered_count = pre_filter_count - len(insights)
-                if filtered_count > 0:
-                    logger.info(
-                        "[IMP-LOOP-016] Filtered %d low-confidence insights " "(threshold: %.2f)",
-                        filtered_count,
-                        min_confidence,
-                    )
-
-            logger.debug(
-                f"[MemoryService] Retrieved {len(insights)} fresh insights for query: {query[:50]}..."
-            )
-            return insights
-
-        except Exception as e:
-            logger.warning(f"[MemoryService] Failed to retrieve insights: {e}")
-            return []
+        return self._insight_retriever.retrieve_insights(
+            query=query,
+            project_id=project_id,
+            enabled=self.enabled,
+            store=self.store,
+            safe_store_call=self._safe_store_call,
+            validate_project_id=_validate_project_id,
+            is_fresh=_is_fresh,
+            get_freshness_threshold=get_freshness_threshold,
+            collection_run_summaries=COLLECTION_RUN_SUMMARIES,
+            collection_errors_ci=COLLECTION_ERRORS_CI,
+            collection_doctor_hints=COLLECTION_DOCTOR_HINTS,
+            default_freshness_hours=DEFAULT_MEMORY_FRESHNESS_HOURS,
+            limit=limit,
+            max_age_hours=max_age_hours,
+            min_confidence=min_confidence,
+        )
 
     def update_insight_confidence(
         self,
@@ -3109,117 +2829,43 @@ class MemoryService:
         """Update the confidence score for a stored insight.
 
         IMP-LOOP-031: This method is called by the InsightCorrelationEngine to
-        persist updated confidence scores back to stored insights. When tasks
-        generated from an insight succeed or fail, the confidence is adjusted
-        and persisted here to influence future task generation.
+        persist updated confidence scores back to stored insights.
 
-        The method searches across all insight collections to find and update
-        the insight with the given ID.
+        IMP-MAINT-003: Delegates to InsightRetriever module.
 
         Args:
             insight_id: The unique identifier of the insight to update.
-            confidence: New confidence score (0.0-1.0). Will be clamped to
-                       valid range.
+            confidence: New confidence score (0.0-1.0).
             project_id: Optional project ID for namespace filtering.
 
         Returns:
             True if the insight was found and updated, False otherwise.
         """
-        if not self.enabled:
-            logger.debug(
-                "[IMP-LOOP-031] Memory disabled, skipping confidence update for %s",
-                insight_id,
-            )
-            return False
-
-        # Clamp confidence to valid range
-        confidence = max(0.0, min(1.0, confidence))
-
-        # Collections where insights may be stored
-        insight_collections = [
-            COLLECTION_RUN_SUMMARIES,
-            COLLECTION_ERRORS_CI,
-            COLLECTION_DOCTOR_HINTS,
-        ]
-
-        for collection in insight_collections:
-            try:
-                # Try to get the payload for this insight
-                payload = self._safe_store_call(
-                    f"update_insight_confidence/{collection}/get_payload",
-                    lambda col=collection: self.store.get_payload(col, insight_id),
-                    None,
-                )
-
-                if payload is None:
-                    continue
-
-                # Verify this is a telemetry insight
-                if payload.get("task_type") != "telemetry_insight":
-                    continue
-
-                # Verify project ID if specified
-                if project_id and payload.get("project_id") != project_id:
-                    continue
-
-                # Record previous confidence for logging
-                old_confidence = payload.get("confidence", 1.0)
-
-                # Update the confidence in the payload
-                payload["confidence"] = confidence
-                payload["confidence_updated_at"] = datetime.now(timezone.utc).isoformat()
-
-                # Persist the update
-                success = self._safe_store_call(
-                    f"update_insight_confidence/{collection}/update_payload",
-                    lambda col=collection, pid=insight_id, pl=payload: self.store.update_payload(
-                        col, pid, pl
-                    ),
-                    False,
-                )
-
-                if success:
-                    logger.info(
-                        "[IMP-LOOP-031] Updated insight confidence: id=%s, "
-                        "collection=%s, confidence=%.2f -> %.2f",
-                        insight_id,
-                        collection,
-                        old_confidence,
-                        confidence,
-                    )
-                    return True
-                else:
-                    logger.warning(
-                        "[IMP-LOOP-031] Failed to persist confidence update for %s in %s",
-                        insight_id,
-                        collection,
-                    )
-
-            except Exception as e:
-                logger.warning(
-                    "[IMP-LOOP-031] Error updating confidence for %s in %s: %s",
-                    insight_id,
-                    collection,
-                    e,
-                )
-
-        logger.debug(
-            "[IMP-LOOP-031] Insight %s not found in any collection, confidence not updated",
-            insight_id,
+        return self._insight_retriever.update_insight_confidence(
+            insight_id=insight_id,
+            confidence=confidence,
+            enabled=self.enabled,
+            store=self.store,
+            safe_store_call=self._safe_store_call,
+            collection_run_summaries=COLLECTION_RUN_SUMMARIES,
+            collection_errors_ci=COLLECTION_ERRORS_CI,
+            collection_doctor_hints=COLLECTION_DOCTOR_HINTS,
+            project_id=project_id,
         )
-        return False
 
     def set_confidence_manager(self, confidence_manager: ConfidenceManager) -> None:
         """Set the confidence manager for decay lifecycle management.
 
         IMP-LOOP-034: The ConfidenceManager handles confidence decay over time
-        and updates based on task outcomes. Setting it here enables automatic
-        decay application when retrieving insights.
+        and updates based on task outcomes.
+
+        IMP-MAINT-003: Delegates to InsightRetriever module.
 
         Args:
             confidence_manager: ConfidenceManager instance for decay calculations.
         """
-        self._confidence_manager = confidence_manager
+        # IMP-MAINT-003: Set on both InsightRetriever and MemoryService for compatibility
+        self._insight_retriever.set_confidence_manager(confidence_manager)
         # Connect memory service to confidence manager for persistence
         confidence_manager.set_memory_service(self)
         logger.debug("[IMP-LOOP-034] Confidence manager connected to MemoryService")
@@ -3227,10 +2873,12 @@ class MemoryService:
     def get_confidence_manager(self) -> Optional[ConfidenceManager]:
         """Get the confidence manager instance.
 
+        IMP-MAINT-003: Delegates to InsightRetriever module.
+
         Returns:
             ConfidenceManager if set, None otherwise.
         """
-        return self._confidence_manager
+        return self._insight_retriever.get_confidence_manager()
 
     def get_decayed_confidence(
         self,
@@ -3240,9 +2888,9 @@ class MemoryService:
     ) -> float:
         """Get confidence with decay applied for an insight.
 
-        IMP-LOOP-034: Uses the ConfidenceManager to calculate decayed confidence
-        based on age and task outcomes. Falls back to original confidence if
-        no confidence manager is configured.
+        IMP-LOOP-034: Uses the ConfidenceManager to calculate decayed confidence.
+
+        IMP-MAINT-003: Delegates to InsightRetriever module.
 
         Args:
             insight_id: Unique identifier for the insight.
@@ -3252,13 +2900,7 @@ class MemoryService:
         Returns:
             Decayed confidence score (0.0-1.0).
         """
-        if self._confidence_manager is None:
-            logger.debug(
-                "[IMP-LOOP-034] No confidence manager configured, returning original confidence"
-            )
-            return original_confidence
-
-        return self._confidence_manager.get_effective_confidence(
+        return self._insight_retriever.get_decayed_confidence(
             insight_id=insight_id,
             original_confidence=original_confidence,
             created_at=created_at,
@@ -3272,8 +2914,9 @@ class MemoryService:
     ) -> List[Dict[str, Any]]:
         """Apply confidence decay to a list of insights.
 
-        IMP-LOOP-034: Applies time-based decay to insights using the
-        ConfidenceManager. Modifies the confidence field in-place.
+        IMP-LOOP-034: Applies time-based decay to insights.
+
+        IMP-MAINT-003: Delegates to InsightRetriever module.
 
         Args:
             insights: List of insight dictionaries.
@@ -3283,16 +2926,10 @@ class MemoryService:
         Returns:
             The same list with decayed confidence values applied.
         """
-        if self._confidence_manager is None:
-            logger.debug(
-                "[IMP-LOOP-034] No confidence manager configured, skipping decay application"
-            )
-            return insights
-
-        return self._confidence_manager.apply_decay_to_insights(
+        return self._insight_retriever.apply_confidence_decay(
             insights=insights,
             confidence_field=confidence_field,
-            created_at_field=timestamp_field,
+            timestamp_field=timestamp_field,
         )
 
     def get_high_occurrence_insights(
@@ -3305,8 +2942,9 @@ class MemoryService:
         """Get insights that have occurred multiple times.
 
         IMP-LOOP-032: This method supports the MemoryTaskPromoter by querying
-        for insights with high occurrence counts, indicating recurring patterns
-        that should be automatically promoted to tasks.
+        for insights with high occurrence counts.
+
+        IMP-MAINT-003: Delegates to InsightRetriever module.
 
         Args:
             project_id: Project ID for namespace isolation (required).
@@ -3321,103 +2959,19 @@ class MemoryService:
         Raises:
             ProjectNamespaceError: If project_id is empty or None.
         """
-        if not self.enabled:
-            logger.debug("[IMP-LOOP-032] Memory disabled, returning empty high-occurrence insights")
-            return []
-
-        # IMP-MEM-015: Validate project namespace isolation
-        _validate_project_id(project_id, "get_high_occurrence_insights")
-
-        logger.debug(
-            "[IMP-LOOP-032] Querying for high-occurrence insights "
-            "(min_occurrences=%d, min_confidence=%.2f, limit=%d)",
-            min_occurrences,
-            min_confidence,
-            limit,
+        return self._insight_retriever.get_high_occurrence_insights(
+            project_id=project_id,
+            enabled=self.enabled,
+            store=self.store,
+            safe_store_call=self._safe_store_call,
+            validate_project_id=_validate_project_id,
+            collection_run_summaries=COLLECTION_RUN_SUMMARIES,
+            collection_errors_ci=COLLECTION_ERRORS_CI,
+            collection_doctor_hints=COLLECTION_DOCTOR_HINTS,
+            min_occurrences=min_occurrences,
+            min_confidence=min_confidence,
+            limit=limit,
         )
-
-        try:
-            # Query using a broad search vector for failure patterns
-            query = "failure error recurring pattern problem issue retry"
-            query_vector = sync_embed_text(query)
-
-            # Collections where insights may be stored
-            insight_collections = [
-                COLLECTION_RUN_SUMMARIES,
-                COLLECTION_ERRORS_CI,
-                COLLECTION_DOCTOR_HINTS,
-            ]
-
-            high_occurrence_insights: List[Dict[str, Any]] = []
-
-            for collection in insight_collections:
-                # Build filter for telemetry insights
-                search_filter = {
-                    "task_type": "telemetry_insight",
-                    "project_id": project_id,
-                }
-
-                results = self._safe_store_call(
-                    f"get_high_occurrence_insights/{collection}",
-                    lambda col=collection, flt=search_filter: self.store.search(
-                        collection=col,
-                        query_vector=query_vector,
-                        filter=flt,
-                        limit=limit * 2,  # Fetch extra for filtering
-                    ),
-                    [],
-                )
-
-                for result in results:
-                    payload = getattr(result, "payload", {}) or {}
-
-                    # Only include telemetry insights
-                    if payload.get("task_type") != "telemetry_insight":
-                        continue
-
-                    # Check occurrence count
-                    occurrence_count = payload.get("occurrence_count", 1)
-                    if occurrence_count < min_occurrences:
-                        continue
-
-                    # Check confidence
-                    confidence = payload.get("confidence", 1.0)
-                    if confidence < min_confidence:
-                        continue
-
-                    insight = {
-                        "id": getattr(result, "id", None),
-                        "content": payload.get("content", payload.get("summary", "")),
-                        "payload": payload,
-                        "score": getattr(result, "score", 0.0),
-                        "issue_type": payload.get("issue_type", "unknown"),
-                        "severity": payload.get("severity", "medium"),
-                        "occurrence_count": occurrence_count,
-                        "confidence": confidence,
-                        "last_occurrence": payload.get("last_occurrence"),
-                        "collection": collection,
-                    }
-                    high_occurrence_insights.append(insight)
-
-            # Sort by occurrence count descending
-            high_occurrence_insights.sort(key=lambda x: x.get("occurrence_count", 0), reverse=True)
-
-            # Apply limit
-            insights = high_occurrence_insights[:limit]
-
-            logger.info(
-                "[IMP-LOOP-032] Found %d high-occurrence insights "
-                "(min_occurrences=%d, project=%s)",
-                len(insights),
-                min_occurrences,
-                project_id,
-            )
-
-            return insights
-
-        except Exception as e:
-            logger.warning("[IMP-LOOP-032] Failed to get high-occurrence insights: %s", e)
-            return []
 
     # -------------------------------------------------------------------------
     # Combined Retrieval (for prompts)
@@ -4167,7 +3721,9 @@ class MemoryService:
         signal_to_noise = (
             high_relevance_entries / max(low_relevance_entries, 1)
             if low_relevance_entries > 0
-            else float(high_relevance_entries) if high_relevance_entries > 0 else 0.0
+            else float(high_relevance_entries)
+            if high_relevance_entries > 0
+            else 0.0
         )
 
         # Staleness ratio: stale entries / total entries

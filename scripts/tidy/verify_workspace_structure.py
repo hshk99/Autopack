@@ -85,6 +85,8 @@ ROOT_ALLOWED_PATTERNS = [
     "requirements*.txt",
     "tsconfig*.json",
     "vite.config.*",
+    # Vitest config at root for Windows/Node 18 compatibility (IMP-FE-001)
+    "vitest.config.*",
     # Optional: allow a scoped tidy config file at root if used
     "tidy_scope.yaml",
 ]

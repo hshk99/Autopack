@@ -343,10 +343,8 @@ class GapScanner:
 
         # Extract anchor constraints
         protected_paths = []
-        allowed_write_roots = []
         if anchor.pivot_intentions.scope_boundaries:
             protected_paths = anchor.pivot_intentions.scope_boundaries.protected_paths
-            allowed_write_roots = anchor.pivot_intentions.scope_boundaries.allowed_write_roots
 
         # Get risk tolerance from anchor
         risk_tolerance = "low"

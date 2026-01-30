@@ -39,7 +39,7 @@ from functools import wraps
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from autopack.sql_sanitizer import SQLSanitizer

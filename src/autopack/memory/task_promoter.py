@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
 
 if TYPE_CHECKING:
     from autopack.memory.memory_service import MemoryService
-    from autopack.roadc.task_generator import AutonomousTaskGenerator, GeneratedTask
+    from autopack.roadc.task_generator import AutonomousTaskGenerator
     from autopack.task_generation.insight_correlation import InsightCorrelationEngine
 
 logger = logging.getLogger(__name__)
@@ -369,7 +369,7 @@ class MemoryTaskPromoter:
             # We pass the insight through the unified insight interface
             from autopack.roadc.task_generator import InsightSource, UnifiedInsight
 
-            unified_insight = UnifiedInsight(
+            _unified_insight = UnifiedInsight(  # noqa: F841 - kept for debugging/future use
                 id=insight.insight_id,
                 issue_type=insight.issue_type,
                 content=insight.content,

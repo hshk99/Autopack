@@ -9,9 +9,7 @@ This module specifically tests:
 - End-to-end pipeline orchestration
 """
 
-import json
 from datetime import datetime, timezone
-from pathlib import Path
 
 import pytest
 
@@ -19,7 +17,7 @@ from autopack.gaps.models import GapReportV1
 from autopack.gaps.scanner import GapScanner
 from autopack.intention_anchor.v2 import IntentionAnchorV2, create_from_inputs
 from autopack.planning.models import PlanProposalV1
-from autopack.planning.plan_proposer import propose_from_gaps, propose_plan
+from autopack.planning.plan_proposer import propose_from_gaps
 
 
 @pytest.fixture

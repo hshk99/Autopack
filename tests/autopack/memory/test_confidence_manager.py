@@ -4,7 +4,6 @@ IMP-LOOP-034: Tests for ConfidenceManager which manages confidence decay over ti
 and updates based on task outcomes for the self-improvement feedback loop.
 """
 
-import math
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 

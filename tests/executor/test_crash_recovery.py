@@ -6,9 +6,7 @@ interrupted runs and resume from the last checkpointed state.
 
 import json
 import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 

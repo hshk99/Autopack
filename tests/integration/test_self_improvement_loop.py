@@ -12,20 +12,16 @@ These tests validate that the self-improvement loop functions correctly
 as an integrated system, not just individual components.
 """
 
-import json
 import threading
 import time
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseContext, PhaseOutcome
-from autopack.roadc import AutonomousTaskGenerator, GeneratedTask
-from autopack.telemetry.analyzer import RankedIssue
+from autopack.roadc import AutonomousTaskGenerator
 from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
 
 # =============================================================================
@@ -501,7 +497,7 @@ class TestSelfImprovementLoop:
 
         # Stage 4: Create task generator and generate tasks from insights
         task_generator = AutonomousTaskGenerator(memory_service=mock_memory_service)
-        queue_file = temp_autopack_dir / "ROADC_TASK_QUEUE.json"
+        _queue_file = temp_autopack_dir / "ROADC_TASK_QUEUE.json"  # noqa: F841
 
         # Generate tasks
         result = task_generator.generate_tasks(
@@ -940,7 +936,7 @@ class TestLoopErrorRecovery:
         pipeline2.stop_auto_flush()
 
         # Should be able to retrieve previous insights
-        context = pipeline2.get_context_for_phase(
+        _context = pipeline2.get_context_for_phase(  # noqa: F841
             phase_type="build",
             phase_goal="Resume after interruption",
         )

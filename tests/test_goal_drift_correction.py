@@ -8,11 +8,9 @@ and queued for execution.
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List
-from unittest.mock import MagicMock, Mock, patch
 
-import pytest
 
-from autopack.telemetry.meta_metrics import GoalDriftDetector, GoalDriftResult
+from autopack.telemetry.meta_metrics import GoalDriftDetector
 
 
 @dataclass

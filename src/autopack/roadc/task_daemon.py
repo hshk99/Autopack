@@ -17,9 +17,14 @@ import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from autopack.memory.memory_service import MemoryService
+    from autopack.roadc.task_generator import AutonomousTaskGenerator
+    from autopack.telemetry.analyzer import TelemetryAnalyzer
 
 logger = logging.getLogger(__name__)
 

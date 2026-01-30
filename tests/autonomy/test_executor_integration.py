@@ -372,3 +372,102 @@ class TestCreateExecutorContext:
         assert isinstance(ctx, ExecutorContext)
         assert ctx.anchor == mock_anchor
         assert ctx.layout == mock_layout
+
+
+class TestResearchIntegration:
+    """Tests for IMP-AUTO-001: Research integration."""
+
+    def test_should_trigger_followup_research_no_analysis_results(self, mock_anchor, mock_layout):
+        """Test that no analysis results returns False."""
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+
+        result = ctx.should_trigger_followup_research(analysis_results=None)
+
+        assert result is False
+
+    def test_should_trigger_followup_research_low_budget(self, mock_anchor, mock_layout):
+        """Test that low budget prevents follow-up research."""
+        mock_anchor.pivot_intentions.budget_cost.token_cap_global = 1000
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+
+        # Use 90% of budget
+        ctx.record_usage_event(tokens_used=900)
+
+        result = ctx.should_trigger_followup_research(
+            analysis_results={"findings": []},
+            min_budget_threshold=0.2,
+        )
+
+        assert result is False
+
+    def test_should_trigger_followup_research_with_low_confidence(self, mock_anchor, mock_layout):
+        """Test that low confidence findings trigger follow-up research."""
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+
+        analysis_results = {
+            "findings": [
+                {
+                    "id": "finding-1",
+                    "confidence": 0.3,  # Below 0.7 threshold
+                    "summary": "Test finding with low confidence",
+                    "topic": "test",
+                }
+            ]
+        }
+
+        result = ctx.should_trigger_followup_research(
+            analysis_results=analysis_results,
+        )
+
+        assert result is True
+
+    def test_should_trigger_followup_research_with_gaps(self, mock_anchor, mock_layout):
+        """Test that identified gaps trigger follow-up research."""
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+
+        analysis_results = {
+            "findings": [],
+            "identified_gaps": [
+                {
+                    "category": "market_research",
+                    "description": "Missing market size data",
+                }
+            ],
+        }
+
+        result = ctx.should_trigger_followup_research(
+            analysis_results=analysis_results,
+        )
+
+        assert result is True
+
+    def test_should_not_trigger_followup_research_high_confidence(self, mock_anchor, mock_layout):
+        """Test that high confidence findings don't trigger follow-up research."""
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+
+        analysis_results = {
+            "findings": [
+                {
+                    "id": "finding-1",
+                    "confidence": 0.9,  # Above 0.7 threshold
+                    "summary": "Test finding with high confidence",
+                    "topic": "test",
+                }
+            ],
+            "identified_gaps": [],
+        }
+
+        result = ctx.should_trigger_followup_research(
+            analysis_results=analysis_results,
+        )
+
+        assert result is False
+
+    def test_get_research_gaps_returns_empty_list_on_error(self, mock_anchor, mock_layout):
+        """Test that get_research_gaps returns empty list on error."""
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+
+        # This should return empty list since state tracker is not initialized
+        gaps = ctx.get_research_gaps()
+
+        assert gaps == []

@@ -389,6 +389,99 @@ class ExecutorContext:
         """Check if coverage data can be trusted for decisions."""
         return should_trust_coverage(ci_result)
 
+    # === IMP-AUTO-001: Research Integration ===
+
+    def should_trigger_followup_research(
+        self,
+        analysis_results: Optional[Dict[str, Any]] = None,
+        validation_results: Optional[Dict[str, Any]] = None,
+        min_budget_threshold: float = 0.2,
+    ) -> bool:
+        """Check if follow-up research should be triggered.
+
+        IMP-AUTO-001: Integrates with ResearchOrchestrator to detect gaps
+        and determine if follow-up research is needed based on analysis
+        results and budget constraints.
+
+        Args:
+            analysis_results: Results from analysis phase
+            validation_results: Optional validation results
+            min_budget_threshold: Minimum budget fraction required (default: 0.2)
+
+        Returns:
+            True if follow-up research should be triggered
+        """
+        # Check budget constraints
+        budget_remaining = self.get_budget_remaining()
+        if budget_remaining < min_budget_threshold:
+            logger.debug(
+                f"[IMP-AUTO-001] Follow-up research skipped: "
+                f"budget {budget_remaining:.1%} < {min_budget_threshold:.1%} threshold"
+            )
+            return False
+
+        # No analysis results means nothing to check
+        if not analysis_results:
+            return False
+
+        try:
+            from ..research.analysis.followup_trigger import FollowupResearchTrigger
+
+            followup_trigger = FollowupResearchTrigger()
+            trigger_result = followup_trigger.analyze(
+                analysis_results=analysis_results,
+                validation_results=validation_results,
+            )
+
+            if trigger_result.should_research:
+                logger.info(
+                    f"[IMP-AUTO-001] Follow-up research recommended: "
+                    f"{trigger_result.triggers_selected} triggers detected "
+                    f"(types: {trigger_result.trigger_summary})"
+                )
+                return True
+
+            return False
+
+        except ImportError as e:
+            logger.warning(f"[IMP-AUTO-001] FollowupResearchTrigger not available: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"[IMP-AUTO-001] Error checking follow-up triggers: {e}")
+            return False
+
+    def get_research_gaps(
+        self,
+        project_root: Optional["Path"] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get current research gaps from the ResearchOrchestrator.
+
+        IMP-AUTO-001: Queries the ResearchOrchestrator's state tracker
+        for identified research gaps.
+
+        Args:
+            project_root: Project root for state tracking (optional)
+
+        Returns:
+            List of identified research gaps with priorities
+        """
+        try:
+            from pathlib import Path
+
+            from ..research.orchestrator import ResearchOrchestrator
+
+            root = project_root or Path(self.layout.base_dir).parent.parent.parent
+            orchestrator = ResearchOrchestrator(project_root=root)
+
+            return orchestrator.get_research_gaps()
+
+        except ImportError as e:
+            logger.warning(f"[IMP-AUTO-001] ResearchOrchestrator not available: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"[IMP-AUTO-001] Error getting research gaps: {e}")
+            return []
+
     # === Approval Service ===
 
     @property

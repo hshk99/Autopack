@@ -286,3 +286,131 @@ class TestControllerDisabled:
         )
 
         assert disabled_controller.is_task_generation_paused() is True
+
+
+class TestResearchCycleTriggering:
+    """Tests for IMP-AUTO-001: Research cycle triggering."""
+
+    @pytest.fixture
+    def controller(self, tmp_path):
+        """Create an AutopilotController instance."""
+        from autopack.autonomy.autopilot import AutopilotController
+
+        return AutopilotController(
+            workspace_root=tmp_path,
+            project_id="test-project",
+            run_id="test-run",
+            enabled=True,
+        )
+
+    def test_register_research_cycle_callback(self, controller):
+        """Test registering a research cycle callback."""
+        callback = MagicMock()
+
+        controller.register_research_cycle_callback(callback)
+
+        assert len(controller._research_cycle_callbacks) == 1
+
+    def test_unregister_research_cycle_callback(self, controller):
+        """Test unregistering a research cycle callback."""
+        callback = MagicMock()
+        controller.register_research_cycle_callback(callback)
+
+        result = controller.unregister_research_cycle_callback(callback)
+
+        assert result is True
+        assert len(controller._research_cycle_callbacks) == 0
+
+    def test_unregister_nonexistent_research_callback(self, controller):
+        """Test unregistering a non-existent research callback returns False."""
+        callback = MagicMock()
+
+        result = controller.unregister_research_cycle_callback(callback)
+
+        assert result is False
+
+    def test_should_trigger_followup_research_with_critical_gaps(self, controller):
+        """Test that critical gaps trigger follow-up research."""
+        gap_report = {
+            "summary": {
+                "total_gaps": 3,
+                "critical_gaps": 2,
+            }
+        }
+
+        result = controller.should_trigger_followup_research(
+            gap_report=gap_report,
+            budget_remaining=0.5,
+        )
+
+        assert result is True
+
+    def test_should_trigger_followup_research_with_many_gaps(self, controller):
+        """Test that many total gaps trigger follow-up research."""
+        gap_report = {
+            "summary": {
+                "total_gaps": 10,
+                "critical_gaps": 0,
+            }
+        }
+
+        result = controller.should_trigger_followup_research(
+            gap_report=gap_report,
+            budget_remaining=0.5,
+        )
+
+        assert result is True
+
+    def test_should_not_trigger_followup_research_with_low_budget(self, controller):
+        """Test that low budget prevents follow-up research."""
+        gap_report = {
+            "summary": {
+                "total_gaps": 10,
+                "critical_gaps": 5,
+            }
+        }
+
+        result = controller.should_trigger_followup_research(
+            gap_report=gap_report,
+            budget_remaining=0.1,  # Below 20% threshold
+        )
+
+        assert result is False
+
+    def test_should_not_trigger_followup_research_when_paused(self, controller):
+        """Test that follow-up research is not triggered when task generation is paused."""
+        controller._pause_task_generation("Test pause")
+
+        gap_report = {
+            "summary": {
+                "total_gaps": 10,
+                "critical_gaps": 5,
+            }
+        }
+
+        result = controller.should_trigger_followup_research(
+            gap_report=gap_report,
+            budget_remaining=0.5,
+        )
+
+        assert result is False
+
+    def test_should_not_trigger_followup_research_with_few_gaps(self, controller):
+        """Test that few gaps don't trigger follow-up research."""
+        gap_report = {
+            "summary": {
+                "total_gaps": 2,
+                "critical_gaps": 0,
+            }
+        }
+
+        result = controller.should_trigger_followup_research(
+            gap_report=gap_report,
+            budget_remaining=0.5,
+        )
+
+        assert result is False
+
+    def test_get_last_research_trigger_result_initially_none(self, controller):
+        """Test that last research trigger result is initially None."""
+        assert controller.get_last_research_trigger_result() is None

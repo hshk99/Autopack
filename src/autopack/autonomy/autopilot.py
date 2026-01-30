@@ -31,6 +31,7 @@ from ..gaps.scanner import scan_workspace
 from ..intention_anchor.v2 import IntentionAnchorV2
 from ..planning.models import PlanProposalV1
 from ..planning.plan_proposer import propose_plan
+from ..research.analysis.followup_trigger import TriggerAnalysisResult
 from .action_allowlist import ActionClassification
 from .action_executor import ExecutionBatch, SafeActionExecutor
 from .executor_integration import ExecutorContext, create_executor_context
@@ -88,6 +89,10 @@ class AutopilotController:
         self._task_generation_paused: bool = False
         self._pause_reason: Optional[str] = None
         self._resume_callbacks: list[Callable[[], None]] = []
+
+        # IMP-AUTO-001: Research cycle triggering callbacks
+        self._research_cycle_callbacks: list[Callable[[TriggerAnalysisResult], None]] = []
+        self._last_research_trigger_result: Optional[TriggerAnalysisResult] = None
 
     def run_session(self, anchor: IntentionAnchorV2) -> AutopilotSessionV1:
         """Run autopilot session with safe execution gates.
@@ -159,6 +164,24 @@ class AutopilotController:
                 f"[Autopilot] Found {gap_report.summary.total_gaps} gaps "
                 f"({gap_report.summary.autopilot_blockers} blockers)"
             )
+
+            # IMP-AUTO-001: Check if follow-up research should be triggered
+            budget_remaining = (
+                self.executor_ctx.get_budget_remaining() if self.executor_ctx else 1.0
+            )
+            gap_summary = {
+                "summary": {
+                    "total_gaps": gap_report.summary.total_gaps,
+                    "critical_gaps": gap_report.summary.autopilot_blockers,
+                }
+            }
+            if self.should_trigger_followup_research(
+                gap_report=gap_summary,
+                budget_remaining=budget_remaining,
+            ):
+                logger.info("[IMP-AUTO-001] Follow-up research recommended based on gap analysis")
+                # Note: Actual research execution would be handled by registered callbacks
+                # or a separate async research phase
 
             # Step 3: Propose plan
             logger.info("[Autopilot] Proposing action plan...")
@@ -342,6 +365,161 @@ class AutopilotController:
             Reason string if paused, None if not paused
         """
         return self._pause_reason if self._task_generation_paused else None
+
+    # === IMP-AUTO-001: Research Cycle Triggering ===
+
+    def register_research_cycle_callback(
+        self, callback: Callable[[TriggerAnalysisResult], None]
+    ) -> None:
+        """Register a callback to be invoked when a research cycle is triggered.
+
+        IMP-AUTO-001: Callbacks are invoked when follow-up research is detected
+        as needed. Use this to trigger research phases in response to gaps.
+
+        Args:
+            callback: Function to call when research cycle is triggered.
+                     Receives the TriggerAnalysisResult with trigger details.
+        """
+        self._research_cycle_callbacks.append(callback)
+        logger.debug(
+            f"[IMP-AUTO-001] Registered research cycle callback "
+            f"(total: {len(self._research_cycle_callbacks)})"
+        )
+
+    def unregister_research_cycle_callback(
+        self, callback: Callable[[TriggerAnalysisResult], None]
+    ) -> bool:
+        """Unregister a previously registered research cycle callback.
+
+        Args:
+            callback: The callback function to unregister
+
+        Returns:
+            True if callback was found and removed, False otherwise
+        """
+        try:
+            self._research_cycle_callbacks.remove(callback)
+            return True
+        except ValueError:
+            return False
+
+    async def trigger_research_cycle(
+        self,
+        analysis_results: dict,
+        validation_results: Optional[dict] = None,
+    ) -> Optional[TriggerAnalysisResult]:
+        """Trigger a research cycle if follow-up research is needed.
+
+        IMP-AUTO-001: Analyzes research findings for gaps and triggers automated
+        follow-up research when needed. This method integrates with the
+        ResearchOrchestrator to detect gaps and invoke registered callbacks.
+
+        Args:
+            analysis_results: Results from analysis phase
+            validation_results: Optional validation results
+
+        Returns:
+            TriggerAnalysisResult if research was triggered, None otherwise
+        """
+        if self._task_generation_paused:
+            logger.info("[IMP-AUTO-001] Research cycle skipped: task generation paused")
+            return None
+
+        try:
+            from ..research.analysis.followup_trigger import FollowupResearchTrigger
+
+            # Analyze findings for follow-up research triggers
+            followup_trigger = FollowupResearchTrigger()
+            trigger_result = followup_trigger.analyze(
+                analysis_results=analysis_results,
+                validation_results=validation_results,
+            )
+
+            self._last_research_trigger_result = trigger_result
+
+            if trigger_result.should_research:
+                logger.info(
+                    f"[IMP-AUTO-001] Research cycle triggered: "
+                    f"{trigger_result.triggers_selected} triggers detected"
+                )
+
+                # Invoke all registered callbacks
+                for callback in self._research_cycle_callbacks:
+                    try:
+                        callback(trigger_result)
+                    except Exception as e:
+                        logger.warning(f"[IMP-AUTO-001] Research cycle callback failed: {e}")
+
+                return trigger_result
+            else:
+                logger.debug("[IMP-AUTO-001] No follow-up research needed")
+                return None
+
+        except ImportError as e:
+            logger.warning(f"[IMP-AUTO-001] Research orchestrator not available: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"[IMP-AUTO-001] Research cycle trigger failed: {e}")
+            return None
+
+    def should_trigger_followup_research(
+        self,
+        gap_report: Optional[dict] = None,
+        budget_remaining: Optional[float] = None,
+    ) -> bool:
+        """Check if follow-up research should be triggered.
+
+        IMP-AUTO-001: Determines if follow-up research is needed based on
+        gap report and budget constraints.
+
+        Args:
+            gap_report: Gap report from workspace scan
+            budget_remaining: Remaining budget fraction (0.0-1.0)
+
+        Returns:
+            True if follow-up research should be triggered
+        """
+        # Don't trigger if task generation is paused
+        if self._task_generation_paused:
+            return False
+
+        # Don't trigger if budget is too low (< 20%)
+        if budget_remaining is not None and budget_remaining < 0.2:
+            logger.debug("[IMP-AUTO-001] Follow-up research skipped: insufficient budget")
+            return False
+
+        # Check if we have significant gaps
+        if gap_report:
+            total_gaps = gap_report.get("summary", {}).get("total_gaps", 0)
+            critical_gaps = gap_report.get("summary", {}).get("critical_gaps", 0)
+
+            # Trigger if we have critical gaps or many total gaps
+            if critical_gaps > 0:
+                logger.info(
+                    f"[IMP-AUTO-001] Follow-up research recommended: "
+                    f"{critical_gaps} critical gaps"
+                )
+                return True
+
+            if total_gaps >= 5:
+                logger.info(
+                    f"[IMP-AUTO-001] Follow-up research recommended: " f"{total_gaps} total gaps"
+                )
+                return True
+
+        # Check last trigger result
+        if self._last_research_trigger_result:
+            return self._last_research_trigger_result.should_research
+
+        return False
+
+    def get_last_research_trigger_result(self) -> Optional[TriggerAnalysisResult]:
+        """Get the last research trigger analysis result.
+
+        Returns:
+            Last TriggerAnalysisResult or None if no research was triggered
+        """
+        return self._last_research_trigger_result
 
     def _handle_approval_required(self, proposal: PlanProposalV1) -> None:
         """Handle case where approval is required.

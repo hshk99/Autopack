@@ -9,13 +9,25 @@ model: sonnet
 
 Analyze build vs buy for: {{component_requirements}}
 
+## Primary Goal
+
+**Find existing solutions that could save significant development time.**
+
+Before recommending "build", thoroughly search for:
+- Open source libraries/tools that solve the problem
+- Existing applications with similar functionality (to learn from)
+- SaaS services that handle the complexity
+- Frameworks/boilerplates that provide a head start
+
+**Default bias: Prefer "integrate" or "buy" over "build" unless there's a compelling reason.**
+
 ## Decision Framework
 
 For each component, evaluate:
 
-1. **Build** - Develop in-house
+1. **Build** - Develop in-house (only when truly necessary)
 2. **Buy** - Purchase/subscribe to service
-3. **Integrate** - Use open source + customize
+3. **Integrate** - Use open source + customize (preferred for non-core components)
 4. **Outsource** - Contract development
 
 ## Evaluation Criteria
@@ -290,11 +302,60 @@ For each component, evaluate:
 - Want to avoid vendor lock-in
 - Cost-sensitive
 
+## Integration with Cost-Effectiveness Analyzer
+
+This agent provides **component-level** build/buy/integrate decisions that feed into the **project-level** `cost-effectiveness-analyzer`.
+
+### Output Consumed By:
+- `cost-effectiveness-analyzer` - Aggregates all component decisions into total project cost model
+- `anchor-generator` - Uses recommendations for BudgetCost and ScopeBoundaries anchors
+
+### Data Flow:
+```
+build-vs-buy-analyzer (per component)
+        │
+        ▼
+cost-effectiveness-analyzer (project-wide)
+        │
+        ├── Total Cost of Ownership (TCO)
+        ├── AI/Token Cost Projections
+        ├── Infrastructure Projections
+        ├── Scaling Cost Curves
+        └── Optimization Roadmap
+```
+
+### Required Output Fields for Integration:
+
+Each component analysis MUST include:
+```json
+{
+  "component": "name",
+  "recommendation": {
+    "choice": "build|buy|integrate",
+    "specific": "service/library name"
+  },
+  "cost_data": {
+    "initial_cost": 1000,
+    "monthly_ongoing": 50,
+    "scaling_model": "flat|linear|step_function",
+    "year_1_total": 1600,
+    "year_3_total": 2800,
+    "year_5_total": 4000
+  },
+  "vendor_lock_in": {
+    "level": "low|medium|high",
+    "migration_cost": 2000,
+    "migration_time": "1-2 weeks"
+  }
+}
+```
+
 ## Constraints
 
 - Use sonnet for nuanced analysis
-- Research actual pricing
+- Research actual pricing (WebSearch current rates)
 - Include migration paths
 - Consider long-term costs
 - Note vendor lock-in risks
 - Calculate 5-year TCO
+- **Output cost_data in standardized format for cost-effectiveness-analyzer**

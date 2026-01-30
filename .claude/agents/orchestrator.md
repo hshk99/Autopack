@@ -42,7 +42,8 @@ This is the main orchestrator that coordinates all research agents in the hierar
                │ Layer   │           │ Layer    │
                └────┬────┘           └────┬────┘
                     │                      │
-               3 Agents              4 Agents
+               5 Agents              4 Agents
+           (incl. cost-effectiveness)
 
                     └──────────┬──────────┘
                                │
@@ -95,10 +96,69 @@ framework_scores = await parallel(
 
 ### Phase 4: Analysis
 ```python
-# Sequential - each builds on previous
-source_evaluation = await task("source-evaluator", research_results)
+# Stage 1: Parallel initial analysis
+analysis_stage1 = await parallel(
+    task("source-evaluator", research_results),
+    task("build-vs-buy-analyzer", research_results, tool_availability)
+)
+source_evaluation = analysis_stage1[0]
+build_vs_buy = analysis_stage1[1]
+
+# Stage 2: Cross-reference with framework scores
 cross_reference = await task("cross-reference-agent", research_results, framework_scores)
-compilation = await task("compilation-agent", all_results)
+
+# Stage 3: Cost-effectiveness analysis (aggregates build-vs-buy decisions)
+cost_effectiveness = await task("cost-effectiveness-analyzer", {
+    "build_vs_buy_results": build_vs_buy,
+    "technical_feasibility": research_results.technical_feasibility,
+    "tool_availability": research_results.tool_availability,
+    "market_research": research_results.market_research
+})
+
+# Stage 4: Compile all analysis
+compilation = await task("compilation-agent", {
+    "source_evaluation": source_evaluation,
+    "build_vs_buy": build_vs_buy,
+    "cross_reference": cross_reference,
+    "cost_effectiveness": cost_effectiveness
+})
+```
+
+### Phase 4.5: Follow-up Research (Conditional)
+```python
+# Analyze for follow-up research triggers
+followup_analyzer = FollowupResearchTrigger()
+followup_triggers = followup_analyzer.analyze(
+    analysis_results=compilation,
+    validation_results=None  # Pre-validation triggers
+)
+
+# Execute follow-up research if needed (max 3 iterations)
+iteration = 0
+while followup_triggers.should_research and iteration < 3:
+    # Execute follow-up research in parallel batches
+    for batch in followup_triggers.execution_plan["parallel_batches"]:
+        batch_results = await parallel(
+            *[execute_trigger_research(t, state_tracker)
+              for t in batch["triggers"]]
+        )
+        # Merge results back
+        compilation = merge_followup_results(compilation, batch_results)
+
+    # Mark triggers as addressed
+    for trigger in followup_triggers.selected_triggers:
+        followup_analyzer.mark_addressed(trigger.trigger_id)
+        state_tracker.update_coverage(trigger.source_finding.split(":")[0], +10)
+
+    # Re-analyze for more triggers
+    followup_triggers = followup_analyzer.analyze(
+        analysis_results=compilation,
+        previous_triggers=followup_triggers.selected_triggers
+    )
+    iteration += 1
+
+# Save state with follow-up results
+save_checkpoint("phase4_with_followup.json", compilation)
 ```
 
 ### Phase 5: Validation
@@ -118,13 +178,43 @@ validation_results = await parallel(
 audit = await task("meta-auditor", all_results, validation_results)
 
 if audit.recommendation == "GO":
-    anchors = await task("anchor-generator", all_results, audit)
+    # Generate anchors with cost analysis informing BudgetCost anchor
+    anchors = await task("anchor-generator", {
+        "all_results": all_results,
+        "audit": audit,
+        "cost_analysis": cost_effectiveness,  # For BudgetCost anchor
+        "build_vs_buy": build_vs_buy           # For architecture decisions
+    })
     return Success(anchors)
 else:
     return NoGo(audit.findings)
 ```
 
 ## State Management
+
+### Research State Tracking
+The orchestrator integrates with `research-state-tracker` for incremental research:
+
+```python
+# Initialize state tracking at session start
+state_tracker = ResearchStateTracker(project_root=project_dir)
+research_state = state_tracker.load_or_create_state(project_id)
+
+# Before each research phase
+gaps = state_tracker.detect_gaps()
+queries_to_skip = state_tracker.get_queries_to_skip()
+
+# Pass to research agents
+research_config = {
+    "skip_queries": queries_to_skip,
+    "priority_gaps": gaps[:5],
+    "coverage_targets": research_state.coverage.by_category
+}
+
+# After each research operation
+state_tracker.record_completed_query(query, agent, sources, quality, findings)
+state_tracker.save_state()
+```
 
 ### Checkpoint Files
 After each phase, save state to the PROJECT directory (not Autopack):
@@ -133,7 +223,8 @@ After each phase, save state to the PROJECT directory (not Autopack):
 ├── phase1_discovery.json
 ├── phase2_research.json
 ├── phase3_framework.json
-├── phase4_analysis.json
+├── phase4_analysis.json          # Includes build-vs-buy + cost-effectiveness
+├── phase4_cost_analysis.json     # Detailed cost projections (separate for quick access)
 ├── phase5_validation.json
 └── phase6_synthesis.json
 ```
@@ -206,14 +297,26 @@ MAX_CONCURRENT_SUB_AGENTS = 10
     "project_idea": "...",
     "execution_time_minutes": 25,
     "phases_completed": 6,
-    "agents_executed": 52,
+    "agents_executed": 54,
     "final_recommendation": "GO",
     "confidence": "high",
     "outputs": {
       "discovery": {...},
       "research": {...},
       "framework_scores": {...},
-      "analysis": {...},
+      "analysis": {
+        "source_evaluation": {...},
+        "build_vs_buy": {...},
+        "cross_reference": {...},
+        "cost_effectiveness": {
+          "total_year_1_cost": 45000,
+          "total_year_5_cost": 200000,
+          "primary_cost_drivers": [...],
+          "ai_token_projections": {...},
+          "optimization_roadmap": [...],
+          "break_even_analysis": {...}
+        }
+      },
       "validation": {...},
       "synthesis": {...}
     },
@@ -237,13 +340,19 @@ Orchestration Progress:
 Phase 1: Discovery     ████████████ Complete (3/3 agents)
 Phase 2: Research      ████████████ Complete (6/6 agents, 22 sub-agents)
 Phase 3: Framework     ████████████ Complete (4/4 agents)
-Phase 4: Analysis      ████████████ Complete (3/3 agents)
+Phase 4: Analysis      ████████████ Complete (5/5 agents)
+  ├─ source-evaluator        ✓
+  ├─ build-vs-buy-analyzer   ✓
+  ├─ cross-reference-agent   ✓
+  ├─ cost-effectiveness      ✓  [TCO: $45k Y1, $200k Y5]
+  └─ compilation-agent       ✓
 Phase 5: Validation    ████████████ Complete (4/4 agents)
 Phase 6: Synthesis     ████████████ Complete (2/2 agents)
 
-Total: 52 agents executed
-Time: 24 minutes
+Total: 54 agents executed
+Time: 26 minutes
 Status: GO (Confidence: High)
+Cost Viability: VIABLE (Break-even: 125 users at $29/mo)
 ```
 
 ## Constraints

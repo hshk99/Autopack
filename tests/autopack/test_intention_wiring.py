@@ -14,7 +14,6 @@ deprecated ProjectIntentionManager.
 from unittest.mock import MagicMock, patch
 
 from autopack.intention_wiring import (
-    IntentionAnchorV2Adapter,
     IntentionContextInjector,
     IntentionGoalDriftDetector,
     inject_intention_into_prompt,

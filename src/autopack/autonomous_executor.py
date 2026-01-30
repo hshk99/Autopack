@@ -27,7 +27,6 @@ import asyncio
 import json
 import logging
 import os
-import re
 import sys
 import threading
 import time
@@ -48,7 +47,6 @@ from autopack.api.server_lifecycle import APIServerLifecycle
 from autopack.archive_consolidator import log_build_event
 from autopack.ci.custom_runner import CustomRunner
 from autopack.ci.pytest_runner import PytestRunner
-from autopack.config import settings
 from autopack.debug_journal import log_error
 
 # Memory and validation imports

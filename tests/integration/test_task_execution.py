@@ -5,8 +5,7 @@ Tests the integration between ROAD-C task generation and executor task queue con
 
 import json
 from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -186,7 +185,7 @@ class TestTaskExecutionIntegration:
         assert original_count == 2
 
         # Consume first task (remove it from queue)
-        consumed_task = queue_data["tasks"].pop(0)
+        _consumed_task = queue_data["tasks"].pop(0)  # noqa: F841
         queue_data["updated_at"] = datetime.now(timezone.utc).isoformat()
         queue_data["last_consumption"] = {
             "consumed_count": 1,

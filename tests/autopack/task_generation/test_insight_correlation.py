@@ -13,7 +13,6 @@ Tests cover:
 from datetime import datetime, timezone
 from unittest.mock import Mock
 
-import pytest
 
 from autopack.task_generation.insight_correlation import (
     FAILURE_CONFIDENCE_PENALTY,

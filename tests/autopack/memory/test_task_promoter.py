@@ -5,14 +5,11 @@ failure patterns and automatically promotes them to tasks.
 """
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
 
 from autopack.memory.task_promoter import (
     DEFAULT_PROMOTION_THRESHOLD,
-    MAX_PROMOTIONS_PER_SCAN,
-    MIN_CONFIDENCE_FOR_PROMOTION,
     MemoryTaskPromoter,
     PromotableInsight,
     PromotionResult,

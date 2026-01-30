@@ -12,11 +12,13 @@ This module provides git-based checkpoint and rollback operations for:
 All git subprocess calls are consolidated here for testability.
 """
 
+import json
 import logging
 import subprocess
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -503,11 +505,6 @@ def create_execute_fix_checkpoint(workspace: Path, phase_id: str) -> bool:
 # mid-run. State is persisted to JSON file and checked on startup.
 
 
-import json
-from dataclasses import asdict, dataclass, field
-from typing import Any, Dict
-
-
 @dataclass
 class ExecutorState:
     """Snapshot of executor state for crash recovery.
@@ -672,7 +669,7 @@ class ExecutorStateCheckpoint:
 
             # Only update if this is our run
             if state_data.get("run_id") != self.run_id:
-                logger.debug(f"[IMP-REL-015] Checkpoint for different run - not marking complete")
+                logger.debug("[IMP-REL-015] Checkpoint for different run - not marking complete")
                 return True
 
             state_data["status"] = "completed"

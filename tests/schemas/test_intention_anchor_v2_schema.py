@@ -83,6 +83,17 @@ def test_full_valid_intention_anchor_v2():
                 "isolation_model": "four_layer",
                 "max_concurrent_runs": 4,
             },
+            "deployment": {
+                "hosting_requirements": ["Docker", "Kubernetes"],
+                "env_vars": {
+                    "NODE_ENV": "production",
+                    "API_KEY": "${PLACEHOLDER}",
+                },
+                "secrets_config": {
+                    "aws_region": "us-east-1",
+                    "vault_path": "secret/prod",
+                },
+            },
         },
         "metadata": {
             "author": "test-user",
@@ -220,6 +231,32 @@ def test_invalid_parallelism_isolation_model():
         validate_intention_anchor_v2(data)
 
     assert any("isolation_model" in err for err in exc_info.value.errors)
+
+
+def test_deployment_intention():
+    """Test that deployment intention with hosting, env vars, and secrets is valid."""
+    data = {
+        "format_version": "v2",
+        "project_id": "test-project",
+        "created_at": "2026-01-06T12:00:00+00:00",
+        "raw_input_digest": "a1b2c3d4e5f67890",
+        "pivot_intentions": {
+            "deployment": {
+                "hosting_requirements": ["Docker", "Kubernetes", "serverless"],
+                "env_vars": {
+                    "DATABASE_URL": "${DB_HOST}",
+                    "LOG_LEVEL": "info",
+                },
+                "secrets_config": {
+                    "tls_cert": "path/to/cert",
+                    "api_keys": {"stripe": "${STRIPE_KEY}"},
+                },
+            }
+        },
+    }
+
+    # Should not raise
+    validate_intention_anchor_v2(data)
 
 
 def test_deterministic_validation():

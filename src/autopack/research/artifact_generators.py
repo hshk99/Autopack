@@ -114,13 +114,13 @@ class MonetizationStrategyGenerator:
                 section += "\n"
 
             if pros:
-                section += f"**Pros:**\n"
+                section += "**Pros:**\n"
                 for pro in pros:
                     section += f"- {pro}\n"
                 section += "\n"
 
             if cons:
-                section += f"**Cons:**\n"
+                section += "**Cons:**\n"
                 for con in cons:
                     section += f"- {con}\n"
                 section += "\n"

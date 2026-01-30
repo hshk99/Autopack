@@ -38,7 +38,6 @@ from .deduplication import ContentDeduplicator
 from .embeddings import EMBEDDING_SIZE, MAX_EMBEDDING_CHARS, sync_embed_text
 from .faiss_store import FaissStore
 # IMP-MAINT-005: Import extracted freshness and vector store modules
-from .freshness_filter import COLLECTION_FRESHNESS_HOURS
 from .freshness_filter import \
     DEFAULT_MEMORY_FRESHNESS_HOURS as _FF_DEFAULT_FRESHNESS_HOURS
 from .freshness_filter import (FRESH_AGE_HOURS, LOW_CONFIDENCE_THRESHOLD,
@@ -49,8 +48,7 @@ from .freshness_filter import (FRESH_AGE_HOURS, LOW_CONFIDENCE_THRESHOLD,
                                is_fresh, parse_timestamp)
 from .insight_retrieval import InsightRetriever
 from .qdrant_store import QDRANT_AVAILABLE, QdrantStore
-from .vector_store_ops import (VectorStoreOperations, build_point,
-                               build_project_filter)
+from .vector_store_ops import VectorStoreOperations
 
 logger = logging.getLogger(__name__)
 

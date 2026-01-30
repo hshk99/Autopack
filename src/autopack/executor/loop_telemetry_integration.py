@@ -6,7 +6,7 @@ anomaly detection, telemetry-driven adjustments, and cost recommendations.
 """
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 from autopack.config import settings
 from autopack.telemetry.analyzer import CostRecommendation
@@ -18,8 +18,7 @@ if TYPE_CHECKING:
         TaskEffectivenessTracker
     from autopack.telemetry.analyzer import TelemetryAnalyzer
     from autopack.telemetry.anomaly_detector import TelemetryAnomalyDetector
-    from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
-                                                 MetaMetricsTracker)
+    from autopack.telemetry.meta_metrics import MetaMetricsTracker
 
 logger = logging.getLogger(__name__)
 

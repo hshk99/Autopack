@@ -20,7 +20,6 @@ IMP-MEM-004: Per-collection staleness policies.
 
 import logging
 from dataclasses import dataclass
-from dataclasses import field as dataclass_field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 

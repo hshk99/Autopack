@@ -71,21 +71,6 @@ class TestSystemPromptContractMarkers:
         assert "delete" in prompt.lower()
         assert "1-indexed" in prompt
 
-    def test_legacy_diff_mode_includes_diff_instructions(self):
-        """Legacy diff mode must include unified diff format instructions."""
-        prompt = build_system_prompt(
-            use_full_file_mode=False,
-            use_structured_edit=False,
-            use_ndjson_format=False,
-        )
-
-        # Check for critical diff mode markers
-        assert "diff --git" in prompt
-        assert "@@" in prompt
-        assert "unified diff" in prompt.lower()
-        assert "+" in prompt and "-" in prompt
-        assert "hunk" in prompt.lower()
-
 
 class TestDeliverableManifestPreview:
     """Test deliverables manifest preview limit enforcement."""

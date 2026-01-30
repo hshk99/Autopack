@@ -41,7 +41,7 @@ class NDJSONParserWrapper:
     making it more robust to truncation and streaming.
 
     This parser includes extensive fallback logic to handle cases where
-    the model returns alternative formats (structured edit, legacy diff, JSON arrays).
+    the model returns alternative formats (structured edit, JSON arrays).
 
     Responsibilities:
     1. Parse line-by-line JSON objects
@@ -63,7 +63,6 @@ class NDJSONParserWrapper:
         was_truncated: bool = False,
         # Callbacks for fallback to other parsers
         fallback_structured_edit=None,
-        fallback_legacy_diff=None,
     ) -> BuilderResult:
         """Parse NDJSON format response.
 
@@ -79,7 +78,6 @@ class NDJSONParserWrapper:
             stop_reason: Stop reason from API
             was_truncated: Whether output was truncated
             fallback_structured_edit: Callback for structured edit fallback
-            fallback_legacy_diff: Callback for legacy diff fallback
 
         Returns:
             BuilderResult with success/failure status
@@ -141,7 +139,6 @@ class NDJSONParserWrapper:
                     effective_truncation,
                     content,
                     fallback_structured_edit,
-                    fallback_legacy_diff,
                 )
 
             # Apply operations using NDJSONApplier
@@ -256,24 +253,31 @@ class NDJSONParserWrapper:
         effective_truncation,
         content,
         fallback_structured_edit,
-        fallback_legacy_diff,
     ) -> BuilderResult:
         """Handle case where no NDJSON operations were found."""
-        # Fallback 1: Check for legacy diff format
+        # Check for unsupported diff format and return clear error
         if "diff --git" in sanitized or sanitized.startswith("*** Begin Patch"):
-            logger.warning(
-                "[BUILD-129:NDJSON] No NDJSON operations found; falling back to legacy diff parse"
+            logger.error(
+                "[BUILD-129:NDJSON] Model returned diff format which is no longer supported. "
+                "Use full-file or structured-edit format instead."
             )
-            if fallback_legacy_diff:
-                return fallback_legacy_diff(
-                    sanitized,
-                    response,
-                    model,
-                    stop_reason=stop_reason,
-                    was_truncated=effective_truncation,
-                )
+            return BuilderResult(
+                success=False,
+                patch_content="",
+                builder_messages=[
+                    "Model returned unsupported diff format. Use full-file or structured-edit format."
+                ],
+                tokens_used=response.usage.input_tokens + response.usage.output_tokens,
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
+                model_used=model,
+                error="unsupported_diff_format",
+                stop_reason=stop_reason,
+                was_truncated=effective_truncation,
+                raw_output=content,
+            )
 
-        # Fallback 2: Try to scan for structured-edit JSON
+        # Fallback: Try to scan for structured-edit JSON
         structured_obj = self._scan_for_structured_edit(sanitized)
         if structured_obj and fallback_structured_edit:
             logger.warning(
@@ -291,7 +295,7 @@ class NDJSONParserWrapper:
                 was_truncated=effective_truncation,
             )
 
-        # Fallback 3: Try to convert JSON array to NDJSON
+        # Try to convert JSON array to NDJSON
         converted_result = self._try_convert_json_array(sanitized, parse_result)
         if converted_result and converted_result.operations:
             logger.info(

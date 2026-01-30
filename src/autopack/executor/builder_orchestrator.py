@@ -650,13 +650,6 @@ class BuilderOrchestrator:
         if len(files) >= 30:
             use_full_file_mode = False
 
-        # Defensive check: If diff mode is somehow enabled, log loudly
-        if config.legacy_diff_fallback_enabled and use_full_file_mode:
-            logger.error(
-                f"[{phase_id}] WARNING: legacy_diff_fallback_enabled is True but should be False! "
-                f"All files ≤{config.max_lines_for_full_file} lines will use full-file mode."
-            )
-
         return use_full_file_mode
 
     def _run_deliverables_manifest_gate(

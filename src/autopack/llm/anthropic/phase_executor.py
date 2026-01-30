@@ -705,7 +705,8 @@ class AnthropicPhaseExecutor:
                         stop_reason=stop_reason,
                         was_truncated=was_truncated,
                     )
-                elif use_full_file_mode_flag:
+                else:
+                    # Full-file mode is the default; legacy diff mode has been removed
                     return self.client._parse_full_file_output(
                         text,
                         file_context,
@@ -715,10 +716,6 @@ class AnthropicPhaseExecutor:
                         config=config,
                         stop_reason=stop_reason,
                         was_truncated=was_truncated,
-                    )
-                else:
-                    return self.client._parse_legacy_diff_output(
-                        text, response, model, stop_reason=stop_reason, was_truncated=was_truncated
                     )
 
             result = _parse_once(content)
@@ -1084,21 +1081,14 @@ class AnthropicPhaseExecutor:
                             stop_reason=retry_stop_reason,
                             was_truncated=retry_was_truncated,
                         )
-                    if use_full_file_mode_flag:
-                        return self.client._parse_full_file_output(
-                            retry_content,
-                            file_context,
-                            retry_response,
-                            model,
-                            phase_spec,
-                            config=config,
-                            stop_reason=retry_stop_reason,
-                            was_truncated=retry_was_truncated,
-                        )
-                    return self.client._parse_legacy_diff_output(
+                    # Full-file mode is the default; legacy diff mode has been removed
+                    return self.client._parse_full_file_output(
                         retry_content,
+                        file_context,
                         retry_response,
                         model,
+                        phase_spec,
+                        config=config,
                         stop_reason=retry_stop_reason,
                         was_truncated=retry_was_truncated,
                     )

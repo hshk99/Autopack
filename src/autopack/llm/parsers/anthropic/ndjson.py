@@ -48,7 +48,7 @@ class NDJSONResponseParseResult:
     """Error message if parsing failed completely."""
 
     fallback_format: Optional[str] = None
-    """Format detected if not NDJSON (e.g., 'structured_edit', 'legacy_diff')."""
+    """Format detected if not NDJSON (e.g., 'structured_edit', 'json_array')."""
 
 
 class NDJSONResponseParser:
@@ -75,7 +75,7 @@ class NDJSONResponseParser:
         Detect if content is in a different format than NDJSON.
 
         Returns:
-            Format name if detected ('structured_edit', 'legacy_diff', 'json_array'),
+            Format name if detected ('structured_edit', 'json_array', 'unsupported_diff'),
             or None if appears to be NDJSON.
         """
         # Check for structured edit JSON (pretty-printed object with operations array)
@@ -91,9 +91,9 @@ class NDJSONResponseParser:
             except Exception:
                 pass
 
-        # Check for legacy diff format
+        # Check for git diff format (no longer supported - use full-file or structured edit)
         if "diff --git" in sanitized or sanitized.startswith("*** Begin Patch"):
-            return "legacy_diff"
+            return "unsupported_diff"
 
         # Check for JSON array format (not NDJSON)
         # But allow array if it seems like operations

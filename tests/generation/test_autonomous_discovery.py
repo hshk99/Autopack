@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from generation.autonomous_discovery import AutonomousDiscovery, DiscoveredIMP
+from autopack.generation.autonomous_discovery import AutonomousDiscovery, DiscoveredIMP
 
 
 @pytest.fixture

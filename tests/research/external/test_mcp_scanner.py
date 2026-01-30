@@ -1,6 +1,5 @@
 """Tests for MCP Registry Scanner."""
 
-from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -346,17 +345,17 @@ class TestMCPRegistryScanner:
             assert result["database"][0].name == "mcp-server-postgres"
 
     @pytest.mark.asyncio
-    async def test_close_session(self):
-        """Test closing the HTTP session."""
-        # Create a mock session
-        mock_session = MagicMock()
-        mock_session.closed = False
-        mock_session.close = AsyncMock()
-        self.scanner._session = mock_session
+    async def test_close_client(self):
+        """Test closing the HTTP client."""
+        # Create a mock client
+        mock_client = MagicMock()
+        mock_client.is_closed = False
+        mock_client.aclose = AsyncMock()
+        self.scanner._client = mock_client
 
         await self.scanner.close()
 
-        mock_session.close.assert_called_once()
+        mock_client.aclose.assert_called_once()
 
 
 class TestMCPServerMaturity:

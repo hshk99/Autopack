@@ -12,7 +12,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-import aiohttp
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -162,19 +162,18 @@ class MCPRegistryScanner:
         """
         self._github_token = github_token
         self._timeout = timeout
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._client: Optional[httpx.AsyncClient] = None
 
-    async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create aiohttp session."""
-        if self._session is None or self._session.closed:
-            timeout = aiohttp.ClientTimeout(total=self._timeout)
-            self._session = aiohttp.ClientSession(timeout=timeout)
-        return self._session
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Get or create httpx async client."""
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(timeout=self._timeout)
+        return self._client
 
     async def close(self) -> None:
-        """Close the HTTP session."""
-        if self._session and not self._session.closed:
-            await self._session.close()
+        """Close the HTTP client."""
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
 
     async def scan_registry(
         self,
@@ -249,7 +248,7 @@ class MCPRegistryScanner:
             List of MCPServer objects found on GitHub.
         """
         servers: List[MCPServer] = []
-        session = await self._get_session()
+        client = await self._get_client()
 
         search_query = query if query else "mcp-server"
         search_url = (
@@ -263,20 +262,20 @@ class MCPRegistryScanner:
             headers["Authorization"] = f"token {self._github_token}"
 
         try:
-            async with session.get(search_url, headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    items = data.get("items", [])
+            response = await client.get(search_url, headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                items = data.get("items", [])
 
-                    for item in items:
-                        server = self._parse_github_repo(item)
-                        if server:
-                            servers.append(server)
-                elif response.status == 403:
-                    logger.warning("GitHub API rate limit exceeded")
-                else:
-                    logger.warning(f"GitHub API returned status {response.status}")
-        except aiohttp.ClientError as e:
+                for item in items:
+                    server = self._parse_github_repo(item)
+                    if server:
+                        servers.append(server)
+            elif response.status_code == 403:
+                logger.warning("GitHub API rate limit exceeded")
+            else:
+                logger.warning(f"GitHub API returned status {response.status_code}")
+        except httpx.HTTPError as e:
             logger.error(f"GitHub API request failed: {e}")
             raise
 
@@ -351,23 +350,23 @@ class MCPRegistryScanner:
             List of MCPServer objects found on NPM.
         """
         servers: List[MCPServer] = []
-        session = await self._get_session()
+        client = await self._get_client()
 
         search_query = query if query else "@modelcontextprotocol"
         search_url = f"{self.NPM_REGISTRY_BASE}/-/v1/search?text={search_query}&size=50"
 
         try:
-            async with session.get(search_url) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    objects = data.get("objects", [])
+            response = await client.get(search_url)
+            if response.status_code == 200:
+                data = response.json()
+                objects = data.get("objects", [])
 
-                    for obj in objects:
-                        package = obj.get("package", {})
-                        server = self._parse_npm_package(package)
-                        if server:
-                            servers.append(server)
-        except aiohttp.ClientError as e:
+                for obj in objects:
+                    package = obj.get("package", {})
+                    server = self._parse_npm_package(package)
+                    if server:
+                        servers.append(server)
+        except httpx.HTTPError as e:
             logger.error(f"NPM registry request failed: {e}")
             raise
 

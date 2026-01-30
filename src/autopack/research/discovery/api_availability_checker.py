@@ -237,8 +237,6 @@ class APIAvailabilityChecker:
         is_custom: bool = False,
     ) -> APIAvailabilityCheck:
         """Parse HTTP response into APIAvailabilityCheck."""
-        import time
-
         response_time = getattr(response, "elapsed", None)
         response_time_ms = response_time.total_seconds() * 1000 if response_time else None
 

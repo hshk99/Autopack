@@ -40,7 +40,7 @@ from .faiss_store import FaissStore
 # IMP-MAINT-005: Import extracted freshness and vector store modules
 from .freshness_filter import (COLLECTION_CODE_DOCS, COLLECTION_DOCTOR_HINTS,
                                COLLECTION_ERRORS_CI,
-                               COLLECTION_FRESHNESS_HOURS, COLLECTION_PLANNING,
+                               COLLECTION_PLANNING,
                                COLLECTION_RUN_SUMMARIES, COLLECTION_SOT_DOCS)
 from .freshness_filter import \
     DEFAULT_MEMORY_FRESHNESS_HOURS as _FF_DEFAULT_FRESHNESS_HOURS
@@ -372,13 +372,6 @@ class TelemetryFeedbackValidator:
         return sanitized
 
 
-# Collection names (per plan)
-COLLECTION_CODE_DOCS = "code_docs"
-COLLECTION_RUN_SUMMARIES = "run_summaries"
-COLLECTION_ERRORS_CI = "errors_ci"
-COLLECTION_DOCTOR_HINTS = "doctor_hints"
-COLLECTION_PLANNING = "planning"
-COLLECTION_SOT_DOCS = "sot_docs"
 
 ALL_COLLECTIONS = [
     COLLECTION_CODE_DOCS,

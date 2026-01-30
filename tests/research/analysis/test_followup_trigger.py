@@ -12,7 +12,7 @@ import pytest
 
 from autopack.research.analysis.followup_trigger import (
     CallbackResult, FollowupResearchTrigger, FollowupTrigger, ResearchPlan,
-    TriggerAnalysisResult, TriggerExecutionResult, TriggerPriority,
+    TriggerExecutionResult, TriggerPriority,
     TriggerType)
 
 

@@ -6,7 +6,7 @@ handler registration, and event processing.
 
 import asyncio
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, call
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

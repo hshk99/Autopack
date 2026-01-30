@@ -4,18 +4,22 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from autopack.telemetry.meta_metrics import (ComponentStatus,
-                                             FeedbackLoopHealth,
-                                             FeedbackLoopLatency,
-                                             LoopCompletenessMetric,
-                                             LoopCompletenessSnapshot,
-                                             LoopFidelityMetric,
-                                             LoopLatencyMetric,
-                                             MetaMetricsTracker, MetricTrend,
-                                             PipelineLatencyTracker,
-                                             PipelineSLAConfig, PipelineStage,
-                                             PipelineStageTimestamp,
-                                             SLABreachAlert)
+from autopack.telemetry.meta_metrics import (
+    ComponentStatus,
+    FeedbackLoopHealth,
+    FeedbackLoopLatency,
+    LoopCompletenessMetric,
+    LoopCompletenessSnapshot,
+    LoopFidelityMetric,
+    LoopLatencyMetric,
+    MetaMetricsTracker,
+    MetricTrend,
+    PipelineLatencyTracker,
+    PipelineSLAConfig,
+    PipelineStage,
+    PipelineStageTimestamp,
+    SLABreachAlert,
+)
 
 
 @pytest.fixture
@@ -1821,8 +1825,7 @@ class TestContextInjectionEffectivenessResult:
 
     def test_result_has_all_fields(self):
         """IMP-LOOP-029: Result should have all required fields."""
-        from autopack.telemetry.meta_metrics import \
-            ContextInjectionEffectivenessResult
+        from autopack.telemetry.meta_metrics import ContextInjectionEffectivenessResult
 
         result = ContextInjectionEffectivenessResult(
             with_context_success_rate=0.8,
@@ -1846,8 +1849,7 @@ class TestContextInjectionEffectivenessResult:
 
     def test_result_to_dict(self):
         """IMP-LOOP-029: to_dict should serialize all fields."""
-        from autopack.telemetry.meta_metrics import \
-            ContextInjectionEffectivenessResult
+        from autopack.telemetry.meta_metrics import ContextInjectionEffectivenessResult
 
         result = ContextInjectionEffectivenessResult(
             with_context_success_rate=0.8,
@@ -1874,8 +1876,7 @@ class TestContextInjectionEffectivenessTracker:
     @pytest.fixture
     def tracker(self):
         """Create a fresh tracker for each test."""
-        from autopack.telemetry.meta_metrics import \
-            ContextInjectionEffectivenessTracker
+        from autopack.telemetry.meta_metrics import ContextInjectionEffectivenessTracker
 
         return ContextInjectionEffectivenessTracker()
 
@@ -1972,8 +1973,7 @@ class TestContextInjectionEffectivenessTracker:
 
     def test_get_trend_improving(self, tracker):
         """IMP-LOOP-029: get_trend should detect improving effectiveness."""
-        from autopack.telemetry.meta_metrics import \
-            ContextInjectionEffectivenessResult
+        from autopack.telemetry.meta_metrics import ContextInjectionEffectivenessResult
 
         # Manually add history entries with improving delta values
         for delta in [0.0, 0.05, 0.1, 0.15, 0.2]:

@@ -14,26 +14,28 @@ Tests cover:
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
-
-from autopack.memory.freshness_filter import (COLLECTION_CODE_DOCS,
-                                              COLLECTION_DOCTOR_HINTS,
-                                              COLLECTION_ERRORS_CI,
-                                              COLLECTION_FRESHNESS_HOURS,
-                                              COLLECTION_PLANNING,
-                                              COLLECTION_RUN_SUMMARIES,
-                                              COLLECTION_SOT_DOCS,
-                                              DEFAULT_MEMORY_FRESHNESS_HOURS,
-                                              FRESH_AGE_HOURS,
-                                              LOW_CONFIDENCE_THRESHOLD,
-                                              MEDIUM_CONFIDENCE_THRESHOLD,
-                                              STALE_AGE_HOURS, ContextMetadata,
-                                              FreshnessFilter,
-                                              calculate_age_hours,
-                                              calculate_confidence,
-                                              enrich_with_metadata,
-                                              get_freshness_threshold,
-                                              is_fresh, parse_timestamp)
+from autopack.memory.freshness_filter import (
+    COLLECTION_CODE_DOCS,
+    COLLECTION_DOCTOR_HINTS,
+    COLLECTION_ERRORS_CI,
+    COLLECTION_FRESHNESS_HOURS,
+    COLLECTION_PLANNING,
+    COLLECTION_RUN_SUMMARIES,
+    COLLECTION_SOT_DOCS,
+    DEFAULT_MEMORY_FRESHNESS_HOURS,
+    FRESH_AGE_HOURS,
+    LOW_CONFIDENCE_THRESHOLD,
+    MEDIUM_CONFIDENCE_THRESHOLD,
+    STALE_AGE_HOURS,
+    ContextMetadata,
+    FreshnessFilter,
+    calculate_age_hours,
+    calculate_confidence,
+    enrich_with_metadata,
+    get_freshness_threshold,
+    is_fresh,
+    parse_timestamp,
+)
 
 
 class TestParseTimestamp:

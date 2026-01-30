@@ -330,9 +330,7 @@ class TestConvenienceFunction:
         mock_adapter = MagicMock()
         mock_adapter.get_intention_context.return_value = "Test intention"
 
-        with patch(
-            "autopack.intention_wiring.IntentionAnchorV2Adapter"
-        ) as mock_adapter_class:
+        with patch("autopack.intention_wiring.IntentionAnchorV2Adapter") as mock_adapter_class:
             mock_adapter_class.return_value = mock_adapter
 
             enhanced = inject_intention_into_prompt(
@@ -350,9 +348,7 @@ class TestConvenienceFunction:
         mock_adapter = MagicMock()
         mock_adapter.get_intention_context.return_value = "Test intention"
 
-        with patch(
-            "autopack.intention_wiring.IntentionAnchorV2Adapter"
-        ) as mock_adapter_class:
+        with patch("autopack.intention_wiring.IntentionAnchorV2Adapter") as mock_adapter_class:
             mock_adapter_class.return_value = mock_adapter
 
             enhanced = inject_intention_into_prompt(
@@ -372,9 +368,7 @@ class TestConvenienceFunction:
         mock_adapter = MagicMock()
         mock_adapter.get_intention_context.return_value = "Test intention"
 
-        with patch(
-            "autopack.intention_wiring.IntentionAnchorV2Adapter"
-        ) as mock_adapter_class:
+        with patch("autopack.intention_wiring.IntentionAnchorV2Adapter") as mock_adapter_class:
             mock_adapter_class.return_value = mock_adapter
 
             enhanced = inject_intention_into_prompt(
@@ -393,9 +387,7 @@ class TestConvenienceFunction:
         mock_adapter = MagicMock()
         mock_adapter.get_intention_context.return_value = "Test intention"
 
-        with patch(
-            "autopack.intention_wiring.IntentionAnchorV2Adapter"
-        ) as mock_adapter_class:
+        with patch("autopack.intention_wiring.IntentionAnchorV2Adapter") as mock_adapter_class:
             mock_adapter_class.return_value = mock_adapter
 
             enhanced = inject_intention_into_prompt(

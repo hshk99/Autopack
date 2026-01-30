@@ -10,8 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.telemetry.analyzer import (InsightAccuracyReport,
-                                         TelemetryAnalyzer, ThresholdUpdate)
+from autopack.telemetry.analyzer import InsightAccuracyReport, TelemetryAnalyzer, ThresholdUpdate
 
 
 class TestInsightAccuracyReport:

@@ -12,7 +12,6 @@ For v2 intention anchor tests, see:
 
 import pytest
 
-
 # All v1 tests are skipped as the deprecated classes have been removed (IMP-CLEAN-002)
 pytestmark = pytest.mark.skip(
     reason="IMP-CLEAN-002: ProjectIntention v1 schema removed. Use IntentionAnchorV2 instead."

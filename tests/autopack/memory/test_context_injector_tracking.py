@@ -15,14 +15,15 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from autopack.memory.context_injector import (ContextInjection,
-                                              ContextInjectionMetadata,
-                                              ContextInjector,
-                                              EnrichedContextInjection)
+from autopack.memory.context_injector import (
+    ContextInjection,
+    ContextInjectionMetadata,
+    ContextInjector,
+    EnrichedContextInjection,
+)
 from autopack.memory.memory_service import ContextMetadata
 from autopack.models import Base, PhaseOutcomeEvent
-from autopack.telemetry.analyzer import (ContextInjectionImpact,
-                                         TelemetryAnalyzer)
+from autopack.telemetry.analyzer import ContextInjectionImpact, TelemetryAnalyzer
 
 # ---------------------------------------------------------------------------
 # IMP-LOOP-021: ContextInjectionMetadata Dataclass Tests

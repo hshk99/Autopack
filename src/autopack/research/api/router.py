@@ -951,8 +951,7 @@ async def invalidate_cached_session(request: CacheInvalidateRequest):
         )
 
     try:
-        from autopack.research.models.bootstrap_session import \
-            generate_idea_hash
+        from autopack.research.models.bootstrap_session import generate_idea_hash
 
         idea_hash = generate_idea_hash(
             request.idea_title,

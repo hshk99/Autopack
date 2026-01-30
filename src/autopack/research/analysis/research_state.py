@@ -8,17 +8,18 @@ Enables:
 - Measuring research completeness
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
 import hashlib
 import json
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 
 class GapType(Enum):
     """Types of research gaps."""
+
     COVERAGE = "coverage"
     ENTITY = "entity"
     DEPTH = "depth"
@@ -28,6 +29,7 @@ class GapType(Enum):
 
 class GapPriority(Enum):
     """Priority levels for gaps."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -36,6 +38,7 @@ class GapPriority(Enum):
 
 class ResearchDepth(Enum):
     """Depth levels for research topics."""
+
     SHALLOW = "shallow"
     MEDIUM = "medium"
     DEEP = "deep"
@@ -44,6 +47,7 @@ class ResearchDepth(Enum):
 @dataclass
 class CompletedQuery:
     """Record of a completed research query."""
+
     query: str
     agent: str
     timestamp: datetime
@@ -56,6 +60,7 @@ class CompletedQuery:
 @dataclass
 class DiscoveredSource:
     """A discovered research source."""
+
     url: str
     source_type: str
     accessed_at: datetime
@@ -67,6 +72,7 @@ class DiscoveredSource:
 @dataclass
 class ResearchGap:
     """An identified gap in research."""
+
     gap_id: str
     gap_type: GapType
     category: str
@@ -94,6 +100,7 @@ class ResearchGap:
 @dataclass
 class CoverageMetrics:
     """Research coverage metrics."""
+
     overall_percentage: float = 0.0
     by_category: Dict[str, float] = field(default_factory=dict)
 
@@ -126,6 +133,7 @@ class CoverageMetrics:
 @dataclass
 class ResearchState:
     """Main research state container."""
+
     project_id: str
     created_at: datetime = field(default_factory=datetime.now)
     last_updated: datetime = field(default_factory=datetime.now)
@@ -234,9 +242,7 @@ class ResearchState:
                     suggested_queries=g.get("suggested_queries", []),
                     identified_at=datetime.fromisoformat(g["identified_at"]),
                     addressed_at=(
-                        datetime.fromisoformat(g["addressed_at"])
-                        if g.get("addressed_at")
-                        else None
+                        datetime.fromisoformat(g["addressed_at"]) if g.get("addressed_at") else None
                     ),
                     status=g.get("status", "pending"),
                 )
@@ -247,9 +253,7 @@ class ResearchState:
 
         # Load research depth
         depth_data = state_data.get("research_depth", {})
-        state.research_depth = {
-            k: ResearchDepth(v) for k, v in depth_data.items()
-        }
+        state.research_depth = {k: ResearchDepth(v) for k, v in depth_data.items()}
 
         return state
 
@@ -257,6 +261,7 @@ class ResearchState:
 @dataclass
 class ResearchRequirements:
     """Requirements for research completeness."""
+
     min_coverage: Dict[str, float] = field(default_factory=dict)
     min_sources: int = 2
     max_age_days: Dict[str, int] = field(default_factory=dict)
@@ -660,7 +665,9 @@ class ResearchStateTracker:
             return {"error": "State not loaded"}
 
         pending_gaps = [g for g in self._state.identified_gaps if g.status == "pending"]
-        high_priority = [g for g in pending_gaps if g.priority in [GapPriority.CRITICAL, GapPriority.HIGH]]
+        high_priority = [
+            g for g in pending_gaps if g.priority in [GapPriority.CRITICAL, GapPriority.HIGH]
+        ]
 
         return {
             "state_tracker_output": {

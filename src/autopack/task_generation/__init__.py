@@ -16,13 +16,14 @@ Use AutonomousTaskGenerator from autopack.roadc.task_generator instead.
 
 from __future__ import annotations
 
-from .insight_correlation import (InsightCorrelationEngine,
-                                  InsightEffectivenessStats,
-                                  InsightTaskCorrelation)
+from .insight_correlation import (
+    InsightCorrelationEngine,
+    InsightEffectivenessStats,
+    InsightTaskCorrelation,
+)
 from .priority_engine import PriorityEngine
 from .roi_analyzer import PaybackAnalysis, ROIAnalyzer
-from .task_effectiveness_tracker import (TaskEffectivenessTracker,
-                                         TaskImpactReport)
+from .task_effectiveness_tracker import TaskEffectivenessTracker, TaskImpactReport
 
 __all__ = [
     "InsightCorrelationEngine",

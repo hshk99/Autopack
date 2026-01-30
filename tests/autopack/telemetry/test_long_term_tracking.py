@@ -10,9 +10,11 @@ from unittest.mock import MagicMock
 import pytest
 
 from autopack.task_generation.task_effectiveness_tracker import (
-    FollowupCheckResult, ScheduledCheck, TaskEffectivenessTracker)
-from autopack.telemetry.analyzer import (RegressionPreventionReport,
-                                         TelemetryAnalyzer)
+    FollowupCheckResult,
+    ScheduledCheck,
+    TaskEffectivenessTracker,
+)
+from autopack.telemetry.analyzer import RegressionPreventionReport, TelemetryAnalyzer
 
 
 class TestScheduledCheck:

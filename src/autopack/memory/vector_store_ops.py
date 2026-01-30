@@ -16,7 +16,7 @@ The VectorStoreOperations class wraps store operations with:
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, List, Optional, TypeVar
 
 logger = logging.getLogger(__name__)
 

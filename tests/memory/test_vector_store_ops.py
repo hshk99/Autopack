@@ -11,14 +11,15 @@ Tests cover:
 - build_project_filter helper function
 """
 
-from datetime import datetime, timezone
 from unittest.mock import Mock
 
 import pytest
 
-from autopack.memory.vector_store_ops import (VectorStoreOperations,
-                                              build_point,
-                                              build_project_filter)
+from autopack.memory.vector_store_ops import (
+    VectorStoreOperations,
+    build_point,
+    build_project_filter,
+)
 
 
 @pytest.fixture

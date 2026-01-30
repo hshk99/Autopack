@@ -14,8 +14,6 @@ Tests cover:
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
-
 from autopack.memory.freshness_filter import (COLLECTION_CODE_DOCS,
                                               COLLECTION_DOCTOR_HINTS,
                                               COLLECTION_ERRORS_CI,

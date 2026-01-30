@@ -11,7 +11,6 @@ Tests cover:
 - build_project_filter helper function
 """
 
-from datetime import datetime, timezone
 from unittest.mock import Mock
 
 import pytest

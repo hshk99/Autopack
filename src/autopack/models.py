@@ -60,6 +60,22 @@ class TierState(str, Enum):
     SKIPPED = "SKIPPED"
 
 
+class PhaseType(str, Enum):
+    """Phase types for phase orchestration.
+
+    Extends phase handling to support different phase categories including
+    the deployment phase for infrastructure and deployment guidance generation.
+    """
+
+    PLANNING = "planning"
+    RESEARCH = "research"
+    IMPLEMENTATION = "implementation"
+    TESTING = "testing"
+    DEPLOYMENT = "deployment"
+    DOCUMENTATION = "documentation"
+    REFACTORING = "refactoring"
+
+
 class Run(Base):
     """Autonomous build run model"""
 
@@ -195,9 +211,17 @@ class Phase(Base):
     task_category = Column(String, nullable=True)  # e.g. schema_change, cross_cutting_refactor
     complexity = Column(String, nullable=True)  # low, medium, high
     builder_mode = Column(String, nullable=True)  # e.g. tweak_light, scaffolding_heavy
+    phase_type = Column(
+        String, nullable=True
+    )  # e.g. planning, research, implementation, testing, deployment, documentation, refactoring
 
     # Scope configuration (file paths and read-only context)
     scope = Column(JSON, nullable=True)  # {"paths": [...], "read_only_context": [...]}
+
+    # Deployment phase configuration (IMP-HIGH-003)
+    deployment_config = Column(
+        JSON, nullable=True
+    )  # {"providers": [...], "templates": [...], "guidance_types": [...]}
 
     # Budgets (per §9.3 of v7 playbook)
     max_builder_attempts = Column(Integer, nullable=True)

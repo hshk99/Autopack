@@ -1,9 +1,21 @@
 """
 Analysis module for Autopack research.
 
-Contains cost-effectiveness analysis, gap detection, and follow-up research triggers.
+Contains cost-effectiveness analysis, gap detection, build vs buy analysis,
+and follow-up research triggers.
 """
 
+from autopack.research.analysis.build_vs_buy_analyzer import (
+    BuildVsBuyAnalysis,
+    BuildVsBuyAnalyzer,
+    ComponentRequirements,
+    CostEstimate,
+    DecisionRecommendation,
+    RiskAssessment,
+    RiskCategory,
+    StrategicImportance,
+    VendorOption,
+)
 from autopack.research.analysis.cost_effectiveness import (
     ComponentCostData,
     CostCategory,
@@ -31,6 +43,16 @@ from autopack.research.analysis.research_state import (
 )
 
 __all__ = [
+    # Build vs Buy analysis
+    "BuildVsBuyAnalyzer",
+    "BuildVsBuyAnalysis",
+    "ComponentRequirements",
+    "VendorOption",
+    "CostEstimate",
+    "RiskAssessment",
+    "DecisionRecommendation",
+    "RiskCategory",
+    "StrategicImportance",
     # Cost effectiveness
     "CostEffectivenessAnalyzer",
     "ComponentCostData",

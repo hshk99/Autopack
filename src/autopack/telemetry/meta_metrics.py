@@ -593,6 +593,56 @@ class TaskGenerationThroughputMetrics:
         return "stalled"
 
 
+@dataclass
+class MemoryFreshnessMetrics:
+    """Metrics tracking memory freshness for observability.
+
+    IMP-MEDIUM-001: Exposes memory system health metrics for monitoring
+    memory degradation and tracking maintenance effectiveness.
+
+    Attributes:
+        freshness_ratio: Percentage of entries within freshness window (0.0-1.0)
+        stale_entries_count: Number of entries past TTL window
+        total_entries: Total entries in memory
+        ttl_days: TTL threshold used for staleness
+        pruning_effectiveness: Ratio of entries pruned vs. total operations
+        timestamp: When metrics were recorded
+    """
+
+    freshness_ratio: float
+    stale_entries_count: int
+    total_entries: int
+    ttl_days: int
+    pruning_effectiveness: float = 0.0
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "freshness_ratio": round(self.freshness_ratio, 4),
+            "stale_entries_count": self.stale_entries_count,
+            "total_entries": self.total_entries,
+            "ttl_days": self.ttl_days,
+            "pruning_effectiveness": round(self.pruning_effectiveness, 4),
+            "timestamp": self.timestamp.isoformat(),
+        }
+
+    @property
+    def health_status(self) -> str:
+        """Get human-readable memory health status.
+
+        Returns:
+            Status string: "healthy", "degrading", "critical", or "empty"
+        """
+        if self.total_entries == 0:
+            return "empty"
+        if self.freshness_ratio >= 0.8:  # 80%+ fresh
+            return "healthy"
+        if self.freshness_ratio >= 0.5:  # 50%+ fresh
+            return "degrading"
+        return "critical"  # Less than 50% fresh
+
+
 class MetaMetricsTracker:
     """Track and analyze meta-metrics for feedback loop quality.
 
@@ -844,6 +894,46 @@ class MetaMetricsTracker:
             "recommendations": recommendations,
             "metrics": throughput.to_dict(),
         }
+
+    def record_memory_freshness(
+        self,
+        freshness_ratio: float,
+        stale_entries_count: int,
+        total_entries: int,
+        ttl_days: int,
+        pruning_effectiveness: float = 0.0,
+    ) -> MemoryFreshnessMetrics:
+        """Record memory freshness metrics for observability.
+
+        IMP-MEDIUM-001: Captures memory system health metrics including freshness
+        ratio, stale entries count, and pruning effectiveness. Used for monitoring
+        memory degradation and tracking maintenance effectiveness.
+
+        Args:
+            freshness_ratio: Percentage of entries within freshness window (0.0-1.0)
+            stale_entries_count: Number of entries past TTL window
+            total_entries: Total entries in memory
+            ttl_days: TTL threshold used for staleness
+            pruning_effectiveness: Ratio of entries pruned vs. total operations
+
+        Returns:
+            MemoryFreshnessMetrics with recorded metrics
+        """
+        metrics = MemoryFreshnessMetrics(
+            freshness_ratio=freshness_ratio,
+            stale_entries_count=stale_entries_count,
+            total_entries=total_entries,
+            ttl_days=ttl_days,
+            pruning_effectiveness=pruning_effectiveness,
+        )
+
+        logger.info(
+            f"[IMP-MEDIUM-001] Memory freshness recorded: "
+            f"ratio={metrics.freshness_ratio:.2%}, stale={stale_entries_count}, "
+            f"total={total_entries}, status={metrics.health_status}"
+        )
+
+        return metrics
 
     def analyze_feedback_loop_health(
         self, telemetry_data: Dict[str, Any], baseline_data: Optional[Dict[str, Any]] = None

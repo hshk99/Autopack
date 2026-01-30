@@ -160,7 +160,8 @@ class TestHighSeverityRecommendationsLoggedOnly:
         ]
 
         with patch.object(loop, "_get_telemetry_analyzer", return_value=mock_analyzer):
-            with patch("autopack.executor.autonomous_loop.logger") as mock_logger:
+            # IMP-MAINT-004: Logger is now in loop_telemetry_integration module
+            with patch("autopack.executor.loop_telemetry_integration.logger") as mock_logger:
                 adjustments = loop._get_telemetry_adjustments("BUILD")
 
         # No adjustments should be made for HIGH severity

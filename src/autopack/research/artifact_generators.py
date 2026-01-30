@@ -255,6 +255,320 @@ class MonetizationStrategyGenerator:
         return section
 
 
+class ProjectReadmeGenerator:
+    """Generates comprehensive README.md from research artifacts.
+
+    Produces a README that includes project overview, setup instructions,
+    architecture overview, deployment guide, and monetization notes.
+    """
+
+    def generate(
+        self,
+        research_findings: Dict[str, Any],
+        tech_stack: Dict[str, Any],
+        project_brief: str,
+        monetization_strategy: Optional[str] = None,
+    ) -> str:
+        """Generate comprehensive README.md content.
+
+        Args:
+            research_findings: Research findings dict with project context
+            tech_stack: Tech stack proposal dict with technologies
+            project_brief: Project brief description
+            monetization_strategy: Optional monetization strategy content
+
+        Returns:
+            Markdown string with comprehensive README content
+        """
+        logger.info("[ProjectReadmeGenerator] Generating project README")
+
+        content = ""
+
+        # Project Title and Overview
+        content += self._generate_overview_section(research_findings, project_brief)
+
+        # Table of Contents
+        content += self._generate_table_of_contents()
+
+        # Project Details
+        content += self._generate_project_details(research_findings)
+
+        # Setup Instructions
+        content += self._generate_setup_section(tech_stack)
+
+        # Architecture Overview
+        content += self._generate_architecture_section(tech_stack, research_findings)
+
+        # Deployment Guide
+        content += self._generate_deployment_section(tech_stack)
+
+        # Monetization Notes
+        if monetization_strategy:
+            content += self._generate_monetization_section(monetization_strategy)
+
+        # Getting Help and Contributing
+        content += self._generate_support_section()
+
+        return content
+
+    def _generate_overview_section(
+        self, research_findings: Dict[str, Any], project_brief: str
+    ) -> str:
+        """Generate project overview section.
+
+        Args:
+            research_findings: Research findings dict
+            project_brief: Project brief description
+
+        Returns:
+            Markdown section string
+        """
+        section = "# Project README\n\n"
+
+        if project_brief:
+            section += f"{project_brief}\n\n"
+
+        # Add market opportunity if available
+        market_info = research_findings.get("market_opportunity", {})
+        if market_info:
+            tam = market_info.get("total_addressable_market")
+            if tam:
+                section += f"**Market Opportunity**: ${tam} addressable market\n\n"
+
+        return section
+
+    def _generate_table_of_contents(self) -> str:
+        """Generate table of contents section.
+
+        Returns:
+            Markdown table of contents
+        """
+        return (
+            "## Table of Contents\n\n"
+            "- [Quick Start](#quick-start)\n"
+            "- [Project Details](#project-details)\n"
+            "- [Architecture](#architecture)\n"
+            "- [Deployment](#deployment)\n"
+            "- [Support](#support)\n\n"
+        )
+
+    def _generate_project_details(self, research_findings: Dict[str, Any]) -> str:
+        """Generate project details section.
+
+        Args:
+            research_findings: Research findings dict
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Project Details\n\n"
+
+        # Problem Statement
+        problem = research_findings.get("problem_statement", "")
+        if problem:
+            section += f"### Problem\n\n{problem}\n\n"
+
+        # Solution
+        solution = research_findings.get("solution", "")
+        if solution:
+            section += f"### Solution\n\n{solution}\n\n"
+
+        # Key Features
+        features = research_findings.get("features", [])
+        if features:
+            section += "### Key Features\n\n"
+            for feature in features:
+                if isinstance(feature, dict):
+                    name = feature.get("name", "Feature")
+                    description = feature.get("description", "")
+                    section += f"- **{name}**: {description}\n"
+                else:
+                    section += f"- {feature}\n"
+            section += "\n"
+
+        return section
+
+    def _generate_setup_section(self, tech_stack: Dict[str, Any]) -> str:
+        """Generate setup instructions section.
+
+        Args:
+            tech_stack: Tech stack proposal dict
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Quick Start\n\n"
+
+        # Prerequisites
+        section += "### Prerequisites\n\n"
+
+        languages = tech_stack.get("languages", [])
+        frameworks = tech_stack.get("frameworks", [])
+        tools = tech_stack.get("tools", [])
+
+        if languages:
+            section += "- "
+            section += ", ".join(languages)
+            section += "\n"
+
+        if frameworks:
+            section += "- Frameworks: "
+            section += ", ".join(frameworks)
+            section += "\n"
+
+        if tools:
+            section += "- Tools: "
+            section += ", ".join(tools)
+            section += "\n"
+
+        section += "\n"
+
+        # Installation
+        section += "### Installation\n\n"
+
+        package_manager = tech_stack.get("package_manager", "npm")
+        if package_manager in ["npm", "yarn", "pnpm"]:
+            section += f"```bash\n" f"{package_manager} install\n" f"```\n\n"
+        elif package_manager == "pip":
+            section += "```bash\n" "pip install -e .\n" "```\n\n"
+
+        # Running the Project
+        section += "### Running the Project\n\n"
+        section += "```bash\n" f"{package_manager} start\n" "```\n\n"
+
+        return section
+
+    def _generate_architecture_section(
+        self, tech_stack: Dict[str, Any], research_findings: Dict[str, Any]
+    ) -> str:
+        """Generate architecture overview section.
+
+        Args:
+            tech_stack: Tech stack proposal dict
+            research_findings: Research findings dict
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Architecture\n\n"
+
+        # Architecture Pattern
+        pattern = tech_stack.get("architecture_pattern", "")
+        if pattern:
+            section += f"**Architecture Pattern**: {pattern}\n\n"
+
+        # Core Components
+        components = research_findings.get("components", [])
+        if components:
+            section += "### Core Components\n\n"
+            for component in components:
+                if isinstance(component, dict):
+                    name = component.get("name", "Component")
+                    description = component.get("description", "")
+                    section += f"- **{name}**: {description}\n"
+                else:
+                    section += f"- {component}\n"
+            section += "\n"
+
+        # Technology Stack Details
+        section += "### Technology Stack\n\n"
+
+        frontend = tech_stack.get("frontend", [])
+        if frontend:
+            section += f"**Frontend**: {', '.join(frontend)}\n\n"
+
+        backend = tech_stack.get("backend", [])
+        if backend:
+            section += f"**Backend**: {', '.join(backend)}\n\n"
+
+        database = tech_stack.get("database", [])
+        if database:
+            section += f"**Database**: {', '.join(database)}\n\n"
+
+        return section
+
+    def _generate_deployment_section(self, tech_stack: Dict[str, Any]) -> str:
+        """Generate deployment guide section.
+
+        Args:
+            tech_stack: Tech stack proposal dict
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Deployment\n\n"
+
+        # Hosting Requirements
+        hosting = tech_stack.get("hosting_requirements", [])
+        if hosting:
+            section += "### Hosting Requirements\n\n"
+            for req in hosting:
+                section += f"- {req}\n"
+            section += "\n"
+
+        # Environment Setup
+        section += "### Environment Variables\n\n"
+        section += (
+            "Create a `.env` file in the project root with the following variables:\n\n"
+            "```\n"
+            "NODE_ENV=production\n"
+            "API_KEY=your_api_key\n"
+            "DATABASE_URL=your_database_url\n"
+            "```\n\n"
+        )
+
+        # Deployment Steps
+        section += "### Deployment Steps\n\n"
+        section += (
+            "1. Set up hosting environment\n"
+            "2. Configure environment variables\n"
+            "3. Build the project\n"
+            "4. Deploy to hosting service\n"
+            "5. Verify deployment\n\n"
+        )
+
+        return section
+
+    def _generate_monetization_section(self, monetization_strategy: str) -> str:
+        """Generate monetization notes section.
+
+        Args:
+            monetization_strategy: Monetization strategy content
+
+        Returns:
+            Markdown section string
+        """
+        return f"## Monetization Strategy\n\n{monetization_strategy}\n\n"
+
+    def _generate_support_section(self) -> str:
+        """Generate support and contributing section.
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Support\n\n"
+
+        section += (
+            "### Getting Help\n\n"
+            "- Check the documentation\n"
+            "- Open an issue on GitHub\n"
+            "- Contact the development team\n\n"
+        )
+
+        section += (
+            "### Contributing\n\n"
+            "Contributions are welcome! Please feel free to submit a Pull Request.\n\n"
+        )
+
+        section += (
+            "## License\n\n"
+            "This project is licensed under the MIT License - "
+            "see the LICENSE file for details.\n"
+        )
+
+        return section
+
+
 class ArtifactGeneratorRegistry:
     """Registry for artifact generators.
 
@@ -271,6 +585,7 @@ class ArtifactGeneratorRegistry:
         """Register default generators."""
         self.register("cicd", CICDWorkflowGenerator)
         self.register("monetization", MonetizationStrategyGenerator)
+        self.register("readme", ProjectReadmeGenerator)
 
     def register(
         self,
@@ -376,4 +691,20 @@ def get_monetization_generator(**kwargs: Any) -> MonetizationStrategyGenerator:
     if generator is None:
         # Fallback to direct instantiation
         return MonetizationStrategyGenerator(**kwargs)
+    return generator
+
+
+def get_readme_generator(**kwargs: Any) -> ProjectReadmeGenerator:
+    """Convenience function to get the project README generator.
+
+    Args:
+        **kwargs: Arguments to pass to ProjectReadmeGenerator
+
+    Returns:
+        ProjectReadmeGenerator instance
+    """
+    generator = get_registry().get("readme", **kwargs)
+    if generator is None:
+        # Fallback to direct instantiation
+        return ProjectReadmeGenerator(**kwargs)
     return generator

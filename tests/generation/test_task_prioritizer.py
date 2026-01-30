@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from generation.task_prioritizer import PrioritizedTask, TaskPrioritizer
+from autopack.generation.task_prioritizer import PrioritizedTask, TaskPrioritizer
 
 
 @pytest.fixture

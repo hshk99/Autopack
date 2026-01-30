@@ -52,7 +52,7 @@ from autopack.telemetry.meta_metrics import (
     PipelineStage,
 )
 from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
-from generation.autonomous_wave_planner import AutonomousWavePlanner, WavePlan
+from autopack.generation.autonomous_wave_planner import AutonomousWavePlanner, WavePlan
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor

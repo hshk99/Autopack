@@ -21,7 +21,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 if TYPE_CHECKING:
     from ..telemetry.meta_metrics import FeedbackLoopHealth
@@ -34,14 +34,10 @@ from ..planning.plan_proposer import propose_plan
 from ..research.analysis.followup_trigger import TriggerAnalysisResult
 from .action_allowlist import ActionClassification
 from .action_executor import ExecutionBatch, SafeActionExecutor
+from .event_triggers import EventTriggerManager, EventType, WorkflowEvent
 from .executor_integration import ExecutorContext, create_executor_context
-from .models import (
-    ApprovalRequest,
-    AutopilotMetadata,
-    AutopilotSessionV1,
-    ErrorLogEntry,
-    ExecutionSummary,
-)
+from .models import (ApprovalRequest, AutopilotMetadata, AutopilotSessionV1,
+                     ErrorLogEntry, ExecutionSummary)
 
 logger = logging.getLogger(__name__)
 
@@ -56,10 +52,14 @@ class AutopilotController:
         enabled: Whether autopilot is enabled (default: False)
         session: Current autopilot session
         executor_ctx: BUILD-181 ExecutorContext for integrated handling
+        _event_trigger_manager: IMP-AUTO-002 EventTriggerManager for external events
 
     IMP-REL-001: Includes health-gated task generation with auto-resume support.
     Task generation can be paused when feedback loop health is degraded and
     automatically resumed when health recovers to HEALTHY.
+
+    IMP-AUTO-002: Includes event-driven workflow triggers that respond to
+    external events (API updates, dependency changes, market signals, etc).
     """
 
     def __init__(
@@ -93,6 +93,10 @@ class AutopilotController:
         # IMP-AUTO-001: Research cycle triggering callbacks
         self._research_cycle_callbacks: list[Callable[[TriggerAnalysisResult], None]] = []
         self._last_research_trigger_result: Optional[TriggerAnalysisResult] = None
+
+        # IMP-AUTO-002: Event-driven workflow triggers
+        self._event_trigger_manager = EventTriggerManager()
+        self._pending_events: list[WorkflowEvent] = []
 
     def run_session(self, anchor: IntentionAnchorV2) -> AutopilotSessionV1:
         """Run autopilot session with safe execution gates.
@@ -426,7 +430,8 @@ class AutopilotController:
             return None
 
         try:
-            from ..research.analysis.followup_trigger import FollowupResearchTrigger
+            from ..research.analysis.followup_trigger import \
+                FollowupResearchTrigger
 
             # Analyze findings for follow-up research triggers
             followup_trigger = FollowupResearchTrigger()
@@ -520,6 +525,129 @@ class AutopilotController:
             Last TriggerAnalysisResult or None if no research was triggered
         """
         return self._last_research_trigger_result
+
+    # === IMP-AUTO-002: Event-Driven Workflow Triggers ===
+
+    def register_event_handler(
+        self,
+        event_type: EventType,
+        handler: Callable[[WorkflowEvent], None],
+    ) -> None:
+        """Register a handler for external events.
+
+        IMP-AUTO-002: Handlers are invoked when events of the specified type
+        are processed. Multiple handlers can be registered for the same event type.
+
+        Args:
+            event_type: Type of event to handle (from EventType enum)
+            handler: Callable that receives WorkflowEvent
+
+        Raises:
+            ValueError: If handler is not callable
+        """
+        self._event_trigger_manager.register_handler(event_type, handler)
+        logger.debug(
+            f"[IMP-AUTO-002] Registered event handler for {event_type.value} "
+            f"(total handlers: {self._event_trigger_manager.get_handler_count()})"
+        )
+
+    def unregister_event_handler(
+        self,
+        event_type: EventType,
+        handler: Callable[[WorkflowEvent], None],
+    ) -> bool:
+        """Unregister a handler for an event type.
+
+        Args:
+            event_type: Type of event
+            handler: Handler function to unregister
+
+        Returns:
+            True if handler was found and removed, False otherwise
+        """
+        return self._event_trigger_manager.unregister_handler(event_type, handler)
+
+    async def trigger_event(
+        self,
+        event_type: EventType,
+        source: str,
+        payload: Optional[dict] = None,
+    ) -> None:
+        """Trigger a workflow event.
+
+        IMP-AUTO-002: Creates a WorkflowEvent and dispatches it to all
+        registered handlers for that event type.
+
+        Args:
+            event_type: Type of event to trigger
+            source: Source system/service triggering the event
+            payload: Optional event-specific data
+
+        Raises:
+            ValueError: If event creation fails
+        """
+        event = WorkflowEvent(
+            event_type=event_type,
+            source=source,
+            payload=payload or {},
+        )
+
+        self._pending_events.append(event)
+        logger.info(
+            f"[IMP-AUTO-002] Event triggered: {event_type.value} from {source} "
+            f"({len(self._pending_events)} pending)"
+        )
+
+        # Process immediately
+        await self._event_trigger_manager.process_event(event)
+
+    async def process_pending_events(self) -> int:
+        """Process all pending workflow events.
+
+        IMP-AUTO-002: Processes queued events and dispatches them to handlers.
+        Returns the count of processed events.
+
+        Returns:
+            Number of events processed
+        """
+        if not self._pending_events:
+            return 0
+
+        logger.info(f"[IMP-AUTO-002] Processing {len(self._pending_events)} pending events")
+        processed = 0
+
+        while self._pending_events:
+            event = self._pending_events.pop(0)
+            try:
+                await self._event_trigger_manager.process_event(event)
+                processed += 1
+            except Exception as e:
+                logger.error(f"[IMP-AUTO-002] Failed to process event: {e}")
+
+        logger.info(f"[IMP-AUTO-002] Processed {processed} events")
+        return processed
+
+    def get_event_handler_count(self, event_type: Optional[EventType] = None) -> int:
+        """Get count of registered event handlers.
+
+        Args:
+            event_type: Specific event type, or None for total count
+
+        Returns:
+            Number of registered handlers
+        """
+        return self._event_trigger_manager.get_handler_count(event_type)
+
+    def get_event_summary(self) -> Dict[str, Any]:
+        """Get summary of event trigger state.
+
+        Returns:
+            Dictionary with handler and event information
+        """
+        return {
+            **self._event_trigger_manager.get_summary(),
+            "pending_events": len(self._pending_events),
+        }
 
     def _handle_approval_required(self, proposal: PlanProposalV1) -> None:
         """Handle case where approval is required.

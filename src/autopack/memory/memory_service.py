@@ -31,31 +31,25 @@ from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 # IMP-MEM-005: Import retrieval quality tracker for metrics collection
 from ..telemetry.meta_metrics import RetrievalQualityTracker
-
 # IMP-LOOP-034: Import confidence manager for decay lifecycle
 from .confidence_manager import ConfidenceManager
-
 # IMP-MAINT-003: Import extracted helper modules
 from .deduplication import ContentDeduplicator
 from .embeddings import EMBEDDING_SIZE, MAX_EMBEDDING_CHARS, sync_embed_text
 from .faiss_store import FaissStore
-
 # IMP-MAINT-005: Import extracted freshness and vector store modules
-from .freshness_filter import DEFAULT_MEMORY_FRESHNESS_HOURS as _FF_DEFAULT_FRESHNESS_HOURS
-from .freshness_filter import (
-    FRESH_AGE_HOURS,
-    LOW_CONFIDENCE_THRESHOLD,
-    MEDIUM_CONFIDENCE_THRESHOLD,
-    STALE_AGE_HOURS,
-    ContextMetadata,
-    FreshnessFilter,
-    calculate_age_hours,
-    calculate_confidence,
-    enrich_with_metadata,
-    get_freshness_threshold,
-    is_fresh,
-    parse_timestamp,
-)
+from .freshness_filter import (COLLECTION_CODE_DOCS, COLLECTION_DOCTOR_HINTS,
+                               COLLECTION_ERRORS_CI,
+                               COLLECTION_FRESHNESS_HOURS, COLLECTION_PLANNING,
+                               COLLECTION_RUN_SUMMARIES, COLLECTION_SOT_DOCS)
+from .freshness_filter import \
+    DEFAULT_MEMORY_FRESHNESS_HOURS as _FF_DEFAULT_FRESHNESS_HOURS
+from .freshness_filter import (FRESH_AGE_HOURS, LOW_CONFIDENCE_THRESHOLD,
+                               MEDIUM_CONFIDENCE_THRESHOLD, STALE_AGE_HOURS,
+                               ContextMetadata, FreshnessFilter,
+                               calculate_age_hours, calculate_confidence,
+                               enrich_with_metadata, get_freshness_threshold,
+                               is_fresh, parse_timestamp)
 from .insight_retrieval import InsightRetriever
 from .qdrant_store import QDRANT_AVAILABLE, QdrantStore
 from .vector_store_ops import VectorStoreOperations

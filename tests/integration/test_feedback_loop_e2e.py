@@ -1968,9 +1968,7 @@ class TestInsightCorrelationEngineIntegration:
 
     def test_correlation_engine_initialization(self):
         """Test correlation engine initializes correctly."""
-        from autopack.task_generation.insight_correlation import (
-            InsightCorrelationEngine,
-        )
+        from autopack.task_generation.insight_correlation import InsightCorrelationEngine
 
         engine = InsightCorrelationEngine()
 
@@ -1980,9 +1978,7 @@ class TestInsightCorrelationEngineIntegration:
 
     def test_task_creation_tracking(self):
         """Test task creation from insight is tracked."""
-        from autopack.task_generation.insight_correlation import (
-            InsightCorrelationEngine,
-        )
+        from autopack.task_generation.insight_correlation import InsightCorrelationEngine
 
         engine = InsightCorrelationEngine()
 
@@ -2005,9 +2001,7 @@ class TestInsightCorrelationEngineIntegration:
 
     def test_outcome_recording_updates_stats(self):
         """Test recording outcome updates insight statistics."""
-        from autopack.task_generation.insight_correlation import (
-            InsightCorrelationEngine,
-        )
+        from autopack.task_generation.insight_correlation import InsightCorrelationEngine
 
         engine = InsightCorrelationEngine()
 
@@ -2060,9 +2054,7 @@ class TestInsightCorrelationEngineIntegration:
 
     def test_high_performing_insight_identification(self):
         """Test identification of high-performing insights."""
-        from autopack.task_generation.insight_correlation import (
-            InsightCorrelationEngine,
-        )
+        from autopack.task_generation.insight_correlation import InsightCorrelationEngine
 
         engine = InsightCorrelationEngine()
 
@@ -2093,9 +2085,7 @@ class TestInsightCorrelationEngineIntegration:
 
     def test_low_performing_insight_identification(self):
         """Test identification of low-performing insights."""
-        from autopack.task_generation.insight_correlation import (
-            InsightCorrelationEngine,
-        )
+        from autopack.task_generation.insight_correlation import InsightCorrelationEngine
 
         engine = InsightCorrelationEngine()
 
@@ -2118,9 +2108,7 @@ class TestInsightCorrelationEngineIntegration:
 
     def test_correlation_summary_statistics(self):
         """Test correlation summary provides accurate statistics."""
-        from autopack.task_generation.insight_correlation import (
-            InsightCorrelationEngine,
-        )
+        from autopack.task_generation.insight_correlation import InsightCorrelationEngine
 
         engine = InsightCorrelationEngine()
 
@@ -2165,10 +2153,7 @@ class TestConfidenceLifecycleIntegration:
 
     def test_confidence_bounds_respected(self):
         """Test confidence stays within valid bounds."""
-        from autopack.task_generation.insight_correlation import (
-            MAX_CONFIDENCE,
-            MIN_CONFIDENCE,
-        )
+        from autopack.task_generation.insight_correlation import MAX_CONFIDENCE, MIN_CONFIDENCE
 
         assert MIN_CONFIDENCE == 0.1
         assert MAX_CONFIDENCE == 1.0
@@ -2229,9 +2214,7 @@ class TestConfidenceLifecycleIntegration:
 
     def test_confidence_update_on_success_increases(self):
         """Test successful task execution increases confidence."""
-        from autopack.task_generation.insight_correlation import (
-            SUCCESS_CONFIDENCE_BOOST,
-        )
+        from autopack.task_generation.insight_correlation import SUCCESS_CONFIDENCE_BOOST
 
         # Success should boost confidence
         assert SUCCESS_CONFIDENCE_BOOST > 0
@@ -2239,9 +2222,7 @@ class TestConfidenceLifecycleIntegration:
 
     def test_confidence_update_on_failure_decreases(self):
         """Test failed task execution decreases confidence."""
-        from autopack.task_generation.insight_correlation import (
-            FAILURE_CONFIDENCE_PENALTY,
-        )
+        from autopack.task_generation.insight_correlation import FAILURE_CONFIDENCE_PENALTY
 
         # Failure should reduce confidence
         assert FAILURE_CONFIDENCE_PENALTY > 0
@@ -2249,9 +2230,7 @@ class TestConfidenceLifecycleIntegration:
 
     def test_end_to_end_confidence_lifecycle(self):
         """Test complete confidence lifecycle from creation to update."""
-        from autopack.task_generation.insight_correlation import (
-            InsightCorrelationEngine,
-        )
+        from autopack.task_generation.insight_correlation import InsightCorrelationEngine
 
         engine = InsightCorrelationEngine()
 

@@ -18,11 +18,7 @@ from autopack.telemetry.anomaly_detector import (
     AnomalyAlert,
     TelemetryAnomalyDetector,
 )
-from autopack.telemetry.auto_healer import (
-    AutoHealingEngine,
-    HealingAction,
-    HealingDecision,
-)
+from autopack.telemetry.auto_healer import AutoHealingEngine, HealingAction, HealingDecision
 from autopack.telemetry.causal_analysis import (
     CausalAnalysisReport,
     CausalAnalyzer,

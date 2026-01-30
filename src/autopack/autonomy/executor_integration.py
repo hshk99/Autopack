@@ -206,6 +206,27 @@ class ExecutorContext:
 
         return compute_budget_remaining(totals, token_cap, context_cap)
 
+    def can_proceed(self, phase_name: Optional[str] = None) -> bool:
+        """Check if research can proceed based on budget constraints.
+
+        IMP-COST-001: Implements BudgetTracker protocol for research budget enforcement.
+
+        Args:
+            phase_name: Optional name of phase to check budget for
+
+        Returns:
+            True if budget allows proceeding, False if exhausted
+        """
+        budget_remaining = self.get_budget_remaining()
+        # Allow proceeding if at least 5% of budget remains
+        can_proceed = budget_remaining >= 0.05
+        if not can_proceed and phase_name:
+            logger.warning(
+                f"[IMP-COST-001] Budget threshold reached for phase '{phase_name}': "
+                f"{budget_remaining:.1%} remaining"
+            )
+        return can_proceed
+
     def save_usage_events(self) -> Path:
         """Save usage events to run-local artifact.
 
@@ -459,6 +480,8 @@ class ExecutorContext:
         IMP-AUTO-001: Queries the ResearchOrchestrator's state tracker
         for identified research gaps.
 
+        IMP-COST-001: Passes budget tracker to enforce cost limits during research.
+
         Args:
             project_root: Project root for state tracking (optional)
 
@@ -471,7 +494,10 @@ class ExecutorContext:
             from ..research.orchestrator import ResearchOrchestrator
 
             root = project_root or Path(self.layout.base_dir).parent.parent.parent
-            orchestrator = ResearchOrchestrator(project_root=root)
+            orchestrator = ResearchOrchestrator(
+                project_root=root,
+                budget_tracker=self,  # IMP-COST-001: Pass self as budget tracker
+            )
 
             return orchestrator.get_research_gaps()
 

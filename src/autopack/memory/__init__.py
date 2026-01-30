@@ -17,11 +17,7 @@ from .embeddings import (
     sync_embed_text,
 )
 from .faiss_store import FaissStore
-from .goal_drift import (
-    check_goal_drift,
-    extract_goal_from_description,
-    should_block_on_drift,
-)
+from .goal_drift import check_goal_drift, extract_goal_from_description, should_block_on_drift
 from .learning_db import LearningDatabase
 from .memory_service import MemoryService
 from .qdrant_store import QDRANT_AVAILABLE, QdrantStore

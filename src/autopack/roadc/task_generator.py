@@ -7,16 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    List,
-    Optional,
-    Protocol,
-    Set,
-    runtime_checkable,
-)
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Set, runtime_checkable
 
 from sqlalchemy.orm import Session
 

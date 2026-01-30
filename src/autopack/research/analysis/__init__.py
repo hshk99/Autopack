@@ -5,31 +5,29 @@ Contains cost-effectiveness analysis, gap detection, and follow-up research trig
 """
 
 from autopack.research.analysis.cost_effectiveness import (
-    CostEffectivenessAnalyzer,
     ComponentCostData,
-    ProjectCostProjection,
     CostCategory,
+    CostEffectivenessAnalyzer,
+    ProjectCostProjection,
     ScalingModel,
 )
-
-from autopack.research.analysis.research_state import (
-    ResearchStateTracker,
-    ResearchState,
-    ResearchGap,
-    ResearchRequirements,
-    GapType,
-    GapPriority,
-    ResearchDepth,
-    CoverageMetrics,
-)
-
 from autopack.research.analysis.followup_trigger import (
     FollowupResearchTrigger,
     FollowupTrigger,
-    TriggerType,
-    TriggerPriority,
-    TriggerAnalysisResult,
     ResearchPlan,
+    TriggerAnalysisResult,
+    TriggerPriority,
+    TriggerType,
+)
+from autopack.research.analysis.research_state import (
+    CoverageMetrics,
+    GapPriority,
+    GapType,
+    ResearchDepth,
+    ResearchGap,
+    ResearchRequirements,
+    ResearchState,
+    ResearchStateTracker,
 )
 
 __all__ = [

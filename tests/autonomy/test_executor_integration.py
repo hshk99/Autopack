@@ -129,6 +129,30 @@ class TestExecutorContextUsageAccounting:
         budget = ctx.get_budget_remaining()
         assert budget == 1.0
 
+    def test_can_proceed_with_sufficient_budget(self, mock_anchor, mock_layout):
+        """Test IMP-COST-001: can_proceed returns True with sufficient budget."""
+        mock_anchor.pivot_intentions.budget_cost.token_cap_global = 1000
+
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+        # Use 50% of budget
+        ctx.record_usage_event(tokens_used=500)
+
+        # Should allow proceeding (remaining 50% > 5% threshold)
+        assert ctx.can_proceed()
+        assert ctx.can_proceed("market_research")
+
+    def test_can_proceed_with_insufficient_budget(self, mock_anchor, mock_layout):
+        """Test IMP-COST-001: can_proceed returns False when budget exhausted."""
+        mock_anchor.pivot_intentions.budget_cost.token_cap_global = 1000
+
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+        # Use 96% of budget
+        ctx.record_usage_event(tokens_used=960)
+
+        # Should block proceeding (remaining 4% < 5% threshold)
+        assert not ctx.can_proceed()
+        assert not ctx.can_proceed("technical_feasibility")
+
 
 class TestExecutorContextStuckHandling:
     """Tests for stuck handling with scope reduction."""

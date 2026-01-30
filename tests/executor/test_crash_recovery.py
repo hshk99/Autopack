@@ -10,10 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from autopack.executor.run_checkpoint import (
-    ExecutorState,
-    ExecutorStateCheckpoint,
-)
+from autopack.executor.run_checkpoint import ExecutorState, ExecutorStateCheckpoint
 
 
 class TestExecutorState:

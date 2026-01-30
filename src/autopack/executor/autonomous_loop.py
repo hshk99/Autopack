@@ -5,6 +5,8 @@ Handles the main autonomous execution loop that processes backlog phases.
 
 IMP-AUTO-002: Extended to support parallel phase execution when file scopes don't overlap.
 IMP-MAINT-002: Modularized - CircuitBreaker extracted to circuit_breaker.py.
+IMP-MAINT-002: FeedbackContextRetriever and TelemetryPersistenceManager extracted
+              to feedback_context.py and telemetry_persistence.py respectively.
 """
 
 import logging
@@ -33,7 +35,9 @@ from autopack.executor.circuit_breaker import (
     CircuitBreakerState,
     SOTDriftError,
 )
-from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
+from autopack.executor.feedback_context import FeedbackContextRetriever
+from autopack.executor.telemetry_persistence import TelemetryPersistenceManager
+from autopack.feedback_pipeline import FeedbackPipeline
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
@@ -44,7 +48,6 @@ from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
 from autopack.telemetry.anomaly_detector import AlertSeverity, TelemetryAnomalyDetector
 from autopack.telemetry.meta_metrics import (
     FeedbackLoopHealth,
-    FeedbackLoopHealthReport,
     GoalDriftDetector,
     MetaMetricsTracker,
     PipelineLatencyTracker,
@@ -241,6 +244,22 @@ class AutonomousLoop:
         self._wave_phases_completed: Dict[int, List[str]] = {}  # wave_number -> completed phase_ids
         self._wave_planner_enabled = getattr(settings, "wave_planner_enabled", True)
         self._wave_plan_path: Optional[Path] = None
+
+        # IMP-MAINT-002: Initialize helper classes for modularized functionality
+        # FeedbackContextRetriever handles feedback pipeline context retrieval
+        self._feedback_context_retriever = FeedbackContextRetriever(
+            feedback_pipeline=self._feedback_pipeline,
+            feedback_pipeline_enabled=self._feedback_pipeline_enabled,
+        )
+
+        # TelemetryPersistenceManager handles telemetry aggregation and persistence
+        self._telemetry_persistence_manager = TelemetryPersistenceManager(
+            db_session=getattr(executor, "db_session", None),
+            memory_service=getattr(executor, "memory_service", None),
+            aggregation_interval=self._telemetry_aggregation_interval,
+            latency_tracker=self._latency_tracker,
+            meta_metrics_tracker=self._meta_metrics_tracker,
+        )
 
     def get_loop_stats(self) -> Dict:
         """Get current loop statistics for monitoring (IMP-LOOP-006, IMP-AUTO-002).
@@ -895,6 +914,8 @@ class AutonomousLoop:
         IMP-LOOP-001: Uses the unified FeedbackPipeline to retrieve context
         from previous executions, including insights, errors, and success patterns.
 
+        IMP-MAINT-002: Delegates to FeedbackContextRetriever for modular implementation.
+
         Args:
             phase_type: Type of phase (e.g., 'build', 'test')
             phase_goal: Goal/description of the phase
@@ -902,32 +923,12 @@ class AutonomousLoop:
         Returns:
             Formatted context string for prompt injection
         """
-        if not self._feedback_pipeline_enabled or self._feedback_pipeline is None:
-            return ""
-
-        try:
-            context = self._feedback_pipeline.get_context_for_phase(
-                phase_type=phase_type,
-                phase_goal=phase_goal,
-                max_insights=5,
-                max_age_hours=72.0,
-                include_errors=True,
-                include_success_patterns=True,
-            )
-
-            if context.formatted_context:
-                logger.info(
-                    f"[IMP-LOOP-001] Retrieved feedback pipeline context "
-                    f"(insights={len(context.relevant_insights)}, "
-                    f"errors={len(context.similar_errors)}, "
-                    f"patterns={len(context.success_patterns)})"
-                )
-
-            return context.formatted_context
-
-        except Exception as e:
-            logger.warning(f"[IMP-LOOP-001] Failed to get feedback pipeline context: {e}")
-            return ""
+        # Ensure retriever has current feedback pipeline reference
+        self._feedback_context_retriever.feedback_pipeline = self._feedback_pipeline
+        return self._feedback_context_retriever.get_context_for_phase(
+            phase_type=phase_type,
+            phase_goal=phase_goal,
+        )
 
     def _process_phase_with_feedback_pipeline(
         self,
@@ -941,61 +942,23 @@ class AutonomousLoop:
         IMP-LOOP-001: Uses the unified FeedbackPipeline to capture and persist
         phase execution feedback for the self-improvement loop.
 
+        IMP-MAINT-002: Delegates to FeedbackContextRetriever for modular implementation.
+
         Args:
             phase: Phase dictionary with execution details
             success: Whether the phase executed successfully
             status: Final status string from execution
             execution_start_time: Unix timestamp when execution started
         """
-        if not self._feedback_pipeline_enabled or self._feedback_pipeline is None:
-            return
-
-        try:
-            phase_id = phase.get("phase_id", "unknown")
-            phase_type = phase.get("phase_type")
-            run_id = getattr(self.executor, "run_id", "unknown")
-            project_id = getattr(self.executor, "_get_project_slug", lambda: "default")()
-
-            # Calculate execution time
-            execution_time = time.time() - execution_start_time
-
-            # Get tokens used (approximate)
-            tokens_used = getattr(self.executor, "_run_tokens_used", 0)
-
-            # Build error message for failures
-            error_message = None
-            if not success:
-                error_message = f"Phase failed with status: {status}"
-                phase_result = getattr(self.executor, "_last_phase_result", None)
-                if phase_result and isinstance(phase_result, dict):
-                    error_detail = phase_result.get("error") or phase_result.get("message")
-                    if error_detail:
-                        error_message = f"{error_message}. Detail: {error_detail}"
-
-            # Create PhaseOutcome
-            outcome = PhaseOutcome(
-                phase_id=phase_id,
-                phase_type=phase_type,
-                success=success,
-                status=status,
-                execution_time_seconds=execution_time,
-                tokens_used=tokens_used,
-                error_message=error_message,
-                run_id=run_id,
-                project_id=project_id,
-            )
-
-            # Process through feedback pipeline
-            result = self._feedback_pipeline.process_phase_outcome(outcome)
-
-            if result.get("success"):
-                logger.debug(
-                    f"[IMP-LOOP-001] Processed phase {phase_id} through feedback pipeline "
-                    f"(insights={result.get('insights_created', 0)})"
-                )
-
-        except Exception as e:
-            logger.warning(f"[IMP-LOOP-001] Failed to process phase through feedback pipeline: {e}")
+        # Ensure retriever has current feedback pipeline reference
+        self._feedback_context_retriever.feedback_pipeline = self._feedback_pipeline
+        self._feedback_context_retriever.process_phase_outcome(
+            phase=phase,
+            success=success,
+            status=status,
+            execution_start_time=execution_start_time,
+            executor=self.executor,
+        )
 
     def _get_queued_phases_for_parallel_check(self, run_data: Dict) -> List[Dict]:
         """Get QUEUED phases suitable for parallel execution check.
@@ -1209,18 +1172,22 @@ class AutonomousLoop:
     def _get_telemetry_analyzer(self) -> Optional[TelemetryAnalyzer]:
         """Get or create the telemetry analyzer instance.
 
+        IMP-MAINT-002: Delegates to TelemetryPersistenceManager for modular implementation.
+
         Returns:
             TelemetryAnalyzer instance if database session is available, None otherwise.
         """
-        if self._telemetry_analyzer is None:
-            if hasattr(self.executor, "db_session") and self.executor.db_session:
-                # IMP-ARCH-015: Pass memory_service to enable telemetry -> memory bridge
-                memory_service = getattr(self.executor, "memory_service", None)
-                self._telemetry_analyzer = TelemetryAnalyzer(
-                    self.executor.db_session,
-                    memory_service=memory_service,
-                )
-        return self._telemetry_analyzer
+        # Ensure manager has current session and memory service
+        self._telemetry_persistence_manager.set_db_session(
+            getattr(self.executor, "db_session", None)
+        )
+        self._telemetry_persistence_manager.set_memory_service(
+            getattr(self.executor, "memory_service", None)
+        )
+        analyzer = self._telemetry_persistence_manager.get_telemetry_analyzer()
+        # Keep local reference for backwards compatibility
+        self._telemetry_analyzer = analyzer
+        return analyzer
 
     def _get_telemetry_to_memory_bridge(self) -> Optional[TelemetryToMemoryBridge]:
         """Get or create the TelemetryToMemoryBridge instance.
@@ -1228,23 +1195,27 @@ class AutonomousLoop:
         IMP-INT-002: Provides a bridge for persisting telemetry insights to memory
         after aggregation. The bridge is lazily initialized and reused.
 
+        IMP-MAINT-002: Delegates to TelemetryPersistenceManager for modular implementation.
+
         Returns:
             TelemetryToMemoryBridge instance if memory_service is available, None otherwise.
         """
-        if self._telemetry_to_memory_bridge is None:
-            memory_service = getattr(self.executor, "memory_service", None)
-            if memory_service and memory_service.enabled:
-                self._telemetry_to_memory_bridge = TelemetryToMemoryBridge(
-                    memory_service=memory_service,
-                    enabled=True,
-                )
-        return self._telemetry_to_memory_bridge
+        # Ensure manager has current memory service
+        self._telemetry_persistence_manager.set_memory_service(
+            getattr(self.executor, "memory_service", None)
+        )
+        bridge = self._telemetry_persistence_manager.get_telemetry_to_memory_bridge()
+        # Keep local reference for backwards compatibility
+        self._telemetry_to_memory_bridge = bridge
+        return bridge
 
     def _flatten_ranked_issues_to_dicts(self, ranked_issues: Dict) -> list:
         """Convert ranked issues from aggregate_telemetry() to a flat list of dicts.
 
         IMP-INT-002: Converts RankedIssue objects to dictionaries suitable for
         TelemetryToMemoryBridge.persist_insights().
+
+        IMP-MAINT-002: Delegates to TelemetryPersistenceManager for modular implementation.
 
         Args:
             ranked_issues: Dictionary from TelemetryAnalyzer.aggregate_telemetry()
@@ -1253,60 +1224,7 @@ class AutonomousLoop:
         Returns:
             Flat list of dictionaries ready for bridge.persist_insights().
         """
-        flat_issues = []
-
-        for issue in ranked_issues.get("top_cost_sinks", []):
-            flat_issues.append(
-                {
-                    "issue_type": "cost_sink",
-                    "insight_id": f"{issue.rank}",
-                    "rank": issue.rank,
-                    "phase_id": issue.phase_id,
-                    "phase_type": issue.phase_type,
-                    "severity": "high",
-                    "description": f"Phase {issue.phase_id} consuming {issue.metric_value:,.0f} tokens",
-                    "metric_value": issue.metric_value,
-                    "occurrences": issue.details.get("count", 1),
-                    "details": issue.details,
-                    "suggested_action": f"Optimize token usage for {issue.phase_type}",
-                }
-            )
-
-        for issue in ranked_issues.get("top_failure_modes", []):
-            flat_issues.append(
-                {
-                    "issue_type": "failure_mode",
-                    "insight_id": f"{issue.rank}",
-                    "rank": issue.rank,
-                    "phase_id": issue.phase_id,
-                    "phase_type": issue.phase_type,
-                    "severity": "high",
-                    "description": f"Failure: {issue.details.get('outcome', '')} - {issue.details.get('stop_reason', '')}",
-                    "metric_value": issue.metric_value,
-                    "occurrences": issue.details.get("count", 1),
-                    "details": issue.details,
-                    "suggested_action": f"Fix {issue.phase_type} failure pattern",
-                }
-            )
-
-        for issue in ranked_issues.get("top_retry_causes", []):
-            flat_issues.append(
-                {
-                    "issue_type": "retry_cause",
-                    "insight_id": f"{issue.rank}",
-                    "rank": issue.rank,
-                    "phase_id": issue.phase_id,
-                    "phase_type": issue.phase_type,
-                    "severity": "medium",
-                    "description": f"Retry cause: {issue.details.get('stop_reason', '')}",
-                    "metric_value": issue.metric_value,
-                    "occurrences": issue.details.get("count", 1),
-                    "details": issue.details,
-                    "suggested_action": f"Increase timeout or optimize {issue.phase_type}",
-                }
-            )
-
-        return flat_issues
+        return self._telemetry_persistence_manager.flatten_ranked_issues_to_dicts(ranked_issues)
 
     def _persist_insights_to_memory(
         self, ranked_issues: Dict, context: str = "phase_telemetry"
@@ -1316,6 +1234,8 @@ class AutonomousLoop:
         IMP-INT-002: Invokes TelemetryToMemoryBridge.persist_insights() after
         telemetry aggregation to store insights in memory for future retrieval.
 
+        IMP-MAINT-002: Delegates to TelemetryPersistenceManager for modular implementation.
+
         Args:
             ranked_issues: Dictionary from TelemetryAnalyzer.aggregate_telemetry()
             context: Context string for logging (e.g., "phase_telemetry", "run_finalization")
@@ -1323,54 +1243,15 @@ class AutonomousLoop:
         Returns:
             Number of insights persisted, or 0 if persistence failed/skipped.
         """
-        bridge = self._get_telemetry_to_memory_bridge()
-        if not bridge:
-            logger.debug(f"[IMP-INT-002] No bridge available for {context} persistence")
-            return 0
-
         run_id = getattr(self.executor, "run_id", "unknown")
         project_id = getattr(self.executor, "_get_project_slug", lambda: "default")()
 
-        try:
-            # Flatten ranked issues to dicts for bridge
-            flat_issues = self._flatten_ranked_issues_to_dicts(ranked_issues)
-
-            if not flat_issues:
-                logger.debug(f"[IMP-INT-002] No issues to persist for {context}")
-                return 0
-
-            # Persist to memory
-            persisted_count = bridge.persist_insights(
-                ranked_issues=flat_issues,
-                run_id=run_id,
-                project_id=project_id,
-            )
-
-            logger.info(
-                f"[IMP-INT-002] Persisted {persisted_count} insights to memory "
-                f"(context={context}, run_id={run_id})"
-            )
-
-            # IMP-TEL-001: Record memory persistence stage for latency tracking
-            if self._latency_tracker is not None and persisted_count > 0:
-                self._latency_tracker.record_stage(
-                    PipelineStage.MEMORY_PERSISTED,
-                    metadata={
-                        "persisted_count": persisted_count,
-                        "context": context,
-                        "run_id": run_id,
-                    },
-                )
-
-            return persisted_count
-
-        except Exception as e:
-            # Non-fatal - persistence failure should not block execution
-            logger.warning(
-                f"[IMP-INT-002] Failed to persist insights to memory "
-                f"(context={context}, non-fatal): {e}"
-            )
-            return 0
+        return self._telemetry_persistence_manager.persist_insights_to_memory(
+            ranked_issues=ranked_issues,
+            run_id=run_id,
+            project_id=project_id,
+            context=context,
+        )
 
     def _generate_tasks_from_ranked_issues(
         self, ranked_issues: Dict, context: str = "phase_telemetry"
@@ -1381,8 +1262,7 @@ class AutonomousLoop:
         insights are persisted to memory, this method generates improvement tasks
         from those same insights and persists them to the database for execution.
 
-        This completes the insight→task→execution cycle by ensuring tasks are
-        generated directly from persisted insights without re-aggregating telemetry.
+        IMP-MAINT-002: Delegates to TelemetryPersistenceManager for modular implementation.
 
         Args:
             ranked_issues: Dictionary from TelemetryAnalyzer.aggregate_telemetry()
@@ -1392,86 +1272,14 @@ class AutonomousLoop:
         Returns:
             Number of tasks generated and persisted, or 0 if generation failed/skipped.
         """
-        try:
-            from autopack.config import settings as config_settings
-            from autopack.roadc import AutonomousTaskGenerator
-        except ImportError:
-            logger.debug("[IMP-INT-003] ROADC module not available for task generation")
-            return 0
+        run_id = getattr(self.executor, "run_id", None)
 
-        # Check if task generation is enabled
-        try:
-            task_gen_config = getattr(config_settings, "task_generation", {})
-            if not task_gen_config:
-                task_gen_config = {"enabled": False}
-        except Exception:
-            task_gen_config = {"enabled": False}
-
-        if not task_gen_config.get("enabled", False):
-            logger.debug("[IMP-INT-003] Task generation not enabled in settings")
-            return 0
-
-        # Check if we have any issues to generate tasks from
-        total_issues = (
-            len(ranked_issues.get("top_cost_sinks", []))
-            + len(ranked_issues.get("top_failure_modes", []))
-            + len(ranked_issues.get("top_retry_causes", []))
+        return self._telemetry_persistence_manager.generate_tasks_from_ranked_issues(
+            ranked_issues=ranked_issues,
+            run_id=run_id,
+            current_run_phases=self._current_run_phases,
+            context=context,
         )
-
-        if total_issues == 0:
-            logger.debug(f"[IMP-INT-003] No ranked issues for task generation ({context})")
-            return 0
-
-        try:
-            # IMP-INT-003: Generate tasks directly from the ranked issues that were just persisted
-            db_session = getattr(self.executor, "db_session", None)
-            # IMP-LOOP-025: Pass metrics tracker for throughput observability
-            generator = AutonomousTaskGenerator(
-                db_session=db_session,
-                metrics_tracker=self._meta_metrics_tracker,
-            )
-
-            run_id = getattr(self.executor, "run_id", None)
-            # IMP-LOOP-003: Pass current run phases as backlog for same-run injection
-            # of high-priority (critical) tasks
-            result = generator.generate_tasks(
-                max_tasks=task_gen_config.get("max_tasks_per_run", 10),
-                min_confidence=task_gen_config.get("min_confidence", 0.7),
-                telemetry_insights=ranked_issues,
-                run_id=run_id,
-                backlog=self._current_run_phases,
-            )
-
-            tasks_generated = len(result.tasks_generated)
-            logger.info(
-                f"[IMP-INT-003] Generated {tasks_generated} tasks from {total_issues} "
-                f"ranked issues ({context}, {result.generation_time_ms:.0f}ms)"
-            )
-
-            # Persist generated tasks to database for execution queue
-            if result.tasks_generated:
-                try:
-                    persisted_count = generator.persist_tasks(result.tasks_generated, run_id)
-                    logger.info(
-                        f"[IMP-INT-003] Queued {persisted_count} tasks for execution ({context})"
-                    )
-                    return persisted_count
-                except Exception as persist_err:
-                    logger.warning(
-                        f"[IMP-INT-003] Failed to queue tasks for execution "
-                        f"(context={context}, non-fatal): {persist_err}"
-                    )
-                    return 0
-
-            return 0
-
-        except Exception as e:
-            # Non-fatal - task generation failure should not block execution
-            logger.warning(
-                f"[IMP-INT-003] Failed to generate tasks from ranked issues "
-                f"(context={context}, non-fatal): {e}"
-            )
-            return 0
 
     def _aggregate_phase_telemetry(self, phase_id: str, force: bool = False) -> Optional[Dict]:
         """Aggregate telemetry after phase completion for self-improvement feedback.
@@ -1481,8 +1289,7 @@ class AutonomousLoop:
         architecture by ensuring telemetry insights are aggregated and persisted
         during execution, not just at the end of the run.
 
-        Uses throttling to avoid expensive database queries after every phase.
-        By default, aggregates every N phases (controlled by telemetry_aggregation_interval).
+        IMP-MAINT-002: Delegates to TelemetryPersistenceManager for modular implementation.
 
         Args:
             phase_id: ID of the phase that just completed (for logging)
@@ -1492,69 +1299,25 @@ class AutonomousLoop:
             Dictionary of ranked issues from aggregate_telemetry(), or None if
             aggregation was skipped (throttled) or failed.
         """
-        # Increment phase counter
-        self._phases_since_last_aggregation += 1
+        run_id = getattr(self.executor, "run_id", "unknown")
+        project_id = getattr(self.executor, "_get_project_slug", lambda: "default")()
 
-        # Check if we should aggregate (throttling)
-        should_aggregate = force or (
-            self._phases_since_last_aggregation >= self._telemetry_aggregation_interval
+        # Delegate to the persistence manager with a callback for health updates
+        result = self._telemetry_persistence_manager.aggregate_phase_telemetry(
+            phase_id=phase_id,
+            run_id=run_id,
+            project_id=project_id,
+            current_run_phases=self._current_run_phases,
+            health_callback=self._update_circuit_breaker_health,
+            force=force,
         )
 
-        if not should_aggregate:
-            logger.debug(
-                f"[IMP-INT-001] Skipping telemetry aggregation after phase {phase_id} "
-                f"({self._phases_since_last_aggregation}/{self._telemetry_aggregation_interval} phases)"
-            )
-            return None
+        # Sync the local counter with the manager's counter for backwards compatibility
+        self._phases_since_last_aggregation = (
+            self._telemetry_persistence_manager.phases_since_last_aggregation
+        )
 
-        analyzer = self._get_telemetry_analyzer()
-        if not analyzer:
-            logger.debug("[IMP-INT-001] No telemetry analyzer available for aggregation")
-            return None
-
-        try:
-            # Aggregate telemetry from database
-            ranked_issues = analyzer.aggregate_telemetry(window_days=7)
-
-            # IMP-TEL-001: Record telemetry collection stage for latency tracking
-            if self._latency_tracker is not None:
-                self._latency_tracker.record_stage(
-                    PipelineStage.TELEMETRY_COLLECTED,
-                    metadata={"phase_id": phase_id, "forced": force},
-                )
-
-            # Reset throttle counter
-            self._phases_since_last_aggregation = 0
-
-            # Log aggregation results
-            total_issues = (
-                len(ranked_issues.get("top_cost_sinks", []))
-                + len(ranked_issues.get("top_failure_modes", []))
-                + len(ranked_issues.get("top_retry_causes", []))
-            )
-            logger.info(
-                f"[IMP-INT-001] Aggregated telemetry after phase {phase_id}: "
-                f"{total_issues} issues found "
-                f"(cost_sinks={len(ranked_issues.get('top_cost_sinks', []))}, "
-                f"failure_modes={len(ranked_issues.get('top_failure_modes', []))}, "
-                f"retry_causes={len(ranked_issues.get('top_retry_causes', []))})"
-            )
-
-            # IMP-INT-002: Persist aggregated insights to memory via bridge
-            self._persist_insights_to_memory(ranked_issues, context="phase_telemetry")
-
-            # IMP-FBK-002: Update circuit breaker health report from meta-metrics
-            self._update_circuit_breaker_health(ranked_issues)
-
-            return ranked_issues
-
-        except Exception as e:
-            # Non-fatal - telemetry aggregation failure should not block execution
-            logger.warning(
-                f"[IMP-INT-001] Failed to aggregate telemetry after phase {phase_id} "
-                f"(non-fatal): {e}"
-            )
-            return None
+        return result
 
     def _get_task_effectiveness_tracker(self) -> Optional[TaskEffectivenessTracker]:
         """Get or create the TaskEffectivenessTracker instance.

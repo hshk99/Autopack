@@ -426,21 +426,9 @@ class AutopilotController:
             return None
 
         try:
-            from ..research.orchestrator import ResearchOrchestrator
+            from ..research.analysis.followup_trigger import FollowupResearchTrigger
 
-            orchestrator = ResearchOrchestrator()
-            trigger_result_dict = orchestrator.analyze_followup_triggers(
-                analysis_results=analysis_results,
-                validation_results=validation_results,
-            )
-
-            # Convert dict result to TriggerAnalysisResult
-            from ..research.analysis.followup_trigger import (
-                FollowupResearchTrigger,
-                TriggerAnalysisResult,
-            )
-
-            # Re-analyze to get the actual TriggerAnalysisResult object
+            # Analyze findings for follow-up research triggers
             followup_trigger = FollowupResearchTrigger()
             trigger_result = followup_trigger.analyze(
                 analysis_results=analysis_results,

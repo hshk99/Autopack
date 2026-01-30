@@ -17,7 +17,11 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from autopack.integrations.pattern_library import (PatternLibrary,
+                                                       ReusablePattern)
 
 logger = logging.getLogger(__name__)
 
@@ -63,15 +67,21 @@ class BuildHistoryInsight:
 class BuildHistoryIntegrator:
     """Integrates BUILD_HISTORY with research system."""
 
-    def __init__(self, build_history_path: Optional[Path] = None):
+    def __init__(
+        self,
+        build_history_path: Optional[Path] = None,
+        pattern_library: Optional["PatternLibrary"] = None,
+    ):
         """Initialize integrator.
 
         Args:
             build_history_path: Path to BUILD_HISTORY.md (defaults to repo root)
+            pattern_library: Optional PatternLibrary for cross-project pattern extraction
         """
         self.build_history_path = build_history_path or Path("BUILD_HISTORY.md")
         self._cache: Optional[BuildHistoryInsight] = None
         self._cache_time: Optional[datetime] = None
+        self._pattern_library = pattern_library
 
     def get_insights_for_task(
         self, task_description: str, category: Optional[str] = None
@@ -478,3 +488,69 @@ class BuildHistoryIntegrator:
         # This would append to BUILD_HISTORY.md
         # Implementation depends on BUILD_HISTORY format
         pass
+
+    def extract_reusable_patterns(self) -> List["ReusablePattern"]:
+        """Extract reusable patterns from build history using PatternLibrary.
+
+        Parses the build history and extracts patterns that can be reused
+        across projects. Requires a PatternLibrary to be configured.
+
+        Returns:
+            List of ReusablePattern objects extracted from history
+        """
+        if self._pattern_library is None:
+            logger.warning("PatternLibrary not configured, cannot extract patterns")
+            return []
+
+        history_data = self._parse_build_history()
+        return self._pattern_library.extract_patterns_from_history(history_data)
+
+    def get_applicable_patterns(
+        self,
+        task_description: str,
+        category: Optional[str] = None,
+        tech_stack: Optional[List[str]] = None,
+    ) -> List["ReusablePattern"]:
+        """Get patterns applicable to a task.
+
+        Finds patterns from the library that are relevant to the given
+        task context.
+
+        Args:
+            task_description: Description of the task
+            category: Optional task category
+            tech_stack: Optional list of technologies being used
+
+        Returns:
+            List of applicable ReusablePattern objects, sorted by relevance
+        """
+        if self._pattern_library is None:
+            logger.warning("PatternLibrary not configured, cannot find patterns")
+            return []
+
+        # First ensure patterns are extracted
+        if not self._pattern_library.get_all_patterns():
+            self.extract_reusable_patterns()
+
+        project_context = {
+            "description": task_description,
+            "category": category or "",
+            "tech_stack": tech_stack or [],
+        }
+
+        return self._pattern_library.find_applicable_patterns(project_context)
+
+    def record_pattern_usage(self, pattern_id: str, success: bool) -> None:
+        """Record that a pattern was applied.
+
+        Updates the pattern's success rate and application count.
+
+        Args:
+            pattern_id: ID of the pattern that was applied
+            success: Whether the application was successful
+        """
+        if self._pattern_library is None:
+            logger.warning("PatternLibrary not configured, cannot record usage")
+            return
+
+        self._pattern_library.record_pattern_application(pattern_id, success)

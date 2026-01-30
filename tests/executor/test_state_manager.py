@@ -5,10 +5,12 @@ IMP-MAINT-006: Tests for state management utilities extracted from autonomous_ex
 
 from unittest.mock import MagicMock, patch
 
-from autopack.executor.state_manager import (ExecutorStateManager,
-                                             force_mark_phase_failed,
-                                             status_to_outcome,
-                                             update_phase_status)
+from autopack.executor.state_manager import (
+    ExecutorStateManager,
+    force_mark_phase_failed,
+    status_to_outcome,
+    update_phase_status,
+)
 
 
 class TestExecutorStateManager:

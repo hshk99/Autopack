@@ -12,9 +12,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
 
-from autopack.executor.backlog_maintenance import (InjectionResult,
-                                                   TaskCandidate,
-                                                   generated_task_to_candidate)
+from autopack.executor.backlog_maintenance import (
+    InjectionResult,
+    TaskCandidate,
+    generated_task_to_candidate,
+)
 
 
 # Mock GeneratedTask for testing (to avoid circular imports)

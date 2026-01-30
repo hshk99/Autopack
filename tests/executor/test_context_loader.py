@@ -6,10 +6,12 @@ IMP-MAINT-006: Tests for context loading utilities extracted from autonomous_exe
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from autopack.executor.context_loader import (ExecutorContextLoader,
-                                              derive_allowed_paths_from_scope,
-                                              determine_workspace_root,
-                                              resolve_scope_target)
+from autopack.executor.context_loader import (
+    ExecutorContextLoader,
+    derive_allowed_paths_from_scope,
+    determine_workspace_root,
+    resolve_scope_target,
+)
 
 
 class TestExecutorContextLoader:

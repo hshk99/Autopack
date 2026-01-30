@@ -36,8 +36,13 @@ from .action_allowlist import ActionClassification
 from .action_executor import ExecutionBatch, SafeActionExecutor
 from .event_triggers import EventTriggerManager, EventType, WorkflowEvent
 from .executor_integration import ExecutorContext, create_executor_context
-from .models import (ApprovalRequest, AutopilotMetadata, AutopilotSessionV1,
-                     ErrorLogEntry, ExecutionSummary)
+from .models import (
+    ApprovalRequest,
+    AutopilotMetadata,
+    AutopilotSessionV1,
+    ErrorLogEntry,
+    ExecutionSummary,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -430,8 +435,7 @@ class AutopilotController:
             return None
 
         try:
-            from ..research.analysis.followup_trigger import \
-                FollowupResearchTrigger
+            from ..research.analysis.followup_trigger import FollowupResearchTrigger
 
             # Analyze findings for follow-up research triggers
             followup_trigger = FollowupResearchTrigger()

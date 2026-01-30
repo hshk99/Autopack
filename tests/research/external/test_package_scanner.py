@@ -4,10 +4,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from autopack.research.external.package_scanner import (PackageInfo,
-                                                        PackageRegistry,
-                                                        PackageScanner,
-                                                        SearchResult)
+from autopack.research.external.package_scanner import (
+    PackageInfo,
+    PackageRegistry,
+    PackageScanner,
+    SearchResult,
+)
 
 
 class TestPackageInfo:

@@ -119,6 +119,7 @@ class ComponentCostData:
             return base + (self.scaling_factor * steps * months)
         elif self.scaling_model == ScalingModel.LOGARITHMIC:
             import math
+
             return base + (self.scaling_factor * math.log10(max(users, 1)) * months)
         else:
             return base
@@ -224,9 +225,13 @@ class ProjectCostProjection:
         # Find primary cost drivers
         drivers = []
         if tco["year_1"]["ai_apis"] > tco["year_1"]["total"] * 0.2:
-            drivers.append(f"AI API usage ({tco['year_1']['ai_apis'] / tco['year_1']['total'] * 100:.0f}%)")
+            drivers.append(
+                f"AI API usage ({tco['year_1']['ai_apis'] / tco['year_1']['total'] * 100:.0f}%)"
+            )
         if tco["year_1"]["development"] > tco["year_1"]["total"] * 0.2:
-            drivers.append(f"Development ({tco['year_1']['development'] / tco['year_1']['total'] * 100:.0f}%)")
+            drivers.append(
+                f"Development ({tco['year_1']['development'] / tco['year_1']['total'] * 100:.0f}%)"
+            )
 
         return {
             "total_year_1_cost": tco["year_1"]["total"],
@@ -245,18 +250,22 @@ class ProjectCostProjection:
             vs_build_savings = 0
             if comp.decision in (DecisionType.BUY, DecisionType.INTEGRATE):
                 # Estimate build cost (rough: 2 weeks dev time)
-                estimated_build_cost = 80 * self.hourly_rate + (500 * 60)  # Initial + 5yr maintenance
+                estimated_build_cost = 80 * self.hourly_rate + (
+                    500 * 60
+                )  # Initial + 5yr maintenance
                 vs_build_savings = estimated_build_cost - comp.year_5_total
 
-            results.append({
-                "component": comp.component,
-                "decision": comp.decision.value,
-                "service": comp.service_name,
-                "year_1_cost": comp.year_1_total,
-                "year_5_cost": comp.year_5_total,
-                "vs_build_savings": vs_build_savings,
-                "rationale": comp.rationale,
-            })
+            results.append(
+                {
+                    "component": comp.component,
+                    "decision": comp.decision.value,
+                    "service": comp.service_name,
+                    "year_1_cost": comp.year_1_total,
+                    "year_5_cost": comp.year_5_total,
+                    "vs_build_savings": vs_build_savings,
+                    "rationale": comp.rationale,
+                }
+            )
         return results
 
     def _ai_projection(self) -> Dict[str, Any]:
@@ -278,7 +287,11 @@ class ProjectCostProjection:
             }
 
         # Optimization potential
-        total_savings = sum(o.potential_savings_percent for o in self.optimizations if "cache" in o.strategy.lower() or "model" in o.strategy.lower())
+        total_savings = sum(
+            o.potential_savings_percent
+            for o in self.optimizations
+            if "cache" in o.strategy.lower() or "model" in o.strategy.lower()
+        )
         optimized_year_5 = projections["year_5"]["yearly_cost"] * (1 - min(total_savings, 0.6))
 
         return {
@@ -291,7 +304,12 @@ class ProjectCostProjection:
 
     def _infrastructure_projection(self) -> Dict[str, Any]:
         """Project infrastructure costs."""
-        monthly_base = self.hosting_monthly + self.database_monthly + self.monitoring_monthly + self.other_infra_monthly
+        monthly_base = (
+            self.hosting_monthly
+            + self.database_monthly
+            + self.monitoring_monthly
+            + self.other_infra_monthly
+        )
 
         return {
             "hosting": {
@@ -454,19 +472,31 @@ class ProjectCostProjection:
         recommendations = []
 
         # Check for high lock-in components
-        high_lock_in = [c for c in self.components if c.vendor_lock_in_level == VendorLockInLevel.HIGH]
+        high_lock_in = [
+            c for c in self.components if c.vendor_lock_in_level == VendorLockInLevel.HIGH
+        ]
         if high_lock_in:
-            recommendations.append(f"Consider alternatives for high lock-in components: {', '.join(c.component for c in high_lock_in)}")
+            recommendations.append(
+                f"Consider alternatives for high lock-in components: {', '.join(c.component for c in high_lock_in)}"
+            )
 
         # Check AI costs
         ai = self._ai_projection()
         if ai.get("projections", {}).get("year_5", {}).get("yearly_cost", 0) > 50000:
-            recommendations.append("Implement AI caching and model routing early to control scaling costs")
+            recommendations.append(
+                "Implement AI caching and model routing early to control scaling costs"
+            )
 
         # Check for build decisions on non-core
-        non_core_builds = [c for c in self.components if c.decision == DecisionType.BUILD and not c.is_core_differentiator]
+        non_core_builds = [
+            c
+            for c in self.components
+            if c.decision == DecisionType.BUILD and not c.is_core_differentiator
+        ]
         if non_core_builds:
-            recommendations.append(f"Reconsider building non-core components: {', '.join(c.component for c in non_core_builds)}")
+            recommendations.append(
+                f"Reconsider building non-core components: {', '.join(c.component for c in non_core_builds)}"
+            )
 
         return recommendations
 
@@ -523,13 +553,15 @@ class CostEffectivenessAnalyzer:
         ai_projections = []
         if ai_features:
             for feature in ai_features:
-                ai_projections.append(AITokenCostProjection(
-                    feature=feature.get("feature", "Unknown"),
-                    model=feature.get("model", "claude-sonnet"),
-                    avg_input_tokens=feature.get("avg_input_tokens", 500),
-                    avg_output_tokens=feature.get("avg_output_tokens", 1000),
-                    requests_per_user_monthly=feature.get("requests_per_user_monthly", 20),
-                ))
+                ai_projections.append(
+                    AITokenCostProjection(
+                        feature=feature.get("feature", "Unknown"),
+                        model=feature.get("model", "claude-sonnet"),
+                        avg_input_tokens=feature.get("avg_input_tokens", 500),
+                        avg_output_tokens=feature.get("avg_output_tokens", 1000),
+                        requests_per_user_monthly=feature.get("requests_per_user_monthly", 20),
+                    )
+                )
 
         # Create projection
         self.projection = ProjectCostProjection(
@@ -575,7 +607,11 @@ class CostEffectivenessAnalyzer:
             # Get recommendation
             recommendation = result.get("recommendation", {})
             choice = recommendation.get("choice", "build")
-            decision = DecisionType(choice) if choice in [d.value for d in DecisionType] else DecisionType.BUILD
+            decision = (
+                DecisionType(choice)
+                if choice in [d.value for d in DecisionType]
+                else DecisionType.BUILD
+            )
 
             # Get cost data
             cost_data = result.get("cost_data", {})
@@ -592,25 +628,37 @@ class CostEffectivenessAnalyzer:
             # Parse vendor lock-in
             vendor_info = result.get("vendor_lock_in", {})
             lock_in_level = vendor_info.get("level", "low")
-            lock_in = VendorLockInLevel(lock_in_level) if lock_in_level in [v.value for v in VendorLockInLevel] else VendorLockInLevel.LOW
+            lock_in = (
+                VendorLockInLevel(lock_in_level)
+                if lock_in_level in [v.value for v in VendorLockInLevel]
+                else VendorLockInLevel.LOW
+            )
 
             return ComponentCostData(
                 component=result.get("component", "Unknown"),
                 description=result.get("description", ""),
                 decision=decision,
                 service_name=recommendation.get("specific"),
-                initial_cost=cost_data.get("initial_cost", self._parse_cost_string(selected.get("initial", "0"))),
+                initial_cost=cost_data.get(
+                    "initial_cost", self._parse_cost_string(selected.get("initial", "0"))
+                ),
                 monthly_ongoing=cost_data.get("monthly_ongoing", 0),
                 scaling_model=ScalingModel(cost_data.get("scaling_model", "flat")),
                 year_1_total=cost_data.get("year_1_total", 0),
                 year_3_total=cost_data.get("year_3_total", 0),
-                year_5_total=cost_data.get("year_5_total", self._parse_cost_string(selected.get("5_year_total", "0"))),
+                year_5_total=cost_data.get(
+                    "year_5_total", self._parse_cost_string(selected.get("5_year_total", "0"))
+                ),
                 vendor_lock_in_level=lock_in,
                 migration_cost=vendor_info.get("migration_cost", 0),
                 migration_time=vendor_info.get("migration_time", ""),
                 alternatives=vendor_info.get("alternatives", []),
                 is_core_differentiator=result.get("is_core", False),
-                rationale=" ".join(recommendation.get("rationale", [])) if isinstance(recommendation.get("rationale"), list) else recommendation.get("rationale", ""),
+                rationale=(
+                    " ".join(recommendation.get("rationale", []))
+                    if isinstance(recommendation.get("rationale"), list)
+                    else recommendation.get("rationale", "")
+                ),
             )
         except Exception as e:
             logger.warning(f"Error parsing component: {e}")
@@ -624,10 +672,10 @@ class CostEffectivenessAnalyzer:
         import re
 
         # Remove currency symbols and commas
-        cleaned = re.sub(r'[$,]', '', str(cost_str))
+        cleaned = re.sub(r"[$,]", "", str(cost_str))
 
         # Find all numbers
-        numbers = re.findall(r'[\d.]+', cleaned)
+        numbers = re.findall(r"[\d.]+", cleaned)
 
         if not numbers:
             return 0.0
@@ -640,7 +688,7 @@ class CostEffectivenessAnalyzer:
         """Save analysis to JSON file."""
         if self.projection:
             analysis = self.projection.calculate_all()
-            with open(filepath, 'w') as f:
+            with open(filepath, "w") as f:
                 json.dump(analysis, f, indent=2, default=str)
 
     def generate_budget_anchor(self) -> Dict[str, Any]:
@@ -666,8 +714,6 @@ class CostEffectivenessAnalyzer:
                 "ai_apis": tco["year_1"]["ai_apis"],
                 "operational": tco["year_1"]["operational"],
             },
-            "cost_optimization_strategies": [
-                o.strategy for o in self.projection.optimizations
-            ],
+            "cost_optimization_strategies": [o.strategy for o in self.projection.optimizations],
             "source": "cost-effectiveness-analyzer",
         }

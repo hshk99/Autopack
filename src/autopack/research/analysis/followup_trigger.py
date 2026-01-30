@@ -5,24 +5,26 @@ Analyzes research findings to identify areas requiring deeper investigation
 and triggers targeted follow-up research automatically.
 """
 
+import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
-import hashlib
 
 
 class TriggerType(Enum):
     """Types of follow-up research triggers."""
-    UNCERTAINTY = "uncertainty"      # Low confidence or conflicting sources
-    GAP = "gap"                      # Missing information
-    DEPTH = "depth"                  # Needs deeper investigation
-    VALIDATION = "validation"        # Claims need verification
-    EMERGING = "emerging"            # New relevant topics discovered
+
+    UNCERTAINTY = "uncertainty"  # Low confidence or conflicting sources
+    GAP = "gap"  # Missing information
+    DEPTH = "depth"  # Needs deeper investigation
+    VALIDATION = "validation"  # Claims need verification
+    EMERGING = "emerging"  # New relevant topics discovered
 
 
 class TriggerPriority(Enum):
     """Priority levels for triggers."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -32,6 +34,7 @@ class TriggerPriority(Enum):
 @dataclass
 class ResearchPlan:
     """Plan for follow-up research on a trigger."""
+
     queries: List[str]
     target_agent: str
     expected_outcome: str
@@ -41,6 +44,7 @@ class ResearchPlan:
 @dataclass
 class FollowupTrigger:
     """A trigger for follow-up research."""
+
     trigger_id: str
     trigger_type: TriggerType
     priority: TriggerPriority
@@ -72,6 +76,7 @@ class FollowupTrigger:
 @dataclass
 class TriggerAnalysisResult:
     """Result of trigger analysis."""
+
     triggers_detected: int
     triggers_selected: int
     trigger_summary: Dict[str, int]
@@ -108,8 +113,14 @@ class FollowupResearchTrigger:
 
     # Critical topics that warrant deeper research
     CRITICAL_TOPICS = {
-        "api_integration", "pricing", "compliance", "security",
-        "market_size", "competition", "legal", "technical_feasibility"
+        "api_integration",
+        "pricing",
+        "compliance",
+        "security",
+        "market_size",
+        "competition",
+        "legal",
+        "technical_feasibility",
     }
 
     # Agent mapping for different trigger types
@@ -148,46 +159,35 @@ class FollowupResearchTrigger:
         all_triggers = []
 
         # 1. Check confidence scores for uncertainty triggers
-        all_triggers.extend(
-            self._detect_uncertainty_triggers(analysis_results)
-        )
+        all_triggers.extend(self._detect_uncertainty_triggers(analysis_results))
 
         # 2. Check for noted gaps
-        all_triggers.extend(
-            self._detect_gap_triggers(analysis_results)
-        )
+        all_triggers.extend(self._detect_gap_triggers(analysis_results))
 
         # 3. Check validation failures
-        all_triggers.extend(
-            self._detect_validation_triggers(validation_results)
-        )
+        all_triggers.extend(self._detect_validation_triggers(validation_results))
 
         # 4. Check for shallow coverage needing depth
-        all_triggers.extend(
-            self._detect_depth_triggers(analysis_results)
-        )
+        all_triggers.extend(self._detect_depth_triggers(analysis_results))
 
         # 5. Check for emerging/unresearched topics
-        all_triggers.extend(
-            self._detect_emerging_triggers(analysis_results)
-        )
+        all_triggers.extend(self._detect_emerging_triggers(analysis_results))
 
         # 6. Check cross-reference conflicts
-        all_triggers.extend(
-            self._detect_conflict_triggers(analysis_results)
-        )
+        all_triggers.extend(self._detect_conflict_triggers(analysis_results))
 
         # Filter out already addressed triggers
         new_triggers = [
-            t for t in all_triggers
+            t
+            for t in all_triggers
             if t.trigger_id not in self._addressed_triggers
             and t.trigger_id not in previous_trigger_ids
         ]
 
         # Prioritize and select
         prioritized = self._prioritize_triggers(new_triggers)
-        selected = prioritized[:self.MAX_TRIGGERS_PER_ITERATION]
-        not_selected = prioritized[self.MAX_TRIGGERS_PER_ITERATION:]
+        selected = prioritized[: self.MAX_TRIGGERS_PER_ITERATION]
+        not_selected = prioritized[self.MAX_TRIGGERS_PER_ITERATION :]
 
         # Generate execution plan
         execution_plan = self._generate_execution_plan(selected)
@@ -201,7 +201,11 @@ class FollowupResearchTrigger:
             trigger_summary=summary,
             selected_triggers=selected,
             not_selected_triggers=[
-                {"trigger_id": t.trigger_id, "reason_skipped": "Lower priority", "can_revisit": True}
+                {
+                    "trigger_id": t.trigger_id,
+                    "reason_skipped": "Lower priority",
+                    "can_revisit": True,
+                }
                 for t in not_selected
             ],
             should_research=len(selected) > 0,
@@ -232,7 +236,7 @@ class FollowupResearchTrigger:
                             queries=self._generate_clarification_queries(finding),
                             target_agent="verification-research",
                             expected_outcome="Higher confidence finding with additional sources",
-                        )
+                        ),
                     )
                 )
 
@@ -256,7 +260,7 @@ class FollowupResearchTrigger:
                         queries=gap.get("suggested_queries", [f"research {category}"]),
                         target_agent=self._select_agent_for_category(category),
                         expected_outcome=f"Fill {category} gap with comprehensive data",
-                    )
+                    ),
                 )
             )
 
@@ -279,7 +283,7 @@ class FollowupResearchTrigger:
                         queries=self._generate_validation_queries(failure),
                         target_agent="validation-research",
                         expected_outcome="Validated claim with primary sources",
-                    )
+                    ),
                 )
             )
 
@@ -303,7 +307,7 @@ class FollowupResearchTrigger:
                             queries=self._generate_deep_dive_queries(topic),
                             target_agent="deep-dive-research",
                             expected_outcome=f"Comprehensive analysis of {topic}",
-                        )
+                        ),
                     )
                 )
 
@@ -330,7 +334,7 @@ class FollowupResearchTrigger:
                         queries=[f"{entity} analysis", f"{entity} review"],
                         target_agent="discovery-agent",
                         expected_outcome=f"Basic understanding of {entity}",
-                    )
+                    ),
                 )
             )
 
@@ -353,7 +357,7 @@ class FollowupResearchTrigger:
                         queries=self._generate_resolution_queries(conflict),
                         target_agent="verification-research",
                         expected_outcome="Resolved conflict with authoritative source",
-                    )
+                    ),
                 )
             )
 
@@ -408,14 +412,13 @@ class FollowupResearchTrigger:
         if current_group:
             parallel_groups.append(current_group)
 
-        estimated_time = sum(
-            t.research_plan.estimated_time_minutes for t in triggers
-        ) // max(len(parallel_groups), 1)
+        estimated_time = sum(t.research_plan.estimated_time_minutes for t in triggers) // max(
+            len(parallel_groups), 1
+        )
 
         return {
             "parallel_batches": [
-                {"batch": i + 1, "triggers": group}
-                for i, group in enumerate(parallel_groups)
+                {"batch": i + 1, "triggers": group} for i, group in enumerate(parallel_groups)
             ],
             "estimated_additional_time_minutes": estimated_time,
             "estimated_api_calls": len(triggers) * 5,  # Rough estimate
@@ -526,8 +529,7 @@ class FollowupResearchTrigger:
         # Check if critical gaps remain
         triggers = self.analyze(new_results)
         critical_remaining = [
-            t for t in triggers.selected_triggers
-            if t.priority == TriggerPriority.CRITICAL
+            t for t in triggers.selected_triggers if t.priority == TriggerPriority.CRITICAL
         ]
         if not critical_remaining:
             return False
@@ -541,12 +543,10 @@ class FollowupResearchTrigger:
     ) -> float:
         """Calculate ratio of new information gained."""
         prev_findings = set(
-            hashlib.md5(str(f).encode()).hexdigest()[:8]
-            for f in prev_results.get("findings", [])
+            hashlib.md5(str(f).encode()).hexdigest()[:8] for f in prev_results.get("findings", [])
         )
         new_findings = set(
-            hashlib.md5(str(f).encode()).hexdigest()[:8]
-            for f in new_results.get("findings", [])
+            hashlib.md5(str(f).encode()).hexdigest()[:8] for f in new_results.get("findings", [])
         )
 
         if not new_findings:

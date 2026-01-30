@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 from autopack.autonomous.budgeting import get_phase_budget_remaining_pct, is_phase_budget_exceeded
 from autopack.config import settings
+from autopack.executor.deployment_phase import DeploymentPhaseHandler
 from autopack.time_watchdog import TimeWatchdog
 
 # IMP-GAP-001: Import gap scanner for pre-phase checks
@@ -146,6 +147,7 @@ class ExecutionResult:
     phase_result: PhaseResult
     updated_counters: Dict[str, int]  # Updated state counters
     should_continue: bool = True
+    enhanced_phase: Optional[Dict] = None  # Enhanced phase info (IMP-HIGH-003)
 
 
 class PhaseOrchestrator:
@@ -188,6 +190,8 @@ class PhaseOrchestrator:
         self.alert_router = alert_router
         # IMP-GAP-001: Pre-phase gap checking
         self.enable_pre_phase_gap_check = enable_pre_phase_gap_check
+        # IMP-HIGH-003: Deployment phase support
+        self.deployment_handler = DeploymentPhaseHandler()
 
     def execute_phase_attempt(self, context: ExecutionContext) -> ExecutionResult:
         """
@@ -208,6 +212,11 @@ class PhaseOrchestrator:
 
         # Setup scope manifest if missing (BUILD-123v2)
         self._setup_phase_scope(context)
+
+        # IMP-HIGH-003: Handle deployment phase if applicable
+        if self.should_handle_as_deployment_phase(context):
+            logger.info(f"[IMP-HIGH-003] Routing to deployment phase handler")
+            return self._handle_deployment_phase(context)
 
         # IMP-COST-002: Check phase-level budget before execution
         phase_budget_result = self._check_phase_budget(context)
@@ -1738,6 +1747,113 @@ class PhaseOrchestrator:
             )
 
         return None
+
+    def _detect_phase_type(self, context: ExecutionContext) -> str:
+        """Detect phase type from context.
+
+        Determines whether a phase is a deployment phase or standard phase
+        based on the phase configuration.
+
+        Args:
+            context: Execution context with phase information
+
+        Returns:
+            Phase type string (e.g., "deployment", "implementation")
+        """
+        phase_type = context.phase.get("phase_type")
+        if phase_type:
+            return phase_type
+
+        # Fallback to category if phase_type not set
+        category = context.phase.get("category", "implementation")
+        return category
+
+    def _handle_deployment_phase(self, context: ExecutionContext) -> ExecutionResult:
+        """Handle deployment phase execution.
+
+        Generates deployment guidance based on phase configuration and creates
+        necessary deployment templates and configurations.
+
+        Args:
+            context: Execution context for the deployment phase
+
+        Returns:
+            ExecutionResult indicating success or failure of guidance generation
+        """
+        phase_id = context.phase.get("phase_id", "deployment")
+        logger.info(f"[IMP-HIGH-003] Handling deployment phase: {phase_id}")
+
+        try:
+            # Get deployment configuration from phase
+            deployment_config = context.phase.get("deployment_config", {})
+            providers = deployment_config.get("providers", ["docker"])
+            guidance_types = deployment_config.get("guidance_types", ["containerization"])
+
+            # Generate deployment guidance
+            guidance = self.deployment_handler.generate_deployment_guidance(
+                providers, guidance_types
+            )
+
+            if not guidance:
+                logger.warning(
+                    f"[IMP-HIGH-003] No deployment guidance generated for phase {phase_id}"
+                )
+                return ExecutionResult(
+                    success=False,
+                    status="FAILED",
+                    phase_result=PhaseResult.FAILED,
+                    updated_counters={},
+                    should_continue=False,
+                )
+
+            # Create deployment configuration
+            config = self.deployment_handler.create_deployment_phase_config(
+                providers, guidance_types
+            )
+
+            logger.info(
+                f"[IMP-HIGH-003] Generated deployment guidance for {len(guidance)} providers/types"
+            )
+
+            # Return success result
+            return ExecutionResult(
+                success=True,
+                status="COMPLETE",
+                phase_result=PhaseResult.COMPLETE,
+                updated_counters={},
+                should_continue=False,
+                enhanced_phase={
+                    **context.phase,
+                    "phase_type": "deployment",
+                    "deployment_config": config,
+                    "guidance_generated": True,
+                },
+            )
+
+        except Exception as e:
+            logger.error(
+                f"[IMP-HIGH-003] Error handling deployment phase {phase_id}: {str(e)}",
+                exc_info=True,
+            )
+            return ExecutionResult(
+                success=False,
+                status="FAILED",
+                phase_result=PhaseResult.FAILED,
+                updated_counters={},
+                should_continue=False,
+            )
+
+    def should_handle_as_deployment_phase(self, context: ExecutionContext) -> bool:
+        """Check if phase should be handled as deployment phase.
+
+        Args:
+            context: Execution context
+
+        Returns:
+            True if phase is deployment phase, False otherwise
+        """
+        phase_type = self._detect_phase_type(context)
+        return phase_type == "deployment"
 
 
 # =========================================================================

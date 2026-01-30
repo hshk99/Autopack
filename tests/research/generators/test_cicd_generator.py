@@ -7,7 +7,9 @@ import yaml
 from autopack.research.generators.cicd_generator import CICDWorkflowGenerator
 from autopack.research.artifact_generators import (
     ArtifactGeneratorRegistry,
+    MonetizationStrategyGenerator,
     get_cicd_generator,
+    get_monetization_generator,
     get_registry,
 )
 
@@ -282,6 +284,179 @@ class TestArtifactGeneratorRegistry(unittest.TestCase):
         self.assertIsInstance(generator, CustomGenerator)
 
 
+class TestMonetizationStrategyGenerator(unittest.TestCase):
+    """Tests for MonetizationStrategyGenerator class."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.generator = MonetizationStrategyGenerator()
+
+    def test_generate_with_overview(self):
+        """Test generating strategy with overview."""
+        research_findings = {
+            "overview": "Test monetization strategy overview",
+        }
+        result = self.generator.generate(research_findings)
+
+        self.assertIn("# Monetization Strategy", result)
+        self.assertIn("## Overview", result)
+        self.assertIn("Test monetization strategy overview", result)
+
+    def test_generate_with_pricing_models(self):
+        """Test generating strategy with pricing models."""
+        research_findings = {
+            "models": [
+                {
+                    "model": "subscription",
+                    "prevalence": "common",
+                    "pros": ["Predictable revenue"],
+                    "cons": ["Requires volume"],
+                    "examples": [
+                        {
+                            "company": "Company A",
+                            "url": "https://example.com/pricing",
+                            "tiers": [
+                                {
+                                    "name": "Free",
+                                    "price": "$0",
+                                    "limits": "100 items/month",
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ]
+        }
+        result = self.generator.generate(research_findings)
+
+        self.assertIn("## Pricing Models", result)
+        self.assertIn("Subscription", result)
+        self.assertIn("Company A", result)
+        self.assertIn("$0", result)
+
+    def test_generate_with_benchmarks(self):
+        """Test generating strategy with pricing benchmarks."""
+        research_findings = {
+            "pricing_benchmarks": {
+                "entry_level": {
+                    "range": "$10-30/month",
+                    "median": "$19/month",
+                    "source": "https://example.com",
+                }
+            }
+        }
+        result = self.generator.generate(research_findings)
+
+        self.assertIn("## Pricing Benchmarks", result)
+        self.assertIn("Entry Level", result)
+        self.assertIn("$10-30/month", result)
+
+    def test_generate_with_conversion_metrics(self):
+        """Test generating strategy with conversion benchmarks."""
+        research_findings = {
+            "conversion_benchmarks": {
+                "free_to_paid": {
+                    "industry_average": "2-5%",
+                    "top_performers": "7-10%",
+                }
+            }
+        }
+        result = self.generator.generate(research_findings)
+
+        self.assertIn("## Conversion Metrics", result)
+        self.assertIn("Free To Paid", result)
+        self.assertIn("2-5%", result)
+
+    def test_generate_with_revenue_potential(self):
+        """Test generating strategy with revenue potential."""
+        research_findings = {
+            "revenue_potential": {
+                "conservative": {
+                    "monthly": "$10,000",
+                    "assumptions": ["100 users", "2% conversion"],
+                }
+            }
+        }
+        result = self.generator.generate(research_findings)
+
+        self.assertIn("## Revenue Potential", result)
+        self.assertIn("Conservative Scenario", result)
+        self.assertIn("$10,000", result)
+
+    def test_generate_with_recommended_model(self):
+        """Test generating strategy with recommended model."""
+        research_findings = {
+            "recommended_model": {
+                "model": "freemium with pro tier",
+                "rationale": "Market expects free tier",
+                "suggested_pricing": {"free": "$0", "pro": "$29/month"},
+                "differentiation": "Unique value proposition",
+            }
+        }
+        result = self.generator.generate(research_findings)
+
+        self.assertIn("## Recommended Model", result)
+        self.assertIn("freemium with pro tier", result)
+        self.assertIn("Market expects free tier", result)
+        self.assertIn("$29/month", result)
+
+    def test_generate_complete_strategy(self):
+        """Test generating complete monetization strategy."""
+        research_findings = {
+            "overview": "Complete strategy",
+            "models": [
+                {
+                    "model": "subscription",
+                    "prevalence": "common",
+                    "pros": ["Revenue"],
+                    "cons": ["Churn"],
+                }
+            ],
+            "pricing_benchmarks": {
+                "entry_level": {
+                    "range": "$10-30/month",
+                    "median": "$19/month",
+                }
+            },
+            "conversion_benchmarks": {
+                "free_to_paid": {"industry_average": "2-5%"}
+            },
+            "revenue_potential": {
+                "moderate": {"monthly": "$50,000", "assumptions": ["500 users"]}
+            },
+            "recommended_model": {
+                "model": "freemium",
+                "rationale": "Best fit",
+            },
+        }
+        result = self.generator.generate(research_findings)
+
+        # Verify all sections are present
+        self.assertIn("# Monetization Strategy", result)
+        self.assertIn("## Overview", result)
+        self.assertIn("## Pricing Models", result)
+        self.assertIn("## Pricing Benchmarks", result)
+        self.assertIn("## Conversion Metrics", result)
+        self.assertIn("## Revenue Potential", result)
+        self.assertIn("## Recommended Model", result)
+
+    def test_generate_empty_findings(self):
+        """Test generating with empty findings."""
+        research_findings = {}
+        result = self.generator.generate(research_findings)
+
+        # Should still have the header
+        self.assertIn("# Monetization Strategy", result)
+
+    def test_generate_returns_markdown_string(self):
+        """Test that generate always returns a markdown string."""
+        research_findings = {"overview": "Test"}
+        result = self.generator.generate(research_findings)
+
+        self.assertIsInstance(result, str)
+        self.assertTrue(result.startswith("# Monetization Strategy"))
+
+
 class TestConvenienceFunctions(unittest.TestCase):
     """Tests for convenience functions."""
 
@@ -300,6 +475,22 @@ class TestConvenienceFunctions(unittest.TestCase):
         """Test get_cicd_generator with custom kwargs."""
         generator = get_cicd_generator(include_deploy=False)
         self.assertFalse(generator.include_deploy)
+
+    def test_registry_has_monetization_generator(self):
+        """Test that registry has monetization generator registered."""
+        registry = ArtifactGeneratorRegistry()
+        self.assertTrue(registry.has_generator("monetization"))
+
+    def test_get_monetization_generator(self):
+        """Test get_monetization_generator convenience function."""
+        generator = get_monetization_generator()
+        self.assertIsInstance(generator, MonetizationStrategyGenerator)
+
+    def test_get_monetization_generator_from_registry(self):
+        """Test getting monetization generator from registry."""
+        registry = ArtifactGeneratorRegistry()
+        generator = registry.get("monetization")
+        self.assertIsInstance(generator, MonetizationStrategyGenerator)
 
 
 if __name__ == "__main__":

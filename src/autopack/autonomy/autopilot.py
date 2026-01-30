@@ -36,13 +36,8 @@ from .action_allowlist import ActionClassification
 from .action_executor import ExecutionBatch, SafeActionExecutor
 from .event_triggers import EventTriggerManager, EventType, WorkflowEvent
 from .executor_integration import ExecutorContext, create_executor_context
-from .models import (
-    ApprovalRequest,
-    AutopilotMetadata,
-    AutopilotSessionV1,
-    ErrorLogEntry,
-    ExecutionSummary,
-)
+from .models import (ApprovalRequest, AutopilotMetadata, AutopilotSessionV1,
+                     ErrorLogEntry, ExecutionSummary)
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +97,29 @@ class AutopilotController:
         # IMP-AUTO-002: Event-driven workflow triggers
         self._event_trigger_manager = EventTriggerManager()
         self._pending_events: list[WorkflowEvent] = []
+
+    def _check_circuit_breaker_health(self) -> bool:
+        """Check if circuit breaker allows execution.
+
+        IMP-HIGH-001: Verifies circuit breaker state before execution.
+        Returns False if circuit is OPEN, blocking runaway execution.
+
+        Returns:
+            True if circuit breaker allows execution, False if blocked
+        """
+        if self.executor_ctx is None:
+            return True  # No context, allow proceeding
+
+        if not self.executor_ctx.circuit_breaker.is_available():
+            logger.critical(
+                f"[IMP-HIGH-001] Circuit breaker OPEN - blocking execution. "
+                f"State: {self.executor_ctx.circuit_breaker.state.value}, "
+                f"Consecutive failures: {self.executor_ctx.circuit_breaker.consecutive_failures}, "
+                f"Trip count: {self.executor_ctx.circuit_breaker.total_trips}"
+            )
+            return False
+
+        return True
 
     def run_session(self, anchor: IntentionAnchorV2) -> AutopilotSessionV1:
         """Run autopilot session with safe execution gates.
@@ -221,11 +239,27 @@ class AutopilotController:
                 self._handle_approval_required(proposal)
                 return self.session
 
-            # All actions are auto-approved - execute bounded batch
+            # All actions are auto-approved - check circuit breaker health gate
             logger.info(
                 f"[Autopilot] All {proposal.summary.auto_approved_actions} actions auto-approved. "
-                "Executing bounded batch..."
+                "Checking health gates before execution..."
             )
+
+            # IMP-HIGH-001: Check circuit breaker health gate
+            if not self._check_circuit_breaker_health():
+                logger.critical(
+                    "[IMP-HIGH-001] Execution blocked by circuit breaker health gate. "
+                    "Autonomous execution halted to prevent runaway."
+                )
+                self.session.status = "blocked_circuit_breaker"
+                self.session.blocked_reason = (
+                    "Circuit breaker is OPEN - too many consecutive failures detected. "
+                    "Execution blocked to prevent runaway. Circuit will reset after timeout."
+                )
+                self.session.completed_at = datetime.now(timezone.utc)
+                return self.session
+
+            logger.info("[Autopilot] Health gates passed. " "Executing bounded batch...")
             self._execute_bounded_batch(proposal)
 
             # Mark session as completed
@@ -435,7 +469,8 @@ class AutopilotController:
             return None
 
         try:
-            from ..research.analysis.followup_trigger import FollowupResearchTrigger
+            from ..research.analysis.followup_trigger import \
+                FollowupResearchTrigger
 
             # Analyze findings for follow-up research triggers
             followup_trigger = FollowupResearchTrigger()
@@ -761,6 +796,17 @@ class AutopilotController:
 
         for action in proposal.actions:
             if action.approval_status == "auto_approved":
+                # IMP-HIGH-001: Check circuit breaker before each action
+                if self.executor_ctx and not self.executor_ctx.circuit_breaker.is_available():
+                    logger.critical(
+                        f"[IMP-HIGH-001] Circuit breaker opened during execution. "
+                        f"Stopping action batch at action {action.action_id}. "
+                        f"State: {self.executor_ctx.circuit_breaker.state.value}"
+                    )
+                    # Don't execute this action - circuit is open
+                    requires_approval += 1
+                    continue
+
                 logger.info(
                     f"[Autopilot] Processing action: {action.action_id} ({action.action_type})"
                 )
@@ -795,7 +841,7 @@ class AutopilotController:
                             successful += 1
                         else:
                             failed += 1
-                            # Record failure for stuck handling
+                            # Record failure for stuck handling and circuit breaker
                             if self.executor_ctx:
                                 self.executor_ctx.record_failure()
                     elif result.classification == ActionClassification.REQUIRES_APPROVAL:

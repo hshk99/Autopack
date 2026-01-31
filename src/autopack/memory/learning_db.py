@@ -94,6 +94,8 @@ class LearningDatabase:
                 "blocking_reasons": {},
                 "category_success_rates": {},
             },
+            "successful_patterns": {},
+            "project_history": [],
         }
 
     def _migrate_schema(self) -> None:
@@ -118,6 +120,12 @@ class LearningDatabase:
                     "blocking_reasons": {},
                     "category_success_rates": {},
                 }
+            # Add successful_patterns section for cross-project learning
+            if "successful_patterns" not in self._data:
+                self._data["successful_patterns"] = {}
+            # Add project_history for tracking past projects
+            if "project_history" not in self._data:
+                self._data["project_history"] = []
 
             self._data["schema_version"] = self.SCHEMA_VERSION
             self._save()
@@ -524,3 +532,380 @@ class LearningDatabase:
         logger.warning("Clearing all data from learning database")
         self._data = self._create_empty_schema()
         return self._save()
+
+    # ========================================================================
+    # Cross-Project Learning Pattern Methods
+    # ========================================================================
+
+    def store_pattern(
+        self,
+        pattern_id: str,
+        pattern_data: dict[str, Any],
+    ) -> bool:
+        """Store an extracted pattern for cross-project learning.
+
+        Args:
+            pattern_id: Unique identifier for the pattern.
+            pattern_data: Pattern data dictionary containing:
+                - pattern_type: Type of pattern (tech_stack, architecture, etc.)
+                - name: Human-readable name
+                - description: Pattern description
+                - success_rate: Success rate (0.0-1.0)
+                - occurrence_count: Number of occurrences
+                - confidence: Confidence level
+                - components: List of pattern components
+                - associated_project_types: Project types where pattern applies
+                - success_factors: Factors contributing to success
+                - risk_factors: Potential risk factors
+                - recommended_for: Keywords for recommendation
+                - avoid_for: Keywords to avoid
+
+        Returns:
+            True if storage was successful, False otherwise.
+        """
+        if not pattern_id:
+            logger.warning("Cannot store pattern: empty pattern_id")
+            return False
+
+        timestamp = datetime.now().isoformat()
+
+        # Initialize successful_patterns if needed
+        if "successful_patterns" not in self._data:
+            self._data["successful_patterns"] = {}
+
+        # Store or update pattern
+        self._data["successful_patterns"][pattern_id] = {
+            "pattern_id": pattern_id,
+            "stored_at": timestamp,
+            "updated_at": timestamp,
+            **pattern_data,
+        }
+
+        logger.info(
+            "Stored pattern: %s (type=%s, success_rate=%.1f%%)",
+            pattern_id,
+            pattern_data.get("pattern_type", "unknown"),
+            pattern_data.get("success_rate", 0) * 100,
+        )
+
+        return self._save()
+
+    def get_pattern(self, pattern_id: str) -> dict[str, Any] | None:
+        """Get a specific pattern by ID.
+
+        Args:
+            pattern_id: Pattern identifier.
+
+        Returns:
+            The pattern data or None if not found.
+        """
+        return self._data.get("successful_patterns", {}).get(pattern_id)
+
+    def list_patterns(
+        self,
+        pattern_type: str | None = None,
+        min_success_rate: float | None = None,
+        project_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List patterns with optional filtering.
+
+        Args:
+            pattern_type: Filter by pattern type if provided.
+            min_success_rate: Filter by minimum success rate if provided.
+            project_type: Filter by associated project type if provided.
+
+        Returns:
+            List of pattern records matching filters.
+        """
+        patterns = list(self._data.get("successful_patterns", {}).values())
+
+        if pattern_type:
+            patterns = [p for p in patterns if p.get("pattern_type") == pattern_type]
+
+        if min_success_rate is not None:
+            patterns = [
+                p for p in patterns if p.get("success_rate", 0) >= min_success_rate
+            ]
+
+        if project_type:
+            patterns = [
+                p
+                for p in patterns
+                if project_type.lower()
+                in [t.lower() for t in p.get("associated_project_types", [])]
+                or not p.get("associated_project_types")  # Include universal patterns
+            ]
+
+        return patterns
+
+    def get_top_patterns(
+        self,
+        limit: int = 10,
+        min_confidence: str = "medium",
+    ) -> list[dict[str, Any]]:
+        """Get top patterns by success rate and confidence.
+
+        Args:
+            limit: Maximum number of patterns to return.
+            min_confidence: Minimum confidence level (low, medium, high).
+
+        Returns:
+            List of top patterns sorted by success rate.
+        """
+        confidence_order = {"experimental": 0, "low": 1, "medium": 2, "high": 3}
+        min_conf_value = confidence_order.get(min_confidence.lower(), 1)
+
+        patterns = [
+            p
+            for p in self._data.get("successful_patterns", {}).values()
+            if confidence_order.get(p.get("confidence", "low"), 0) >= min_conf_value
+        ]
+
+        # Sort by success rate descending, then by occurrence count
+        patterns.sort(
+            key=lambda p: (p.get("success_rate", 0), p.get("occurrence_count", 0)),
+            reverse=True,
+        )
+
+        return patterns[:limit]
+
+    def get_patterns_for_context(
+        self,
+        context_keywords: list[str],
+        project_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Get patterns matching a project context.
+
+        Args:
+            context_keywords: Keywords describing the project context.
+            project_type: Optional project type to filter by.
+
+        Returns:
+            List of relevant patterns with relevance scores.
+        """
+        patterns = self.list_patterns(project_type=project_type)
+        scored_patterns: list[tuple[float, dict[str, Any]]] = []
+
+        for pattern in patterns:
+            score = 0.0
+
+            # Score based on recommended_for matches
+            recommended_for = pattern.get("recommended_for", [])
+            for keyword in context_keywords:
+                if keyword.lower() in [r.lower() for r in recommended_for]:
+                    score += 0.3
+
+            # Score based on avoid_for (negative)
+            avoid_for = pattern.get("avoid_for", [])
+            for keyword in context_keywords:
+                if keyword.lower() in [a.lower() for a in avoid_for]:
+                    score -= 0.4
+
+            # Factor in success rate
+            score += pattern.get("success_rate", 0) * 0.4
+
+            # Only include patterns with positive relevance
+            if score > 0:
+                pattern_copy = dict(pattern)
+                pattern_copy["relevance_score"] = round(score, 3)
+                scored_patterns.append((score, pattern_copy))
+
+        # Sort by score descending
+        scored_patterns.sort(key=lambda x: x[0], reverse=True)
+
+        return [p for _, p in scored_patterns]
+
+    def update_pattern_metrics(
+        self,
+        pattern_id: str,
+        new_occurrence: bool = False,
+        was_successful: bool = True,
+    ) -> bool:
+        """Update pattern metrics based on new usage.
+
+        Args:
+            pattern_id: Pattern identifier to update.
+            new_occurrence: Whether this is a new occurrence.
+            was_successful: Whether the usage was successful.
+
+        Returns:
+            True if update was successful, False otherwise.
+        """
+        pattern = self._data.get("successful_patterns", {}).get(pattern_id)
+        if not pattern:
+            logger.warning("Pattern not found for metrics update: %s", pattern_id)
+            return False
+
+        if new_occurrence:
+            old_count = pattern.get("occurrence_count", 0)
+            old_success_rate = pattern.get("success_rate", 0)
+
+            # Calculate new success rate
+            old_successes = old_count * old_success_rate
+            new_successes = old_successes + (1 if was_successful else 0)
+            new_count = old_count + 1
+
+            pattern["occurrence_count"] = new_count
+            pattern["success_rate"] = round(new_successes / new_count, 3)
+            pattern["updated_at"] = datetime.now().isoformat()
+            pattern["last_seen"] = datetime.now().isoformat()
+
+            # Update confidence based on new count
+            if new_count >= 5:
+                pattern["confidence"] = "high"
+            elif new_count >= 3:
+                pattern["confidence"] = "medium"
+            else:
+                pattern["confidence"] = "low"
+
+            logger.info(
+                "Updated pattern metrics: %s (count=%d, success_rate=%.1f%%)",
+                pattern_id,
+                new_count,
+                pattern["success_rate"] * 100,
+            )
+
+        return self._save()
+
+    def store_project_history(
+        self,
+        project_id: str,
+        project_data: dict[str, Any],
+    ) -> bool:
+        """Store project data for historical analysis.
+
+        Args:
+            project_id: Unique project identifier.
+            project_data: Project data dictionary containing:
+                - project_type: Type of project
+                - name: Project name
+                - outcome: Project outcome
+                - tech_stack: Technology stack used
+                - architecture: Architecture decisions
+                - monetization: Monetization strategy
+                - deployment: Deployment configuration
+                - lessons_learned: Key lessons
+
+        Returns:
+            True if storage was successful, False otherwise.
+        """
+        if not project_id:
+            logger.warning("Cannot store project: empty project_id")
+            return False
+
+        timestamp = datetime.now().isoformat()
+
+        # Initialize project_history if needed
+        if "project_history" not in self._data:
+            self._data["project_history"] = []
+
+        # Remove existing entry for same project_id
+        self._data["project_history"] = [
+            p for p in self._data["project_history"] if p.get("project_id") != project_id
+        ]
+
+        # Add new entry
+        project_record = {
+            "project_id": project_id,
+            "recorded_at": timestamp,
+            "timestamp": timestamp,
+            **project_data,
+        }
+
+        self._data["project_history"].append(project_record)
+
+        logger.info(
+            "Stored project history: %s (type=%s, outcome=%s)",
+            project_id,
+            project_data.get("project_type", "unknown"),
+            project_data.get("outcome", "unknown"),
+        )
+
+        return self._save()
+
+    def get_project_history(
+        self,
+        project_type: str | None = None,
+        outcome: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Get project history with optional filtering.
+
+        Args:
+            project_type: Filter by project type if provided.
+            outcome: Filter by outcome if provided.
+            limit: Maximum number of projects to return.
+
+        Returns:
+            List of project records matching filters.
+        """
+        projects = list(self._data.get("project_history", []))
+
+        if project_type:
+            projects = [p for p in projects if p.get("project_type") == project_type]
+
+        if outcome:
+            projects = [p for p in projects if p.get("outcome") == outcome]
+
+        # Sort by timestamp descending (most recent first)
+        projects.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+
+        if limit is not None and limit > 0:
+            projects = projects[:limit]
+
+        return projects
+
+    def get_cross_project_insights(self) -> dict[str, Any]:
+        """Get cross-project learning insights.
+
+        Returns:
+            Dictionary containing:
+            - total_patterns: Number of stored patterns
+            - top_patterns: Highest success rate patterns
+            - pattern_coverage: Patterns by type
+            - project_history_summary: Summary of historical projects
+            - recommended_approaches: Based on historical success
+        """
+        patterns = self._data.get("successful_patterns", {})
+        history = self._data.get("project_history", [])
+
+        # Calculate pattern coverage by type
+        pattern_by_type: Counter[str] = Counter()
+        for pattern in patterns.values():
+            pattern_type = pattern.get("pattern_type", "unknown")
+            pattern_by_type[pattern_type] += 1
+
+        # Calculate project history summary
+        outcome_counts: Counter[str] = Counter()
+        type_counts: Counter[str] = Counter()
+        for project in history:
+            outcome_counts[project.get("outcome", "unknown")] += 1
+            type_counts[project.get("project_type", "unknown")] += 1
+
+        # Get top patterns
+        top_patterns = self.get_top_patterns(limit=5, min_confidence="medium")
+
+        # Generate recommended approaches based on successful patterns
+        recommended = []
+        for pattern in top_patterns:
+            if pattern.get("success_rate", 0) >= 0.7:
+                recommended.append(
+                    {
+                        "approach": pattern.get("name", "Unknown"),
+                        "type": pattern.get("pattern_type", "unknown"),
+                        "success_rate": pattern.get("success_rate", 0),
+                        "basis": f"Based on {pattern.get('occurrence_count', 0)} occurrences",
+                    }
+                )
+
+        return {
+            "total_patterns": len(patterns),
+            "top_patterns": top_patterns,
+            "pattern_coverage": dict(pattern_by_type),
+            "project_history_summary": {
+                "total_projects": len(history),
+                "by_outcome": dict(outcome_counts),
+                "by_type": dict(type_counts),
+            },
+            "recommended_approaches": recommended,
+        }

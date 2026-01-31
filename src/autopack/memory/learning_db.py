@@ -164,7 +164,7 @@ class LearningDatabase:
             try:
                 # Cross-platform locking
                 if sys.platform == "win32":
-                    msvcrt.locking(lock_f.fileno(), msvcrt.LK_NBLCK, 1)
+                    msvcrt.locking(lock_f.fileno(), msvcrt.LK_LOCK, 1)
                 else:
                     fcntl.flock(lock_f.fileno(), fcntl.LOCK_EX)
 
@@ -191,9 +191,6 @@ class LearningDatabase:
                         except OSError:
                             pass
                     raise
-            except BlockingIOError:
-                logger.warning("Could not acquire lock for learning database, retrying...")
-                raise
             finally:
                 # Release lock
                 try:

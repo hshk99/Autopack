@@ -18,6 +18,7 @@ IMP-REL-001: Health-gated task generation with auto-resume support.
 """
 
 import asyncio
+import copy
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -32,26 +33,77 @@ from ..gaps.scanner import scan_workspace
 from ..intention_anchor.v2 import IntentionAnchorV2
 from ..planning.models import PlanProposalV1
 from ..planning.plan_proposer import propose_plan
-from ..research.analysis.followup_trigger import (FollowupResearchTrigger,
-                                                  FollowupTrigger,
-                                                  TriggerAnalysisResult,
-                                                  TriggerExecutionResult)
-from ..telemetry.autopilot_metrics import (AutopilotHealthCollector,
-                                           SessionHealthSnapshot,
-                                           SessionOutcome)
+from ..research.analysis.followup_trigger import (
+    FollowupResearchTrigger,
+    FollowupTrigger,
+    TriggerAnalysisResult,
+    TriggerExecutionResult,
+)
+from ..telemetry.autopilot_metrics import (
+    AutopilotHealthCollector,
+    SessionHealthSnapshot,
+    SessionOutcome,
+)
 from .action_allowlist import ActionClassification
 from .action_executor import ExecutionBatch, SafeActionExecutor
 from .event_triggers import EventTriggerManager, EventType, WorkflowEvent
 from .executor_integration import ExecutorContext, create_executor_context
-from .models import (ApprovalRequest, AutopilotMetadata, AutopilotSessionV1,
-                     ErrorLogEntry, ExecutionSummary)
-from .research_cycle_integration import (ResearchCycleDecision,
-                                         ResearchCycleIntegration,
-                                         ResearchCycleMetrics,
-                                         ResearchCycleOutcome,
-                                         create_research_cycle_integration)
+from .models import (
+    ApprovalRequest,
+    AutopilotMetadata,
+    AutopilotSessionV1,
+    ErrorLogEntry,
+    ExecutionSummary,
+)
+from .research_cycle_integration import (
+    ResearchCycleDecision,
+    ResearchCycleIntegration,
+    ResearchCycleMetrics,
+    ResearchCycleOutcome,
+    create_research_cycle_integration,
+)
 
 logger = logging.getLogger(__name__)
+
+
+class StateCheckpoint:
+    """Captures the state of an AutopilotController for rollback on API failures.
+
+    IMP-REL-005: Enables transaction-like rollback semantics for API calls.
+    Stores critical state before executing API operations and can restore
+    the saved state if the operation fails.
+    """
+
+    def __init__(self, session: Optional[AutopilotSessionV1] = None):
+        """Create a checkpoint from current state.
+
+        Args:
+            session: The autopilot session to checkpoint
+        """
+        self.session_state = copy.deepcopy(session) if session else None
+        self.checkpoint_time = datetime.now(timezone.utc)
+
+    def restore_session(self, session: AutopilotSessionV1) -> None:
+        """Restore session from this checkpoint.
+
+        Args:
+            session: Session object to restore into
+        """
+        if self.session_state is None:
+            logger.debug("[IMP-REL-005] No session state to restore from checkpoint")
+            return
+
+        # Restore critical session attributes
+        session.status = self.session_state.status
+        session.blocked_reason = self.session_state.blocked_reason
+        session.gap_report_id = self.session_state.gap_report_id
+        session.plan_proposal_id = self.session_state.plan_proposal_id
+        session.approval_requests = self.session_state.approval_requests
+        session.executed_action_ids = self.session_state.executed_action_ids
+        session.execution_summary = self.session_state.execution_summary
+        session.error_log = copy.deepcopy(self.session_state.error_log)
+
+        logger.info("[IMP-REL-005] Session state restored from checkpoint")
 
 
 class AutopilotController:
@@ -123,6 +175,10 @@ class AutopilotController:
         self._research_cycle_integration: Optional[ResearchCycleIntegration] = None
         self._last_research_outcome: Optional[ResearchCycleOutcome] = None
 
+        # IMP-REL-005: State checkpoint/rollback support
+        self._state_checkpoints: Dict[str, StateCheckpoint] = {}
+        self._last_checkpoint_id: Optional[str] = None
+
     def _check_circuit_breaker_health(self) -> bool:
         """Check if circuit breaker allows execution.
 
@@ -167,6 +223,70 @@ class AutopilotController:
         # Reset trip flag when circuit is closed again
         self._last_cb_state_open = False
         return True
+
+    def _create_state_checkpoint(self, checkpoint_name: str) -> str:
+        """Create a checkpoint of the current session state.
+
+        IMP-REL-005: Saves the current session state before executing
+        critical API operations. Returns a checkpoint ID that can be used
+        to restore state if the operation fails.
+
+        Args:
+            checkpoint_name: Human-readable name for this checkpoint
+
+        Returns:
+            Checkpoint ID for later restoration
+        """
+        checkpoint_id = f"{checkpoint_name}-{uuid.uuid4().hex[:8]}"
+        checkpoint = StateCheckpoint(session=self.session)
+        self._state_checkpoints[checkpoint_id] = checkpoint
+        self._last_checkpoint_id = checkpoint_id
+
+        logger.debug(
+            f"[IMP-REL-005] Created state checkpoint: {checkpoint_id} "
+            f"(session_status={self.session.status if self.session else 'None'})"
+        )
+
+        return checkpoint_id
+
+    def _restore_from_checkpoint(self, checkpoint_id: str) -> bool:
+        """Restore session state from a checkpoint.
+
+        IMP-REL-005: Restores the session to the state it was in when
+        the checkpoint was created. Used to rollback after API failures.
+
+        Args:
+            checkpoint_id: ID of the checkpoint to restore from
+
+        Returns:
+            True if restoration was successful, False if checkpoint not found
+        """
+        if checkpoint_id not in self._state_checkpoints:
+            logger.warning(f"[IMP-REL-005] Checkpoint not found: {checkpoint_id}")
+            return False
+
+        if not self.session:
+            logger.error("[IMP-REL-005] Cannot restore state: no active session")
+            return False
+
+        checkpoint = self._state_checkpoints[checkpoint_id]
+        checkpoint.restore_session(self.session)
+
+        logger.info(f"[IMP-REL-005] Restored session state from checkpoint: {checkpoint_id}")
+        return True
+
+    def _cleanup_checkpoints(self) -> None:
+        """Clean up old checkpoints to prevent memory leaks.
+
+        IMP-REL-005: Removes all checkpoints after session completes.
+        Should be called when session transitions to final state.
+        """
+        checkpoint_count = len(self._state_checkpoints)
+        self._state_checkpoints.clear()
+        self._last_checkpoint_id = None
+
+        if checkpoint_count > 0:
+            logger.debug(f"[IMP-REL-005] Cleaned up {checkpoint_count} checkpoints")
 
     def _record_session_metrics(self, outcome: SessionOutcome) -> None:
         """Record session metrics to health collector.
@@ -302,27 +422,67 @@ class AutopilotController:
 
         try:
             # Initialize BUILD-181 ExecutorContext
-            self.executor_ctx = create_executor_context(anchor=anchor, layout=self.layout)
-            logger.info(
-                f"[Autopilot] Initialized ExecutorContext with "
-                f"safety_profile={self.executor_ctx.safety_profile}"
-            )
+            # IMP-REL-005: Create checkpoint before executor context API call
+            executor_ctx_checkpoint = self._create_state_checkpoint("executor_context")
+
+            try:
+                self.executor_ctx = create_executor_context(anchor=anchor, layout=self.layout)
+                logger.info(
+                    f"[Autopilot] Initialized ExecutorContext with "
+                    f"safety_profile={self.executor_ctx.safety_profile}"
+                )
+            except Exception as e:
+                # IMP-REL-005: Rollback on executor context failure
+                logger.error(f"[IMP-REL-005] Executor context initialization failed: {e}")
+                self._restore_from_checkpoint(executor_ctx_checkpoint)
+                self.session.error_log.append(
+                    ErrorLogEntry(
+                        timestamp=datetime.now(timezone.utc),
+                        error_type="ExecutorContextError",
+                        error_message=f"Failed to initialize executor context: {str(e)}",
+                    )
+                )
+                self.session.status = "failed"
+                self.session.completed_at = datetime.now(timezone.utc)
+                self._record_session_metrics(SessionOutcome.FAILED)
+                self._cleanup_checkpoints()
+                return self.session
 
             # Step 1: Anchor already loaded
             logger.info(f"[Autopilot] Using anchor: {anchor.raw_input_digest}")
 
             # Step 2: Scan gaps
             logger.info("[Autopilot] Scanning workspace for gaps...")
-            gap_report = scan_workspace(
-                workspace_root=self.workspace_root,
-                project_id=self.project_id,
-                run_id=self.run_id,
-            )
-            self.session.gap_report_id = gap_report.report_id
-            logger.info(
-                f"[Autopilot] Found {gap_report.summary.total_gaps} gaps "
-                f"({gap_report.summary.autopilot_blockers} blockers)"
-            )
+            # IMP-REL-005: Create checkpoint before gap scan API call
+            gap_scan_checkpoint = self._create_state_checkpoint("gap_scan")
+
+            try:
+                gap_report = scan_workspace(
+                    workspace_root=self.workspace_root,
+                    project_id=self.project_id,
+                    run_id=self.run_id,
+                )
+                self.session.gap_report_id = gap_report.report_id
+                logger.info(
+                    f"[Autopilot] Found {gap_report.summary.total_gaps} gaps "
+                    f"({gap_report.summary.autopilot_blockers} blockers)"
+                )
+            except Exception as e:
+                # IMP-REL-005: Rollback on gap scan failure
+                logger.error(f"[IMP-REL-005] Gap scan failed: {e}")
+                self._restore_from_checkpoint(gap_scan_checkpoint)
+                self.session.error_log.append(
+                    ErrorLogEntry(
+                        timestamp=datetime.now(timezone.utc),
+                        error_type="GapScanError",
+                        error_message=f"Failed to scan gaps: {str(e)}",
+                    )
+                )
+                self.session.status = "failed"
+                self.session.completed_at = datetime.now(timezone.utc)
+                self._record_session_metrics(SessionOutcome.FAILED)
+                self._cleanup_checkpoints()
+                return self.session
 
             # IMP-AUT-001: Check if research cycle should be executed
             gap_summary = {
@@ -356,51 +516,93 @@ class AutopilotController:
                     },
                 }
 
-                # Execute research cycle asynchronously
+                # IMP-REL-005: Create checkpoint before research cycle API call
+                research_checkpoint = self._create_state_checkpoint("research_cycle")
+
                 try:
-                    loop = asyncio.get_event_loop()
-                except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
+                    # Execute research cycle asynchronously
+                    try:
+                        loop = asyncio.get_event_loop()
+                    except RuntimeError:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
 
-                research_outcome = loop.run_until_complete(
-                    self.execute_integrated_research_cycle(
-                        analysis_results=analysis_results,
+                    research_outcome = loop.run_until_complete(
+                        self.execute_integrated_research_cycle(
+                            analysis_results=analysis_results,
+                        )
                     )
-                )
 
-                # Check if research outcome blocks execution
-                if research_outcome.decision == ResearchCycleDecision.BLOCK:
+                    # Check if research outcome blocks execution
+                    if research_outcome.decision == ResearchCycleDecision.BLOCK:
+                        logger.warning(
+                            f"[IMP-AUT-001] Research cycle blocked execution: "
+                            f"{research_outcome.reason}"
+                        )
+                        self.session.status = "blocked_research"
+                        self.session.blocked_reason = (
+                            f"Research cycle BLOCK: {research_outcome.reason}"
+                        )
+                        self.session.completed_at = datetime.now(timezone.utc)
+                        # IMP-SEG-001: Record session metrics before returning
+                        self._record_session_metrics(SessionOutcome.BLOCKED_RESEARCH)
+                        self._cleanup_checkpoints()
+                        return self.session
+
+                    logger.info(
+                        f"[IMP-AUT-001] Research cycle complete: "
+                        f"decision={research_outcome.decision.value}"
+                    )
+                except Exception as e:
+                    # IMP-REL-005: Rollback on research cycle failure
+                    logger.error(f"[IMP-REL-005] Research cycle failed: {e}")
+                    self._restore_from_checkpoint(research_checkpoint)
+                    self.session.error_log.append(
+                        ErrorLogEntry(
+                            timestamp=datetime.now(timezone.utc),
+                            error_type="ResearchCycleError",
+                            error_message=f"Failed to execute research cycle: {str(e)}",
+                        )
+                    )
+                    # Don't fail the session - research is optional
                     logger.warning(
-                        f"[IMP-AUT-001] Research cycle blocked execution: "
-                        f"{research_outcome.reason}"
+                        "[IMP-REL-005] Continuing execution despite research cycle failure"
                     )
-                    self.session.status = "blocked_research"
-                    self.session.blocked_reason = f"Research cycle BLOCK: {research_outcome.reason}"
-                    self.session.completed_at = datetime.now(timezone.utc)
-                    # IMP-SEG-001: Record session metrics before returning
-                    self._record_session_metrics(SessionOutcome.BLOCKED_RESEARCH)
-                    return self.session
-
-                logger.info(
-                    f"[IMP-AUT-001] Research cycle complete: "
-                    f"decision={research_outcome.decision.value}"
-                )
 
             # Step 3: Propose plan
             logger.info("[Autopilot] Proposing action plan...")
-            proposal = propose_plan(
-                anchor=anchor,
-                gap_report=gap_report,
-                workspace_root=self.workspace_root,
-            )
-            self.session.plan_proposal_id = f"plan-{uuid.uuid4().hex[:8]}"
-            logger.info(
-                f"[Autopilot] Generated {proposal.summary.total_actions} actions "
-                f"({proposal.summary.auto_approved_actions} auto-approved, "
-                f"{proposal.summary.requires_approval_actions} require approval, "
-                f"{proposal.summary.blocked_actions} blocked)"
-            )
+            # IMP-REL-005: Create checkpoint before plan proposal API call
+            plan_proposal_checkpoint = self._create_state_checkpoint("plan_proposal")
+
+            try:
+                proposal = propose_plan(
+                    anchor=anchor,
+                    gap_report=gap_report,
+                    workspace_root=self.workspace_root,
+                )
+                self.session.plan_proposal_id = f"plan-{uuid.uuid4().hex[:8]}"
+                logger.info(
+                    f"[Autopilot] Generated {proposal.summary.total_actions} actions "
+                    f"({proposal.summary.auto_approved_actions} auto-approved, "
+                    f"{proposal.summary.requires_approval_actions} require approval, "
+                    f"{proposal.summary.blocked_actions} blocked)"
+                )
+            except Exception as e:
+                # IMP-REL-005: Rollback on plan proposal failure
+                logger.error(f"[IMP-REL-005] Plan proposal failed: {e}")
+                self._restore_from_checkpoint(plan_proposal_checkpoint)
+                self.session.error_log.append(
+                    ErrorLogEntry(
+                        timestamp=datetime.now(timezone.utc),
+                        error_type="PlanProposalError",
+                        error_message=f"Failed to propose plan: {str(e)}",
+                    )
+                )
+                self.session.status = "failed"
+                self.session.completed_at = datetime.now(timezone.utc)
+                self._record_session_metrics(SessionOutcome.FAILED)
+                self._cleanup_checkpoints()
+                return self.session
 
             # Step 4: Check if we can proceed autonomously
             if proposal.summary.auto_approved_actions == 0:
@@ -473,6 +675,10 @@ class AutopilotController:
             )
             # IMP-SEG-001: Record session metrics for failed case
             self._record_session_metrics(SessionOutcome.FAILED)
+
+        finally:
+            # IMP-REL-005: Clean up checkpoints after session completes
+            self._cleanup_checkpoints()
 
         return self.session
 
@@ -971,7 +1177,6 @@ class AutopilotController:
 
         # IMP-SEG-001: Record research cycle metrics
         if self._research_cycle_integration and self._research_cycle_integration._metrics:
-            metrics = self._research_cycle_integration._metrics
             self._health_collector.record_research_cycle(
                 outcome=(
                     "success"
@@ -1387,6 +1592,9 @@ class AutopilotController:
         )
 
         # IMP-AUTOPILOT-002: Queue approval requests for human review
+        # IMP-REL-005: Create checkpoint before approval service API call
+        approval_checkpoint = self._create_state_checkpoint("approval_queue")
+
         try:
             from .approval_service import ApprovalService
 
@@ -1407,7 +1615,20 @@ class AutopilotController:
                 f"Use approval_cli to review and approve."
             )
         except Exception as e:
-            logger.warning(f"[IMP-AUTOPILOT-002] Failed to queue approval requests: {e}")
+            # IMP-REL-005: Rollback on approval service failure
+            logger.error(f"[IMP-REL-005] Approval service failed: {e}")
+            self._restore_from_checkpoint(approval_checkpoint)
+            self.session.error_log.append(
+                ErrorLogEntry(
+                    timestamp=datetime.now(timezone.utc),
+                    error_type="ApprovalServiceError",
+                    error_message=f"Failed to queue approvals: {str(e)}",
+                )
+            )
+            logger.warning(
+                "[IMP-REL-005] Continuing despite approval service failure; "
+                "approval requests may need to be queued manually"
+            )
 
         logger.info(f"[Autopilot] Blocked: {self.session.blocked_reason}")
 

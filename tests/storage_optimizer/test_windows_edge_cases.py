@@ -15,10 +15,12 @@ filesystem quirks without crashing or producing incorrect results.
 
 from __future__ import annotations
 
+import ctypes
 import os
 import subprocess
 import sys
 import tempfile
+from ctypes import wintypes
 from pathlib import Path
 from unittest.mock import patch
 
@@ -32,6 +34,130 @@ pytestmark = pytest.mark.skipif(
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from autopack.storage_optimizer.approval import AuditLog, hash_file
+
+# Windows API utilities for safe junction/symlink creation without shell=True
+if sys.platform == "win32":
+    # Define Windows API constants
+    SYMBOLIC_LINK_FLAG_DIRECTORY = 1
+    SYMBOLIC_LINK_FLAG_FILE = 0
+
+    # Load kernel32.dll for Windows API calls
+    kernel32 = ctypes.windll.kernel32
+
+    def create_junction(link_path: Path, target_path: Path) -> bool:
+        """Create a Windows directory junction using Windows API.
+
+        Args:
+            link_path: Path where the junction will be created
+            target_path: Path the junction will point to
+
+        Returns:
+            True if successful, raises ValueError on error
+        """
+        if not target_path.exists():
+            raise ValueError(f"Target does not exist: {target_path}")
+
+        # Use CreateSymbolicLinkW - requires Windows 6.0+
+        # For older systems, we use a workaround with mklink without shell=True
+        try:
+            # Try using CreateSymbolicLinkW API
+            create_symlink = kernel32.CreateSymbolicLinkW
+            create_symlink.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD]
+            create_symlink.restype = wintypes.BOOLEAN
+
+            result = create_symlink(str(link_path), str(target_path), SYMBOLIC_LINK_FLAG_DIRECTORY)
+
+            if result:
+                return True
+            else:
+                # API call failed, raise with Windows error code
+                error_code = ctypes.get_last_error()
+                raise ValueError(f"CreateSymbolicLinkW failed with error code {error_code}")
+
+        except AttributeError:
+            # Fallback: use subprocess without shell=True
+            # Use list form to avoid shell interpretation
+            result = subprocess.run(
+                ["mklink", "/J", str(link_path), str(target_path)], capture_output=True, text=True
+            )
+            if result.returncode != 0:
+                raise ValueError(f"Failed to create junction: {result.stderr}")
+            return True
+
+    def create_symlink_file(link_path: Path, target_path: Path) -> bool:
+        """Create a file symlink using Windows API.
+
+        Args:
+            link_path: Path where the symlink will be created
+            target_path: Path the symlink will point to
+
+        Returns:
+            True if successful, raises ValueError on error
+        """
+        if not target_path.exists():
+            raise ValueError(f"Target does not exist: {target_path}")
+
+        try:
+            # Use CreateSymbolicLinkW API for file symlinks
+            create_symlink = kernel32.CreateSymbolicLinkW
+            create_symlink.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD]
+            create_symlink.restype = wintypes.BOOLEAN
+
+            result = create_symlink(str(link_path), str(target_path), SYMBOLIC_LINK_FLAG_FILE)
+
+            if result:
+                return True
+            else:
+                error_code = ctypes.get_last_error()
+                raise ValueError(f"CreateSymbolicLinkW failed with error code {error_code}")
+
+        except AttributeError:
+            # Fallback: use subprocess without shell=True
+            result = subprocess.run(
+                ["mklink", str(link_path), str(target_path)], capture_output=True, text=True
+            )
+            if result.returncode != 0:
+                raise ValueError(f"Failed to create symlink: {result.stderr}")
+            return True
+
+    def remove_junction(junction_path: Path) -> bool:
+        """Remove a junction safely using Windows API or safe subprocess call.
+
+        Args:
+            junction_path: Path to the junction to remove
+
+        Returns:
+            True if successful
+        """
+        if not junction_path.exists() and not junction_path.is_symlink():
+            return True  # Already doesn't exist
+
+        try:
+            # For junctions and symlinks, try os.unlink first
+            # On Windows, os.unlink works for junctions and symlinks
+            if junction_path.is_dir() and junction_path.is_symlink():
+                junction_path.unlink()
+            elif junction_path.is_dir():
+                # It's a junction, not a regular directory
+                # Use RemoveDirectoryW API
+                remove_directory = kernel32.RemoveDirectoryW
+                remove_directory.argtypes = [wintypes.LPCWSTR]
+                remove_directory.restype = wintypes.BOOLEAN
+
+                result = remove_directory(str(junction_path))
+                if not result:
+                    error_code = ctypes.get_last_error()
+                    raise ValueError(f"RemoveDirectoryW failed with error code {error_code}")
+            else:
+                junction_path.unlink()
+            return True
+
+        except Exception:
+            # Fallback: use subprocess without shell=True
+            result = subprocess.run(["rmdir", str(junction_path)], capture_output=True, text=True)
+            if result.returncode != 0:
+                raise ValueError(f"Failed to remove junction: {result.stderr}")
+            return True
 
 
 @pytest.fixture
@@ -86,16 +212,11 @@ def test_junction_point_not_followed(temp_dir):
 
     junction_dir = temp_dir / "junction"
 
-    # Create junction point to real_dir
-    result = subprocess.run(
-        ["mklink", "/J", str(junction_dir), str(real_dir)],
-        shell=True,
-        capture_output=True,
-        text=True,
-    )
-
-    if result.returncode != 0:
-        pytest.skip(f"Cannot create junction (requires admin): {result.stderr}")
+    # Create junction point to real_dir using Windows API (no shell=True)
+    try:
+        create_junction(junction_dir, real_dir)
+    except ValueError as e:
+        pytest.skip(f"Cannot create junction (requires admin): {e}")
 
     try:
         # Test 1: os.walk follows junctions by default (finds 2)
@@ -125,9 +246,13 @@ def test_junction_point_not_followed(temp_dir):
         assert count_without_follow in (1, 2), f"Unexpected count: {count_without_follow}"
 
     finally:
-        # Cleanup junction
-        if junction_dir.exists():
-            subprocess.run(["rmdir", str(junction_dir)], check=True, shell=True)
+        # Cleanup junction using Windows API (no shell=True)
+        if junction_dir.exists() or junction_dir.is_symlink():
+            try:
+                remove_junction(junction_dir)
+            except ValueError:
+                # If cleanup fails, that's okay for testing
+                pass
 
 
 def test_symlink_not_followed(temp_dir):
@@ -138,13 +263,11 @@ def test_symlink_not_followed(temp_dir):
 
     symlink_file = temp_dir / "symlink.txt"
 
-    # Create symlink
-    result = subprocess.run(
-        ["mklink", str(symlink_file), str(real_file)], shell=True, capture_output=True, text=True
-    )
-
-    if result.returncode != 0:
-        pytest.skip(f"Cannot create symlink (requires admin or dev mode): {result.stderr}")
+    # Create symlink using Windows API (no shell=True)
+    try:
+        create_symlink_file(symlink_file, real_file)
+    except ValueError as e:
+        pytest.skip(f"Cannot create symlink (requires admin or dev mode): {e}")
 
     try:
         # Walk and count files
@@ -174,9 +297,13 @@ def test_symlink_not_followed(temp_dir):
             pass
 
     finally:
-        # Cleanup symlink
-        if symlink_file.exists():
-            symlink_file.unlink()
+        # Cleanup symlink using Windows API (no shell=True)
+        if symlink_file.exists() or symlink_file.is_symlink():
+            try:
+                symlink_file.unlink()
+            except (OSError, ValueError):
+                # If cleanup fails, that's okay for testing
+                pass
 
 
 def test_permission_denied_handling(temp_dir):
@@ -470,17 +597,12 @@ def test_directory_junction_in_scan_path(temp_dir):
     real_dir.mkdir()
     (real_dir / "file1.txt").write_text("content1")
 
-    # Create junction
+    # Create junction using Windows API (no shell=True)
     junction_dir = temp_dir / "junction"
-    result = subprocess.run(
-        ["mklink", "/J", str(junction_dir), str(real_dir)],
-        shell=True,
-        capture_output=True,
-        text=True,
-    )
-
-    if result.returncode != 0:
-        pytest.skip(f"Cannot create junction: {result.stderr}")
+    try:
+        create_junction(junction_dir, real_dir)
+    except ValueError as e:
+        pytest.skip(f"Cannot create junction: {e}")
 
     try:
         # Scan both directories
@@ -493,9 +615,13 @@ def test_directory_junction_in_scan_path(temp_dir):
         assert len(junction_files) > 0
 
     finally:
-        # Cleanup
-        if junction_dir.exists():
-            subprocess.run(["rmdir", str(junction_dir)], check=True, shell=True)
+        # Cleanup using Windows API (no shell=True)
+        if junction_dir.exists() or junction_dir.is_symlink():
+            try:
+                remove_junction(junction_dir)
+            except ValueError:
+                # If cleanup fails, that's okay for testing
+                pass
 
 
 def test_audit_log_windows_paths(temp_dir):

@@ -5,16 +5,8 @@ from enum import Enum
 
 from sqlalchemy import DECIMAL, JSON, BigInteger, Boolean, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import (
-    Float,
-    ForeignKey,
-    ForeignKeyConstraint,
-    Index,
-    Integer,
-    String,
-    Text,
-    UniqueConstraint,
-)
+from sqlalchemy import (Float, ForeignKey, ForeignKeyConstraint, Index,
+                        Integer, String, Text, UniqueConstraint)
 from sqlalchemy.orm import relationship, synonym
 
 from .database import Base

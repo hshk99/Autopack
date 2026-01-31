@@ -385,7 +385,8 @@ class TaskBriefGenerator:
         Returns:
             TaskBrief for research sub-agent
         """
-        from autopack.subagent.output_contract import OutputType, create_contract
+        from autopack.subagent.output_contract import (OutputType,
+                                                       create_contract)
 
         run_dir = self._get_run_dir(project_id, family, run_id)
         context = self.context_manager.load_context(project_id, family, run_id)
@@ -445,7 +446,8 @@ class TaskBriefGenerator:
         Returns:
             TaskBrief for planning sub-agent
         """
-        from autopack.subagent.output_contract import OutputType, create_contract
+        from autopack.subagent.output_contract import (OutputType,
+                                                       create_contract)
 
         run_dir = self._get_run_dir(project_id, family, run_id)
         context = self.context_manager.load_context(project_id, family, run_id)
@@ -508,7 +510,8 @@ class TaskBriefGenerator:
         Returns:
             TaskBrief for analysis sub-agent
         """
-        from autopack.subagent.output_contract import OutputType, create_contract
+        from autopack.subagent.output_contract import (OutputType,
+                                                       create_contract)
 
         run_dir = self._get_run_dir(project_id, family, run_id)
         context = self.context_manager.load_context(project_id, family, run_id)

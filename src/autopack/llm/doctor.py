@@ -10,13 +10,9 @@ import json
 import logging
 from typing import Any, Optional
 
-from ..error_recovery import (
-    DoctorContextSummary,
-    DoctorRequest,
-    DoctorResponse,
-    choose_doctor_model,
-    should_escalate_doctor_model,
-)
+from ..error_recovery import (DoctorContextSummary, DoctorRequest,
+                              DoctorResponse, choose_doctor_model,
+                              should_escalate_doctor_model)
 
 logger = logging.getLogger(__name__)
 

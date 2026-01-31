@@ -10,15 +10,9 @@ Supports multiple CI/CD platforms:
 """
 
 from autopack.research.generators.cicd_generator import (
-    CICDAnalysisResult,
-    CICDAnalyzer,
-    CICDPlatform,
-    CICDWorkflowGenerator,
-    DeploymentGuidance,
-    DeploymentTarget,
-    GitLabCIGenerator,
-    JenkinsPipelineGenerator,
-)
+    CICDAnalysisResult, CICDAnalyzer, CICDPlatform, CICDWorkflowGenerator,
+    DeploymentGuidance, DeploymentTarget, GitLabCIGenerator,
+    JenkinsPipelineGenerator)
 
 __all__ = [
     "CICDAnalysisResult",

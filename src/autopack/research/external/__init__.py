@@ -7,19 +7,15 @@ integrated into projects.
 
 from __future__ import annotations
 
-from autopack.research.external.mcp_scanner import (
-    MCPRegistryScanner,
-    MCPServer,
-    MCPServerMaintainer,
-    MCPServerMaturity,
-    ScanResult,
-)
-from autopack.research.external.package_scanner import (
-    PackageInfo,
-    PackageRegistry,
-    PackageScanner,
-    SearchResult,
-)
+from autopack.research.external.mcp_scanner import (MCPRegistryScanner,
+                                                    MCPServer,
+                                                    MCPServerMaintainer,
+                                                    MCPServerMaturity,
+                                                    ScanResult)
+from autopack.research.external.package_scanner import (PackageInfo,
+                                                        PackageRegistry,
+                                                        PackageScanner,
+                                                        SearchResult)
 
 __all__ = [
     "MCPRegistryScanner",

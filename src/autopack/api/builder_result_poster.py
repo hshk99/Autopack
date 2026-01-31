@@ -127,9 +127,8 @@ class BuilderResultPoster:
                         )
 
                         # BUILD-195: One-shot payload correction via tracker
-                        from autopack.executor.payload_correction import (
-                            should_attempt_payload_correction,
-                        )
+                        from autopack.executor.payload_correction import \
+                            should_attempt_payload_correction
 
                         # Check budget and attempt correction (one-shot via tracker)
                         budget_remaining = 1.0 - (attempt / 3.0)

@@ -15,42 +15,30 @@ from typing import Any, Optional
 from uuid import uuid4
 
 # Analysis modules for cost-effectiveness, state tracking, and follow-up triggers
-from autopack.research.analysis import (
-    BudgetEnforcer,
-    BuildHistoryAnalyzer,
-    CostEffectivenessAnalyzer,
-    FollowupResearchTrigger,
-    ResearchStateTracker,
-)
-from autopack.research.cache_optimizer import (
-    CacheOptimizer,
-    CacheMetrics,
-    OptimizedResearchCache,
-)
+from autopack.research.analysis import (BudgetEnforcer, BuildHistoryAnalyzer,
+                                        CostEffectivenessAnalyzer,
+                                        FollowupResearchTrigger,
+                                        ResearchStateTracker)
 from autopack.research.analysis.pattern_extractor import (
-    PatternExtractionResult,
-    PatternExtractor,
-)
-from autopack.research.discovery.project_history_analyzer import (
-    ProjectHistoryAnalyzer,
-)
-from autopack.research.frameworks.competitive_intensity import CompetitiveIntensity
-from autopack.research.frameworks.market_attractiveness import MarketAttractiveness
+    PatternExtractionResult, PatternExtractor)
+from autopack.research.cache_optimizer import (CacheMetrics, CacheOptimizer,
+                                               OptimizedResearchCache)
+from autopack.research.discovery.project_history_analyzer import \
+    ProjectHistoryAnalyzer
+from autopack.research.frameworks.competitive_intensity import \
+    CompetitiveIntensity
+from autopack.research.frameworks.market_attractiveness import \
+    MarketAttractiveness
 from autopack.research.frameworks.product_feasibility import ProductFeasibility
 from autopack.research.idea_parser import ParsedIdea, ProjectType
-from autopack.research.models.bootstrap_session import (
-    BootstrapPhase,
-    BootstrapSession,
-    generate_idea_hash,
-)
-from autopack.research.phase_scheduler import (
-    PhaseScheduler,
-    PhaseTask,
-    PhasePriority,
-)
+from autopack.research.models.bootstrap_session import (BootstrapPhase,
+                                                        BootstrapSession,
+                                                        generate_idea_hash)
 from autopack.research.models.enums import ValidationStatus
 from autopack.research.models.research_intent import ResearchIntent
 from autopack.research.models.research_session import ResearchSession
+from autopack.research.phase_scheduler import (PhasePriority, PhaseScheduler,
+                                               PhaseTask)
 from autopack.research.validators.evidence_validator import EvidenceValidator
 from autopack.research.validators.quality_validator import QualityValidator
 from autopack.research.validators.recency_validator import RecencyValidator
@@ -218,9 +206,7 @@ class ResearchOrchestrator:
         if project_root:
             self._state_tracker = ResearchStateTracker(project_root)
             history_path = project_root / ".autopack" / "project_history.json"
-            self._history_analyzer = ProjectHistoryAnalyzer(
-                project_history_path=history_path
-            )
+            self._history_analyzer = ProjectHistoryAnalyzer(project_history_path=history_path)
             # Initialize build history analyzer with BUILD_HISTORY.md path
             build_history_path = project_root / "BUILD_HISTORY.md"
             self._build_history_analyzer = BuildHistoryAnalyzer(
@@ -972,16 +958,18 @@ class ResearchOrchestrator:
         # Convert project summaries to format expected by pattern extractor
         project_history = []
         for summary in history_result.project_summaries:
-            project_history.append({
-                "project_id": summary.project_id,
-                "project_type": summary.project_type,
-                "outcome": summary.overall_outcome,
-                "tech_stack": summary.tech_stack,
-                "architecture": summary.architecture,
-                "monetization": summary.monetization,
-                "deployment": summary.deployment,
-                "timestamp": summary.start_date or "",
-            })
+            project_history.append(
+                {
+                    "project_id": summary.project_id,
+                    "project_type": summary.project_type,
+                    "outcome": summary.overall_outcome,
+                    "tech_stack": summary.tech_stack,
+                    "architecture": summary.architecture,
+                    "monetization": summary.monetization,
+                    "deployment": summary.deployment,
+                    "timestamp": summary.start_date or "",
+                }
+            )
 
         # Get improvement and cycle data from learning_db if available
         improvement_outcomes: dict[str, dict[str, Any]] = {}
@@ -1110,9 +1098,8 @@ class ResearchOrchestrator:
 
         # Store in history analyzer if available
         if self._history_analyzer:
-            from autopack.research.discovery.project_history_analyzer import (
-                ProjectSummary,
-            )
+            from autopack.research.discovery.project_history_analyzer import \
+                ProjectSummary
 
             summary = ProjectSummary(
                 project_id=project_id,

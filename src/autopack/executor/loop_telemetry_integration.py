@@ -14,7 +14,8 @@ from autopack.telemetry.anomaly_detector import AlertSeverity
 
 if TYPE_CHECKING:
     from autopack.executor.circuit_breaker import CircuitBreaker
-    from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
+    from autopack.task_generation.task_effectiveness_tracker import \
+        TaskEffectivenessTracker
     from autopack.telemetry.analyzer import TelemetryAnalyzer
     from autopack.telemetry.anomaly_detector import TelemetryAnomalyDetector
     from autopack.telemetry.meta_metrics import MetaMetricsTracker

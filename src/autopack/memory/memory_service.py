@@ -39,8 +39,7 @@ from .embeddings import EMBEDDING_SIZE, MAX_EMBEDDING_CHARS, sync_embed_text
 from .faiss_store import FaissStore
 # IMP-MAINT-005: Import extracted freshness and vector store modules
 from .freshness_filter import (COLLECTION_CODE_DOCS, COLLECTION_DOCTOR_HINTS,
-                               COLLECTION_ERRORS_CI,
-                               COLLECTION_PLANNING,
+                               COLLECTION_ERRORS_CI, COLLECTION_PLANNING,
                                COLLECTION_RUN_SUMMARIES, COLLECTION_SOT_DOCS)
 from .freshness_filter import \
     DEFAULT_MEMORY_FRESHNESS_HOURS as _FF_DEFAULT_FRESHNESS_HOURS
@@ -370,7 +369,6 @@ class TelemetryFeedbackValidator:
                 )
 
         return sanitized
-
 
 
 ALL_COLLECTIONS = [

@@ -25,7 +25,8 @@ from typing import TYPE_CHECKING, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from autopack.roadi.regression_protector import RegressionProtector, RiskAssessment, RiskSeverity
+from autopack.roadi.regression_protector import (RegressionProtector,
+                                                 RiskAssessment, RiskSeverity)
 
 if TYPE_CHECKING:
     from autopack.executor.backlog_maintenance import TaskCandidate

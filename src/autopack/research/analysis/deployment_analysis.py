@@ -71,18 +71,12 @@ class KubernetesConfig(BaseModel):
 
     replicas: int = Field(default=2, description="Number of replicas")
     namespace: str = Field(default="default", description="Kubernetes namespace")
-    service_type: str = Field(
-        default="ClusterIP", description="Kubernetes service type"
-    )
+    service_type: str = Field(default="ClusterIP", description="Kubernetes service type")
     ingress_enabled: bool = Field(default=True, description="Enable ingress")
-    hpa_enabled: bool = Field(
-        default=False, description="Enable Horizontal Pod Autoscaler"
-    )
+    hpa_enabled: bool = Field(default=False, description="Enable Horizontal Pod Autoscaler")
     min_replicas: int = Field(default=1, description="Minimum replicas for HPA")
     max_replicas: int = Field(default=5, description="Maximum replicas for HPA")
-    target_cpu_utilization: int = Field(
-        default=70, description="Target CPU utilization for HPA"
-    )
+    target_cpu_utilization: int = Field(default=70, description="Target CPU utilization for HPA")
 
 
 class ServerlessConfig(BaseModel):
@@ -92,24 +86,18 @@ class ServerlessConfig(BaseModel):
     runtime: str = Field(default="nodejs20.x", description="Runtime version")
     memory_size: int = Field(default=256, description="Memory size in MB")
     timeout: int = Field(default=30, description="Timeout in seconds")
-    functions: List[str] = Field(
-        default_factory=list, description="Function entry points"
-    )
+    functions: List[str] = Field(default_factory=list, description="Function entry points")
 
 
 class DeploymentRecommendation(BaseModel):
     """A single deployment recommendation with rationale."""
 
     target: DeploymentTarget = Field(..., description="Recommended deployment target")
-    provider: InfrastructureProvider = Field(
-        ..., description="Recommended infrastructure provider"
-    )
+    provider: InfrastructureProvider = Field(..., description="Recommended infrastructure provider")
     scaling_strategy: ScalingStrategy = Field(
         default=ScalingStrategy.NONE, description="Recommended scaling strategy"
     )
-    score: float = Field(
-        default=0.0, ge=0.0, le=1.0, description="Recommendation score"
-    )
+    score: float = Field(default=0.0, ge=0.0, le=1.0, description="Recommendation score")
     rationale: str = Field(..., description="Reasoning for this recommendation")
     pros: List[str] = Field(default_factory=list, description="Advantages")
     cons: List[str] = Field(default_factory=list, description="Disadvantages")
@@ -229,19 +217,13 @@ class DeploymentAnalyzer:
         logger.info(f"[DeploymentAnalyzer] Analyzing deployment for: {stack_name}")
 
         # Detect primary language
-        language = tech_stack.get("language") or self._detect_language(
-            stack_name, category
-        )
+        language = tech_stack.get("language") or self._detect_language(stack_name, category)
 
         # Determine project characteristics
-        characteristics = self._analyze_characteristics(
-            tech_stack, project_requirements, language
-        )
+        characteristics = self._analyze_characteristics(tech_stack, project_requirements, language)
 
         # Generate recommendations
-        recommendations = self._generate_recommendations(
-            tech_stack, characteristics, language
-        )
+        recommendations = self._generate_recommendations(tech_stack, characteristics, language)
 
         # Select primary recommendation (highest score)
         primary = recommendations[0]
@@ -258,9 +240,7 @@ class DeploymentAnalyzer:
             )
 
         if primary.target == DeploymentTarget.KUBERNETES:
-            kubernetes_config = self._generate_kubernetes_config(
-                tech_stack, characteristics
-            )
+            kubernetes_config = self._generate_kubernetes_config(tech_stack, characteristics)
 
         if primary.target == DeploymentTarget.SERVERLESS:
             serverless_config = self._generate_serverless_config(
@@ -269,9 +249,7 @@ class DeploymentAnalyzer:
 
         # Determine environment and infrastructure requirements
         env_requirements = self._get_environment_requirements(tech_stack)
-        infra_requirements = self._get_infrastructure_requirements(
-            primary.target, tech_stack
-        )
+        infra_requirements = self._get_infrastructure_requirements(primary.target, tech_stack)
 
         architecture = DeploymentArchitecture(
             project_name=stack_name,
@@ -400,9 +378,7 @@ class DeploymentAnalyzer:
 
     def _has_database(self, tech_stack: Dict[str, Any]) -> bool:
         """Check if project requires a database."""
-        combined = (
-            f"{tech_stack.get('name', '')} {tech_stack.get('category', '')}".lower()
-        )
+        combined = f"{tech_stack.get('name', '')} {tech_stack.get('category', '')}".lower()
         db_indicators = [
             "postgres",
             "mysql",
@@ -418,9 +394,7 @@ class DeploymentAnalyzer:
 
     def _has_api(self, tech_stack: Dict[str, Any]) -> bool:
         """Check if project has API components."""
-        combined = (
-            f"{tech_stack.get('name', '')} {tech_stack.get('category', '')}".lower()
-        )
+        combined = f"{tech_stack.get('name', '')} {tech_stack.get('category', '')}".lower()
         api_indicators = [
             "api",
             "rest",
@@ -438,17 +412,13 @@ class DeploymentAnalyzer:
         """Check if application is stateless."""
         # If it has a database connection, it's still potentially stateless
         # (database state != application state)
-        combined = (
-            f"{tech_stack.get('name', '')} {tech_stack.get('category', '')}".lower()
-        )
+        combined = f"{tech_stack.get('name', '')} {tech_stack.get('category', '')}".lower()
         stateful_indicators = ["session", "websocket", "socket.io", "real-time"]
         return not any(ind in combined for ind in stateful_indicators)
 
     def _needs_persistence(self, tech_stack: Dict[str, Any]) -> bool:
         """Check if project needs persistent storage beyond database."""
-        combined = (
-            f"{tech_stack.get('name', '')} {tech_stack.get('category', '')}".lower()
-        )
+        combined = f"{tech_stack.get('name', '')} {tech_stack.get('category', '')}".lower()
         persistence_indicators = ["upload", "storage", "files", "media", "assets", "s3"]
         return any(ind in combined for ind in persistence_indicators)
 
@@ -501,9 +471,7 @@ class DeploymentAnalyzer:
         # API/Backend projects
         elif characteristics["has_api"]:
             if characteristics["scale"] == "large" or characteristics["is_microservices"]:
-                recommendations.extend(
-                    self._get_kubernetes_recommendations(characteristics)
-                )
+                recommendations.extend(self._get_kubernetes_recommendations(characteristics))
             recommendations.extend(self._get_container_recommendations(characteristics))
             recommendations.extend(self._get_paas_recommendations(characteristics))
             if characteristics["is_stateless"]:
@@ -1031,9 +999,7 @@ class DeploymentAnalyzer:
             List of required environment variable names
         """
         env_vars = ["NODE_ENV", "LOG_LEVEL"]
-        combined = (
-            f"{tech_stack.get('name', '')} {tech_stack.get('category', '')}".lower()
-        )
+        combined = f"{tech_stack.get('name', '')} {tech_stack.get('category', '')}".lower()
 
         if any(db in combined for db in ["postgres", "mysql", "database"]):
             env_vars.append("DATABASE_URL")
@@ -1065,9 +1031,7 @@ class DeploymentAnalyzer:
             List of infrastructure requirements
         """
         requirements = []
-        combined = (
-            f"{tech_stack.get('name', '')} {tech_stack.get('category', '')}".lower()
-        )
+        combined = f"{tech_stack.get('name', '')} {tech_stack.get('category', '')}".lower()
 
         # Base requirements by target
         if target == DeploymentTarget.DOCKER:

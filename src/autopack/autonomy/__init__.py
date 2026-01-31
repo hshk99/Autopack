@@ -17,19 +17,15 @@ Public API exports:
 from .api import AutopilotResult, load_anchor, run_autopilot
 from .autopilot import AutopilotController, run_autopilot_session
 from .models import AutopilotSessionV1
-from .parallelism_gate import (
-    ParallelismPolicyGate,
-    ParallelismPolicyViolation,
-    check_parallelism_policy,
-    load_and_check_parallelism_policy,
-)
-from .research_cycle_integration import (
-    ResearchCycleDecision,
-    ResearchCycleIntegration,
-    ResearchCycleMetrics,
-    ResearchCycleOutcome,
-    create_research_cycle_integration,
-)
+from .parallelism_gate import (ParallelismPolicyGate,
+                               ParallelismPolicyViolation,
+                               check_parallelism_policy,
+                               load_and_check_parallelism_policy)
+from .research_cycle_integration import (ResearchCycleDecision,
+                                         ResearchCycleIntegration,
+                                         ResearchCycleMetrics,
+                                         ResearchCycleOutcome,
+                                         create_research_cycle_integration)
 
 __all__ = [
     "AutopilotSessionV1",

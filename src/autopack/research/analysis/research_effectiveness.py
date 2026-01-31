@@ -243,15 +243,9 @@ class ResearchEffectivenessMetrics:
             "confidence_improvement_avg": round(self.confidence_improvement_avg, 2),
             "quality_improvement_avg": round(self.quality_improvement_avg, 2),
             "roi_avg": round(self.roi_avg, 2),
-            "follow_up_trigger_success_rate": round(
-                self.follow_up_trigger_success_rate, 4
-            ),
-            "cost_per_successful_decision": round(
-                self.cost_per_successful_decision, 2
-            ),
-            "time_per_successful_decision": round(
-                self.time_per_successful_decision, 2
-            ),
+            "follow_up_trigger_success_rate": round(self.follow_up_trigger_success_rate, 4),
+            "cost_per_successful_decision": round(self.cost_per_successful_decision, 2),
+            "time_per_successful_decision": round(self.time_per_successful_decision, 2),
             "outcome_distribution": self.outcome_distribution,
             "decision_quality_distribution": self.decision_quality_distribution,
             "tracked_since": self.tracked_since.isoformat(),
@@ -338,8 +332,7 @@ class ResearchEffectivenessAnalyzer:
         """
         self.feedback.append(feedback)
         logger.info(
-            f"Recorded feedback for cycle {feedback.cycle_id}: "
-            f"{feedback.category.value}"
+            f"Recorded feedback for cycle {feedback.cycle_id}: " f"{feedback.category.value}"
         )
 
     def _update_metrics(self) -> None:
@@ -349,9 +342,7 @@ class ResearchEffectivenessAnalyzer:
 
         # Basic counts
         self.metrics.total_cycles = len(self.outcomes)
-        self.metrics.successful_cycles = sum(
-            1 for o in self.outcomes if o.is_successful()
-        )
+        self.metrics.successful_cycles = sum(1 for o in self.outcomes if o.is_successful())
 
         # Average improvements
         confidence_improvements = [o.calculate_confidence_improvement() for o in self.outcomes]
@@ -371,9 +362,7 @@ class ResearchEffectivenessAnalyzer:
 
         # Follow-up trigger success rate
         total_triggers = sum(o.follow_up_triggers_executed for o in self.outcomes)
-        successful_triggers = sum(
-            o.follow_up_triggers_successful for o in self.outcomes
-        )
+        successful_triggers = sum(o.follow_up_triggers_successful for o in self.outcomes)
         if total_triggers > 0:
             self.metrics.follow_up_trigger_success_rate = successful_triggers / total_triggers
 
@@ -382,12 +371,8 @@ class ResearchEffectivenessAnalyzer:
         if successful_outcomes:
             total_cost = sum(o.research_cost for o in successful_outcomes)
             total_time = sum(o.time_spent_seconds for o in successful_outcomes)
-            self.metrics.cost_per_successful_decision = (
-                total_cost / len(successful_outcomes)
-            )
-            self.metrics.time_per_successful_decision = (
-                total_time / len(successful_outcomes)
-            )
+            self.metrics.cost_per_successful_decision = total_cost / len(successful_outcomes)
+            self.metrics.time_per_successful_decision = total_time / len(successful_outcomes)
 
         # Outcome distribution
         self.metrics.outcome_distribution = {}
@@ -399,10 +384,7 @@ class ResearchEffectivenessAnalyzer:
         # Decision quality distribution
         self.metrics.decision_quality_distribution = {}
         for quality_level in DecisionQualityLevel:
-            count = sum(
-                1 for o in self.outcomes
-                if o.decision_quality_after == quality_level
-            )
+            count = sum(1 for o in self.outcomes if o.decision_quality_after == quality_level)
             if count > 0:
                 self.metrics.decision_quality_distribution[quality_level.value] = count
 
@@ -428,9 +410,7 @@ class ResearchEffectivenessAnalyzer:
                 return outcome
         return None
 
-    def get_outcomes_by_type(
-        self, outcome_type: ResearchOutcomeType
-    ) -> List[ResearchCycleOutcome]:
+    def get_outcomes_by_type(self, outcome_type: ResearchOutcomeType) -> List[ResearchCycleOutcome]:
         """Get all outcomes of a specific type.
 
         Args:
@@ -450,9 +430,7 @@ class ResearchEffectivenessAnalyzer:
         Returns:
             List of recent outcomes (newest first).
         """
-        return sorted(self.outcomes, key=lambda o: o.created_at, reverse=True)[
-            :limit
-        ]
+        return sorted(self.outcomes, key=lambda o: o.created_at, reverse=True)[:limit]
 
     def get_high_priority_feedback(self) -> List[ResearchEffectivenessFeedback]:
         """Get high priority feedback items for improvement.
@@ -474,9 +452,7 @@ class ResearchEffectivenessAnalyzer:
             "report_generated_at": datetime.now(timezone.utc).isoformat(),
             "metrics": self.metrics.to_dict(),
             "recent_outcomes": [o.to_dict() for o in self.get_recent_outcomes(5)],
-            "high_priority_feedback": [
-                f.to_dict() for f in self.get_high_priority_feedback()[:5]
-            ],
+            "high_priority_feedback": [f.to_dict() for f in self.get_high_priority_feedback()[:5]],
             "insights": [],
             "recommendations": [],
         }
@@ -509,9 +485,7 @@ class ResearchEffectivenessAnalyzer:
             )
 
         if self.metrics.follow_up_trigger_success_rate < 0.5:
-            report["recommendations"].append(
-                "Improve follow-up trigger detection mechanism."
-            )
+            report["recommendations"].append("Improve follow-up trigger detection mechanism.")
 
         if len(self.feedback) > 0:
             report["recommendations"].append(
@@ -520,9 +494,7 @@ class ResearchEffectivenessAnalyzer:
 
         # Outcome distribution analysis
         if self.metrics.outcome_distribution:
-            most_common_outcome = max(
-                self.metrics.outcome_distribution.items(), key=lambda x: x[1]
-            )
+            most_common_outcome = max(self.metrics.outcome_distribution.items(), key=lambda x: x[1])
             report["insights"].append(
                 f"Most common outcome type: {most_common_outcome[0]} "
                 f"({most_common_outcome[1]} cycles)"

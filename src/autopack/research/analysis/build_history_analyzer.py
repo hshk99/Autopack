@@ -305,8 +305,7 @@ class BuildHistoryAnalyzer:
             not force_refresh
             and self._metrics_cache
             and self._cache_timestamp
-            and datetime.now() - self._cache_timestamp
-            < timedelta(minutes=self._cache_ttl_minutes)
+            and datetime.now() - self._cache_timestamp < timedelta(minutes=self._cache_ttl_minutes)
         ):
             return self._metrics_cache
 
@@ -344,9 +343,7 @@ class BuildHistoryAnalyzer:
             phase_title = match.group(2)
             phase_content = match.group(3)
 
-            build_metrics = self._extract_metrics_from_phase(
-                phase_num, phase_title, phase_content
-            )
+            build_metrics = self._extract_metrics_from_phase(phase_num, phase_title, phase_content)
             if build_metrics:
                 metrics.append(build_metrics)
 
@@ -415,9 +412,7 @@ class BuildHistoryAnalyzer:
         if actual_match:
             actual_hours = float(actual_match.group(1))
         # Alternative: Duration format
-        duration_match = re.search(
-            r"Duration:\s*(\d+(?:\.\d+)?)\s*hours?", content, re.IGNORECASE
-        )
+        duration_match = re.search(r"Duration:\s*(\d+(?:\.\d+)?)\s*hours?", content, re.IGNORECASE)
         if duration_match and actual_hours == 0:
             actual_hours = float(duration_match.group(1))
 
@@ -430,9 +425,7 @@ class BuildHistoryAnalyzer:
         # Extract lines changed
         lines_added = 0
         lines_removed = 0
-        lines_match = re.search(
-            r"(\d+)\s*insertions?.*?(\d+)\s*deletions?", content, re.IGNORECASE
-        )
+        lines_match = re.search(r"(\d+)\s*insertions?.*?(\d+)\s*deletions?", content, re.IGNORECASE)
         if lines_match:
             lines_added = int(lines_match.group(1))
             lines_removed = int(lines_match.group(2))
@@ -507,9 +500,7 @@ class BuildHistoryAnalyzer:
             notes=phase_title.strip(),
         )
 
-    def _infer_project_type(
-        self, title: str, category: str, content: str
-    ) -> str:
+    def _infer_project_type(self, title: str, category: str, content: str) -> str:
         """Infer project type from phase information."""
         combined = f"{title} {category} {content}".lower()
 
@@ -531,10 +522,30 @@ class BuildHistoryAnalyzer:
     def _extract_tech_stack(self, content: str) -> List[str]:
         """Extract technology stack from content."""
         tech_keywords = [
-            "python", "javascript", "typescript", "react", "vue", "angular",
-            "node", "django", "flask", "fastapi", "express", "nextjs",
-            "postgres", "mysql", "mongodb", "redis", "docker", "kubernetes",
-            "aws", "gcp", "azure", "vercel", "netlify", "heroku",
+            "python",
+            "javascript",
+            "typescript",
+            "react",
+            "vue",
+            "angular",
+            "node",
+            "django",
+            "flask",
+            "fastapi",
+            "express",
+            "nextjs",
+            "postgres",
+            "mysql",
+            "mongodb",
+            "redis",
+            "docker",
+            "kubernetes",
+            "aws",
+            "gcp",
+            "azure",
+            "vercel",
+            "netlify",
+            "heroku",
         ]
         content_lower = content.lower()
         return [tech for tech in tech_keywords if tech in content_lower]
@@ -561,11 +572,7 @@ class BuildHistoryAnalyzer:
 
         # Filter by tech stack
         if tech_stack:
-            metrics = [
-                m
-                for m in metrics
-                if any(t in m.tech_stack for t in tech_stack)
-            ]
+            metrics = [m for m in metrics if any(t in m.tech_stack for t in tech_stack)]
 
         if not metrics:
             return []
@@ -573,17 +580,13 @@ class BuildHistoryAnalyzer:
         signals = []
 
         # 1. Complexity indicator
-        avg_complexity = sum(m.files_changed + m.lines_added for m in metrics) / len(
-            metrics
-        )
+        avg_complexity = sum(m.files_changed + m.lines_added for m in metrics) / len(metrics)
         complexity_signal = FeasibilityFeedback(
             signal_type=FeasibilitySignal.COMPLEXITY_INDICATOR,
             signal_value=min(1.0, avg_complexity / 1000),  # Normalize
             confidence=self._calculate_confidence(len(metrics)),
             sample_size=len(metrics),
-            trend=self._calculate_trend(
-                [m.files_changed + m.lines_added for m in metrics]
-            ),
+            trend=self._calculate_trend([m.files_changed + m.lines_added for m in metrics]),
             supporting_evidence=[
                 f"Avg files changed: {sum(m.files_changed for m in metrics) / len(metrics):.1f}",
                 f"Avg lines added: {sum(m.lines_added for m in metrics) / len(metrics):.1f}",
@@ -593,9 +596,7 @@ class BuildHistoryAnalyzer:
 
         # 2. Time estimate accuracy
         time_accuracies = [
-            m.time_estimate_accuracy
-            for m in metrics
-            if m.estimated_duration_hours > 0
+            m.time_estimate_accuracy for m in metrics if m.estimated_duration_hours > 0
         ]
         if time_accuracies:
             signals.append(
@@ -665,9 +666,7 @@ class BuildHistoryAnalyzer:
                 signal_value=error_score,
                 confidence=self._calculate_confidence(len(metrics)),
                 sample_size=len(metrics),
-                trend=self._calculate_trend(
-                    [m.error_count for m in metrics], inverse=True
-                ),
+                trend=self._calculate_trend([m.error_count for m in metrics], inverse=True),
                 supporting_evidence=[
                     f"Avg errors per build: {avg_errors:.1f}",
                     f"Total errors: {sum(m.error_count for m in metrics)}",
@@ -705,21 +704,13 @@ class BuildHistoryAnalyzer:
             )
 
         # Calculate estimation accuracy
-        cost_accuracies = [
-            m.cost_estimate_accuracy
-            for m in metrics
-            if m.estimated_cost > 0
-        ]
+        cost_accuracies = [m.cost_estimate_accuracy for m in metrics if m.estimated_cost > 0]
         estimation_accuracy = (
             sum(cost_accuracies) / len(cost_accuracies) if cost_accuracies else 0.0
         )
 
         # Calculate cost overrun rate
-        overruns = [
-            m
-            for m in metrics
-            if m.estimated_cost > 0 and m.actual_cost > m.estimated_cost
-        ]
+        overruns = [m for m in metrics if m.estimated_cost > 0 and m.actual_cost > m.estimated_cost]
         cost_overrun_rate = len(overruns) / len(metrics) if metrics else 0.0
 
         # Calculate average cost deviation
@@ -745,9 +736,7 @@ class BuildHistoryAnalyzer:
             sample_size=len(metrics),
         )
 
-    def _identify_high_cost_factors(
-        self, metrics: List[BuildMetrics]
-    ) -> List[str]:
+    def _identify_high_cost_factors(self, metrics: List[BuildMetrics]) -> List[str]:
         """Identify factors correlated with high costs."""
         factors = []
 
@@ -756,9 +745,7 @@ class BuildHistoryAnalyzer:
             : len(metrics) // 3
         ]
         if high_cost_builds:
-            avg_complexity = sum(m.files_changed for m in high_cost_builds) / len(
-                high_cost_builds
-            )
+            avg_complexity = sum(m.files_changed for m in high_cost_builds) / len(high_cost_builds)
             overall_avg = sum(m.files_changed for m in metrics) / len(metrics)
             if avg_complexity > overall_avg * 1.5:
                 factors.append("High file change count correlates with higher costs")
@@ -780,17 +767,13 @@ class BuildHistoryAnalyzer:
 
         return factors
 
-    def _identify_cost_optimization_opportunities(
-        self, metrics: List[BuildMetrics]
-    ) -> List[str]:
+    def _identify_cost_optimization_opportunities(self, metrics: List[BuildMetrics]) -> List[str]:
         """Identify opportunities for cost optimization."""
         opportunities = []
 
         # Check estimation patterns
         time_accuracies = [
-            m.time_estimate_accuracy
-            for m in metrics
-            if m.estimated_duration_hours > 0
+            m.time_estimate_accuracy for m in metrics if m.estimated_duration_hours > 0
         ]
         if time_accuracies and sum(time_accuracies) / len(time_accuracies) < 0.6:
             opportunities.append(
@@ -818,14 +801,10 @@ class BuildHistoryAnalyzer:
         # Check for test coverage impact
         tested_builds = [m for m in metrics if m.test_count > 0]
         if tested_builds:
-            avg_success_tested = sum(m.success_score for m in tested_builds) / len(
-                tested_builds
-            )
+            avg_success_tested = sum(m.success_score for m in tested_builds) / len(tested_builds)
             untested = [m for m in metrics if m.test_count == 0]
             if untested:
-                avg_success_untested = sum(m.success_score for m in untested) / len(
-                    untested
-                )
+                avg_success_untested = sum(m.success_score for m in untested) / len(untested)
                 if avg_success_tested > avg_success_untested + 0.1:
                     opportunities.append(
                         "Testing correlates with higher success rates - prioritize test coverage"
@@ -846,9 +825,7 @@ class BuildHistoryAnalyzer:
         else:
             return 0.1
 
-    def _calculate_trend(
-        self, values: List[float], inverse: bool = False
-    ) -> MetricTrend:
+    def _calculate_trend(self, values: List[float], inverse: bool = False) -> MetricTrend:
         """Calculate trend direction for a series of values."""
         if len(values) < 3:
             return MetricTrend.INSUFFICIENT_DATA
@@ -894,11 +871,7 @@ class BuildHistoryAnalyzer:
 
         # Filter by tech stack
         if tech_stack:
-            metrics = [
-                m
-                for m in metrics
-                if any(t in m.tech_stack for t in tech_stack)
-            ]
+            metrics = [m for m in metrics if any(t in m.tech_stack for t in tech_stack)]
 
         if not metrics:
             logger.warning(
@@ -934,22 +907,12 @@ class BuildHistoryAnalyzer:
         overall_success_rate = sum(success_scores) / len(success_scores)
 
         time_accuracies = [
-            m.time_estimate_accuracy
-            for m in metrics
-            if m.estimated_duration_hours > 0
+            m.time_estimate_accuracy for m in metrics if m.estimated_duration_hours > 0
         ]
-        avg_time_accuracy = (
-            sum(time_accuracies) / len(time_accuracies) if time_accuracies else 0.0
-        )
+        avg_time_accuracy = sum(time_accuracies) / len(time_accuracies) if time_accuracies else 0.0
 
-        cost_accuracies = [
-            m.cost_estimate_accuracy
-            for m in metrics
-            if m.estimated_cost > 0
-        ]
-        avg_cost_accuracy = (
-            sum(cost_accuracies) / len(cost_accuracies) if cost_accuracies else 0.0
-        )
+        cost_accuracies = [m.cost_estimate_accuracy for m in metrics if m.estimated_cost > 0]
+        avg_cost_accuracy = sum(cost_accuracies) / len(cost_accuracies) if cost_accuracies else 0.0
 
         # Extract signals
         feasibility_signals = self.extract_feasibility_signals(project_type, tech_stack)
@@ -972,8 +935,7 @@ class BuildHistoryAnalyzer:
                 cat_data["success_rate"] * (cat_data["count"] - 1) + m.success_score
             ) / cat_data["count"]
             cat_data["avg_duration"] = (
-                cat_data["avg_duration"] * (cat_data["count"] - 1)
-                + m.actual_duration_hours
+                cat_data["avg_duration"] * (cat_data["count"] - 1) + m.actual_duration_hours
             ) / cat_data["count"]
 
         # Group by tech stack
@@ -988,8 +950,7 @@ class BuildHistoryAnalyzer:
                 tech_data = metrics_by_tech[tech]
                 tech_data["count"] += 1
                 tech_data["success_rate"] = (
-                    tech_data["success_rate"] * (tech_data["count"] - 1)
-                    + m.success_score
+                    tech_data["success_rate"] * (tech_data["count"] - 1) + m.success_score
                 ) / tech_data["count"]
 
         # Generate recommendations
@@ -1061,9 +1022,7 @@ class BuildHistoryAnalyzer:
         # Warn about high failure rate
         failed = [m for m in metrics if m.outcome == BuildOutcome.FAILED]
         if len(failed) / len(metrics) > 0.3:
-            warnings.append(
-                f"High failure rate: {len(failed)}/{len(metrics)} builds failed"
-            )
+            warnings.append(f"High failure rate: {len(failed)}/{len(metrics)} builds failed")
 
         # Warn about cost overruns
         if cost_feedback.cost_overrun_rate > 0.5:
@@ -1130,9 +1089,7 @@ class BuildHistoryAnalyzer:
             "signals": [s.to_dict() for s in signals],
         }
 
-    def _explain_adjustment(
-        self, signals: List[FeasibilityFeedback], adjustment: float
-    ) -> str:
+    def _explain_adjustment(self, signals: List[FeasibilityFeedback], adjustment: float) -> str:
         """Generate explanation for feasibility adjustment."""
         if abs(adjustment) < 0.05:
             return "Historical data suggests neutral feasibility outlook"

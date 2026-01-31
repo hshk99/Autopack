@@ -232,9 +232,7 @@ class OptimizedResearchCache:
         Returns:
             Number of entries removed
         """
-        expired_keys = [
-            key for key, entry in self._cache.items() if entry.is_expired()
-        ]
+        expired_keys = [key for key, entry in self._cache.items() if entry.is_expired()]
         for key in expired_keys:
             del self._cache[key]
 
@@ -258,13 +256,15 @@ class OptimizedResearchCache:
             Dictionary with cache metrics and configuration
         """
         stats = self._metrics.get_stats()
-        stats.update({
-            "cache_size": self.get_size(),
-            "max_cache_size": self.max_size,
-            "ttl_hours": self.ttl_hours,
-            "compression_enabled": self.enable_compression,
-            "compression_threshold_bytes": self.compression_threshold,
-        })
+        stats.update(
+            {
+                "cache_size": self.get_size(),
+                "max_cache_size": self.max_size,
+                "ttl_hours": self.ttl_hours,
+                "compression_enabled": self.enable_compression,
+                "compression_threshold_bytes": self.compression_threshold,
+            }
+        )
         return stats
 
     def get_metrics(self) -> CacheMetrics:
@@ -318,10 +318,7 @@ class CacheEntry:
         original_size = len(serialized)
 
         # Check if compression is beneficial
-        if (
-            self.enable_compression
-            and original_size > self.compression_threshold
-        ):
+        if self.enable_compression and original_size > self.compression_threshold:
             compressed = gzip.compress(serialized, compresslevel=6)
             compressed_size = len(compressed)
 
@@ -439,9 +436,7 @@ class CacheOptimizer:
 
         # Compression analysis
         if stats["compressions"] > 0:
-            avg_bytes_saved = (
-                stats["total_bytes_saved_by_compression"] / stats["compressions"]
-            )
+            avg_bytes_saved = stats["total_bytes_saved_by_compression"] / stats["compressions"]
             recommendations.append(
                 f"Compression is effective: saving avg {avg_bytes_saved:.0f} bytes per session."
             )
@@ -482,22 +477,16 @@ class CacheOptimizer:
         suggested_config = current_config.copy()
 
         # Adjust max_size based on evictions
-        eviction_rate = (
-            metrics.evictions / max(metrics.hits + metrics.misses, 1)
-        )
+        eviction_rate = metrics.evictions / max(metrics.hits + metrics.misses, 1)
         if eviction_rate > 0.1:  # More than 10% of requests cause eviction
             suggested_config["max_size"] = int(cache.max_size * 1.5)
 
         # Adjust compression threshold based on savings
         if metrics.compressions > 0:
-            avg_compression_ratio = (
-                stats["total_bytes_saved_by_compression"] / metrics.compressions
-            )
+            avg_compression_ratio = stats["total_bytes_saved_by_compression"] / metrics.compressions
             # If we're saving less than 10%, reduce threshold to compress more aggressively
             if avg_compression_ratio < 10000:  # Less than 10KB
-                suggested_config["compression_threshold"] = int(
-                    cache.compression_threshold * 0.7
-                )
+                suggested_config["compression_threshold"] = int(cache.compression_threshold * 0.7)
 
         return {
             "current_config": current_config,

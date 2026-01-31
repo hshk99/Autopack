@@ -11,12 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional
 
-from .circuit_breaker import (
-    CircuitBreaker,
-    CircuitBreakerConfig,
-    CircuitBreakerMetrics,
-    CircuitState,
-)
+from .circuit_breaker import (CircuitBreaker, CircuitBreakerConfig,
+                              CircuitBreakerMetrics, CircuitState)
 
 if TYPE_CHECKING:
     from .circuit_breaker_persistence import CircuitBreakerPersistence

@@ -387,9 +387,7 @@ class MonetizationAnalyzer:
         result = MonetizationAnalysisResult(project_type=project_type)
 
         # Analyze model fit
-        result.model_fits = self._analyze_model_fits(
-            project_type, project_characteristics or {}
-        )
+        result.model_fits = self._analyze_model_fits(project_type, project_characteristics or {})
 
         # Determine recommended model
         result.recommended_model = self._determine_recommended_model(result.model_fits)
@@ -424,14 +422,10 @@ class MonetizationAnalyzer:
 
         # Calculate key metrics
         result.target_arpu = self._calculate_target_arpu(result.pricing_tiers)
-        result.target_ltv = self._calculate_target_ltv(
-            result.target_arpu, result.recommended_model
-        )
+        result.target_ltv = self._calculate_target_ltv(result.target_arpu, result.recommended_model)
 
         # Assess confidence
-        result.confidence = self._assess_confidence(
-            market_data, competitive_data, target_audience
-        )
+        result.confidence = self._assess_confidence(market_data, competitive_data, target_audience)
 
         # Identify assumptions and risks
         result.key_assumptions = self._identify_assumptions(
@@ -444,9 +438,7 @@ class MonetizationAnalyzer:
         # Record analysis cost
         result.analysis_cost = self.DEFAULT_ANALYSIS_COST
         if self._budget_enforcer:
-            self._budget_enforcer.complete_phase(
-                "monetization_analysis", result.analysis_cost
-            )
+            self._budget_enforcer.complete_phase("monetization_analysis", result.analysis_cost)
 
         self._analysis_result = result
         logger.info(
@@ -467,9 +459,7 @@ class MonetizationAnalyzer:
             risks=["Full monetization analysis not performed"],
         )
 
-    def _detect_project_type(
-        self, characteristics: Dict[str, Any]
-    ) -> ProjectType:
+    def _detect_project_type(self, characteristics: Dict[str, Any]) -> ProjectType:
         """Detect project type from characteristics."""
         keywords = characteristics.get("keywords", [])
         features = characteristics.get("features", [])
@@ -957,9 +947,7 @@ class MonetizationAnalyzer:
                 # Assume 60% Starter, 30% Pro, 10% Enterprise distribution
                 weights = [0.6, 0.3, 0.1][: len(paying_tiers)]
                 weights = weights + [0.0] * (len(paying_tiers) - len(weights))
-                arpu = sum(
-                    t.price_monthly * w for t, w in zip(paying_tiers, weights)
-                )
+                arpu = sum(t.price_monthly * w for t, w in zip(paying_tiers, weights))
             else:
                 arpu = 0
         else:
@@ -1010,9 +998,7 @@ class MonetizationAnalyzer:
 
         return sum(t.price_monthly * w for t, w in zip(paying_tiers, weights))
 
-    def _calculate_target_ltv(
-        self, arpu: float, model: MonetizationModel
-    ) -> float:
+    def _calculate_target_ltv(self, arpu: float, model: MonetizationModel) -> float:
         """Calculate target Lifetime Value."""
         # Default churn assumptions by model
         monthly_churn = {
@@ -1064,15 +1050,19 @@ class MonetizationAnalyzer:
         ]
 
         if model == MonetizationModel.SUBSCRIPTION:
-            assumptions.extend([
-                "Assumed 5% monthly churn rate",
-                "Assumed 60/30/10 tier distribution",
-            ])
+            assumptions.extend(
+                [
+                    "Assumed 5% monthly churn rate",
+                    "Assumed 60/30/10 tier distribution",
+                ]
+            )
         elif model == MonetizationModel.FREEMIUM:
-            assumptions.extend([
-                "Assumed 2.5-3% free to paid conversion",
-                "Free tier costs covered by paid users",
-            ])
+            assumptions.extend(
+                [
+                    "Assumed 2.5-3% free to paid conversion",
+                    "Free tier costs covered by paid users",
+                ]
+            )
 
         return assumptions
 
@@ -1110,10 +1100,12 @@ class MonetizationAnalyzer:
                 risks.append("Competitive pricing pressure")
 
         # Add general risks
-        risks.extend([
-            "Market adoption slower than projected",
-            "Customer acquisition costs may exceed targets",
-        ])
+        risks.extend(
+            [
+                "Market adoption slower than projected",
+                "Customer acquisition costs may exceed targets",
+            ]
+        )
 
         return risks
 
@@ -1133,9 +1125,7 @@ class MonetizationAnalyzer:
             "target_ltv": result.target_ltv,
             "confidence": result.confidence.value,
             "year_1_projected_arr": (
-                result.revenue_projections[1].arr
-                if len(result.revenue_projections) > 1
-                else 0
+                result.revenue_projections[1].arr if len(result.revenue_projections) > 1 else 0
             ),
         }
 
@@ -1154,13 +1144,15 @@ class MonetizationAnalyzer:
         # Build models list
         models = []
         for fit in result.model_fits[:3]:  # Top 3 models
-            models.append({
-                "model": fit.model.value.replace("_", " ").title(),
-                "prevalence": f"Fit score: {fit.fit_score}/10",
-                "pros": fit.pros,
-                "cons": fit.cons,
-                "examples": [],
-            })
+            models.append(
+                {
+                    "model": fit.model.value.replace("_", " ").title(),
+                    "prevalence": f"Fit score: {fit.fit_score}/10",
+                    "pros": fit.pros,
+                    "cons": fit.cons,
+                    "examples": [],
+                }
+            )
 
         # Build pricing benchmarks
         benchmarks = {}
@@ -1181,9 +1173,7 @@ class MonetizationAnalyzer:
             }
 
         # Build recommended model
-        recommended_tier = next(
-            (t for t in result.pricing_tiers if t.recommended), None
-        )
+        recommended_tier = next((t for t in result.pricing_tiers if t.recommended), None)
         recommended_pricing = {}
         for tier in result.pricing_tiers:
             recommended_pricing[tier.name.lower()] = f"${tier.price_monthly}/month"

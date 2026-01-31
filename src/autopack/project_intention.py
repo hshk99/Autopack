@@ -8,21 +8,15 @@ See docs/INTENTION_MIGRATION_GUIDE.md for migration instructions.
 """
 
 # Re-export v2 components for convenience
-from .intention_anchor.v2 import (
-    BudgetCostIntention,
-    EvidenceVerificationIntention,
-    GovernanceReviewIntention,
-    IntentionAnchorV2,
-    IntentionMetadata,
-    MemoryContinuityIntention,
-    NorthStarIntention,
-    ParallelismIsolationIntention,
-    PivotIntentions,
-    SafetyRiskIntention,
-    ScopeBoundariesIntention,
-    create_from_inputs,
-    validate_pivot_completeness,
-)
+from .intention_anchor.v2 import (BudgetCostIntention,
+                                  EvidenceVerificationIntention,
+                                  GovernanceReviewIntention, IntentionAnchorV2,
+                                  IntentionMetadata, MemoryContinuityIntention,
+                                  NorthStarIntention,
+                                  ParallelismIsolationIntention,
+                                  PivotIntentions, SafetyRiskIntention,
+                                  ScopeBoundariesIntention, create_from_inputs,
+                                  validate_pivot_completeness)
 
 __all__ = [
     # v2 core

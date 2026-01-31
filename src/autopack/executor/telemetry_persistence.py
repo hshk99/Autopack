@@ -107,7 +107,8 @@ class TelemetryPersistenceManager:
         """
         if self._telemetry_to_memory_bridge is None:
             if self._memory_service and getattr(self._memory_service, "enabled", False):
-                from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
+                from autopack.telemetry.telemetry_to_memory_bridge import \
+                    TelemetryToMemoryBridge
 
                 self._telemetry_to_memory_bridge = TelemetryToMemoryBridge(
                     memory_service=self._memory_service,

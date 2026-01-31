@@ -16,26 +16,21 @@ and pivot types for autonomous execution guidance.
 """
 
 # IMP-MAINT-002: Circuit breaker extraction from autonomous_loop.py
-from autopack.executor.circuit_breaker import (
-    CircuitBreaker,
-    CircuitBreakerOpenError,
-    CircuitBreakerState,
-    SOTDriftError,
-)
-
+from autopack.executor.circuit_breaker import (CircuitBreaker,
+                                               CircuitBreakerOpenError,
+                                               CircuitBreakerState,
+                                               SOTDriftError)
 # PR-EXE-6: Heuristic context loader extraction (IMP-REF-002)
 from autopack.executor.context_loading_heuristic import (
-    HeuristicContextLoader,
-    get_default_priority_files,
-)
-
+    HeuristicContextLoader, get_default_priority_files)
 # IMP-MAINT-001: Additional module extractions for executor split
-from autopack.executor.doctor_facade import DoctorFacade, DoctorState, HealthBudget
-
+from autopack.executor.doctor_facade import (DoctorFacade, DoctorState,
+                                             HealthBudget)
 # IMP-MAINT-001: Goal anchoring and SOT manager extraction
 from autopack.executor.goal_anchoring import GoalAnchoringManager
 from autopack.executor.learning_context_manager import LearningContextManager
-from autopack.executor.run_lifecycle_manager import ApiKeyValidationError, RunLifecycleManager
+from autopack.executor.run_lifecycle_manager import (ApiKeyValidationError,
+                                                     RunLifecycleManager)
 from autopack.executor.sot_manager import SOTManager
 from autopack.executor.stale_phase_handler import StalePhaseHandler
 

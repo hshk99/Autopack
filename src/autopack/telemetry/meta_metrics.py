@@ -3726,9 +3726,7 @@ class ResearchCycleEffectivenessTracker:
             "avg_roi": round(self.get_avg_roi(), 2),
             "followup_triggers_executed": self.followup_triggers_executed,
             "followup_triggers_successful": self.followup_triggers_successful,
-            "followup_trigger_success_rate": round(
-                self.get_followup_trigger_success_rate(), 4
-            ),
+            "followup_trigger_success_rate": round(self.get_followup_trigger_success_rate(), 4),
             "total_cost": round(self.total_cost, 2),
             "avg_cost_per_cycle": round(self.get_avg_cost_per_cycle(), 2),
             "total_time_seconds": self.total_time_seconds,

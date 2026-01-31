@@ -13,7 +13,8 @@ from typing import TYPE_CHECKING, Dict, Optional, Tuple
 
 if TYPE_CHECKING:
     from autopack.telemetry.anomaly_detector import TelemetryAnomalyDetector
-    from autopack.telemetry.meta_metrics import FeedbackLoopHealthReport, MetaMetricsTracker
+    from autopack.telemetry.meta_metrics import (FeedbackLoopHealthReport,
+                                                 MetaMetricsTracker)
 
 logger = logging.getLogger(__name__)
 

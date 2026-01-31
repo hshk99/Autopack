@@ -13,16 +13,13 @@ from sqlalchemy import engine_from_config, pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from autopack import models  # noqa: F401 - Import to register models
-from autopack.auth.models import APIKey, User  # noqa: F401 - Import to register auth models
-
+from autopack.auth.models import (  # noqa: F401 - Import to register auth models
+    APIKey, User)
 # Import your Base and models
 from autopack.config import get_database_url
 from autopack.database import Base
 from autopack.usage_recorder import (  # noqa: F401 - Import to register usage models
-    DoctorUsageStats,
-    LlmUsageEvent,
-    TokenEfficiencyMetrics,
-)
+    DoctorUsageStats, LlmUsageEvent, TokenEfficiencyMetrics)
 
 # Add your model's MetaData object here for 'autogenerate' support
 target_metadata = Base.metadata

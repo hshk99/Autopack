@@ -240,9 +240,7 @@ class ProjectHistoryAnalyzer:
         file_projects = self._load_project_history_file()
 
         # Extract projects from learning database
-        db_projects = self._extract_projects_from_learning_db(
-            include_improvements, include_cycles
-        )
+        db_projects = self._extract_projects_from_learning_db(include_improvements, include_cycles)
 
         # Combine project sources
         all_projects = file_projects + db_projects
@@ -364,9 +362,7 @@ class ProjectHistoryAnalyzer:
                     start_date=cycle.get("recorded_at"),
                     success_score=metrics.get("completion_rate", 0.0),
                     overall_outcome=(
-                        "successful"
-                        if metrics.get("completion_rate", 0) >= 0.7
-                        else "partial"
+                        "successful" if metrics.get("completion_rate", 0) >= 0.7 else "partial"
                     ),
                     metadata={
                         "phases_completed": metrics.get("phases_completed", 0),
@@ -395,9 +391,7 @@ class ProjectHistoryAnalyzer:
 
             # Create summary per category
             for category, imps in category_groups.items():
-                successful = sum(
-                    1 for i in imps if i.get("current_outcome") == "implemented"
-                )
+                successful = sum(1 for i in imps if i.get("current_outcome") == "implemented")
                 total = len(imps)
 
                 summary = ProjectSummary(
@@ -405,15 +399,11 @@ class ProjectHistoryAnalyzer:
                     project_type="improvement_category",
                     name=f"Category: {category}",
                     success_score=successful / total if total > 0 else 0.0,
-                    overall_outcome=(
-                        "successful" if successful / total >= 0.5 else "partial"
-                    ),
+                    overall_outcome=("successful" if successful / total >= 0.5 else "partial"),
                     metadata={
                         "total_improvements": total,
                         "successful": successful,
-                        "blocked": sum(
-                            1 for i in imps if i.get("current_outcome") == "blocked"
-                        ),
+                        "blocked": sum(1 for i in imps if i.get("current_outcome") == "blocked"),
                         "abandoned": sum(
                             1 for i in imps if i.get("current_outcome") == "abandoned"
                         ),
@@ -451,15 +441,11 @@ class ProjectHistoryAnalyzer:
                     for item in value:
                         if item not in tech_stack_choices:
                             tech_stack_choices[item] = []
-                        tech_stack_choices[item].append(
-                            (project.project_id, project.success_score)
-                        )
+                        tech_stack_choices[item].append((project.project_id, project.success_score))
                 elif isinstance(value, str) and value:
                     if value not in tech_stack_choices:
                         tech_stack_choices[value] = []
-                    tech_stack_choices[value].append(
-                        (project.project_id, project.success_score)
-                    )
+                    tech_stack_choices[value].append((project.project_id, project.success_score))
 
         # Convert to patterns
         for choice, occurrences in tech_stack_choices.items():
@@ -481,9 +467,7 @@ class ProjectHistoryAnalyzer:
             if arch_pattern:
                 if arch_pattern not in arch_patterns:
                     arch_patterns[arch_pattern] = []
-                arch_patterns[arch_pattern].append(
-                    (project.project_id, project.success_score)
-                )
+                arch_patterns[arch_pattern].append((project.project_id, project.success_score))
 
         for pattern, occurrences in arch_patterns.items():
             if len(occurrences) >= 1:
@@ -499,15 +483,11 @@ class ProjectHistoryAnalyzer:
 
         # Sort patterns by success score
         for pattern_type in patterns:
-            patterns[pattern_type].sort(
-                key=lambda x: x.get("avg_success_score", 0), reverse=True
-            )
+            patterns[pattern_type].sort(key=lambda x: x.get("avg_success_score", 0), reverse=True)
 
         return patterns
 
-    def _find_success_correlations(
-        self, projects: list[ProjectSummary]
-    ) -> list[dict[str, Any]]:
+    def _find_success_correlations(self, projects: list[ProjectSummary]) -> list[dict[str, Any]]:
         """Find factors correlated with project success.
 
         Args:
@@ -542,9 +522,7 @@ class ProjectHistoryAnalyzer:
                     {
                         "factor": element,
                         "factor_type": "tech_stack",
-                        "success_correlation": round(
-                            count / len(successful_projects), 3
-                        ),
+                        "success_correlation": round(count / len(successful_projects), 3),
                         "occurrence_in_successful": count,
                         "total_successful": len(successful_projects),
                     }
@@ -563,9 +541,7 @@ class ProjectHistoryAnalyzer:
                     {
                         "factor": pattern,
                         "factor_type": "architecture",
-                        "success_correlation": round(
-                            count / len(successful_projects), 3
-                        ),
+                        "success_correlation": round(count / len(successful_projects), 3),
                         "occurrence_in_successful": count,
                         "total_successful": len(successful_projects),
                     }
@@ -576,9 +552,7 @@ class ProjectHistoryAnalyzer:
 
         return correlations
 
-    def _find_failure_correlations(
-        self, projects: list[ProjectSummary]
-    ) -> list[dict[str, Any]]:
+    def _find_failure_correlations(self, projects: list[ProjectSummary]) -> list[dict[str, Any]]:
         """Find factors correlated with project failure.
 
         Args:
@@ -649,9 +623,7 @@ class ProjectHistoryAnalyzer:
 
         return insights
 
-    def _generate_recommendations(
-        self, analysis: HistoryAnalysisResult
-    ) -> list[dict[str, Any]]:
+    def _generate_recommendations(self, analysis: HistoryAnalysisResult) -> list[dict[str, Any]]:
         """Generate recommendations from analysis results.
 
         Args:
@@ -670,9 +642,9 @@ class ProjectHistoryAnalyzer:
                     {
                         "type": "tech_stack",
                         "recommendation": f"Consider using {pattern['choice']}",
-                        "confidence": "high"
-                        if pattern.get("occurrence_count", 0) >= 3
-                        else "medium",
+                        "confidence": (
+                            "high" if pattern.get("occurrence_count", 0) >= 3 else "medium"
+                        ),
                         "basis": f"Success rate: {pattern['avg_success_score']:.0%} across {pattern['occurrence_count']} projects",
                     }
                 )
@@ -741,9 +713,7 @@ class ProjectHistoryAnalyzer:
         # Reanalyze patterns for just this project type
         return self._analyze_decision_patterns(type_projects)
 
-    def save_project_summary(
-        self, summary: ProjectSummary, append: bool = True
-    ) -> bool:
+    def save_project_summary(self, summary: ProjectSummary, append: bool = True) -> bool:
         """Save a project summary to the history file.
 
         Args:

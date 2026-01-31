@@ -31,6 +31,13 @@ from autopack.research.analysis.followup_trigger import (
     TriggerPriority,
     TriggerType,
 )
+from autopack.research.analysis.budget_enforcement import (
+    BudgetEnforcer,
+    BudgetMetrics,
+    BudgetStatus,
+    PhaseBudget,
+    PhaseType,
+)
 from autopack.research.analysis.research_state import (
     CoverageMetrics,
     GapPriority,
@@ -59,6 +66,12 @@ __all__ = [
     "ProjectCostProjection",
     "CostCategory",
     "ScalingModel",
+    # Budget enforcement
+    "BudgetEnforcer",
+    "BudgetMetrics",
+    "BudgetStatus",
+    "PhaseBudget",
+    "PhaseType",
     # Research state tracking
     "ResearchStateTracker",
     "ResearchState",

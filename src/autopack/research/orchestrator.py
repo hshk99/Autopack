@@ -16,6 +16,7 @@ from uuid import uuid4
 
 # Analysis modules for cost-effectiveness, state tracking, and follow-up triggers
 from autopack.research.analysis import (
+    BudgetEnforcer,
     CostEffectivenessAnalyzer,
     FollowupResearchTrigger,
     ResearchStateTracker,
@@ -37,26 +38,6 @@ from autopack.research.validators.quality_validator import QualityValidator
 from autopack.research.validators.recency_validator import RecencyValidator
 
 logger = logging.getLogger(__name__)
-
-
-class BudgetTracker(Protocol):
-    """Protocol for budget tracking implementations.
-
-    Defines the interface for budget tracking to enforce cost limits
-    during research execution.
-    """
-
-    def can_proceed(self, phase_name: Optional[str] = None) -> bool:
-        """Check if research can proceed based on budget constraints.
-
-        Args:
-            phase_name: Optional name of phase to check budget for
-
-        Returns:
-            True if budget allows proceeding, False if exhausted
-        """
-        ...
-
 
 # Default cache TTL: 24 hours
 CACHE_TTL_HOURS = 24
@@ -166,19 +147,21 @@ class ResearchOrchestrator:
         self,
         cache_ttl_hours: int = CACHE_TTL_HOURS,
         project_root: Optional[Path] = None,
-        budget_tracker: Optional[BudgetTracker] = None,
+        budget_enforcer: Optional[BudgetEnforcer] = None,
     ):
         """Initialize the ResearchOrchestrator.
 
         Args:
             cache_ttl_hours: TTL for research cache in hours (default: 24)
             project_root: Root directory for project state files (optional)
-            budget_tracker: Optional budget tracker for enforcing cost limits
+            budget_enforcer: Optional budget enforcer for cost limits (default: $5000)
         """
         self.sessions: dict[str, ResearchSession] = {}
         self.bootstrap_sessions: dict[str, BootstrapSession] = {}
         self._cache = ResearchCache(ttl_hours=cache_ttl_hours)
-        self._budget_tracker = budget_tracker
+
+        # Initialize budget enforcer with default budget if not provided
+        self._budget_enforcer = budget_enforcer or BudgetEnforcer(total_budget=5000.0)
 
         # Analysis components
         self._cost_analyzer = CostEffectivenessAnalyzer()
@@ -200,6 +183,53 @@ class ResearchOrchestrator:
         self._state_tracker.load_or_create_state(project_id)
         logger.info(f"Initialized state tracking for project: {project_id}")
 
+    def initialize_budget_from_cost_analysis(self, cost_analysis: dict[str, Any]) -> None:
+        """Initialize research budget from cost-effectiveness analysis.
+
+        Extracts budget constraints from cost analysis and sets them
+        as the research pipeline budget limits.
+
+        Args:
+            cost_analysis: Cost-effectiveness analysis results
+        """
+        tco = cost_analysis.get("total_cost_of_ownership", {})
+        year_1_cost = tco.get("year_1", {}).get("total", 5000.0)
+
+        # Use year 1 research estimate as budget ceiling
+        # Research typically uses 10-15% of development budget
+        research_budget = year_1_cost * 0.15
+
+        self._budget_enforcer.set_budget(research_budget)
+        logger.info(
+            f"Initialized research budget from cost analysis: ${research_budget:.2f} "
+            f"(based on Year 1 TCO of ${year_1_cost:.2f})"
+        )
+
+    def complete_research_phase(self, phase_name: str, actual_cost: Optional[float] = None) -> None:
+        """Mark a research phase as complete.
+
+        Args:
+            phase_name: Name of the phase
+            actual_cost: Actual cost incurred (optional)
+        """
+        self._budget_enforcer.complete_phase(phase_name, actual_cost)
+
+    def get_budget_metrics(self) -> dict[str, Any]:
+        """Get current budget metrics and status.
+
+        Returns:
+            Dictionary with budget information
+        """
+        return self._budget_enforcer.get_metrics().to_dict()
+
+    def get_budget_status(self) -> dict[str, Any]:
+        """Get human-readable budget status.
+
+        Returns:
+            Dictionary with status summary
+        """
+        return self._budget_enforcer.get_status_summary()
+
     def _check_budget_before_phase(self, phase_name: str) -> bool:
         """Check budget before starting a research phase.
 
@@ -209,14 +239,10 @@ class ResearchOrchestrator:
         Returns:
             True if budget allows proceeding, False if exhausted
         """
-        if self._budget_tracker:
-            can_proceed = self._budget_tracker.can_proceed(phase_name)
-            if not can_proceed:
-                logger.warning(
-                    f"Budget exhausted, cannot proceed with research phase: {phase_name}"
-                )
-            return can_proceed
-        return True
+        can_proceed = self._budget_enforcer.can_proceed(phase_name)
+        if can_proceed:
+            self._budget_enforcer.start_phase(phase_name)
+        return can_proceed
 
     def start_session(
         self, intent_title: str, intent_description: str, intent_objectives: list
@@ -440,6 +466,7 @@ class ResearchOrchestrator:
             }
 
             session.mark_phase_completed(phase, data)
+            self.complete_research_phase("market_research")
             logger.debug(f"Market research completed for session {session.session_id}")
 
         except Exception as e:
@@ -481,6 +508,7 @@ class ResearchOrchestrator:
             }
 
             session.mark_phase_completed(phase, data)
+            self.complete_research_phase("competitive_analysis")
             logger.debug(f"Competitive analysis completed for session {session.session_id}")
 
         except Exception as e:
@@ -523,6 +551,7 @@ class ResearchOrchestrator:
             }
 
             session.mark_phase_completed(phase, data)
+            self.complete_research_phase("technical_feasibility")
             logger.debug(f"Technical feasibility completed for session {session.session_id}")
 
         except Exception as e:
@@ -549,6 +578,11 @@ class ResearchOrchestrator:
         """
         logger.info(f"Running cost-effectiveness analysis for session {session.session_id}")
 
+        # Check budget before expensive analysis phase
+        if not self._check_budget_before_phase("cost_effectiveness_analysis"):
+            logger.warning("Budget exhausted, cannot run cost-effectiveness analysis")
+            return {"error": "Budget exhausted"}
+
         # Extract technical feasibility data if available
         technical_feasibility = None
         if session.technical_feasibility and session.technical_feasibility.data:
@@ -563,6 +597,12 @@ class ResearchOrchestrator:
             ai_features=ai_features,
             user_projections=user_projections,
         )
+
+        # Initialize research budget based on cost analysis results
+        self.initialize_budget_from_cost_analysis(cost_analysis)
+
+        # Mark analysis phase as complete
+        self.complete_research_phase("cost_effectiveness_analysis")
 
         logger.info(
             f"Cost analysis completed: Year 1 TCO = ${cost_analysis.get('executive_summary', {}).get('total_year_1_cost', 'N/A')}"

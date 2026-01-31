@@ -8,6 +8,7 @@ Also includes IMP-REL-012 tests for Telegram retry logic with exponential backof
 
 from __future__ import annotations
 
+import os
 import urllib.error
 from unittest.mock import MagicMock, patch
 
@@ -41,6 +42,18 @@ def sample_request() -> ApprovalRequest:
         description="Test approval request",
         diff_summary={"changed": ["test_field"]},
     )
+
+
+@pytest.fixture
+def mock_token(monkeypatch) -> str:
+    """Provide isolated test token via monkeypatch.
+
+    Generates a unique token for each test to ensure proper isolation
+    and prevent accidental leakage of hardcoded tokens in CI artifacts.
+    """
+    test_token = "test-token-" + os.urandom(8).hex()
+    monkeypatch.setenv("TEST_AUTH_TOKEN", test_token)
+    return test_token
 
 
 class MockChannel(NotificationChannel):
@@ -190,11 +203,11 @@ class TestTelegramChannel:
             channel = TelegramChannel()
             assert channel.is_enabled() is False
 
-    def test_enabled_with_config(self):
+    def test_enabled_with_config(self, mock_token):
         """TelegramChannel should be enabled with proper config."""
         with patch.dict(
             "os.environ",
-            {"TELEGRAM_BOT_TOKEN": "test-token", "TELEGRAM_CHAT_ID": "12345"},
+            {"TELEGRAM_BOT_TOKEN": mock_token, "TELEGRAM_CHAT_ID": "12345"},
         ):
             channel = TelegramChannel()
             assert channel.is_enabled() is True
@@ -294,11 +307,11 @@ class TestSMSChannel:
 class TestChainedApprovalService:
     """Tests for ChainedApprovalService."""
 
-    def test_is_enabled_with_telegram(self):
+    def test_is_enabled_with_telegram(self, mock_token):
         """Service should be enabled when Telegram is configured."""
         with patch.dict(
             "os.environ",
-            {"TELEGRAM_BOT_TOKEN": "test-token", "TELEGRAM_CHAT_ID": "12345"},
+            {"TELEGRAM_BOT_TOKEN": mock_token, "TELEGRAM_CHAT_ID": "12345"},
         ):
             service = ChainedApprovalService()
             assert service.is_enabled() is True
@@ -323,12 +336,12 @@ class TestChainedApprovalService:
 class TestCreateNotificationChain:
     """Tests for create_notification_chain factory."""
 
-    def test_creates_chain_with_telegram_only(self):
+    def test_creates_chain_with_telegram_only(self, mock_token):
         """Factory should create chain with Telegram when configured."""
         with patch.dict(
             "os.environ",
             {
-                "TELEGRAM_BOT_TOKEN": "test-token",
+                "TELEGRAM_BOT_TOKEN": mock_token,
                 "TELEGRAM_CHAT_ID": "12345",
             },
             clear=True,
@@ -340,12 +353,12 @@ class TestCreateNotificationChain:
             assert "email" not in enabled
             assert "sms" not in enabled
 
-    def test_creates_chain_with_multiple_channels(self):
+    def test_creates_chain_with_multiple_channels(self, mock_token):
         """Factory should create chain with all configured channels."""
         with patch.dict(
             "os.environ",
             {
-                "TELEGRAM_BOT_TOKEN": "test-token",
+                "TELEGRAM_BOT_TOKEN": mock_token,
                 "TELEGRAM_CHAT_ID": "12345",
                 "AUTOPACK_NOTIFICATION_EMAIL_ENABLED": "true",
                 "AUTOPACK_NOTIFICATION_EMAIL_HOST": "smtp.test.com",
@@ -373,12 +386,12 @@ class TestCreateNotificationChain:
 class TestGetApprovalServiceWithChain:
     """Tests for get_approval_service with chain support."""
 
-    def test_returns_chained_service_when_channels_available(self):
+    def test_returns_chained_service_when_channels_available(self, mock_token):
         """Should return ChainedApprovalService when channels configured."""
         with patch.dict(
             "os.environ",
             {
-                "TELEGRAM_BOT_TOKEN": "test-token",
+                "TELEGRAM_BOT_TOKEN": mock_token,
                 "TELEGRAM_CHAT_ID": "12345",
             },
             clear=True,
@@ -405,13 +418,13 @@ class TestGetApprovalServiceWithChain:
             service = get_approval_service(use_chain=False)
             assert isinstance(service, TelegramApprovalService)
 
-    def test_returns_noop_in_ci(self):
+    def test_returns_noop_in_ci(self, mock_token):
         """Should return NoopApprovalService in CI environment."""
         with patch.dict(
             "os.environ",
             {
                 "CI": "true",
-                "TELEGRAM_BOT_TOKEN": "test-token",
+                "TELEGRAM_BOT_TOKEN": mock_token,
                 "TELEGRAM_CHAT_ID": "12345",
             },
         ):
@@ -424,9 +437,9 @@ class TestGetApprovalServiceWithChain:
 class TestTelegramChannelRetry:
     """Tests for IMP-REL-012: Telegram retry logic with exponential backoff."""
 
-    def test_retry_on_url_error(self, sample_request):
+    def test_retry_on_url_error(self, sample_request, mock_token):
         """Should retry on URLError and succeed after recovery."""
-        channel = TelegramChannel(bot_token="test-token", chat_id="12345")
+        channel = TelegramChannel(bot_token=mock_token, chat_id="12345")
 
         # Create a mock that fails twice then succeeds
         call_count = 0
@@ -449,9 +462,9 @@ class TestTelegramChannelRetry:
         assert result.success is True
         assert call_count == 3  # Two failures + one success
 
-    def test_retry_on_timeout_error(self, sample_request):
+    def test_retry_on_timeout_error(self, sample_request, mock_token):
         """Should retry on TimeoutError and succeed after recovery."""
-        channel = TelegramChannel(bot_token="test-token", chat_id="12345")
+        channel = TelegramChannel(bot_token=mock_token, chat_id="12345")
 
         call_count = 0
 
@@ -472,9 +485,9 @@ class TestTelegramChannelRetry:
         assert result.success is True
         assert call_count == 2  # One failure + one success
 
-    def test_retry_exhausted_returns_failure(self, sample_request):
+    def test_retry_exhausted_returns_failure(self, sample_request, mock_token):
         """Should return failure after all retries are exhausted."""
-        channel = TelegramChannel(bot_token="test-token", chat_id="12345")
+        channel = TelegramChannel(bot_token=mock_token, chat_id="12345")
 
         call_count = 0
 
@@ -490,9 +503,9 @@ class TestTelegramChannelRetry:
         assert result.error_reason == "telegram_exception"
         assert call_count == 3  # All 3 attempts made
 
-    def test_no_retry_on_api_error(self, sample_request):
+    def test_no_retry_on_api_error(self, sample_request, mock_token):
         """Should not retry on non-network API errors."""
-        channel = TelegramChannel(bot_token="test-token", chat_id="12345")
+        channel = TelegramChannel(bot_token=mock_token, chat_id="12345")
 
         call_count = 0
 
@@ -512,9 +525,9 @@ class TestTelegramChannelRetry:
         assert result.error_reason == "telegram_api_error"
         assert call_count == 1  # No retries on API error
 
-    def test_retry_on_os_error(self, sample_request):
+    def test_retry_on_os_error(self, sample_request, mock_token):
         """Should retry on OSError (e.g., connection reset)."""
-        channel = TelegramChannel(bot_token="test-token", chat_id="12345")
+        channel = TelegramChannel(bot_token=mock_token, chat_id="12345")
 
         call_count = 0
 
@@ -539,11 +552,11 @@ class TestTelegramChannelRetry:
 class TestTelegramApprovalServiceRetry:
     """Tests for IMP-REL-012: TelegramApprovalService retry logic."""
 
-    def test_retry_on_network_failure(self, sample_request):
+    def test_retry_on_network_failure(self, sample_request, mock_token):
         """Should retry on network failure and succeed after recovery."""
         from autopack.approvals.telegram import TelegramApprovalService
 
-        service = TelegramApprovalService(bot_token="test-token", chat_id="12345")
+        service = TelegramApprovalService(bot_token=mock_token, chat_id="12345")
 
         call_count = 0
 
@@ -564,11 +577,11 @@ class TestTelegramApprovalServiceRetry:
         assert result.success is True
         assert call_count == 3
 
-    def test_retry_exhausted_returns_failure(self, sample_request):
+    def test_retry_exhausted_returns_failure(self, sample_request, mock_token):
         """Should return failure after all retries are exhausted."""
         from autopack.approvals.telegram import TelegramApprovalService
 
-        service = TelegramApprovalService(bot_token="test-token", chat_id="12345")
+        service = TelegramApprovalService(bot_token=mock_token, chat_id="12345")
 
         call_count = 0
 

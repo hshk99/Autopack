@@ -18,39 +18,48 @@ def get_default_base_dir() -> Path:
     return Path.cwd()
 
 
-def safe_extractall(tar: tarfile.TarFile, dest: Path) -> None:
-    """Safely extract tar members, blocking symlinks and hardlinks.
+def safe_extract(tar: tarfile.TarFile, member: tarfile.TarInfo, base: Path) -> None:
+    """Safely extract tar member, preventing path traversal and symlink attacks.
 
-    Validates that:
-    - No symlinks are extracted (could point outside target directory)
-    - No hardlinks are extracted (could reference files outside target)
-    - No path traversal attacks via .. path components
+    Validates that the extracted path stays within the base directory,
+    blocking any attempts to escape via '../' or absolute paths.
 
     Args:
         tar: TarFile object to extract from
-        dest: Destination directory path
+        member: TarInfo member to extract
+        base: Base directory where extraction should occur
 
     Raises:
-        ValueError: If dangerous member is detected
+        ValueError: If path traversal or dangerous link is detected
     """
-    dest_resolved = dest.resolve()
+    # Check for symlinks
+    if member.issym():
+        raise ValueError(f"Blocked symlink in archive: {member.name} -> {member.linkname}")
 
-    for member in tar.getmembers():
-        # Check for symlinks
-        if member.issym():
-            raise ValueError(f"Blocked symlink in archive: {member.name} -> {member.linkname}")
+    # Check for hardlinks
+    if member.islnk():
+        raise ValueError(f"Blocked hardlink in archive: {member.name} -> {member.linkname}")
 
-        # Check for hardlinks
-        if member.islnk():
-            raise ValueError(f"Blocked hardlink in archive: {member.name} -> {member.linkname}")
+    # Check for absolute paths in member name (Unix-style)
+    if member.name.startswith("/"):
+        raise ValueError(f"Absolute path not allowed: {member.name}")
 
-        # Check for path traversal
-        target_path = (dest_resolved / member.name).resolve()
-        if not str(target_path).startswith(str(dest_resolved)):
-            raise ValueError(f"Path traversal detected: {member.name}")
+    # Check for Windows-style absolute paths
+    if len(member.name) > 1 and member.name[1] == ":":
+        raise ValueError(f"Absolute path not allowed: {member.name}")
 
-        # Extract the member
-        tar.extract(member, path=dest)
+    # Resolve the full path where member would be extracted
+    target_path = (base / member.name).resolve()
+    base_resolved = base.resolve()
+
+    # Check that target path is within base directory
+    try:
+        target_path.relative_to(base_resolved)
+    except ValueError:
+        # relative_to raises ValueError if target_path is not within base_resolved
+        raise ValueError(f"Path traversal detected: {member.name}")
+
+    tar.extract(member, path=base)
 
 
 @click.command("restore")
@@ -131,18 +140,17 @@ def restore(input_file: Path, base_dir: Path | None, force: bool) -> None:
         click.echo("Extracting files:")
         files_restored = 0
 
-        try:
-            safe_extractall(tar, base)
-            # Count extracted files
-            for member in tar.getmembers():
+        for member in tar.getmembers():
+            try:
+                safe_extract(tar, member, base)
                 if member.isfile():
                     files_restored += 1
                     click.echo(f"  [restore] {member.name}")
                 elif member.isdir():
                     click.echo(f"  [restore] {member.name}/")
-        except ValueError as e:
-            click.secho(f"Security error: {e}", fg="red")
-            raise SystemExit(1)
+            except ValueError as e:
+                click.secho(f"Security error: {e}", fg="red")
+                raise SystemExit(1)
 
     click.echo()
     click.secho("Restore complete!", fg="green")

@@ -17,6 +17,39 @@ from autopack.schema_validator import SchemaValidationResult, SchemaValidator
 
 logger = logging.getLogger(__name__)
 
+# Whitelists for safe identifier interpolation
+ALLOWED_TABLES = {"runs", "phases", "builds", "approvals", "citations", "research_cycles"}
+ALLOWED_COLUMNS = {
+    "id",
+    "run_id",
+    "phase_id",
+    "status",
+    "state",
+    "updated_at",
+    "created_at",
+    "error",
+    "message",
+}
+
+
+def _validate_identifier(identifier: str, identifier_type: str, allowed: set) -> None:
+    """
+    Validate that an identifier is in the whitelist.
+
+    Args:
+        identifier: The identifier to validate (table/column name)
+        identifier_type: Type of identifier ('table' or 'column')
+        allowed: Set of allowed identifier names
+
+    Raises:
+        ValueError: If identifier is not in whitelist
+    """
+    if identifier not in allowed:
+        raise ValueError(
+            f"Invalid {identifier_type} name: '{identifier}'. "
+            f"Allowed {identifier_type}s: {sorted(allowed)}"
+        )
+
 
 class BreakGlassRepair:
     """
@@ -103,6 +136,15 @@ class BreakGlassRepair:
 
             # Apply repair
             try:
+                # Validate identifiers before using in SQL construction
+                try:
+                    _validate_identifier(error.table, "table", ALLOWED_TABLES)
+                    _validate_identifier(error.column, "column", ALLOWED_COLUMNS)
+                except ValueError as validation_error:
+                    logger.error(f"[BreakGlass]   ❌ {validation_error}")
+                    failed_count += 1
+                    continue
+
                 with self.engine.connect() as conn:
                     # Begin transaction
                     trans = conn.begin()
@@ -110,7 +152,7 @@ class BreakGlassRepair:
                         # Execute repair SQL
                         conn.execute(text(error.repair_sql))
 
-                        # Update timestamp
+                        # Update timestamp (safe: identifiers validated above)
                         timestamp_sql = f"UPDATE {error.table} SET updated_at=:ts WHERE {error.column}=:new_value"
                         conn.execute(
                             text(timestamp_sql),

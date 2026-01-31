@@ -26,7 +26,8 @@ class SchemaValidationError:
     invalid_value: str
     affected_rows: List[str]  # IDs of affected rows
     suggested_fix: str  # Valid enum value to use
-    repair_sql: str  # SQL to fix the issue
+    repair_sql: str  # Parameterized SQL to fix the issue
+    repair_params: dict = field(default_factory=dict)  # Parameters for repair_sql
 
 
 @dataclass
@@ -123,7 +124,8 @@ class SchemaValidator:
                     invalid_value=invalid_state,
                     affected_rows=run_ids,
                     suggested_fix=closest_match,
-                    repair_sql=f"UPDATE runs SET state='{closest_match}' WHERE state='{invalid_state}';",
+                    repair_sql="UPDATE runs SET state = :new_state WHERE state = :old_state",
+                    repair_params={"new_state": closest_match, "old_state": invalid_state},
                 )
 
                 result.add_error(error)
@@ -160,7 +162,8 @@ class SchemaValidator:
                     invalid_value=invalid_state,
                     affected_rows=phase_ids,
                     suggested_fix=closest_match,
-                    repair_sql=f"UPDATE phases SET state='{closest_match}' WHERE state='{invalid_state}';",
+                    repair_sql="UPDATE phases SET state = :new_state WHERE state = :old_state",
+                    repair_params={"new_state": closest_match, "old_state": invalid_state},
                 )
 
                 result.add_error(error)
@@ -213,7 +216,8 @@ class SchemaValidator:
                     invalid_value=invalid_state,
                     affected_rows=tier_ids,
                     suggested_fix=closest_match,
-                    repair_sql=f"UPDATE tiers SET state='{closest_match}' WHERE state='{invalid_state}';",
+                    repair_sql="UPDATE tiers SET state = :new_state WHERE state = :old_state",
+                    repair_params={"new_state": closest_match, "old_state": invalid_state},
                 )
 
                 result.add_error(error)

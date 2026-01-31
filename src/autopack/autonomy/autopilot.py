@@ -49,6 +49,11 @@ from .research_cycle_integration import (
     ResearchCycleOutcome,
     create_research_cycle_integration,
 )
+from ..telemetry.autopilot_metrics import (
+    AutopilotHealthCollector,
+    SessionHealthSnapshot,
+    SessionOutcome,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +101,10 @@ class AutopilotController:
         self.session: Optional[AutopilotSessionV1] = None
         self.executor_ctx: Optional[ExecutorContext] = None
 
+        # IMP-SEG-001: Health metrics tracking
+        self._health_collector = AutopilotHealthCollector()
+        self._last_cb_state_open: bool = False
+
         # IMP-REL-001: Health-gated task generation state
         self._task_generation_paused: bool = False
         self._pause_reason: Optional[str] = None
@@ -124,22 +133,104 @@ class AutopilotController:
         IMP-HIGH-001: Verifies circuit breaker state before execution.
         Returns False if circuit is OPEN, blocking runaway execution.
 
+        IMP-SEG-001: Records circuit breaker metrics for health monitoring.
+
         Returns:
             True if circuit breaker allows execution, False if blocked
         """
         if self.executor_ctx is None:
             return True  # No context, allow proceeding
 
-        if not self.executor_ctx.circuit_breaker.is_available():
+        passed = self.executor_ctx.circuit_breaker.is_available()
+        health_score = self.executor_ctx.circuit_breaker.health_score
+        state = self.executor_ctx.circuit_breaker.state.value
+
+        # IMP-SEG-001: Record circuit breaker check
+        self._health_collector.record_circuit_breaker_check(
+            state=state,
+            passed=passed,
+            health_score=health_score,
+        )
+
+        if not passed:
+            # Record circuit breaker trip if we haven't recorded it yet
+            if not getattr(self, "_last_cb_state_open", False):
+                self._health_collector.record_circuit_breaker_trip()
+                self._last_cb_state_open = True
+            elif self._last_cb_state_open and passed:
+                self._last_cb_state_open = False
+
             logger.critical(
                 f"[IMP-HIGH-001] Circuit breaker OPEN - blocking execution. "
-                f"State: {self.executor_ctx.circuit_breaker.state.value}, "
+                f"State: {state}, "
                 f"Consecutive failures: {self.executor_ctx.circuit_breaker.consecutive_failures}, "
                 f"Trip count: {self.executor_ctx.circuit_breaker.total_trips}"
             )
             return False
 
+        # Reset trip flag when circuit is closed again
+        self._last_cb_state_open = False
         return True
+
+    def _record_session_metrics(self, outcome: SessionOutcome) -> None:
+        """Record session metrics to health collector.
+
+        IMP-SEG-001: Creates a health snapshot and records session outcome.
+
+        Args:
+            outcome: The session outcome
+        """
+        if not self.session or not self.executor_ctx:
+            return
+
+        # Calculate final gate states and health
+        circuit_breaker_state = self.executor_ctx.circuit_breaker.state.value
+        circuit_breaker_health = self.executor_ctx.circuit_breaker.health_score
+        budget_remaining = self.executor_ctx.get_budget_remaining()
+
+        # Get health status from feedback loop if available
+        health_status = "healthy"
+        if self._task_generation_paused:
+            health_status = "degraded"
+
+        # Get research metrics if available
+        research_cycles_executed = 0
+        if self._research_cycle_integration and self._research_cycle_integration._metrics:
+            research_cycles_executed = self._research_cycle_integration._metrics.total_cycles_triggered
+
+        # Create snapshot
+        completed_at = self.session.completed_at or datetime.now(timezone.utc)
+        started_at = self.session.started_at
+        duration_seconds = (completed_at - started_at).total_seconds()
+
+        snapshot = SessionHealthSnapshot(
+            session_id=self.session.session_id,
+            outcome=outcome,
+            started_at=started_at.isoformat(),
+            completed_at=completed_at.isoformat(),
+            duration_seconds=duration_seconds,
+            circuit_breaker_state=circuit_breaker_state,
+            circuit_breaker_health_score=circuit_breaker_health,
+            budget_remaining=budget_remaining,
+            health_status=health_status,
+            health_gates_checked=self.executor_ctx.circuit_breaker.total_checks,
+            health_gates_blocked=max(0, self.executor_ctx.circuit_breaker.total_checks - self.executor_ctx.circuit_breaker.checks_passed) if hasattr(self.executor_ctx.circuit_breaker, 'checks_passed') else 0,
+            research_cycles_executed=research_cycles_executed,
+            actions_executed=self.session.execution_summary.executed_actions if self.session.execution_summary else 0,
+            actions_successful=self.session.execution_summary.successful_actions if self.session.execution_summary else 0,
+            actions_failed=self.session.execution_summary.failed_actions if self.session.execution_summary else 0,
+            blocking_reason=self.session.blocked_reason,
+        )
+
+        # Record to health collector
+        self._health_collector.end_session(outcome, snapshot)
+
+        # Auto-save metrics to file
+        try:
+            metrics_file = self.layout.run_dir() / "metrics" / "autopilot_health.json"
+            self._health_collector.save_to_file(str(metrics_file))
+        except Exception as e:
+            logger.warning(f"[IMP-SEG-001] Failed to save health metrics: {e}")
 
     def run_session(self, anchor: IntentionAnchorV2) -> AutopilotSessionV1:
         """Run autopilot session with safe execution gates.
@@ -170,6 +261,9 @@ class AutopilotController:
         started_at = datetime.now(timezone.utc)
 
         logger.info(f"[Autopilot] Starting session: {session_id}")
+
+        # IMP-SEG-001: Start health metrics tracking
+        self._health_collector.start_session(session_id)
 
         # Initialize session
         self.session = AutopilotSessionV1(
@@ -270,6 +364,8 @@ class AutopilotController:
                         f"Research cycle BLOCK: {research_outcome.reason}"
                     )
                     self.session.completed_at = datetime.now(timezone.utc)
+                    # IMP-SEG-001: Record session metrics before returning
+                    self._record_session_metrics(SessionOutcome.BLOCKED_RESEARCH)
                     return self.session
 
                 logger.info(
@@ -296,6 +392,8 @@ class AutopilotController:
             if proposal.summary.auto_approved_actions == 0:
                 # No auto-approved actions - stop and request approval
                 self._handle_approval_required(proposal)
+                # IMP-SEG-001: Record session metrics before returning
+                self._record_session_metrics(SessionOutcome.BLOCKED_APPROVAL)
                 return self.session
 
             if (
@@ -304,6 +402,8 @@ class AutopilotController:
             ):
                 # Some actions require approval - stop and request
                 self._handle_approval_required(proposal)
+                # IMP-SEG-001: Record session metrics before returning
+                self._record_session_metrics(SessionOutcome.BLOCKED_APPROVAL)
                 return self.session
 
             # All actions are auto-approved - check circuit breaker health gate
@@ -324,6 +424,8 @@ class AutopilotController:
                     "Execution blocked to prevent runaway. Circuit will reset after timeout."
                 )
                 self.session.completed_at = datetime.now(timezone.utc)
+                # IMP-SEG-001: Record session metrics before returning
+                self._record_session_metrics(SessionOutcome.BLOCKED_CIRCUIT_BREAKER)
                 return self.session
 
             logger.info("[Autopilot] Health gates passed. " "Executing bounded batch...")
@@ -340,6 +442,9 @@ class AutopilotController:
 
             logger.info(f"[Autopilot] Session completed: {session_id}")
 
+            # IMP-SEG-001: Record session metrics
+            self._record_session_metrics(SessionOutcome.COMPLETED)
+
         except Exception as e:
             # Log error and mark session as failed
             logger.exception(f"[Autopilot] Session failed: {e}")
@@ -352,6 +457,8 @@ class AutopilotController:
                     error_message=str(e),
                 )
             )
+            # IMP-SEG-001: Record session metrics for failed case
+            self._record_session_metrics(SessionOutcome.FAILED)
 
         return self.session
 
@@ -364,6 +471,8 @@ class AutopilotController:
         transitions between states. When health recovers from ATTENTION_REQUIRED
         to HEALTHY, task generation is automatically resumed.
 
+        IMP-SEG-001: Records health transitions for metrics tracking.
+
         Args:
             old_status: Previous health status
             new_status: New health status
@@ -373,6 +482,12 @@ class AutopilotController:
         logger.info(
             f"[IMP-REL-001] Autopilot received health transition: "
             f"{old_status.value} -> {new_status.value}"
+        )
+
+        # IMP-SEG-001: Record health transition
+        self._health_collector.record_health_transition(
+            old_status=old_status.value,
+            new_status=new_status.value,
         )
 
         # Check for recovery transition
@@ -390,6 +505,8 @@ class AutopilotController:
         IMP-REL-001: Called when health transitions from ATTENTION_REQUIRED
         to HEALTHY. Invokes all registered resume callbacks and updates
         internal state to allow task generation.
+
+        IMP-SEG-001: Records task generation resume event for metrics.
         """
         if not self._task_generation_paused:
             logger.debug("[IMP-REL-001] Task generation not paused, no resume needed")
@@ -399,6 +516,9 @@ class AutopilotController:
 
         self._task_generation_paused = False
         self._pause_reason = None
+
+        # IMP-SEG-001: Record task resume
+        self._health_collector.record_task_resume()
 
         # Invoke all registered resume callbacks
         for callback in self._resume_callbacks:
@@ -416,6 +536,8 @@ class AutopilotController:
         Updates internal state to prevent new task generation until health
         recovers.
 
+        IMP-SEG-001: Records task generation pause event for metrics.
+
         Args:
             reason: Human-readable reason for the pause
         """
@@ -426,6 +548,9 @@ class AutopilotController:
         logger.warning(f"[IMP-REL-001] Pausing task generation: {reason}")
         self._task_generation_paused = True
         self._pause_reason = reason
+
+        # IMP-SEG-001: Record task pause
+        self._health_collector.record_task_pause(reason)
 
     def register_resume_callback(self, callback: Callable[[], None]) -> None:
         """Register a callback to be invoked when task generation resumes.
@@ -829,6 +954,19 @@ class AutopilotController:
         )
 
         self._last_research_outcome = outcome
+
+        # IMP-SEG-001: Record research cycle metrics
+        if self._research_cycle_integration and self._research_cycle_integration._metrics:
+            metrics = self._research_cycle_integration._metrics
+            self._health_collector.record_research_cycle(
+                outcome="success" if outcome.trigger_result and outcome.trigger_result.triggers_detected > 0 else "failed",
+                triggers_detected=outcome.trigger_result.triggers_detected if outcome.trigger_result else 0,
+                triggers_executed=outcome.trigger_result.triggers_executed if outcome.trigger_result else 0,
+                decision=outcome.decision.value,
+                gaps_addressed=outcome.gaps_addressed if outcome.gaps_addressed else 0,
+                gaps_remaining=outcome.gaps_remaining if outcome.gaps_remaining else 0,
+                execution_time_ms=outcome.execution_time_ms if hasattr(outcome, 'execution_time_ms') else 0,
+            )
 
         # Handle outcome decision
         await self._handle_research_outcome(outcome)

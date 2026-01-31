@@ -20,6 +20,7 @@ from autopack.telemetry.meta_metrics import (
     PipelineLatencyTracker,
     PipelineSLAConfig,
 )
+from autopack.telemetry.autopilot_metrics import AutopilotHealthCollector
 
 logger = logging.getLogger(__name__)
 
@@ -372,6 +373,91 @@ async def get_pipeline_health() -> PipelineHealthResponse:
         response.overall_status,
         response.overall_health_score,
         response.sla_compliance.status,
+    )
+
+    return response
+
+
+# ---------------------------------------------------------------------------
+# IMP-SEG-001: Autopilot Health Metrics Tracking
+# ---------------------------------------------------------------------------
+
+# Global AutopilotHealthCollector instance for metrics tracking
+_autopilot_health_collector: AutopilotHealthCollector | None = None
+
+
+def get_autopilot_health_collector() -> AutopilotHealthCollector:
+    """Get the global AutopilotHealthCollector instance.
+
+    IMP-SEG-001: Provides access to the shared autopilot health collector
+    for monitoring autopilot execution, health gates, and research cycles.
+
+    Returns:
+        The global AutopilotHealthCollector instance.
+    """
+    global _autopilot_health_collector
+    if _autopilot_health_collector is None:
+        _autopilot_health_collector = AutopilotHealthCollector()
+        logger.info("[IMP-SEG-001] Initialized global AutopilotHealthCollector")
+    return _autopilot_health_collector
+
+
+@router.get("/metrics/autopilot-health")
+async def get_autopilot_health_metrics(
+    include_sessions: bool = Query(
+        default=False,
+        description="Include recent session history in response",
+    ),
+    include_timeline: bool = Query(
+        default=False,
+        description="Include health timeline for trend analysis",
+    ),
+) -> Dict[str, Any]:
+    """Expose autopilot health metrics for monitoring.
+
+    IMP-SEG-001: Returns comprehensive autopilot health including:
+    - Circuit breaker state and health score
+    - Budget enforcement metrics
+    - Health transition tracking
+    - Research cycle outcomes
+    - Session success/failure rates
+    - Critical issues and warnings
+
+    These metrics enable monitoring of autopilot execution health,
+    identifying degradation patterns, and detecting issues with
+    health gates and research cycles.
+
+    Args:
+        include_sessions: If True, includes recent session history (last 20)
+        include_timeline: If True, includes health timeline for trend analysis
+
+    Returns:
+        Dict with autopilot health metrics, Prometheus format, and optional details
+    """
+    collector = get_autopilot_health_collector()
+    metrics = collector.get_metrics()
+
+    response: Dict[str, Any] = {
+        "metrics": metrics.to_dict(),
+        "prometheus": collector.export_to_prometheus(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "dashboard_summary": collector.get_dashboard_summary(),
+    }
+
+    if include_sessions:
+        response["recent_sessions"] = [
+            s.to_dict() for s in collector.get_session_history(limit=20)
+        ]
+
+    if include_timeline:
+        response["health_timeline"] = collector.get_health_timeline()
+
+    logger.debug(
+        "[IMP-SEG-001] Returning autopilot health metrics: "
+        "health_score=%.2f, sessions=%d, critical_issues=%d",
+        metrics.overall_health_score,
+        metrics.total_sessions,
+        len(metrics.critical_issues),
     )
 
     return response

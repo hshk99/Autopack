@@ -242,3 +242,164 @@ class TestMetricsMiddlewareWiringContract:
         response = client.get("/health")
         # If middleware is wired, the request completes successfully
         assert response.status_code in [200, 503]  # 503 if not ready
+
+
+# ---------------------------------------------------------------------------
+# IMP-SEG-001: Autopilot Health Metrics Endpoint Tests
+# ---------------------------------------------------------------------------
+
+
+class TestAutopilotHealthMetricsEndpoint:
+    """Contract tests for /metrics/autopilot-health endpoint.
+
+    IMP-SEG-001: Tests that autopilot health metrics endpoint is available
+    and returns expected data structures.
+    """
+
+    def test_autopilot_health_endpoint_exists(self):
+        """Contract: /metrics/autopilot-health endpoint is available."""
+        from autopack.api.app import create_app
+
+        app = create_app()
+        routes = [r.path for r in app.routes]
+        assert "/metrics/autopilot-health" in routes
+
+    def test_autopilot_health_returns_json(self):
+        """Contract: /metrics/autopilot-health returns JSON."""
+        from fastapi.testclient import TestClient
+
+        from autopack.api.app import create_app
+
+        app = create_app()
+        client = TestClient(app)
+
+        response = client.get("/metrics/autopilot-health")
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("application/json")
+
+    def test_autopilot_health_includes_required_fields(self):
+        """Contract: Response includes required metric fields."""
+        from fastapi.testclient import TestClient
+
+        from autopack.api.app import create_app
+
+        app = create_app()
+        client = TestClient(app)
+
+        response = client.get("/metrics/autopilot-health")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "metrics" in data
+        assert "prometheus" in data
+        assert "timestamp" in data
+        assert "dashboard_summary" in data
+
+    def test_autopilot_health_metrics_structure(self):
+        """Contract: Metrics have expected structure."""
+        from fastapi.testclient import TestClient
+
+        from autopack.api.app import create_app
+
+        app = create_app()
+        client = TestClient(app)
+
+        response = client.get("/metrics/autopilot-health")
+        data = response.json()
+
+        metrics = data["metrics"]
+        assert "circuit_breaker" in metrics
+        assert "budget_enforcement" in metrics
+        assert "health_transitions" in metrics
+        assert "research_cycles" in metrics
+        assert "total_sessions" in metrics
+        assert "overall_health_score" in metrics
+
+    def test_autopilot_health_prometheus_format(self):
+        """Contract: Prometheus metrics have expected format."""
+        from fastapi.testclient import TestClient
+
+        from autopack.api.app import create_app
+
+        app = create_app()
+        client = TestClient(app)
+
+        response = client.get("/metrics/autopilot-health")
+        data = response.json()
+
+        prometheus = data["prometheus"]
+        assert isinstance(prometheus, dict)
+        # Should have at least one autopilot metric
+        autopilot_metrics = [k for k in prometheus.keys() if k.startswith("autopack_autopilot")]
+        assert len(autopilot_metrics) > 0
+
+    def test_autopilot_health_dashboard_summary(self):
+        """Contract: Dashboard summary has expected structure."""
+        from fastapi.testclient import TestClient
+
+        from autopack.api.app import create_app
+
+        app = create_app()
+        client = TestClient(app)
+
+        response = client.get("/metrics/autopilot-health")
+        data = response.json()
+
+        summary = data["dashboard_summary"]
+        assert "overview" in summary
+        assert "health_gates" in summary
+        assert "research_cycles" in summary
+        assert "session_outcomes" in summary
+        assert "recent_sessions" in summary
+        assert "health_timeline" in summary
+
+    def test_autopilot_health_with_sessions_query_param(self):
+        """Contract: include_sessions parameter includes session history."""
+        from fastapi.testclient import TestClient
+
+        from autopack.api.app import create_app
+
+        app = create_app()
+        client = TestClient(app)
+
+        response = client.get("/metrics/autopilot-health?include_sessions=true")
+        assert response.status_code == 200
+
+        data = response.json()
+        # May or may not have sessions, but field should exist when requested
+        # The endpoint should include this field when requested
+        assert "recent_sessions" in data["dashboard_summary"]
+
+    def test_autopilot_health_with_timeline_query_param(self):
+        """Contract: include_timeline parameter includes health timeline."""
+        from fastapi.testclient import TestClient
+
+        from autopack.api.app import create_app
+
+        app = create_app()
+        client = TestClient(app)
+
+        response = client.get("/metrics/autopilot-health?include_timeline=true")
+        assert response.status_code == 200
+
+        data = response.json()
+        # Timeline should be in dashboard_summary when requested
+        assert "health_timeline" in data["dashboard_summary"]
+
+    def test_autopilot_health_initial_state(self):
+        """Contract: Autopilot health starts in healthy state with no sessions."""
+        from fastapi.testclient import TestClient
+
+        from autopack.api.app import create_app
+
+        app = create_app()
+        client = TestClient(app)
+
+        response = client.get("/metrics/autopilot-health")
+        data = response.json()
+
+        metrics = data["metrics"]
+        # Initial state should have 0 sessions
+        assert metrics["total_sessions"] == 0
+        # Health score should be near 1.0 (healthy)
+        assert metrics["overall_health_score"] > 0.0

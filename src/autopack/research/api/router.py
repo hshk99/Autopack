@@ -44,7 +44,21 @@ from pydantic import BaseModel, Field, field_validator
 
 from autopack.sql_sanitizer import SQLSanitizer
 
-from .schemas import CreateResearchSession, ResearchSession
+from .schemas import (
+    AnalysisResultsAggregation,
+    AITokenProjection,
+    BuildVsBuyAnalysisResponse,
+    BuildVsBuyDecision,
+    ComponentCostDecision,
+    CostEffectivenessResponse,
+    CostEffectivenessSummary,
+    CreateResearchSession,
+    FollowupTrigger,
+    FollowupTriggerResponse,
+    ResearchGap,
+    ResearchSession,
+    ResearchStateResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -971,6 +985,749 @@ async def invalidate_cached_session(request: CacheInvalidateRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to invalidate cache: {str(e)}",
+        )
+
+
+# =============================================================================
+# Analysis Results Endpoints (accessible only in FULL mode with safety gates)
+# =============================================================================
+
+
+@research_router.get(
+    "/full/session/{session_id}/analysis/cost-effectiveness",
+    response_model=CostEffectivenessResponse,
+)
+@full_mode_guard
+async def get_cost_effectiveness_analysis(
+    session_id: str, include_optimization_roadmap: bool = True
+):
+    """Get cost effectiveness analysis for a research session.
+
+    This endpoint is only accessible in FULL mode with safety gates.
+    Returns comprehensive cost projections, component decisions, and optimization strategies.
+
+    Args:
+        session_id: The research session ID
+        include_optimization_roadmap: Include optimization strategies (default: true)
+
+    Returns:
+        CostEffectivenessResponse with cost analysis results
+    """
+    if not _bootstrap_available or not _orchestrator:
+        raise HTTPException(
+            status_code=503,
+            detail="Research components not available. Check server logs.",
+        )
+
+    # Validate session_id
+    session_id = SQLSanitizer.validate_parameter(session_id)
+
+    # Get bootstrap session by session_id
+    session = _orchestrator.get_bootstrap_session(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Bootstrap session {session_id} not found",
+        )
+
+    if not session.is_complete():
+        raise HTTPException(
+            status_code=400,
+            detail="Bootstrap session is not complete. Cannot run analysis.",
+        )
+
+    try:
+        # Run cost effectiveness analysis
+        analysis_result = _orchestrator.run_cost_effectiveness_analysis(session)
+
+        # Extract executive summary
+        executive_summary = CostEffectivenessSummary(
+            total_year_1_cost=analysis_result.get("executive_summary", {}).get(
+                "total_year_1_cost", 0
+            ),
+            total_year_3_cost=analysis_result.get("executive_summary", {}).get(
+                "total_year_3_cost", 0
+            ),
+            total_year_5_cost=analysis_result.get("executive_summary", {}).get(
+                "total_year_5_cost", 0
+            ),
+            primary_cost_drivers=analysis_result.get("executive_summary", {}).get(
+                "primary_cost_drivers", []
+            ),
+            key_recommendations=analysis_result.get("executive_summary", {}).get(
+                "key_recommendations", []
+            ),
+            cost_confidence=analysis_result.get("executive_summary", {}).get(
+                "cost_confidence", "medium"
+            ),
+        )
+
+        # Extract component analysis
+        component_analysis = []
+        for comp in analysis_result.get("component_analysis", []):
+            component_analysis.append(
+                ComponentCostDecision(
+                    component=comp.get("component", ""),
+                    decision=comp.get("decision", ""),
+                    service=comp.get("service", ""),
+                    year_1_cost=comp.get("year_1_cost", 0),
+                    year_5_cost=comp.get("year_5_cost", 0),
+                    vs_build_savings=comp.get("vs_build_savings", 0),
+                    rationale=comp.get("rationale", ""),
+                )
+            )
+
+        # Build response
+        cost_optimization_roadmap = (
+            analysis_result.get("cost_optimization_roadmap", [])
+            if include_optimization_roadmap
+            else []
+        )
+
+        response = CostEffectivenessResponse(
+            session_id=session_id,
+            executive_summary=executive_summary,
+            component_analysis=component_analysis,
+            ai_token_projection=analysis_result.get("ai_token_projection"),
+            infrastructure_projection=analysis_result.get("infrastructure_projection"),
+            development_costs=analysis_result.get("development_costs"),
+            total_cost_of_ownership=analysis_result.get("total_cost_of_ownership"),
+            cost_optimization_roadmap=cost_optimization_roadmap,
+            risk_adjusted_costs=analysis_result.get("risk_adjusted_costs"),
+            break_even_analysis=analysis_result.get("break_even_analysis"),
+            vendor_lock_in_assessment=analysis_result.get("vendor_lock_in_assessment", []),
+            generated_at=datetime.utcnow().isoformat() + "Z",
+        )
+
+        _audit_log(
+            "get_cost_effectiveness_analysis",
+            "analysis_complete",
+            {"session_id": session_id},
+        )
+
+        return response
+
+    except Exception as e:
+        logger.error(f"[FULL_MODE] Error getting cost effectiveness analysis: {e}")
+        _audit_log(
+            "get_cost_effectiveness_analysis",
+            "error",
+            {"session_id": session_id, "error": str(e)},
+            success=False,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get cost effectiveness analysis: {str(e)}",
+        )
+
+
+@research_router.get(
+    "/full/session/{session_id}/analysis/build-vs-buy",
+    response_model=BuildVsBuyAnalysisResponse,
+)
+@full_mode_guard
+async def get_build_vs_buy_analysis(session_id: str, include_risks: bool = True):
+    """Get build vs buy analysis for a research session.
+
+    This endpoint is only accessible in FULL mode with safety gates.
+    Returns component-level decisions and strategic recommendations.
+
+    Args:
+        session_id: The research session ID
+        include_risks: Include risk assessment details (default: true)
+
+    Returns:
+        BuildVsBuyAnalysisResponse with build vs buy decisions
+    """
+    if not _bootstrap_available or not _orchestrator:
+        raise HTTPException(
+            status_code=503,
+            detail="Research components not available. Check server logs.",
+        )
+
+    # Validate session_id
+    session_id = SQLSanitizer.validate_parameter(session_id)
+
+    # Get bootstrap session
+    session = _orchestrator.get_bootstrap_session(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Bootstrap session {session_id} not found",
+        )
+
+    if not session.is_complete():
+        raise HTTPException(
+            status_code=400,
+            detail="Bootstrap session is not complete. Cannot run analysis.",
+        )
+
+    try:
+        # Get build vs buy analysis from orchestrator
+        analysis_result = getattr(_orchestrator, "_build_vs_buy_results", {})
+
+        # If not cached, try to generate from session data
+        if not analysis_result:
+            # Extract component decisions from cost analysis
+            cost_analysis = _orchestrator.run_cost_effectiveness_analysis(session)
+            analysis_result = {}
+            decisions = []
+
+            for comp in cost_analysis.get("component_analysis", []):
+                decision = BuildVsBuyDecision(
+                    component=comp.get("component", ""),
+                    recommendation=comp.get("decision", "BUILD").upper(),
+                    confidence=0.75,  # Default confidence
+                    build_cost={
+                        "initial_cost": comp.get("year_1_cost", 0),
+                        "monthly_recurring": 0,
+                        "year_1_total": comp.get("year_1_cost", 0),
+                    },
+                    buy_cost={
+                        "initial_cost": 0,
+                        "monthly_recurring": 0,
+                        "year_1_total": max(0, comp.get("year_1_cost", 0) - comp.get("vs_build_savings", 0)),
+                    },
+                    build_time_weeks=8,  # Default estimate
+                    buy_integration_time_weeks=2,
+                    risks=comp.get("risks", []) if include_risks else [],
+                    rationale=comp.get("rationale", ""),
+                    strategic_importance="supporting",
+                    key_factors=[comp.get("decision", "")],
+                )
+                decisions.append(decision)
+
+            analysis_result["decisions"] = decisions
+
+        response = BuildVsBuyAnalysisResponse(
+            session_id=session_id,
+            decisions=analysis_result.get("decisions", []),
+            overall_recommendation=analysis_result.get("overall_recommendation", "HYBRID"),
+            total_build_cost=analysis_result.get("total_build_cost"),
+            total_buy_cost=analysis_result.get("total_buy_cost"),
+            generated_at=datetime.utcnow().isoformat() + "Z",
+        )
+
+        _audit_log(
+            "get_build_vs_buy_analysis",
+            "analysis_complete",
+            {"session_id": session_id},
+        )
+
+        return response
+
+    except Exception as e:
+        logger.error(f"[FULL_MODE] Error getting build vs buy analysis: {e}")
+        _audit_log(
+            "get_build_vs_buy_analysis",
+            "error",
+            {"session_id": session_id, "error": str(e)},
+            success=False,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get build vs buy analysis: {str(e)}",
+        )
+
+
+@research_router.get(
+    "/full/session/{session_id}/analysis/followup-triggers",
+    response_model=FollowupTriggerResponse,
+)
+@full_mode_guard
+async def get_followup_triggers(
+    session_id: str, priority_filter: Optional[str] = None, limit: int = 100
+):
+    """Get identified followup research triggers for a session.
+
+    This endpoint is only accessible in FULL mode with safety gates.
+    Returns gaps and uncertainties that require follow-up research.
+
+    Args:
+        session_id: The research session ID
+        priority_filter: Optional filter for specific priority (critical, high, medium, low)
+        limit: Maximum number of triggers to return (default: 100)
+
+    Returns:
+        FollowupTriggerResponse with identified research triggers
+    """
+    if not _bootstrap_available or not _orchestrator:
+        raise HTTPException(
+            status_code=503,
+            detail="Research components not available. Check server logs.",
+        )
+
+    # Validate session_id
+    session_id = SQLSanitizer.validate_parameter(session_id)
+
+    # Validate priority filter
+    valid_priorities = {"critical", "high", "medium", "low"}
+    if priority_filter and priority_filter.lower() not in valid_priorities:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid priority filter. Valid values: {', '.join(valid_priorities)}",
+        )
+
+    # Validate limit
+    if limit < 1 or limit > 1000:
+        limit = 100
+
+    try:
+        # Get bootstrap session
+        session = _orchestrator.get_bootstrap_session(session_id)
+        if not session:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Bootstrap session {session_id} not found",
+            )
+
+        if not session.is_complete():
+            raise HTTPException(
+                status_code=400,
+                detail="Bootstrap session is not complete. Cannot run analysis.",
+            )
+
+        # Run trigger analysis
+        trigger_result = _orchestrator.analyze_followup_triggers(session)
+
+        # Process triggers
+        triggers = []
+        total_estimated_time = 0
+
+        for trigger_data in trigger_result.get("triggers", []):
+            # Apply priority filter if provided
+            if priority_filter:
+                if trigger_data.get("priority", "").lower() != priority_filter.lower():
+                    continue
+
+            trigger = FollowupTrigger(
+                trigger_id=trigger_data.get("trigger_id", ""),
+                trigger_type=trigger_data.get("type", "gap"),
+                priority=trigger_data.get("priority", "medium"),
+                reason=trigger_data.get("reason", ""),
+                source_finding=trigger_data.get("source_finding", ""),
+                research_plan=trigger_data.get("research_plan"),
+                created_at=trigger_data.get("created_at", datetime.utcnow().isoformat() + "Z"),
+                addressed=trigger_data.get("addressed", False),
+                callback_results=trigger_data.get("callback_results", []),
+            )
+            triggers.append(trigger)
+
+            # Add to estimated time
+            if research_plan := trigger_data.get("research_plan"):
+                total_estimated_time += research_plan.get("estimated_time_minutes", 15)
+
+            # Respect limit
+            if len(triggers) >= limit:
+                break
+
+        response = FollowupTriggerResponse(
+            session_id=session_id,
+            triggers=triggers,
+            should_research=trigger_result.get("should_research", len(triggers) > 0),
+            triggers_selected=len(triggers),
+            total_estimated_time=total_estimated_time,
+            generated_at=datetime.utcnow().isoformat() + "Z",
+        )
+
+        _audit_log(
+            "get_followup_triggers",
+            "analysis_complete",
+            {"session_id": session_id, "trigger_count": len(triggers)},
+        )
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[FULL_MODE] Error getting followup triggers: {e}")
+        _audit_log(
+            "get_followup_triggers",
+            "error",
+            {"session_id": session_id, "error": str(e)},
+            success=False,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get followup triggers: {str(e)}",
+        )
+
+
+@research_router.get(
+    "/full/session/{session_id}/analysis/research-state",
+    response_model=ResearchStateResponse,
+)
+@full_mode_guard
+async def get_research_state(session_id: str, include_details: bool = True):
+    """Get research state and identified gaps for a session.
+
+    This endpoint is only accessible in FULL mode with safety gates.
+    Returns current research coverage, identified gaps, and research depth.
+
+    Args:
+        session_id: The research session ID
+        include_details: Include detailed gap information (default: true)
+
+    Returns:
+        ResearchStateResponse with research state and gaps
+    """
+    if not _bootstrap_available or not _orchestrator:
+        raise HTTPException(
+            status_code=503,
+            detail="Research components not available. Check server logs.",
+        )
+
+    # Validate session_id
+    session_id = SQLSanitizer.validate_parameter(session_id)
+
+    try:
+        # Get bootstrap session
+        session = _orchestrator.get_bootstrap_session(session_id)
+        if not session:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Bootstrap session {session_id} not found",
+            )
+
+        if not session.is_complete():
+            raise HTTPException(
+                status_code=400,
+                detail="Bootstrap session is not complete. Cannot get research state.",
+            )
+
+        # Get research state
+        state_summary = _orchestrator.get_research_state_summary(session)
+        gaps = _orchestrator.get_research_gaps(session) if include_details else []
+
+        # Process gaps
+        gap_objects = []
+        critical_count = 0
+
+        for gap_data in gaps:
+            gap = ResearchGap(
+                gap_id=gap_data.get("gap_id", ""),
+                gap_type=gap_data.get("gap_type", "coverage"),
+                category=gap_data.get("category", "general"),
+                description=gap_data.get("description", ""),
+                priority=gap_data.get("priority", "medium"),
+                suggested_queries=gap_data.get("suggested_queries", []),
+                identified_at=gap_data.get("identified_at", datetime.utcnow().isoformat() + "Z"),
+                addressed_at=gap_data.get("addressed_at"),
+                status=gap_data.get("status", "open"),
+            )
+            gap_objects.append(gap)
+
+            if gap.priority == "critical":
+                critical_count += 1
+
+        response = ResearchStateResponse(
+            session_id=session_id,
+            gaps=gap_objects,
+            gap_count=len(gap_objects),
+            critical_gaps=critical_count,
+            coverage_metrics=state_summary.get("coverage_metrics", {}),
+            completed_queries=state_summary.get("completed_queries", 0),
+            discovered_sources=state_summary.get("discovered_sources", 0),
+            research_depth=state_summary.get("research_depth", "MEDIUM"),
+            generated_at=datetime.utcnow().isoformat() + "Z",
+        )
+
+        _audit_log(
+            "get_research_state",
+            "analysis_complete",
+            {"session_id": session_id, "gap_count": len(gap_objects)},
+        )
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[FULL_MODE] Error getting research state: {e}")
+        _audit_log(
+            "get_research_state",
+            "error",
+            {"session_id": session_id, "error": str(e)},
+            success=False,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get research state: {str(e)}",
+        )
+
+
+@research_router.get(
+    "/full/session/{session_id}/analysis",
+    response_model=AnalysisResultsAggregation,
+)
+@full_mode_guard
+async def get_all_analysis_results(
+    session_id: str,
+    include_cost_effectiveness: bool = True,
+    include_build_vs_buy: bool = True,
+    include_followup_triggers: bool = True,
+    include_research_state: bool = True,
+    trigger_limit: int = 50,
+):
+    """Get aggregated analysis results for a research session.
+
+    This endpoint combines all analysis results (cost effectiveness, build vs buy,
+    followup triggers, and research state) into a single response.
+
+    This endpoint is only accessible in FULL mode with safety gates.
+
+    Args:
+        session_id: The research session ID
+        include_cost_effectiveness: Include cost effectiveness analysis (default: true)
+        include_build_vs_buy: Include build vs buy analysis (default: true)
+        include_followup_triggers: Include followup triggers (default: true)
+        include_research_state: Include research state (default: true)
+        trigger_limit: Maximum number of triggers to include (default: 50)
+
+    Returns:
+        AnalysisResultsAggregation with all requested analysis results
+    """
+    if not _bootstrap_available or not _orchestrator:
+        raise HTTPException(
+            status_code=503,
+            detail="Research components not available. Check server logs.",
+        )
+
+    # Validate session_id
+    session_id = SQLSanitizer.validate_parameter(session_id)
+
+    # Validate trigger_limit
+    if trigger_limit < 1 or trigger_limit > 1000:
+        trigger_limit = 50
+
+    try:
+        # Get bootstrap session
+        session = _orchestrator.get_bootstrap_session(session_id)
+        if not session:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Bootstrap session {session_id} not found",
+            )
+
+        if not session.is_complete():
+            raise HTTPException(
+                status_code=400,
+                detail="Bootstrap session is not complete. Cannot run analysis.",
+            )
+
+        # Collect all analysis results
+        cost_effectiveness_result = None
+        build_vs_buy_result = None
+        followup_triggers_result = None
+        research_state_result = None
+
+        # Get cost effectiveness if requested
+        if include_cost_effectiveness:
+            try:
+                analysis_result = _orchestrator.run_cost_effectiveness_analysis(session)
+                executive_summary = CostEffectivenessSummary(
+                    total_year_1_cost=analysis_result.get("executive_summary", {}).get(
+                        "total_year_1_cost", 0
+                    ),
+                    total_year_3_cost=analysis_result.get("executive_summary", {}).get(
+                        "total_year_3_cost", 0
+                    ),
+                    total_year_5_cost=analysis_result.get("executive_summary", {}).get(
+                        "total_year_5_cost", 0
+                    ),
+                    primary_cost_drivers=analysis_result.get("executive_summary", {}).get(
+                        "primary_cost_drivers", []
+                    ),
+                    key_recommendations=analysis_result.get("executive_summary", {}).get(
+                        "key_recommendations", []
+                    ),
+                    cost_confidence=analysis_result.get("executive_summary", {}).get(
+                        "cost_confidence", "medium"
+                    ),
+                )
+
+                component_analysis = []
+                for comp in analysis_result.get("component_analysis", []):
+                    component_analysis.append(
+                        ComponentCostDecision(
+                            component=comp.get("component", ""),
+                            decision=comp.get("decision", ""),
+                            service=comp.get("service", ""),
+                            year_1_cost=comp.get("year_1_cost", 0),
+                            year_5_cost=comp.get("year_5_cost", 0),
+                            vs_build_savings=comp.get("vs_build_savings", 0),
+                            rationale=comp.get("rationale", ""),
+                        )
+                    )
+
+                cost_effectiveness_result = CostEffectivenessResponse(
+                    session_id=session_id,
+                    executive_summary=executive_summary,
+                    component_analysis=component_analysis,
+                    ai_token_projection=analysis_result.get("ai_token_projection"),
+                    infrastructure_projection=analysis_result.get("infrastructure_projection"),
+                    development_costs=analysis_result.get("development_costs"),
+                    total_cost_of_ownership=analysis_result.get("total_cost_of_ownership"),
+                    cost_optimization_roadmap=analysis_result.get("cost_optimization_roadmap", []),
+                    risk_adjusted_costs=analysis_result.get("risk_adjusted_costs"),
+                    break_even_analysis=analysis_result.get("break_even_analysis"),
+                    vendor_lock_in_assessment=analysis_result.get("vendor_lock_in_assessment", []),
+                    generated_at=datetime.utcnow().isoformat() + "Z",
+                )
+            except Exception as e:
+                logger.warning(f"Failed to get cost effectiveness analysis: {e}")
+
+        # Get build vs buy if requested
+        if include_build_vs_buy:
+            try:
+                cost_analysis = _orchestrator.run_cost_effectiveness_analysis(session)
+                decisions = []
+
+                for comp in cost_analysis.get("component_analysis", []):
+                    decision = BuildVsBuyDecision(
+                        component=comp.get("component", ""),
+                        recommendation=comp.get("decision", "BUILD").upper(),
+                        confidence=0.75,
+                        build_cost={
+                            "initial_cost": comp.get("year_1_cost", 0),
+                            "monthly_recurring": 0,
+                            "year_1_total": comp.get("year_1_cost", 0),
+                        },
+                        buy_cost={
+                            "initial_cost": 0,
+                            "monthly_recurring": 0,
+                            "year_1_total": max(0, comp.get("year_1_cost", 0) - comp.get("vs_build_savings", 0)),
+                        },
+                        build_time_weeks=8,
+                        buy_integration_time_weeks=2,
+                        risks=comp.get("risks", []),
+                        rationale=comp.get("rationale", ""),
+                        strategic_importance="supporting",
+                        key_factors=[comp.get("decision", "")],
+                    )
+                    decisions.append(decision)
+
+                build_vs_buy_result = BuildVsBuyAnalysisResponse(
+                    session_id=session_id,
+                    decisions=decisions,
+                    overall_recommendation="HYBRID",
+                    generated_at=datetime.utcnow().isoformat() + "Z",
+                )
+            except Exception as e:
+                logger.warning(f"Failed to get build vs buy analysis: {e}")
+
+        # Get followup triggers if requested
+        if include_followup_triggers:
+            try:
+                trigger_result = _orchestrator.analyze_followup_triggers(session)
+                triggers = []
+                total_estimated_time = 0
+
+                for trigger_data in trigger_result.get("triggers", [])[:trigger_limit]:
+                    trigger = FollowupTrigger(
+                        trigger_id=trigger_data.get("trigger_id", ""),
+                        trigger_type=trigger_data.get("type", "gap"),
+                        priority=trigger_data.get("priority", "medium"),
+                        reason=trigger_data.get("reason", ""),
+                        source_finding=trigger_data.get("source_finding", ""),
+                        research_plan=trigger_data.get("research_plan"),
+                        created_at=trigger_data.get("created_at", datetime.utcnow().isoformat() + "Z"),
+                        addressed=trigger_data.get("addressed", False),
+                        callback_results=trigger_data.get("callback_results", []),
+                    )
+                    triggers.append(trigger)
+
+                    if research_plan := trigger_data.get("research_plan"):
+                        total_estimated_time += research_plan.get("estimated_time_minutes", 15)
+
+                followup_triggers_result = FollowupTriggerResponse(
+                    session_id=session_id,
+                    triggers=triggers,
+                    should_research=trigger_result.get("should_research", len(triggers) > 0),
+                    triggers_selected=len(triggers),
+                    total_estimated_time=total_estimated_time,
+                    generated_at=datetime.utcnow().isoformat() + "Z",
+                )
+            except Exception as e:
+                logger.warning(f"Failed to get followup triggers: {e}")
+
+        # Get research state if requested
+        if include_research_state:
+            try:
+                state_summary = _orchestrator.get_research_state_summary(session)
+                gaps = _orchestrator.get_research_gaps(session)
+
+                gap_objects = []
+                critical_count = 0
+
+                for gap_data in gaps:
+                    gap = ResearchGap(
+                        gap_id=gap_data.get("gap_id", ""),
+                        gap_type=gap_data.get("gap_type", "coverage"),
+                        category=gap_data.get("category", "general"),
+                        description=gap_data.get("description", ""),
+                        priority=gap_data.get("priority", "medium"),
+                        suggested_queries=gap_data.get("suggested_queries", []),
+                        identified_at=gap_data.get("identified_at", datetime.utcnow().isoformat() + "Z"),
+                        addressed_at=gap_data.get("addressed_at"),
+                        status=gap_data.get("status", "open"),
+                    )
+                    gap_objects.append(gap)
+
+                    if gap.priority == "critical":
+                        critical_count += 1
+
+                research_state_result = ResearchStateResponse(
+                    session_id=session_id,
+                    gaps=gap_objects,
+                    gap_count=len(gap_objects),
+                    critical_gaps=critical_count,
+                    coverage_metrics=state_summary.get("coverage_metrics", {}),
+                    completed_queries=state_summary.get("completed_queries", 0),
+                    discovered_sources=state_summary.get("discovered_sources", 0),
+                    research_depth=state_summary.get("research_depth", "MEDIUM"),
+                    generated_at=datetime.utcnow().isoformat() + "Z",
+                )
+            except Exception as e:
+                logger.warning(f"Failed to get research state: {e}")
+
+        response = AnalysisResultsAggregation(
+            session_id=session_id,
+            cost_effectiveness=cost_effectiveness_result,
+            build_vs_buy=build_vs_buy_result,
+            followup_triggers=followup_triggers_result,
+            research_state=research_state_result,
+            generated_at=datetime.utcnow().isoformat() + "Z",
+        )
+
+        _audit_log(
+            "get_all_analysis_results",
+            "analysis_complete",
+            {
+                "session_id": session_id,
+                "include_cost_effectiveness": include_cost_effectiveness,
+                "include_build_vs_buy": include_build_vs_buy,
+                "include_followup_triggers": include_followup_triggers,
+                "include_research_state": include_research_state,
+            },
+        )
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[FULL_MODE] Error getting analysis results: {e}")
+        _audit_log(
+            "get_all_analysis_results",
+            "error",
+            {"session_id": session_id, "error": str(e)},
+            success=False,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get analysis results: {str(e)}",
         )
 
 

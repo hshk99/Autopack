@@ -10,6 +10,7 @@ Replaces arbitrary sleep() calls with proper synchronization primitives.
 
 import asyncio
 import threading
+import time
 from contextlib import contextmanager
 from typing import Callable, Optional, TypeVar
 from unittest.mock import patch
@@ -110,9 +111,9 @@ async def async_wait_for_condition(
     Raises:
         asyncio.TimeoutError: If condition not met within timeout
     """
-    deadline = asyncio.get_event_loop().time() + timeout
+    deadline = time.perf_counter() + timeout
     while not condition():
-        if asyncio.get_event_loop().time() >= deadline:
+        if time.perf_counter() >= deadline:
             raise asyncio.TimeoutError(f"Timed out waiting for {description} after {timeout}s")
         await asyncio.sleep(poll_interval)
 

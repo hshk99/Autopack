@@ -19,8 +19,8 @@ Usage:
         screenshot = await session.screenshot()
 """
 
-import asyncio
 import logging
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -175,7 +175,7 @@ class PlaywrightSession:
             wait_until: Wait condition ('load', 'domcontentloaded', 'networkidle')
         """
         self._check_action_limit()
-        start = asyncio.get_event_loop().time()
+        start = time.perf_counter()
 
         try:
             await self._page.goto(
@@ -183,11 +183,11 @@ class PlaywrightSession:
                 wait_until=wait_until,
                 timeout=self._config.action_timeout_ms,
             )
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.NAVIGATE, None, url, True, duration)
             logger.debug(f"Navigated to {url}")
         except Exception as e:
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.NAVIGATE, None, url, False, duration, str(e))
             raise BrowserSessionError(f"Navigation failed: {e}") from e
 
@@ -199,7 +199,7 @@ class PlaywrightSession:
             force: Force click even if element is not visible
         """
         self._check_action_limit()
-        start = asyncio.get_event_loop().time()
+        start = time.perf_counter()
 
         try:
             await self._page.click(
@@ -207,11 +207,11 @@ class PlaywrightSession:
                 force=force,
                 timeout=self._config.action_timeout_ms,
             )
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.CLICK, selector, None, True, duration)
             logger.debug(f"Clicked {selector}")
         except Exception as e:
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.CLICK, selector, None, False, duration, str(e))
             raise BrowserSessionError(f"Click failed on {selector}: {e}") from e
 
@@ -223,7 +223,7 @@ class PlaywrightSession:
             value: Value to fill (will be redacted in logs)
         """
         self._check_action_limit()
-        start = asyncio.get_event_loop().time()
+        start = time.perf_counter()
 
         try:
             await self._page.fill(
@@ -231,11 +231,11 @@ class PlaywrightSession:
                 value,
                 timeout=self._config.action_timeout_ms,
             )
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.FILL, selector, "[REDACTED]", True, duration)
             logger.debug(f"Filled {selector}")
         except Exception as e:
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.FILL, selector, "[REDACTED]", False, duration, str(e))
             raise BrowserSessionError(f"Fill failed on {selector}: {e}") from e
 
@@ -247,7 +247,7 @@ class PlaywrightSession:
             value: Value to select
         """
         self._check_action_limit()
-        start = asyncio.get_event_loop().time()
+        start = time.perf_counter()
 
         try:
             await self._page.select_option(
@@ -255,11 +255,11 @@ class PlaywrightSession:
                 value,
                 timeout=self._config.action_timeout_ms,
             )
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.SELECT, selector, value, True, duration)
             logger.debug(f"Selected {value} in {selector}")
         except Exception as e:
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.SELECT, selector, value, False, duration, str(e))
             raise BrowserSessionError(f"Select failed on {selector}: {e}") from e
 
@@ -271,7 +271,7 @@ class PlaywrightSession:
             state: State to wait for ('attached', 'detached', 'visible', 'hidden')
         """
         self._check_action_limit()
-        start = asyncio.get_event_loop().time()
+        start = time.perf_counter()
 
         try:
             await self._page.wait_for_selector(
@@ -279,11 +279,11 @@ class PlaywrightSession:
                 state=state,
                 timeout=self._config.action_timeout_ms,
             )
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.WAIT, selector, state, True, duration)
             logger.debug(f"Waited for {selector} ({state})")
         except Exception as e:
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.WAIT, selector, state, False, duration, str(e))
             raise BrowserSessionError(f"Wait failed for {selector}: {e}") from e
 
@@ -302,7 +302,7 @@ class PlaywrightSession:
             Path to the saved screenshot
         """
         self._check_action_limit()
-        start = asyncio.get_event_loop().time()
+        start = time.perf_counter()
 
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         filename = f"{name or 'screenshot'}_{timestamp}.png"
@@ -311,12 +311,12 @@ class PlaywrightSession:
 
         try:
             await self._page.screenshot(path=str(path), full_page=full_page)
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.SCREENSHOT, None, filename, True, duration)
             logger.debug(f"Screenshot saved: {path}")
             return path
         except Exception as e:
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.SCREENSHOT, None, filename, False, duration, str(e))
             raise BrowserSessionError(f"Screenshot failed: {e}") from e
 
@@ -329,17 +329,17 @@ class PlaywrightSession:
             selector: Optional element to scroll within
         """
         self._check_action_limit()
-        start = asyncio.get_event_loop().time()
+        start = time.perf_counter()
 
         try:
             if selector:
                 await self._page.locator(selector).scroll_into_view_if_needed()
             else:
                 await self._page.evaluate(f"window.scrollBy({x}, {y})")
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.SCROLL, selector, f"({x}, {y})", True, duration)
         except Exception as e:
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(
                 BrowserAction.SCROLL, selector, f"({x}, {y})", False, duration, str(e)
             )
@@ -352,14 +352,14 @@ class PlaywrightSession:
             selector: CSS selector for element
         """
         self._check_action_limit()
-        start = asyncio.get_event_loop().time()
+        start = time.perf_counter()
 
         try:
             await self._page.hover(selector, timeout=self._config.action_timeout_ms)
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.HOVER, selector, None, True, duration)
         except Exception as e:
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.HOVER, selector, None, False, duration, str(e))
             raise BrowserSessionError(f"Hover failed on {selector}: {e}") from e
 
@@ -371,17 +371,17 @@ class PlaywrightSession:
             selector: Optional element to focus first
         """
         self._check_action_limit()
-        start = asyncio.get_event_loop().time()
+        start = time.perf_counter()
 
         try:
             if selector:
                 await self._page.locator(selector).press(key)
             else:
                 await self._page.keyboard.press(key)
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.PRESS_KEY, selector, key, True, duration)
         except Exception as e:
-            duration = (asyncio.get_event_loop().time() - start) * 1000
+            duration = (time.perf_counter() - start) * 1000
             self._record_action(BrowserAction.PRESS_KEY, selector, key, False, duration, str(e))
             raise BrowserSessionError(f"Key press failed: {e}") from e
 

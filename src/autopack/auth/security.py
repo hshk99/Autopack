@@ -23,6 +23,30 @@ from autopack.config import is_production, settings
 logger = logging.getLogger(__name__)
 
 
+def get_key_encryption():
+    """Get appropriate key encryption based on environment.
+
+    In production mode, keys are encrypted with a passphrase.
+    In development/test mode, keys are unencrypted with a warning.
+    """
+    if is_production():
+        # Production: require encrypted key storage
+        passphrase = os.getenv("JWT_KEY_PASSPHRASE")
+        if not passphrase:
+            raise ValueError(
+                "JWT_KEY_PASSPHRASE environment variable required in production mode. "
+                "Encrypted key storage is mandatory for security."
+            )
+        return serialization.BestAvailableEncryption(passphrase.encode())
+    else:
+        # Development: use unencrypted but warn about it
+        logger.warning(
+            "[AUTH] Using unencrypted JWT keys in development mode. "
+            "Set AUTOPACK_ENV=production and JWT_KEY_PASSPHRASE for secure key storage."
+        )
+        return serialization.NoEncryption()
+
+
 def _normalize_pem(pem: str) -> str:
     """
     Normalize PEM input:
@@ -105,7 +129,7 @@ def ensure_keys() -> None:
     priv_pem = key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption(),
+        encryption_algorithm=get_key_encryption(),
     ).decode("utf-8")
     pub_pem = (
         key.public_key()

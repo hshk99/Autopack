@@ -2,7 +2,7 @@
 Analysis module for Autopack research.
 
 Contains cost-effectiveness analysis, gap detection, build vs buy analysis,
-and follow-up research triggers.
+deployment analysis, and follow-up research triggers.
 """
 
 from autopack.research.analysis.build_vs_buy_analyzer import (
@@ -48,6 +48,17 @@ from autopack.research.analysis.research_state import (
     ResearchState,
     ResearchStateTracker,
 )
+from autopack.research.analysis.deployment_analysis import (
+    ContainerConfig,
+    DeploymentAnalyzer,
+    DeploymentArchitecture,
+    DeploymentRecommendation,
+    DeploymentTarget,
+    InfrastructureProvider,
+    KubernetesConfig,
+    ScalingStrategy,
+    ServerlessConfig,
+)
 
 __all__ = [
     # Build vs Buy analysis
@@ -88,4 +99,14 @@ __all__ = [
     "TriggerPriority",
     "TriggerAnalysisResult",
     "ResearchPlan",
+    # Deployment analysis
+    "DeploymentAnalyzer",
+    "DeploymentArchitecture",
+    "DeploymentRecommendation",
+    "DeploymentTarget",
+    "InfrastructureProvider",
+    "ScalingStrategy",
+    "ContainerConfig",
+    "KubernetesConfig",
+    "ServerlessConfig",
 ]

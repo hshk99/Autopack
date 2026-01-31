@@ -10,6 +10,11 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Type
 
+from autopack.research.analysis.deployment_analysis import (
+    DeploymentAnalyzer,
+    DeploymentArchitecture,
+    DeploymentTarget,
+)
 from autopack.research.discovery.mcp_discovery import MCPScanResult
 from autopack.research.generators.cicd_generator import CICDWorkflowGenerator
 
@@ -1395,6 +1400,712 @@ class MCPToolRecommendationGenerator:
         return section
 
 
+class DeploymentGuidanceGenerator:
+    """Generates DEPLOYMENT_GUIDE.md and deployment configuration templates.
+
+    Produces comprehensive deployment guidance including architecture
+    recommendations, Docker/Kubernetes templates, and IaC configurations.
+    """
+
+    def __init__(self):
+        """Initialize the deployment guidance generator."""
+        self._analyzer = DeploymentAnalyzer()
+
+    def generate(
+        self,
+        tech_stack: Dict[str, Any],
+        project_requirements: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Generate deployment guidance markdown.
+
+        Args:
+            tech_stack: Technology stack configuration
+            project_requirements: Optional project requirements
+
+        Returns:
+            Markdown string with deployment guidance
+        """
+        logger.info("[DeploymentGuidanceGenerator] Generating deployment guidance")
+
+        # Run deployment analysis
+        architecture = self._analyzer.analyze(tech_stack, project_requirements)
+
+        content = "# Deployment Guide\n\n"
+
+        # Executive summary
+        content += self._generate_summary_section(architecture)
+
+        # Architecture recommendation
+        content += self._generate_architecture_section(architecture)
+
+        # Alternative approaches
+        content += self._generate_alternatives_section(architecture)
+
+        # Docker configuration
+        if architecture.container_config:
+            content += self._generate_docker_section(architecture)
+
+        # Kubernetes configuration
+        if architecture.kubernetes_config:
+            content += self._generate_kubernetes_section(architecture)
+
+        # Serverless configuration
+        if architecture.serverless_config:
+            content += self._generate_serverless_section(architecture)
+
+        # Environment requirements
+        content += self._generate_environment_section(architecture)
+
+        # Infrastructure requirements
+        content += self._generate_infrastructure_section(architecture)
+
+        return content
+
+    def _generate_summary_section(self, architecture: DeploymentArchitecture) -> str:
+        """Generate executive summary section."""
+        primary = architecture.primary_recommendation
+        section = "## Executive Summary\n\n"
+
+        section += f"**Project**: {architecture.project_name}\n"
+        section += f"**Type**: {architecture.project_type.replace('_', ' ').title()}\n\n"
+
+        section += f"**Recommended Deployment**: {primary.target.value.title()} on {primary.provider.value.replace('_', ' ').title()}\n\n"
+
+        section += f"> {primary.rationale}\n\n"
+
+        section += "**Key Metrics**:\n"
+        section += f"- Estimated Monthly Cost: {primary.estimated_monthly_cost}\n"
+        section += f"- Setup Complexity: {primary.setup_complexity.title()}\n"
+        section += f"- Scaling Strategy: {primary.scaling_strategy.value.title()}\n\n"
+
+        return section
+
+    def _generate_architecture_section(
+        self, architecture: DeploymentArchitecture
+    ) -> str:
+        """Generate architecture recommendation section."""
+        primary = architecture.primary_recommendation
+        section = "## Recommended Architecture\n\n"
+
+        section += f"### {primary.target.value.title()} on {primary.provider.value.replace('_', ' ').title()}\n\n"
+
+        # Pros
+        if primary.pros:
+            section += "**Advantages**:\n"
+            for pro in primary.pros:
+                section += f"- {pro}\n"
+            section += "\n"
+
+        # Cons
+        if primary.cons:
+            section += "**Considerations**:\n"
+            for con in primary.cons:
+                section += f"- {con}\n"
+            section += "\n"
+
+        return section
+
+    def _generate_alternatives_section(
+        self, architecture: DeploymentArchitecture
+    ) -> str:
+        """Generate alternative approaches section."""
+        if not architecture.alternative_recommendations:
+            return ""
+
+        section = "## Alternative Approaches\n\n"
+
+        for i, alt in enumerate(architecture.alternative_recommendations, 1):
+            section += f"### Option {i}: {alt.target.value.title()} on {alt.provider.value.replace('_', ' ').title()}\n\n"
+            section += f"{alt.rationale}\n\n"
+            section += f"- **Cost**: {alt.estimated_monthly_cost}\n"
+            section += f"- **Complexity**: {alt.setup_complexity.title()}\n\n"
+
+        return section
+
+    def _generate_docker_section(self, architecture: DeploymentArchitecture) -> str:
+        """Generate Docker configuration section with templates."""
+        config = architecture.container_config
+        if not config:
+            return ""
+
+        section = "## Docker Configuration\n\n"
+
+        # Dockerfile template
+        section += "### Dockerfile\n\n"
+        section += "```dockerfile\n"
+        section += self.generate_dockerfile(architecture)
+        section += "```\n\n"
+
+        # Docker Compose template
+        section += "### docker-compose.yml\n\n"
+        section += "```yaml\n"
+        section += self.generate_docker_compose(architecture)
+        section += "```\n\n"
+
+        # Configuration notes
+        section += "### Configuration Notes\n\n"
+        section += f"- **Base Image**: `{config.base_image}`\n"
+        section += f"- **Exposed Port**: `{config.port}`\n"
+        section += f"- **Health Check**: `{config.health_check_path}`\n"
+        section += f"- **Resource Limits**: CPU: {config.resource_limits.get('cpu', 'N/A')}, Memory: {config.resource_limits.get('memory', 'N/A')}\n\n"
+
+        return section
+
+    def _generate_kubernetes_section(
+        self, architecture: DeploymentArchitecture
+    ) -> str:
+        """Generate Kubernetes configuration section with templates."""
+        k8s_config = architecture.kubernetes_config
+        if not k8s_config:
+            return ""
+
+        section = "## Kubernetes Configuration\n\n"
+
+        # Deployment manifest
+        section += "### deployment.yaml\n\n"
+        section += "```yaml\n"
+        section += self.generate_k8s_deployment(architecture)
+        section += "```\n\n"
+
+        # Service manifest
+        section += "### service.yaml\n\n"
+        section += "```yaml\n"
+        section += self.generate_k8s_service(architecture)
+        section += "```\n\n"
+
+        # Ingress manifest
+        if k8s_config.ingress_enabled:
+            section += "### ingress.yaml\n\n"
+            section += "```yaml\n"
+            section += self.generate_k8s_ingress(architecture)
+            section += "```\n\n"
+
+        # HPA manifest
+        if k8s_config.hpa_enabled:
+            section += "### hpa.yaml\n\n"
+            section += "```yaml\n"
+            section += self.generate_k8s_hpa(architecture)
+            section += "```\n\n"
+
+        # Configuration notes
+        section += "### Kubernetes Notes\n\n"
+        section += f"- **Namespace**: `{k8s_config.namespace}`\n"
+        section += f"- **Replicas**: {k8s_config.replicas}\n"
+        section += f"- **Service Type**: {k8s_config.service_type}\n"
+        if k8s_config.hpa_enabled:
+            section += f"- **HPA Range**: {k8s_config.min_replicas}-{k8s_config.max_replicas} replicas\n"
+            section += f"- **Target CPU**: {k8s_config.target_cpu_utilization}%\n"
+        section += "\n"
+
+        return section
+
+    def _generate_serverless_section(
+        self, architecture: DeploymentArchitecture
+    ) -> str:
+        """Generate serverless configuration section."""
+        config = architecture.serverless_config
+        if not config:
+            return ""
+
+        section = "## Serverless Configuration\n\n"
+
+        section += "### serverless.yml (AWS Lambda)\n\n"
+        section += "```yaml\n"
+        section += self.generate_serverless_config(architecture)
+        section += "```\n\n"
+
+        section += "### Configuration Notes\n\n"
+        section += f"- **Provider**: {config.provider}\n"
+        section += f"- **Runtime**: {config.runtime}\n"
+        section += f"- **Memory**: {config.memory_size}MB\n"
+        section += f"- **Timeout**: {config.timeout}s\n\n"
+
+        return section
+
+    def _generate_environment_section(
+        self, architecture: DeploymentArchitecture
+    ) -> str:
+        """Generate environment requirements section."""
+        section = "## Environment Variables\n\n"
+
+        if architecture.environment_requirements:
+            section += "Configure the following environment variables:\n\n"
+            section += "```bash\n"
+            for env_var in architecture.environment_requirements:
+                section += f"export {env_var}=your_{env_var.lower()}_value\n"
+            section += "```\n\n"
+
+            section += "| Variable | Description | Required |\n"
+            section += "|----------|-------------|----------|\n"
+            for env_var in architecture.environment_requirements:
+                desc = self._get_env_var_description(env_var)
+                section += f"| `{env_var}` | {desc} | Yes |\n"
+            section += "\n"
+        else:
+            section += "No specific environment variables required.\n\n"
+
+        return section
+
+    def _generate_infrastructure_section(
+        self, architecture: DeploymentArchitecture
+    ) -> str:
+        """Generate infrastructure requirements section."""
+        section = "## Infrastructure Requirements\n\n"
+
+        if architecture.infrastructure_requirements:
+            for req in architecture.infrastructure_requirements:
+                section += f"- {req}\n"
+            section += "\n"
+        else:
+            section += "No specific infrastructure requirements beyond the deployment target.\n\n"
+
+        return section
+
+    def _get_env_var_description(self, env_var: str) -> str:
+        """Get description for environment variable."""
+        descriptions = {
+            "NODE_ENV": "Runtime environment (development/production)",
+            "LOG_LEVEL": "Logging verbosity level",
+            "DATABASE_URL": "Database connection string",
+            "REDIS_URL": "Redis connection string",
+            "AUTH_SECRET": "Authentication secret key",
+            "AUTH_URL": "Authentication service URL",
+            "STRIPE_SECRET_KEY": "Stripe API secret key",
+            "STRIPE_WEBHOOK_SECRET": "Stripe webhook signing secret",
+            "API_KEY": "API authentication key",
+        }
+        return descriptions.get(env_var, f"{env_var} configuration value")
+
+    def generate_dockerfile(self, architecture: DeploymentArchitecture) -> str:
+        """Generate Dockerfile template.
+
+        Args:
+            architecture: Deployment architecture configuration
+
+        Returns:
+            Dockerfile content as string
+        """
+        config = architecture.container_config
+        if not config:
+            return "# No container configuration available\n"
+
+        # Determine language from base image
+        is_node = "node" in config.base_image.lower()
+        is_python = "python" in config.base_image.lower()
+        is_go = "go" in config.base_image.lower()
+
+        dockerfile = f"FROM {config.base_image}\n\n"
+        dockerfile += "WORKDIR /app\n\n"
+
+        if is_node:
+            dockerfile += "# Install dependencies\n"
+            dockerfile += "COPY package*.json ./\n"
+            dockerfile += "RUN npm ci --only=production\n\n"
+            dockerfile += "# Copy application code\n"
+            dockerfile += "COPY . .\n\n"
+            dockerfile += "# Build if needed\n"
+            dockerfile += "RUN npm run build --if-present\n\n"
+        elif is_python:
+            dockerfile += "# Install dependencies\n"
+            dockerfile += "COPY requirements.txt ./\n"
+            dockerfile += "RUN pip install --no-cache-dir -r requirements.txt\n\n"
+            dockerfile += "# Copy application code\n"
+            dockerfile += "COPY . .\n\n"
+        elif is_go:
+            dockerfile += "# Copy go mod files\n"
+            dockerfile += "COPY go.mod go.sum ./\n"
+            dockerfile += "RUN go mod download\n\n"
+            dockerfile += "# Copy source code\n"
+            dockerfile += "COPY . .\n\n"
+            dockerfile += "# Build\n"
+            dockerfile += "RUN go build -o main .\n\n"
+        else:
+            dockerfile += "# Copy application code\n"
+            dockerfile += "COPY . .\n\n"
+
+        dockerfile += f"EXPOSE {config.port}\n\n"
+        dockerfile += f"# Health check\n"
+        dockerfile += f'HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \\\n'
+        dockerfile += f'  CMD wget --no-verbose --tries=1 --spider http://localhost:{config.port}{config.health_check_path} || exit 1\n\n'
+
+        if is_node:
+            dockerfile += 'CMD ["node", "dist/index.js"]\n'
+        elif is_python:
+            dockerfile += 'CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]\n'
+        elif is_go:
+            dockerfile += 'CMD ["./main"]\n'
+        else:
+            dockerfile += 'CMD ["./start.sh"]\n'
+
+        return dockerfile
+
+    def generate_docker_compose(self, architecture: DeploymentArchitecture) -> str:
+        """Generate docker-compose.yml template.
+
+        Args:
+            architecture: Deployment architecture configuration
+
+        Returns:
+            docker-compose.yml content as string
+        """
+        config = architecture.container_config
+        if not config:
+            return "# No container configuration available\n"
+
+        project_name = architecture.project_name.lower().replace(" ", "-").replace("+", "-")
+
+        compose = "version: '3.8'\n\n"
+        compose += "services:\n"
+        compose += f"  {project_name}:\n"
+        compose += "    build:\n"
+        compose += "      context: .\n"
+        compose += "      dockerfile: Dockerfile\n"
+        compose += f"    ports:\n"
+        compose += f'      - "{config.port}:{config.port}"\n'
+
+        if config.environment_variables:
+            compose += "    environment:\n"
+            for env_var in config.environment_variables:
+                compose += f"      - {env_var}=${{${env_var}}}\n"
+
+        if config.volumes:
+            compose += "    volumes:\n"
+            for volume in config.volumes:
+                compose += f"      - {volume}\n"
+
+        compose += f"    healthcheck:\n"
+        compose += f"      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:{config.port}{config.health_check_path}']\n"
+        compose += "      interval: 30s\n"
+        compose += "      timeout: 10s\n"
+        compose += "      retries: 3\n"
+        compose += "      start_period: 40s\n"
+        compose += "    deploy:\n"
+        compose += "      resources:\n"
+        compose += "        limits:\n"
+        compose += f"          cpus: '{config.resource_limits.get('cpu', '0.5').rstrip('m')}'\n"
+        compose += f"          memory: {config.resource_limits.get('memory', '512M')}\n"
+        compose += "    restart: unless-stopped\n"
+
+        # Add common supporting services
+        has_db = "DATABASE_URL" in config.environment_variables
+        has_redis = "REDIS_URL" in config.environment_variables
+
+        if has_db or has_redis:
+            compose += "\n"
+
+        if has_db:
+            compose += "  postgres:\n"
+            compose += "    image: postgres:15-alpine\n"
+            compose += "    environment:\n"
+            compose += "      - POSTGRES_DB=app\n"
+            compose += "      - POSTGRES_USER=app\n"
+            compose += "      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}\n"
+            compose += "    volumes:\n"
+            compose += "      - postgres_data:/var/lib/postgresql/data\n"
+            compose += "    healthcheck:\n"
+            compose += "      test: ['CMD-SHELL', 'pg_isready -U app']\n"
+            compose += "      interval: 10s\n"
+            compose += "      timeout: 5s\n"
+            compose += "      retries: 5\n\n"
+
+        if has_redis:
+            compose += "  redis:\n"
+            compose += "    image: redis:7-alpine\n"
+            compose += "    volumes:\n"
+            compose += "      - redis_data:/data\n"
+            compose += "    healthcheck:\n"
+            compose += "      test: ['CMD', 'redis-cli', 'ping']\n"
+            compose += "      interval: 10s\n"
+            compose += "      timeout: 5s\n"
+            compose += "      retries: 5\n\n"
+
+        if has_db or has_redis:
+            compose += "volumes:\n"
+            if has_db:
+                compose += "  postgres_data:\n"
+            if has_redis:
+                compose += "  redis_data:\n"
+
+        return compose
+
+    def generate_k8s_deployment(self, architecture: DeploymentArchitecture) -> str:
+        """Generate Kubernetes Deployment manifest.
+
+        Args:
+            architecture: Deployment architecture configuration
+
+        Returns:
+            Kubernetes Deployment YAML as string
+        """
+        config = architecture.container_config
+        k8s_config = architecture.kubernetes_config
+        if not config or not k8s_config:
+            return "# No Kubernetes configuration available\n"
+
+        project_name = architecture.project_name.lower().replace(" ", "-").replace("+", "-")
+
+        deployment = f"""apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {project_name}
+  namespace: {k8s_config.namespace}
+  labels:
+    app: {project_name}
+spec:
+  replicas: {k8s_config.replicas}
+  selector:
+    matchLabels:
+      app: {project_name}
+  template:
+    metadata:
+      labels:
+        app: {project_name}
+    spec:
+      containers:
+        - name: {project_name}
+          image: ${{REGISTRY}}/{project_name}:${{TAG}}
+          ports:
+            - containerPort: {config.port}
+          resources:
+            limits:
+              cpu: {config.resource_limits.get('cpu', '500m')}
+              memory: {config.resource_limits.get('memory', '512Mi')}
+            requests:
+              cpu: {config.resource_limits.get('cpu', '500m').replace('m', '')}m
+              memory: {config.resource_limits.get('memory', '512Mi').replace('Mi', '')}Mi
+          livenessProbe:
+            httpGet:
+              path: {config.health_check_path}
+              port: {config.port}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: {config.health_check_path}
+              port: {config.port}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          envFrom:
+            - configMapRef:
+                name: {project_name}-config
+            - secretRef:
+                name: {project_name}-secrets
+"""
+        return deployment
+
+    def generate_k8s_service(self, architecture: DeploymentArchitecture) -> str:
+        """Generate Kubernetes Service manifest.
+
+        Args:
+            architecture: Deployment architecture configuration
+
+        Returns:
+            Kubernetes Service YAML as string
+        """
+        config = architecture.container_config
+        k8s_config = architecture.kubernetes_config
+        if not config or not k8s_config:
+            return "# No Kubernetes configuration available\n"
+
+        project_name = architecture.project_name.lower().replace(" ", "-").replace("+", "-")
+
+        service = f"""apiVersion: v1
+kind: Service
+metadata:
+  name: {project_name}
+  namespace: {k8s_config.namespace}
+  labels:
+    app: {project_name}
+spec:
+  type: {k8s_config.service_type}
+  ports:
+    - port: 80
+      targetPort: {config.port}
+      protocol: TCP
+  selector:
+    app: {project_name}
+"""
+        return service
+
+    def generate_k8s_ingress(self, architecture: DeploymentArchitecture) -> str:
+        """Generate Kubernetes Ingress manifest.
+
+        Args:
+            architecture: Deployment architecture configuration
+
+        Returns:
+            Kubernetes Ingress YAML as string
+        """
+        k8s_config = architecture.kubernetes_config
+        if not k8s_config:
+            return "# No Kubernetes configuration available\n"
+
+        project_name = architecture.project_name.lower().replace(" ", "-").replace("+", "-")
+
+        ingress = f"""apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {project_name}
+  namespace: {k8s_config.namespace}
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - ${{DOMAIN}}
+      secretName: {project_name}-tls
+  rules:
+    - host: ${{DOMAIN}}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {project_name}
+                port:
+                  number: 80
+"""
+        return ingress
+
+    def generate_k8s_hpa(self, architecture: DeploymentArchitecture) -> str:
+        """Generate Kubernetes HorizontalPodAutoscaler manifest.
+
+        Args:
+            architecture: Deployment architecture configuration
+
+        Returns:
+            Kubernetes HPA YAML as string
+        """
+        k8s_config = architecture.kubernetes_config
+        if not k8s_config:
+            return "# No Kubernetes configuration available\n"
+
+        project_name = architecture.project_name.lower().replace(" ", "-").replace("+", "-")
+
+        hpa = f"""apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {project_name}
+  namespace: {k8s_config.namespace}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {project_name}
+  minReplicas: {k8s_config.min_replicas}
+  maxReplicas: {k8s_config.max_replicas}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {k8s_config.target_cpu_utilization}
+"""
+        return hpa
+
+    def generate_serverless_config(self, architecture: DeploymentArchitecture) -> str:
+        """Generate serverless.yml configuration.
+
+        Args:
+            architecture: Deployment architecture configuration
+
+        Returns:
+            serverless.yml content as string
+        """
+        config = architecture.serverless_config
+        if not config:
+            return "# No serverless configuration available\n"
+
+        project_name = architecture.project_name.lower().replace(" ", "-").replace("+", "-")
+
+        serverless = f"""service: {project_name}
+
+provider:
+  name: aws
+  runtime: {config.runtime}
+  stage: ${{opt:stage, 'dev'}}
+  region: ${{opt:region, 'us-east-1'}}
+  memorySize: {config.memory_size}
+  timeout: {config.timeout}
+  environment:
+"""
+        for env_var in architecture.environment_requirements:
+            serverless += f"    {env_var}: ${{env:{env_var}}}\n"
+
+        serverless += """
+functions:
+  main:
+    handler: handler.main
+    events:
+      - http:
+          path: /
+          method: ANY
+      - http:
+          path: /{proxy+}
+          method: ANY
+
+plugins:
+  - serverless-offline
+"""
+        return serverless
+
+    def generate_terraform(self, architecture: DeploymentArchitecture) -> str:
+        """Generate basic Terraform configuration.
+
+        Args:
+            architecture: Deployment architecture configuration
+
+        Returns:
+            Terraform HCL content as string
+        """
+        primary = architecture.primary_recommendation
+        project_name = architecture.project_name.lower().replace(" ", "-").replace("+", "-")
+
+        terraform = """# Terraform Configuration
+# This is a basic template - customize for your specific needs
+
+terraform {
+  required_version = ">= 1.0"
+  required_providers {
+"""
+        if primary.provider.value == "aws":
+            terraform += """    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+"""
+        elif primary.provider.value == "gcp":
+            terraform += """    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.0"
+    }
+"""
+
+        terraform += """  }
+}
+
+variable "environment" {
+  description = "Environment name"
+  type        = string
+  default     = "production"
+}
+
+variable "region" {
+  description = "Deployment region"
+  type        = string
+"""
+        if primary.provider.value == "aws":
+            terraform += '  default     = "us-east-1"\n'
+        elif primary.provider.value == "gcp":
+            terraform += '  default     = "us-central1"\n'
+        terraform += "}\n"
+
+        return terraform
+
+
 class ArtifactGeneratorRegistry:
     """Registry for artifact generators.
 
@@ -1410,6 +2121,7 @@ class ArtifactGeneratorRegistry:
     def _register_defaults(self) -> None:
         """Register default generators."""
         self.register("cicd", CICDWorkflowGenerator)
+        self.register("deployment", DeploymentGuidanceGenerator)
         self.register("monetization", MonetizationStrategyGenerator)
         self.register("readme", ProjectReadmeGenerator)
         self.register("project_brief", ProjectBriefGenerator)
@@ -1567,4 +2279,20 @@ def get_mcp_recommendation_generator(**kwargs: Any) -> MCPToolRecommendationGene
     if generator is None:
         # Fallback to direct instantiation
         return MCPToolRecommendationGenerator(**kwargs)
+    return generator
+
+
+def get_deployment_generator(**kwargs: Any) -> DeploymentGuidanceGenerator:
+    """Convenience function to get the deployment guidance generator.
+
+    Args:
+        **kwargs: Arguments to pass to DeploymentGuidanceGenerator
+
+    Returns:
+        DeploymentGuidanceGenerator instance
+    """
+    generator = get_registry().get("deployment", **kwargs)
+    if generator is None:
+        # Fallback to direct instantiation
+        return DeploymentGuidanceGenerator(**kwargs)
     return generator

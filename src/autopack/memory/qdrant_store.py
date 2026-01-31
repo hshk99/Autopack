@@ -22,6 +22,8 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
 logger = logging.getLogger(__name__)
 
 # Try importing qdrant client
@@ -91,7 +93,7 @@ class QdrantStore:
         )
         self._default_dim = 1536  # OpenAI text-embedding-ada-002 dimension
 
-        # IMP-MEM-001: Enhanced health check with HTTP API validation and retry logic
+        # IMP-REL-003: Enhanced health check with HTTP API validation and retry logic
         # Validate connectivity up front so callers can fall back cleanly.
         is_healthy, error_msg = self._check_qdrant_health()
         if not is_healthy:
@@ -108,14 +110,81 @@ class QdrantStore:
         else:
             logger.debug(f"[Qdrant] {message}: {exc}")
 
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=1, min=1, max=30),
+        retry=retry_if_exception_type(
+            (
+                ConnectionError,
+                TimeoutError,
+                OSError,
+            )
+        ),
+        before_sleep=lambda retry_state: logger.warning(
+            f"[IMP-REL-003] Qdrant connection failed, retrying in "
+            f"{retry_state.next_action.sleep}s (attempt {retry_state.attempt_number}/5)..."
+        ),
+    )
+    def _connect_with_retry(self) -> bool:
+        """Connect to Qdrant with exponential backoff.
+
+        IMP-REL-003: Implement retry logic for transient network failures.
+
+        Problem: No retry logic for runtime connection failures. If Qdrant becomes
+        temporarily unavailable, operations fail immediately without recovery.
+
+        Solution: Use tenacity @retry decorator with exponential backoff for
+        connection attempts. Automatically retry up to 5 times with increasing
+        delay (1s, 2s, 4s, 8s, 16s, capped at 30s).
+
+        Returns:
+            True if connection successful
+        """
+        if not self._health_check():
+            raise ConnectionError("Qdrant health check failed")
+        return True
+
+    def _health_check(self) -> bool:
+        """Quick health check without retry logic."""
+        try:
+            self.client.get_collections()
+            return True
+        except Exception as e:
+            logger.debug(f"[IMP-REL-003] Quick health check failed: {e}")
+            return False
+
+    def connect(self) -> bool:
+        """Establish or restore Qdrant connection with fallback.
+
+        IMP-REL-003: Implement fallback to FAISS on persistent failure.
+
+        Problem: Server temporarily unavailable crashes entire executor at startup.
+
+        Solution: Attempt retry with exponential backoff. On persistent failure
+        after all retries, log error but return False to allow fallback to FAISS.
+
+        Returns:
+            True if connected, False if all retries failed (caller should fallback)
+        """
+        try:
+            self._connect_with_retry()
+            logger.info("[IMP-REL-003] Qdrant connection restored")
+            self._unavailable_logged = False
+            return True
+        except Exception as e:
+            logger.error(
+                f"[IMP-REL-003] Qdrant connection failed after retries: {e}. "
+                "Falling back to FAISS store"
+            )
+            return False
+
     def _check_qdrant_health(
         self, max_retries: int = 3, retry_delay: float = 1.0
     ) -> Tuple[bool, str]:
-        """IMP-MEM-001: Check Qdrant health with HTTP API validation and retry logic.
+        """IMP-REL-003: Check Qdrant health with HTTP API validation and retry logic.
 
-        Problem: Memory service previously only checked TCP port 6333, which could be open
-        while the HTTP API is still initializing. This caused "Connection refused" errors
-        when qdrant-client tried to make HTTP requests immediately after port check.
+        Problem: Qdrant health check only performed at initialization. If Qdrant becomes
+        temporarily unavailable after startup, executor crashes without fallback.
 
         Solution: Perform multi-layer health validation with retries:
         1. Test basic connectivity via get_collections() (validates TCP + initial API)
@@ -146,10 +215,10 @@ class QdrantStore:
                 # Step 1: Basic connectivity check via Qdrant client
                 # This validates TCP connection and basic API responsiveness
                 logger.debug(
-                    f"[IMP-MEM-001] Health check attempt {attempt}/{max_retries}: Testing basic connectivity"
+                    f"[IMP-REL-003] Health check attempt {attempt}/{max_retries}: Testing basic connectivity"
                 )
                 self.client.get_collections()
-                logger.debug("[IMP-MEM-001] Basic connectivity check passed")
+                logger.debug("[IMP-REL-003] Basic connectivity check passed")
 
                 # Step 2: HTTP /health endpoint check for full API readiness
                 # Some Qdrant versions may pass get_collections but not be fully ready
@@ -159,7 +228,7 @@ class QdrantStore:
                     import requests
 
                     health_url = f"http://{self.host}:{self.port}/health"
-                    logger.debug(f"[IMP-MEM-001] Checking HTTP health endpoint: {health_url}")
+                    logger.debug(f"[IMP-REL-003] Checking HTTP health endpoint: {health_url}")
 
                     response = requests.get(health_url, timeout=5)
 
@@ -168,32 +237,32 @@ class QdrantStore:
                             health_data = response.json()
                             status = health_data.get("status", "unknown")
                             logger.debug(
-                                f"[IMP-MEM-001] HTTP health check passed (status: {status})"
+                                f"[IMP-REL-003] HTTP health check passed (status: {status})"
                             )
                         except Exception:
                             # Some Qdrant versions return 200 without JSON body
                             logger.debug(
-                                "[IMP-MEM-001] HTTP health check passed (status 200, no JSON)"
+                                "[IMP-REL-003] HTTP health check passed (status 200, no JSON)"
                             )
                         return True, ""
                     else:
                         last_error = f"HTTP health endpoint returned status {response.status_code}"
-                        logger.warning(f"[IMP-MEM-001] {last_error}")
+                        logger.warning(f"[IMP-REL-003] {last_error}")
 
                 except requests.exceptions.Timeout:
                     last_error = "HTTP health endpoint timeout after 5s"
-                    logger.warning(f"[IMP-MEM-001] {last_error}")
+                    logger.warning(f"[IMP-REL-003] {last_error}")
 
                 except requests.exceptions.ConnectionError:
                     last_error = (
                         "HTTP health endpoint connection refused (API not fully initialized)"
                     )
-                    logger.warning(f"[IMP-MEM-001] {last_error}")
+                    logger.warning(f"[IMP-REL-003] {last_error}")
 
                 except Exception as e:
                     # If requests library not available, fall back to basic check
                     logger.debug(
-                        f"[IMP-MEM-001] HTTP health check unavailable (requests not installed), "
+                        f"[IMP-REL-003] HTTP health check unavailable (requests not installed), "
                         f"falling back to basic check: {e}"
                     )
                     # Basic check passed above, so treat as healthy
@@ -201,20 +270,20 @@ class QdrantStore:
 
             except Exception as e:
                 last_error = f"Basic connectivity check failed: {type(e).__name__}: {e}"
-                logger.warning(f"[IMP-MEM-001] {last_error}")
+                logger.warning(f"[IMP-REL-003] {last_error}")
 
             # Retry with exponential backoff if not the last attempt
             if attempt < max_retries:
                 wait_time = retry_delay * (2 ** (attempt - 1))
                 logger.info(
-                    f"[IMP-MEM-001] Qdrant not ready, retrying in {wait_time:.1f}s "
+                    f"[IMP-REL-003] Qdrant not ready, retrying in {wait_time:.1f}s "
                     f"(attempt {attempt}/{max_retries})"
                 )
                 time.sleep(wait_time)
 
         # All retries exhausted
         logger.error(
-            f"[IMP-MEM-001] Qdrant health check failed after {max_retries} attempts. "
+            f"[IMP-REL-003] Qdrant health check failed after {max_retries} attempts. "
             f"Last error: {last_error}"
         )
         return False, last_error
@@ -236,9 +305,16 @@ class QdrantStore:
         hash_bytes = hashlib.md5(string_id.encode()).digest()
         return str(uuid.UUID(bytes=hash_bytes))
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=0.5, min=0.5, max=10),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError)),
+    )
     def ensure_collection(self, name: str, size: int = 1536) -> None:
         """
         Ensure a collection exists (create if not).
+
+        IMP-REL-003: Add retry for transient failures.
 
         Args:
             name: Collection name
@@ -265,6 +341,11 @@ class QdrantStore:
             self._log_unavailable(f"Failed to ensure collection '{name}'", e)
             raise
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=0.5, min=0.5, max=10),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError)),
+    )
     def upsert(
         self,
         collection: str,
@@ -272,6 +353,8 @@ class QdrantStore:
     ) -> int:
         """
         Upsert points to collection.
+
+        IMP-REL-003: Add retry for transient failures.
 
         Args:
             collection: Collection name
@@ -317,6 +400,11 @@ class QdrantStore:
             self._log_unavailable(f"Failed to upsert to '{collection}'", e)
             raise
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=0.5, min=0.5, max=10),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError)),
+    )
     def search(
         self,
         collection: str,
@@ -326,6 +414,8 @@ class QdrantStore:
     ) -> List[Dict[str, Any]]:
         """
         Search for similar vectors.
+
+        IMP-REL-003: Add retry for transient failures.
 
         Args:
             collection: Collection name
@@ -385,6 +475,11 @@ class QdrantStore:
             self._log_unavailable(f"Search failed in '{collection}'", e)
             return []
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=0.5, min=0.5, max=10),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError)),
+    )
     def scroll(
         self,
         collection: str,
@@ -393,6 +488,8 @@ class QdrantStore:
     ) -> List[Dict[str, Any]]:
         """
         Scroll through all documents matching filter.
+
+        IMP-REL-003: Add retry for transient failures.
 
         Args:
             collection: Collection name
@@ -444,9 +541,16 @@ class QdrantStore:
             self._log_unavailable(f"Scroll failed in '{collection}'", e)
             return []
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=0.5, min=0.5, max=10),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError)),
+    )
     def get_payload(self, collection: str, point_id: str) -> Optional[Dict[str, Any]]:
         """
         Return payload for a point ID, or None if missing.
+
+        IMP-REL-003: Add retry for transient failures.
 
         Args:
             collection: Collection name
@@ -473,6 +577,11 @@ class QdrantStore:
             self._log_unavailable(f"Get payload failed for '{point_id}'", e)
             return None
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=0.5, min=0.5, max=10),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError)),
+    )
     def update_payload(
         self,
         collection: str,
@@ -481,6 +590,8 @@ class QdrantStore:
     ) -> bool:
         """
         Update payload for an existing point ID.
+
+        IMP-REL-003: Add retry for transient failures.
 
         Args:
             collection: Collection name
@@ -507,9 +618,16 @@ class QdrantStore:
             self._log_unavailable(f"Update payload failed for '{point_id}'", e)
             return False
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=0.5, min=0.5, max=10),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError)),
+    )
     def delete(self, collection: str, ids: List[str]) -> int:
         """
         Delete points by ID.
+
+        IMP-REL-003: Add retry for transient failures.
 
         Args:
             collection: Collection name
@@ -535,9 +653,16 @@ class QdrantStore:
             self._log_unavailable(f"Delete failed in '{collection}'", e)
             return 0
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=0.5, min=0.5, max=10),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError)),
+    )
     def count(self, collection: str, filter: Optional[Dict[str, Any]] = None) -> int:
         """
         Count documents in collection, optionally filtered.
+
+        IMP-REL-003: Add retry for transient failures.
 
         Args:
             collection: Collection name

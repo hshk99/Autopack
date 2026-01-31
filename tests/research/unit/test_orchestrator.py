@@ -5,7 +5,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from autopack.research.models import ResearchQuery, ResearchStage
-from autopack.research.orchestrator import ResearchOrchestrator, ResearchSession
+from autopack.research.orchestrator import (ResearchOrchestrator,
+                                            ResearchSession)
 
 
 class TestResearchOrchestrator:
@@ -22,7 +23,6 @@ class TestResearchOrchestrator:
         return ResearchQuery(
             query="What are the best practices for API design?",
             context={"domain": "software_engineering"},
-            constraints={"max_sources": 10, "time_limit": 300},
         )
 
     def test_orchestrator_initialization(self, orchestrator):
@@ -39,7 +39,7 @@ class TestResearchOrchestrator:
         assert session is not None
         assert session.session_id is not None
         assert session.query == sample_query
-        assert session.stage == ResearchStage.INTENT_CLARIFICATION
+        assert session.stage == ResearchStage.INTENT_DEFINITION
         assert session.status == "active"
 
     @pytest.mark.asyncio
@@ -78,14 +78,14 @@ class TestResearchOrchestrator:
         session = await orchestrator.create_session(sample_query)
         initial_stage = session.stage
 
-        assert initial_stage == ResearchStage.INTENT_CLARIFICATION
+        assert initial_stage == ResearchStage.INTENT_DEFINITION
 
         # Simulate stage progression
-        session.stage = ResearchStage.SOURCE_DISCOVERY
-        assert session.stage == ResearchStage.SOURCE_DISCOVERY
+        session.stage = ResearchStage.EVIDENCE_COLLECTION
+        assert session.stage == ResearchStage.EVIDENCE_COLLECTION
 
-        session.stage = ResearchStage.EVIDENCE_GATHERING
-        assert session.stage == ResearchStage.EVIDENCE_GATHERING
+        session.stage = ResearchStage.ANALYSIS_SYNTHESIS
+        assert session.stage == ResearchStage.ANALYSIS_SYNTHESIS
 
     @pytest.mark.asyncio
     async def test_error_handling_in_pipeline(self, orchestrator, sample_query):
@@ -106,7 +106,7 @@ class TestResearchOrchestrator:
         session = ResearchSession(
             session_id="test123",
             query=ResearchQuery(query="test"),
-            stage=ResearchStage.INTENT_CLARIFICATION,
+            stage=ResearchStage.INTENT_DEFINITION,
         )
         orchestrator.sessions["test123"] = session
 
@@ -121,12 +121,12 @@ class TestResearchOrchestrator:
         session1 = ResearchSession(
             session_id="test1",
             query=ResearchQuery(query="query1"),
-            stage=ResearchStage.INTENT_CLARIFICATION,
+            stage=ResearchStage.INTENT_DEFINITION,
         )
         session2 = ResearchSession(
             session_id="test2",
             query=ResearchQuery(query="query2"),
-            stage=ResearchStage.SOURCE_DISCOVERY,
+            stage=ResearchStage.EVIDENCE_COLLECTION,
         )
 
         orchestrator.sessions["test1"] = session1

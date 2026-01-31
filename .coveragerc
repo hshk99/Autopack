@@ -1,0 +1,23 @@
+[run]
+source = src/autopack
+branch = True
+omit =
+    */tests/*
+    */__pycache__/*
+    */migrations/*
+
+[report]
+fail_under = 70
+show_missing = True
+exclude_lines =
+    pragma: no cover
+    if TYPE_CHECKING:
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    @abstractmethod
+
+[html]
+directory = htmlcov
+
+[xml]
+output = coverage.xml

@@ -321,7 +321,7 @@ jobs:
           # PR-INFRA-1: Parallel execution with pytest-xdist (-n auto detects CPU count, typically 2-4 workers)
           # Expected: 50% faster execution (45 min → ~20-25 min)
           # --durations=0: Capture ALL test durations for optimization analysis
-          pytest tests/ -m "not research and not aspirational and not legacy_contract" -n auto -v --durations=0 --cov=src/autopack --cov-report=xml --maxfail=5 2>&1 | tee core_test_output.txt
+          pytest tests/ -m "not research and not aspirational and not legacy_contract" -n auto -v --durations=0 --cov=src/autopack --cov-report=xml --cov-report=term-missing --cov-fail-under=70 --maxfail=5 2>&1 | tee core_test_output.txt
       - name: Extract and upload test durations
         if: always()
         run: |
@@ -380,6 +380,7 @@ jobs:
         uses: codecov/codecov-action@0561704f0f02c16a585d4c7555e57fa2e44cf909  # v5.5.2
         with:
           files: ./coverage.xml
+          fail_ci_if_error: true
 
   test-core-windows:
     name: Core Tests (Windows - Python 3.12)

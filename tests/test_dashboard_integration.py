@@ -28,13 +28,22 @@ def test_db():
 
 
 @pytest.fixture(scope="function")
-def client(test_db, tmp_path, monkeypatch):
+def testing_session_local(test_db):
+    """Create a shared sessionmaker for the test database.
+
+    This ensures that all sessions created from this factory see each other's
+    committed data, solving the session isolation issue in tests.
+    """
+    return sessionmaker(autocommit=False, autoflush=False, bind=test_db)
+
+
+@pytest.fixture(scope="function")
+def client(testing_session_local, tmp_path, monkeypatch):
     """Create a test client with test database"""
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db)
 
     def override_get_db():
         try:
-            db = TestingSessionLocal()
+            db = testing_session_local()
             yield db
         finally:
             db.close()
@@ -59,10 +68,12 @@ def client(test_db, tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def db_session(test_db):
-    """Create a database session for direct DB access in tests"""
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db)
-    session = TestingSessionLocal()
+def db_session(testing_session_local):
+    """Create a database session for direct DB access in tests.
+
+    Uses the shared sessionmaker to ensure data visibility with client sessions.
+    """
+    session = testing_session_local()
     try:
         yield session
     finally:
@@ -140,10 +151,6 @@ def test_dashboard_usage_empty(client):
     assert data["models"] == []
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason="DB session isolation issue - SQLAlchemy session doesn't automatically share uncommitted data between separate sessions even with StaticPool. Test data added to one session isn't visible to API calls through another session without proper transaction handling.",
-)
 def test_dashboard_usage_with_data(client, db_session):
     """Test GET /dashboard/usage with usage data"""
     # Use the db_session fixture which shares the same database as the client

@@ -2,7 +2,7 @@
 Analysis module for Autopack research.
 
 Contains cost-effectiveness analysis, gap detection, build vs buy analysis,
-deployment analysis, and follow-up research triggers.
+deployment analysis, monetization analysis, and follow-up research triggers.
 """
 
 from autopack.research.analysis.build_vs_buy_analyzer import (
@@ -59,6 +59,18 @@ from autopack.research.analysis.deployment_analysis import (
     ScalingStrategy,
     ServerlessConfig,
 )
+from autopack.research.analysis.monetization_analysis import (
+    CompetitorPricing,
+    MonetizationAnalysisResult,
+    MonetizationAnalyzer,
+    MonetizationModel,
+    MonetizationModelFit,
+    PricingStrategy,
+    PricingTier,
+    ProjectType,
+    RevenueConfidence,
+    RevenueProjection,
+)
 
 __all__ = [
     # Build vs Buy analysis
@@ -109,4 +121,15 @@ __all__ = [
     "ContainerConfig",
     "KubernetesConfig",
     "ServerlessConfig",
+    # Monetization analysis
+    "MonetizationAnalyzer",
+    "MonetizationAnalysisResult",
+    "MonetizationModel",
+    "MonetizationModelFit",
+    "PricingStrategy",
+    "PricingTier",
+    "ProjectType",
+    "RevenueConfidence",
+    "RevenueProjection",
+    "CompetitorPricing",
 ]

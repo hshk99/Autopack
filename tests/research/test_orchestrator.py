@@ -1,7 +1,8 @@
 import unittest
 from unittest.mock import MagicMock
 
-from autopack.research.orchestrator import BudgetTracker, ResearchOrchestrator
+from autopack.research.analysis import BudgetEnforcer
+from autopack.research.orchestrator import ResearchOrchestrator
 
 
 class TestResearchOrchestrator(unittest.TestCase):
@@ -46,44 +47,43 @@ class TestResearchOrchestrator(unittest.TestCase):
 
 
 class TestBudgetEnforcement(unittest.TestCase):
-    """Tests for IMP-COST-001: Budget enforcement wiring."""
+    """Tests for IMP-RES-002: Budget enforcement wiring."""
 
-    def test_orchestrator_accepts_budget_tracker(self):
-        """Test that ResearchOrchestrator accepts budget_tracker parameter."""
-        mock_tracker = MagicMock(spec=BudgetTracker)
-        orchestrator = ResearchOrchestrator(budget_tracker=mock_tracker)
+    def test_orchestrator_accepts_budget_enforcer(self):
+        """Test that ResearchOrchestrator accepts budget_enforcer parameter."""
+        enforcer = BudgetEnforcer(total_budget=5000.0)
+        orchestrator = ResearchOrchestrator(budget_enforcer=enforcer)
 
-        self.assertIsNotNone(orchestrator._budget_tracker)
-        self.assertEqual(orchestrator._budget_tracker, mock_tracker)
+        self.assertIsNotNone(orchestrator._budget_enforcer)
+        self.assertEqual(orchestrator._budget_enforcer, enforcer)
 
     def test_check_budget_before_phase_with_available_budget(self):
         """Test budget check passes when budget is available."""
-        mock_tracker = MagicMock(spec=BudgetTracker)
-        mock_tracker.can_proceed.return_value = True
+        enforcer = BudgetEnforcer(total_budget=5000.0)
+        orchestrator = ResearchOrchestrator(budget_enforcer=enforcer)
 
-        orchestrator = ResearchOrchestrator(budget_tracker=mock_tracker)
         result = orchestrator._check_budget_before_phase("market_research")
 
         self.assertTrue(result)
-        mock_tracker.can_proceed.assert_called_once_with("market_research")
+        # Verify that the phase was started in the enforcer
+        self.assertIn("market_research", enforcer._phase_history)
 
     def test_check_budget_before_phase_with_exhausted_budget(self):
         """Test budget check fails when budget is exhausted."""
-        mock_tracker = MagicMock(spec=BudgetTracker)
-        mock_tracker.can_proceed.return_value = False
+        enforcer = BudgetEnforcer(total_budget=100.0)
+        enforcer.metrics.total_spent = 100.0  # Exhaust budget
 
-        orchestrator = ResearchOrchestrator(budget_tracker=mock_tracker)
+        orchestrator = ResearchOrchestrator(budget_enforcer=enforcer)
         result = orchestrator._check_budget_before_phase("market_research")
 
         self.assertFalse(result)
-        mock_tracker.can_proceed.assert_called_once_with("market_research")
 
-    def test_check_budget_without_tracker_allows_proceeding(self):
-        """Test that research proceeds when no budget tracker is configured."""
-        orchestrator = ResearchOrchestrator(budget_tracker=None)
-        result = orchestrator._check_budget_before_phase("market_research")
+    def test_orchestrator_initializes_default_budget_enforcer(self):
+        """Test that ResearchOrchestrator initializes with default budget enforcer."""
+        orchestrator = ResearchOrchestrator()
 
-        self.assertTrue(result)
+        self.assertIsNotNone(orchestrator._budget_enforcer)
+        self.assertEqual(orchestrator._budget_enforcer.metrics.total_budget, 5000.0)
 
 
 if __name__ == "__main__":

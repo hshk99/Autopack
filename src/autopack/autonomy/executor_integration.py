@@ -81,6 +81,9 @@ class ExecutorContext:
         self._usage_events: List[UsageEvent] = []
         self._usage_totals: Optional[UsageTotals] = None
 
+        # IMP-RESEARCH-001: Budget enforcement tracking
+        self._budget_warnings_issued: set = set()  # Track which thresholds we've warned about
+
         # Patch correction tracking
         self._patch_tracker = PatchCorrectionTracker()
 
@@ -233,6 +236,110 @@ class ExecutorContext:
                 f"{budget_remaining:.1%} remaining"
             )
         return can_proceed
+
+    def get_budget_status(self) -> Dict[str, Any]:
+        """Get detailed budget status including warnings.
+
+        IMP-RESEARCH-001: Provides comprehensive budget status with thresholds.
+        Tracks warnings at 75% and 90% utilization to prevent spam.
+
+        Returns:
+            Dictionary with budget status information
+        """
+        budget_remaining = self.get_budget_remaining()
+        budget_used = 1.0 - budget_remaining
+        budget_used_percent = budget_used * 100.0
+
+        status_dict = {
+            "budget_remaining_fraction": budget_remaining,
+            "budget_used_fraction": budget_used,
+            "budget_used_percent": round(budget_used_percent, 2),
+            "usage_totals": (
+                self.usage_totals.to_dict() if hasattr(self.usage_totals, "to_dict") else None
+            ),
+            "can_proceed": self.can_proceed(),
+        }
+
+        # IMP-RESEARCH-001: Issue warnings at thresholds
+        self._check_budget_thresholds(budget_used_percent)
+
+        return status_dict
+
+    def _check_budget_thresholds(self, budget_used_percent: float) -> None:
+        """Check budget thresholds and issue warnings.
+
+        IMP-RESEARCH-001: Issues warnings at 75% and 90% budget utilization.
+        Tracks warnings to avoid duplicate messages.
+
+        Args:
+            budget_used_percent: Percentage of budget used (0-100)
+        """
+        if budget_used_percent >= 90 and "90%" not in self._budget_warnings_issued:
+            logger.warning(
+                f"[IMP-RESEARCH-001] CRITICAL: Research budget 90% exhausted ({budget_used_percent:.1f}% used). "
+                f"Prepare to halt research or escalate as configured."
+            )
+            self._budget_warnings_issued.add("90%")
+
+        elif budget_used_percent >= 75 and "75%" not in self._budget_warnings_issued:
+            logger.warning(
+                f"[IMP-RESEARCH-001] WARNING: Research budget 75% spent ({budget_used_percent:.1f}% used). "
+                f"Consider pausing non-critical research operations."
+            )
+            self._budget_warnings_issued.add("75%")
+
+    def enforce_budget_policy(
+        self,
+        proposed_cost: float = 0,
+    ) -> bool:
+        """Enforce budget cost escalation policy.
+
+        IMP-RESEARCH-001: Checks cost_escalation_policy from anchor and applies it.
+
+        Args:
+            proposed_cost: Estimated cost of proposed operation (in budget units)
+
+        Returns:
+            True if operation should proceed, False if blocked
+        """
+        budget_remaining = self.get_budget_remaining()
+
+        # If no budget cap set, allow proceeding
+        if budget_remaining is None:
+            return True
+
+        # Get cost escalation policy from anchor
+        policy = "request_approval"  # Default
+        if self.anchor.pivot_intentions and self.anchor.pivot_intentions.budget_cost:
+            policy = self.anchor.pivot_intentions.budget_cost.cost_escalation_policy
+
+        # Check if we have sufficient budget
+        if budget_remaining > 0.05:  # More than 5% remaining
+            return True
+
+        # Budget is low - enforce policy
+        if policy == "block":
+            logger.error(
+                f"[IMP-RESEARCH-001] Budget enforcement: BLOCK policy active. "
+                f"Research operation blocked due to insufficient budget ({budget_remaining:.1%} remaining)."
+            )
+            return False
+
+        elif policy == "warn":
+            logger.warning(
+                f"[IMP-RESEARCH-001] Budget enforcement: WARN policy active. "
+                f"Proceeding with caution ({budget_remaining:.1%} remaining)."
+            )
+            return True
+
+        elif policy == "request_approval":
+            logger.warning(
+                f"[IMP-RESEARCH-001] Budget enforcement: REQUEST_APPROVAL policy active. "
+                f"Approval may be required for research operations ({budget_remaining:.1%} remaining)."
+            )
+            return True
+
+        return True
 
     def save_usage_events(self) -> Path:
         """Save usage events to run-local artifact.
@@ -446,6 +553,8 @@ class ExecutorContext:
         and determine if follow-up research is needed based on analysis
         results and budget constraints.
 
+        IMP-RESEARCH-001: Enhanced with budget status checking.
+
         Args:
             analysis_results: Results from analysis phase
             validation_results: Optional validation results
@@ -454,12 +563,15 @@ class ExecutorContext:
         Returns:
             True if follow-up research should be triggered
         """
-        # Check budget constraints
+        # IMP-RESEARCH-001: Check budget constraints with status
         budget_remaining = self.get_budget_remaining()
+        budget_status = self.get_budget_status()
+
         if budget_remaining < min_budget_threshold:
             logger.debug(
-                f"[IMP-AUTO-001] Follow-up research skipped: "
-                f"budget {budget_remaining:.1%} < {min_budget_threshold:.1%} threshold"
+                f"[IMP-RESEARCH-001] Follow-up research skipped: "
+                f"budget {budget_remaining:.1%} < {min_budget_threshold:.1%} threshold. "
+                f"Used: {budget_status['budget_used_percent']:.1f}%"
             )
             return False
 
@@ -481,7 +593,8 @@ class ExecutorContext:
                 logger.info(
                     f"[IMP-AUTO-001] Follow-up research recommended: "
                     f"{trigger_result.triggers_selected} triggers detected "
-                    f"(types: {trigger_result.trigger_summary})"
+                    f"(types: {trigger_result.trigger_summary}). "
+                    f"[IMP-RESEARCH-001] Budget available: {budget_remaining:.1%}"
                 )
                 return True
 
@@ -616,12 +729,56 @@ class ExecutorContext:
 
         return 0.5  # Normal threshold
 
+    def estimate_operation_cost(
+        self,
+        operation_type: str,
+        estimated_tokens: int = 0,
+        estimated_context_chars: int = 0,
+        estimated_sot_chars: int = 0,
+    ) -> Dict[str, Any]:
+        """Estimate cost of a proposed operation.
+
+        IMP-RESEARCH-001: Provides cost estimation before expensive operations
+        to allow pre-emptive budget checks.
+
+        Args:
+            operation_type: Type of operation (e.g., "api_call", "embedding", "web_search")
+            estimated_tokens: Estimated token usage
+            estimated_context_chars: Estimated context characters
+            estimated_sot_chars: Estimated SOT characters
+
+        Returns:
+            Dictionary with cost estimation and feasibility check
+        """
+        budget_remaining = self.get_budget_remaining()
+
+        # Estimate if operation will fit in remaining budget
+        # Assume: 1 token ≈ 4 chars for token budgets
+        total_estimated_chars = estimated_tokens * 4 + estimated_context_chars + estimated_sot_chars
+
+        return {
+            "operation_type": operation_type,
+            "estimated_tokens": estimated_tokens,
+            "estimated_context_chars": estimated_context_chars,
+            "estimated_sot_chars": estimated_sot_chars,
+            "total_estimated_chars": total_estimated_chars,
+            "budget_remaining_fraction": budget_remaining,
+            "fits_in_budget": budget_remaining > 0.05,
+            "warning": (
+                f"Operation uses {total_estimated_chars} chars, "
+                f"budget remaining: {budget_remaining:.1%}"
+            ),
+        }
+
     def to_summary_dict(self) -> Dict[str, Any]:
         """Generate summary for logging/artifacts.
+
+        IMP-RESEARCH-001: Includes budget status in summary.
 
         Returns:
             Summary dictionary
         """
+        budget_status = self.get_budget_status()
         return {
             "project_id": self.anchor.project_id,
             "run_id": self.layout.run_id,
@@ -629,6 +786,7 @@ class ExecutorContext:
             "needs_elevated_review": self.needs_elevated_review,
             "usage": self.usage_totals.to_dict(),
             "budget_remaining": self.get_budget_remaining(),
+            "budget_status": budget_status,
             "phase_id": self._current_phase_id,
             "iterations_used": self._iterations_used,
             "escalations_used": self._escalations_used,

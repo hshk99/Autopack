@@ -3570,3 +3570,167 @@ class ContextInjectionEffectivenessTracker:
             "is_context_beneficial": self.is_context_beneficial(),
             "recommendation": self.get_recommendation(),
         }
+
+
+# =============================================================================
+# IMP-SEG-002: Research Cycle Effectiveness Tracking
+# =============================================================================
+
+
+class ResearchCycleEffectivenessTracker:
+    """Tracks research cycle effectiveness metrics for feedback loop optimization.
+
+    IMP-SEG-002: Monitors whether follow-up research improved decision quality
+    and enables feedback loops for continuous improvement.
+
+    This tracker aggregates research cycle outcomes and provides metrics for:
+    - Success rates of research cycles
+    - Decision quality improvements
+    - Follow-up research effectiveness
+    - Cost and time efficiency
+    - Feedback for future improvements
+    """
+
+    def __init__(self):
+        """Initialize the research cycle effectiveness tracker."""
+        self.cycle_count = 0
+        self.successful_cycles = 0
+        self.total_confidence_improvement = 0.0
+        self.total_quality_improvement = 0.0
+        self.total_roi = 0.0
+        self.followup_triggers_executed = 0
+        self.followup_triggers_successful = 0
+        self.total_cost = 0.0
+        self.total_time_seconds = 0
+
+    def record_cycle_outcome(
+        self,
+        cycle_id: str,
+        was_successful: bool,
+        confidence_improvement: int = 0,
+        quality_improvement: int = 0,
+        roi: float = 1.0,
+        followup_triggers_executed: int = 0,
+        followup_triggers_successful: int = 0,
+        cost: float = 0.0,
+        time_seconds: int = 0,
+    ) -> None:
+        """Record a research cycle outcome.
+
+        IMP-SEG-002: Tracks research cycle outcomes for effectiveness analysis.
+
+        Args:
+            cycle_id: Unique identifier for the cycle
+            was_successful: Whether the cycle achieved its objectives
+            confidence_improvement: Improvement in decision confidence (0-100)
+            quality_improvement: Improvement in decision quality (0-100)
+            roi: Return on investment ratio
+            followup_triggers_executed: Number of follow-up triggers executed
+            followup_triggers_successful: Number of successful follow-up triggers
+            cost: Cost of the research cycle
+            time_seconds: Time spent on the cycle
+        """
+        self.cycle_count += 1
+        if was_successful:
+            self.successful_cycles += 1
+        self.total_confidence_improvement += confidence_improvement
+        self.total_quality_improvement += quality_improvement
+        self.total_roi += roi
+        self.followup_triggers_executed += followup_triggers_executed
+        self.followup_triggers_successful += followup_triggers_successful
+        self.total_cost += cost
+        self.total_time_seconds += time_seconds
+
+    def get_success_rate(self) -> float:
+        """Get the success rate of research cycles.
+
+        Returns:
+            Success rate as a percentage (0-100).
+        """
+        if self.cycle_count == 0:
+            return 0.0
+        return (self.successful_cycles / self.cycle_count) * 100
+
+    def get_avg_confidence_improvement(self) -> float:
+        """Get the average confidence improvement per cycle.
+
+        Returns:
+            Average confidence improvement.
+        """
+        if self.cycle_count == 0:
+            return 0.0
+        return self.total_confidence_improvement / self.cycle_count
+
+    def get_avg_quality_improvement(self) -> float:
+        """Get the average quality improvement per cycle.
+
+        Returns:
+            Average quality improvement.
+        """
+        if self.cycle_count == 0:
+            return 0.0
+        return self.total_quality_improvement / self.cycle_count
+
+    def get_avg_roi(self) -> float:
+        """Get the average ROI per cycle.
+
+        Returns:
+            Average return on investment.
+        """
+        if self.cycle_count == 0:
+            return 1.0
+        return self.total_roi / self.cycle_count
+
+    def get_followup_trigger_success_rate(self) -> float:
+        """Get the success rate of follow-up research triggers.
+
+        Returns:
+            Success rate as a ratio (0.0-1.0).
+        """
+        if self.followup_triggers_executed == 0:
+            return 0.0
+        return self.followup_triggers_successful / self.followup_triggers_executed
+
+    def get_avg_cost_per_cycle(self) -> float:
+        """Get the average cost per research cycle.
+
+        Returns:
+            Average cost.
+        """
+        if self.cycle_count == 0:
+            return 0.0
+        return self.total_cost / self.cycle_count
+
+    def get_avg_time_per_cycle(self) -> float:
+        """Get the average time per research cycle.
+
+        Returns:
+            Average time in seconds.
+        """
+        if self.cycle_count == 0:
+            return 0.0
+        return self.total_time_seconds / self.cycle_count
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert tracker state to dictionary for serialization.
+
+        Returns:
+            Dict with all tracker state and computed metrics
+        """
+        return {
+            "total_cycles": self.cycle_count,
+            "successful_cycles": self.successful_cycles,
+            "success_rate_percent": round(self.get_success_rate(), 2),
+            "avg_confidence_improvement": round(self.get_avg_confidence_improvement(), 2),
+            "avg_quality_improvement": round(self.get_avg_quality_improvement(), 2),
+            "avg_roi": round(self.get_avg_roi(), 2),
+            "followup_triggers_executed": self.followup_triggers_executed,
+            "followup_triggers_successful": self.followup_triggers_successful,
+            "followup_trigger_success_rate": round(
+                self.get_followup_trigger_success_rate(), 4
+            ),
+            "total_cost": round(self.total_cost, 2),
+            "avg_cost_per_cycle": round(self.get_avg_cost_per_cycle(), 2),
+            "total_time_seconds": self.total_time_seconds,
+            "avg_time_per_cycle_seconds": round(self.get_avg_time_per_cycle(), 2),
+        }

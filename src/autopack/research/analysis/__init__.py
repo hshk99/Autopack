@@ -90,6 +90,15 @@ from autopack.research.analysis.build_history_analyzer import (
     MetricTrend,
     get_build_history_feedback,
 )
+from autopack.research.analysis.research_effectiveness import (
+    DecisionQualityLevel,
+    FeedbackCategory,
+    ResearchCycleOutcome,
+    ResearchEffectivenessAnalyzer,
+    ResearchEffectivenessFeedback,
+    ResearchEffectivenessMetrics,
+    ResearchOutcomeType,
+)
 
 __all__ = [
     # Build vs Buy analysis
@@ -168,4 +177,12 @@ __all__ = [
     "FeasibilitySignal",
     "MetricTrend",
     "get_build_history_feedback",
+    # Research effectiveness tracking
+    "ResearchEffectivenessAnalyzer",
+    "ResearchCycleOutcome",
+    "ResearchEffectivenessMetrics",
+    "ResearchEffectivenessFeedback",
+    "ResearchOutcomeType",
+    "DecisionQualityLevel",
+    "FeedbackCategory",
 ]

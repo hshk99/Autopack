@@ -22,6 +22,11 @@ from autopack.research.analysis import (
     FollowupResearchTrigger,
     ResearchStateTracker,
 )
+from autopack.research.cache_optimizer import (
+    CacheOptimizer,
+    CacheMetrics,
+    OptimizedResearchCache,
+)
 from autopack.research.analysis.pattern_extractor import (
     PatternExtractionResult,
     PatternExtractor,
@@ -164,6 +169,7 @@ class ResearchOrchestrator:
         budget_enforcer: Optional[BudgetEnforcer] = None,
         max_concurrent_phases: int = 3,
         max_phase_resources: float = 1.0,
+        enable_cache_optimization: bool = True,
     ):
         """Initialize the ResearchOrchestrator.
 
@@ -173,10 +179,17 @@ class ResearchOrchestrator:
             budget_enforcer: Optional budget enforcer for cost limits (default: $5000)
             max_concurrent_phases: Maximum concurrent research phases (default: 3)
             max_phase_resources: Maximum total resource usage for phases (default: 1.0)
+            enable_cache_optimization: Enable LRU eviction and compression (default: True)
         """
         self.sessions: dict[str, ResearchSession] = {}
         self.bootstrap_sessions: dict[str, BootstrapSession] = {}
-        self._cache = ResearchCache(ttl_hours=cache_ttl_hours)
+
+        # Use optimized cache with LRU eviction and compression
+        if enable_cache_optimization:
+            self._cache = OptimizedResearchCache(ttl_hours=cache_ttl_hours)
+        else:
+            # Fallback to basic cache for compatibility
+            self._cache = ResearchCache(ttl_hours=cache_ttl_hours)
 
         # Initialize budget enforcer with default budget if not provided
         self._budget_enforcer = budget_enforcer or BudgetEnforcer(total_budget=5000.0)
@@ -287,6 +300,52 @@ class ResearchOrchestrator:
             List of phase IDs in execution order
         """
         return self._scheduler.get_execution_order()
+
+    def get_cache_stats(self) -> dict[str, Any]:
+        """Get cache performance statistics.
+
+        Returns:
+            Dictionary with cache metrics and performance data
+        """
+        if isinstance(self._cache, OptimizedResearchCache):
+            return self._cache.get_stats()
+        else:
+            # Basic cache stats
+            return {
+                "cache_size": len(self._cache._cache),
+                "ttl_hours": self._cache.ttl_hours,
+                "message": "Using basic cache without optimization",
+            }
+
+    def get_cache_optimization_analysis(self) -> dict[str, Any]:
+        """Analyze cache performance and get optimization recommendations.
+
+        Returns:
+            Dictionary with analysis results and recommendations
+        """
+        if isinstance(self._cache, OptimizedResearchCache):
+            return CacheOptimizer.analyze_cache(self._cache)
+        else:
+            return {"message": "Cache optimization analysis requires OptimizedResearchCache"}
+
+    def get_cache_tuning_suggestions(self) -> dict[str, Any]:
+        """Get suggestions for cache tuning parameters.
+
+        Returns:
+            Dictionary with tuning suggestions and rationale
+        """
+        if isinstance(self._cache, OptimizedResearchCache):
+            return CacheOptimizer.suggest_tuning(self._cache)
+        else:
+            return {"message": "Cache tuning requires OptimizedResearchCache"}
+
+    def cleanup_cache_expired(self) -> int:
+        """Manually trigger cleanup of expired cache entries.
+
+        Returns:
+            Number of entries removed
+        """
+        return self._cache.cleanup_expired()
 
     def _check_budget_before_phase(self, phase_name: str) -> bool:
         """Check budget before starting a research phase.

@@ -108,9 +108,9 @@ jobs:
         run: |
           # Generate critical script list and check for Unicode glyphs
           # Exclude check_windows_console_unicode.py - it intentionally contains Unicode glyphs as data
-          python scripts/tools/normalize_console_glyphs.py --list-critical > /tmp/critical_scripts.txt
+          python scripts/tools/normalize_console_glyphs.py --list-critical > scripts/.critical_scripts_list.txt
           python scripts/tools/normalize_console_glyphs.py --check \
-            --files-from /tmp/critical_scripts.txt \
+            --files-from scripts/.critical_scripts_list.txt \
             --exclude scripts/ci/check_windows_console_unicode.py
       - name: Lint with ruff
         run: |
@@ -189,13 +189,23 @@ jobs:
         run: npm run build
       - name: Verify no sourcemaps in production build (PR-07 security)
         run: |
-          # Sourcemaps should not be generated for production builds
-          if find dist -name "*.map" 2>/dev/null | grep -q .; then
-            echo "::error::Production build contains .map files - security risk!"
-            find dist -name "*.map"
-            exit 1
-          fi
-          echo "No sourcemaps in production build (OK)"
+          # Sourcemaps should not be generated for production builds (Windows-compatible check)
+          python -c "
+          import os
+          import sys
+          maps = []
+          if os.path.exists('dist'):
+              for root, dirs, files in os.walk('dist'):
+                  for f in files:
+                      if f.endswith('.map'):
+                          maps.append(os.path.join(root, f))
+          if maps:
+              print('::error::Production build contains .map files - security risk!')
+              for m in maps:
+                  print(m)
+              sys.exit(1)
+          print('No sourcemaps in production build (OK)')
+          "
 
   docs-sot-integrity:
     name: Docs / SOT Integrity
@@ -315,14 +325,38 @@ jobs:
       - name: Extract and upload test durations
         if: always()
         run: |
-          # Extract durations for CI optimization analysis (temporary artifact)
-          echo "=== CORE TESTS DURATION REPORT ===" > test-durations-core.txt
-          echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> test-durations-core.txt
-          echo "Commit: ${{ github.sha }}" >> test-durations-core.txt
-          echo "Run ID: ${{ github.run_id }}" >> test-durations-core.txt
-          echo "" >> test-durations-core.txt
-          echo "=== SLOWEST TESTS (top 50) ===" >> test-durations-core.txt
-          grep -E "^[0-9]+\.[0-9]+s" core_test_output.txt | sort -t's' -k1 -rn | head -50 >> test-durations-core.txt || echo "No duration data found" >> test-durations-core.txt
+          # Extract durations for CI optimization analysis (Windows-compatible)
+          python -c "
+          import re
+          from datetime import datetime, timezone
+
+          output = []
+          output.append('=== CORE TESTS DURATION REPORT ===')
+          output.append(f'Generated: {datetime.now(timezone.utc).strftime(\"%Y-%m-%dT%H:%M:%SZ\")}')
+          output.append('Commit: ${{ github.sha }}')
+          output.append('Run ID: ${{ github.run_id }}')
+          output.append('')
+          output.append('=== SLOWEST TESTS (top 50) ===')
+
+          try:
+              with open('core_test_output.txt', 'r') as f:
+                  lines = f.readlines()
+              durations = []
+              for line in lines:
+                  m = re.match(r'^(\d+\.\d+)s\s+(.*)', line.strip())
+                  if m:
+                      durations.append((float(m.group(1)), m.group(2)))
+              durations.sort(reverse=True)
+              for dur, test in durations[:50]:
+                  output.append(f'{dur}s {test}')
+              if not durations:
+                  output.append('No duration data found')
+          except Exception as e:
+              output.append(f'No duration data found')
+
+          with open('test-durations-core.txt', 'w') as f:
+              f.write('\n'.join(output))
+          "
       - name: Upload core test durations
         if: always()
         uses: actions/upload-artifact@v4
@@ -346,6 +380,41 @@ jobs:
         uses: codecov/codecov-action@0561704f0f02c16a585d4c7555e57fa2e44cf909  # v5.5.2
         with:
           files: ./coverage.xml
+
+  test-core-windows:
+    name: Core Tests (Windows - Python 3.12)
+    runs-on: windows-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.ci == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: |
+            pyproject.toml
+            requirements.txt
+            requirements-dev.txt
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+      - name: Run core tests on Windows (SQLite - no services)
+        env:
+          # Use SQLite for Windows CI (no PostgreSQL service setup needed)
+          DATABASE_URL: sqlite:///./test.db
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: |
+          # Windows-compatible test run with SQLite
+          # Core gate: Must pass, no xfail allowed
+          pytest tests/ -m "not research and not aspirational and not legacy_contract" -v --tb=short -x 2>&1 | Tee-Object -FilePath core_test_output_windows.txt
+      - name: Check xfail budget
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: |
+          # Verify xfail count hasn't grown without approval
+          pytest tests/test_xfail_budget.py -v
 
   test-aspirational:
     name: Aspirational Tests (xfail allowed)
@@ -400,20 +469,55 @@ jobs:
       - name: Report xpass tests
         if: always()
         run: |
-          # Identify tests that are now passing but still marked xfail
-          # Parse from saved output instead of re-running pytest (CI optimization)
-          grep -E "XPASS|xpassed" aspirational_output.txt || echo "No XPASS tests found"
+          # Identify tests that are now passing but still marked xfail (Windows-compatible)
+          python -c "
+          try:
+              with open('aspirational_output.txt', 'r') as f:
+                  content = f.read()
+              if 'XPASS' in content or 'xpassed' in content:
+                  for line in content.split('\n'):
+                      if 'XPASS' in line or 'xpassed' in line:
+                          print(line)
+              else:
+                  print('No XPASS tests found')
+          except:
+              print('No XPASS tests found')
+          "
       - name: Extract and upload test durations
         if: always()
         run: |
-          # Extract durations for CI optimization analysis (temporary artifact)
-          echo "=== ASPIRATIONAL TESTS DURATION REPORT ===" > test-durations-aspirational.txt
-          echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> test-durations-aspirational.txt
-          echo "Commit: ${{ github.sha }}" >> test-durations-aspirational.txt
-          echo "Run ID: ${{ github.run_id }}" >> test-durations-aspirational.txt
-          echo "" >> test-durations-aspirational.txt
-          echo "=== SLOWEST TESTS (top 50) ===" >> test-durations-aspirational.txt
-          grep -E "^[0-9]+\.[0-9]+s" aspirational_output.txt | sort -t's' -k1 -rn | head -50 >> test-durations-aspirational.txt || echo "No duration data found" >> test-durations-aspirational.txt
+          # Extract durations for CI optimization analysis (Windows-compatible)
+          python -c "
+          import re
+          from datetime import datetime, timezone
+
+          output = []
+          output.append('=== ASPIRATIONAL TESTS DURATION REPORT ===')
+          output.append(f'Generated: {datetime.now(timezone.utc).strftime(\"%Y-%m-%dT%H:%M:%SZ\")}')
+          output.append('Commit: ${{ github.sha }}')
+          output.append('Run ID: ${{ github.run_id }}')
+          output.append('')
+          output.append('=== SLOWEST TESTS (top 50) ===')
+
+          try:
+              with open('aspirational_output.txt', 'r') as f:
+                  lines = f.readlines()
+              durations = []
+              for line in lines:
+                  m = re.match(r'^(\d+\.\d+)s\s+(.*)', line.strip())
+                  if m:
+                      durations.append((float(m.group(1)), m.group(2)))
+              durations.sort(reverse=True)
+              for dur, test in durations[:50]:
+                  output.append(f'{dur}s {test}')
+              if not durations:
+                  output.append('No duration data found')
+          except Exception as e:
+              output.append(f'No duration data found')
+
+          with open('test-durations-aspirational.txt', 'w') as f:
+              f.write('\n'.join(output))
+          "
       - name: Upload aspirational test durations
         if: always()
         uses: actions/upload-artifact@v4
@@ -458,14 +562,38 @@ jobs:
       - name: Extract and upload test durations
         if: always()
         run: |
-          # Extract durations for CI optimization analysis (temporary artifact)
-          echo "=== RESEARCH TESTS DURATION REPORT ===" > test-durations-research.txt
-          echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> test-durations-research.txt
-          echo "Commit: ${{ github.sha }}" >> test-durations-research.txt
-          echo "Run ID: ${{ github.run_id }}" >> test-durations-research.txt
-          echo "" >> test-durations-research.txt
-          echo "=== SLOWEST TESTS (top 50) ===" >> test-durations-research.txt
-          grep -E "^[0-9]+\.[0-9]+s" research_output.txt | sort -t's' -k1 -rn | head -50 >> test-durations-research.txt || echo "No duration data found" >> test-durations-research.txt
+          # Extract durations for CI optimization analysis (Windows-compatible)
+          python -c "
+          import re
+          from datetime import datetime, timezone
+
+          output = []
+          output.append('=== RESEARCH TESTS DURATION REPORT ===')
+          output.append(f'Generated: {datetime.now(timezone.utc).strftime(\"%Y-%m-%dT%H:%M:%SZ\")}')
+          output.append('Commit: ${{ github.sha }}')
+          output.append('Run ID: ${{ github.run_id }}')
+          output.append('')
+          output.append('=== SLOWEST TESTS (top 50) ===')
+
+          try:
+              with open('research_output.txt', 'r') as f:
+                  lines = f.readlines()
+              durations = []
+              for line in lines:
+                  m = re.match(r'^(\d+\.\d+)s\s+(.*)', line.strip())
+                  if m:
+                      durations.append((float(m.group(1)), m.group(2)))
+              durations.sort(reverse=True)
+              for dur, test in durations[:50]:
+                  output.append(f'{dur}s {test}')
+              if not durations:
+                  output.append('No duration data found')
+          except Exception as e:
+              output.append(f'No duration data found')
+
+          with open('test-durations-research.txt', 'w') as f:
+              f.write('\n'.join(output))
+          "
       - name: Upload research test durations
         if: always()
         uses: actions/upload-artifact@v4
@@ -566,6 +694,7 @@ jobs:
       - frontend-ci
       - docs-sot-integrity
       - test-core
+      - test-core-windows
       - test-aspirational
       - test-research
       - governance-approval-tests
@@ -587,6 +716,7 @@ jobs:
           (needs.frontend-ci.result == 'success' || needs.frontend-ci.result == 'skipped') &&
           (needs.docs-sot-integrity.result == 'success' || needs.docs-sot-integrity.result == 'skipped') &&
           (needs.test-core.result == 'success' || needs.test-core.result == 'skipped') &&
+          (needs.test-core-windows.result == 'success' || needs.test-core-windows.result == 'skipped') &&
           (needs.test-aspirational.result == 'success' || needs.test-aspirational.result == 'skipped') &&
           (needs.test-research.result == 'success' || needs.test-research.result == 'skipped') &&
           (needs.governance-approval-tests.result == 'success' || needs.governance-approval-tests.result == 'skipped') &&

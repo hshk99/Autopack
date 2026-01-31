@@ -8,21 +8,36 @@ research findings.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Type
 
 from autopack.executor.post_build_generator import (
-    BuildCharacteristics, PostBuildArtifactGenerator,
-    capture_build_characteristics, generate_post_build_artifacts)
+    BuildCharacteristics,
+    PostBuildArtifactGenerator,
+    capture_build_characteristics,
+    generate_post_build_artifacts,
+)
 from autopack.research.analysis.deployment_analysis import (
-    DeploymentAnalyzer, DeploymentArchitecture, DeploymentTarget)
+    DeploymentAnalyzer,
+    DeploymentArchitecture,
+    DeploymentTarget,
+)
 from autopack.research.analysis.monetization_analysis import (
-    MonetizationAnalysisResult, MonetizationAnalyzer, ProjectType)
+    MonetizationAnalysisResult,
+    MonetizationAnalyzer,
+    ProjectType,
+)
 from autopack.research.discovery.mcp_discovery import MCPScanResult
 from autopack.research.generators.cicd_generator import (
-    CICDAnalyzer, CICDPlatform, CICDWorkflowGenerator, DeploymentGuidance,
-    GitLabCIGenerator, JenkinsPipelineGenerator)
-from autopack.research.sot_summarizer import (SOTSummarizer, SOTSummary,
-                                              get_sot_summarizer)
+    CICDAnalyzer,
+    CICDPlatform,
+    CICDWorkflowGenerator,
+    DeploymentGuidance,
+    GitLabCIGenerator,
+    JenkinsPipelineGenerator,
+)
+from autopack.research.sot_summarizer import SOTSummarizer, SOTSummary, get_sot_summarizer
+from autopack.research.validators.artifact_validator import ArtifactValidator
 
 logger = logging.getLogger(__name__)
 
@@ -2792,3 +2807,78 @@ def get_post_build_generator(**kwargs: Any) -> PostBuildArtifactGenerator:
         # Fallback to direct instantiation
         return PostBuildArtifactGenerator(**kwargs)
     return generator
+
+
+class TechStackProposalValidator:
+    """Validates tech stack proposal artifacts against schema (IMP-SCHEMA-001).
+
+    Ensures tech stack proposals meet schema requirements including:
+    - Required fields: project_type, options (min 2)
+    - Cost estimates with valid monthly_min/max ranges
+    - Recommendation references existing option
+    - Confidence score between 0.0 and 1.0
+    """
+
+    def __init__(self, schema_path: Optional[Path | str] = None):
+        """Initialize the validator.
+
+        Args:
+            schema_path: Optional path to tech_stack_proposal.schema.json.
+                        If None, uses default location.
+        """
+        self._validator = ArtifactValidator(schema_path)
+
+    def validate_tech_stack_proposal(self, proposal: Dict[str, Any]) -> bool:
+        """Validate a tech stack proposal artifact.
+
+        Args:
+            proposal: Tech stack proposal dict (from TechStackProposal.model_dump())
+
+        Returns:
+            True if valid, False otherwise
+        """
+        result = self._validator.validate(proposal)
+        if not result.is_valid:
+            for error in result.errors:
+                logger.error(f"[TechStackProposalValidator] {error.path}: {error.message}")
+        if result.warnings:
+            for warning in result.warnings:
+                logger.warning(f"[TechStackProposalValidator] {warning}")
+        return result.is_valid
+
+    def validate_before_write(
+        self, proposal: Dict[str, Any], artifact_path: Optional[Path] = None
+    ) -> bool:
+        """Validate a tech stack proposal before writing to disk.
+
+        Args:
+            proposal: Tech stack proposal dict
+            artifact_path: Optional path where artifact will be written (for logging)
+
+        Returns:
+            True if valid and can be written, False otherwise
+        """
+        if artifact_path is None:
+            artifact_path = Path("tech_stack_proposal.json")
+
+        result = self._validator.validate_before_write(proposal, artifact_path)
+        return result
+
+
+def get_tech_stack_proposal_validator(
+    schema_path: Optional[Path | str] = None,
+) -> TechStackProposalValidator:
+    """Convenience function to get the tech stack proposal validator.
+
+    Validates tech stack proposal artifacts against schema before writing,
+    ensuring all required fields are present and valid.
+
+    Implements IMP-SCHEMA-001: Tech Stack Proposal Artifact Validation.
+
+    Args:
+        schema_path: Optional path to tech_stack_proposal.schema.json
+
+    Returns:
+        TechStackProposalValidator instance
+    """
+    return TechStackProposalValidator(schema_path)

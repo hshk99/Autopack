@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.memory.memory_service import (  # IMP-LOOP-019: New imports
+from autopack.memory.freshness_filter import (  # IMP-LOOP-019: New imports
     COLLECTION_CODE_DOCS,
     COLLECTION_DOCTOR_HINTS,
     COLLECTION_ERRORS_CI,
@@ -21,14 +21,14 @@ from autopack.memory.memory_service import (  # IMP-LOOP-019: New imports
     DEFAULT_MEMORY_FRESHNESS_HOURS,
     LOW_CONFIDENCE_THRESHOLD,
     ContextMetadata,
-    MemoryService,
-    _calculate_age_hours,
-    _calculate_confidence,
-    _enrich_with_metadata,
-    _is_fresh,
-    _parse_timestamp,
+    calculate_age_hours as _calculate_age_hours,
+    calculate_confidence as _calculate_confidence,
+    enrich_with_metadata as _enrich_with_metadata,
     get_freshness_threshold,
+    is_fresh as _is_fresh,
+    parse_timestamp as _parse_timestamp,
 )
+from autopack.memory.memory_service import MemoryService
 
 
 class TestTimestampParsing:
@@ -175,6 +175,7 @@ class TestMemoryServiceFreshnessFiltering:
         ):
             insights = mock_memory_service.retrieve_insights(
                 query="test query",
+                project_id="test-project",
                 limit=10,
                 max_age_hours=72,
             )
@@ -232,6 +233,7 @@ class TestMemoryServiceFreshnessFiltering:
             # Don't specify max_age_hours - should use per-collection thresholds
             insights = mock_memory_service.retrieve_insights(
                 query="test query",
+                project_id="test-project",
                 limit=10,
             )
 
@@ -275,6 +277,7 @@ class TestMemoryServiceFreshnessFiltering:
             ):
                 insights = mock_memory_service.retrieve_insights(
                     query="test query",
+                    project_id="test-project",
                     limit=10,
                     max_age_hours=0,  # Try to disable filtering
                 )
@@ -321,6 +324,7 @@ class TestMemoryServiceFreshnessFiltering:
             ):
                 insights = mock_memory_service.retrieve_insights(
                     query="test query",
+                    project_id="test-project",
                     limit=10,
                     max_age_hours=-5,  # Try to disable filtering with negative
                 )
@@ -362,6 +366,7 @@ class TestMemoryServiceFreshnessFiltering:
         ):
             insights = mock_memory_service.retrieve_insights(
                 query="test query",
+                project_id="test-project",
                 limit=10,
                 max_age_hours=24,
             )
@@ -376,6 +381,7 @@ class TestMemoryServiceFreshnessFiltering:
 
         insights = mock_memory_service.retrieve_insights(
             query="test query",
+            project_id="test-project",
             limit=10,
             max_age_hours=24,
         )
@@ -1007,6 +1013,7 @@ class TestPerCollectionStalenessFiltering:
             # Don't specify max_age_hours - should use per-collection thresholds
             insights = mock_memory_service.retrieve_insights(
                 query="test query",
+                project_id="test-project",
                 limit=10,
             )
 
@@ -1059,6 +1066,7 @@ class TestPerCollectionStalenessFiltering:
             # Explicit 48h threshold - should include the 30h old error
             insights = mock_memory_service.retrieve_insights(
                 query="test query",
+                project_id="test-project",
                 limit=10,
                 max_age_hours=48,
             )
@@ -1100,6 +1108,7 @@ class TestPerCollectionStalenessFiltering:
         ):
             insights = mock_memory_service.retrieve_insights(
                 query="test query",
+                project_id="test-project",
                 limit=10,
             )
 
@@ -1122,6 +1131,7 @@ class TestPerCollectionStalenessFiltering:
             ):
                 mock_memory_service.retrieve_insights(
                     query="test query",
+                    project_id="test-project",
                     limit=10,
                     # No max_age_hours - uses per-collection
                 )

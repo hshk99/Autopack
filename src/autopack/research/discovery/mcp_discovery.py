@@ -6,9 +6,13 @@ tools and servers that are relevant to project requirements. It integrates with 
 pipeline to recommend available MCP integrations.
 """
 
+import hashlib
+import json
 import logging
+import time
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -139,6 +143,151 @@ class MCPScanResult:
             },
             "total_matches": self.total_matches,
             "scan_timestamp": self.scan_timestamp,
+        }
+
+    def to_json(self) -> str:
+        """Convert scan result to JSON string."""
+        return json.dumps(self.to_dict(), indent=2)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "MCPScanResult":
+        """
+        Create MCPScanResult from dictionary.
+
+        Args:
+            data: Dictionary with scan result data
+
+        Returns:
+            MCPScanResult instance
+        """
+        discovered_tools = [
+            MCPToolDescriptor.from_dict(tool_data)
+            for tool_data in data.get("discovered_tools", [])
+        ]
+
+        matches_by_requirement = {}
+        for req, tools_data in data.get("matches_by_requirement", {}).items():
+            matches_by_requirement[req] = [
+                MCPToolDescriptor.from_dict(tool_data) for tool_data in tools_data
+            ]
+
+        return cls(
+            project_type=data.get("project_type", "unknown"),
+            requirements=data.get("requirements", {}),
+            discovered_tools=discovered_tools,
+            matches_by_requirement=matches_by_requirement,
+            total_matches=data.get("total_matches", 0),
+            scan_timestamp=data.get("scan_timestamp"),
+        )
+
+
+class MCPRegistryCache:
+    """Cache manager for MCP registry scan results with TTL support."""
+
+    def __init__(self, ttl_seconds: int = 3600):
+        """
+        Initialize the cache manager.
+
+        Args:
+            ttl_seconds: Time-to-live for cached results in seconds (default 1 hour)
+        """
+        self._cache: Dict[str, Dict[str, Any]] = {}
+        self._ttl_seconds = ttl_seconds
+        self._cache_stats = {"hits": 0, "misses": 0, "evictions": 0}
+        logger.debug(f"Initialized MCPRegistryCache with TTL={ttl_seconds}s")
+
+    def _make_key(self, project_type: str, requirements: Dict[str, Any]) -> str:
+        """
+        Create a cache key from project type and requirements.
+
+        Args:
+            project_type: Type of project
+            requirements: Project requirements dict
+
+        Returns:
+            Hash key for caching
+        """
+        # Create stable hash from requirements
+        req_json = json.dumps(requirements, sort_keys=True)
+        combined = f"{project_type}:{req_json}"
+        return hashlib.sha256(combined.encode()).hexdigest()
+
+    def get(self, project_type: str, requirements: Dict[str, Any]) -> Optional[MCPScanResult]:
+        """
+        Get cached scan result if available and not expired.
+
+        Args:
+            project_type: Type of project
+            requirements: Project requirements dict
+
+        Returns:
+            Cached MCPScanResult or None if not in cache or expired
+        """
+        key = self._make_key(project_type, requirements)
+
+        if key not in self._cache:
+            self._cache_stats["misses"] += 1
+            return None
+
+        cache_entry = self._cache[key]
+        current_time = time.time()
+
+        # Check if cache entry has expired
+        if current_time - cache_entry["timestamp"] > self._ttl_seconds:
+            del self._cache[key]
+            self._cache_stats["evictions"] += 1
+            self._cache_stats["misses"] += 1
+            logger.debug(f"Cache entry expired for key: {key[:8]}...")
+            return None
+
+        self._cache_stats["hits"] += 1
+        logger.debug(f"Cache hit for key: {key[:8]}... (age: {current_time - cache_entry['timestamp']:.1f}s)")
+        return cache_entry["result"]
+
+    def set(self, project_type: str, requirements: Dict[str, Any], result: MCPScanResult) -> None:
+        """
+        Store a scan result in cache.
+
+        Args:
+            project_type: Type of project
+            requirements: Project requirements dict
+            result: MCPScanResult to cache
+        """
+        key = self._make_key(project_type, requirements)
+        self._cache[key] = {
+            "timestamp": time.time(),
+            "result": result,
+            "project_type": project_type,
+        }
+        logger.debug(f"Cached scan result for key: {key[:8]}... (cache size: {len(self._cache)})")
+
+    def clear(self) -> None:
+        """Clear all cached entries."""
+        evicted = len(self._cache)
+        self._cache.clear()
+        self._cache_stats["evictions"] += evicted
+        logger.debug(f"Cleared cache ({evicted} entries evicted)")
+
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Get cache statistics.
+
+        Returns:
+            Dictionary with cache hits, misses, and evictions
+        """
+        total_requests = self._cache_stats["hits"] + self._cache_stats["misses"]
+        hit_rate = (
+            self._cache_stats["hits"] / total_requests * 100
+            if total_requests > 0
+            else 0
+        )
+
+        return {
+            "size": len(self._cache),
+            "hits": self._cache_stats["hits"],
+            "misses": self._cache_stats["misses"],
+            "evictions": self._cache_stats["evictions"],
+            "hit_rate_percent": hit_rate,
         }
 
 
@@ -293,16 +442,24 @@ class MCPRegistryScanner:
         ),
     ]
 
-    def __init__(self):
-        """Initialize the MCP registry scanner with default tools."""
+    def __init__(self, cache_ttl_seconds: int = 3600):
+        """
+        Initialize the MCP registry scanner with default tools.
+
+        Args:
+            cache_ttl_seconds: TTL for scan result cache in seconds
+        """
         self.registry = self._DEFAULT_REGISTRY.copy()
-        logger.debug(f"Initialized MCPRegistryScanner with {len(self.registry)} tools")
+        self._cache = MCPRegistryCache(ttl_seconds=cache_ttl_seconds)
+        logger.debug(f"Initialized MCPRegistryScanner with {len(self.registry)} tools and cache TTL={cache_ttl_seconds}s")
 
     async def scan_mcp_registry(
         self, project_type: str, requirements: Dict[str, Any]
     ) -> MCPScanResult:
         """
         Scan MCP registry for tools matching project requirements.
+
+        Results are cached for performance. Check cache first before performing full scan.
 
         Args:
             project_type: Type of project (e.g., 'web-app', 'data-pipeline', 'api')
@@ -311,6 +468,15 @@ class MCPRegistryScanner:
         Returns:
             MCPScanResult with discovered tools and matches
         """
+        # Check cache first
+        cached_result = self._cache.get(project_type, requirements)
+        if cached_result is not None:
+            logger.info(
+                f"Cache hit: returning cached scan for {project_type} "
+                f"({len(cached_result.discovered_tools)} tools)"
+            )
+            return cached_result
+
         logger.info(
             f"Scanning MCP registry for {project_type} with requirements: {list(requirements.keys())}"
         )
@@ -346,7 +512,11 @@ class MCPRegistryScanner:
             discovered_tools=final_tools,
             matches_by_requirement=matches_by_requirement,
             total_matches=len(final_tools),
+            scan_timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
+
+        # Cache the result
+        self._cache.set(project_type, requirements, result)
 
         logger.info(f"Scan complete: found {result.total_matches} tools matching requirements")
         return result
@@ -505,3 +675,26 @@ class MCPRegistryScanner:
             List of matching MCPToolDescriptor objects
         """
         return [tool for tool in self.registry if tool.maturity == maturity]
+
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """
+        Get cache statistics.
+
+        Returns:
+            Dictionary with cache performance metrics
+        """
+        return self._cache.get_stats()
+
+    def clear_cache(self) -> None:
+        """Clear all cached scan results."""
+        self._cache.clear()
+
+    def set_cache_ttl(self, ttl_seconds: int) -> None:
+        """
+        Set the time-to-live for cache entries.
+
+        Args:
+            ttl_seconds: TTL in seconds
+        """
+        self._cache._ttl_seconds = ttl_seconds
+        logger.info(f"Updated cache TTL to {ttl_seconds} seconds")

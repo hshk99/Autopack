@@ -9,7 +9,8 @@ Contains discovery integration modules for various sources including:
 """
 
 from autopack.research.discovery.github_discovery import GitHubDiscovery
-from autopack.research.discovery.mcp_discovery import (MCPRegistryScanner,
+from autopack.research.discovery.mcp_discovery import (MCPRegistryCache,
+                                                       MCPRegistryScanner,
                                                        MCPScanResult,
                                                        MCPToolCapability,
                                                        MCPToolDescriptor,
@@ -27,6 +28,7 @@ __all__ = [
     "RedditDiscovery",
     # MCP discovery
     "MCPRegistryScanner",
+    "MCPRegistryCache",
     "MCPToolDescriptor",
     "MCPToolCapability",
     "MCPScanResult",

@@ -1,10 +1,13 @@
 """Tests for MCP Discovery module."""
 
 import asyncio
+import json
+import time
 
 import pytest
 
-from autopack.research.discovery.mcp_discovery import (MCPRegistryScanner,
+from autopack.research.discovery.mcp_discovery import (MCPRegistryCache,
+                                                       MCPRegistryScanner,
                                                        MCPScanResult,
                                                        MCPToolCapability,
                                                        MCPToolDescriptor,
@@ -457,3 +460,385 @@ class TestAsyncIntegration:
 
         assert len(results) == 3
         assert all(isinstance(r, MCPScanResult) for r in results)
+
+
+class TestMCPRegistryCache:
+    """Test cases for MCPRegistryCache."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.cache = MCPRegistryCache(ttl_seconds=3600)
+
+    def test_cache_initialization(self):
+        """Test cache initializes with correct TTL."""
+        cache = MCPRegistryCache(ttl_seconds=1800)
+
+        assert cache._ttl_seconds == 1800
+        assert len(cache._cache) == 0
+        assert cache.get_stats()["size"] == 0
+
+    def test_cache_make_key_consistency(self):
+        """Test that same input produces same cache key."""
+        project_type = "web-app"
+        requirements = {"needs_search": True, "needs_async": True}
+
+        key1 = self.cache._make_key(project_type, requirements)
+        key2 = self.cache._make_key(project_type, requirements)
+
+        assert key1 == key2
+
+    def test_cache_make_key_different_requirements(self):
+        """Test that different requirements produce different keys."""
+        project_type = "web-app"
+        req1 = {"needs_search": True}
+        req2 = {"needs_database": True}
+
+        key1 = self.cache._make_key(project_type, req1)
+        key2 = self.cache._make_key(project_type, req2)
+
+        assert key1 != key2
+
+    def test_cache_set_and_get(self):
+        """Test storing and retrieving from cache."""
+        tool = MCPToolDescriptor(
+            name="test-tool",
+            description="Test",
+        )
+        result = MCPScanResult(
+            project_type="web-app",
+            requirements={"needs_search": True},
+            discovered_tools=[tool],
+            total_matches=1,
+        )
+
+        project_type = "web-app"
+        requirements = {"needs_search": True}
+
+        # Store in cache
+        self.cache.set(project_type, requirements, result)
+
+        # Retrieve from cache
+        cached = self.cache.get(project_type, requirements)
+
+        assert cached is not None
+        assert cached.project_type == "web-app"
+        assert len(cached.discovered_tools) == 1
+
+    def test_cache_miss(self):
+        """Test cache miss on non-existent key."""
+        cached = self.cache.get("unknown", {"unknown": True})
+
+        assert cached is None
+
+    def test_cache_statistics_hits(self):
+        """Test cache hit statistics."""
+        tool = MCPToolDescriptor(name="test", description="Test")
+        result = MCPScanResult(
+            project_type="app",
+            requirements={"test": True},
+            discovered_tools=[tool],
+            total_matches=1,
+        )
+
+        self.cache.set("app", {"test": True}, result)
+
+        # First hit
+        self.cache.get("app", {"test": True})
+        stats = self.cache.get_stats()
+        assert stats["hits"] == 1
+        assert stats["misses"] == 0
+
+        # Second hit
+        self.cache.get("app", {"test": True})
+        stats = self.cache.get_stats()
+        assert stats["hits"] == 2
+
+    def test_cache_statistics_misses(self):
+        """Test cache miss statistics."""
+        self.cache.get("missing", {"test": True})
+        stats = self.cache.get_stats()
+
+        assert stats["misses"] == 1
+        assert stats["hits"] == 0
+
+    def test_cache_hit_rate(self):
+        """Test cache hit rate calculation."""
+        tool = MCPToolDescriptor(name="test", description="Test")
+        result = MCPScanResult(
+            project_type="app",
+            requirements={"test": True},
+            discovered_tools=[tool],
+            total_matches=1,
+        )
+
+        self.cache.set("app", {"test": True}, result)
+
+        # 2 hits
+        self.cache.get("app", {"test": True})
+        self.cache.get("app", {"test": True})
+
+        # 1 miss
+        self.cache.get("missing", {"test": True})
+
+        stats = self.cache.get_stats()
+        assert stats["hit_rate_percent"] == pytest.approx(66.66, abs=1)
+
+    def test_cache_expiration(self):
+        """Test cache expiration after TTL."""
+        cache = MCPRegistryCache(ttl_seconds=1)
+
+        tool = MCPToolDescriptor(name="test", description="Test")
+        result = MCPScanResult(
+            project_type="app",
+            requirements={"test": True},
+            discovered_tools=[tool],
+            total_matches=1,
+        )
+
+        cache.set("app", {"test": True}, result)
+
+        # Should be in cache
+        cached = cache.get("app", {"test": True})
+        assert cached is not None
+
+        # Wait for expiration
+        time.sleep(1.1)
+
+        # Should be expired
+        cached = cache.get("app", {"test": True})
+        assert cached is None
+
+    def test_cache_clear(self):
+        """Test clearing the cache."""
+        tool = MCPToolDescriptor(name="test", description="Test")
+        result = MCPScanResult(
+            project_type="app",
+            requirements={"test": True},
+            discovered_tools=[tool],
+            total_matches=1,
+        )
+
+        self.cache.set("app", {"test": True}, result)
+        assert self.cache.get_stats()["size"] == 1
+
+        self.cache.clear()
+        assert self.cache.get_stats()["size"] == 0
+
+    def test_cache_performance(self):
+        """Test cache performance is acceptable (<1s for cached queries)."""
+        tool = MCPToolDescriptor(name="test", description="Test")
+        result = MCPScanResult(
+            project_type="app",
+            requirements={"test": True},
+            discovered_tools=[tool],
+            total_matches=1,
+        )
+
+        self.cache.set("app", {"test": True}, result)
+
+        # Measure retrieval time
+        start_time = time.time()
+        for _ in range(100):
+            self.cache.get("app", {"test": True})
+        elapsed = time.time() - start_time
+
+        # 100 queries should take less than 1 second
+        assert elapsed < 1.0
+
+
+class TestMCPScannerWithCache:
+    """Test cases for MCPRegistryScanner with caching."""
+
+    def test_scanner_has_cache(self):
+        """Test scanner initializes with cache."""
+        scanner = MCPRegistryScanner()
+
+        assert hasattr(scanner, "_cache")
+        assert isinstance(scanner._cache, MCPRegistryCache)
+
+    def test_scanner_cache_ttl_configuration(self):
+        """Test scanner accepts cache TTL configuration."""
+        scanner = MCPRegistryScanner(cache_ttl_seconds=1800)
+
+        assert scanner._cache._ttl_seconds == 1800
+
+    @pytest.mark.asyncio
+    async def test_scan_caches_result(self):
+        """Test that scan results are cached."""
+        scanner = MCPRegistryScanner()
+
+        result1 = await scanner.scan_mcp_registry(
+            "web-app",
+            {"needs_search": True},
+        )
+
+        # Modify registry to verify we're getting cached result
+        original_count = len(scanner.registry)
+        scanner.registry.pop()
+
+        result2 = await scanner.scan_mcp_registry(
+            "web-app",
+            {"needs_search": True},
+        )
+
+        # Results should be identical (from cache)
+        assert result1.total_matches == result2.total_matches
+        assert len(result1.discovered_tools) == len(result2.discovered_tools)
+
+        # Restore registry
+        scanner.registry.append(MCPToolDescriptor(
+            name="restored",
+            description="Restored tool",
+        ))
+
+    @pytest.mark.asyncio
+    async def test_scan_cache_hit_statistics(self):
+        """Test cache hit statistics for scans."""
+        scanner = MCPRegistryScanner()
+
+        # First scan - cache miss
+        await scanner.scan_mcp_registry("web-app", {"needs_search": True})
+
+        # Second scan - cache hit
+        await scanner.scan_mcp_registry("web-app", {"needs_search": True})
+
+        stats = scanner.get_cache_stats()
+        assert stats["hits"] == 1
+        assert stats["misses"] == 1
+
+    def test_scanner_get_cache_stats(self):
+        """Test retrieving cache stats from scanner."""
+        scanner = MCPRegistryScanner()
+
+        stats = scanner.get_cache_stats()
+
+        assert isinstance(stats, dict)
+        assert "size" in stats
+        assert "hits" in stats
+        assert "misses" in stats
+        assert "hit_rate_percent" in stats
+
+    def test_scanner_clear_cache(self):
+        """Test clearing cache from scanner."""
+        scanner = MCPRegistryScanner()
+
+        # Add something to cache
+        tool = MCPToolDescriptor(name="test", description="Test")
+        result = MCPScanResult(
+            project_type="app",
+            requirements={"test": True},
+            discovered_tools=[tool],
+            total_matches=1,
+        )
+        scanner._cache.set("app", {"test": True}, result)
+        assert scanner.get_cache_stats()["size"] == 1
+
+        # Clear cache
+        scanner.clear_cache()
+        assert scanner.get_cache_stats()["size"] == 0
+
+    def test_scanner_set_cache_ttl(self):
+        """Test updating cache TTL."""
+        scanner = MCPRegistryScanner(cache_ttl_seconds=3600)
+
+        scanner.set_cache_ttl(1800)
+        assert scanner._cache._ttl_seconds == 1800
+
+    @pytest.mark.asyncio
+    async def test_different_requirements_different_cache(self):
+        """Test that different requirements produce separate cache entries."""
+        scanner = MCPRegistryScanner()
+
+        result1 = await scanner.scan_mcp_registry(
+            "app",
+            {"needs_search": True},
+        )
+
+        result2 = await scanner.scan_mcp_registry(
+            "app",
+            {"needs_database": True},
+        )
+
+        # Different requirements should produce different results
+        # (unless they happen to find the same tools)
+        stats = scanner.get_cache_stats()
+        assert stats["size"] == 2  # Two cache entries
+
+
+class TestMCPScanResultSerialization:
+    """Test cases for MCPScanResult serialization."""
+
+    def test_scan_result_to_json(self):
+        """Test converting scan result to JSON."""
+        tool = MCPToolDescriptor(
+            name="test",
+            description="Test tool",
+            tags=["test"],
+        )
+        result = MCPScanResult(
+            project_type="web-app",
+            requirements={"needs_search": True},
+            discovered_tools=[tool],
+            total_matches=1,
+            scan_timestamp="2024-01-31T12:00:00Z",
+        )
+
+        json_str = result.to_json()
+
+        assert isinstance(json_str, str)
+        assert "test" in json_str
+        assert "web-app" in json_str
+
+        # Verify it's valid JSON
+        parsed = json.loads(json_str)
+        assert parsed["project_type"] == "web-app"
+
+    def test_scan_result_from_dict(self):
+        """Test creating scan result from dictionary."""
+        data = {
+            "project_type": "web-app",
+            "requirements": {"needs_search": True},
+            "discovered_tools": [
+                {
+                    "name": "test",
+                    "description": "Test tool",
+                    "capabilities": [],
+                    "maturity": "stable",
+                    "maintainer": "official",
+                    "tags": [],
+                }
+            ],
+            "matches_by_requirement": {},
+            "total_matches": 1,
+            "scan_timestamp": "2024-01-31T12:00:00Z",
+        }
+
+        result = MCPScanResult.from_dict(data)
+
+        assert result.project_type == "web-app"
+        assert len(result.discovered_tools) == 1
+        assert result.total_matches == 1
+
+    def test_scan_result_round_trip(self):
+        """Test converting to dict and back preserves data."""
+        tool = MCPToolDescriptor(
+            name="test-tool",
+            description="Test tool",
+            tags=["test", "search"],
+        )
+        original = MCPScanResult(
+            project_type="data-app",
+            requirements={"needs_search": True, "needs_async": True},
+            discovered_tools=[tool],
+            total_matches=1,
+            scan_timestamp="2024-01-31T12:00:00Z",
+        )
+
+        # Convert to dict and back
+        data_dict = original.to_dict()
+        restored = MCPScanResult.from_dict(data_dict)
+
+        assert restored.project_type == original.project_type
+        assert restored.total_matches == original.total_matches
+        assert len(restored.discovered_tools) == len(original.discovered_tools)
+        assert restored.discovered_tools[0].name == original.discovered_tools[0].name

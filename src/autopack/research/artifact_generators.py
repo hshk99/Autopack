@@ -29,6 +29,12 @@ from autopack.research.generators.cicd_generator import (
     GitLabCIGenerator,
     JenkinsPipelineGenerator,
 )
+from autopack.executor.post_build_generator import (
+    PostBuildArtifactGenerator,
+    BuildCharacteristics,
+    capture_build_characteristics,
+    generate_post_build_artifacts,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -2372,6 +2378,11 @@ class ArtifactGeneratorRegistry:
         self.register("readme", ProjectReadmeGenerator)
         self.register("project_brief", ProjectBriefGenerator)
         self.register("mcp_tools", MCPToolRecommendationGenerator)
+        self.register(
+            "post_build",
+            PostBuildArtifactGenerator,
+            "Post-build artifact generator for deployment configs, runbooks, and monitoring",
+        )
 
     def register(
         self,
@@ -2609,4 +2620,25 @@ def get_cicd_analyzer(**kwargs: Any) -> CICDAnalyzer:
     if generator is None:
         # Fallback to direct instantiation
         return CICDAnalyzer(**kwargs)
+    return generator
+
+
+def get_post_build_generator(**kwargs: Any) -> PostBuildArtifactGenerator:
+    """Convenience function to get the post-build artifact generator.
+
+    The generator produces deployment configs, operational runbooks,
+    and monitoring templates after successful project builds.
+
+    Implements IMP-INT-003: Post-Build Artifact Generation.
+
+    Args:
+        **kwargs: Arguments to pass to PostBuildArtifactGenerator
+
+    Returns:
+        PostBuildArtifactGenerator instance
+    """
+    generator = get_registry().get("post_build", **kwargs)
+    if generator is None:
+        # Fallback to direct instantiation
+        return PostBuildArtifactGenerator(**kwargs)
     return generator

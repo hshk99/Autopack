@@ -7,11 +7,14 @@ for bootstrap sessions that coordinate multiple research phases in parallel.
 from __future__ import annotations
 
 import hashlib
+import logging
 from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError, field_validator
+
+logger = logging.getLogger(__name__)
 
 
 class BootstrapPhase(str, Enum):
@@ -24,6 +27,89 @@ class BootstrapPhase(str, Enum):
     SYNTHESIS = "synthesis"
     COMPLETED = "completed"
     FAILED = "failed"
+
+
+class MarketResearchResult(BaseModel):
+    """Schema for market research phase results."""
+
+    market_size: float = Field(..., description="Estimated market size in USD")
+    growth_rate: float = Field(..., description="Annual growth rate as decimal (0.0-1.0)")
+    target_segments: list[str] = Field(default_factory=list, description="Target market segments")
+    tam_sam_som: Optional[dict[str, float]] = Field(
+        default=None, description="TAM/SAM/SOM breakdown"
+    )
+
+    @field_validator("growth_rate")
+    @classmethod
+    def validate_growth_rate(cls, v: float) -> float:
+        """Ensure growth rate is between 0 and 1."""
+        if not (0 <= v <= 1):
+            raise ValueError("growth_rate must be between 0 and 1")
+        return v
+
+    @field_validator("market_size")
+    @classmethod
+    def validate_market_size(cls, v: float) -> float:
+        """Ensure market size is non-negative."""
+        if v < 0:
+            raise ValueError("market_size must be non-negative")
+        return v
+
+
+class CompetitiveAnalysisResult(BaseModel):
+    """Schema for competitive analysis phase results."""
+
+    competitors: list[dict[str, Any]] = Field(
+        default_factory=list, description="List of competitor profiles"
+    )
+    differentiation_factors: list[str] = Field(
+        default_factory=list, description="Key differentiation factors"
+    )
+    competitive_intensity: Optional[str] = Field(
+        default=None, description="Assessment of competitive intensity"
+    )
+
+    @field_validator("competitors")
+    @classmethod
+    def validate_competitors(cls, v: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Ensure competitors have required fields."""
+        required_fields = {"name", "description"}
+        for i, competitor in enumerate(v):
+            missing = required_fields - set(competitor.keys())
+            if missing:
+                raise ValueError(f"Competitor {i} missing required fields: {missing}")
+        return v
+
+
+class TechnicalFeasibilityResult(BaseModel):
+    """Schema for technical feasibility phase results."""
+
+    feasibility_score: float = Field(..., description="Feasibility score (0-1)")
+    key_challenges: list[str] = Field(
+        default_factory=list, description="Major technical challenges identified"
+    )
+    required_technologies: list[str] = Field(
+        default_factory=list, description="Technologies required for implementation"
+    )
+    estimated_effort: Optional[str] = Field(
+        default=None, description="Estimated implementation effort (e.g., 'high', 'medium', 'low')"
+    )
+
+    @field_validator("feasibility_score")
+    @classmethod
+    def validate_feasibility_score(cls, v: float) -> float:
+        """Ensure feasibility score is between 0 and 1."""
+        if not (0 <= v <= 1):
+            raise ValueError("feasibility_score must be between 0 and 1")
+        return v
+
+
+# Map phase types to their validation schemas
+PHASE_RESULT_SCHEMAS = {
+    BootstrapPhase.MARKET_RESEARCH: MarketResearchResult,
+    BootstrapPhase.COMPETITIVE_ANALYSIS: CompetitiveAnalysisResult,
+    BootstrapPhase.TECHNICAL_FEASIBILITY: TechnicalFeasibilityResult,
+}
 
 
 class ResearchPhaseResult(BaseModel):
@@ -134,12 +220,19 @@ class BootstrapSession(BaseModel):
         self.updated_at = datetime.now()
 
     def mark_phase_completed(self, phase: BootstrapPhase, data: dict[str, Any]) -> None:
-        """Mark a phase as completed with its data."""
+        """Mark a phase as completed with its data.
+
+        Validates phase data against schema before storing.
+        Raises ValueError if validation fails.
+        """
+        # Validate the data before storing
+        validated_data = self._validate_phase_data(phase, data)
+
         result = self._get_phase_result(phase)
         if result:
             result.status = "completed"
             result.completed_at = datetime.now()
-            result.data = data
+            result.data = validated_data
             if result.started_at:
                 result.duration_seconds = (result.completed_at - result.started_at).total_seconds()
         self.updated_at = datetime.now()
@@ -165,6 +258,33 @@ class BootstrapSession(BaseModel):
         elif phase == BootstrapPhase.TECHNICAL_FEASIBILITY:
             return self.technical_feasibility
         return None
+
+    def _validate_phase_data(self, phase: BootstrapPhase, data: dict[str, Any]) -> dict[str, Any]:
+        """Validate phase data against its schema.
+
+        Args:
+            phase: The bootstrap phase
+            data: Raw data dictionary to validate
+
+        Returns:
+            Validated data as dict
+
+        Raises:
+            ValueError: If data doesn't match the phase schema
+        """
+        schema_class = PHASE_RESULT_SCHEMAS.get(phase)
+
+        if schema_class is None:
+            logger.warning(f"No schema defined for phase {phase.value}, storing unvalidated data")
+            return data
+
+        try:
+            validated = schema_class(**data)
+            return validated.model_dump()
+        except ValidationError as e:
+            error_msg = f"Invalid {phase.value} data: {e}"
+            logger.error(error_msg)
+            raise ValueError(error_msg) from e
 
     def _check_all_complete(self) -> None:
         """Check if all phases are complete and update session status."""

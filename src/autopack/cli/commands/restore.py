@@ -4,14 +4,22 @@ Provides the `autopack restore` command to extract database, ledgers,
 autonomous run state, and config from a backup archive.
 """
 
+import logging
 import tarfile
 from pathlib import Path
 
 import click
 
+logger = logging.getLogger(__name__)
+
+
+def get_default_base_dir() -> Path:
+    """Get the default autopack directory."""
+    return Path.cwd()
+
 
 def safe_extract(tar: tarfile.TarFile, member: tarfile.TarInfo, base: Path) -> None:
-    """Safely extract tar member, preventing path traversal.
+    """Safely extract tar member, preventing path traversal and symlink attacks.
 
     Validates that the extracted path stays within the base directory,
     blocking any attempts to escape via '../' or absolute paths.
@@ -22,8 +30,16 @@ def safe_extract(tar: tarfile.TarFile, member: tarfile.TarInfo, base: Path) -> N
         base: Base directory where extraction should occur
 
     Raises:
-        ValueError: If path traversal is detected
+        ValueError: If path traversal or dangerous link is detected
     """
+    # Check for symlinks
+    if member.issym():
+        raise ValueError(f"Blocked symlink in archive: {member.name} -> {member.linkname}")
+
+    # Check for hardlinks
+    if member.islnk():
+        raise ValueError(f"Blocked hardlink in archive: {member.name} -> {member.linkname}")
+
     # Check for absolute paths in member name (Unix-style)
     if member.name.startswith("/"):
         raise ValueError(f"Absolute path not allowed: {member.name}")
@@ -44,11 +60,6 @@ def safe_extract(tar: tarfile.TarFile, member: tarfile.TarInfo, base: Path) -> N
         raise ValueError(f"Path traversal detected: {member.name}")
 
     tar.extract(member, path=base)
-
-
-def get_default_base_dir() -> Path:
-    """Get the default autopack directory."""
-    return Path.cwd()
 
 
 @click.command("restore")
@@ -125,7 +136,7 @@ def restore(input_file: Path, base_dir: Path | None, force: bool) -> None:
                 click.secho("Restore cancelled.", fg="red")
                 raise SystemExit(1)
 
-        # Extract all files
+        # Extract all files with security validation
         click.echo("Extracting files:")
         files_restored = 0
 
@@ -138,7 +149,7 @@ def restore(input_file: Path, base_dir: Path | None, force: bool) -> None:
                 elif member.isdir():
                     click.echo(f"  [restore] {member.name}/")
             except ValueError as e:
-                click.secho(f"Error: {e}", fg="red")
+                click.secho(f"Security error: {e}", fg="red")
                 raise SystemExit(1)
 
     click.echo()

@@ -42,14 +42,26 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
+from autopack.schema_validation.json_schema import (
+    SchemaValidationError,
+    validate_intention_anchor_v2,
+)
 from autopack.sql_sanitizer import SQLSanitizer
 
-from .schemas import (AITokenProjection, AnalysisResultsAggregation,
-                      BuildVsBuyAnalysisResponse, BuildVsBuyDecision,
-                      ComponentCostDecision, CostEffectivenessResponse,
-                      CostEffectivenessSummary, CreateResearchSession,
-                      FollowupTrigger, FollowupTriggerResponse, ResearchGap,
-                      ResearchSession, ResearchStateResponse)
+from .schemas import (
+    AnalysisResultsAggregation,
+    BuildVsBuyAnalysisResponse,
+    BuildVsBuyDecision,
+    ComponentCostDecision,
+    CostEffectivenessResponse,
+    CostEffectivenessSummary,
+    CreateResearchSession,
+    FollowupTrigger,
+    FollowupTriggerResponse,
+    ResearchGap,
+    ResearchSession,
+    ResearchStateResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -339,6 +351,54 @@ def bootstrap_guard(func):
 
 
 # =============================================================================
+# Anchor Serialization Validation
+# =============================================================================
+
+
+def validate_anchor_serialization(anchor) -> dict:
+    """Validate and serialize an IntentionAnchorV2 object to JSON-safe dict.
+
+    Args:
+        anchor: IntentionAnchorV2 object to validate and serialize
+
+    Returns:
+        JSON-serializable dict representation of the anchor
+
+    Raises:
+        HTTPException: If validation fails with detailed error information
+    """
+    try:
+        # Serialize the anchor to dict with JSON-safe mode
+        anchor_dict = anchor.model_dump(mode="json")
+
+        # Validate the serialized anchor against the schema
+        validate_intention_anchor_v2(anchor_dict)
+
+        logger.debug(
+            f"[BOOTSTRAP] Anchor serialization validated successfully "
+            f"(format_version={anchor_dict.get('format_version')}, "
+            f"project_id={anchor_dict.get('project_id')})"
+        )
+
+        return anchor_dict
+
+    except SchemaValidationError as e:
+        logger.error(f"[BOOTSTRAP] Anchor serialization validation failed: {e}")
+        logger.error(f"[BOOTSTRAP] Validation errors: {e.errors}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Anchor serialization validation failed: {str(e)}. "
+            f"Errors: {'; '.join(e.errors[:3])}",
+        )
+    except Exception as e:
+        logger.error(f"[BOOTSTRAP] Unexpected error during anchor serialization: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to serialize anchor: {str(e)}",
+        )
+
+
+# =============================================================================
 # Bootstrap Session Schemas
 # =============================================================================
 
@@ -623,6 +683,10 @@ async def get_draft_anchor(session_id: str):
         # Note: In production, we'd store the parsed_idea with the session
         anchor, questions = _anchor_mapper.map_to_anchor(session, parsed_idea=None)
 
+        # Validate anchor serialization before transmitting
+        # This ensures the anchor meets schema requirements (all required fields, correct format, etc.)
+        validated_anchor = validate_anchor_serialization(anchor)
+
         # Get confidence report
         mappings = _anchor_mapper._map_all_pivots(session, None)
         confidence_report = {
@@ -635,11 +699,14 @@ async def get_draft_anchor(session_id: str):
 
         return DraftAnchorResponse(
             session_id=session.session_id,
-            anchor=anchor.model_dump(mode="json"),
+            anchor=validated_anchor,
             clarifying_questions=questions,
             confidence_report=confidence_report,
         )
 
+    except HTTPException:
+        # Re-raise HTTPException from validation
+        raise
     except Exception as e:
         logger.error(f"[BOOTSTRAP] Error generating anchor: {e}")
         raise HTTPException(
@@ -956,8 +1023,7 @@ async def invalidate_cached_session(request: CacheInvalidateRequest):
         )
 
     try:
-        from autopack.research.models.bootstrap_session import \
-            generate_idea_hash
+        from autopack.research.models.bootstrap_session import generate_idea_hash
 
         idea_hash = generate_idea_hash(
             request.idea_title,

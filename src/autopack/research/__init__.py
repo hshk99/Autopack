@@ -33,6 +33,14 @@ from autopack.research.analysis import (  # Cost effectiveness; Research state t
 )
 from autopack.research.idea_parser import IdeaParser, ParsedIdea
 from autopack.research.orchestrator import ResearchCache, ResearchOrchestrator
+from autopack.research.sot_summarizer import (
+    ArchitectureDecision,
+    BuildEntry,
+    SOTSummarizer,
+    SOTSummary,
+    get_sot_summarizer,
+    summarize_sot_documents,
+)
 
 __all__ = [
     # Main orchestration
@@ -62,4 +70,11 @@ __all__ = [
     "TriggerPriority",
     "TriggerAnalysisResult",
     "ResearchPlan",
+    # SOT document summarization
+    "SOTSummarizer",
+    "SOTSummary",
+    "BuildEntry",
+    "ArchitectureDecision",
+    "get_sot_summarizer",
+    "summarize_sot_documents",
 ]

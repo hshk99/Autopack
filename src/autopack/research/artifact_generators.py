@@ -29,6 +29,11 @@ from autopack.research.generators.cicd_generator import (
     GitLabCIGenerator,
     JenkinsPipelineGenerator,
 )
+from autopack.research.sot_summarizer import (
+    SOTSummarizer,
+    SOTSummary,
+    get_sot_summarizer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -824,13 +829,33 @@ class ProjectBriefGenerator:
     Produces a project brief that includes technical requirements, feature
     scope, and comprehensive monetization strategy with revenue models,
     pricing strategy, market positioning, and unit economics analysis.
+
+    Can optionally include SOT (Source of Truth) document summaries to provide
+    historical context from BUILD_HISTORY.md and ARCHITECTURE_DECISIONS.md.
     """
+
+    def __init__(
+        self,
+        sot_summarizer: Optional[SOTSummarizer] = None,
+        include_sot_context: bool = True,
+    ):
+        """Initialize the project brief generator.
+
+        Args:
+            sot_summarizer: Optional SOTSummarizer instance for extracting
+                            context from SOT documents.
+            include_sot_context: Whether to include SOT context by default.
+        """
+        self._sot_summarizer = sot_summarizer
+        self._include_sot_context = include_sot_context
 
     def generate(
         self,
         research_findings: Dict[str, Any],
         tech_stack: Optional[Dict[str, Any]] = None,
         competitive_data: Optional[Dict[str, Any]] = None,
+        include_sot_context: Optional[bool] = None,
+        sot_summary: Optional[SOTSummary] = None,
     ) -> str:
         """Generate comprehensive project brief with monetization.
 
@@ -838,6 +863,9 @@ class ProjectBriefGenerator:
             research_findings: Research findings dict with project context
             tech_stack: Optional tech stack proposal dict
             competitive_data: Optional competitive analysis data
+            include_sot_context: Whether to include SOT context. Overrides instance default.
+            sot_summary: Pre-computed SOT summary. If not provided and SOT context
+                        is requested, will attempt to generate using sot_summarizer.
 
         Returns:
             Markdown string with comprehensive project brief
@@ -855,13 +883,20 @@ class ProjectBriefGenerator:
         # Feature Scope
         content += self._generate_feature_scope(research_findings)
 
-        # Monetization Strategy (NEW)
+        # SOT Context (if requested)
+        should_include_sot = (
+            include_sot_context if include_sot_context is not None else self._include_sot_context
+        )
+        if should_include_sot:
+            content += self._generate_sot_context_section(research_findings, sot_summary)
+
+        # Monetization Strategy
         content += self.generate_monetization(research_findings)
 
-        # Market Positioning (NEW)
+        # Market Positioning
         content += self.generate_market_positioning(research_findings, competitive_data or {})
 
-        # Unit Economics (NEW)
+        # Unit Economics
         content += self.analyze_unit_economics(research_findings)
 
         # Growth Strategy
@@ -871,6 +906,107 @@ class ProjectBriefGenerator:
         content += self._generate_risk_assessment(research_findings)
 
         return content
+
+    def _generate_sot_context_section(
+        self,
+        research_findings: Dict[str, Any],
+        sot_summary: Optional[SOTSummary] = None,
+    ) -> str:
+        """Generate SOT context section for project brief.
+
+        Includes summaries from BUILD_HISTORY.md and ARCHITECTURE_DECISIONS.md
+        to provide historical context for project decisions.
+
+        Args:
+            research_findings: Research findings dict (may contain sot_context)
+            sot_summary: Pre-computed SOT summary
+
+        Returns:
+            Markdown section string with SOT context
+        """
+        section = "## Historical Context (SOT)\n\n"
+
+        # Check if SOT context is in research_findings
+        sot_context = research_findings.get("sot_context", {})
+
+        # Use provided summary, or try to generate one
+        if sot_summary:
+            section += sot_summary.to_markdown()
+            return section + "\n"
+
+        # Try to use sot_summarizer if available
+        if self._sot_summarizer:
+            try:
+                summary = self._sot_summarizer.summarize()
+                section += summary.to_markdown()
+                return section + "\n"
+            except Exception as e:
+                logger.warning(f"[ProjectBriefGenerator] Error generating SOT summary: {e}")
+
+        # Fall back to sot_context in research_findings
+        if sot_context:
+            section += self._format_sot_context_from_dict(sot_context)
+            return section + "\n"
+
+        # No SOT context available
+        section += "*No historical context available from SOT documents.*\n\n"
+        return section
+
+    def _format_sot_context_from_dict(self, sot_context: Dict[str, Any]) -> str:
+        """Format SOT context from dictionary.
+
+        Args:
+            sot_context: Dictionary containing SOT context data
+
+        Returns:
+            Markdown formatted string
+        """
+        parts = []
+
+        # Build History
+        build_history = sot_context.get("build_history", {})
+        if build_history:
+            parts.append("### Build History Context\n")
+            total_builds = build_history.get("total_builds", 0)
+            recent_summary = build_history.get("recent_summary", "")
+            if total_builds:
+                parts.append(f"{total_builds} builds documented.")
+            if recent_summary:
+                parts.append(f" {recent_summary}")
+            parts.append("\n")
+
+            recent_builds = build_history.get("recent_builds", [])
+            if recent_builds:
+                parts.append("\n**Recent Builds:**\n")
+                for build in recent_builds[:5]:
+                    build_id = build.get("id", "Unknown")
+                    date = build.get("date", "")
+                    summary = build.get("summary", "")[:100]
+                    parts.append(f"- **{build_id}** ({date}): {summary}...\n")
+
+        # Architecture Decisions
+        arch_decisions = sot_context.get("architecture_decisions", {})
+        if arch_decisions:
+            parts.append("\n### Architecture Decisions Context\n")
+            total_decisions = arch_decisions.get("total_decisions", 0)
+            summary = arch_decisions.get("summary", "")
+            if total_decisions:
+                parts.append(f"{total_decisions} decisions documented.")
+            if summary:
+                parts.append(f" {summary}")
+            parts.append("\n")
+
+            key_decisions = arch_decisions.get("key_decisions", [])
+            if key_decisions:
+                parts.append("\n**Key Decisions:**\n")
+                for dec in key_decisions[:5]:
+                    dec_id = dec.get("id", "Unknown")
+                    title = dec.get("title", "")
+                    status = dec.get("status", "")
+                    status_icon = "✅" if status == "Implemented" else "🧭"
+                    parts.append(f"- **{dec_id}** {status_icon}: {title}\n")
+
+        return "".join(parts) if parts else "*No SOT context data available.*\n"
 
     def _generate_executive_summary(self, research_findings: Dict[str, Any]) -> str:
         """Generate executive summary section.
@@ -2513,20 +2649,65 @@ def get_readme_generator(**kwargs: Any) -> ProjectReadmeGenerator:
     return generator
 
 
-def get_project_brief_generator(**kwargs: Any) -> ProjectBriefGenerator:
+def get_project_brief_generator(
+    sot_summarizer: Optional[SOTSummarizer] = None,
+    include_sot_context: bool = True,
+    **kwargs: Any,
+) -> ProjectBriefGenerator:
     """Convenience function to get the project brief generator.
 
     Args:
-        **kwargs: Arguments to pass to ProjectBriefGenerator
+        sot_summarizer: Optional SOTSummarizer instance for extracting
+                        context from SOT documents.
+        include_sot_context: Whether to include SOT context by default.
+        **kwargs: Additional arguments to pass to ProjectBriefGenerator
 
     Returns:
         ProjectBriefGenerator instance
     """
-    generator = get_registry().get("project_brief", **kwargs)
+    generator = get_registry().get(
+        "project_brief",
+        sot_summarizer=sot_summarizer,
+        include_sot_context=include_sot_context,
+        **kwargs,
+    )
     if generator is None:
         # Fallback to direct instantiation
-        return ProjectBriefGenerator(**kwargs)
+        return ProjectBriefGenerator(
+            sot_summarizer=sot_summarizer,
+            include_sot_context=include_sot_context,
+            **kwargs,
+        )
     return generator
+
+
+def get_project_brief_generator_with_sot(
+    project_root: Optional[Any] = None,
+    **kwargs: Any,
+) -> ProjectBriefGenerator:
+    """Convenience function to get a project brief generator with SOT integration.
+
+    Creates a ProjectBriefGenerator with an automatically configured SOTSummarizer
+    that will extract context from BUILD_HISTORY.md and ARCHITECTURE_DECISIONS.md.
+
+    Args:
+        project_root: Root path of the project for locating SOT documents.
+                     Defaults to current working directory.
+        **kwargs: Additional arguments to pass to ProjectBriefGenerator
+
+    Returns:
+        ProjectBriefGenerator instance with SOT summarizer configured
+    """
+    from pathlib import Path
+
+    root = Path(project_root) if project_root else None
+    summarizer = get_sot_summarizer(project_root=root)
+
+    return get_project_brief_generator(
+        sot_summarizer=summarizer,
+        include_sot_context=True,
+        **kwargs,
+    )
 
 
 def get_mcp_recommendation_generator(**kwargs: Any) -> MCPToolRecommendationGenerator:

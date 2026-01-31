@@ -14,10 +14,19 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import sys
+import tempfile
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+# Platform-specific file locking imports
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import fcntl
 
 logger = logging.getLogger(__name__)
 
@@ -130,8 +139,73 @@ class LearningDatabase:
             self._data["schema_version"] = self.SCHEMA_VERSION
             self._save()
 
+    def _atomic_write_with_lock(self, data: dict[str, Any]) -> bool:
+        """Write JSON atomically with file locking to prevent corruption.
+
+        Uses a lock file and temp file pattern to ensure data durability:
+        1. Acquire lock on lock file
+        2. Write to temp file in same directory
+        3. Sync data to disk
+        4. Atomically replace original file
+        5. Release lock
+
+        This is cross-platform safe and prevents concurrent write corruption.
+
+        Args:
+            data: Dictionary to write as JSON.
+
+        Returns:
+            True if write was successful, False otherwise.
+        """
+        lock_file = self.db_path.with_suffix(".lock")
+
+        # Acquire lock
+        with open(lock_file, "w", encoding="utf-8") as lock_f:
+            try:
+                # Cross-platform locking
+                if sys.platform == "win32":
+                    msvcrt.locking(lock_f.fileno(), msvcrt.LK_LOCK, 1)
+                else:
+                    fcntl.flock(lock_f.fileno(), fcntl.LOCK_EX)
+
+                # Write to temp file in same directory (ensures same filesystem)
+                fd, temp_path = tempfile.mkstemp(
+                    dir=self.db_path.parent,
+                    prefix=f".{self.db_path.name}.",
+                    suffix=".tmp",
+                )
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8") as f:
+                        json.dump(data, f, indent=2, ensure_ascii=False, default=str)
+                        f.write("\n")
+                        f.flush()
+                        os.fsync(f.fileno())  # Ensure data is on disk
+                    # Atomic replace (POSIX rename is atomic)
+                    os.replace(temp_path, self.db_path)
+                    return True
+                except Exception:
+                    # Clean up temp file on failure
+                    if os.path.exists(temp_path):
+                        try:
+                            os.unlink(temp_path)
+                        except OSError:
+                            pass
+                    raise
+            finally:
+                # Release lock
+                try:
+                    if sys.platform == "win32":
+                        msvcrt.locking(lock_f.fileno(), msvcrt.LK_UNLCK, 1)
+                    else:
+                        fcntl.flock(lock_f.fileno(), fcntl.LOCK_UN)
+                except OSError:
+                    pass
+
     def _save(self) -> bool:
-        """Persist data to the database file.
+        """Persist data to the database file with atomic writes and locking.
+
+        Uses atomic write pattern with file locking to prevent corruption
+        from concurrent writes or crashes during write operations.
 
         Returns:
             True if save was successful, False otherwise.
@@ -142,14 +216,10 @@ class LearningDatabase:
             # Ensure parent directory exists
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(self.db_path, "w", encoding="utf-8") as f:
-                json.dump(self._data, f, indent=2, ensure_ascii=False, default=str)
-                f.write("\n")
+            # Use atomic write with locking
+            return self._atomic_write_with_lock(self._data)
 
-            logger.debug("Saved learning database to: %s", self.db_path)
-            return True
-
-        except OSError as e:
+        except (OSError, BlockingIOError) as e:
             logger.error("Failed to save learning database to %s: %s", self.db_path, e)
             return False
 

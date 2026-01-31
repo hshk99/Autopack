@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Type
 
+from autopack.research.discovery.mcp_discovery import MCPScanResult
 from autopack.research.generators.cicd_generator import CICDWorkflowGenerator
 
 logger = logging.getLogger(__name__)
@@ -1157,6 +1158,243 @@ class ProjectBriefGenerator:
         return section
 
 
+class MCPToolRecommendationGenerator:
+    """Generates MCP_INTEGRATIONS.md with recommended tools and integration guidance.
+
+    Produces a comprehensive guide for integrating available MCP tools into
+    the project, including installation instructions and usage examples.
+    """
+
+    def generate(self, mcp_scan_result: Optional[MCPScanResult] = None) -> str:
+        """Generate MCP tool recommendations markdown.
+
+        Args:
+            mcp_scan_result: Optional MCPScanResult with available tools
+
+        Returns:
+            Markdown string with MCP integration recommendations
+        """
+        logger.info("[MCPToolRecommendationGenerator] Generating MCP tool recommendations")
+
+        content = "# MCP Tool Integrations\n\n"
+
+        if not mcp_scan_result or mcp_scan_result.total_matches == 0:
+            content += self._generate_no_tools_section()
+            return content
+
+        # Summary
+        content += self._generate_summary_section(mcp_scan_result)
+
+        # Recommended Tools
+        content += self._generate_recommended_tools_section(mcp_scan_result)
+
+        # Installation Instructions
+        content += self._generate_installation_section(mcp_scan_result)
+
+        # Integration Examples
+        content += self._generate_integration_examples_section(mcp_scan_result)
+
+        # Requirements by Feature
+        content += self._generate_requirements_mapping_section(mcp_scan_result)
+
+        return content
+
+    def _generate_no_tools_section(self) -> str:
+        """Generate section when no MCP tools found.
+
+        Returns:
+            Markdown section string
+        """
+        return (
+            "## No Recommended Tools Found\n\n"
+            "The project requirements don't directly match available MCP tools. "
+            "Consider:\n\n"
+            "- Reviewing project requirements for integration opportunities\n"
+            "- Implementing custom MCP tools for specialized needs\n"
+            "- Checking back when new MCP tools become available\n\n"
+        )
+
+    def _generate_summary_section(self, mcp_scan_result: MCPScanResult) -> str:
+        """Generate summary of MCP scan results.
+
+        Args:
+            mcp_scan_result: MCPScanResult with tools
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Available Tools Summary\n\n"
+
+        section += (
+            f"**Scan Date**: {mcp_scan_result.scan_timestamp or 'Unknown'}\n"
+            f"**Project Type**: {mcp_scan_result.project_type}\n"
+            f"**Total Tools Found**: {mcp_scan_result.total_matches}\n\n"
+        )
+
+        # Breakdown by requirement
+        if mcp_scan_result.matches_by_requirement:
+            section += "### Matches by Requirement\n\n"
+            for requirement, tools in mcp_scan_result.matches_by_requirement.items():
+                section += f"- **{requirement}**: {len(tools)} tool(s)\n"
+            section += "\n"
+
+        return section
+
+    def _generate_recommended_tools_section(self, mcp_scan_result: MCPScanResult) -> str:
+        """Generate detailed tool recommendations.
+
+        Args:
+            mcp_scan_result: MCPScanResult with tools
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Recommended Tools\n\n"
+
+        for tool in mcp_scan_result.discovered_tools:
+            section += self._generate_tool_card(tool)
+
+        return section
+
+    def _generate_tool_card(self, tool: Any) -> str:
+        """Generate a detailed card for a single tool.
+
+        Args:
+            tool: MCPToolDescriptor
+
+        Returns:
+            Markdown section string
+        """
+        card = f"### {tool.name}\n\n"
+        card += f"{tool.description}\n\n"
+
+        # Metadata
+        card += f"- **Maturity**: {tool.maturity.value if hasattr(tool.maturity, 'value') else tool.maturity}\n"
+        card += f"- **Maintainer**: {tool.maintainer.value if hasattr(tool.maintainer, 'value') else tool.maintainer}\n"
+        card += f"- **Installation Difficulty**: {tool.installation_difficulty}\n"
+        card += f"- **Async Support**: {'Yes' if tool.support_async else 'No'}\n\n"
+
+        # Capabilities
+        if tool.capabilities:
+            card += "**Capabilities**:\n"
+            for cap in tool.capabilities:
+                card += f"- {cap.name}: {cap.description}\n"
+            card += "\n"
+
+        # Links
+        if tool.npm_package or tool.github_url or tool.documentation_url:
+            card += "**Resources**:\n"
+            if tool.npm_package:
+                card += f"- NPM: `{tool.npm_package}`\n"
+            if tool.github_url:
+                card += f"- GitHub: [{tool.github_url}]({tool.github_url})\n"
+            if tool.documentation_url:
+                card += f"- Docs: [{tool.documentation_url}]({tool.documentation_url})\n"
+            card += "\n"
+
+        # Requirements
+        if tool.requirements:
+            card += "**Requirements**:\n"
+            for req_key, req_val in tool.requirements.items():
+                card += f"- {req_key}: {req_val}\n"
+            card += "\n"
+
+        return card
+
+    def _generate_installation_section(self, mcp_scan_result: MCPScanResult) -> str:
+        """Generate installation instructions.
+
+        Args:
+            mcp_scan_result: MCPScanResult with tools
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Installation Instructions\n\n"
+
+        section += "### Quick Start\n\n"
+        section += "MCP tools can be installed via npm for Node.js environments:\n\n"
+
+        for tool in mcp_scan_result.discovered_tools:
+            if tool.npm_package:
+                section += f"**{tool.name}**:\n"
+                section += f"```bash\nnpm install {tool.npm_package}\n```\n\n"
+
+        section += "### Configuration\n\n"
+        section += (
+            "Each MCP tool requires specific configuration. Refer to the "
+            "documentation for setup details.\n\n"
+        )
+
+        return section
+
+    def _generate_integration_examples_section(self, mcp_scan_result: MCPScanResult) -> str:
+        """Generate integration examples.
+
+        Args:
+            mcp_scan_result: MCPScanResult with tools
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Integration Examples\n\n"
+
+        section += "### General Integration Pattern\n\n"
+        section += (
+            "```javascript\n"
+            "import { initializeMCP } from '@modelcontextprotocol/sdk';\n\n"
+            "const mcp = await initializeMCP({\n"
+            "  tools: [\n"
+            "    // Add enabled tools here\n"
+            "  ]\n"
+            "});\n"
+            "```\n\n"
+        )
+
+        section += "### Use Case Examples\n\n"
+
+        # Group tools by capability tags
+        capability_groups: Dict[str, List[Any]] = {}
+        for tool in mcp_scan_result.discovered_tools:
+            for tag in tool.tags:
+                if tag not in capability_groups:
+                    capability_groups[tag] = []
+                if tool not in capability_groups[tag]:
+                    capability_groups[tag].append(tool)
+
+        for capability, tools in sorted(capability_groups.items()):
+            section += f"#### {capability.title()}\n\n"
+            for tool in tools[:2]:  # Show first 2 tools per capability
+                section += f"- **{tool.name}**: {tool.description}\n"
+            section += "\n"
+
+        return section
+
+    def _generate_requirements_mapping_section(self, mcp_scan_result: MCPScanResult) -> str:
+        """Generate mapping of requirements to tools.
+
+        Args:
+            mcp_scan_result: MCPScanResult with tools
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Requirements to Tools Mapping\n\n"
+
+        if not mcp_scan_result.matches_by_requirement:
+            return section + "*No specific requirement-tool mappings found.*\n\n"
+
+        section += "| Requirement | Recommended Tools |\n"
+        section += "|-------------|-------------------|\n"
+
+        for requirement, tools in mcp_scan_result.matches_by_requirement.items():
+            tool_names = ", ".join([f"`{t.name}`" for t in tools])
+            section += f"| {requirement} | {tool_names} |\n"
+
+        section += "\n"
+        return section
+
+
 class ArtifactGeneratorRegistry:
     """Registry for artifact generators.
 
@@ -1175,6 +1413,7 @@ class ArtifactGeneratorRegistry:
         self.register("monetization", MonetizationStrategyGenerator)
         self.register("readme", ProjectReadmeGenerator)
         self.register("project_brief", ProjectBriefGenerator)
+        self.register("mcp_tools", MCPToolRecommendationGenerator)
 
     def register(
         self,
@@ -1312,4 +1551,20 @@ def get_project_brief_generator(**kwargs: Any) -> ProjectBriefGenerator:
     if generator is None:
         # Fallback to direct instantiation
         return ProjectBriefGenerator(**kwargs)
+    return generator
+
+
+def get_mcp_recommendation_generator(**kwargs: Any) -> MCPToolRecommendationGenerator:
+    """Convenience function to get the MCP tool recommendation generator.
+
+    Args:
+        **kwargs: Arguments to pass to MCPToolRecommendationGenerator
+
+    Returns:
+        MCPToolRecommendationGenerator instance
+    """
+    generator = get_registry().get("mcp_tools", **kwargs)
+    if generator is None:
+        # Fallback to direct instantiation
+        return MCPToolRecommendationGenerator(**kwargs)
     return generator

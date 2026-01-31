@@ -26,13 +26,10 @@ logger = logging.getLogger(__name__)
 
 # Import Doctor types and constants
 try:
-    from autopack.doctor import (
-        DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
-        DOCTOR_MIN_BUILDER_ATTEMPTS,
-        DoctorContextSummary,
-        DoctorRequest,
-        DoctorResponse,
-    )
+    from autopack.doctor import (DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
+                                 DOCTOR_MIN_BUILDER_ATTEMPTS,
+                                 DoctorContextSummary, DoctorRequest,
+                                 DoctorResponse)
 except ImportError:
     # Fallback if doctor module doesn't exist yet
     logger.warning("Could not import doctor module, using fallback constants")
@@ -395,37 +392,40 @@ class DoctorIntegration:
         if os.getenv("TELEMETRY_DB_ENABLED", "false").lower() != "true":
             return
 
+        db = None
         try:
             from autopack.database import SessionLocal
             from autopack.models import DoctorOutcomeEvent
 
             db = SessionLocal()
-            try:
-                event = DoctorOutcomeEvent(
-                    run_id=run_id,
-                    phase_id=phase_id,
-                    error_category=error_category,
-                    builder_attempts=builder_attempts,
-                    doctor_action=doctor_response.action,
-                    doctor_rationale=doctor_response.rationale,
-                    doctor_confidence=doctor_response.confidence,
-                    builder_hint_provided=bool(doctor_response.builder_hint),
-                    recommendation_followed=recommendation_followed,
-                    phase_succeeded_after_doctor=phase_succeeded,
-                    attempts_after_doctor=attempts_after_doctor,
-                    final_phase_outcome=final_outcome,
-                    doctor_tokens_used=doctor_tokens_used,
-                    model_used=model_used,
-                )
-                db.add(event)
-                db.commit()
-                logger.debug(
-                    f"[IMP-DOCTOR-002] Recorded Doctor outcome: {phase_id} -> {doctor_response.action}"
-                )
-            finally:
-                db.close()
+            event = DoctorOutcomeEvent(
+                run_id=run_id,
+                phase_id=phase_id,
+                error_category=error_category,
+                builder_attempts=builder_attempts,
+                doctor_action=doctor_response.action,
+                doctor_rationale=doctor_response.rationale,
+                doctor_confidence=doctor_response.confidence,
+                builder_hint_provided=bool(doctor_response.builder_hint),
+                recommendation_followed=recommendation_followed,
+                phase_succeeded_after_doctor=phase_succeeded,
+                attempts_after_doctor=attempts_after_doctor,
+                final_phase_outcome=final_outcome,
+                doctor_tokens_used=doctor_tokens_used,
+                model_used=model_used,
+            )
+            db.add(event)
+            db.commit()
+            logger.debug(
+                f"[IMP-DOCTOR-002] Recorded Doctor outcome: {phase_id} -> {doctor_response.action}"
+            )
         except Exception as e:
+            if db:
+                db.rollback()
             logger.warning(f"[IMP-DOCTOR-002] Failed to record Doctor outcome: {e}")
+        finally:
+            if db:
+                db.close()
 
     def update_doctor_outcome(
         self,
@@ -449,6 +449,7 @@ class DoctorIntegration:
         if os.getenv("TELEMETRY_DB_ENABLED", "false").lower() != "true":
             return
 
+        db = None
         try:
             from sqlalchemy import desc
 
@@ -456,31 +457,33 @@ class DoctorIntegration:
             from autopack.models import DoctorOutcomeEvent
 
             db = SessionLocal()
-            try:
-                # Find most recent Doctor outcome for this phase
-                event = (
-                    db.query(DoctorOutcomeEvent)
-                    .filter(
-                        DoctorOutcomeEvent.run_id == run_id,
-                        DoctorOutcomeEvent.phase_id == phase_id,
-                    )
-                    .order_by(desc(DoctorOutcomeEvent.timestamp))
-                    .first()
+            # Find most recent Doctor outcome for this phase
+            event = (
+                db.query(DoctorOutcomeEvent)
+                .filter(
+                    DoctorOutcomeEvent.run_id == run_id,
+                    DoctorOutcomeEvent.phase_id == phase_id,
                 )
+                .order_by(desc(DoctorOutcomeEvent.timestamp))
+                .first()
+            )
 
-                if event and event.phase_succeeded_after_doctor is None:
-                    # Update with final outcome
-                    event.phase_succeeded_after_doctor = phase_succeeded
-                    event.final_phase_outcome = final_outcome
-                    event.attempts_after_doctor = attempts_after_doctor
-                    db.commit()
-                    logger.debug(
-                        f"[IMP-DOCTOR-002] Updated Doctor outcome: {phase_id} -> success={phase_succeeded}"
-                    )
-            finally:
-                db.close()
+            if event and event.phase_succeeded_after_doctor is None:
+                # Update with final outcome
+                event.phase_succeeded_after_doctor = phase_succeeded
+                event.final_phase_outcome = final_outcome
+                event.attempts_after_doctor = attempts_after_doctor
+                db.commit()
+                logger.debug(
+                    f"[IMP-DOCTOR-002] Updated Doctor outcome: {phase_id} -> success={phase_succeeded}"
+                )
         except Exception as e:
+            if db:
+                db.rollback()
             logger.warning(f"[IMP-DOCTOR-002] Failed to update Doctor outcome: {e}")
+        finally:
+            if db:
+                db.close()
 
     def handle_doctor_action(
         self,

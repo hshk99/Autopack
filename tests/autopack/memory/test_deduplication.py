@@ -169,6 +169,7 @@ class TestMergeInsights:
             service.enabled = True
             service._write_lock = threading.Lock()
             service._content_hashes = set()
+            service._deduplicator = ContentDeduplicator()
             service.store = Mock()
             service.store.update_payload = Mock(return_value=True)
 
@@ -345,6 +346,7 @@ class TestWriteTelemetryInsightDeduplication:
             service.enabled = True
             service._write_lock = threading.Lock()
             service._content_hashes = set()
+            service._deduplicator = ContentDeduplicator()
             service.store = Mock()
             service.store.search = Mock(return_value=[])
             service.store.update_payload = Mock(return_value=True)
@@ -471,6 +473,7 @@ class TestDeduplicationThreshold:
             service.enabled = True
             service._write_lock = threading.Lock()
             service._content_hashes = set()
+            service._deduplicator = ContentDeduplicator()
             service.store = Mock()
             service.store.search = Mock(return_value=[])
 

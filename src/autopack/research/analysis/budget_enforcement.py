@@ -20,6 +20,7 @@ class PhaseType(Enum):
     COMPETITIVE_ANALYSIS = "competitive_analysis"
     TECHNICAL_FEASIBILITY = "technical_feasibility"
     COST_EFFECTIVENESS = "cost_effectiveness"
+    MONETIZATION_ANALYSIS = "monetization_analysis"
     FOLLOWUP_RESEARCH = "followup_research"
     CUSTOM = "custom"
 
@@ -119,6 +120,7 @@ class BudgetEnforcer:
         PhaseType.COMPETITIVE_ANALYSIS: 150.0,
         PhaseType.TECHNICAL_FEASIBILITY: 150.0,
         PhaseType.COST_EFFECTIVENESS: 50.0,
+        PhaseType.MONETIZATION_ANALYSIS: 75.0,
         PhaseType.FOLLOWUP_RESEARCH: 200.0,  # More expensive as triggered dynamically
     }
 

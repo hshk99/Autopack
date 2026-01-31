@@ -5,7 +5,13 @@ from __future__ import annotations
 from autopack.research.artifact_generators import (
     ArtifactGeneratorRegistry, MonetizationStrategyGenerator,
     ProjectBriefGenerator, ProjectReadmeGenerator, get_monetization_generator,
-    get_project_brief_generator, get_readme_generator, get_registry)
+    get_monetization_analyzer, get_project_brief_generator, get_readme_generator,
+    get_registry)
+from autopack.research.analysis.monetization_analysis import (
+    MonetizationAnalysisResult, MonetizationAnalyzer, MonetizationModel,
+    PricingStrategy, PricingTier, ProjectType, RevenueConfidence,
+    RevenueProjection)
+from autopack.research.analysis.budget_enforcement import BudgetEnforcer
 
 
 class TestProjectReadmeGenerator:
@@ -274,6 +280,150 @@ class TestMonetizationStrategyGenerator:
         assert "Subscription" in content
         assert "45% of SaaS" in content
         assert "Slack" in content
+
+    def test_generate_from_analysis(self) -> None:
+        """Test generating strategy from MonetizationAnalysisResult."""
+        generator = MonetizationStrategyGenerator()
+
+        # Create a mock analysis result
+        result = MonetizationAnalysisResult(
+            project_type=ProjectType.SAAS,
+            recommended_model=MonetizationModel.SUBSCRIPTION,
+            pricing_strategy=PricingStrategy.VALUE_BASED,
+            pricing_rationale="Value-based pricing aligns cost with outcomes",
+            pricing_tiers=[
+                PricingTier(
+                    name="Starter",
+                    price_monthly=19.0,
+                    price_yearly=190.0,
+                    features=["Core features", "Email support"],
+                    target_audience="Individuals",
+                ),
+                PricingTier(
+                    name="Pro",
+                    price_monthly=49.0,
+                    price_yearly=490.0,
+                    features=["All features", "Priority support"],
+                    target_audience="Teams",
+                    recommended=True,
+                ),
+            ],
+            revenue_projections=[
+                RevenueProjection(
+                    timeframe="year_1",
+                    users=5000,
+                    paying_users=150,
+                    mrr=4500.0,
+                    arr=54000.0,
+                    confidence=RevenueConfidence.MEDIUM,
+                ),
+            ],
+            target_arpu=35.0,
+            target_ltv=700.0,
+            confidence=RevenueConfidence.MEDIUM,
+            key_assumptions=["3% conversion rate"],
+            risks=["Churn may exceed projections"],
+        )
+
+        content = generator.generate_from_analysis(result)
+
+        # Verify structure
+        assert "# Monetization Strategy" in content
+        assert "## Overview" in content
+        assert "## Pricing Tiers" in content
+        assert "## Revenue Projections" in content
+        assert "## Key Metrics Targets" in content
+
+        # Verify content
+        assert "Subscription" in content
+        assert "Value Based" in content
+        assert "Starter" in content
+        assert "$19" in content
+        assert "Pro" in content
+        assert "(Recommended)" in content
+        assert "$4,500" in content  # MRR
+        assert "$35" in content  # ARPU
+        assert "3% conversion rate" in content
+        assert "Churn may exceed projections" in content
+
+    def test_analyze_and_generate(self) -> None:
+        """Test analyze_and_generate flow."""
+        generator = MonetizationStrategyGenerator()
+
+        content = generator.analyze_and_generate(
+            project_type=ProjectType.SAAS,
+            project_characteristics={
+                "has_api": True,
+                "is_b2b": True,
+            },
+        )
+
+        # Should produce complete strategy document
+        assert "# Monetization Strategy" in content
+        assert "## Overview" in content
+        assert "## Pricing Tiers" in content
+        assert "## Revenue Projections" in content
+
+        # Should be able to get the analysis result
+        result = generator.get_analysis_result()
+        assert result is not None
+        assert result.project_type == ProjectType.SAAS
+
+    def test_analyze_and_generate_with_budget_enforcer(self) -> None:
+        """Test analyze_and_generate with budget enforcement."""
+        budget_enforcer = BudgetEnforcer(total_budget=5000.0)
+        generator = MonetizationStrategyGenerator(budget_enforcer=budget_enforcer)
+
+        content = generator.analyze_and_generate(project_type=ProjectType.SAAS)
+
+        # Should complete successfully
+        assert "# Monetization Strategy" in content
+
+        # Budget should have been used
+        assert budget_enforcer.metrics.total_spent > 0
+
+    def test_analyze_and_generate_budget_insufficient(self) -> None:
+        """Test analyze_and_generate with insufficient budget."""
+        budget_enforcer = BudgetEnforcer(total_budget=50.0)
+        budget_enforcer.record_cost("previous", 50.0)  # Exhaust budget
+
+        generator = MonetizationStrategyGenerator(budget_enforcer=budget_enforcer)
+
+        content = generator.analyze_and_generate(project_type=ProjectType.SAAS)
+
+        # Should return limited guidance
+        assert "# Monetization Strategy" in content
+        assert "budget constraints" in content.lower()
+        assert "General Recommendations" in content
+
+    def test_get_analysis_result_without_analysis(self) -> None:
+        """Test get_analysis_result returns None when no analysis performed."""
+        generator = MonetizationStrategyGenerator()
+
+        result = generator.get_analysis_result()
+        assert result is None
+
+    def test_generator_with_competitive_data(self) -> None:
+        """Test analyze_and_generate with competitive data."""
+        generator = MonetizationStrategyGenerator()
+
+        content = generator.analyze_and_generate(
+            project_type=ProjectType.SAAS,
+            competitive_data={
+                "competitors": [
+                    {
+                        "name": "Competitor A",
+                        "pricing_model": "subscription",
+                        "price_range": "$29-99/month",
+                        "market_position": "leader",
+                    },
+                ]
+            },
+        )
+
+        assert "# Monetization Strategy" in content
+        assert "Competitive Pricing Analysis" in content
+        assert "Competitor A" in content
 
 
 class TestProjectBriefGenerator:
@@ -788,3 +938,25 @@ class TestConvenienceFunctions:
         generator = get_project_brief_generator()
 
         assert isinstance(generator, ProjectBriefGenerator)
+
+    def test_get_monetization_generator_with_budget(self) -> None:
+        """Test getting monetization generator with budget enforcer."""
+        budget_enforcer = BudgetEnforcer(total_budget=1000.0)
+        generator = get_monetization_generator(budget_enforcer=budget_enforcer)
+
+        assert isinstance(generator, MonetizationStrategyGenerator)
+        assert generator._budget_enforcer is budget_enforcer
+
+    def test_get_monetization_analyzer(self) -> None:
+        """Test getting monetization analyzer via convenience function."""
+        analyzer = get_monetization_analyzer()
+
+        assert isinstance(analyzer, MonetizationAnalyzer)
+
+    def test_get_monetization_analyzer_with_budget(self) -> None:
+        """Test getting monetization analyzer with budget enforcer."""
+        budget_enforcer = BudgetEnforcer(total_budget=1000.0)
+        analyzer = get_monetization_analyzer(budget_enforcer=budget_enforcer)
+
+        assert isinstance(analyzer, MonetizationAnalyzer)
+        assert analyzer._budget_enforcer is budget_enforcer

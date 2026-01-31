@@ -15,13 +15,17 @@ from autopack.research.analysis.deployment_analysis import (
     DeploymentArchitecture,
     DeploymentTarget,
 )
+from autopack.research.analysis.monetization_analysis import (
+    MonetizationAnalyzer,
+    MonetizationAnalysisResult,
+    ProjectType,
+)
 from autopack.research.discovery.mcp_discovery import MCPScanResult
 from autopack.research.generators.cicd_generator import (
     CICDAnalyzer,
     CICDPlatform,
     CICDWorkflowGenerator,
     DeploymentGuidance,
-    DeploymentTarget,
     GitLabCIGenerator,
     JenkinsPipelineGenerator,
 )
@@ -34,7 +38,19 @@ class MonetizationStrategyGenerator:
 
     Produces a comprehensive monetization strategy document including
     pricing models, benchmarks, conversion metrics, and revenue projections.
+
+    Can generate from raw research_findings dict or from a MonetizationAnalysisResult
+    produced by the MonetizationAnalyzer.
     """
+
+    def __init__(self, budget_enforcer: Optional[Any] = None):
+        """Initialize the generator.
+
+        Args:
+            budget_enforcer: Optional BudgetEnforcer for cost control
+        """
+        self._budget_enforcer = budget_enforcer
+        self._analyzer: Optional[MonetizationAnalyzer] = None
 
     def generate(self, research_findings: Dict[str, Any]) -> str:
         """Generate monetization strategy markdown.
@@ -267,6 +283,225 @@ class MonetizationStrategyGenerator:
             section += f"**Differentiation**: {differentiation}\n\n"
 
         return section
+
+    def generate_from_analysis(
+        self,
+        analysis_result: MonetizationAnalysisResult,
+    ) -> str:
+        """Generate monetization strategy from MonetizationAnalysisResult.
+
+        Args:
+            analysis_result: Result from MonetizationAnalyzer.analyze()
+
+        Returns:
+            Markdown string with monetization strategy
+        """
+        logger.info(
+            "[MonetizationStrategyGenerator] Generating from analysis result"
+        )
+
+        content = "# Monetization Strategy\n\n"
+
+        # Overview
+        content += f"## Overview\n\n"
+        content += f"**Recommended Model**: {analysis_result.recommended_model.value.replace('_', ' ').title()}\n"
+        content += f"**Pricing Strategy**: {analysis_result.pricing_strategy.value.replace('_', ' ').title()}\n"
+        content += f"**Project Type**: {analysis_result.project_type.value.replace('_', ' ').title()}\n\n"
+        content += f"{analysis_result.pricing_rationale}\n\n"
+
+        # Model Fits
+        if analysis_result.model_fits:
+            content += "## Monetization Models Analysis\n\n"
+            for fit in analysis_result.model_fits[:3]:  # Top 3
+                content += f"### {fit.model.value.replace('_', ' ').title()}\n\n"
+                content += f"**Fit Score**: {fit.fit_score}/10\n\n"
+
+                if fit.pros:
+                    content += "**Pros**:\n"
+                    for pro in fit.pros:
+                        content += f"- {pro}\n"
+                    content += "\n"
+
+                if fit.cons:
+                    content += "**Cons**:\n"
+                    for con in fit.cons:
+                        content += f"- {con}\n"
+                    content += "\n"
+
+        # Pricing Tiers
+        if analysis_result.pricing_tiers:
+            content += "## Pricing Tiers\n\n"
+            content += "| Tier | Monthly | Yearly | Target Audience |\n"
+            content += "|------|---------|--------|----------------|\n"
+
+            for tier in analysis_result.pricing_tiers:
+                monthly = f"${tier.price_monthly:.0f}" if tier.price_monthly else "Free"
+                yearly = f"${tier.price_yearly:.0f}" if tier.price_yearly else "-"
+                rec = " **(Recommended)**" if tier.recommended else ""
+                content += f"| {tier.name}{rec} | {monthly} | {yearly} | {tier.target_audience} |\n"
+
+            content += "\n"
+
+            # Tier details
+            for tier in analysis_result.pricing_tiers:
+                content += f"### {tier.name}\n\n"
+                content += f"**Price**: ${tier.price_monthly}/month"
+                if tier.price_yearly:
+                    content += f" (${tier.price_yearly}/year - {tier.yearly_discount_percent:.0f}% discount)"
+                content += "\n\n"
+
+                if tier.features:
+                    content += "**Features**:\n"
+                    for feature in tier.features:
+                        content += f"- {feature}\n"
+                    content += "\n"
+
+                if tier.limits:
+                    content += "**Limits**: "
+                    limits_str = ", ".join(
+                        f"{k}: {v}" for k, v in tier.limits.items()
+                    )
+                    content += f"{limits_str}\n\n"
+
+        # Revenue Projections
+        if analysis_result.revenue_projections:
+            content += "## Revenue Projections\n\n"
+            content += "| Timeframe | Users | Paying Users | MRR | ARR | Confidence |\n"
+            content += "|-----------|-------|--------------|-----|-----|------------|\n"
+
+            for proj in analysis_result.revenue_projections:
+                content += (
+                    f"| {proj.timeframe.replace('_', ' ').title()} "
+                    f"| {proj.users:,} "
+                    f"| {proj.paying_users:,} ({proj.conversion_rate:.1f}%) "
+                    f"| ${proj.mrr:,.0f} "
+                    f"| ${proj.arr:,.0f} "
+                    f"| {proj.confidence.value.title()} |\n"
+                )
+
+            content += "\n"
+
+        # Key Metrics
+        content += "## Key Metrics Targets\n\n"
+        content += f"- **Target ARPU**: ${analysis_result.target_arpu:.0f}/month\n"
+        content += f"- **Target LTV**: ${analysis_result.target_ltv:,.0f}\n"
+        content += f"- **Target LTV:CAC Ratio**: {analysis_result.target_cac_ratio}:1\n\n"
+
+        # Competitive Pricing
+        if analysis_result.competitor_pricing:
+            content += "## Competitive Pricing Analysis\n\n"
+            content += "| Competitor | Model | Price Range | Position |\n"
+            content += "|------------|-------|-------------|----------|\n"
+
+            for comp in analysis_result.competitor_pricing:
+                content += (
+                    f"| {comp.competitor_name} "
+                    f"| {comp.pricing_model} "
+                    f"| {comp.price_range} "
+                    f"| {comp.market_position} |\n"
+                )
+
+            content += "\n"
+            content += f"**Market Positioning**: {analysis_result.market_positioning}\n\n"
+
+        # Assumptions
+        if analysis_result.key_assumptions:
+            content += "## Key Assumptions\n\n"
+            for assumption in analysis_result.key_assumptions:
+                content += f"- {assumption}\n"
+            content += "\n"
+
+        # Risks
+        if analysis_result.risks:
+            content += "## Monetization Risks\n\n"
+            for risk in analysis_result.risks:
+                content += f"- {risk}\n"
+            content += "\n"
+
+        # Confidence
+        content += f"## Analysis Confidence\n\n"
+        content += f"**Confidence Level**: {analysis_result.confidence.value.title()}\n\n"
+
+        return content
+
+    def analyze_and_generate(
+        self,
+        project_type: Optional[ProjectType] = None,
+        project_characteristics: Optional[Dict[str, Any]] = None,
+        market_data: Optional[Dict[str, Any]] = None,
+        competitive_data: Optional[Dict[str, Any]] = None,
+        target_audience: Optional[Dict[str, Any]] = None,
+        cost_structure: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Run monetization analysis and generate strategy document.
+
+        This method performs full monetization analysis using MonetizationAnalyzer
+        and then generates the strategy document.
+
+        Args:
+            project_type: Type of project being analyzed
+            project_characteristics: Project features and capabilities
+            market_data: Market size and trends data
+            competitive_data: Competitor pricing and positioning
+            target_audience: Target customer segment data
+            cost_structure: Cost structure for pricing decisions
+
+        Returns:
+            Markdown string with monetization strategy
+        """
+        logger.info(
+            "[MonetizationStrategyGenerator] Running analysis and generating strategy"
+        )
+
+        # Create analyzer with budget enforcer if available
+        self._analyzer = MonetizationAnalyzer(budget_enforcer=self._budget_enforcer)
+
+        # Check if we can proceed with analysis
+        if not self._analyzer.can_analyze():
+            logger.warning("Budget insufficient for full monetization analysis")
+            return self._generate_budget_limited_guidance()
+
+        # Run analysis
+        result = self._analyzer.analyze(
+            project_type=project_type,
+            project_characteristics=project_characteristics,
+            market_data=market_data,
+            competitive_data=competitive_data,
+            target_audience=target_audience,
+            cost_structure=cost_structure,
+        )
+
+        # Generate from result
+        return self.generate_from_analysis(result)
+
+    def _generate_budget_limited_guidance(self) -> str:
+        """Generate limited guidance when budget is insufficient."""
+        return (
+            "# Monetization Strategy\n\n"
+            "## Notice\n\n"
+            "Full monetization analysis was skipped due to budget constraints. "
+            "Below is general guidance that may be applicable.\n\n"
+            "## General Recommendations\n\n"
+            "1. **Start with value-based pricing**: Price based on value delivered, not cost\n"
+            "2. **Consider tiered pricing**: Offer multiple tiers to capture different segments\n"
+            "3. **Validate early**: Test pricing with real customers before scaling\n"
+            "4. **Monitor key metrics**: Track ARPU, LTV, CAC, and churn\n\n"
+            "## Common Models\n\n"
+            "- **Subscription**: Best for B2B SaaS and continuous value delivery\n"
+            "- **Freemium**: Good for consumer apps with network effects\n"
+            "- **Usage-based**: Ideal for APIs and variable usage patterns\n\n"
+            "Run full analysis when budget allows for detailed recommendations.\n"
+        )
+
+    def get_analysis_result(self) -> Optional[MonetizationAnalysisResult]:
+        """Get the analysis result if analysis was run.
+
+        Returns:
+            MonetizationAnalysisResult or None if not analyzed
+        """
+        if self._analyzer:
+            return self._analyzer._analysis_result
+        return None
 
 
 class ProjectReadmeGenerator:
@@ -2229,20 +2464,37 @@ def get_cicd_generator(**kwargs: Any) -> CICDWorkflowGenerator:
     return generator
 
 
-def get_monetization_generator(**kwargs: Any) -> MonetizationStrategyGenerator:
+def get_monetization_generator(
+    budget_enforcer: Optional[Any] = None, **kwargs: Any
+) -> MonetizationStrategyGenerator:
     """Convenience function to get the monetization strategy generator.
 
     Args:
-        **kwargs: Arguments to pass to MonetizationStrategyGenerator
+        budget_enforcer: Optional BudgetEnforcer for cost control
+        **kwargs: Additional arguments to pass to MonetizationStrategyGenerator
 
     Returns:
-        MonetizationStrategyGenerator instance
+        MonetizationStrategyGenerator instance with budget integration
     """
-    generator = get_registry().get("monetization", **kwargs)
+    generator = get_registry().get("monetization", budget_enforcer=budget_enforcer, **kwargs)
     if generator is None:
         # Fallback to direct instantiation
-        return MonetizationStrategyGenerator(**kwargs)
+        return MonetizationStrategyGenerator(budget_enforcer=budget_enforcer, **kwargs)
     return generator
+
+
+def get_monetization_analyzer(
+    budget_enforcer: Optional[Any] = None,
+) -> MonetizationAnalyzer:
+    """Convenience function to get the monetization analyzer.
+
+    Args:
+        budget_enforcer: Optional BudgetEnforcer for cost control
+
+    Returns:
+        MonetizationAnalyzer instance
+    """
+    return MonetizationAnalyzer(budget_enforcer=budget_enforcer)
 
 
 def get_readme_generator(**kwargs: Any) -> ProjectReadmeGenerator:

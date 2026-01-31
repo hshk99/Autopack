@@ -43,6 +43,11 @@ from autopack.research.models.bootstrap_session import (
     BootstrapSession,
     generate_idea_hash,
 )
+from autopack.research.phase_scheduler import (
+    PhaseScheduler,
+    PhaseTask,
+    PhasePriority,
+)
 from autopack.research.models.enums import ValidationStatus
 from autopack.research.models.research_intent import ResearchIntent
 from autopack.research.models.research_session import ResearchSession
@@ -162,6 +167,8 @@ class ResearchOrchestrator:
         cache_ttl_hours: int = CACHE_TTL_HOURS,
         project_root: Optional[Path] = None,
         budget_enforcer: Optional[BudgetEnforcer] = None,
+        max_concurrent_phases: int = 3,
+        max_phase_resources: float = 1.0,
         enable_cache_optimization: bool = True,
     ):
         """Initialize the ResearchOrchestrator.
@@ -170,6 +177,8 @@ class ResearchOrchestrator:
             cache_ttl_hours: TTL for research cache in hours (default: 24)
             project_root: Root directory for project state files (optional)
             budget_enforcer: Optional budget enforcer for cost limits (default: $5000)
+            max_concurrent_phases: Maximum concurrent research phases (default: 3)
+            max_phase_resources: Maximum total resource usage for phases (default: 1.0)
             enable_cache_optimization: Enable LRU eviction and compression (default: True)
         """
         self.sessions: dict[str, ResearchSession] = {}
@@ -184,6 +193,13 @@ class ResearchOrchestrator:
 
         # Initialize budget enforcer with default budget if not provided
         self._budget_enforcer = budget_enforcer or BudgetEnforcer(total_budget=5000.0)
+
+        # Phase scheduler for dependency-aware scheduling
+        self._scheduler = PhaseScheduler(
+            max_concurrent_tasks=max_concurrent_phases,
+            max_total_resources=max_phase_resources,
+        )
+        self._scheduler._check_budget_before_phase = self._check_budget_before_phase
 
         # Analysis components
         self._cost_analyzer = CostEffectivenessAnalyzer()
@@ -268,6 +284,22 @@ class ResearchOrchestrator:
             Dictionary with status summary
         """
         return self._budget_enforcer.get_status_summary()
+
+    def get_scheduler_metrics(self) -> dict[str, Any]:
+        """Get metrics from the phase scheduler.
+
+        Returns:
+            Dictionary with scheduler metrics including execution time, speedup, and resource utilization
+        """
+        return self._scheduler.get_metrics().to_dict()
+
+    def get_phase_execution_order(self) -> list[str]:
+        """Get the optimal phase execution order based on dependencies and priorities.
+
+        Returns:
+            List of phase IDs in execution order
+        """
+        return self._scheduler.get_execution_order()
 
     def get_cache_stats(self) -> dict[str, Any]:
         """Get cache performance statistics.
@@ -469,36 +501,89 @@ class ResearchOrchestrator:
         session: BootstrapSession,
         parsed_idea: ParsedIdea,
     ) -> None:
-        """Execute research phases in parallel.
+        """Execute research phases in parallel using dependency-aware scheduling.
+
+        Uses PhaseScheduler to optimize concurrent execution with:
+        - Dependency awareness (technical feasibility can inform cost analysis)
+        - Resource-aware scheduling
+        - Priority-based task ordering
+        - Execution metrics
 
         Args:
             session: BootstrapSession to update
             parsed_idea: ParsedIdea with project details
         """
-        logger.debug(f"Executing research phases in parallel for session {session.session_id}")
+        logger.debug(
+            f"Executing research phases in parallel for session {session.session_id} "
+            "using dependency-aware scheduler"
+        )
 
-        # Create tasks for parallel execution, checking budget before each phase
-        tasks = []
+        # Reset scheduler for this execution
+        self._scheduler.reset()
 
-        if self._check_budget_before_phase("market_research"):
-            tasks.append(self._run_market_research(session, parsed_idea))
+        # Create phase tasks with priorities and dependencies
+        # Market research and competitive analysis are independent
+        market_task = PhaseTask(
+            phase_id="market_research",
+            phase_name="Market Attractiveness Research",
+            task_func=lambda: self._run_market_research(session, parsed_idea),
+            priority=PhasePriority.HIGH,
+            dependencies=[],
+            estimated_duration_seconds=10.0,
+            resource_requirement=0.3,
+        )
 
-        if self._check_budget_before_phase("competitive_analysis"):
-            tasks.append(self._run_competitive_analysis(session, parsed_idea))
+        competitive_task = PhaseTask(
+            phase_id="competitive_analysis",
+            phase_name="Competitive Intensity Analysis",
+            task_func=lambda: self._run_competitive_analysis(session, parsed_idea),
+            priority=PhasePriority.HIGH,
+            dependencies=[],
+            estimated_duration_seconds=10.0,
+            resource_requirement=0.3,
+        )
 
-        if self._check_budget_before_phase("technical_feasibility"):
-            tasks.append(self._run_technical_feasibility(session, parsed_idea))
+        # Technical feasibility can be independent but may benefit from market insights
+        feasibility_task = PhaseTask(
+            phase_id="technical_feasibility",
+            phase_name="Product Feasibility Assessment",
+            task_func=lambda: self._run_technical_feasibility(session, parsed_idea),
+            priority=PhasePriority.NORMAL,
+            dependencies=[],  # No dependencies - all phases can run in parallel
+            estimated_duration_seconds=12.0,
+            resource_requirement=0.4,
+        )
 
-        # Execute all tasks concurrently
-        if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
+        # Register phases with scheduler
+        self._scheduler.register_phase(market_task)
+        self._scheduler.register_phase(competitive_task)
+        self._scheduler.register_phase(feasibility_task)
+
+        # Execute with dependency-aware scheduling
+        result = await self._scheduler.schedule_and_execute(sequential=False)
+
+        # Log execution metrics
+        metrics = result.get("metrics", {})
+        logger.info(
+            f"Research phase execution completed: "
+            f"total_time={metrics.get('total_execution_time', 0):.2f}s, "
+            f"speedup={metrics.get('parallel_speedup', 1.0):.2f}x, "
+            f"resource_util={metrics.get('resource_utilization', 0):.2f}"
+        )
+
+        # Handle failed phases
+        if not result.get("success", False):
+            failed = result.get("failed_phases", [])
+            logger.warning(f"Research phases failed: {failed}")
 
     async def _execute_research_sequential(
         self,
         session: BootstrapSession,
         parsed_idea: ParsedIdea,
     ) -> None:
-        """Execute research phases sequentially.
+        """Execute research phases sequentially using the scheduler.
+
+        Useful for debugging and ensuring deterministic phase ordering.
 
         Args:
             session: BootstrapSession to update
@@ -506,14 +591,51 @@ class ResearchOrchestrator:
         """
         logger.debug(f"Executing research phases sequentially for session {session.session_id}")
 
-        if self._check_budget_before_phase("market_research"):
-            await self._run_market_research(session, parsed_idea)
+        # Reset scheduler for this execution
+        self._scheduler.reset()
 
-        if self._check_budget_before_phase("competitive_analysis"):
-            await self._run_competitive_analysis(session, parsed_idea)
+        # Create phase tasks (same as parallel, but will execute sequentially)
+        market_task = PhaseTask(
+            phase_id="market_research",
+            phase_name="Market Attractiveness Research",
+            task_func=lambda: self._run_market_research(session, parsed_idea),
+            priority=PhasePriority.HIGH,
+            dependencies=[],
+            estimated_duration_seconds=10.0,
+            resource_requirement=0.3,
+        )
 
-        if self._check_budget_before_phase("technical_feasibility"):
-            await self._run_technical_feasibility(session, parsed_idea)
+        competitive_task = PhaseTask(
+            phase_id="competitive_analysis",
+            phase_name="Competitive Intensity Analysis",
+            task_func=lambda: self._run_competitive_analysis(session, parsed_idea),
+            priority=PhasePriority.HIGH,
+            dependencies=[],
+            estimated_duration_seconds=10.0,
+            resource_requirement=0.3,
+        )
+
+        feasibility_task = PhaseTask(
+            phase_id="technical_feasibility",
+            phase_name="Product Feasibility Assessment",
+            task_func=lambda: self._run_technical_feasibility(session, parsed_idea),
+            priority=PhasePriority.NORMAL,
+            dependencies=[],
+            estimated_duration_seconds=12.0,
+            resource_requirement=0.4,
+        )
+
+        # Register phases
+        self._scheduler.register_phase(market_task)
+        self._scheduler.register_phase(competitive_task)
+        self._scheduler.register_phase(feasibility_task)
+
+        # Execute sequentially (for debugging/determinism)
+        result = await self._scheduler.schedule_and_execute(sequential=True)
+
+        if not result.get("success", False):
+            failed = result.get("failed_phases", [])
+            logger.warning(f"Research phases failed: {failed}")
 
     async def _run_market_research(
         self,

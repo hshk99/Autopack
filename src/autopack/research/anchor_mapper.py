@@ -25,15 +25,19 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-from ..intention_anchor.v2 import (BudgetCostIntention,
-                                   EvidenceVerificationIntention,
-                                   GovernanceReviewIntention,
-                                   IntentionAnchorV2, IntentionMetadata,
-                                   MemoryContinuityIntention,
-                                   NorthStarIntention,
-                                   ParallelismIsolationIntention,
-                                   PivotIntentions, SafetyRiskIntention,
-                                   ScopeBoundariesIntention)
+from ..intention_anchor.v2 import (
+    BudgetCostIntention,
+    EvidenceVerificationIntention,
+    GovernanceReviewIntention,
+    IntentionAnchorV2,
+    IntentionMetadata,
+    MemoryContinuityIntention,
+    NorthStarIntention,
+    ParallelismIsolationIntention,
+    PivotIntentions,
+    SafetyRiskIntention,
+    ScopeBoundariesIntention,
+)
 from .idea_parser import ParsedIdea, ProjectType, RiskProfile
 from .models.bootstrap_session import BootstrapSession
 
@@ -307,16 +311,36 @@ class ResearchToAnchorMapper:
     ) -> PivotMapping:
         """Map SafetyRisk pivot.
 
-        CRITICAL: never_allow is NEVER auto-populated. This field requires
-        explicit user confirmation.
+        Extracts explicit never_allow patterns and operations requiring approval
+        from research constraints. The never_allow field captures hard constraints
+        that should NOT be researched or executed.
         """
         sources: list[str] = []
+        never_allow: list[str] = []
         requires_approval: list[str] = []
         risk_tolerance = "low"  # Safe default
         confidence_factors: list[float] = []
 
-        # Extract from technical feasibility (api_restrictions, security_concerns)
+        # Extract from technical feasibility
         tech_data = session.technical_feasibility.data
+
+        # Check for explicit never_allow data (if research phase identified hard constraints)
+        if tech_data.get("never_allow"):
+            never_allow_data = tech_data["never_allow"]
+            if isinstance(never_allow_data, list):
+                never_allow.extend(never_allow_data)
+                sources.append("technical_feasibility.never_allow")
+                confidence_factors.append(0.95)
+
+        # Check for exclusion patterns that describe what should NOT be researched
+        if tech_data.get("exclusion_patterns"):
+            excl_patterns = tech_data["exclusion_patterns"]
+            if isinstance(excl_patterns, list):
+                never_allow.extend(excl_patterns)
+                sources.append("technical_feasibility.exclusion_patterns")
+                confidence_factors.append(0.85)
+
+        # Extract operations requiring approval (but not hard blocks)
         if tech_data.get("api_restrictions"):
             requires_approval.extend(tech_data["api_restrictions"])
             sources.append("technical_feasibility.api_restrictions")
@@ -338,18 +362,20 @@ class ResearchToAnchorMapper:
             sources.append("parsed_idea.risk_profile")
             confidence_factors.append(0.8)
 
-        # Calculate confidence (capped because never_allow cannot be auto-populated)
+        # Calculate confidence
         base_confidence = (
             sum(confidence_factors) / len(confidence_factors) if confidence_factors else 0.3
         )
-        # Cap confidence at 0.6 because never_allow must be user-provided
-        confidence_score = min(base_confidence, 0.6)
+        # Confidence is lower if never_allow is not populated (user input may still be needed)
+        confidence_score = base_confidence if never_allow else min(base_confidence, 0.6)
 
-        # ALWAYS generate questions for never_allow
-        questions = [
+        # Generate clarifying questions
+        questions = []
+        # Always ask for never_allow to encourage explicit user confirmation for safety
+        questions.append(
             "CRITICAL: What operations must NEVER be allowed under any circumstances? "
-            "(This field cannot be auto-populated for safety reasons)"
-        ]
+            "(Safety-critical hard blocks that cannot be bypassed)"
+        )
         if confidence_score < self.confidence_threshold:
             questions.extend(_PIVOT_QUESTIONS[PivotType.SAFETY_RISK][1:])
 
@@ -357,13 +383,12 @@ class ResearchToAnchorMapper:
             pivot_type=PivotType.SAFETY_RISK,
             confidence=MappingConfidence(
                 score=confidence_score,
-                reasoning="never_allow requires explicit user confirmation; "
-                f"mapped requires_approval from {len(sources)} sources",
+                reasoning=f"Extracted {len(never_allow)} never_allow constraints from research; "
+                f"explicit user confirmation required for completeness from {len(sources)} sources",
                 sources=sources,
             ),
             mapped_data={
-                # CRITICAL: never_allow is intentionally empty
-                "never_allow": [],
+                "never_allow": list(set(never_allow)),
                 "requires_approval": list(set(requires_approval)),
                 "risk_tolerance": risk_tolerance,
             },

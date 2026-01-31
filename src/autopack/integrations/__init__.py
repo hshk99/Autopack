@@ -19,12 +19,16 @@ Providers:
 - Trading broker execution
 """
 
+from .mcp_registry import MCPIntegrationConfig, MCPIntegrationResult, MCPRegistryIntegration
 from .pattern_library import PatternLibrary, ReusablePattern
 from .runner import IntegrationResult, IntegrationRunner
 
 __all__ = [
     "IntegrationRunner",
     "IntegrationResult",
+    "MCPIntegrationConfig",
+    "MCPIntegrationResult",
+    "MCPRegistryIntegration",
     "PatternLibrary",
     "ReusablePattern",
 ]

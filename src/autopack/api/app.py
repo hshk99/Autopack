@@ -1303,4 +1303,9 @@ def create_app() -> FastAPI:
 
     app.include_router(metrics_router)
 
+    # Mount feature gates router (IMP-REL-001: Feature quarantine/enablement API)
+    from .routes.feature_gates import router as feature_gates_router
+
+    app.include_router(feature_gates_router)
+
     return app

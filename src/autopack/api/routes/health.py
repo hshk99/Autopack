@@ -198,11 +198,11 @@ def health_check(db: Session = Depends(get_db)):
     # Check Qdrant (optional)
     qdrant_status = _check_qdrant_connection()
 
-    # Get kill switch states (BUILD-146 P12)
-    kill_switches = {
-        "phase6_metrics": os.getenv("AUTOPACK_ENABLE_PHASE6_METRICS") == "1",
-        "consolidated_metrics": os.getenv("AUTOPACK_ENABLE_CONSOLIDATED_METRICS") == "1",
-    }
+    # Get kill switch states (BUILD-146 P12, IMP-REL-001)
+    from autopack.feature_gates import get_feature_states
+
+    all_features = get_feature_states()
+    kill_switches = {feature_id: info["enabled"] for feature_id, info in all_features.items()}
 
     # IMP-OPS-007: Check background task health
     background_tasks = _check_background_tasks()

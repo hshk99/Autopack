@@ -17,6 +17,7 @@ from uuid import uuid4
 # Analysis modules for cost-effectiveness, state tracking, and follow-up triggers
 from autopack.research.analysis import (
     BudgetEnforcer,
+    BuildHistoryAnalyzer,
     CostEffectivenessAnalyzer,
     FollowupResearchTrigger,
     ResearchStateTracker,
@@ -181,12 +182,20 @@ class ResearchOrchestrator:
         self._history_analyzer: Optional[ProjectHistoryAnalyzer] = None
         self._pattern_cache: Optional[PatternExtractionResult] = None
 
+        # Build history analyzer for feasibility and cost feedback
+        self._build_history_analyzer: Optional[BuildHistoryAnalyzer] = None
+
         # Initialize state tracker if project root provided
         if project_root:
             self._state_tracker = ResearchStateTracker(project_root)
             history_path = project_root / ".autopack" / "project_history.json"
             self._history_analyzer = ProjectHistoryAnalyzer(
                 project_history_path=history_path
+            )
+            # Initialize build history analyzer with BUILD_HISTORY.md path
+            build_history_path = project_root / "BUILD_HISTORY.md"
+            self._build_history_analyzer = BuildHistoryAnalyzer(
+                build_history_path=build_history_path
             )
 
     def initialize_state_tracking(self, project_root: Path, project_id: str) -> None:
@@ -1010,6 +1019,191 @@ class ResearchOrchestrator:
 
         return insights
 
+    # ========================================================================
+    # Build History Feedback Methods
+    # ========================================================================
+
+    def initialize_build_history_analysis(
+        self,
+        build_history_path: Optional[Path] = None,
+        max_history_days: int = 365,
+    ) -> None:
+        """Initialize build history analyzer for feedback.
+
+        Args:
+            build_history_path: Path to BUILD_HISTORY.md
+            max_history_days: Maximum age of builds to consider
+        """
+        self._build_history_analyzer = BuildHistoryAnalyzer(
+            build_history_path=build_history_path,
+            max_history_days=max_history_days,
+        )
+        logger.info("Initialized build history analyzer for feedback")
+
+    def get_build_history_feedback(
+        self,
+        project_type: Optional[str] = None,
+        tech_stack: Optional[list[str]] = None,
+    ) -> dict[str, Any]:
+        """Get build history feedback for research decisions.
+
+        Analyzes historical build outcomes to provide feasibility and
+        cost-effectiveness feedback for new project assessments.
+
+        Args:
+            project_type: Filter by project type
+            tech_stack: Filter by tech stack components
+
+        Returns:
+            Analysis result with feasibility signals and cost feedback
+        """
+        if not self._build_history_analyzer:
+            logger.warning("Build history analyzer not initialized")
+            return {"error": "Build history analyzer not initialized"}
+
+        result = self._build_history_analyzer.analyze(
+            project_type=project_type,
+            tech_stack=tech_stack,
+        )
+
+        logger.info(
+            "Build history analysis complete: %d builds, %.1f%% success rate",
+            result.total_builds_analyzed,
+            result.overall_success_rate * 100,
+        )
+
+        return result.to_dict()
+
+    def get_feasibility_adjustment(
+        self,
+        base_feasibility_score: float,
+        project_type: Optional[str] = None,
+        tech_stack: Optional[list[str]] = None,
+    ) -> dict[str, Any]:
+        """Get feasibility score adjustment based on build history.
+
+        Uses historical build data to adjust feasibility assessments
+        for more accurate predictions.
+
+        Args:
+            base_feasibility_score: Initial feasibility score (0-1)
+            project_type: Project type for filtering
+            tech_stack: Tech stack for filtering
+
+        Returns:
+            Adjusted feasibility with explanation
+        """
+        if not self._build_history_analyzer:
+            return {
+                "original_score": base_feasibility_score,
+                "adjusted_score": base_feasibility_score,
+                "adjustment": 0.0,
+                "confidence": 0.0,
+                "explanation": "Build history analyzer not initialized",
+            }
+
+        return self._build_history_analyzer.get_feasibility_adjustment(
+            base_feasibility_score=base_feasibility_score,
+            project_type=project_type,
+            tech_stack=tech_stack,
+        )
+
+    def get_cost_effectiveness_from_history(
+        self,
+        project_type: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Get cost-effectiveness insights from build history.
+
+        Analyzes historical cost data to provide feedback on
+        estimation accuracy and optimization opportunities.
+
+        Args:
+            project_type: Filter by project type
+
+        Returns:
+            Cost-effectiveness feedback from history
+        """
+        if not self._build_history_analyzer:
+            return {"error": "Build history analyzer not initialized"}
+
+        feedback = self._build_history_analyzer.analyze_cost_effectiveness(
+            project_type=project_type,
+        )
+
+        return feedback.to_dict()
+
+    def enhance_research_with_build_history(
+        self,
+        session: BootstrapSession,
+        parsed_idea: ParsedIdea,
+    ) -> dict[str, Any]:
+        """Enhance research synthesis with build history feedback.
+
+        Integrates build history insights into the research synthesis
+        to provide more accurate recommendations.
+
+        Args:
+            session: Completed BootstrapSession
+            parsed_idea: ParsedIdea for context
+
+        Returns:
+            Enhanced synthesis with build history feedback
+        """
+        # Get base synthesis
+        synthesis = self._synthesize_research(session, parsed_idea)
+
+        # Add build history feedback if analyzer is available
+        if self._build_history_analyzer:
+            project_type = parsed_idea.detected_project_type.value
+            tech_stack = parsed_idea.dependencies
+
+            # Get history analysis
+            history_analysis = self._build_history_analyzer.analyze(
+                project_type=project_type,
+                tech_stack=tech_stack,
+            )
+
+            # Adjust feasibility score based on history
+            if "scores" in synthesis:
+                original_feasibility = synthesis["scores"].get("technical_feasibility", 0)
+                normalized_feasibility = original_feasibility / 10  # Normalize to 0-1
+
+                adjustment = self._build_history_analyzer.get_feasibility_adjustment(
+                    base_feasibility_score=normalized_feasibility,
+                    project_type=project_type,
+                    tech_stack=tech_stack,
+                )
+
+                synthesis["build_history_feedback"] = {
+                    "analysis_summary": {
+                        "builds_analyzed": history_analysis.total_builds_analyzed,
+                        "overall_success_rate": history_analysis.overall_success_rate,
+                        "time_estimate_accuracy": history_analysis.avg_time_estimate_accuracy,
+                        "cost_estimate_accuracy": history_analysis.avg_cost_estimate_accuracy,
+                    },
+                    "feasibility_adjustment": adjustment,
+                    "cost_effectiveness": history_analysis.cost_effectiveness.to_dict(),
+                    "recommendations": history_analysis.recommendations,
+                    "warnings": history_analysis.warnings,
+                }
+
+                # Update overall scores with adjusted feasibility
+                if adjustment.get("confidence", 0) > 0.3:
+                    adjusted_score = adjustment.get("adjusted_score", normalized_feasibility)
+                    synthesis["scores"]["technical_feasibility_adjusted"] = adjusted_score * 10
+
+                    # Update total and recommendation if significant change
+                    old_total = synthesis["scores"]["total"]
+                    adjustment_amount = (adjusted_score - normalized_feasibility) * 10
+                    synthesis["scores"]["total_adjusted"] = old_total + adjustment_amount
+
+            logger.info(
+                "Enhanced research with build history: %d builds analyzed",
+                history_analysis.total_builds_analyzed,
+            )
+
+        return synthesis
+
     def _get_market_indicators(self, project_type: ProjectType) -> list[str]:
         """Get market indicators for project type.
 
@@ -1223,6 +1417,24 @@ class ResearchOrchestrator:
             pattern_recommendations = self.get_pattern_recommendations(project_context)
             if pattern_recommendations:
                 synthesis["pattern_recommendations"] = pattern_recommendations[:5]
+
+        # Add build history feedback if analyzer is available
+        if self._build_history_analyzer:
+            try:
+                history_feedback = self._build_history_analyzer.analyze(
+                    project_type=parsed_idea.detected_project_type.value,
+                    tech_stack=parsed_idea.dependencies,
+                )
+                if history_feedback.total_builds_analyzed > 0:
+                    synthesis["build_history_insights"] = {
+                        "builds_analyzed": history_feedback.total_builds_analyzed,
+                        "success_rate": history_feedback.overall_success_rate,
+                        "time_accuracy": history_feedback.avg_time_estimate_accuracy,
+                        "recommendations": history_feedback.recommendations[:3],
+                        "warnings": history_feedback.warnings[:2],
+                    }
+            except Exception as e:
+                logger.warning(f"Could not add build history feedback: {e}")
 
         return synthesis
 

@@ -21,6 +21,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from sqlalchemy.exc import InterfaceError, OperationalError
+from tenacity import (retry, retry_if_exception_type,
+                      stop_after_attempt, wait_exponential)
+
 logger = logging.getLogger(__name__)
 
 
@@ -255,14 +259,30 @@ class PhaseStateManager:
     # Internal methods that wrap database calls
     # These preserve exact implementation from autonomous_executor.py
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=0.5, min=0.5, max=5),
+        retry=retry_if_exception_type((OperationalError, InterfaceError)),
+        before_sleep=lambda retry_state: logger.warning(
+            f"DB transient error fetching phase, retrying... "
+            f"(attempt {retry_state.attempt_number}/3)"
+        ),
+        reraise=True,
+    )
     def _get_phase_from_db(self, phase_id: str) -> Optional[Any]:
         """Fetch phase from database with attempt tracking state.
+
+        Retries on transient database errors (OperationalError, InterfaceError).
 
         Args:
             phase_id: Phase identifier (e.g., "fileorg-p2-test-fixes")
 
         Returns:
             Phase model instance with current attempt state, or None if not found
+
+        Raises:
+            OperationalError: On persistent database errors after retries
+            InterfaceError: On persistent connection errors after retries
         """
         try:
             from autopack.database import SessionLocal
@@ -287,10 +307,23 @@ class PhaseStateManager:
 
                 return phase
 
+        except (OperationalError, InterfaceError):
+            # Re-raise to trigger retry decorator
+            raise
         except Exception as e:
             logger.error(f"[{phase_id}] Failed to fetch from database: {e}")
             return None
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=0.5, min=0.5, max=5),
+        retry=retry_if_exception_type((OperationalError, InterfaceError)),
+        before_sleep=lambda retry_state: logger.warning(
+            f"DB transient error updating phase attempts, retrying... "
+            f"(attempt {retry_state.attempt_number}/3)"
+        ),
+        reraise=True,
+    )
     def _update_phase_attempts_in_db(
         self,
         phase_id: str,
@@ -304,7 +337,7 @@ class PhaseStateManager:
         """Update phase attempt tracking in database with optimistic locking.
 
         Uses SELECT FOR UPDATE and version checking to prevent concurrent
-        updates from causing data corruption.
+        updates from causing data corruption. Retries on transient database errors.
 
         Args:
             phase_id: Phase identifier
@@ -320,10 +353,10 @@ class PhaseStateManager:
 
         Raises:
             OptimisticLockError: If phase was modified by another process
+            OperationalError: On persistent database errors after retries
+            InterfaceError: On persistent connection errors after retries
         """
         try:
-            from sqlalchemy.exc import OperationalError
-
             from autopack.database import SessionLocal
             from autopack.models import Phase
 
@@ -395,30 +428,51 @@ class PhaseStateManager:
                     f"[{phase_id}] Concurrent update detected (serialization failure), "
                     f"retry may be needed: {e}"
                 )
+                # Allow retry decorator to handle this
                 raise OptimisticLockError(
                     f"Phase {phase_id} was modified by another process"
                 ) from e
-            # Non-retriable database error
+            # Non-retriable database error - re-raise for retry decorator
             logger.error(f"[{phase_id}] Database error updating attempts: {e}")
-            return False
+            raise
+        except InterfaceError:
+            # Connection error - allow retry decorator to handle
+            raise
+        except OptimisticLockError:
+            # Re-raise optimistic lock errors as-is (don't retry these)
+            raise
         except Exception as e:
             logger.error(f"[{phase_id}] Failed to update attempts in database: {e}")
             return False
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=0.5, min=0.5, max=5),
+        retry=retry_if_exception_type((OperationalError, InterfaceError)),
+        before_sleep=lambda retry_state: logger.warning(
+            f"DB transient error marking phase complete, retrying... "
+            f"(attempt {retry_state.attempt_number}/3)"
+        ),
+        reraise=True,
+    )
     def _mark_phase_complete_in_db(self, phase_id: str) -> bool:
         """Mark phase as COMPLETE in database with row locking.
 
         Uses SELECT FOR UPDATE to prevent concurrent state modifications.
+        Retries on transient database errors.
 
         Args:
             phase_id: Phase identifier
 
         Returns:
             True if update successful, False otherwise
+
+        Raises:
+            OptimisticLockError: If phase was modified by another process
+            OperationalError: On persistent database errors after retries
+            InterfaceError: On persistent connection errors after retries
         """
         try:
-            from sqlalchemy.exc import OperationalError
-
             from autopack.database import SessionLocal
             from autopack.models import Phase
             from autopack.models import PhaseState as PhaseStateEnum
@@ -463,16 +517,34 @@ class PhaseStateManager:
                 raise OptimisticLockError(
                     f"Phase {phase_id} was modified by another process"
                 ) from e
+            # Non-retriable error - re-raise for retry decorator
             logger.error(f"[{phase_id}] Database error marking complete: {e}")
-            return False
+            raise
+        except InterfaceError:
+            # Connection error - allow retry decorator to handle
+            raise
+        except OptimisticLockError:
+            # Re-raise optimistic lock errors as-is
+            raise
         except Exception as e:
             logger.error(f"[{phase_id}] Failed to mark complete in database: {e}")
             return False
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=0.5, min=0.5, max=5),
+        retry=retry_if_exception_type((OperationalError, InterfaceError)),
+        before_sleep=lambda retry_state: logger.warning(
+            f"DB transient error marking phase failed, retrying... "
+            f"(attempt {retry_state.attempt_number}/3)"
+        ),
+        reraise=True,
+    )
     def _mark_phase_failed_in_db(self, phase_id: str, reason: str) -> bool:
         """Mark phase as FAILED in database with row locking.
 
         Uses SELECT FOR UPDATE to prevent concurrent state modifications.
+        Retries on transient database errors.
 
         Args:
             phase_id: Phase identifier
@@ -480,10 +552,13 @@ class PhaseStateManager:
 
         Returns:
             True if update successful, False otherwise
+
+        Raises:
+            OptimisticLockError: If phase was modified by another process
+            OperationalError: On persistent database errors after retries
+            InterfaceError: On persistent connection errors after retries
         """
         try:
-            from sqlalchemy.exc import OperationalError
-
             from autopack.database import SessionLocal
             from autopack.models import Phase
             from autopack.models import PhaseState as PhaseStateEnum
@@ -531,8 +606,15 @@ class PhaseStateManager:
                 raise OptimisticLockError(
                     f"Phase {phase_id} was modified by another process"
                 ) from e
+            # Non-retriable error - re-raise for retry decorator
             logger.error(f"[{phase_id}] Database error marking failed: {e}")
-            return False
+            raise
+        except InterfaceError:
+            # Connection error - allow retry decorator to handle
+            raise
+        except OptimisticLockError:
+            # Re-raise optimistic lock errors as-is
+            raise
         except Exception as e:
             logger.error(f"[{phase_id}] Failed to mark failed in database: {e}")
             return False

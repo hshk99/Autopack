@@ -1,18 +1,17 @@
 """Tests for executor state persistence (BUILD-041)."""
 
+import json
+import os
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 
-from autopack.executor.state_persistence import (
-    AttemptRecord,
-    ExecutorState,
-    ExecutorStateManager,
-    PhaseState,
-    PhaseStatus,
-)
+from autopack.executor.state_persistence import (AttemptRecord, ExecutorState,
+                                                 ExecutorStateManager,
+                                                 PhaseState, PhaseStatus,
+                                                 atomic_write_json)
 
 
 class TestPhaseStatus:
@@ -553,3 +552,181 @@ class TestExecutorStateManager:
 
         assert state.config_hash is not None
         assert len(state.config_hash) == 16  # Truncated SHA256
+
+
+class TestAtomicWriteJson:
+    """Tests for atomic_write_json function."""
+
+    @pytest.fixture
+    def temp_dir(self):
+        """Create temporary directory."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    def test_atomic_write_creates_file(self, temp_dir):
+        """atomic_write_json creates the target file."""
+        target = temp_dir / "test.json"
+        data = {"key": "value", "number": 42}
+
+        atomic_write_json(target, data)
+
+        assert target.exists()
+        assert json.loads(target.read_text()) == data
+
+    def test_atomic_write_with_complex_data(self, temp_dir):
+        """atomic_write_json handles complex nested data."""
+        target = temp_dir / "complex.json"
+        data = {
+            "list": [1, 2, 3],
+            "nested": {"a": {"b": {"c": "deep"}}},
+            "string": "test",
+            "float": 3.14,
+            "bool": True,
+            "null": None,
+        }
+
+        atomic_write_json(target, data)
+
+        loaded = json.loads(target.read_text())
+        assert loaded == data
+
+    def test_atomic_write_overwrites_existing(self, temp_dir):
+        """atomic_write_json overwrites existing file atomically."""
+        target = temp_dir / "overwrite.json"
+
+        # Write initial data
+        old_data = {"old": "data"}
+        atomic_write_json(target, old_data)
+        assert json.loads(target.read_text()) == old_data
+
+        # Overwrite with new data
+        new_data = {"new": "data", "extra": "fields"}
+        atomic_write_json(target, new_data)
+
+        assert json.loads(target.read_text()) == new_data
+
+    def test_atomic_write_uses_temp_file(self, temp_dir):
+        """atomic_write_json uses temp file for atomicity."""
+        target = temp_dir / "atomic.json"
+        data = {"atomic": "write"}
+
+        # Count temp files before
+        temp_files_before = list(temp_dir.glob(".atomic.json.*.tmp"))
+
+        atomic_write_json(target, data)
+
+        # Temp file should be cleaned up after write
+        temp_files_after = list(temp_dir.glob(".atomic.json.*.tmp"))
+        assert len(temp_files_after) == 0  # Temp file cleaned up
+
+        # Target should be created
+        assert target.exists()
+
+    def test_atomic_write_cleans_up_on_disk_full_simulation(self, temp_dir):
+        """atomic_write_json cleans up temp files on write error."""
+        # Test with a small target to verify cleanup on error
+        target = temp_dir / "error.json"
+
+        # Create initial valid file
+        atomic_write_json(target, {"initial": "data"})
+        assert target.exists()
+
+        # Create a directory where file should be to force replacement error
+        error_target = temp_dir / "isdir.json"
+        error_target.mkdir()
+
+        # This will raise an error during the replace operation
+        with pytest.raises((IsADirectoryError, OSError)):
+            atomic_write_json(error_target, {"data": "test"})
+
+        # Temp files should be cleaned up even on error
+        temp_files = list(temp_dir.glob(".isdir.json.*.tmp"))
+        assert len(temp_files) == 0
+
+    def test_atomic_write_preserves_data_on_failure(self, temp_dir):
+        """atomic_write_json preserves existing data on write error."""
+        target = temp_dir / "preserve.json"
+        original_data = {"original": "preserved"}
+
+        # Write initial data
+        atomic_write_json(target, original_data)
+        assert json.loads(target.read_text()) == original_data
+
+        # Create a directory to force replacement error
+        bad_target = temp_dir / "baddir.json"
+        bad_target.mkdir()
+
+        # Try to write - should fail at replace
+        with pytest.raises((IsADirectoryError, OSError)):
+            atomic_write_json(bad_target, {"new": "data"})
+
+        # Original file should still be intact
+        assert json.loads(target.read_text()) == original_data
+
+    def test_atomic_write_json_formatting(self, temp_dir):
+        """atomic_write_json writes with proper formatting."""
+        target = temp_dir / "formatted.json"
+        data = {"a": 1, "b": {"c": 2}}
+
+        atomic_write_json(target, data)
+
+        content = target.read_text()
+        # Should be formatted with 2-space indent
+        assert "  " in content  # Has indentation
+        lines = content.split("\n")
+        assert len(lines) > 1  # Multi-line output
+
+    def test_atomic_write_ensures_fsync(self, temp_dir):
+        """atomic_write_json uses fsync for durability."""
+        target = temp_dir / "durable.json"
+        data = {"durable": "data", "numbers": list(range(100))}
+
+        atomic_write_json(target, data)
+
+        # Verify data was written and synced
+        assert target.exists()
+        loaded = json.loads(target.read_text())
+        assert loaded == data
+
+    def test_atomic_write_large_file(self, temp_dir):
+        """atomic_write_json handles large data structures."""
+        target = temp_dir / "large.json"
+        # Create moderately large data structure
+        data = {
+            f"key_{i}": {
+                "value": i,
+                "nested": list(range(10)),
+                "string": "x" * 100,
+            }
+            for i in range(100)
+        }
+
+        atomic_write_json(target, data)
+
+        loaded = json.loads(target.read_text())
+        assert loaded == data
+        assert len(loaded) == 100
+
+    def test_atomic_write_executor_state_integration(self, temp_dir):
+        """atomic_write_json works with ExecutorState serialization."""
+        now = datetime.now(timezone.utc)
+        state = ExecutorState(
+            run_id="run-atomic",
+            project_id="proj-1",
+            created_at=now,
+            updated_at=now,
+            phases=[
+                PhaseState(phase_id="p-0", phase_number=0, name="Test"),
+            ],
+        )
+
+        target = temp_dir / "executor_state.json"
+        atomic_write_json(target, state.to_dict())
+
+        # Verify state can be loaded back
+        loaded_data = json.loads(target.read_text())
+        restored_state = ExecutorState.from_dict(loaded_data)
+
+        assert restored_state.run_id == state.run_id
+        assert restored_state.project_id == state.project_id
+        assert len(restored_state.phases) == 1

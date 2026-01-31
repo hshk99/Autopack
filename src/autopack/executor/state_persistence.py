@@ -12,15 +12,56 @@ This module provides:
 import hashlib
 import json
 import logging
+import os
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
 
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
+                      wait_exponential)
 
 logger = logging.getLogger(__name__)
+
+
+def atomic_write_json(filepath: Path, data: dict) -> None:
+    """Write JSON atomically using temp file and replace.
+
+    This function ensures atomic writes to prevent partial file corruption
+    on crash or concurrent access. The pattern:
+    1. Write to a temp file in the same directory (ensures same filesystem)
+    2. Flush and sync to ensure data is on disk
+    3. Use os.replace() for atomic swap (POSIX rename is atomic)
+
+    Args:
+        filepath: Path to the target JSON file
+        data: Dictionary to serialize as JSON
+
+    Raises:
+        OSError: If write or sync fails
+    """
+    # Write to temp file in same directory (ensures same filesystem)
+    fd, temp_path = tempfile.mkstemp(
+        dir=filepath.parent, prefix=f".{filepath.name}.", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f, indent=2)
+            f.flush()
+            # Ensure data is written to disk
+            os.fsync(f.fileno())
+        # Atomic replace (POSIX rename is atomic)
+        os.replace(temp_path, filepath)
+    except Exception:
+        # Clean up temp file on failure
+        try:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+        except OSError:
+            pass
+        raise
 
 
 class PersistenceError(Exception):
@@ -429,9 +470,8 @@ class ExecutorStateManager:
                     # Backup failure is not critical, but log it
                     logger.warning(f"Failed to backup state for {state.run_id}: {e}")
 
-            # Write new state
-            state_json = json.dumps(state.to_dict(), indent=2)
-            state_path.write_text(state_json, encoding="utf-8")
+            # Write new state atomically
+            atomic_write_json(state_path, state.to_dict())
 
             logger.debug(f"Saved state for run {state.run_id}")
 

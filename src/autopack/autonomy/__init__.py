@@ -9,6 +9,9 @@ Public API exports:
     - run_autopilot: library façade for CLI/programmatic use (BUILD-179)
     - load_anchor: load intention anchor for a run (BUILD-179)
     - AutopilotResult: result type for run_autopilot
+    - ResearchCycleIntegration: IMP-AUT-001 research cycle integration
+    - ResearchCycleDecision: decision outcomes from research cycles
+    - ResearchCycleOutcome: outcome from research cycle execution
 """
 
 from .api import AutopilotResult, load_anchor, run_autopilot
@@ -19,6 +22,13 @@ from .parallelism_gate import (
     ParallelismPolicyViolation,
     check_parallelism_policy,
     load_and_check_parallelism_policy,
+)
+from .research_cycle_integration import (
+    ResearchCycleDecision,
+    ResearchCycleIntegration,
+    ResearchCycleMetrics,
+    ResearchCycleOutcome,
+    create_research_cycle_integration,
 )
 
 __all__ = [
@@ -33,4 +43,10 @@ __all__ = [
     "run_autopilot",
     "load_anchor",
     "AutopilotResult",
+    # Research cycle integration (IMP-AUT-001)
+    "ResearchCycleIntegration",
+    "ResearchCycleDecision",
+    "ResearchCycleOutcome",
+    "ResearchCycleMetrics",
+    "create_research_cycle_integration",
 ]

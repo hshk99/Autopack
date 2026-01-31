@@ -42,6 +42,13 @@ from .event_triggers import EventTriggerManager, EventType, WorkflowEvent
 from .executor_integration import ExecutorContext, create_executor_context
 from .models import (ApprovalRequest, AutopilotMetadata, AutopilotSessionV1,
                      ErrorLogEntry, ExecutionSummary)
+from .research_cycle_integration import (
+    ResearchCycleDecision,
+    ResearchCycleIntegration,
+    ResearchCycleMetrics,
+    ResearchCycleOutcome,
+    create_research_cycle_integration,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +113,10 @@ class AutopilotController:
         # IMP-AUTO-002: Event-driven workflow triggers
         self._event_trigger_manager = EventTriggerManager()
         self._pending_events: list[WorkflowEvent] = []
+
+        # IMP-AUT-001: Research cycle integration
+        self._research_cycle_integration: Optional[ResearchCycleIntegration] = None
+        self._last_research_outcome: Optional[ResearchCycleOutcome] = None
 
     def _check_circuit_breaker_health(self) -> bool:
         """Check if circuit breaker allows execution.
@@ -201,23 +212,70 @@ class AutopilotController:
                 f"({gap_report.summary.autopilot_blockers} blockers)"
             )
 
-            # IMP-AUTO-001: Check if follow-up research should be triggered
-            budget_remaining = (
-                self.executor_ctx.get_budget_remaining() if self.executor_ctx else 1.0
-            )
+            # IMP-AUT-001: Check if research cycle should be executed
             gap_summary = {
                 "summary": {
                     "total_gaps": gap_report.summary.total_gaps,
                     "critical_gaps": gap_report.summary.autopilot_blockers,
                 }
             }
-            if self.should_trigger_followup_research(
-                gap_report=gap_summary,
-                budget_remaining=budget_remaining,
-            ):
-                logger.info("[IMP-AUTO-001] Follow-up research recommended based on gap analysis")
-                # Note: Actual research execution would be handled by registered callbacks
-                # or a separate async research phase
+
+            # Initialize research cycle integration if needed
+            if not self._research_cycle_integration:
+                self.initialize_research_cycle_integration()
+
+            if self.should_execute_research_cycle(gap_report=gap_summary):
+                logger.info(
+                    "[IMP-AUT-001] Executing research cycle based on gap analysis"
+                )
+
+                # Build analysis results from gap report
+                analysis_results = {
+                    "findings": [],
+                    "identified_gaps": [
+                        {
+                            "category": "workspace",
+                            "description": f"Found {gap_report.summary.total_gaps} gaps "
+                            f"({gap_report.summary.autopilot_blockers} blockers)",
+                            "suggested_queries": ["gap resolution strategies"],
+                        }
+                    ],
+                    "coverage_analysis": {
+                        "gaps_scanned": True,
+                        "blockers_found": gap_report.summary.autopilot_blockers > 0,
+                    },
+                }
+
+                # Execute research cycle asynchronously
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                research_outcome = loop.run_until_complete(
+                    self.execute_integrated_research_cycle(
+                        analysis_results=analysis_results,
+                    )
+                )
+
+                # Check if research outcome blocks execution
+                if research_outcome.decision == ResearchCycleDecision.BLOCK:
+                    logger.warning(
+                        f"[IMP-AUT-001] Research cycle blocked execution: "
+                        f"{research_outcome.reason}"
+                    )
+                    self.session.status = "blocked_research"
+                    self.session.blocked_reason = (
+                        f"Research cycle BLOCK: {research_outcome.reason}"
+                    )
+                    self.session.completed_at = datetime.now(timezone.utc)
+                    return self.session
+
+                logger.info(
+                    f"[IMP-AUT-001] Research cycle complete: "
+                    f"decision={research_outcome.decision.value}"
+                )
 
             # Step 3: Propose plan
             logger.info("[Autopilot] Proposing action plan...")
@@ -697,6 +755,210 @@ class AutopilotController:
             True if mid-execution research is enabled
         """
         return self._mid_execution_research_enabled
+
+    # === IMP-AUT-001: Research Cycle Integration ===
+
+    def initialize_research_cycle_integration(
+        self,
+        min_budget_threshold: float = 0.2,
+    ) -> ResearchCycleIntegration:
+        """Initialize the research cycle integration.
+
+        IMP-AUT-001: Creates and configures the research cycle integration
+        for use during autopilot execution. This should be called before
+        running sessions that require research triggering.
+
+        Args:
+            min_budget_threshold: Minimum budget fraction for research
+
+        Returns:
+            Configured ResearchCycleIntegration instance
+        """
+        from ..research.analysis.budget_enforcement import BudgetEnforcer
+
+        # Create budget enforcer with default budget
+        budget_enforcer = BudgetEnforcer(total_budget=5000.0)
+
+        self._research_cycle_integration = create_research_cycle_integration(
+            budget_enforcer=budget_enforcer,
+            min_budget_threshold=min_budget_threshold,
+        )
+
+        logger.info(
+            f"[IMP-AUT-001] Research cycle integration initialized: "
+            f"min_budget_threshold={min_budget_threshold:.0%}"
+        )
+
+        return self._research_cycle_integration
+
+    def get_research_cycle_integration(self) -> Optional[ResearchCycleIntegration]:
+        """Get the research cycle integration instance.
+
+        Returns:
+            ResearchCycleIntegration or None if not initialized
+        """
+        return self._research_cycle_integration
+
+    async def execute_integrated_research_cycle(
+        self,
+        analysis_results: Dict[str, Any],
+        validation_results: Optional[Dict[str, Any]] = None,
+    ) -> ResearchCycleOutcome:
+        """Execute an integrated research cycle with full budget enforcement.
+
+        IMP-AUT-001: Main entry point for research cycle execution in autopilot.
+        Uses the ResearchCycleIntegration to handle budget enforcement and
+        feeds outcomes back to autopilot decisions.
+
+        Args:
+            analysis_results: Results from analysis phase
+            validation_results: Optional validation results
+
+        Returns:
+            ResearchCycleOutcome with decision and findings
+        """
+        # Initialize integration if not done
+        if not self._research_cycle_integration:
+            self.initialize_research_cycle_integration()
+
+        outcome = await self._research_cycle_integration.execute_research_cycle(
+            analysis_results=analysis_results,
+            validation_results=validation_results,
+            executor_ctx=self.executor_ctx,
+            autopilot=self,
+        )
+
+        self._last_research_outcome = outcome
+
+        # Handle outcome decision
+        await self._handle_research_outcome(outcome)
+
+        return outcome
+
+    async def _handle_research_outcome(
+        self,
+        outcome: ResearchCycleOutcome,
+    ) -> None:
+        """Handle the outcome of a research cycle.
+
+        IMP-AUT-001: Translates research cycle decisions into autopilot
+        state changes and actions.
+
+        Args:
+            outcome: The research cycle outcome
+        """
+        logger.info(
+            f"[IMP-AUT-001] Handling research outcome: decision={outcome.decision.value}, "
+            f"should_continue={outcome.should_continue_execution}"
+        )
+
+        if outcome.decision == ResearchCycleDecision.BLOCK:
+            # Pause task generation due to critical gaps
+            self._pause_task_generation(
+                f"Research cycle BLOCK: {outcome.reason}"
+            )
+            logger.warning(
+                f"[IMP-AUT-001] Task generation paused due to research BLOCK: "
+                f"{outcome.reason}"
+            )
+
+        elif outcome.decision == ResearchCycleDecision.PAUSE_FOR_RESEARCH:
+            # Research incomplete - may need retry
+            logger.info(
+                f"[IMP-AUT-001] Research cycle requested pause: {outcome.reason}"
+            )
+
+        elif outcome.decision == ResearchCycleDecision.ADJUST_PLAN:
+            # Log plan adjustments for processing
+            if outcome.plan_adjustments:
+                logger.info(
+                    f"[IMP-AUT-001] Plan adjustments required: "
+                    f"{len(outcome.plan_adjustments)} recommendations"
+                )
+                for adj in outcome.plan_adjustments:
+                    logger.info(
+                        f"  - [{adj.get('priority', 'medium')}] "
+                        f"{adj.get('type', 'unknown')}: {adj.get('description', 'N/A')}"
+                    )
+
+        # Update metrics in session if available
+        if self.session and self.session.metadata:
+            if not hasattr(self.session.metadata, "research_cycles"):
+                self.session.metadata.research_cycles = []
+            self.session.metadata.research_cycles.append(outcome.to_dict())
+
+    def get_last_research_outcome(self) -> Optional[ResearchCycleOutcome]:
+        """Get the last research cycle outcome.
+
+        Returns:
+            Last ResearchCycleOutcome or None
+        """
+        return self._last_research_outcome
+
+    def get_research_cycle_metrics(self) -> Optional[ResearchCycleMetrics]:
+        """Get research cycle metrics.
+
+        IMP-AUT-001: Returns metrics from the research cycle integration
+        for monitoring and debugging.
+
+        Returns:
+            ResearchCycleMetrics or None if not initialized
+        """
+        if not self._research_cycle_integration:
+            return None
+        return self._research_cycle_integration.get_metrics()
+
+    def should_execute_research_cycle(
+        self,
+        gap_report: Optional[Dict] = None,
+    ) -> bool:
+        """Determine if a research cycle should be executed.
+
+        IMP-AUT-001: Combines health gates, budget constraints, and gap
+        analysis to determine if a research cycle is warranted.
+
+        Args:
+            gap_report: Optional gap report from workspace scan
+
+        Returns:
+            True if research cycle should execute
+        """
+        # Check if task generation is paused
+        if self._task_generation_paused:
+            logger.debug(
+                "[IMP-AUT-001] Research cycle skipped: task generation paused"
+            )
+            return False
+
+        # Check circuit breaker
+        if self.executor_ctx and not self.executor_ctx.circuit_breaker.is_available():
+            logger.debug(
+                "[IMP-AUT-001] Research cycle skipped: circuit breaker open"
+            )
+            return False
+
+        # Check budget via integration
+        if self._research_cycle_integration:
+            if not self._research_cycle_integration.can_proceed_with_research():
+                logger.debug(
+                    "[IMP-AUT-001] Research cycle skipped: budget constraints"
+                )
+                return False
+
+        # Check gap report
+        if gap_report:
+            total_gaps = gap_report.get("summary", {}).get("total_gaps", 0)
+            critical_gaps = gap_report.get("summary", {}).get("critical_gaps", 0)
+
+            # Only trigger if significant gaps exist
+            if critical_gaps > 0 or total_gaps >= 5:
+                logger.info(
+                    f"[IMP-AUT-001] Research cycle recommended: "
+                    f"{critical_gaps} critical, {total_gaps} total gaps"
+                )
+                return True
+
+        return False
 
     async def check_mid_execution_research(
         self,

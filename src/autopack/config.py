@@ -814,6 +814,13 @@ def validate_config(config: Settings) -> list[str]:
     Performs comprehensive validation of all configuration values at startup
     to catch invalid values early instead of obscure runtime errors.
 
+    Checks:
+    - Required environment variables (DATABASE_URL, ANTHROPIC_API_KEY, etc.)
+    - API key format validation
+    - Database URL format validation
+    - Numeric configuration ranges
+    - Production-specific requirements
+
     Args:
         config: The Settings instance to validate.
 
@@ -822,6 +829,51 @@ def validate_config(config: Settings) -> list[str]:
     """
     errors = []
 
+    # ===== Phase 1: Required Environment Variables =====
+    # Check for critical secrets needed at startup
+    database_url = os.getenv("DATABASE_URL") or os.getenv("DATABASE_URL_FILE")
+    if not database_url:
+        errors.append(
+            "DATABASE_URL is required. "
+            "Set DATABASE_URL or DATABASE_URL_FILE environment variable."
+        )
+
+    anthropic_api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY_FILE")
+    if not anthropic_api_key:
+        errors.append(
+            "ANTHROPIC_API_KEY is required. "
+            "Set ANTHROPIC_API_KEY or ANTHROPIC_API_KEY_FILE environment variable."
+        )
+
+    # ===== Phase 2: API Key Format Validation =====
+    # Validate Anthropic API key format if present
+    if anthropic_api_key and isinstance(anthropic_api_key, str):
+        anthropic_key_env = os.getenv("ANTHROPIC_API_KEY")
+        if anthropic_key_env:  # Validate actual value, not file path
+            if not anthropic_key_env.startswith("sk-"):
+                errors.append(
+                    f"ANTHROPIC_API_KEY format invalid: must start with 'sk-', "
+                    f"got '{anthropic_key_env[:10]}...'"
+                )
+            if len(anthropic_key_env) < 40:
+                errors.append(
+                    f"ANTHROPIC_API_KEY seems too short (got {len(anthropic_key_env)} chars, "
+                    f"expected ~40+). May be truncated or invalid."
+                )
+
+    # ===== Phase 3: Database URL Format Validation =====
+    # Validate database URL format if present
+    if (
+        database_url
+        and isinstance(database_url, str)
+        and not database_url.startswith(("postgresql://", "mysql://", "sqlite://"))
+    ):
+        errors.append(
+            f"DATABASE_URL format invalid: must start with 'postgresql://', 'mysql://', "
+            f"or 'sqlite://', got '{database_url[:30]}...'"
+        )
+
+    # ===== Phase 4: Numeric Configuration Validation =====
     # Token budget validations
     if config.run_token_cap < 1000:
         errors.append(f"run_token_cap must be >= 1000, got {config.run_token_cap}")
@@ -936,6 +988,13 @@ def validate_config(config: Settings) -> list[str]:
 def validate_startup_config() -> None:
     """Validate configuration at startup and fail fast on errors.
 
+    Performs comprehensive validation of all startup configuration including:
+    - Required environment variables (DATABASE_URL, ANTHROPIC_API_KEY)
+    - API key format validation (sk- prefix, minimum length)
+    - Database URL format validation (postgresql://, mysql://, sqlite://)
+    - Numeric configuration ranges
+    - Environment-specific requirements (e.g., API key in production)
+
     Calls validate_config() and raises SystemExit if any validation errors
     are found. This ensures the application fails fast with clear error
     messages instead of obscure runtime errors.
@@ -946,11 +1005,16 @@ def validate_startup_config() -> None:
     errors = validate_config(settings)
 
     if errors:
-        for error in errors:
-            logger.error(f"Config validation failed: {error}")
+        logger.error("=" * 80)
+        logger.error("CONFIGURATION VALIDATION FAILED")
+        logger.error("=" * 80)
+        for i, error in enumerate(errors, 1):
+            logger.error(f"{i}. {error}")
+        logger.error("=" * 80)
+        logger.error("Please fix the configuration errors above and restart the application.")
         raise SystemExit(f"Invalid configuration: {len(errors)} error(s)")
 
-    logger.info("Configuration validated successfully")
+    logger.info("Startup configuration validated successfully")
 
 
 def is_production() -> bool:

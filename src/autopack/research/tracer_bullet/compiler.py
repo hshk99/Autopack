@@ -1,7 +1,8 @@
 """Compiler module for the tracer bullet pipeline."""
 
 import ast
-from typing import Union
+import operator
+from typing import Any, Callable, Union
 
 # Safe AST node types for mathematical expression evaluation.
 # This strict whitelist prevents arbitrary code execution by only allowing
@@ -24,10 +25,68 @@ _SAFE_NODES = (
     ast.UAdd,
 )
 
+# Mapping of AST operator nodes to Python operators
+_BINARY_OPS: dict[type[ast.operator], Callable[[Any, Any], Any]] = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+}
+
+_UNARY_OPS: dict[type[ast.unaryop], Callable[[Any], Any]] = {
+    ast.USub: operator.neg,
+    ast.UAdd: operator.pos,
+}
+
+
+def _evaluate_node(node: ast.expr) -> Union[int, float]:
+    """
+    Recursively evaluate an AST node without executing dangerous code.
+
+    This function safely interprets the AST tree by directly computing
+    results from allowed node types, completely eliminating the security
+    risks associated with code execution via dynamic interpretation.
+
+    Args:
+        node: An AST expression node.
+
+    Returns:
+        The numeric result.
+
+    Raises:
+        ValueError: If an unsafe node type is encountered.
+    """
+    if isinstance(node, ast.Constant):
+        if not isinstance(node.value, (int, float)):
+            raise ValueError(f"Unsafe expression: non-numeric constant {type(node.value).__name__}")
+        return node.value
+
+    if isinstance(node, ast.BinOp):
+        left = _evaluate_node(node.left)
+        right = _evaluate_node(node.right)
+        binary_op = _BINARY_OPS.get(type(node.op))
+        if binary_op is None:
+            raise ValueError(f"Unsafe expression: unsupported operator {type(node.op).__name__}")
+        return binary_op(left, right)
+
+    if isinstance(node, ast.UnaryOp):
+        operand = _evaluate_node(node.operand)
+        unary_op = _UNARY_OPS.get(type(node.op))
+        if unary_op is None:
+            raise ValueError(
+                f"Unsafe expression: unsupported unary operator {type(node.op).__name__}"
+            )
+        return unary_op(operand)
+
+    raise ValueError(f"Unsafe expression: contains {type(node).__name__}")
+
 
 def safe_eval(expression: str) -> Union[int, float]:
     """
-    Safely evaluate a mathematical expression.
+    Safely evaluate a mathematical expression without executing arbitrary code.
 
     Only allows basic arithmetic operations (+, -, *, /, //, %, **) on numbers.
     No function calls, attribute access, name lookups, or other potentially
@@ -43,7 +102,7 @@ def safe_eval(expression: str) -> Union[int, float]:
         ValueError: If the expression contains unsafe node types or is invalid.
     """
     try:
-        tree = ast.parse(expression, mode="eval")
+        tree = ast.parse(expression.strip(), mode="eval")
     except SyntaxError as e:
         raise ValueError(f"Invalid expression syntax: {e}")
 
@@ -60,10 +119,8 @@ def safe_eval(expression: str) -> Union[int, float]:
                     f"Unsafe expression: non-numeric constant {type(node.value).__name__}"
                 )
 
-    # Safe to evaluate - compile and eval with empty builtins and locals
-    # to prevent any access to Python built-ins or external variables
-    compiled = compile(tree, "<expression>", "eval")
-    return eval(compiled, {"__builtins__": {}}, {})
+    # Evaluate the AST without using eval()
+    return _evaluate_node(tree.body)
 
 
 def compile_expression(expression: str) -> Union[int, float]:

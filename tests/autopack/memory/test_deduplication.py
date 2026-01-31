@@ -14,6 +14,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from autopack.memory.deduplication import ContentDeduplicator
+
 
 class TestFindSimilarInsights:
     """Tests for _find_similar_insights method."""
@@ -28,6 +30,7 @@ class TestFindSimilarInsights:
             service.enabled = True
             service._write_lock = threading.Lock()
             service._content_hashes = set()
+            service._deduplicator = ContentDeduplicator()
             service.store = Mock()
 
             # Configure store.search to return empty by default

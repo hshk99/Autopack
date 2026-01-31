@@ -4,15 +4,53 @@ Provides the `autopack restore` command to extract database, ledgers,
 autonomous run state, and config from a backup archive.
 """
 
+import logging
 import tarfile
 from pathlib import Path
 
 import click
 
+logger = logging.getLogger(__name__)
+
 
 def get_default_base_dir() -> Path:
     """Get the default autopack directory."""
     return Path.cwd()
+
+
+def safe_extractall(tar: tarfile.TarFile, dest: Path) -> None:
+    """Safely extract tar members, blocking symlinks and hardlinks.
+
+    Validates that:
+    - No symlinks are extracted (could point outside target directory)
+    - No hardlinks are extracted (could reference files outside target)
+    - No path traversal attacks via .. path components
+
+    Args:
+        tar: TarFile object to extract from
+        dest: Destination directory path
+
+    Raises:
+        ValueError: If dangerous member is detected
+    """
+    dest_resolved = dest.resolve()
+
+    for member in tar.getmembers():
+        # Check for symlinks
+        if member.issym():
+            raise ValueError(f"Blocked symlink in archive: {member.name} -> {member.linkname}")
+
+        # Check for hardlinks
+        if member.islnk():
+            raise ValueError(f"Blocked hardlink in archive: {member.name} -> {member.linkname}")
+
+        # Check for path traversal
+        target_path = (dest_resolved / member.name).resolve()
+        if not str(target_path).startswith(str(dest_resolved)):
+            raise ValueError(f"Path traversal detected: {member.name}")
+
+        # Extract the member
+        tar.extract(member, path=dest)
 
 
 @click.command("restore")
@@ -89,17 +127,22 @@ def restore(input_file: Path, base_dir: Path | None, force: bool) -> None:
                 click.secho("Restore cancelled.", fg="red")
                 raise SystemExit(1)
 
-        # Extract all files
+        # Extract all files with security validation
         click.echo("Extracting files:")
         files_restored = 0
 
-        for member in tar.getmembers():
-            tar.extract(member, path=base)
-            if member.isfile():
-                files_restored += 1
-                click.echo(f"  [restore] {member.name}")
-            elif member.isdir():
-                click.echo(f"  [restore] {member.name}/")
+        try:
+            safe_extractall(tar, base)
+            # Count extracted files
+            for member in tar.getmembers():
+                if member.isfile():
+                    files_restored += 1
+                    click.echo(f"  [restore] {member.name}")
+                elif member.isdir():
+                    click.echo(f"  [restore] {member.name}/")
+        except ValueError as e:
+            click.secho(f"Security error: {e}", fg="red")
+            raise SystemExit(1)
 
     click.echo()
     click.secho("Restore complete!", fg="green")

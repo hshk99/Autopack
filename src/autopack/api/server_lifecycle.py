@@ -11,15 +11,53 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import IO, TYPE_CHECKING, Any, Optional, cast
 from urllib.parse import urlparse
 
 from autopack.config import settings
+
+try:
+    import resource
+except ImportError:
+    # resource module is not available on Windows
+    resource = None  # type: ignore
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
 
 logger = logging.getLogger(__name__)
+
+
+def set_subprocess_resource_limits(max_memory_mb: int = 2000, max_cpu_seconds: int = 300) -> None:
+    """Set resource limits for subprocess execution.
+
+    These limits prevent resource exhaustion from malicious or runaway code.
+
+    Args:
+        max_memory_mb: Maximum memory in MB (default 2GB for API server)
+        max_cpu_seconds: Maximum CPU time in seconds (default 5 minutes)
+    """
+    if resource is None:
+        # resource module not available (e.g., Windows)
+        logger.debug("Resource limits not available on this platform")
+        return
+
+    res = cast(Any, resource)  # type: ignore
+    try:
+        # Set virtual memory limit (soft limit - warning, hard limit - hard stop)
+        memory_bytes = max_memory_mb * 1024 * 1024
+        res.setrlimit(res.RLIMIT_AS, (memory_bytes, memory_bytes))
+        logger.debug(f"Set memory limit to {max_memory_mb}MB")
+    except (OSError, ValueError) as e:
+        # May not be available on all systems
+        logger.debug(f"Could not set memory limit: {e}")
+
+    try:
+        # Set CPU time limit
+        res.setrlimit(res.RLIMIT_CPU, (max_cpu_seconds, max_cpu_seconds))
+        logger.debug(f"Set CPU time limit to {max_cpu_seconds}s")
+    except (OSError, ValueError) as e:
+        logger.debug(f"Could not set CPU time limit: {e}")
 
 
 class APIServerLifecycle:
@@ -35,7 +73,7 @@ class APIServerLifecycle:
     def __init__(self, executor: "AutonomousExecutor"):
         self.executor = executor
         self.server_process: Optional[subprocess.Popen] = None
-        self.log_file_handle: Optional[object] = None
+        self.log_file_handle: Optional[IO] = None
 
     def ensure_server_running(self) -> bool:
         """Ensure API server is running.
@@ -181,6 +219,7 @@ class APIServerLifecycle:
                 # Start process in background (detached on Windows)
                 if sys.platform == "win32":
                     # Windows: use CREATE_NEW_PROCESS_GROUP and DETACHED_PROCESS
+                    # Note: Resource limits not available on Windows via preexec_fn
                     process = subprocess.Popen(
                         api_cmd,
                         stdout=log_fp or subprocess.DEVNULL,
@@ -191,7 +230,7 @@ class APIServerLifecycle:
                         | subprocess.DETACHED_PROCESS,
                     )
                 else:
-                    # Unix: use nohup-like behavior
+                    # Unix: use nohup-like behavior with resource limits
                     process = subprocess.Popen(
                         api_cmd,
                         stdout=log_fp or subprocess.DEVNULL,
@@ -199,6 +238,9 @@ class APIServerLifecycle:
                         env=env,
                         cwd=str(Path(self.executor.workspace).resolve()),
                         start_new_session=True,
+                        preexec_fn=lambda: set_subprocess_resource_limits(
+                            max_memory_mb=2000, max_cpu_seconds=300
+                        ),
                     )
 
                 self.server_process = process
@@ -264,8 +306,7 @@ class APIServerLifecycle:
                 logger.info("✅ API server started successfully")
                 # Optional: fail fast if the API is healthy but the run is missing (common DB drift symptom).
                 if os.getenv("AUTOPACK_SKIP_RUN_EXISTENCE_CHECK") != "1":
-                    from autopack.supervisor.api_client import \
-                        SupervisorApiHttpError
+                    from autopack.supervisor.api_client import SupervisorApiHttpError
 
                     try:
                         self.executor.api_client.get_run(self.executor.run_id, timeout=2)
@@ -294,11 +335,22 @@ class APIServerLifecycle:
         return False
 
     def stop_server(self) -> None:
-        """Stop API server gracefully."""
+        """Stop API server gracefully with timeout enforcement."""
         if self.server_process:
             try:
+                # Attempt graceful shutdown with 30 second timeout
                 self.server_process.terminate()
-                self.server_process.wait(timeout=5)
+                try:
+                    self.server_process.wait(timeout=30)
+                    logger.info("API server stopped gracefully")
+                except subprocess.TimeoutExpired:
+                    # Force kill if graceful shutdown fails
+                    logger.warning("API server did not stop within 30 seconds, force killing...")
+                    self.server_process.kill()
+                    try:
+                        self.server_process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        logger.error("API server could not be killed")
             except Exception as e:
                 logger.warning(f"Failed to stop API server: {e}")
             finally:

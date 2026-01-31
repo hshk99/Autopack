@@ -1,10 +1,12 @@
 """Tests for BUILD-181 ExecutorContext integration."""
 
+import logging
 from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.autonomy.executor_integration import ExecutorContext, create_executor_context
+from autopack.autonomy.executor_integration import (ExecutorContext,
+                                                    create_executor_context)
 from autopack.stuck_handling import StuckReason, StuckResolutionDecision
 
 
@@ -495,3 +497,169 @@ class TestResearchIntegration:
         gaps = ctx.get_research_gaps()
 
         assert gaps == []
+
+
+class TestExecutorContextBudgetEnforcement:
+    """Tests for IMP-RESEARCH-001: Budget enforcement."""
+
+    def test_get_budget_status_healthy(self, mock_anchor, mock_layout):
+        """Test budget status is healthy when usage is low."""
+        mock_anchor.pivot_intentions.budget_cost.token_cap_global = 1000
+
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+        ctx.record_usage_event(tokens_used=200)
+
+        status = ctx.get_budget_status()
+
+        assert status["budget_remaining_fraction"] == pytest.approx(0.8)
+        assert status["budget_used_fraction"] == pytest.approx(0.2)
+        assert status["budget_used_percent"] == pytest.approx(20.0)
+        assert status["can_proceed"] is True
+
+    def test_get_budget_status_warn_at_75_percent(self, mock_anchor, mock_layout, caplog):
+        """Test that budget status warns at 75% utilization."""
+        mock_anchor.pivot_intentions.budget_cost.token_cap_global = 1000
+
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+        ctx.record_usage_event(tokens_used=750)
+
+        with caplog.at_level(logging.WARNING):
+            status = ctx.get_budget_status()
+
+        assert status["budget_used_percent"] == pytest.approx(75.0)
+        assert "75%" in caplog.text or "IMP-RESEARCH-001" in caplog.text
+        assert "75%" in ctx._budget_warnings_issued
+
+    def test_get_budget_status_critical_at_90_percent(self, mock_anchor, mock_layout, caplog):
+        """Test that budget status is critical at 90% utilization."""
+        mock_anchor.pivot_intentions.budget_cost.token_cap_global = 1000
+
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+        ctx.record_usage_event(tokens_used=900)
+
+        with caplog.at_level(logging.WARNING):
+            status = ctx.get_budget_status()
+
+        assert status["budget_used_percent"] == pytest.approx(90.0)
+        assert "CRITICAL" in caplog.text or "IMP-RESEARCH-001" in caplog.text
+        assert "90%" in ctx._budget_warnings_issued
+
+    def test_budget_warnings_not_repeated(self, mock_anchor, mock_layout, caplog):
+        """Test that budget warnings are only issued once per threshold."""
+        mock_anchor.pivot_intentions.budget_cost.token_cap_global = 1000
+
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+        ctx.record_usage_event(tokens_used=750)
+
+        # First call to get_budget_status should warn
+        with caplog.at_level(logging.WARNING):
+            ctx.get_budget_status()
+
+        # Count warnings for 75%
+        warnings_75_1 = caplog.text.count("75%")
+
+        # Clear the log
+        caplog.clear()
+
+        # Second call should not warn again
+        with caplog.at_level(logging.WARNING):
+            ctx.get_budget_status()
+
+        # Count warnings for 75% in second call
+        warnings_75_2 = caplog.text.count("75%")
+
+        # Second call should have no new 75% warnings
+        assert warnings_75_2 == 0
+
+    def test_enforce_budget_policy_block(self, mock_anchor, mock_layout):
+        """Test budget enforcement with BLOCK policy."""
+        mock_anchor.pivot_intentions.budget_cost.token_cap_global = 1000
+        mock_anchor.pivot_intentions.budget_cost.cost_escalation_policy = "block"
+
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+        ctx.record_usage_event(tokens_used=960)  # 96% used, < 5% remaining
+
+        result = ctx.enforce_budget_policy()
+
+        assert result is False
+
+    def test_enforce_budget_policy_warn(self, mock_anchor, mock_layout):
+        """Test budget enforcement with WARN policy."""
+        mock_anchor.pivot_intentions.budget_cost.token_cap_global = 1000
+        mock_anchor.pivot_intentions.budget_cost.cost_escalation_policy = "warn"
+
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+        ctx.record_usage_event(tokens_used=960)  # 96% used, < 5% remaining
+
+        result = ctx.enforce_budget_policy()
+
+        assert result is True
+
+    def test_enforce_budget_policy_request_approval(self, mock_anchor, mock_layout):
+        """Test budget enforcement with REQUEST_APPROVAL policy."""
+        mock_anchor.pivot_intentions.budget_cost.token_cap_global = 1000
+        mock_anchor.pivot_intentions.budget_cost.cost_escalation_policy = "request_approval"
+
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+        ctx.record_usage_event(tokens_used=960)  # 96% used, < 5% remaining
+
+        result = ctx.enforce_budget_policy()
+
+        assert result is True
+
+    def test_enforce_budget_policy_default_approve(self, mock_anchor, mock_layout):
+        """Test budget enforcement defaults to REQUEST_APPROVAL when no policy set."""
+        mock_anchor.pivot_intentions.budget_cost = None
+
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+
+        result = ctx.enforce_budget_policy()
+
+        assert result is True
+
+    def test_estimate_operation_cost_fits_budget(self, mock_anchor, mock_layout):
+        """Test cost estimation for operation that fits in budget."""
+        mock_anchor.pivot_intentions.budget_cost.token_cap_global = 1000
+
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+        ctx.record_usage_event(tokens_used=500)  # 50% used
+
+        estimate = ctx.estimate_operation_cost(
+            operation_type="api_call",
+            estimated_tokens=100,
+            estimated_context_chars=1000,
+        )
+
+        assert estimate["operation_type"] == "api_call"
+        assert estimate["estimated_tokens"] == 100
+        assert estimate["estimated_context_chars"] == 1000
+        assert estimate["total_estimated_chars"] == 1400  # 100*4 + 1000
+        assert estimate["fits_in_budget"] is True
+
+    def test_estimate_operation_cost_exceeds_budget(self, mock_anchor, mock_layout):
+        """Test cost estimation for operation that exceeds budget."""
+        mock_anchor.pivot_intentions.budget_cost.token_cap_global = 1000
+
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+        ctx.record_usage_event(tokens_used=960)  # 96% used, < 5% remaining
+
+        estimate = ctx.estimate_operation_cost(
+            operation_type="embedding",
+            estimated_tokens=100,
+        )
+
+        assert estimate["operation_type"] == "embedding"
+        assert estimate["fits_in_budget"] is False
+
+    def test_summary_dict_includes_budget_status(self, mock_anchor, mock_layout):
+        """Test that summary dict includes budget status."""
+        mock_anchor.pivot_intentions.budget_cost.token_cap_global = 1000
+
+        ctx = ExecutorContext(anchor=mock_anchor, layout=mock_layout)
+        ctx.record_usage_event(tokens_used=200)
+
+        summary = ctx.to_summary_dict()
+
+        assert "budget_status" in summary
+        assert summary["budget_status"]["budget_remaining_fraction"] == pytest.approx(0.8)
+        assert summary["budget_status"]["budget_used_percent"] == pytest.approx(20.0)

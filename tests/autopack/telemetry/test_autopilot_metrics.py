@@ -71,7 +71,7 @@ class TestBudgetEnforcementMetrics:
         assert metrics.total_checks == 0
         assert metrics.budget_remaining_current == 1.0
         assert metrics.budget_remaining_min == 1.0
-        assert metrics.budget_remaining_max == 1.0
+        assert metrics.budget_remaining_max == 0.0
 
     def test_to_dict(self):
         """Test serialization."""

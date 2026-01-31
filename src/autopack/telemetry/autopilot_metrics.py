@@ -100,7 +100,7 @@ class BudgetEnforcementMetrics:
     checks_blocked: int = 0
     budget_remaining_current: float = 1.0
     budget_remaining_min: float = 1.0
-    budget_remaining_max: float = 1.0
+    budget_remaining_max: float = 0.0
     total_budget_used: float = 0.0
     warning_count: int = 0  # Times budget fell below 20% threshold
 
@@ -330,10 +330,16 @@ class AutopilotHealthCollector:
         be.total_checks += 1
         be.budget_remaining_current = remaining_budget
 
-        if remaining_budget < be.budget_remaining_min:
+        if be.total_checks == 1:
+            # First check - initialize min/max
             be.budget_remaining_min = remaining_budget
-        if remaining_budget > be.budget_remaining_max:
             be.budget_remaining_max = remaining_budget
+        else:
+            # Update min/max
+            if remaining_budget < be.budget_remaining_min:
+                be.budget_remaining_min = remaining_budget
+            if remaining_budget > be.budget_remaining_max:
+                be.budget_remaining_max = remaining_budget
 
         if passed:
             be.checks_passed += 1

@@ -11,12 +11,71 @@ not just minimizing costs.
 
 import json
 import logging
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from pydantic import BaseModel, ValidationError, confloat, validator
+
 logger = logging.getLogger(__name__)
+
+
+# Pydantic models for cost analysis validation
+class CostCategoryModel(BaseModel):
+    """Validated cost category breakdown."""
+
+    name: str
+    monthly_cost: confloat(ge=0)
+    annual_cost: confloat(ge=0)
+
+    @validator("monthly_cost", "annual_cost", pre=False)
+    def validate_not_nan(cls, v):
+        """Ensure costs are not NaN or Infinity."""
+        if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+            raise ValueError("Cost cannot be NaN or Infinity")
+        return v
+
+
+class CostAnalysisModel(BaseModel):
+    """Validated cost analysis output."""
+
+    total_monthly: confloat(ge=0)
+    total_annual: confloat(ge=0)
+    categories: List[CostCategoryModel]
+    currency: str = "USD"
+
+    @validator("total_monthly", "total_annual", pre=False)
+    def validate_totals_not_nan(cls, v):
+        """Ensure totals are not NaN or Infinity."""
+        if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+            raise ValueError("Total cost cannot be NaN or Infinity")
+        return v
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True
+
+
+class BudgetCostModel(BaseModel):
+    """Validated BudgetCost anchor model."""
+
+    pivot_type: str
+    budget_constraints: Dict[str, Any]
+    cost_breakdown: Dict[str, confloat(ge=0)]
+    cost_optimization_strategies: List[str]
+    source: str
+
+    @validator("cost_breakdown")
+    def validate_breakdown_values(cls, v):
+        """Ensure all breakdown values are valid numbers."""
+        for key, val in v.items():
+            if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+                raise ValueError(f"Cost breakdown value for {key} cannot be NaN or Infinity")
+        return v
 
 
 class CostCategory(Enum):
@@ -684,22 +743,134 @@ class CostEffectivenessAnalyzer:
         values = [float(n) for n in numbers]
         return sum(values) / len(values)
 
+    def _validate_analysis(self, analysis: Dict[str, Any]) -> bool:
+        """
+        Validate cost analysis with schema checks.
+
+        Args:
+            analysis: Cost analysis dictionary
+
+        Raises:
+            ValueError: If analysis fails validation
+
+        Returns:
+            True if valid
+        """
+        # Validate total cost of ownership has required numeric fields
+        tco = analysis.get("total_cost_of_ownership", {})
+        if not tco:
+            raise ValueError("Missing total_cost_of_ownership in analysis")
+
+        # Check year 1 costs
+        year_1 = tco.get("year_1", {})
+        if not year_1 or "total" not in year_1:
+            raise ValueError("Missing year_1 total cost")
+
+        # Validate all cost values are positive numbers and not NaN/Infinity
+        for year_key in ["year_1", "year_3_cumulative", "year_5_cumulative"]:
+            year_data = tco.get(year_key, {})
+            for cost_key, cost_val in year_data.items():
+                if isinstance(cost_val, (int, float)):
+                    if isinstance(cost_val, float) and (
+                        math.isnan(cost_val) or math.isinf(cost_val)
+                    ):
+                        raise ValueError(
+                            f"Invalid cost value in {year_key}[{cost_key}]: "
+                            f"cannot be NaN or Infinity"
+                        )
+                    if cost_val < 0:
+                        raise ValueError(
+                            f"Invalid cost value in {year_key}[{cost_key}]: "
+                            f"cannot be negative ({cost_val})"
+                        )
+
+        # Validate break-even analysis
+        breakeven = analysis.get("break_even_analysis", {})
+        if breakeven:
+            mrr = breakeven.get("required_mrr_to_cover_costs", {})
+            for year_key, mrr_val in mrr.items():
+                if isinstance(mrr_val, float) and (math.isnan(mrr_val) or math.isinf(mrr_val)):
+                    raise ValueError(f"Invalid MRR value for {year_key}: cannot be NaN or Infinity")
+
+        # Validate AI token projections
+        ai_proj = analysis.get("ai_token_projection", {})
+        projections = ai_proj.get("projections", {})
+        for year_key, proj_data in projections.items():
+            for cost_key in ["monthly_cost", "yearly_cost"]:
+                cost_val = proj_data.get(cost_key)
+                if isinstance(cost_val, float) and (math.isnan(cost_val) or math.isinf(cost_val)):
+                    raise ValueError(
+                        f"Invalid AI projection {year_key}[{cost_key}]: "
+                        f"cannot be NaN or Infinity"
+                    )
+
+        logger.info("Cost analysis validation passed")
+        return True
+
     def to_json(self, filepath: str) -> None:
-        """Save analysis to JSON file."""
-        if self.projection:
-            analysis = self.projection.calculate_all()
-            with open(filepath, "w") as f:
-                json.dump(analysis, f, indent=2, default=str)
+        """
+        Save analysis to JSON file with validation.
+
+        Args:
+            filepath: Path to save JSON file
+
+        Raises:
+            ValueError: If analysis fails validation
+        """
+        if not self.projection:
+            raise ValueError("No projection data available to save")
+
+        analysis = self.projection.calculate_all()
+
+        try:
+            # Validate analysis before saving
+            self._validate_analysis(analysis)
+
+            # Write to temp file first for atomic operation
+            import os
+            import tempfile
+
+            filepath_obj = Path(filepath)
+            fd, temp_path = tempfile.mkstemp(
+                dir=filepath_obj.parent,
+                prefix=f".{filepath_obj.name}.",
+                suffix=".tmp",
+            )
+            try:
+                with os.fdopen(fd, "w") as f:
+                    json.dump(analysis, f, indent=2, default=str)
+                    f.flush()
+                    os.fsync(f.fileno())  # Ensure data is on disk
+                # Atomic replace
+                os.replace(temp_path, filepath)
+                logger.info(f"Cost analysis saved to {filepath}")
+            except Exception:
+                # Clean up temp file on failure
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+                raise
+        except ValueError as e:
+            logger.error(f"Cost analysis validation failed: {e}")
+            raise
 
     def generate_budget_anchor(self) -> Dict[str, Any]:
-        """Generate BudgetCost anchor for Autopack."""
+        """
+        Generate BudgetCost anchor for Autopack with schema validation.
+
+        Returns:
+            Validated BudgetCost anchor dictionary
+
+        Raises:
+            ValueError: If anchor data fails validation
+        """
         if not self.projection:
-            return {}
+            raise ValueError("No projection data available to generate anchor")
 
         analysis = self.projection.calculate_all()
         tco = analysis["total_cost_of_ownership"]
 
-        return {
+        # Build the anchor data
+        anchor_data = {
             "pivot_type": "BudgetCost",
             "budget_constraints": {
                 "total_mvp_budget": tco["year_1"]["total"],
@@ -717,3 +888,12 @@ class CostEffectivenessAnalyzer:
             "cost_optimization_strategies": [o.strategy for o in self.projection.optimizations],
             "source": "cost-effectiveness-analyzer",
         }
+
+        # Validate the budget cost breakdown
+        try:
+            validated = BudgetCostModel(**anchor_data)
+            logger.info("BudgetCost anchor validation passed")
+            return validated.dict()
+        except ValidationError as e:
+            logger.error(f"BudgetCost anchor validation failed: {e}")
+            raise ValueError(f"Invalid BudgetCost anchor: {e}")

@@ -38,7 +38,8 @@ def estimate_tokens(text: str, *, chars_per_token: float = 4.0) -> int:
 
 
 from .dual_auditor import DualAuditor
-from .error_recovery import DoctorContextSummary, DoctorRequest, DoctorResponse, choose_doctor_model
+from .error_recovery import (DoctorContextSummary, DoctorRequest,
+                             DoctorResponse, choose_doctor_model)
 from .exceptions import ScopeReductionError
 from .llm import doctor
 from .llm.client_resolution import resolve_client_and_model
@@ -60,7 +61,8 @@ except (ImportError, Exception):
 
 # Import Anthropic clients with graceful fallback
 try:
-    from .anthropic_clients import AnthropicAuditorClient, AnthropicBuilderClient
+    from .anthropic_clients import (AnthropicAuditorClient,
+                                    AnthropicBuilderClient)
 
     ANTHROPIC_AVAILABLE = True
 except ImportError:

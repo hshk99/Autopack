@@ -200,9 +200,7 @@ class BudgetEnforcer:
             started_at=datetime.now(),
         )
         self._phase_history[phase_name] = phase_budget
-        logger.info(
-            f"Started phase '{phase_name}' with estimated cost: ${estimated_cost:.2f}"
-        )
+        logger.info(f"Started phase '{phase_name}' with estimated cost: ${estimated_cost:.2f}")
 
     def complete_phase(self, phase_name: str, actual_cost: Optional[float] = None) -> None:
         """Mark phase as complete and record actual cost.

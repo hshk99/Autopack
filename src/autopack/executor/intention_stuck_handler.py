@@ -74,7 +74,8 @@ class IntentionStuckHandler:
             - message: Human-readable message about the decision
         """
         from autopack.autonomous.executor_wiring import decide_stuck_action
-        from autopack.stuck_handling import StuckReason, StuckResolutionDecision
+        from autopack.stuck_handling import (StuckReason,
+                                             StuckResolutionDecision)
 
         # Map failure status to stuck reason
         stuck_reason = StuckReason.REPEATED_FAILURES  # Default
@@ -183,7 +184,8 @@ class IntentionStuckHandler:
             Dict with escalation result (tier, model_id) or None if failed
         """
         try:
-            from autopack.autonomous.executor_wiring import apply_model_escalation
+            from autopack.autonomous.executor_wiring import \
+                apply_model_escalation
             from autopack.executor.safety_profile import derive_safety_profile
 
             current_tier = phase_spec.get("_current_tier", "haiku")  # Default to haiku
@@ -251,10 +253,10 @@ class IntentionStuckHandler:
             Dict with scope reduction result (original_count, new_count, dropped_items) or None
         """
         try:
-            from autopack.executor.scope_reduction_flow import (
-                generate_scope_reduction_proposal as gen_scope_proposal,
-            )
-            from autopack.executor.scope_reduction_flow import write_scope_reduction_proposal
+            from autopack.executor.scope_reduction_flow import \
+                generate_scope_reduction_proposal as gen_scope_proposal
+            from autopack.executor.scope_reduction_flow import \
+                write_scope_reduction_proposal
             from autopack.run_file_layout import RunFileLayout
 
             logger.info(f"[IntentionFirst] Policy decided REDUCE_SCOPE for {phase_id}")

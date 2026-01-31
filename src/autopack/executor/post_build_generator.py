@@ -120,9 +120,7 @@ class PostBuildArtifactGenerator:
         artifacts: List[PostBuildArtifact] = []
 
         # Generate deployment config
-        deployment_config = self.generate_deployment_config(
-            build_characteristics, tech_stack
-        )
+        deployment_config = self.generate_deployment_config(build_characteristics, tech_stack)
         artifacts.append(deployment_config)
 
         # Generate operational runbooks
@@ -130,9 +128,7 @@ class PostBuildArtifactGenerator:
         artifacts.extend(runbooks)
 
         # Generate monitoring templates
-        monitoring = self.generate_monitoring_templates(
-            build_characteristics, tech_stack
-        )
+        monitoring = self.generate_monitoring_templates(build_characteristics, tech_stack)
         artifacts.append(monitoring)
 
         # Generate alerting rules
@@ -141,15 +137,11 @@ class PostBuildArtifactGenerator:
 
         # Generate Docker config if containerized
         if build_characteristics.is_containerized:
-            docker_config = self.generate_docker_config(
-                build_characteristics, tech_stack
-            )
+            docker_config = self.generate_docker_config(build_characteristics, tech_stack)
             artifacts.append(docker_config)
 
         self._generated_artifacts = artifacts
-        logger.info(
-            f"[PostBuildArtifactGenerator] Generated {len(artifacts)} artifacts"
-        )
+        logger.info(f"[PostBuildArtifactGenerator] Generated {len(artifacts)} artifacts")
 
         return artifacts
 
@@ -169,9 +161,7 @@ class PostBuildArtifactGenerator:
         """
         logger.info("[PostBuildArtifactGenerator] Generating deployment configuration")
 
-        content = self._generate_deployment_config_content(
-            build_characteristics, tech_stack
-        )
+        content = self._generate_deployment_config_content(build_characteristics, tech_stack)
 
         return PostBuildArtifact(
             artifact_type=ArtifactType.DEPLOYMENT_CONFIG,
@@ -243,9 +233,7 @@ class PostBuildArtifactGenerator:
         if build_characteristics.is_containerized:
             sections.extend(self._get_container_deployment_strategy())
         else:
-            sections.extend(
-                self._get_standard_deployment_strategy(build_characteristics)
-            )
+            sections.extend(self._get_standard_deployment_strategy(build_characteristics))
 
         sections.extend(
             [
@@ -390,24 +378,16 @@ class PostBuildArtifactGenerator:
         runbooks = []
 
         # Deployment runbook
-        runbooks.append(
-            self._generate_deployment_runbook(build_characteristics, tech_stack)
-        )
+        runbooks.append(self._generate_deployment_runbook(build_characteristics, tech_stack))
 
         # Troubleshooting runbook
-        runbooks.append(
-            self._generate_troubleshooting_runbook(build_characteristics, tech_stack)
-        )
+        runbooks.append(self._generate_troubleshooting_runbook(build_characteristics, tech_stack))
 
         # Scaling runbook
-        runbooks.append(
-            self._generate_scaling_runbook(build_characteristics, tech_stack)
-        )
+        runbooks.append(self._generate_scaling_runbook(build_characteristics, tech_stack))
 
         # Incident response runbook
-        runbooks.append(
-            self._generate_incident_response_runbook(build_characteristics, tech_stack)
-        )
+        runbooks.append(self._generate_incident_response_runbook(build_characteristics, tech_stack))
 
         return runbooks
 
@@ -1343,9 +1323,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \\
 
 CMD ["./start.sh"]"""
 
-    def _generate_docker_compose(
-        self, build_characteristics: BuildCharacteristics
-    ) -> str:
+    def _generate_docker_compose(self, build_characteristics: BuildCharacteristics) -> str:
         """Generate docker-compose.yml content."""
         app_name = build_characteristics.project_name.lower().replace(" ", "-")
         return f"""version: '3.8'
@@ -1402,9 +1380,7 @@ services:
         """
         return self._generated_artifacts
 
-    def export_artifacts_to_markdown(
-        self, output_dir: Optional[str] = None
-    ) -> Dict[str, str]:
+    def export_artifacts_to_markdown(self, output_dir: Optional[str] = None) -> Dict[str, str]:
         """Export all generated artifacts to markdown files.
 
         Args:
@@ -1448,7 +1424,16 @@ def capture_build_characteristics(
     # Check for node/javascript first to avoid "java" matching in "javascript"
     if any(
         lang in combined
-        for lang in ["node", "next.js", "react", "vue", "angular", "express", "javascript", "typescript"]
+        for lang in [
+            "node",
+            "next.js",
+            "react",
+            "vue",
+            "angular",
+            "express",
+            "javascript",
+            "typescript",
+        ]
     ):
         language = "node"
     elif any(lang in combined for lang in ["python", "django", "fastapi", "flask"]):
@@ -1493,9 +1478,7 @@ def capture_build_characteristics(
     has_api = any(api in combined for api in ["api", "rest", "graphql", "backend", "server"])
 
     # Detect containerization
-    is_containerized = any(
-        c in combined for c in ["docker", "kubernetes", "k8s", "container"]
-    )
+    is_containerized = any(c in combined for c in ["docker", "kubernetes", "k8s", "container"])
 
     # Default port based on language
     port_mapping = {

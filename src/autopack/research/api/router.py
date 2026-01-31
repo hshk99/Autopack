@@ -44,21 +44,12 @@ from pydantic import BaseModel, Field, field_validator
 
 from autopack.sql_sanitizer import SQLSanitizer
 
-from .schemas import (
-    AnalysisResultsAggregation,
-    AITokenProjection,
-    BuildVsBuyAnalysisResponse,
-    BuildVsBuyDecision,
-    ComponentCostDecision,
-    CostEffectivenessResponse,
-    CostEffectivenessSummary,
-    CreateResearchSession,
-    FollowupTrigger,
-    FollowupTriggerResponse,
-    ResearchGap,
-    ResearchSession,
-    ResearchStateResponse,
-)
+from .schemas import (AITokenProjection, AnalysisResultsAggregation,
+                      BuildVsBuyAnalysisResponse, BuildVsBuyDecision,
+                      ComponentCostDecision, CostEffectivenessResponse,
+                      CostEffectivenessSummary, CreateResearchSession,
+                      FollowupTrigger, FollowupTriggerResponse, ResearchGap,
+                      ResearchSession, ResearchStateResponse)
 
 logger = logging.getLogger(__name__)
 
@@ -965,7 +956,8 @@ async def invalidate_cached_session(request: CacheInvalidateRequest):
         )
 
     try:
-        from autopack.research.models.bootstrap_session import generate_idea_hash
+        from autopack.research.models.bootstrap_session import \
+            generate_idea_hash
 
         idea_hash = generate_idea_hash(
             request.idea_title,
@@ -1186,7 +1178,9 @@ async def get_build_vs_buy_analysis(session_id: str, include_risks: bool = True)
                     buy_cost={
                         "initial_cost": 0,
                         "monthly_recurring": 0,
-                        "year_1_total": max(0, comp.get("year_1_cost", 0) - comp.get("vs_build_savings", 0)),
+                        "year_1_total": max(
+                            0, comp.get("year_1_cost", 0) - comp.get("vs_build_savings", 0)
+                        ),
                     },
                     build_time_weeks=8,  # Default estimate
                     buy_integration_time_weeks=2,
@@ -1597,7 +1591,9 @@ async def get_all_analysis_results(
                         buy_cost={
                             "initial_cost": 0,
                             "monthly_recurring": 0,
-                            "year_1_total": max(0, comp.get("year_1_cost", 0) - comp.get("vs_build_savings", 0)),
+                            "year_1_total": max(
+                                0, comp.get("year_1_cost", 0) - comp.get("vs_build_savings", 0)
+                            ),
                         },
                         build_time_weeks=8,
                         buy_integration_time_weeks=2,
@@ -1632,7 +1628,9 @@ async def get_all_analysis_results(
                         reason=trigger_data.get("reason", ""),
                         source_finding=trigger_data.get("source_finding", ""),
                         research_plan=trigger_data.get("research_plan"),
-                        created_at=trigger_data.get("created_at", datetime.utcnow().isoformat() + "Z"),
+                        created_at=trigger_data.get(
+                            "created_at", datetime.utcnow().isoformat() + "Z"
+                        ),
                         addressed=trigger_data.get("addressed", False),
                         callback_results=trigger_data.get("callback_results", []),
                     )
@@ -1669,7 +1667,9 @@ async def get_all_analysis_results(
                         description=gap_data.get("description", ""),
                         priority=gap_data.get("priority", "medium"),
                         suggested_queries=gap_data.get("suggested_queries", []),
-                        identified_at=gap_data.get("identified_at", datetime.utcnow().isoformat() + "Z"),
+                        identified_at=gap_data.get(
+                            "identified_at", datetime.utcnow().isoformat() + "Z"
+                        ),
                         addressed_at=gap_data.get("addressed_at"),
                         status=gap_data.get("status", "open"),
                     )

@@ -54,7 +54,8 @@ class DeliverablesContractBuilder:
         Returns:
             Formatted deliverables contract string or None if no deliverables specified
         """
-        from autopack.deliverables_validator import extract_deliverables_from_scope
+        from autopack.deliverables_validator import \
+            extract_deliverables_from_scope
 
         scope = phase.get("scope")
         if not scope:

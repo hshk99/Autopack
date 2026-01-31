@@ -14,17 +14,13 @@ from typing import Dict
 
 from fastapi import APIRouter, HTTPException
 
-from autopack.feature_gates import (
-    check_feature_dependencies,
-    get_disabled_features,
-    get_enabled_features,
-    get_feature_info,
-    get_feature_states,
-    is_feature_enabled,
-    reset_feature_overrides,
-    set_feature_enabled,
-    validate_feature_state,
-)
+from autopack.feature_gates import (check_feature_dependencies,
+                                    get_disabled_features,
+                                    get_enabled_features, get_feature_info,
+                                    get_feature_states, is_feature_enabled,
+                                    reset_feature_overrides,
+                                    set_feature_enabled,
+                                    validate_feature_state)
 
 logger = logging.getLogger(__name__)
 

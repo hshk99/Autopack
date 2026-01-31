@@ -36,24 +36,20 @@ from ..research.analysis.followup_trigger import (FollowupResearchTrigger,
                                                   FollowupTrigger,
                                                   TriggerAnalysisResult,
                                                   TriggerExecutionResult)
+from ..telemetry.autopilot_metrics import (AutopilotHealthCollector,
+                                           SessionHealthSnapshot,
+                                           SessionOutcome)
 from .action_allowlist import ActionClassification
 from .action_executor import ExecutionBatch, SafeActionExecutor
 from .event_triggers import EventTriggerManager, EventType, WorkflowEvent
 from .executor_integration import ExecutorContext, create_executor_context
 from .models import (ApprovalRequest, AutopilotMetadata, AutopilotSessionV1,
                      ErrorLogEntry, ExecutionSummary)
-from .research_cycle_integration import (
-    ResearchCycleDecision,
-    ResearchCycleIntegration,
-    ResearchCycleMetrics,
-    ResearchCycleOutcome,
-    create_research_cycle_integration,
-)
-from ..telemetry.autopilot_metrics import (
-    AutopilotHealthCollector,
-    SessionHealthSnapshot,
-    SessionOutcome,
-)
+from .research_cycle_integration import (ResearchCycleDecision,
+                                         ResearchCycleIntegration,
+                                         ResearchCycleMetrics,
+                                         ResearchCycleOutcome,
+                                         create_research_cycle_integration)
 
 logger = logging.getLogger(__name__)
 
@@ -196,7 +192,9 @@ class AutopilotController:
         # Get research metrics if available
         research_cycles_executed = 0
         if self._research_cycle_integration and self._research_cycle_integration._metrics:
-            research_cycles_executed = self._research_cycle_integration._metrics.total_cycles_triggered
+            research_cycles_executed = (
+                self._research_cycle_integration._metrics.total_cycles_triggered
+            )
 
         # Create snapshot
         completed_at = self.session.completed_at or datetime.now(timezone.utc)
@@ -214,11 +212,31 @@ class AutopilotController:
             budget_remaining=budget_remaining,
             health_status=health_status,
             health_gates_checked=self.executor_ctx.circuit_breaker.total_checks,
-            health_gates_blocked=max(0, self.executor_ctx.circuit_breaker.total_checks - self.executor_ctx.circuit_breaker.checks_passed) if hasattr(self.executor_ctx.circuit_breaker, 'checks_passed') else 0,
+            health_gates_blocked=(
+                max(
+                    0,
+                    self.executor_ctx.circuit_breaker.total_checks
+                    - self.executor_ctx.circuit_breaker.checks_passed,
+                )
+                if hasattr(self.executor_ctx.circuit_breaker, "checks_passed")
+                else 0
+            ),
             research_cycles_executed=research_cycles_executed,
-            actions_executed=self.session.execution_summary.executed_actions if self.session.execution_summary else 0,
-            actions_successful=self.session.execution_summary.successful_actions if self.session.execution_summary else 0,
-            actions_failed=self.session.execution_summary.failed_actions if self.session.execution_summary else 0,
+            actions_executed=(
+                self.session.execution_summary.executed_actions
+                if self.session.execution_summary
+                else 0
+            ),
+            actions_successful=(
+                self.session.execution_summary.successful_actions
+                if self.session.execution_summary
+                else 0
+            ),
+            actions_failed=(
+                self.session.execution_summary.failed_actions
+                if self.session.execution_summary
+                else 0
+            ),
             blocking_reason=self.session.blocked_reason,
         )
 
@@ -319,9 +337,7 @@ class AutopilotController:
                 self.initialize_research_cycle_integration()
 
             if self.should_execute_research_cycle(gap_report=gap_summary):
-                logger.info(
-                    "[IMP-AUT-001] Executing research cycle based on gap analysis"
-                )
+                logger.info("[IMP-AUT-001] Executing research cycle based on gap analysis")
 
                 # Build analysis results from gap report
                 analysis_results = {
@@ -360,9 +376,7 @@ class AutopilotController:
                         f"{research_outcome.reason}"
                     )
                     self.session.status = "blocked_research"
-                    self.session.blocked_reason = (
-                        f"Research cycle BLOCK: {research_outcome.reason}"
-                    )
+                    self.session.blocked_reason = f"Research cycle BLOCK: {research_outcome.reason}"
                     self.session.completed_at = datetime.now(timezone.utc)
                     # IMP-SEG-001: Record session metrics before returning
                     self._record_session_metrics(SessionOutcome.BLOCKED_RESEARCH)
@@ -959,13 +973,23 @@ class AutopilotController:
         if self._research_cycle_integration and self._research_cycle_integration._metrics:
             metrics = self._research_cycle_integration._metrics
             self._health_collector.record_research_cycle(
-                outcome="success" if outcome.trigger_result and outcome.trigger_result.triggers_detected > 0 else "failed",
-                triggers_detected=outcome.trigger_result.triggers_detected if outcome.trigger_result else 0,
-                triggers_executed=outcome.trigger_result.triggers_executed if outcome.trigger_result else 0,
+                outcome=(
+                    "success"
+                    if outcome.trigger_result and outcome.trigger_result.triggers_detected > 0
+                    else "failed"
+                ),
+                triggers_detected=(
+                    outcome.trigger_result.triggers_detected if outcome.trigger_result else 0
+                ),
+                triggers_executed=(
+                    outcome.trigger_result.triggers_executed if outcome.trigger_result else 0
+                ),
                 decision=outcome.decision.value,
                 gaps_addressed=outcome.gaps_addressed if outcome.gaps_addressed else 0,
                 gaps_remaining=outcome.gaps_remaining if outcome.gaps_remaining else 0,
-                execution_time_ms=outcome.execution_time_ms if hasattr(outcome, 'execution_time_ms') else 0,
+                execution_time_ms=(
+                    outcome.execution_time_ms if hasattr(outcome, "execution_time_ms") else 0
+                ),
             )
 
         # Handle outcome decision
@@ -992,19 +1016,14 @@ class AutopilotController:
 
         if outcome.decision == ResearchCycleDecision.BLOCK:
             # Pause task generation due to critical gaps
-            self._pause_task_generation(
-                f"Research cycle BLOCK: {outcome.reason}"
-            )
+            self._pause_task_generation(f"Research cycle BLOCK: {outcome.reason}")
             logger.warning(
-                f"[IMP-AUT-001] Task generation paused due to research BLOCK: "
-                f"{outcome.reason}"
+                f"[IMP-AUT-001] Task generation paused due to research BLOCK: " f"{outcome.reason}"
             )
 
         elif outcome.decision == ResearchCycleDecision.PAUSE_FOR_RESEARCH:
             # Research incomplete - may need retry
-            logger.info(
-                f"[IMP-AUT-001] Research cycle requested pause: {outcome.reason}"
-            )
+            logger.info(f"[IMP-AUT-001] Research cycle requested pause: {outcome.reason}")
 
         elif outcome.decision == ResearchCycleDecision.ADJUST_PLAN:
             # Log plan adjustments for processing
@@ -1063,24 +1082,18 @@ class AutopilotController:
         """
         # Check if task generation is paused
         if self._task_generation_paused:
-            logger.debug(
-                "[IMP-AUT-001] Research cycle skipped: task generation paused"
-            )
+            logger.debug("[IMP-AUT-001] Research cycle skipped: task generation paused")
             return False
 
         # Check circuit breaker
         if self.executor_ctx and not self.executor_ctx.circuit_breaker.is_available():
-            logger.debug(
-                "[IMP-AUT-001] Research cycle skipped: circuit breaker open"
-            )
+            logger.debug("[IMP-AUT-001] Research cycle skipped: circuit breaker open")
             return False
 
         # Check budget via integration
         if self._research_cycle_integration:
             if not self._research_cycle_integration.can_proceed_with_research():
-                logger.debug(
-                    "[IMP-AUT-001] Research cycle skipped: budget constraints"
-                )
+                logger.debug("[IMP-AUT-001] Research cycle skipped: budget constraints")
                 return False
 
         # Check gap report

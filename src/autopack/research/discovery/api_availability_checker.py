@@ -153,7 +153,9 @@ class APIAvailabilityChecker:
         if self._client and not self._client.is_closed:
             await self._client.aclose()
 
-    async def check_availability(self, api_name: str, custom_endpoint: Optional[str] = None) -> APIAvailabilityCheck:
+    async def check_availability(
+        self, api_name: str, custom_endpoint: Optional[str] = None
+    ) -> APIAvailabilityCheck:
         """
         Check if API is available and has quota.
 

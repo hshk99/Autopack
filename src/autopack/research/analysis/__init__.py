@@ -5,100 +5,47 @@ Contains cost-effectiveness analysis, gap detection, build vs buy analysis,
 deployment analysis, monetization analysis, follow-up research triggers, and cross-project pattern extraction.
 """
 
-from autopack.research.analysis.build_vs_buy_analyzer import (
-    BuildVsBuyAnalysis,
-    BuildVsBuyAnalyzer,
-    ComponentRequirements,
-    CostEstimate,
-    DecisionRecommendation,
-    RiskAssessment,
-    RiskCategory,
-    StrategicImportance,
-    VendorOption,
-)
-from autopack.research.analysis.cost_effectiveness import (
-    ComponentCostData,
-    CostCategory,
-    CostEffectivenessAnalyzer,
-    ProjectCostProjection,
-    ScalingModel,
-)
-from autopack.research.analysis.followup_trigger import (
-    FollowupResearchTrigger,
-    FollowupTrigger,
-    ResearchPlan,
-    TriggerAnalysisResult,
-    TriggerPriority,
-    TriggerType,
-)
-from autopack.research.analysis.budget_enforcement import (
-    BudgetEnforcer,
-    BudgetMetrics,
-    BudgetStatus,
-    PhaseBudget,
-    PhaseType,
-)
-from autopack.research.analysis.research_state import (
-    CoverageMetrics,
-    GapPriority,
-    GapType,
-    ResearchDepth,
-    ResearchGap,
-    ResearchRequirements,
-    ResearchState,
-    ResearchStateTracker,
-)
-from autopack.research.analysis.deployment_analysis import (
-    ContainerConfig,
-    DeploymentAnalyzer,
-    DeploymentArchitecture,
-    DeploymentRecommendation,
-    DeploymentTarget,
-    InfrastructureProvider,
-    KubernetesConfig,
-    ScalingStrategy,
-    ServerlessConfig,
-)
-from autopack.research.analysis.monetization_analysis import (
-    CompetitorPricing,
-    MonetizationAnalysisResult,
-    MonetizationAnalyzer,
-    MonetizationModel,
-    MonetizationModelFit,
-    PricingStrategy,
-    PricingTier,
-    ProjectType,
-    RevenueConfidence,
-    RevenueProjection,
-)
-from autopack.research.analysis.pattern_extractor import (
-    ExtractedPattern,
-    PatternConfidence,
-    PatternExtractionResult,
-    PatternExtractor,
-    PatternType,
-    ProjectOutcome,
-)
+from autopack.research.analysis.budget_enforcement import (BudgetEnforcer,
+                                                           BudgetMetrics,
+                                                           BudgetStatus,
+                                                           PhaseBudget,
+                                                           PhaseType)
 from autopack.research.analysis.build_history_analyzer import (
-    BuildHistoryAnalyzer,
-    BuildHistoryAnalysisResult,
-    BuildMetrics,
-    BuildOutcome,
-    CostEffectivenessFeedback,
-    FeasibilityFeedback,
-    FeasibilitySignal,
-    MetricTrend,
-    get_build_history_feedback,
-)
+    BuildHistoryAnalysisResult, BuildHistoryAnalyzer, BuildMetrics,
+    BuildOutcome, CostEffectivenessFeedback, FeasibilityFeedback,
+    FeasibilitySignal, MetricTrend, get_build_history_feedback)
+from autopack.research.analysis.build_vs_buy_analyzer import (
+    BuildVsBuyAnalysis, BuildVsBuyAnalyzer, ComponentRequirements,
+    CostEstimate, DecisionRecommendation, RiskAssessment, RiskCategory,
+    StrategicImportance, VendorOption)
+from autopack.research.analysis.cost_effectiveness import (
+    ComponentCostData, CostCategory, CostEffectivenessAnalyzer,
+    ProjectCostProjection, ScalingModel)
+from autopack.research.analysis.deployment_analysis import (
+    ContainerConfig, DeploymentAnalyzer, DeploymentArchitecture,
+    DeploymentRecommendation, DeploymentTarget, InfrastructureProvider,
+    KubernetesConfig, ScalingStrategy, ServerlessConfig)
+from autopack.research.analysis.followup_trigger import (
+    FollowupResearchTrigger, FollowupTrigger, ResearchPlan,
+    TriggerAnalysisResult, TriggerPriority, TriggerType)
+from autopack.research.analysis.monetization_analysis import (
+    CompetitorPricing, MonetizationAnalysisResult, MonetizationAnalyzer,
+    MonetizationModel, MonetizationModelFit, PricingStrategy, PricingTier,
+    ProjectType, RevenueConfidence, RevenueProjection)
+from autopack.research.analysis.pattern_extractor import (
+    ExtractedPattern, PatternConfidence, PatternExtractionResult,
+    PatternExtractor, PatternType, ProjectOutcome)
 from autopack.research.analysis.research_effectiveness import (
-    DecisionQualityLevel,
-    FeedbackCategory,
-    ResearchCycleOutcome,
-    ResearchEffectivenessAnalyzer,
-    ResearchEffectivenessFeedback,
-    ResearchEffectivenessMetrics,
-    ResearchOutcomeType,
-)
+    DecisionQualityLevel, FeedbackCategory, ResearchCycleOutcome,
+    ResearchEffectivenessAnalyzer, ResearchEffectivenessFeedback,
+    ResearchEffectivenessMetrics, ResearchOutcomeType)
+from autopack.research.analysis.research_state import (CoverageMetrics,
+                                                       GapPriority, GapType,
+                                                       ResearchDepth,
+                                                       ResearchGap,
+                                                       ResearchRequirements,
+                                                       ResearchState,
+                                                       ResearchStateTracker)
 
 __all__ = [
     # Build vs Buy analysis

@@ -21,7 +21,8 @@ import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol, Tuple, runtime_checkable
+from typing import (Any, Dict, List, Optional, Protocol, Tuple,
+                    runtime_checkable)
 
 from .memory.memory_service import MemoryService
 from .pattern_matcher import PatternMatcher
@@ -427,7 +428,8 @@ class PlanNormalizer:
             primary = detected_toolchains[0]
 
             # Get adapter instance
-            from .toolchain import GoAdapter, JavaAdapter, NodeAdapter, PythonAdapter, RustAdapter
+            from .toolchain import (GoAdapter, JavaAdapter, NodeAdapter,
+                                    PythonAdapter, RustAdapter)
 
             adapter_map = {
                 "python": PythonAdapter(),

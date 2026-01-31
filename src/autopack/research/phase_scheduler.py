@@ -126,9 +126,7 @@ class DependencyGraph:
 
         # Check for cycle before adding
         if self._would_create_cycle(phase_id, depends_on):
-            raise ValueError(
-                f"Dependency {phase_id} -> {depends_on} would create a cycle"
-            )
+            raise ValueError(f"Dependency {phase_id} -> {depends_on} would create a cycle")
 
         self.reverse_graph[phase_id].add(depends_on)
         self.graph[depends_on].add(phase_id)
@@ -263,7 +261,9 @@ class ResourceManager:
         if phase_id in self.active_tasks:
             del self.active_tasks[phase_id]
         self.semaphore.release()
-        logger.debug(f"Released resources for {phase_id} (total: {self.get_total_utilization():.2f})")
+        logger.debug(
+            f"Released resources for {phase_id} (total: {self.get_total_utilization():.2f})"
+        )
 
     def get_total_utilization(self) -> float:
         """Get current total resource utilization.
@@ -442,9 +442,7 @@ class PhaseScheduler:
                     for phase_id in ready_sorted:
                         phase = self.phases[phase_id]
 
-                        if self.resource_manager.can_allocate(
-                            phase_id, phase.resource_requirement
-                        ):
+                        if self.resource_manager.can_allocate(phase_id, phase.resource_requirement):
                             task = asyncio.create_task(self._execute_phase(phase_id))
                             tasks[phase_id] = task
                         else:
@@ -466,15 +464,11 @@ class PhaseScheduler:
 
                     # Process completed tasks
                     for task in done:
-                        phase_id = next(
-                            pid for pid, t in tasks.items() if t is task
-                        )
+                        phase_id = next(pid for pid, t in tasks.items() if t is task)
                         del tasks[phase_id]
 
                         if task.exception():
-                            logger.error(
-                                f"Phase {phase_id} failed: {task.exception()}"
-                            )
+                            logger.error(f"Phase {phase_id} failed: {task.exception()}")
                             failed.add(phase_id)
                         else:
                             result = task.result()
@@ -485,9 +479,10 @@ class PhaseScheduler:
 
                     # Mark skipped phases
                     for phase_id in skip_phases:
-                        if phase_id not in self._phase_status or self._phase_status[
-                            phase_id
-                        ] != PhaseStatus.SKIPPED:
+                        if (
+                            phase_id not in self._phase_status
+                            or self._phase_status[phase_id] != PhaseStatus.SKIPPED
+                        ):
                             self._phase_status[phase_id] = PhaseStatus.SKIPPED
                             self.metrics.skipped_phases += 1
 
@@ -505,13 +500,13 @@ class PhaseScheduler:
         self.metrics.total_execution_time = total_time
         self.metrics.completed_phases = len(completed)
         self.metrics.failed_phases = len(failed)
-        self.metrics.resource_utilization = (
-            self.metrics.sequential_baseline_time / max(total_time, 1.0)
+        self.metrics.resource_utilization = self.metrics.sequential_baseline_time / max(
+            total_time, 1.0
         )
 
         if self.metrics.sequential_baseline_time > 0:
-            self.metrics.parallel_speedup = (
-                self.metrics.sequential_baseline_time / max(total_time, 0.001)
+            self.metrics.parallel_speedup = self.metrics.sequential_baseline_time / max(
+                total_time, 0.001
             )
 
         return {
@@ -533,12 +528,11 @@ class PhaseScheduler:
         Returns:
             Sorted list of phase IDs
         """
+
         def sort_key(phase_id: str) -> tuple[int, float]:
             phase = self.phases[phase_id]
             # Sort by: priority (lower is better), then by resource efficiency (duration/resources)
-            efficiency = phase.estimated_duration_seconds / max(
-                phase.resource_requirement, 0.1
-            )
+            efficiency = phase.estimated_duration_seconds / max(phase.resource_requirement, 0.1)
             return (phase.priority.value, -efficiency)
 
         return sorted(ready, key=sort_key)
@@ -588,9 +582,7 @@ class PhaseScheduler:
             self.metrics.phase_end_times[phase_id] = end_time
             self._phase_results[phase_id] = result
 
-            logger.info(
-                f"Completed phase: {phase.phase_name} ({phase_id}) in {duration:.2f}s"
-            )
+            logger.info(f"Completed phase: {phase.phase_name} ({phase_id}) in {duration:.2f}s")
 
             return {
                 "success": True,

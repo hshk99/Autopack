@@ -14,6 +14,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
 from ..disk_space import check_disk_space
 from ..exceptions import DiskSpaceError
 from .action_allowlist import ActionClassification, ActionType, classify_action
@@ -101,6 +106,66 @@ class SafeActionExecutor(ActionExecutor):
         self.command_timeout = command_timeout
         self.dry_run = dry_run
 
+    def _run_command_with_cleanup(self, args: List[str]) -> subprocess.CompletedProcess:
+        """Run command with proper cleanup on timeout.
+
+        Uses Popen instead of run() for better control over process lifecycle.
+        On timeout, kills entire process tree to prevent zombie processes.
+
+        Args:
+            args: Command arguments (already parsed)
+
+        Returns:
+            CompletedProcess with exit code and output
+
+        Raises:
+            subprocess.TimeoutExpired: If command exceeds timeout
+        """
+        proc = subprocess.Popen(
+            args,
+            shell=False,
+            cwd=self.workspace_root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        try:
+            stdout, stderr = proc.communicate(timeout=self.command_timeout)
+            return subprocess.CompletedProcess(args, proc.returncode, stdout, stderr)
+        except subprocess.TimeoutExpired:
+            # Kill entire process tree on timeout
+            try:
+                if psutil:
+                    try:
+                        parent = psutil.Process(proc.pid)
+                        for child in parent.children(recursive=True):
+                            try:
+                                child.kill()
+                            except psutil.NoSuchProcess:
+                                pass
+                        parent.kill()
+                    except psutil.NoSuchProcess:
+                        # Process already dead
+                        pass
+                else:
+                    # Fallback if psutil not available
+                    proc.kill()
+            except Exception as e:
+                logger.warning(f"Failed to kill process tree: {e}")
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+
+            # Wait for process to be reaped
+            try:
+                proc.wait()
+            except Exception:
+                pass
+
+            raise
+
     def execute_command(self, command: str) -> ActionExecutionResult:
         """Execute a command if safe.
 
@@ -138,14 +203,7 @@ class SafeActionExecutor(ActionExecutor):
             logger.info(f"[SafeActionExecutor] Executing: {command[:100]}")
             # Parse command string into argument list safely (prevents shell injection)
             args = shlex.split(command)
-            result = subprocess.run(
-                args,
-                shell=False,
-                cwd=self.workspace_root,
-                capture_output=True,
-                text=True,
-                timeout=self.command_timeout,
-            )
+            result = self._run_command_with_cleanup(args)
 
             success = result.returncode == 0
 
@@ -162,6 +220,9 @@ class SafeActionExecutor(ActionExecutor):
 
         except subprocess.TimeoutExpired:
             logger.warning(f"[SafeActionExecutor] Command timed out: {command[:100]}")
+            logger.info(
+                f"[SafeActionExecutor] Process tree killed after timeout ({self.command_timeout}s)"
+            )
             return ActionExecutionResult(
                 action_type=ActionType.COMMAND,
                 target=command,

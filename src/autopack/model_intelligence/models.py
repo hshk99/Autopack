@@ -5,18 +5,8 @@ These models implement the schema defined in docs/MODEL_RECOMMENDER_SYSTEM_PLAN.
 
 from datetime import datetime, timezone
 
-from sqlalchemy import (
-    JSON,
-    Boolean,
-    Column,
-    DateTime,
-    ForeignKey,
-    Integer,
-    Numeric,
-    String,
-    Text,
-    UniqueConstraint,
-)
+from sqlalchemy import (JSON, Boolean, Column, DateTime, ForeignKey, Integer,
+                        Numeric, String, Text, UniqueConstraint)
 from sqlalchemy.orm import relationship
 
 from ..database import Base

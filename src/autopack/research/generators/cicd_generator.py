@@ -732,7 +732,9 @@ class GitLabCIGenerator:
         # Detect language
         language = tech_stack.get("language") or self._detect_language(stack_name, category)
 
-        logger.info(f"[GitLabCIGenerator] Generating pipeline for {stack_name} (language={language})")
+        logger.info(
+            f"[GitLabCIGenerator] Generating pipeline for {stack_name} (language={language})"
+        )
 
         pipeline = self._build_pipeline_structure(
             language=language,
@@ -843,7 +845,9 @@ class GitLabCIGenerator:
     def _build_test_job(self, language: str, tech_stack: Dict[str, Any]) -> Dict[str, Any]:
         """Build the test job configuration."""
         custom_test = tech_stack.get("test_command")
-        scripts = [custom_test] if custom_test else self._TEST_SCRIPTS.get(language, ["echo 'No tests'"])
+        scripts = (
+            [custom_test] if custom_test else self._TEST_SCRIPTS.get(language, ["echo 'No tests'"])
+        )
 
         return {
             "stage": "test",
@@ -883,7 +887,11 @@ class GitLabCIGenerator:
     def _build_build_job(self, language: str, tech_stack: Dict[str, Any]) -> Dict[str, Any]:
         """Build the build job configuration."""
         custom_build = tech_stack.get("build_command")
-        scripts = [custom_build] if custom_build else self._BUILD_SCRIPTS.get(language, ["echo 'No build'"])
+        scripts = (
+            [custom_build]
+            if custom_build
+            else self._BUILD_SCRIPTS.get(language, ["echo 'No build'"])
+        )
 
         artifact_paths: Dict[str, List[str]] = {
             "node": ["dist/", ".next/", "build/"],
@@ -933,9 +941,11 @@ class GitLabCIGenerator:
                 "docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA",
             ]
             if deploy_provider == "kubernetes":
-                job["script"].extend([
-                    "kubectl set image deployment/app app=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA",
-                ])
+                job["script"].extend(
+                    [
+                        "kubectl set image deployment/app app=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA",
+                    ]
+                )
         elif deploy_provider == "heroku":
             job["script"] = [
                 "apt-get update && apt-get install -y curl",
@@ -1065,14 +1075,16 @@ class JenkinsPipelineGenerator:
             lines.append("")
 
         # Add options
-        lines.extend([
-            "    options {",
-            "        buildDiscarder(logRotator(numToKeepStr: '10'))",
-            "        timeout(time: 30, unit: 'MINUTES')",
-            "        timestamps()",
-            "    }",
-            "",
-        ])
+        lines.extend(
+            [
+                "    options {",
+                "        buildDiscarder(logRotator(numToKeepStr: '10'))",
+                "        timeout(time: 30, unit: 'MINUTES')",
+                "        timestamps()",
+                "    }",
+                "",
+            ]
+        )
 
         # Add stages
         lines.append("    stages {")
@@ -1124,7 +1136,9 @@ class JenkinsPipelineGenerator:
             "php": ["composer install", "vendor/bin/phpunit"],
         }
 
-        commands = [custom_test] if custom_test else test_commands.get(language, ["echo 'No tests'"])
+        commands = (
+            [custom_test] if custom_test else test_commands.get(language, ["echo 'No tests'"])
+        )
 
         lines = [
             "        stage('Test') {",
@@ -1134,15 +1148,17 @@ class JenkinsPipelineGenerator:
         for cmd in commands:
             lines.append(f"                sh '{cmd}'")
 
-        lines.extend([
-            "            }",
-            "            post {",
-            "                always {",
-            "                    junit allowEmptyResults: true, testResults: '**/test-results.xml'",
-            "                }",
-            "            }",
-            "        }",
-        ])
+        lines.extend(
+            [
+                "            }",
+                "            post {",
+                "                always {",
+                "                    junit allowEmptyResults: true, testResults: '**/test-results.xml'",
+                "                }",
+                "            }",
+                "        }",
+            ]
+        )
 
         return lines
 
@@ -1152,7 +1168,9 @@ class JenkinsPipelineGenerator:
             "node": ["npm audit --audit-level=moderate || true"],
             "python": ["pip install safety && safety check || true"],
             "rust": ["cargo audit || true"],
-            "go": ["go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./... || true"],
+            "go": [
+                "go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./... || true"
+            ],
         }
 
         commands = security_commands.get(language, ["echo 'Security scan placeholder'"])
@@ -1165,10 +1183,12 @@ class JenkinsPipelineGenerator:
         for cmd in commands:
             lines.append(f"                sh '{cmd}'")
 
-        lines.extend([
-            "            }",
-            "        }",
-        ])
+        lines.extend(
+            [
+                "            }",
+                "        }",
+            ]
+        )
 
         return lines
 
@@ -1185,7 +1205,9 @@ class JenkinsPipelineGenerator:
             "php": ["composer install --no-dev --optimize-autoloader"],
         }
 
-        commands = [custom_build] if custom_build else build_commands.get(language, ["echo 'No build'"])
+        commands = (
+            [custom_build] if custom_build else build_commands.get(language, ["echo 'No build'"])
+        )
 
         lines = [
             "        stage('Build') {",
@@ -1204,15 +1226,17 @@ class JenkinsPipelineGenerator:
 
         artifact = artifact_paths.get(language, "dist/")
 
-        lines.extend([
-            "            }",
-            "            post {",
-            "                success {",
-            f"                    archiveArtifacts artifacts: '{artifact}', fingerprint: true",
-            "                }",
-            "            }",
-            "        }",
-        ])
+        lines.extend(
+            [
+                "            }",
+                "            post {",
+                "                success {",
+                f"                    archiveArtifacts artifacts: '{artifact}', fingerprint: true",
+                "                }",
+                "            }",
+                "        }",
+            ]
+        )
 
         return lines
 
@@ -1236,10 +1260,12 @@ class JenkinsPipelineGenerator:
         ]
 
         if deploy_provider in ["docker", "kubernetes"]:
-            lines.extend([
-                "                sh 'docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} .'",
-                "                sh 'docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}'",
-            ])
+            lines.extend(
+                [
+                    "                sh 'docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} .'",
+                    "                sh 'docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}'",
+                ]
+            )
             if deploy_provider == "kubernetes":
                 lines.append(
                     "                sh 'kubectl set image deployment/app "
@@ -1248,10 +1274,12 @@ class JenkinsPipelineGenerator:
         else:
             lines.append("                echo 'Configure deployment for your provider'")
 
-        lines.extend([
-            "            }",
-            "        }",
-        ])
+        lines.extend(
+            [
+                "            }",
+                "        }",
+            ]
+        )
 
         return lines
 

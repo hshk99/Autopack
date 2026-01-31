@@ -623,9 +623,7 @@ class LearningDatabase:
             patterns = [p for p in patterns if p.get("pattern_type") == pattern_type]
 
         if min_success_rate is not None:
-            patterns = [
-                p for p in patterns if p.get("success_rate", 0) >= min_success_rate
-            ]
+            patterns = [p for p in patterns if p.get("success_rate", 0) >= min_success_rate]
 
         if project_type:
             patterns = [

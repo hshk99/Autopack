@@ -161,8 +161,7 @@ class MCPScanResult:
             MCPScanResult instance
         """
         discovered_tools = [
-            MCPToolDescriptor.from_dict(tool_data)
-            for tool_data in data.get("discovered_tools", [])
+            MCPToolDescriptor.from_dict(tool_data) for tool_data in data.get("discovered_tools", [])
         ]
 
         matches_by_requirement = {}
@@ -241,7 +240,9 @@ class MCPRegistryCache:
             return None
 
         self._cache_stats["hits"] += 1
-        logger.debug(f"Cache hit for key: {key[:8]}... (age: {current_time - cache_entry['timestamp']:.1f}s)")
+        logger.debug(
+            f"Cache hit for key: {key[:8]}... (age: {current_time - cache_entry['timestamp']:.1f}s)"
+        )
         return cache_entry["result"]
 
     def set(self, project_type: str, requirements: Dict[str, Any], result: MCPScanResult) -> None:
@@ -276,11 +277,7 @@ class MCPRegistryCache:
             Dictionary with cache hits, misses, and evictions
         """
         total_requests = self._cache_stats["hits"] + self._cache_stats["misses"]
-        hit_rate = (
-            self._cache_stats["hits"] / total_requests * 100
-            if total_requests > 0
-            else 0
-        )
+        hit_rate = self._cache_stats["hits"] / total_requests * 100 if total_requests > 0 else 0
 
         return {
             "size": len(self._cache),
@@ -451,7 +448,9 @@ class MCPRegistryScanner:
         """
         self.registry = self._DEFAULT_REGISTRY.copy()
         self._cache = MCPRegistryCache(ttl_seconds=cache_ttl_seconds)
-        logger.debug(f"Initialized MCPRegistryScanner with {len(self.registry)} tools and cache TTL={cache_ttl_seconds}s")
+        logger.debug(
+            f"Initialized MCPRegistryScanner with {len(self.registry)} tools and cache TTL={cache_ttl_seconds}s"
+        )
 
     async def scan_mcp_registry(
         self, project_type: str, requirements: Dict[str, Any]

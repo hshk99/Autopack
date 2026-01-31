@@ -14,13 +14,11 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
-from autopack.telemetry.loop_metrics import LoopMetricsCollector
-from autopack.telemetry.meta_metrics import (
-    MetaMetricsTracker,
-    PipelineLatencyTracker,
-    PipelineSLAConfig,
-)
 from autopack.telemetry.autopilot_metrics import AutopilotHealthCollector
+from autopack.telemetry.loop_metrics import LoopMetricsCollector
+from autopack.telemetry.meta_metrics import (MetaMetricsTracker,
+                                             PipelineLatencyTracker,
+                                             PipelineSLAConfig)
 
 logger = logging.getLogger(__name__)
 
@@ -445,9 +443,7 @@ async def get_autopilot_health_metrics(
     }
 
     if include_sessions:
-        response["recent_sessions"] = [
-            s.to_dict() for s in collector.get_session_history(limit=20)
-        ]
+        response["recent_sessions"] = [s.to_dict() for s in collector.get_session_history(limit=20)]
 
     if include_timeline:
         response["health_timeline"] = collector.get_health_timeline()

@@ -97,7 +97,9 @@ class SOTSummary:
             if self.recent_builds:
                 sections.append("\n**Recent Builds:**\n")
                 for build in self.recent_builds[:5]:  # Limit to 5 for brevity
-                    sections.append(f"- **{build.build_id}** ({build.timestamp}): {build.summary[:100]}...")
+                    sections.append(
+                        f"- **{build.build_id}** ({build.timestamp}): {build.summary[:100]}..."
+                    )
 
         # Architecture Decisions Summary
         if self.architecture_summary or self.key_decisions:
@@ -160,7 +162,9 @@ class SOTSummarizer:
 
         # Resolve paths
         build_path = build_history_path or (self._project_root / self.DEFAULT_BUILD_HISTORY_PATH)
-        arch_path = architecture_decisions_path or (self._project_root / self.DEFAULT_ARCHITECTURE_DECISIONS_PATH)
+        arch_path = architecture_decisions_path or (
+            self._project_root / self.DEFAULT_ARCHITECTURE_DECISIONS_PATH
+        )
 
         # Extract build history
         builds, build_count, build_summary = self._extract_build_history(build_path)
@@ -190,9 +194,7 @@ class SOTSummarizer:
 
         return summary
 
-    def _extract_build_history(
-        self, path: Path
-    ) -> tuple[List[BuildEntry], int, str]:
+    def _extract_build_history(self, path: Path) -> tuple[List[BuildEntry], int, str]:
         """Extract build entries from BUILD_HISTORY.md.
 
         Args:
@@ -251,9 +253,7 @@ class SOTSummarizer:
         if not builds:
             # Fallback: try to extract from section headers
             # Pattern: ### BUILD-XXX | YYYY-MM-DD | Title
-            header_pattern = re.compile(
-                r"###\s*(BUILD-\d+)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(.+)"
-            )
+            header_pattern = re.compile(r"###\s*(BUILD-\d+)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(.+)")
             for match in header_pattern.finditer(content):
                 entry = BuildEntry(
                     build_id=match.group(1).strip(),
@@ -321,11 +321,15 @@ class SOTSummarizer:
             impact = match.group(5).strip()
 
             # Normalize status - handle emoji, text, and bracketed patterns
-            status = "Implemented" if (
-                "✅" in status_raw or
-                "Implemented" in status_raw or
-                "[Implemented]" in status_raw
-            ) else "Planned"
+            status = (
+                "Implemented"
+                if (
+                    "✅" in status_raw
+                    or "Implemented" in status_raw
+                    or "[Implemented]" in status_raw
+                )
+                else "Planned"
+            )
 
             decision = ArchitectureDecision(
                 decision_id=decision_id,
@@ -339,9 +343,7 @@ class SOTSummarizer:
         if not decisions:
             # Fallback: try to extract from section headers
             # Pattern: ### DEC-XXX | YYYY-MM-DD | Title
-            header_pattern = re.compile(
-                r"###\s*(DEC-\d+)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(.+)"
-            )
+            header_pattern = re.compile(r"###\s*(DEC-\d+)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(.+)")
             for match in header_pattern.finditer(content):
                 decision = ArchitectureDecision(
                     decision_id=match.group(1).strip(),

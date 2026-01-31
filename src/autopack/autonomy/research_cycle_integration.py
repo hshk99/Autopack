@@ -27,14 +27,13 @@ if TYPE_CHECKING:
     from .autopilot import AutopilotController
     from .executor_integration import ExecutorContext
 
-from ..research.analysis.budget_enforcement import BudgetEnforcer, BudgetStatus, PhaseType
-from ..research.analysis.followup_trigger import (
-    FollowupResearchTrigger,
-    FollowupTrigger,
-    TriggerAnalysisResult,
-    TriggerExecutionResult,
-    TriggerPriority,
-)
+from ..research.analysis.budget_enforcement import (BudgetEnforcer,
+                                                    BudgetStatus, PhaseType)
+from ..research.analysis.followup_trigger import (FollowupResearchTrigger,
+                                                  FollowupTrigger,
+                                                  TriggerAnalysisResult,
+                                                  TriggerExecutionResult,
+                                                  TriggerPriority)
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +64,9 @@ class ResearchCycleMetrics:
     total_triggers_detected: int = 0
     total_triggers_executed: int = 0
     total_execution_time_ms: int = 0
-    decisions: Dict[str, int] = field(default_factory=lambda: {d.value: 0 for d in ResearchCycleDecision})
+    decisions: Dict[str, int] = field(
+        default_factory=lambda: {d.value: 0 for d in ResearchCycleDecision}
+    )
     last_cycle_at: Optional[datetime] = None
     budget_at_last_cycle: Optional[float] = None
 
@@ -114,7 +115,9 @@ class ResearchCycleOutcome:
             "research_cycle_outcome": {
                 "decision": self.decision.value,
                 "trigger_result": self.trigger_result.to_dict() if self.trigger_result else None,
-                "execution_result": self.execution_result.to_dict() if self.execution_result else None,
+                "execution_result": (
+                    self.execution_result.to_dict() if self.execution_result else None
+                ),
                 "findings_count": len(self.findings),
                 "gaps_addressed": self.gaps_addressed,
                 "gaps_remaining": self.gaps_remaining,
@@ -284,9 +287,7 @@ class ResearchCycleIntegration:
         self._metrics.total_cycles_triggered += 1
         self._metrics.last_cycle_at = datetime.now(timezone.utc)
 
-        logger.info(
-            f"[IMP-AUT-001] Starting research cycle #{self._cycles_this_session}"
-        )
+        logger.info(f"[IMP-AUT-001] Starting research cycle #{self._cycles_this_session}")
 
         # Check if we've exceeded max cycles
         if self._cycles_this_session > self.MAX_CYCLES_PER_SESSION:
@@ -472,8 +473,7 @@ class ResearchCycleIntegration:
 
         # Count critical priority triggers
         critical_count = sum(
-            1 for t in trigger_result.selected_triggers
-            if t.priority == TriggerPriority.CRITICAL
+            1 for t in trigger_result.selected_triggers if t.priority == TriggerPriority.CRITICAL
         )
 
         # Determine decision
@@ -548,30 +548,36 @@ class ResearchCycleIntegration:
 
             # Check for risk adjustments
             if finding.get("risk_level") == "high":
-                adjustments.append({
-                    "type": "risk_mitigation",
-                    "description": finding.get("summary", "High risk finding"),
-                    "action": "add_safety_check",
-                    "priority": "high",
-                })
+                adjustments.append(
+                    {
+                        "type": "risk_mitigation",
+                        "description": finding.get("summary", "High risk finding"),
+                        "action": "add_safety_check",
+                        "priority": "high",
+                    }
+                )
 
             # Check for dependency updates
             if finding.get("dependency_change"):
-                adjustments.append({
-                    "type": "dependency_update",
-                    "description": f"Update dependency: {finding.get('dependency_name', 'unknown')}",
-                    "action": "update_requirements",
-                    "priority": "medium",
-                })
+                adjustments.append(
+                    {
+                        "type": "dependency_update",
+                        "description": f"Update dependency: {finding.get('dependency_name', 'unknown')}",
+                        "action": "update_requirements",
+                        "priority": "medium",
+                    }
+                )
 
             # Check for scope changes
             if finding.get("scope_impact"):
-                adjustments.append({
-                    "type": "scope_adjustment",
-                    "description": finding.get("scope_impact", "Scope change needed"),
-                    "action": "review_scope",
-                    "priority": "medium",
-                })
+                adjustments.append(
+                    {
+                        "type": "scope_adjustment",
+                        "description": finding.get("scope_impact", "Scope change needed"),
+                        "action": "review_scope",
+                        "priority": "medium",
+                    }
+                )
 
         return adjustments
 

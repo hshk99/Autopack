@@ -12,7 +12,8 @@ from typing import Any, Dict, List, Optional
 
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from autopack.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitBreakerOpenError
+from autopack.circuit_breaker import (CircuitBreaker, CircuitBreakerConfig,
+                                      CircuitBreakerOpenError)
 
 try:
     from autopack.memory.memory_service import MemoryService

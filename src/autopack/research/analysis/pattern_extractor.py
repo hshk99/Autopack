@@ -237,9 +237,7 @@ class PatternExtractor:
         architecture_patterns = self._extract_architecture_patterns(project_history)
         monetization_patterns = self._extract_monetization_patterns(project_history)
         deployment_patterns = self._extract_deployment_patterns(project_history)
-        workflow_patterns = self._extract_workflow_patterns(
-            improvement_outcomes, cycle_data
-        )
+        workflow_patterns = self._extract_workflow_patterns(improvement_outcomes, cycle_data)
 
         # Combine all patterns
         all_patterns = (
@@ -255,9 +253,7 @@ class PatternExtractor:
         # Calculate coverage by type
         for pattern in all_patterns:
             type_key = pattern.pattern_type.value
-            result.coverage_by_type[type_key] = (
-                result.coverage_by_type.get(type_key, 0) + 1
-            )
+            result.coverage_by_type[type_key] = result.coverage_by_type.get(type_key, 0) + 1
 
         # Identify top patterns (high confidence, high success rate)
         result.top_patterns = [
@@ -272,16 +268,14 @@ class PatternExtractor:
         result.emerging_patterns = [
             p
             for p in all_patterns
-            if p.confidence == PatternConfidence.EXPERIMENTAL
-            and p.success_rate >= 0.5
+            if p.confidence == PatternConfidence.EXPERIMENTAL and p.success_rate >= 0.5
         ]
 
         # Identify deprecated patterns (declining success rate)
         result.deprecated_patterns = [
             p
             for p in all_patterns
-            if p.occurrence_count >= self.min_occurrences_for_pattern
-            and p.success_rate < 0.4
+            if p.occurrence_count >= self.min_occurrences_for_pattern and p.success_rate < 0.4
         ]
 
         logger.info(
@@ -358,8 +352,12 @@ class PatternExtractor:
                 associated_project_types=list(
                     {o["project_type"] for o in occurrences if o["project_type"]}
                 ),
-                first_seen=min((o["timestamp"] for o in occurrences if o["timestamp"]), default=None),
-                last_seen=max((o["timestamp"] for o in occurrences if o["timestamp"]), default=None),
+                first_seen=min(
+                    (o["timestamp"] for o in occurrences if o["timestamp"]), default=None
+                ),
+                last_seen=max(
+                    (o["timestamp"] for o in occurrences if o["timestamp"]), default=None
+                ),
             )
 
             patterns.append(pattern)
@@ -430,8 +428,12 @@ class PatternExtractor:
                     {o["project_type"] for o in occurrences if o["project_type"]}
                 ),
                 success_factors=list(set(all_decisions))[:5],
-                first_seen=min((o["timestamp"] for o in occurrences if o["timestamp"]), default=None),
-                last_seen=max((o["timestamp"] for o in occurrences if o["timestamp"]), default=None),
+                first_seen=min(
+                    (o["timestamp"] for o in occurrences if o["timestamp"]), default=None
+                ),
+                last_seen=max(
+                    (o["timestamp"] for o in occurrences if o["timestamp"]), default=None
+                ),
             )
 
             patterns.append(pattern)
@@ -497,8 +499,12 @@ class PatternExtractor:
                     {o["project_type"] for o in occurrences if o["project_type"]}
                 ),
                 recommended_for=[model_name.lower(), "revenue", "pricing"],
-                first_seen=min((o["timestamp"] for o in occurrences if o["timestamp"]), default=None),
-                last_seen=max((o["timestamp"] for o in occurrences if o["timestamp"]), default=None),
+                first_seen=min(
+                    (o["timestamp"] for o in occurrences if o["timestamp"]), default=None
+                ),
+                last_seen=max(
+                    (o["timestamp"] for o in occurrences if o["timestamp"]), default=None
+                ),
             )
 
             patterns.append(pattern)
@@ -567,8 +573,12 @@ class PatternExtractor:
                 associated_project_types=list(
                     {o["project_type"] for o in occurrences if o["project_type"]}
                 ),
-                first_seen=min((o["timestamp"] for o in occurrences if o["timestamp"]), default=None),
-                last_seen=max((o["timestamp"] for o in occurrences if o["timestamp"]), default=None),
+                first_seen=min(
+                    (o["timestamp"] for o in occurrences if o["timestamp"]), default=None
+                ),
+                last_seen=max(
+                    (o["timestamp"] for o in occurrences if o["timestamp"]), default=None
+                ),
             )
 
             patterns.append(pattern)
@@ -653,8 +663,7 @@ class PatternExtractor:
         # Extract patterns from cycle completion rates
         if cycle_data:
             completion_rates = [
-                c.get("metrics", {}).get("completion_rate", 0)
-                for c in cycle_data.values()
+                c.get("metrics", {}).get("completion_rate", 0) for c in cycle_data.values()
             ]
             if completion_rates:
                 avg_completion = sum(completion_rates) / len(completion_rates)
@@ -750,9 +759,7 @@ class PatternExtractor:
 
             # Check project type match
             if project_type:
-                if project_type.lower() in [
-                    t.lower() for t in pattern.associated_project_types
-                ]:
+                if project_type.lower() in [t.lower() for t in pattern.associated_project_types]:
                     relevance_score += 0.3
 
             # Check keyword matches in recommended_for

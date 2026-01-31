@@ -319,11 +319,7 @@ def get_enabled_features() -> Dict[str, dict]:
     Returns:
         Dict mapping feature_id to status object (enabled features only)
     """
-    return {
-        fid: info
-        for fid, info in get_feature_states().items()
-        if info["enabled"]
-    }
+    return {fid: info for fid, info in get_feature_states().items() if info["enabled"]}
 
 
 def get_disabled_features() -> Dict[str, dict]:
@@ -332,11 +328,7 @@ def get_disabled_features() -> Dict[str, dict]:
     Returns:
         Dict mapping feature_id to status object (disabled features only)
     """
-    return {
-        fid: info
-        for fid, info in get_feature_states().items()
-        if not info["enabled"]
-    }
+    return {fid: info for fid, info in get_feature_states().items() if not info["enabled"]}
 
 
 def check_feature_dependencies(feature_id: str) -> tuple[bool, list[str]]:

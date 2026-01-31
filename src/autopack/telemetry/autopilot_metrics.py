@@ -28,13 +28,13 @@ Usage:
     collector.save_to_file("autopilot_health.json")
 """
 
-from dataclasses import dataclass, field, asdict
+import json
+import logging
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-import json
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +43,10 @@ logger = logging.getLogger(__name__)
 # ENUMS
 # ============================================================================
 
+
 class HealthGateType(str, Enum):
     """Types of health gates that can gate execution."""
+
     CIRCUIT_BREAKER = "circuit_breaker"
     FEEDBACK_LOOP = "feedback_loop"
     BUDGET_ENFORCEMENT = "budget_enforcement"
@@ -53,6 +55,7 @@ class HealthGateType(str, Enum):
 
 class SessionOutcome(str, Enum):
     """Possible outcomes for an autopilot session."""
+
     COMPLETED = "completed"
     BLOCKED_APPROVAL = "blocked_approval_required"
     BLOCKED_CIRCUIT_BREAKER = "blocked_circuit_breaker"
@@ -63,6 +66,7 @@ class SessionOutcome(str, Enum):
 
 class ResearchDecisionType(str, Enum):
     """Types of research cycle decisions."""
+
     PROCEED = "proceed"
     PAUSE_FOR_RESEARCH = "pause_for_research"
     ADJUST_PLAN = "adjust_plan"
@@ -74,9 +78,11 @@ class ResearchDecisionType(str, Enum):
 # DATACLASSES FOR METRICS
 # ============================================================================
 
+
 @dataclass
 class CircuitBreakerMetrics:
     """Metrics for circuit breaker health gate."""
+
     total_checks: int = 0
     checks_passed: int = 0
     checks_failed: int = 0
@@ -95,6 +101,7 @@ class CircuitBreakerMetrics:
 @dataclass
 class BudgetEnforcementMetrics:
     """Metrics for budget enforcement health gate."""
+
     total_checks: int = 0
     checks_passed: int = 0
     checks_blocked: int = 0
@@ -112,6 +119,7 @@ class BudgetEnforcementMetrics:
 @dataclass
 class HealthTransitionMetrics:
     """Metrics for feedback loop health transitions."""
+
     total_transitions: int = 0
     transitions_to_healthy: int = 0
     transitions_to_degraded: int = 0
@@ -131,6 +139,7 @@ class HealthTransitionMetrics:
 @dataclass
 class ResearchCycleSummary:
     """Metrics for research cycle execution."""
+
     total_cycles_triggered: int = 0
     successful_cycles: int = 0
     failed_cycles: int = 0
@@ -175,6 +184,7 @@ class ResearchCycleSummary:
 @dataclass
 class SessionHealthSnapshot:
     """Per-session health data snapshot."""
+
     session_id: str
     outcome: SessionOutcome
     started_at: str  # ISO format
@@ -209,6 +219,7 @@ class SessionHealthSnapshot:
 @dataclass
 class AutopilotHealthMetrics:
     """Top-level aggregated autopilot health metrics."""
+
     circuit_breaker: CircuitBreakerMetrics = field(default_factory=CircuitBreakerMetrics)
     budget_enforcement: BudgetEnforcementMetrics = field(default_factory=BudgetEnforcementMetrics)
     health_transitions: HealthTransitionMetrics = field(default_factory=HealthTransitionMetrics)
@@ -250,6 +261,7 @@ class AutopilotHealthMetrics:
 # MAIN COLLECTOR CLASS
 # ============================================================================
 
+
 class AutopilotHealthCollector:
     """Central metrics collector for autopilot health monitoring.
 
@@ -286,12 +298,7 @@ class AutopilotHealthCollector:
     # RECORDING METHODS FOR HEALTH GATES
     # ========================================================================
 
-    def record_circuit_breaker_check(
-        self,
-        state: str,
-        passed: bool,
-        health_score: float
-    ) -> None:
+    def record_circuit_breaker_check(self, state: str, passed: bool, health_score: float) -> None:
         """Record a circuit breaker health gate check.
 
         Args:
@@ -313,12 +320,7 @@ class AutopilotHealthCollector:
         """Record a circuit breaker trip (opening the circuit)."""
         self._metrics.circuit_breaker.total_trips += 1
 
-    def record_budget_check(
-        self,
-        passed: bool,
-        remaining_budget: float,
-        blocked: bool
-    ) -> None:
+    def record_budget_check(self, passed: bool, remaining_budget: float, blocked: bool) -> None:
         """Record a budget enforcement check.
 
         Args:
@@ -350,11 +352,7 @@ class AutopilotHealthCollector:
             if remaining_budget < 0.2:  # Below 20% threshold
                 be.warning_count += 1
 
-    def record_health_transition(
-        self,
-        old_status: str,
-        new_status: str
-    ) -> None:
+    def record_health_transition(self, old_status: str, new_status: str) -> None:
         """Record a health status transition (feedback loop health).
 
         Args:
@@ -395,7 +393,7 @@ class AutopilotHealthCollector:
         decision: str,
         gaps_addressed: int,
         gaps_remaining: int,
-        execution_time_ms: int
+        execution_time_ms: int,
     ) -> None:
         """Record a research cycle execution.
 
@@ -435,7 +433,7 @@ class AutopilotHealthCollector:
             rc.decision_skip += 1
 
         # Calculate average execution time
-        total_cycles = (rc.successful_cycles + rc.failed_cycles)
+        total_cycles = rc.successful_cycles + rc.failed_cycles
         if total_cycles > 0:
             rc.avg_execution_time_ms = rc.total_execution_time_ms // total_cycles
 
@@ -452,11 +450,7 @@ class AutopilotHealthCollector:
         self._current_session_id = session_id
         self._session_start_time = datetime.now(timezone.utc)
 
-    def end_session(
-        self,
-        outcome: SessionOutcome,
-        snapshot: SessionHealthSnapshot
-    ) -> None:
+    def end_session(self, outcome: SessionOutcome, snapshot: SessionHealthSnapshot) -> None:
         """End the current autopilot session and record its outcome.
 
         Args:
@@ -543,8 +537,8 @@ class AutopilotHealthCollector:
                     "total_checks": self._metrics.circuit_breaker.total_checks,
                     "total_trips": self._metrics.circuit_breaker.total_trips,
                     "check_pass_rate": (
-                        self._metrics.circuit_breaker.checks_passed /
-                        self._metrics.circuit_breaker.total_checks
+                        self._metrics.circuit_breaker.checks_passed
+                        / self._metrics.circuit_breaker.total_checks
                         if self._metrics.circuit_breaker.total_checks > 0
                         else 0.0
                     ),
@@ -645,9 +639,7 @@ class AutopilotHealthCollector:
 
         # Session metrics
         metrics["autopack_autopilot_sessions_total"] = self._metrics.total_sessions
-        metrics["autopack_autopilot_sessions_completed"] = (
-            self._metrics.sessions_completed
-        )
+        metrics["autopack_autopilot_sessions_completed"] = self._metrics.sessions_completed
         metrics["autopack_autopilot_sessions_blocked_approval"] = (
             self._metrics.sessions_blocked_approval
         )
@@ -660,9 +652,7 @@ class AutopilotHealthCollector:
         metrics["autopack_autopilot_sessions_failed"] = self._metrics.sessions_failed
 
         # Overall health
-        metrics["autopack_autopilot_health_score"] = (
-            self._metrics.overall_health_score
-        )
+        metrics["autopack_autopilot_health_score"] = self._metrics.overall_health_score
 
         return metrics
 
@@ -690,7 +680,7 @@ class AutopilotHealthCollector:
             "health_timeline": self._health_timeline,
         }
 
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             json.dump(data, f, indent=2)
 
         logger.info(f"Saved autopilot health metrics to {file_path}")
@@ -707,7 +697,7 @@ class AutopilotHealthCollector:
             return
 
         try:
-            with open(file, 'r') as f:
+            with open(file, "r") as f:
                 data = json.load(f)
 
             # Note: This is a simplified load for analysis
@@ -745,8 +735,8 @@ class AutopilotHealthCollector:
         # Circuit breaker contribution (20%)
         if self._metrics.circuit_breaker.total_checks > 0:
             cb_pass_rate = (
-                self._metrics.circuit_breaker.checks_passed /
-                self._metrics.circuit_breaker.total_checks
+                self._metrics.circuit_breaker.checks_passed
+                / self._metrics.circuit_breaker.total_checks
             )
             components.append(("circuit_breaker", cb_pass_rate, 0.2))
 
@@ -757,8 +747,8 @@ class AutopilotHealthCollector:
         # Health transitions contribution (20%)
         if self._metrics.health_transitions.total_transitions > 0:
             healthy_rate = (
-                self._metrics.health_transitions.transitions_to_healthy /
-                self._metrics.health_transitions.total_transitions
+                self._metrics.health_transitions.transitions_to_healthy
+                / self._metrics.health_transitions.total_transitions
             )
             components.append(("health", healthy_rate, 0.2))
 
@@ -768,9 +758,7 @@ class AutopilotHealthCollector:
 
         # Session success contribution (20%)
         if self._metrics.total_sessions > 0:
-            session_score = (
-                self._metrics.sessions_completed / self._metrics.total_sessions
-            )
+            session_score = self._metrics.sessions_completed / self._metrics.total_sessions
             components.append(("sessions", session_score, 0.2))
 
         # Calculate weighted average
@@ -799,7 +787,10 @@ class AutopilotHealthCollector:
         if self._metrics.health_transitions.current_status == "attention_required":
             issues.append("Health status requires attention")
 
-        if self._metrics.research_cycles.success_rate < 0.3 and self._metrics.research_cycles.total_cycles_triggered > 5:
+        if (
+            self._metrics.research_cycles.success_rate < 0.3
+            and self._metrics.research_cycles.total_cycles_triggered > 5
+        ):
             issues.append("Research cycle success rate critically low (<30%)")
 
         if self._metrics.overall_health_score < 0.5:
@@ -812,7 +803,9 @@ class AutopilotHealthCollector:
         warnings = []
 
         if self._metrics.circuit_breaker.total_trips > 3:
-            warnings.append(f"Circuit breaker has tripped {self._metrics.circuit_breaker.total_trips} times")
+            warnings.append(
+                f"Circuit breaker has tripped {self._metrics.circuit_breaker.total_trips} times"
+            )
 
         if self._metrics.budget_enforcement.budget_remaining_current < 0.2:
             warnings.append("Budget below 20% threshold")
@@ -820,14 +813,19 @@ class AutopilotHealthCollector:
         if self._metrics.health_transitions.current_status == "degraded":
             warnings.append("Health status is degraded")
 
-        if self._metrics.research_cycles.failed_cycles > self._metrics.research_cycles.successful_cycles:
+        if (
+            self._metrics.research_cycles.failed_cycles
+            > self._metrics.research_cycles.successful_cycles
+        ):
             warnings.append("More failed research cycles than successful")
 
         if self._metrics.sessions_failed > self._metrics.sessions_completed:
             warnings.append("More failed sessions than completed")
 
         if self._metrics.budget_enforcement.warning_count > 3:
-            warnings.append(f"Budget warnings triggered {self._metrics.budget_enforcement.warning_count} times")
+            warnings.append(
+                f"Budget warnings triggered {self._metrics.budget_enforcement.warning_count} times"
+            )
 
         self._metrics.warnings = warnings
 

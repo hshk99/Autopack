@@ -20,7 +20,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
-    from autopack.integrations.pattern_library import PatternLibrary, ReusablePattern
+    from autopack.integrations.pattern_library import (PatternLibrary,
+                                                       ReusablePattern)
 
 logger = logging.getLogger(__name__)
 

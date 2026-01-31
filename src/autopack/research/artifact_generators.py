@@ -10,36 +10,19 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Type
 
+from autopack.executor.post_build_generator import (
+    BuildCharacteristics, PostBuildArtifactGenerator,
+    capture_build_characteristics, generate_post_build_artifacts)
 from autopack.research.analysis.deployment_analysis import (
-    DeploymentAnalyzer,
-    DeploymentArchitecture,
-    DeploymentTarget,
-)
+    DeploymentAnalyzer, DeploymentArchitecture, DeploymentTarget)
 from autopack.research.analysis.monetization_analysis import (
-    MonetizationAnalyzer,
-    MonetizationAnalysisResult,
-    ProjectType,
-)
+    MonetizationAnalysisResult, MonetizationAnalyzer, ProjectType)
 from autopack.research.discovery.mcp_discovery import MCPScanResult
 from autopack.research.generators.cicd_generator import (
-    CICDAnalyzer,
-    CICDPlatform,
-    CICDWorkflowGenerator,
-    DeploymentGuidance,
-    GitLabCIGenerator,
-    JenkinsPipelineGenerator,
-)
-from autopack.executor.post_build_generator import (
-    PostBuildArtifactGenerator,
-    BuildCharacteristics,
-    capture_build_characteristics,
-    generate_post_build_artifacts,
-)
-from autopack.research.sot_summarizer import (
-    SOTSummarizer,
-    SOTSummary,
-    get_sot_summarizer,
-)
+    CICDAnalyzer, CICDPlatform, CICDWorkflowGenerator, DeploymentGuidance,
+    GitLabCIGenerator, JenkinsPipelineGenerator)
+from autopack.research.sot_summarizer import (SOTSummarizer, SOTSummary,
+                                              get_sot_summarizer)
 
 logger = logging.getLogger(__name__)
 
@@ -307,9 +290,7 @@ class MonetizationStrategyGenerator:
         Returns:
             Markdown string with monetization strategy
         """
-        logger.info(
-            "[MonetizationStrategyGenerator] Generating from analysis result"
-        )
+        logger.info("[MonetizationStrategyGenerator] Generating from analysis result")
 
         content = "# Monetization Strategy\n\n"
 
@@ -317,7 +298,9 @@ class MonetizationStrategyGenerator:
         content += f"## Overview\n\n"
         content += f"**Recommended Model**: {analysis_result.recommended_model.value.replace('_', ' ').title()}\n"
         content += f"**Pricing Strategy**: {analysis_result.pricing_strategy.value.replace('_', ' ').title()}\n"
-        content += f"**Project Type**: {analysis_result.project_type.value.replace('_', ' ').title()}\n\n"
+        content += (
+            f"**Project Type**: {analysis_result.project_type.value.replace('_', ' ').title()}\n\n"
+        )
         content += f"{analysis_result.pricing_rationale}\n\n"
 
         # Model Fits
@@ -369,9 +352,7 @@ class MonetizationStrategyGenerator:
 
                 if tier.limits:
                     content += "**Limits**: "
-                    limits_str = ", ".join(
-                        f"{k}: {v}" for k, v in tier.limits.items()
-                    )
+                    limits_str = ", ".join(f"{k}: {v}" for k, v in tier.limits.items())
                     content += f"{limits_str}\n\n"
 
         # Revenue Projections
@@ -460,9 +441,7 @@ class MonetizationStrategyGenerator:
         Returns:
             Markdown string with monetization strategy
         """
-        logger.info(
-            "[MonetizationStrategyGenerator] Running analysis and generating strategy"
-        )
+        logger.info("[MonetizationStrategyGenerator] Running analysis and generating strategy")
 
         # Create analyzer with budget enforcer if available
         self._analyzer = MonetizationAnalyzer(budget_enforcer=self._budget_enforcer)
@@ -1865,9 +1844,7 @@ class DeploymentGuidanceGenerator:
 
         return section
 
-    def _generate_architecture_section(
-        self, architecture: DeploymentArchitecture
-    ) -> str:
+    def _generate_architecture_section(self, architecture: DeploymentArchitecture) -> str:
         """Generate architecture recommendation section."""
         primary = architecture.primary_recommendation
         section = "## Recommended Architecture\n\n"
@@ -1890,9 +1867,7 @@ class DeploymentGuidanceGenerator:
 
         return section
 
-    def _generate_alternatives_section(
-        self, architecture: DeploymentArchitecture
-    ) -> str:
+    def _generate_alternatives_section(self, architecture: DeploymentArchitecture) -> str:
         """Generate alternative approaches section."""
         if not architecture.alternative_recommendations:
             return ""
@@ -1936,9 +1911,7 @@ class DeploymentGuidanceGenerator:
 
         return section
 
-    def _generate_kubernetes_section(
-        self, architecture: DeploymentArchitecture
-    ) -> str:
+    def _generate_kubernetes_section(self, architecture: DeploymentArchitecture) -> str:
         """Generate Kubernetes configuration section with templates."""
         k8s_config = architecture.kubernetes_config
         if not k8s_config:
@@ -1978,15 +1951,15 @@ class DeploymentGuidanceGenerator:
         section += f"- **Replicas**: {k8s_config.replicas}\n"
         section += f"- **Service Type**: {k8s_config.service_type}\n"
         if k8s_config.hpa_enabled:
-            section += f"- **HPA Range**: {k8s_config.min_replicas}-{k8s_config.max_replicas} replicas\n"
+            section += (
+                f"- **HPA Range**: {k8s_config.min_replicas}-{k8s_config.max_replicas} replicas\n"
+            )
             section += f"- **Target CPU**: {k8s_config.target_cpu_utilization}%\n"
         section += "\n"
 
         return section
 
-    def _generate_serverless_section(
-        self, architecture: DeploymentArchitecture
-    ) -> str:
+    def _generate_serverless_section(self, architecture: DeploymentArchitecture) -> str:
         """Generate serverless configuration section."""
         config = architecture.serverless_config
         if not config:
@@ -2007,9 +1980,7 @@ class DeploymentGuidanceGenerator:
 
         return section
 
-    def _generate_environment_section(
-        self, architecture: DeploymentArchitecture
-    ) -> str:
+    def _generate_environment_section(self, architecture: DeploymentArchitecture) -> str:
         """Generate environment requirements section."""
         section = "## Environment Variables\n\n"
 
@@ -2031,9 +2002,7 @@ class DeploymentGuidanceGenerator:
 
         return section
 
-    def _generate_infrastructure_section(
-        self, architecture: DeploymentArchitecture
-    ) -> str:
+    def _generate_infrastructure_section(self, architecture: DeploymentArchitecture) -> str:
         """Generate infrastructure requirements section."""
         section = "## Infrastructure Requirements\n\n"
 
@@ -2110,8 +2079,8 @@ class DeploymentGuidanceGenerator:
 
         dockerfile += f"EXPOSE {config.port}\n\n"
         dockerfile += f"# Health check\n"
-        dockerfile += f'HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \\\n'
-        dockerfile += f'  CMD wget --no-verbose --tries=1 --spider http://localhost:{config.port}{config.health_check_path} || exit 1\n\n'
+        dockerfile += f"HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \\\n"
+        dockerfile += f"  CMD wget --no-verbose --tries=1 --spider http://localhost:{config.port}{config.health_check_path} || exit 1\n\n"
 
         if is_node:
             dockerfile += 'CMD ["node", "dist/index.js"]\n'

@@ -19,12 +19,11 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from autopack.autonomous.budgeting import BudgetInputs, compute_budget_remaining
-from autopack.autonomous.intention_first_loop import (
-    IntentionFirstLoop,
-    PhaseLoopState,
-    RunLoopState,
-)
+from autopack.autonomous.budgeting import (BudgetInputs,
+                                           compute_budget_remaining)
+from autopack.autonomous.intention_first_loop import (IntentionFirstLoop,
+                                                      PhaseLoopState,
+                                                      RunLoopState)
 from autopack.config import settings
 from autopack.intention_anchor.models import IntentionAnchor
 from autopack.model_routing_snapshot import ModelRoutingEntry
@@ -273,7 +272,8 @@ def generate_scope_reduction_proposal(
     Returns:
         Validated ScopeReductionProposal, or None if generation/validation failed
     """
-    from autopack.scope_reduction import ScopeReductionProposal, validate_scope_reduction
+    from autopack.scope_reduction import (ScopeReductionProposal,
+                                          validate_scope_reduction)
 
     # Generate prompt
     prompt = wiring.loop.build_scope_reduction_prompt(anchor, current_plan, budget_remaining)

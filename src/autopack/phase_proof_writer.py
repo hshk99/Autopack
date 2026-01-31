@@ -10,7 +10,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from autopack.phase_proof import PhaseChange, PhaseProof, PhaseProofStorage, PhaseVerification
+from autopack.phase_proof import (PhaseChange, PhaseProof, PhaseProofStorage,
+                                  PhaseVerification)
 from autopack.proof_metrics import ProofMetrics, get_proof_metrics
 
 logger = logging.getLogger(__name__)

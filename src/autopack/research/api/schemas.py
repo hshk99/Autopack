@@ -155,7 +155,9 @@ class ResearchGap(BaseModel):
     category: str = Field(..., description="Category of the gap")
     description: str = Field(..., description="Description of the gap")
     priority: str = Field(..., description="Priority: critical, high, medium, or low")
-    suggested_queries: List[str] = Field(default_factory=list, description="Suggested research queries")
+    suggested_queries: List[str] = Field(
+        default_factory=list, description="Suggested research queries"
+    )
     identified_at: str = Field(..., description="ISO timestamp when gap was identified")
     addressed_at: Optional[str] = Field(
         default=None, description="ISO timestamp when gap was addressed"

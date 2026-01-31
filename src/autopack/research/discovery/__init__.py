@@ -17,14 +17,11 @@ from autopack.research.discovery.mcp_discovery import (MCPRegistryCache,
                                                        MCPToolDescriptor,
                                                        MCPToolMaintainer,
                                                        MCPToolMaturity)
+from autopack.research.discovery.project_history_analyzer import (
+    HistoryAnalysisResult, ProjectDecision, ProjectHistoryAnalyzer,
+    ProjectSummary)
 from autopack.research.discovery.reddit_discovery import RedditDiscovery
 from autopack.research.discovery.web_discovery import WebDiscovery
-from autopack.research.discovery.project_history_analyzer import (
-    HistoryAnalysisResult,
-    ProjectDecision,
-    ProjectHistoryAnalyzer,
-    ProjectSummary,
-)
 
 __all__ = [
     # Web discovery

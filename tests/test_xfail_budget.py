@@ -11,10 +11,16 @@ Philosophy:
 - Each xfail should have a clear reason and tracking identifier
 - Unexpected xpass should be investigated (test might be fixed)
 
-Current xfails (as of 2026-01-14):
-- 0 xfail markers
+Current xfails (as of 2026-01-31):
+- 12 xfail markers (reduced from 13)
 
-Changes in this update:
+Changes in this update (loop021):
+- Fixed dashboard integration test session isolation issue (removed 1 xfail)
+  * Issue: SQLAlchemy session isolation - sessions from independent factories couldn't see committed data
+  * Fix: Created shared `testing_session_local` fixture used by both client and db_session fixtures
+  * Test: test_dashboard_usage_with_data now passes
+
+Previous update summary:
 - Converted 6 module-level extended test suites to `skip` markers (removed 110 xfails)
   * test_context_budgeter_extended.py (22 tests)
   * test_error_recovery_extended.py (19 tests)
@@ -22,22 +28,20 @@ Changes in this update:
   * test_token_estimator_calibration.py (21 tests)
   * test_memory_service_extended.py (18 tests)
   * test_build_history_integrator.py (12 tests)
-- Fixed dashboard integration test session isolation issue (removed 1 xfail)
-- Net reduction: 111 → 0 xfailed tests
+- Net reduction overall: 111 → 12 xfailed tests
 
 This removes technical debt while preserving aspirational tests via skip markers.
 """
 
 import pytest
 
-# Expected xfail count - reduced from 111 to 6 after removing extended test suites
-# Remaining 13 xfails are critical aspirational features that need explicit tracking:
+# Expected xfail count - reduced from 111 to 12 after removing extended test suites and fixing session isolation
+# Remaining 12 xfails are critical aspirational features that need explicit tracking:
 # - 3 tests in test_parallel_orchestrator.py (WorkspaceManager/ExecutorLockManager integration)
 # - 1 test in test_telemetry_unblock_fixes.py (T2 retry logic)
 # - 1 test in test_api_contract_builder.py (executor payload schema compliance - deferred to P1)
-# - 1 test in test_dashboard_integration.py (DB session isolation for data sharing)
 # - 7 tests in test_telemetry_informed_generation.py (IMP-GEN-001 not yet implemented)
-EXPECTED_XFAIL_COUNT = 13
+EXPECTED_XFAIL_COUNT = 12
 
 # Tolerance for minor variations in xfail count (e.g., parameterized tests)
 TOLERANCE = 0

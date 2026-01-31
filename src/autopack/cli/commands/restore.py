@@ -10,6 +10,42 @@ from pathlib import Path
 import click
 
 
+def safe_extract(tar: tarfile.TarFile, member: tarfile.TarInfo, base: Path) -> None:
+    """Safely extract tar member, preventing path traversal.
+
+    Validates that the extracted path stays within the base directory,
+    blocking any attempts to escape via '../' or absolute paths.
+
+    Args:
+        tar: TarFile object to extract from
+        member: TarInfo member to extract
+        base: Base directory where extraction should occur
+
+    Raises:
+        ValueError: If path traversal is detected
+    """
+    # Check for absolute paths in member name (Unix-style)
+    if member.name.startswith("/"):
+        raise ValueError(f"Absolute path not allowed: {member.name}")
+
+    # Check for Windows-style absolute paths
+    if len(member.name) > 1 and member.name[1] == ":":
+        raise ValueError(f"Absolute path not allowed: {member.name}")
+
+    # Resolve the full path where member would be extracted
+    target_path = (base / member.name).resolve()
+    base_resolved = base.resolve()
+
+    # Check that target path is within base directory
+    try:
+        target_path.relative_to(base_resolved)
+    except ValueError:
+        # relative_to raises ValueError if target_path is not within base_resolved
+        raise ValueError(f"Path traversal detected: {member.name}")
+
+    tar.extract(member, path=base)
+
+
 def get_default_base_dir() -> Path:
     """Get the default autopack directory."""
     return Path.cwd()
@@ -94,12 +130,16 @@ def restore(input_file: Path, base_dir: Path | None, force: bool) -> None:
         files_restored = 0
 
         for member in tar.getmembers():
-            tar.extract(member, path=base)
-            if member.isfile():
-                files_restored += 1
-                click.echo(f"  [restore] {member.name}")
-            elif member.isdir():
-                click.echo(f"  [restore] {member.name}/")
+            try:
+                safe_extract(tar, member, base)
+                if member.isfile():
+                    files_restored += 1
+                    click.echo(f"  [restore] {member.name}")
+                elif member.isdir():
+                    click.echo(f"  [restore] {member.name}/")
+            except ValueError as e:
+                click.secho(f"Error: {e}", fg="red")
+                raise SystemExit(1)
 
     click.echo()
     click.secho("Restore complete!", fg="green")

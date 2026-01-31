@@ -253,10 +253,12 @@ class AutonomousExecutor:
         self.openai_key = openai_key or os.getenv("OPENAI_API_KEY")
 
         # IMP-GOD-001: Initialize startup validator for API key validation and startup checks
+        # IMP-SEC-008: Include Autopack API key in validation
         self.startup_validator = StartupValidator(
             glm_key=self.glm_key,
             anthropic_key=self.anthropic_key,
             openai_key=self.openai_key,
+            autopack_key=self.api_key,
         )
 
         # IMP-R06: Enhanced API key validation (delegated to StartupValidator)

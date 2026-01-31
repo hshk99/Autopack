@@ -4,7 +4,7 @@ Extracted from autonomous_executor.py as part of IMP-MAINT-001.
 Handles run initialization, validation, and lifecycle management.
 
 This module provides:
-- API key validation (IMP-R06)
+- API key validation (IMP-R06, IMP-SEC-008)
 - Startup checks from DEBUG_JOURNAL.md
 - Project ID detection from run_id
 - Configuration validation at startup
@@ -12,6 +12,7 @@ This module provides:
 """
 
 import logging
+import re
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -20,6 +21,25 @@ import yaml
 from autopack.utils import mask_credential
 
 logger = logging.getLogger(__name__)
+
+# IMP-SEC-008: API Key Validation Patterns
+# Provider-specific regex patterns for validating API key formats
+API_KEY_PATTERNS = {
+    "glm": re.compile(
+        r"^[a-zA-Z0-9\-_]{10,}$"
+    ),  # GLM: alphanumeric, dash, underscore, min 10 chars
+    "anthropic": re.compile(
+        r"^sk-[a-zA-Z0-9\-_]{20,}$"
+    ),  # Anthropic: sk- prefix + alphanumeric/dash/underscore
+    "openai": re.compile(
+        r"^sk-[a-zA-Z0-9\-_]{20,}$"
+    ),  # OpenAI: sk- prefix + alphanumeric/dash/underscore
+    "autopack": re.compile(
+        r"^[a-zA-Z0-9\-_]{10,}$"
+    ),  # Autopack: alphanumeric, dash, underscore, min 10 chars
+    "together_ai": re.compile(r"^[a-z0-9]{10,}$"),  # Together AI: lowercase alphanumeric
+    "runpod": re.compile(r"^[a-z0-9\-]{10,}$"),  # RunPod: lowercase alphanumeric with dash
+}
 
 
 class ApiKeyValidationError(ValueError):
@@ -44,6 +64,7 @@ class RunLifecycleManager:
         glm_key: Optional[str] = None,
         anthropic_key: Optional[str] = None,
         openai_key: Optional[str] = None,
+        autopack_key: Optional[str] = None,
         config_path: Optional[Path] = None,
     ):
         """Initialize run lifecycle manager.
@@ -53,20 +74,23 @@ class RunLifecycleManager:
             glm_key: GLM (Zhipu AI) API key
             anthropic_key: Anthropic API key
             openai_key: OpenAI API key
+            autopack_key: Autopack API key (optional, for API authentication)
             config_path: Path to models.yaml config
         """
         self.run_id = run_id
         self.glm_key = glm_key
         self.anthropic_key = anthropic_key
         self.openai_key = openai_key
+        self.autopack_key = autopack_key
         self.config_path = config_path or (
             Path(__file__).parent.parent.parent / "config" / "models.yaml"
         )
 
     def validate_api_keys(self) -> None:
-        """IMP-R06: Validate API keys before execution.
+        """IMP-R06, IMP-SEC-008: Validate API keys before execution.
 
-        Ensures at least one LLM API key is configured and validates format.
+        Ensures at least one LLM API key is configured and validates format
+        using provider-specific regex patterns.
         Prevents execution with invalid/missing API keys.
 
         Raises:
@@ -82,30 +106,41 @@ class RunLifecycleManager:
                 "GLM_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY"
             )
 
-        # Validate GLM key format if present
+        # Validate GLM key format if present (IMP-SEC-008)
         if self.glm_key:
             if not isinstance(self.glm_key, str) or len(self.glm_key.strip()) == 0:
                 invalid_keys.append("GLM_API_KEY (empty or invalid format)")
-            elif len(self.glm_key) < 10:  # Basic length check
-                invalid_keys.append("GLM_API_KEY (suspiciously short)")
+            elif not API_KEY_PATTERNS["glm"].match(self.glm_key):
+                invalid_keys.append(
+                    "GLM_API_KEY (invalid format - expected alphanumeric with dash/underscore, min 10 chars)"
+                )
 
-        # Validate Anthropic key format if present
+        # Validate Anthropic key format if present (IMP-SEC-008)
         if self.anthropic_key:
             if not isinstance(self.anthropic_key, str) or len(self.anthropic_key.strip()) == 0:
                 invalid_keys.append("ANTHROPIC_API_KEY (empty or invalid format)")
-            elif not self.anthropic_key.startswith("sk-"):
-                invalid_keys.append("ANTHROPIC_API_KEY (invalid format - must start with 'sk-')")
-            elif len(self.anthropic_key) < 20:
-                invalid_keys.append("ANTHROPIC_API_KEY (suspiciously short)")
+            elif not API_KEY_PATTERNS["anthropic"].match(self.anthropic_key):
+                invalid_keys.append(
+                    "ANTHROPIC_API_KEY (invalid format - expected sk- prefix followed by alphanumeric, min 23 chars total)"
+                )
 
-        # Validate OpenAI key format if present
+        # Validate OpenAI key format if present (IMP-SEC-008)
         if self.openai_key:
             if not isinstance(self.openai_key, str) or len(self.openai_key.strip()) == 0:
                 invalid_keys.append("OPENAI_API_KEY (empty or invalid format)")
-            elif not self.openai_key.startswith("sk-"):
-                invalid_keys.append("OPENAI_API_KEY (invalid format - must start with 'sk-')")
-            elif len(self.openai_key) < 20:
-                invalid_keys.append("OPENAI_API_KEY (suspiciously short)")
+            elif not API_KEY_PATTERNS["openai"].match(self.openai_key):
+                invalid_keys.append(
+                    "OPENAI_API_KEY (invalid format - expected sk- prefix followed by alphanumeric, min 23 chars total)"
+                )
+
+        # Validate Autopack key format if present (IMP-SEC-008)
+        if self.autopack_key:
+            if not isinstance(self.autopack_key, str) or len(self.autopack_key.strip()) == 0:
+                invalid_keys.append("AUTOPACK_API_KEY (empty or invalid format)")
+            elif not API_KEY_PATTERNS["autopack"].match(self.autopack_key):
+                invalid_keys.append(
+                    "AUTOPACK_API_KEY (invalid format - expected alphanumeric with dash/underscore, min 10 chars)"
+                )
 
         # Raise error if any keys are invalid
         if invalid_keys:
@@ -121,6 +156,8 @@ class RunLifecycleManager:
             configured_keys.append(f"ANTHROPIC_API_KEY={mask_credential(self.anthropic_key)}")
         if self.openai_key:
             configured_keys.append(f"OPENAI_API_KEY={mask_credential(self.openai_key)}")
+        if self.autopack_key:
+            configured_keys.append(f"AUTOPACK_API_KEY={mask_credential(self.autopack_key)}")
 
         logger.info(f"API key validation passed. Configured: {', '.join(configured_keys)}")
 

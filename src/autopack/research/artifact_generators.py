@@ -16,7 +16,15 @@ from autopack.research.analysis.deployment_analysis import (
     DeploymentTarget,
 )
 from autopack.research.discovery.mcp_discovery import MCPScanResult
-from autopack.research.generators.cicd_generator import CICDWorkflowGenerator
+from autopack.research.generators.cicd_generator import (
+    CICDAnalyzer,
+    CICDPlatform,
+    CICDWorkflowGenerator,
+    DeploymentGuidance,
+    DeploymentTarget,
+    GitLabCIGenerator,
+    JenkinsPipelineGenerator,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -2120,8 +2128,11 @@ class ArtifactGeneratorRegistry:
 
     def _register_defaults(self) -> None:
         """Register default generators."""
-        self.register("cicd", CICDWorkflowGenerator)
-        self.register("deployment", DeploymentGuidanceGenerator)
+        self.register("cicd", CICDWorkflowGenerator, "GitHub Actions workflow generator")
+        self.register("gitlab_ci", GitLabCIGenerator, "GitLab CI/CD pipeline generator")
+        self.register("jenkins", JenkinsPipelineGenerator, "Jenkins pipeline generator")
+        self.register("cicd_analyzer", CICDAnalyzer, "CI/CD analyzer for multi-platform generation")
+        self.register("deployment", DeploymentGuidanceGenerator, "Deployment guidance generator")
         self.register("monetization", MonetizationStrategyGenerator)
         self.register("readme", ProjectReadmeGenerator)
         self.register("project_brief", ProjectBriefGenerator)
@@ -2295,4 +2306,55 @@ def get_deployment_generator(**kwargs: Any) -> DeploymentGuidanceGenerator:
     if generator is None:
         # Fallback to direct instantiation
         return DeploymentGuidanceGenerator(**kwargs)
+    return generator
+
+
+def get_gitlab_ci_generator(**kwargs: Any) -> GitLabCIGenerator:
+    """Convenience function to get the GitLab CI generator.
+
+    Args:
+        **kwargs: Arguments to pass to GitLabCIGenerator
+
+    Returns:
+        GitLabCIGenerator instance
+    """
+    generator = get_registry().get("gitlab_ci", **kwargs)
+    if generator is None:
+        # Fallback to direct instantiation
+        return GitLabCIGenerator(**kwargs)
+    return generator
+
+
+def get_jenkins_generator(**kwargs: Any) -> JenkinsPipelineGenerator:
+    """Convenience function to get the Jenkins pipeline generator.
+
+    Args:
+        **kwargs: Arguments to pass to JenkinsPipelineGenerator
+
+    Returns:
+        JenkinsPipelineGenerator instance
+    """
+    generator = get_registry().get("jenkins", **kwargs)
+    if generator is None:
+        # Fallback to direct instantiation
+        return JenkinsPipelineGenerator(**kwargs)
+    return generator
+
+
+def get_cicd_analyzer(**kwargs: Any) -> CICDAnalyzer:
+    """Convenience function to get the CI/CD analyzer.
+
+    The analyzer can generate CI/CD configs for multiple platforms
+    and integrates with deployment guidance.
+
+    Args:
+        **kwargs: Arguments to pass to CICDAnalyzer
+
+    Returns:
+        CICDAnalyzer instance
+    """
+    generator = get_registry().get("cicd_analyzer", **kwargs)
+    if generator is None:
+        # Fallback to direct instantiation
+        return CICDAnalyzer(**kwargs)
     return generator

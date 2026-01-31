@@ -2,7 +2,7 @@
 Analysis module for Autopack research.
 
 Contains cost-effectiveness analysis, gap detection, build vs buy analysis,
-deployment analysis, monetization analysis, and follow-up research triggers.
+deployment analysis, monetization analysis, follow-up research triggers, and cross-project pattern extraction.
 """
 
 from autopack.research.analysis.build_vs_buy_analyzer import (
@@ -71,6 +71,14 @@ from autopack.research.analysis.monetization_analysis import (
     RevenueConfidence,
     RevenueProjection,
 )
+from autopack.research.analysis.pattern_extractor import (
+    ExtractedPattern,
+    PatternConfidence,
+    PatternExtractionResult,
+    PatternExtractor,
+    PatternType,
+    ProjectOutcome,
+)
 
 __all__ = [
     # Build vs Buy analysis
@@ -132,4 +140,11 @@ __all__ = [
     "RevenueConfidence",
     "RevenueProjection",
     "CompetitorPricing",
+    # Pattern extraction (cross-project learning)
+    "PatternExtractor",
+    "ExtractedPattern",
+    "PatternExtractionResult",
+    "PatternType",
+    "PatternConfidence",
+    "ProjectOutcome",
 ]

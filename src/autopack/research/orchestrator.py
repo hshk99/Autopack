@@ -11,7 +11,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional, Protocol
+from typing import Any, Optional
 from uuid import uuid4
 
 # Analysis modules for cost-effectiveness, state tracking, and follow-up triggers
@@ -20,6 +20,13 @@ from autopack.research.analysis import (
     CostEffectivenessAnalyzer,
     FollowupResearchTrigger,
     ResearchStateTracker,
+)
+from autopack.research.analysis.pattern_extractor import (
+    PatternExtractionResult,
+    PatternExtractor,
+)
+from autopack.research.discovery.project_history_analyzer import (
+    ProjectHistoryAnalyzer,
 )
 from autopack.research.frameworks.competitive_intensity import CompetitiveIntensity
 from autopack.research.frameworks.market_attractiveness import MarketAttractiveness
@@ -141,6 +148,7 @@ class ResearchOrchestrator:
     - Cost-effectiveness analysis for build/buy decisions
     - Incremental research via state tracking
     - Automated follow-up research triggers
+    - Cross-project learning and pattern reuse
     """
 
     def __init__(
@@ -168,9 +176,18 @@ class ResearchOrchestrator:
         self._followup_trigger = FollowupResearchTrigger()
         self._state_tracker: Optional[ResearchStateTracker] = None
 
+        # Cross-project learning components
+        self._pattern_extractor = PatternExtractor()
+        self._history_analyzer: Optional[ProjectHistoryAnalyzer] = None
+        self._pattern_cache: Optional[PatternExtractionResult] = None
+
         # Initialize state tracker if project root provided
         if project_root:
             self._state_tracker = ResearchStateTracker(project_root)
+            history_path = project_root / ".autopack" / "project_history.json"
+            self._history_analyzer = ProjectHistoryAnalyzer(
+                project_history_path=history_path
+            )
 
     def initialize_state_tracking(self, project_root: Path, project_id: str) -> None:
         """Initialize research state tracking for incremental research.
@@ -705,6 +722,294 @@ class ResearchOrchestrator:
 
         return self._state_tracker.get_session_summary()
 
+    # ========================================================================
+    # Cross-Project Learning and Pattern Methods
+    # ========================================================================
+
+    def initialize_pattern_learning(
+        self,
+        learning_db: Any,
+        project_history_path: Optional[Path] = None,
+    ) -> None:
+        """Initialize cross-project learning with pattern extraction.
+
+        Args:
+            learning_db: LearningDatabase instance for pattern storage
+            project_history_path: Optional path to project history file
+        """
+        if project_history_path:
+            self._history_analyzer = ProjectHistoryAnalyzer(
+                learning_db=learning_db,
+                project_history_path=project_history_path,
+            )
+        elif self._history_analyzer:
+            self._history_analyzer.set_learning_db(learning_db)
+        else:
+            self._history_analyzer = ProjectHistoryAnalyzer(learning_db=learning_db)
+
+        logger.info("Initialized cross-project learning with pattern extraction")
+
+    def extract_patterns_from_history(
+        self,
+        learning_db: Optional[Any] = None,
+    ) -> PatternExtractionResult:
+        """Extract patterns from historical project data.
+
+        Analyzes past projects, improvements, and cycles to identify
+        successful patterns that can inform new project recommendations.
+
+        Args:
+            learning_db: Optional LearningDatabase instance
+
+        Returns:
+            PatternExtractionResult with extracted patterns
+        """
+        logger.info("Extracting patterns from project history")
+
+        # Get data from history analyzer
+        if not self._history_analyzer:
+            self._history_analyzer = ProjectHistoryAnalyzer(learning_db=learning_db)
+
+        if learning_db:
+            self._history_analyzer.set_learning_db(learning_db)
+
+        # Analyze history
+        history_result = self._history_analyzer.analyze_history(
+            include_improvements=True,
+            include_cycles=True,
+        )
+
+        # Convert project summaries to format expected by pattern extractor
+        project_history = []
+        for summary in history_result.project_summaries:
+            project_history.append({
+                "project_id": summary.project_id,
+                "project_type": summary.project_type,
+                "outcome": summary.overall_outcome,
+                "tech_stack": summary.tech_stack,
+                "architecture": summary.architecture,
+                "monetization": summary.monetization,
+                "deployment": summary.deployment,
+                "timestamp": summary.start_date or "",
+            })
+
+        # Get improvement and cycle data from learning_db if available
+        improvement_outcomes: dict[str, dict[str, Any]] = {}
+        cycle_data: dict[str, dict[str, Any]] = {}
+
+        if learning_db:
+            for imp in learning_db.list_improvements():
+                imp_id = imp.get("imp_id", "")
+                if imp_id:
+                    improvement_outcomes[imp_id] = imp
+
+            for cycle in learning_db.list_cycles():
+                cycle_id = cycle.get("cycle_id", "")
+                if cycle_id:
+                    cycle_data[cycle_id] = cycle
+
+        # Extract patterns
+        extraction_result = self._pattern_extractor.extract_patterns(
+            project_history=project_history,
+            improvement_outcomes=improvement_outcomes,
+            cycle_data=cycle_data,
+        )
+
+        # Cache the result
+        self._pattern_cache = extraction_result
+
+        logger.info(
+            "Extracted %d patterns from %d projects",
+            len(extraction_result.patterns),
+            extraction_result.total_projects_analyzed,
+        )
+
+        return extraction_result
+
+    def get_pattern_recommendations(
+        self,
+        project_context: dict[str, Any],
+        learning_db: Optional[Any] = None,
+    ) -> list[dict[str, Any]]:
+        """Get pattern recommendations for a new project.
+
+        Uses extracted patterns to recommend approaches based on
+        historical success rates and project context.
+
+        Args:
+            project_context: Context of the new project including:
+                - project_type: Type of project
+                - keywords: Relevant keywords for matching
+                - requirements: Project requirements
+            learning_db: Optional LearningDatabase for fresh extraction
+
+        Returns:
+            List of recommended patterns with relevance scores
+        """
+        logger.info("Getting pattern recommendations for project context")
+
+        # Extract patterns if not cached
+        if not self._pattern_cache:
+            self.extract_patterns_from_history(learning_db)
+
+        if not self._pattern_cache:
+            return []
+
+        # Get recommendations from pattern extractor
+        recommendations = self._pattern_extractor.get_recommended_patterns(
+            self._pattern_cache,
+            project_context,
+        )
+
+        # Convert to dictionary format
+        return [p.to_dict() for p in recommendations]
+
+    def get_patterns_for_project_type(
+        self,
+        project_type: str,
+    ) -> list[dict[str, Any]]:
+        """Get patterns relevant to a specific project type.
+
+        Args:
+            project_type: Type of project to get patterns for
+
+        Returns:
+            List of relevant patterns sorted by success rate
+        """
+        if not self._pattern_cache:
+            return []
+
+        patterns = self._pattern_extractor.get_patterns_for_project_type(
+            self._pattern_cache,
+            project_type,
+        )
+
+        return [p.to_dict() for p in patterns]
+
+    def record_project_outcome(
+        self,
+        project_id: str,
+        project_type: str,
+        outcome: str,
+        tech_stack: Optional[dict[str, Any]] = None,
+        architecture: Optional[dict[str, Any]] = None,
+        monetization: Optional[dict[str, Any]] = None,
+        deployment: Optional[dict[str, Any]] = None,
+        lessons_learned: Optional[list[str]] = None,
+        learning_db: Optional[Any] = None,
+    ) -> bool:
+        """Record a project outcome for future pattern learning.
+
+        Stores project data in the history for future pattern extraction.
+
+        Args:
+            project_id: Unique project identifier
+            project_type: Type of project
+            outcome: Project outcome (successful, partial, abandoned, blocked)
+            tech_stack: Technology stack used
+            architecture: Architecture decisions
+            monetization: Monetization strategy
+            deployment: Deployment configuration
+            lessons_learned: Key lessons from the project
+            learning_db: Optional LearningDatabase for storage
+
+        Returns:
+            True if recording was successful
+        """
+        logger.info("Recording project outcome: %s (%s)", project_id, outcome)
+
+        # Store in history analyzer if available
+        if self._history_analyzer:
+            from autopack.research.discovery.project_history_analyzer import (
+                ProjectSummary,
+            )
+
+            summary = ProjectSummary(
+                project_id=project_id,
+                project_type=project_type,
+                overall_outcome=outcome,
+                tech_stack=tech_stack or {},
+                architecture=architecture or {},
+                monetization=monetization or {},
+                deployment=deployment or {},
+                lessons_learned=lessons_learned or [],
+            )
+
+            self._history_analyzer.save_project_summary(summary)
+
+        # Also store in learning_db if available
+        if learning_db:
+            learning_db.store_project_history(
+                project_id=project_id,
+                project_data={
+                    "project_type": project_type,
+                    "outcome": outcome,
+                    "tech_stack": tech_stack or {},
+                    "architecture": architecture or {},
+                    "monetization": monetization or {},
+                    "deployment": deployment or {},
+                    "lessons_learned": lessons_learned or [],
+                },
+            )
+
+        # Invalidate pattern cache since we have new data
+        self._pattern_cache = None
+
+        return True
+
+    def get_cross_project_insights(
+        self,
+        learning_db: Optional[Any] = None,
+    ) -> dict[str, Any]:
+        """Get cross-project learning insights.
+
+        Provides a summary of patterns, success factors, and
+        recommendations based on historical project data.
+
+        Args:
+            learning_db: Optional LearningDatabase for insights
+
+        Returns:
+            Dictionary with cross-project insights
+        """
+        insights: dict[str, Any] = {
+            "pattern_extraction": None,
+            "history_analysis": None,
+            "recommendations": [],
+        }
+
+        # Get pattern extraction results
+        if not self._pattern_cache:
+            self.extract_patterns_from_history(learning_db)
+
+        if self._pattern_cache:
+            insights["pattern_extraction"] = {
+                "total_patterns": len(self._pattern_cache.patterns),
+                "top_patterns": [p.to_dict() for p in self._pattern_cache.top_patterns[:5]],
+                "emerging_patterns": [
+                    p.to_dict() for p in self._pattern_cache.emerging_patterns[:3]
+                ],
+                "coverage_by_type": self._pattern_cache.coverage_by_type,
+            }
+
+        # Get history analysis
+        if self._history_analyzer:
+            history_result = self._history_analyzer.analyze_history()
+            insights["history_analysis"] = {
+                "projects_analyzed": history_result.projects_analyzed,
+                "success_correlations": history_result.success_correlations[:5],
+                "failure_correlations": history_result.failure_correlations[:3],
+                "recommendations": history_result.recommendations,
+            }
+            insights["recommendations"] = history_result.recommendations
+
+        # Get insights from learning_db if available
+        if learning_db and hasattr(learning_db, "get_cross_project_insights"):
+            db_insights = learning_db.get_cross_project_insights()
+            insights["learning_db_insights"] = db_insights
+
+        return insights
+
     def _get_market_indicators(self, project_type: ProjectType) -> list[str]:
         """Get market indicators for project type.
 
@@ -907,6 +1212,17 @@ class ResearchOrchestrator:
         # Add research state summary if tracking is enabled
         if self._state_tracker:
             synthesis["research_state"] = self._state_tracker.get_session_summary()
+
+        # Add pattern recommendations from cross-project learning
+        if self._pattern_cache or self._history_analyzer:
+            project_context = {
+                "project_type": parsed_idea.detected_project_type.value,
+                "keywords": parsed_idea.dependencies + [parsed_idea.title.lower()],
+                "requirements": parsed_idea.raw_requirements,
+            }
+            pattern_recommendations = self.get_pattern_recommendations(project_context)
+            if pattern_recommendations:
+                synthesis["pattern_recommendations"] = pattern_recommendations[:5]
 
         return synthesis
 

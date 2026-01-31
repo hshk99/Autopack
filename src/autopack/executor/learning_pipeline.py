@@ -11,15 +11,20 @@ for cross-run learning persistence.
 IMP-MEM-016: Adds persistence to LEARNING_MEMORY.json for cross-cycle learning.
 """
 
+import errno
 import logging
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional
 
 if TYPE_CHECKING:
     from autopack.learning_memory_manager import LearningMemoryManager
 
 logger = logging.getLogger(__name__)
+
+# IMP-REL-010: Backpressure configuration for memory service writes
+MAX_BATCH_SIZE = 100  # Maximum items per batch
+MAX_MEMORY_MB = 512  # Maximum memory usage before throttling
 
 
 class HintPersistenceError(Exception):
@@ -1015,6 +1020,38 @@ class LearningPipeline:
             return "low"
         return "medium"
 
+    def _chunked(self, items: List[Any], size: int) -> Generator[List[Any], None, None]:
+        """Yield successive chunks from items list.
+
+        IMP-REL-010: Split large batches to prevent memory spikes.
+
+        Args:
+            items: List of items to chunk
+            size: Maximum chunk size
+
+        Yields:
+            Lists of items, each of size <= size
+        """
+        for i in range(0, len(items), size):
+            yield items[i : i + size]
+
+    def _check_memory_pressure(self) -> bool:
+        """Check if current memory usage exceeds threshold.
+
+        IMP-REL-010: Detects memory pressure to trigger backpressure.
+
+        Returns:
+            True if memory usage exceeds MAX_MEMORY_MB, False otherwise
+        """
+        try:
+            import psutil
+
+            mem_mb = psutil.Process().memory_info().rss / (1024 * 1024)
+            return mem_mb > MAX_MEMORY_MB
+        except Exception as e:
+            logger.warning(f"[IMP-REL-010] Failed to check memory: {e}")
+            return False
+
     # =========================================================================
     # IMP-LOOP-020: Guaranteed Hint Persistence with Retry and Verification
     # =========================================================================
@@ -1103,10 +1140,15 @@ class LearningPipeline:
         raise HintPersistenceError(error_msg)
 
     def _persist_hints_batch(self, memory_service: Any, project_id: Optional[str]) -> int:
-        """Persist all hints in a batch operation.
+        """Persist all hints in a batch operation with backpressure.
 
         IMP-LOOP-020: Internal method for persisting hints without retry logic.
         Raises exception if no hints could be persisted to trigger retry.
+
+        IMP-REL-010: Adds backpressure and overflow protection by:
+        - Detecting memory pressure before processing
+        - Splitting large batches into chunks
+        - Handling MemoryError and disk full scenarios
 
         Args:
             memory_service: MemoryService instance
@@ -1121,35 +1163,69 @@ class LearningPipeline:
         persisted_count = 0
         last_error: Optional[Exception] = None
 
-        for hint in self._hints:
+        # IMP-REL-010: Check memory before processing
+        if self._check_memory_pressure():
+            logger.warning(
+                f"[IMP-REL-010] Memory pressure detected, throttling writes for {len(self._hints)} hints"
+            )
+            time.sleep(1)  # Backpressure: yield to system
+
+        # IMP-REL-010: Split large batches into chunks
+        for chunk in self._chunked(self._hints, MAX_BATCH_SIZE):
             try:
-                insight = {
-                    "insight_type": self._map_hint_type_to_insight_type(hint.hint_type),
-                    "description": hint.hint_text,
-                    "phase_id": hint.phase_id,
-                    "run_id": self.run_id,
-                    "suggested_action": hint.hint_text,
-                    "severity": self._get_hint_severity(hint.hint_type),
-                    "source_issue_keys": hint.source_issue_keys,
-                    "task_category": hint.task_category,
-                    # IMP-LOOP-020: Add metadata for verification
-                    "hint_id": f"{self.run_id}:{hint.phase_id}:{hint.hint_type}",
-                    "persistence_verified": False,
-                }
+                for hint in chunk:
+                    try:
+                        insight = {
+                            "insight_type": self._map_hint_type_to_insight_type(hint.hint_type),
+                            "description": hint.hint_text,
+                            "phase_id": hint.phase_id,
+                            "run_id": self.run_id,
+                            "suggested_action": hint.hint_text,
+                            "severity": self._get_hint_severity(hint.hint_type),
+                            "source_issue_keys": hint.source_issue_keys,
+                            "task_category": hint.task_category,
+                            # IMP-LOOP-020: Add metadata for verification
+                            "hint_id": f"{self.run_id}:{hint.phase_id}:{hint.hint_type}",
+                            "persistence_verified": False,
+                        }
 
-                result = memory_service.write_telemetry_insight(
-                    insight=insight,
-                    project_id=project_id,
-                    validate=True,
-                    strict=False,
-                )
+                        result = memory_service.write_telemetry_insight(
+                            insight=insight,
+                            project_id=project_id,
+                            validate=True,
+                            strict=False,
+                        )
 
-                if result:
-                    persisted_count += 1
+                        if result:
+                            persisted_count += 1
 
+                    except MemoryError:
+                        logger.error(
+                            f"[IMP-REL-010] MemoryError during persist, partial write of {persisted_count} hints"
+                        )
+                        raise
+                    except OSError as e:
+                        if e.errno == errno.ENOSPC:
+                            logger.error("[IMP-REL-010] Disk full, cannot persist hints")
+                            raise
+                        # Other OSErrors are caught at chunk level
+                        raise
+
+            except MemoryError as e:
+                # IMP-REL-010: MemoryError is critical, raise immediately
+                logger.error(f"[IMP-REL-010] Memory exhausted while persisting batch: {e}")
+                raise
+            except OSError as e:
+                if e.errno == errno.ENOSPC:
+                    # IMP-REL-010: Disk full is critical, raise immediately
+                    logger.error(f"[IMP-REL-010] Disk full while persisting batch: {e}")
+                    raise
+                # Other OSErrors should be retried
+                last_error = e
+                logger.warning(f"[IMP-LOOP-020] Failed to persist hint batch: {e}")
             except Exception as e:
                 last_error = e
-                logger.warning(f"[IMP-LOOP-020] Failed to persist hint {hint.phase_id}: {e}")
+                logger.warning(f"[IMP-LOOP-020] Failed to persist hint batch: {e}")
 
         # If no hints were persisted and we had errors, raise to trigger retry
         if persisted_count == 0 and last_error is not None:

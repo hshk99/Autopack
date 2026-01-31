@@ -19,7 +19,6 @@ Usage:
         screenshot = await session.screenshot()
 """
 
-import asyncio
 import logging
 import time
 from dataclasses import dataclass, field

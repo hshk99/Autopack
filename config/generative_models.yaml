@@ -1,0 +1,246 @@
+# Generative AI Models Configuration
+# Provides unified abstraction for image, video, voice, and background removal capabilities
+#
+# Generated: 2026-02-01
+# Source of Truth: IMP-GEN-001 Specification
+
+# Provider definitions with endpoints and configuration
+providers:
+  together_ai:
+    endpoint: "https://api.together.xyz/inference"
+    api_key_env: "TOGETHER_API_KEY"
+    timeout_seconds: 120
+    max_retries: 3
+    metadata:
+      type: "cloud"
+      region: "global"
+      description: "Together AI - unified LLM/generative model provider"
+
+  runpod:
+    endpoint: "https://api.runpod.io/graphql"
+    api_key_env: "RUNPOD_API_KEY"
+    timeout_seconds: 180
+    max_retries: 3
+    metadata:
+      type: "cloud"
+      region: "global"
+      description: "RunPod - serverless GPU compute platform"
+
+  vertex_ai:
+    endpoint: "https://us-central1-aiplatform.googleapis.com/v1"
+    api_key_env: "GOOGLE_APPLICATION_CREDENTIALS"
+    timeout_seconds: 120
+    max_retries: 3
+    metadata:
+      type: "cloud"
+      region: "us-central1"
+      description: "Google Vertex AI - GCP managed AI services"
+
+  self_hosted:
+    endpoint: "http://localhost:8000"
+    api_key_env: null
+    timeout_seconds: 60
+    max_retries: 2
+    metadata:
+      type: "local"
+      region: "local"
+      description: "Self-hosted local deployment"
+
+# Capability definitions with models and fallback chains
+capabilities:
+  image_generation:
+    default_model: flux_schnell
+    fallback_chain:
+      - flux_schnell
+      - sdxl_turbo
+      - dalle3
+    min_acceptable_quality: 0.80
+    prefer_open_source_if_above: 0.85
+    models:
+      flux_schnell:
+        provider: together_ai
+        name: "FLUX.1 Schnell"
+        quality_score: 0.75
+        cost_per_unit: 0.0003
+        license: "Apache 2.0"
+        supported_params: ["prompt", "width", "height", "num_inference_steps"]
+
+      sdxl_turbo:
+        provider: together_ai
+        name: "Stable Diffusion XL Turbo"
+        quality_score: 0.72
+        cost_per_unit: 0.0002
+        license: "OpenRAIL"
+        supported_params: ["prompt", "width", "height", "num_inference_steps"]
+
+      dalle3:
+        provider: vertex_ai
+        name: "DALL-E 3"
+        quality_score: 0.85
+        cost_per_unit: 0.002
+        license: "Proprietary"
+        supported_params: ["prompt", "size", "quality", "style"]
+
+  video_generation:
+    default_model: hunyuan_video
+    fallback_chain:
+      - hunyuan_video
+      - wan_22
+      - ltx_video
+      - veo_31
+    min_acceptable_quality: 0.80
+    prefer_open_source_if_above: 0.85
+    models:
+      hunyuan_video:
+        provider: runpod
+        name: "HunyuanVideo"
+        quality_score: 0.85
+        cost_per_unit: 0.015
+        license: "Apache 2.0"
+        supported_params: ["prompt", "duration", "num_frames", "resolution"]
+
+      wan_22:
+        provider: runpod
+        name: "Wan 2.2"
+        quality_score: 0.78
+        cost_per_unit: 0.012
+        license: "Open Source"
+        supported_params: ["prompt", "duration", "num_frames"]
+
+      ltx_video:
+        provider: runpod
+        name: "LTX Video"
+        quality_score: 0.82
+        cost_per_unit: 0.018
+        license: "MIT"
+        supported_params: ["prompt", "duration", "num_frames", "resolution"]
+
+      veo_31:
+        provider: vertex_ai
+        name: "Veo 3.1"
+        quality_score: 0.88
+        cost_per_unit: 0.025
+        license: "Proprietary"
+        supported_params: ["prompt", "duration", "resolution", "aspect_ratio"]
+
+  voice_tts:
+    default_model: chatterbox_turbo
+    fallback_chain:
+      - chatterbox_turbo
+      - kokoro_82m
+      - bark
+      - elevenlabs
+    min_acceptable_quality: 0.80
+    prefer_open_source_if_above: 0.85
+    models:
+      chatterbox_turbo:
+        provider: runpod
+        name: "Chatterbox Turbo"
+        quality_score: 0.825
+        cost_per_unit: 0.001
+        license: "Apache 2.0"
+        supported_params: ["text", "voice_profile", "language", "speed", "pitch"]
+
+      kokoro_82m:
+        provider: self_hosted
+        name: "Kokoro 82M"
+        quality_score: 0.79
+        cost_per_unit: 0.0001
+        license: "Apache 2.0"
+        supported_params: ["text", "voice_profile", "language", "speed"]
+
+      bark:
+        provider: self_hosted
+        name: "Bark"
+        quality_score: 0.75
+        cost_per_unit: 0.00005
+        license: "MIT"
+        supported_params: ["text", "voice_preset", "language"]
+
+      elevenlabs:
+        provider: together_ai
+        name: "ElevenLabs TTS"
+        quality_score: 0.92
+        cost_per_unit: 0.003
+        license: "Proprietary"
+        supported_params: ["text", "voice_id", "model_id", "optimize_streaming_latency"]
+
+  background_removal:
+    default_model: bria_rmbg_2
+    fallback_chain:
+      - bria_rmbg_2
+      - birefnet
+      - inspyrenet
+    min_acceptable_quality: 0.80
+    prefer_open_source_if_above: 0.85
+    models:
+      bria_rmbg_2:
+        provider: runpod
+        name: "BRIA RMBG 2.0"
+        quality_score: 0.95
+        cost_per_unit: 0.001
+        license: "Apache 2.0"
+        supported_params: ["image_url", "output_format", "quality"]
+
+      birefnet:
+        provider: self_hosted
+        name: "BiRefNet"
+        quality_score: 0.88
+        cost_per_unit: 0.0002
+        license: "Apache 2.0"
+        supported_params: ["image_url", "output_format"]
+
+      inspyrenet:
+        provider: self_hosted
+        name: "InSPyreNet"
+        quality_score: 0.82
+        cost_per_unit: 0.0001
+        license: "BSD 3-Clause"
+        supported_params: ["image_url", "output_format"]
+
+# Quality thresholds and routing policies
+quality_thresholds:
+  min_acceptable: 0.80
+  prefer_open_source_if_above: 0.85
+  premium_threshold: 0.95
+  fallback_minimum: 0.70
+
+# Cost configuration
+costs:
+  providers:
+    together_ai:
+      type: "token_based"
+      pricing_tier: "standard"
+
+    runpod:
+      type: "time_based"
+      pricing_tier: "standard"
+
+    vertex_ai:
+      type: "api_call_based"
+      pricing_tier: "premium"
+
+    self_hosted:
+      type: "compute_based"
+      pricing_tier: "free"
+
+# Feature flags for generative AI capabilities
+features:
+  enable_image_generation: true
+  enable_video_generation: true
+  enable_voice_generation: true
+  enable_background_removal: true
+  enable_model_fallback: true
+  enable_health_monitoring: true
+  enable_cost_tracking: true
+  auto_select_open_source: false
+
+# Logging and monitoring
+monitoring:
+  log_level: "info"
+  log_provider_calls: true
+  track_costs: true
+  health_check_interval_seconds: 300
+  failure_threshold_for_unhealthy: 3
+  recovery_wait_base_seconds: 5
+  recovery_wait_max_seconds: 300

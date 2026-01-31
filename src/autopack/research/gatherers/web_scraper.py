@@ -12,7 +12,10 @@ This module is structured to be unit-testable via request mocking.
 
 from __future__ import annotations
 
+import logging
+import socket
 import time
+import urllib.error
 import urllib.parse
 import urllib.robotparser
 from dataclasses import dataclass
@@ -23,6 +26,8 @@ import requests
 from autopack.research.gatherers.content_extractor import ContentExtractor
 
 from ...exceptions import IntegrationError, ValidationError
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -123,8 +128,13 @@ class WebScraper:
         self._last_request_ts_by_domain[domain] = time.time()
 
     def _allowed_by_robots(self, url: str) -> bool:
-        # Conservative best-effort: if robots cannot be fetched/parsed, allow
-        # (real deployments may want the opposite).
+        """Check if URL is allowed by robots.txt.
+
+        Returns:
+            True if allowed or on transient network errors
+            False if robots.txt denies the request
+            Raises on unexpected errors
+        """
         parsed = urllib.parse.urlparse(url)
         domain = parsed.netloc.lower()
         rp = self._robots_cache.get(domain)
@@ -133,11 +143,36 @@ class WebScraper:
             rp.set_url(f"{parsed.scheme}://{domain}/robots.txt")
             try:
                 rp.read()
-            except Exception:
+            except (urllib.error.URLError, socket.timeout) as e:
+                logger.warning(
+                    f"Network error fetching robots.txt for {domain}: {e}. "
+                    "Allowing request due to transient network issue."
+                )
                 self._robots_cache[domain] = rp
                 return True
+            except ValueError as e:
+                logger.error(
+                    f"Invalid robots.txt for {domain}: {e}. " "Denying request due to parse error."
+                )
+                self._robots_cache[domain] = rp
+                return False
+            except Exception as e:
+                logger.error(f"Unexpected error reading robots.txt for {domain}: {e}")
+                raise
             self._robots_cache[domain] = rp
         try:
             return rp.can_fetch(self.user_agent, url)
-        except Exception:
+        except (urllib.error.URLError, socket.timeout) as e:
+            logger.warning(
+                f"Network error checking robots.txt for {url}: {e}. "
+                "Allowing request due to transient network issue."
+            )
             return True
+        except ValueError as e:
+            logger.error(
+                f"Invalid robots.txt check for {url}: {e}. " "Denying request due to parse error."
+            )
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error checking robots.txt for {url}: {e}")
+            raise

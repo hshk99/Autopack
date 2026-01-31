@@ -79,6 +79,17 @@ from autopack.research.analysis.pattern_extractor import (
     PatternType,
     ProjectOutcome,
 )
+from autopack.research.analysis.build_history_analyzer import (
+    BuildHistoryAnalyzer,
+    BuildHistoryAnalysisResult,
+    BuildMetrics,
+    BuildOutcome,
+    CostEffectivenessFeedback,
+    FeasibilityFeedback,
+    FeasibilitySignal,
+    MetricTrend,
+    get_build_history_feedback,
+)
 
 __all__ = [
     # Build vs Buy analysis
@@ -147,4 +158,14 @@ __all__ = [
     "PatternType",
     "PatternConfidence",
     "ProjectOutcome",
+    # Build history analysis
+    "BuildHistoryAnalyzer",
+    "BuildHistoryAnalysisResult",
+    "BuildMetrics",
+    "BuildOutcome",
+    "CostEffectivenessFeedback",
+    "FeasibilityFeedback",
+    "FeasibilitySignal",
+    "MetricTrend",
+    "get_build_history_feedback",
 ]

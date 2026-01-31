@@ -24,7 +24,7 @@ class TestValidateAnchorField:
         anchor = IntentionAnchorV2(
             project_id="test",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
         )
         result = validate_anchor_field(anchor, "nonexistent_field", required=False)
         assert result is None
@@ -34,7 +34,7 @@ class TestValidateAnchorField:
         anchor = IntentionAnchorV2(
             project_id="test",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
         )
         with pytest.raises(ValueError, match="Required anchor field"):
             validate_anchor_field(anchor, "nonexistent_field", required=True)
@@ -44,7 +44,7 @@ class TestValidateAnchorField:
         anchor = IntentionAnchorV2(
             project_id="test-project",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
         )
         result = validate_anchor_field(anchor, "project_id", required=False)
         assert result == "test-project"
@@ -66,7 +66,7 @@ class TestValidateAnchorField:
         anchor = IntentionAnchorV2(
             project_id="test",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
             pivot_intentions=pivot_intentions,
         )
         result = validate_anchor_field(anchor, "pivot_intentions", required=False)
@@ -82,7 +82,7 @@ class TestAnchorValidator:
         anchor = IntentionAnchorV2(
             project_id="test",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
             pivot_intentions=PivotIntentions(),
         )
         is_valid, errors = AnchorValidator.validate(anchor)
@@ -101,7 +101,7 @@ class TestAnchorValidator:
         anchor = IntentionAnchorV2(
             project_id="test",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
         )
         # Manually set pivot_intentions to None to test validation
         anchor.pivot_intentions = None
@@ -117,7 +117,7 @@ class TestAnchorValidator:
         anchor = IntentionAnchorV2(
             project_id="test",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
             pivot_intentions=pivot_intentions,
         )
         result = AnchorValidator.validate_pivot_intentions(anchor, "north_star", required=False)
@@ -129,7 +129,7 @@ class TestAnchorValidator:
         anchor = IntentionAnchorV2(
             project_id="test",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
             pivot_intentions=PivotIntentions(),
         )
         result = AnchorValidator.validate_pivot_intentions(anchor, "safety_risk", required=False)
@@ -140,7 +140,7 @@ class TestAnchorValidator:
         anchor = IntentionAnchorV2(
             project_id="test",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
             pivot_intentions=PivotIntentions(),
         )
         with pytest.raises(ValueError, match="Required pivot intention"):
@@ -165,7 +165,7 @@ class TestIntentionAnchorV2Methods:
         anchor = IntentionAnchorV2(
             project_id="test",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
             pivot_intentions=PivotIntentions(),
         )
         is_valid, errors = anchor.validate_for_consumption()
@@ -177,7 +177,7 @@ class TestIntentionAnchorV2Methods:
         anchor = IntentionAnchorV2(
             project_id="test",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
         )
         anchor.pivot_intentions = None
 
@@ -190,7 +190,7 @@ class TestIntentionAnchorV2Methods:
         anchor = IntentionAnchorV2(
             project_id="test-project",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
             pivot_intentions=PivotIntentions(),
         )
         result = anchor.get_safe("project_id", default="default")
@@ -201,7 +201,7 @@ class TestIntentionAnchorV2Methods:
         anchor = IntentionAnchorV2(
             project_id="test",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
         )
         result = anchor.get_safe("nonexistent_field", default="default_value")
         assert result == "default_value"
@@ -211,7 +211,7 @@ class TestIntentionAnchorV2Methods:
         anchor = IntentionAnchorV2(
             project_id="test",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
             updated_at=None,  # Explicitly None
         )
         result = anchor.get_safe("updated_at", default="default_value")
@@ -222,7 +222,7 @@ class TestIntentionAnchorV2Methods:
         anchor = IntentionAnchorV2(
             project_id="test",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
         )
         result = anchor.get_safe("nonexistent_field", default=None)
         assert result is None
@@ -245,7 +245,7 @@ class TestSafeAnchorAccessDecorator:
         anchor = IntentionAnchorV2(
             project_id="test",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
         )
         obj = TestClass(anchor)
         result = obj.get_project()
@@ -265,7 +265,7 @@ class TestSafeAnchorAccessDecorator:
         anchor = IntentionAnchorV2(
             project_id="test",
             created_at=datetime.now(timezone.utc),
-            raw_input_digest="abc123",
+            raw_input_digest="a1b2c3d4e5f67890",
         )
         obj = TestClass(anchor)
         result = obj.get_field()

@@ -524,9 +524,6 @@ class ProjectHistoryAnalyzer:
         if not successful_projects or not all_projects:
             return correlations
 
-        # Analyze what successful projects have in common
-        success_rate = len(successful_projects) / len(all_projects)
-
         # Check for common tech stack elements
         tech_elements: dict[str, int] = {}
         for project in successful_projects:

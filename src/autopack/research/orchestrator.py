@@ -11,7 +11,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional, Protocol
+from typing import Any, Optional
 from uuid import uuid4
 
 # Analysis modules for cost-effectiveness, state tracking, and follow-up triggers
@@ -22,14 +22,11 @@ from autopack.research.analysis import (
     ResearchStateTracker,
 )
 from autopack.research.analysis.pattern_extractor import (
-    ExtractedPattern,
     PatternExtractionResult,
     PatternExtractor,
 )
 from autopack.research.discovery.project_history_analyzer import (
-    HistoryAnalysisResult,
     ProjectHistoryAnalyzer,
-    ProjectSummary,
 )
 from autopack.research.frameworks.competitive_intensity import CompetitiveIntensity
 from autopack.research.frameworks.market_attractiveness import MarketAttractiveness

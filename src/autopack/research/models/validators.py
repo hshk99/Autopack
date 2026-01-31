@@ -10,6 +10,7 @@ FIXES APPLIED:
 
 import re
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from typing import Optional
 
 from autopack.text_normalization import normalize_text
@@ -90,6 +91,12 @@ class CitationValidator:
                     confidence=0.9,
                 )
 
+        # Check 4: Semantic validation - verify content matches extraction_span semantically
+        # This detects paraphrasing errors and hallucinations in the content field
+        semantic_result = self._verify_semantic_accuracy(finding, normalized_span)
+        if not semantic_result.valid:
+            return semantic_result
+
         # All checks passed
         return VerificationResult(
             valid=True, reason="citation verified successfully", confidence=0.95
@@ -150,3 +157,130 @@ class CitationValidator:
         # If span has numbers (or category doesn't require them), it's valid
         # We trust the quote is from source, which Check 1 already verified
         return True
+
+    def _verify_semantic_accuracy(
+        self, finding: Finding, normalized_span: str
+    ) -> VerificationResult:
+        """Verify that content accurately reflects the extraction_span semantically.
+
+        PHASE 3 ENHANCEMENT (2025-01-31):
+        Adds semantic validation to detect:
+        - Paraphrasing errors where content doesn't match the actual quote
+        - Hallucinations where LLM invents interpretations
+        - Content that misrepresents the source material
+
+        Args:
+            finding: The research finding to verify
+            normalized_span: Normalized extraction span from source
+
+        Returns:
+            VerificationResult indicating if semantic validation passes
+        """
+        # Normalize content for comparison
+        normalized_content = self._normalize_text(finding.content)
+
+        # Check 1: Semantic similarity using sequence matching
+        # Measures how similar the content is to the extraction_span
+        similarity = SequenceMatcher(
+            None, normalized_content.lower(), normalized_span.lower()
+        ).ratio()
+
+        if similarity < 0.3:
+            return VerificationResult(
+                valid=False,
+                reason=f"Content doesn't match extraction_span semantically (similarity: {similarity:.1%})",
+                confidence=0.85,
+            )
+
+        # Check 2: Key term preservation
+        # Ensure important words from the span are preserved in the content
+        span_terms = set(self._extract_key_terms(normalized_span))
+        content_terms = set(self._extract_key_terms(normalized_content))
+
+        if span_terms:
+            overlap = len(span_terms & content_terms) / len(span_terms)
+
+            if overlap < 0.5:
+                return VerificationResult(
+                    valid=False,
+                    reason=f"Key terms not preserved in content (overlap: {overlap:.1%})",
+                    confidence=0.8,
+                )
+
+        # Semantic validation passed
+        return VerificationResult(
+            valid=True,
+            reason="Content semantically matches extraction_span",
+            confidence=0.9,
+        )
+
+    def _extract_key_terms(self, text: str) -> list:
+        """Extract key terms from text for semantic comparison.
+
+        Filters out common stopwords that don't carry semantic meaning.
+
+        Args:
+            text: Text to extract terms from
+
+        Returns:
+            List of key terms (non-stopwords)
+        """
+        # Common English stopwords to filter out
+        stopwords = {
+            "a",
+            "an",
+            "and",
+            "are",
+            "as",
+            "at",
+            "be",
+            "but",
+            "by",
+            "for",
+            "if",
+            "in",
+            "into",
+            "is",
+            "it",
+            "no",
+            "not",
+            "of",
+            "on",
+            "or",
+            "such",
+            "that",
+            "the",
+            "this",
+            "to",
+            "was",
+            "will",
+            "with",
+            "from",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "would",
+            "should",
+            "could",
+            "can",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "will",
+        }
+
+        # Split into words and filter
+        words = text.lower().split()
+        # Remove punctuation and filter stopwords
+        terms = []
+        for word in words:
+            # Remove trailing punctuation
+            clean_word = re.sub(r"[^\w\s]$", "", word)
+            if clean_word and clean_word not in stopwords and len(clean_word) > 2:
+                terms.append(clean_word)
+
+        return terms

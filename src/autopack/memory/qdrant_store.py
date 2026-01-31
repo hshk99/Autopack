@@ -22,7 +22,8 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
+                      wait_exponential)
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,105 @@ try:
 except ImportError:
     QDRANT_AVAILABLE = False
     logger.warning("qdrant-client not installed; QdrantStore will not be available")
+
+
+# IMP-REL-012: Health monitoring for vector store operations
+class VectorStoreHealthMonitor:
+    """Monitor and track health of vector store connections.
+
+    IMP-REL-012: Provides continuous health monitoring with:
+    - Consecutive failure tracking
+    - Health status transitions (healthy → degraded → unhealthy)
+    - Automatic alerting when thresholds exceeded
+    - Recovery tracking after reconnection
+    """
+
+    def __init__(self, consecutive_failure_threshold: int = 5):
+        """Initialize health monitor.
+
+        Args:
+            consecutive_failure_threshold: Number of consecutive failures before alerting
+        """
+        self.consecutive_failure_threshold = consecutive_failure_threshold
+        self.consecutive_failures = 0
+        self.consecutive_successes = 0
+        self.last_failure_time: Optional[float] = None
+        self.last_success_time: Optional[float] = None
+        self.is_healthy = True
+        self.total_failures = 0
+        self.total_successes = 0
+
+    def record_success(self) -> None:
+        """Record a successful operation."""
+        self.consecutive_failures = 0
+        self.consecutive_successes += 1
+        self.last_success_time = time.time()
+        self.total_successes += 1
+
+        # Recover from degraded state if we had failures before
+        if not self.is_healthy:
+            self.is_healthy = True
+            logger.info(
+                f"[IMP-REL-012] Vector store recovered to healthy state after "
+                f"{self.total_failures} total failures"
+            )
+
+    def record_failure(self, error: Exception) -> None:
+        """Record a failed operation.
+
+        Args:
+            error: The exception that caused the failure
+        """
+        self.consecutive_failures += 1
+        self.consecutive_successes = 0
+        self.last_failure_time = time.time()
+        self.total_failures += 1
+
+        # Alert if threshold exceeded
+        if self.consecutive_failures == self.consecutive_failure_threshold:
+            logger.warning(
+                f"[IMP-REL-012] Vector store health degraded: "
+                f"{self.consecutive_failures} consecutive failures. "
+                f"Last error: {type(error).__name__}: {str(error)[:100]}"
+            )
+            self.is_healthy = False
+        elif self.consecutive_failures > self.consecutive_failure_threshold:
+            logger.error(
+                f"[IMP-REL-012] Vector store unhealthy: "
+                f"{self.consecutive_failures} consecutive failures. "
+                f"Operations will continue to retry but may fail."
+            )
+
+    def get_health_status(self) -> Dict[str, Any]:
+        """Get current health status.
+
+        Returns:
+            Dictionary with health metrics
+        """
+        uptime_percent = 0.0
+        if self.total_successes + self.total_failures > 0:
+            uptime_percent = (
+                self.total_successes / (self.total_successes + self.total_failures) * 100
+            )
+
+        return {
+            "is_healthy": self.is_healthy,
+            "consecutive_failures": self.consecutive_failures,
+            "consecutive_successes": self.consecutive_successes,
+            "total_failures": self.total_failures,
+            "total_successes": self.total_successes,
+            "uptime_percent": uptime_percent,
+            "last_failure_time": self.last_failure_time,
+            "last_success_time": self.last_success_time,
+        }
+
+    def reset(self) -> None:
+        """Reset health tracking (useful for testing)."""
+        self.consecutive_failures = 0
+        self.consecutive_successes = 0
+        self.is_healthy = True
+        self.last_failure_time = None
+        self.last_success_time = None
 
 
 class QdrantStore:
@@ -87,6 +187,9 @@ class QdrantStore:
         )
         self._default_dim = 1536  # OpenAI text-embedding-ada-002 dimension
 
+        # IMP-REL-012: Initialize health monitor for continuous tracking
+        self._health_monitor = VectorStoreHealthMonitor(consecutive_failure_threshold=5)
+
         # IMP-REL-003: Enhanced health check with HTTP API validation and retry logic
         # Validate connectivity up front so callers can fall back cleanly.
         is_healthy, error_msg = self._check_qdrant_health()
@@ -95,6 +198,8 @@ class QdrantStore:
             raise RuntimeError(f"Qdrant health check failed: {error_msg}")
 
         logger.info(f"[Qdrant] Connected to {host}:{port} (health check passed)")
+        # IMP-REL-012: Record successful initialization
+        self._health_monitor.record_success()
 
     def _log_unavailable(self, message: str, exc: Exception) -> None:
         """Log Qdrant connection issues without spamming."""
@@ -282,6 +387,41 @@ class QdrantStore:
         )
         return False, last_error
 
+    def get_health_status(self) -> Dict[str, Any]:
+        """Get current health status of vector store.
+
+        IMP-REL-012: Returns comprehensive health metrics including:
+        - is_healthy: Boolean indicating overall health
+        - consecutive_failures: Number of consecutive operation failures
+        - consecutive_successes: Number of consecutive successful operations
+        - total_failures: Cumulative failure count
+        - total_successes: Cumulative success count
+        - uptime_percent: Percentage of successful operations
+        - last_failure_time: Timestamp of last failure
+        - last_success_time: Timestamp of last success
+
+        Returns:
+            Dictionary with health metrics
+        """
+        return self._health_monitor.get_health_status()
+
+    def check_vector_store_health(self) -> bool:
+        """Check if Qdrant is accessible and responsive.
+
+        IMP-REL-012: Performs a lightweight health check and updates
+        the health monitor with the result.
+
+        Returns:
+            True if healthy, False otherwise
+        """
+        try:
+            self._health_check()
+            self._health_monitor.record_success()
+            return True
+        except Exception as e:
+            self._health_monitor.record_failure(e)
+            return False
+
     def _str_to_uuid(self, string_id: str) -> str:
         """
         Convert a string ID to a deterministic UUID.
@@ -309,6 +449,7 @@ class QdrantStore:
         Ensure a collection exists (create if not).
 
         IMP-REL-003: Add retry for transient failures.
+        IMP-REL-012: Track operation health.
 
         Args:
             name: Collection name
@@ -331,7 +472,11 @@ class QdrantStore:
                 logger.info(f"[Qdrant] Created collection '{name}' with dim={size}")
             else:
                 logger.debug(f"[Qdrant] Collection '{name}' already exists")
+            # IMP-REL-012: Record successful operation
+            self._health_monitor.record_success()
         except Exception as e:
+            # IMP-REL-012: Record failed operation
+            self._health_monitor.record_failure(e)
             self._log_unavailable(f"Failed to ensure collection '{name}'", e)
             raise
 
@@ -349,6 +494,7 @@ class QdrantStore:
         Upsert points to collection.
 
         IMP-REL-003: Add retry for transient failures.
+        IMP-REL-012: Track operation health.
 
         Args:
             collection: Collection name
@@ -388,9 +534,13 @@ class QdrantStore:
             )
 
             logger.debug(f"[Qdrant] Upserted {len(points)} points to '{collection}'")
+            # IMP-REL-012: Record successful operation
+            self._health_monitor.record_success()
             return len(points)
 
         except Exception as e:
+            # IMP-REL-012: Record failed operation
+            self._health_monitor.record_failure(e)
             self._log_unavailable(f"Failed to upsert to '{collection}'", e)
             raise
 
@@ -410,6 +560,7 @@ class QdrantStore:
         Search for similar vectors.
 
         IMP-REL-003: Add retry for transient failures.
+        IMP-REL-012: Track operation health.
 
         Args:
             collection: Collection name
@@ -463,9 +614,13 @@ class QdrantStore:
                     }
                 )
 
+            # IMP-REL-012: Record successful operation
+            self._health_monitor.record_success()
             return results
 
         except Exception as e:
+            # IMP-REL-012: Record failed operation
+            self._health_monitor.record_failure(e)
             self._log_unavailable(f"Search failed in '{collection}'", e)
             return []
 
@@ -622,6 +777,7 @@ class QdrantStore:
         Delete points by ID.
 
         IMP-REL-003: Add retry for transient failures.
+        IMP-REL-012: Track operation health.
 
         Args:
             collection: Collection name
@@ -642,8 +798,12 @@ class QdrantStore:
                 points_selector=qdrant_ids,
             )
             logger.debug(f"[Qdrant] Deleted {len(ids)} points from '{collection}'")
+            # IMP-REL-012: Record successful operation
+            self._health_monitor.record_success()
             return len(ids)
         except Exception as e:
+            # IMP-REL-012: Record failed operation
+            self._health_monitor.record_failure(e)
             self._log_unavailable(f"Delete failed in '{collection}'", e)
             return 0
 
@@ -657,6 +817,7 @@ class QdrantStore:
         Count documents in collection, optionally filtered.
 
         IMP-REL-003: Add retry for transient failures.
+        IMP-REL-012: Track operation health.
 
         Args:
             collection: Collection name
@@ -686,9 +847,13 @@ class QdrantStore:
                 count_filter=qdrant_filter,
                 exact=True,
             )
+            # IMP-REL-012: Record successful operation
+            self._health_monitor.record_success()
             return result.count
 
         except Exception as e:
+            # IMP-REL-012: Record failed operation
+            self._health_monitor.record_failure(e)
             self._log_unavailable(f"Count failed in '{collection}'", e)
             return 0
 

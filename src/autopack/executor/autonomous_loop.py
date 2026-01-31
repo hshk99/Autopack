@@ -18,41 +18,42 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from autopack.archive_consolidator import log_build_event
-from autopack.autonomous.budgeting import (BudgetExhaustedError,
-                                           get_budget_remaining_pct,
-                                           is_budget_exhausted)
-from autopack.autonomy.parallelism_gate import (ParallelismPolicyGate,
-                                                ScopeBasedParallelismChecker)
+from autopack.autonomous.budgeting import (
+    BudgetExhaustedError,
+    get_budget_remaining_pct,
+    is_budget_exhausted,
+)
+from autopack.autonomy.parallelism_gate import ParallelismPolicyGate, ScopeBasedParallelismChecker
 from autopack.config import settings
-from autopack.database import (SESSION_HEALTH_CHECK_INTERVAL,
-                               ensure_session_healthy)
-from autopack.executor.circuit_breaker import (CircuitBreaker,
-                                               CircuitBreakerOpenError,
-                                               CircuitBreakerState,
-                                               SOTDriftError)
+from autopack.database import SESSION_HEALTH_CHECK_INTERVAL, ensure_session_healthy
+from autopack.executor.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerOpenError,
+    CircuitBreakerState,
+    SOTDriftError,
+)
 from autopack.executor.feedback_context import FeedbackContextRetriever
-from autopack.executor.loop_telemetry_integration import \
-    LoopTelemetryIntegration
+from autopack.executor.log_sanitizer import LogSanitizer
+from autopack.executor.loop_telemetry_integration import LoopTelemetryIntegration
 from autopack.executor.telemetry_persistence import TelemetryPersistenceManager
 from autopack.feedback_pipeline import FeedbackPipeline
-from autopack.generation.autonomous_wave_planner import (AutonomousWavePlanner,
-                                                         WavePlan)
+from autopack.generation.autonomous_wave_planner import AutonomousWavePlanner, WavePlan
 from autopack.learned_rules import promote_hints_to_rules
 from autopack.memory import extract_goal_from_description
 from autopack.memory.context_injector import ContextInjector
 from autopack.memory.maintenance import run_maintenance_if_due
 from autopack.task_generation.roi_analyzer import ROIAnalyzer
-from autopack.task_generation.task_effectiveness_tracker import \
-    TaskEffectivenessTracker
+from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
 from autopack.telemetry.analyzer import CostRecommendation, TelemetryAnalyzer
 from autopack.telemetry.anomaly_detector import TelemetryAnomalyDetector
-from autopack.telemetry.meta_metrics import (FeedbackLoopHealth,
-                                             GoalDriftDetector,
-                                             MetaMetricsTracker,
-                                             PipelineLatencyTracker,
-                                             PipelineStage)
-from autopack.telemetry.telemetry_to_memory_bridge import \
-    TelemetryToMemoryBridge
+from autopack.telemetry.meta_metrics import (
+    FeedbackLoopHealth,
+    GoalDriftDetector,
+    MetaMetricsTracker,
+    PipelineLatencyTracker,
+    PipelineStage,
+)
+from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
@@ -485,7 +486,9 @@ class AutonomousLoop:
             return False
 
         except Exception as e:
-            logger.warning(f"[IMP-LOOP-027] Failed to initialize wave planner: {e}")
+            logger.warning(
+                f"[IMP-LOOP-027] Failed to initialize wave planner: {LogSanitizer.sanitize_exception(e)}"
+            )
             return False
 
     def _current_wave_complete(self) -> bool:
@@ -701,7 +704,9 @@ class AutonomousLoop:
                 project_slug=self.executor._get_project_slug(),
             )
         except Exception as e:
-            logger.warning(f"[IMP-REL-001] Failed to emit alert: {e}")
+            logger.warning(
+                f"[IMP-REL-001] Failed to emit alert: {LogSanitizer.sanitize_exception(e)}"
+            )
 
     def _queue_correction_tasks(
         self,
@@ -765,7 +770,9 @@ class AutonomousLoop:
                 )
 
         except Exception as e:
-            logger.warning(f"[IMP-LOOP-028] Failed to queue corrective tasks: {e}")
+            logger.warning(
+                f"[IMP-LOOP-028] Failed to queue corrective tasks: {LogSanitizer.sanitize_exception(e)}"
+            )
 
     def _check_and_emit_sla_alerts(self, phase_id: str) -> None:
         """Check for pipeline SLA breaches and emit alerts.
@@ -821,7 +828,9 @@ class AutonomousLoop:
 
         except Exception as e:
             # Non-fatal - SLA alerting failure should not block execution
-            logger.warning(f"[IMP-TEL-001] Failed to check SLA breaches (non-fatal): {e}")
+            logger.warning(
+                f"[IMP-TEL-001] Failed to check SLA breaches (non-fatal): {LogSanitizer.sanitize_exception(e)}"
+            )
 
     # =========================================================================
     # IMP-AUTO-002: Parallel Phase Execution Support
@@ -852,7 +861,9 @@ class AutonomousLoop:
                 else:
                     logger.info("[IMP-AUTO-002] Parallelism not allowed by intention anchor policy")
             except Exception as e:
-                logger.warning(f"[IMP-AUTO-002] Failed to create parallelism policy gate: {e}")
+                logger.warning(
+                    f"[IMP-AUTO-002] Failed to create parallelism policy gate: {LogSanitizer.sanitize_exception(e)}"
+                )
 
         self._parallelism_checker = ScopeBasedParallelismChecker(policy_gate)
         logger.info(
@@ -887,7 +898,9 @@ class AutonomousLoop:
                     memory_service=memory_service,
                 )
             except Exception as e:
-                logger.warning(f"[IMP-LOOP-001] Failed to initialize telemetry analyzer: {e}")
+                logger.warning(
+                    f"[IMP-LOOP-001] Failed to initialize telemetry analyzer: {LogSanitizer.sanitize_exception(e)}"
+                )
 
         # IMP-TELE-001: Create pipeline latency tracker for cycle time measurement
         self._latency_tracker = PipelineLatencyTracker(
@@ -1049,7 +1062,9 @@ class AutonomousLoop:
                         f"success={success}, status={status}"
                     )
                 except Exception as e:
-                    logger.error(f"[IMP-AUTO-002] Parallel phase {phase_id} failed with error: {e}")
+                    logger.error(
+                        f"[IMP-AUTO-002] Parallel phase {phase_id} failed with error: {LogSanitizer.sanitize_exception(e)}"
+                    )
                     results.append((phase, False, f"PARALLEL_EXECUTION_ERROR: {e}"))
 
         self._parallel_phases_executed += len(phases)
@@ -1075,7 +1090,9 @@ class AutonomousLoop:
             success, status = self.executor.execute_phase(phase, **adjustments)
             return success, status
         except Exception as e:
-            logger.error(f"[IMP-AUTO-002] Thread execution error for phase {phase_id}: {e}")
+            logger.error(
+                f"[IMP-AUTO-002] Thread execution error for phase {phase_id}: {LogSanitizer.sanitize_exception(e)}"
+            )
             return False, f"THREAD_ERROR: {str(e)}"
 
     def _try_parallel_execution(
@@ -1353,7 +1370,9 @@ class AutonomousLoop:
                     f"(priority_engine={'enabled' if priority_engine else 'disabled'})"
                 )
             except Exception as e:
-                logger.warning(f"[IMP-FBK-001] Failed to initialize TaskEffectivenessTracker: {e}")
+                logger.warning(
+                    f"[IMP-FBK-001] Failed to initialize TaskEffectivenessTracker: {LogSanitizer.sanitize_exception(e)}"
+                )
                 return None
 
         return self._task_effectiveness_tracker
@@ -1599,7 +1618,9 @@ class AutonomousLoop:
 
             return memory_context
         except Exception as e:
-            logger.warning(f"[IMP-ARCH-002] Failed to retrieve memory context: {e}")
+            logger.warning(
+                f"[IMP-ARCH-002] Failed to retrieve memory context: {LogSanitizer.sanitize_exception(e)}"
+            )
             return ""
 
     def _get_improvement_task_context(self) -> str:
@@ -1812,7 +1833,9 @@ class AutonomousLoop:
                     )
 
         except Exception as e:
-            logger.warning(f"[IMP-ARCH-019] Failed to mark tasks completed: {e}")
+            logger.warning(
+                f"[IMP-ARCH-019] Failed to mark tasks completed: {LogSanitizer.sanitize_exception(e)}"
+            )
 
     def _mark_improvement_tasks_failed(self, phases_failed: int) -> None:
         """Mark improvement tasks as failed/retry when run has failures (IMP-LOOP-005).
@@ -1862,7 +1885,9 @@ class AutonomousLoop:
                 )
 
         except Exception as e:
-            logger.warning(f"[IMP-LOOP-005] Failed to update task status: {e}")
+            logger.warning(
+                f"[IMP-LOOP-005] Failed to update task status: {LogSanitizer.sanitize_exception(e)}"
+            )
 
     def _adaptive_sleep(self, is_idle: bool = False, base_interval: Optional[float] = None):
         """Sleep with adaptive backoff when idle to reduce CPU usage.
@@ -1920,7 +1945,9 @@ class AutonomousLoop:
                 f"Utilization: {pool_health.utilization_pct:.1f}%"
             )
         except Exception as e:
-            logger.warning(f"[IMP-DB-001] Failed to collect pool health metrics: {e}")
+            logger.warning(
+                f"[IMP-DB-001] Failed to collect pool health metrics: {LogSanitizer.sanitize_exception(e)}"
+            )
 
     def _increment_memory_write_count(self, count: int = 1) -> None:
         """Increment memory write counter and trigger maintenance if threshold reached.
@@ -1967,7 +1994,9 @@ class AutonomousLoop:
                 )
         except Exception as e:
             # Non-blocking - log and continue
-            logger.warning(f"[IMP-MEM-011] Write-triggered maintenance failed: {e}")
+            logger.warning(
+                f"[IMP-MEM-011] Write-triggered maintenance failed: {LogSanitizer.sanitize_exception(e)}"
+            )
             # Still update count to prevent retry storm
             self._last_maintenance_write_count = self._memory_write_count
 
@@ -2038,7 +2067,7 @@ class AutonomousLoop:
                 logger.error(f"API server is healthy but run '{self.executor.run_id}' not found")
                 logger.error("This indicates database identity mismatch:")
                 logger.error(
-                    f"  - Executor DATABASE_URL: {os.environ.get('DATABASE_URL', 'NOT SET')}"
+                    f"  - Executor DATABASE_URL: {LogSanitizer.sanitize(os.environ.get('DATABASE_URL', 'NOT SET'))}"
                 )
                 logger.error("  - API server may be using different database")
                 logger.error("")
@@ -2346,7 +2375,9 @@ class AutonomousLoop:
 
         try:
             from autopack.executor.backlog_maintenance import (
-                InjectionResult, generated_task_to_candidate)
+                InjectionResult,
+                generated_task_to_candidate,
+            )
             from autopack.roadc.task_generator import AutonomousTaskGenerator
 
             # Create task generator with db_session for telemetry access
@@ -2632,8 +2663,7 @@ class AutonomousLoop:
 
     def _initialize_intention_loop(self):
         """Initialize intention-first loop for the run."""
-        from autopack.autonomous.executor_wiring import \
-            initialize_intention_first_loop
+        from autopack.autonomous.executor_wiring import initialize_intention_first_loop
         from autopack.intention_anchor.storage import IntentionAnchorStorage
 
         # IMP-ARCH-012: Load pending improvement tasks from self-improvement loop
@@ -2655,7 +2685,10 @@ class AutonomousLoop:
                 from datetime import datetime, timezone
 
                 from autopack.intention_anchor.models import (
-                    IntentionAnchor, IntentionBudgets, IntentionConstraints)
+                    IntentionAnchor,
+                    IntentionBudgets,
+                    IntentionConstraints,
+                )
 
                 intention_anchor = IntentionAnchor(
                     anchor_id=f"default-{self.executor.run_id}",

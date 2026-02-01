@@ -24,8 +24,9 @@ class TestStateCheckpoint:
             started_at=datetime.now(timezone.utc),
             status="running",
             anchor_id="test-anchor",
+            gap_report_id="gap-123",
+            plan_proposal_id="plan-456",
         )
-        session.gap_report_id = "gap-123"
 
         checkpoint = StateCheckpoint(session=session)
 
@@ -43,6 +44,8 @@ class TestStateCheckpoint:
             started_at=datetime.now(timezone.utc),
             status="running",
             anchor_id="test-anchor",
+            gap_report_id="gap-123",
+            plan_proposal_id="plan-456",
         )
 
         checkpoint = StateCheckpoint(session=session)
@@ -53,7 +56,7 @@ class TestStateCheckpoint:
 
         # Checkpoint should be unchanged
         assert checkpoint.session_state.status == "running"
-        assert checkpoint.session_state.gap_report_id == ""
+        assert checkpoint.session_state.gap_report_id == "gap-123"
 
     def test_restore_session_from_checkpoint(self):
         """Test that session can be restored from checkpoint."""
@@ -65,8 +68,9 @@ class TestStateCheckpoint:
             started_at=datetime.now(timezone.utc),
             status="running",
             anchor_id="test-anchor",
+            gap_report_id="gap-123",
+            plan_proposal_id="plan-456",
         )
-        session.gap_report_id = "gap-123"
 
         # Create checkpoint
         checkpoint = StateCheckpoint(session=session)
@@ -93,6 +97,8 @@ class TestStateCheckpoint:
             started_at=datetime.now(timezone.utc),
             status="running",
             anchor_id="test-anchor",
+            gap_report_id="gap-123",
+            plan_proposal_id="plan-456",
         )
 
         # Should not raise exception
@@ -122,6 +128,8 @@ class TestAutopilotCheckpointManagement:
             started_at=datetime.now(timezone.utc),
             status="running",
             anchor_id="test-anchor",
+            gap_report_id="gap-123",
+            plan_proposal_id="plan-456",
         )
         controller.session = session
 
@@ -141,6 +149,8 @@ class TestAutopilotCheckpointManagement:
             started_at=datetime.now(timezone.utc),
             status="running",
             anchor_id="test-anchor",
+            gap_report_id="gap-123",
+            plan_proposal_id="plan-456",
         )
         controller.session = session
 
@@ -156,7 +166,7 @@ class TestAutopilotCheckpointManagement:
 
         assert success is True
         assert session.status == "running"
-        assert session.gap_report_id == ""
+        assert session.gap_report_id == "gap-123"
 
     def test_restore_nonexistent_checkpoint_fails(self, controller: AutopilotController):
         """Test that restoring a nonexistent checkpoint returns False."""
@@ -168,6 +178,8 @@ class TestAutopilotCheckpointManagement:
             started_at=datetime.now(timezone.utc),
             status="running",
             anchor_id="test-anchor",
+            gap_report_id="gap-123",
+            plan_proposal_id="plan-456",
         )
         controller.session = session
 
@@ -185,6 +197,8 @@ class TestAutopilotCheckpointManagement:
             started_at=datetime.now(timezone.utc),
             status="running",
             anchor_id="test-anchor",
+            gap_report_id="gap-123",
+            plan_proposal_id="plan-456",
         )
         controller.session = session
 

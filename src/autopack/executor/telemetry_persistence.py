@@ -311,8 +311,8 @@ class TelemetryPersistenceManager:
             # IMP-LOOP-003: Pass current run phases as backlog for same-run injection
             # of high-priority (critical) tasks
             result = generator.generate_tasks(
-                max_tasks=task_gen_config.get("max_tasks_per_run", 10),
-                min_confidence=task_gen_config.get("min_confidence", 0.7),
+                max_tasks=getattr(config_settings, "task_generation_max_tasks_per_run", 10),
+                min_confidence=getattr(config_settings, "task_generation_min_confidence", 0.7),
                 telemetry_insights=ranked_issues,
                 run_id=run_id,
                 backlog=current_run_phases,

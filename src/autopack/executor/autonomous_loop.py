@@ -3904,8 +3904,8 @@ class AutonomousLoop:
                 metrics_tracker=self._meta_metrics_tracker,
             )
             result = generator.generate_tasks(
-                max_tasks=task_gen_config.get("max_tasks_per_run", 10),
-                min_confidence=task_gen_config.get("min_confidence", 0.7),
+                max_tasks=getattr(config_settings, "task_generation_max_tasks_per_run", 10),
+                min_confidence=getattr(config_settings, "task_generation_min_confidence", 0.7),
                 telemetry_insights=telemetry_insights,
             )
 

@@ -30,7 +30,7 @@ def create_settings_with_overrides(**overrides) -> Settings:
         "phase_timeout_minutes": 15,
         "phase_token_cap_default": 500_000,
         "phase_token_cap_multipliers_str": "research:1.5,implementation:1.0,verification:0.5,audit:0.3",
-        "autopilot_enabled": False,
+        "autopilot_enabled": True,
         "autopilot_gap_scan_frequency": 5,
         "autopilot_max_proposals_per_session": 3,
         "db_pool_monitoring_enabled": True,

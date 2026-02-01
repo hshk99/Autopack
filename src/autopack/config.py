@@ -306,9 +306,9 @@ class Settings(BaseSettings):
     # Controls periodic autopilot invocation during autonomous execution
     # Autopilot scans for gaps, proposes improvements, executes auto-approved actions
     autopilot_enabled: bool = Field(
-        default=False,
+        default=True,
         validation_alias=AliasChoices("AUTOPACK_AUTOPILOT_ENABLED", "AUTOPILOT_ENABLED"),
-        description="Enable autopilot periodic invocation (default: disabled for safety)",
+        description="Enable autopilot periodic invocation (default: enabled)",
     )
 
     autopilot_gap_scan_frequency: int = Field(

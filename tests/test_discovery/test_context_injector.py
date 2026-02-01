@@ -1,5 +1,6 @@
 """Tests for context injector module."""
 
+import importlib.util
 import json
 import sys
 import tempfile
@@ -7,12 +8,18 @@ from pathlib import Path
 
 import pytest
 
-# Ensure src is in Python path for discovery module import
-_src_path = str(Path(__file__).resolve().parent.parent.parent / "src")
-if _src_path not in sys.path:
-    sys.path.insert(0, _src_path)
+# Dynamically import discovery module to handle pytest collection issues
+_src_path = Path(__file__).resolve().parent.parent.parent / "src"
+_discovery_path = _src_path / "discovery" / "context_injector.py"
 
-from discovery.context_injector import ContextInjector, DiscoveryContext
+# Load the module directly
+spec = importlib.util.spec_from_file_location("discovery.context_injector", _discovery_path)
+discovery_module = importlib.util.module_from_spec(spec)
+sys.modules["discovery.context_injector"] = discovery_module
+spec.loader.exec_module(discovery_module)
+
+ContextInjector = discovery_module.ContextInjector
+DiscoveryContext = discovery_module.DiscoveryContext
 
 
 @pytest.fixture

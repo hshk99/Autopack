@@ -33,6 +33,10 @@ from autopack.research.models.bootstrap_session import (
     BootstrapSession,
     generate_idea_hash,
 )
+from autopack.research.models.build_decision import (
+    BuildDecision,
+    extract_build_decision_from_synthesis,
+)
 from autopack.research.models.enums import ValidationStatus
 from autopack.research.models.research_intent import ResearchIntent
 from autopack.research.models.research_session import ResearchSession
@@ -1645,3 +1649,39 @@ class ResearchOrchestrator:
             parsed_idea.detected_project_type.value,
         )
         return self._cache.invalidate(idea_hash)
+
+    def get_build_decision(self, session: BootstrapSession) -> Optional[BuildDecision]:
+        """Extract build decision from a bootstrap session.
+
+        Analyzes the synthesis data in a completed bootstrap session and
+        generates a BuildDecision that indicates whether the project should
+        be built, built with caution, or not built.
+
+        Args:
+            session: Completed BootstrapSession containing synthesis data
+
+        Returns:
+            BuildDecision with decision, metrics, and rationale, or None if
+            synthesis is incomplete
+
+        Raises:
+            ValueError: If synthesis data is invalid or missing required fields
+        """
+        if not session.synthesis:
+            logger.warning("Cannot extract build decision: session synthesis is empty")
+            return None
+
+        if not session.is_complete():
+            logger.warning("Cannot extract build decision: session research phases not complete")
+            return None
+
+        try:
+            build_decision = extract_build_decision_from_synthesis(session.synthesis)
+            logger.info(
+                f"Extracted build decision: {build_decision.decision.value} "
+                f"(confidence: {build_decision.confidence_percentage:.0f}%)"
+            )
+            return build_decision
+        except ValueError as e:
+            logger.error(f"Failed to extract build decision from synthesis: {e}")
+            raise

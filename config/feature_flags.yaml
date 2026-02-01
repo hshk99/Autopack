@@ -347,14 +347,14 @@ flags:
   AUTOPACK_ENABLE_SOT_MEMORY_INDEXING:
     description: "Enable indexing of SOT ledgers into vector memory"
     category: feature_toggle
-    default: "false"
+    default: "true"
     values: ["true", "false"]
     affects: ["config.py", "memory/"]
 
   AUTOPACK_SOT_RETRIEVAL_ENABLED:
     description: "Enable retrieval of SOT context at runtime"
     category: feature_toggle
-    default: "false"
+    default: "true"
     values: ["true", "false"]
     affects: ["config.py", "memory/"]
     requires: ["AUTOPACK_ENABLE_SOT_MEMORY_INDEXING=true"]

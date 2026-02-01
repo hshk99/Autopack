@@ -14,7 +14,8 @@ from dataclasses import dataclass, field
 from functools import wraps
 from typing import Any, List, Optional
 
-from ..schema_validation import SchemaValidationError, validate_intention_anchor_v2
+from ..schema_validation import (SchemaValidationError,
+                                 validate_intention_anchor_v2)
 
 logger = logging.getLogger(__name__)
 

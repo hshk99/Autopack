@@ -191,9 +191,7 @@ class TestPipelineHealthTrackerContract:
     def test_get_pipeline_latency_tracker_singleton(self):
         """Contract: get_pipeline_latency_tracker returns singleton."""
         from autopack.api.routes.metrics import (
-            get_pipeline_latency_tracker,
-            reset_pipeline_latency_tracker,
-        )
+            get_pipeline_latency_tracker, reset_pipeline_latency_tracker)
 
         # Reset to ensure fresh start
         reset_pipeline_latency_tracker()
@@ -206,9 +204,7 @@ class TestPipelineHealthTrackerContract:
     def test_reset_pipeline_latency_tracker(self):
         """Contract: reset_pipeline_latency_tracker clears the tracker."""
         from autopack.api.routes.metrics import (
-            get_pipeline_latency_tracker,
-            reset_pipeline_latency_tracker,
-        )
+            get_pipeline_latency_tracker, reset_pipeline_latency_tracker)
 
         tracker1 = get_pipeline_latency_tracker()
         reset_pipeline_latency_tracker()
@@ -222,12 +218,10 @@ class TestPipelineHealthResponseModelContract:
 
     def test_response_model_validation(self):
         """Contract: PipelineHealthResponse validates fields correctly."""
-        from autopack.api.routes.metrics import (
-            ComponentHealthMetrics,
-            LatencyMetrics,
-            PipelineHealthResponse,
-            SLAComplianceMetrics,
-        )
+        from autopack.api.routes.metrics import (ComponentHealthMetrics,
+                                                 LatencyMetrics,
+                                                 PipelineHealthResponse,
+                                                 SLAComplianceMetrics)
 
         # Valid response should be constructable
         response = PipelineHealthResponse(

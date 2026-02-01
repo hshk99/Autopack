@@ -10,13 +10,9 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from autopack.intention_anchor import (
-    IntentionAnchor,
-    IntentionBudgets,
-    IntentionConstraints,
-    IntentionRiskProfile,
-    IntentionScope,
-)
+from autopack.intention_anchor import (IntentionAnchor, IntentionBudgets,
+                                       IntentionConstraints,
+                                       IntentionRiskProfile, IntentionScope)
 
 
 def test_intention_anchor_minimal_valid():

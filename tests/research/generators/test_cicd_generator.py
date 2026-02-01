@@ -12,24 +12,12 @@ import unittest
 import yaml
 
 from autopack.research.artifact_generators import (
-    ArtifactGeneratorRegistry,
-    MonetizationStrategyGenerator,
-    get_cicd_analyzer,
-    get_cicd_generator,
-    get_gitlab_ci_generator,
-    get_jenkins_generator,
-    get_monetization_generator,
-    get_registry,
-)
+    ArtifactGeneratorRegistry, MonetizationStrategyGenerator,
+    get_cicd_analyzer, get_cicd_generator, get_gitlab_ci_generator,
+    get_jenkins_generator, get_monetization_generator, get_registry)
 from autopack.research.generators.cicd_generator import (
-    CICDAnalyzer,
-    CICDPlatform,
-    CICDWorkflowGenerator,
-    DeploymentGuidance,
-    DeploymentTarget,
-    GitLabCIGenerator,
-    JenkinsPipelineGenerator,
-)
+    CICDAnalyzer, CICDPlatform, CICDWorkflowGenerator, DeploymentGuidance,
+    DeploymentTarget, GitLabCIGenerator, JenkinsPipelineGenerator)
 
 
 class TestCICDWorkflowGenerator(unittest.TestCase):

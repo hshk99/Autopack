@@ -20,9 +20,11 @@ from unittest.mock import Mock
 
 import pytest
 
-from autopack.feedback_pipeline import FeedbackPipeline, PhaseContext, PhaseOutcome
+from autopack.feedback_pipeline import (FeedbackPipeline, PhaseContext,
+                                        PhaseOutcome)
 from autopack.roadc import AutonomousTaskGenerator
-from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
+from autopack.telemetry.telemetry_to_memory_bridge import \
+    TelemetryToMemoryBridge
 
 # =============================================================================
 # Test Fixtures

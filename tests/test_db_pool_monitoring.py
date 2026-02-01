@@ -4,7 +4,8 @@ import time
 from unittest.mock import MagicMock, patch
 
 from autopack.dashboard_schemas import DatabasePoolStats
-from autopack.database import ScopedSession, get_pool_health, get_session, get_session_metrics
+from autopack.database import (ScopedSession, get_pool_health, get_session,
+                               get_session_metrics)
 from autopack.db_leak_detector import ConnectionLeakDetector
 
 

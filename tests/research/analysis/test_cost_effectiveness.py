@@ -19,16 +19,9 @@ import pytest
 pytestmark = pytest.mark.research
 
 from autopack.research.analysis.cost_effectiveness import (
-    AITokenCostProjection,
-    ComponentCostData,
-    CostCategory,
-    CostEffectivenessAnalyzer,
-    CostOptimizationStrategy,
-    DecisionType,
-    ProjectCostProjection,
-    ScalingModel,
-    VendorLockInLevel,
-)
+    AITokenCostProjection, ComponentCostData, CostCategory,
+    CostEffectivenessAnalyzer, CostOptimizationStrategy, DecisionType,
+    ProjectCostProjection, ScalingModel, VendorLockInLevel)
 
 
 class TestCostCategory:
@@ -590,7 +583,7 @@ class TestCostEffectivenessAnalyzer:
             user_projections=user_projections,
         )
 
-        tco = result["total_cost_of_ownership"]
+        result["total_cost_of_ownership"]
         # With fewer users, costs should be lower
         assert analyzer.projection.year_1_users == 500
 

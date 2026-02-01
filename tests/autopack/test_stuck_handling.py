@@ -8,12 +8,9 @@ from datetime import datetime
 
 import pytest
 
-from autopack.stuck_handling import (
-    StuckHandlingPolicy,
-    StuckHandlingTelemetry,
-    StuckReason,
-    StuckResolutionDecision,
-)
+from autopack.stuck_handling import (StuckHandlingPolicy,
+                                     StuckHandlingTelemetry, StuckReason,
+                                     StuckResolutionDecision)
 
 
 class TestStuckHandlingPolicy:

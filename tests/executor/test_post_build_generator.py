@@ -13,16 +13,10 @@ Tests cover:
 
 from unittest.mock import Mock
 
-
 from autopack.executor.post_build_generator import (
-    ArtifactType,
-    BuildCharacteristics,
-    PostBuildArtifact,
-    PostBuildArtifactGenerator,
-    RunbookCategory,
-    capture_build_characteristics,
-    generate_post_build_artifacts,
-)
+    ArtifactType, BuildCharacteristics, PostBuildArtifact,
+    PostBuildArtifactGenerator, RunbookCategory, capture_build_characteristics,
+    generate_post_build_artifacts)
 
 
 class TestBuildCharacteristics:
@@ -571,7 +565,8 @@ class TestRegistryIntegration:
 
     def test_get_post_build_generator(self):
         """Test getting post-build generator from registry."""
-        from autopack.research.artifact_generators import get_post_build_generator
+        from autopack.research.artifact_generators import \
+            get_post_build_generator
 
         generator = get_post_build_generator()
 

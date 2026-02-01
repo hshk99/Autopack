@@ -4,13 +4,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from autopack.research.external.mcp_scanner import (
-    MCPRegistryScanner,
-    MCPServer,
-    MCPServerMaintainer,
-    MCPServerMaturity,
-    ScanResult,
-)
+from autopack.research.external.mcp_scanner import (MCPRegistryScanner,
+                                                    MCPServer,
+                                                    MCPServerMaintainer,
+                                                    MCPServerMaturity,
+                                                    ScanResult)
 
 
 class TestMCPServer:

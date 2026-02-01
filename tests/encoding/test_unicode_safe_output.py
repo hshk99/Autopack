@@ -12,12 +12,8 @@ import sys
 
 import pytest
 
-from autopack.safe_print import (
-    ASCII_REPLACEMENTS,
-    is_windows_legacy_console,
-    make_ascii_safe,
-    safe_print,
-)
+from autopack.safe_print import (ASCII_REPLACEMENTS, is_windows_legacy_console,
+                                 make_ascii_safe, safe_print)
 
 
 class MockCP1252Stream(io.TextIOWrapper):

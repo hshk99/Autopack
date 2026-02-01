@@ -6,7 +6,8 @@ attempts while still allowing legitimate mathematical expressions.
 
 import pytest
 
-from autopack.research.tracer_bullet.compiler import compile_expression, safe_eval
+from autopack.research.tracer_bullet.compiler import (compile_expression,
+                                                      safe_eval)
 
 
 class TestSafeExpressionEval:

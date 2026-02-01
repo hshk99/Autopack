@@ -8,19 +8,15 @@ Tests cover:
 
 from unittest.mock import Mock
 
-from autopack.executor.deployment_phase import (
-    DeploymentPhaseHandler,
-    DeploymentProvider,
-    DeploymentTemplate,
-    DeploymentTemplateRegistry,
-    GuidanceType,
-)
-from autopack.executor.phase_orchestrator import (
-    ExecutionContext,
-    PhaseOrchestrator,
-    PhaseResult,
-    create_default_time_watchdog,
-)
+from autopack.executor.deployment_phase import (DeploymentPhaseHandler,
+                                                DeploymentProvider,
+                                                DeploymentTemplate,
+                                                DeploymentTemplateRegistry,
+                                                GuidanceType)
+from autopack.executor.phase_orchestrator import (ExecutionContext,
+                                                  PhaseOrchestrator,
+                                                  PhaseResult,
+                                                  create_default_time_watchdog)
 
 
 class TestDeploymentTemplateRegistry:

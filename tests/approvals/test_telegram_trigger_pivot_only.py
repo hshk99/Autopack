@@ -4,223 +4,229 @@ These tests define the contract BEFORE implementation:
 - Telegram approval triggers ONLY for pivot-impacting events
 - Never active in CI
 - Disabled by default, requires explicit configuration
-
-IMP-TRIGGER-001: Improved with proper fixtures to prevent timing-sensitive
-failures and ensure deterministic execution.
 """
 
 from __future__ import annotations
 
+from unittest.mock import patch
 
-def test_telegram_triggers_on_pivot_intention_change(sample_approval_request):
-    """Telegram approval requested when pivot intention is changed.
 
-    Uses fixtures to ensure deterministic execution without timing dependencies.
-    """
-    from autopack.approvals.service import (
-        ApprovalTriggerReason,
-        should_trigger_approval,
+def test_telegram_triggers_on_pivot_intention_change():
+    """Telegram approval requested when pivot intention is changed."""
+    from autopack.approvals.service import (ApprovalRequest,
+                                            ApprovalTriggerReason,
+                                            should_trigger_approval)
+
+    request = ApprovalRequest(
+        request_id="req-001",
+        run_id="test-run",
+        phase_id="phase-1",
+        trigger_reason=ApprovalTriggerReason.PIVOT_INTENTION_CHANGE,
+        affected_pivots=["safety_risk"],
+        description="Updating risk_tolerance from 'low' to 'moderate'",
+        diff_summary={"changed": ["pivot_intentions.safety_risk.risk_tolerance"]},
     )
 
-    sample_approval_request.trigger_reason = ApprovalTriggerReason.PIVOT_INTENTION_CHANGE
-    sample_approval_request.description = "Updating risk_tolerance from 'low' to 'moderate'"
-    sample_approval_request.diff_summary = {
-        "changed": ["pivot_intentions.safety_risk.risk_tolerance"]
-    }
-
-    result = should_trigger_approval(sample_approval_request)
+    result = should_trigger_approval(request)
 
     assert result is True
 
 
-def test_telegram_triggers_on_pivot_constraint_violation(sample_approval_request):
-    """Telegram approval requested when pivot constraint is violated.
+def test_telegram_triggers_on_pivot_constraint_violation():
+    """Telegram approval requested when pivot constraint is violated."""
+    from autopack.approvals.service import (ApprovalRequest,
+                                            ApprovalTriggerReason,
+                                            should_trigger_approval)
 
-    Uses fixtures to ensure deterministic execution.
-    """
-    from autopack.approvals.service import (
-        ApprovalTriggerReason,
-        should_trigger_approval,
+    request = ApprovalRequest(
+        request_id="req-002",
+        run_id="test-run",
+        phase_id="phase-1",
+        trigger_reason=ApprovalTriggerReason.PIVOT_CONSTRAINT_VIOLATION,
+        affected_pivots=["scope_boundaries"],
+        description="Action touches protected path from pivot: src/autopack/models.py",
+        diff_summary={"protected_paths_touched": ["src/autopack/models.py"]},
     )
 
-    sample_approval_request.request_id = "req-002"
-    sample_approval_request.trigger_reason = ApprovalTriggerReason.PIVOT_CONSTRAINT_VIOLATION
-    sample_approval_request.affected_pivots = ["scope_boundaries"]
-    sample_approval_request.description = (
-        "Action touches protected path from pivot: src/autopack/models.py"
-    )
-    sample_approval_request.diff_summary = {"protected_paths_touched": ["src/autopack/models.py"]}
-
-    result = should_trigger_approval(sample_approval_request)
+    result = should_trigger_approval(request)
 
     assert result is True
 
 
-def test_telegram_triggers_on_governance_escalation(sample_approval_request):
-    """Telegram approval requested when governance escalation required.
+def test_telegram_triggers_on_governance_escalation():
+    """Telegram approval requested when governance escalation required."""
+    from autopack.approvals.service import (ApprovalRequest,
+                                            ApprovalTriggerReason,
+                                            should_trigger_approval)
 
-    Uses fixtures to ensure deterministic execution.
-    """
-    from autopack.approvals.service import (
-        ApprovalTriggerReason,
-        should_trigger_approval,
+    request = ApprovalRequest(
+        request_id="req-003",
+        run_id="test-run",
+        phase_id="phase-1",
+        trigger_reason=ApprovalTriggerReason.GOVERNANCE_ESCALATION,
+        affected_pivots=[],
+        description="Risk tier 'critical' requires human approval",
+        diff_summary={"risk_level": "critical"},
     )
 
-    sample_approval_request.request_id = "req-003"
-    sample_approval_request.trigger_reason = ApprovalTriggerReason.GOVERNANCE_ESCALATION
-    sample_approval_request.affected_pivots = []
-    sample_approval_request.description = "Risk tier 'critical' requires human approval"
-    sample_approval_request.diff_summary = {"risk_level": "critical"}
-
-    result = should_trigger_approval(sample_approval_request)
+    result = should_trigger_approval(request)
 
     assert result is True
 
 
-def test_telegram_not_triggered_for_normal_retry(sample_approval_request):
-    """Telegram NOT triggered for normal phase retry.
+def test_telegram_not_triggered_for_normal_retry():
+    """Telegram NOT triggered for normal phase retry."""
+    from autopack.approvals.service import (ApprovalRequest,
+                                            ApprovalTriggerReason,
+                                            should_trigger_approval)
 
-    Uses fixtures to ensure deterministic execution.
-    """
-    from autopack.approvals.service import (
-        ApprovalTriggerReason,
-        should_trigger_approval,
+    request = ApprovalRequest(
+        request_id="req-004",
+        run_id="test-run",
+        phase_id="phase-1",
+        trigger_reason=ApprovalTriggerReason.NORMAL_RETRY,
+        affected_pivots=[],
+        description="Retrying phase after transient failure",
+        diff_summary={},
     )
 
-    sample_approval_request.request_id = "req-004"
-    sample_approval_request.trigger_reason = ApprovalTriggerReason.NORMAL_RETRY
-    sample_approval_request.affected_pivots = []
-    sample_approval_request.description = "Retrying phase after transient failure"
-    sample_approval_request.diff_summary = {}
-
-    result = should_trigger_approval(sample_approval_request)
+    result = should_trigger_approval(request)
 
     assert result is False
 
 
-def test_telegram_not_triggered_for_replan(sample_approval_request):
-    """Telegram NOT triggered for normal replan within pivot bounds.
+def test_telegram_not_triggered_for_replan():
+    """Telegram NOT triggered for normal replan within pivot bounds."""
+    from autopack.approvals.service import (ApprovalRequest,
+                                            ApprovalTriggerReason,
+                                            should_trigger_approval)
 
-    Uses fixtures to ensure deterministic execution.
-    """
-    from autopack.approvals.service import (
-        ApprovalTriggerReason,
-        should_trigger_approval,
+    request = ApprovalRequest(
+        request_id="req-005",
+        run_id="test-run",
+        phase_id="phase-1",
+        trigger_reason=ApprovalTriggerReason.NORMAL_REPLAN,
+        affected_pivots=[],
+        description="Replanning phase approach",
+        diff_summary={},
     )
 
-    sample_approval_request.request_id = "req-005"
-    sample_approval_request.trigger_reason = ApprovalTriggerReason.NORMAL_REPLAN
-    sample_approval_request.affected_pivots = []
-    sample_approval_request.description = "Replanning phase approach"
-    sample_approval_request.diff_summary = {}
-
-    result = should_trigger_approval(sample_approval_request)
+    result = should_trigger_approval(request)
 
     assert result is False
 
 
-def test_telegram_not_triggered_for_model_escalation_within_bounds(sample_approval_request):
-    """Telegram NOT triggered for model escalation within pivot budget.
+def test_telegram_not_triggered_for_model_escalation_within_bounds():
+    """Telegram NOT triggered for model escalation within pivot budget."""
+    from autopack.approvals.service import (ApprovalRequest,
+                                            ApprovalTriggerReason,
+                                            should_trigger_approval)
 
-    Uses fixtures to ensure deterministic execution.
-    """
-    from autopack.approvals.service import (
-        ApprovalTriggerReason,
-        should_trigger_approval,
+    request = ApprovalRequest(
+        request_id="req-006",
+        run_id="test-run",
+        phase_id="phase-1",
+        trigger_reason=ApprovalTriggerReason.MODEL_ESCALATION_WITHIN_BOUNDS,
+        affected_pivots=[],
+        description="Escalating to stronger model (within budget)",
+        diff_summary={"model_from": "haiku", "model_to": "sonnet"},
     )
 
-    sample_approval_request.request_id = "req-006"
-    sample_approval_request.trigger_reason = ApprovalTriggerReason.MODEL_ESCALATION_WITHIN_BOUNDS
-    sample_approval_request.affected_pivots = []
-    sample_approval_request.description = "Escalating to stronger model (within budget)"
-    sample_approval_request.diff_summary = {"model_from": "haiku", "model_to": "sonnet"}
-
-    result = should_trigger_approval(sample_approval_request)
+    result = should_trigger_approval(request)
 
     assert result is False
 
 
-def test_telegram_never_active_in_ci(ci_environment, telegram_configured):
-    """Telegram service is never active in CI environment.
+def test_telegram_never_active_in_ci():
+    """Telegram service is never active in CI environment."""
+    from autopack.approvals.service import get_approval_service
+    from autopack.approvals.telegram import TelegramApprovalService
 
-    Uses fixtures to ensure proper CI environment setup and prevent
-    timing-sensitive environment variable issues.
-    """
-    from autopack.approvals.service import NoopApprovalService, get_approval_service
+    # Simulate CI environment
+    with patch.dict("os.environ", {"CI": "true", "AUTOPACK_TELEGRAM_ENABLED": "true"}):
+        service = get_approval_service()
 
-    service = get_approval_service()
-
-    # Even with TELEGRAM_ENABLED and proper config, should NOT return anything
-    # other than NoopApprovalService in CI
-    assert isinstance(service, NoopApprovalService)
+        # Even with TELEGRAM_ENABLED, should NOT return TelegramApprovalService in CI
+        assert not isinstance(service, TelegramApprovalService)
 
 
-def test_telegram_disabled_by_default(isolated_env, no_ci_environment):
-    """Telegram service is disabled by default.
+def test_telegram_disabled_by_default():
+    """Telegram service is disabled by default."""
+    from autopack.approvals.service import (NoopApprovalService,
+                                            get_approval_service)
 
-    Uses fixtures to ensure clean environment without any configuration.
-    """
-    from autopack.approvals.service import NoopApprovalService, get_approval_service
+    # No environment variables set
+    with patch.dict("os.environ", {}, clear=True):
+        service = get_approval_service()
 
-    service = get_approval_service()
-
-    assert isinstance(service, NoopApprovalService)
-
-
-def test_telegram_enabled_only_with_explicit_config(
-    no_ci_environment, telegram_configured, mock_telegram_api
-):
-    """Telegram service enabled only with explicit configuration.
-
-    Uses fixtures to provide proper configuration and prevent actual
-    network calls during testing.
-    """
-    from autopack.approvals.service import ChainedApprovalService, get_approval_service
-
-    service = get_approval_service()
-
-    # With proper configuration, should return ChainedApprovalService or TelegramApprovalService
-    # (depending on whether other channels are configured)
-    assert service is not None
-    assert (
-        isinstance(service, (ChainedApprovalService))
-        or service.__class__.__name__ == "TelegramApprovalService"
-    )
+        assert isinstance(service, NoopApprovalService)
 
 
-def test_telegram_misconfigured_fails_safely(sample_approval_request):
-    """Misconfigured Telegram records evidence and halts if approval required.
+def test_telegram_enabled_only_with_explicit_config():
+    """Telegram service enabled only with explicit configuration."""
+    from autopack.approvals.service import get_approval_service
+    from autopack.approvals.telegram import TelegramApprovalService
 
-    Uses fixtures to provide proper test data without timing dependencies.
-    """
+    # Explicit config required
+    with patch.dict(
+        "os.environ",
+        {
+            "AUTOPACK_TELEGRAM_ENABLED": "true",
+            "AUTOPACK_TELEGRAM_BOT_TOKEN": "test-token",
+            "AUTOPACK_TELEGRAM_CHAT_ID": "test-chat",
+        },
+        clear=True,
+    ):
+        service = get_approval_service()
+
+        assert isinstance(service, TelegramApprovalService)
+
+
+def test_telegram_misconfigured_fails_safely():
+    """Misconfigured Telegram records evidence and halts if approval required."""
+    from autopack.approvals.service import (ApprovalRequest,
+                                            ApprovalTriggerReason)
     from autopack.approvals.telegram import TelegramApprovalService
 
     # Missing required config
     service = TelegramApprovalService(bot_token=None, chat_id=None)
 
-    sample_approval_request.request_id = "req-007"
+    request = ApprovalRequest(
+        request_id="req-007",
+        run_id="test-run",
+        phase_id="phase-1",
+        trigger_reason=ApprovalTriggerReason.PIVOT_INTENTION_CHANGE,
+        affected_pivots=["safety_risk"],
+        description="Change requiring approval",
+        diff_summary={},
+    )
 
-    result = service.request_approval(sample_approval_request)
+    result = service.request_approval(request)
 
     assert result.success is False
     assert result.error_reason == "telegram_misconfigured"
     assert result.evidence is not None
 
 
-def test_approval_request_serializable(sample_approval_request):
-    """ApprovalRequest can be serialized for evidence storage.
-
-    Uses fixtures to ensure proper test data setup and prevent
-    timing-sensitive execution issues.
-    """
+def test_approval_request_serializable():
+    """ApprovalRequest can be serialized for evidence storage."""
     import json
 
-    sample_approval_request.request_id = "req-008"
-    sample_approval_request.affected_pivots = ["safety_risk", "budget_cost"]
-    sample_approval_request.diff_summary = {"key": "value"}
+    from autopack.approvals.service import (ApprovalRequest,
+                                            ApprovalTriggerReason)
+
+    request = ApprovalRequest(
+        request_id="req-008",
+        run_id="test-run",
+        phase_id="phase-1",
+        trigger_reason=ApprovalTriggerReason.PIVOT_INTENTION_CHANGE,
+        affected_pivots=["safety_risk", "budget_cost"],
+        description="Test request",
+        diff_summary={"key": "value"},
+    )
 
     # Should be JSON serializable
-    json_str = json.dumps(sample_approval_request.to_dict())
+    json_str = json.dumps(request.to_dict())
     parsed = json.loads(json_str)
 
     assert parsed["request_id"] == "req-008"

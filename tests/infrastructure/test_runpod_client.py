@@ -4,7 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from autopack.infrastructure.runpod_client import Pod, PodConfig, PodStatus, RunPodClient
+from autopack.infrastructure.runpod_client import (Pod, PodConfig, PodStatus,
+                                                   RunPodClient)
 
 
 class TestRunPodClientInitialization:

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from scripts.ci.check_canonical_build_surfaces import check_canonical_build_surfaces
+from scripts.ci.check_canonical_build_surfaces import \
+    check_canonical_build_surfaces
 
 
 def test_canonical_build_surfaces_clean() -> None:

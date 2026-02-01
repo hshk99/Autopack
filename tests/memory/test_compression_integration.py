@@ -11,7 +11,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from autopack.memory.memory_service import MAX_CONTENT_LENGTH, MemoryService, _compress_content
+from autopack.memory.memory_service import (MAX_CONTENT_LENGTH, MemoryService,
+                                            _compress_content)
 
 
 class TestCompressContent:

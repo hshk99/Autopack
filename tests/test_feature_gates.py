@@ -15,22 +15,17 @@ from unittest.mock import patch
 
 import pytest
 
-from autopack.feature_gates import (
-    FeatureDisabledError,
-    check_feature_dependencies,
-    get_disabled_features,
-    get_disabled_graceful,
-    get_enabled_features,
-    get_feature_info,
-    get_feature_states,
-    handle_disabled_feature,
-    is_feature_enabled,
-    log_feature_usage,
-    require_feature,
-    reset_feature_overrides,
-    set_feature_enabled,
-    validate_feature_state,
-)
+from autopack.feature_gates import (FeatureDisabledError,
+                                    check_feature_dependencies,
+                                    get_disabled_features,
+                                    get_disabled_graceful,
+                                    get_enabled_features, get_feature_info,
+                                    get_feature_states,
+                                    handle_disabled_feature,
+                                    is_feature_enabled, log_feature_usage,
+                                    require_feature, reset_feature_overrides,
+                                    set_feature_enabled,
+                                    validate_feature_state)
 
 
 class TestFeatureGateBasics:

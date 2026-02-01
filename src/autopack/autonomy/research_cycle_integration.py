@@ -26,13 +26,11 @@ if TYPE_CHECKING:
     from .executor_integration import ExecutorContext
 
 from ..research.analysis.budget_enforcement import BudgetEnforcer
-from ..research.analysis.followup_trigger import (
-    FollowupResearchTrigger,
-    FollowupTrigger,
-    TriggerAnalysisResult,
-    TriggerExecutionResult,
-    TriggerPriority,
-)
+from ..research.analysis.followup_trigger import (FollowupResearchTrigger,
+                                                  FollowupTrigger,
+                                                  TriggerAnalysisResult,
+                                                  TriggerExecutionResult,
+                                                  TriggerPriority)
 
 logger = logging.getLogger(__name__)
 

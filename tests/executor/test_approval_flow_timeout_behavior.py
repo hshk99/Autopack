@@ -12,11 +12,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from autopack.executor.approval_flow import (
-    request_build113_approval,
-    request_build113_clarification,
-    request_human_approval,
-)
+from autopack.executor.approval_flow import (request_build113_approval,
+                                             request_build113_clarification,
+                                             request_human_approval)
 
 
 class MockQualityReport:

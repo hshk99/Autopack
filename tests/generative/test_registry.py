@@ -3,7 +3,8 @@
 import pytest
 
 from autopack.generative.exceptions import InvalidConfigurationError
-from autopack.generative.registry import CapabilityGroup, ModelCapability, ModelRegistry, Provider
+from autopack.generative.registry import (CapabilityGroup, ModelCapability,
+                                          ModelRegistry, Provider)
 
 
 class TestProvider:

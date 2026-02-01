@@ -3,16 +3,9 @@
 import unittest
 
 from autopack.research.analysis.deployment_analysis import (
-    ContainerConfig,
-    DeploymentAnalyzer,
-    DeploymentArchitecture,
-    DeploymentRecommendation,
-    DeploymentTarget,
-    InfrastructureProvider,
-    KubernetesConfig,
-    ScalingStrategy,
-    ServerlessConfig,
-)
+    ContainerConfig, DeploymentAnalyzer, DeploymentArchitecture,
+    DeploymentRecommendation, DeploymentTarget, InfrastructureProvider,
+    KubernetesConfig, ScalingStrategy, ServerlessConfig)
 
 
 class TestDeploymentTarget(unittest.TestCase):

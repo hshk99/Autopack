@@ -43,25 +43,15 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from autopack.schema_validation.json_schema import (
-    SchemaValidationError,
-    validate_intention_anchor_v2,
-)
+    SchemaValidationError, validate_intention_anchor_v2)
 from autopack.sql_sanitizer import SQLSanitizer
 
-from .schemas import (
-    AnalysisResultsAggregation,
-    BuildVsBuyAnalysisResponse,
-    BuildVsBuyDecision,
-    ComponentCostDecision,
-    CostEffectivenessResponse,
-    CostEffectivenessSummary,
-    CreateResearchSession,
-    FollowupTrigger,
-    FollowupTriggerResponse,
-    ResearchGap,
-    ResearchSession,
-    ResearchStateResponse,
-)
+from .schemas import (AnalysisResultsAggregation, BuildVsBuyAnalysisResponse,
+                      BuildVsBuyDecision, ComponentCostDecision,
+                      CostEffectivenessResponse, CostEffectivenessSummary,
+                      CreateResearchSession, FollowupTrigger,
+                      FollowupTriggerResponse, ResearchGap, ResearchSession,
+                      ResearchStateResponse)
 
 logger = logging.getLogger(__name__)
 
@@ -1023,7 +1013,8 @@ async def invalidate_cached_session(request: CacheInvalidateRequest):
         )
 
     try:
-        from autopack.research.models.bootstrap_session import generate_idea_hash
+        from autopack.research.models.bootstrap_session import \
+            generate_idea_hash
 
         idea_hash = generate_idea_hash(
             request.idea_title,

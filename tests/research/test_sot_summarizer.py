@@ -5,15 +5,10 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-
-from autopack.research.sot_summarizer import (
-    ArchitectureDecision,
-    BuildEntry,
-    SOTSummarizer,
-    SOTSummary,
-    get_sot_summarizer,
-    summarize_sot_documents,
-)
+from autopack.research.sot_summarizer import (ArchitectureDecision, BuildEntry,
+                                              SOTSummarizer, SOTSummary,
+                                              get_sot_summarizer,
+                                              summarize_sot_documents)
 
 
 class TestBuildEntry:
@@ -536,7 +531,8 @@ class TestGetProjectBriefGeneratorWithSot:
 
     def test_get_project_brief_generator_with_sot(self) -> None:
         """Test convenience function for getting generator with SOT."""
-        from autopack.research.artifact_generators import get_project_brief_generator_with_sot
+        from autopack.research.artifact_generators import \
+            get_project_brief_generator_with_sot
 
         with tempfile.TemporaryDirectory() as tmpdir:
             generator = get_project_brief_generator_with_sot(project_root=tmpdir)

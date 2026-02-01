@@ -36,35 +36,24 @@ from ..gaps.scanner import scan_workspace
 from ..intention_anchor.v2 import IntentionAnchorV2
 from ..planning.models import PlanProposalV1
 from ..planning.plan_proposer import propose_plan
-from ..research.analysis.followup_trigger import (
-    FollowupResearchTrigger,
-    FollowupTrigger,
-    TriggerAnalysisResult,
-    TriggerExecutionResult,
-)
-from ..telemetry.autopilot_metrics import (
-    AutopilotHealthCollector,
-    SessionHealthSnapshot,
-    SessionOutcome,
-)
+from ..research.analysis.followup_trigger import (FollowupResearchTrigger,
+                                                  FollowupTrigger,
+                                                  TriggerAnalysisResult,
+                                                  TriggerExecutionResult)
+from ..telemetry.autopilot_metrics import (AutopilotHealthCollector,
+                                           SessionHealthSnapshot,
+                                           SessionOutcome)
 from .action_allowlist import ActionClassification
 from .action_executor import ExecutionBatch, SafeActionExecutor
 from .event_triggers import EventTriggerManager, EventType, WorkflowEvent
 from .executor_integration import ExecutorContext, create_executor_context
-from .models import (
-    ApprovalRequest,
-    AutopilotMetadata,
-    AutopilotSessionV1,
-    ErrorLogEntry,
-    ExecutionSummary,
-)
-from .research_cycle_integration import (
-    ResearchCycleDecision,
-    ResearchCycleIntegration,
-    ResearchCycleMetrics,
-    ResearchCycleOutcome,
-    create_research_cycle_integration,
-)
+from .models import (ApprovalRequest, AutopilotMetadata, AutopilotSessionV1,
+                     ErrorLogEntry, ExecutionSummary)
+from .research_cycle_integration import (ResearchCycleDecision,
+                                         ResearchCycleIntegration,
+                                         ResearchCycleMetrics,
+                                         ResearchCycleOutcome,
+                                         create_research_cycle_integration)
 
 logger = logging.getLogger(__name__)
 

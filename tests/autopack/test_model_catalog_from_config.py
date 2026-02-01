@@ -8,12 +8,9 @@ from pathlib import Path
 
 import yaml
 
-from autopack.model_catalog import (
-    ModelCatalogEntry,
-    load_model_catalog_from_config,
-    parse_models_config,
-    parse_pricing_config,
-)
+from autopack.model_catalog import (ModelCatalogEntry,
+                                    load_model_catalog_from_config,
+                                    parse_models_config, parse_pricing_config)
 
 
 class TestModelsConfigParsing:
@@ -198,7 +195,8 @@ class TestModelRoutingRefreshIntegration:
         # Force "config unavailable" to validate seed fallback deterministically.
         from unittest.mock import patch
 
-        from autopack.model_routing_refresh import SEED_CATALOG, load_model_catalog
+        from autopack.model_routing_refresh import (SEED_CATALOG,
+                                                    load_model_catalog)
 
         with patch("autopack.model_catalog.load_model_catalog", return_value=[]):
             catalog = load_model_catalog()
@@ -238,7 +236,8 @@ class TestP16SeedCatalogDriftContract:
 
     def test_config_catalog_preferred_over_seed_when_available(self):
         """When config is available, it should be used instead of seed."""
-        from autopack.model_catalog import load_model_catalog as load_from_config
+        from autopack.model_catalog import \
+            load_model_catalog as load_from_config
         from autopack.model_routing_refresh import load_model_catalog
 
         # Load from config

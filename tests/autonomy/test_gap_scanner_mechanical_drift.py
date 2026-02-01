@@ -7,7 +7,8 @@ instead of heuristics. Evidence should include command run and exit code.
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from autopack.gaps.doc_drift import DocDriftResult, run_doc_drift_check, run_sot_summary_check
+from autopack.gaps.doc_drift import (DocDriftResult, run_doc_drift_check,
+                                     run_sot_summary_check)
 from autopack.gaps.scanner import GapScanner
 
 

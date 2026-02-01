@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from autopack.generation.autonomous_wave_planner import AutonomousWavePlanner, WavePlan
+from autopack.generation.autonomous_wave_planner import (AutonomousWavePlanner,
+                                                         WavePlan)
 
 
 @pytest.fixture

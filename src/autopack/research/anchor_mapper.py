@@ -25,19 +25,15 @@ from typing import Any, Optional, TypeVar, Union
 
 from pydantic import BaseModel, Field
 
-from ..intention_anchor.v2 import (
-    BudgetCostIntention,
-    EvidenceVerificationIntention,
-    GovernanceReviewIntention,
-    IntentionAnchorV2,
-    IntentionMetadata,
-    MemoryContinuityIntention,
-    NorthStarIntention,
-    ParallelismIsolationIntention,
-    PivotIntentions,
-    SafetyRiskIntention,
-    ScopeBoundariesIntention,
-)
+from ..intention_anchor.v2 import (BudgetCostIntention,
+                                   EvidenceVerificationIntention,
+                                   GovernanceReviewIntention,
+                                   IntentionAnchorV2, IntentionMetadata,
+                                   MemoryContinuityIntention,
+                                   NorthStarIntention,
+                                   ParallelismIsolationIntention,
+                                   PivotIntentions, SafetyRiskIntention,
+                                   ScopeBoundariesIntention)
 from .idea_parser import ParsedIdea, ProjectType, RiskProfile
 from .models.bootstrap_session import BootstrapSession
 

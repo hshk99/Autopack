@@ -8,18 +8,16 @@ from datetime import datetime, timezone
 
 import pytest
 
-from autopack.intention_anchor.v2 import (
-    AutoApprovalRule,
-    BudgetCostIntention,
-    EvidenceVerificationIntention,
-    GovernanceReviewIntention,
-    IntentionAnchorV2,
-    NorthStarIntention,
-    ParallelismIsolationIntention,
-    PivotIntentions,
-    SafetyRiskIntention,
-)
-from autopack.intention_anchor.validators import AnchorValidator, ValidationResult
+from autopack.intention_anchor.v2 import (AutoApprovalRule,
+                                          BudgetCostIntention,
+                                          EvidenceVerificationIntention,
+                                          GovernanceReviewIntention,
+                                          IntentionAnchorV2,
+                                          NorthStarIntention,
+                                          ParallelismIsolationIntention,
+                                          PivotIntentions, SafetyRiskIntention)
+from autopack.intention_anchor.validators import (AnchorValidator,
+                                                  ValidationResult)
 
 # Valid 16-character hex digest for test fixtures
 VALID_DIGEST = "a1b2c3d4e5f67890"  # 16 hex chars matching ^[a-f0-9]{16,64}$

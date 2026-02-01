@@ -11,7 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from autopack.storage_optimizer.checkpoint_logger import CheckpointLogger, compute_sha256
+from autopack.storage_optimizer.checkpoint_logger import (CheckpointLogger,
+                                                          compute_sha256)
 
 
 class TestCheckpointLogger:

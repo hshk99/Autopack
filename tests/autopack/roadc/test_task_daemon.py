@@ -17,15 +17,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.roadc.task_daemon import (
-    DEFAULT_INTERVAL_SECONDS,
-    DEFAULT_MAX_TASKS_PER_CYCLE,
-    DEFAULT_MIN_CONFIDENCE,
-    DaemonCycleResult,
-    DaemonStats,
-    TelemetryTaskDaemon,
-    create_task_daemon,
-)
+from autopack.roadc.task_daemon import (DEFAULT_INTERVAL_SECONDS,
+                                        DEFAULT_MAX_TASKS_PER_CYCLE,
+                                        DEFAULT_MIN_CONFIDENCE,
+                                        DaemonCycleResult, DaemonStats,
+                                        TelemetryTaskDaemon,
+                                        create_task_daemon)
 
 
 class TestDaemonCycleResult:

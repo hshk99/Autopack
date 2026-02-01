@@ -6,16 +6,9 @@ monetization recommendations for different project types.
 
 from autopack.research.analysis.budget_enforcement import BudgetEnforcer
 from autopack.research.analysis.monetization_analysis import (
-    MonetizationAnalysisResult,
-    MonetizationAnalyzer,
-    MonetizationModel,
-    MonetizationModelFit,
-    PricingStrategy,
-    PricingTier,
-    ProjectType,
-    RevenueConfidence,
-    RevenueProjection,
-)
+    MonetizationAnalysisResult, MonetizationAnalyzer, MonetizationModel,
+    MonetizationModelFit, PricingStrategy, PricingTier, ProjectType,
+    RevenueConfidence, RevenueProjection)
 
 
 class TestPricingTier:

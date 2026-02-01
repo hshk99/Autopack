@@ -10,7 +10,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from autopack.schema_validation import SchemaValidationError, validate_gap_report_v1
+from autopack.schema_validation import (SchemaValidationError,
+                                        validate_gap_report_v1)
 
 
 def test_minimal_valid_gap_report_v1():

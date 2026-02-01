@@ -9,16 +9,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.memory.confidence_manager import (
-    DEFAULT_DECAY_HALF_LIFE_DAYS,
-    FAILURE_CONFIDENCE_PENALTY,
-    MAX_CONFIDENCE,
-    MIN_CONFIDENCE,
-    PARTIAL_CONFIDENCE_ADJUSTMENT,
-    SUCCESS_CONFIDENCE_BOOST,
-    ConfidenceManager,
-    ConfidenceState,
-)
+from autopack.memory.confidence_manager import (DEFAULT_DECAY_HALF_LIFE_DAYS,
+                                                FAILURE_CONFIDENCE_PENALTY,
+                                                MAX_CONFIDENCE, MIN_CONFIDENCE,
+                                                PARTIAL_CONFIDENCE_ADJUSTMENT,
+                                                SUCCESS_CONFIDENCE_BOOST,
+                                                ConfidenceManager,
+                                                ConfidenceState)
 
 
 class TestConfidenceState:

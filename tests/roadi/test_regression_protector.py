@@ -6,11 +6,9 @@ regression_protector.py.
 
 import pytest
 
-from autopack.roadi.regression_protector import (
-    FixVerificationResult,
-    RegressionCheckResult,
-    RegressionProtector,
-)
+from autopack.roadi.regression_protector import (FixVerificationResult,
+                                                 RegressionCheckResult,
+                                                 RegressionProtector)
 
 
 class TestRegressionCheckResult:

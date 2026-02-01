@@ -442,7 +442,7 @@ class BuildHistoryAnalyzer:
         else:
             # Check for pass/fail counts
             passed_match = re.search(r"(\d+)\s*passed", content, re.IGNORECASE)
-            failed_match = re.search(r"(\d+)\s*failed", content, re.IGNORECASE)
+            re.search(r"(\d+)\s*failed", content, re.IGNORECASE)
             if passed_match and test_count > 0:
                 test_pass_rate = int(passed_match.group(1)) / test_count
 
@@ -863,7 +863,7 @@ class BuildHistoryAnalyzer:
             Complete analysis result
         """
         metrics = self.collect_build_metrics()
-        original_count = len(metrics)
+        len(metrics)
 
         # Filter by project type
         if project_type:

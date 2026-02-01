@@ -14,7 +14,9 @@ from datetime import datetime, timezone
 def test_derive_safety_profile_minimal_risk_is_strict():
     """risk_tolerance='minimal' maps to safety_profile='strict'."""
     from autopack.executor.safety_profile import derive_safety_profile
-    from autopack.intention_anchor.v2 import IntentionAnchorV2, PivotIntentions, SafetyRiskIntention
+    from autopack.intention_anchor.v2 import (IntentionAnchorV2,
+                                              PivotIntentions,
+                                              SafetyRiskIntention)
 
     anchor = IntentionAnchorV2(
         project_id="test-project",
@@ -31,7 +33,9 @@ def test_derive_safety_profile_minimal_risk_is_strict():
 def test_derive_safety_profile_low_risk_is_strict():
     """risk_tolerance='low' maps to safety_profile='strict'."""
     from autopack.executor.safety_profile import derive_safety_profile
-    from autopack.intention_anchor.v2 import IntentionAnchorV2, PivotIntentions, SafetyRiskIntention
+    from autopack.intention_anchor.v2 import (IntentionAnchorV2,
+                                              PivotIntentions,
+                                              SafetyRiskIntention)
 
     anchor = IntentionAnchorV2(
         project_id="test-project",
@@ -48,7 +52,9 @@ def test_derive_safety_profile_low_risk_is_strict():
 def test_derive_safety_profile_moderate_risk_is_normal():
     """risk_tolerance='moderate' maps to safety_profile='normal'."""
     from autopack.executor.safety_profile import derive_safety_profile
-    from autopack.intention_anchor.v2 import IntentionAnchorV2, PivotIntentions, SafetyRiskIntention
+    from autopack.intention_anchor.v2 import (IntentionAnchorV2,
+                                              PivotIntentions,
+                                              SafetyRiskIntention)
 
     anchor = IntentionAnchorV2(
         project_id="test-project",
@@ -67,7 +73,9 @@ def test_derive_safety_profile_moderate_risk_is_normal():
 def test_derive_safety_profile_high_risk_is_normal():
     """risk_tolerance='high' maps to safety_profile='normal'."""
     from autopack.executor.safety_profile import derive_safety_profile
-    from autopack.intention_anchor.v2 import IntentionAnchorV2, PivotIntentions, SafetyRiskIntention
+    from autopack.intention_anchor.v2 import (IntentionAnchorV2,
+                                              PivotIntentions,
+                                              SafetyRiskIntention)
 
     anchor = IntentionAnchorV2(
         project_id="test-project",
@@ -118,7 +126,9 @@ def test_derive_safety_profile_empty_pivot_intentions_defaults_strict():
 def test_derive_safety_profile_deterministic():
     """Same anchor always produces same safety profile."""
     from autopack.executor.safety_profile import derive_safety_profile
-    from autopack.intention_anchor.v2 import IntentionAnchorV2, PivotIntentions, SafetyRiskIntention
+    from autopack.intention_anchor.v2 import (IntentionAnchorV2,
+                                              PivotIntentions,
+                                              SafetyRiskIntention)
 
     anchor = IntentionAnchorV2(
         project_id="test-project",

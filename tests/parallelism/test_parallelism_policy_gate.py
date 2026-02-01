@@ -4,21 +4,17 @@ from datetime import datetime, timezone
 
 import pytest
 
-from autopack.autonomy.parallelism_gate import (
-    ParallelismPolicyGate,
-    ParallelismPolicyViolation,
-    ScopeBasedParallelismChecker,
-    check_parallelism_policy,
-    check_phases_can_run_parallel,
-    check_scope_overlap,
-    extract_phase_scope_paths,
-    find_parallel_execution_groups,
-)
-from autopack.intention_anchor.v2 import (
-    IntentionAnchorV2,
-    ParallelismIsolationIntention,
-    PivotIntentions,
-)
+from autopack.autonomy.parallelism_gate import (ParallelismPolicyGate,
+                                                ParallelismPolicyViolation,
+                                                ScopeBasedParallelismChecker,
+                                                check_parallelism_policy,
+                                                check_phases_can_run_parallel,
+                                                check_scope_overlap,
+                                                extract_phase_scope_paths,
+                                                find_parallel_execution_groups)
+from autopack.intention_anchor.v2 import (IntentionAnchorV2,
+                                          ParallelismIsolationIntention,
+                                          PivotIntentions)
 
 
 def create_test_anchor(

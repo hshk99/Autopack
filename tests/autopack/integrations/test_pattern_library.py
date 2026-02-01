@@ -6,7 +6,8 @@ for cross-project learning.
 
 import pytest
 
-from autopack.integrations.pattern_library import PatternLibrary, ReusablePattern
+from autopack.integrations.pattern_library import (PatternLibrary,
+                                                   ReusablePattern)
 
 
 @pytest.fixture
@@ -306,7 +307,8 @@ class TestBuildHistoryIntegratorWithPatternLibrary:
 
     def test_integrator_with_pattern_library(self, tmp_path, sample_history_data):
         """Test BuildHistoryIntegrator with PatternLibrary."""
-        from autopack.integrations.build_history_integrator import BuildHistoryIntegrator
+        from autopack.integrations.build_history_integrator import \
+            BuildHistoryIntegrator
 
         # Create sample BUILD_HISTORY.md
         history_content = """# Build History
@@ -346,7 +348,8 @@ Best Practices:
 
     def test_integrator_get_applicable_patterns(self, tmp_path):
         """Test getting applicable patterns through integrator."""
-        from autopack.integrations.build_history_integrator import BuildHistoryIntegrator
+        from autopack.integrations.build_history_integrator import \
+            BuildHistoryIntegrator
 
         history_content = """# Build History
 
@@ -376,7 +379,8 @@ Implemented JWT authentication with token validation.
 
     def test_integrator_without_pattern_library(self, tmp_path):
         """Test integrator without pattern library returns empty list."""
-        from autopack.integrations.build_history_integrator import BuildHistoryIntegrator
+        from autopack.integrations.build_history_integrator import \
+            BuildHistoryIntegrator
 
         history_file = tmp_path / "BUILD_HISTORY.md"
         history_file.write_text("# Build History")
@@ -391,7 +395,8 @@ Implemented JWT authentication with token validation.
 
     def test_integrator_record_pattern_usage(self, tmp_path):
         """Test recording pattern usage through integrator."""
-        from autopack.integrations.build_history_integrator import BuildHistoryIntegrator
+        from autopack.integrations.build_history_integrator import \
+            BuildHistoryIntegrator
 
         history_file = tmp_path / "BUILD_HISTORY.md"
         history_file.write_text("# Build History")

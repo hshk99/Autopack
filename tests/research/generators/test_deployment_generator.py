@@ -2,12 +2,10 @@
 
 import unittest
 
-from autopack.research.artifact_generators import (
-    ArtifactGeneratorRegistry,
-    DeploymentGuidanceGenerator,
-    get_deployment_generator,
-    get_registry,
-)
+from autopack.research.artifact_generators import (ArtifactGeneratorRegistry,
+                                                   DeploymentGuidanceGenerator,
+                                                   get_deployment_generator,
+                                                   get_registry)
 
 
 class TestDeploymentGuidanceGenerator(unittest.TestCase):

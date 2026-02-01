@@ -5,7 +5,8 @@ IMP-MAINT-004: Tests for the extracted telemetry integration functionality.
 
 from unittest.mock import MagicMock, patch
 
-from autopack.executor.loop_telemetry_integration import LoopTelemetryIntegration
+from autopack.executor.loop_telemetry_integration import \
+    LoopTelemetryIntegration
 from autopack.telemetry.analyzer import CostRecommendation
 
 

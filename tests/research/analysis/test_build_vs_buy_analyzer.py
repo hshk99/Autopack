@@ -12,16 +12,9 @@ Covers:
 import pytest
 
 from autopack.research.analysis.build_vs_buy_analyzer import (
-    BuildVsBuyAnalysis,
-    BuildVsBuyAnalyzer,
-    ComponentRequirements,
-    CostEstimate,
-    DecisionRecommendation,
-    RiskAssessment,
-    RiskCategory,
-    StrategicImportance,
-    VendorOption,
-)
+    BuildVsBuyAnalysis, BuildVsBuyAnalyzer, ComponentRequirements,
+    CostEstimate, DecisionRecommendation, RiskAssessment, RiskCategory,
+    StrategicImportance, VendorOption)
 
 
 @pytest.fixture

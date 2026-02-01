@@ -7,11 +7,8 @@ import json
 
 import pytest
 
-from autopack.cli.commands.bootstrap import (
-    READY_FOR_BUILD_MARKER,
-    BootstrapOptions,
-    BootstrapRunner,
-)
+from autopack.cli.commands.bootstrap import (READY_FOR_BUILD_MARKER,
+                                             BootstrapOptions, BootstrapRunner)
 from autopack.intention_anchor.v2 import IntentionAnchorV2
 from autopack.research.anchor_mapper import ResearchToAnchorMapper
 from autopack.research.idea_parser import IdeaParser, ProjectType, RiskProfile

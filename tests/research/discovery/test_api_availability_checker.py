@@ -11,10 +11,7 @@ import pytest
 from httpx import Response
 
 from autopack.research.discovery.api_availability_checker import (
-    APIAvailabilityCheck,
-    APIAvailabilityChecker,
-    APIStatus,
-)
+    APIAvailabilityCheck, APIAvailabilityChecker, APIStatus)
 
 
 @pytest.fixture

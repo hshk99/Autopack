@@ -9,11 +9,8 @@ import pytest
 
 from autopack.llm.anthropic.phase_executor import AnthropicPhaseExecutor
 from autopack.llm.providers.anthropic_transport import (
-    AnthropicTransport,
-    AnthropicTransportApiError,
-    TransportResponse,
-    TransportUsage,
-)
+    AnthropicTransport, AnthropicTransportApiError, TransportResponse,
+    TransportUsage)
 from autopack.llm_client import BuilderResult
 
 
@@ -302,7 +299,8 @@ class TestRetryPathErrorHandling:
 
     def test_retry_typed_error_propagation(self, phase_executor, mock_transport, mock_client):
         """Test that typed transport errors are properly handled in retry path."""
-        from autopack.llm.providers.anthropic_transport import AnthropicTransportTimeout
+        from autopack.llm.providers.anthropic_transport import \
+            AnthropicTransportTimeout
 
         mock_transport.send_request = Mock(
             side_effect=[

@@ -5,7 +5,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.roadc import AutonomousTaskGenerator, GeneratedTask, TaskGenerationResult
+from autopack.roadc import (AutonomousTaskGenerator, GeneratedTask,
+                            TaskGenerationResult)
 from autopack.telemetry.analyzer import RankedIssue
 
 

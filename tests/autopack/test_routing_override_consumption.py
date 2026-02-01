@@ -7,8 +7,11 @@ and consumed by ModelRouter during execution.
 
 from datetime import datetime, timezone
 
-from autopack.autonomous.executor_wiring import TIER_TO_COMPLEXITY, initialize_intention_first_loop
-from autopack.intention_anchor.models import IntentionAnchor, IntentionBudgets, IntentionConstraints
+from autopack.autonomous.executor_wiring import (
+    TIER_TO_COMPLEXITY, initialize_intention_first_loop)
+from autopack.intention_anchor.models import (IntentionAnchor,
+                                              IntentionBudgets,
+                                              IntentionConstraints)
 
 
 class TestInitialRoutingOverrides:

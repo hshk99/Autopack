@@ -10,11 +10,9 @@ Tests cover:
 - Provenance serialization/deserialization
 """
 
-from autopack.memory.insight_provenance import (
-    InsightProvenance,
-    ProvenanceTracker,
-    TaskRecommendation,
-)
+from autopack.memory.insight_provenance import (InsightProvenance,
+                                                ProvenanceTracker,
+                                                TaskRecommendation)
 
 
 class TestInsightProvenance:

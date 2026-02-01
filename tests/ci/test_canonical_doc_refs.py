@@ -8,12 +8,10 @@ import pytest
 # Add scripts/ci to path for import
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts" / "ci"))
 
-from check_canonical_doc_refs import (
-    CANONICAL_OPERATOR_DOCS,
-    LEGACY_PATH_PATTERNS,
-    check_canonical_docs,
-    check_content_for_legacy_paths,
-)
+from check_canonical_doc_refs import (CANONICAL_OPERATOR_DOCS,
+                                      LEGACY_PATH_PATTERNS,
+                                      check_canonical_docs,
+                                      check_content_for_legacy_paths)
 
 
 class TestP25LegacyPathDetection:

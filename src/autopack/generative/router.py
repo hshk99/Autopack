@@ -13,11 +13,8 @@ from .adapters import (
     VertexAIAdapter,
 )
 from .config_loader import ConfigLoader
-from .exceptions import (
-    CapabilityNotSupportedError,
-    InvalidConfigurationError,
-    ModelNotAvailableError,
-)
+from .exceptions import (CapabilityNotSupportedError,
+                         InvalidConfigurationError, ModelNotAvailableError)
 from .health_monitor import HealthMonitor
 from .registry import ModelRegistry
 

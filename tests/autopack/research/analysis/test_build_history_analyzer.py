@@ -15,16 +15,9 @@ from pathlib import Path
 import pytest
 
 from autopack.research.analysis.build_history_analyzer import (
-    BuildHistoryAnalysisResult,
-    BuildHistoryAnalyzer,
-    BuildMetrics,
-    BuildOutcome,
-    CostEffectivenessFeedback,
-    FeasibilityFeedback,
-    FeasibilitySignal,
-    MetricTrend,
-    get_build_history_feedback,
-)
+    BuildHistoryAnalysisResult, BuildHistoryAnalyzer, BuildMetrics,
+    BuildOutcome, CostEffectivenessFeedback, FeasibilityFeedback,
+    FeasibilitySignal, MetricTrend, get_build_history_feedback)
 
 
 @pytest.fixture

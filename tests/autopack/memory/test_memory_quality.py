@@ -14,7 +14,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.memory.memory_service import CleanupResult, MemoryQualityReport, MemoryService
+from autopack.memory.memory_service import (CleanupResult, MemoryQualityReport,
+                                            MemoryService)
 
 
 class TestCleanupResult:

@@ -306,7 +306,8 @@ class APIServerLifecycle:
                 logger.info("✅ API server started successfully")
                 # Optional: fail fast if the API is healthy but the run is missing (common DB drift symptom).
                 if os.getenv("AUTOPACK_SKIP_RUN_EXISTENCE_CHECK") != "1":
-                    from autopack.supervisor.api_client import SupervisorApiHttpError
+                    from autopack.supervisor.api_client import \
+                        SupervisorApiHttpError
 
                     try:
                         self.executor.api_client.get_run(self.executor.run_id, timeout=2)

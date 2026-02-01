@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from autopack.artifacts import DEFAULT_REDACTION_PATTERNS, ArtifactRedactor, RedactionPattern
+from autopack.artifacts import (DEFAULT_REDACTION_PATTERNS, ArtifactRedactor,
+                                RedactionPattern)
 from autopack.artifacts.redaction import RedactionCategory
 
 

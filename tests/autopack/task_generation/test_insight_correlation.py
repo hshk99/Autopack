@@ -14,15 +14,10 @@ from datetime import datetime, timezone
 from unittest.mock import Mock
 
 from autopack.task_generation.insight_correlation import (
-    FAILURE_CONFIDENCE_PENALTY,
-    MAX_CONFIDENCE,
-    MIN_CONFIDENCE,
-    MIN_SAMPLE_SIZE_FOR_UPDATE,
-    SUCCESS_CONFIDENCE_BOOST,
-    InsightCorrelationEngine,
-    InsightEffectivenessStats,
-    InsightTaskCorrelation,
-)
+    FAILURE_CONFIDENCE_PENALTY, MAX_CONFIDENCE, MIN_CONFIDENCE,
+    MIN_SAMPLE_SIZE_FOR_UPDATE, SUCCESS_CONFIDENCE_BOOST,
+    InsightCorrelationEngine, InsightEffectivenessStats,
+    InsightTaskCorrelation)
 
 
 class TestInsightTaskCorrelation:

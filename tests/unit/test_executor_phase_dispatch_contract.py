@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from autopack.executor.phase_dispatch import SPECIAL_PHASE_METHODS, resolve_special_phase_method
+from autopack.executor.phase_dispatch import (SPECIAL_PHASE_METHODS,
+                                              resolve_special_phase_method)
 
 
 def test_phase_dispatch_registry_has_expected_special_phases() -> None:

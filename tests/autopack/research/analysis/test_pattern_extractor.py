@@ -14,13 +14,8 @@ Tests cover:
 import pytest
 
 from autopack.research.analysis.pattern_extractor import (
-    ExtractedPattern,
-    PatternConfidence,
-    PatternExtractionResult,
-    PatternExtractor,
-    PatternType,
-    ProjectOutcome,
-)
+    ExtractedPattern, PatternConfidence, PatternExtractionResult,
+    PatternExtractor, PatternType, ProjectOutcome)
 
 
 @pytest.fixture

@@ -17,8 +17,10 @@ from typing import Any, Dict, List, Optional
 
 import pytest
 
-from autopack.feedback_pipeline import FeedbackPipeline, PhaseContext, PhaseOutcome
-from autopack.telemetry.telemetry_to_memory_bridge import TelemetryToMemoryBridge
+from autopack.feedback_pipeline import (FeedbackPipeline, PhaseContext,
+                                        PhaseOutcome)
+from autopack.telemetry.telemetry_to_memory_bridge import \
+    TelemetryToMemoryBridge
 
 # =============================================================================
 # Test Fixtures
@@ -1845,12 +1847,10 @@ class TestTelemetryTaskDaemonIntegration:
 
     def test_daemon_initialization(self):
         """Test daemon initializes with correct defaults."""
-        from autopack.roadc.task_daemon import (
-            DEFAULT_INTERVAL_SECONDS,
-            DEFAULT_MAX_TASKS_PER_CYCLE,
-            DEFAULT_MIN_CONFIDENCE,
-            TelemetryTaskDaemon,
-        )
+        from autopack.roadc.task_daemon import (DEFAULT_INTERVAL_SECONDS,
+                                                DEFAULT_MAX_TASKS_PER_CYCLE,
+                                                DEFAULT_MIN_CONFIDENCE,
+                                                TelemetryTaskDaemon)
 
         # Pass mock memory service to avoid Qdrant connection
         mock_memory = MockDaemonMemoryService()
@@ -1968,7 +1968,8 @@ class TestInsightCorrelationEngineIntegration:
 
     def test_correlation_engine_initialization(self):
         """Test correlation engine initializes correctly."""
-        from autopack.task_generation.insight_correlation import InsightCorrelationEngine
+        from autopack.task_generation.insight_correlation import \
+            InsightCorrelationEngine
 
         engine = InsightCorrelationEngine()
 
@@ -1978,7 +1979,8 @@ class TestInsightCorrelationEngineIntegration:
 
     def test_task_creation_tracking(self):
         """Test task creation from insight is tracked."""
-        from autopack.task_generation.insight_correlation import InsightCorrelationEngine
+        from autopack.task_generation.insight_correlation import \
+            InsightCorrelationEngine
 
         engine = InsightCorrelationEngine()
 
@@ -2001,7 +2003,8 @@ class TestInsightCorrelationEngineIntegration:
 
     def test_outcome_recording_updates_stats(self):
         """Test recording outcome updates insight statistics."""
-        from autopack.task_generation.insight_correlation import InsightCorrelationEngine
+        from autopack.task_generation.insight_correlation import \
+            InsightCorrelationEngine
 
         engine = InsightCorrelationEngine()
 
@@ -2027,9 +2030,7 @@ class TestInsightCorrelationEngineIntegration:
     def test_confidence_updates_on_outcomes(self):
         """Test confidence is updated based on task outcomes."""
         from autopack.task_generation.insight_correlation import (
-            MIN_SAMPLE_SIZE_FOR_UPDATE,
-            InsightCorrelationEngine,
-        )
+            MIN_SAMPLE_SIZE_FOR_UPDATE, InsightCorrelationEngine)
 
         engine = InsightCorrelationEngine()
         insight_id = "confidence_test"
@@ -2054,7 +2055,8 @@ class TestInsightCorrelationEngineIntegration:
 
     def test_high_performing_insight_identification(self):
         """Test identification of high-performing insights."""
-        from autopack.task_generation.insight_correlation import InsightCorrelationEngine
+        from autopack.task_generation.insight_correlation import \
+            InsightCorrelationEngine
 
         engine = InsightCorrelationEngine()
 
@@ -2085,7 +2087,8 @@ class TestInsightCorrelationEngineIntegration:
 
     def test_low_performing_insight_identification(self):
         """Test identification of low-performing insights."""
-        from autopack.task_generation.insight_correlation import InsightCorrelationEngine
+        from autopack.task_generation.insight_correlation import \
+            InsightCorrelationEngine
 
         engine = InsightCorrelationEngine()
 
@@ -2108,7 +2111,8 @@ class TestInsightCorrelationEngineIntegration:
 
     def test_correlation_summary_statistics(self):
         """Test correlation summary provides accurate statistics."""
-        from autopack.task_generation.insight_correlation import InsightCorrelationEngine
+        from autopack.task_generation.insight_correlation import \
+            InsightCorrelationEngine
 
         engine = InsightCorrelationEngine()
 
@@ -2153,7 +2157,8 @@ class TestConfidenceLifecycleIntegration:
 
     def test_confidence_bounds_respected(self):
         """Test confidence stays within valid bounds."""
-        from autopack.task_generation.insight_correlation import MAX_CONFIDENCE, MIN_CONFIDENCE
+        from autopack.task_generation.insight_correlation import (
+            MAX_CONFIDENCE, MIN_CONFIDENCE)
 
         assert MIN_CONFIDENCE == 0.1
         assert MAX_CONFIDENCE == 1.0
@@ -2214,7 +2219,8 @@ class TestConfidenceLifecycleIntegration:
 
     def test_confidence_update_on_success_increases(self):
         """Test successful task execution increases confidence."""
-        from autopack.task_generation.insight_correlation import SUCCESS_CONFIDENCE_BOOST
+        from autopack.task_generation.insight_correlation import \
+            SUCCESS_CONFIDENCE_BOOST
 
         # Success should boost confidence
         assert SUCCESS_CONFIDENCE_BOOST > 0
@@ -2222,7 +2228,8 @@ class TestConfidenceLifecycleIntegration:
 
     def test_confidence_update_on_failure_decreases(self):
         """Test failed task execution decreases confidence."""
-        from autopack.task_generation.insight_correlation import FAILURE_CONFIDENCE_PENALTY
+        from autopack.task_generation.insight_correlation import \
+            FAILURE_CONFIDENCE_PENALTY
 
         # Failure should reduce confidence
         assert FAILURE_CONFIDENCE_PENALTY > 0
@@ -2230,7 +2237,8 @@ class TestConfidenceLifecycleIntegration:
 
     def test_end_to_end_confidence_lifecycle(self):
         """Test complete confidence lifecycle from creation to update."""
-        from autopack.task_generation.insight_correlation import InsightCorrelationEngine
+        from autopack.task_generation.insight_correlation import \
+            InsightCorrelationEngine
 
         engine = InsightCorrelationEngine()
 
@@ -2424,7 +2432,8 @@ class TestTaskGenerationThroughputMetrics:
         """Test throughput status classification."""
         from datetime import datetime, timezone
 
-        from autopack.telemetry.meta_metrics import TaskGenerationThroughputMetrics
+        from autopack.telemetry.meta_metrics import \
+            TaskGenerationThroughputMetrics
 
         now = datetime.now(timezone.utc)
 
@@ -2488,7 +2497,8 @@ class TestTaskGenerationThroughputMetrics:
         """Test execution_wiring_verified property."""
         from datetime import datetime, timezone
 
-        from autopack.telemetry.meta_metrics import TaskGenerationThroughputMetrics
+        from autopack.telemetry.meta_metrics import \
+            TaskGenerationThroughputMetrics
 
         now = datetime.now(timezone.utc)
 

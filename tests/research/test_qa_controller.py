@@ -8,25 +8,17 @@ from unittest.mock import patch
 
 import pytest
 
-from autopack.intention_anchor.v2 import (
-    IntentionAnchorV2,
-    NorthStarIntention,
-    PivotIntentions,
-    SafetyRiskIntention,
-    validate_pivot_completeness,
-)
+from autopack.intention_anchor.v2 import (IntentionAnchorV2,
+                                          NorthStarIntention, PivotIntentions,
+                                          SafetyRiskIntention,
+                                          validate_pivot_completeness)
 from autopack.research.idea_parser import ProjectType
-from autopack.research.qa_controller import (
-    _PROJECT_TYPE_DEFAULTS,
-    _SAFE_DEFAULTS,
-    Answer,
-    AnswerSource,
-    QAController,
-    QASessionResult,
-    Question,
-    QuestionPriority,
-    run_interactive_qa,
-)
+from autopack.research.qa_controller import (_PROJECT_TYPE_DEFAULTS,
+                                             _SAFE_DEFAULTS, Answer,
+                                             AnswerSource, QAController,
+                                             QASessionResult, Question,
+                                             QuestionPriority,
+                                             run_interactive_qa)
 
 
 class TestQuestionPriority:
@@ -641,13 +633,9 @@ class TestIntegrationWithValidatePivotCompleteness:
     def test_questions_from_complete_anchor(self):
         """Test that complete anchor generates no questions."""
         from autopack.intention_anchor.v2 import (
-            BudgetCostIntention,
-            EvidenceVerificationIntention,
-            GovernanceReviewIntention,
-            MemoryContinuityIntention,
-            ParallelismIsolationIntention,
-            ScopeBoundariesIntention,
-        )
+            BudgetCostIntention, EvidenceVerificationIntention,
+            GovernanceReviewIntention, MemoryContinuityIntention,
+            ParallelismIsolationIntention, ScopeBoundariesIntention)
 
         anchor = IntentionAnchorV2(
             project_id="complete-test",

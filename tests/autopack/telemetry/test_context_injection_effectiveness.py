@@ -9,11 +9,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.telemetry.analyzer import (
-    ContextInjectionImpact,
-    ContextInjectionReport,
-    TelemetryAnalyzer,
-)
+from autopack.telemetry.analyzer import (ContextInjectionImpact,
+                                         ContextInjectionReport,
+                                         TelemetryAnalyzer)
 
 
 class TestContextInjectionReport:

@@ -7,18 +7,14 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.autopack.integrations.mcp_registry import (
-    MCPIntegrationConfig,
-    MCPIntegrationResult,
-    MCPIntegrationStatus,
-    MCPRegistryIntegration,
-)
-from src.autopack.research.external.mcp_scanner import (
-    MCPServer,
-    MCPServerMaintainer,
-    MCPServerMaturity,
-    ScanResult,
-)
+from src.autopack.integrations.mcp_registry import (MCPIntegrationConfig,
+                                                    MCPIntegrationResult,
+                                                    MCPIntegrationStatus,
+                                                    MCPRegistryIntegration)
+from src.autopack.research.external.mcp_scanner import (MCPServer,
+                                                        MCPServerMaintainer,
+                                                        MCPServerMaturity,
+                                                        ScanResult)
 
 
 @pytest.fixture

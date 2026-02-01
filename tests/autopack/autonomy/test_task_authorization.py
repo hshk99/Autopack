@@ -15,9 +15,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from autopack.autonomy.approval_service import ApprovalService, AuthorizationDecision
-from autopack.executor.backlog_maintenance import BacklogMaintenance, TaskCandidate
-from autopack.roadi.regression_protector import RegressionProtector, RiskAssessment, RiskSeverity
+from autopack.autonomy.approval_service import (ApprovalService,
+                                                AuthorizationDecision)
+from autopack.executor.backlog_maintenance import (BacklogMaintenance,
+                                                   TaskCandidate)
+from autopack.roadi.regression_protector import (RegressionProtector,
+                                                 RiskAssessment, RiskSeverity)
 
 
 class TestAuthorizationDecision:

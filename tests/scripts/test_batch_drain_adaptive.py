@@ -9,11 +9,9 @@ Tests cover:
 
 import pytest
 
-from scripts.batch_drain_controller import (
-    DrainResult,
-    compute_failure_fingerprint,
-    normalize_error_text,
-)
+from scripts.batch_drain_controller import (DrainResult,
+                                            compute_failure_fingerprint,
+                                            normalize_error_text)
 
 
 class TestFailureFingerprinting:

@@ -16,14 +16,9 @@ Tests cover:
 import pytest
 
 from autopack.research.analysis.research_effectiveness import (
-    DecisionQualityLevel,
-    FeedbackCategory,
-    ResearchCycleOutcome,
-    ResearchEffectivenessAnalyzer,
-    ResearchEffectivenessFeedback,
-    ResearchEffectivenessMetrics,
-    ResearchOutcomeType,
-)
+    DecisionQualityLevel, FeedbackCategory, ResearchCycleOutcome,
+    ResearchEffectivenessAnalyzer, ResearchEffectivenessFeedback,
+    ResearchEffectivenessMetrics, ResearchOutcomeType)
 
 
 class TestResearchCycleOutcome:

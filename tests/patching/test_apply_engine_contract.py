@@ -6,13 +6,10 @@ Tests the core patch application engine extracted from governed_apply.py.
 import tempfile
 from pathlib import Path
 
-from autopack.patching.apply_engine import (
-    ApplyResult,
-    _classify_patch_files,
-    _extract_files_from_patch,
-    execute_git_apply,
-    execute_manual_apply,
-)
+from autopack.patching.apply_engine import (ApplyResult, _classify_patch_files,
+                                            _extract_files_from_patch,
+                                            execute_git_apply,
+                                            execute_manual_apply)
 
 # =============================================================================
 # execute_git_apply Tests

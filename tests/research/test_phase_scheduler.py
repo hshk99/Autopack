@@ -5,14 +5,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from autopack.research.phase_scheduler import (
-    DependencyGraph,
-    PhasePriority,
-    PhaseScheduler,
-    PhaseStatus,
-    PhaseTask,
-    ResourceManager,
-)
+from autopack.research.phase_scheduler import (DependencyGraph, PhasePriority,
+                                               PhaseScheduler, PhaseStatus,
+                                               PhaseTask, ResourceManager)
 
 
 class TestPhasePriority:

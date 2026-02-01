@@ -4,7 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from autopack.infrastructure.hetzner_client import HetznerClient, Server, ServerConfig, ServerStatus
+from autopack.infrastructure.hetzner_client import (HetznerClient, Server,
+                                                    ServerConfig, ServerStatus)
 
 
 class TestHetznerClientInitialization:

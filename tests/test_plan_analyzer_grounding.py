@@ -3,7 +3,8 @@
 from pathlib import Path
 
 from autopack.pattern_matcher import PatternMatcher
-from autopack.plan_analyzer_grounding import MAX_CONTEXT_CHARS, GroundedContextBuilder
+from autopack.plan_analyzer_grounding import (MAX_CONTEXT_CHARS,
+                                              GroundedContextBuilder)
 from autopack.repo_scanner import RepoScanner
 
 

@@ -11,11 +11,8 @@ from unittest.mock import patch
 
 import pytest
 
-from autopack.anthropic_clients import (
-    MAX_RULE_CHARS,
-    MAX_TOTAL_RULES_TOKENS,
-    AnthropicBuilderClient,
-)
+from autopack.anthropic_clients import (MAX_RULE_CHARS, MAX_TOTAL_RULES_TOKENS,
+                                        AnthropicBuilderClient)
 
 
 class TestProjectRulesSizeLimits:

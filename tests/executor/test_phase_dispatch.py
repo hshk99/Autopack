@@ -14,7 +14,8 @@ Test coverage:
 
 import pytest
 
-from autopack.executor.phase_dispatch import SPECIAL_PHASE_METHODS, resolve_special_phase_method
+from autopack.executor.phase_dispatch import (SPECIAL_PHASE_METHODS,
+                                              resolve_special_phase_method)
 
 
 class TestResolveSpecialPhaseMethod:

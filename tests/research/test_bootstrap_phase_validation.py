@@ -3,12 +3,8 @@
 import pytest
 
 from autopack.research.models.bootstrap_session import (
-    BootstrapPhase,
-    BootstrapSession,
-    CompetitiveAnalysisResult,
-    MarketResearchResult,
-    TechnicalFeasibilityResult,
-)
+    BootstrapPhase, BootstrapSession, CompetitiveAnalysisResult,
+    MarketResearchResult, TechnicalFeasibilityResult)
 
 
 class TestMarketResearchSchema:

@@ -14,16 +14,12 @@ from typing import Dict
 
 from fastapi import APIRouter, HTTPException
 
-from autopack.feature_gates import (
-    check_feature_dependencies,
-    get_disabled_features,
-    get_enabled_features,
-    get_feature_info,
-    get_feature_states,
-    is_feature_enabled,
-    set_feature_enabled,
-    validate_feature_state,
-)
+from autopack.feature_gates import (check_feature_dependencies,
+                                    get_disabled_features,
+                                    get_enabled_features, get_feature_info,
+                                    get_feature_states, is_feature_enabled,
+                                    set_feature_enabled,
+                                    validate_feature_state)
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +125,7 @@ def validate_gates() -> Dict[str, object]:
         }
     """
     validation = validate_feature_state()
-    status_code = 200 if validation["valid"] else 207  # 207 Multi-Status for warnings
+    200 if validation["valid"] else 207  # 207 Multi-Status for warnings
     return validation
 
 

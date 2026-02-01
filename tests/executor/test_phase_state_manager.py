@@ -17,7 +17,9 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from autopack.executor.phase_state_manager import PhaseState, PhaseStateManager, StateUpdateRequest
+from autopack.executor.phase_state_manager import (PhaseState,
+                                                   PhaseStateManager,
+                                                   StateUpdateRequest)
 
 
 class TestPhaseStateLoading:

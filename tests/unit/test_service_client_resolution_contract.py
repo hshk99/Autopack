@@ -10,13 +10,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.service.client_resolution import (
-    ClientRegistry,
-    ClientResolutionResult,
-    get_fallback_chain,
-    model_to_provider,
-    resolve_client_and_model,
-)
+from autopack.service.client_resolution import (ClientRegistry,
+                                                ClientResolutionResult,
+                                                get_fallback_chain,
+                                                model_to_provider,
+                                                resolve_client_and_model)
 
 # ============================================================================
 # model_to_provider tests

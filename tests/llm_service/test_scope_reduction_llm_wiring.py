@@ -220,11 +220,10 @@ class TestExecutorWiringScopeReduction:
     def test_generate_scope_reduction_proposal_uses_llm_service(self):
         """executor_wiring.generate_scope_reduction_proposal calls LlmService."""
         from autopack.autonomous.executor_wiring import (
-            ExecutorWiringState,
-            generate_scope_reduction_proposal,
-        )
+            ExecutorWiringState, generate_scope_reduction_proposal)
         from autopack.autonomous.intention_first_loop import IntentionFirstLoop
-        from autopack.intention_anchor.models import IntentionAnchor, IntentionConstraints
+        from autopack.intention_anchor.models import (IntentionAnchor,
+                                                      IntentionConstraints)
 
         now = datetime.now(timezone.utc)
         # Create minimal anchor with all required fields
@@ -295,11 +294,10 @@ class TestExecutorWiringScopeReduction:
     def test_generate_scope_reduction_proposal_returns_none_without_llm_service(self):
         """generate_scope_reduction_proposal returns None when no LlmService."""
         from autopack.autonomous.executor_wiring import (
-            ExecutorWiringState,
-            generate_scope_reduction_proposal,
-        )
+            ExecutorWiringState, generate_scope_reduction_proposal)
         from autopack.autonomous.intention_first_loop import IntentionFirstLoop
-        from autopack.intention_anchor.models import IntentionAnchor, IntentionConstraints
+        from autopack.intention_anchor.models import (IntentionAnchor,
+                                                      IntentionConstraints)
 
         now = datetime.now(timezone.utc)
         anchor = IntentionAnchor(

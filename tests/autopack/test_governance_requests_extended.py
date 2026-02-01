@@ -138,7 +138,9 @@ class TestTierEscalation:
 
     def test_tier_1_auto_approval(self):
         """Test that tier 1 (low risk) requests can be auto-approved."""
-        from autopack.governance_requests import GovernanceRequest, RequestType, should_auto_approve
+        from autopack.governance_requests import (GovernanceRequest,
+                                                  RequestType,
+                                                  should_auto_approve)
 
         request = GovernanceRequest(
             request_id="req_001",
@@ -155,7 +157,9 @@ class TestTierEscalation:
 
     def test_tier_2_requires_approval(self):
         """Test that tier 2 (medium risk) requires human approval."""
-        from autopack.governance_requests import GovernanceRequest, RequestType, should_auto_approve
+        from autopack.governance_requests import (GovernanceRequest,
+                                                  RequestType,
+                                                  should_auto_approve)
 
         request = GovernanceRequest(
             request_id="req_001",
@@ -172,11 +176,9 @@ class TestTierEscalation:
 
     def test_tier_3_requires_senior_approval(self):
         """Test that tier 3 (high risk) requires senior approval."""
-        from autopack.governance_requests import (
-            GovernanceRequest,
-            RequestType,
-            requires_senior_approval,
-        )
+        from autopack.governance_requests import (GovernanceRequest,
+                                                  RequestType,
+                                                  requires_senior_approval)
 
         request = GovernanceRequest(
             request_id="req_001",
@@ -193,7 +195,8 @@ class TestTierEscalation:
 
     def test_escalation_on_timeout(self):
         """Test that requests escalate to higher tier on timeout."""
-        from autopack.governance_requests import GovernanceRequest, RequestType, should_escalate
+        from autopack.governance_requests import (GovernanceRequest,
+                                                  RequestType, should_escalate)
 
         # Create request from 2 hours ago
         old_time = datetime.utcnow() - timedelta(hours=2)
@@ -212,7 +215,8 @@ class TestTierEscalation:
 
     def test_no_escalation_within_timeout(self):
         """Test that requests don't escalate within timeout period."""
-        from autopack.governance_requests import GovernanceRequest, RequestType, should_escalate
+        from autopack.governance_requests import (GovernanceRequest,
+                                                  RequestType, should_escalate)
 
         # Create recent request
         request = GovernanceRequest(
@@ -234,11 +238,9 @@ class TestAutoApproval:
 
     def test_auto_approve_low_risk_high_confidence(self):
         """Test auto-approval for low risk + high confidence."""
-        from autopack.governance_requests import (
-            GovernanceRequest,
-            RequestType,
-            auto_approve_if_eligible,
-        )
+        from autopack.governance_requests import (GovernanceRequest,
+                                                  RequestType,
+                                                  auto_approve_if_eligible)
 
         request = GovernanceRequest(
             request_id="req_001",
@@ -259,11 +261,9 @@ class TestAutoApproval:
 
     def test_no_auto_approve_low_confidence(self):
         """Test that low confidence prevents auto-approval."""
-        from autopack.governance_requests import (
-            GovernanceRequest,
-            RequestType,
-            auto_approve_if_eligible,
-        )
+        from autopack.governance_requests import (GovernanceRequest,
+                                                  RequestType,
+                                                  auto_approve_if_eligible)
 
         request = GovernanceRequest(
             request_id="req_001",
@@ -283,11 +283,9 @@ class TestAutoApproval:
 
     def test_no_auto_approve_high_risk(self):
         """Test that high risk prevents auto-approval."""
-        from autopack.governance_requests import (
-            GovernanceRequest,
-            RequestType,
-            auto_approve_if_eligible,
-        )
+        from autopack.governance_requests import (GovernanceRequest,
+                                                  RequestType,
+                                                  auto_approve_if_eligible)
 
         request = GovernanceRequest(
             request_id="req_001",
@@ -307,11 +305,9 @@ class TestAutoApproval:
 
     def test_auto_approve_threshold_configurable(self):
         """Test that auto-approval threshold is configurable."""
-        from autopack.governance_requests import (
-            GovernanceRequest,
-            RequestType,
-            auto_approve_if_eligible,
-        )
+        from autopack.governance_requests import (GovernanceRequest,
+                                                  RequestType,
+                                                  auto_approve_if_eligible)
 
         request = GovernanceRequest(
             request_id="req_001",

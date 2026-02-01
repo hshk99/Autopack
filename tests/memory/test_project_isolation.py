@@ -8,11 +8,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from autopack.memory.memory_service import (
-    MemoryService,
-    ProjectNamespaceError,
-    _validate_project_id,
-)
+from autopack.memory.memory_service import (MemoryService,
+                                            ProjectNamespaceError,
+                                            _validate_project_id)
 
 
 class TestValidateProjectId:

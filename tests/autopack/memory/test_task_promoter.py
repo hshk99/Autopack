@@ -7,12 +7,9 @@ failure patterns and automatically promotes them to tasks.
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
-from autopack.memory.task_promoter import (
-    DEFAULT_PROMOTION_THRESHOLD,
-    MemoryTaskPromoter,
-    PromotableInsight,
-    PromotionResult,
-)
+from autopack.memory.task_promoter import (DEFAULT_PROMOTION_THRESHOLD,
+                                           MemoryTaskPromoter,
+                                           PromotableInsight, PromotionResult)
 
 
 class TestPromotableInsight:

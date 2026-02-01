@@ -7,11 +7,9 @@ to prevent invalid/malformed keys from being used.
 
 import pytest
 
-from autopack.executor.run_lifecycle_manager import (
-    API_KEY_PATTERNS,
-    ApiKeyValidationError,
-    RunLifecycleManager,
-)
+from autopack.executor.run_lifecycle_manager import (API_KEY_PATTERNS,
+                                                     ApiKeyValidationError,
+                                                     RunLifecycleManager)
 from autopack.executor.startup_validation import StartupValidator
 
 

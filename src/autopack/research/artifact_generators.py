@@ -11,190 +11,20 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type
 
-from autopack.executor.post_build_generator import (
-    PostBuildArtifactGenerator,
-)
+from autopack.executor.post_build_generator import PostBuildArtifactGenerator
 from autopack.research.analysis.deployment_analysis import (
-    DeploymentAnalyzer,
-    DeploymentArchitecture,
-)
+    DeploymentAnalyzer, DeploymentArchitecture)
 from autopack.research.analysis.monetization_analysis import (
-    MonetizationAnalysisResult,
-    MonetizationAnalyzer,
-    ProjectType,
-)
+    MonetizationAnalysisResult, MonetizationAnalyzer, ProjectType)
 from autopack.research.discovery.mcp_discovery import MCPScanResult
 from autopack.research.generators.cicd_generator import (
-    CICDAnalyzer,
-    CICDWorkflowGenerator,
-    GitLabCIGenerator,
-    JenkinsPipelineGenerator,
-)
-from autopack.research.sot_summarizer import SOTSummarizer, SOTSummary, get_sot_summarizer
+    CICDAnalyzer, CICDWorkflowGenerator, GitLabCIGenerator,
+    JenkinsPipelineGenerator)
+from autopack.research.sot_summarizer import (SOTSummarizer, SOTSummary,
+                                              get_sot_summarizer)
 from autopack.research.validators.artifact_validator import ArtifactValidator
 
 logger = logging.getLogger(__name__)
-
-
-# Type validation and safe access utility functions
-def safe_get_string(value: Any, default: str = "") -> str:
-    """Safely convert any value to a string with a default fallback.
-
-    Args:
-        value: The value to convert to string
-        default: Default string if value is None or invalid
-
-    Returns:
-        String representation of value or default
-    """
-    if value is None:
-        logger.debug(f"[safe_get_string] None value provided, using default: {default!r}")
-        return default
-    if isinstance(value, str):
-        return value
-    try:
-        return str(value)
-    except Exception as e:
-        logger.warning(f"[safe_get_string] Failed to convert {type(value)} to string: {e}")
-        return default
-
-
-def safe_get_float(value: Any, default: float = 0.0) -> float:
-    """Safely convert any value to a float with type validation.
-
-    Args:
-        value: The value to convert to float
-        default: Default float if value is None or not numeric
-
-    Returns:
-        Float value or default
-    """
-    if value is None:
-        logger.debug(f"[safe_get_float] None value provided, using default: {default}")
-        return default
-    if isinstance(value, (int, float)):
-        return float(value)
-    if isinstance(value, str):
-        try:
-            return float(value)
-        except ValueError:
-            logger.warning(
-                f"[safe_get_float] Cannot convert string '{value}' to float, using default: {default}"
-            )
-            return default
-    logger.warning(
-        f"[safe_get_float] Unexpected type {type(value)} for value {value!r}, using default: {default}"
-    )
-    return default
-
-
-def safe_get_int(value: Any, default: int = 0) -> int:
-    """Safely convert any value to an int with type validation.
-
-    Args:
-        value: The value to convert to int
-        default: Default int if value is None or not numeric
-
-    Returns:
-        Integer value or default
-    """
-    if value is None:
-        logger.debug(f"[safe_get_int] None value provided, using default: {default}")
-        return default
-    if isinstance(value, int) and not isinstance(value, bool):
-        return value
-    if isinstance(value, float):
-        return int(value)
-    if isinstance(value, str):
-        try:
-            return int(value)
-        except ValueError:
-            logger.warning(
-                f"[safe_get_int] Cannot convert string '{value}' to int, using default: {default}"
-            )
-            return default
-    logger.warning(
-        f"[safe_get_int] Unexpected type {type(value)} for value {value!r}, using default: {default}"
-    )
-    return default
-
-
-def safe_dict_get(
-    data: dict, key: str, default: Any = None, expected_type: Optional[Type] = None
-) -> Any:
-    """Safely get value from dict with optional type validation.
-
-    Args:
-        data: Dictionary to access
-        key: Key to retrieve
-        default: Default value if key missing or type invalid
-        expected_type: If provided, validates value is this type
-
-    Returns:
-        Value from dict or default if missing/invalid type
-    """
-    if not isinstance(data, dict):
-        logger.warning(f"[safe_dict_get] Expected dict, got {type(data)}")
-        return default
-
-    value = data.get(key, default)
-
-    if value is default or value is None:
-        logger.debug(f"[safe_dict_get] Key '{key}' not found in dict, using default")
-        return default
-
-    if expected_type is not None and not isinstance(value, expected_type):
-        logger.warning(
-            f"[safe_dict_get] Key '{key}' has type {type(value)}, "
-            f"expected {expected_type.__name__}, using default"
-        )
-        return default
-
-    return value
-
-
-def safe_enum_value(enum_obj: Any, default: str = "unknown") -> str:
-    """Safely get the string value of an enum object.
-
-    Args:
-        enum_obj: Enum object to extract value from
-        default: Default string if value is None or not accessible
-
-    Returns:
-        String representation of enum value or default
-    """
-    if enum_obj is None:
-        logger.debug(f"[safe_enum_value] None enum provided, using default: {default!r}")
-        return default
-
-    try:
-        if hasattr(enum_obj, "value"):
-            value = enum_obj.value
-            if isinstance(value, str):
-                return value
-            return str(value)
-        return str(enum_obj)
-    except Exception as e:
-        logger.warning(
-            f"[safe_enum_value] Failed to extract enum value: {e}, using default: {default!r}"
-        )
-        return default
-
-
-def safe_format_currency(value: Any, prefix: str = "$", decimals: int = 0) -> str:
-    """Safely format a value as currency string.
-
-    Args:
-        value: Numeric value to format
-        prefix: Currency prefix (default: "$")
-        decimals: Number of decimal places (default: 0)
-
-    Returns:
-        Formatted currency string
-    """
-    numeric_value = safe_get_float(value, 0.0)
-    format_str = f"{{:,.{decimals}f}}"
-    return f"{prefix}{format_str.format(numeric_value)}"
 
 
 class MonetizationStrategyGenerator:
@@ -273,14 +103,8 @@ class MonetizationStrategyGenerator:
         section = "## Pricing Models\n\n"
 
         for model in models:
-            if not isinstance(model, dict):
-                logger.warning(
-                    f"[_generate_pricing_models_section] Expected dict, got {type(model)}"
-                )
-                continue
-
-            model_type = safe_get_string(model.get("model"), "Unknown")
-            prevalence = safe_get_string(model.get("prevalence"), "")
+            model_type = model.get("model", "Unknown")
+            prevalence = model.get("prevalence", "")
             pros = model.get("pros", [])
             cons = model.get("cons", [])
 
@@ -290,17 +114,11 @@ class MonetizationStrategyGenerator:
                 section += f"**Prevalence**: {prevalence}\n\n"
 
             examples = model.get("examples", [])
-            if examples and isinstance(examples, list):
+            if examples:
                 section += "**Examples:**\n"
                 for example in examples:
-                    if not isinstance(example, dict):
-                        logger.debug(
-                            f"[_generate_pricing_models_section] Skipping non-dict example: {type(example)}"
-                        )
-                        continue
-
-                    company = safe_get_string(example.get("company"), "Unknown")
-                    url = safe_get_string(example.get("url"), "")
+                    company = example.get("company", "Unknown")
+                    url = example.get("url", "")
                     tiers = example.get("tiers", [])
 
                     section += f"\n- **{company}**"
@@ -308,36 +126,27 @@ class MonetizationStrategyGenerator:
                         section += f" ([link]({url}))"
                     section += "\n"
 
-                    if isinstance(tiers, list):
-                        for tier in tiers:
-                            if not isinstance(tier, dict):
-                                logger.debug(
-                                    f"[_generate_pricing_models_section] Skipping non-dict tier: {type(tier)}"
-                                )
-                                continue
-
-                            tier_name = safe_get_string(tier.get("name"), "")
-                            price = safe_get_string(tier.get("price"), "")
-                            limits = safe_get_string(tier.get("limits"), "")
-                            section += f"  - {tier_name}: {price}"
-                            if limits:
-                                section += f" ({limits})"
-                            section += "\n"
+                    for tier in tiers:
+                        tier_name = tier.get("name", "")
+                        price = tier.get("price", "")
+                        limits = tier.get("limits", "")
+                        section += f"  - {tier_name}: {price}"
+                        if limits:
+                            section += f" ({limits})"
+                        section += "\n"
 
                 section += "\n"
 
-            if pros and isinstance(pros, list):
+            if pros:
                 section += "**Pros:**\n"
                 for pro in pros:
-                    pro_str = safe_get_string(pro, "Benefit")
-                    section += f"- {pro_str}\n"
+                    section += f"- {pro}\n"
                 section += "\n"
 
-            if cons and isinstance(cons, list):
+            if cons:
                 section += "**Cons:**\n"
                 for con in cons:
-                    con_str = safe_get_string(con, "Limitation")
-                    section += f"- {con_str}\n"
+                    section += f"- {con}\n"
                 section += "\n"
 
         return section
@@ -354,24 +163,22 @@ class MonetizationStrategyGenerator:
         section = "## Pricing Benchmarks\n\n"
 
         for tier, data in benchmarks.items():
-            # Safely convert tier key to string
-            tier_str = safe_get_string(tier, "tier").replace("_", " ").title()
-            section += f"### {tier_str}\n\n"
+            section += f"### {tier.replace('_', ' ').title()}\n\n"
 
             if isinstance(data, dict):
-                range_val = safe_get_string(data.get("range"), "")
+                range_val = data.get("range", "")
                 if range_val:
                     section += f"- **Range**: {range_val}\n"
 
-                median = safe_get_string(data.get("median"), "")
+                median = data.get("median", "")
                 if median:
                     section += f"- **Median**: {median}\n"
 
-                source = safe_get_string(data.get("source"), "")
+                source = data.get("source", "")
                 if source:
                     section += f"- **Source**: {source}\n"
 
-                extraction = safe_get_string(data.get("extraction_span"), "")
+                extraction = data.get("extraction_span", "")
                 if extraction:
                     section += f"- **Extraction**: {extraction}\n"
 
@@ -391,20 +198,18 @@ class MonetizationStrategyGenerator:
         section = "## Conversion Metrics\n\n"
 
         for metric_key, metric_data in conversion.items():
-            # Safely convert metric key to string
-            metric_key_str = safe_get_string(metric_key, "metric").replace("_", " ").title()
-            section += f"### {metric_key_str}\n\n"
+            section += f"### {metric_key.replace('_', ' ').title()}\n\n"
 
             if isinstance(metric_data, dict):
-                industry_avg = safe_get_string(metric_data.get("industry_average"), "")
+                industry_avg = metric_data.get("industry_average", "")
                 if industry_avg:
                     section += f"- **Industry Average**: {industry_avg}\n"
 
-                top_performers = safe_get_string(metric_data.get("top_performers"), "")
+                top_performers = metric_data.get("top_performers", "")
                 if top_performers:
                     section += f"- **Top Performers**: {top_performers}\n"
 
-                source = safe_get_string(metric_data.get("source"), "")
+                source = metric_data.get("source", "")
                 if source:
                     section += f"- **Source**: {source}\n"
 
@@ -424,21 +229,18 @@ class MonetizationStrategyGenerator:
         section = "## Revenue Potential\n\n"
 
         for scenario, data in revenue.items():
-            # Safely convert scenario key to string
-            scenario_str = safe_get_string(scenario, "scenario").title()
-            section += f"### {scenario_str} Scenario\n\n"
+            section += f"### {scenario.title()} Scenario\n\n"
 
             if isinstance(data, dict):
-                monthly = safe_get_string(data.get("monthly"), "")
+                monthly = data.get("monthly", "")
                 if monthly:
                     section += f"- **Monthly Revenue**: {monthly}\n"
 
                 assumptions = data.get("assumptions", [])
-                if assumptions and isinstance(assumptions, list):
+                if assumptions:
                     section += "- **Assumptions**:\n"
                     for assumption in assumptions:
-                        assumption_str = safe_get_string(assumption, "Assumption")
-                        section += f"  - {assumption_str}\n"
+                        section += f"  - {assumption}\n"
 
             section += "\n"
 
@@ -455,25 +257,22 @@ class MonetizationStrategyGenerator:
         """
         section = "## Recommended Model\n\n"
 
-        model = safe_get_string(recommended.get("model"), "")
+        model = recommended.get("model", "")
         if model:
             section += f"**Model**: {model}\n\n"
 
-        rationale = safe_get_string(recommended.get("rationale"), "")
+        rationale = recommended.get("rationale", "")
         if rationale:
             section += f"**Rationale**: {rationale}\n\n"
 
         suggested = recommended.get("suggested_pricing", {})
-        if suggested and isinstance(suggested, dict):
+        if suggested:
             section += "**Suggested Pricing**:\n"
             for tier, price in suggested.items():
-                # Safely convert tier key to string
-                tier_str = safe_get_string(tier, "tier").title()
-                price_str = safe_get_string(price, "Custom pricing")
-                section += f"- {tier_str}: {price_str}\n"
+                section += f"- {tier.title()}: {price}\n"
             section += "\n"
 
-        differentiation = safe_get_string(recommended.get("differentiation"), "")
+        differentiation = recommended.get("differentiation", "")
         if differentiation:
             section += f"**Differentiation**: {differentiation}\n\n"
 
@@ -497,30 +296,19 @@ class MonetizationStrategyGenerator:
 
         # Overview
         content += "## Overview\n\n"
-        # Safely format enum values with proper string methods
-        recommended_model = (
-            safe_enum_value(analysis_result.recommended_model, "standard").replace("_", " ").title()
+        content += f"**Recommended Model**: {analysis_result.recommended_model.value.replace('_', ' ').title()}\n"
+        content += f"**Pricing Strategy**: {analysis_result.pricing_strategy.value.replace('_', ' ').title()}\n"
+        content += (
+            f"**Project Type**: {analysis_result.project_type.value.replace('_', ' ').title()}\n\n"
         )
-        pricing_strategy = (
-            safe_enum_value(analysis_result.pricing_strategy, "tiered").replace("_", " ").title()
-        )
-        project_type = (
-            safe_enum_value(analysis_result.project_type, "general").replace("_", " ").title()
-        )
-        content += f"**Recommended Model**: {recommended_model}\n"
-        content += f"**Pricing Strategy**: {pricing_strategy}\n"
-        content += f"**Project Type**: {project_type}\n\n"
-        pricing_rationale = safe_get_string(analysis_result.pricing_rationale, "Analysis complete.")
-        content += f"{pricing_rationale}\n\n"
+        content += f"{analysis_result.pricing_rationale}\n\n"
 
         # Model Fits
         if analysis_result.model_fits:
             content += "## Monetization Models Analysis\n\n"
             for fit in analysis_result.model_fits[:3]:  # Top 3
-                model_name = safe_enum_value(fit.model, "unknown").replace("_", " ").title()
-                content += f"### {model_name}\n\n"
-                fit_score = safe_get_float(fit.fit_score, 0.0)
-                content += f"**Fit Score**: {fit_score:.1f}/10\n\n"
+                content += f"### {fit.model.value.replace('_', ' ').title()}\n\n"
+                content += f"**Fit Score**: {fit.fit_score}/10\n\n"
 
                 if fit.pros:
                     content += "**Pros**:\n"
@@ -541,47 +329,30 @@ class MonetizationStrategyGenerator:
             content += "|------|---------|--------|----------------|\n"
 
             for tier in analysis_result.pricing_tiers:
-                # Safely format pricing with type validation
-                price_monthly = safe_get_float(tier.price_monthly, 0.0)
-                price_yearly = safe_get_float(tier.price_yearly, 0.0)
-                monthly = safe_format_currency(price_monthly) if price_monthly > 0 else "Free"
-                yearly = safe_format_currency(price_yearly) if price_yearly > 0 else "-"
+                monthly = f"${tier.price_monthly:.0f}" if tier.price_monthly else "Free"
+                yearly = f"${tier.price_yearly:.0f}" if tier.price_yearly else "-"
                 rec = " **(Recommended)**" if tier.recommended else ""
-                target_aud = safe_get_string(tier.target_audience, "General")
-                content += f"| {tier.name}{rec} | {monthly} | {yearly} | {target_aud} |\n"
+                content += f"| {tier.name}{rec} | {monthly} | {yearly} | {tier.target_audience} |\n"
 
             content += "\n"
 
             # Tier details
             for tier in analysis_result.pricing_tiers:
-                tier_name = safe_get_string(tier.name, "Tier")
-                content += f"### {tier_name}\n\n"
-                price_monthly = safe_get_float(tier.price_monthly, 0.0)
-                content += f"**Price**: {safe_format_currency(price_monthly)}/month"
-
-                price_yearly = safe_get_float(tier.price_yearly, 0.0)
-                if price_yearly > 0:
-                    discount = safe_get_float(tier.yearly_discount_percent, 0.0)
-                    content += (
-                        f" ({safe_format_currency(price_yearly)}/year - {discount:.0f}% discount)"
-                    )
+                content += f"### {tier.name}\n\n"
+                content += f"**Price**: ${tier.price_monthly}/month"
+                if tier.price_yearly:
+                    content += f" (${tier.price_yearly}/year - {tier.yearly_discount_percent:.0f}% discount)"
                 content += "\n\n"
 
                 if tier.features:
                     content += "**Features**:\n"
                     for feature in tier.features:
-                        feature_str = safe_get_string(feature, "Feature")
-                        content += f"- {feature_str}\n"
+                        content += f"- {feature}\n"
                     content += "\n"
 
                 if tier.limits:
                     content += "**Limits**: "
-                    limit_items = []
-                    for k, v in tier.limits.items():
-                        key_str = safe_get_string(k, "limit")
-                        val_str = safe_get_string(v, "unlimited")
-                        limit_items.append(f"{key_str}: {val_str}")
-                    limits_str = ", ".join(limit_items)
+                    limits_str = ", ".join(f"{k}: {v}" for k, v in tier.limits.items())
                     content += f"{limits_str}\n\n"
 
         # Revenue Projections
@@ -591,34 +362,22 @@ class MonetizationStrategyGenerator:
             content += "|-----------|-------|--------------|-----|-----|------------|\n"
 
             for proj in analysis_result.revenue_projections:
-                # Safely format all projection fields
-                timeframe_str = safe_get_string(proj.timeframe, "unknown").replace("_", " ").title()
-                users = safe_get_int(proj.users, 0)
-                paying_users = safe_get_int(proj.paying_users, 0)
-                conversion_rate = safe_get_float(proj.conversion_rate, 0.0)
-                mrr = safe_get_float(proj.mrr, 0.0)
-                arr = safe_get_float(proj.arr, 0.0)
-                confidence_val = safe_enum_value(proj.confidence, "unknown").title()
-
                 content += (
-                    f"| {timeframe_str} "
-                    f"| {users:,} "
-                    f"| {paying_users:,} ({conversion_rate:.1f}%) "
-                    f"| {safe_format_currency(mrr)} "
-                    f"| {safe_format_currency(arr)} "
-                    f"| {confidence_val} |\n"
+                    f"| {proj.timeframe.replace('_', ' ').title()} "
+                    f"| {proj.users:,} "
+                    f"| {proj.paying_users:,} ({proj.conversion_rate:.1f}%) "
+                    f"| ${proj.mrr:,.0f} "
+                    f"| ${proj.arr:,.0f} "
+                    f"| {proj.confidence.value.title()} |\n"
                 )
 
             content += "\n"
 
         # Key Metrics
         content += "## Key Metrics Targets\n\n"
-        target_arpu = safe_get_float(analysis_result.target_arpu, 0.0)
-        target_ltv = safe_get_float(analysis_result.target_ltv, 0.0)
-        cac_ratio = safe_get_float(analysis_result.target_cac_ratio, 1.0)
-        content += f"- **Target ARPU**: {safe_format_currency(target_arpu)}/month\n"
-        content += f"- **Target LTV**: {safe_format_currency(target_ltv)}\n"
-        content += f"- **Target LTV:CAC Ratio**: {cac_ratio:.1f}:1\n\n"
+        content += f"- **Target ARPU**: ${analysis_result.target_arpu:.0f}/month\n"
+        content += f"- **Target LTV**: ${analysis_result.target_ltv:,.0f}\n"
+        content += f"- **Target LTV:CAC Ratio**: {analysis_result.target_cac_ratio}:1\n\n"
 
         # Competitive Pricing
         if analysis_result.competitor_pricing:
@@ -653,8 +412,7 @@ class MonetizationStrategyGenerator:
 
         # Confidence
         content += "## Analysis Confidence\n\n"
-        confidence_level = safe_enum_value(analysis_result.confidence, "medium").title()
-        content += f"**Confidence Level**: {confidence_level}\n\n"
+        content += f"**Confidence Level**: {analysis_result.confidence.value.title()}\n\n"
 
         return content
 
@@ -940,35 +698,31 @@ class ProjectReadmeGenerator:
 
         # Core Components
         components = research_findings.get("components", [])
-        if components and isinstance(components, list):
+        if components:
             section += "### Core Components\n\n"
             for component in components:
                 if isinstance(component, dict):
-                    name = safe_get_string(component.get("name"), "Component")
-                    description = safe_get_string(component.get("description"), "")
+                    name = component.get("name", "Component")
+                    description = component.get("description", "")
                     section += f"- **{name}**: {description}\n"
                 else:
-                    component_str = safe_get_string(component, "Component")
-                    section += f"- {component_str}\n"
+                    section += f"- {component}\n"
             section += "\n"
 
         # Technology Stack Details
         section += "### Technology Stack\n\n"
 
         frontend = tech_stack.get("frontend", [])
-        if frontend and isinstance(frontend, list):
-            frontend_strs = [safe_get_string(f, "Framework") for f in frontend]
-            section += f"**Frontend**: {', '.join(frontend_strs)}\n\n"
+        if frontend:
+            section += f"**Frontend**: {', '.join(frontend)}\n\n"
 
         backend = tech_stack.get("backend", [])
-        if backend and isinstance(backend, list):
-            backend_strs = [safe_get_string(b, "Framework") for b in backend]
-            section += f"**Backend**: {', '.join(backend_strs)}\n\n"
+        if backend:
+            section += f"**Backend**: {', '.join(backend)}\n\n"
 
         database = tech_stack.get("database", [])
-        if database and isinstance(database, list):
-            database_strs = [safe_get_string(d, "Database") for d in database]
-            section += f"**Database**: {', '.join(database_strs)}\n\n"
+        if database:
+            section += f"**Database**: {', '.join(database)}\n\n"
 
         return section
 
@@ -2662,6 +2416,7 @@ plugins:
             Terraform HCL content as string
         """
         primary = architecture.primary_recommendation
+        architecture.project_name.lower().replace(" ", "-").replace("+", "-")
 
         terraform = """# Terraform Configuration
 # This is a basic template - customize for your specific needs
@@ -2767,11 +2522,7 @@ class ArtifactGeneratorRegistry:
             logger.warning(f"[ArtifactGeneratorRegistry] Generator not found: {name}")
             return None
 
-        generator_info = self._generators[name]
-        generator_class = safe_dict_get(generator_info, "class", None, Type)
-        if generator_class is None:
-            logger.warning(f"[ArtifactGeneratorRegistry] Generator class not found for: {name}")
-            return None
+        generator_class = self._generators[name]["class"]
         return generator_class(**kwargs)
 
     def list_generators(self) -> List[Dict[str, str]]:
@@ -2780,11 +2531,10 @@ class ArtifactGeneratorRegistry:
         Returns:
             List of dicts with generator name and description
         """
-        result = []
-        for name, info in self._generators.items():
-            description = safe_dict_get(info, "description", "No description", str)
-            result.append({"name": name, "description": description})
-        return result
+        return [
+            {"name": name, "description": info["description"]}
+            for name, info in self._generators.items()
+        ]
 
     def has_generator(self, name: str) -> bool:
         """Check if a generator is registered.

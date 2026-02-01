@@ -12,22 +12,16 @@ Tests cover:
 
 from datetime import datetime, timezone
 
-from autopack.learned_rules import (
-    DiscoveryStage,
-    LearnedRule,
-    RunRuleHint,
-    _directives_conflict,
-    _extract_directory,
-    _extract_extension,
-    _hint_directives_conflict,
-    _hint_scopes_overlap,
-    _patterns_can_intersect,
-    _scopes_overlap,
-    _share_topic_keywords,
-    detect_hint_conflicts,
-    detect_rule_conflicts,
-    format_conflicts_report,
-)
+from autopack.learned_rules import (DiscoveryStage, LearnedRule, RunRuleHint,
+                                    _directives_conflict, _extract_directory,
+                                    _extract_extension,
+                                    _hint_directives_conflict,
+                                    _hint_scopes_overlap,
+                                    _patterns_can_intersect, _scopes_overlap,
+                                    _share_topic_keywords,
+                                    detect_hint_conflicts,
+                                    detect_rule_conflicts,
+                                    format_conflicts_report)
 
 # ============================================================================
 # Helper to create test rules

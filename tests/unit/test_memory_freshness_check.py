@@ -10,28 +10,26 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.memory.freshness_filter import (
-    COLLECTION_CODE_DOCS,
-    COLLECTION_DOCTOR_HINTS,
-    COLLECTION_ERRORS_CI,
-    COLLECTION_FRESHNESS_HOURS,
-    COLLECTION_PLANNING,
-    COLLECTION_RUN_SUMMARIES,
-    COLLECTION_SOT_DOCS,
-    DEFAULT_MEMORY_FRESHNESS_HOURS,
-    LOW_CONFIDENCE_THRESHOLD,
-    ContextMetadata,
-)
-from autopack.memory.freshness_filter import (
-    calculate_age_hours as _calculate_age_hours,  # IMP-LOOP-019: New imports
-)
-from autopack.memory.freshness_filter import calculate_confidence as _calculate_confidence
-from autopack.memory.freshness_filter import enrich_with_metadata as _enrich_with_metadata
-from autopack.memory.freshness_filter import (
-    get_freshness_threshold,
-)
+from autopack.memory.freshness_filter import (COLLECTION_CODE_DOCS,
+                                              COLLECTION_DOCTOR_HINTS,
+                                              COLLECTION_ERRORS_CI,
+                                              COLLECTION_FRESHNESS_HOURS,
+                                              COLLECTION_PLANNING,
+                                              COLLECTION_RUN_SUMMARIES,
+                                              COLLECTION_SOT_DOCS,
+                                              DEFAULT_MEMORY_FRESHNESS_HOURS,
+                                              LOW_CONFIDENCE_THRESHOLD,
+                                              ContextMetadata)
+from autopack.memory.freshness_filter import \
+    calculate_age_hours as _calculate_age_hours  # IMP-LOOP-019: New imports
+from autopack.memory.freshness_filter import \
+    calculate_confidence as _calculate_confidence
+from autopack.memory.freshness_filter import \
+    enrich_with_metadata as _enrich_with_metadata
+from autopack.memory.freshness_filter import get_freshness_threshold
 from autopack.memory.freshness_filter import is_fresh as _is_fresh
-from autopack.memory.freshness_filter import parse_timestamp as _parse_timestamp
+from autopack.memory.freshness_filter import \
+    parse_timestamp as _parse_timestamp
 from autopack.memory.memory_service import MemoryService
 
 

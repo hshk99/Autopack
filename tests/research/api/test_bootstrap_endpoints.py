@@ -13,17 +13,12 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from autopack.research.api.router import (
-    BootstrapRequest,
-    BootstrapResponse,
-    BootstrapStatusResponse,
-    DraftAnchorResponse,
-    ResearchAPIMode,
-    _get_research_api_mode,
-    bootstrap_guard,
-    research_guard,
-    research_router,
-)
+from autopack.research.api.router import (BootstrapRequest, BootstrapResponse,
+                                          BootstrapStatusResponse,
+                                          DraftAnchorResponse, ResearchAPIMode,
+                                          _get_research_api_mode,
+                                          bootstrap_guard, research_guard,
+                                          research_router)
 
 
 class TestResearchAPIMode:

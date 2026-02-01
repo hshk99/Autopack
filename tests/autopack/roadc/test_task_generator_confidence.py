@@ -16,14 +16,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from autopack.roadc.task_generator import (
-    MIN_CONFIDENCE_THRESHOLD,
-    AnalyzerInsightConsumer,
-    DirectInsightConsumer,
-    InsightSource,
-    MemoryInsightConsumer,
-    UnifiedInsight,
-)
+from autopack.roadc.task_generator import (MIN_CONFIDENCE_THRESHOLD,
+                                           AnalyzerInsightConsumer,
+                                           DirectInsightConsumer,
+                                           InsightSource,
+                                           MemoryInsightConsumer,
+                                           UnifiedInsight)
 from autopack.telemetry.analyzer import RankedIssue
 
 

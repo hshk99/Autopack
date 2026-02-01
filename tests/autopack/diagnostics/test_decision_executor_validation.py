@@ -12,13 +12,10 @@ from unittest.mock import MagicMock, patch
 
 from autopack.diagnostics.command_runner import CommandResult
 from autopack.diagnostics.decision_executor import DecisionExecutor
-from autopack.diagnostics.diagnostics_models import (
-    Decision,
-    DecisionType,
-    ExecutionResult,
-    PhaseSpec,
-    ValidationResult,
-)
+from autopack.diagnostics.diagnostics_models import (Decision, DecisionType,
+                                                     ExecutionResult,
+                                                     PhaseSpec,
+                                                     ValidationResult)
 from autopack.diagnostics.probes import Probe, ProbeCommand, ProbeRunResult
 
 

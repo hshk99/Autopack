@@ -10,12 +10,9 @@ import subprocess
 from unittest.mock import MagicMock, patch
 
 from autopack.diagnostics.decision_executor import DecisionExecutor
-from autopack.diagnostics.diagnostics_models import (
-    Decision,
-    DecisionType,
-    ExecutionResult,
-    PhaseSpec,
-)
+from autopack.diagnostics.diagnostics_models import (Decision, DecisionType,
+                                                     ExecutionResult,
+                                                     PhaseSpec)
 
 
 class TestExtractConflictLines:

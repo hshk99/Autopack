@@ -9,8 +9,11 @@ from datetime import datetime
 
 import pytest
 
-from autopack.task_generation.roi_analyzer import ActualROIResult, ROIAccuracyReport, ROIAnalyzer
-from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
+from autopack.task_generation.roi_analyzer import (ActualROIResult,
+                                                   ROIAccuracyReport,
+                                                   ROIAnalyzer)
+from autopack.task_generation.task_effectiveness_tracker import \
+    TaskEffectivenessTracker
 
 
 class TestActualROIResult:

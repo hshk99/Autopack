@@ -11,16 +11,12 @@ import json
 import re
 import tempfile
 
-from autopack.intention_anchor import (
-    IntentionConstraints,
-    create_anchor,
-    generate_anchor_summary,
-    get_anchor_events_path,
-    get_anchor_summary_path,
-    log_anchor_event,
-    read_anchor_events,
-    save_anchor,
-)
+from autopack.intention_anchor import (IntentionConstraints, create_anchor,
+                                       generate_anchor_summary,
+                                       get_anchor_events_path,
+                                       get_anchor_summary_path,
+                                       log_anchor_event, read_anchor_events,
+                                       save_anchor)
 
 # =============================================================================
 # Summary Format Contracts

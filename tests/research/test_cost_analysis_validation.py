@@ -8,12 +8,8 @@ from typing import Any, Dict
 import pytest
 
 from src.autopack.research.analysis.cost_effectiveness import (
-    AITokenCostProjection,
-    ComponentCostData,
-    CostEffectivenessAnalyzer,
-    CostOptimizationStrategy,
-    ProjectCostProjection,
-)
+    AITokenCostProjection, ComponentCostData, CostEffectivenessAnalyzer,
+    CostOptimizationStrategy, ProjectCostProjection)
 
 
 class TestCostAnalysisValidation:

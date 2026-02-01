@@ -9,11 +9,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from autopack.executor.autonomous_loop import (
-    CircuitBreaker,
-    CircuitBreakerOpenError,
-    CircuitBreakerState,
-)
+from autopack.executor.autonomous_loop import (CircuitBreaker,
+                                               CircuitBreakerOpenError,
+                                               CircuitBreakerState)
 
 
 class TestCircuitBreakerState:

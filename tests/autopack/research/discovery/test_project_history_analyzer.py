@@ -17,11 +17,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from autopack.research.discovery.project_history_analyzer import (
-    HistoryAnalysisResult,
-    ProjectDecision,
-    ProjectHistoryAnalyzer,
-    ProjectSummary,
-)
+    HistoryAnalysisResult, ProjectDecision, ProjectHistoryAnalyzer,
+    ProjectSummary)
 
 
 @pytest.fixture

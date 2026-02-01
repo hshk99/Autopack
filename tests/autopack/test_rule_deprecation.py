@@ -18,15 +18,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.learned_rules import (
-    DiscoveryStage,
-    LearnedRule,
-    RuleApplication,
-    RuleEffectivenessManager,
-    RuleEffectivenessReport,
-    deprecate_ineffective_rules,
-    evaluate_rule_effectiveness,
-)
+from autopack.learned_rules import (DiscoveryStage, LearnedRule,
+                                    RuleApplication, RuleEffectivenessManager,
+                                    RuleEffectivenessReport,
+                                    deprecate_ineffective_rules,
+                                    evaluate_rule_effectiveness)
 
 
 class TestLearnedRuleEffectivenessFields:

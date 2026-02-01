@@ -5,12 +5,9 @@ import json
 import pytest
 from click.testing import CliRunner
 
-from autopack.cli.commands.bootstrap import (
-    READY_FOR_BUILD_MARKER,
-    BootstrapOptions,
-    BootstrapRunner,
-    bootstrap_group,
-)
+from autopack.cli.commands.bootstrap import (READY_FOR_BUILD_MARKER,
+                                             BootstrapOptions, BootstrapRunner,
+                                             bootstrap_group)
 from autopack.research.idea_parser import ProjectType, RiskProfile
 
 

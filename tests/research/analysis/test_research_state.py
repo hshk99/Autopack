@@ -20,19 +20,16 @@ import pytest
 pytestmark = pytest.mark.research
 from datetime import datetime, timedelta
 
-from autopack.research.analysis.research_state import (
-    CompletedQuery,
-    CoverageMetrics,
-    DiscoveredSource,
-    GapPriority,
-    GapType,
-    ResearchCheckpoint,
-    ResearchDepth,
-    ResearchGap,
-    ResearchRequirements,
-    ResearchState,
-    ResearchStateTracker,
-)
+from autopack.research.analysis.research_state import (CompletedQuery,
+                                                       CoverageMetrics,
+                                                       DiscoveredSource,
+                                                       GapPriority, GapType,
+                                                       ResearchCheckpoint,
+                                                       ResearchDepth,
+                                                       ResearchGap,
+                                                       ResearchRequirements,
+                                                       ResearchState,
+                                                       ResearchStateTracker)
 
 
 class TestGapType:
@@ -368,7 +365,7 @@ class TestResearchStateTracker:
     def test_load_existing_state(self, tracker):
         """Test loading existing state from file."""
         # Create initial state
-        initial_state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
         tracker.save_state()
 
         # Create new tracker and load
@@ -404,7 +401,7 @@ class TestResearchStateTracker:
 
     def test_record_completed_query(self, tracker):
         """Test recording a completed query."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         tracker.record_completed_query(
             query="test query",
@@ -419,7 +416,7 @@ class TestResearchStateTracker:
 
     def test_record_discovered_source(self, tracker):
         """Test recording a discovered source."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         tracker.record_discovered_source(
             url="https://example.com",
@@ -434,7 +431,7 @@ class TestResearchStateTracker:
 
     def test_source_deduplication(self, tracker):
         """Test that sources are deduplicated by URL."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         # Record same URL twice
         tracker.record_discovered_source(
@@ -459,7 +456,7 @@ class TestResearchStateTracker:
 
     def test_should_skip_query_exact_match(self, tracker):
         """Test query skip detection with exact match."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         tracker.record_completed_query(
             query="market size analysis",
@@ -474,7 +471,7 @@ class TestResearchStateTracker:
 
     def test_should_skip_query_case_insensitive(self, tracker):
         """Test query skip detection is case-insensitive."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         tracker.record_completed_query(
             query="Market Size Analysis",
@@ -488,7 +485,7 @@ class TestResearchStateTracker:
 
     def test_should_skip_query_similarity(self, tracker):
         """Test query skip detection with similar queries."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         tracker.record_completed_query(
             query="market size and growth projections",
@@ -505,7 +502,7 @@ class TestResearchStateTracker:
 
     def test_is_new_source_by_url(self, tracker):
         """Test new source detection by URL."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         tracker.record_discovered_source(
             url="https://example.com",
@@ -522,7 +519,7 @@ class TestResearchStateTracker:
 
     def test_is_new_source_by_content_hash(self, tracker):
         """Test new source detection by content hash."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         tracker.record_discovered_source(
             url="https://example1.com",
@@ -537,7 +534,7 @@ class TestResearchStateTracker:
 
     def test_update_coverage(self, tracker):
         """Test updating coverage for a category."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         tracker.update_coverage("market_research", 85.0)
 
@@ -545,7 +542,7 @@ class TestResearchStateTracker:
 
     def test_update_coverage_capped_at_100(self, tracker):
         """Test that coverage is capped at 100%."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         tracker.update_coverage("market_research", 150.0)
 
@@ -553,7 +550,7 @@ class TestResearchStateTracker:
 
     def test_detect_gaps_coverage_gap(self, tracker):
         """Test detecting coverage gaps."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         # Set low coverage
         tracker.update_coverage("market_research", 30.0)
@@ -567,7 +564,7 @@ class TestResearchStateTracker:
 
     def test_detect_gaps_recency_gap(self, tracker):
         """Test detecting recency gaps."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         # Record old query (older than max_age_days)
         old_timestamp = datetime.now() - timedelta(days=40)
@@ -589,7 +586,7 @@ class TestResearchStateTracker:
 
     def test_detect_gaps_depth_gap(self, tracker):
         """Test detecting depth gaps."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         # Leave critical topics at shallow depth
         gaps = tracker.detect_gaps()
@@ -600,7 +597,7 @@ class TestResearchStateTracker:
 
     def test_gap_priority_calculation(self, tracker):
         """Test that gap priorities are calculated correctly."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         # Large gap should be critical
         tracker.update_coverage("market_research", 0.0)
@@ -615,7 +612,7 @@ class TestResearchStateTracker:
 
     def test_validate_state_consistency(self, tracker):
         """Test state validation."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         errors = tracker.validate_state_consistency()
 
@@ -624,7 +621,7 @@ class TestResearchStateTracker:
 
     def test_validate_state_coverage_range(self, tracker):
         """Test validation detects coverage out of range."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         # Set invalid coverage
         tracker._state.coverage.by_category["market_research"] = 150.0
@@ -636,7 +633,7 @@ class TestResearchStateTracker:
 
     def test_validate_state_duplicate_gaps(self, tracker):
         """Test validation detects duplicate gap IDs."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         # Add duplicate gap IDs
         gap1 = ResearchGap(
@@ -663,7 +660,7 @@ class TestResearchStateTracker:
 
     def test_repair_state_coverage(self, tracker):
         """Test state repair for invalid coverage."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         # Introduce invalid data
         tracker._state.coverage.by_category["market_research"] = 150.0
@@ -676,7 +673,7 @@ class TestResearchStateTracker:
 
     def test_create_checkpoint(self, tracker):
         """Test creating a checkpoint."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         checkpoint = tracker.create_checkpoint("market_research")
 
@@ -686,7 +683,7 @@ class TestResearchStateTracker:
 
     def test_checkpoint_file_created(self, tracker):
         """Test that checkpoint file is created."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         checkpoint = tracker.create_checkpoint("test_phase")
 
@@ -695,7 +692,7 @@ class TestResearchStateTracker:
 
     def test_handle_partial_results(self, tracker):
         """Test handling partial results."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         results = {
             "item1": {"data": "value1"},
@@ -709,7 +706,7 @@ class TestResearchStateTracker:
 
     def test_handle_async_failure(self, tracker):
         """Test handling async task failure."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         result = tracker.handle_async_failure(
             task_id="task-001",
@@ -723,8 +720,8 @@ class TestResearchStateTracker:
     def test_handle_interrupted_research_with_checkpoint(self, tracker):
         """Test recovery from interrupted research."""
         # Create initial state and checkpoint
-        state = tracker.load_or_create_state("project-001")
-        checkpoint = tracker.create_checkpoint("market_research")
+        tracker.load_or_create_state("project-001")
+        tracker.create_checkpoint("market_research")
 
         # Add some data to state
         tracker.update_coverage("market_research", 50.0)
@@ -739,7 +736,7 @@ class TestResearchStateTracker:
 
     def test_get_session_summary(self, tracker):
         """Test getting session summary."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         tracker.record_completed_query(
             query="test query",
@@ -764,7 +761,7 @@ class TestResearchStateTracker:
 
     def test_mark_gap_addressed(self, tracker):
         """Test marking gap as addressed."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         gap = ResearchGap(
             gap_id="gap-001",
@@ -782,7 +779,7 @@ class TestResearchStateTracker:
 
     def test_add_researched_entity(self, tracker):
         """Test adding researched entity."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         tracker.add_researched_entity("competitor", "Company A")
         tracker.add_researched_entity("competitor", "Company B")
@@ -792,7 +789,7 @@ class TestResearchStateTracker:
 
     def test_entity_deduplication(self, tracker):
         """Test that entities are deduplicated."""
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         tracker.add_researched_entity("competitor", "Company A")
         tracker.add_researched_entity("competitor", "Company A")
@@ -850,7 +847,7 @@ class TestResearchStateTrackerIntegration:
     def test_state_history_management(self, tmp_path):
         """Test that state history is properly managed."""
         tracker = ResearchStateTracker(tmp_path / "project")
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         # Create multiple versions
         for i in range(6):
@@ -885,7 +882,7 @@ class TestEdgeCases:
     def test_query_deduplication_after_expiry(self, tmp_path):
         """Test that old similar queries are NOT skipped if > 7 days old."""
         tracker = ResearchStateTracker(tmp_path / "project")
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         # Record SIMILAR query from 30 days ago (beyond 7-day recency window)
         old_timestamp = datetime.now() - timedelta(days=30)
@@ -906,7 +903,7 @@ class TestEdgeCases:
     def test_concurrent_checkpoint_writes(self, tmp_path):
         """Test creating checkpoints sequentially."""
         tracker = ResearchStateTracker(tmp_path / "project")
-        state = tracker.load_or_create_state("project-001")
+        tracker.load_or_create_state("project-001")
 
         # Create multiple checkpoints
         cp1 = tracker.create_checkpoint("phase1")

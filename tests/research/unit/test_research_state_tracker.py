@@ -15,13 +15,10 @@ from pathlib import Path
 
 import pytest
 
-from autopack.research.analysis.research_state import (
-    GapPriority,
-    GapType,
-    ResearchCheckpoint,
-    ResearchGap,
-    ResearchStateTracker,
-)
+from autopack.research.analysis.research_state import (GapPriority, GapType,
+                                                       ResearchCheckpoint,
+                                                       ResearchGap,
+                                                       ResearchStateTracker)
 
 
 @pytest.fixture
@@ -111,7 +108,7 @@ class TestInterruptedResearchRecovery:
         tracker1.update_coverage("competitive_analysis", 60.0)
         tracker1.add_researched_entity("api", "OpenAI")
         tracker1.add_researched_entity("api", "Anthropic")
-        checkpoint = tracker1.create_checkpoint("research_phase")
+        tracker1.create_checkpoint("research_phase")
         tracker1.save_state()
 
         # Recover in new tracker (don't load state first)
@@ -450,8 +447,8 @@ class TestCheckpointFileManagement:
 
     def test_latest_checkpoint_retrieval(self, loaded_tracker):
         """Test finding the most recent checkpoint."""
-        cp1 = loaded_tracker.create_checkpoint("phase1")
-        cp2 = loaded_tracker.create_checkpoint("phase2")
+        loaded_tracker.create_checkpoint("phase1")
+        loaded_tracker.create_checkpoint("phase2")
         cp3 = loaded_tracker.create_checkpoint("phase3")
 
         latest = loaded_tracker._find_latest_checkpoint()

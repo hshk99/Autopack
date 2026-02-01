@@ -10,22 +10,14 @@ from unittest.mock import MagicMock
 import pytest
 
 from autopack.autonomy.research_cycle_integration import (
-    ResearchCycleDecision,
-    ResearchCycleIntegration,
-    ResearchCycleMetrics,
-    ResearchCycleOutcome,
-    create_research_cycle_integration,
-)
-from autopack.research.analysis.budget_enforcement import (
-    BudgetEnforcer,
-)
-from autopack.research.analysis.followup_trigger import (
-    FollowupTrigger,
-    ResearchPlan,
-    TriggerAnalysisResult,
-    TriggerPriority,
-    TriggerType,
-)
+    ResearchCycleDecision, ResearchCycleIntegration, ResearchCycleMetrics,
+    ResearchCycleOutcome, create_research_cycle_integration)
+from autopack.research.analysis.budget_enforcement import BudgetEnforcer
+from autopack.research.analysis.followup_trigger import (FollowupTrigger,
+                                                         ResearchPlan,
+                                                         TriggerAnalysisResult,
+                                                         TriggerPriority,
+                                                         TriggerType)
 
 
 class TestResearchCycleIntegrationInit:
@@ -276,7 +268,8 @@ class TestDecisionDetermination:
             execution_plan={},
         )
 
-        from autopack.research.analysis.followup_trigger import TriggerExecutionResult
+        from autopack.research.analysis.followup_trigger import \
+            TriggerExecutionResult
 
         execution_result = TriggerExecutionResult(
             triggers_executed=4,
@@ -322,7 +315,8 @@ class TestDecisionDetermination:
             execution_plan={},
         )
 
-        from autopack.research.analysis.followup_trigger import TriggerExecutionResult
+        from autopack.research.analysis.followup_trigger import \
+            TriggerExecutionResult
 
         execution_result = TriggerExecutionResult(
             triggers_executed=1,
@@ -359,7 +353,8 @@ class TestDecisionDetermination:
             execution_plan={},
         )
 
-        from autopack.research.analysis.followup_trigger import TriggerExecutionResult
+        from autopack.research.analysis.followup_trigger import \
+            TriggerExecutionResult
 
         execution_result = TriggerExecutionResult(
             triggers_executed=3,

@@ -19,15 +19,11 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from autopack.storage_optimizer.approval import (
-    AuditEntry,
-    AuditLog,
-    ExecutionApproval,
-    compute_report_id,
-    generate_approval_template,
-    hash_file,
-    verify_approval,
-)
+from autopack.storage_optimizer.approval import (AuditEntry, AuditLog,
+                                                 ExecutionApproval,
+                                                 compute_report_id,
+                                                 generate_approval_template,
+                                                 hash_file, verify_approval)
 
 
 @pytest.fixture

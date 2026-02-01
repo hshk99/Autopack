@@ -10,12 +10,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from autopack.executor.result_handler import ResultHandler, SLABreachInfo
-from autopack.telemetry.meta_metrics import (
-    PipelineLatencyTracker,
-    PipelineSLAConfig,
-    PipelineStage,
-    SLABreachAlert,
-)
+from autopack.telemetry.meta_metrics import (PipelineLatencyTracker,
+                                             PipelineSLAConfig, PipelineStage,
+                                             SLABreachAlert)
 
 
 class TestSLABreachInfo:

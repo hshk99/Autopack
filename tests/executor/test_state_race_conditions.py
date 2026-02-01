@@ -19,16 +19,12 @@ import pytest
 from sqlalchemy.exc import OperationalError
 from tenacity import RetryError
 
-from autopack.executor.phase_state_manager import (
-    OptimisticLockError,
-    PhaseStateManager,
-    StateUpdateRequest,
-)
-from autopack.executor.state_persistence import (
-    ExecutorState,
-    ExecutorStateManager,
-    PersistenceError,
-)
+from autopack.executor.phase_state_manager import (OptimisticLockError,
+                                                   PhaseStateManager,
+                                                   StateUpdateRequest)
+from autopack.executor.state_persistence import (ExecutorState,
+                                                 ExecutorStateManager,
+                                                 PersistenceError)
 
 
 class TestConcurrentPhaseStateUpdates:

@@ -12,7 +12,8 @@ Tests cover:
 
 from datetime import datetime, timedelta, timezone
 
-from autopack.learned_rules import DiscoveryStage, LearnedRule, LearnedRuleAging
+from autopack.learned_rules import (DiscoveryStage, LearnedRule,
+                                    LearnedRuleAging)
 
 # ============================================================================
 # LearnedRuleAging Tests (IMP-LOOP-013)
@@ -293,13 +294,10 @@ import time
 from pathlib import Path
 from unittest.mock import patch
 
-from autopack.learned_rules import (
-    _project_rules_cache,
-    _project_rules_mtime,
-    _save_project_rules,
-    clear_project_rules_cache,
-    load_project_rules,
-)
+from autopack.learned_rules import (_project_rules_cache, _project_rules_mtime,
+                                    _save_project_rules,
+                                    clear_project_rules_cache,
+                                    load_project_rules)
 
 
 class TestProjectRulesCache:
@@ -589,13 +587,9 @@ class TestProjectRulesCache:
 # IMP-PERF-006: Run-Level Hints Cache Tests
 # ============================================================================
 
-from autopack.learned_rules import (
-    RunRuleHint,
-    _run_hints_cache,
-    _save_run_rule_hint,
-    clear_run_hints_cache,
-    load_run_rule_hints,
-)
+from autopack.learned_rules import (RunRuleHint, _run_hints_cache,
+                                    _save_run_rule_hint, clear_run_hints_cache,
+                                    load_run_rule_hints)
 
 
 class TestRunHintsCache:

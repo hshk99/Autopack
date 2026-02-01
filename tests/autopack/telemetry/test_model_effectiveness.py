@@ -10,11 +10,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from autopack.telemetry.analyzer import (
-    ModelCategoryStats,
-    ModelEffectivenessReport,
-    TelemetryAnalyzer,
-)
+from autopack.telemetry.analyzer import (ModelCategoryStats,
+                                         ModelEffectivenessReport,
+                                         TelemetryAnalyzer)
 
 
 class TestModelCategoryStats:

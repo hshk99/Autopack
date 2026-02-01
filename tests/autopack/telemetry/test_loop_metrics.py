@@ -6,15 +6,11 @@ for tracking feedback loop effectiveness.
 
 import pytest
 
-from autopack.telemetry.loop_metrics import (
-    ConfidenceCalibrationBucket,
-    InsightRecord,
-    InsightSource,
-    LoopEffectivenessMetrics,
-    LoopMetricsCollector,
-    SourceStats,
-    TaskOutcome,
-)
+from autopack.telemetry.loop_metrics import (ConfidenceCalibrationBucket,
+                                             InsightRecord, InsightSource,
+                                             LoopEffectivenessMetrics,
+                                             LoopMetricsCollector, SourceStats,
+                                             TaskOutcome)
 
 
 class TestInsightSource:

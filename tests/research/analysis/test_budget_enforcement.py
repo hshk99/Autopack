@@ -8,13 +8,8 @@ import pytest
 pytestmark = pytest.mark.research
 from datetime import datetime
 
-from autopack.research.analysis import (
-    BudgetEnforcer,
-    BudgetMetrics,
-    BudgetStatus,
-    PhaseBudget,
-    PhaseType,
-)
+from autopack.research.analysis import (BudgetEnforcer, BudgetMetrics,
+                                        BudgetStatus, PhaseBudget, PhaseType)
 
 
 class TestBudgetMetrics:

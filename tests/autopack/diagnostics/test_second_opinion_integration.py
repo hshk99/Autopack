@@ -5,11 +5,9 @@ import os
 
 import pytest
 
-from autopack.diagnostics.second_opinion import (
-    SecondOpinionConfig,
-    SecondOpinionTriageSystem,
-    TriageReport,
-)
+from autopack.diagnostics.second_opinion import (SecondOpinionConfig,
+                                                 SecondOpinionTriageSystem,
+                                                 TriageReport)
 
 
 def test_second_opinion_disabled_by_default():

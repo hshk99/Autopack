@@ -9,10 +9,8 @@ Tests:
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from autopack.deliverables_validator import (
-    extract_manifest_from_output,
-    validate_structured_manifest,
-)
+from autopack.deliverables_validator import (extract_manifest_from_output,
+                                             validate_structured_manifest)
 
 
 class TestManifestExtraction:

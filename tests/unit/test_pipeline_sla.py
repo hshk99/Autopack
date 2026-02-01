@@ -8,7 +8,8 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 
 from autopack.feedback_pipeline import FeedbackPipeline
-from autopack.telemetry.meta_metrics import PipelineLatencyTracker, PipelineSLAConfig, PipelineStage
+from autopack.telemetry.meta_metrics import (PipelineLatencyTracker,
+                                             PipelineSLAConfig, PipelineStage)
 
 
 class TestSLABreachDetection:

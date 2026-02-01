@@ -10,12 +10,10 @@ from datetime import datetime, timedelta
 import pytest
 
 from autopack.research.idea_parser import ParsedIdea, ProjectType, RiskProfile
-from autopack.research.models.bootstrap_session import (
-    BootstrapPhase,
-    BootstrapSession,
-    ResearchPhaseResult,
-    generate_idea_hash,
-)
+from autopack.research.models.bootstrap_session import (BootstrapPhase,
+                                                        BootstrapSession,
+                                                        ResearchPhaseResult,
+                                                        generate_idea_hash)
 from autopack.research.orchestrator import ResearchCache, ResearchOrchestrator
 
 

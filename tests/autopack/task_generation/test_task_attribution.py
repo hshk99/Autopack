@@ -11,10 +11,7 @@ import pytest
 
 from autopack.feedback_pipeline import FeedbackPipeline, PhaseOutcome
 from autopack.task_generation.task_effectiveness_tracker import (
-    TaskAttributionOutcome,
-    TaskEffectivenessTracker,
-    TaskExecutionMapping,
-)
+    TaskAttributionOutcome, TaskEffectivenessTracker, TaskExecutionMapping)
 
 
 class TestTaskExecutionMapping:

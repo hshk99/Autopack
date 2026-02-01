@@ -13,12 +13,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from ..research.external.mcp_scanner import MCPRegistryScanner as BaseMCPScanner
-from ..research.external.mcp_scanner import (
-    MCPServer,
-    MCPServerMaturity,
-    ScanResult,
-)
+from ..research.external.mcp_scanner import \
+    MCPRegistryScanner as BaseMCPScanner
+from ..research.external.mcp_scanner import (MCPServer, MCPServerMaturity,
+                                             ScanResult)
 
 logger = logging.getLogger(__name__)
 

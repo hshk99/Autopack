@@ -25,7 +25,8 @@ class TestT1PromptFixes:
     def test_directory_prefix_annotation(self):
         """Test that paths ending with / are annotated as directory prefixes."""
         # Import the implementation function directly to avoid method override issue
-        from autopack.llm.prompts.anthropic_builder_prompts import build_user_prompt
+        from autopack.llm.prompts.anthropic_builder_prompts import \
+            build_user_prompt
 
         phase_spec = {
             "description": "Create utility module",
@@ -61,7 +62,8 @@ class TestT1PromptFixes:
     def test_required_deliverables_section(self):
         """Test that REQUIRED DELIVERABLES section is added when deliverables exist."""
         # Import the implementation function directly to avoid method override issue
-        from autopack.llm.prompts.anthropic_builder_prompts import build_user_prompt
+        from autopack.llm.prompts.anthropic_builder_prompts import \
+            build_user_prompt
 
         phase_spec = {
             "description": "Create utility module",
@@ -99,7 +101,8 @@ class TestT1PromptFixes:
     def test_no_deliverables_section_when_no_deliverables(self):
         """Test that REQUIRED DELIVERABLES section is NOT added when no deliverables."""
         # Import the implementation function directly to avoid method override issue
-        from autopack.llm.prompts.anthropic_builder_prompts import build_user_prompt
+        from autopack.llm.prompts.anthropic_builder_prompts import \
+            build_user_prompt
 
         phase_spec = {
             "description": "Review code",
@@ -122,7 +125,8 @@ class TestT1PromptFixes:
     def test_deliverables_from_top_level(self):
         """Test that deliverables can be extracted from top-level phase_spec."""
         # Import the implementation function directly to avoid method override issue
-        from autopack.llm.prompts.anthropic_builder_prompts import build_user_prompt
+        from autopack.llm.prompts.anthropic_builder_prompts import \
+            build_user_prompt
 
         phase_spec = {
             "description": "Create utility module",

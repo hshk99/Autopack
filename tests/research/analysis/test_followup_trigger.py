@@ -11,14 +11,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from autopack.research.analysis.followup_trigger import (
-    CallbackResult,
-    FollowupResearchTrigger,
-    FollowupTrigger,
-    ResearchPlan,
-    TriggerExecutionResult,
-    TriggerPriority,
-    TriggerType,
-)
+    CallbackResult, FollowupResearchTrigger, FollowupTrigger, ResearchPlan,
+    TriggerExecutionResult, TriggerPriority, TriggerType)
 
 
 class TestCallbackRegistration:

@@ -12,7 +12,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autopack.executor.backlog_maintenance import BacklogMaintenance, InjectionResult, TaskCandidate
+from autopack.executor.backlog_maintenance import (BacklogMaintenance,
+                                                   InjectionResult,
+                                                   TaskCandidate)
 
 
 class TestInjectionVerification:

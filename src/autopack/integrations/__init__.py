@@ -19,7 +19,8 @@ Providers:
 - Trading broker execution
 """
 
-from .mcp_registry import MCPIntegrationConfig, MCPIntegrationResult, MCPRegistryIntegration
+from .mcp_registry import (MCPIntegrationConfig, MCPIntegrationResult,
+                           MCPRegistryIntegration)
 from .pattern_library import PatternLibrary, ReusablePattern
 from .runner import IntegrationResult, IntegrationRunner
 

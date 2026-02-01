@@ -8,9 +8,7 @@ import pytest
 import yaml
 
 from autopack.generation.ci_cd_pipeline_generator import (
-    CICDConfig,
-    CICDPipelineGenerator,
-)
+    CICDConfig, CICDPipelineGenerator)
 
 
 class TestCICDConfig:

@@ -1,11 +1,8 @@
 """Tests for infrastructure cost tracking utilities."""
 
-from autopack.infrastructure.cost_tracker import (
-    CostEstimate,
-    InfrastructureCostTracker,
-    ProviderType,
-    WorkloadType,
-)
+from autopack.infrastructure.cost_tracker import (CostEstimate,
+                                                  InfrastructureCostTracker,
+                                                  ProviderType, WorkloadType)
 
 
 class TestCostEstimation:

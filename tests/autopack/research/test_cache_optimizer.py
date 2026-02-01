@@ -8,12 +8,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.research.cache_optimizer import (
-    CacheEntry,
-    CacheMetrics,
-    CacheOptimizer,
-    OptimizedResearchCache,
-)
+from autopack.research.cache_optimizer import (CacheEntry, CacheMetrics,
+                                               CacheOptimizer,
+                                               OptimizedResearchCache)
 from autopack.research.models.bootstrap_session import BootstrapSession
 
 

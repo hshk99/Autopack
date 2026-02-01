@@ -56,7 +56,8 @@ def sample_anchor() -> IntentionAnchorV2:
 @pytest.fixture
 def sample_gap_report(sample_anchor: IntentionAnchorV2) -> GapReportV1:
     """Create a sample GapReportV1 for testing."""
-    from autopack.gaps.models import Gap, GapEvidence, GapMetadata, GapSummary, SafeRemediation
+    from autopack.gaps.models import (Gap, GapEvidence, GapMetadata,
+                                      GapSummary, SafeRemediation)
 
     gaps = [
         Gap(

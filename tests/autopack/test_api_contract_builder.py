@@ -10,7 +10,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from autopack.builder_schemas import BuilderProbeResult, BuilderResult, BuilderSuggestedIssue
+from autopack.builder_schemas import (BuilderProbeResult, BuilderResult,
+                                      BuilderSuggestedIssue)
 
 
 class TestBuilderResultContract:

@@ -9,11 +9,9 @@ import json
 
 import pytest
 
-from autopack.diagnostics.second_opinion import (
-    SecondOpinionConfig,
-    SecondOpinionTriageSystem,
-    TriageReport,
-)
+from autopack.diagnostics.second_opinion import (SecondOpinionConfig,
+                                                 SecondOpinionTriageSystem,
+                                                 TriageReport)
 
 
 class TestSecondOpinionConfig:

@@ -3,7 +3,8 @@
 import pytest
 
 from autopack.diagnostics.package_detector import PackageDetector
-from tests.autopack.diagnostics.fixtures.package_scenarios import BASIC_PACKAGE_SCENARIOS
+from tests.autopack.diagnostics.fixtures.package_scenarios import \
+    BASIC_PACKAGE_SCENARIOS
 
 
 class TestPackageDetectorBasic:

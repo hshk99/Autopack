@@ -1214,12 +1214,16 @@ class AutopilotController:
         IMP-AUT-001: Translates research cycle decisions into autopilot
         state changes and actions.
 
+        IMP-RESEARCH-002: Implements pause logic when research gaps are detected
+        and execution should be paused for follow-up research.
+
         Args:
             outcome: The research cycle outcome
         """
         logger.info(
             f"[IMP-AUT-001] Handling research outcome: decision={outcome.decision.value}, "
-            f"should_continue={outcome.should_continue_execution}"
+            f"should_continue={outcome.should_continue_execution}, "
+            f"gaps_addressed={outcome.gaps_addressed}, gaps_remaining={outcome.gaps_remaining}"
         )
 
         if outcome.decision == ResearchCycleDecision.BLOCK:
@@ -1230,8 +1234,26 @@ class AutopilotController:
             )
 
         elif outcome.decision == ResearchCycleDecision.PAUSE_FOR_RESEARCH:
-            # Research incomplete - may need retry
-            logger.info(f"[IMP-AUT-001] Research cycle requested pause: {outcome.reason}")
+            # IMP-RESEARCH-002: Pause execution when research gaps detected
+            # This allows time for follow-up research to complete
+            pause_message = (
+                f"Research gaps detected: {outcome.gaps_remaining} remaining gaps. "
+                f"Reason: {outcome.reason}"
+            )
+            self._pause_task_generation(pause_message)
+            logger.warning(
+                f"[IMP-RESEARCH-002] Execution paused for research: "
+                f"gaps_addressed={outcome.gaps_addressed}, gaps_remaining={outcome.gaps_remaining}. "
+                f"Reason: {outcome.reason}"
+            )
+
+            # IMP-RESEARCH-002: Record gap pause metrics in executor context
+            if self.executor_ctx:
+                self.executor_ctx.record_gap_pause(
+                    gaps_remaining=outcome.gaps_remaining,
+                    gaps_addressed=outcome.gaps_addressed,
+                    reason=outcome.reason,
+                )
 
         elif outcome.decision == ResearchCycleDecision.ADJUST_PLAN:
             # Log plan adjustments for processing
@@ -1251,6 +1273,159 @@ class AutopilotController:
             if not hasattr(self.session.metadata, "research_cycles"):
                 self.session.metadata.research_cycles = []
             self.session.metadata.research_cycles.append(outcome.to_dict())
+
+    async def retry_gap_research(
+        self,
+        max_retries: int = 3,
+        retry_delay_seconds: float = 2.0,
+    ) -> Optional[ResearchCycleOutcome]:
+        """Retry research for detected gaps with exponential backoff.
+
+        IMP-RESEARCH-002: Implements retry logic for gap research when
+        initial research cycle encounters failures. Uses exponential backoff
+        to avoid overwhelming the system.
+
+        Args:
+            max_retries: Maximum number of retry attempts
+            retry_delay_seconds: Base delay between retries (increases exponentially)
+
+        Returns:
+            Final ResearchCycleOutcome or None if no retries performed
+        """
+        if not self._task_generation_paused:
+            logger.debug("[IMP-RESEARCH-002] Not paused for gaps, no retry needed")
+            return None
+
+        if not self._pause_reason or "gap" not in self._pause_reason.lower():
+            logger.debug("[IMP-RESEARCH-002] Pause reason not gap-related, skipping retry")
+            return None
+
+        logger.info(
+            f"[IMP-RESEARCH-002] Starting gap research retry loop "
+            f"(max_retries={max_retries})"
+        )
+
+        last_outcome = None
+        for retry_attempt in range(max_retries):
+            if retry_attempt > 0:
+                # Exponential backoff: 2s, 4s, 8s, etc.
+                delay = retry_delay_seconds * (2 ** (retry_attempt - 1))
+                logger.info(
+                    f"[IMP-RESEARCH-002] Retry {retry_attempt}/{max_retries} "
+                    f"for gap research, waiting {delay:.1f}s..."
+                )
+                await asyncio.sleep(delay)
+
+            try:
+                # Check if we still have budget for retry
+                if self.executor_ctx and not self.executor_ctx.can_proceed():
+                    logger.warning(
+                        f"[IMP-RESEARCH-002] Retry {retry_attempt + 1}: "
+                        "Budget exhausted, cannot retry gap research"
+                    )
+                    break
+
+                # Execute another research cycle
+                logger.info(
+                    f"[IMP-RESEARCH-002] Executing gap research retry "
+                    f"{retry_attempt + 1}/{max_retries}"
+                )
+
+                outcome = await self.execute_integrated_research_cycle(
+                    analysis_results={
+                        'retry_attempt': retry_attempt + 1,
+                        'max_retries': max_retries,
+                    }
+                )
+
+                last_outcome = outcome
+
+                # Check if gaps are now resolved
+                if outcome.decision in (
+                    ResearchCycleDecision.PROCEED,
+                    ResearchCycleDecision.ADJUST_PLAN,
+                ):
+                    logger.info(
+                        f"[IMP-RESEARCH-002] Gap research retry {retry_attempt + 1} successful: "
+                        f"decision={outcome.decision.value}"
+                    )
+                    # Resume execution since gaps are addressed
+                    self._trigger_task_generation_resume()
+                    return outcome
+
+                elif outcome.decision == ResearchCycleDecision.BLOCK:
+                    logger.error(
+                        f"[IMP-RESEARCH-002] Retry {retry_attempt + 1} hit BLOCK decision, "
+                        "stopping retries"
+                    )
+                    break
+
+                logger.info(
+                    f"[IMP-RESEARCH-002] Retry {retry_attempt + 1} completed: "
+                    f"decision={outcome.decision.value}, gaps_remaining={outcome.gaps_remaining}"
+                )
+
+            except Exception as e:
+                logger.error(
+                    f"[IMP-RESEARCH-002] Retry {retry_attempt + 1} failed with error: {e}"
+                )
+                if retry_attempt == max_retries - 1:
+                    logger.error(
+                        "[IMP-RESEARCH-002] Max retries exceeded, giving up on gap research"
+                    )
+
+        return last_outcome
+
+    def can_attempt_gap_retry(self) -> bool:
+        """Check if gap research retry can be attempted.
+
+        IMP-RESEARCH-002: Checks if conditions allow gap research retry
+        (paused for gaps, budget available, circuit breaker open).
+
+        Returns:
+            True if gap retry can be attempted, False otherwise
+        """
+        if not self._task_generation_paused:
+            return False
+
+        if not self._pause_reason or "gap" not in self._pause_reason.lower():
+            return False
+
+        if self.executor_ctx:
+            if not self.executor_ctx.can_proceed():
+                return False
+
+            if not self.executor_ctx.circuit_breaker.is_available():
+                return False
+
+        return True
+
+    def get_gap_pause_status(self) -> Dict[str, Any]:
+        """Get current status of gap-related pause.
+
+        IMP-RESEARCH-002: Returns detailed information about gap pause
+        state for debugging and monitoring.
+
+        Returns:
+            Dictionary with gap pause status
+        """
+        gap_metrics = {}
+        if self.executor_ctx:
+            gap_metrics = self.executor_ctx.get_gap_detection_metrics()
+
+        return {
+            'is_paused_for_gaps': (
+                self._task_generation_paused
+                and self._pause_reason
+                and "gap" in self._pause_reason.lower()
+            ),
+            'pause_reason': self._pause_reason,
+            'can_retry': self.can_attempt_gap_retry(),
+            'last_research_outcome': (
+                self._last_research_outcome.to_dict() if self._last_research_outcome else None
+            ),
+            'gap_metrics': gap_metrics,
+        }
 
     def get_last_research_outcome(self) -> Optional[ResearchCycleOutcome]:
         """Get the last research cycle outcome.

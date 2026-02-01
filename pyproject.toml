@@ -54,6 +54,8 @@ dependencies = [
     "prometheus-client>=0.17.0",
     # JSON schema validation for artifacts (IMP-SCHEMA-001)
     "jsonschema>=4.0.0",
+    # Telegram bot integration for model validation approvals (IMP-NOTIFY-001)
+    "python-telegram-bot>=20.0",
 ]
 
 [project.optional-dependencies]

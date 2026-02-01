@@ -27,29 +27,30 @@ MAX_EXECUTE_FIX_PER_PHASE = 1  # Maximum execute_fix attempts per phase
 ALLOWED_FIX_TYPES = {"git", "file", "python"}
 
 # Command whitelists by fix_type (regex patterns)
+# Patterns are strict to prevent bypass attempts with spacing variations, escaped chars, etc.
 ALLOWED_FIX_COMMANDS = {
     "git": [
-        r"^git\s+checkout\s+",  # git checkout <file>/<branch>
-        r"^git\s+reset\s+--hard\s+HEAD",  # git reset --hard HEAD
-        r"^git\s+stash\s*$",  # git stash
-        r"^git\s+stash\s+pop$",  # git stash pop
-        r"^git\s+clean\s+-fd$",  # git clean -fd
-        r"^git\s+merge\s+--abort$",  # git merge --abort
-        r"^git\s+rebase\s+--abort$",  # git rebase --abort
-        r"^git\s+status\s+--porcelain$",  # git status --porcelain (safe status)
-        r"^git\s+diff\s+--name-only$",  # git diff --name-only (safe diff)
-        r"^git\s+diff\s+--cached$",  # git diff --cached (Doctor log/validate)
+        r"^git\s+checkout\s+[^\s;|&$`\(\)]+(\s+[^\s;|&$`\(\)]+)*$",  # git checkout <file>/<branch>
+        r"^git\s+reset\s+--hard\s+HEAD$",  # git reset --hard HEAD (exact)
+        r"^git\s+stash$",  # git stash (no args)
+        r"^git\s+stash\s+pop$",  # git stash pop (exact)
+        r"^git\s+clean\s+-fd$",  # git clean -fd (exact flags)
+        r"^git\s+merge\s+--abort$",  # git merge --abort (exact)
+        r"^git\s+rebase\s+--abort$",  # git rebase --abort (exact)
+        r"^git\s+status\s+--porcelain$",  # git status --porcelain (exact)
+        r"^git\s+diff\s+--name-only$",  # git diff --name-only (exact)
+        r"^git\s+diff\s+--cached$",  # git diff --cached (exact)
     ],
     "file": [
-        r"^rm\s+-f\s+",  # rm -f <file> (single file)
-        r"^mkdir\s+-p\s+",  # mkdir -p <dir>
-        r"^mv\s+",  # mv <src> <dst>
-        r"^cp\s+",  # cp <src> <dst>
+        r"^rm\s+-f\s+[^\s;|&$`\(\)]+(\s+[^\s;|&$`\(\)]+)*$",  # rm -f <file>
+        r"^mkdir\s+-p\s+[^\s;|&$`\(\)]+(\s+[^\s;|&$`\(\)]+)*$",  # mkdir -p <dir>
+        r"^mv\s+[^\s;|&$`\(\)]+(\s+[^\s;|&$`\(\)]+)*$",  # mv <src> <dst>
+        r"^cp\s+[^\s;|&$`\(\)]+(\s+[^\s;|&$`\(\)]+)*$",  # cp <src> <dst>
     ],
     "python": [
-        r"^pip\s+install\s+",  # pip install <package>
-        r"^pip\s+uninstall\s+-y\s+",  # pip uninstall -y <package>
-        r"^python\s+-m\s+pip\s+install",  # python -m pip install <package>
+        r"^pip\s+install\s+[^\s;|&$`\(\)]+(\s+[^\s;|&$`\(\)]+)*$",  # pip install <package>
+        r"^pip\s+uninstall\s+-y\s+[^\s;|&$`\(\)]+(\s+[^\s;|&$`\(\)]+)*$",  # pip uninstall -y <package>
+        r"^python\s+-m\s+pip\s+install\s+[^\s;|&$`\(\)]+(\s+[^\s;|&$`\(\)]+)*$",  # python -m pip install
     ],
 }
 
@@ -85,6 +86,62 @@ BANNED_COMMAND_PREFIXES = [
     "init 0",
     "init 6",
 ]
+
+
+def normalize_command(cmd: str) -> str:
+    """Normalize command string to prevent bypass attempts.
+
+    Normalization steps:
+    1. Strip leading/trailing whitespace
+    2. Convert multiple spaces to single spaces
+    3. Normalize path separators (prevent ./cmd vs cmd variations)
+    4. Remove escaped quotes if present (already handled by shlex)
+
+    Args:
+        cmd: Raw command string
+
+    Returns:
+        Normalized command string
+    """
+    # Strip leading/trailing whitespace
+    cmd = cmd.strip()
+
+    # Replace multiple spaces with single space
+    cmd = re.sub(r"\s+", " ", cmd)
+
+    # Normalize path separators (convert ../ and ./ to prevent obfuscation)
+    # This helps catch patterns like "./rm" vs "rm"
+    cmd = re.sub(r"\.[\\/]+", "", cmd)
+
+    return cmd
+
+
+def detect_path_bypass_attempts(cmd: str) -> bool:
+    """Detect attempts to bypass command checks using path variations.
+
+    Detects patterns like:
+    - /full/path/to/rm vs rm
+    - ./rm vs rm
+    - .//rm vs rm
+    - Relative paths with .. or .
+
+    Args:
+        cmd: Normalized command string
+
+    Returns:
+        True if bypass attempt detected, False otherwise
+    """
+    # Check for full paths (e.g., /usr/bin/rm instead of rm)
+    # For allowed simple commands, we expect the command name directly
+    command_start = cmd.split()[0] if cmd else ""
+
+    # If command starts with /, ./, ../, or contains path separators before the base command
+    if "/" in command_start or "\\" in command_start:
+        # This could be a full path bypass attempt
+        # For security, we don't allow full paths - always use simple command names
+        return True
+
+    return False
 
 
 @dataclass
@@ -305,7 +362,14 @@ class ExecuteFixHandler:
         """
         Validate fix commands against whitelist and security rules.
 
-        Per GPT_RESPONSE9: Use shlex + regex + banned metacharacters.
+        Security validation layers:
+        1. Check fix_type is allowed
+        2. Normalize command to prevent variations
+        3. Detect path-based bypass attempts
+        4. Check for banned command prefixes
+        5. Check for banned metacharacters
+        6. Validate shlex parsing
+        7. Match against strict regex whitelist patterns
 
         Args:
             commands: List of shell commands to validate
@@ -328,17 +392,38 @@ class ExecuteFixHandler:
             return False, errors
 
         for cmd in commands:
-            # Check for banned command prefixes
+            # Normalize command to prevent bypass with spacing variations
+            normalized_cmd = normalize_command(cmd)
+
+            # Detect and block path-based bypass attempts
+            if detect_path_bypass_attempts(normalized_cmd):
+                errors.append(
+                    f"Command '{cmd}' uses path variation to bypass security (use simple command name)"
+                )
+                continue
+
+            # Check for banned command prefixes (before whitespace normalization)
+            cmd_stripped = cmd.strip()
+            has_banned_prefix = False
             for banned in BANNED_COMMAND_PREFIXES:
-                if cmd.strip().startswith(banned):
+                if cmd_stripped.startswith(banned):
                     errors.append(f"Command '{cmd}' uses banned prefix '{banned}'")
-                    continue
+                    has_banned_prefix = True
+                    break
+
+            if has_banned_prefix:
+                continue
 
             # Check for banned metacharacters
+            has_banned_char = False
             for char in BANNED_METACHARACTERS:
                 if char in cmd:
                     errors.append(f"Command '{cmd}' contains banned metacharacter '{char}'")
-                    continue
+                    has_banned_char = True
+                    break
+
+            if has_banned_char:
+                continue
 
             # Validate against whitelist using shlex + regex
             try:
@@ -348,10 +433,10 @@ class ExecuteFixHandler:
                 errors.append(f"Command '{cmd}' failed shlex parsing: {e}")
                 continue
 
-            # Check if command matches any whitelist pattern
+            # Check if normalized command matches any whitelist pattern
             matched = False
             for pattern in whitelist_patterns:
-                if re.match(pattern, cmd):
+                if re.match(pattern, normalized_cmd):
                     matched = True
                     break
 

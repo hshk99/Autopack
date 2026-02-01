@@ -315,6 +315,8 @@ jobs:
           DATABASE_URL: postgresql://autopack:autopack@localhost:5432/autopack
           # PR-INFRA: Ensure src/memory module is importable by pytest-xdist workers
           PYTHONPATH: ${{ github.workspace }}/src
+          # API access for tests that require Claude
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           # Core gate: Must pass, no xfail allowed
           # Excludes research-marked, aspirational-marked, and legacy_contract-marked tests via pytest markers
@@ -406,6 +408,8 @@ jobs:
           # Use SQLite for Windows CI (no PostgreSQL service setup needed)
           DATABASE_URL: sqlite:///./test.db
           PYTHONPATH: ${{ github.workspace }}/src
+          # API access for tests that require Claude
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           # Windows-compatible test run with SQLite
           # Core gate: Must pass, no xfail allowed
@@ -459,6 +463,8 @@ jobs:
           DATABASE_URL: postgresql://autopack:autopack@localhost:5432/autopack
           # PR-INFRA: Ensure src/memory module is importable by pytest-xdist workers
           PYTHONPATH: ${{ github.workspace }}/src
+          # API access for tests that require Claude
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           # Aspirational gate: Track progress on extended test suites
           # Runs ONLY aspirational-marked tests (xfail-heavy extended suites)
@@ -554,6 +560,8 @@ jobs:
           DATABASE_URL: "sqlite:///:memory:"
           # PR-INFRA: Ensure src/memory module is importable by pytest-xdist workers
           PYTHONPATH: ${{ github.workspace }}/src
+          # API access for tests that require Claude
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           # Research gate: Informational only
           # Tests the quarantined research subsystem (see RESEARCH_QUARANTINE.md)
@@ -627,6 +635,9 @@ jobs:
         run: |
           pip install -e ".[dev]"
       - name: Run PR approval governance tests
+        env:
+          # API access for tests that require Claude
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           # Test PR approval pipeline contracts (proposal artifacts + Telegram webhook callbacks)
           # Focused governance tests without bloating intention-autonomy-ci.yml

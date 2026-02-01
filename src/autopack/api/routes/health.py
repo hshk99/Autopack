@@ -236,8 +236,7 @@ def health_check(db: Session = Depends(get_db)):
     # Optional detailed DB identity for debugging (BUILD-129)
     if os.getenv("DEBUG_DB_IDENTITY") == "1":
         try:
-            from autopack.db_identity import \
-                _get_sqlite_db_path  # type: ignore
+            from autopack.db_identity import _get_sqlite_db_path  # type: ignore
 
             run_ids = [
                 r[0] for r in db.query(models.Run.id).order_by(models.Run.id.asc()).limit(5).all()

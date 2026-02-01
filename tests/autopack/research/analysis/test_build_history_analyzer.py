@@ -9,8 +9,7 @@ Tests cover:
 - Analysis result generation
 """
 
-import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -280,9 +279,7 @@ class TestBuildHistoryAnalyzer:
         assert len(metrics) == 5
         assert all(isinstance(m, BuildMetrics) for m in metrics)
 
-    def test_collect_build_metrics_caching(
-        self, build_history_analyzer: BuildHistoryAnalyzer
-    ):
+    def test_collect_build_metrics_caching(self, build_history_analyzer: BuildHistoryAnalyzer):
         """Test build metrics are cached."""
         metrics1 = build_history_analyzer.collect_build_metrics()
         metrics2 = build_history_analyzer.collect_build_metrics()
@@ -318,9 +315,7 @@ class TestBuildHistoryAnalyzer:
 
         assert len(metrics) == 0
 
-    def test_extract_feasibility_signals(
-        self, build_history_analyzer: BuildHistoryAnalyzer
-    ):
+    def test_extract_feasibility_signals(self, build_history_analyzer: BuildHistoryAnalyzer):
         """Test extracting feasibility signals from history."""
         signals = build_history_analyzer.extract_feasibility_signals()
 
@@ -336,9 +331,7 @@ class TestBuildHistoryAnalyzer:
         self, build_history_analyzer: BuildHistoryAnalyzer
     ):
         """Test extracting feasibility signals filtered by project type."""
-        signals = build_history_analyzer.extract_feasibility_signals(
-            project_type="api"
-        )
+        signals = build_history_analyzer.extract_feasibility_signals(project_type="api")
 
         # Should return signals based on filtered metrics
         assert isinstance(signals, list)
@@ -347,15 +340,11 @@ class TestBuildHistoryAnalyzer:
         self, build_history_analyzer: BuildHistoryAnalyzer
     ):
         """Test extracting feasibility signals filtered by tech stack."""
-        signals = build_history_analyzer.extract_feasibility_signals(
-            tech_stack=["python"]
-        )
+        signals = build_history_analyzer.extract_feasibility_signals(tech_stack=["python"])
 
         assert isinstance(signals, list)
 
-    def test_analyze_cost_effectiveness(
-        self, build_history_analyzer: BuildHistoryAnalyzer
-    ):
+    def test_analyze_cost_effectiveness(self, build_history_analyzer: BuildHistoryAnalyzer):
         """Test cost-effectiveness analysis from history."""
         feedback = build_history_analyzer.analyze_cost_effectiveness()
 
@@ -385,17 +374,13 @@ class TestBuildHistoryAnalyzer:
         assert len(result.recommendations) >= 0
         assert len(result.warnings) >= 0
 
-    def test_analyze_by_project_type(
-        self, build_history_analyzer: BuildHistoryAnalyzer
-    ):
+    def test_analyze_by_project_type(self, build_history_analyzer: BuildHistoryAnalyzer):
         """Test analysis filtered by project type."""
         result = build_history_analyzer.analyze(project_type="api")
 
         assert isinstance(result, BuildHistoryAnalysisResult)
 
-    def test_analyze_by_tech_stack(
-        self, build_history_analyzer: BuildHistoryAnalyzer
-    ):
+    def test_analyze_by_tech_stack(self, build_history_analyzer: BuildHistoryAnalyzer):
         """Test analysis filtered by tech stack."""
         result = build_history_analyzer.analyze(tech_stack=["python"])
 
@@ -444,52 +429,40 @@ class TestBuildHistoryAnalyzer:
         assert adjustment["adjustment"] == 0.0
         assert adjustment["confidence"] == 0.0
 
-    def test_calculate_trend_improving(
-        self, build_history_analyzer: BuildHistoryAnalyzer
-    ):
+    def test_calculate_trend_improving(self, build_history_analyzer: BuildHistoryAnalyzer):
         """Test trend calculation for improving values."""
         values = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
         trend = build_history_analyzer._calculate_trend(values)
 
         assert trend == MetricTrend.IMPROVING
 
-    def test_calculate_trend_declining(
-        self, build_history_analyzer: BuildHistoryAnalyzer
-    ):
+    def test_calculate_trend_declining(self, build_history_analyzer: BuildHistoryAnalyzer):
         """Test trend calculation for declining values."""
         values = [0.8, 0.7, 0.6, 0.5, 0.4, 0.3]
         trend = build_history_analyzer._calculate_trend(values)
 
         assert trend == MetricTrend.DECLINING
 
-    def test_calculate_trend_stable(
-        self, build_history_analyzer: BuildHistoryAnalyzer
-    ):
+    def test_calculate_trend_stable(self, build_history_analyzer: BuildHistoryAnalyzer):
         """Test trend calculation for stable values."""
         values = [0.5, 0.51, 0.49, 0.5, 0.51, 0.49]
         trend = build_history_analyzer._calculate_trend(values)
 
         assert trend == MetricTrend.STABLE
 
-    def test_calculate_trend_insufficient_data(
-        self, build_history_analyzer: BuildHistoryAnalyzer
-    ):
+    def test_calculate_trend_insufficient_data(self, build_history_analyzer: BuildHistoryAnalyzer):
         """Test trend calculation with insufficient data."""
         values = [0.5, 0.6]
         trend = build_history_analyzer._calculate_trend(values)
 
         assert trend == MetricTrend.INSUFFICIENT_DATA
 
-    def test_calculate_confidence_high(
-        self, build_history_analyzer: BuildHistoryAnalyzer
-    ):
+    def test_calculate_confidence_high(self, build_history_analyzer: BuildHistoryAnalyzer):
         """Test confidence calculation with many samples."""
         confidence = build_history_analyzer._calculate_confidence(25)
         assert confidence == 0.9
 
-    def test_calculate_confidence_low(
-        self, build_history_analyzer: BuildHistoryAnalyzer
-    ):
+    def test_calculate_confidence_low(self, build_history_analyzer: BuildHistoryAnalyzer):
         """Test confidence calculation with few samples."""
         confidence = build_history_analyzer._calculate_confidence(3)
         assert confidence == 0.3

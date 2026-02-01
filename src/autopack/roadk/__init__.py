@@ -8,8 +8,7 @@ Provides user-facing dashboard to monitor:
 - Overall loop health score
 """
 
-from autopack.roadk.dashboard_data import (DashboardDataProvider,
-                                           LoopHealthMetrics, TrendPoint)
+from autopack.roadk.dashboard_data import DashboardDataProvider, LoopHealthMetrics, TrendPoint
 from autopack.roadk.meta_metrics_dashboard import MetaMetricsDashboard
 
 __all__ = [

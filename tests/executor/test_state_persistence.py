@@ -1,17 +1,20 @@
 """Tests for executor state persistence (BUILD-041)."""
 
 import json
-import os
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 
-from autopack.executor.state_persistence import (AttemptRecord, ExecutorState,
-                                                 ExecutorStateManager,
-                                                 PhaseState, PhaseStatus,
-                                                 atomic_write_json)
+from autopack.executor.state_persistence import (
+    AttemptRecord,
+    ExecutorState,
+    ExecutorStateManager,
+    PhaseState,
+    PhaseStatus,
+    atomic_write_json,
+)
 
 
 class TestPhaseStatus:

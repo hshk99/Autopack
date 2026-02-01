@@ -2,16 +2,28 @@
 
 from __future__ import annotations
 
-from autopack.research.artifact_generators import (
-    ArtifactGeneratorRegistry, MonetizationStrategyGenerator,
-    ProjectBriefGenerator, ProjectReadmeGenerator, get_monetization_generator,
-    get_monetization_analyzer, get_project_brief_generator, get_readme_generator,
-    get_registry)
-from autopack.research.analysis.monetization_analysis import (
-    MonetizationAnalysisResult, MonetizationAnalyzer, MonetizationModel,
-    PricingStrategy, PricingTier, ProjectType, RevenueConfidence,
-    RevenueProjection)
 from autopack.research.analysis.budget_enforcement import BudgetEnforcer
+from autopack.research.analysis.monetization_analysis import (
+    MonetizationAnalysisResult,
+    MonetizationAnalyzer,
+    MonetizationModel,
+    PricingStrategy,
+    PricingTier,
+    ProjectType,
+    RevenueConfidence,
+    RevenueProjection,
+)
+from autopack.research.artifact_generators import (
+    ArtifactGeneratorRegistry,
+    MonetizationStrategyGenerator,
+    ProjectBriefGenerator,
+    ProjectReadmeGenerator,
+    get_monetization_analyzer,
+    get_monetization_generator,
+    get_project_brief_generator,
+    get_readme_generator,
+    get_registry,
+)
 
 
 class TestProjectReadmeGenerator:

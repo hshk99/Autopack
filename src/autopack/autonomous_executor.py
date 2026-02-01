@@ -46,52 +46,76 @@ from autopack.archive_consolidator import log_build_event
 from autopack.ci.custom_runner import CustomRunner
 from autopack.ci.pytest_runner import PytestRunner
 from autopack.debug_journal import log_error
+
 # Memory and validation imports
 # BUILD-115: models.py removed - database write code disabled below
 from autopack.diagnostics.diagnostics_agent import DiagnosticsAgent
-from autopack.error_recovery import (DoctorContextSummary, DoctorRequest,
-                                     DoctorResponse, ErrorRecoverySystem)
+from autopack.error_recovery import (
+    DoctorContextSummary,
+    DoctorRequest,
+    DoctorResponse,
+    ErrorRecoverySystem,
+)
+
 # PR-EXE-2: Approval flow consolidation
-from autopack.executor.approval_flow import (request_build113_approval,
-                                             request_build113_clarification,
-                                             request_human_approval)
+from autopack.executor.approval_flow import (
+    request_build113_approval,
+    request_build113_clarification,
+    request_human_approval,
+)
 from autopack.executor.autonomous_loop import AutonomousLoop
+
 # PR-EXE-12: Large helper method extraction
 from autopack.executor.backlog_maintenance import BacklogMaintenance
 from autopack.executor.batched_deliverables_executor import (
-    BatchedDeliverablesExecutor, BatchedExecutionContext)
+    BatchedDeliverablesExecutor,
+    BatchedExecutionContext,
+)
+
 # IMP-MAINT-006: Context loader and state manager extractions
 from autopack.executor.context_loader import ExecutorContextLoader
+
 # PR-EXE-6: Heuristic context loader extraction
 from autopack.executor.context_loading_heuristic import (
-    HeuristicContextLoader, get_default_priority_files)
+    HeuristicContextLoader,
+    get_default_priority_files,
+)
 from autopack.executor.deliverables_contract import DeliverablesContractBuilder
 from autopack.executor.doctor_integration import DoctorIntegration
+
 # PR-EXE-10: Error analysis and learning pipeline
 from autopack.executor.error_analysis import ErrorAnalyzer
 from autopack.executor.execute_fix_handler import ExecuteFixHandler
+
 # IMP-MAINT-001: Goal anchoring and SOT manager extraction
 from autopack.executor.goal_anchoring import GoalAnchoringManager
+
 # IMP-MAINT-001: Additional module extractions for executor split
 from autopack.executor.learning_context_manager import LearningContextManager
 from autopack.executor.learning_pipeline import LearningPipeline
 from autopack.executor.notification_helpers import NotificationHelper
 from autopack.executor.phase_approach_reviser import PhaseApproachReviser
+
 # PR-EXE-9: Phase state persistence manager
 from autopack.executor.phase_state_manager import PhaseStateManager
+
 # IMP-REL-015: Executor crash recovery with state persistence
 # PR-EXE-4: Run checkpoint and rollback extraction
-from autopack.executor.run_checkpoint import (ExecutorState,
-                                              ExecutorStateCheckpoint,
-                                              create_deletion_savepoint,
-                                              create_run_checkpoint,
-                                              rollback_to_run_checkpoint)
+from autopack.executor.run_checkpoint import (
+    ExecutorState,
+    ExecutorStateCheckpoint,
+    create_deletion_savepoint,
+    create_run_checkpoint,
+    rollback_to_run_checkpoint,
+)
 from autopack.executor.run_lifecycle_manager import RunLifecycleManager
+
 # PR-EXE-13: Final helper extraction - reach 5,000 lines!
 from autopack.executor.scope_context_validator import ScopeContextValidator
 from autopack.executor.scoped_context_loader import ScopedContextLoader
 from autopack.executor.sot_manager import SOTManager
 from autopack.executor.stale_phase_handler import StalePhaseHandler
+
 # IMP-GOD-001: Additional module extractions to reduce god file
 from autopack.executor.startup_validation import StartupValidator
 from autopack.executor.state_manager import ExecutorStateManager
@@ -99,17 +123,23 @@ from autopack.executor_lock import ExecutorLockManager  # BUILD-048-T1
 from autopack.file_layout import RunFileLayout
 from autopack.governed_apply import GovernedApplyPath
 from autopack.health_checks import run_health_checks
-from autopack.learned_rules import (get_active_rules_for_phase,
-                                    get_relevant_hints_for_phase,
-                                    load_project_rules, save_run_hint)
+from autopack.learned_rules import (
+    get_active_rules_for_phase,
+    get_relevant_hints_for_phase,
+    load_project_rules,
+    save_run_hint,
+)
+
 # IMP-MEM-016: Learning memory manager for cross-cycle learning
 from autopack.learning_memory_manager import LearningMemoryManager
 from autopack.llm_client import AuditorResult, BuilderResult
 from autopack.llm_service import LlmService
+
 # BUILD-123v2: Manifest Generator imports
 from autopack.manifest_generator import ManifestGenerator
 from autopack.memory import MemoryService
 from autopack.phase_auto_fixer import auto_fix_phase_scope
+
 # BUILD-127 Phase 1: Completion authority with baseline tracking
 from autopack.phase_finalizer import PhaseFinalizer
 from autopack.quality_gate import QualityGate
@@ -269,8 +299,7 @@ class AutonomousExecutor:
 
         # Apply encoding fix immediately to prevent Unicode crashes
         # Create a dummy error context for encoding fix
-        from autopack.error_recovery import (ErrorCategory, ErrorContext,
-                                             ErrorSeverity)
+        from autopack.error_recovery import ErrorCategory, ErrorContext, ErrorSeverity
 
         dummy_ctx = ErrorContext(
             error=Exception("Pre-emptive encoding fix"),
@@ -406,12 +435,9 @@ class AutonomousExecutor:
         self.iterative_investigator = None
         if self.enable_autonomous_fixes and self.diagnostics_agent:
             try:
-                from autopack.diagnostics.decision_executor import \
-                    DecisionExecutor
-                from autopack.diagnostics.goal_aware_decision import \
-                    GoalAwareDecisionMaker
-                from autopack.diagnostics.iterative_investigator import \
-                    IterativeInvestigator
+                from autopack.diagnostics.decision_executor import DecisionExecutor
+                from autopack.diagnostics.goal_aware_decision import GoalAwareDecisionMaker
+                from autopack.diagnostics.iterative_investigator import IterativeInvestigator
 
                 decision_maker = GoalAwareDecisionMaker(
                     low_risk_threshold=100,
@@ -573,8 +599,7 @@ class AutonomousExecutor:
         from autopack.executor.auditor_orchestrator import AuditorOrchestrator
         from autopack.executor.builder_orchestrator import BuilderOrchestrator
         from autopack.executor.ci_execution_flow import CIExecutionFlow
-        from autopack.executor.patch_application_flow import \
-            PatchApplicationFlow
+        from autopack.executor.patch_application_flow import PatchApplicationFlow
 
         self.builder_orchestrator = BuilderOrchestrator(self)
         self.patch_flow = PatchApplicationFlow(self)
@@ -616,8 +641,7 @@ class AutonomousExecutor:
         self.MAX_PATCH_FAILURES_PER_RUN = 15  # Stop run after this many patch failures
 
         # BUILD-195: Payload correction tracker for one-shot 422 handling
-        from autopack.executor.payload_correction import \
-            PayloadCorrectionTracker
+        from autopack.executor.payload_correction import PayloadCorrectionTracker
 
         self._payload_correction_tracker = PayloadCorrectionTracker()
 
@@ -1561,8 +1585,7 @@ class AutonomousExecutor:
             # INSERTION POINT 4: Write phase proof on success (BUILD-161 Phase A)
             if hasattr(self, "_intention_wiring") and self._intention_wiring is not None:
                 try:
-                    from autopack.phase_proof_writer import \
-                        write_minimal_phase_proof
+                    from autopack.phase_proof_writer import write_minimal_phase_proof
 
                     write_minimal_phase_proof(
                         run_id=self.run_id,
@@ -1691,8 +1714,7 @@ class AutonomousExecutor:
             # INSERTION POINT 4: Write phase proof on failure (BUILD-161 Phase A)
             if hasattr(self, "_intention_wiring") and self._intention_wiring is not None:
                 try:
-                    from autopack.phase_proof_writer import \
-                        write_minimal_phase_proof
+                    from autopack.phase_proof_writer import write_minimal_phase_proof
 
                     write_minimal_phase_proof(
                         run_id=self.run_id,
@@ -1806,9 +1828,11 @@ class AutonomousExecutor:
         context_reduction_factor = kwargs.get("context_reduction_factor")
         model_downgrade = kwargs.get("model_downgrade")
         timeout_increase_factor = kwargs.get("timeout_increase_factor")
-        from autopack.executor.phase_orchestrator import (ExecutionContext,
-                                                          PhaseOrchestrator,
-                                                          PhaseResult)
+        from autopack.executor.phase_orchestrator import (
+            ExecutionContext,
+            PhaseOrchestrator,
+            PhaseResult,
+        )
 
         phase_id = phase.get("phase_id")
 
@@ -2223,8 +2247,7 @@ class AutonomousExecutor:
                 )
 
                 # Construct PhaseSpec from phase
-                from autopack.diagnostics.diagnostics_models import (
-                    DecisionType, PhaseSpec)
+                from autopack.diagnostics.diagnostics_models import DecisionType, PhaseSpec
 
                 phase_spec = PhaseSpec(
                     phase_id=phase.get("phase_id", "unknown"),
@@ -2797,8 +2820,7 @@ class AutonomousExecutor:
         try:
             # Special-case phase handlers (in-phase batching) are routed via a tiny registry
             # to reduce merge conflicts in this file.
-            from autopack.executor.phase_dispatch import \
-                resolve_special_phase_method
+            from autopack.executor.phase_dispatch import resolve_special_phase_method
 
             special_method_name = resolve_special_phase_method(phase_id)
             if special_method_name:
@@ -2834,8 +2856,7 @@ class AutonomousExecutor:
 
                 # Clear the LRU file cache in ScopedContextLoader to force disk re-reads
                 try:
-                    from autopack.executor.scoped_context_loader import \
-                        clear_file_cache
+                    from autopack.executor.scoped_context_loader import clear_file_cache
 
                     clear_file_cache()
                     logger.debug(f"[IMP-COORD-001] Cleared LRU file cache for '{phase_id}'")
@@ -2886,8 +2907,7 @@ class AutonomousExecutor:
                 logger.info(f"[BUILD-113] Running proactive decision analysis for {phase_id}")
 
                 try:
-                    from autopack.diagnostics.diagnostics_models import (
-                        DecisionType, PhaseSpec)
+                    from autopack.diagnostics.diagnostics_models import DecisionType, PhaseSpec
 
                     # Use GoalAwareDecisionMaker directly (no investigation needed for fresh features)
                     decision_maker = self.iterative_investigator.decision_maker
@@ -3353,8 +3373,7 @@ class AutonomousExecutor:
         allowed_paths: Optional[List[str]],
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for followup-7 `diagnostics-deep-retrieval` (code → tests → docs)."""
-        from autopack.executor.phase_handlers import \
-            batched_diagnostics_deep_retrieval
+        from autopack.executor.phase_handlers import batched_diagnostics_deep_retrieval
 
         return batched_diagnostics_deep_retrieval.execute(
             self, phase=phase, attempt_index=attempt_index, allowed_paths=allowed_paths
@@ -3368,8 +3387,7 @@ class AutonomousExecutor:
         allowed_paths: Optional[List[str]],
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for followup-8 `diagnostics-iteration-loop` (code → tests → docs)."""
-        from autopack.executor.phase_handlers import \
-            batched_diagnostics_iteration_loop
+        from autopack.executor.phase_handlers import batched_diagnostics_iteration_loop
 
         return batched_diagnostics_iteration_loop.execute(
             self, phase=phase, attempt_index=attempt_index, allowed_paths=allowed_paths
@@ -3383,8 +3401,7 @@ class AutonomousExecutor:
         allowed_paths: Optional[List[str]],
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for followup-1 `diagnostics-handoff-bundle` (code → tests → docs)."""
-        from autopack.executor.phase_handlers import \
-            batched_diagnostics_handoff_bundle
+        from autopack.executor.phase_handlers import batched_diagnostics_handoff_bundle
 
         return batched_diagnostics_handoff_bundle.execute(
             self, phase=phase, attempt_index=attempt_index, allowed_paths=allowed_paths
@@ -3398,8 +3415,7 @@ class AutonomousExecutor:
         allowed_paths: Optional[List[str]],
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for followup-2 `diagnostics-cursor-prompt` (code → tests → docs)."""
-        from autopack.executor.phase_handlers import \
-            batched_diagnostics_cursor_prompt
+        from autopack.executor.phase_handlers import batched_diagnostics_cursor_prompt
 
         return batched_diagnostics_cursor_prompt.execute(
             self, phase=phase, attempt_index=attempt_index, allowed_paths=allowed_paths
@@ -3413,8 +3429,7 @@ class AutonomousExecutor:
         allowed_paths: Optional[List[str]],
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for followup-3 `diagnostics-second-opinion-triage` (code → tests → docs)."""
-        from autopack.executor.phase_handlers import \
-            batched_diagnostics_second_opinion
+        from autopack.executor.phase_handlers import batched_diagnostics_second_opinion
 
         return batched_diagnostics_second_opinion.execute(
             self, phase=phase, attempt_index=attempt_index, allowed_paths=allowed_paths
@@ -3428,8 +3443,7 @@ class AutonomousExecutor:
         allowed_paths: Optional[List[str]],
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for Chunk 0 (research-tracer-bullet)."""
-        from autopack.executor.phase_handlers import \
-            batched_research_tracer_bullet
+        from autopack.executor.phase_handlers import batched_research_tracer_bullet
 
         return batched_research_tracer_bullet.execute(
             self, phase=phase, attempt_index=attempt_index, allowed_paths=allowed_paths
@@ -3443,8 +3457,7 @@ class AutonomousExecutor:
         allowed_paths: Optional[List[str]],
     ) -> Tuple[bool, str]:
         """Specialized in-phase batching for Chunk 2B (research-gatherers-web-compilation)."""
-        from autopack.executor.phase_handlers import \
-            batched_research_gatherers_web_compilation
+        from autopack.executor.phase_handlers import batched_research_gatherers_web_compilation
 
         return batched_research_gatherers_web_compilation.execute(
             self, phase=phase, attempt_index=attempt_index, allowed_paths=allowed_paths
@@ -3858,8 +3871,7 @@ class AutonomousExecutor:
 
         # BUILD-190: Integrate with Telegram approval flow
         try:
-            from autopack.notifications.telegram_notifier import \
-                TelegramNotifier
+            from autopack.notifications.telegram_notifier import TelegramNotifier
 
             notifier = TelegramNotifier()
             if notifier.is_configured():

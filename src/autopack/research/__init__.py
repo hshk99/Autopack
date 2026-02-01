@@ -11,17 +11,36 @@ Provides comprehensive research capabilities including:
 
 # Analysis submodule exports
 from autopack.research.analysis import (  # Cost effectiveness; Research state tracking; Follow-up research triggers
-    ComponentCostData, CostCategory, CostEffectivenessAnalyzer,
-    CoverageMetrics, FollowupResearchTrigger, FollowupTrigger, GapPriority,
-    GapType, ProjectCostProjection, ResearchDepth, ResearchGap, ResearchPlan,
-    ResearchRequirements, ResearchState, ResearchStateTracker, ScalingModel,
-    TriggerAnalysisResult, TriggerPriority, TriggerType)
+    ComponentCostData,
+    CostCategory,
+    CostEffectivenessAnalyzer,
+    CoverageMetrics,
+    FollowupResearchTrigger,
+    FollowupTrigger,
+    GapPriority,
+    GapType,
+    ProjectCostProjection,
+    ResearchDepth,
+    ResearchGap,
+    ResearchPlan,
+    ResearchRequirements,
+    ResearchState,
+    ResearchStateTracker,
+    ScalingModel,
+    TriggerAnalysisResult,
+    TriggerPriority,
+    TriggerType,
+)
 from autopack.research.idea_parser import IdeaParser, ParsedIdea
 from autopack.research.orchestrator import ResearchCache, ResearchOrchestrator
-from autopack.research.sot_summarizer import (ArchitectureDecision, BuildEntry,
-                                              SOTSummarizer, SOTSummary,
-                                              get_sot_summarizer,
-                                              summarize_sot_documents)
+from autopack.research.sot_summarizer import (
+    ArchitectureDecision,
+    BuildEntry,
+    SOTSummarizer,
+    SOTSummary,
+    get_sot_summarizer,
+    summarize_sot_documents,
+)
 
 __all__ = [
     # Main orchestration

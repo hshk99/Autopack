@@ -14,25 +14,23 @@ Tests cover:
 """
 
 import json
+
 import pytest
-import tempfile
 
 pytestmark = pytest.mark.research
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, Any
 
 from autopack.research.analysis.research_state import (
-    GapType,
-    GapPriority,
-    ResearchDepth,
     CompletedQuery,
-    DiscoveredSource,
-    ResearchGap,
     CoverageMetrics,
-    ResearchState,
-    ResearchRequirements,
+    DiscoveredSource,
+    GapPriority,
+    GapType,
     ResearchCheckpoint,
+    ResearchDepth,
+    ResearchGap,
+    ResearchRequirements,
+    ResearchState,
     ResearchStateTracker,
 )
 
@@ -608,7 +606,9 @@ class TestResearchStateTracker:
         tracker.update_coverage("market_research", 0.0)
 
         gaps = tracker.detect_gaps()
-        coverage_gaps = [g for g in gaps if g.gap_type == GapType.COVERAGE and g.category == "market_research"]
+        coverage_gaps = [
+            g for g in gaps if g.gap_type == GapType.COVERAGE and g.category == "market_research"
+        ]
 
         assert len(coverage_gaps) > 0
         assert coverage_gaps[0].priority == GapPriority.CRITICAL

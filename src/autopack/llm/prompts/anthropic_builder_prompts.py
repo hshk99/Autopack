@@ -642,8 +642,7 @@ def build_user_prompt(
             try:
                 scope_cfg = phase_spec.get("scope") or {}
                 try:
-                    from autopack.deliverables_validator import \
-                        extract_deliverables_from_scope
+                    from autopack.deliverables_validator import extract_deliverables_from_scope
 
                     deliverables_list = (
                         extract_deliverables_from_scope(scope_cfg)

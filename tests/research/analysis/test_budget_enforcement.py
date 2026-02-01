@@ -7,12 +7,13 @@ import pytest
 
 pytestmark = pytest.mark.research
 from datetime import datetime
+
 from autopack.research.analysis import (
     BudgetEnforcer,
     BudgetMetrics,
     BudgetStatus,
-    PhaseType,
     PhaseBudget,
+    PhaseType,
 )
 
 

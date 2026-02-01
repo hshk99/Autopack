@@ -1,5 +1,4 @@
 import unittest
-from unittest.mock import MagicMock
 
 from autopack.research.analysis import BudgetEnforcer
 from autopack.research.orchestrator import ResearchOrchestrator

@@ -8,8 +8,7 @@ from typing import Any, Dict, Literal, Optional
 import yaml
 from sqlalchemy.orm import Session
 
-from .model_selection import (HIGH_RISK_CATEGORIES, PhaseHistory,
-                              get_model_selector)
+from .model_selection import HIGH_RISK_CATEGORIES, PhaseHistory, get_model_selector
 from .telemetry.model_performance_tracker import TelemetryDrivenModelOptimizer
 from .usage_service import UsageService
 

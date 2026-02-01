@@ -6,7 +6,6 @@ are checked early at startup to prevent invalid configuration from causing obscu
 runtime errors.
 """
 
-
 import pytest
 
 from autopack.config import Settings, validate_config, validate_startup_config

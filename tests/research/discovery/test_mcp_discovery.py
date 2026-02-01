@@ -6,13 +6,15 @@ import time
 
 import pytest
 
-from autopack.research.discovery.mcp_discovery import (MCPRegistryCache,
-                                                       MCPRegistryScanner,
-                                                       MCPScanResult,
-                                                       MCPToolCapability,
-                                                       MCPToolDescriptor,
-                                                       MCPToolMaintainer,
-                                                       MCPToolMaturity)
+from autopack.research.discovery.mcp_discovery import (
+    MCPRegistryCache,
+    MCPRegistryScanner,
+    MCPScanResult,
+    MCPToolCapability,
+    MCPToolDescriptor,
+    MCPToolMaintainer,
+    MCPToolMaturity,
+)
 
 
 class TestMCPToolCapability:
@@ -686,10 +688,12 @@ class TestMCPScannerWithCache:
         assert len(result1.discovered_tools) == len(result2.discovered_tools)
 
         # Restore registry
-        scanner.registry.append(MCPToolDescriptor(
-            name="restored",
-            description="Restored tool",
-        ))
+        scanner.registry.append(
+            MCPToolDescriptor(
+                name="restored",
+                description="Restored tool",
+            )
+        )
 
     @pytest.mark.asyncio
     async def test_scan_cache_hit_statistics(self):

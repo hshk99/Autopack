@@ -4,7 +4,6 @@ Tests the enhanced CitationValidator that includes semantic accuracy checks
 to detect paraphrasing errors and hallucinations in research findings.
 """
 
-
 from autopack.research.models.validators import CitationValidator, Finding
 
 

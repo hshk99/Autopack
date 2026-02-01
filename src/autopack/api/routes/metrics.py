@@ -16,9 +16,11 @@ from pydantic import BaseModel, Field
 
 from autopack.telemetry.autopilot_metrics import AutopilotHealthCollector
 from autopack.telemetry.loop_metrics import LoopMetricsCollector
-from autopack.telemetry.meta_metrics import (MetaMetricsTracker,
-                                             PipelineLatencyTracker,
-                                             PipelineSLAConfig)
+from autopack.telemetry.meta_metrics import (
+    MetaMetricsTracker,
+    PipelineLatencyTracker,
+    PipelineSLAConfig,
+)
 
 logger = logging.getLogger(__name__)
 

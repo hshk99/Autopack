@@ -10,7 +10,6 @@ This module provides enhanced caching capabilities for research results with:
 from __future__ import annotations
 
 import gzip
-import json
 import logging
 import pickle
 from collections import OrderedDict

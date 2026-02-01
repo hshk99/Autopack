@@ -220,9 +220,7 @@ class TestDeploymentAnalyzer(unittest.TestCase):
 
         self.assertIsInstance(result, DeploymentArchitecture)
         # Static sites should recommend static hosting
-        self.assertEqual(
-            result.primary_recommendation.target, DeploymentTarget.STATIC
-        )
+        self.assertEqual(result.primary_recommendation.target, DeploymentTarget.STATIC)
 
     def test_analyze_with_requirements(self):
         """Test analyzing with project requirements."""
@@ -241,8 +239,7 @@ class TestDeploymentAnalyzer(unittest.TestCase):
         # Large scale should suggest Kubernetes
         k8s_recommended = result.primary_recommendation.target == DeploymentTarget.KUBERNETES
         k8s_alternative = any(
-            alt.target == DeploymentTarget.KUBERNETES
-            for alt in result.alternative_recommendations
+            alt.target == DeploymentTarget.KUBERNETES for alt in result.alternative_recommendations
         )
         self.assertTrue(k8s_recommended or k8s_alternative)
 

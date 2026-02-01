@@ -246,8 +246,7 @@ class ResearchHooks:
 
         try:
             # Import here to avoid circular dependency
-            from autopack.phases.research_phase import (ResearchPhase,
-                                                        ResearchPhaseConfig)
+            from autopack.phases.research_phase import ResearchPhase, ResearchPhaseConfig
 
             # Build research queries from task context
             queries = self._build_queries_from_context(task_context)

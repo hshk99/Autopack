@@ -5,7 +5,6 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-import pytest
 
 from autopack.research.sot_summarizer import (
     ArchitectureDecision,
@@ -214,7 +213,10 @@ class TestSOTSummarizer:
 
             assert summary.total_builds == 0
             assert summary.total_decisions == 0
-            assert "not found" in summary.build_summary.lower() or "no build" in summary.build_summary.lower()
+            assert (
+                "not found" in summary.build_summary.lower()
+                or "no build" in summary.build_summary.lower()
+            )
 
     def test_summarize_with_build_history(self) -> None:
         """Test summarize with BUILD_HISTORY.md present."""
@@ -262,7 +264,9 @@ class TestSOTSummarizer:
 | 2026-01-30 | DEC-002 | Use Redis for caching | ✅ Implemented | Improved performance |
 | 2026-01-28 | DEC-001 | Adopt FastAPI framework | ✅ Implemented | Modern async API |
 """
-            (docs_dir / "ARCHITECTURE_DECISIONS.md").write_text(arch_decisions_content, encoding="utf-8")
+            (docs_dir / "ARCHITECTURE_DECISIONS.md").write_text(
+                arch_decisions_content, encoding="utf-8"
+            )
 
             summarizer = SOTSummarizer(project_root=tmpdir_path)
             summary = summarizer.summarize()
@@ -358,8 +362,12 @@ class TestConvenienceFunctions:
             docs_dir.mkdir()
 
             # Create minimal files
-            (docs_dir / "BUILD_HISTORY.md").write_text("# Build History\n**Summary**: 0 builds", encoding="utf-8")
-            (docs_dir / "ARCHITECTURE_DECISIONS.md").write_text("# Decisions\n**Summary**: 0 decisions", encoding="utf-8")
+            (docs_dir / "BUILD_HISTORY.md").write_text(
+                "# Build History\n**Summary**: 0 builds", encoding="utf-8"
+            )
+            (docs_dir / "ARCHITECTURE_DECISIONS.md").write_text(
+                "# Decisions\n**Summary**: 0 decisions", encoding="utf-8"
+            )
 
             summary = summarize_sot_documents(project_root=tmpdir_path)
 
@@ -507,7 +515,11 @@ class TestProjectBriefGeneratorSOTIntegration:
                     "total_decisions": 3,
                     "summary": "3 decisions documented",
                     "key_decisions": [
-                        {"id": "DEC-FROM-FINDINGS", "title": "Test decision", "status": "Implemented"},
+                        {
+                            "id": "DEC-FROM-FINDINGS",
+                            "title": "Test decision",
+                            "status": "Implemented",
+                        },
                     ],
                 },
             },

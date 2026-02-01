@@ -5,7 +5,7 @@ including budget enforcement, outcome handling, and metrics.
 """
 
 from typing import Any, Dict, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -18,7 +18,6 @@ from autopack.autonomy.research_cycle_integration import (
 )
 from autopack.research.analysis.budget_enforcement import (
     BudgetEnforcer,
-    BudgetStatus,
 )
 from autopack.research.analysis.followup_trigger import (
     FollowupTrigger,
@@ -417,9 +416,7 @@ class TestMetrics:
         integration.register_trigger_callback(lambda t: {"result": "success"})
 
         analysis_results = {
-            "findings": [
-                {"id": "f1", "summary": "Test", "confidence": 0.3, "topic": "test"}
-            ],
+            "findings": [{"id": "f1", "summary": "Test", "confidence": 0.3, "topic": "test"}],
         }
 
         await integration.execute_research_cycle(analysis_results=analysis_results)
@@ -456,6 +453,7 @@ class TestCallbackRegistration:
 
     def test_register_async_trigger_callback(self, integration):
         """Test registering an async trigger callback."""
+
         async def async_callback(trigger):
             return {"async": True}
 
@@ -483,9 +481,7 @@ class TestCallbackRegistration:
 
         # Use analysis results that trigger research
         analysis_results = {
-            "findings": [
-                {"id": "f1", "summary": "Test", "confidence": 0.3, "topic": "test"}
-            ],
+            "findings": [{"id": "f1", "summary": "Test", "confidence": 0.3, "topic": "test"}],
             "identified_gaps": [
                 {"category": "market_research", "description": "Gap", "suggested_queries": ["q1"]}
             ],

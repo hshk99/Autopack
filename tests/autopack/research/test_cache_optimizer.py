@@ -3,9 +3,10 @@
 Tests LRU eviction, compression, and cache metrics functionality.
 """
 
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+
+import pytest
 
 from autopack.research.cache_optimizer import (
     CacheEntry,

@@ -273,8 +273,7 @@ def refresh_or_load_snapshot(
     """
     try:
         # Lazy import to avoid circular dependencies
-        from autopack.model_routing_refresh import \
-            refresh_or_load_snapshot_with_catalog
+        from autopack.model_routing_refresh import refresh_or_load_snapshot_with_catalog
 
         return refresh_or_load_snapshot_with_catalog(
             run_id=run_id,

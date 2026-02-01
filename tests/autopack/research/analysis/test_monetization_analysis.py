@@ -4,12 +4,8 @@ Tests the MonetizationAnalyzer and related classes for generating
 monetization recommendations for different project types.
 """
 
-import pytest
-from datetime import datetime
-from unittest.mock import MagicMock, patch
-
+from autopack.research.analysis.budget_enforcement import BudgetEnforcer
 from autopack.research.analysis.monetization_analysis import (
-    CompetitorPricing,
     MonetizationAnalysisResult,
     MonetizationAnalyzer,
     MonetizationModel,
@@ -20,7 +16,6 @@ from autopack.research.analysis.monetization_analysis import (
     RevenueConfidence,
     RevenueProjection,
 )
-from autopack.research.analysis.budget_enforcement import BudgetEnforcer
 
 
 class TestPricingTier:
@@ -359,11 +354,13 @@ class TestMonetizationAnalyzer:
         """Test project type detection for SaaS keywords."""
         analyzer = MonetizationAnalyzer()
 
-        project_type = analyzer._detect_project_type({
-            "keywords": ["saas", "cloud", "software"],
-            "features": ["user management", "analytics"],
-            "description": "A cloud-based tool for teams",
-        })
+        project_type = analyzer._detect_project_type(
+            {
+                "keywords": ["saas", "cloud", "software"],
+                "features": ["user management", "analytics"],
+                "description": "A cloud-based tool for teams",
+            }
+        )
 
         assert project_type == ProjectType.SAAS
 
@@ -371,10 +368,12 @@ class TestMonetizationAnalyzer:
         """Test project type detection for e-commerce keywords."""
         analyzer = MonetizationAnalyzer()
 
-        project_type = analyzer._detect_project_type({
-            "keywords": ["shop", "store", "products"],
-            "description": "An online store for selling products with shopping cart",
-        })
+        project_type = analyzer._detect_project_type(
+            {
+                "keywords": ["shop", "store", "products"],
+                "description": "An online store for selling products with shopping cart",
+            }
+        )
 
         assert project_type == ProjectType.ECOMMERCE
 
@@ -382,10 +381,12 @@ class TestMonetizationAnalyzer:
         """Test project type detection for API keywords."""
         analyzer = MonetizationAnalyzer()
 
-        project_type = analyzer._detect_project_type({
-            "keywords": ["api", "sdk", "developer"],
-            "description": "REST API for integration with third-party services",
-        })
+        project_type = analyzer._detect_project_type(
+            {
+                "keywords": ["api", "sdk", "developer"],
+                "description": "REST API for integration with third-party services",
+            }
+        )
 
         assert project_type == ProjectType.API_SERVICE
 
@@ -438,11 +439,7 @@ class TestMonetizationAnalyzer:
         analyzer = MonetizationAnalyzer()
         result = analyzer.analyze(
             project_type=ProjectType.SAAS,
-            competitive_data={
-                "competitors": [
-                    {"name": f"Competitor {i}"} for i in range(6)
-                ]
-            },
+            competitive_data={"competitors": [{"name": f"Competitor {i}"} for i in range(6)]},
         )
 
         # With many competitors, should use competitive pricing

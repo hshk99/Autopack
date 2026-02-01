@@ -263,24 +263,34 @@ class InfrastructureCostTracker:
         Returns:
             Dictionary comparing providers by cost.
         """
-        hetzner_cost = sum(e.cost_incurred for e in self.cost_events if e.provider == ProviderType.HETZNER)
-        runpod_cost = sum(e.cost_incurred for e in self.cost_events if e.provider == ProviderType.RUNPOD)
+        hetzner_cost = sum(
+            e.cost_incurred for e in self.cost_events if e.provider == ProviderType.HETZNER
+        )
+        runpod_cost = sum(
+            e.cost_incurred for e in self.cost_events if e.provider == ProviderType.RUNPOD
+        )
 
         return {
             "hetzner": {
                 "total_cost": hetzner_cost,
-                "event_count": sum(1 for e in self.cost_events if e.provider == ProviderType.HETZNER),
+                "event_count": sum(
+                    1 for e in self.cost_events if e.provider == ProviderType.HETZNER
+                ),
                 "average_event_cost": (
-                    hetzner_cost / sum(1 for e in self.cost_events if e.provider == ProviderType.HETZNER)
+                    hetzner_cost
+                    / sum(1 for e in self.cost_events if e.provider == ProviderType.HETZNER)
                     if sum(1 for e in self.cost_events if e.provider == ProviderType.HETZNER) > 0
                     else 0.0
                 ),
             },
             "runpod": {
                 "total_cost": runpod_cost,
-                "event_count": sum(1 for e in self.cost_events if e.provider == ProviderType.RUNPOD),
+                "event_count": sum(
+                    1 for e in self.cost_events if e.provider == ProviderType.RUNPOD
+                ),
                 "average_event_cost": (
-                    runpod_cost / sum(1 for e in self.cost_events if e.provider == ProviderType.RUNPOD)
+                    runpod_cost
+                    / sum(1 for e in self.cost_events if e.provider == ProviderType.RUNPOD)
                     if sum(1 for e in self.cost_events if e.provider == ProviderType.RUNPOD) > 0
                     else 0.0
                 ),

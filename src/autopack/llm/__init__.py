@@ -19,10 +19,17 @@ Usage:
 
 # Import client resolution functions (PR-SVC-1)
 from autopack.llm.client_resolution import (  # noqa: F401
-    resolve_auditor_client, resolve_builder_client, resolve_client_and_model)
+    resolve_auditor_client,
+    resolve_builder_client,
+    resolve_client_and_model,
+)
+
 # Import prompt builders (PR-LLM-2)
 from autopack.llm.prompts.anthropic_builder_prompts import (  # noqa: F401
-    build_minimal_system_prompt, build_system_prompt, build_user_prompt)
+    build_minimal_system_prompt,
+    build_system_prompt,
+    build_user_prompt,
+)
 
 __all__ = [
     "resolve_client_and_model",

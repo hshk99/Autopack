@@ -9,17 +9,32 @@ IMP-LOOP-014: Adds human approval feedback capture and analysis for
 improving task generation through pattern recognition.
 """
 
-from .feedback_analyzer import (ApprovalFeedback, ApprovalFeedbackAnalyzer,
-                                HumanAction, PriorityWeightUpdate,
-                                RejectionPattern)
-from .notification_chain import (EmailChannel, NotificationChain,
-                                 NotificationChainResult, NotificationChannel,
-                                 SMSChannel, TelegramChannel,
-                                 create_notification_chain)
-from .service import (ApprovalRequest, ApprovalResult, ApprovalService,
-                      ApprovalTriggerReason, ChainedApprovalService,
-                      NoopApprovalService, get_approval_service,
-                      should_trigger_approval)
+from .feedback_analyzer import (
+    ApprovalFeedback,
+    ApprovalFeedbackAnalyzer,
+    HumanAction,
+    PriorityWeightUpdate,
+    RejectionPattern,
+)
+from .notification_chain import (
+    EmailChannel,
+    NotificationChain,
+    NotificationChainResult,
+    NotificationChannel,
+    SMSChannel,
+    TelegramChannel,
+    create_notification_chain,
+)
+from .service import (
+    ApprovalRequest,
+    ApprovalResult,
+    ApprovalService,
+    ApprovalTriggerReason,
+    ChainedApprovalService,
+    NoopApprovalService,
+    get_approval_service,
+    should_trigger_approval,
+)
 
 __all__ = [
     # Core approval types

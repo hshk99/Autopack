@@ -451,7 +451,9 @@ class RunPodClient:
                 error=str(e),
             )
 
-    async def get_job_status(self, pod_id: str, job_id: str) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
+    async def get_job_status(
+        self, pod_id: str, job_id: str
+    ) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
         """Get status of a job on a RunPod pod.
 
         Args:

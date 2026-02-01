@@ -72,8 +72,7 @@ class StructuredEditParser:
             StructuredEditParseResult with parsed edit plan or error
         """
         from autopack.builder_config import BuilderOutputConfig
-        from autopack.structured_edits import (EditOperation,
-                                               EditOperationType, EditPlan)
+        from autopack.structured_edits import EditOperation, EditOperationType, EditPlan
 
         if config is None:
             config = BuilderOutputConfig()
@@ -113,8 +112,7 @@ class StructuredEditParser:
                 logger.info(
                     "[Builder] Attempting JSON repair on malformed structured_edit output..."
                 )
-                from autopack.repair_helpers import (JsonRepairHelper,
-                                                     save_repair_debug)
+                from autopack.repair_helpers import JsonRepairHelper, save_repair_debug
 
                 json_repair = JsonRepairHelper()
                 error_msg = initial_parse_error or "Failed to parse JSON with 'operations' array"

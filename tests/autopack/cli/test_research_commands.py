@@ -80,9 +80,7 @@ def test_list_research_command(cli_runner):
 def test_list_research_with_filters(cli_runner):
     """Test listing research with filters."""
     # List with status and limit filters
-    result = cli_runner.invoke(
-        research_cli, ["list", "--limit", "5", "--status", "completed"]
-    )
+    result = cli_runner.invoke(research_cli, ["list", "--limit", "5", "--status", "completed"])
 
     assert result.exit_code == 0
 
@@ -142,5 +140,3 @@ def test_export_to_stdout(cli_runner):
     result = cli_runner.invoke(research_cli, ["export", phase_id])
 
     assert result.exit_code == 0
-
-

@@ -16,8 +16,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from autopack.task_generation.task_effectiveness_tracker import \
-        TaskEffectivenessTracker
+    from autopack.task_generation.task_effectiveness_tracker import TaskEffectivenessTracker
     from autopack.telemetry.cost_tracker import CostTracker
 
 logger = logging.getLogger(__name__)

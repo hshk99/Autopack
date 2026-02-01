@@ -14,8 +14,7 @@ from typing import Dict, List, Optional, Set
 
 # Note: deliverables_validator is a module with standalone functions, not a class
 import autopack.deliverables_validator as deliverables_validator_module
-from autopack.test_baseline_tracker import (TestBaseline, TestBaselineTracker,
-                                            TestDelta)
+from autopack.test_baseline_tracker import TestBaseline, TestBaselineTracker, TestDelta
 
 logger = logging.getLogger(__name__)
 

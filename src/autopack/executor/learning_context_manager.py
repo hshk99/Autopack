@@ -20,9 +20,11 @@ from os.path import commonpath
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
-from autopack.learned_rules import (get_active_rules_for_phase,
-                                    get_relevant_hints_for_phase,
-                                    load_project_rules)
+from autopack.learned_rules import (
+    get_active_rules_for_phase,
+    get_relevant_hints_for_phase,
+    load_project_rules,
+)
 
 if TYPE_CHECKING:
     from autopack.executor.learning_pipeline import LearningPipeline
@@ -180,8 +182,7 @@ class LearningContextManager:
         Returns:
             Formatted deliverables contract string or None if no deliverables
         """
-        from autopack.deliverables_validator import \
-            extract_deliverables_from_scope
+        from autopack.deliverables_validator import extract_deliverables_from_scope
 
         scope = phase.get("scope")
         if not scope:

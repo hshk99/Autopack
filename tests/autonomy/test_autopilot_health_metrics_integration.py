@@ -5,8 +5,7 @@ IMP-SEG-001: Tests that metrics are collected during autopilot sessions.
 """
 
 from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 

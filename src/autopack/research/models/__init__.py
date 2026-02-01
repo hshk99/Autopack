@@ -11,8 +11,7 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 # Import enums
-from autopack.research.models.enums import (EvidenceType, ResearchStage,
-                                            ValidationStatus)
+from autopack.research.models.enums import EvidenceType, ResearchStage, ValidationStatus
 
 # Import ResearchQuery from research_phase module
 try:

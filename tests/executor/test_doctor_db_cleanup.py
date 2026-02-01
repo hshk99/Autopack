@@ -8,8 +8,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from autopack.executor.doctor_integration import (DoctorIntegration,
-                                                  DoctorResponse)
+from autopack.executor.doctor_integration import DoctorIntegration, DoctorResponse
 
 
 class MockSession:

@@ -57,8 +57,12 @@ import logging
 # Note: We still create the app here (not via create_app()) to keep all routes
 # defined in main.py until router extraction is complete (PR-API-3+).
 # This keeps the canonical entrypoint `uvicorn autopack.main:app` working.
-from .api.app import (SecurityHeadersMiddleware, correlation_id_middleware,
-                      global_exception_handler, lifespan)
+from .api.app import (
+    SecurityHeadersMiddleware,
+    correlation_id_middleware,
+    global_exception_handler,
+    lifespan,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -184,5 +188,4 @@ from .api.routes.phases import submit_builder_result  # noqa: F401
 from .config import settings  # noqa: F401
 from .database import get_db  # noqa: F401
 from .file_layout import RunFileLayout  # noqa: F401
-from .notifications.telegram_notifier import \
-    answer_telegram_callback  # noqa: F401
+from .notifications.telegram_notifier import answer_telegram_callback  # noqa: F401

@@ -105,8 +105,11 @@ def save_anchor(
     # Generate run-local SOT-ready artifacts
     if generate_artifacts:
         try:
-            from .artifacts import (log_anchor_event, save_anchor_summary,
-                                    save_anchor_summary_snapshot)
+            from .artifacts import (
+                log_anchor_event,
+                save_anchor_summary,
+                save_anchor_summary_snapshot,
+            )
 
             # Save human-readable summary (current state)
             save_anchor_summary(anchor, base_dir=base_dir)

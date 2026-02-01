@@ -20,16 +20,18 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-from ..intention_anchor.v2 import (BudgetCostIntention,
-                                   EvidenceVerificationIntention,
-                                   GovernanceReviewIntention,
-                                   IntentionAnchorV2,
-                                   MemoryContinuityIntention,
-                                   NorthStarIntention,
-                                   ParallelismIsolationIntention,
-                                   SafetyRiskIntention,
-                                   ScopeBoundariesIntention,
-                                   validate_pivot_completeness)
+from ..intention_anchor.v2 import (
+    BudgetCostIntention,
+    EvidenceVerificationIntention,
+    GovernanceReviewIntention,
+    IntentionAnchorV2,
+    MemoryContinuityIntention,
+    NorthStarIntention,
+    ParallelismIsolationIntention,
+    SafetyRiskIntention,
+    ScopeBoundariesIntention,
+    validate_pivot_completeness,
+)
 from .idea_parser import ProjectType
 
 logger = logging.getLogger(__name__)

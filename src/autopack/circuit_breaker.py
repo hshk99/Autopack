@@ -14,12 +14,10 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 if TYPE_CHECKING:
-    from .circuit_breaker_file_persistence import \
-        FileBasedCircuitBreakerPersistence
+    from .circuit_breaker_file_persistence import FileBasedCircuitBreakerPersistence
     from .circuit_breaker_persistence import CircuitBreakerPersistence
 else:
-    from .circuit_breaker_file_persistence import \
-        FileBasedCircuitBreakerPersistence
+    from .circuit_breaker_file_persistence import FileBasedCircuitBreakerPersistence
 
 logger = logging.getLogger(__name__)
 

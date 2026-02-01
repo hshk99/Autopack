@@ -14,8 +14,13 @@ from typing import Dict, List, Optional, Tuple
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
-from .models import (ModelBenchmark, ModelCatalog, ModelPricing,
-                     ModelRecommendation, ModelRuntimeStats)
+from .models import (
+    ModelBenchmark,
+    ModelCatalog,
+    ModelPricing,
+    ModelRecommendation,
+    ModelRuntimeStats,
+)
 from .sentiment_ingest import compute_sentiment_score
 
 # Scoring weights (per section 4.3 of plan)

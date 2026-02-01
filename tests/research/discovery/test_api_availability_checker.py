@@ -4,9 +4,10 @@ Tests for API Availability Checker.
 Tests the APIAvailabilityChecker class for validating APIs before recommendation.
 """
 
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from httpx import Response
 
 from autopack.research.discovery.api_availability_checker import (

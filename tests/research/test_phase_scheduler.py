@@ -1,15 +1,15 @@
 """Tests for research phase scheduler with dependency-aware execution."""
 
 import asyncio
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
 from autopack.research.phase_scheduler import (
     DependencyGraph,
+    PhasePriority,
     PhaseScheduler,
     PhaseStatus,
-    PhasePriority,
     PhaseTask,
     ResourceManager,
 )

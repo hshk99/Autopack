@@ -13,23 +13,21 @@ Tests cover:
 """
 
 import json
+
 import pytest
 
 pytestmark = pytest.mark.research
-from datetime import datetime
-from pathlib import Path
-from typing import Dict, Any
 
 from autopack.research.analysis.cost_effectiveness import (
-    CostCategory,
-    ScalingModel,
-    DecisionType,
-    VendorLockInLevel,
-    ComponentCostData,
     AITokenCostProjection,
-    CostOptimizationStrategy,
-    ProjectCostProjection,
+    ComponentCostData,
+    CostCategory,
     CostEffectivenessAnalyzer,
+    CostOptimizationStrategy,
+    DecisionType,
+    ProjectCostProjection,
+    ScalingModel,
+    VendorLockInLevel,
 )
 
 
@@ -39,7 +37,14 @@ class TestCostCategory:
     def test_all_cost_categories_exist(self):
         """Test that all expected cost categories are defined."""
         categories = {c.value for c in CostCategory}
-        expected = {"development", "infrastructure", "services", "ai_tokens", "operational", "hidden"}
+        expected = {
+            "development",
+            "infrastructure",
+            "services",
+            "ai_tokens",
+            "operational",
+            "hidden",
+        }
         assert categories == expected
 
     def test_cost_category_values(self):
@@ -792,9 +797,10 @@ class TestCostEffectivenessIntegration:
         )
 
         # Results should be identical
-        assert result1["executive_summary"]["total_year_1_cost"] == result2["executive_summary"][
-            "total_year_1_cost"
-        ]
+        assert (
+            result1["executive_summary"]["total_year_1_cost"]
+            == result2["executive_summary"]["total_year_1_cost"]
+        )
 
     def test_cost_scales_with_users(self):
         """Test that costs scale appropriately with user projections."""
@@ -858,7 +864,9 @@ class TestEdgeCases:
             scaling_model=ScalingModel.LINEAR,
             scaling_factor=1000.0,  # Very high
         )
-        component.calculate_projections(year_1_users=100000, year_3_users=1000000, year_5_users=10000000)
+        component.calculate_projections(
+            year_1_users=100000, year_3_users=1000000, year_5_users=10000000
+        )
 
         # Projections should be large but calculable
         assert component.year_5_total > component.year_1_total
